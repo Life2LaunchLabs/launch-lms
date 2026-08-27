@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import re
 from uuid import uuid4
 
 from fastapi import HTTPException
@@ -54,6 +55,16 @@ def _now() -> datetime:
 
 def _now_string() -> str:
     return _now().isoformat()
+
+
+def _unique_program_slug(db: Session, name: str) -> str:
+    base = re.sub(r"[^a-z0-9]+", "-", name.strip().lower()).strip("-") or "program"
+    slug = base
+    suffix = 2
+    while db.exec(select(Program.id).where(Program.slug == slug)).first() is not None:
+        slug = f"{base}-{suffix}"
+        suffix += 1
+    return slug
 
 
 def _major(version: str | None) -> int:
@@ -186,6 +197,7 @@ def _program_dict(
     result = {
         "id": program.id,
         "program_uuid": program.program_uuid,
+        "slug": program.slug,
         "org_id": program.org_id,
         "name": program.name,
         "description": program.description,
@@ -259,6 +271,7 @@ def create_program(db: Session, current_user: PublicUser, payload: ProgramCreate
     now = _now_string()
     program = Program(
         program_uuid=f"program_{uuid4()}",
+        slug=_unique_program_slug(db, payload.name),
         org_id=payload.org_id,
         name=payload.name.strip(),
         description=payload.description,
@@ -1328,8 +1341,7 @@ def user_program_overview(db: Session, current_user: PublicUser, org_id: int, us
     return {"user": {"id": user.id, "username": user.username}, "programs": items}
 
 
-def my_programs(db: Session, current_user: PublicUser, org_id: int) -> list[dict]:
-    require_org_membership(current_user.id, org_id, db)
+def _my_programs_for_org(db: Session, current_user: PublicUser, org_id: int) -> list[dict]:
     participants = db.exec(select(ProgramParticipant).where(
         ProgramParticipant.org_id == org_id,
         ProgramParticipant.user_id == current_user.id,
@@ -1367,14 +1379,135 @@ def my_programs(db: Session, current_user: PublicUser, org_id: int) -> list[dict
                 "staff_note": item.staff_note if item else "",
                 "feedback_history": item.feedback_history if item else [],
             }})
+        status = participant.status.value if hasattr(participant.status, "value") else participant.status
+        if status == ParticipantStatus.ACTIVE.value and not assignment.active:
+            status = ParticipantStatus.COMPLETED.value
+        assignment_summary = _assignment_summary(db, assignment)
+        enrollment = {
+            "participant_uuid": participant.participant_uuid,
+            "status": status,
+            "viewed_at": participant.viewed_at,
+            "responded_at": participant.responded_at,
+            "created_at": participant.creation_date,
+        }
         result.append({
             "participant_uuid": participant.participant_uuid,
-            "status": participant.status.value if hasattr(participant.status, "value") else participant.status,
+            "status": status,
+            "created_at": participant.creation_date,
             "program": _program_dict(db, program, include_objectives=False) if program else None,
-            "assignment": _assignment_summary(db, assignment),
+            "assignment": assignment_summary,
             "objectives": objectives,
+            "enrollment": enrollment,
+            "run": assignment_summary,
         })
     return result
+
+
+def my_programs(db: Session, current_user: PublicUser, org_id: int) -> list[dict]:
+    require_org_membership(current_user.id, org_id, db)
+    return _my_programs_for_org(db, current_user, org_id)
+
+
+def _learner_program_enrollments(db: Session, current_user: PublicUser) -> list[dict]:
+    participants = db.exec(select(ProgramParticipant).where(
+        ProgramParticipant.user_id == current_user.id,
+    )).all()
+    result = []
+    for org_id in sorted({participant.org_id for participant in participants}):
+        organization = db.get(Organization, org_id)
+        if not organization:
+            continue
+        for item in _my_programs_for_org(db, current_user, org_id):
+            if not item["program"]:
+                continue
+            item["organization"] = {
+                "id": organization.id,
+                "org_uuid": organization.org_uuid,
+                "name": organization.name,
+                "slug": organization.slug,
+                "logo_image": organization.logo_image,
+            }
+            result.append(item)
+    return result
+
+
+def _ordered_enrollments(items: list[dict]) -> list[dict]:
+    status_priority = {
+        ParticipantStatus.ACTIVE.value: 0,
+        ParticipantStatus.INVITED.value: 1,
+        ParticipantStatus.COMPLETED.value: 2,
+        ParticipantStatus.DECLINED.value: 3,
+        ParticipantStatus.LEFT.value: 4,
+    }
+    newest_first = sorted(items, key=lambda item: item["created_at"] or "", reverse=True)
+    return sorted(newest_first, key=lambda item: status_priority.get(item["status"], 99))
+
+
+def my_programs_all(db: Session, current_user: PublicUser) -> list[dict]:
+    by_program: dict[str, list[dict]] = {}
+    for item in _learner_program_enrollments(db, current_user):
+        by_program.setdefault(item["program"]["slug"], []).append(item)
+    result = []
+    for enrollments in by_program.values():
+        ordered = _ordered_enrollments(enrollments)
+        current = ordered[0]
+        current["enrollment_count"] = len(ordered)
+        result.append(current)
+    return sorted(result, key=lambda item: item["created_at"] or "", reverse=True)
+
+
+def _program_detail(enrollments: list[dict], participant_uuid: str | None = None) -> dict:
+    if not enrollments:
+        raise HTTPException(status_code=404, detail="Program enrollment not found")
+    ordered = _ordered_enrollments(enrollments)
+    for item in ordered:
+        item["enrollment_count"] = len(ordered)
+    current = next(
+        (item for item in ordered if item["participant_uuid"] == participant_uuid),
+        ordered[0],
+    )
+    return {
+        "program": ordered[0]["program"],
+        "organization": ordered[0]["organization"],
+        "current_enrollment": current,
+        "enrollments": ordered,
+    }
+
+
+def my_program_detail(db: Session, current_user: PublicUser, program_slug: str) -> dict:
+    program = db.exec(select(Program).where(Program.slug == program_slug)).first()
+    if not program:
+        raise HTTPException(status_code=404, detail="Program enrollment not found")
+    organization = db.get(Organization, program.org_id)
+    if not organization:
+        raise HTTPException(status_code=404, detail="Program enrollment not found")
+    enrollments = [
+        item for item in _my_programs_for_org(db, current_user, program.org_id)
+        if item["program"] and item["program"]["program_uuid"] == program.program_uuid
+    ]
+    organization_summary = {
+        "id": organization.id,
+        "org_uuid": organization.org_uuid,
+        "name": organization.name,
+        "slug": organization.slug,
+        "logo_image": organization.logo_image,
+    }
+    for item in enrollments:
+        item["organization"] = organization_summary
+    return _program_detail(enrollments)
+
+
+def my_enrollment_detail(db: Session, current_user: PublicUser, participant_uuid: str) -> dict:
+    participant = db.exec(select(ProgramParticipant).where(
+        ProgramParticipant.participant_uuid == participant_uuid,
+        ProgramParticipant.user_id == current_user.id,
+    )).first()
+    assignment = db.get(ProgramAssignment, participant.assignment_id) if participant else None
+    program = db.get(Program, assignment.program_id) if assignment else None
+    if not participant or not assignment or not program:
+        raise HTTPException(status_code=404, detail="Program enrollment not found")
+    detail = my_program_detail(db, current_user, program.slug)
+    return _program_detail(detail["enrollments"], participant_uuid)
 
 
 def my_program_summaries(db: Session, current_user: PublicUser) -> list[dict]:
@@ -1417,6 +1550,7 @@ def my_program_summaries(db: Session, current_user: PublicUser) -> list[dict]:
             },
             "program": {
                 "program_uuid": program.program_uuid,
+                "slug": program.slug,
                 "name": program.name,
                 "description": program.description,
                 "thumbnail_image": program.thumbnail_image,
@@ -1477,13 +1611,14 @@ def respond_to_invitation(db: Session, current_user: PublicUser, org_id: int, pa
             initiate_date = initiate_date.replace(tzinfo=timezone.utc)
         if initiate_date.date() > _now().date():
             raise HTTPException(status_code=403, detail="This program invitation has not been sent yet")
-    participant.status = ParticipantStatus.ACTIVE if accept else ParticipantStatus.DECLINED
+    response_status = ParticipantStatus.ACTIVE if accept else ParticipantStatus.DECLINED
+    participant.status = response_status
     participant.viewed_at = participant.viewed_at or _now()
     participant.responded_at = _now()
     participant.update_date = _now_string()
     db.add(participant)
     db.commit()
-    return {"participant_uuid": participant.participant_uuid, "status": participant.status.value}
+    return {"participant_uuid": participant.participant_uuid, "status": response_status.value}
 
 
 def update_my_progress(

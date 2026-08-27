@@ -5,6 +5,8 @@ from src.core.events.database import get_db_session
 from src.db.programs import (
     ObjectiveCreate,
     LearnerObjectiveUpdate,
+    LearnerProgramDetailView,
+    LearnerProgramEnrollmentView,
     ObjectiveProgressUpdate,
     ObjectiveReviewDecision,
     ParticipantResponse,
@@ -140,6 +142,32 @@ def api_my_program_summaries(
     current_user: PublicUser = Depends(get_current_user),
 ):
     return service.my_program_summaries(db_session, current_user)
+
+
+@router.get("/me/all/details", response_model=list[LearnerProgramEnrollmentView])
+def api_all_my_programs(
+    db_session: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_current_user),
+):
+    return service.my_programs_all(db_session, current_user)
+
+
+@router.get("/me/programs/{program_slug}", response_model=LearnerProgramDetailView)
+def api_my_program_detail(
+    program_slug: str,
+    db_session: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_current_user),
+):
+    return service.my_program_detail(db_session, current_user, program_slug)
+
+
+@router.get("/me/enrollments/{participant_uuid}", response_model=LearnerProgramDetailView)
+def api_my_enrollment_detail(
+    participant_uuid: str,
+    db_session: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_current_user),
+):
+    return service.my_enrollment_detail(db_session, current_user, participant_uuid)
 
 
 @router.post("/invitations/me/viewed")

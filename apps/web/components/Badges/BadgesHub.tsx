@@ -10,7 +10,7 @@ import { getUriWithOrg, routePaths } from '@services/config/config'
 
 function tabForPath(pathname: string): BadgesPageTab {
   if (pathname.endsWith('/badges/my-badges')) return 'my-badges'
-  if (pathname.endsWith('/badges/programs')) return 'programs'
+  if (pathname.endsWith('/programs') || pathname.endsWith('/badges/programs')) return 'programs'
   return 'discover'
 }
 

@@ -10,6 +10,7 @@ from src.db.programs import (
     ObjectiveProgress,
     ObjectiveProgressStatus,
     ObjectiveReviewDecision,
+    LearnerProgramDetailView,
     Program,
     ProgramAssignment,
     ProgramAssignmentCreate,
@@ -39,8 +40,12 @@ from src.services.programs import (
     get_program,
     list_objectives,
     mark_my_program_invitations_viewed,
+    my_enrollment_detail,
+    my_program_detail,
+    my_programs_all,
     my_program_summaries,
     reorder_program,
+    respond_to_invitation,
     review_objective_submission,
     update_my_progress,
     update_progress,
@@ -241,6 +246,88 @@ def test_direct_and_group_program_invitations_are_available_in_learner_inbox():
         result = mark_my_program_invitations_viewed(session, learner)
         assert result["updated"] == 2
         assert all(not item["unread"] for item in my_program_summaries(session, learner))
+
+
+def test_all_my_programs_include_programs_from_each_organization():
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    _tables(engine)
+    with Session(engine) as session:
+        admin = _setup(session)
+        learner = PublicUser(id=2, user_uuid="user_2", username="learner", email="learner@example.com", first_name="Lee", last_name="Arner")
+        session.add(Organization(id=2, org_uuid="org_2", name="Academy", slug="academy", email="academy@example.com", creation_date=NOW, update_date=NOW))
+        session.add(UserOrganization(user_id=1, org_id=2, role_id=1, creation_date=NOW, update_date=NOW))
+        session.add(UserOrganization(user_id=2, org_id=2, role_id=4, creation_date=NOW, update_date=NOW))
+        session.commit()
+        first = create_program(session, admin, ProgramCreate(org_id=1, name="Studio Program"))
+        second = create_program(session, admin, ProgramCreate(org_id=2, name="Studio Program"))
+        assign_program(session, admin, 1, first["program_uuid"], ProgramAssignmentCreate(user_id=2, staff_user_ids=[1]))
+        assign_program(session, admin, 2, second["program_uuid"], ProgramAssignmentCreate(user_id=2, staff_user_ids=[1]))
+
+        programs = my_programs_all(session, learner)
+
+        assert len(programs) == 2
+        assert {item["program"]["slug"] for item in programs} == {"studio-program", "studio-program-2"}
+        assert {item["organization"]["slug"] for item in programs} == {"studio", "academy"}
+
+
+def test_program_detail_prioritizes_current_enrollment_and_keeps_run_history():
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    _tables(engine)
+    with Session(engine) as session:
+        admin = _setup(session)
+        learner = PublicUser(id=2, user_uuid="user_2", username="learner", email="learner@example.com", first_name="Lee", last_name="Arner")
+        program = create_program(session, admin, ProgramCreate(org_id=1, name="Creative Futures"))
+        first_run = assign_program(session, admin, 1, program["program_uuid"], ProgramAssignmentCreate(user_id=2, staff_user_ids=[1]))
+        second_run = assign_program(session, admin, 1, program["program_uuid"], ProgramAssignmentCreate(user_id=2, staff_user_ids=[1]))
+        assignments = session.exec(select(ProgramAssignment)).all()
+        assignment_by_uuid = {item.assignment_uuid: item for item in assignments}
+        enrollments = session.exec(select(ProgramParticipant)).all()
+        enrollment_by_assignment = {item.assignment_id: item for item in enrollments}
+        active = enrollment_by_assignment[assignment_by_uuid[first_run["assignment_uuid"]].id]
+        declined = enrollment_by_assignment[assignment_by_uuid[second_run["assignment_uuid"]].id]
+        active.status = "active"
+        declined.status = "declined"
+        session.add_all([active, declined])
+        session.commit()
+
+        detail = my_program_detail(session, learner, program["slug"])
+        programs = my_programs_all(session, learner)
+        validated = LearnerProgramDetailView.model_validate(detail)
+
+        assert validated.program["slug"] == "creative-futures"
+        assert detail["current_enrollment"]["participant_uuid"] == active.participant_uuid
+        assert [item["status"] for item in detail["enrollments"]] == ["active", "declined"]
+        assert detail["current_enrollment"]["run"]["assignment_uuid"] == first_run["assignment_uuid"]
+        assert detail["current_enrollment"]["enrollment"]["status"] == "active"
+        assert len(programs) == 1
+        assert programs[0]["enrollment_count"] == 2
+
+        legacy_detail = my_enrollment_detail(session, learner, declined.participant_uuid)
+        assert legacy_detail["current_enrollment"]["participant_uuid"] == declined.participant_uuid
+
+        assignment_by_uuid[first_run["assignment_uuid"]].active = False
+        session.add(assignment_by_uuid[first_run["assignment_uuid"]])
+        session.commit()
+        completed_detail = my_program_detail(session, learner, program["slug"])
+        assert completed_detail["current_enrollment"]["status"] == "completed"
+
+
+def test_learner_can_accept_program_invitation():
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    _tables(engine)
+    with Session(engine) as session:
+        admin = _setup(session)
+        learner = PublicUser(id=2, user_uuid="user_2", username="learner", email="learner@example.com", first_name="Lee", last_name="Arner")
+        program = create_program(session, admin, ProgramCreate(org_id=1, name="Creative Futures"))
+        assign_program(session, admin, 1, program["program_uuid"], ProgramAssignmentCreate(user_id=2, staff_user_ids=[1]))
+        participant = session.exec(select(ProgramParticipant)).one()
+
+        result = respond_to_invitation(session, learner, 1, participant.participant_uuid, accept=True)
+
+        session.refresh(participant)
+        assert result == {"participant_uuid": participant.participant_uuid, "status": "active"}
+        assert participant.status == "active"
+        assert participant.responded_at is not None
 
 
 def test_group_overview_separates_active_and_completed_programs():

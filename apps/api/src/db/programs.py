@@ -67,6 +67,7 @@ class Program(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     program_uuid: str = Field(default="", index=True)
+    slug: str = Field(default="", sa_column=Column(String, nullable=False, unique=True, index=True))
     org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
     name: str
     description: str = ""
@@ -291,6 +292,26 @@ class LearnerObjectiveUpdate(SQLModel):
     status: ObjectiveProgressStatus = ObjectiveProgressStatus.SUBMITTED
     learner_note: str = ""
     evidence: list[dict] = Field(default_factory=list)
+
+
+class LearnerProgramEnrollmentView(SQLModel):
+    participant_uuid: str
+    status: str
+    created_at: str = ""
+    program: dict
+    organization: dict
+    assignment: dict
+    objectives: list[dict] = Field(default_factory=list)
+    enrollment: dict
+    run: dict
+    enrollment_count: int = 1
+
+
+class LearnerProgramDetailView(SQLModel):
+    program: dict
+    organization: dict
+    current_enrollment: LearnerProgramEnrollmentView
+    enrollments: list[LearnerProgramEnrollmentView]
 
 
 class ObjectiveReviewDecision(SQLModel):

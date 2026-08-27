@@ -14,7 +14,7 @@ export type ProgramInvitation = {
   viewed_at?: string | null
   created_at: string
   organization: { id: number; org_uuid: string; name: string; slug: string; logo_image?: string | null }
-  program: { program_uuid: string; name: string; description?: string | null; thumbnail_image?: string | null }
+  program: { program_uuid: string; slug: string; name: string; description?: string | null; thumbnail_image?: string | null }
   group?: { id: number; name: string } | null
   assignment: { assignment_uuid: string; welcome_message?: string; initiate_date?: string | null; start_date?: string | null; due_date?: string | null; active: boolean }
 }

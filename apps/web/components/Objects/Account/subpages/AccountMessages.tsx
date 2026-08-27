@@ -92,7 +92,7 @@ export default function AccountMessages({ orgslug }: { orgslug: string }) {
                     <h2 className="mt-1 text-lg font-black text-foreground">{invitation.program.name}</h2>
                     <p className="mt-1 text-sm text-muted-foreground">{invitation.organization.name}{invitation.group?.name ? ` · assigned through ${invitation.group.name}` : ' · assigned directly to you'}</p>
                     {invitation.assignment.welcome_message ? <p className="mt-2 text-sm leading-6 text-muted-foreground">{invitation.assignment.welcome_message}</p> : null}
-                    <Link href={getUriWithOrg(orgslug, routePaths.org.organization(invitation.organization.slug))} className="mt-2 inline-block text-sm font-semibold text-foreground underline-offset-4 hover:underline">View organization</Link>
+                    <div className="mt-2 flex gap-4"><Link href={routePaths.org.program(invitation.program.slug)} className="text-sm font-semibold text-foreground underline-offset-4 hover:underline">View program</Link><Link href={getUriWithOrg(orgslug, routePaths.org.organization(invitation.organization.slug))} className="text-sm font-semibold text-muted-foreground underline-offset-4 hover:underline">View organization</Link></div>
                   </div>
                 </div>
                 <div className="grid shrink-0 grid-cols-2 gap-2">
