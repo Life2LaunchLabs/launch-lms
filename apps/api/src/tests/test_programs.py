@@ -39,6 +39,7 @@ from src.services.programs import (
     create_program,
     ensure_group_participants,
     get_program,
+    list_program_assignments,
     list_objectives,
     mark_my_program_invitations_viewed,
     my_enrollment_detail,
@@ -245,6 +246,10 @@ def test_active_rollout_keeps_its_objective_snapshot():
         assert len(detail["assignments"]) == 2
         assert detail["assignments"][0]["user"]["username"] == "learner"
         assert detail["assignments"][1]["cohort"]["name"] == "Fall Studio"
+        active_assignments = list_program_assignments(session, admin, 1)
+        assert {item["assignment_uuid"] for item in active_assignments} == {
+            first["assignment_uuid"], second["assignment_uuid"]
+        }
 
 
 def test_direct_and_group_program_invitations_are_available_in_learner_inbox():

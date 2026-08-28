@@ -305,7 +305,7 @@ function DashLeftMenu() {
             <MenuLink
               href={routePaths.org.dash.programs()}
               icon={<ClipboardText size={20} weight="fill" />}
-              label="Plan templates"
+              label="Plans"
               isCollapsed={isCollapsed}
             />
 

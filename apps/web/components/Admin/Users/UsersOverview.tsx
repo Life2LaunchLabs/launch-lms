@@ -146,7 +146,7 @@ export default function UsersOverview({ hasUserGroups }: { hasUserGroups: boolea
                 onOpenChange={setCreateGroupOpen}
                 minHeight="no-min"
                 dialogTitle="Create group"
-                dialogDescription="Create a group for users who share programs and assignments."
+                dialogDescription="Create a group for users who share plans and assignments."
                 dialogContent={<AddUserGroup setCreateUserGroupModal={setCreateGroupOpen} />}
                 dialogTrigger={<button className="inline-flex items-center gap-1.5 rounded-lg bg-gray-900 px-3 py-1.5 text-[13px] font-medium text-white transition-colors hover:bg-gray-700"><Plus className="h-3.5 w-3.5" />Create group</button>}
               />}

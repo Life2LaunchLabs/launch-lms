@@ -18,7 +18,7 @@ import React from 'react'
 import ProgramAssignmentModal from '@components/Admin/Programs/ProgramAssignmentModal'
 
 const tabs = [
-  { id: 'programs', label: 'Programs', icon: Layers3 },
+  { id: 'programs', label: 'Plans', icon: Layers3 },
   { id: 'users', label: 'Users', icon: Users },
   { id: 'settings', label: 'Settings', icon: Settings },
   { id: 'reports', label: 'Reports', icon: BarChart3 },
@@ -61,7 +61,7 @@ export default function GroupAdminDetail({ orgslug, groupId, subpage = 'programs
           orgId={Number(org.id)}
           canEdit
           entityName="Group"
-          fallbackDescription="Manage programs and users in this group."
+          fallbackDescription="Manage plans and users in this group."
           fallbackIcon={<Users size={32} strokeWidth={1.5} />}
           metadata={<><Users size={14} />{data.learner_count} user{data.learner_count === 1 ? '' : 's'}</>}
           updateItem={updateGroup}
@@ -103,14 +103,14 @@ function GroupPrograms({ orgslug, groupId, programs, completedPrograms, refresh 
         <div className="rounded-xl border-2 border-dashed border-border bg-card py-16 text-center"><Layers3 className="mx-auto h-9 w-9 text-gray-300" /><p className="mt-3 text-sm text-muted-foreground">No plan templates are assigned to this group yet.</p></div>
       )}
       </section>
-      {completedPrograms.length ? <section><div className="mb-4"><h2 className="text-lg font-bold text-foreground">Completed programs</h2><p className="mt-1 text-sm text-muted-foreground">Programs that have concluded for this group.</p></div><ProgramCards orgslug={orgslug} groupId={groupId} programs={completedPrograms} completed /></section> : null}
+      {completedPrograms.length ? <section><div className="mb-4"><h2 className="text-lg font-bold text-foreground">Completed plans</h2><p className="mt-1 text-sm text-muted-foreground">Plans that have concluded for this group.</p></div><ProgramCards orgslug={orgslug} groupId={groupId} programs={completedPrograms} completed /></section> : null}
     </div>
   )
 }
 
 function ProgramCards({ orgslug, groupId, programs, completed = false }: { orgslug: string; groupId: number; programs: any[]; completed?: boolean }) {
   return <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">{programs.map((program) => (
-    <Link key={program.assignment_uuid} href={getUriWithOrg(orgslug, routePaths.org.dash.users.groupProgram(groupId, program.assignment_uuid))} className="group rounded-xl border border-border bg-card p-5 shadow-xs transition hover:border-blue-300">
+    <Link key={program.assignment_uuid} href={getUriWithOrg(orgslug, routePaths.org.dash.planAssignment(program.assignment_uuid))} className="group rounded-xl border border-border bg-card p-5 shadow-xs transition hover:border-blue-300">
       <div className="flex items-start justify-between gap-4"><div><p className="font-black text-foreground group-hover:text-blue-700">{program.program_name}</p><p className="mt-1 text-xs text-muted-foreground">{program.objective_count} requirements · {program.learner_count} learners</p></div>{completed ? <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-1 text-[10px] font-black uppercase text-green-700"><Check size={11} />Completed</span> : <ChevronRight size={18} className="text-muted-foreground" />}</div>
       <div className="mt-5 h-2 overflow-hidden rounded-full bg-muted"><div className={`h-full rounded-full ${completed ? 'bg-green-600' : 'bg-blue-600'}`} style={{ width: `${program.progress_percent}%` }} /></div>
       <div className="mt-3 flex items-center justify-between text-xs font-semibold text-muted-foreground"><span>{program.progress_percent}% complete</span><span className="inline-flex items-center gap-1"><CalendarDays size={13} />{program.due_date ? `${completed ? 'Ended' : 'Due'} ${new Date(program.due_date).toLocaleDateString()}` : 'Self paced'}</span></div>

@@ -354,6 +354,11 @@ def api_planning_cohort(usergroup_id: int, org_id: int, db: Session = Depends(ge
     return template_service.cohort_overview(db, current_user, org_id, usergroup_id)
 
 
+@router.get("/assignment-batches")
+def api_list_assignment_batches(org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
+    return template_service.list_program_assignments(db, current_user, org_id)
+
+
 @router.get("/assignment-batches/{assignment_uuid}/matrix")
 def api_assignment_batch_matrix(assignment_uuid: str, org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
     _require_managed_assignment(org_id, assignment_uuid, db)

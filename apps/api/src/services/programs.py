@@ -310,6 +310,23 @@ def list_programs(db: Session, current_user: PublicUser, org_id: int) -> list[di
     return result
 
 
+def list_program_assignments(db: Session, current_user: PublicUser, org_id: int) -> list[dict]:
+    """Return active managed-plan assignments visible to the current staff member."""
+    require_org_membership(current_user.id, org_id, db)
+    assignments = db.exec(
+        select(ProgramAssignment).where(
+            ProgramAssignment.org_id == org_id,
+            ProgramAssignment.active == True,  # noqa: E712
+        ).order_by(ProgramAssignment.creation_date.desc(), ProgramAssignment.id.desc())
+    ).all()
+    if not is_org_admin(current_user.id, org_id, db) and not current_user.is_superadmin:
+        assignments = [
+            assignment for assignment in assignments
+            if current_user.id in (assignment.staff_user_ids or [])
+        ]
+    return [_assignment_summary(db, assignment) for assignment in assignments]
+
+
 def create_program(db: Session, current_user: PublicUser, payload: ProgramCreate) -> dict:
     require_org_admin(current_user.id, payload.org_id, db)
     now = _now_string()
@@ -1019,6 +1036,7 @@ def _assignment_summary(db: Session, assignment: ProgramAssignment) -> dict:
         "program_version": assignment.program_version,
         "usergroup_id": assignment.usergroup_id,
         "user_id": assignment.user_id,
+        "subject_email": assignment.subject_email,
         "welcome_message": assignment.welcome_message,
         "initiate_date": assignment.initiate_date,
         "staff_user_ids": assignment.staff_user_ids or [],

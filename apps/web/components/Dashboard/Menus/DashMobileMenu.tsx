@@ -71,7 +71,7 @@ function DashMobileMenu() {
     {
       href: routePaths.org.dash.programs(),
       icon: ClipboardList,
-      label: 'Plan templates',
+      label: 'Plans',
     },
     showCommunities
       ? {
