@@ -31,7 +31,7 @@ const programTabs = [
   { key: 'assignments' as const, label: 'Assignments', icon: Users },
   { key: 'settings' as const, label: 'Settings', icon: Settings },
 ]
-const programsKey = (orgId: number) => `${getAPIUrl()}programs/?org_id=${orgId}`
+const programsKey = (orgId: number) => `${getAPIUrl()}planning/templates?org_id=${orgId}`
 
 export default function ProgramsAdminPage({ orgslug, programUuid, activeSubpage = 'objectives' }: { orgslug: string; programUuid?: string; activeSubpage?: ProgramSubpage }) {
   const org = useOrg() as any
@@ -64,7 +64,7 @@ function ProgramList({ orgslug, orgId, token }: { orgslug: string; orgId: number
 }
 
 function ProgramDetail({ orgslug, orgId, token, programUuid, activeSubpage }: { orgslug: string; orgId: number; token?: string; programUuid: string; activeSubpage: ProgramSubpage }) {
-  const key = orgId && token ? `${getAPIUrl()}programs/${programUuid}?org_id=${orgId}` : null
+  const key = orgId && token ? `${getAPIUrl()}planning/templates/${programUuid}?org_id=${orgId}` : null
   const { data: program, isLoading } = useSWR(key, (url) => swrFetcher(url, token))
   if (isLoading || !program) return <div className="flex min-h-full w-full items-center justify-center bg-[#f8f8f8]"><Loader2 className="animate-spin text-muted-foreground" /></div>
   const refresh = () => key ? mutate(key) : Promise.resolve()
@@ -92,15 +92,15 @@ function ProgramHeader({ orgId, token, program, refresh }: any) {
 
   const saveText = async (field: 'name' | 'description') => {
     const value = field === 'name' ? name.trim() : description.trim()
-    if (field === 'name' && !value) return toast.error('Program name is required.')
+    if (field === 'name' && !value) return toast.error('Template name is required.')
     setSaving(field)
     try {
       await programsApi.update(orgId, program.program_uuid, { [field]: value }, token)
       await refresh()
       field === 'name' ? setEditingName(false) : setEditingDescription(false)
-      toast.success(`Program ${field} updated.`)
+      toast.success(`Template ${field} updated.`)
     } catch (error: any) {
-      toast.error(error?.message || `Could not update the program ${field}.`)
+      toast.error(error?.message || `Could not update the template ${field}.`)
     } finally {
       setSaving(null)
     }
@@ -111,9 +111,9 @@ function ProgramHeader({ orgId, token, program, refresh }: any) {
     try {
       await programsApi.update(orgId, program.program_uuid, { thumbnail_image: url }, token)
       await refresh()
-      toast.success('Program cover image updated.')
+      toast.success('Template cover image updated.')
     } catch (error: any) {
-      toast.error(error?.message || 'Could not update the program cover image.')
+      toast.error(error?.message || 'Could not update the template cover image.')
     } finally {
       setSaving(null)
     }
@@ -197,14 +197,14 @@ function LegacyObjectiveRow({ objective, dragHandleProps, dragging }: any) {
   const org = useOrg() as any, session = useLHSession() as any, orgId = Number(org?.id), token = session?.data?.tokens?.access_token
   const [open, setOpen] = React.useState(false)
   const [startRule, setStartRule] = React.useState(objective.default_start_rule || 'any_time'), [dueRule, setDueRule] = React.useState(objective.default_due_rule || 'optional'), [allowLate, setAllowLate] = React.useState(Boolean(objective.default_allow_late)), [saving, setSaving] = React.useState(false)
-  const save = async () => { setSaving(true); try { await programsApi.updateObjectiveSchedule(orgId, objective.program_uuid, objective.objective_uuid, { default_start_rule: startRule, default_due_rule: dueRule, default_allow_late: allowLate }, token); await mutate(`${getAPIUrl()}programs/${objective.program_uuid}?org_id=${orgId}`); setOpen(false); toast.success('Objective schedule defaults saved.') } catch (error: any) { toast.error(error?.message || 'Could not save schedule defaults.') } finally { setSaving(false) } }
+  const save = async () => { setSaving(true); try { await programsApi.updateObjectiveSchedule(orgId, objective.program_uuid, objective.objective_uuid, { default_start_rule: startRule, default_due_rule: dueRule, default_allow_late: allowLate }, token); await mutate(`${getAPIUrl()}planning/templates/${objective.program_uuid}?org_id=${orgId}`); setOpen(false); toast.success('Objective schedule defaults saved.') } catch (error: any) { toast.error(error?.message || 'Could not save schedule defaults.') } finally { setSaving(false) } }
   return <><div className={cn('group flex items-center gap-2 rounded-xl border border-border bg-card p-3 transition', dragging ? 'shadow-xl ring-2 ring-blue-300' : 'shadow-xs hover:border-foreground/30')}><button {...dragHandleProps} className="cursor-grab rounded-md p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-muted group-hover:opacity-100 active:cursor-grabbing" aria-label={`Move ${objective.title}`}><GripVertical size={18} /></button><button onClick={() => setOpen(true)} className="flex min-w-0 flex-1 items-center gap-3 text-left"><div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-lg', objective.kind === 'badge' ? 'bg-lime-100 text-lime-700' : 'bg-blue-50 text-blue-600')}>{objective.kind === 'badge' ? <Award size={18} /> : <FileText size={18} />}</div><div className="min-w-0 flex-1"><h4 className="truncate text-sm font-bold text-foreground">{objective.title}</h4><p className="mt-0.5 truncate text-xs text-muted-foreground">{objectiveSummary(objective)} · {startRule === 'phase_start' ? 'phase start' : startRule === 'specific_date' ? 'scheduled start' : 'any time'} · {dueRule === 'phase_end' ? 'phase end' : dueRule === 'specific_date' ? 'scheduled deadline' : 'no deadline'}</p></div><ChevronRight size={16} className="text-muted-foreground" /></button></div><Modal isDialogOpen={open} onOpenChange={setOpen} minHeight="no-min" minWidth="md" dialogTitle={objective.title} dialogDescription="Details and default assignment schedule" dialogContent={<div className="space-y-4 p-2"><p className="text-sm leading-6 text-muted-foreground">{objective.description || (objective.kind === 'badge' ? 'Learners complete this requirement by earning the badge.' : 'No additional instructions.')}</p>{objective.kind !== 'badge' && <ObjectiveDetails objective={objective} />}<div className="grid gap-4 border-t border-border pt-4 sm:grid-cols-2"><Field label="Can be started"><select value={startRule} onChange={(e) => setStartRule(e.target.value)} className="h-10 w-full rounded-lg border border-border bg-card px-3 text-sm"><option value="any_time">Any time after acceptance</option><option value="phase_start">At phase start</option><option value="specific_date">On a specific date</option></select></Field><Field label="Must be completed"><select value={dueRule} onChange={(e) => setDueRule(e.target.value)} className="h-10 w-full rounded-lg border border-border bg-card px-3 text-sm"><option value="optional">Optional / no deadline</option><option value="phase_end">By phase end</option><option value="specific_date">By a specific date</option></select></Field><div className="sm:col-span-2"><CheckLabel checked={allowLate} onChange={setAllowLate}>Allow late submissions when a deadline is set</CheckLabel><p className="ml-6 mt-1 text-[11px] text-muted-foreground">Specific dates are filled in when this program is assigned.</p></div><button onClick={() => void save()} disabled={saving} className="sm:col-span-2 ml-auto rounded-lg bg-black px-5 py-2 text-xs font-bold text-white disabled:opacity-50">{saving ? 'Saving…' : 'Save defaults'}</button></div></div>} /></>
 }
 
 function ObjectivePickerModal({ orgId, token, program, phase, refresh }: any) {
   const [open, setOpen] = React.useState(false), [tab, setTab] = React.useState<'objective' | 'badge'>('objective'), [selection, setSelection] = React.useState<{ type: 'existing' | 'new' | 'badge'; id?: string } | null>(null), [saving, setSaving] = React.useState(false)
   const [title, setTitle] = React.useState(''), [instructions, setInstructions] = React.useState(''), [allowConfirmation, setAllowConfirmation] = React.useState(false), [fields, setFields] = React.useState<EvidenceField[]>([])
-  const { data: objectives } = useSWR(orgId && token ? `${getAPIUrl()}programs/objectives?org_id=${orgId}` : null, (url) => swrFetcher(url, token))
+  const { data: objectives } = useSWR(orgId && token ? `${getAPIUrl()}planning/template-objectives?org_id=${orgId}` : null, (url) => swrFetcher(url, token))
   const { data: collections } = useSWR(orgId && token ? `${getAPIUrl()}badge-collections/?admin=true&org_id=${orgId}` : null, (url) => swrFetcher(url, token))
   const badges = (collections || []).flatMap((collection: any) => collection.badges || []).filter((badge: any) => badge.status === 'published')
   const used = new Set(program.objectives.filter((objective: any) => objective.kind !== 'badge').map((objective: any) => objective.objective_uuid))
@@ -265,9 +265,29 @@ function AssignmentSection({ title, assignments, orgslug }: any) {
 
 function ProgramSettings({ orgslug, orgId, token, program, refresh }: any) {
   const [instructions, setInstructions] = React.useState(program.instructions || ''), [saving, setSaving] = React.useState(false), [deleteOpen, setDeleteOpen] = React.useState(false), [deleting, setDeleting] = React.useState(false)
-  const save = async () => { setSaving(true); try { await programsApi.update(orgId, program.program_uuid, { instructions }, token); await refresh(); toast.success('Default instructions saved.') } catch (error: any) { toast.error(error?.message || 'Could not save the program.') } finally { setSaving(false) } }
-  const remove = async () => { setDeleting(true); try { await programsApi.delete(orgId, program.program_uuid, token); toast.success('Program deleted.'); window.location.href = getUriWithOrg(orgslug, routePaths.org.dash.programs()) } catch (error: any) { toast.error(error?.message || 'Could not delete the program.'); setDeleting(false) } }
-  return <div className="px-10 pb-10 pt-6"><div className="max-w-3xl space-y-6"><section className="rounded-xl border border-border bg-card p-6 shadow-xs"><h2 className="text-lg font-bold">Default instructions</h2><p className="mt-1 text-sm text-muted-foreground">These instructions are reused when staff assign this program.</p><div className="mt-6 space-y-5"><Field label="Instructions"><textarea value={instructions} onChange={(e) => setInstructions(e.target.value)} rows={6} className="w-full rounded-lg border border-border p-3 text-sm" /></Field><button onClick={() => void save()} disabled={saving} className="inline-flex items-center gap-2 rounded-lg bg-black px-5 py-2 text-xs font-bold text-white disabled:opacity-50">{saving && <Loader2 size={15} className="animate-spin" />}Save instructions</button></div></section><section className="rounded-xl border border-red-200 bg-card p-6 shadow-xs"><h2 className="text-lg font-bold text-red-700">Delete program</h2><p className="mt-1 text-sm text-muted-foreground">Permanently remove this program and its assignments. Shared objective completion records remain available to the organization.</p><Modal isDialogOpen={deleteOpen} onOpenChange={setDeleteOpen} minHeight="no-min" minWidth="sm" dialogTitle="Delete program?" dialogDescription="This cannot be undone." dialogTrigger={<button className="mt-5 inline-flex items-center gap-2 rounded-lg border border-red-300 px-4 py-2 text-xs font-bold text-red-700 hover:bg-red-50"><Trash2 size={14} />Delete program</button>} dialogContent={<div className="space-y-5 p-2"><p className="text-sm leading-6 text-muted-foreground">The program template and all of its assignment rollouts will be deleted. Organization-level objectives and learner completions are not deleted.</p><button onClick={() => void remove()} disabled={deleting} className="ml-auto flex items-center gap-2 rounded-lg bg-red-600 px-5 py-2 text-xs font-bold text-white disabled:opacity-50">{deleting ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}Delete permanently</button></div>} /></section></div></div>
+  const save = async () => { setSaving(true); try { await programsApi.update(orgId, program.program_uuid, { instructions }, token); await refresh(); toast.success('Default instructions saved.') } catch (error: any) { toast.error(error?.message || 'Could not save the plan template.') } finally { setSaving(false) } }
+  const remove = async () => { setDeleting(true); try { await programsApi.delete(orgId, program.program_uuid, token); toast.success('Plan template deleted.'); window.location.href = getUriWithOrg(orgslug, routePaths.org.dash.programs()) } catch (error: any) { toast.error(error?.message || 'Could not delete the plan template.'); setDeleting(false) } }
+  return <div className="px-10 pb-10 pt-6"><div className="max-w-3xl space-y-6"><section className="rounded-xl border border-border bg-card p-6 shadow-xs"><h2 className="text-lg font-bold">Default instructions</h2><p className="mt-1 text-sm text-muted-foreground">These instructions are reused when staff assign this plan template.</p><div className="mt-6 space-y-5"><Field label="Instructions"><textarea value={instructions} onChange={(e) => setInstructions(e.target.value)} rows={6} className="w-full rounded-lg border border-border p-3 text-sm" /></Field><button onClick={() => void save()} disabled={saving} className="inline-flex items-center gap-2 rounded-lg bg-black px-5 py-2 text-xs font-bold text-white disabled:opacity-50">{saving && <Loader2 size={15} className="animate-spin" />}Save instructions</button></div></section><TemplateRoles orgId={orgId} token={token} program={program} refresh={refresh} /><section className="rounded-xl border border-red-200 bg-card p-6 shadow-xs"><h2 className="text-lg font-bold text-red-700">Delete plan template</h2><p className="mt-1 text-sm text-muted-foreground">Permanently remove this template and its assignment batches. Shared objective completion records remain available to the organization.</p><Modal isDialogOpen={deleteOpen} onOpenChange={setDeleteOpen} minHeight="no-min" minWidth="sm" dialogTitle="Delete plan template?" dialogDescription="This cannot be undone." dialogTrigger={<button className="mt-5 inline-flex items-center gap-2 rounded-lg border border-red-300 px-4 py-2 text-xs font-bold text-red-700 hover:bg-red-50"><Trash2 size={14} />Delete template</button>} dialogContent={<div className="space-y-5 p-2"><p className="text-sm leading-6 text-muted-foreground">The plan template and all of its assignment batches will be deleted. Organization-level objectives and learner completions are not deleted.</p><button onClick={() => void remove()} disabled={deleting} className="ml-auto flex items-center gap-2 rounded-lg bg-red-600 px-5 py-2 text-xs font-bold text-white disabled:opacity-50">{deleting ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}Delete permanently</button></div>} /></section></div></div>
+}
+
+function TemplateRoles({ orgId, token, program, refresh }: any) {
+  const [roles, setRoles] = React.useState<any[]>(program.role_definitions || [])
+  const [subjectKey, setSubjectKey] = React.useState(program.default_subject_role_key || 'subject')
+  const [staffKey, setStaffKey] = React.useState(program.default_staff_role_key || 'reviewer')
+  const [saving, setSaving] = React.useState(false)
+  React.useEffect(() => { setRoles(program.role_definitions || []); setSubjectKey(program.default_subject_role_key || 'subject'); setStaffKey(program.default_staff_role_key || 'reviewer') }, [program])
+  const patchRole = (key: string, patch: any) => setRoles((current) => current.map((role) => role.key === key ? { ...role, ...patch } : role))
+  const addRole = () => {
+    let index = roles.length + 1
+    while (roles.some((role) => role.key === `custom_role_${index}`)) index += 1
+    setRoles((current) => [...current, { key: `custom_role_${index}`, name: 'Custom role', capabilities: ['view_plan'], grantable_role_keys: [] }])
+  }
+  const save = async () => {
+    setSaving(true)
+    try { await programsApi.update(orgId, program.program_uuid, { role_definitions: roles, default_subject_role_key: subjectKey, default_staff_role_key: staffKey }, token); await refresh(); toast.success('Template roles saved.') }
+    catch (error: any) { toast.error(error?.message || 'Could not save template roles.') } finally { setSaving(false) }
+  }
+  return <section className="rounded-xl border border-border bg-card p-6 shadow-xs"><div className="flex items-start justify-between gap-4"><div><h2 className="text-lg font-bold">Plan roles</h2><p className="mt-1 text-sm text-muted-foreground">These permission bundles are copied into every new plan.</p></div><button onClick={addRole} className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-2 text-xs font-bold"><Plus size={13} />Role</button></div><div className="mt-5 space-y-3">{roles.map((role) => <div key={role.key} className="rounded-xl border border-border p-4"><div className="flex items-center gap-3"><input value={role.name} onChange={(event) => patchRole(role.key, { name: event.target.value })} className="h-9 min-w-0 flex-1 rounded-lg border border-border px-3 text-sm font-bold" /><span className="text-[10px] font-mono text-muted-foreground">{role.key}</span>{!['subject', 'reviewer', 'plan_admin', 'viewer'].includes(role.key) ? <button onClick={() => setRoles((current) => current.filter((item) => item.key !== role.key))} className="text-red-600"><Trash2 size={14} /></button> : null}</div><label className="mt-3 block text-[10px] font-black uppercase tracking-wide text-muted-foreground">Capabilities<input value={(role.capabilities || []).join(', ')} onChange={(event) => patchRole(role.key, { capabilities: event.target.value.split(',').map((item) => item.trim()).filter(Boolean) })} className="mt-1 h-9 w-full rounded-lg border border-border px-3 text-xs font-normal normal-case tracking-normal" /></label><label className="mt-2 block text-[10px] font-black uppercase tracking-wide text-muted-foreground">May grant roles<input value={(role.grantable_role_keys || []).join(', ')} onChange={(event) => patchRole(role.key, { grantable_role_keys: event.target.value.split(',').map((item) => item.trim()).filter(Boolean) })} className="mt-1 h-9 w-full rounded-lg border border-border px-3 text-xs font-normal normal-case tracking-normal" /></label></div>)}</div><div className="mt-5 grid gap-4 sm:grid-cols-2"><Field label="Default subject role"><select value={subjectKey} onChange={(event) => setSubjectKey(event.target.value)} className="h-10 w-full rounded-lg border border-border bg-card px-3 text-sm">{roles.map((role) => <option key={role.key} value={role.key}>{role.name}</option>)}</select></Field><Field label="Default staff role"><select value={staffKey} onChange={(event) => setStaffKey(event.target.value)} className="h-10 w-full rounded-lg border border-border bg-card px-3 text-sm">{roles.map((role) => <option key={role.key} value={role.key}>{role.name}</option>)}</select></Field></div><button onClick={() => void save()} disabled={saving} className="mt-5 inline-flex items-center gap-2 rounded-lg bg-black px-5 py-2 text-xs font-bold text-white disabled:opacity-50">{saving && <Loader2 size={14} className="animate-spin" />}Save roles</button></section>
 }
 
 function formatDate(value?: string) { if (!value) return '—'; const date = new Date(value); return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString() }

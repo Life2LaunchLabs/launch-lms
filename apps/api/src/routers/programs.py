@@ -21,10 +21,18 @@ from src.db.programs import (
 )
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
+from src.security.features_utils.plan_check import get_org_plan
+from src.security.features_utils.plans import plan_meets_requirement
 from src.services import programs as service
 
 
 router = APIRouter()
+
+
+def _require_managed_plans(org_id: int, db: Session) -> None:
+    if not plan_meets_requirement(get_org_plan(org_id, db), "full"):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="Managed plan templates require a Full plan or higher")
 
 
 @router.get("/")
@@ -33,6 +41,7 @@ def api_list_programs(
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
 ):
+    _require_managed_plans(org_id, db_session)
     return service.list_programs(db_session, current_user, org_id)
 
 
@@ -42,6 +51,7 @@ def api_create_program(
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
 ):
+    _require_managed_plans(payload.org_id, db_session)
     return service.create_program(db_session, current_user, payload)
 
 
@@ -51,6 +61,7 @@ def api_list_objectives(
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
 ):
+    _require_managed_plans(org_id, db_session)
     return service.list_objectives(db_session, current_user, org_id)
 
 
@@ -61,6 +72,7 @@ def api_cohort_overview(
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
 ):
+    _require_managed_plans(org_id, db_session)
     return service.cohort_overview(db_session, current_user, org_id, usergroup_id)
 
 
@@ -71,6 +83,7 @@ def api_assignment_matrix(
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
 ):
+    _require_managed_plans(org_id, db_session)
     return service.assignment_matrix(db_session, current_user, org_id, assignment_uuid)
 
 
@@ -81,6 +94,7 @@ def api_assignment_reviews(
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
 ):
+    _require_managed_plans(org_id, db_session)
     return service.assignment_reviews(db_session, current_user, org_id, assignment_uuid)
 
 
@@ -92,6 +106,7 @@ def api_review_objective(
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
 ):
+    _require_managed_plans(org_id, db_session)
     return service.review_objective_submission(
         db_session, current_user, org_id, assignment_uuid, payload
     )
@@ -104,6 +119,7 @@ def api_update_progress(
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
 ):
+    _require_managed_plans(org_id, db_session)
     return service.update_progress(
         db_session,
         current_user,
@@ -124,6 +140,7 @@ def api_user_programs(
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
 ):
+    _require_managed_plans(org_id, db_session)
     return service.user_program_overview(db_session, current_user, org_id, user_id)
 
 
@@ -209,6 +226,7 @@ def api_get_program(
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
 ):
+    _require_managed_plans(org_id, db_session)
     return service.get_program(db_session, current_user, org_id, program_uuid)
 
 
@@ -220,6 +238,7 @@ def api_update_program(
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
 ):
+    _require_managed_plans(org_id, db_session)
     return service.update_program(db_session, current_user, org_id, program_uuid, payload)
 
 
@@ -230,6 +249,7 @@ def api_delete_program(
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
 ):
+    _require_managed_plans(org_id, db_session)
     return service.delete_program(db_session, current_user, org_id, program_uuid)
 
 
@@ -241,6 +261,7 @@ def api_add_program_objective(
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
 ):
+    _require_managed_plans(org_id, db_session)
     return service.add_program_objective(db_session, current_user, org_id, program_uuid, payload)
 
 
@@ -253,6 +274,7 @@ def api_update_program_objective_schedule(
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
 ):
+    _require_managed_plans(org_id, db_session)
     return service.update_program_objective_schedule(
         db_session, current_user, org_id, program_uuid, objective_uuid, payload
     )
@@ -267,6 +289,7 @@ def api_update_program_objective(
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
 ):
+    _require_managed_plans(org_id, db_session)
     return service.update_program_objective(
         db_session, current_user, org_id, program_uuid, objective_uuid, payload
     )
@@ -280,6 +303,7 @@ def api_create_program_phase(
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
 ):
+    _require_managed_plans(org_id, db_session)
     return service.create_program_phase(db_session, current_user, org_id, program_uuid, payload)
 
 
@@ -292,6 +316,7 @@ def api_update_program_phase(
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
 ):
+    _require_managed_plans(org_id, db_session)
     return service.update_program_phase(db_session, current_user, org_id, program_uuid, phase_uuid, payload)
 
 
@@ -303,6 +328,7 @@ def api_reorder_program(
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
 ):
+    _require_managed_plans(org_id, db_session)
     return service.reorder_program(db_session, current_user, org_id, program_uuid, payload)
 
 
@@ -314,6 +340,7 @@ def api_update_badge_versions(
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
 ):
+    _require_managed_plans(org_id, db_session)
     return service.update_badge_versions(
         db_session,
         current_user,
@@ -331,4 +358,5 @@ def api_assign_program(
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
 ):
+    _require_managed_plans(org_id, db_session)
     return service.assign_program(db_session, current_user, org_id, program_uuid, payload)

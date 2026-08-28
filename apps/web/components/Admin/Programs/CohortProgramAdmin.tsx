@@ -57,7 +57,7 @@ export function GroupOverview({ orgslug, groupId }: { orgslug: string; groupId: 
   const org = useOrg() as any
   const session = useLHSession() as any
   const token = session?.data?.tokens?.access_token
-  const key = org?.id && token ? `${getAPIUrl()}programs/cohorts/${groupId}?org_id=${org.id}` : null
+  const key = org?.id && token ? `${getAPIUrl()}planning/cohorts/${groupId}?org_id=${org.id}` : null
   const { data, isLoading } = useSWR(key, (url) => swrFetcher(url, token))
   if (isLoading || !data) return <PageLoader />
   const totalReview = data.programs.reduce((sum: number, program: any) => sum + program.ready_for_review_count, 0)
@@ -84,7 +84,7 @@ export function GroupProgramMatrix({ orgslug, groupId, assignmentUuid, activeSub
   const token = session?.data?.tokens?.access_token
   const router = useRouter()
   const searchParams = useSearchParams()
-  const key = org?.id && token ? `${getAPIUrl()}programs/assignments/${assignmentUuid}/matrix?org_id=${org.id}` : null
+  const key = org?.id && token ? `${getAPIUrl()}planning/assignment-batches/${assignmentUuid}/matrix?org_id=${org.id}` : null
   const { data, isLoading } = useSWR(key, (url) => swrFetcher(url, token), { revalidateOnFocus: false })
   const [filter, setFilter] = React.useState<FilterMode>('all')
   const [focusUser, setFocusUser] = React.useState<number | null>(() => Number(searchParams.get('focusUser')) || null)
@@ -157,7 +157,7 @@ export function GroupProgramMatrix({ orgslug, groupId, assignmentUuid, activeSub
 }
 
 function AssignmentReviewPanel({ orgId, token, assignmentUuid, matrixKey }: { orgId: number; token?: string; assignmentUuid: string; matrixKey: string | null }) {
-  const reviewKey = orgId && token ? `${getAPIUrl()}programs/assignments/${encodeURIComponent(assignmentUuid)}/reviews?org_id=${orgId}` : null
+  const reviewKey = orgId && token ? `${getAPIUrl()}planning/assignment-batches/${encodeURIComponent(assignmentUuid)}/reviews?org_id=${orgId}` : null
   const { data, isLoading } = useSWR(reviewKey, (url) => swrFetcher(url, token), { revalidateOnFocus: false })
   const reviews = data?.objective_reviews || []
   const activityReviews = data?.activity_reviews || []

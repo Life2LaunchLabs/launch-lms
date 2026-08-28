@@ -20,6 +20,7 @@ from src.db.learning import (
     LearningResponseAttempt,
     LearningRun,
 )
+from src.db.planning import DEFAULT_ROLE_DEFINITIONS
 from src.db.organizations import Organization
 from src.db.programs import (
     Objective,
@@ -208,6 +209,9 @@ def _program_dict(
         "description": program.description,
         "thumbnail_image": program.thumbnail_image,
         "instructions": program.instructions,
+        "role_definitions": program.role_definitions or list(DEFAULT_ROLE_DEFINITIONS),
+        "default_subject_role_key": program.default_subject_role_key,
+        "default_staff_role_key": program.default_staff_role_key,
         "status": program.status.value if hasattr(program.status, "value") else program.status,
         "version": program.version,
         "creation_date": program.creation_date,
@@ -309,6 +313,9 @@ def list_programs(db: Session, current_user: PublicUser, org_id: int) -> list[di
 def create_program(db: Session, current_user: PublicUser, payload: ProgramCreate) -> dict:
     require_org_admin(current_user.id, payload.org_id, db)
     now = _now_string()
+    role_definitions, subject_role, staff_role = _validated_template_roles(
+        payload.role_definitions, payload.default_subject_role_key, payload.default_staff_role_key,
+    )
     program = Program(
         program_uuid=f"program_{uuid4()}",
         slug=_unique_program_slug(db, payload.name),
@@ -316,6 +323,9 @@ def create_program(db: Session, current_user: PublicUser, payload: ProgramCreate
         name=payload.name.strip(),
         description=payload.description,
         instructions=payload.instructions,
+        role_definitions=role_definitions,
+        default_subject_role_key=subject_role,
+        default_staff_role_key=staff_role,
         status=ProgramStatus.ACTIVE,
         created_by_user_id=current_user.id,
         creation_date=now,
@@ -344,6 +354,13 @@ def update_program(db: Session, current_user: PublicUser, org_id: int, program_u
     require_org_admin(current_user.id, org_id, db)
     program = _program_or_404(db, program_uuid, org_id)
     changes = payload.model_dump(exclude_unset=True)
+    if {"role_definitions", "default_subject_role_key", "default_staff_role_key"} & set(changes):
+        roles, subject_role, staff_role = _validated_template_roles(
+            changes.get("role_definitions", program.role_definitions),
+            changes.get("default_subject_role_key", program.default_subject_role_key),
+            changes.get("default_staff_role_key", program.default_staff_role_key),
+        )
+        changes.update(role_definitions=roles, default_subject_role_key=subject_role, default_staff_role_key=staff_role)
     for key, value in changes.items():
         setattr(program, key, value)
     if "name" in changes and not str(program.name).strip():
@@ -354,6 +371,29 @@ def update_program(db: Session, current_user: PublicUser, org_id: int, program_u
     db.commit()
     db.refresh(program)
     return _program_dict(db, program)
+
+
+def _validated_template_roles(role_definitions: list[dict] | None, subject_key: str, staff_key: str) -> tuple[list[dict], str, str]:
+    definitions = role_definitions or [dict(item) for item in DEFAULT_ROLE_DEFINITIONS]
+    keys = [str(item.get("key") or "").strip() for item in definitions]
+    if not keys or any(not key for key in keys) or len(keys) != len(set(keys)):
+        raise HTTPException(status_code=422, detail="Template roles require unique keys")
+    known_capabilities = {capability for item in DEFAULT_ROLE_DEFINITIONS for capability in item["capabilities"]}
+    normalized = []
+    for item, key in zip(definitions, keys):
+        capabilities = list(dict.fromkeys(item.get("capabilities") or []))
+        invalid = set(capabilities) - known_capabilities
+        if invalid:
+            raise HTTPException(status_code=422, detail=f"Unknown role capabilities: {', '.join(sorted(invalid))}")
+        grants = list(dict.fromkeys(item.get("grantable_role_keys") or []))
+        if set(grants) - set(keys):
+            raise HTTPException(status_code=422, detail="A grantable template role does not exist")
+        normalized.append({"key": key, "name": str(item.get("name") or key).strip() or key, "capabilities": capabilities, "grantable_role_keys": grants})
+    if subject_key not in keys or staff_key not in keys or "plan_admin" not in keys:
+        raise HTTPException(status_code=422, detail="Default subject and staff roles must exist")
+    if "review_badge_submissions" not in next(item["capabilities"] for item in normalized if item["key"] == staff_key):
+        raise HTTPException(status_code=422, detail="The default staff role must be able to review badge submissions")
+    return normalized, subject_key, staff_key
 
 
 def delete_program(db: Session, current_user: PublicUser, org_id: int, program_uuid: str) -> dict:
@@ -826,19 +866,24 @@ def assign_program(
 ) -> dict:
     require_org_admin(current_user.id, org_id, db)
     program = _program_or_404(db, program_uuid, org_id)
-    if bool(payload.usergroup_id) == bool(payload.user_id):
-        raise HTTPException(status_code=422, detail="Choose either one group or one user")
+    targets = [bool(payload.usergroup_id), bool(payload.user_id), bool(payload.subject_email and payload.subject_email.strip())]
+    if sum(targets) != 1:
+        raise HTTPException(status_code=422, detail="Choose one group, connected user, or external subject email")
     if payload.usergroup_id:
         group = db.get(UserGroup, payload.usergroup_id)
         if not group or group.org_id != org_id:
             raise HTTPException(status_code=404, detail="Group not found")
-    else:
+    elif payload.user_id:
         membership = db.exec(select(UserOrganization).where(
             UserOrganization.org_id == org_id,
             UserOrganization.user_id == payload.user_id,
         )).first()
         if not membership:
             raise HTTPException(status_code=404, detail="User is not connected to this organization")
+    else:
+        email = str(payload.subject_email or "").strip().lower()
+        if "@" not in email:
+            raise HTTPException(status_code=422, detail="A valid subject email is required")
     phases = _program_phases(db, program)
     schedule = _validated_schedule(program, phases, payload)
     staff_ids = list(dict.fromkeys(payload.staff_user_ids))
@@ -854,6 +899,13 @@ def assign_program(
         eligible_ids = {membership.user_id for membership, role in memberships if _role_can_manage_programs(role)}
         if eligible_ids != set(staff_ids):
             raise HTTPException(status_code=422, detail="Every assigned staff member must have program management permissions")
+    owner_user_id = payload.owner_user_id or current_user.id
+    owner_membership = db.exec(select(UserOrganization).where(
+        UserOrganization.org_id == org_id,
+        UserOrganization.user_id == owner_user_id,
+    )).first()
+    if not owner_membership:
+        raise HTTPException(status_code=422, detail="The plan owner must belong to this organization")
     now = _now_string()
     assignment = ProgramAssignment(
         assignment_uuid=f"assignment_{uuid4()}",
@@ -861,6 +913,7 @@ def assign_program(
         program_id=program.id,
         usergroup_id=payload.usergroup_id,
         user_id=payload.user_id,
+        subject_email=str(payload.subject_email or "").strip().lower() or None,
         program_version=program.version,
         objective_snapshot=_snapshot(db, program),
         welcome_message=payload.welcome_message,
@@ -870,6 +923,7 @@ def assign_program(
         start_date=payload.start_date,
         due_date=payload.due_date,
         created_by_user_id=current_user.id,
+        owner_user_id=owner_user_id,
         creation_date=now,
         update_date=now,
     )
@@ -877,7 +931,7 @@ def assign_program(
     db.flush()
     if payload.usergroup_id:
         ensure_group_participants(db, payload.usergroup_id)
-    else:
+    elif payload.user_id:
         db.add(ProgramParticipant(
             participant_uuid=f"participant_{uuid4()}",
             assignment_id=assignment.id,
@@ -887,9 +941,20 @@ def assign_program(
             creation_date=now,
             update_date=now,
         ))
+    elif payload.subject_email:
+        target = db.exec(select(User).where(User.email == payload.subject_email.strip().lower())).first()
+        if target:
+            db.add(ProgramParticipant(
+                participant_uuid=f"participant_{uuid4()}", assignment_id=assignment.id,
+                org_id=org_id, user_id=int(target.id), status=ParticipantStatus.INVITED,
+                creation_date=now, update_date=now,
+            ))
     db.flush()
     from src.services.planning import materialize_assignment_plans
     materialize_assignment_plans(db, int(assignment.id))
+    if payload.subject_email and not db.exec(select(ProgramParticipant.id).where(ProgramParticipant.assignment_id == assignment.id)).first():
+        from src.services.planning import materialize_external_assignment_plan
+        materialize_external_assignment_plan(db, int(assignment.id), payload.subject_email)
     db.commit()
     return _assignment_summary(db, assignment)
 

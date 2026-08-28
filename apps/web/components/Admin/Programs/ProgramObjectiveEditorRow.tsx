@@ -45,7 +45,7 @@ export default function ProgramObjectiveEditorRow({ objective, orgId, token, pro
         default_start_rule: startRule, default_due_rule: dueRule,
         default_allow_late: dueRule === 'optional' ? false : allowLate,
       }, token)
-      await mutate(`${getAPIUrl()}programs/${program.program_uuid}?org_id=${orgId}`)
+      await mutate(`${getAPIUrl()}planning/templates/${program.program_uuid}?org_id=${orgId}`)
       setOpen(false)
       toast.success('Objective updated.')
     } catch (error: any) { toast.error(error?.message || 'Could not update the objective.') } finally { setSaving(false) }

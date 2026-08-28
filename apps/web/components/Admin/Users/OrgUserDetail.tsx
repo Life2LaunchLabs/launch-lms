@@ -75,7 +75,7 @@ export default function OrgUserDetail({ username, orgslug, activeSubpage = 'over
 }
 
 function UserProgramsPanel({ userId, orgId, orgslug, accessToken }: { userId: number; orgId: number; orgslug: string; accessToken?: string }) {
-  const userProgramsKey = orgId && accessToken ? `${getAPIUrl()}programs/users/${userId}?org_id=${orgId}` : null
+  const userProgramsKey = orgId && accessToken ? `${getAPIUrl()}planning/managed-users/${userId}?org_id=${orgId}` : null
   const { data, mutate: refreshUserPrograms } = useSWR(
     userProgramsKey,
     (url: string) => swrFetcher(url, accessToken),

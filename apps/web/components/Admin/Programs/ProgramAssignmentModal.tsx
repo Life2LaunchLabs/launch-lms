@@ -3,7 +3,7 @@
 import React from 'react'
 import useSWR, { mutate } from 'swr'
 import toast from 'react-hot-toast'
-import { Check, Layers3, Loader2, Search, Send, User, Users } from 'lucide-react'
+import { Check, Layers3, Loader2, Mail, Plus, Search, Send, User, Users } from 'lucide-react'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
@@ -47,16 +47,19 @@ export default function ProgramAssignmentModal({ trigger, initialProgramUuids = 
   const [objectiveRules, setObjectiveRules] = React.useState<ObjectiveRule[]>([])
   const [scheduleProgramUuid, setScheduleProgramUuid] = React.useState('')
   const [staffIds, setStaffIds] = React.useState<number[]>([])
+  const [ownerId, setOwnerId] = React.useState('')
+  const [externalEmails, setExternalEmails] = React.useState<string[]>([])
+  const [externalEmail, setExternalEmail] = React.useState('')
   const [initiateDate, setInitiateDate] = React.useState(today())
   const [welcome, setWelcome] = React.useState('')
   const [programSearch, setProgramSearch] = React.useState('')
   const [recipientSearch, setRecipientSearch] = React.useState('')
-  const [recipientType, setRecipientType] = React.useState<'people' | 'groups'>('people')
+  const [recipientType, setRecipientType] = React.useState<'people' | 'groups' | 'external'>('people')
   const [saving, setSaving] = React.useState(false)
 
   const enabled = open && orgId && token
-  const { data: programs, isLoading: programsLoading } = useSWR(enabled ? `${getAPIUrl()}programs/?org_id=${orgId}` : null, (url) => swrFetcher(url, token), { revalidateOnFocus: false })
-  const { data: selectedProgram, isLoading: selectedProgramLoading } = useSWR(enabled && programUuid ? `${getAPIUrl()}programs/${encodeURIComponent(programUuid)}?org_id=${orgId}` : null, (url) => swrFetcher(url, token), { revalidateOnFocus: false })
+  const { data: programs, isLoading: programsLoading } = useSWR(enabled ? `${getAPIUrl()}planning/templates?org_id=${orgId}` : null, (url) => swrFetcher(url, token), { revalidateOnFocus: false })
+  const { data: selectedProgram, isLoading: selectedProgramLoading } = useSWR(enabled && programUuid ? `${getAPIUrl()}planning/templates/${encodeURIComponent(programUuid)}?org_id=${orgId}` : null, (url) => swrFetcher(url, token), { revalidateOnFocus: false })
   const { data: people, isLoading: peopleLoading } = useSWR(enabled ? `${getAPIUrl()}orgs/${orgId}/users?page=1&limit=100` : null, (url) => swrFetcher(url, token), { revalidateOnFocus: false })
   const { data: groups, isLoading: groupsLoading } = useSWR(enabled ? `${getAPIUrl()}usergroups/org/${orgId}?org_id=${orgId}` : null, (url) => swrFetcher(url, token), { revalidateOnFocus: false })
   const memberships = people?.items || []
@@ -64,7 +67,7 @@ export default function ProgramAssignmentModal({ trigger, initialProgramUuids = 
 
   React.useEffect(() => {
     if (!open || staffIds.length || !currentUserId || !staff.some((membership: any) => Number((membership.user || membership).id) === currentUserId)) return
-    setStaffIds([currentUserId])
+    setStaffIds([currentUserId]); setOwnerId(String(currentUserId))
   }, [open, currentUserId, staff, staffIds.length])
 
   React.useEffect(() => {
@@ -100,6 +103,9 @@ export default function ProgramAssignmentModal({ trigger, initialProgramUuids = 
     setObjectiveRules([])
     setScheduleProgramUuid('')
     setStaffIds([])
+    setOwnerId('')
+    setExternalEmails([])
+    setExternalEmail('')
     setInitiateDate(today())
     setWelcome('')
     setProgramSearch('')
@@ -115,7 +121,12 @@ export default function ProgramAssignmentModal({ trigger, initialProgramUuids = 
     setObjectiveRules([])
   }
   const toggleTarget = (target: AssignmentTarget) => setTargets((current) => current.some((item) => targetKey(item) === targetKey(target)) ? current.filter((item) => targetKey(item) !== targetKey(target)) : [...current, target])
-  const toggleStaff = (id: number) => setStaffIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id])
+  const toggleStaff = (id: number) => setStaffIds((current) => {
+    const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
+    if (!ownerId && next.length) setOwnerId(String(next[0]))
+    if (ownerId && !next.includes(Number(ownerId))) setOwnerId(next.length ? String(next[0]) : '')
+    return next
+  })
   const updatePhase = (uuid: string, patch: Partial<PhaseDate>) => setPhaseDates((current) => current.map((item) => item.phase_uuid === uuid ? { ...item, ...patch } : item))
   const updateObjective = (uuid: string, patch: Partial<ObjectiveRule>) => setObjectiveRules((current) => current.map((item) => item.objective_uuid === uuid ? { ...item, ...patch } : item))
 
@@ -131,27 +142,30 @@ export default function ProgramAssignmentModal({ trigger, initialProgramUuids = 
   }
 
   const submit = async () => {
-    if (!programUuid || !targets.length || !staffIds.length || !initiateDate || !scheduleIsValid() || saving) return
+    if (!programUuid || (!targets.length && !externalEmails.length) || !staffIds.length || !ownerId || !initiateDate || !scheduleIsValid() || saving) return
     setSaving(true)
     const starts = phaseDates.map((phase) => phase.start_date).sort()
     const ends = phaseDates.map((phase) => phase.end_date).sort()
     const payloadBase = {
       staff_user_ids: staffIds,
+      owner_user_id: Number(ownerId),
       initiate_date: initiateDate === today() ? new Date().toISOString() : new Date(`${initiateDate}T09:00:00`).toISOString(),
       start_date: starts.length ? new Date(`${starts[0]}T00:00:00`).toISOString() : null,
       due_date: ends.length ? new Date(`${ends[ends.length - 1]}T23:59:59`).toISOString() : null,
       schedule: { phases: phaseDates, objectives: objectiveRules },
       welcome_message: welcome,
     }
-    const results = await Promise.allSettled(targets.map((target) => programsApi.assign(orgId, programUuid, {
+    const targetRequests = targets.map((target) => programsApi.assign(orgId, programUuid, {
       ...payloadBase,
       ...(target.type === 'group' ? { usergroup_id: target.id } : { user_id: target.id }),
-    }, token)))
+    }, token))
+    const externalRequests = externalEmails.map((email) => programsApi.assign(orgId, programUuid, { ...payloadBase, subject_email: email }, token))
+    const results = await Promise.allSettled([...targetRequests, ...externalRequests])
     const failed = results.filter((result) => result.status === 'rejected')
     const succeeded = results.length - failed.length
     try {
       if (succeeded) {
-        await mutate((key) => typeof key === 'string' && key.includes(`${getAPIUrl()}programs`))
+        await mutate((key) => typeof key === 'string' && (key.includes(`${getAPIUrl()}planning`) || key.includes(`${getAPIUrl()}programs`)))
         await onAssigned?.()
       }
       if (!failed.length) {
@@ -170,17 +184,23 @@ export default function ProgramAssignmentModal({ trigger, initialProgramUuids = 
   const recipientQuery = recipientSearch.trim().toLowerCase()
   const visiblePeople = memberships.filter((membership: any) => personName(membership.user || membership).toLowerCase().includes(recipientQuery))
   const visibleGroups = (groups || []).filter((group: any) => `${group.name} ${group.description || ''}`.toLowerCase().includes(recipientQuery))
-  const assignmentCount = targets.length
+  const assignmentCount = targets.length + externalEmails.length
+  const addExternalEmail = () => {
+    const email = externalEmail.trim().toLowerCase()
+    if (!email.includes('@')) return toast.error('Enter a valid email address.')
+    if (externalEmails.includes(email)) return toast.error('That email is already included.')
+    setExternalEmails((current) => [...current, email]); setExternalEmail('')
+  }
 
-  return <Modal isDialogOpen={open} onOpenChange={changeOpen} minHeight="no-min" minWidth="no-min" customHeight="h-[min(820px,92dvh)]" customWidth="md:w-[min(1100px,95vw)]" dialogTitle="Assign a program" dialogDescription={step === 0 ? 'Choose one program and one or more people or groups.' : step === 1 ? `Configure the schedule${selectedProgram?.name ? ` for ${selectedProgram.name}` : ''}.` : 'Choose responsible staff and prepare the invitation.'} dialogTrigger={trigger} dialogContent={<div className="flex h-full min-h-0 flex-col">
-    <div className="mb-4 flex shrink-0 items-center gap-2 text-xs font-black"><StepNumber active={step === 0} complete={step > 0}>1</StepNumber><span className={step === 0 ? 'text-foreground' : 'text-muted-foreground'}>Program & recipients</span><StepDivider /><StepNumber active={step === 1} complete={step > 1}>2</StepNumber><span className={step === 1 ? 'text-foreground' : 'text-muted-foreground'}>Schedule</span><StepDivider /><StepNumber active={step === 2}>3</StepNumber><span className={step === 2 ? 'text-foreground' : 'text-muted-foreground'}>Staff & invitation</span></div>
+  return <Modal isDialogOpen={open} onOpenChange={changeOpen} minHeight="no-min" minWidth="no-min" customHeight="h-[min(820px,92dvh)]" customWidth="md:w-[min(1100px,95vw)]" dialogTitle="Assign a plan template" dialogDescription={step === 0 ? 'Choose one template and one or more people, groups, or external recipients.' : step === 1 ? `Configure the schedule${selectedProgram?.name ? ` for ${selectedProgram.name}` : ''}.` : 'Choose responsible staff and prepare the invitation.'} dialogTrigger={trigger} dialogContent={<div className="flex h-full min-h-0 flex-col">
+    <div className="mb-4 flex shrink-0 items-center gap-2 text-xs font-black"><StepNumber active={step === 0} complete={step > 0}>1</StepNumber><span className={step === 0 ? 'text-foreground' : 'text-muted-foreground'}>Template & recipients</span><StepDivider /><StepNumber active={step === 1} complete={step > 1}>2</StepNumber><span className={step === 1 ? 'text-foreground' : 'text-muted-foreground'}>Schedule</span><StepDivider /><StepNumber active={step === 2}>3</StepNumber><span className={step === 2 ? 'text-foreground' : 'text-muted-foreground'}>Staff & invitation</span></div>
     {step === 0 && <div className="grid min-h-0 flex-1 gap-4 md:grid-cols-2">
-      <PickerSection title="Program" count={programUuid ? 1 : 0} search={programSearch} setSearch={setProgramSearch} placeholder="Search programs">{programsLoading ? <Loading /> : visiblePrograms.length ? visiblePrograms.map((program: any) => <PickerRow key={program.program_uuid} selected={programUuid === program.program_uuid} onClick={() => selectProgram(program.program_uuid)} icon={<Layers3 size={16} />} title={program.name} description={program.description || 'Program'} />) : <Empty>No programs found.</Empty>}</PickerSection>
-      <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-border"><div className="shrink-0 border-b border-border p-3"><div className="flex items-center justify-between"><h3 className="text-sm font-black">Recipients</h3><Count value={targets.length} /></div><div className="mt-3 grid grid-cols-2 rounded-lg bg-muted p-1"><button onClick={() => setRecipientType('people')} className={cn('rounded-md px-3 py-1.5 text-xs font-bold', recipientType === 'people' && 'bg-card shadow-xs')}>People</button><button onClick={() => setRecipientType('groups')} className={cn('rounded-md px-3 py-1.5 text-xs font-bold', recipientType === 'groups' && 'bg-card shadow-xs')}>Groups</button></div><SearchInput value={recipientSearch} onChange={setRecipientSearch} placeholder={`Search ${recipientType}`} /></div><div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">{recipientType === 'people' ? peopleLoading ? <Loading /> : visiblePeople.length ? visiblePeople.map((membership: any) => { const person = membership.user || membership; return <PickerRow key={person.id} selected={targets.some((item) => item.type === 'user' && item.id === Number(person.id))} onClick={() => toggleTarget({ type: 'user', id: Number(person.id) })} icon={<User size={16} />} title={personName(person)} description={membership.role?.name || person.email || 'Organization member'} /> }) : <Empty>No people found.</Empty> : groupsLoading ? <Loading /> : visibleGroups.length ? visibleGroups.map((group: any) => <PickerRow key={group.id} selected={targets.some((item) => item.type === 'group' && item.id === Number(group.id))} onClick={() => toggleTarget({ type: 'group', id: Number(group.id) })} icon={<Users size={16} />} title={group.name} description={group.description || 'Group'} />) : <Empty>No groups found.</Empty>}</div></div>
+      <PickerSection title="Plan template" count={programUuid ? 1 : 0} search={programSearch} setSearch={setProgramSearch} placeholder="Search templates">{programsLoading ? <Loading /> : visiblePrograms.length ? visiblePrograms.map((program: any) => <PickerRow key={program.program_uuid} selected={programUuid === program.program_uuid} onClick={() => selectProgram(program.program_uuid)} icon={<Layers3 size={16} />} title={program.name} description={program.description || 'Plan template'} />) : <Empty>No plan templates found.</Empty>}</PickerSection>
+      <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-border"><div className="shrink-0 border-b border-border p-3"><div className="flex items-center justify-between"><h3 className="text-sm font-black">Recipients</h3><Count value={assignmentCount} /></div><div className="mt-3 grid grid-cols-3 rounded-lg bg-muted p-1"><button onClick={() => setRecipientType('people')} className={cn('rounded-md px-2 py-1.5 text-xs font-bold', recipientType === 'people' && 'bg-card shadow-xs')}>People</button><button onClick={() => setRecipientType('groups')} className={cn('rounded-md px-2 py-1.5 text-xs font-bold', recipientType === 'groups' && 'bg-card shadow-xs')}>Groups</button><button onClick={() => setRecipientType('external')} className={cn('rounded-md px-2 py-1.5 text-xs font-bold', recipientType === 'external' && 'bg-card shadow-xs')}>External</button></div>{recipientType !== 'external' ? <SearchInput value={recipientSearch} onChange={setRecipientSearch} placeholder={`Search ${recipientType}`} /> : null}</div><div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">{recipientType === 'external' ? <div className="space-y-3"><div className="flex gap-2"><input type="email" value={externalEmail} onChange={(event) => setExternalEmail(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addExternalEmail() } }} placeholder="person@example.com" className="h-10 min-w-0 flex-1 rounded-lg border border-border px-3 text-sm" /><button onClick={addExternalEmail} className="rounded-lg bg-foreground px-3 text-background"><Plus size={14} /></button></div><p className="text-xs leading-5 text-muted-foreground">External recipients do not join the organization or consume a member seat.</p>{externalEmails.map((email) => <div key={email} className="flex items-center gap-2 rounded-lg border border-border p-3"><Mail size={15} className="text-blue-600" /><span className="min-w-0 flex-1 truncate text-xs font-bold">{email}</span><button onClick={() => setExternalEmails((current) => current.filter((item) => item !== email))} className="text-xs font-black text-red-600">Remove</button></div>)}</div> : recipientType === 'people' ? peopleLoading ? <Loading /> : visiblePeople.length ? visiblePeople.map((membership: any) => { const person = membership.user || membership; return <PickerRow key={person.id} selected={targets.some((item) => item.type === 'user' && item.id === Number(person.id))} onClick={() => toggleTarget({ type: 'user', id: Number(person.id) })} icon={<User size={16} />} title={personName(person)} description={membership.role?.name || person.email || 'Organization member'} /> }) : <Empty>No people found.</Empty> : groupsLoading ? <Loading /> : visibleGroups.length ? visibleGroups.map((group: any) => <PickerRow key={group.id} selected={targets.some((item) => item.type === 'group' && item.id === Number(group.id))} onClick={() => toggleTarget({ type: 'group', id: Number(group.id) })} icon={<Users size={16} />} title={group.name} description={group.description || 'Group'} />) : <Empty>No groups found.</Empty>}</div></div>
     </div>}
     {step === 1 && <div className="min-h-0 flex-1 overflow-y-auto pr-1">{selectedProgramLoading || !selectedProgram || scheduleProgramUuid !== programUuid ? <Loading /> : <ScheduleStep program={selectedProgram} phaseDates={phaseDates} updatePhase={updatePhase} objectiveRules={objectiveRules} updateObjective={updateObjective} />}</div>}
-    {step === 2 && <div className="min-h-0 flex-1 overflow-y-auto pr-1"><div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]"><section><div className="mb-3"><h3 className="text-sm font-black">Responsible staff</h3><p className="mt-1 text-xs text-muted-foreground">Staff can review work and manage learner progress. You’re selected automatically when eligible.</p></div><div className="grid gap-2 sm:grid-cols-2">{staff.map((membership: any) => { const person = membership.user || membership; return <PickerRow key={person.id} selected={staffIds.includes(Number(person.id))} onClick={() => toggleStaff(Number(person.id))} icon={<User size={16} />} title={personName(person)} description={membership.role?.name || 'Staff'} /> })}{!staff.length && <Empty>No staff with program management permission are available.</Empty>}</div></section><aside className="space-y-4 rounded-xl border border-border bg-muted/20 p-4"><div><p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Summary</p><p className="mt-1 text-lg font-black">{assignmentCount} {assignmentCount === 1 ? 'assignment' : 'assignments'}</p><p className="text-xs text-muted-foreground">{selectedProgram?.name} · {targets.length} {targets.length === 1 ? 'recipient' : 'recipients'}</p></div><label className="block text-xs font-bold"><span className="mb-1.5 block">Invitation date</span><input type="date" value={initiateDate} onChange={(event) => setInitiateDate(event.target.value)} className="h-10 w-full rounded-lg border border-border bg-card px-3" /></label><label className="block text-xs font-bold"><span className="mb-1.5 block">Welcome message <span className="font-normal text-muted-foreground">(optional)</span></span><textarea value={welcome} onChange={(event) => setWelcome(event.target.value)} rows={6} className="w-full resize-none rounded-lg border border-border bg-card p-3 text-sm" placeholder="Add context for learners" /></label></aside></div></div>}
-    <div className="mt-4 flex shrink-0 items-center justify-between border-t border-border pt-4"><button onClick={() => step === 0 ? changeOpen(false) : setStep((current) => current - 1)} disabled={saving} className="rounded-lg border border-border px-4 py-2 text-xs font-black">{step === 0 ? 'Cancel' : 'Back'}</button>{step === 0 ? <button onClick={() => setStep(1)} disabled={!programUuid || !targets.length} className="rounded-lg bg-black px-5 py-2.5 text-xs font-black text-white disabled:opacity-40">Configure schedule</button> : step === 1 ? <button onClick={continueFromSchedule} disabled={selectedProgramLoading || scheduleProgramUuid !== programUuid} className="rounded-lg bg-black px-5 py-2.5 text-xs font-black text-white disabled:opacity-40">Continue</button> : <button onClick={() => void submit()} disabled={!staffIds.length || !initiateDate || saving} className="inline-flex items-center gap-2 rounded-lg bg-black px-5 py-2.5 text-xs font-black text-white disabled:opacity-40">{saving ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}Create {assignmentCount === 1 ? 'assignment' : `${assignmentCount} assignments`}</button>}</div>
+    {step === 2 && <div className="min-h-0 flex-1 overflow-y-auto pr-1"><div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]"><section><div className="mb-3"><h3 className="text-sm font-black">Responsible staff</h3><p className="mt-1 text-xs text-muted-foreground">Staff can review work and manage learner progress. You’re selected automatically when eligible.</p></div><div className="grid gap-2 sm:grid-cols-2">{staff.map((membership: any) => { const person = membership.user || membership; return <PickerRow key={person.id} selected={staffIds.includes(Number(person.id))} onClick={() => toggleStaff(Number(person.id))} icon={<User size={16} />} title={personName(person)} description={membership.role?.name || 'Staff'} /> })}{!staff.length && <Empty>No staff with plan management permission are available.</Empty>}</div></section><aside className="space-y-4 rounded-xl border border-border bg-muted/20 p-4"><div><p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Summary</p><p className="mt-1 text-lg font-black">{assignmentCount} {assignmentCount === 1 ? 'assignment' : 'assignments'}</p><p className="text-xs text-muted-foreground">{selectedProgram?.name} · {assignmentCount} {assignmentCount === 1 ? 'recipient' : 'recipients'}</p></div><label className="block text-xs font-bold"><span className="mb-1.5 block">Accountable owner</span><select value={ownerId} onChange={(event) => setOwnerId(event.target.value)} className="h-10 w-full rounded-lg border border-border bg-card px-3"><option value="">Choose owner</option>{staff.filter((membership: any) => staffIds.includes(Number((membership.user || membership).id))).map((membership: any) => { const person = membership.user || membership; return <option key={person.id} value={person.id}>{personName(person)}</option> })}</select></label><label className="block text-xs font-bold"><span className="mb-1.5 block">Invitation date</span><input type="date" value={initiateDate} onChange={(event) => setInitiateDate(event.target.value)} className="h-10 w-full rounded-lg border border-border bg-card px-3" /></label><label className="block text-xs font-bold"><span className="mb-1.5 block">Welcome message <span className="font-normal text-muted-foreground">(optional)</span></span><textarea value={welcome} onChange={(event) => setWelcome(event.target.value)} rows={6} className="w-full resize-none rounded-lg border border-border bg-card p-3 text-sm" placeholder="Add context for learners" /></label></aside></div></div>}
+    <div className="mt-4 flex shrink-0 items-center justify-between border-t border-border pt-4"><button onClick={() => step === 0 ? changeOpen(false) : setStep((current) => current - 1)} disabled={saving} className="rounded-lg border border-border px-4 py-2 text-xs font-black">{step === 0 ? 'Cancel' : 'Back'}</button>{step === 0 ? <button onClick={() => setStep(1)} disabled={!programUuid || !assignmentCount} className="rounded-lg bg-black px-5 py-2.5 text-xs font-black text-white disabled:opacity-40">Configure schedule</button> : step === 1 ? <button onClick={continueFromSchedule} disabled={selectedProgramLoading || scheduleProgramUuid !== programUuid} className="rounded-lg bg-black px-5 py-2.5 text-xs font-black text-white disabled:opacity-40">Continue</button> : <button onClick={() => void submit()} disabled={!staffIds.length || !ownerId || !initiateDate || saving} className="inline-flex items-center gap-2 rounded-lg bg-black px-5 py-2.5 text-xs font-black text-white disabled:opacity-40">{saving ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}Create {assignmentCount === 1 ? 'assignment' : `${assignmentCount} assignments`}</button>}</div>
   </div>} />
 }
 

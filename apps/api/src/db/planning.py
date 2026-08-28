@@ -35,6 +35,12 @@ class PlanInvitationStatus(str, Enum):
     REVOKED = "revoked"
 
 
+class PlanCollaboratorRequestStatus(str, Enum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    DECLINED = "declined"
+
+
 DEFAULT_ROLE_DEFINITIONS = (
     {
         "key": "subject",
@@ -191,6 +197,24 @@ class PlanInvitation(SQLModel, table=True):
     update_date: str = ""
 
 
+class PlanCollaboratorRequest(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("request_uuid"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    request_uuid: str = Field(index=True)
+    plan_id: int = Field(sa_column=Column(Integer, ForeignKey("plan.id", ondelete="CASCADE"), index=True))
+    requested_by_user_id: int = Field(sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), index=True))
+    email: str
+    email_normalized: str = Field(index=True)
+    role_key: str
+    message: str = ""
+    status: PlanCollaboratorRequestStatus = Field(default=PlanCollaboratorRequestStatus.PENDING, sa_column=Column(String, nullable=False, index=True))
+    resolved_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
+    responded_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
+    creation_date: str = ""
+    update_date: str = ""
+
+
 class PlanAttachment(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("plan_id", "asset_id"),)
 
@@ -236,6 +260,14 @@ class PlanPhaseCreate(SQLModel):
     due_date: date | None = None
 
 
+class PlanPhaseUpdate(SQLModel):
+    name: str | None = None
+    description: str | None = None
+    position: int | None = None
+    start_date: date | None = None
+    due_date: date | None = None
+
+
 class PlanObjectiveCreate(SQLModel):
     phase_uuid: str | None = None
     title: str
@@ -247,6 +279,18 @@ class PlanObjectiveCreate(SQLModel):
     start_date: date | None = None
     due_date: date | None = None
     allow_late: bool = False
+
+
+class PlanObjectiveUpdate(SQLModel):
+    phase_uuid: str | None = None
+    title: str | None = None
+    description: str | None = None
+    priority: int | None = None
+    fields: list[dict] | None = None
+    start_date: date | None = None
+    due_date: date | None = None
+    allow_late: bool | None = None
+    blocked: bool | None = None
 
 
 class PlanObjectiveProgressUpdate(SQLModel):
@@ -272,9 +316,33 @@ class PlanRoleCreate(SQLModel):
     grantable_role_keys: list[str] = Field(default_factory=list)
 
 
+class PlanRoleUpdate(SQLModel):
+    name: str | None = None
+    capabilities: list[str] | None = None
+    grantable_role_keys: list[str] | None = None
+
+
 class PlanCollaboratorUpdate(SQLModel):
     role_key: str
 
 
 class PlanOwnershipTransfer(SQLModel):
     user_id: int
+
+
+class PlanCommentCreate(SQLModel):
+    body: str
+
+
+class PlanAttachmentCreate(SQLModel):
+    asset_uuid: str
+
+
+class PlanCollaboratorRequestCreate(SQLModel):
+    email: str
+    role_key: str = "viewer"
+    message: str = ""
+
+
+class PlanCollaboratorRequestResponse(SQLModel):
+    approve: bool

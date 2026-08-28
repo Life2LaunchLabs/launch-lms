@@ -31,7 +31,7 @@ export default function GroupAdminDetail({ orgslug, groupId, subpage = 'programs
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
   const activeSubpage: GroupSubpage = tabs.some((tab) => tab.id === subpage) ? subpage as GroupSubpage : 'programs'
-  const key = org?.id && accessToken ? `${getAPIUrl()}programs/cohorts/${groupId}?org_id=${org.id}` : null
+  const key = org?.id && accessToken ? `${getAPIUrl()}planning/cohorts/${groupId}?org_id=${org.id}` : null
   const { data, isLoading, mutate } = useSWR(key, (url) => swrFetcher(url, accessToken), { revalidateOnFocus: false })
 
   if (isLoading || !data) {
@@ -96,11 +96,11 @@ function GroupPrograms({ orgslug, groupId, programs, completedPrograms, refresh 
     <div className="space-y-10 px-10 pb-10">
       <section>
       <div className="mb-4 flex items-center justify-between">
-        <div><h2 className="text-lg font-bold text-foreground">Active programs</h2><p className="mt-1 text-sm text-muted-foreground">Programs currently assigned to this group.</p></div>
-        <ProgramAssignmentModal initialGroupIds={[groupId]} onAssigned={refresh} trigger={<button className="inline-flex items-center gap-2 rounded-lg bg-black px-4 py-2.5 text-xs font-bold text-white nice-shadow"><Plus size={15} />Assign programs</button>} />
+        <div><h2 className="text-lg font-bold text-foreground">Active plans</h2><p className="mt-1 text-sm text-muted-foreground">Plan templates currently assigned to this group.</p></div>
+        <ProgramAssignmentModal initialGroupIds={[groupId]} onAssigned={refresh} trigger={<button className="inline-flex items-center gap-2 rounded-lg bg-black px-4 py-2.5 text-xs font-bold text-white nice-shadow"><Plus size={15} />Assign plan templates</button>} />
       </div>
       {programs.length ? <ProgramCards orgslug={orgslug} groupId={groupId} programs={programs} /> : (
-        <div className="rounded-xl border-2 border-dashed border-border bg-card py-16 text-center"><Layers3 className="mx-auto h-9 w-9 text-gray-300" /><p className="mt-3 text-sm text-muted-foreground">No programs are assigned to this group yet.</p></div>
+        <div className="rounded-xl border-2 border-dashed border-border bg-card py-16 text-center"><Layers3 className="mx-auto h-9 w-9 text-gray-300" /><p className="mt-3 text-sm text-muted-foreground">No plan templates are assigned to this group yet.</p></div>
       )}
       </section>
       {completedPrograms.length ? <section><div className="mb-4"><h2 className="text-lg font-bold text-foreground">Completed programs</h2><p className="mt-1 text-sm text-muted-foreground">Programs that have concluded for this group.</p></div><ProgramCards orgslug={orgslug} groupId={groupId} programs={completedPrograms} completed /></section> : null}

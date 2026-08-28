@@ -73,6 +73,9 @@ class Program(SQLModel, table=True):
     description: str = ""
     thumbnail_image: str = ""
     instructions: str = ""
+    role_definitions: list[dict] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
+    default_subject_role_key: str = "subject"
+    default_staff_role_key: str = "reviewer"
     status: ProgramStatus = Field(default=ProgramStatus.ACTIVE, sa_column=Column(String, nullable=False, index=True))
     version: int = 1
     created_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
@@ -127,6 +130,7 @@ class ProgramAssignment(SQLModel, table=True):
     program_id: int = Field(sa_column=Column(Integer, ForeignKey("program.id", ondelete="CASCADE"), index=True))
     usergroup_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("usergroup.id", ondelete="CASCADE"), nullable=True, index=True))
     user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=True, index=True))
+    subject_email: str | None = Field(default=None, nullable=True, index=True)
     program_version: int = 1
     objective_snapshot: list[dict] = Field(default_factory=list, sa_column=Column(JSON))
     welcome_message: str = ""
@@ -137,6 +141,7 @@ class ProgramAssignment(SQLModel, table=True):
     due_date: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
     active: bool = True
     created_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
+    owner_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True, index=True))
     creation_date: str = ""
     update_date: str = ""
 
@@ -186,6 +191,9 @@ class ProgramCreate(SQLModel):
     name: str
     description: str = ""
     instructions: str = ""
+    role_definitions: list[dict] = Field(default_factory=list)
+    default_subject_role_key: str = "subject"
+    default_staff_role_key: str = "reviewer"
 
 
 class ProgramUpdate(SQLModel):
@@ -194,6 +202,9 @@ class ProgramUpdate(SQLModel):
     thumbnail_image: str | None = None
     instructions: str | None = None
     status: ProgramStatus | None = None
+    role_definitions: list[dict] | None = None
+    default_subject_role_key: str | None = None
+    default_staff_role_key: str | None = None
 
 
 class ObjectiveCreate(SQLModel):
@@ -267,12 +278,14 @@ class ProgramReorder(SQLModel):
 class ProgramAssignmentCreate(SQLModel):
     usergroup_id: int | None = None
     user_id: int | None = None
+    subject_email: str | None = None
     welcome_message: str = ""
     initiate_date: datetime | None = None
     staff_user_ids: list[int] = Field(default_factory=list)
     schedule: dict = Field(default_factory=dict)
     start_date: datetime | None = None
     due_date: datetime | None = None
+    owner_user_id: int | None = None
 
 
 class ObjectiveProgressUpdate(SQLModel):
