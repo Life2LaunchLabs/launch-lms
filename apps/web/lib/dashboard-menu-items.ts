@@ -38,7 +38,6 @@ export const DASHBOARD_MENU_ITEMS: DashboardMenuItem[] = [
     href: '/admin/plans',
     icon: BookOpen,
     labelKey: 'common.plans.label',
-    featureKey: 'managed_plans',
   },
   {
     id: 'resources',

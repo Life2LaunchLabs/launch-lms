@@ -2,7 +2,7 @@ import html
 from urllib.parse import quote
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from src.core.events.database import get_db_session
 from src.db.planning import (
@@ -25,7 +25,7 @@ from src.db.planning import (
     PlanStatus,
     PlanUpdate,
 )
-from src.db.programs import ProgramAssignmentCreate, ProgramCreate, ProgramUpdate
+from src.db.programs import ProgramAssignment, ProgramAssignmentCreate, ProgramCreate, ProgramUpdate
 from src.db.programs import (
     ObjectiveCreate,
     ObjectiveProgressUpdate,
@@ -51,7 +51,19 @@ router = APIRouter()
 def _require_managed_plans(org_id: int, db: Session) -> None:
     if not plan_meets_requirement(get_org_plan(org_id, db), "full"):
         from fastapi import HTTPException
-        raise HTTPException(status_code=403, detail="Managed plan templates require a Full plan or higher")
+        raise HTTPException(status_code=403, detail="Group plan assignments require a Full plan or higher")
+
+
+def _require_managed_assignment(org_id: int, assignment_uuid: str, db: Session) -> None:
+    if plan_meets_requirement(get_org_plan(org_id, db), "full"):
+        return
+    assignment = db.exec(select(ProgramAssignment).where(
+        ProgramAssignment.org_id == org_id,
+        ProgramAssignment.assignment_uuid == assignment_uuid,
+    )).first()
+    if assignment and assignment.usergroup_id:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="Group plan assignments require a Full plan or higher")
 
 
 @router.get("/feed")
@@ -266,85 +278,73 @@ def api_respond(invitation_uuid: str, payload: PlanInvitationResponse, db: Sessi
 # Existing Program rows are retained as the storage backing for organization plan templates.
 @router.get("/templates")
 def api_list_templates(org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    _require_managed_plans(org_id, db)
     return template_service.list_programs(db, current_user, org_id)
 
 
 @router.post("/templates")
 def api_create_template(payload: ProgramCreate, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    _require_managed_plans(payload.org_id, db)
     return template_service.create_program(db, current_user, payload)
 
 
 @router.get("/templates/{template_uuid}")
 def api_get_template(template_uuid: str, org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    _require_managed_plans(org_id, db)
     return template_service.get_program(db, current_user, org_id, template_uuid)
 
 
 @router.patch("/templates/{template_uuid}")
 def api_update_template(template_uuid: str, org_id: int, payload: ProgramUpdate, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    _require_managed_plans(org_id, db)
     return template_service.update_program(db, current_user, org_id, template_uuid, payload)
 
 
 @router.post("/templates/{template_uuid}/assignment-batches")
 def api_assign_template(template_uuid: str, org_id: int, payload: ProgramAssignmentCreate, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    _require_managed_plans(org_id, db)
+    if payload.usergroup_id:
+        _require_managed_plans(org_id, db)
     return template_service.assign_program(db, current_user, org_id, template_uuid, payload)
 
 
 @router.delete("/templates/{template_uuid}")
 def api_delete_template(template_uuid: str, org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    _require_managed_plans(org_id, db)
     return template_service.delete_program(db, current_user, org_id, template_uuid)
 
 
 @router.get("/template-objectives")
 def api_list_template_objectives(org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    _require_managed_plans(org_id, db)
     return template_service.list_objectives(db, current_user, org_id)
 
 
 @router.post("/templates/{template_uuid}/objectives")
 def api_add_template_objective(template_uuid: str, org_id: int, payload: ObjectiveCreate, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    _require_managed_plans(org_id, db)
     return template_service.add_program_objective(db, current_user, org_id, template_uuid, payload)
 
 
 @router.put("/templates/{template_uuid}/objectives/{objective_uuid}/schedule")
 def api_update_template_objective_schedule(template_uuid: str, objective_uuid: str, org_id: int, payload: ProgramObjectiveScheduleUpdate, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    _require_managed_plans(org_id, db)
     return template_service.update_program_objective_schedule(db, current_user, org_id, template_uuid, objective_uuid, payload)
 
 
 @router.put("/templates/{template_uuid}/objectives/{objective_uuid}")
 def api_update_template_objective(template_uuid: str, objective_uuid: str, org_id: int, payload: ProgramObjectiveUpdate, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    _require_managed_plans(org_id, db)
     return template_service.update_program_objective(db, current_user, org_id, template_uuid, objective_uuid, payload)
 
 
 @router.post("/templates/{template_uuid}/phases")
 def api_create_template_phase(template_uuid: str, org_id: int, payload: ProgramPhaseCreate, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    _require_managed_plans(org_id, db)
     return template_service.create_program_phase(db, current_user, org_id, template_uuid, payload)
 
 
 @router.put("/templates/{template_uuid}/phases/{phase_uuid}")
 def api_update_template_phase(template_uuid: str, phase_uuid: str, org_id: int, payload: ProgramPhaseUpdate, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    _require_managed_plans(org_id, db)
     return template_service.update_program_phase(db, current_user, org_id, template_uuid, phase_uuid, payload)
 
 
 @router.put("/templates/{template_uuid}/order")
 def api_reorder_template(template_uuid: str, org_id: int, payload: ProgramReorder, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    _require_managed_plans(org_id, db)
     return template_service.reorder_program(db, current_user, org_id, template_uuid, payload)
 
 
 @router.post("/templates/{template_uuid}/update-badge-versions")
 def api_update_template_badge_versions(template_uuid: str, org_id: int, accept_previous_major_versions: bool = False, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    _require_managed_plans(org_id, db)
     return template_service.update_badge_versions(db, current_user, org_id, template_uuid, accept_previous_major_versions)
 
 
@@ -356,29 +356,27 @@ def api_planning_cohort(usergroup_id: int, org_id: int, db: Session = Depends(ge
 
 @router.get("/assignment-batches/{assignment_uuid}/matrix")
 def api_assignment_batch_matrix(assignment_uuid: str, org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    _require_managed_plans(org_id, db)
+    _require_managed_assignment(org_id, assignment_uuid, db)
     return template_service.assignment_matrix(db, current_user, org_id, assignment_uuid)
 
 
 @router.get("/assignment-batches/{assignment_uuid}/reviews")
 def api_assignment_batch_reviews(assignment_uuid: str, org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    _require_managed_plans(org_id, db)
+    _require_managed_assignment(org_id, assignment_uuid, db)
     return template_service.assignment_reviews(db, current_user, org_id, assignment_uuid)
 
 
 @router.post("/assignment-batches/{assignment_uuid}/reviews/objective")
 def api_review_assignment_objective(assignment_uuid: str, org_id: int, payload: ObjectiveReviewDecision, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    _require_managed_plans(org_id, db)
+    _require_managed_assignment(org_id, assignment_uuid, db)
     return template_service.review_objective_submission(db, current_user, org_id, assignment_uuid, payload)
 
 
 @router.post("/assignment-batches/progress")
 def api_update_assignment_progress(org_id: int, payload: ObjectiveProgressUpdate, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    _require_managed_plans(org_id, db)
     return template_service.update_progress(db, current_user, org_id, payload.objective_uuid, payload.user_ids, payload.status, payload.staff_note, payload.evidence, payload.completion_date)
 
 
 @router.get("/managed-users/{user_id}")
 def api_managed_user_plans(user_id: int, org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    _require_managed_plans(org_id, db)
     return template_service.user_program_overview(db, current_user, org_id, user_id)

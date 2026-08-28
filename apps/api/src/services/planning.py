@@ -1276,10 +1276,12 @@ def respond_to_invitation(db: Session, current_user: PublicUser, invitation_uuid
 
 
 def feed(db: Session, current_user: PublicUser, scope: str = "all", plan_uuid: str | None = None, explore_all: bool = False) -> dict:
-    plans = db.exec(
+    accessible_plans = db.exec(
         select(Plan).join(PlanCollaborator, PlanCollaborator.plan_id == Plan.id)
         .where(PlanCollaborator.user_id == current_user.id, PlanCollaborator.active == True, Plan.status == PlanStatus.ACTIVE)  # noqa: E712
     ).all()
+    has_helping = any(plan.subject_user_id != current_user.id for plan in accessible_plans)
+    plans = accessible_plans
     if plan_uuid:
         plans = [plan for plan in plans if plan.plan_uuid == plan_uuid]
     if scope == "mine":
@@ -1287,10 +1289,20 @@ def feed(db: Session, current_user: PublicUser, scope: str = "all", plan_uuid: s
     elif scope == "helping":
         plans = [plan for plan in plans if plan.subject_user_id != current_user.id]
     today = date.today()
-    coming_cutoff = today + timedelta(days=14)
+    coming_cutoff = today + timedelta(days=7)
     coming, explore, future = [], [], []
     for plan in plans:
         capabilities = capabilities_for(db, plan, current_user.id)
+        collaborator_rows = db.exec(
+            select(PlanCollaborator, PlanRole)
+            .join(PlanRole, PlanRole.id == PlanCollaborator.role_id)
+            .where(PlanCollaborator.plan_id == plan.id, PlanCollaborator.active == True)  # noqa: E712
+        ).all()
+        completers = [
+            _user_summary(db, collaborator.user_id)
+            for collaborator, role in collaborator_rows
+            if {"update_progress", "review_objectives"} & set(role.capabilities or [])
+        ]
         objectives = db.exec(select(PlanObjective).where(PlanObjective.plan_id == plan.id)).all()
         for objective in objectives:
             item = _objective_dict(db, plan, objective, capabilities)
@@ -1303,7 +1315,7 @@ def feed(db: Session, current_user: PublicUser, scope: str = "all", plan_uuid: s
             card = {
                 **item, "plan": {"plan_uuid": plan.plan_uuid, "slug": plan.slug, "name": plan.name},
                 "subject": _user_summary(db, plan.subject_user_id), "is_mine": plan.subject_user_id == current_user.id,
-                "action_type": "review" if actionable_review else "objective",
+                "action_type": "review" if actionable_review else "objective", "completers": completers,
             }
             if actionable_review or status == PlanObjectiveStatus.CHANGES_REQUESTED.value or (objective.due_date and objective.due_date <= coming_cutoff):
                 coming.append(card)
@@ -1316,10 +1328,7 @@ def feed(db: Session, current_user: PublicUser, scope: str = "all", plan_uuid: s
     future.sort(key=lambda item: item["due_date"])
     groups = _adaptive_future_groups(future, today)
     return {
-        "scope": scope, "has_helping": any(plan.subject_user_id != current_user.id for plan in plans) or bool(db.exec(
-            select(Plan.id).join(PlanCollaborator, PlanCollaborator.plan_id == Plan.id)
-            .where(PlanCollaborator.user_id == current_user.id, Plan.subject_user_id != current_user.id)
-        ).first()),
+        "scope": scope, "has_helping": has_helping,
         "coming_up": coming, "explore": explore if explore_all else explore[:5], "explore_total": len(explore), "future_groups": groups,
     }
 

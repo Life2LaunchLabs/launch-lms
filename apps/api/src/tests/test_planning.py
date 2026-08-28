@@ -32,13 +32,17 @@ from src.db.planning import (
     PlanPhaseUpdate,
     PlanRole,
     PlanRoleCreate,
+    PlanStatus,
 )
 # Register compatibility backing tables referenced by Plan foreign keys.
-from src.db.programs import Objective, ObjectiveProgress, ObjectiveProgressStatus, ParticipantStatus, Program, ProgramAssignment, ProgramParticipant
+from src.db.programs import Objective, ObjectiveProgress, ObjectiveProgressStatus, ParticipantStatus, Program, ProgramAssignment, ProgramAssignmentCreate, ProgramCreate, ProgramParticipant
 from src.db.users import PublicUser, User
 from src.services import planning, programs
+from src.routers import planning as planning_router, programs as programs_router
 from src.routers.planning import _require_managed_plans as require_planning_managed
+from src.routers.planning import _require_managed_assignment as require_planning_assignment
 from src.routers.programs import _require_managed_plans as require_legacy_managed
+from src.routers.programs import _require_managed_assignment as require_legacy_assignment
 
 
 NOW = "2026-08-27T12:00:00+00:00"
@@ -91,6 +95,25 @@ def test_recipient_bound_invitation_grants_plan_access_without_org_membership():
         helper_plan = planning.get_plan(db, _user(2), created["slug"])
         assert "review_objectives" in helper_plan["capabilities"]
         assert helper_plan["subject"]["id"] == 1
+
+
+def test_feed_only_offers_helping_scope_for_active_helping_plans():
+    with _session() as db:
+        own = planning.create_plan(db, _user(2), PlanCreate(name="My own plan"))
+        assert planning.feed(db, _user(2))["has_helping"] is False
+
+        helped = planning.create_plan(db, _user(1), PlanCreate(name="Plan needing help"))
+        invitation = planning.create_invitation(db, _user(1), helped["slug"], PlanInvitationCreate(
+            email="helper@example.com", role_key="reviewer", kind=PlanInvitationKind.COLLABORATOR,
+        ))
+        planning.respond_to_invitation(db, _user(2), invitation["invitation_uuid"], True)
+        assert planning.feed(db, _user(2))["has_helping"] is True
+
+        planning.change_plan_status(db, _user(1), helped["slug"], PlanStatus.COMPLETED)
+        result = planning.feed(db, _user(2))
+        assert result["has_helping"] is False
+        assert result["scope"] == "all"
+        assert planning.get_plan(db, _user(2), own["slug"])["is_mine"] is True
 
 
 def test_feed_urgency_explore_and_reviewer_field_permissions():
@@ -275,7 +298,7 @@ def test_subject_can_request_but_not_directly_invite_a_collaborator():
         assert resolved["invitation"]["email"] == "reviewer@example.com"
 
 
-def test_managed_template_entitlement_applies_to_planning_and_legacy_adapters():
+def test_group_plan_entitlement_applies_to_planning_and_legacy_adapters():
     with _session() as db:
         db.add_all([
             OrganizationConfig(id=1, org_id=10, config={"config_version": "2.0", "plan": "free"}, creation_date=NOW, update_date=NOW),
@@ -287,6 +310,66 @@ def test_managed_template_entitlement_applies_to_planning_and_legacy_adapters():
                 require(10, db)
             assert denied.value.status_code == 403
             require(20, db)
+
+
+def test_free_org_can_create_templates_through_planning_and_legacy_adapters(monkeypatch):
+    with _session() as db:
+        payload = ProgramCreate(org_id=10, name="Free template")
+        calls = []
+
+        def create_template(_db, _user, received):
+            calls.append(received.name)
+            return {"program_uuid": "program_free", "name": received.name}
+
+        monkeypatch.setattr(programs, "create_program", create_template)
+        assert planning_router.api_create_template(payload, db, _user(1))["name"] == "Free template"
+        assert programs_router.api_create_program(payload, db, _user(1))["name"] == "Free template"
+        assert calls == ["Free template", "Free template"]
+
+
+def test_free_org_can_assign_individuals_but_not_groups(monkeypatch):
+    with _session() as db:
+        db.add(OrganizationConfig(id=1, org_id=10, config={"config_version": "2.0", "plan": "free"}, creation_date=NOW, update_date=NOW))
+        db.commit()
+        calls = []
+
+        def assign(_db, _user, org_id, template_uuid, payload):
+            calls.append((org_id, template_uuid, payload.user_id, payload.subject_email))
+            return {"assignment_uuid": "assignment_direct"}
+
+        monkeypatch.setattr(programs, "assign_program", assign)
+        direct = ProgramAssignmentCreate(user_id=2)
+        external = ProgramAssignmentCreate(subject_email="outside@example.com")
+        group = ProgramAssignmentCreate(usergroup_id=7)
+        handlers = (
+            lambda payload: planning_router.api_assign_template("template_1", 10, payload, db, _user(1)),
+            lambda payload: programs_router.api_assign_program("template_1", payload, 10, db, _user(1)),
+        )
+        for handler in handlers:
+            assert handler(direct)["assignment_uuid"] == "assignment_direct"
+            assert handler(external)["assignment_uuid"] == "assignment_direct"
+            with pytest.raises(HTTPException) as denied:
+                handler(group)
+            assert denied.value.status_code == 403
+        assert len(calls) == 4
+
+
+def test_free_org_can_manage_direct_assignments_but_not_group_assignments():
+    with _session() as db:
+        db.add(OrganizationConfig(id=1, org_id=10, config={"config_version": "2.0", "plan": "free"}, creation_date=NOW, update_date=NOW))
+        program = Program(program_uuid="program_access", slug="program-access", org_id=10, name="Access test", creation_date=NOW, update_date=NOW)
+        db.add(program)
+        db.flush()
+        db.add_all([
+            ProgramAssignment(assignment_uuid="assignment_direct", org_id=10, program_id=program.id, user_id=2, creation_date=NOW, update_date=NOW),
+            ProgramAssignment(assignment_uuid="assignment_group", org_id=10, program_id=program.id, usergroup_id=7, creation_date=NOW, update_date=NOW),
+        ])
+        db.commit()
+        for require in (require_planning_assignment, require_legacy_assignment):
+            require(10, "assignment_direct", db)
+            with pytest.raises(HTTPException) as denied:
+                require(10, "assignment_group", db)
+            assert denied.value.status_code == 403
 
 
 def test_template_roles_are_validated_and_copied_into_live_plans():
@@ -338,7 +421,7 @@ def test_feed_explore_expansion_and_active_item_boundaries():
         blocked = planning.create_objective(db, _user(1), created["slug"], PlanObjectiveCreate(title="Blocked"))["objectives"][-1]
         planning.update_objective(db, _user(1), created["slug"], blocked["objective_uuid"], PlanObjectiveUpdate(blocked=True))
         future = planning.create_objective(db, _user(1), created["slug"], PlanObjectiveCreate(
-            title="Beyond coming up", due_date=date.today() + timedelta(days=15),
+            title="Beyond right now", due_date=date.today() + timedelta(days=8),
         ))["objectives"][-1]
         completed = planning.create_objective(db, _user(1), created["slug"], PlanObjectiveCreate(title="Already done"))["objectives"][-1]
         planning.update_objective_progress(db, _user(1), created["slug"], completed["objective_uuid"], PlanObjectiveProgressUpdate(status=PlanObjectiveStatus.COMPLETED))
