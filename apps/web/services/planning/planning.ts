@@ -12,6 +12,7 @@ async function request(path: string, token?: string, method = 'GET', body: any =
 export const planningApi = {
   plans: (token?: string, lifecycle?: PlanLifecycle) => request(`/plans${lifecycle ? `?lifecycle=${lifecycle}` : ''}`, token),
   plan: (identifier: string, token?: string) => request(`/plans/${encodeURIComponent(identifier)}`, token),
+  reviews: (identifier: string, token?: string) => request(`/plans/${encodeURIComponent(identifier)}/reviews`, token),
   resolveLegacy: (identifier: string, token?: string) => request(`/legacy/${encodeURIComponent(identifier)}`, token),
   feed: (token?: string, scope: PlanScope = 'all', planUuid?: string, exploreAll = false) => request(`/feed?scope=${scope}${planUuid ? `&plan_uuid=${encodeURIComponent(planUuid)}` : ''}${exploreAll ? '&explore_all=true' : ''}`, token),
   create: (data: any, token?: string) => request('/plans', token, 'POST', data),
@@ -28,6 +29,9 @@ export const planningApi = {
   addRole: (identifier: string, data: any, token?: string) => request(`/plans/${encodeURIComponent(identifier)}/roles`, token, 'POST', data),
   updateRole: (identifier: string, roleUuid: string, data: any, token?: string) => request(`/plans/${encodeURIComponent(identifier)}/roles/${encodeURIComponent(roleUuid)}`, token, 'PATCH', data),
   removeRole: (identifier: string, roleUuid: string, token?: string) => request(`/plans/${encodeURIComponent(identifier)}/roles/${encodeURIComponent(roleUuid)}`, token, 'DELETE'),
+  createOrganizationRole: (identifier: string, data: any, token?: string) => request(`/plans/${encodeURIComponent(identifier)}/organization-roles`, token, 'POST', data),
+  updateOrganizationRole: (identifier: string, roleUuid: string, data: any, token?: string) => request(`/plans/${encodeURIComponent(identifier)}/organization-roles/${encodeURIComponent(roleUuid)}`, token, 'PATCH', data),
+  removeOrganizationRole: (identifier: string, roleUuid: string, token?: string) => request(`/plans/${encodeURIComponent(identifier)}/organization-roles/${encodeURIComponent(roleUuid)}`, token, 'DELETE'),
   invite: (identifier: string, data: any, token?: string) => request(`/plans/${encodeURIComponent(identifier)}/invitations`, token, 'POST', data),
   collaboratorRequests: (identifier: string, token?: string) => request(`/plans/${encodeURIComponent(identifier)}/collaborator-requests`, token),
   requestCollaborator: (identifier: string, data: any, token?: string) => request(`/plans/${encodeURIComponent(identifier)}/collaborator-requests`, token, 'POST', data),

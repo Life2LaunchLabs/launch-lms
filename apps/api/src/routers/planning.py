@@ -24,6 +24,8 @@ from src.db.planning import (
     PlanRoleUpdate,
     PlanStatus,
     PlanUpdate,
+    OrganizationPlanRoleCreate,
+    OrganizationPlanRoleUpdate,
 )
 from src.db.programs import ProgramAssignment, ProgramAssignmentCreate, ProgramCreate, ProgramUpdate
 from src.db.programs import (
@@ -104,6 +106,11 @@ def api_get_plan(identifier: str, db: Session = Depends(get_db_session), current
     return service.get_plan(db, current_user, identifier)
 
 
+@router.get("/plans/{identifier}/reviews")
+def api_plan_reviews(identifier: str, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
+    return service.plan_reviews(db, current_user, identifier)
+
+
 @router.get("/legacy/{legacy_identifier}")
 def api_resolve_legacy_plan(legacy_identifier: str, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
     return service.resolve_legacy_plan(db, current_user, legacy_identifier)
@@ -182,6 +189,21 @@ def api_update_role(identifier: str, role_uuid: str, payload: PlanRoleUpdate, db
 @router.delete("/plans/{identifier}/roles/{role_uuid}")
 def api_delete_role(identifier: str, role_uuid: str, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
     return service.delete_role(db, current_user, identifier, role_uuid)
+
+
+@router.post("/plans/{identifier}/organization-roles")
+def api_create_organization_role(identifier: str, payload: OrganizationPlanRoleCreate, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
+    return service.create_organization_role(db, current_user, identifier, payload)
+
+
+@router.patch("/plans/{identifier}/organization-roles/{role_uuid}")
+def api_update_organization_role(identifier: str, role_uuid: str, payload: OrganizationPlanRoleUpdate, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
+    return service.update_organization_role(db, current_user, identifier, role_uuid, payload)
+
+
+@router.delete("/plans/{identifier}/organization-roles/{role_uuid}")
+def api_delete_organization_role(identifier: str, role_uuid: str, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
+    return service.delete_organization_role(db, current_user, identifier, role_uuid)
 
 
 @router.post("/plans/{identifier}/invitations")
@@ -379,7 +401,7 @@ def api_review_assignment_objective(assignment_uuid: str, org_id: int, payload: 
 
 @router.post("/assignment-batches/progress")
 def api_update_assignment_progress(org_id: int, payload: ObjectiveProgressUpdate, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    return template_service.update_progress(db, current_user, org_id, payload.objective_uuid, payload.user_ids, payload.status, payload.staff_note, payload.evidence, payload.completion_date)
+    return template_service.update_progress(db, current_user, org_id, payload.objective_uuid, payload.user_ids, payload.status, payload.staff_note, payload.evidence, payload.completion_date, payload.plan_uuids, payload.override_customized)
 
 
 @router.get("/managed-users/{user_id}")

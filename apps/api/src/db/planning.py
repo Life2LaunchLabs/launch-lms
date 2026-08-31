@@ -44,7 +44,7 @@ class PlanCollaboratorRequestStatus(str, Enum):
 DEFAULT_ROLE_DEFINITIONS = (
     {
         "key": "subject",
-        "name": "Subject",
+        "name": "Learner",
         "capabilities": [
             "view_plan", "comment", "contribute_fields", "update_progress",
             "request_collaborators",
@@ -55,7 +55,7 @@ DEFAULT_ROLE_DEFINITIONS = (
         "name": "Reviewer",
         "capabilities": [
             "view_plan", "comment", "contribute_fields", "update_progress",
-            "contribute_reviewer_fields", "review_objectives", "review_badge_submissions",
+            "contribute_restricted_fields", "complete_restricted_objectives", "review_badge_submissions",
         ],
     },
     {
@@ -63,13 +63,26 @@ DEFAULT_ROLE_DEFINITIONS = (
         "name": "Plan admin",
         "capabilities": [
             "view_plan", "comment", "contribute_fields", "update_progress",
-            "contribute_reviewer_fields", "review_objectives", "review_badge_submissions",
+            "contribute_restricted_fields", "complete_restricted_objectives", "review_badge_submissions",
             "edit_plan_details", "edit_structure", "edit_schedule", "complete_plan",
             "archive_plan", "manage_collaborators", "manage_roles",
         ],
     },
     {"key": "viewer", "name": "Viewer", "capabilities": ["view_plan"]},
 )
+
+
+class OrganizationPlanRole(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("role_uuid"), UniqueConstraint("org_id", "key"))
+
+    id: int | None = Field(default=None, primary_key=True)
+    role_uuid: str = Field(index=True)
+    org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
+    key: str
+    name: str
+    capabilities: list[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
+    creation_date: str = ""
+    update_date: str = ""
 
 
 class Plan(SQLModel, table=True):
@@ -156,6 +169,7 @@ class PlanObjective(SQLModel, table=True):
     due_date: date | None = Field(default=None, sa_column=Column(Date, nullable=True, index=True))
     allow_late: bool = False
     blocked: bool = False
+    completion_restricted: bool = False
     creation_date: str = ""
     update_date: str = ""
 
@@ -279,6 +293,7 @@ class PlanObjectiveCreate(SQLModel):
     start_date: date | None = None
     due_date: date | None = None
     allow_late: bool = False
+    completion_restricted: bool = False
 
 
 class PlanObjectiveUpdate(SQLModel):
@@ -291,6 +306,7 @@ class PlanObjectiveUpdate(SQLModel):
     due_date: date | None = None
     allow_late: bool | None = None
     blocked: bool | None = None
+    completion_restricted: bool | None = None
 
 
 class PlanObjectiveProgressUpdate(SQLModel):
@@ -320,6 +336,16 @@ class PlanRoleUpdate(SQLModel):
     name: str | None = None
     capabilities: list[str] | None = None
     grantable_role_keys: list[str] | None = None
+
+
+class OrganizationPlanRoleCreate(SQLModel):
+    name: str
+    capabilities: list[str] = Field(default_factory=list)
+
+
+class OrganizationPlanRoleUpdate(SQLModel):
+    name: str | None = None
+    capabilities: list[str] | None = None
 
 
 class PlanCollaboratorUpdate(SQLModel):

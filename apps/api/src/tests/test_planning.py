@@ -15,6 +15,7 @@ from src.db.planning import (
     PlanAttachment,
     PlanAttachmentCreate,
     PlanCollaborator,
+    PlanCollaboratorUpdate,
     PlanCollaboratorRequest,
     PlanCollaboratorRequestCreate,
     PlanCreate,
@@ -28,10 +29,14 @@ from src.db.planning import (
     PlanObjectiveProgressUpdate,
     PlanObjectiveStatus,
     PlanObjectiveUpdate,
+    OrganizationPlanRole,
+    OrganizationPlanRoleCreate,
+    OrganizationPlanRoleUpdate,
     PlanPhase,
     PlanPhaseUpdate,
     PlanRole,
     PlanRoleCreate,
+    PlanRoleUpdate,
     PlanStatus,
 )
 # Register compatibility backing tables referenced by Plan foreign keys.
@@ -54,6 +59,7 @@ def _session() -> Session:
         Organization.__table__, OrganizationConfig.__table__, User.__table__, Program.__table__, ProgramAssignment.__table__, ProgramParticipant.__table__,
         Objective.__table__, ObjectiveProgress.__table__, GuestSession.__table__, LearningBadge.__table__, LearningBadgeAward.__table__, LearningRun.__table__,
         Plan.__table__, PlanRole.__table__, PlanCollaborator.__table__, PlanPhase.__table__,
+        OrganizationPlanRole.__table__,
         PlanObjective.__table__, PlanObjectiveProgress.__table__, PlanInvitation.__table__, PlanActivity.__table__,
         MediaAsset.__table__, PlanAttachment.__table__, PlanCollaboratorRequest.__table__,
     ])
@@ -93,8 +99,28 @@ def test_recipient_bound_invitation_grants_plan_access_without_org_membership():
         assert len(planning.list_my_invitations(db, _user(2))) == 1
         planning.respond_to_invitation(db, _user(2), invitation["invitation_uuid"], True)
         helper_plan = planning.get_plan(db, _user(2), created["slug"])
-        assert "review_objectives" in helper_plan["capabilities"]
+        assert "complete_restricted_objectives" in helper_plan["capabilities"]
         assert helper_plan["subject"]["id"] == 1
+
+
+def test_plan_review_queue_is_scoped_to_one_live_plan():
+    with _session() as db:
+        first = planning.create_plan(db, _user(1), PlanCreate(name="Learner requirements"))
+        second = planning.create_plan(db, _user(1), PlanCreate(name="Another learner plan"))
+        first_row = db.exec(select(Plan).where(Plan.plan_uuid == first["plan_uuid"])).one()
+        second_row = db.exec(select(Plan).where(Plan.plan_uuid == second["plan_uuid"])).one()
+        first_row.subject_user_id = 2
+        second_row.subject_user_id = 2
+        db.add(first_row)
+        db.add(second_row)
+        db.commit()
+        objective = planning.create_objective(db, _user(1), first["plan_uuid"], PlanObjectiveCreate(title="Submit fieldwork evidence"))["objectives"][0]
+        planning.update_objective_progress(db, _user(1), first["plan_uuid"], objective["objective_uuid"], PlanObjectiveProgressUpdate(status=PlanObjectiveStatus.SUBMITTED))
+
+        queue = planning.plan_reviews(db, _user(1), first["plan_uuid"])
+
+        assert queue["plan_uuid"] == first["plan_uuid"]
+        assert [item["title"] for item in queue["objective_reviews"]] == ["Submit fieldwork evidence"]
 
 
 def test_feed_only_offers_helping_scope_for_active_helping_plans():
@@ -391,6 +417,140 @@ def test_template_roles_are_validated_and_copied_into_live_plans():
             programs._validated_template_roles(definitions, "missing", "coach")
 
 
+def test_subject_identity_is_fixed_but_subject_role_can_change():
+    with _session() as db:
+        plan = Plan(
+            plan_uuid="plan_fixed_subject", slug="fixed-subject", name="Fixed subject",
+            owner_user_id=1, subject_user_id=2, creation_date=NOW, update_date=NOW,
+        )
+        db.add(plan)
+        db.flush()
+        roles = planning._seed_roles(db, plan)
+        owner = PlanCollaborator(
+            collaborator_uuid="collaborator_owner", plan_id=plan.id, user_id=1,
+            role_id=roles["plan_admin"].id, creation_date=NOW, update_date=NOW,
+        )
+        subject = PlanCollaborator(
+            collaborator_uuid="collaborator_subject", plan_id=plan.id, user_id=2,
+            role_id=roles["subject"].id, creation_date=NOW, update_date=NOW,
+        )
+        db.add_all([owner, subject])
+        db.commit()
+
+        detail = planning.update_collaborator(
+            db, _user(1), plan.plan_uuid, subject.collaborator_uuid,
+            PlanCollaboratorUpdate(role_key="plan_admin"),
+        )
+        assert detail["subject"]["id"] == 2
+        assert next(item for item in detail["collaborators"] if item["user"]["id"] == 2)["role"]["key"] == "plan_admin"
+        with pytest.raises(HTTPException) as cannot_remove:
+            planning.remove_collaborator(db, _user(1), plan.plan_uuid, subject.collaborator_uuid)
+        assert cannot_remove.value.status_code == 422
+
+
+def test_restricted_fields_and_completion_require_explicit_role_permissions():
+    with _session() as db:
+        plan = Plan(
+            plan_uuid="plan_restricted_objective", slug="restricted-objective", name="Restricted objective",
+            owner_user_id=1, subject_user_id=2, creation_date=NOW, update_date=NOW,
+        )
+        db.add(plan)
+        db.flush()
+        roles = planning._seed_roles(db, plan)
+        db.add_all([
+            PlanCollaborator(collaborator_uuid="restricted_owner", plan_id=plan.id, user_id=1, role_id=roles["plan_admin"].id, creation_date=NOW, update_date=NOW),
+            PlanCollaborator(collaborator_uuid="restricted_learner", plan_id=plan.id, user_id=2, role_id=roles["subject"].id, creation_date=NOW, update_date=NOW),
+        ])
+        db.commit()
+        objective = planning.create_objective(db, _user(1), plan.plan_uuid, PlanObjectiveCreate(
+            title="Reviewer confirms attendance",
+            completion_restricted=True,
+            fields=[
+                {"field_uuid": "learner_note", "title": "Learner note", "restricted": False},
+                {"field_uuid": "reviewer_confirmation", "title": "Reviewer confirmation", "restricted": True},
+            ],
+        ))["objectives"][0]
+
+        planning.update_objective_progress(
+            db, _user(2), plan.plan_uuid, objective["objective_uuid"],
+            PlanObjectiveProgressUpdate(status=PlanObjectiveStatus.IN_PROGRESS, field_values={"learner_note": "Attended"}),
+        )
+        with pytest.raises(HTTPException) as field_denied:
+            planning.update_objective_progress(
+                db, _user(2), plan.plan_uuid, objective["objective_uuid"],
+                PlanObjectiveProgressUpdate(status=PlanObjectiveStatus.IN_PROGRESS, field_values={"reviewer_confirmation": "Confirmed"}),
+            )
+        assert field_denied.value.status_code == 403
+        with pytest.raises(HTTPException) as completion_denied:
+            planning.update_objective_progress(
+                db, _user(2), plan.plan_uuid, objective["objective_uuid"],
+                PlanObjectiveProgressUpdate(status=PlanObjectiveStatus.COMPLETED),
+            )
+        assert completion_denied.value.status_code == 403
+
+        completed = planning.update_objective_progress(
+            db, _user(1), plan.plan_uuid, objective["objective_uuid"],
+            PlanObjectiveProgressUpdate(status=PlanObjectiveStatus.COMPLETED, field_values={"reviewer_confirmation": "Confirmed"}),
+        )
+        assert completed["progress"]["status"] == "completed"
+
+
+def test_plan_admin_role_is_locked_and_always_has_every_permission():
+    with _session() as db:
+        plan = Plan(
+            plan_uuid="plan_locked_admin", slug="locked-admin", name="Locked admin",
+            owner_user_id=1, subject_user_id=2, creation_date=NOW, update_date=NOW,
+        )
+        db.add(plan)
+        db.flush()
+        roles = planning._seed_roles(db, plan, [{
+            "key": "plan_admin", "name": "Plan admin", "capabilities": ["view_plan"],
+        }])
+        admin = PlanCollaborator(
+            collaborator_uuid="collaborator_admin", plan_id=plan.id, user_id=2,
+            role_id=roles["plan_admin"].id, creation_date=NOW, update_date=NOW,
+        )
+        db.add(admin)
+        db.commit()
+
+        assert planning.capabilities_for(db, plan, 2) == planning.ALL_CAPABILITIES
+        with pytest.raises(HTTPException) as locked:
+            planning.update_role(
+                db, _user(1), plan.plan_uuid, roles["plan_admin"].role_uuid,
+                PlanRoleUpdate(name="Restricted", capabilities=["view_plan"]),
+            )
+        assert locked.value.status_code == 422
+
+
+def test_custom_organization_roles_are_reused_across_managed_plans(monkeypatch):
+    with _session() as db:
+        org = Organization(id=1, org_uuid="org_roles", name="Role org", slug="role-org", email="roles@example.com", creation_date=NOW, update_date=NOW)
+        db.add(org)
+        first = planning.create_plan(db, _user(1), PlanCreate(name="First managed plan"))
+        second = planning.create_plan(db, _user(1), PlanCreate(name="Second managed plan"))
+        first_plan = planning._plan_or_404(db, first["plan_uuid"])
+        second_plan = planning._plan_or_404(db, second["plan_uuid"])
+        first_plan.source_org_id = org.id
+        second_plan.source_org_id = org.id
+        db.add_all([first_plan, second_plan])
+        db.commit()
+        monkeypatch.setattr(planning, "require_org_admin", lambda *_args: None)
+
+        created = planning.create_organization_role(
+            db, _user(1), first_plan.plan_uuid,
+            OrganizationPlanRoleCreate(name="Field coach", capabilities=["view_plan", "comment"]),
+        )
+        local_roles = db.exec(select(PlanRole).where(PlanRole.key == created["key"])).all()
+        assert {role.plan_id for role in local_roles} == {first_plan.id, second_plan.id}
+
+        planning.update_organization_role(
+            db, _user(1), first_plan.plan_uuid, created["role_uuid"],
+            OrganizationPlanRoleUpdate(name="Lead coach", capabilities=["view_plan"]),
+        )
+        updated = db.exec(select(PlanRole).where(PlanRole.key == created["key"])).all()
+        assert all(role.name == "Lead coach" and role.capabilities == ["view_plan"] for role in updated)
+
+
 def test_scheduled_managed_invitation_is_hidden_until_initiation():
     with _session() as db:
         created = planning.create_plan(db, _user(1), PlanCreate(name="Scheduled plan"))
@@ -403,6 +563,7 @@ def test_scheduled_managed_invitation_is_hidden_until_initiation():
         db.add(assignment)
         db.flush()
         plan.source_assignment_id = assignment.id
+        plan.subject_user_id = None
         db.add(plan)
         invitation = planning.create_invitation(db, _user(1), created["slug"], PlanInvitationCreate(
             email="helper@example.com", role_key="subject", kind=PlanInvitationKind.SUBJECT,

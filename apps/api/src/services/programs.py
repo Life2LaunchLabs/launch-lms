@@ -5,6 +5,7 @@ import re
 from uuid import uuid4
 
 from fastapi import HTTPException
+from sqlalchemy import inspect
 from sqlmodel import Session, select
 
 from src.db.learning import (
@@ -20,7 +21,15 @@ from src.db.learning import (
     LearningResponseAttempt,
     LearningRun,
 )
-from src.db.planning import DEFAULT_ROLE_DEFINITIONS
+from src.db.planning import (
+    DEFAULT_ROLE_DEFINITIONS,
+    Plan,
+    PlanInvitation,
+    PlanObjective,
+    PlanObjectiveProgress,
+    PlanObjectiveStatus,
+)
+from src.services.planning import _normalized_capability_list, capabilities_for as plan_capabilities_for
 from src.db.organizations import Organization
 from src.db.programs import (
     Objective,
@@ -60,6 +69,10 @@ def _now() -> datetime:
 
 def _now_string() -> str:
     return _now().isoformat()
+
+
+def _has_live_plan_tables(db: Session) -> bool:
+    return inspect(db.get_bind()).has_table("plan") and inspect(db.get_bind()).has_table("planobjective")
 
 
 def _unique_program_slug(db: Session, name: str) -> str:
@@ -398,14 +411,17 @@ def _validated_template_roles(role_definitions: list[dict] | None, subject_key: 
     known_capabilities = {capability for item in DEFAULT_ROLE_DEFINITIONS for capability in item["capabilities"]}
     normalized = []
     for item, key in zip(definitions, keys):
-        capabilities = list(dict.fromkeys(item.get("capabilities") or []))
+        capabilities = _normalized_capability_list(item.get("capabilities") or [])
         invalid = set(capabilities) - known_capabilities
         if invalid:
             raise HTTPException(status_code=422, detail=f"Unknown role capabilities: {', '.join(sorted(invalid))}")
         grants = list(dict.fromkeys(item.get("grantable_role_keys") or []))
         if set(grants) - set(keys):
             raise HTTPException(status_code=422, detail="A grantable template role does not exist")
-        normalized.append({"key": key, "name": str(item.get("name") or key).strip() or key, "capabilities": capabilities, "grantable_role_keys": grants})
+        if key == "plan_admin":
+            capabilities = sorted(known_capabilities)
+        name = "Learner" if key == "subject" else str(item.get("name") or key).strip() or key
+        normalized.append({"key": key, "name": name, "capabilities": capabilities, "grantable_role_keys": grants})
     if subject_key not in keys or staff_key not in keys or "plan_admin" not in keys:
         raise HTTPException(status_code=422, detail="Default subject and staff roles must exist")
     if "review_badge_submissions" not in next(item["capabilities"] for item in normalized if item["key"] == staff_key):
@@ -469,7 +485,10 @@ def add_program_objective(
             badge_id = badge.id
             badge_major = _latest_badge_major(db, badge.id)
         now = _now_string()
-        learner_can_add_evidence = any(bool(field.get("allow_student_upload")) for field in payload.custom_fields)
+        learner_can_add_evidence = any(
+            not bool(field.get("restricted", not field.get("allow_student_upload", False)))
+            for field in payload.custom_fields
+        )
         has_evidence_fields = bool(payload.custom_fields)
         objective = Objective(
             objective_uuid=f"objective_{uuid4()}",
@@ -596,7 +615,10 @@ def update_program_objective(
     if objective.kind == ObjectiveKind.CUSTOM:
         objective.custom_fields = payload.custom_fields
         objective.allow_learner_confirmation = payload.allow_learner_confirmation
-        learner_can_add_evidence = any(bool(field.get("allow_student_upload")) for field in payload.custom_fields)
+        learner_can_add_evidence = any(
+            not bool(field.get("restricted", not field.get("allow_student_upload", False)))
+            for field in payload.custom_fields
+        )
         objective.completion_policy = "either" if payload.allow_learner_confirmation else "staff"
         objective.evidence_policy = "both" if learner_can_add_evidence else ("staff" if payload.custom_fields else "none")
     relation.default_start_rule = payload.default_start_rule
@@ -1017,18 +1039,34 @@ def _assignment_summary(db: Session, assignment: ProgramAssignment) -> dict:
     program = db.get(Program, assignment.program_id)
     group = db.get(UserGroup, assignment.usergroup_id) if assignment.usergroup_id else None
     assigned_user = db.get(User, assignment.user_id) if assignment.user_id else None
+    owner = db.get(User, assignment.owner_user_id) if assignment.owner_user_id else None
     participants = db.exec(select(ProgramParticipant).where(ProgramParticipant.assignment_id == assignment.id)).all()
+    plans = db.exec(select(Plan).where(Plan.source_assignment_id == assignment.id)).all() if _has_live_plan_tables(db) else []
     staff = db.exec(select(User).where(User.id.in_(assignment.staff_user_ids or []))).all() if assignment.staff_user_ids else []
     user_ids = [participant.user_id for participant in participants]
     objective_ids = [int(item["id"]) for item in (assignment.objective_snapshot or []) if item.get("id")]
-    progress = _progress_map(db, assignment.org_id, user_ids, objective_ids)
-    badge_awards = _badge_award_keys(db, user_ids, assignment.objective_snapshot or [])
-    total = len(user_ids) * len(objective_ids)
-    completed_progress = {
-        key for key, item in progress.items() if item.status == ObjectiveProgressStatus.COMPLETED
-    }
-    completed = len(completed_progress | badge_awards)
-    ready = sum(1 for item in progress.values() if item.status in {ObjectiveProgressStatus.SUBMITTED, ObjectiveProgressStatus.READY_FOR_REVIEW})
+    live_objectives = db.exec(select(PlanObjective).where(PlanObjective.plan_id.in_([int(plan.id) for plan in plans]))).all() if plans else []
+    live_progress = db.exec(select(PlanObjectiveProgress).where(PlanObjectiveProgress.plan_objective_id.in_([int(item.id) for item in live_objectives]))).all() if live_objectives else []
+    progress_by_objective = {item.plan_objective_id: item for item in live_progress}
+    if plans:
+        completed = sum(
+            1 for objective in live_objectives
+            if progress_by_objective.get(int(objective.id))
+            and progress_by_objective[int(objective.id)].status == PlanObjectiveStatus.COMPLETED
+        )
+        ready = sum(1 for item in live_progress if item.status in {PlanObjectiveStatus.SUBMITTED, PlanObjectiveStatus.CHANGES_REQUESTED})
+        total = len(live_objectives)
+    else:
+        legacy_progress = _progress_map(db, assignment.org_id, user_ids, objective_ids)
+        badge_awards = _badge_award_keys(db, user_ids, assignment.objective_snapshot or [])
+        completed_progress = {key for key, item in legacy_progress.items() if item.status == ObjectiveProgressStatus.COMPLETED}
+        completed = len(completed_progress | badge_awards)
+        ready = sum(1 for item in legacy_progress.values() if item.status in {ObjectiveProgressStatus.SUBMITTED, ObjectiveProgressStatus.READY_FOR_REVIEW})
+        total = len(user_ids) * len(objective_ids)
+    lifecycle_counts = {status: 0 for status in ("pending", "active", "completed", "archived")}
+    for plan in plans:
+        status = plan.status.value if hasattr(plan.status, "value") else str(plan.status)
+        lifecycle_counts[status] = lifecycle_counts.get(status, 0) + 1
     return {
         "assignment_uuid": assignment.assignment_uuid,
         "program_uuid": program.program_uuid if program else "",
@@ -1047,6 +1085,13 @@ def _assignment_summary(db: Session, assignment: ProgramAssignment) -> dict:
             "last_name": item.last_name,
             "avatar_image": item.avatar_image,
         } for item in staff],
+        "owner": ({
+            "id": owner.id,
+            "username": owner.username,
+            "first_name": owner.first_name,
+            "last_name": owner.last_name,
+            "avatar_image": owner.avatar_image,
+        } if owner else None),
         "schedule": assignment.schedule or {},
         "start_date": assignment.start_date,
         "due_date": assignment.due_date,
@@ -1063,7 +1108,12 @@ def _assignment_summary(db: Session, assignment: ProgramAssignment) -> dict:
             "first_name": assigned_user.first_name,
             "last_name": assigned_user.last_name,
         } if assigned_user else None),
-        "learner_count": len(user_ids),
+        "learner_count": len(plans) or len(user_ids),
+        "plan_count": len(plans),
+        "plan_uuid": plans[0].plan_uuid if len(plans) == 1 else None,
+        "plan_slug": plans[0].slug if len(plans) == 1 else None,
+        "assignment_type": "group" if group else ("external" if assignment.subject_email and not assignment.user_id else "individual"),
+        "lifecycle_counts": lifecycle_counts,
         "objective_count": len(objective_ids),
         "completed_count": completed,
         "ready_for_review_count": ready,
@@ -1096,39 +1146,70 @@ def cohort_overview(db: Session, current_user: PublicUser, org_id: int, usergrou
 def assignment_matrix(db: Session, current_user: PublicUser, org_id: int, assignment_uuid: str) -> dict:
     assignment = _assignment_or_404(db, assignment_uuid, org_id)
     require_org_membership(current_user.id, org_id, db)
-    if not is_org_admin(current_user.id, org_id, db) and current_user.id not in (assignment.staff_user_ids or []):
-        raise HTTPException(status_code=403, detail="You cannot view this program assignment")
+    if not _has_live_plan_tables(db):
+        return _legacy_assignment_matrix(db, current_user, org_id, assignment)
     program = db.get(Program, assignment.program_id)
     group = db.get(UserGroup, assignment.usergroup_id) if assignment.usergroup_id else None
-    participants = db.exec(select(ProgramParticipant).where(ProgramParticipant.assignment_id == assignment.id)).all()
-    participant_by_user = {participant.user_id: participant for participant in participants}
-    users = db.exec(select(User).where(User.id.in_(list(participant_by_user)))).all() if participants else []
-    objective_ids = [int(item["id"]) for item in (assignment.objective_snapshot or []) if item.get("id")]
-    progress = _progress_map(db, org_id, list(participant_by_user), objective_ids)
-    badge_awards = _badge_award_keys(db, list(participant_by_user), assignment.objective_snapshot or [])
+    plans = db.exec(select(Plan).where(Plan.source_assignment_id == assignment.id).order_by(Plan.id)).all()
+    accessible_plans = [plan for plan in plans if "view_plan" in plan_capabilities_for(db, plan, current_user.id)]
+    snapshot_by_id = {int(item["id"]): item for item in (assignment.objective_snapshot or []) if item.get("id")}
+    shared_columns = [{
+        **item,
+        "source_objective_id": int(item["id"]),
+    } for item in (assignment.objective_snapshot or []) if item.get("id")]
     learner_rows = []
-    for user in users:
-        participant = participant_by_user[user.id]
+    cell_rows = []
+    for plan in accessible_plans:
+        user = db.get(User, plan.subject_user_id) if plan.subject_user_id else None
+        objectives = db.exec(select(PlanObjective).where(PlanObjective.plan_id == plan.id).order_by(PlanObjective.position)).all()
+        progresses = db.exec(select(PlanObjectiveProgress).where(PlanObjectiveProgress.plan_objective_id.in_([int(item.id) for item in objectives]))).all() if objectives else []
+        progress_by_id = {item.plan_objective_id: item for item in progresses}
+        invitation = db.exec(select(PlanInvitation).where(PlanInvitation.plan_id == plan.id).order_by(PlanInvitation.id.desc())).first()
         cells = {}
-        for objective in assignment.objective_snapshot or []:
-            objective_id = int(objective["id"])
-            item = progress.get((user.id, objective_id))
-            earned_badge = (user.id, objective_id) in badge_awards
-            cells[objective["objective_uuid"]] = {
-                "status": "completed" if earned_badge else ((item.status.value if hasattr(item.status, "value") else item.status) if item else "not_started"),
-                "evidence": item.evidence if item else [],
-                "learner_note": item.learner_note if item else "",
-                "staff_note": item.staff_note if item else "",
-                "feedback_history": item.feedback_history if item else [],
-                "completed_at": item.completed_at if item else None,
+        custom_objectives = []
+        for objective in objectives:
+            progress = progress_by_id.get(int(objective.id))
+            source = snapshot_by_id.get(int(objective.source_objective_id)) if objective.source_objective_id else None
+            if not source:
+                custom_objectives.append({"plan_objective_uuid": objective.objective_uuid, "title": objective.title, "status": (progress.status.value if progress and hasattr(progress.status, "value") else str(progress.status) if progress else "not_started")})
+                continue
+            scheduled = next((item for item in (assignment.schedule or {}).get("objectives", []) if item.get("objective_uuid") == source.get("objective_uuid")), {})
+            expected_due = scheduled.get("effective_due_date")
+            customized = objective.title != (source.get("title") or "Objective") or (str(objective.due_date) if objective.due_date else None) != expected_due
+            cell = {
+                "plan_uuid": plan.plan_uuid,
+                "source_objective_id": int(objective.source_objective_id),
+                "plan_objective_uuid": objective.objective_uuid,
+                "status": progress.status.value if progress and hasattr(progress.status, "value") else str(progress.status) if progress else "not_started",
+                "due_date": objective.due_date,
+                "customized": customized,
+                "blocked": objective.blocked,
+                "field_values": progress.field_values if progress else {},
+                "learner_note": progress.subject_note if progress else "",
+                "staff_note": progress.reviewer_note if progress else "",
+                "feedback_history": progress.feedback_history if progress else [],
+                "completed_at": progress.completed_at if progress else None,
             }
+            cells[str(objective.source_objective_id)] = cell
+            cells[source["objective_uuid"]] = cell
+            cell_rows.append(cell)
+        lifecycle = plan.status.value if hasattr(plan.status, "value") else str(plan.status)
+        invitation_status = invitation.status.value if invitation and hasattr(invitation.status, "value") else str(invitation.status) if invitation else ("accepted" if user else "pending")
+        complete = sum(item["status"] == "completed" for key, item in cells.items() if key.isdigit())
         learner_rows.append({
-            "id": user.id,
-            "username": user.username,
-            "first_name": user.first_name,
-            "last_name": user.last_name,
-            "avatar_image": user.avatar_image,
-            "invitation_status": participant.status.value if hasattr(participant.status, "value") else participant.status,
+            "id": user.id if user else -int(plan.id),
+            "username": user.username if user else (invitation.email if invitation else assignment.subject_email),
+            "first_name": user.first_name if user else "",
+            "last_name": user.last_name if user else "",
+            "avatar_image": user.avatar_image if user else None,
+            "plan_uuid": plan.plan_uuid,
+            "slug": plan.slug,
+            "lifecycle": lifecycle,
+            "update_date": plan.update_date,
+            "invitation_status": invitation_status,
+            "progress_percent": round(complete * 100 / len(shared_columns)) if shared_columns else 0,
+            "capabilities": sorted(plan_capabilities_for(db, plan, current_user.id)),
+            "custom_objectives": custom_objectives,
             "cells": cells,
         })
     siblings = []
@@ -1143,9 +1224,44 @@ def assignment_matrix(db: Session, current_user: PublicUser, org_id: int, assign
         "cohort": {"id": group.id, "uuid": group.usergroup_uuid, "name": group.name} if group else None,
         "program": _program_dict(db, program, include_objectives=False) if program else None,
         "programs": siblings,
-        "objectives": assignment.objective_snapshot or [],
+        "batch": _assignment_summary(db, assignment),
+        "shared_columns": shared_columns,
+        "plans": learner_rows,
+        "cells": cell_rows,
+        "objectives": shared_columns,
         "learners": learner_rows,
     }
+
+
+def _legacy_assignment_matrix(db: Session, current_user: PublicUser, org_id: int, assignment: ProgramAssignment) -> dict:
+    if not is_org_admin(current_user.id, org_id, db) and current_user.id not in (assignment.staff_user_ids or []):
+        raise HTTPException(status_code=403, detail="You cannot view this program assignment")
+    program = db.get(Program, assignment.program_id)
+    group = db.get(UserGroup, assignment.usergroup_id) if assignment.usergroup_id else None
+    participants = db.exec(select(ProgramParticipant).where(ProgramParticipant.assignment_id == assignment.id)).all()
+    participant_by_user = {participant.user_id: participant for participant in participants}
+    users = db.exec(select(User).where(User.id.in_(list(participant_by_user)))).all() if participants else []
+    objective_ids = [int(item["id"]) for item in (assignment.objective_snapshot or []) if item.get("id")]
+    progress = _progress_map(db, org_id, list(participant_by_user), objective_ids)
+    badge_awards = _badge_award_keys(db, list(participant_by_user), assignment.objective_snapshot or [])
+    rows = []
+    for user in users:
+        participant = participant_by_user[user.id]
+        cells = {}
+        for objective in assignment.objective_snapshot or []:
+            item = progress.get((user.id, int(objective["id"])))
+            cells[objective["objective_uuid"]] = {
+                "status": "completed" if (user.id, int(objective["id"])) in badge_awards else ((item.status.value if hasattr(item.status, "value") else item.status) if item else "not_started"),
+                "evidence": item.evidence if item else [], "learner_note": item.learner_note if item else "",
+                "staff_note": item.staff_note if item else "", "feedback_history": item.feedback_history if item else [],
+                "completed_at": item.completed_at if item else None,
+            }
+        rows.append({"id": user.id, "username": user.username, "first_name": user.first_name, "last_name": user.last_name, "avatar_image": user.avatar_image, "invitation_status": participant.status.value if hasattr(participant.status, "value") else participant.status, "cells": cells})
+    siblings = []
+    if assignment.usergroup_id:
+        sibling_assignments = db.exec(select(ProgramAssignment).where(ProgramAssignment.usergroup_id == assignment.usergroup_id, ProgramAssignment.active == True)).all()  # noqa: E712
+        siblings = [_assignment_summary(db, sibling) for sibling in sibling_assignments]
+    return {"assignment": _assignment_summary(db, assignment), "cohort": {"id": group.id, "uuid": group.usergroup_uuid, "name": group.name} if group else None, "program": _program_dict(db, program, include_objectives=False) if program else None, "programs": siblings, "objectives": assignment.objective_snapshot or [], "learners": rows}
 
 
 def _require_assignment_reviewer(
@@ -1167,7 +1283,37 @@ def assignment_reviews(
     assignment_uuid: str,
 ) -> dict:
     assignment = _assignment_or_404(db, assignment_uuid, org_id)
-    _require_assignment_reviewer(db, current_user, assignment)
+    require_org_membership(current_user.id, org_id, db)
+    live_plans = db.exec(select(Plan).where(Plan.source_assignment_id == assignment.id)).all() if _has_live_plan_tables(db) else []
+    reviewable_plans = [plan for plan in live_plans if "complete_restricted_objectives" in plan_capabilities_for(db, plan, current_user.id)]
+    reviews = []
+    for plan in reviewable_plans:
+        user = db.get(User, plan.subject_user_id) if plan.subject_user_id else None
+        objectives = db.exec(select(PlanObjective).where(PlanObjective.plan_id == plan.id)).all()
+        if not objectives:
+            continue
+        progresses = db.exec(select(PlanObjectiveProgress).where(
+            PlanObjectiveProgress.plan_objective_id.in_([int(item.id) for item in objectives]),
+            PlanObjectiveProgress.status == PlanObjectiveStatus.SUBMITTED,
+        )).all()
+        objective_by_id = {int(item.id): item for item in objectives}
+        for progress in progresses:
+            objective = objective_by_id[int(progress.plan_objective_id)]
+            source = next((item for item in (assignment.objective_snapshot or []) if item.get("id") == objective.source_objective_id), None)
+            reviews.append({
+                "review_type": "objective",
+                "progress_uuid": progress.progress_uuid,
+                "plan_uuid": plan.plan_uuid,
+                "plan_objective_uuid": objective.objective_uuid,
+                "objective": {**(source or {}), "objective_uuid": (source or {}).get("objective_uuid") or objective.objective_uuid, "title": objective.title},
+                "user": ({"id": user.id, "username": user.username, "first_name": user.first_name, "last_name": user.last_name, "avatar_image": user.avatar_image} if user else {"id": -int(plan.id), "username": "External learner"}),
+                "status": progress.status.value if hasattr(progress.status, "value") else str(progress.status),
+                "learner_note": progress.subject_note,
+                "evidence": list((progress.field_values or {}).values()),
+                "feedback_history": progress.feedback_history or [],
+                "submitted_at": progress.update_date,
+            })
+    reviews.sort(key=lambda item: item.get("submitted_at") or "")
     participants = db.exec(
         select(ProgramParticipant).where(ProgramParticipant.assignment_id == assignment.id)
     ).all()
@@ -1177,8 +1323,6 @@ def assignment_reviews(
         for item in (assignment.objective_snapshot or [])
         if item.get("id")
     }
-    if not user_ids or not objective_by_id:
-        return {"assignment_uuid": assignment_uuid, "objective_reviews": [], "activity_reviews": []}
     progresses = db.exec(
         select(ObjectiveProgress).where(
             ObjectiveProgress.org_id == org_id,
@@ -1189,18 +1333,18 @@ def assignment_reviews(
                 ObjectiveProgressStatus.READY_FOR_REVIEW,
             ]),
         )
-    ).all()
+    ).all() if user_ids and objective_by_id else []
     users = {
         item.id: item
         for item in db.exec(select(User).where(User.id.in_(user_ids))).all()
     }
-    reviews = []
+    legacy_reviews = []
     for progress in progresses:
         user = users.get(progress.user_id)
         objective = objective_by_id.get(progress.objective_id)
         if not user or not objective:
             continue
-        reviews.append({
+        legacy_reviews.append({
             "review_type": "objective",
             "progress_uuid": progress.progress_uuid,
             "objective": objective,
@@ -1217,7 +1361,8 @@ def assignment_reviews(
             "feedback_history": progress.feedback_history or [],
             "submitted_at": progress.update_date,
         })
-    reviews.sort(key=lambda item: item.get("submitted_at") or "")
+    if not live_plans:
+        reviews = legacy_reviews
     activity_reviews = _assignment_activity_reviews(db, assignment, users)
     return {
         "assignment_uuid": assignment_uuid,
@@ -1318,6 +1463,7 @@ def _assignment_activity_reviews(
             "review_type": "activity",
             "review_id": f"{run.run_uuid}:{activity.activity_uuid}",
             "run_uuid": run.run_uuid,
+            "plan_uuid": db.get(Plan, run.plan_id).plan_uuid if run.plan_id and db.get(Plan, run.plan_id) else None,
             "user": {
                 "id": user.id,
                 "username": user.username,
@@ -1358,11 +1504,43 @@ def review_objective_submission(
     payload: ObjectiveReviewDecision,
 ) -> dict:
     assignment = _assignment_or_404(db, assignment_uuid, org_id)
-    _require_assignment_reviewer(db, current_user, assignment)
+    require_org_membership(current_user.id, org_id, db)
     if payload.action not in {"confirm", "flag"}:
         raise HTTPException(status_code=422, detail="Action must be confirm or flag")
     if payload.action == "flag" and not payload.message.strip():
         raise HTTPException(status_code=422, detail="Tell the learner what needs to change")
+    if payload.plan_uuid or payload.plan_objective_uuid:
+        plan = db.exec(select(Plan).where(
+            Plan.source_assignment_id == assignment.id,
+            Plan.plan_uuid == payload.plan_uuid,
+        )).first() if payload.plan_uuid else None
+        plan_objective = db.exec(select(PlanObjective).where(
+            PlanObjective.objective_uuid == payload.plan_objective_uuid,
+        )).first() if payload.plan_objective_uuid else None
+        if not plan and plan_objective:
+            plan = db.get(Plan, plan_objective.plan_id)
+        if not plan or not plan_objective or plan_objective.plan_id != plan.id or plan.source_assignment_id != assignment.id:
+            raise HTTPException(status_code=404, detail="Plan objective not found in this assignment")
+        if "complete_restricted_objectives" not in plan_capabilities_for(db, plan, current_user.id):
+            raise HTTPException(status_code=403, detail="You cannot review this plan")
+        progress = db.exec(select(PlanObjectiveProgress).where(PlanObjectiveProgress.plan_objective_id == plan_objective.id)).first()
+        if not progress or progress.status != PlanObjectiveStatus.SUBMITTED:
+            raise HTTPException(status_code=409, detail="This submission is no longer waiting for review")
+        now = _now()
+        history = list(progress.feedback_history or [])
+        if payload.message.strip():
+            history.append({"message": payload.message.strip(), "action": "confirmed" if payload.action == "confirm" else "changes_requested", "created_at": now.isoformat(), "staff_user_id": current_user.id})
+        progress.status = PlanObjectiveStatus.COMPLETED if payload.action == "confirm" else PlanObjectiveStatus.CHANGES_REQUESTED
+        progress.completed_at = now if payload.action == "confirm" else None
+        progress.reviewer_note = payload.message.strip()
+        progress.feedback_history = history
+        progress.updated_by_user_id = current_user.id
+        progress.update_date = now.isoformat()
+        db.add(progress)
+        db.commit()
+        return {"plan_uuid": plan.plan_uuid, "plan_objective_uuid": plan_objective.objective_uuid, "status": progress.status.value}
+
+    _require_assignment_reviewer(db, current_user, assignment)
     objective = db.exec(
         select(Objective).where(
             Objective.objective_uuid == payload.objective_uuid,
@@ -1449,8 +1627,10 @@ def update_progress(
     staff_note: str,
     evidence: list[dict] | None,
     completion_date: datetime | None,
+    plan_uuids: list[str] | None = None,
+    override_customized: bool = False,
 ) -> list[dict]:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_membership(current_user.id, org_id, db)
     objective = db.exec(select(Objective).where(
         Objective.objective_uuid == objective_uuid,
         Objective.org_id == org_id,
@@ -1458,7 +1638,74 @@ def update_progress(
     if not objective:
         raise HTTPException(status_code=404, detail="Objective not found")
     now = _now()
+    live_statement = (
+        select(PlanObjective, Plan)
+        .join(Plan, Plan.id == PlanObjective.plan_id)
+        .where(
+            Plan.source_org_id == org_id,
+            PlanObjective.source_objective_id == objective.id,
+        )
+    )
+    if plan_uuids:
+        live_statement = live_statement.where(Plan.plan_uuid.in_(list(set(plan_uuids))))
+    else:
+        live_statement = live_statement.where(Plan.subject_user_id.in_(list(set(user_ids))))
+    live_objectives = db.exec(live_statement).all() if _has_live_plan_tables(db) else []
     results = []
+    for live_objective, plan in live_objectives:
+        capabilities = plan_capabilities_for(db, plan, current_user.id)
+        if not ({"complete_restricted_objectives", "update_progress"} & capabilities):
+            continue
+        if status == ObjectiveProgressStatus.COMPLETED and live_objective.completion_restricted and "complete_restricted_objectives" not in capabilities:
+            continue
+        source_assignment = db.get(ProgramAssignment, plan.source_assignment_id) if plan.source_assignment_id else None
+        source_snapshot = next((item for item in (source_assignment.objective_snapshot or []) if item.get("id") == live_objective.source_objective_id), None) if source_assignment else None
+        scheduled = next((item for item in (source_assignment.schedule or {}).get("objectives", []) if source_snapshot and item.get("objective_uuid") == source_snapshot.get("objective_uuid")), {}) if source_assignment else {}
+        customized = bool(source_snapshot) and (
+            live_objective.title != (source_snapshot.get("title") or "Objective")
+            or (str(live_objective.due_date) if live_objective.due_date else None) != scheduled.get("effective_due_date")
+        )
+        if customized and not override_customized:
+            results.append({"plan_uuid": plan.plan_uuid, "plan_objective_uuid": live_objective.objective_uuid, "status": "skipped", "reason": "customized"})
+            continue
+        progress = db.exec(select(PlanObjectiveProgress).where(
+            PlanObjectiveProgress.plan_objective_id == live_objective.id,
+        )).first()
+        if not progress:
+            progress = PlanObjectiveProgress(
+                progress_uuid=f"plan_progress_{uuid4()}",
+                plan_objective_id=int(live_objective.id),
+                creation_date=now.isoformat(),
+                update_date=now.isoformat(),
+            )
+        status_value = status.value if hasattr(status, "value") else str(status)
+        progress.status = PlanObjectiveStatus(status_value)
+        progress.reviewer_note = staff_note
+        if evidence is not None:
+            values = dict(progress.field_values or {})
+            values["batch_evidence"] = evidence
+            progress.field_values = values
+        progress.completed_at = (completion_date or now) if status_value == "completed" else None
+        progress.updated_by_user_id = current_user.id
+        progress.update_date = now.isoformat()
+        db.add(progress)
+        results.append({
+            "user_id": plan.subject_user_id,
+            "plan_uuid": plan.plan_uuid,
+            "plan_objective_uuid": live_objective.objective_uuid,
+            "source_objective_id": objective.id,
+            "status": status_value,
+        })
+    if live_objectives:
+        if not results:
+            raise HTTPException(status_code=403, detail="You cannot update the selected plans")
+        db.commit()
+        return results
+    if plan_uuids and _has_live_plan_tables(db):
+        raise HTTPException(status_code=404, detail="No selected plans contain this objective")
+
+    # Compatibility for assignments created before live plans were materialized.
+    require_org_admin(current_user.id, org_id, db)
     for user_id in set(user_ids):
         progress = db.exec(select(ObjectiveProgress).where(
             ObjectiveProgress.org_id == org_id,

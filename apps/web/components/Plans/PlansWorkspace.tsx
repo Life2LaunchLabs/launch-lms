@@ -151,11 +151,12 @@ function ObjectiveCard({ item, orgslug, token, refresh, color, prominent = false
   const status = item.progress?.status
   const fields = item.fields || []
   const editableFields = fields.filter((field: any) => {
-    const lane = String(field.access || field.lane || 'contributor')
-    return lane === 'either' ? item.can_update || item.can_review : ['reviewer', 'staff'].includes(lane) ? item.can_review : item.can_update
+    const legacyLane = String(field.access || field.lane || 'contributor')
+    const restricted = field.restricted ?? ['reviewer', 'staff'].includes(legacyLane)
+    return restricted ? item.can_review : item.can_update
   })
   const completeFields = fields.filter((field: any) => hasFieldValue(item.progress?.field_values?.[fieldKey(field)])).length
-  const canAct = item.can_review && status === 'submitted' || item.can_update && (!fields.length || editableFields.length > 0)
+  const canAct = item.can_review && status === 'submitted' || item.can_update && (fields.length ? editableFields.length > 0 : item.can_complete)
   const isLocked = !canAct || item.blocked
   const actionLabel = isLocked ? 'Locked' : item.kind === 'badge' ? (status === 'in_progress' ? 'Continue badge' : 'Open badge') : fields.length ? `${completeFields}/${fields.length} requirements` : item.can_review && status === 'submitted' ? 'Review' : 'Complete'
   const save = async (statusOverride?: string) => {

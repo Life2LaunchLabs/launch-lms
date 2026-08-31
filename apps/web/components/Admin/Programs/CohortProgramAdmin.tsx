@@ -8,7 +8,6 @@ import toast from 'react-hot-toast'
 import {
   AlertTriangle,
   ArrowLeft,
-  BarChart3,
   CalendarDays,
   Check,
   CheckCircle2,
@@ -19,7 +18,6 @@ import {
   Clock3,
   Eye,
   FileText,
-  Filter,
   Flag,
   Gauge,
   Info,
@@ -44,13 +42,13 @@ import { cn } from '@/lib/utils'
 import { findQuestionBlocks, getBlockScoring } from '@components/Learning/schema'
 
 type FilterMode = 'all' | 'attention' | 'review'
-type AssignmentSubpage = 'progress' | 'review' | 'details' | 'reports'
+type AssignmentSubpage = 'overview' | 'progress' | 'review' | 'details'
 
 const assignmentTabs = [
-  { id: 'progress' as const, label: 'Progress', icon: Gauge },
-  { id: 'review' as const, label: 'Review', icon: ClipboardCheck },
-  { id: 'details' as const, label: 'Details', icon: Info },
-  { id: 'reports' as const, label: 'Reports', icon: BarChart3 },
+  { id: 'overview' as const, label: 'Overview', icon: Info },
+  { id: 'progress' as const, label: 'Progress matrix', icon: Gauge },
+  { id: 'review' as const, label: 'Reviews', icon: ClipboardCheck },
+  { id: 'details' as const, label: 'Batch settings', icon: Layers3 },
 ]
 
 export function GroupOverview({ orgslug, groupId }: { orgslug: string; groupId: number }) {
@@ -77,7 +75,7 @@ export function GroupOverview({ orgslug, groupId }: { orgslug: string; groupId: 
   )
 }
 
-export function GroupProgramMatrix({ orgslug, assignmentUuid, activeSubpage = 'progress' }: { orgslug: string; assignmentUuid: string; activeSubpage?: AssignmentSubpage }) {
+export function GroupProgramMatrix({ orgslug, assignmentUuid, activeSubpage = 'overview' }: { orgslug: string; assignmentUuid: string; activeSubpage?: AssignmentSubpage }) {
   const org = useOrg() as any
   const session = useLHSession() as any
   const token = session?.data?.tokens?.access_token
@@ -95,29 +93,34 @@ export function GroupProgramMatrix({ orgslug, assignmentUuid, activeSubpage = 'p
   const [note, setNote] = React.useState('')
   const [completionDate, setCompletionDate] = React.useState(() => new Date().toISOString().slice(0, 10))
   const [saving, setSaving] = React.useState(false)
+  const [overrideCustomized, setOverrideCustomized] = React.useState(false)
 
   React.useEffect(() => { setSelected(new Set()); setFocusObjective(null) }, [assignmentUuid])
   if (isLoading || !data) return <PageLoader />
 
   const reviewCount = data.learners.filter((learner: any) => Object.values(learner.cells).some((cell: any) => ['submitted', 'ready_for_review'].includes(cell.status))).length
-  const canReview = Boolean(session?.data?.user?.is_superadmin || (data.assignment?.staff_user_ids || []).includes(Number(session?.data?.user?.id)))
-  const attentionCount = data.learners.filter((learner: any) => completionPercent(learner, data.objectives) < Math.max(0, data.assignment.progress_percent - 20)).length
-  const filteredLearners = data.learners.filter((learner: any) => filter === 'all' || (filter === 'review' ? Object.values(learner.cells).some((cell: any) => ['submitted', 'ready_for_review'].includes(cell.status)) : completionPercent(learner, data.objectives) < Math.max(0, data.assignment.progress_percent - 20)))
+  const canReview = data.learners.some((plan: any) => plan.capabilities?.includes('complete_restricted_objectives'))
+  const attentionCount = data.learners.filter((learner: any) => needsAttention(learner)).length
+  const filteredLearners = data.learners.filter((learner: any) => filter === 'all' || (filter === 'review' ? Object.values(learner.cells).some((cell: any) => ['submitted', 'ready_for_review'].includes(cell.status)) : needsAttention(learner)))
   const selectedObjective = data.objectives.find((objective: any) => objective.objective_uuid === focusObjective)
+  const selectedPlans = data.learners.filter((learner: any) => completionUsers.includes(learner.id))
+  const customizedSelectionCount = completionObjective ? selectedPlans.filter((learner: any) => learner.cells[completionObjective.objective_uuid]?.customized).length : 0
+  const missingSelectionCount = completionObjective ? selectedPlans.filter((learner: any) => !learner.cells[completionObjective.objective_uuid]).length : 0
 
   const chooseProgram = (uuid: string) => {
     const target = data.programs.find((program: any) => program.assignment_uuid === uuid)
     if (target) router.push(getUriWithOrg(orgslug, routePaths.org.dash.planAssignment(uuid, activeSubpage)))
   }
-  const openCompletion = (objective: any, userIds: number[]) => { setCompletionObjective(objective); setCompletionUsers(userIds); setNote(''); setCompletionOpen(true) }
+  const openCompletion = (objective: any, userIds: number[]) => { setCompletionObjective(objective); setCompletionUsers(userIds); setNote(''); setOverrideCustomized(false); setCompletionOpen(true) }
   const confirmCompletion = async () => {
     if (!completionObjective || !completionUsers.length) return
     setSaving(true)
     try {
-      await programsApi.updateProgress(Number(org.id), { objective_uuid: completionObjective.objective_uuid, user_ids: completionUsers, status: 'completed', staff_note: note, completion_date: new Date(`${completionDate}T12:00:00`).toISOString() }, token)
+      await programsApi.updateProgress(Number(org.id), { objective_uuid: completionObjective.objective_uuid, user_ids: completionUsers, plan_uuids: selectedPlans.map((plan: any) => plan.plan_uuid), override_customized: overrideCustomized, status: 'completed', staff_note: note, completion_date: new Date(`${completionDate}T12:00:00`).toISOString() }, token)
       if (key) await mutate(key)
       setCompletionOpen(false); setSelected(new Set())
-      toast.success(completionUsers.length === 1 ? 'Objective completed.' : `${completionUsers.length} learners marked complete.`)
+      const updated = completionUsers.length - missingSelectionCount - (overrideCustomized ? 0 : customizedSelectionCount)
+      toast.success(`${updated} plan${updated === 1 ? '' : 's'} updated${customizedSelectionCount && !overrideCustomized ? `; ${customizedSelectionCount} customized skipped` : ''}.`)
     } catch (error: any) { toast.error(error?.message || 'Could not update progress.') } finally { setSaving(false) }
   }
   const selectColumnEligible = (objective: any) => {
@@ -125,8 +128,6 @@ export function GroupProgramMatrix({ orgslug, assignmentUuid, activeSubpage = 'p
     const eligible = filteredLearners.filter((learner: any) => learner.cells[objective.objective_uuid]?.status !== 'completed').map((learner: any) => learner.id)
     setSelected(new Set(eligible))
   }
-  const inPerson = data.objectives.find((objective: any) => /workshop|in.person|activity/i.test(objective.title)) || data.objectives[0]
-
   return (
     <main className="min-h-full w-full bg-[#f8f8f8]">
       <div className="relative z-10 bg-[#fcfbfc] px-10 tracking-tight nice-shadow">
@@ -138,21 +139,23 @@ export function GroupProgramMatrix({ orgslug, assignmentUuid, activeSubpage = 'p
         <nav className="flex space-x-1 text-sm font-black" aria-label="Plan assignment pages">{assignmentTabs.filter((tab) => tab.id !== 'review' || canReview).map((tab) => { const Icon = tab.icon; const active = activeSubpage === tab.id; return <Link key={tab.id} href={getUriWithOrg(orgslug, routePaths.org.dash.planAssignment(assignmentUuid, tab.id))} className={cn('flex w-fit items-center gap-2 border-black px-3 py-2 transition', active ? 'border-b-4' : 'opacity-50 hover:opacity-75')}><Icon size={16} />{tab.label}{tab.id === 'review' && reviewCount > 0 ? <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800">{reviewCount}</span> : null}</Link> })}</nav>
       </div>
       <div className="mx-auto max-w-[1500px] px-6 py-6">
+        {activeSubpage === 'overview' ? <BatchOverview data={data} orgslug={orgslug} attentionCount={attentionCount} reviewCount={reviewCount} /> : null}
         {activeSubpage === 'progress' ? <>
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Summary icon={<CalendarDays size={17} />} label="Timeline" value={scheduleLabel(data.assignment.due_date)} detail={data.assignment.due_date ? `Due ${formatDate(data.assignment.due_date)}` : 'No fixed end date'} tone="green" /><Summary icon={<Gauge size={17} />} label="Overall progress" value={`${data.assignment.progress_percent}%`} detail={`${data.assignment.completed_count} objective completions`} tone="blue" /><Summary icon={<AlertTriangle size={17} />} label="Learners falling behind" value={String(attentionCount)} detail="Based on group pace" tone={attentionCount ? 'amber' : 'green'} /><Summary icon={<Flag size={17} />} label="Next milestone" value={nextMilestone(data)} detail={selectedObjective ? 'Selected requirement' : 'First incomplete requirement'} /></div>
-
-        <section className="mt-4 overflow-hidden rounded-xl border border-gray-200 bg-white nice-shadow">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-4 py-3"><div className="flex flex-wrap gap-2"><FilterButton active={filter === 'all'} onClick={() => setFilter('all')}>All learners <ChevronDown size={13} /></FilterButton><FilterButton active={filter === 'attention'} tone="amber" onClick={() => setFilter('attention')}>Needs attention <Count>{attentionCount}</Count></FilterButton><FilterButton active={filter === 'review'} tone="blue" onClick={() => setFilter('review')}>Ready to review <Count>{reviewCount}</Count></FilterButton></div><div className="flex items-center gap-2"><button onClick={() => inPerson && openCompletion(inPerson, data.learners.filter((learner: any) => learner.cells[inPerson.objective_uuid]?.status !== 'completed').map((learner: any) => learner.id))} disabled={!inPerson} className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-xs font-black text-gray-800 hover:bg-gray-50 disabled:opacity-40"><Sparkles size={14} />Mark in-person activity complete</button><button className="rounded-lg border border-gray-200 p-2 text-gray-500"><Filter size={16} /></button></div></div>
+        <section className="overflow-hidden rounded-xl border border-gray-200 bg-white nice-shadow">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-4 py-3"><div className="flex flex-wrap gap-2"><FilterButton active={filter === 'all'} onClick={() => setFilter('all')}>All plans <ChevronDown size={13} /></FilterButton><FilterButton active={filter === 'attention'} tone="amber" onClick={() => setFilter('attention')}>Needs attention <Count>{attentionCount}</Count></FilterButton><FilterButton active={filter === 'review'} tone="blue" onClick={() => setFilter('review')}>Ready to review <Count>{reviewCount}</Count></FilterButton></div><p className="text-xs text-gray-500">Select an objective column to apply a safe batch action.</p></div>
           <div className="overflow-auto pb-20"><table className="min-w-[1050px] w-full border-collapse text-left"><thead className="sticky top-0 z-20 bg-white"><tr><th className="sticky left-0 z-30 w-56 min-w-56 border-b border-r border-gray-200 bg-white px-4 py-4 text-xs font-black text-gray-700"><span className="inline-flex items-center gap-2"><Pin size={13} />Learner</span></th>{data.objectives.map((objective: any) => { const focused = focusObjective === objective.objective_uuid; return <th key={objective.objective_uuid} onClick={() => { setFocusObjective(focused ? null : objective.objective_uuid); setSelected(new Set()) }} className={cn('min-w-40 cursor-pointer border-b border-r border-gray-200 px-3 py-3 align-top transition', focused ? 'bg-blue-50 ring-1 ring-inset ring-blue-300' : focusObjective ? 'bg-gray-50/70 opacity-60' : 'bg-white hover:bg-gray-50')}><div className="flex items-start justify-between gap-2"><div><p className="text-xs font-black leading-4 text-gray-800">{objective.title}</p><p className="mt-1 text-[10px] font-semibold text-gray-400">{objective.target_days ? `Day ${objective.target_days}` : objective.kind === 'badge' ? `Badge v${objective.badge_major_version || 1}` : objective.evidence_policy !== 'none' ? 'Evidence enabled' : 'Staff confirmation'}</p></div>{focused && <Pin size={13} className="text-blue-600" />}</div>{focused && <button onClick={(event) => { event.stopPropagation(); selectColumnEligible(objective) }} className="mt-2 text-[10px] font-black text-blue-700 hover:underline">Select incomplete</button>}</th>})}</tr></thead><tbody>{filteredLearners.map((learner: any) => { const rowFocused = focusUser === learner.id; return <tr key={learner.id} className={cn('transition', rowFocused ? 'relative z-10 bg-blue-50/70 shadow-[0_4px_14px_rgba(37,99,235,0.12)]' : focusUser ? 'opacity-55' : 'hover:bg-gray-50/50')}><th onClick={() => setFocusUser(rowFocused ? null : learner.id)} className={cn('sticky left-0 z-10 cursor-pointer border-b border-r border-gray-200 px-4 py-3 transition', rowFocused ? 'bg-blue-50' : 'bg-white')}><div className="flex items-center gap-3"><button onClick={(event) => { event.stopPropagation(); const next = new Set(selected); next.has(learner.id) ? next.delete(learner.id) : next.add(learner.id); setSelected(next) }} className={cn('flex h-4 w-4 shrink-0 items-center justify-center rounded border', selected.has(learner.id) ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 bg-white')}>{selected.has(learner.id) && <Check size={11} />}</button><Avatar learner={learner} /><div className="min-w-0"><p className="truncate text-xs font-black text-gray-800">{displayName(learner)}</p><p className="mt-0.5 text-[10px] font-semibold text-gray-400">{completionPercent(learner, data.objectives)}% complete</p></div>{rowFocused && <Pin size={13} className="ml-auto text-blue-600" />}</div></th>{data.objectives.map((objective: any) => { const cell = learner.cells[objective.objective_uuid] || { status: 'not_started' }; const colFocused = focusObjective === objective.objective_uuid; const expanded = rowFocused || colFocused; return <td key={objective.objective_uuid} onClick={() => { setFocusUser(learner.id); setFocusObjective(objective.objective_uuid) }} className={cn('cursor-pointer border-b border-r border-gray-200 px-3 py-3 transition', colFocused ? 'bg-blue-50/80 ring-1 ring-inset ring-blue-200' : focusObjective ? 'opacity-55' : '', expanded ? 'h-16' : 'h-14')}><Status status={cell.status} />{expanded && cell.evidence?.length ? <button className="mt-2 inline-flex items-center gap-1 text-[10px] font-black text-blue-700"><Eye size={11} />Preview evidence</button> : null}{rowFocused && colFocused && cell.status !== 'completed' ? <button onClick={(event) => { event.stopPropagation(); openCompletion(objective, [learner.id]) }} className="mt-2 block text-[10px] font-black text-blue-700 hover:underline">Complete objective</button> : null}</td>})}</tr>})}</tbody></table></div>
           {selected.size > 0 && focusObjective ? <div className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-xl border border-gray-200 bg-white p-2.5 shadow-xl"><span className="flex items-center gap-2 px-2 text-sm font-black text-gray-800"><span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-white"><Check size={12} /></span>{selected.size} selected</span><button onClick={() => openCompletion(selectedObjective, Array.from(selected))} className="inline-flex items-center gap-2 rounded-lg bg-black px-4 py-2.5 text-xs font-black text-white"><CheckCircle2 size={15} />Mark complete</button><button onClick={() => { setCompletionObjective(selectedObjective); setCompletionUsers(Array.from(selected)); setCompletionOpen(true) }} className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2.5 text-xs font-black text-gray-700"><MessageSquareText size={14} />Add note</button><button onClick={() => setSelected(new Set())} className="p-2 text-gray-400 hover:text-black"><X size={16} /></button></div> : null}
         </section></> : null}
         {activeSubpage === 'review' ? canReview ? <AssignmentReviewPanel orgId={Number(org.id)} token={token} assignmentUuid={assignmentUuid} matrixKey={key} /> : <div className="rounded-xl border border-dashed border-gray-200 bg-white py-20 text-center"><Flag className="mx-auto text-gray-300" size={36} /><p className="mt-3 font-black text-gray-800">Review access is assigned</p><p className="mt-1 text-sm text-gray-500">Only staff attached to this assignment can clear its reviews.</p></div> : null}
         {activeSubpage === 'details' ? <AssignmentDetails data={data} /> : null}
-        {activeSubpage === 'reports' ? <EmptyReports /> : null}
       </div>
-      <Modal isDialogOpen={completionOpen} onOpenChange={setCompletionOpen} minHeight="no-min" minWidth="md" dialogTitle="Complete objective" dialogDescription={completionUsers.length === 1 ? 'Confirm this learner’s completion and add context for them.' : `Apply this completion to ${completionUsers.length} learners at once.`} dialogContent={<div className="space-y-5 p-2"><div className="rounded-xl bg-gray-50 p-4"><p className="text-xs font-semibold text-gray-400">Objective</p><p className="mt-1 text-sm font-black text-gray-900">{completionObjective?.title}</p><p className="mt-1 text-xs text-gray-500">{completionUsers.length === 1 ? displayName(data.learners.find((learner: any) => learner.id === completionUsers[0]) || {}) : `${completionUsers.length} selected learners`}</p></div><label className="block text-xs font-bold text-gray-600"><span className="mb-2 block">Completion date</span><input type="date" value={completionDate} onChange={(e) => setCompletionDate(e.target.value)} className="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm" /></label><label className="block text-xs font-bold text-gray-600"><span className="mb-2 block">Staff note <span className="font-medium text-gray-400">(optional)</span></span><textarea value={note} onChange={(e) => setNote(e.target.value)} className="min-h-28 w-full rounded-lg border border-gray-200 p-3 text-sm outline-none focus:border-blue-400" placeholder={completionUsers.length > 1 ? 'This shared note will be visible on every selected learner’s record.' : 'Add helpful context or feedback.'} /><span className="mt-1 block text-right text-[10px] font-semibold text-gray-400">{note.length}/500</span></label><div className="rounded-lg bg-blue-50 p-3 text-xs font-semibold text-blue-700">Learners will be notified of completion. Their progress will update anywhere this objective is reused.</div><button onClick={() => void confirmCompletion()} disabled={saving} className="flex w-full items-center justify-center gap-2 rounded-lg bg-black px-5 py-3 text-sm font-black text-white disabled:opacity-50">{saving ? <Loader2 className="animate-spin" size={16} /> : <CheckCircle2 size={16} />}Confirm completion</button></div>} />
+      <Modal isDialogOpen={completionOpen} onOpenChange={setCompletionOpen} minHeight="no-min" minWidth="md" dialogTitle="Preview batch update" dialogDescription={`${completionUsers.length} selected plan${completionUsers.length === 1 ? '' : 's'} will be evaluated.`} dialogContent={<BatchCompletionPreview objective={completionObjective} selectedCount={completionUsers.length} customizedCount={customizedSelectionCount} missingCount={missingSelectionCount} overrideCustomized={overrideCustomized} setOverrideCustomized={setOverrideCustomized} completionDate={completionDate} setCompletionDate={setCompletionDate} note={note} setNote={setNote} saving={saving} confirm={() => void confirmCompletion()} />} />
     </main>
   )
+}
+
+function BatchCompletionPreview({ objective, selectedCount, customizedCount, missingCount, overrideCustomized, setOverrideCustomized, completionDate, setCompletionDate, note, setNote, saving, confirm }: any) {
+  return <div className="space-y-5 p-2"><div className="rounded-xl bg-gray-50 p-4"><p className="text-xs font-semibold text-gray-400">Objective</p><p className="mt-1 text-sm font-black text-gray-900">{objective?.title}</p><div className="mt-3 space-y-1 text-xs text-gray-600"><p>{selectedCount - missingCount} plans contain this objective.</p>{customizedCount ? <p className="font-bold text-amber-700">{customizedCount} customized plan{customizedCount === 1 ? '' : 's'} will be skipped.</p> : null}{missingCount ? <p>{missingCount} plan{missingCount === 1 ? '' : 's'} no longer contain this objective.</p> : null}</div></div>{customizedCount ? <label className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs font-bold text-amber-900"><input type="checkbox" checked={overrideCustomized} onChange={(event) => setOverrideCustomized(event.target.checked)} className="mt-0.5" />Override customized values for this action</label> : null}<label className="block text-xs font-bold text-gray-600"><span className="mb-2 block">Completion date</span><input type="date" value={completionDate} onChange={(event) => setCompletionDate(event.target.value)} className="h-11 w-full rounded-lg border border-gray-200 px-3 text-sm" /></label><label className="block text-xs font-bold text-gray-600"><span className="mb-2 block">Staff note <span className="font-medium text-gray-400">(optional)</span></span><textarea value={note} onChange={(event) => setNote(event.target.value)} className="min-h-28 w-full rounded-lg border border-gray-200 p-3 text-sm outline-none focus:border-blue-400" placeholder="This note will be added to each updated plan." /><span className="mt-1 block text-right text-[10px] font-semibold text-gray-400">{note.length}/500</span></label><button onClick={confirm} disabled={saving || selectedCount === missingCount} className="flex w-full items-center justify-center gap-2 rounded-lg bg-black px-5 py-3 text-sm font-black text-white disabled:opacity-50">{saving ? <Loader2 className="animate-spin" size={16} /> : <CheckCircle2 size={16} />}Confirm completion</button></div>
 }
 
 function AssignmentReviewPanel({ orgId, token, assignmentUuid, matrixKey }: { orgId: number; token?: string; assignmentUuid: string; matrixKey: string | null }) {
@@ -180,7 +183,7 @@ function AssignmentReviewPanel({ orgId, token, assignmentUuid, matrixKey }: { or
     if (!active || saving || (action === 'flag' && !message.trim())) return
     setSaving(true)
     try {
-      await programsApi.reviewObjective(orgId, assignmentUuid, { objective_uuid: active.objective.objective_uuid, user_id: active.user.id, action, message }, token)
+      await programsApi.reviewObjective(orgId, assignmentUuid, { objective_uuid: active.objective.objective_uuid, user_id: active.user.id, plan_uuid: active.plan_uuid, plan_objective_uuid: active.plan_objective_uuid, action, message }, token)
       const remaining = reviews.filter((item: any) => item.progress_uuid !== active.progress_uuid)
       await Promise.all([reviewKey ? mutate(reviewKey) : Promise.resolve(), matrixKey ? mutate(matrixKey) : Promise.resolve()])
       const next = remaining.find((item: any) => item.objective.objective_uuid === active.objective.objective_uuid) || remaining[0]
@@ -382,13 +385,19 @@ function formatReviewDate(value: string) { return new Date(value).toLocaleString
 
 function Score({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) { return <div className={cn('rounded-xl border border-gray-200 bg-white p-4', strong && 'border-blue-200 bg-blue-50')}><p className="text-xs font-bold text-gray-500">{label}</p><p className="mt-1 text-xl font-black text-gray-900">{value}</p></div> }
 
+function BatchOverview({ data, orgslug, attentionCount, reviewCount }: { data: any; orgslug: string; attentionCount: number; reviewCount: number }) {
+  const plans = data.plans || data.learners || []
+  const invitationCounts = plans.reduce((counts: Record<string, number>, plan: any) => ({ ...counts, [plan.invitation_status || 'accepted']: (counts[plan.invitation_status || 'accepted'] || 0) + 1 }), {})
+  const lifecycleCounts = plans.reduce((counts: Record<string, number>, plan: any) => ({ ...counts, [plan.lifecycle || 'active']: (counts[plan.lifecycle || 'active'] || 0) + 1 }), {})
+  return <div className="space-y-5"><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Summary icon={<Users size={17} />} label="Live plans" value={String(plans.length)} detail={`${lifecycleCounts.active || 0} active · ${lifecycleCounts.completed || 0} completed`} tone="blue" /><Summary icon={<CalendarDays size={17} />} label="Invitations" value={String(invitationCounts.pending || 0)} detail={`${invitationCounts.accepted || 0} accepted · ${invitationCounts.declined || 0} declined`} /><Summary icon={<AlertTriangle size={17} />} label="Needs attention" value={String(attentionCount)} detail="Overdue, blocked, changes requested, or inactive" tone={attentionCount ? 'amber' : 'green'} /><Summary icon={<ClipboardCheck size={17} />} label="Reviews" value={String(reviewCount)} detail="Plans with submitted work" tone={reviewCount ? 'amber' : 'green'} /></div><section className="overflow-hidden rounded-xl border border-gray-200 bg-white nice-shadow"><div className="border-b border-gray-100 px-5 py-4"><h2 className="font-black text-gray-900">Plans in this batch</h2><p className="mt-1 text-xs text-gray-500">Each row is an independent workspace and may diverge from the assignment snapshot.</p></div><div className="divide-y divide-gray-100">{plans.map((plan: any) => <Link key={plan.plan_uuid} href={getUriWithOrg(orgslug, routePaths.org.dash.livePlan(plan.plan_uuid))} className="grid gap-3 p-4 transition hover:bg-gray-50 sm:grid-cols-[minmax(0,1fr)_100px_110px_120px_24px] sm:items-center"><div className="flex min-w-0 items-center gap-3"><Avatar learner={plan} /><div className="min-w-0"><p className="truncate text-sm font-black text-gray-900">{displayName(plan)}</p><p className="mt-0.5 text-[11px] text-gray-500">{plan.custom_objectives?.length ? `${plan.custom_objectives.length} personal objective${plan.custom_objectives.length === 1 ? '' : 's'}` : 'Matches shared objectives'}</p></div></div><span className="text-xs font-bold capitalize text-gray-600">{plan.lifecycle}</span><span className="text-xs capitalize text-gray-500">{plan.invitation_status}</span><span className="text-xs font-black text-blue-700">{plan.progress_percent}% complete</span><ChevronRight size={16} className="hidden text-gray-300 sm:block" /></Link>)}</div></section></div>
+}
+
 function AssignmentDetails({ data }: { data: any }) {
   const assignment = data.assignment || {}
   return <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]"><section className="rounded-xl border border-gray-100 bg-white p-6 nice-shadow"><h2 className="text-lg font-black text-gray-900">Assignment details</h2><dl className="mt-5 space-y-5"><Detail label="Description" value={data.program?.description || 'No description provided.'} /><Detail label="Welcome message" value={assignment.welcome_message || 'No welcome message.'} /><Detail label="Schedule" value={assignment.due_date ? `${formatDate(assignment.start_date || assignment.initiate_date)} – ${formatDate(assignment.due_date)}` : 'Self paced'} /></dl></section><section className="rounded-xl border border-gray-100 bg-white p-6 nice-shadow"><h2 className="text-lg font-black text-gray-900">Assigned staff</h2><p className="mt-1 text-sm text-gray-500">These staff members can review submissions.</p><div className="mt-4 space-y-2">{(assignment.staff || []).map((staff: any) => <div key={staff.id} className="flex items-center gap-3 rounded-lg bg-gray-50 p-3"><Avatar learner={staff} /><span className="text-sm font-bold text-gray-800">{displayName(staff)}</span></div>)}</div></section></div>
 }
 
 function Detail({ label, value }: { label: string; value: string }) { return <div><dt className="text-xs font-black uppercase tracking-wide text-gray-400">{label}</dt><dd className="mt-1 whitespace-pre-wrap text-sm leading-6 text-gray-800">{value}</dd></div> }
-function EmptyReports() { return <div className="rounded-xl border border-dashed border-gray-200 bg-white py-24 text-center"><BarChart3 className="mx-auto text-gray-300" size={38} /><p className="mt-3 font-black text-gray-800">Reports are coming next</p><p className="mt-1 text-sm text-gray-500">Assignment exports and performance reporting will live here.</p></div> }
 
 function Summary({ icon, label, value, detail, tone = 'neutral' }: { icon: React.ReactNode; label: string; value: string; detail: string; tone?: string }) { return <div className="rounded-xl border border-gray-100 bg-white p-4 nice-shadow"><div className="flex items-center gap-2 text-xs font-semibold text-gray-500">{icon}{label}</div><p className={cn('mt-3 truncate text-xl font-black', tone === 'blue' ? 'text-blue-600' : tone === 'green' ? 'text-green-700' : tone === 'amber' ? 'text-amber-600' : 'text-gray-900')}>{value}</p><p className="mt-1 truncate text-[11px] font-medium text-gray-400">{detail}</p></div> }
 function FilterButton({ active, tone, onClick, children }: { active: boolean; tone?: string; onClick: () => void; children: React.ReactNode }) { return <button onClick={onClick} className={cn('inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-bold transition', active ? tone === 'amber' ? 'border-amber-200 bg-amber-50 text-amber-800' : tone === 'blue' ? 'border-blue-200 bg-blue-50 text-blue-800' : 'border-gray-300 bg-gray-100 text-gray-900' : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50')}>{children}</button> }
@@ -399,5 +408,4 @@ function PageLoader() { return <div className="flex min-h-[70vh] w-full items-ce
 function displayName(learner: any) { return [learner.first_name, learner.last_name].filter(Boolean).join(' ') || learner.username || 'Learner' }
 function completionPercent(learner: any, objectives: any[]) { if (!objectives.length) return 0; const complete = objectives.filter((objective) => learner.cells?.[objective.objective_uuid]?.status === 'completed').length; return Math.round((complete / objectives.length) * 100) }
 function formatDate(value: string) { return new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) }
-function scheduleLabel(dueDate?: string | null) { if (!dueDate) return 'Self paced'; const days = Math.ceil((new Date(dueDate).getTime() - Date.now()) / 86400000); return days >= 0 ? 'On schedule' : 'Past due' }
-function nextMilestone(data: any) { const objective = data.objectives.find((item: any) => data.learners.some((learner: any) => learner.cells[item.objective_uuid]?.status !== 'completed')); return objective?.title || 'Plan complete' }
+function needsAttention(plan: any) { const cells = Object.values(plan.cells || {}) as any[]; const unique = Array.from(new Map(cells.map((cell: any) => [cell.plan_objective_uuid || cell.source_objective_id, cell])).values()) as any[]; const now = Date.now(); return unique.some((cell: any) => cell.blocked || cell.status === 'changes_requested' || (cell.due_date && new Date(`${cell.due_date}T23:59:59`).getTime() < now && !['completed', 'canceled'].includes(cell.status))) || (plan.lifecycle === 'active' && plan.update_date && now - new Date(plan.update_date).getTime() > 14 * 86400000) }

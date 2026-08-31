@@ -27,7 +27,9 @@ test('withQuery omits empty values and encodes query params', () => {
 test('route manifest builds key dashboard and owner routes', () => {
   assert.equal(routePaths.org.dash.badges(), '/admin/badges')
   assert.equal(routePaths.org.dash.planAssignments(), '/admin/plans/assignments')
-  assert.equal(routePaths.org.dash.planAssignment('assignment_1'), '/admin/plans/assignments/assignment_1/progress')
+  assert.equal(routePaths.org.dash.planAssignment('assignment_1'), '/admin/plans/assignments/assignment_1/overview')
+  assert.equal(routePaths.org.dash.livePlan('plan_1'), '/admin/plans/live/plan_1')
+  assert.equal(routePaths.org.dash.livePlan('plan_1', 'reviews'), '/admin/plans/live/plan_1/reviews')
   assert.equal(routePaths.org.dash.users.roles(), '/admin/users/roles')
   assert.equal(routePaths.org.dash.users.usergroups(), '/admin/users')
   assert.equal(routePaths.org.dash.users.group(2), '/admin/users/groups/2')

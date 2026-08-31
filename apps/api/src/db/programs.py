@@ -291,6 +291,8 @@ class ProgramAssignmentCreate(SQLModel):
 class ObjectiveProgressUpdate(SQLModel):
     objective_uuid: str
     user_ids: list[int]
+    plan_uuids: list[str] = Field(default_factory=list)
+    override_customized: bool = False
     status: ObjectiveProgressStatus = ObjectiveProgressStatus.COMPLETED
     staff_note: str = ""
     evidence: list[dict] | None = None
@@ -331,5 +333,7 @@ class LearnerProgramDetailView(SQLModel):
 class ObjectiveReviewDecision(SQLModel):
     objective_uuid: str
     user_id: int
+    plan_uuid: str | None = None
+    plan_objective_uuid: str | None = None
     action: str
     message: str = ""
