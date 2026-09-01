@@ -17,6 +17,7 @@ class MediaSourceType(str, Enum):
 class MediaType(str, Enum):
     image = "image"
     video = "video"
+    document = "document"
 
 
 class MediaAssetBase(SQLModel):

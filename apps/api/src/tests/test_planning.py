@@ -4,7 +4,7 @@ import pytest
 from fastapi import HTTPException
 from sqlmodel import SQLModel, Session, create_engine, select
 
-from src.db.learning import LearningBadge, LearningBadgeAward, LearningRun
+from src.db.learning import LearningBadge, LearningBadgeAward, LearningPage, LearningPageProgress, LearningRun
 from src.db.guest_sessions import GuestSession
 from src.db.media import MediaAsset, MediaOwnerType, MediaSourceType, MediaType
 from src.db.organizations import Organization
@@ -33,11 +33,13 @@ from src.db.planning import (
     OrganizationPlanRoleCreate,
     OrganizationPlanRoleUpdate,
     PlanPhase,
+    PlanPhaseCreate,
     PlanPhaseUpdate,
     PlanRole,
     PlanRoleCreate,
     PlanRoleUpdate,
     PlanStatus,
+    PlanUpdate,
 )
 # Register compatibility backing tables referenced by Plan foreign keys.
 from src.db.programs import Objective, ObjectiveProgress, ObjectiveProgressStatus, ParticipantStatus, Program, ProgramAssignment, ProgramAssignmentCreate, ProgramCreate, ProgramParticipant
@@ -57,7 +59,7 @@ def _session() -> Session:
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     SQLModel.metadata.create_all(engine, tables=[
         Organization.__table__, OrganizationConfig.__table__, User.__table__, Program.__table__, ProgramAssignment.__table__, ProgramParticipant.__table__,
-        Objective.__table__, ObjectiveProgress.__table__, GuestSession.__table__, LearningBadge.__table__, LearningBadgeAward.__table__, LearningRun.__table__,
+        Objective.__table__, ObjectiveProgress.__table__, GuestSession.__table__, LearningBadge.__table__, LearningBadgeAward.__table__, LearningRun.__table__, LearningPage.__table__, LearningPageProgress.__table__,
         Plan.__table__, PlanRole.__table__, PlanCollaborator.__table__, PlanPhase.__table__,
         OrganizationPlanRole.__table__,
         PlanObjective.__table__, PlanObjectiveProgress.__table__, PlanInvitation.__table__, PlanActivity.__table__,
@@ -78,9 +80,13 @@ def _user(user_id: int) -> PublicUser:
     return PublicUser(id=user_id, user_uuid=f"user_{user_id}", username=row[0], email=row[1], first_name=row[0], last_name="User")
 
 
+def _plan_create(name: str, **kwargs) -> PlanCreate:
+    return PlanCreate(name=name, due_date=date(2027, 12, 31), **kwargs)
+
+
 def test_personal_plan_is_free_private_and_owner_controlled():
     with _session() as db:
-        created = planning.create_plan(db, _user(1), PlanCreate(name="Earn a nursing degree"))
+        created = planning.create_plan(db, _user(1), _plan_create("Earn a nursing degree"))
         assert created["subject"]["id"] == 1
         assert created["owner"]["id"] == 1
         assert {"delete_plan", "transfer_ownership", "manage_roles"} <= set(created["capabilities"])
@@ -92,7 +98,7 @@ def test_personal_plan_is_free_private_and_owner_controlled():
 
 def test_recipient_bound_invitation_grants_plan_access_without_org_membership():
     with _session() as db:
-        created = planning.create_plan(db, _user(1), PlanCreate(name="Personal discovery"))
+        created = planning.create_plan(db, _user(1), _plan_create("Personal discovery"))
         invitation = planning.create_invitation(db, _user(1), created["slug"], PlanInvitationCreate(
             email="helper@example.com", role_key="reviewer", kind=PlanInvitationKind.COLLABORATOR,
         ))
@@ -105,8 +111,8 @@ def test_recipient_bound_invitation_grants_plan_access_without_org_membership():
 
 def test_plan_review_queue_is_scoped_to_one_live_plan():
     with _session() as db:
-        first = planning.create_plan(db, _user(1), PlanCreate(name="Learner requirements"))
-        second = planning.create_plan(db, _user(1), PlanCreate(name="Another learner plan"))
+        first = planning.create_plan(db, _user(1), _plan_create("Learner requirements"))
+        second = planning.create_plan(db, _user(1), _plan_create("Another learner plan"))
         first_row = db.exec(select(Plan).where(Plan.plan_uuid == first["plan_uuid"])).one()
         second_row = db.exec(select(Plan).where(Plan.plan_uuid == second["plan_uuid"])).one()
         first_row.subject_user_id = 2
@@ -125,10 +131,10 @@ def test_plan_review_queue_is_scoped_to_one_live_plan():
 
 def test_feed_only_offers_helping_scope_for_active_helping_plans():
     with _session() as db:
-        own = planning.create_plan(db, _user(2), PlanCreate(name="My own plan"))
+        own = planning.create_plan(db, _user(2), _plan_create("My own plan"))
         assert planning.feed(db, _user(2))["has_helping"] is False
 
-        helped = planning.create_plan(db, _user(1), PlanCreate(name="Plan needing help"))
+        helped = planning.create_plan(db, _user(1), _plan_create("Plan needing help"))
         invitation = planning.create_invitation(db, _user(1), helped["slug"], PlanInvitationCreate(
             email="helper@example.com", role_key="reviewer", kind=PlanInvitationKind.COLLABORATOR,
         ))
@@ -144,7 +150,7 @@ def test_feed_only_offers_helping_scope_for_active_helping_plans():
 
 def test_feed_urgency_explore_and_reviewer_field_permissions():
     with _session() as db:
-        created = planning.create_plan(db, _user(1), PlanCreate(name="College path"))
+        created = planning.create_plan(db, _user(1), _plan_create("College path"))
         due = planning.create_objective(db, _user(1), created["slug"], PlanObjectiveCreate(
             title="Submit application", due_date=date.today() + timedelta(days=7),
             fields=[{"field_uuid": "student_note", "access": "contributor"}, {"field_uuid": "review", "access": "reviewer"}],
@@ -152,11 +158,24 @@ def test_feed_urgency_explore_and_reviewer_field_permissions():
         planning.create_objective(db, _user(1), created["slug"], PlanObjectiveCreate(title="Explore nursing programs"))
         result = planning.feed(db, _user(1))
         assert [item["title"] for item in result["coming_up"]] == ["Submit application"]
-        assert [item["title"] for item in result["explore"]] == ["Explore nursing programs"]
+        assert result["explore"] == []
+        assert "Explore nursing programs" in [item["title"] for group in result["future_groups"] for item in group["items"]]
+        assert result["coming_up"][0]["can_edit"] is True
+        assert result["coming_up"][0]["viewer_role"]["key"] == "plan_admin"
+        assert any(person["is_subject"] for person in result["coming_up"][0]["access_people"])
+        assert result["coming_up"][0]["phase_uuid"]
+        assert result["coming_up"][0]["phase_name"] == "Getting started"
+        detail = planning.get_plan(db, _user(1), created["slug"])
+        assert detail["viewer_role"]["key"] == "plan_admin"
+        assert next(person for person in detail["collaborators"] if person["user"]["id"] == 1)["is_subject"] is True
         invitation = planning.create_invitation(db, _user(1), created["slug"], PlanInvitationCreate(
             email="helper@example.com", role_key="subject", kind=PlanInvitationKind.COLLABORATOR,
         ))
         planning.respond_to_invitation(db, _user(2), invitation["invitation_uuid"], True)
+        helper_item = planning.feed(db, _user(2))["coming_up"][0]
+        assert helper_item["viewer_role"]["key"] == "subject"
+        assert helper_item["can_contribute_fields"] is True
+        assert helper_item["can_contribute_restricted_fields"] is False
         with pytest.raises(HTTPException) as denied:
             planning.update_objective_progress(db, _user(2), created["slug"], due["objective_uuid"], PlanObjectiveProgressUpdate(
                 status=PlanObjectiveStatus.IN_PROGRESS, field_values={"review": "approved"},
@@ -168,7 +187,151 @@ def test_feed_urgency_explore_and_reviewer_field_permissions():
         assert updated["progress"]["field_values"] == {"student_note": "Drafted"}
 
 
-def test_legacy_learning_runs_link_only_to_unambiguous_badge_objectives():
+def test_objective_position_updates_drive_plan_and_overview_order():
+    with _session() as db:
+        created = planning.create_plan(db, _user(1), _plan_create("College path"))
+        first = planning.create_objective(db, _user(1), created["slug"], PlanObjectiveCreate(title="First step"))["objectives"][0]
+        second = planning.create_objective(db, _user(1), created["slug"], PlanObjectiveCreate(title="Second step"))["objectives"][1]
+
+        planning.update_objective(db, _user(1), created["slug"], first["objective_uuid"], PlanObjectiveUpdate(position=1))
+        updated = planning.update_objective(db, _user(1), created["slug"], second["objective_uuid"], PlanObjectiveUpdate(position=0))
+
+        assert [item["title"] for item in updated["objectives"]] == ["Second step", "First step"]
+        feed_titles = [item["title"] for group in planning.feed(db, _user(1))["future_groups"] for item in group["items"]]
+        assert feed_titles == ["Second step", "First step"]
+
+
+def test_plan_and_objective_target_dates_are_required_and_bounded():
+    with _session() as db:
+        with pytest.raises(HTTPException) as missing_target:
+            planning.create_plan(db, _user(1), PlanCreate(name="No target"))
+        assert missing_target.value.status_code == 422
+
+        created = planning.create_plan(db, _user(1), PlanCreate(
+            name="Bounded plan", start_date=date(2026, 9, 1), due_date=date(2026, 12, 31),
+        ))
+        first_phase = created["phases"][0]
+        planning.update_phase(db, _user(1), created["slug"], first_phase["phase_uuid"], PlanPhaseUpdate(
+            due_date=date(2026, 10, 31),
+        ))
+        second_phase = planning.create_phase(db, _user(1), created["slug"], PlanPhaseCreate(
+            name="Second phase", due_date=date(2026, 12, 15),
+        ))["phases"][-1]
+
+        with pytest.raises(HTTPException) as objective_outside_phase:
+            planning.create_objective(db, _user(1), created["slug"], PlanObjectiveCreate(
+                title="Too late", phase_uuid=first_phase["phase_uuid"], due_date=date(2026, 11, 1),
+            ))
+        assert objective_outside_phase.value.status_code == 422
+
+        with pytest.raises(HTTPException) as phase_crosses_next:
+            planning.update_phase(db, _user(1), created["slug"], first_phase["phase_uuid"], PlanPhaseUpdate(
+                due_date=date(2026, 12, 20),
+            ))
+        assert phase_crosses_next.value.status_code == 422
+
+        with pytest.raises(HTTPException) as plan_before_phase:
+            planning.update_plan(db, _user(1), created["slug"], PlanUpdate(due_date=date(2026, 12, 1)))
+        assert plan_before_phase.value.status_code == 422
+        assert second_phase["effective_due_date"] == date(2026, 12, 15)
+
+
+def test_completed_objective_steps_require_reopening_before_definition_changes():
+    with _session() as db:
+        created = planning.create_plan(db, _user(1), _plan_create("Reopen steps"))
+        objective = planning.create_objective(db, _user(1), created["slug"], PlanObjectiveCreate(
+            title="Choose a career", fields=[{"field_uuid": "decision", "type": "text", "title": "My choice"}],
+        ))["objectives"][0]
+        planning.update_objective_progress(db, _user(1), created["slug"], objective["objective_uuid"], PlanObjectiveProgressUpdate(
+            status=PlanObjectiveStatus.COMPLETED,
+        ))
+
+        with pytest.raises(HTTPException) as completed:
+            planning.update_objective(db, _user(1), created["slug"], objective["objective_uuid"], PlanObjectiveUpdate(
+                fields=[{"field_uuid": "decision", "type": "text", "title": "Updated choice"}],
+            ))
+        assert completed.value.status_code == 409
+
+        planning.update_objective_progress(db, _user(1), created["slug"], objective["objective_uuid"], PlanObjectiveProgressUpdate(
+            status=PlanObjectiveStatus.IN_PROGRESS,
+        ))
+        reopened = planning.update_objective(db, _user(1), created["slug"], objective["objective_uuid"], PlanObjectiveUpdate(
+            fields=[{"field_uuid": "decision", "type": "text", "title": "Updated choice"}],
+        ))
+        assert reopened["objectives"][0]["fields"][0]["title"] == "Updated choice"
+
+
+def test_badges_are_objective_requirements_and_legacy_badge_objectives_are_rejected():
+    with _session() as db:
+        badge = LearningBadge(
+            id=1, badge_uuid="badge_1", org_id=1, name="Clinical practice",
+            thumbnail_image="/badge.png", creation_date=NOW, update_date=NOW,
+        )
+        second_badge = LearningBadge(
+            id=2, badge_uuid="badge_2", org_id=1, name="Workplace safety",
+            creation_date=NOW, update_date=NOW,
+        )
+        db.add_all([badge, second_badge])
+        db.commit()
+        created = planning.create_plan(db, _user(1), _plan_create("Placement plan"))
+
+        updated = planning.create_objective(db, _user(1), created["slug"], PlanObjectiveCreate(
+            title="Prepare for placement",
+            fields=[{
+                "field_uuid": "badge_requirement_1", "type": "badge",
+                "title": "Clinical practice", "badge_uuid": badge.badge_uuid,
+            }, {
+                "field_uuid": "badge_requirement_2", "type": "badge",
+                "title": "Workplace safety", "badge_uuid": second_badge.badge_uuid,
+            }],
+        ))
+
+        objective = updated["objectives"][0]
+        assert objective["kind"] == "custom"
+        assert objective["fields"][0]["badge"]["thumbnail_image"] == "/badge.png"
+        assert objective["fields"][0]["progress_percent"] == 0
+        assert objective["fields"][1]["badge"]["name"] == "Workplace safety"
+        assert objective["fields"][1]["progress_percent"] == 0
+        stored = db.exec(select(PlanObjective).where(PlanObjective.objective_uuid == objective["objective_uuid"])).one()
+        assert stored.badge_id == badge.id
+
+        db.add(LearningBadgeAward(
+            award_uuid="award_1", badge_id=badge.id, org_id=1, user_id=1,
+            creation_date=NOW, update_date=NOW,
+        ))
+        db.commit()
+        refreshed = planning.get_plan(db, _user(1), created["slug"])
+        assert refreshed["objectives"][0]["fields"][0]["progress_percent"] == 100
+        assert refreshed["objectives"][0]["fields"][1]["progress_percent"] == 0
+
+        with pytest.raises(HTTPException) as legacy:
+            planning.create_objective(db, _user(1), created["slug"], PlanObjectiveCreate(
+                title="Old badge objective", kind="badge", badge_uuid=badge.badge_uuid,
+            ))
+        assert legacy.value.status_code == 422
+
+
+def test_materialized_badge_snapshots_become_badge_requirements():
+    with _session() as db:
+        badge = LearningBadge(
+            id=1, badge_uuid="badge_1", org_id=1, name="Clinical practice",
+            creation_date=NOW, update_date=NOW,
+        )
+        db.add(badge)
+        db.flush()
+
+        fields = planning._materialized_objective_fields(db, {
+            "id": 7, "objective_uuid": "objective_7", "kind": "badge", "badge_id": badge.id,
+        })
+
+        assert fields == [{
+            "field_uuid": "badge_requirement_objective_7",
+            "title": "Clinical practice", "type": "badge",
+            "badge_uuid": "badge_1", "restricted": False,
+        }]
+
+
+def test_legacy_learning_runs_link_only_to_unambiguous_badge_requirements():
     with _session() as db:
         badge = LearningBadge(
             id=1, badge_uuid="badge_1", org_id=1, name="Clinical practice",
@@ -186,19 +349,22 @@ def test_legacy_learning_runs_link_only_to_unambiguous_badge_objectives():
         db.flush()
         linked_objective = PlanObjective(
             objective_uuid="objective_linked", plan_id=linked_plan.id,
-            title="Complete placement", kind="badge", badge_id=badge.id,
+            title="Complete placement", kind="custom", badge_id=badge.id,
+            fields=[{"field_uuid": "badge_1", "type": "badge", "badge_uuid": badge.badge_uuid}],
             creation_date=NOW, update_date=NOW,
         )
         db.add_all([
             linked_objective,
             PlanObjective(
                 objective_uuid="objective_ambiguous_1", plan_id=ambiguous_plan.id,
-                title="First placement", kind="badge", badge_id=badge.id,
+                title="First placement", kind="custom", badge_id=badge.id,
+                fields=[{"field_uuid": "badge_1a", "type": "badge", "badge_uuid": badge.badge_uuid}],
                 creation_date=NOW, update_date=NOW,
             ),
             PlanObjective(
                 objective_uuid="objective_ambiguous_2", plan_id=ambiguous_plan.id,
-                title="Second placement", kind="badge", badge_id=badge.id,
+                title="Second placement", kind="custom", badge_id=badge.id,
+                fields=[{"field_uuid": "badge_1b", "type": "badge", "badge_uuid": badge.badge_uuid}],
                 creation_date=NOW, update_date=NOW,
             ),
         ])
@@ -228,7 +394,7 @@ def test_legacy_learning_runs_link_only_to_unambiguous_badge_objectives():
 
 def test_structure_schedule_role_and_leave_permissions_are_independent():
     with _session() as db:
-        created = planning.create_plan(db, _user(1), PlanCreate(name="Permission lanes"))
+        created = planning.create_plan(db, _user(1), _plan_create("Permission lanes"))
         structure_role = planning.create_role(db, _user(1), created["slug"], PlanRoleCreate(
             key="structure_editor", name="Structure editor",
             capabilities=["view_plan", "edit_structure"],
@@ -261,7 +427,7 @@ def test_structure_schedule_role_and_leave_permissions_are_independent():
 
 def test_role_manager_cannot_create_a_more_powerful_role():
     with _session() as db:
-        created = planning.create_plan(db, _user(1), PlanCreate(name="No escalation"))
+        created = planning.create_plan(db, _user(1), _plan_create("No escalation"))
         manager = planning.create_role(db, _user(1), created["slug"], PlanRoleCreate(
             key="role_manager", name="Role manager",
             capabilities=["view_plan", "manage_roles"], grantable_role_keys=["viewer"],
@@ -280,7 +446,7 @@ def test_role_manager_cannot_create_a_more_powerful_role():
 
 def test_comments_activity_and_plan_scoped_attachments():
     with _session() as db:
-        created = planning.create_plan(db, _user(1), PlanCreate(name="Evidence plan"))
+        created = planning.create_plan(db, _user(1), _plan_create("Evidence plan"))
         asset = MediaAsset(
             asset_uuid="asset_evidence", owner_type=MediaOwnerType.user,
             owner_user_id=1, created_by_user_id=1, source_type=MediaSourceType.upload,
@@ -303,7 +469,7 @@ def test_comments_activity_and_plan_scoped_attachments():
 
 def test_subject_can_request_but_not_directly_invite_a_collaborator():
     with _session() as db:
-        created = planning.create_plan(db, _user(1), PlanCreate(name="Requested help"))
+        created = planning.create_plan(db, _user(1), _plan_create("Requested help"))
         invitation = planning.create_invitation(db, _user(1), created["slug"], PlanInvitationCreate(
             email="helper@example.com", role_key="subject",
         ))
@@ -526,8 +692,8 @@ def test_custom_organization_roles_are_reused_across_managed_plans(monkeypatch):
     with _session() as db:
         org = Organization(id=1, org_uuid="org_roles", name="Role org", slug="role-org", email="roles@example.com", creation_date=NOW, update_date=NOW)
         db.add(org)
-        first = planning.create_plan(db, _user(1), PlanCreate(name="First managed plan"))
-        second = planning.create_plan(db, _user(1), PlanCreate(name="Second managed plan"))
+        first = planning.create_plan(db, _user(1), _plan_create("First managed plan"))
+        second = planning.create_plan(db, _user(1), _plan_create("Second managed plan"))
         first_plan = planning._plan_or_404(db, first["plan_uuid"])
         second_plan = planning._plan_or_404(db, second["plan_uuid"])
         first_plan.source_org_id = org.id
@@ -553,7 +719,7 @@ def test_custom_organization_roles_are_reused_across_managed_plans(monkeypatch):
 
 def test_scheduled_managed_invitation_is_hidden_until_initiation():
     with _session() as db:
-        created = planning.create_plan(db, _user(1), PlanCreate(name="Scheduled plan"))
+        created = planning.create_plan(db, _user(1), _plan_create("Scheduled plan"))
         plan = planning._plan_or_404(db, created["slug"])
         assignment = ProgramAssignment(
             id=10, assignment_uuid="assignment_future", org_id=1, program_id=1,
@@ -576,7 +742,7 @@ def test_scheduled_managed_invitation_is_hidden_until_initiation():
 
 def test_feed_explore_expansion_and_active_item_boundaries():
     with _session() as db:
-        created = planning.create_plan(db, _user(1), PlanCreate(name="Feed boundaries"))
+        created = planning.create_plan(db, _user(1), _plan_create("Feed boundaries"))
         for index in range(6):
             planning.create_objective(db, _user(1), created["slug"], PlanObjectiveCreate(title=f"Explore {index}"))
         blocked = planning.create_objective(db, _user(1), created["slug"], PlanObjectiveCreate(title="Blocked"))["objectives"][-1]
@@ -589,11 +755,13 @@ def test_feed_explore_expansion_and_active_item_boundaries():
 
         collapsed = planning.feed(db, _user(1))
         expanded = planning.feed(db, _user(1), explore_all=True)
-        assert len(collapsed["explore"]) == 5
-        assert len(expanded["explore"]) == 6
-        assert collapsed["explore_total"] == 6
-        assert [item["objective_uuid"] for group in collapsed["future_groups"] for item in group["items"]] == [future["objective_uuid"]]
-        visible_titles = {item["title"] for item in collapsed["coming_up"] + expanded["explore"]}
+        assert collapsed["explore"] == []
+        assert expanded["explore"] == []
+        assert collapsed["explore_total"] == 0
+        future_items = [item for group in collapsed["future_groups"] for item in group["items"]]
+        assert future["objective_uuid"] in [item["objective_uuid"] for item in future_items]
+        assert all(f"Explore {index}" in [item["title"] for item in future_items] for index in range(6))
+        visible_titles = {item["title"] for item in collapsed["coming_up"] + future_items}
         assert "Blocked" not in visible_titles
         assert "Already done" not in visible_titles
 
@@ -647,7 +815,7 @@ def test_legacy_program_and_participant_identifiers_resolve_precise_plan():
         assignment = ProgramAssignment(id=30, assignment_uuid="assignment_legacy", org_id=1, program_id=1, user_id=1, creation_date=NOW, update_date=NOW)
         participant = ProgramParticipant(id=40, participant_uuid="participant_legacy", assignment_id=30, org_id=1, user_id=1, status=ParticipantStatus.ACTIVE, creation_date=NOW, update_date=NOW)
         db.add_all([program, assignment, participant])
-        created = planning.create_plan(db, _user(1), PlanCreate(name="Migrated legacy plan"))
+        created = planning.create_plan(db, _user(1), _plan_create("Migrated legacy plan"))
         plan = planning._plan_or_404(db, created["slug"])
         plan.source_program_id = program.id
         plan.source_assignment_id = assignment.id

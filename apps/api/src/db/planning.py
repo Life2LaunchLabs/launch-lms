@@ -298,6 +298,7 @@ class PlanObjectiveCreate(SQLModel):
 
 class PlanObjectiveUpdate(SQLModel):
     phase_uuid: str | None = None
+    position: int | None = None
     title: str | None = None
     description: str | None = None
     priority: int | None = None

@@ -354,8 +354,8 @@ async def _verified_direct_media(url: str, media_type: MediaType) -> tuple[str, 
         if response.status_code >= 400:
             raise HTTPException(status_code=400, detail=f"Media URL returned HTTP {response.status_code}")
         content_type = response.headers.get("content-type", "").split(";")[0].lower()
-        expected_prefix = f"{media_type.value}/"
-        if not content_type.startswith(expected_prefix):
+        valid_type = content_type == "application/pdf" if media_type == MediaType.document else content_type.startswith(f"{media_type.value}/")
+        if not valid_type:
             raise HTTPException(status_code=400, detail=f"URL is not a {media_type.value} file")
         content_length = response.headers.get("content-length")
         size_bytes = int(content_length) if content_length and content_length.isdigit() else None

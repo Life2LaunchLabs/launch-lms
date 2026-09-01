@@ -7,7 +7,7 @@ import {
 
 export type MediaOwnerType = 'user' | 'org'
 export type MediaSourceType = 'upload' | 'link'
-export type MediaType = 'image' | 'video'
+export type MediaType = 'image' | 'video' | 'document'
 
 export type MediaOwner = {
   type: MediaOwnerType

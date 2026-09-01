@@ -8,7 +8,7 @@ from fastapi import HTTPException
 from sqlalchemy import inspect
 from sqlmodel import Session, select
 
-from src.db.learning import LearningBadge, LearningBadgeAward, LearningRun
+from src.db.learning import LearningBadge, LearningBadgeAward, LearningPage, LearningPageProgress, LearningRun
 from src.db.media import MediaAsset, MediaOwnerType
 from src.db.organizations import Organization
 from src.db.planning import (
@@ -143,6 +143,20 @@ def capabilities_for(db: Session, plan: Plan, user_id: int) -> set[str]:
     return _normalized_capabilities(row[1].capabilities) if row else set()
 
 
+def _plan_access_people(db: Session, plan: Plan) -> list[dict]:
+    rows = db.exec(
+        select(PlanCollaborator, PlanRole)
+        .join(PlanRole, PlanRole.id == PlanCollaborator.role_id)
+        .where(PlanCollaborator.plan_id == plan.id, PlanCollaborator.active == True)  # noqa: E712
+    ).all()
+    return [{
+        "user": _user_summary(db, collaborator.user_id),
+        "role": {"key": role.key, "name": role.name},
+        "capabilities": sorted(ALL_CAPABILITIES) if collaborator.user_id == plan.owner_user_id or role.key == "plan_admin" else sorted(_normalized_capabilities(role.capabilities)),
+        "is_subject": collaborator.user_id == plan.subject_user_id,
+    } for collaborator, role in rows]
+
+
 def _require(db: Session, plan: Plan, user_id: int, capability: str) -> set[str]:
     capabilities = capabilities_for(db, plan, user_id)
     if capability not in capabilities:
@@ -212,16 +226,101 @@ def _badge_state(db: Session, plan: Plan, objective: PlanObjective, progress: Pl
     return PlanObjectiveStatus.IN_PROGRESS.value if run else (progress.status.value if hasattr(progress.status, "value") else str(progress.status))
 
 
+def _badge_requirement(db: Session, plan: Plan, objective: PlanObjective, badge: LearningBadge, field: dict) -> dict:
+    award = db.exec(select(LearningBadgeAward).where(
+        LearningBadgeAward.badge_id == badge.id,
+        LearningBadgeAward.user_id == plan.subject_user_id,
+    )).first() if plan.subject_user_id else None
+    run = db.exec(select(LearningRun).where(
+        LearningRun.plan_objective_id == objective.id,
+        LearningRun.user_id == plan.subject_user_id,
+        LearningRun.badge_id == badge.id,
+    )).first() if plan.subject_user_id else None
+    progress_percent = 100 if award else 0
+    if run and not award:
+        pages = db.exec(select(LearningPage).where(
+            LearningPage.badge_id == badge.id,
+            LearningPage.version_id == run.badge_version_id,
+        )).all()
+        page_ids = [int(page.id) for page in pages if page.id]
+        completed = len(db.exec(select(LearningPageProgress).where(
+            LearningPageProgress.run_id == run.id,
+            LearningPageProgress.page_id.in_(page_ids),
+            LearningPageProgress.complete == True,  # noqa: E712
+        )).all()) if page_ids else 0
+        progress_percent = round(completed * 100 / len(page_ids)) if page_ids else 0
+    return {
+        **field,
+        "field_uuid": str(field.get("field_uuid") or f"badge_{objective.objective_uuid}"),
+        "title": str(field.get("title") or badge.name),
+        "type": "badge",
+        "badge_uuid": badge.badge_uuid,
+        "badge": {"badge_uuid": badge.badge_uuid, "name": badge.name, "thumbnail_image": badge.thumbnail_image},
+        "badge_href": f"/plans/{plan.slug}/objectives/{objective.objective_uuid}/badge",
+        "progress_percent": progress_percent,
+    }
+
+
+def _badges_for_requirement_fields(db: Session, fields: list[dict]) -> list[LearningBadge]:
+    badge_fields = [field for field in fields if str(field.get("type") or "") == "badge"]
+    if not badge_fields:
+        return []
+    badges: list[LearningBadge] = []
+    for field in badge_fields:
+        badge_uuid = str(field.get("badge_uuid") or "").strip()
+        if not badge_uuid:
+            raise HTTPException(status_code=422, detail="Badge steps need a badge_uuid")
+        badge = db.exec(select(LearningBadge).where(LearningBadge.badge_uuid == badge_uuid)).first()
+        if not badge:
+            raise HTTPException(status_code=404, detail=f"Badge not found: {badge_uuid}")
+        badges.append(badge)
+    return badges
+
+
+def _materialized_objective_fields(db: Session, snapshot: dict) -> list[dict]:
+    fields = [
+        {
+            **field,
+            "restricted": bool(field.get("restricted", not field.get("allow_student_upload", False))),
+        }
+        for field in snapshot.get("custom_fields") or []
+    ]
+    badge_id = snapshot.get("badge_id")
+    if badge_id and not any(str(field.get("type") or "") == "badge" for field in fields):
+        badge = db.get(LearningBadge, badge_id)
+        if badge:
+            fields.append({
+                "field_uuid": f"badge_requirement_{snapshot.get('objective_uuid') or snapshot.get('id')}",
+                "title": badge.name,
+                "type": "badge",
+                "badge_uuid": badge.badge_uuid,
+                "restricted": False,
+            })
+    return fields
+
+
 def _objective_dict(db: Session, plan: Plan, objective: PlanObjective, capabilities: set[str]) -> dict:
     progress = _progress_for(db, objective)
-    badge = db.get(LearningBadge, objective.badge_id) if objective.badge_id else None
-    status = _badge_state(db, plan, objective, progress)
-    completion_restricted = objective.completion_restricted or objective.kind == "badge"
+    phase = db.get(PlanPhase, objective.phase_id) if objective.phase_id else None
+    effective_due_date = objective.due_date or (phase.due_date if phase else None) or plan.due_date
+    status = progress.status.value if hasattr(progress.status, "value") else str(progress.status)
+    completion_restricted = objective.completion_restricted
+    fields = list(objective.fields or [])
+    requirement_badges = _badges_for_requirement_fields(db, fields)
+    badges_by_uuid = {badge.badge_uuid: badge for badge in requirement_badges}
+    fields = [
+        _badge_requirement(db, plan, objective, badges_by_uuid[str(field.get("badge_uuid"))], field)
+        if str(field.get("type") or "") == "badge" else field
+        for field in fields
+    ]
+    badge = requirement_badges[0] if requirement_badges else None
     return {
         "objective_uuid": objective.objective_uuid, "source_objective_id": objective.source_objective_id, "phase_id": objective.phase_id,
+        "phase_uuid": phase.phase_uuid if phase else None, "phase_name": phase.name if phase else None,
         "title": objective.title, "description": objective.description, "kind": objective.kind,
-        "position": objective.position, "priority": objective.priority, "fields": objective.fields or [],
+        "position": objective.position, "priority": objective.priority, "fields": fields,
         "start_date": objective.start_date, "due_date": objective.due_date,
+        "effective_due_date": effective_due_date, "has_fixed_due_date": objective.due_date is not None,
         "allow_late": objective.allow_late, "blocked": objective.blocked,
         "completion_restricted": completion_restricted,
         "badge": ({"badge_uuid": badge.badge_uuid, "name": badge.name, "thumbnail_image": badge.thumbnail_image} if badge else None),
@@ -231,6 +330,10 @@ def _objective_dict(db: Session, plan: Plan, objective: PlanObjective, capabilit
             "feedback_history": progress.feedback_history or [], "completed_at": progress.completed_at,
         },
         "can_update": "update_progress" in capabilities,
+        "can_edit": "edit_structure" in capabilities,
+        "can_schedule": "edit_schedule" in capabilities,
+        "can_contribute_fields": "contribute_fields" in capabilities,
+        "can_contribute_restricted_fields": "contribute_restricted_fields" in capabilities,
         "can_review": "complete_restricted_objectives" in capabilities,
         "can_complete": not completion_restricted or "complete_restricted_objectives" in capabilities,
         "badge_href": f"/plans/{plan.slug}/objectives/{objective.objective_uuid}/badge" if badge else None,
@@ -274,6 +377,7 @@ def _plan_dict(db: Session, plan: Plan, user_id: int, include_detail: bool = Fal
         result["phases"] = [{
             "phase_uuid": phase.phase_uuid, "name": phase.name, "description": phase.description,
             "position": phase.position, "start_date": phase.start_date, "due_date": phase.due_date,
+            "effective_due_date": phase.due_date or plan.due_date,
             "objectives": [item for item in objective_rows if item["phase_id"] == phase.id],
         } for phase in phases]
         result["objectives"] = objective_rows
@@ -286,7 +390,14 @@ def _plan_dict(db: Session, plan: Plan, user_id: int, include_detail: bool = Fal
             "user": _user_summary(db, collaborator.user_id),
             "role": {"role_uuid": role.role_uuid, "key": role.key, "name": role.name},
             "is_owner": collaborator.user_id == plan.owner_user_id,
+            "is_subject": collaborator.user_id == plan.subject_user_id,
         } for collaborator, role in collaborators]
+        access_people = _plan_access_people(db, plan)
+        viewer_access = next((item for item in access_people if item["user"] and item["user"]["id"] == user_id), None)
+        result["viewer_role"] = viewer_access["role"] if viewer_access else None
+        for objective in objective_rows:
+            objective["access_people"] = access_people
+            objective["viewer_role"] = viewer_access["role"] if viewer_access else None
         organization_roles = db.exec(select(OrganizationPlanRole).where(OrganizationPlanRole.org_id == plan.source_org_id)).all() if plan.source_org_id and inspect(db.connection()).has_table("organizationplanrole") else []
         organization_role_by_key = {role.key: role for role in organization_roles}
         result["roles"] = [{"role_uuid": role.role_uuid, "key": role.key, "name": "Learner" if role.key == "subject" else role.name, "capabilities": sorted(ALL_CAPABILITIES) if role.key == "plan_admin" else sorted(_normalized_capabilities(role.capabilities)), "grantable_role_keys": role.grantable_role_keys, "organization_role_uuid": organization_role_by_key.get(role.key).role_uuid if organization_role_by_key.get(role.key) else None, "locked": role.key == "plan_admin"} for role in db.exec(select(PlanRole).where(PlanRole.plan_id == plan.id)).all()]
@@ -321,6 +432,10 @@ def create_plan(db: Session, current_user: PublicUser, payload: PlanCreate) -> d
     name = payload.name.strip()
     if not name:
         raise HTTPException(status_code=422, detail="Plan name is required")
+    if payload.due_date is None:
+        raise HTTPException(status_code=422, detail="A target completion date is required")
+    if payload.start_date and payload.start_date > payload.due_date:
+        raise HTTPException(status_code=422, detail="Plan target date must be on or after its start date")
     now = _now_string()
     plan = Plan(
         plan_uuid=f"plan_{uuid4()}", slug=_unique_slug(db, name), name=name,
@@ -446,23 +561,17 @@ def materialize_assignment_plans(db: Session, assignment_id: int) -> None:
             phase_ids[phase_key] = int(phase.id)
         for position, snapshot in enumerate(snapshots):
             scheduled = objective_schedule.get(snapshot.get("objective_uuid"), {})
-            fields = [
-                {
-                    **field,
-                    "restricted": bool(field.get("restricted", not field.get("allow_student_upload", False))),
-                }
-                for field in snapshot.get("custom_fields") or []
-            ]
+            fields = _materialized_objective_fields(db, snapshot)
             objective = PlanObjective(
                 objective_uuid=f"plan_objective_{uuid4()}", plan_id=int(plan.id),
                 phase_id=phase_ids[snapshot.get("phase_uuid") or "legacy"],
                 source_objective_id=snapshot.get("id"), title=snapshot.get("title") or "Objective",
-                description=snapshot.get("description") or "", kind=snapshot.get("kind") or "custom",
+                description=snapshot.get("description") or "", kind="custom",
                 position=position, badge_id=snapshot.get("badge_id"),
                 badge_major_version=snapshot.get("badge_major_version"), fields=fields,
                 start_date=scheduled.get("effective_start_date"), due_date=scheduled.get("effective_due_date"),
                 allow_late=bool(scheduled.get("allow_late")), creation_date=now, update_date=now,
-                completion_restricted=bool(snapshot.get("kind") == "badge" or not snapshot.get("allow_learner_confirmation", False)),
+                completion_restricted=bool(not snapshot.get("allow_learner_confirmation", False)),
             )
             db.add(objective)
             db.flush()
@@ -567,16 +676,13 @@ def materialize_external_assignment_plan(db: Session, assignment_id: int, subjec
             objective_uuid=f"plan_objective_{uuid4()}", plan_id=int(plan.id),
             phase_id=phase_ids[snapshot.get("phase_uuid") or "legacy"],
             source_objective_id=snapshot.get("id"), title=snapshot.get("title") or "Objective",
-            description=snapshot.get("description") or "", kind=snapshot.get("kind") or "custom",
+            description=snapshot.get("description") or "", kind="custom",
             position=position, badge_id=snapshot.get("badge_id"),
             badge_major_version=snapshot.get("badge_major_version"),
-            fields=[{
-                **field,
-                "restricted": bool(field.get("restricted", not field.get("allow_student_upload", False))),
-            } for field in snapshot.get("custom_fields") or []],
+            fields=_materialized_objective_fields(db, snapshot),
             start_date=scheduled.get("effective_start_date"), due_date=scheduled.get("effective_due_date"),
             allow_late=bool(scheduled.get("allow_late")), creation_date=now, update_date=now,
-            completion_restricted=bool(snapshot.get("kind") == "badge" or not snapshot.get("allow_learner_confirmation", False)),
+            completion_restricted=bool(not snapshot.get("allow_learner_confirmation", False)),
         )
         db.add(objective)
         db.flush()
@@ -670,6 +776,16 @@ def update_plan(db: Session, current_user: PublicUser, identifier: str, payload:
         changes["name"] = str(changes["name"] or "").strip()
         if not changes["name"]:
             raise HTTPException(status_code=422, detail="Plan name is required")
+    next_due = changes.get("due_date", plan.due_date)
+    next_start = changes.get("start_date", plan.start_date)
+    if next_due is None:
+        raise HTTPException(status_code=422, detail="A target completion date is required")
+    if next_start and next_start > next_due:
+        raise HTTPException(status_code=422, detail="Plan target date must be on or after its start date")
+    phase_dates = [item.due_date for item in db.exec(select(PlanPhase).where(PlanPhase.plan_id == plan.id)).all() if item.due_date]
+    objective_dates = [item.due_date for item in db.exec(select(PlanObjective).where(PlanObjective.plan_id == plan.id)).all() if item.due_date]
+    if any(value > next_due for value in [*phase_dates, *objective_dates]):
+        raise HTTPException(status_code=422, detail="Plan target date cannot be before a phase or objective target date")
     for key, value in changes.items():
         setattr(plan, key, value)
     plan.update_date = _now_string()
@@ -702,6 +818,15 @@ def delete_plan(db: Session, current_user: PublicUser, identifier: str) -> dict:
     return {"deleted": True, "plan_uuid": uuid}
 
 
+def _phase_date_bounds(db: Session, plan: Plan, phase: PlanPhase | None) -> tuple[date | None, date | None]:
+    if not phase:
+        return plan.start_date, plan.due_date
+    phases = db.exec(select(PlanPhase).where(PlanPhase.plan_id == plan.id).order_by(PlanPhase.position)).all()
+    index = next((index for index, item in enumerate(phases) if item.id == phase.id), 0)
+    prior_due = next((item.due_date for item in reversed(phases[:index]) if item.due_date), plan.start_date)
+    return prior_due, phase.due_date or plan.due_date
+
+
 def create_phase(db: Session, current_user: PublicUser, identifier: str, payload: PlanPhaseCreate) -> dict:
     plan = _plan_or_404(db, identifier)
     _require(db, plan, current_user.id, "edit_structure")
@@ -710,6 +835,12 @@ def create_phase(db: Session, current_user: PublicUser, identifier: str, payload
     name = payload.name.strip()
     if not name:
         raise HTTPException(status_code=422, detail="Phase name is required")
+    if payload.due_date and plan.due_date and payload.due_date > plan.due_date:
+        raise HTTPException(status_code=422, detail="Phase target date must be within the plan target date")
+    existing_phases = db.exec(select(PlanPhase).where(PlanPhase.plan_id == plan.id).order_by(PlanPhase.position)).all()
+    prior_due = next((item.due_date for item in reversed(existing_phases) if item.due_date), plan.start_date)
+    if payload.due_date and prior_due and payload.due_date < prior_due:
+        raise HTTPException(status_code=422, detail="Phase target date cannot be before the previous phase")
     count = len(db.exec(select(PlanPhase).where(PlanPhase.plan_id == plan.id)).all())
     now = _now_string()
     db.add(PlanPhase(
@@ -744,6 +875,20 @@ def update_phase(db: Session, current_user: PublicUser, identifier: str, phase_u
             raise HTTPException(status_code=422, detail="Phase name is required")
     if "position" in changes:
         changes["position"] = max(0, int(changes["position"]))
+    next_due = changes.get("due_date", phase.due_date)
+    if next_due and plan.due_date and next_due > plan.due_date:
+        raise HTTPException(status_code=422, detail="Phase target date must be within the plan target date")
+    objective_dates = [item.due_date for item in db.exec(select(PlanObjective).where(PlanObjective.phase_id == phase.id)).all() if item.due_date]
+    if next_due and any(value > next_due for value in objective_dates):
+        raise HTTPException(status_code=422, detail="Phase target date cannot be before an objective target date")
+    phases = db.exec(select(PlanPhase).where(PlanPhase.plan_id == plan.id).order_by(PlanPhase.position)).all()
+    phase_index = next((index for index, item in enumerate(phases) if item.id == phase.id), 0)
+    prior_due = next((item.due_date for item in reversed(phases[:phase_index]) if item.due_date), plan.start_date)
+    next_phase_due = next((item.due_date for item in phases[phase_index + 1:] if item.due_date), plan.due_date)
+    if next_due and prior_due and next_due < prior_due:
+        raise HTTPException(status_code=422, detail="Phase target date cannot be before the previous phase")
+    if next_due and next_phase_due and next_due > next_phase_due:
+        raise HTTPException(status_code=422, detail="Phase target date cannot be after the next phase")
     for key, value in changes.items():
         setattr(phase, key, value)
     phase.update_date = _now_string()
@@ -777,20 +922,23 @@ def create_objective(db: Session, current_user: PublicUser, identifier: str, pay
     title = payload.title.strip()
     if not title:
         raise HTTPException(status_code=422, detail="Objective title is required")
+    if payload.kind == "badge" or payload.badge_uuid:
+        raise HTTPException(status_code=422, detail="Badges must be added as objective steps")
     phase = db.exec(select(PlanPhase).where(PlanPhase.plan_id == plan.id, PlanPhase.phase_uuid == payload.phase_uuid)).first() if payload.phase_uuid else db.exec(select(PlanPhase).where(PlanPhase.plan_id == plan.id).order_by(PlanPhase.position)).first()
-    badge = None
-    if payload.kind == "badge":
-        badge = db.exec(select(LearningBadge).where(LearningBadge.badge_uuid == payload.badge_uuid)).first()
-        if not badge:
-            raise HTTPException(status_code=404, detail="Badge not found")
+    target_start, target_limit = _phase_date_bounds(db, plan, phase)
+    if payload.due_date and target_limit and payload.due_date > target_limit:
+        raise HTTPException(status_code=422, detail="Objective target date must be within its phase")
+    if payload.due_date and target_start and payload.due_date < target_start:
+        raise HTTPException(status_code=422, detail="Objective target date must be within its phase")
+    badges = _badges_for_requirement_fields(db, payload.fields)
     position = len(db.exec(select(PlanObjective).where(PlanObjective.plan_id == plan.id)).all())
     now = _now_string()
     objective = PlanObjective(
         objective_uuid=f"plan_objective_{uuid4()}", plan_id=int(plan.id), phase_id=phase.id if phase else None,
-        title=title, description=payload.description, kind=payload.kind, position=position,
-        priority=max(0, min(3, payload.priority)), badge_id=badge.id if badge else None,
+        title=title, description=payload.description, kind="custom", position=position,
+        priority=max(0, min(3, payload.priority)), badge_id=badges[0].id if badges else None,
         fields=payload.fields, start_date=payload.start_date, due_date=payload.due_date,
-        allow_late=payload.allow_late, completion_restricted=payload.completion_restricted or payload.kind == "badge",
+        allow_late=payload.allow_late, completion_restricted=payload.completion_restricted,
         creation_date=now, update_date=now,
     )
     db.add(objective)
@@ -809,7 +957,7 @@ def update_objective(db: Session, current_user: PublicUser, identifier: str, obj
     if not objective:
         raise HTTPException(status_code=404, detail="Objective not found")
     changes = payload.model_dump(exclude_unset=True)
-    structure_fields = {"phase_uuid", "title", "description", "priority", "fields", "blocked", "completion_restricted"} & set(changes)
+    structure_fields = {"phase_uuid", "position", "title", "description", "priority", "fields", "blocked", "completion_restricted"} & set(changes)
     schedule_fields = {"start_date", "due_date", "allow_late"} & set(changes)
     if structure_fields:
         _require(db, plan, current_user.id, "edit_structure")
@@ -821,16 +969,29 @@ def update_objective(db: Session, current_user: PublicUser, identifier: str, obj
             raise HTTPException(status_code=422, detail="Objective title is required")
     if "priority" in changes:
         changes["priority"] = max(0, min(3, int(changes["priority"])))
+    if "position" in changes:
+        changes["position"] = max(0, int(changes["position"]))
+    phase = db.get(PlanPhase, objective.phase_id) if objective.phase_id else None
     if "phase_uuid" in changes:
         phase_uuid = changes.pop("phase_uuid")
         phase = db.exec(select(PlanPhase).where(PlanPhase.plan_id == plan.id, PlanPhase.phase_uuid == phase_uuid)).first() if phase_uuid else None
         if phase_uuid and not phase:
             raise HTTPException(status_code=404, detail="Plan phase not found")
         objective.phase_id = phase.id if phase else None
+    next_due = changes.get("due_date", objective.due_date)
+    target_start, target_limit = _phase_date_bounds(db, plan, phase)
+    if next_due and target_limit and next_due > target_limit:
+        raise HTTPException(status_code=422, detail="Objective target date must be within its phase")
+    if next_due and target_start and next_due < target_start:
+        raise HTTPException(status_code=422, detail="Objective target date must be within its phase")
+    if "fields" in changes:
+        if _progress_for(db, objective).status == PlanObjectiveStatus.COMPLETED:
+            raise HTTPException(status_code=409, detail="Reopen this objective before changing its supporting items")
+        requirement_badges = _badges_for_requirement_fields(db, changes["fields"])
+        objective.badge_id = requirement_badges[0].id if requirement_badges else None
     for key, value in changes.items():
         setattr(objective, key, value)
-    if objective.kind == "badge":
-        objective.completion_restricted = True
+    objective.kind = "custom"
     objective.update_date = _now_string()
     plan.update_date = objective.update_date
     db.add(objective)
@@ -865,8 +1026,6 @@ def update_objective_progress(db: Session, current_user: PublicUser, identifier:
         raise HTTPException(status_code=403, detail="You cannot request changes on this objective")
     if payload.status == PlanObjectiveStatus.COMPLETED and objective.completion_restricted and "complete_restricted_objectives" not in capabilities:
         raise HTTPException(status_code=403, detail="This objective must be completed by someone who can complete restricted objectives")
-    if objective.kind == "badge" and payload.status == PlanObjectiveStatus.COMPLETED and "complete_restricted_objectives" not in capabilities:
-        raise HTTPException(status_code=403, detail="Badge objectives complete from an award or authorized confirmation")
     progress = _progress_for(db, objective)
     progress.status = payload.status
     if payload.field_values is not None:
@@ -1501,19 +1660,12 @@ def feed(db: Session, current_user: PublicUser, scope: str = "all", plan_uuid: s
         plans = [plan for plan in plans if plan.subject_user_id != current_user.id]
     today = date.today()
     coming_cutoff = today + timedelta(days=7)
-    coming, explore, future = [], [], []
+    coming, future = [], []
     for plan in plans:
         capabilities = capabilities_for(db, plan, current_user.id)
-        collaborator_rows = db.exec(
-            select(PlanCollaborator, PlanRole)
-            .join(PlanRole, PlanRole.id == PlanCollaborator.role_id)
-            .where(PlanCollaborator.plan_id == plan.id, PlanCollaborator.active == True)  # noqa: E712
-        ).all()
-        completers = [
-            _user_summary(db, collaborator.user_id)
-            for collaborator, role in collaborator_rows
-            if {"update_progress", "complete_restricted_objectives"} & _normalized_capabilities(role.capabilities)
-        ]
+        access_people = _plan_access_people(db, plan)
+        viewer_access = next((item for item in access_people if item["user"] and item["user"]["id"] == current_user.id), None)
+        completers = [item["user"] for item in access_people if {"update_progress", "complete_restricted_objectives"} & set(item["capabilities"])]
         objectives = db.exec(select(PlanObjective).where(PlanObjective.plan_id == plan.id)).all()
         for objective in objectives:
             item = _objective_dict(db, plan, objective, capabilities)
@@ -1527,20 +1679,20 @@ def feed(db: Session, current_user: PublicUser, scope: str = "all", plan_uuid: s
                 **item, "plan": {"plan_uuid": plan.plan_uuid, "slug": plan.slug, "name": plan.name},
                 "subject": _user_summary(db, plan.subject_user_id), "is_mine": plan.subject_user_id == current_user.id,
                 "action_type": "review" if actionable_review else "objective", "completers": completers,
+                "access_people": access_people, "viewer_role": viewer_access["role"] if viewer_access else None,
             }
-            if actionable_review or status == PlanObjectiveStatus.CHANGES_REQUESTED.value or (objective.due_date and objective.due_date <= coming_cutoff):
+            effective_due = item.get("effective_due_date")
+            card["display_due_date"] = effective_due
+            if actionable_review or status == PlanObjectiveStatus.CHANGES_REQUESTED.value or (effective_due and effective_due <= coming_cutoff):
                 coming.append(card)
-            elif not objective.due_date and not objective.blocked:
-                explore.append(card)
-            elif objective.due_date:
+            elif effective_due and not objective.blocked:
                 future.append(card)
-    coming.sort(key=lambda item: (0 if item.get("due_date") and item["due_date"] < today else 1, 0 if item["action_type"] == "review" else 1, item.get("due_date") or date.max))
-    explore.sort(key=lambda item: (0 if item["progress"]["status"] == "in_progress" else 1, -int(item["priority"]), item["plan"]["name"].lower()))
-    future.sort(key=lambda item: item["due_date"])
+    coming.sort(key=lambda item: (0 if item.get("effective_due_date") and item["effective_due_date"] < today else 1, 0 if item["action_type"] == "review" else 1, item.get("effective_due_date") or date.max, item["position"]))
+    future.sort(key=lambda item: (item["effective_due_date"], item["position"]))
     groups = _adaptive_future_groups(future, today)
     return {
         "scope": scope, "has_helping": has_helping,
-        "coming_up": coming, "explore": explore if explore_all else explore[:5], "explore_total": len(explore), "future_groups": groups,
+        "coming_up": coming, "explore": [], "explore_total": 0, "future_groups": groups,
     }
 
 
@@ -1573,7 +1725,7 @@ def _adaptive_future_groups(items: list[dict], today: date) -> list[dict]:
     labels: dict[str, str] = {}
     one_year = today + timedelta(days=365)
     for item in items:
-        due = item["due_date"]
+        due = item.get("effective_due_date") or item["due_date"]
         if due <= one_year:
             key = due.strftime("%Y-%m")
             labels[key] = due.strftime("%B %Y")
@@ -1589,10 +1741,10 @@ def _adaptive_future_groups(items: list[dict], today: date) -> list[dict]:
             continue
         by_segment: dict[str, list[dict]] = {}
         for item in values:
-            due = item["due_date"]
+            due = item.get("effective_due_date") or item["due_date"]
             segment = f"{due.year}-W{due.isocalendar().week:02d}" if len(key) == 7 else f"{due.year}-Q{((due.month - 1) // 3) + 1}"
             by_segment.setdefault(segment, []).append(item)
-        expanded.extend((segment, segment.split("-", 1)[-1].replace("W", "Week ").replace("Q", "Quarter ") + f" {values[0]['due_date'].year}", group) for segment, group in sorted(by_segment.items()))
+        expanded.extend((segment, segment.split("-", 1)[-1].replace("W", "Week ").replace("Q", "Quarter ") + f" {(values[0].get('effective_due_date') or values[0]['due_date']).year}", group) for segment, group in sorted(by_segment.items()))
     merged: list[dict] = []
     for key, label, values in expanded:
         if merged and len(merged[-1]["items"]) + len(values) <= 6:
