@@ -1333,9 +1333,11 @@ def assignment_matrix(db: Session, current_user: PublicUser, org_id: int, assign
         phase_target = next((phase["due_date"] for phase in phases if phase["phase_uuid"] == (objective.get("phase_uuid") or "legacy")), None)
         step_fields = [field for field in (objective.get("fields") or []) if field.get("field_uuid")]
         completion = []
+        completed_step_counts = []
         for cell in objective_cells:
             if not step_fields:
                 completion.append(100 if cell.get("status") == "completed" else 0)
+                completed_step_counts.append(0)
                 continue
             values = cell.get("field_values") or {}
             percentages = []
@@ -1346,6 +1348,7 @@ def assignment_matrix(db: Session, current_user: PublicUser, org_id: int, assign
                 else:
                     percentages.append(100 if bool(value) else 0)
             completion.append(round(sum(percentages) / len(percentages)))
+            completed_step_counts.append(sum(percent == 100 for percent in percentages))
         step_aggregates = {}
         for field in objective.get("fields") or []:
             field_uuid = str(field.get("field_uuid") or "")
@@ -1373,6 +1376,8 @@ def assignment_matrix(db: Session, current_user: PublicUser, org_id: int, assign
             ),
             "min_progress_percent": min(completion) if completion else 0,
             "max_progress_percent": max(completion) if completion else 0,
+            "min_completed_steps": min(completed_step_counts) if completed_step_counts else 0,
+            "max_completed_steps": max(completed_step_counts) if completed_step_counts else 0,
             "steps": step_aggregates,
         }
     return {

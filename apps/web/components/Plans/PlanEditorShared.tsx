@@ -60,6 +60,56 @@ export function PlanWorkspaceHeader({ title, color, onClose, onOpenPanel }: { ti
   return <div className="h-16 overflow-hidden rounded-2xl"><div className={cn('flex h-16 origin-left items-center overflow-hidden rounded-2xl px-5 text-white shadow-sm transition-[transform,opacity] duration-200 ease-out', open ? 'scale-x-100 opacity-100' : 'scale-x-0 opacity-0')} style={{ backgroundColor: color }}><span className={cn('min-w-0 flex-1 truncate text-xl font-black tracking-tight transition-opacity delay-150 sm:text-2xl', open ? 'opacity-100' : 'opacity-0')}>{title}</span><button onClick={onOpenPanel} className="mr-2 flex h-8 items-center gap-1.5 rounded-full bg-black/15 px-3 text-[10px] font-black lg:hidden"><Menu size={14} />Details</button><button onClick={onClose} aria-label="Close plan editor and return to all plans" className="ml-3 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-black/15 transition hover:bg-black/25"><X size={16} /></button></div></div>
 }
 
+type ObjectiveHeaderProgress = {
+  total: number
+  completed: number
+  maxCompleted?: number
+  minPercent?: number
+  maxPercent?: number
+  complete?: boolean
+  locked?: boolean
+}
+
+export function PlanObjectiveHeader({ title, titleEditor, details, supplemental, open, editing = false, color, progress, actions, onToggle }: { title: string; titleEditor?: React.ReactNode; details?: React.ReactNode; supplemental?: React.ReactNode; open: boolean; editing?: boolean; color: string; progress?: ObjectiveHeaderProgress; actions?: React.ReactNode; onToggle(): void }) {
+  return <div className="flex items-start gap-2 px-2 py-4 sm:gap-3 sm:px-4">
+    <div className="min-w-0 flex-1">
+      <div className="flex min-w-0 items-center gap-2">{editing && titleEditor ? titleEditor : <button type="button" onClick={onToggle} className="min-w-0 flex-1 truncate text-left text-sm font-black">{title}</button>}</div>
+      {details ? <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] font-bold text-muted-foreground">{details}</div> : null}
+      {supplemental}
+    </div>
+    {progress ? <PlanObjectiveProgressRing progress={progress} color={color} /> : null}
+    <div className="flex self-stretch flex-col items-center justify-between">{actions || <span />}{!editing ? <button type="button" onClick={onToggle} aria-label={open ? 'Collapse objective' : 'Expand objective'} className="rounded p-1 text-muted-foreground"><ChevronDown size={16} className={cn('transition-transform', open && 'rotate-180')} /></button> : <span />}</div>
+  </div>
+}
+
+export function planTargetDateLabel(value?: string) {
+  if (!value) return ''
+  const target = new Date(`${String(value).slice(0, 10)}T12:00:00`)
+  const today = new Date()
+  today.setHours(12, 0, 0, 0)
+  const days = Math.round((target.getTime() - today.getTime()) / 86400000)
+  if (days === 0) return 'today'
+  if (days > 0 && days <= 30) return `in ${days} day${days === 1 ? '' : 's'}`
+  if (days < 0) return `${Math.abs(days)} day${days === -1 ? '' : 's'} ago`
+  return target.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
+
+function PlanObjectiveProgressRing({ progress, color }: { progress: ObjectiveHeaderProgress; color: string }) {
+  const total = Math.max(0, progress.total)
+  const minimum = Math.max(0, Math.min(total, progress.completed))
+  const maximum = Math.max(minimum, Math.min(total, progress.maxCompleted ?? minimum))
+  const minPercent = progress.minPercent ?? (total ? Math.round((minimum / total) * 100) : 100)
+  const maxPercent = progress.maxPercent ?? (total ? Math.round((maximum / total) * 100) : 100)
+  const visibleMinimum = minPercent === 0 ? 4 : minPercent
+  const ranged = maxPercent !== minPercent
+  const countRanged = maximum !== minimum
+  const background = ranged
+    ? `conic-gradient(${color} 0 ${visibleMinimum}%, color-mix(in srgb, ${color} 50%, transparent) ${visibleMinimum}% ${maxPercent}%, hsl(var(--muted)) ${maxPercent}% 100%)`
+    : `conic-gradient(${color} ${visibleMinimum}%, hsl(var(--muted)) 0)`
+  const label = countRanged ? `${minimum}–${maximum}/${total}` : `${minimum}/${total}`
+  return <span className="flex shrink-0 flex-col items-center gap-0.5"><span role="progressbar" aria-label={countRanged ? `Group progress ranges from ${minimum} to ${maximum} of ${total} steps` : `${minimum} of ${total} steps complete`} aria-valuemin={0} aria-valuemax={total} aria-valuenow={minimum} className="relative h-7 w-7 rounded-full" style={{ background }}><span className="absolute inset-[3px] flex items-center justify-center rounded-full bg-card">{progress.complete ? <Check size={10} className="text-emerald-700" strokeWidth={3} /> : progress.locked && minPercent === 100 ? <Lock size={9} className="text-muted-foreground" /> : null}</span></span><span className="text-[8px] font-black tabular-nums leading-none text-muted-foreground">{label}</span></span>
+}
+
 export const PLAN_PERMISSION_GROUPS = [
   { label: 'Access & communication', items: ['view_plan', 'comment'] },
   { label: 'Objectives & evidence', items: ['update_progress', 'contribute_fields', 'contribute_restricted_fields', 'complete_restricted_objectives', 'review_badge_submissions'] },
@@ -162,13 +212,20 @@ export function PlanObjectiveDefinitionCard({ objective, mode, canEdit = true, b
   const save = async () => { await onSave?.({ ...draft, fields: draft.fields, custom_fields: draft.fields }); setEditing(false) }
   const groupRange = objective.aggregate ? { min: Number(objective.aggregate.min_progress_percent || 0), max: Number(objective.aggregate.max_progress_percent || 0) } : null
   const steps = normalized()
+  const individualCompletedSteps = steps.filter((field) => field.type === 'badge' ? Number(field.progress_percent || 0) >= 100 : Boolean(objective.progress?.field_values?.[field.field_uuid])).length
+  const targetLabel = objective.target_label || (objective.effective_due_date ? `${planTargetDateLabel(objective.effective_due_date)}${objective.has_fixed_due_date === false ? ' · phase' : ''}` : '')
   return <article className={cn('bg-card transition-[box-shadow,border-radius,background-color]', open && 'relative z-10 my-2 rounded-2xl shadow-lg ring-1 ring-black/5')}>
-    <div className="flex items-start gap-3 px-3 py-4 sm:px-4">
-      <div className="min-w-0 flex-1">{editing ? <input autoFocus value={draft.title || ''} onChange={(event) => setDraft({ ...draft, title: event.target.value })} className="w-full border-b border-dashed border-foreground/35 bg-transparent text-sm font-black outline-none" /> : <button type="button" onClick={() => setOpen(!open)} className="block w-full truncate text-left text-sm font-black">{objective.title}</button>}<div className="mt-1.5 flex flex-wrap items-center gap-2 text-[10px] font-bold text-muted-foreground">{mode === 'template' ? `${steps.length} step${steps.length === 1 ? '' : 's'}` : objective.effective_due_date ? String(objective.effective_due_date).slice(0, 10) : null}{objective.completion_restricted || !objective.allow_learner_confirmation ? <span className="inline-flex items-center gap-1"><Lock size={9} />Restricted completion</span> : null}</div></div>
-      {mode === 'group-live' && groupRange ? <GroupProgressRing min={groupRange.min} max={groupRange.max} color={color} /> : null}
-      {canEdit ? editing ? <button type="button" onClick={() => void save()} disabled={saving || !draft.title?.trim()} aria-label="Save objective" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground text-background disabled:opacity-40">{saving ? <Loader2 size={13} className="animate-spin" /> : <Check size={14} />}</button> : <DropdownMenu><DropdownMenuTrigger asChild><button type="button" aria-label="Objective options" className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted"><MoreVertical size={16} /></button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={() => { setOpen(true); setEditing(true) }}><Pencil size={14} className="mr-2" />Edit</DropdownMenuItem>{onDelete ? <DropdownMenuItem onClick={() => void onDelete()} className="text-red-600"><Trash2 size={14} className="mr-2" />Delete</DropdownMenuItem> : null}</DropdownMenuContent></DropdownMenu> : null}
-      {!editing ? <button type="button" onClick={() => setOpen(!open)} aria-label={open ? 'Collapse objective' : 'Expand objective'} className="rounded p-1 text-muted-foreground"><ChevronDown size={16} className={cn('transition-transform', open && 'rotate-180')} /></button> : null}
-    </div>
+    <PlanObjectiveHeader
+      title={objective.title}
+      titleEditor={<input autoFocus value={draft.title || ''} onChange={(event) => setDraft({ ...draft, title: event.target.value })} className="min-w-0 flex-1 border-b border-dashed border-foreground/35 bg-transparent text-sm font-black outline-none" />}
+      details={<>{objective.phase_name ? <span className="rounded-full bg-muted px-2.5 py-1 text-[10px] font-black">{objective.phase_name}</span> : mode === 'template' ? <span className="rounded-full bg-muted px-2.5 py-1 text-[10px] font-black">{steps.length} step{steps.length === 1 ? '' : 's'}</span> : null}{targetLabel ? <span>{targetLabel}</span> : null}{objective.completion_restricted || !objective.allow_learner_confirmation ? <span className="inline-flex items-center gap-1"><Lock size={9} />Restricted completion</span> : null}</>}
+      open={open}
+      editing={editing}
+      color={color}
+      progress={mode === 'group-live' && groupRange ? { total: steps.length, completed: Number(objective.aggregate?.min_completed_steps ?? Math.round(groupRange.min * steps.length / 100)), maxCompleted: Number(objective.aggregate?.max_completed_steps ?? Math.round(groupRange.max * steps.length / 100)), minPercent: groupRange.min, maxPercent: groupRange.max } : mode === 'individual-live' ? { total: steps.length, completed: individualCompletedSteps, complete: objective.progress?.status === 'completed' } : undefined}
+      actions={canEdit ? editing ? <button type="button" onClick={() => void save()} disabled={saving || !draft.title?.trim()} aria-label="Save objective" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground text-background disabled:opacity-40">{saving ? <Loader2 size={13} className="animate-spin" /> : <Check size={14} />}</button> : <DropdownMenu><DropdownMenuTrigger asChild><button type="button" aria-label="Objective options" className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted"><MoreVertical size={16} /></button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={() => { setOpen(true); setEditing(true) }}><Pencil size={14} className="mr-2" />Edit</DropdownMenuItem>{onDelete ? <DropdownMenuItem onClick={() => void onDelete()} className="text-red-600"><Trash2 size={14} className="mr-2" />Delete</DropdownMenuItem> : null}</DropdownMenuContent></DropdownMenu> : null}
+      onToggle={() => setOpen(!open)}
+    />
     {open ? <div className="px-3 pb-5 sm:px-4"><div className="border-t border-border/60 pt-4">{editing ? <textarea value={draft.description || ''} onChange={(event) => setDraft({ ...draft, description: event.target.value })} placeholder="Add a description" className="min-h-16 w-full resize-y border-b border-dashed border-foreground/35 bg-transparent text-xs leading-5 text-muted-foreground outline-none" /> : <p className="text-xs leading-5 text-muted-foreground">{objective.description || 'No description yet.'}</p>}</div>
       <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-4">{(editing ? draft.fields : steps).map((field: PlanStepDefinition, index: number) => {
         if (editing) return <div key={field.field_uuid}><div className="flex h-11 items-center gap-2 rounded-xl bg-muted px-2"><PlanStepPicker badges={badges} onAdd={(type, options) => changeStep(index, type, options)} trigger={<button type="button" aria-label="Change step type" className="flex h-8 w-11 shrink-0 items-center justify-between rounded-lg border border-border bg-card px-2 text-muted-foreground"><StepTypeIcon type={field.type} size={14} /><ChevronDown size={10} /></button>} /><input value={field.title || ''} onChange={(event) => setDraft((current: any) => ({ ...current, fields: current.fields.map((candidate: any, candidateIndex: number) => candidateIndex === index ? { ...candidate, title: event.target.value } : candidate) }))} placeholder="Step name" className="min-w-0 flex-1 border-b border-dashed border-foreground/35 bg-transparent text-[11px] font-black outline-none" /><button type="button" onClick={() => setDraft((current: any) => ({ ...current, fields: current.fields.filter((_: any, candidateIndex: number) => candidateIndex !== index) }))} aria-label={`Remove ${field.title || 'step'}`} className="rounded p-1 text-muted-foreground hover:text-red-600"><X size={12} /></button></div><button type="button" onClick={() => setDraft((current: any) => ({ ...current, fields: current.fields.map((candidate: any, candidateIndex: number) => candidateIndex === index ? { ...candidate, restricted: !candidate.restricted, access: !candidate.restricted ? 'reviewer' : 'contributor' } : candidate) }))} className="mt-1.5 flex items-center gap-1 text-[9px] font-bold text-muted-foreground">{field.restricted ? <Check size={10} /> : <span className="h-2.5 w-2.5 rounded-sm border border-muted-foreground/50" />}Restricted</button></div>
