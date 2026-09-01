@@ -32,6 +32,7 @@ from src.db.programs import (
     ObjectiveCreate,
     ObjectiveProgressUpdate,
     ObjectiveReviewDecision,
+    ProgramAssignmentObjectiveUpdate,
     ProgramObjectiveScheduleUpdate,
     ProgramObjectiveUpdate,
     ProgramPhaseCreate,
@@ -382,15 +383,55 @@ def api_list_assignment_batches(org_id: int, db: Session = Depends(get_db_sessio
 
 
 @router.get("/assignment-batches/{assignment_uuid}/matrix")
-def api_assignment_batch_matrix(assignment_uuid: str, org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
+def api_assignment_batch_matrix(assignment_uuid: str, org_id: int | None = None, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
+    assignment = db.exec(select(ProgramAssignment).where(
+        ProgramAssignment.assignment_uuid == assignment_uuid,
+    )).first()
+    if not assignment:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Program assignment not found")
+    resolved_org_id = int(assignment.org_id)
+    if org_id is not None and org_id != resolved_org_id:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Program assignment not found")
+    _require_managed_assignment(resolved_org_id, assignment_uuid, db)
+    return template_service.assignment_matrix(db, current_user, resolved_org_id, assignment_uuid)
+
+
+@router.post("/assignment-batches/{assignment_uuid}/complete")
+def api_complete_assignment_batch(assignment_uuid: str, org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
     _require_managed_assignment(org_id, assignment_uuid, db)
-    return template_service.assignment_matrix(db, current_user, org_id, assignment_uuid)
+    return template_service.change_assignment_status(db, current_user, org_id, assignment_uuid, PlanStatus.COMPLETED)
+
+
+@router.post("/assignment-batches/{assignment_uuid}/reopen")
+def api_reopen_assignment_batch(assignment_uuid: str, org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
+    _require_managed_assignment(org_id, assignment_uuid, db)
+    return template_service.change_assignment_status(db, current_user, org_id, assignment_uuid, PlanStatus.ACTIVE)
+
+
+@router.post("/assignment-batches/{assignment_uuid}/archive")
+def api_archive_assignment_batch(assignment_uuid: str, org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
+    _require_managed_assignment(org_id, assignment_uuid, db)
+    return template_service.change_assignment_status(db, current_user, org_id, assignment_uuid, PlanStatus.ARCHIVED)
+
+
+@router.delete("/assignment-batches/{assignment_uuid}")
+def api_delete_assignment_batch(assignment_uuid: str, org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
+    _require_managed_assignment(org_id, assignment_uuid, db)
+    return template_service.delete_assignment(db, current_user, org_id, assignment_uuid)
 
 
 @router.get("/assignment-batches/{assignment_uuid}/reviews")
 def api_assignment_batch_reviews(assignment_uuid: str, org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
     _require_managed_assignment(org_id, assignment_uuid, db)
     return template_service.assignment_reviews(db, current_user, org_id, assignment_uuid)
+
+
+@router.patch("/assignment-batches/{assignment_uuid}/definition/objectives/{objective_uuid}")
+def api_update_assignment_objective(assignment_uuid: str, objective_uuid: str, org_id: int, payload: ProgramAssignmentObjectiveUpdate, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
+    _require_managed_assignment(org_id, assignment_uuid, db)
+    return template_service.update_assignment_objective(db, current_user, org_id, assignment_uuid, objective_uuid, payload)
 
 
 @router.post("/assignment-batches/{assignment_uuid}/reviews/objective")
@@ -401,7 +442,7 @@ def api_review_assignment_objective(assignment_uuid: str, org_id: int, payload: 
 
 @router.post("/assignment-batches/progress")
 def api_update_assignment_progress(org_id: int, payload: ObjectiveProgressUpdate, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    return template_service.update_progress(db, current_user, org_id, payload.objective_uuid, payload.user_ids, payload.status, payload.staff_note, payload.evidence, payload.completion_date, payload.plan_uuids, payload.override_customized)
+    return template_service.update_progress(db, current_user, org_id, payload.objective_uuid, payload.user_ids, payload.status, payload.staff_note, payload.evidence, payload.completion_date, payload.plan_uuids, payload.override_customized, payload.field_values)
 
 
 @router.get("/managed-users/{user_id}")

@@ -1,8 +1,11 @@
+import pytest
+from fastapi import HTTPException
 from sqlmodel import Session, create_engine, select
 
 from src.db.organizations import Organization
 from src.db.learning import LearningBadgeAward, LearningRun
 from src.db.roles import Role
+from src.db.planning import PlanStatus
 from src.db.programs import (
     Objective,
     ObjectiveCreate,
@@ -14,6 +17,7 @@ from src.db.programs import (
     Program,
     ProgramAssignment,
     ProgramAssignmentCreate,
+    ProgramAssignmentObjectiveUpdate,
     ProgramCreate,
     ProgramObjective,
     ProgramPhase,
@@ -35,8 +39,10 @@ from src.services.programs import (
     assignment_matrix,
     assignment_reviews,
     cohort_overview,
+    change_assignment_status,
     create_program_phase,
     create_program,
+    delete_assignment,
     ensure_group_participants,
     get_program,
     list_program_assignments,
@@ -50,6 +56,7 @@ from src.services.programs import (
     respond_to_invitation,
     review_objective_submission,
     update_my_progress,
+    update_assignment_objective,
     update_progress,
     update_program_objective_schedule,
     update_program_objective,
@@ -478,13 +485,10 @@ def test_assignment_snapshots_phase_dates_and_objective_schedule_rules():
                 schedule={
                     "phases": [{
                         "phase_uuid": phase["phase_uuid"],
-                        "start_date": "2026-09-01",
                         "end_date": "2026-10-15",
                     }],
                     "objectives": [{
                         "objective_uuid": objective["objective_uuid"],
-                        "start_rule": "phase_start",
-                        "start_date": None,
                         "due_rule": "specific_date",
                         "due_date": "2026-10-10",
                         "allow_late": True,
@@ -494,10 +498,139 @@ def test_assignment_snapshots_phase_dates_and_objective_schedule_rules():
         )
 
         rule = result["schedule"]["objectives"][0]
-        assert rule["effective_start_date"] == "2026-09-01"
+        assert "start_date" not in result["schedule"]["phases"][0]
+        assert "start_rule" not in rule
+        assert "effective_start_date" not in rule
         assert rule["effective_due_date"] == "2026-10-10"
         assert rule["allow_late"] is True
         assert result["schedule"]["phases"][0]["end_date"] == "2026-10-15"
+
+
+def test_group_assignment_definition_is_versioned_and_template_stays_independent():
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    _tables(engine)
+    with Session(engine) as session:
+        admin = _setup(session)
+        program = create_program(session, admin, ProgramCreate(org_id=1, name="Creative Futures"))
+        program = add_program_objective(
+            session,
+            admin,
+            1,
+            program["program_uuid"],
+            ObjectiveCreate(
+                title="Portfolio",
+                custom_fields=[{
+                    "field_uuid": "artifact",
+                    "title": "Artifact",
+                    "type": "media",
+                    "allowed_types": ["pdf"],
+                }],
+            ),
+        )
+        objective_uuid = program["objectives"][0]["objective_uuid"]
+        assignment = assign_program(
+            session,
+            admin,
+            1,
+            program["program_uuid"],
+            ProgramAssignmentCreate(
+                usergroup_id=1,
+                collaborators=[{"user_id": 1, "role_key": "reviewer"}],
+            ),
+        )
+        assert assignment["collaborators"] == [{"user_id": 1, "role_key": "plan_admin"}]
+
+        changed = update_assignment_objective(
+            session,
+            admin,
+            1,
+            assignment["assignment_uuid"],
+            objective_uuid,
+            ProgramAssignmentObjectiveUpdate(
+                definition_version=1,
+                title="Final portfolio",
+                fields=[{"field_uuid": "artifact", "title": "Artifact", "type": "media", "allowed_types": ["document"]}],
+            ),
+        )
+        assert changed["definition_version"] == 2
+        stored = session.exec(select(ProgramAssignment)).one()
+        assert stored.objective_snapshot[0]["title"] == "Final portfolio"
+        assert get_program(session, admin, 1, program["program_uuid"])["objectives"][0]["title"] == "Portfolio"
+
+        with pytest.raises(HTTPException) as conflict:
+            update_assignment_objective(
+                session,
+                admin,
+                1,
+                assignment["assignment_uuid"],
+                objective_uuid,
+                ProgramAssignmentObjectiveUpdate(definition_version=1, title="Stale edit"),
+            )
+        assert conflict.value.status_code == 409
+
+
+def test_group_assignment_can_be_completed_reopened_and_deleted_as_one_target():
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    _tables(engine)
+    with Session(engine) as session:
+        admin = _setup(session)
+        program = create_program(session, admin, ProgramCreate(org_id=1, name="Creative Futures"))
+        assignment = assign_program(
+            session,
+            admin,
+            1,
+            program["program_uuid"],
+            ProgramAssignmentCreate(usergroup_id=1, staff_user_ids=[1]),
+        )
+
+        completed = change_assignment_status(
+            session, admin, 1, assignment["assignment_uuid"], PlanStatus.COMPLETED
+        )
+        assert completed["status"] == "completed"
+        assert session.exec(select(ProgramAssignment)).one().active is False
+
+        reopened = change_assignment_status(
+            session, admin, 1, assignment["assignment_uuid"], PlanStatus.ACTIVE
+        )
+        assert reopened["status"] == "active"
+        assert session.exec(select(ProgramAssignment)).one().active is True
+
+        deleted = delete_assignment(session, admin, 1, assignment["assignment_uuid"])
+        assert deleted == {
+            "deleted": True,
+            "assignment_uuid": assignment["assignment_uuid"],
+            "affected_plan_count": 0,
+        }
+        assert session.exec(select(ProgramAssignment)).first() is None
+        assert session.exec(select(ProgramParticipant)).first() is None
+
+
+def test_objectives_inherit_phase_targets_without_materializing_override_dates():
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    _tables(engine)
+    with Session(engine) as session:
+        admin = _setup(session)
+        program = create_program(session, admin, ProgramCreate(org_id=1, name="Creative Futures"))
+        program = add_program_objective(session, admin, 1, program["program_uuid"], ObjectiveCreate(title="Showcase"))
+        phase = program["phases"][0]
+        result = assign_program(
+            session,
+            admin,
+            1,
+            program["program_uuid"],
+            ProgramAssignmentCreate(
+                usergroup_id=1,
+                staff_user_ids=[1],
+                due_date="2026-10-15T00:00:00Z",
+                schedule={"phases": [{
+                    "phase_uuid": phase["phase_uuid"],
+                    "end_date": "2026-10-15",
+                }]},
+            ),
+        )
+        rule = result["schedule"]["objectives"][0]
+        assert rule["due_rule"] == "phase_end"
+        assert rule["effective_due_date"] is None
 
 
 def test_objective_details_fields_and_timing_can_be_edited_together():

@@ -25,6 +25,7 @@ test('withQuery omits empty values and encodes query params', () => {
 })
 
 test('route manifest builds key dashboard and owner routes', () => {
+  assert.equal(routePaths.org.groupPlan('assignment_1'), '/plans?group=assignment_1')
   assert.equal(routePaths.org.dash.badges(), '/admin/badges')
   assert.equal(routePaths.org.dash.planAssignments(), '/admin/plans/assignments')
   assert.equal(routePaths.org.dash.planAssignment('assignment_1'), '/admin/plans/assignments/assignment_1/overview')
@@ -132,6 +133,23 @@ test('request policy rewrites nested account tabs to the current organization', 
     assert.equal(decision.action, 'rewrite')
     assert.equal(decision.destination, `/orgs/default${pathname}`)
   }
+})
+
+test('request policy resolves group plan workspaces on the canonical org route', () => {
+  const target = routePaths.org.groupPlan('assignment_1')
+  const [pathname, query = ''] = target.split('?')
+  const decision = resolveRequestRouting({
+    requestUrl: `https://launchlms.test${pathname}`,
+    pathname,
+    search: query ? `?${query}` : '',
+    host: 'launchlms.test',
+    hasSession: true,
+    instanceInfo,
+    resolvedCustomDomainOrgSlug: null,
+    orgSubdomainAccess: null,
+  })
+  assert.equal(decision.action, 'rewrite')
+  assert.equal(decision.destination, '/orgs/default/plans?group=assignment_1')
 })
 
 test('request policy rewrites unauthenticated org root to the landing page', () => {

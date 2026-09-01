@@ -132,10 +132,13 @@ class ProgramAssignment(SQLModel, table=True):
     user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=True, index=True))
     subject_email: str | None = Field(default=None, nullable=True, index=True)
     program_version: int = 1
+    definition_version: int = 1
     objective_snapshot: list[dict] = Field(default_factory=list, sa_column=Column(JSON))
+    definition_audit: list[dict] = Field(default_factory=list, sa_column=Column(JSON))
     welcome_message: str = ""
     initiate_date: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
     staff_user_ids: list[int] = Field(default_factory=list, sa_column=Column(JSON))
+    collaborators: list[dict] = Field(default_factory=list, sa_column=Column(JSON))
     schedule: dict = Field(default_factory=dict, sa_column=Column(JSON))
     start_date: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
     due_date: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
@@ -282,6 +285,7 @@ class ProgramAssignmentCreate(SQLModel):
     welcome_message: str = ""
     initiate_date: datetime | None = None
     staff_user_ids: list[int] = Field(default_factory=list)
+    collaborators: list[dict] = Field(default_factory=list)
     schedule: dict = Field(default_factory=dict)
     start_date: datetime | None = None
     due_date: datetime | None = None
@@ -296,7 +300,17 @@ class ObjectiveProgressUpdate(SQLModel):
     status: ObjectiveProgressStatus = ObjectiveProgressStatus.COMPLETED
     staff_note: str = ""
     evidence: list[dict] | None = None
+    field_values: dict | None = None
     completion_date: datetime | None = None
+
+
+class ProgramAssignmentObjectiveUpdate(SQLModel):
+    definition_version: int
+    title: str
+    description: str = ""
+    fields: list[dict] = Field(default_factory=list)
+    completion_restricted: bool = False
+    allow_late: bool = False
 
 
 class ParticipantResponse(SQLModel):

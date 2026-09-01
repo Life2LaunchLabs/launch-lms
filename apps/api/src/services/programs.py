@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import re
 from uuid import uuid4
 
@@ -28,6 +28,7 @@ from src.db.planning import (
     PlanObjective,
     PlanObjectiveProgress,
     PlanObjectiveStatus,
+    PlanStatus,
 )
 from src.services.planning import _normalized_capability_list, capabilities_for as plan_capabilities_for
 from src.db.organizations import Organization
@@ -42,6 +43,7 @@ from src.db.programs import (
     Program,
     ProgramAssignment,
     ProgramAssignmentCreate,
+    ProgramAssignmentObjectiveUpdate,
     ProgramCreate,
     ProgramObjective,
     ProgramObjectiveScheduleUpdate,
@@ -92,6 +94,52 @@ def _major(version: str | None) -> int:
         return 1
 
 
+STEP_TYPES = {"text", "media", "link", "checkbox", "badge"}
+MEDIA_TYPES = {"image", "video", "document"}
+
+
+def _validated_steps(db: Session, fields: list[dict] | None) -> list[dict]:
+    """Return the shared objective-step wire format used by templates and live plans."""
+    normalized: list[dict] = []
+    seen: set[str] = set()
+    for raw in fields or []:
+        field = dict(raw)
+        key = str(field.get("field_uuid") or f"field_{uuid4()}")
+        if key in seen:
+            raise HTTPException(status_code=422, detail="Objective steps require unique field_uuid values")
+        seen.add(key)
+        step_type = str(field.get("type") or "text")
+        if step_type not in STEP_TYPES:
+            raise HTTPException(status_code=422, detail=f"Unsupported objective step type: {step_type}")
+        title = str(field.get("title") or "").strip()
+        if not title and field.get("field_uuid"):
+            title = str(field["field_uuid"]).replace("_", " ").strip().title()
+        if not title:
+            raise HTTPException(status_code=422, detail="Give every objective step a title")
+        restricted = bool(field.get("restricted", str(field.get("access") or "contributor") in {"reviewer", "staff"}))
+        item = {**field, "field_uuid": key, "title": title, "type": step_type, "restricted": restricted, "access": "reviewer" if restricted else "contributor"}
+        if step_type == "media":
+            allowed = ["document" if value == "pdf" else str(value) for value in (field.get("allowed_types") or ["image", "document"])]
+            # Early plan editors represented a URL upload as a media field. Preserve
+            # those definitions while moving them to the canonical link step.
+            if set(allowed) == {"link"}:
+                item["type"] = "link"
+                item.pop("allowed_types", None)
+                normalized.append(item)
+                continue
+            if not allowed or set(allowed) - MEDIA_TYPES:
+                raise HTTPException(status_code=422, detail="Media steps accept image, video, or document")
+            item["allowed_types"] = list(dict.fromkeys(allowed))
+        if step_type == "badge":
+            badge_uuid = str(field.get("badge_uuid") or "").strip()
+            badge = db.exec(select(LearningBadge).where(LearningBadge.badge_uuid == badge_uuid)).first()
+            if not badge:
+                raise HTTPException(status_code=404, detail=f"Badge not found: {badge_uuid}")
+            item.update(badge_uuid=badge.badge_uuid, badge_major_version=int(field.get("badge_major_version") or _latest_badge_major(db, int(badge.id))), accept_previous_major_versions=bool(field.get("accept_previous_major_versions", False)))
+        normalized.append(item)
+    return normalized
+
+
 def _program_or_404(db: Session, program_uuid: str, org_id: int) -> Program:
     program = db.exec(
         select(Program).where(Program.program_uuid == program_uuid, Program.org_id == org_id)
@@ -124,6 +172,7 @@ def _objective_dict(objective: Objective, relation: ProgramObjective | None = No
         "evidence_policy": objective.evidence_policy.value if hasattr(objective.evidence_policy, "value") else objective.evidence_policy,
         "allow_learner_confirmation": objective.allow_learner_confirmation,
         "custom_fields": objective.custom_fields or [],
+        "fields": objective.custom_fields or [],
         "badge_id": objective.badge_id,
     }
     if relation:
@@ -223,6 +272,7 @@ def _program_dict(
         "thumbnail_image": program.thumbnail_image,
         "instructions": program.instructions,
         "role_definitions": program.role_definitions or list(DEFAULT_ROLE_DEFINITIONS),
+        "available_capabilities": sorted({capability for role in DEFAULT_ROLE_DEFINITIONS for capability in role["capabilities"]}),
         "default_subject_role_key": program.default_subject_role_key,
         "default_staff_role_key": program.default_staff_role_key,
         "status": program.status.value if hasattr(program.status, "value") else program.status,
@@ -473,6 +523,7 @@ def add_program_objective(
         if not payload.title or not payload.title.strip():
             raise HTTPException(status_code=422, detail="Objective title is required")
         badge_id = None
+        custom_fields = list(payload.custom_fields or [])
         if payload.kind == ObjectiveKind.BADGE:
             badge_uuid = str(payload.badge_uuid or "")
             badge = db.exec(
@@ -484,22 +535,29 @@ def add_program_objective(
                 raise HTTPException(status_code=404, detail="Badge not found")
             badge_id = badge.id
             badge_major = _latest_badge_major(db, badge.id)
+            custom_fields.append({
+                "field_uuid": f"badge_requirement_{uuid4()}", "title": payload.title.strip(),
+                "type": "badge", "badge_uuid": badge.badge_uuid,
+                "badge_major_version": badge_major, "accept_previous_major_versions": False,
+                "restricted": False, "access": "contributor",
+            })
+        custom_fields = _validated_steps(db, custom_fields)
         now = _now_string()
         learner_can_add_evidence = any(
             not bool(field.get("restricted", not field.get("allow_student_upload", False)))
-            for field in payload.custom_fields
+            for field in custom_fields
         )
-        has_evidence_fields = bool(payload.custom_fields)
+        has_evidence_fields = bool(custom_fields)
         objective = Objective(
             objective_uuid=f"objective_{uuid4()}",
             org_id=org_id,
             title=payload.title.strip(),
             description=payload.description,
-            kind=payload.kind,
-            completion_policy=("either" if payload.allow_learner_confirmation else ("automatic" if payload.kind == ObjectiveKind.BADGE else "staff")),
+            kind=ObjectiveKind.CUSTOM,
+            completion_policy=("either" if payload.allow_learner_confirmation or payload.kind == ObjectiveKind.BADGE else "staff"),
             evidence_policy=("both" if learner_can_add_evidence else ("staff" if has_evidence_fields else "none")),
-            custom_fields=payload.custom_fields,
-            allow_learner_confirmation=payload.allow_learner_confirmation,
+            custom_fields=custom_fields,
+            allow_learner_confirmation=payload.allow_learner_confirmation or payload.kind == ObjectiveKind.BADGE,
             badge_id=badge_id,
             created_by_user_id=current_user.id,
             creation_date=now,
@@ -613,14 +671,15 @@ def update_program_objective(
     objective.title = title
     objective.description = payload.description
     if objective.kind == ObjectiveKind.CUSTOM:
-        objective.custom_fields = payload.custom_fields
+        steps = _validated_steps(db, payload.custom_fields)
+        objective.custom_fields = steps
         objective.allow_learner_confirmation = payload.allow_learner_confirmation
         learner_can_add_evidence = any(
             not bool(field.get("restricted", not field.get("allow_student_upload", False)))
-            for field in payload.custom_fields
+            for field in steps
         )
         objective.completion_policy = "either" if payload.allow_learner_confirmation else "staff"
-        objective.evidence_policy = "both" if learner_can_add_evidence else ("staff" if payload.custom_fields else "none")
+        objective.evidence_policy = "both" if learner_can_add_evidence else ("staff" if steps else "none")
     relation.default_start_rule = payload.default_start_rule
     relation.default_due_rule = payload.default_due_rule
     relation.default_allow_late = payload.default_allow_late
@@ -809,12 +868,9 @@ def _validated_schedule(program: Program, phases: list[dict], payload: ProgramAs
                 {
                     "objective_uuid": objective["objective_uuid"],
                     "phase_uuid": phase["phase_uuid"],
-                    "start_rule": objective.get("default_start_rule", "any_time"),
                     "due_rule": objective.get("default_due_rule", "optional"),
                     "allow_late": objective.get("default_allow_late", False),
-                    "start_date": None,
                     "due_date": None,
-                    "effective_start_date": None,
                     "effective_due_date": None,
                 }
                 for phase in phases
@@ -824,35 +880,42 @@ def _validated_schedule(program: Program, phases: list[dict], payload: ProgramAs
     phase_by_uuid = {item.get("phase_uuid"): item for item in supplied_phases}
     expected = {phase["phase_uuid"] for phase in phases}
     if set(phase_by_uuid) != expected:
-        raise HTTPException(status_code=422, detail="Set start and end dates for every phase")
+        raise HTTPException(status_code=422, detail="Set a target date for every phase")
     for phase in phases:
         scheduled_phase = phase_by_uuid[phase["phase_uuid"]]
-        if not scheduled_phase.get("start_date") or not scheduled_phase.get("end_date"):
-            raise HTTPException(status_code=422, detail=f"Set both dates for {phase['name']}")
-        if scheduled_phase["end_date"] < scheduled_phase["start_date"]:
-            raise HTTPException(status_code=422, detail=f"{phase['name']} must end after it starts")
-    objective_by_uuid = {item.get("objective_uuid"): item for item in schedule.get("objectives") or []}
+        if not scheduled_phase.get("end_date"):
+            raise HTTPException(status_code=422, detail=f"Set a target date for {phase['name']}")
+    ordered_targets = [phase_by_uuid[phase["phase_uuid"]]["end_date"] for phase in phases]
+    if ordered_targets != sorted(ordered_targets):
+        raise HTTPException(status_code=422, detail="Phase target dates must follow phase order")
+    normalized_phases = [
+        {"phase_uuid": phase["phase_uuid"], "end_date": phase_by_uuid[phase["phase_uuid"]]["end_date"]}
+        for phase in phases
+    ]
+    supplied_objectives = schedule.get("objectives") or []
+    objective_by_uuid = {item.get("objective_uuid"): dict(item) for item in supplied_objectives}
     expected_objectives = {objective["objective_uuid"] for phase in phases for objective in phase["objectives"]}
-    if set(objective_by_uuid) != expected_objectives:
+    if objective_by_uuid and set(objective_by_uuid) != expected_objectives:
         raise HTTPException(status_code=422, detail="Set scheduling rules for every objective")
     for phase in phases:
-        scheduled_phase = phase_by_uuid[phase["phase_uuid"]]
         for objective in phase["objectives"]:
-            rule = objective_by_uuid[objective["objective_uuid"]]
-            start_rule = rule.get("start_rule")
+            rule = objective_by_uuid.setdefault(objective["objective_uuid"], {
+                "objective_uuid": objective["objective_uuid"], "phase_uuid": phase["phase_uuid"],
+                "due_rule": "phase_end", "allow_late": bool(objective.get("default_allow_late", False)),
+                "due_date": None,
+            })
             due_rule = rule.get("due_rule")
-            if start_rule not in {"any_time", "phase_start", "specific_date"}:
-                raise HTTPException(status_code=422, detail=f"Invalid start rule for {objective['title']}")
             if due_rule not in {"optional", "phase_end", "specific_date"}:
                 raise HTTPException(status_code=422, detail=f"Invalid completion rule for {objective['title']}")
-            if start_rule == "specific_date" and not rule.get("start_date"):
-                raise HTTPException(status_code=422, detail=f"Choose a start date for {objective['title']}")
             if due_rule == "specific_date" and not rule.get("due_date"):
                 raise HTTPException(status_code=422, detail=f"Choose a due date for {objective['title']}")
             rule["phase_uuid"] = phase["phase_uuid"]
-            rule["effective_start_date"] = scheduled_phase["start_date"] if start_rule == "phase_start" else rule.get("start_date")
-            rule["effective_due_date"] = scheduled_phase["end_date"] if due_rule == "phase_end" else rule.get("due_date")
-    return {"phases": supplied_phases, "objectives": list(objective_by_uuid.values())}
+            rule.pop("start_rule", None)
+            rule.pop("start_date", None)
+            rule.pop("effective_start_date", None)
+            # Inherited phase targets remain on PlanPhase; only explicit overrides are stored on an objective.
+            rule["effective_due_date"] = rule.get("due_date") if due_rule == "specific_date" else None
+    return {"phases": normalized_phases, "objectives": list(objective_by_uuid.values())}
 
 
 def ensure_group_participants(db: Session, usergroup_id: int, user_ids: list[int] | None = None) -> None:
@@ -925,7 +988,20 @@ def assign_program(
             raise HTTPException(status_code=422, detail="A valid subject email is required")
     phases = _program_phases(db, program)
     schedule = _validated_schedule(program, phases, payload)
-    staff_ids = list(dict.fromkeys(payload.staff_user_ids))
+    # The new assignment flow always supplies a target. Keep older API clients and
+    # saved automation working by deriving a target from the phase schedule (or the
+    # template's suggested durations) when they omit it.
+    scheduled_ends = [item.get("end_date") for item in schedule.get("phases", []) if item.get("end_date")]
+    scheduled_due = datetime.fromisoformat(max(scheduled_ends)) if scheduled_ends else None
+    legacy_due_date = payload.due_date or scheduled_due
+    if not legacy_due_date:
+        suggested_weeks = sum(int(phase.get("suggested_duration_weeks") or 4) for phase in phases) or 4
+        legacy_due_date = datetime.now(timezone.utc) + timedelta(weeks=suggested_weeks)
+    owner_user_id = payload.owner_user_id or current_user.id
+    supplied_collaborators = [dict(item) for item in (payload.collaborators or [])]
+    staff_ids = list(dict.fromkeys([int(item["user_id"]) for item in supplied_collaborators if item.get("user_id")] or payload.staff_user_ids))
+    if owner_user_id not in staff_ids:
+        staff_ids.insert(0, owner_user_id)
     if not staff_ids:
         raise HTTPException(status_code=422, detail="Assign at least one staff member")
     if staff_ids:
@@ -938,13 +1014,20 @@ def assign_program(
         eligible_ids = {membership.user_id for membership, role in memberships if _role_can_manage_programs(role)}
         if eligible_ids != set(staff_ids):
             raise HTTPException(status_code=422, detail="Every assigned staff member must have program management permissions")
-    owner_user_id = payload.owner_user_id or current_user.id
     owner_membership = db.exec(select(UserOrganization).where(
         UserOrganization.org_id == org_id,
         UserOrganization.user_id == owner_user_id,
     )).first()
     if not owner_membership:
         raise HTTPException(status_code=422, detail="The plan owner must belong to this organization")
+    supplied_roles = {int(item["user_id"]): str(item.get("role_key") or program.default_staff_role_key or "reviewer") for item in supplied_collaborators if item.get("user_id")}
+    role_keys = {str(item.get("key")) for item in (program.role_definitions or DEFAULT_ROLE_DEFINITIONS)}
+    collaborators = []
+    for user_id in staff_ids:
+        role_key = "plan_admin" if user_id == owner_user_id else supplied_roles.get(user_id, program.default_staff_role_key or "reviewer")
+        if role_key not in role_keys or (role_key in {"subject", "plan_admin"} and user_id != owner_user_id):
+            raise HTTPException(status_code=422, detail=f"Invalid assignment collaborator role: {role_key}")
+        collaborators.append({"user_id": user_id, "role_key": role_key})
     now = _now_string()
     assignment = ProgramAssignment(
         assignment_uuid=f"assignment_{uuid4()}",
@@ -954,13 +1037,15 @@ def assign_program(
         user_id=payload.user_id,
         subject_email=str(payload.subject_email or "").strip().lower() or None,
         program_version=program.version,
+        definition_version=1,
         objective_snapshot=_snapshot(db, program),
         welcome_message=payload.welcome_message,
         initiate_date=payload.initiate_date or _now(),
         staff_user_ids=staff_ids,
+        collaborators=collaborators,
         schedule=schedule,
         start_date=payload.start_date,
-        due_date=payload.due_date,
+        due_date=legacy_due_date,
         created_by_user_id=current_user.id,
         owner_user_id=owner_user_id,
         creation_date=now,
@@ -1064,20 +1149,30 @@ def _assignment_summary(db: Session, assignment: ProgramAssignment) -> dict:
         ready = sum(1 for item in legacy_progress.values() if item.status in {ObjectiveProgressStatus.SUBMITTED, ObjectiveProgressStatus.READY_FOR_REVIEW})
         total = len(user_ids) * len(objective_ids)
     lifecycle_counts = {status: 0 for status in ("pending", "active", "completed", "archived")}
+    plan_progress: list[int] = []
     for plan in plans:
         status = plan.status.value if hasattr(plan.status, "value") else str(plan.status)
         lifecycle_counts[status] = lifecycle_counts.get(status, 0) + 1
+        plan_items = [item for item in live_objectives if item.plan_id == plan.id]
+        plan_complete = sum(
+            1 for item in plan_items
+            if progress_by_objective.get(int(item.id)) and progress_by_objective[int(item.id)].status == PlanObjectiveStatus.COMPLETED
+        )
+        plan_progress.append(round(plan_complete * 100 / len(plan_items)) if plan_items else 0)
     return {
         "assignment_uuid": assignment.assignment_uuid,
+        "org_id": assignment.org_id,
         "program_uuid": program.program_uuid if program else "",
         "program_name": program.name if program else "Deleted program",
         "program_version": assignment.program_version,
+        "definition_version": assignment.definition_version,
         "usergroup_id": assignment.usergroup_id,
         "user_id": assignment.user_id,
         "subject_email": assignment.subject_email,
         "welcome_message": assignment.welcome_message,
         "initiate_date": assignment.initiate_date,
         "staff_user_ids": assignment.staff_user_ids or [],
+        "collaborators": assignment.collaborators or [],
         "staff": [{
             "id": item.id,
             "username": item.username,
@@ -1118,6 +1213,8 @@ def _assignment_summary(db: Session, assignment: ProgramAssignment) -> dict:
         "completed_count": completed,
         "ready_for_review_count": ready,
         "progress_percent": round((completed / total) * 100) if total else 0,
+        "min_progress_percent": min(plan_progress) if plan_progress else 0,
+        "max_progress_percent": max(plan_progress) if plan_progress else 0,
     }
 
 
@@ -1152,10 +1249,13 @@ def assignment_matrix(db: Session, current_user: PublicUser, org_id: int, assign
     group = db.get(UserGroup, assignment.usergroup_id) if assignment.usergroup_id else None
     plans = db.exec(select(Plan).where(Plan.source_assignment_id == assignment.id).order_by(Plan.id)).all()
     accessible_plans = [plan for plan in plans if "view_plan" in plan_capabilities_for(db, plan, current_user.id)]
+    if plans and not accessible_plans:
+        raise HTTPException(status_code=403, detail="You cannot view this group plan")
     snapshot_by_id = {int(item["id"]): item for item in (assignment.objective_snapshot or []) if item.get("id")}
     shared_columns = [{
         **item,
         "source_objective_id": int(item["id"]),
+        "fields": item.get("fields") or item.get("custom_fields") or [],
     } for item in (assignment.objective_snapshot or []) if item.get("id")]
     learner_rows = []
     cell_rows = []
@@ -1219,6 +1319,62 @@ def assignment_matrix(db: Session, current_user: PublicUser, org_id: int, assign
             ProgramAssignment.active == True,  # noqa: E712
         )).all()
         siblings = [_assignment_summary(db, sibling) for sibling in sibling_assignments]
+    phase_order = list(dict.fromkeys((item.get("phase_uuid") or "legacy") for item in shared_columns))
+    phases = [{
+        "phase_uuid": phase_uuid,
+        "name": next((item.get("phase_name") for item in shared_columns if (item.get("phase_uuid") or "legacy") == phase_uuid), None) or "Phase 1",
+        "position": index,
+        "due_date": next((item.get("end_date") for item in (assignment.schedule or {}).get("phases", []) if item.get("phase_uuid") == phase_uuid), None),
+        "objectives": [item for item in shared_columns if (item.get("phase_uuid") or "legacy") == phase_uuid],
+    } for index, phase_uuid in enumerate(phase_order)]
+    for objective in shared_columns:
+        objective_cells = [learner["cells"].get(objective["objective_uuid"], {}) for learner in learner_rows]
+        statuses = [cell.get("status", "not_started") for cell in objective_cells]
+        phase_target = next((phase["due_date"] for phase in phases if phase["phase_uuid"] == (objective.get("phase_uuid") or "legacy")), None)
+        step_fields = [field for field in (objective.get("fields") or []) if field.get("field_uuid")]
+        completion = []
+        for cell in objective_cells:
+            if not step_fields:
+                completion.append(100 if cell.get("status") == "completed" else 0)
+                continue
+            values = cell.get("field_values") or {}
+            percentages = []
+            for field in step_fields:
+                value = values.get(str(field.get("field_uuid")))
+                if field.get("type") == "badge" and isinstance(value, dict):
+                    percentages.append(max(0, min(100, int(value.get("progress_percent") or 0))))
+                else:
+                    percentages.append(100 if bool(value) else 0)
+            completion.append(round(sum(percentages) / len(percentages)))
+        step_aggregates = {}
+        for field in objective.get("fields") or []:
+            field_uuid = str(field.get("field_uuid") or "")
+            if not field_uuid:
+                continue
+            percentages = []
+            for cell in objective_cells:
+                value = (cell.get("field_values") or {}).get(field_uuid)
+                if field.get("type") == "badge" and isinstance(value, dict):
+                    percentages.append(max(0, min(100, int(value.get("progress_percent") or 0))))
+                else:
+                    percentages.append(100 if bool(value) else 0)
+            step_aggregates[field_uuid] = {
+                "min_progress_percent": min(percentages) if percentages else 0,
+                "max_progress_percent": max(percentages) if percentages else 0,
+            }
+        objective["aggregate"] = {
+            "learner_count": len(learner_rows),
+            "completed_count": sum(status == "completed" for status in statuses),
+            "review_count": sum(status == "submitted" for status in statuses),
+            "blocked_count": sum(bool(cell.get("blocked")) for cell in objective_cells),
+            "overdue_count": sum(
+                bool(phase_target and str(phase_target)[:10] < _now().date().isoformat() and status not in {"completed", "canceled"})
+                for status in statuses
+            ),
+            "min_progress_percent": min(completion) if completion else 0,
+            "max_progress_percent": max(completion) if completion else 0,
+            "steps": step_aggregates,
+        }
     return {
         "assignment": _assignment_summary(db, assignment),
         "cohort": {"id": group.id, "uuid": group.usergroup_uuid, "name": group.name} if group else None,
@@ -1226,10 +1382,85 @@ def assignment_matrix(db: Session, current_user: PublicUser, org_id: int, assign
         "programs": siblings,
         "batch": _assignment_summary(db, assignment),
         "shared_columns": shared_columns,
+        "phases": phases,
+        "definition_version": assignment.definition_version,
         "plans": learner_rows,
         "cells": cell_rows,
         "objectives": shared_columns,
         "learners": learner_rows,
+    }
+
+
+def _require_assignment_lifecycle_capability(
+    db: Session,
+    current_user: PublicUser,
+    assignment: ProgramAssignment,
+    capability: str,
+) -> list[Plan]:
+    require_org_membership(current_user.id, assignment.org_id, db)
+    plans = db.exec(select(Plan).where(Plan.source_assignment_id == assignment.id)).all() if _has_live_plan_tables(db) else []
+    if current_user.is_superadmin or is_org_admin(current_user.id, assignment.org_id, db):
+        return plans
+    if plans and all(capability in plan_capabilities_for(db, plan, current_user.id) for plan in plans):
+        return plans
+    if not plans and (current_user.id == assignment.owner_user_id or current_user.id in (assignment.staff_user_ids or [])):
+        return plans
+    raise HTTPException(status_code=403, detail="Your group plan role cannot manage this assignment")
+
+
+def change_assignment_status(
+    db: Session,
+    current_user: PublicUser,
+    org_id: int,
+    assignment_uuid: str,
+    status: PlanStatus,
+) -> dict:
+    assignment = _assignment_or_404(db, assignment_uuid, org_id)
+    if not assignment.usergroup_id:
+        raise HTTPException(status_code=422, detail="Group lifecycle actions require a group assignment")
+    permission = "complete_plan" if status in {PlanStatus.COMPLETED, PlanStatus.ACTIVE} else "archive_plan"
+    plans = _require_assignment_lifecycle_capability(db, current_user, assignment, permission)
+    now = _now()
+    now_string = now.isoformat()
+    for plan in plans:
+        plan.status = status
+        plan.completed_at = now if status == PlanStatus.COMPLETED else None
+        plan.update_date = now_string
+        db.add(plan)
+    assignment.active = status == PlanStatus.ACTIVE
+    assignment.update_date = now_string
+    db.add(assignment)
+    db.commit()
+    return {
+        "assignment_uuid": assignment.assignment_uuid,
+        "status": status.value,
+        "affected_plan_count": len(plans),
+    }
+
+
+def delete_assignment(
+    db: Session,
+    current_user: PublicUser,
+    org_id: int,
+    assignment_uuid: str,
+) -> dict:
+    assignment = _assignment_or_404(db, assignment_uuid, org_id)
+    if not assignment.usergroup_id:
+        raise HTTPException(status_code=422, detail="Group deletion requires a group assignment")
+    plans = _require_assignment_lifecycle_capability(db, current_user, assignment, "edit_structure")
+    affected_plan_count = len(plans)
+    for plan in plans:
+        db.delete(plan)
+    participants = db.exec(select(ProgramParticipant).where(ProgramParticipant.assignment_id == assignment.id)).all()
+    for participant in participants:
+        db.delete(participant)
+    db.flush()
+    db.delete(assignment)
+    db.commit()
+    return {
+        "deleted": True,
+        "assignment_uuid": assignment_uuid,
+        "affected_plan_count": affected_plan_count,
     }
 
 
@@ -1268,12 +1499,71 @@ def _require_assignment_reviewer(
     db: Session, current_user: PublicUser, assignment: ProgramAssignment
 ) -> None:
     require_org_membership(current_user.id, assignment.org_id, db)
+    if _has_live_plan_tables(db):
+        plans = db.exec(select(Plan).where(Plan.source_assignment_id == assignment.id)).all()
+        if any("edit_structure" in plan_capabilities_for(db, plan, current_user.id) for plan in plans):
+            return
+        if plans and not current_user.is_superadmin:
+            raise HTTPException(status_code=403, detail="Your group plan role cannot edit its definition")
     assigned = set(assignment.staff_user_ids or [])
     if current_user.id not in assigned and not current_user.is_superadmin:
         raise HTTPException(
             status_code=403,
             detail="You are not assigned to review this program",
         )
+
+
+def update_assignment_objective(
+    db: Session,
+    current_user: PublicUser,
+    org_id: int,
+    assignment_uuid: str,
+    objective_uuid: str,
+    payload: ProgramAssignmentObjectiveUpdate,
+) -> dict:
+    assignment = _assignment_or_404(db, assignment_uuid, org_id)
+    _require_assignment_reviewer(db, current_user, assignment)
+    if not assignment.usergroup_id:
+        raise HTTPException(status_code=422, detail="Batch definition editing is only used for group assignments")
+    if payload.definition_version != assignment.definition_version:
+        raise HTTPException(status_code=409, detail="This group plan changed in another session. Refresh before saving.")
+    snapshots = [dict(item) for item in (assignment.objective_snapshot or [])]
+    snapshot = next((item for item in snapshots if item.get("objective_uuid") == objective_uuid), None)
+    if not snapshot:
+        raise HTTPException(status_code=404, detail="Group objective not found")
+    title = payload.title.strip()
+    if not title:
+        raise HTTPException(status_code=422, detail="Objective title is required")
+    fields = _validated_steps(db, payload.fields)
+    plans = db.exec(select(Plan).where(Plan.source_assignment_id == assignment.id)).all() if _has_live_plan_tables(db) else []
+    plan_objectives = db.exec(select(PlanObjective).where(
+        PlanObjective.plan_id.in_([int(plan.id) for plan in plans]),
+        PlanObjective.source_objective_id == snapshot.get("id"),
+    )).all() if plans else []
+    progresses = db.exec(select(PlanObjectiveProgress).where(
+        PlanObjectiveProgress.plan_objective_id.in_([int(item.id) for item in plan_objectives])
+    )).all() if plan_objectives else []
+    old_fields = snapshot.get("fields") or snapshot.get("custom_fields") or []
+    if fields != old_fields and any(item.status == PlanObjectiveStatus.COMPLETED for item in progresses):
+        raise HTTPException(status_code=409, detail="Reopen completed group objectives before changing supporting steps")
+    now = _now_string()
+    before = {"title": snapshot.get("title"), "description": snapshot.get("description"), "fields": old_fields}
+    snapshot.update(title=title, description=payload.description, custom_fields=fields, fields=fields, allow_learner_confirmation=not payload.completion_restricted, default_allow_late=payload.allow_late)
+    for item in plan_objectives:
+        item.title = title
+        item.description = payload.description
+        item.fields = fields
+        item.completion_restricted = payload.completion_restricted
+        item.allow_late = payload.allow_late
+        item.update_date = now
+        db.add(item)
+    assignment.objective_snapshot = snapshots
+    assignment.definition_version += 1
+    assignment.definition_audit = [*(assignment.definition_audit or []), {"version": assignment.definition_version, "objective_uuid": objective_uuid, "actor_user_id": current_user.id, "before": before, "changed_at": now}]
+    assignment.update_date = now
+    db.add(assignment)
+    db.commit()
+    return {"assignment_uuid": assignment.assignment_uuid, "definition_version": assignment.definition_version, "affected_plan_count": len(plans)}
 
 
 def assignment_reviews(
@@ -1629,6 +1919,7 @@ def update_progress(
     completion_date: datetime | None,
     plan_uuids: list[str] | None = None,
     override_customized: bool = False,
+    field_values: dict | None = None,
 ) -> list[dict]:
     require_org_membership(current_user.id, org_id, db)
     objective = db.exec(select(Objective).where(
@@ -1681,6 +1972,8 @@ def update_progress(
         status_value = status.value if hasattr(status, "value") else str(status)
         progress.status = PlanObjectiveStatus(status_value)
         progress.reviewer_note = staff_note
+        if field_values is not None:
+            progress.field_values = dict(field_values)
         if evidence is not None:
             values = dict(progress.field_values or {})
             values["batch_evidence"] = evidence

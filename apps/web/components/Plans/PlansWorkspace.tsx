@@ -6,13 +6,13 @@ import Link from 'next/link'
 import useSWR, { mutate } from 'swr'
 import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd'
 import toast from 'react-hot-toast'
-import { ArrowLeft, Award, CalendarDays, Check, ChevronDown, ChevronRight, Compass, FileText, Film, GripVertical, Image as ImageIcon, Link2, Loader2, Lock, LogOut, Menu, MoreVertical, Pencil, Plus, RotateCcw, Sparkles, SquareCheck, Target, Trash2, Upload, X, Zap } from 'lucide-react'
+import { Award, CalendarDays, Check, ChevronDown, ChevronRight, Compass, FileText, Film, GripVertical, Image as ImageIcon, Link2, Loader2, Lock, LogOut, Menu, MoreVertical, Pencil, Plus, RotateCcw, Sparkles, SquareCheck, Target, Trash2, Upload, Users, X, Zap } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { planningApi, type PlanLifecycle, type PlanScope } from '@services/planning/planning'
 import { getLearningBadges } from '@services/learning/learning'
-import { getAPIUrl, getUriWithOrg } from '@services/config/config'
+import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { getUserAvatarMediaDirectory, normalizeMediaUrl } from '@services/media/media'
 import { cn } from '@/lib/utils'
@@ -20,6 +20,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 import { DiscussionEditor } from '@components/Objects/Communities/DiscussionEditor'
 import type { MediaAsset, MediaType } from '@services/media/library'
+import { PlanStepPicker, PlanWorkspaceHeader, type PlanTarget } from './PlanEditorShared'
+import GroupPlanWorkspace from './GroupPlanWorkspace'
 
 const plansKey = (lifecycle: PlanLifecycle) => `${getAPIUrl()}planning/plans?lifecycle=${lifecycle}`
 const invitesKey = () => `${getAPIUrl()}planning/invitations/me`
@@ -32,7 +34,7 @@ function fallbackPlanColor(planUuid = '') {
   return PLAN_COLORS[hash % PLAN_COLORS.length]
 }
 
-function usePlanColors(plans: any[], viewerId: string | number | undefined) {
+function usePlanColors(plans: PlanTarget[], viewerId: string | number | undefined) {
   const storageKey = `launchlms:plan-colors:${viewerId || 'viewer'}`
   const [colors, setColors] = React.useState<Record<string, string>>({})
 
@@ -65,29 +67,48 @@ function usePlanColors(plans: any[], viewerId: string | number | undefined) {
   return { getPlanColor: (planUuid?: string) => colors[planUuid || ''] || fallbackPlanColor(planUuid), setPlanColor }
 }
 
-export default function PlansWorkspace({ orgslug, initialPlanSlug }: { orgslug: string; initialPlanSlug?: string }) {
+export default function PlansWorkspace({ orgslug, initialPlanSlug, initialGroupAssignmentUuid }: { orgslug: string; initialPlanSlug?: string; initialGroupAssignmentUuid?: string }) {
   const session = useLHSession() as any
   const token = session?.data?.tokens?.access_token
   const [lifecycle, setLifecycle] = React.useState<PlanLifecycle>('active')
   const [scope, setScope] = React.useState<PlanScope>('all')
   const [selectedSlug, setSelectedSlug] = React.useState(initialPlanSlug || '')
+  const [selectedGroupAssignmentUuid, setSelectedGroupAssignmentUuid] = React.useState(initialGroupAssignmentUuid || '')
   const [mobilePanel, setMobilePanel] = React.useState(false)
   const [createOpen, setCreateOpen] = React.useState(false)
   const exploreAll = false
   const [selectedObjectiveUuid, setSelectedObjectiveUuid] = React.useState('')
   const [mounted, setMounted] = React.useState(false)
   React.useEffect(() => setMounted(true), [])
-  const { data: plans = [], isLoading } = useSWR<any[]>(token ? plansKey(lifecycle) : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: true })
+  const { data: plans = [], isLoading } = useSWR<PlanTarget[]>(token ? plansKey(lifecycle) : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: true })
   const { getPlanColor, setPlanColor } = usePlanColors(plans, session?.data?.user?.id)
-  const selectedSummary = plans.find((plan: any) => plan.slug === selectedSlug)
+  const selectedSummary = plans.find((plan) => plan.slug === selectedSlug)
   const { data: detail } = useSWR<any>(token && selectedSlug ? detailKey(selectedSlug) : null, (url: string) => swrFetcher(url, token))
   const { data: invitations = [] } = useSWR<any[]>(token ? invitesKey() : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: true })
   const { data: feed, isLoading: feedLoading } = useSWR<any>(token ? feedKey(scope, selectedSummary?.plan_uuid || detail?.plan_uuid, exploreAll) : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: true })
 
+  React.useEffect(() => {
+    const assignmentUuid = detail?.source_assignment?.type === 'group' ? detail.source_assignment.assignment_uuid : null
+    if (assignmentUuid) {
+      setSelectedSlug('')
+      setSelectedGroupAssignmentUuid(assignmentUuid)
+      window.history.replaceState({}, '', getUriWithOrg(orgslug, routePaths.org.groupPlan(assignmentUuid)))
+    }
+  }, [detail?.source_assignment?.assignment_uuid, detail?.source_assignment?.type, orgslug])
+
   const refresh = async () => {
     await mutate((key: unknown) => typeof key === 'string' && key.includes(`${getAPIUrl()}planning`))
   }
-  const choose = (plan: any) => {
+  const choose = (plan: PlanTarget) => {
+    if (plan.target_kind === 'group' && plan.assignment_uuid) {
+      setSelectedSlug('')
+      setSelectedGroupAssignmentUuid(plan.assignment_uuid)
+      setSelectedObjectiveUuid('')
+      window.history.pushState({}, '', getUriWithOrg(orgslug, routePaths.org.groupPlan(plan.assignment_uuid)))
+      setMobilePanel(false)
+      return
+    }
+    setSelectedGroupAssignmentUuid('')
     setSelectedSlug(plan.slug)
     setSelectedObjectiveUuid('')
     window.history.pushState({}, '', getUriWithOrg(orgslug, `/plans/${encodeURIComponent(plan.slug)}`))
@@ -95,10 +116,11 @@ export default function PlansWorkspace({ orgslug, initialPlanSlug }: { orgslug: 
   }
   const clear = () => {
     setSelectedSlug('')
+    setSelectedGroupAssignmentUuid('')
     setSelectedObjectiveUuid('')
     window.history.pushState({}, '', getUriWithOrg(orgslug, '/plans'))
   }
-  const panel = <PlansPanel2
+  const panel = selectedGroupAssignmentUuid ? null : <PlansPanel2
     lifecycle={lifecycle} setLifecycle={setLifecycle} plans={plans} invitations={invitations}
     detail={detail} selectedSlug={selectedSlug} choose={choose} clear={clear} refresh={refresh}
     token={token} onCreate={() => setCreateOpen(true)} onCloseMobile={() => setMobilePanel(false)}
@@ -110,26 +132,14 @@ export default function PlansWorkspace({ orgslug, initialPlanSlug }: { orgslug: 
   return <>
     <GeneralWrapperStyled>
       <main className="pb-20 pt-8">
-        {selectedSlug && detail ? <SelectedPlanBar detail={detail} color={getPlanColor(detail.plan_uuid)} onClose={clear} onOpenPanel={() => setMobilePanel(true)} /> : <><header className="flex items-start justify-between gap-4"><h1 className="text-4xl font-black tracking-tight">Plans</h1><button type="button" onClick={() => setMobilePanel(true)} className="inline-flex h-10 items-center gap-2 rounded-lg border border-border px-3 text-xs font-black lg:hidden"><Menu size={16} />Plans</button></header>{feed?.has_helping ? <div className="mt-7 flex h-11 gap-1 rounded-xl bg-muted p-1 w-fit">{(['all', 'mine', 'helping'] as PlanScope[]).map((value) => <button key={value} onClick={() => setScope(value)} className={cn('rounded-lg px-4 py-2 text-xs font-black capitalize', scope === value ? 'bg-card shadow-sm' : 'text-muted-foreground')}>{value === 'mine' ? 'My plans' : value}</button>)}</div> : <div className="mt-7 h-11" />}</>}
-        {isLoading || (selectedSlug ? !detail : feedLoading) ? <div className="flex min-h-[45vh] items-center justify-center"><Loader2 className="animate-spin text-muted-foreground" /></div> : selectedSlug && detail ? <PlanEditor detail={detail} orgslug={orgslug} token={token} viewerUserId={session?.data?.user?.id} refresh={refresh} color={getPlanColor(detail.plan_uuid)} selectedObjectiveUuid={selectedObjectiveUuid} setSelectedObjectiveUuid={setSelectedObjectiveUuid} /> : <Feed feed={feed} orgslug={orgslug} token={token} viewerUserId={session?.data?.user?.id} refresh={refresh} getPlanColor={getPlanColor} onCreate={() => setCreateOpen(true)} />}
+        {selectedSlug && detail ? <PlanWorkspaceHeader title={detail.name} color={getPlanColor(detail.plan_uuid)} onClose={clear} onOpenPanel={() => setMobilePanel(true)} /> : selectedGroupAssignmentUuid ? null : <><header className="flex items-start justify-between gap-4"><h1 className="text-4xl font-black tracking-tight">Plans</h1><button type="button" onClick={() => setMobilePanel(true)} className="inline-flex h-10 items-center gap-2 rounded-lg border border-border px-3 text-xs font-black lg:hidden"><Menu size={16} />Plans</button></header>{feed?.has_helping ? <div className="mt-7 flex h-11 gap-1 rounded-xl bg-muted p-1 w-fit">{(['all', 'mine', 'helping'] as PlanScope[]).map((value) => <button key={value} onClick={() => setScope(value)} className={cn('rounded-lg px-4 py-2 text-xs font-black capitalize', scope === value ? 'bg-card shadow-sm' : 'text-muted-foreground')}>{value === 'mine' ? 'My plans' : value}</button>)}</div> : <div className="mt-7 h-11" />}</>}
+        {selectedGroupAssignmentUuid ? <GroupPlanWorkspace orgslug={orgslug} assignmentUuid={selectedGroupAssignmentUuid} embedded onClose={clear} onChanged={refresh} color={getPlanColor(`group:${selectedGroupAssignmentUuid}`)} onSetColor={(nextColor) => setPlanColor(`group:${selectedGroupAssignmentUuid}`, nextColor)} /> : isLoading || (selectedSlug ? !detail || detail.source_assignment?.type === 'group' : feedLoading) ? <div className="flex min-h-[45vh] items-center justify-center"><Loader2 className="animate-spin text-muted-foreground" /></div> : selectedSlug && detail ? <PlanEditor detail={detail} orgslug={orgslug} token={token} viewerUserId={session?.data?.user?.id} refresh={refresh} color={getPlanColor(detail.plan_uuid)} selectedObjectiveUuid={selectedObjectiveUuid} setSelectedObjectiveUuid={setSelectedObjectiveUuid} /> : <Feed feed={feed} orgslug={orgslug} token={token} viewerUserId={session?.data?.user?.id} refresh={refresh} getPlanColor={getPlanColor} onCreate={() => setCreateOpen(true)} />}
       </main>
     </GeneralWrapperStyled>
-    {mounted && document.getElementById('org-layout-right-sidebar') ? createPortal(<div className="sticky top-4 max-h-[calc(100dvh-2rem)] overflow-y-auto pb-6">{panel}</div>, document.getElementById('org-layout-right-sidebar')!) : null}
+    {mounted && panel && document.getElementById('org-layout-right-sidebar') ? createPortal(<div className="sticky top-4 max-h-[calc(100dvh-2rem)] overflow-y-auto pb-6">{panel}</div>, document.getElementById('org-layout-right-sidebar')!) : null}
     {mobilePanel ? <div className="fixed inset-0 z-[var(--z-modal)] bg-black/35 lg:hidden" onClick={() => setMobilePanel(false)}><aside onClick={(event) => event.stopPropagation()} className="ml-auto h-full w-[min(92vw,360px)] overflow-y-auto bg-background p-4 shadow-2xl"><div className="mb-3 flex justify-end"><button onClick={() => setMobilePanel(false)} className="rounded-lg p-2 hover:bg-muted"><X size={18} /></button></div>{panel}</aside></div> : null}
     <CreatePlanModal open={createOpen} setOpen={setCreateOpen} token={token} refresh={refresh} onCreated={(plan: any) => choose(plan)} />
   </>
-}
-
-function SelectedPlanBar({ detail, color, onClose, onOpenPanel }: any) {
-  const [open, setOpen] = React.useState(false)
-  React.useEffect(() => { const frame = requestAnimationFrame(() => setOpen(true)); return () => cancelAnimationFrame(frame) }, [])
-  return <div className="h-16 overflow-hidden rounded-2xl">
-    <div className={cn('flex h-16 origin-left items-center overflow-hidden rounded-2xl px-5 text-white shadow-sm transition-[transform,opacity] duration-200 ease-out', open ? 'scale-x-100 opacity-100' : 'scale-x-0 opacity-0')} style={{ backgroundColor: color }}>
-      <span className={cn('min-w-0 flex-1 truncate text-xl font-black tracking-tight transition-opacity delay-150 sm:text-2xl', open ? 'opacity-100' : 'opacity-0')}>{detail.name}</span>
-      <button onClick={onOpenPanel} className="mr-2 flex h-8 items-center gap-1.5 rounded-full bg-black/15 px-3 text-[10px] font-black lg:hidden"><Menu size={14} />Details</button>
-      <button onClick={onClose} aria-label="Close plan editor and return to all plans" className="ml-3 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-black/15 transition hover:bg-black/25"><X size={16} /></button>
-    </div>
-  </div>
 }
 
 function dateValue(value?: string) { return value ? String(value).slice(0, 10) : '' }
@@ -270,9 +280,13 @@ function Feed({ feed, orgslug, token, viewerUserId, refresh, getPlanColor, onCre
   const hasItems = feed.coming_up?.length || feed.future_groups?.some((group: any) => group.items.length)
   if (!hasItems) return <div className="mt-10 rounded-2xl border border-dashed border-border py-20 text-center"><Compass className="mx-auto text-muted-foreground" size={42} /><h2 className="mt-4 text-xl font-black">Start with something that matters</h2><p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">Create a personal plan and shape it one step at a time.</p><button onClick={onCreate} className="mt-5 inline-flex items-center gap-2 rounded-lg bg-foreground px-4 py-3 text-sm font-black text-background"><Plus size={16} />Create a plan</button></div>
   return <div className="mt-9 space-y-10">
-    {feed.coming_up?.length ? <FeedSection title="Right now" subtitle={`${feed.coming_up.length} ${feed.coming_up.length === 1 ? 'item needs' : 'items need'} your attention`} icon={<Zap size={18} />}><div className="divide-y divide-border border-y border-border">{feed.coming_up.map((item: any) => <ObjectiveCard key={`${item.plan.plan_uuid}-${item.objective_uuid}`} item={item} orgslug={orgslug} token={token} viewerUserId={viewerUserId} refresh={refresh} color={getPlanColor(item.plan.plan_uuid)} prominent />)}</div></FeedSection> : null}
-    {(feed.future_groups || []).map((group: any) => <FeedSection key={group.key} title={group.label} icon={<CalendarDays size={18} />}><div className="divide-y divide-border border-y border-border">{group.items.map((item: any) => <ObjectiveCard key={`${item.plan.plan_uuid}-${item.objective_uuid}`} item={item} orgslug={orgslug} token={token} viewerUserId={viewerUserId} refresh={refresh} color={getPlanColor(item.plan.plan_uuid)} />)}</div></FeedSection>)}
+    {feed.coming_up?.length ? <FeedSection title="Right now" subtitle={`${feed.coming_up.length} ${feed.coming_up.length === 1 ? 'item needs' : 'items need'} your attention`} icon={<Zap size={18} />}><div className="divide-y divide-border border-y border-border">{feed.coming_up.map((item: any) => item.target_kind === 'group' ? <GroupFeedCard key={`${item.assignment_uuid}-${item.objective_uuid}`} item={item} orgslug={orgslug} color={getPlanColor(item.plan.plan_uuid)} /> : <ObjectiveCard key={`${item.plan.plan_uuid}-${item.objective_uuid}`} item={item} orgslug={orgslug} token={token} viewerUserId={viewerUserId} refresh={refresh} color={getPlanColor(item.plan.plan_uuid)} prominent />)}</div></FeedSection> : null}
+    {(feed.future_groups || []).map((group: any) => <FeedSection key={group.key} title={group.label} icon={<CalendarDays size={18} />}><div className="divide-y divide-border border-y border-border">{group.items.map((item: any) => item.target_kind === 'group' ? <GroupFeedCard key={`${item.assignment_uuid}-${item.objective_uuid}`} item={item} orgslug={orgslug} color={getPlanColor(item.plan.plan_uuid)} /> : <ObjectiveCard key={`${item.plan.plan_uuid}-${item.objective_uuid}`} item={item} orgslug={orgslug} token={token} viewerUserId={viewerUserId} refresh={refresh} color={getPlanColor(item.plan.plan_uuid)} />)}</div></FeedSection>)}
   </div>
+}
+
+function GroupFeedCard({ item, orgslug, color }: any) {
+  return <Link href={getUriWithOrg(orgslug, routePaths.org.groupPlan(item.assignment_uuid))} className="flex items-center gap-3 bg-card px-4 py-4 transition hover:bg-muted/30"><span className="flex h-9 w-9 items-center justify-center rounded-xl text-white" style={{ backgroundColor: color }}><Users size={16} /></span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-black">{item.title}</span><span className="mt-1 block text-[10px] font-bold text-muted-foreground">{item.plan.name}’s plan · {item.learner_count} learners{item.review_count ? ` · ${item.review_count} ready to review` : ''}</span></span><ChevronRight size={15} className="text-muted-foreground" /></Link>
 }
 
 function FeedSection({ title, subtitle, icon, children }: { title: string; subtitle?: string; icon?: React.ReactNode; children: React.ReactNode }) {
@@ -293,10 +307,10 @@ function targetDateLabel(value?: string) {
 function fieldKey(field: any) { return String(field.field_uuid || field.key || '') }
 function hasFieldValue(value: any) { return typeof value === 'boolean' ? value : Array.isArray(value) ? value.length > 0 : value !== undefined && value !== null && String(value).trim() !== '' }
 
-function ObjectiveProgressRing({ completed, total, color, locked = false }: { completed: number; total: number; color: string; locked?: boolean }) {
+function ObjectiveProgressRing({ completed, total, color, locked = false, complete = false }: { completed: number; total: number; color: string; locked?: boolean; complete?: boolean }) {
   const percent = total ? Math.round((completed / total) * 100) : 100
   const visiblePercent = percent === 0 ? 4 : percent
-  return <span className="flex shrink-0 flex-col items-center gap-0.5"><span role="progressbar" aria-label={`${completed} of ${total} steps complete`} aria-valuemin={0} aria-valuemax={total} aria-valuenow={completed} className="relative h-7 w-7 rounded-full" style={{ background: `conic-gradient(${color} ${visiblePercent}%, hsl(var(--muted)) 0)` }}><span className="absolute inset-[3px] flex items-center justify-center rounded-full bg-card">{locked && percent === 100 ? <Lock size={9} className="text-muted-foreground" /> : null}</span></span><span className="text-[8px] font-black tabular-nums leading-none text-muted-foreground">{completed}/{total}</span></span>
+  return <span className="flex shrink-0 flex-col items-center gap-0.5"><span role="progressbar" aria-label={`${completed} of ${total} steps complete`} aria-valuemin={0} aria-valuemax={total} aria-valuenow={completed} className="relative h-7 w-7 rounded-full" style={{ background: `conic-gradient(${color} ${visiblePercent}%, hsl(var(--muted)) 0)` }}><span className="absolute inset-[3px] flex items-center justify-center rounded-full bg-card">{complete ? <Check size={10} className="text-emerald-700" strokeWidth={3} /> : locked && percent === 100 ? <Lock size={9} className="text-muted-foreground" /> : null}</span></span><span className="text-[8px] font-black tabular-nums leading-none text-muted-foreground">{completed}/{total}</span></span>
 }
 
 function fieldIsRestricted(field: any) {
@@ -332,19 +346,7 @@ function RequirementTypeIcon({ type, size = 15 }: { type?: string; size?: number
 
 // eslint-disable-next-line no-unused-vars
 function StepPicker({ badges, onAdd, trigger }: { badges: any[]; onAdd: (type: string, options?: any) => void; trigger?: React.ReactNode }) {
-  const [open, setOpen] = React.useState(false)
-  const [view, setView] = React.useState<'root' | 'badge' | 'media'>('root')
-  const [query, setQuery] = React.useState('')
-  const [mediaTypes, setMediaTypes] = React.useState<MediaType[]>(['image', 'document'])
-  React.useEffect(() => { if (!open) { setView('root'); setQuery(''); setMediaTypes(['image', 'document']) } }, [open])
-  const filtered = badges.filter((badge: any) => String(badge.name || '').toLowerCase().includes(query.trim().toLowerCase()))
-  const choose = (type: string, options?: any) => { onAdd(type, options); setOpen(false) }
-  const toggleMedia = (type: MediaType) => setMediaTypes((current) => current.includes(type) ? current.filter((item) => item !== type) : [...current, type])
-  return <DropdownMenu open={open} onOpenChange={setOpen}><DropdownMenuTrigger asChild>{trigger || <button type="button" className="flex h-11 items-center justify-center gap-1.5 rounded-xl border border-dashed border-border text-[10px] font-black text-muted-foreground hover:bg-muted"><Plus size={13} />New step</button>}</DropdownMenuTrigger><DropdownMenuContent align="start" className="w-auto min-w-52 max-w-[min(20rem,calc(100vw-2rem))] overflow-hidden p-1">
-    {view === 'root' ? <div className="animate-in fade-in slide-in-from-left-2 duration-150"><DropdownMenuItem onClick={() => choose('text')}><FileText size={14} className="mr-2" />Note</DropdownMenuItem><DropdownMenuItem onSelect={(event) => { event.preventDefault(); setView('media') }}><Upload size={14} className="mr-2" /><span className="flex-1">Media</span><ChevronRight size={13} /></DropdownMenuItem><DropdownMenuItem onClick={() => choose('link')}><Link2 size={14} className="mr-2" />Links</DropdownMenuItem><DropdownMenuItem onClick={() => choose('checkbox')}><SquareCheck size={14} className="mr-2" />Checkbox</DropdownMenuItem><DropdownMenuItem onSelect={(event) => { event.preventDefault(); setView('badge') }}><Award size={14} className="mr-2" /><span className="flex-1">Badge</span><ChevronRight size={13} /></DropdownMenuItem></div> : null}
-    {view === 'badge' ? <div className="w-64 animate-in fade-in slide-in-from-right-3 duration-150"><div className="flex items-center gap-1 border-b border-border p-1"><button type="button" onClick={() => setView('root')} className="rounded p-1.5 text-muted-foreground hover:bg-muted"><ArrowLeft size={14} /></button><input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Find a badge…" className="h-8 min-w-0 flex-1 bg-transparent px-1 text-xs outline-none" /></div><div className="max-h-64 overflow-y-auto pt-1">{filtered.map((badge: any) => <DropdownMenuItem key={badge.badge_uuid} onClick={() => choose('badge', badge)}><span className="mr-2 flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted">{badge.thumbnail_image ? <img src={normalizeMediaUrl(badge.thumbnail_image)} alt="" className="h-full w-full object-cover" /> : <Award size={13} />}</span><span className="truncate">{badge.name}</span></DropdownMenuItem>)}{!filtered.length ? <p className="p-3 text-center text-[10px] text-muted-foreground">No badges found.</p> : null}</div></div> : null}
-    {view === 'media' ? <div className="w-60 animate-in fade-in slide-in-from-right-3 duration-150"><div className="flex items-center gap-2 border-b border-border px-1 pb-2"><button type="button" onClick={() => setView('root')} className="rounded p-1.5 text-muted-foreground hover:bg-muted"><ArrowLeft size={14} /></button><span className="text-xs font-black">Acceptable media</span></div><div className="space-y-1 py-2">{([['image', 'Images', <ImageIcon key="image" size={14} />], ['video', 'Video', <Film key="video" size={14} />], ['document', 'Documents (PDF)', <FileText key="document" size={14} />]] as const).map(([type, label, icon]) => <button key={type} type="button" onClick={() => toggleMedia(type)} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-xs hover:bg-muted">{icon}<span className="flex-1">{label}</span><span className={cn('flex h-4 w-4 items-center justify-center rounded border', mediaTypes.includes(type) && 'bg-foreground text-background')}>{mediaTypes.includes(type) ? <Check size={11} /> : null}</span></button>)}</div><button type="button" disabled={!mediaTypes.length} onClick={() => choose('media', { allowed_types: mediaTypes })} className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-foreground px-3 py-2 text-[10px] font-black text-background disabled:opacity-40"><Check size={12} />Confirm</button></div> : null}
-  </DropdownMenuContent></DropdownMenu>
+  return <PlanStepPicker badges={badges} onAdd={onAdd} trigger={trigger} />
 }
 
 const inlineEditableClass = 'border-b border-dashed border-foreground/35 bg-transparent outline-none transition-colors focus:border-foreground'
@@ -362,6 +364,8 @@ function ObjectiveCard({ item, orgslug, token, viewerUserId, refresh, color, edi
   const [linkDrafts, setLinkDrafts] = React.useState<string[]>([''])
   const [mediaField, setMediaField] = React.useState<any>(null)
   const [mediaType, setMediaType] = React.useState<MediaType | null>(null)
+  const [checkboxField, setCheckboxField] = React.useState<any>(null)
+  const [checkboxDraft, setCheckboxDraft] = React.useState(false)
   const [fieldValues, setFieldValues] = React.useState<Record<string, any>>(item.progress?.field_values || {})
   const [editing, setEditing] = React.useState(false)
   const [draft, setDraft] = React.useState<any>(item)
@@ -413,7 +417,7 @@ function ObjectiveCard({ item, orgslug, token, viewerUserId, refresh, color, edi
   const saveStepValues = (values: Record<string, any>) => saveProgress('in_progress', { ...fieldValues, ...values })
   const openStep = (field: any) => {
     const key = fieldKey(field)
-    if (field.type === 'checkbox') { void saveStepValues({ [key]: !fieldValues[key] }); return }
+    if (field.type === 'checkbox') { setCheckboxField(field); setCheckboxDraft(Boolean(fieldValues[key])); return }
     if (field.type === 'text') { setNoteField(field); setNoteDraft(fieldValues[key] || ''); return }
     if (field.type === 'link') { const values = Array.isArray(fieldValues[key]) ? fieldValues[key] : []; setLinksField(field); setLinkDrafts(values.length ? values.map((value: string) => value.replace(/^https:\/\/www\./, '')) : ['']); return }
     if (field.type === 'media') { setMediaField(field); const allowed = field.allowed_types || ['image', 'document']; if (allowed.length === 1) setMediaType(allowed[0]); return }
@@ -432,7 +436,7 @@ function ObjectiveCard({ item, orgslug, token, viewerUserId, refresh, color, edi
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] font-bold text-muted-foreground">{!editorMode ? <Link href={getUriWithOrg(orgslug, `/plans/${encodeURIComponent(item.plan.slug)}`)} onClick={(event) => event.stopPropagation()} className="inline-flex max-w-48 truncate rounded-full px-2.5 py-1 text-[10px] font-black text-white" style={{ backgroundColor: color }}>{item.plan.name}</Link> : null}{editing && fullDetail ? <label className="relative inline-flex h-6 items-center gap-1 rounded-full bg-muted px-2.5 text-[10px] font-black"><span className="max-w-32 truncate">{fullDetail.phases?.find((candidate: any) => candidate.phase_uuid === draft.phase_uuid)?.name || 'Choose phase'}</span><ChevronDown size={10} /><select aria-label="Move objective to phase" value={draft.phase_uuid || ''} onChange={(event) => setDraft({ ...draft, phase_uuid: event.target.value })} className="absolute inset-0 cursor-pointer opacity-0"><option value="" disabled>Move to phase…</option>{fullDetail.phases?.map((candidate: any) => <option key={candidate.phase_uuid} value={candidate.phase_uuid}>{candidate.name}{candidate.phase_uuid === item.phase_uuid ? ' (current)' : ''}</option>)}</select></label> : item.phase_name ? <span className="rounded-full bg-muted px-2.5 py-1 text-[10px] font-black">{item.phase_name}</span> : null}{editing && item.can_schedule ? <span className="inline-flex h-7 items-center gap-1 rounded-full bg-muted pl-2 pr-1 text-[10px] font-black"><CalendarDays size={10} /><input type="date" aria-label="Objective target date" value={draft.due_date || ''} min={fullDetail?.start_date ? dateValue(fullDetail.start_date) : undefined} max={fullDetail?.phases?.find((candidate: any) => candidate.phase_uuid === draft.phase_uuid)?.due_date || fullDetail?.due_date ? dateValue(fullDetail?.phases?.find((candidate: any) => candidate.phase_uuid === draft.phase_uuid)?.due_date || fullDetail?.due_date) : undefined} onChange={(event) => setDraft({ ...draft, due_date: event.target.value })} className="h-6 min-w-28 bg-transparent text-[10px] outline-none" />{draft.due_date ? <button type="button" onClick={() => setDraft({ ...draft, due_date: '' })} aria-label="Remove target date" className="rounded-full p-1 hover:bg-background"><X size={11} /></button> : null}</span> : item.effective_due_date ? <span className={cn(targetDateLabel(item.effective_due_date).includes('ago') && 'text-red-600')}>{targetDateLabel(item.effective_due_date)}{!item.has_fixed_due_date ? ' · phase' : ''}</span> : null}{!open && status === 'completed' ? <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400"><Check size={11} />Completed</span> : null}</div>
         {helping ? <span className="mt-2 flex items-center gap-2"><PersonAvatar user={item.subject} size="xs" /><span><span className="block text-[10px] font-black text-foreground">{item.subject.name?.split(' ')[0]}’s plan</span><span className="block text-[9px] text-muted-foreground">My role: {item.viewer_role?.name || 'Collaborator'}</span></span></span> : null}
       </div>
-      {!open && !editing ? status === 'completed' ? <span aria-label="Objective completed" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white"><Check size={15} strokeWidth={3} /></span> : canCompleteNow ? <button type="button" disabled={saving} onClick={() => void saveProgress()} className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-foreground px-3 text-[10px] font-black text-background shadow-sm transition hover:-translate-y-px hover:shadow-md disabled:opacity-40">{saving ? <Loader2 size={12} className="animate-spin" /> : <Check size={13} strokeWidth={3} />}Mark complete</button> : <ObjectiveProgressRing completed={completeFields} total={fields.length} color={color} locked={stepsReady && !canMarkComplete} /> : null}
+      <ObjectiveProgressRing completed={completeFields} total={fields.length} color={color} locked={stepsReady && !canMarkComplete} complete={status === 'completed'} />
       <div className="flex self-stretch flex-col items-center justify-between">{item.can_edit ? editing ? <button type="button" onClick={() => void saveDefinition()} disabled={saving || !draft.title?.trim()} aria-label="Save objective" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground text-background disabled:opacity-40">{saving ? <Loader2 size={13} className="animate-spin" /> : <Check size={14} />}</button> : <DropdownMenu><DropdownMenuTrigger asChild><button type="button" aria-label="Objective options" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted"><MoreVertical size={16} /></button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={() => { setOpen(true); setEditing(true) }}><Pencil size={14} className="mr-2" />Edit</DropdownMenuItem><DropdownMenuItem onClick={() => void removeObjective()} className="text-red-600"><Trash2 size={14} className="mr-2" />Delete</DropdownMenuItem></DropdownMenuContent></DropdownMenu> : <span />}{!editing ? <button type="button" onClick={() => setOpen(!open)} aria-label={open ? 'Collapse objective' : 'Expand objective'} className="rounded p-1 text-muted-foreground"><ChevronDown size={16} className={cn('transition-transform', open && 'rotate-180')} /></button> : <span />}</div>
     </div>
     {open ? <div className="px-3 pb-5 sm:px-4">
@@ -459,6 +463,7 @@ function ObjectiveCard({ item, orgslug, token, viewerUserId, refresh, color, edi
     </div> : null}
     <Modal isDialogOpen={Boolean(noteField)} onOpenChange={(nextOpen) => { if (!nextOpen) setNoteField(null) }} minHeight="no-min" minWidth="md" dialogTitle={noteField?.title || 'Note'} dialogDescription="Add useful detail and format it so it is easy to revisit." dialogContent={<div className="space-y-4 p-2"><DiscussionEditor content={noteDraft} onChange={setNoteDraft} placeholder="Jot down what you learn…" minHeight="180px" /><button type="button" disabled={saving} onClick={() => void saveNote()} className="flex w-full items-center justify-center gap-2 rounded-xl bg-foreground px-4 py-3 text-xs font-black text-background disabled:opacity-40">{saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}Save note</button></div>} />
     <Modal isDialogOpen={Boolean(linksField)} onOpenChange={(nextOpen) => { if (!nextOpen) setLinksField(null) }} minHeight="no-min" minWidth="md" dialogTitle={linksField?.title || 'Links'} dialogDescription="Add one or more web links for this step." dialogContent={<div className="space-y-3 p-2"><div className="space-y-2">{linkDrafts.map((value, index) => <div key={index} className="flex items-center gap-2"><label className="flex h-11 min-w-0 flex-1 items-center overflow-hidden rounded-xl border border-border bg-background focus-within:border-foreground"><span className="h-full shrink-0 border-r border-border bg-muted px-3 text-[11px] font-bold leading-[2.75rem] text-muted-foreground">https://www.</span><input autoFocus={index === 0} value={value} onChange={(event) => setLinkDrafts(linkDrafts.map((candidate, candidateIndex) => candidateIndex === index ? event.target.value.replace(/^https?:\/\/(www\.)?/, '') : candidate))} placeholder="example.com/page" aria-label={`Link ${index + 1}`} className="h-full min-w-0 flex-1 bg-transparent px-3 text-xs outline-none" /></label>{linkDrafts.length > 1 ? <button type="button" onClick={() => setLinkDrafts(linkDrafts.filter((_, candidateIndex) => candidateIndex !== index))} aria-label={`Remove link ${index + 1}`} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-red-700"><X size={14} /></button> : null}</div>)}</div><button type="button" onClick={() => setLinkDrafts([...linkDrafts, ''])} className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[10px] font-black text-muted-foreground hover:bg-muted"><Plus size={12} />Add another link</button>{!linksValid && linkDrafts.some((value) => value.length > 0) ? <p className="text-[10px] font-bold text-red-600">Enter a valid address after https://www.</p> : null}<button type="button" disabled={saving || !linksValid} onClick={() => void saveLinks()} className="flex w-full items-center justify-center gap-2 rounded-xl bg-foreground px-4 py-3 text-xs font-black text-background disabled:opacity-40">{saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}Save links</button></div>} />
+    <Modal isDialogOpen={Boolean(checkboxField)} onOpenChange={(nextOpen) => { if (!nextOpen) setCheckboxField(null) }} minHeight="no-min" minWidth="sm" dialogTitle={checkboxField?.title || 'Checkbox'} dialogDescription="Confirm whether this requirement is complete." dialogContent={<div className="space-y-4 p-2"><button type="button" onClick={() => setCheckboxDraft(!checkboxDraft)} className={cn('flex w-full items-center gap-3 rounded-xl border p-4 text-left text-sm font-black', checkboxDraft ? 'border-emerald-300 bg-emerald-50 text-emerald-900' : 'border-border')}><span className={cn('flex h-6 w-6 items-center justify-center rounded-md border', checkboxDraft && 'border-emerald-600 bg-emerald-600 text-white')}>{checkboxDraft ? <Check size={14} /> : null}</span>{checkboxField?.title}</button><button type="button" disabled={saving} onClick={async () => { if (!checkboxField) return; await saveStepValues({ [fieldKey(checkboxField)]: checkboxDraft }); setCheckboxField(null) }} className="flex w-full items-center justify-center gap-2 rounded-xl bg-foreground px-4 py-3 text-xs font-black text-background disabled:opacity-40">{saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}Save checkbox</button></div>} />
     <Modal isDialogOpen={Boolean(mediaField && !mediaType)} onOpenChange={(nextOpen) => { if (!nextOpen) setMediaField(null) }} minHeight="no-min" minWidth="sm" dialogTitle={mediaField?.title || 'Choose media'} dialogDescription="What kind of media do you want to add?" dialogContent={<div className="space-y-2 p-2">{((mediaField?.allowed_types || ['image', 'document']) as MediaType[]).map((type) => <button key={type} type="button" onClick={() => setMediaType(type)} className="flex w-full items-center gap-3 rounded-xl border border-border px-3 py-3 text-left text-xs font-black hover:bg-muted"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted">{type === 'image' ? <ImageIcon size={15} /> : type === 'video' ? <Film size={15} /> : <FileText size={15} />}</span><span className="flex-1 capitalize">{type === 'document' ? 'Document (PDF)' : type}</span><ChevronRight size={14} className="text-muted-foreground" /></button>)}</div>} />
     {viewerUserId && mediaField && mediaType ? <MediaPickerDialog open onOpenChange={(nextOpen) => { if (!nextOpen) { setMediaType(null); setMediaField(null) } }} title={`Add ${mediaType === 'document' ? 'document' : mediaType}`} description="Upload something new or choose it from your media library." owner={{ type: 'user', id: Number(viewerUserId) }} mediaType={mediaType} accessToken={token} onSave={saveMedia} /> : null}
   </article>
@@ -473,8 +478,8 @@ function PlansPanel2(props: any) {
   return (<div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
     <h2 className="font-black">Plans</h2>
     <div className="mt-3 grid grid-cols-2 rounded-lg bg-muted p-1">{(['active', 'completed'] as PlanLifecycle[]).map((value) => <button key={value} onClick={() => setLifecycle(value)} className={cn('rounded-md px-2 py-2 text-[11px] font-black capitalize', lifecycle === value && 'bg-card shadow-sm')}>{value}</button>)}</div>
-    <div className="mt-3 space-y-2">{plans.map((plan: any) => { const color = getPlanColor(plan.plan_uuid); const shared = !plan.is_mine && plan.subject; const fill = Math.max(2, Number(plan.progress_percent || 0)); return <button key={plan.plan_uuid} onClick={() => choose(plan)} className="flex min-h-14 w-full items-center gap-2.5 overflow-hidden rounded-xl px-3 py-2 text-left transition hover:brightness-[0.98]" style={{ background: `linear-gradient(to right, ${color}66 0%, ${color}66 ${fill}%, ${color}18 ${fill}%, ${color}18 100%)` }}>
-      <span className="min-w-0 flex-1"><span className="block truncate text-xs font-black">{plan.name}</span>{shared ? <span className="mt-1 flex items-center gap-1.5 text-[9px] font-bold text-muted-foreground"><PersonAvatar user={plan.subject} size="xs" />{plan.subject.name?.split(' ')[0] || 'Their'}’s plan</span> : null}</span>
+    <div className="mt-3 space-y-2">{plans.map((plan: any) => { const color = getPlanColor(plan.plan_uuid); const shared = !plan.is_mine && plan.subject; const fill = Math.max(2, Number(plan.progress_percent || 0)); const group = plan.target_kind === 'group'; const minimum = Math.max(2, Number(plan.min_progress_percent || 0)); const maximum = Math.max(minimum, Number(plan.max_progress_percent || 0)); const background = group ? `linear-gradient(to right, ${color}99 0 ${minimum}%, ${color}55 ${minimum}% ${maximum}%, ${color}18 ${maximum}% 100%)` : `linear-gradient(to right, ${color}66 0%, ${color}66 ${fill}%, ${color}18 ${fill}%, ${color}18 100%)`; return <button key={plan.plan_uuid} onClick={() => choose(plan)} className="flex min-h-14 w-full items-center gap-2.5 overflow-hidden rounded-xl px-3 py-2 text-left transition hover:brightness-[0.98]" style={{ background }}>
+      <span className="min-w-0 flex-1"><span className="block truncate text-xs font-black">{plan.name}</span>{group ? <span className="mt-1 flex items-center gap-1.5 text-[9px] font-bold text-muted-foreground"><Users size={11} />{plan.target_name}’s plan · {minimum}–{maximum}% · {plan.learner_count}</span> : shared ? <span className="mt-1 flex items-center gap-1.5 text-[9px] font-bold text-muted-foreground"><PersonAvatar user={plan.subject} size="xs" />{plan.subject.name?.split(' ')[0] || 'Their'}’s plan</span> : null}</span>
     </button> })}{!plans.length ? <p className="py-8 text-center text-xs text-muted-foreground">No {lifecycle} plans.</p> : null}</div>
     {invitations.length ? <div className="mt-5 border-t border-border pt-4"><p className="flex items-center gap-1.5 text-xs font-black"><Sparkles size={13} className="text-blue-600" />New requests</p><div className="mt-2 space-y-2">{invitations.map((invitation: any) => <div key={invitation.invitation_uuid} className="rounded-xl bg-blue-50 p-3"><p className="text-xs font-black text-blue-950">{invitation.plan.name}</p><p className="mt-1 text-[10px] text-blue-700">{invitation.kind === 'subject' ? 'A plan for you' : `Help as ${invitation.role.name}`}</p><div className="mt-3 grid grid-cols-2 gap-2"><button onClick={async () => { await planningApi.respond(invitation.invitation_uuid, false, token); await refresh() }} className="rounded-md border border-blue-200 px-2 py-1.5 text-[10px] font-black text-blue-800">Hide</button><button onClick={async () => { await planningApi.respond(invitation.invitation_uuid, true, token); await refresh() }} className="rounded-md bg-blue-700 px-2 py-1.5 text-[10px] font-black text-white">Accept</button></div></div>)}</div></div> : null}
     <button onClick={onCreate} className="mt-4 flex w-full items-center gap-3 rounded-xl border border-dashed border-border p-3 text-left transition hover:border-foreground/40 hover:bg-muted/30"><span className="flex h-8 w-8 items-center justify-center rounded-full border border-border"><Plus size={15} /></span><span><span className="block text-xs font-black">New plan</span><span className="mt-0.5 block text-[10px] text-muted-foreground">Create your own plan</span></span></button>
@@ -528,6 +533,7 @@ function PlanInspector({ detail, token, refresh, clear, color, setPlanColor }: a
   const canEdit = detail.capabilities.includes('edit_plan_details')
   const canSchedule = detail.capabilities.includes('edit_schedule')
   const canComplete = detail.capabilities.includes('complete_plan')
+  const canDelete = detail.capabilities.includes('delete_plan')
   const canAddPhase = detail.capabilities.includes('edit_structure')
   const canInvite = detail.capabilities.includes('manage_collaborators') || detail.capabilities.includes('request_collaborators')
   const [editing, setEditing] = React.useState(false)
@@ -545,6 +551,10 @@ function PlanInspector({ detail, token, refresh, clear, color, setPlanColor }: a
   const toggleComplete = async () => {
     if (detail.status !== 'completed' && detail.completed_objective_count < detail.objective_count && !window.confirm('Some objectives are unfinished. Complete this plan anyway?')) return
     try { await planningApi.status(detail.slug, detail.status === 'completed' ? 'reopen' : 'complete', token); await refresh(); if (detail.status !== 'completed') clear() } catch (error: any) { toast.error(error?.message || 'Could not update plan status.') }
+  }
+  const deletePlan = async () => {
+    if (!window.confirm(`Delete “${detail.name}”? This permanently removes its objectives, progress, evidence, and activity.`)) return
+    try { await planningApi.remove(detail.slug, token); await refresh(); clear(); toast.success('Plan deleted.') } catch (error: any) { toast.error(error?.message || 'Could not delete plan.') }
   }
   const collaborators = (detail.collaborators || []).filter((person: any) => !person.is_subject && person.user?.id !== detail.subject?.id)
   const visibleCollaborators = collaborators.slice(0, 3)
@@ -567,6 +577,7 @@ function PlanInspector({ detail, token, refresh, clear, color, setPlanColor }: a
     <div className="border-t border-border pt-4"><p className="text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground">Collaborators</p><div className="mt-2 space-y-2">{visibleCollaborators.map((person: any) => <div key={person.collaborator_uuid} className="flex items-center gap-2.5"><PersonAvatar user={person.user} /><span className="min-w-0"><span className="block truncate text-xs font-black">{person.user?.name}</span><span className="block text-[10px] text-muted-foreground">{person.role?.name}</span></span></div>)}{!collaborators.length ? <p className="text-[10px] text-muted-foreground">No collaborators yet.</p> : null}</div>{collaborators.length > 3 ? <div className="relative"><button type="button" onClick={() => setPeopleOpen(!peopleOpen)} className="mt-2 text-[10px] font-black text-muted-foreground">+{collaborators.length - 3} more</button>{peopleOpen ? <div className="absolute left-0 top-full z-40 mt-1 w-full rounded-xl border border-border bg-popover p-2 shadow-xl">{collaborators.map((person: any) => <div key={person.collaborator_uuid} className="flex items-center gap-2 rounded-lg px-2 py-1.5"><PersonAvatar user={person.user} /><span className="min-w-0"><span className="block truncate text-[10px] font-black">{person.user?.name}</span><span className="block text-[9px] text-muted-foreground">{person.role?.name}</span></span></div>)}</div> : null}</div> : null}{canInvite ? <button type="button" onClick={() => setInviteOpen(true)} className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-2 text-[10px] font-black"><Plus size={12} />Invite collaborator</button> : null}</div>
     <div className="border-t border-border pt-4"><p className="text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground">Phases</p><div className="mt-2 space-y-1">{(detail.phases || []).map((phase: any) => { const target = phase.effective_due_date || detail.due_date; return <button key={phase.phase_uuid} type="button" onClick={() => document.getElementById(`plan-phase-${phase.phase_uuid}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="flex w-full items-center justify-between gap-3 rounded-lg px-2 py-2 text-left hover:bg-muted"><span className="min-w-0 truncate text-xs font-black">{phase.name}</span><span className="shrink-0 text-[9px] text-muted-foreground">{target ? new Date(`${dateValue(target)}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'No date'}</span></button> })}</div>{canAddPhase ? addingPhase ? <div className="mt-2 flex gap-2"><input autoFocus value={phaseName} onChange={(event) => setPhaseName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void addPhase(); if (event.key === 'Escape') setAddingPhase(false) }} placeholder="Phase name" className="h-9 min-w-0 flex-1 rounded-lg border border-border px-2 text-xs" /><button type="button" disabled={saving || !phaseName.trim()} onClick={() => void addPhase()} className="rounded-lg bg-foreground px-3 text-background disabled:opacity-40"><Plus size={13} /></button></div> : <button type="button" onClick={() => setAddingPhase(true)} className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border px-3 py-2 text-[10px] font-black text-muted-foreground"><Plus size={12} />Add phase</button> : null}</div>
     {canComplete ? <button onClick={() => void toggleComplete()} className={cn('flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-xs font-black', detail.status === 'completed' ? 'border border-border' : 'bg-foreground text-background')}>{detail.status === 'completed' ? <RotateCcw size={13} /> : <Check size={13} />}{detail.status === 'completed' ? 'Reopen plan' : 'Complete plan'}</button> : null}
+    {canDelete ? <button onClick={() => void deletePlan()} className="flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-black text-red-700 hover:bg-red-50"><Trash2 size={13} />Delete plan</button> : null}
     <PlanInvite detail={detail} token={token} refresh={refresh} open={inviteOpen} setOpen={setInviteOpen} />
   </div>
 }

@@ -825,6 +825,28 @@ def test_legacy_program_and_participant_identifiers_resolve_precise_plan():
         assert planning.resolve_legacy_plan(db, _user(1), participant.participant_uuid)["slug"] == plan.slug
 
 
+def test_group_sourced_plan_rejects_individual_definition_changes_with_workspace_destination():
+    with _session() as db:
+        program = Program(id=1, program_uuid="program_group", slug="group", org_id=1, name="Group plan", creation_date=NOW, update_date=NOW)
+        assignment = ProgramAssignment(
+            id=35, assignment_uuid="assignment_group_lock", org_id=1, program_id=1,
+            usergroup_id=7, owner_user_id=1, created_by_user_id=1,
+            creation_date=NOW, update_date=NOW,
+        )
+        db.add_all([program, assignment])
+        created = planning.create_plan(db, _user(1), _plan_create("Shared cohort plan"))
+        plan = planning._plan_or_404(db, created["slug"])
+        plan.source_assignment_id = assignment.id
+        db.add(plan)
+        db.commit()
+
+        with pytest.raises(HTTPException) as conflict:
+            planning.update_plan(db, _user(1), plan.slug, PlanUpdate(name="Private divergence"))
+        assert conflict.value.status_code == 409
+        assert conflict.value.detail["assignment_uuid"] == assignment.assignment_uuid
+        assert conflict.value.detail["group_workspace"] == "/plans?group=assignment_group_lock"
+
+
 def test_assignment_materialization_is_idempotent_and_preserves_states_owner_roles_and_progress():
     with _session() as db:
         definitions = [

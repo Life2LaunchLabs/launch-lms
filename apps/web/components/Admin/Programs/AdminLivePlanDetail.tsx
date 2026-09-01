@@ -14,8 +14,9 @@ import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { ActivityAggregateGradeForm } from '@components/Admin/Programs/CohortProgramAdmin'
+import { PlanObjectiveDefinitionCard, PlanPermissionChecklist } from '@components/Plans/PlanEditorShared'
 import { planningApi } from '@services/planning/planning'
-import { gradeLearningResponse } from '@services/learning/learning'
+import { getLearningBadges, gradeLearningResponse } from '@services/learning/learning'
 import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { cn } from '@/lib/utils'
@@ -81,59 +82,12 @@ function ObjectiveSummary({ objective, plan, token, refresh }: any) {
 }
 
 function Objectives({ plan, token, refresh }: any) {
-  const [selected, setSelected] = React.useState<any>(null)
-  return <div className="space-y-5"><div><h2 className="text-lg font-black text-gray-950">Objectives</h2><p className="mt-1 text-sm text-gray-500">Plan-specific requirements, evidence, dates and review state.</p></div>{plan.phases.map((phase: any) => <section key={phase.phase_uuid} className="overflow-hidden rounded-xl border border-gray-100 bg-white nice-shadow"><div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 bg-gray-50/60 px-5 py-4"><div><h3 className="font-black text-gray-900">{phase.name}</h3><p className="mt-1 text-xs text-gray-500">{phase.description || `${phase.objectives.length} objective${phase.objectives.length === 1 ? '' : 's'}`}</p></div>{phase.due_date ? <span className="text-xs font-bold text-gray-500">Due {formatDate(phase.due_date)}</span> : null}</div><div className="divide-y divide-gray-100">{phase.objectives.map((objective: any) => <button key={objective.objective_uuid} onClick={() => setSelected(objective)} className="grid w-full gap-3 p-4 text-left transition hover:bg-gray-50 sm:grid-cols-[28px_minmax(0,1fr)_130px_120px_24px] sm:items-center"><StatusIcon status={objective.progress?.status} /><div className="min-w-0"><p className="truncate text-sm font-black text-gray-900">{objective.title}</p><p className="mt-1 line-clamp-1 text-xs text-gray-500">{objective.description || (objective.source_objective_id ? 'Inherited objective' : 'Personal objective')}</p></div><StatusText status={objective.progress?.status} /><span className={cn('text-xs font-semibold text-gray-500', isOverdue(objective) && 'text-red-700')}>{objective.due_date ? formatDate(objective.due_date) : 'No deadline'}</span><ChevronRight size={16} className="hidden text-gray-300 sm:block" /></button>)}</div></section>)}<ObjectiveModal objective={selected} setObjective={setSelected} plan={plan} token={token} refresh={refresh} /></div>
-}
-
-function ObjectiveModal({ objective, setObjective, plan, token, refresh }: any) {
-  const [note, setNote] = React.useState('')
-  const [saving, setSaving] = React.useState(false)
-  const [completionRestricted, setCompletionRestricted] = React.useState(false)
-  const [restrictedFields, setRestrictedFields] = React.useState<Record<string, boolean>>({})
-  React.useEffect(() => {
-    setNote(objective?.progress?.reviewer_note || '')
-    setCompletionRestricted(Boolean(objective?.completion_restricted))
-    setRestrictedFields(Object.fromEntries((objective?.fields || []).map((field: any) => {
-      const key = String(field.field_uuid || field.key || '')
-      const legacyLane = String(field.access || field.lane || 'contributor')
-      return [key, Boolean(field.restricted ?? ['reviewer', 'staff'].includes(legacyLane))]
-    })))
-  }, [objective])
-  if (!objective) return null
-  const canReview = plan.capabilities.includes('complete_restricted_objectives')
-  const canUpdate = plan.capabilities.includes('update_progress')
-  const canEditRestrictions = plan.capabilities.includes('edit_structure')
-  const act = async (status: string) => {
-    setSaving(true)
-    try {
-      await planningApi.updateProgress(plan.plan_uuid, objective.objective_uuid, { status, note }, token)
-      await refresh()
-      setObjective(null)
-      toast.success(status === 'completed' ? 'Objective completed.' : status === 'changes_requested' ? 'Changes requested.' : 'Objective updated.')
-    } catch (error: any) { toast.error(error?.message || 'Could not update objective.') } finally { setSaving(false) }
-  }
-  const saveRestrictions = async () => {
-    setSaving(true)
-    try {
-      const fields = (objective.fields || []).map((field: any) => ({
-        ...field,
-        restricted: Boolean(restrictedFields[String(field.field_uuid || field.key || '')]),
-      }))
-      await planningApi.updateObjective(plan.plan_uuid, objective.objective_uuid, { completion_restricted: completionRestricted, fields }, token)
-      await refresh()
-      setObjective(null)
-      toast.success('Objective restrictions updated.')
-    } catch (error: any) { toast.error(error?.message || 'Could not update objective restrictions.') } finally { setSaving(false) }
-  }
-  const values = Object.entries(objective.progress?.field_values || {})
-  return <Modal isDialogOpen onOpenChange={(open) => !open && setObjective(null)} minHeight="no-min" minWidth="md" dialogTitle={objective.title} dialogDescription={`${statusLabel(objective.progress?.status)}${objective.due_date ? ` · Due ${formatDate(objective.due_date)}` : ''}`} dialogContent={<div className="space-y-5">
-    <div className="grid gap-3 sm:grid-cols-3"><SmallDetail label="Status" value={statusLabel(objective.progress?.status)} /><SmallDetail label="Start" value={formatDate(objective.start_date)} /><SmallDetail label="Due" value={formatDate(objective.due_date)} /></div>
-    {objective.description ? <p className="rounded-xl bg-gray-50 p-4 text-sm leading-6 text-gray-700">{objective.description}</p> : null}
-    {canEditRestrictions ? <section className="rounded-xl border border-gray-200 p-4"><h3 className="text-xs font-black uppercase tracking-wide text-gray-500">Restrictions</h3><p className="mt-1 text-xs leading-5 text-gray-500">Restricted actions require the matching role permission.</p><div className="mt-3 space-y-2"><label className="flex items-center gap-2 text-xs font-bold"><input type="checkbox" checked={completionRestricted} onChange={(event) => setCompletionRestricted(event.target.checked)} />Completion is restricted</label>{(objective.fields || []).map((field: any) => { const key = String(field.field_uuid || field.key || ''); return <label key={key} className="flex items-center gap-2 text-xs font-bold"><input type="checkbox" checked={Boolean(restrictedFields[key])} onChange={(event) => setRestrictedFields({ ...restrictedFields, [key]: event.target.checked })} />{field.title || key} is a restricted field</label> })}</div><button disabled={saving} onClick={() => void saveRestrictions()} className="mt-4 inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-xs font-black disabled:opacity-50">{saving ? <Loader2 className="animate-spin" size={13} /> : <Check size={13} />}Save restrictions</button></section> : null}
-    {objective.progress?.subject_note ? <section><h3 className="text-xs font-black uppercase tracking-wide text-gray-400">Learner note</h3><p className="mt-2 whitespace-pre-wrap rounded-xl border border-gray-200 p-4 text-sm leading-6">{objective.progress.subject_note}</p></section> : null}
-    {values.length ? <section><h3 className="text-xs font-black uppercase tracking-wide text-gray-400">Submitted evidence</h3><div className="mt-2 grid gap-2">{values.map(([key, value]: any) => <Evidence key={key} label={key} value={value} />)}</div></section> : null}
-    {(canReview || canUpdate) && objective.progress?.status !== 'completed' ? <><label className="block text-xs font-black text-gray-600">Staff note<textarea value={note} onChange={(event) => setNote(event.target.value)} className="mt-2 min-h-24 w-full rounded-xl border border-gray-200 p-3 text-sm" placeholder="Optional context for the learner" /></label><div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">{canReview && objective.progress?.status === 'submitted' ? <button disabled={saving || !note.trim()} onClick={() => void act('changes_requested')} className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm font-black text-amber-800 disabled:opacity-40">Request changes</button> : null}{objective.can_complete ? <button disabled={saving} onClick={() => void act('completed')} className="inline-flex items-center justify-center gap-2 rounded-lg bg-black px-5 py-2.5 text-sm font-black text-white disabled:opacity-50">{saving ? <Loader2 className="animate-spin" size={15} /> : <CheckCircle2 size={15} />}Mark complete</button> : null}</div></> : null}
-  </div>} />
+  const [saving, setSaving] = React.useState('')
+  const { data: badgeData = [] } = useSWR(token ? ['live-plan-step-badges', token] : null, async ([, accessToken]) => { const response = await getLearningBadges(undefined, accessToken); return Array.isArray(response) ? response : response?.data || [] })
+  const canEdit = plan.capabilities.includes('edit_structure') && plan.source_assignment?.type !== 'group'
+  const canSchedule = plan.capabilities.includes('edit_schedule') && plan.source_assignment?.type !== 'group'
+  const save = async (objective: any, draft: any) => { setSaving(objective.objective_uuid); try { await planningApi.updateObjective(plan.plan_uuid, objective.objective_uuid, { title: draft.title, description: draft.description || '', fields: draft.fields, completion_restricted: Boolean(draft.completion_restricted), blocked: Boolean(draft.blocked), ...(canSchedule ? { due_date: draft.due_date || null, allow_late: Boolean(draft.allow_late) } : {}) }, token); await refresh(); toast.success('Objective updated.') } catch (error: any) { toast.error(error?.message || 'Could not update objective.') } finally { setSaving('') } }
+  return <div className="space-y-8"><div><h2 className="text-lg font-black text-gray-950">Objectives</h2><p className="mt-1 text-sm text-gray-500">The same objective and step format learners see in their plan workspace.</p></div>{plan.phases.map((phase: any) => <section key={phase.phase_uuid}><div className="mb-3 flex items-end gap-3"><h3 className="text-sm font-black uppercase tracking-[0.12em]">{phase.name}</h3><p className="text-xs text-muted-foreground">{phase.effective_due_date ? `Phase ends ${formatDate(phase.effective_due_date)}` : `${phase.objectives.length} objectives`}</p></div><div className="space-y-2">{phase.objectives.map((objective: any) => <PlanObjectiveDefinitionCard key={objective.objective_uuid} objective={objective} mode="individual-live" canEdit={canEdit} canSchedule={canSchedule} badges={badgeData} saving={saving === objective.objective_uuid} onSave={(draft) => save(objective, draft)}>{objective.progress?.subject_note ? <p className="mt-4 rounded-xl bg-muted p-3 text-xs">{objective.progress.subject_note}</p> : null}</PlanObjectiveDefinitionCard>)}</div></section>)}</div>
 }
 
 function Reviews({ plan, token, refresh }: any) {
@@ -196,23 +150,7 @@ function RoleStack({ plan, token, refresh }: any) {
   return <section className="rounded-xl border border-gray-100 bg-white p-5 nice-shadow"><div className="flex items-center justify-between gap-3"><div><h2 className="font-black">Roles</h2><p className="mt-1 text-xs text-gray-500">Permissions used across this plan.</p></div>{plan.can_manage_organization_roles ? <button onClick={() => setCreating(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-xs font-black"><Plus size={13} />New role</button> : null}</div><div className="mt-4 space-y-2">{plan.roles.map((role: any) => <button key={role.key} onClick={() => setSelected(role)} className="flex w-full items-center justify-between gap-3 rounded-lg border border-gray-200 p-3 text-left transition hover:border-blue-300 hover:bg-blue-50/30"><span className="min-w-0"><span className="block truncate text-sm font-black">{role.name}</span><span className="mt-1 block text-[10px] font-semibold text-gray-500">{role.capabilities.length} permission{role.capabilities.length === 1 ? '' : 's'}</span></span><span className="flex items-center gap-2">{role.locked ? <Shield size={14} className="text-gray-400" /> : null}<ChevronRight size={15} className="text-gray-300" /></span></button>)}</div><RoleEditor role={selected} setRole={setSelected} plan={plan} token={token} refresh={refresh} editable={canEdit} /><CreateRoleModal open={creating} setOpen={setCreating} plan={plan} token={token} refresh={refresh} /></section>
 }
 
-const permissionGroups = [
-  { label: 'Access & communication', items: ['view_plan', 'comment'] },
-  { label: 'Objectives & evidence', items: ['update_progress', 'contribute_fields', 'contribute_restricted_fields', 'complete_restricted_objectives', 'review_badge_submissions'] },
-  { label: 'Plan editing', items: ['edit_plan_details', 'edit_structure', 'edit_schedule', 'complete_plan', 'archive_plan'] },
-  { label: 'People & roles', items: ['request_collaborators', 'manage_collaborators', 'manage_roles'] },
-]
-
-function PermissionChecklist({ capabilities, setCapabilities, available, disabled }: { capabilities: string[]; setCapabilities: React.Dispatch<React.SetStateAction<string[]>>; available: string[]; disabled: boolean }) {
-  const selected = new Set(capabilities)
-  const known = new Set(permissionGroups.flatMap((group) => group.items))
-  const groups = [...permissionGroups, { label: 'Other', items: available.filter((item) => !known.has(item)) }]
-  return <div className="space-y-5">{groups.map((group) => {
-    const items = group.items.filter((item) => available.includes(item))
-    if (!items.length) return null
-    return <fieldset key={group.label}><legend className="mb-2 text-[10px] font-black uppercase tracking-wider text-gray-400">{group.label}</legend><div className="grid gap-2 sm:grid-cols-2">{items.map((capability) => <label key={capability} className={cn('flex items-start gap-2 rounded-lg border border-gray-200 p-3 text-xs font-bold', disabled ? 'cursor-not-allowed bg-gray-50 text-gray-500' : 'cursor-pointer hover:border-blue-300')}><input type="checkbox" checked={selected.has(capability)} disabled={disabled} onChange={(event) => setCapabilities(event.target.checked ? [...capabilities, capability] : capabilities.filter((item) => item !== capability))} className="mt-0.5" /><span>{humanize(capability)}</span></label>)}</div></fieldset>
-  })}</div>
-}
+function PermissionChecklist({ capabilities, setCapabilities, available, disabled }: { capabilities: string[]; setCapabilities: React.Dispatch<React.SetStateAction<string[]>>; available: string[]; disabled: boolean }) { return <PlanPermissionChecklist capabilities={capabilities} setCapabilities={setCapabilities} available={available} disabled={disabled} /> }
 
 function RoleEditor({ role, setRole, plan, token, refresh, editable }: any) {
   const [name, setName] = React.useState('')
@@ -271,7 +209,6 @@ function StatusIcon({ status }: { status: string }) { return status === 'complet
 function StatusText({ status }: { status: string }) { return <span className={cn('text-xs font-bold', status === 'completed' ? 'text-green-700' : status === 'submitted' ? 'text-blue-700' : status === 'changes_requested' ? 'text-amber-700' : 'text-gray-500')}>{statusLabel(status)}</span> }
 function statusLabel(status?: string) { return String(status || 'not_started').replaceAll('_', ' ').replace(/^./, (letter) => letter.toUpperCase()) }
 function Detail({ label, value }: { label: string; value: string }) { return <div><dt className="text-[10px] font-black uppercase tracking-wide text-gray-400">{label}</dt><dd className="mt-1 text-sm font-semibold text-gray-800">{value}</dd></div> }
-function SmallDetail({ label, value }: { label: string; value: string }) { return <div className="rounded-lg bg-gray-50 p-3"><p className="text-[10px] font-black uppercase text-gray-400">{label}</p><p className="mt-1 text-xs font-bold text-gray-800">{value}</p></div> }
 function Evidence({ label, value }: { label: string; value: any }) { const display = typeof value === 'string' ? value : JSON.stringify(value); const isUrl = typeof value === 'string' && /^https?:\/\//.test(value); return <div className="rounded-lg border border-gray-200 p-3"><p className="text-[10px] font-black uppercase text-gray-400">{humanize(label)}</p>{isUrl ? <a href={value} target="_blank" rel="noreferrer" className="mt-1 block break-all text-sm font-bold text-blue-700">Open evidence</a> : <p className="mt-1 whitespace-pre-wrap break-words text-sm text-gray-700">{display}</p>}</div> }
 function Empty({ icon, title, detail, compact = false }: { icon: React.ReactNode; title: string; detail: string; compact?: boolean }) { return <div className={cn('text-center text-gray-400', compact ? 'py-8' : 'rounded-xl border border-dashed border-gray-200 bg-white py-20')}><span className="mx-auto flex justify-center text-gray-300">{icon}</span><p className="mt-3 text-sm font-black text-gray-700">{title}</p><p className="mt-1 text-xs text-gray-500">{detail}</p></div> }
 function PageLoader({ compact = false }: { compact?: boolean }) { return <div className={cn('flex items-center justify-center', compact ? 'py-24' : 'min-h-[70vh] bg-[#f8f8f8]')}><Loader2 className="animate-spin text-gray-400" size={24} /></div> }

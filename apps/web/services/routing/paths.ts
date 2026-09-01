@@ -86,6 +86,7 @@ export const routePaths = {
     badges: () => '/badges',
     plans: () => '/plans',
     plan: (planSlug: string) => `/plans/${encodeURIComponent(planSlug)}`,
+    groupPlan: (assignmentUuid: string) => withQuery('/plans', { group: assignmentUuid }),
     programs: () => '/programs',
     program: (programSlug: string) => `/programs/${encodeURIComponent(programSlug)}`,
     myBadges: () => '/badges/my-badges',
