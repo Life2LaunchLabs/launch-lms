@@ -127,6 +127,8 @@ export const routePaths = {
       programPage: (programUuid: string, subpage: string) => `/admin/plans/${encodeURIComponent(programUuid)}/${encodeURIComponent(subpage)}`,
       programAssignmentNew: (programUuid: string) => `/admin/plans/${encodeURIComponent(programUuid)}/assignments/new`,
       planAssignments: () => '/admin/plans/assignments',
+      planRequirements: () => '/admin/plans/requirements',
+      planReporting: () => '/admin/plans/reporting',
       planAssignment: (assignmentUuid: string, subpage = 'overview') => `/admin/plans/assignments/${encodeURIComponent(assignmentUuid)}/${encodeURIComponent(subpage)}`,
       livePlan: (planUuid: string, subpage = 'overview') => subpage === 'overview' ? `/admin/plans/live/${encodeURIComponent(planUuid)}` : `/admin/plans/live/${encodeURIComponent(planUuid)}/${encodeURIComponent(subpage)}`,
       news: () => '/admin/news',

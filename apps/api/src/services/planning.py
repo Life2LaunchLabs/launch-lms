@@ -1178,6 +1178,10 @@ def update_objective_progress(db: Session, current_user: PublicUser, identifier:
     progress.updated_by_user_id = current_user.id
     progress.update_date = _now_string()
     db.add(progress)
+    db.flush()
+    if reviewing or payload.status != PlanObjectiveStatus.COMPLETED:
+        from src.services.requirements import sync_live_progress
+        sync_live_progress(db, progress, objective, plan)
     _activity(db, plan, current_user.id, "objective.progress", {"objective_uuid": objective_uuid, "status": payload.status.value})
     db.commit()
     return _objective_dict(db, plan, objective, capabilities)

@@ -225,6 +225,7 @@ class ObjectiveCreate(SQLModel):
     default_start_rule: ObjectiveStartRule = ObjectiveStartRule.ANY_TIME
     default_due_rule: ObjectiveDueRule = ObjectiveDueRule.OPTIONAL
     default_allow_late: bool = False
+    requirement_node_uuids: list[str] = Field(default_factory=list)
 
 
 class ProgramObjectiveScheduleUpdate(SQLModel):
@@ -238,6 +239,7 @@ class ProgramObjectiveUpdate(ProgramObjectiveScheduleUpdate):
     description: str = ""
     custom_fields: list[dict] = Field(default_factory=list)
     allow_learner_confirmation: bool = False
+    requirement_node_uuids: list[str] | None = None
 
 
 class ProgramPhase(SQLModel, table=True):

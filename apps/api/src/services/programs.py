@@ -161,7 +161,7 @@ def _assignment_or_404(db: Session, assignment_uuid: str, org_id: int) -> Progra
     return assignment
 
 
-def _objective_dict(objective: Objective, relation: ProgramObjective | None = None) -> dict:
+def _objective_dict(objective: Objective, relation: ProgramObjective | None = None, db: Session | None = None) -> dict:
     result = {
         "id": objective.id,
         "objective_uuid": objective.objective_uuid,
@@ -186,6 +186,9 @@ def _objective_dict(objective: Objective, relation: ProgramObjective | None = No
             "default_due_rule": relation.default_due_rule.value if hasattr(relation.default_due_rule, "value") else relation.default_due_rule,
             "default_allow_late": relation.default_allow_late,
         })
+        if db:
+            from src.services.requirements import mappings_for_relation
+            result["requirement_mappings"] = mappings_for_relation(db, relation)
     return result
 
 
@@ -199,7 +202,7 @@ def _program_objectives(db: Session, program: Program) -> list[dict]:
     ).all()
     results = []
     for relation, objective in rows:
-        item = _objective_dict(objective, relation)
+        item = _objective_dict(objective, relation, db)
         if objective.badge_id:
             badge = db.get(LearningBadge, objective.badge_id)
             if badge:
@@ -590,7 +593,7 @@ def add_program_objective(
     if objective.badge_id and badge_major is None:
         badge_major = _latest_badge_major(db, objective.badge_id)
     now = _now_string()
-    db.add(ProgramObjective(
+    relation = ProgramObjective(
         program_id=program.id,
         phase_id=phase.id,
         objective_id=objective.id,
@@ -602,7 +605,12 @@ def add_program_objective(
         default_allow_late=payload.default_allow_late,
         creation_date=now,
         update_date=now,
-    ))
+    )
+    db.add(relation)
+    db.flush()
+    if payload.requirement_node_uuids:
+        from src.services.requirements import update_mappings
+        update_mappings(db, current_user, org_id, relation, payload.requirement_node_uuids)
     program.version += 1
     program.update_date = now
     db.add(program)
@@ -683,6 +691,9 @@ def update_program_objective(
     relation.default_start_rule = payload.default_start_rule
     relation.default_due_rule = payload.default_due_rule
     relation.default_allow_late = payload.default_allow_late
+    if payload.requirement_node_uuids is not None:
+        from src.services.requirements import update_mappings
+        update_mappings(db, current_user, org_id, relation, payload.requirement_node_uuids)
     now = _now_string()
     objective.update_date = now
     relation.update_date = now
@@ -1832,6 +1843,9 @@ def review_objective_submission(
         progress.updated_by_user_id = current_user.id
         progress.update_date = now.isoformat()
         db.add(progress)
+        db.flush()
+        from src.services.requirements import sync_live_progress
+        sync_live_progress(db, progress, plan_objective, plan)
         db.commit()
         return {"plan_uuid": plan.plan_uuid, "plan_objective_uuid": plan_objective.objective_uuid, "status": progress.status.value}
 
@@ -1903,6 +1917,9 @@ def review_objective_submission(
     progress.feedback_history = history
     progress.update_date = now.isoformat()
     db.add(progress)
+    db.flush()
+    from src.services.requirements import sync_legacy_progress
+    sync_legacy_progress(db, progress, objective)
     db.commit()
     return {
         "objective_uuid": payload.objective_uuid,
@@ -1987,6 +2004,9 @@ def update_progress(
         progress.updated_by_user_id = current_user.id
         progress.update_date = now.isoformat()
         db.add(progress)
+        db.flush()
+        from src.services.requirements import sync_live_progress
+        sync_live_progress(db, progress, live_objective, plan)
         results.append({
             "user_id": plan.subject_user_id,
             "plan_uuid": plan.plan_uuid,
@@ -2023,6 +2043,9 @@ def update_progress(
         progress.completed_by_user_id = current_user.id if status == ObjectiveProgressStatus.COMPLETED else None
         progress.update_date = now.isoformat()
         db.add(progress)
+        db.flush()
+        from src.services.requirements import sync_legacy_progress
+        sync_legacy_progress(db, progress, objective)
         results.append({"user_id": user_id, "objective_uuid": objective_uuid, "status": status.value})
     db.commit()
     return results

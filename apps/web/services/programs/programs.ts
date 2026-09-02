@@ -55,6 +55,7 @@ export const programsApi = {
   addObjective: (orgId: number, uuid: string, data: any, token?: string) => planningRequest(`/templates/${encodeURIComponent(uuid)}/objectives?org_id=${orgId}`, token, 'POST', objectiveCreateData(data)),
   updateObjectiveSchedule: (orgId: number, uuid: string, objectiveUuid: string, data: any, token?: string) => planningRequest(`/templates/${encodeURIComponent(uuid)}/objectives/${encodeURIComponent(objectiveUuid)}/schedule?org_id=${orgId}`, token, 'PUT', data),
   updateObjective: (orgId: number, uuid: string, objectiveUuid: string, data: any, token?: string) => planningRequest(`/templates/${encodeURIComponent(uuid)}/objectives/${encodeURIComponent(objectiveUuid)}?org_id=${orgId}`, token, 'PUT', data),
+  updateObjectiveRequirements: (orgId: number, uuid: string, objectiveUuid: string, nodeUuids: string[], token?: string) => planningRequest(`/templates/${encodeURIComponent(uuid)}/objectives/${encodeURIComponent(objectiveUuid)}/requirements?org_id=${orgId}`, token, 'PUT', { node_uuids: nodeUuids }),
   createPhase: (orgId: number, uuid: string, data: any, token?: string) => planningRequest(`/templates/${encodeURIComponent(uuid)}/phases?org_id=${orgId}`, token, 'POST', data),
   updatePhase: (orgId: number, uuid: string, phaseUuid: string, data: any, token?: string) => planningRequest(`/templates/${encodeURIComponent(uuid)}/phases/${encodeURIComponent(phaseUuid)}?org_id=${orgId}`, token, 'PUT', data),
   reorder: (orgId: number, uuid: string, phases: any[], token?: string) => planningRequest(`/templates/${encodeURIComponent(uuid)}/order?org_id=${orgId}`, token, 'PUT', { phases }),
@@ -76,4 +77,19 @@ export const programsApi = {
   enrollment: (participantUuid: string, token?: string) => request(`/me/enrollments/${encodeURIComponent(participantUuid)}`, token),
   updateMine: (orgId: number, data: any, token?: string) => request(`/me/progress?org_id=${orgId}`, token, 'POST', data),
   respond: (orgId: number, participantUuid: string, accept: boolean, token?: string) => request(`/invitations/${encodeURIComponent(participantUuid)}/respond?org_id=${orgId}`, token, 'POST', { accept }),
+}
+
+export const requirementsApi = {
+  list: (orgId: number, token?: string) => planningRequest(`/requirements?org_id=${orgId}`, token),
+  get: (orgId: number, uuid: string, token?: string, version?: number) => planningRequest(`/requirements/${encodeURIComponent(uuid)}?org_id=${orgId}${version ? `&version=${version}` : ''}`, token),
+  create: (orgId: number, data: any, token?: string) => planningRequest('/requirements', token, 'POST', { ...data, org_id: orgId }),
+  update: (orgId: number, uuid: string, data: any, token?: string) => planningRequest(`/requirements/${encodeURIComponent(uuid)}?org_id=${orgId}`, token, 'PATCH', data),
+  publish: (orgId: number, uuid: string, token?: string) => planningRequest(`/requirements/${encodeURIComponent(uuid)}/publish?org_id=${orgId}`, token, 'POST'),
+  assign: (orgId: number, uuid: string, data: any, token?: string) => planningRequest(`/requirements/${encodeURIComponent(uuid)}/assignments?org_id=${orgId}`, token, 'POST', data),
+  migrateActive: (orgId: number, uuid: string, enrollmentUuids: string[] | null, token?: string) => planningRequest(`/requirements/${encodeURIComponent(uuid)}/migrate-active?org_id=${orgId}`, token, 'POST', { enrollment_uuids: enrollmentUuids }),
+  report: (orgId: number, filters: { framework_uuid?: string; version?: number; usergroup_id?: number; node_uuid?: string; status?: string }, token?: string) => {
+    const params = new URLSearchParams({ org_id: String(orgId) })
+    Object.entries(filters).forEach(([key, value]) => { if (value !== undefined && value !== '') params.set(key, String(value)) })
+    return planningRequest(`/requirements/report?${params.toString()}`, token)
+  },
 }

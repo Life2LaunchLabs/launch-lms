@@ -39,12 +39,21 @@ from src.db.programs import (
     ProgramPhaseUpdate,
     ProgramReorder,
 )
+from src.db.programs import Objective, Program, ProgramObjective
+from src.db.requirements import (
+    RequirementAssignmentCreate,
+    RequirementEnrollmentMigrate,
+    RequirementFrameworkCreate,
+    RequirementFrameworkUpdate,
+    RequirementMappingUpdate,
+)
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
 from src.security.features_utils.plan_check import get_org_plan
 from src.security.features_utils.plans import plan_meets_requirement
 from src.services import planning as service
 from src.services import programs as template_service
+from src.services import requirements as requirement_service
 from src.services.email.utils import get_base_url_from_request, send_email
 
 
@@ -448,3 +457,66 @@ def api_update_assignment_progress(org_id: int, payload: ObjectiveProgressUpdate
 @router.get("/managed-users/{user_id}")
 def api_managed_user_plans(user_id: int, org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
     return template_service.user_program_overview(db, current_user, org_id, user_id)
+
+
+@router.get("/requirements")
+def api_list_requirement_frameworks(org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
+    return requirement_service.list_frameworks(db, current_user, org_id)
+
+
+@router.post("/requirements")
+def api_create_requirement_framework(payload: RequirementFrameworkCreate, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
+    return requirement_service.create_framework(db, current_user, payload)
+
+
+@router.get("/requirements/report")
+def api_requirement_report(
+    org_id: int, framework_uuid: str | None = None, version: int | None = None, usergroup_id: int | None = None,
+    node_uuid: str | None = None, status: str | None = Query(default=None, pattern="^(satisfied|not_satisfied)$"),
+    db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user),
+):
+    return requirement_service.report(db, current_user, org_id, framework_uuid, version, usergroup_id, node_uuid, status)
+
+
+@router.get("/requirements/{framework_uuid}")
+def api_get_requirement_framework(framework_uuid: str, org_id: int, version: int | None = None, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
+    return requirement_service.get_framework(db, current_user, org_id, framework_uuid, version)
+
+
+@router.patch("/requirements/{framework_uuid}")
+def api_update_requirement_framework(framework_uuid: str, org_id: int, payload: RequirementFrameworkUpdate, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
+    return requirement_service.update_framework(db, current_user, org_id, framework_uuid, payload)
+
+
+@router.post("/requirements/{framework_uuid}/publish")
+def api_publish_requirement_framework(framework_uuid: str, org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
+    return requirement_service.publish_framework(db, current_user, org_id, framework_uuid)
+
+
+@router.post("/requirements/{framework_uuid}/assignments")
+def api_assign_requirement_framework(framework_uuid: str, org_id: int, payload: RequirementAssignmentCreate, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
+    return requirement_service.assign_framework(db, current_user, org_id, framework_uuid, payload)
+
+
+@router.post("/requirements/{framework_uuid}/migrate-active")
+def api_migrate_requirement_enrollments(framework_uuid: str, org_id: int, payload: RequirementEnrollmentMigrate, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
+    return requirement_service.migrate_enrollments(db, current_user, org_id, framework_uuid, payload)
+
+
+@router.put("/templates/{template_uuid}/objectives/{objective_uuid}/requirements")
+def api_update_objective_requirements(
+    template_uuid: str, objective_uuid: str, org_id: int, payload: RequirementMappingUpdate,
+    db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user),
+):
+    row = db.exec(select(ProgramObjective).join(Objective, Objective.id == ProgramObjective.objective_id).join(
+        Program, Program.id == ProgramObjective.program_id,
+    ).where(
+        Program.program_uuid == template_uuid, Program.org_id == org_id,
+        Objective.objective_uuid == objective_uuid,
+    )).first()
+    if not row:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Template objective not found")
+    mappings = requirement_service.update_mappings(db, current_user, org_id, row, payload.node_uuids)
+    db.commit()
+    return {"requirement_mappings": mappings}

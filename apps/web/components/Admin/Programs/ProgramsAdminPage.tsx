@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import useSWR, { mutate } from 'swr'
 import toast from 'react-hot-toast'
 import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd'
-import { Award, BookCopy, CalendarDays, Check, ChevronRight, ClipboardList, Clock3, FileText, GripVertical, Layers3, Loader2, Pencil, Plus, Send, Settings, Trash2, Upload, User, Users } from 'lucide-react'
+import { Award, BarChart3, BookCopy, CalendarDays, Check, ChevronRight, ClipboardCheck, ClipboardList, Clock3, FileText, GripVertical, Layers3, Loader2, Pencil, Plus, Send, Settings, Trash2, Upload, User, Users } from 'lucide-react'
 import { motion } from 'motion/react'
 import AdminFeatureHeader from '@components/Admin/AdminFeatureHeader'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
@@ -21,6 +21,7 @@ import { swrFetcher } from '@services/utils/ts/requests'
 import { programsApi } from '@services/programs/programs'
 import ProgramObjectiveEditorRow from './ProgramObjectiveEditorRow'
 import ProgramAssignmentModal from './ProgramAssignmentModal'
+import { RequirementsAdmin, RequirementsReporting } from './RequirementsAdmin'
 import { PlanPermissionChecklist } from '@components/Plans/PlanEditorShared'
 import { cn } from '@/lib/utils'
 
@@ -34,7 +35,7 @@ const programTabs = [
 ]
 const programsKey = (orgId: number) => `${getAPIUrl()}planning/templates?org_id=${orgId}`
 
-export default function ProgramsAdminPage({ orgslug, programUuid, activeSubpage = 'objectives', rootTab = 'templates' }: { orgslug: string; programUuid?: string; activeSubpage?: ProgramSubpage; rootTab?: 'templates' | 'assignments' }) {
+export default function ProgramsAdminPage({ orgslug, programUuid, activeSubpage = 'objectives', rootTab = 'templates' }: { orgslug: string; programUuid?: string; activeSubpage?: ProgramSubpage; rootTab?: 'templates' | 'assignments' | 'requirements' | 'reporting' }) {
   const org = useOrg() as any
   const session = useLHSession() as any
   const token = session?.data?.tokens?.access_token
@@ -42,8 +43,11 @@ export default function ProgramsAdminPage({ orgslug, programUuid, activeSubpage 
   const tabs = [
     { id: 'templates', label: 'Templates', icon: <Layers3 size={16} />, href: getUriWithOrg(orgslug, routePaths.org.dash.programs()) },
     { id: 'assignments', label: 'Assignments', icon: <Users size={16} />, href: getUriWithOrg(orgslug, routePaths.org.dash.planAssignments()) },
+    { id: 'requirements', label: 'Requirements', icon: <ClipboardCheck size={16} />, href: getUriWithOrg(orgslug, routePaths.org.dash.planRequirements()) },
+    { id: 'reporting', label: 'Reporting', icon: <BarChart3 size={16} />, href: getUriWithOrg(orgslug, routePaths.org.dash.planReporting()) },
   ]
-  return <div className="min-h-full w-full bg-[#f8f8f8]"><AdminFeatureHeader feature="Plans" activeTab={rootTab} tabs={tabs} />{rootTab === 'assignments' ? <AllAssignments orgslug={orgslug} orgId={Number(org?.id)} token={token} /> : <ProgramList orgslug={orgslug} orgId={Number(org?.id)} token={token} />}</div>
+  const content = rootTab === 'assignments' ? <AllAssignments orgslug={orgslug} orgId={Number(org?.id)} token={token} /> : rootTab === 'requirements' ? <RequirementsAdmin orgId={Number(org?.id)} token={token} /> : rootTab === 'reporting' ? <RequirementsReporting orgId={Number(org?.id)} token={token} /> : <ProgramList orgslug={orgslug} orgId={Number(org?.id)} token={token} />
+  return <div className="min-h-full w-full bg-[#f8f8f8]"><AdminFeatureHeader feature="Plans" activeTab={rootTab} tabs={tabs} />{content}</div>
 }
 
 function AllAssignments({ orgslug, orgId, token }: { orgslug: string; orgId: number; token?: string }) {
@@ -108,8 +112,16 @@ function ProgramDetail({ orgslug, orgId, token, programUuid, activeSubpage }: { 
       <ProgramHeader orgId={orgId} token={token} program={program} refresh={refresh} />
       <div className="flex space-x-3 text-sm font-black">{programTabs.map((tab) => { const Icon = tab.icon; const active = activeSubpage === tab.key; return <Link key={tab.key} href={getUriWithOrg(orgslug, routePaths.org.dash.programPage(programUuid, tab.key))}><div className={cn('flex w-fit cursor-pointer space-x-4 border-black py-2 text-center transition-all ease-linear', active ? 'border-b-4' : 'opacity-50 hover:opacity-75')}><div className="mx-2 flex items-center space-x-2.5"><Icon size={16} /><div>{tab.label}</div></div></div></Link> })}</div>
     </div>
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.1 }}>{activeSubpage === 'objectives' && <ProgramObjectives orgId={orgId} token={token} program={program} refresh={refresh} />}{activeSubpage === 'assignments' && <ProgramAssignments orgslug={orgslug} program={program} refresh={refresh} />}{activeSubpage === 'settings' && <ProgramSettings orgslug={orgslug} orgId={orgId} token={token} program={program} refresh={refresh} />}</motion.div>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.1 }}>{activeSubpage === 'objectives' && <><TemplateRequirementCoverage orgId={orgId} token={token} program={program} /><ProgramObjectives orgId={orgId} token={token} program={program} refresh={refresh} /></>}{activeSubpage === 'assignments' && <ProgramAssignments orgslug={orgslug} program={program} refresh={refresh} />}{activeSubpage === 'settings' && <ProgramSettings orgslug={orgslug} orgId={orgId} token={token} program={program} refresh={refresh} />}</motion.div>
   </div>
+}
+
+function TemplateRequirementCoverage({ orgId, token, program }: any) {
+  const { data: frameworks = [] } = useSWR(orgId && token ? `${getAPIUrl()}planning/requirements?org_id=${orgId}` : null, (url) => swrFetcher(url, token))
+  const mapped = new Set((program.objectives || []).flatMap((objective: any) => (objective.requirement_mappings || []).map((item: any) => item.node_uuid)))
+  const rows = frameworks.map((framework: any) => { const parents = new Set((framework.nodes || []).map((node: any) => node.parent_node_uuid).filter(Boolean)); const leaves = (framework.nodes || []).filter((node: any) => !parents.has(node.node_uuid)); return { ...framework, leaves, covered: leaves.filter((node: any) => mapped.has(node.node_uuid)).length } }).filter((framework: any) => framework.covered > 0)
+  if (!rows.length) return null
+  return <div className="px-10 pt-6"><div className="mx-auto max-w-5xl rounded-xl border border-border bg-card p-4 shadow-xs"><p className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">Requirement coverage</p><div className="mt-3 grid gap-3 md:grid-cols-2">{rows.map((framework: any) => <div key={framework.framework_uuid} className={cn('rounded-lg border p-3', framework.covered === framework.leaves.length ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50')}><div className="flex items-center justify-between gap-3"><p className="text-xs font-bold">{framework.name}</p><span className="text-xs font-black">{framework.covered}/{framework.leaves.length}</span></div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white"><div className={cn('h-full', framework.covered === framework.leaves.length ? 'bg-green-600' : 'bg-amber-500')} style={{ width: `${framework.leaves.length ? framework.covered / framework.leaves.length * 100 : 0}%` }} /></div>{framework.covered < framework.leaves.length ? <p className="mt-2 text-[10px] font-semibold text-amber-800">Removing a sole mapping or assigning this template alone leaves {framework.leaves.length - framework.covered} requirement{framework.leaves.length - framework.covered === 1 ? '' : 's'} uncovered.</p> : null}</div>)}</div></div></div>
 }
 
 function ProgramHeader({ orgId, token, program, refresh }: any) {
