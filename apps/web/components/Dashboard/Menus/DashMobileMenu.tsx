@@ -15,6 +15,7 @@ import {
   Menu,
   MessagesSquare,
   Newspaper,
+  Settings,
   School,
   Store,
   UserRound,
@@ -130,11 +131,18 @@ function DashMobileMenu() {
           label: 'Users',
         },
         {
-          href: getUriWithOrg(org.slug, routePaths.owner.platform.news()),
-          icon: Newspaper,
-          label: 'News',
+          href: getUriWithOrg(org.slug, routePaths.owner.platform.settings()),
+          icon: Settings,
+          label: 'Settings',
         },
-      ]
+        capabilities.news
+          ? {
+              href: getUriWithOrg(org.slug, routePaths.owner.platform.news()),
+              icon: Newspaper,
+              label: 'News',
+            }
+          : null,
+      ].filter(Boolean) as Array<{ href: string; icon: React.ComponentType<{ className?: string }>; label: string }>
     : []
 
   return (

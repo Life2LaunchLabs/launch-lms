@@ -42,6 +42,7 @@ from src.security.rbac.constants import ADMIN_ROLE_ID
 from src.services.email.utils import get_base_url_from_request
 from src.services.orgs.invites import send_direct_invitation_email
 from src.services.orgs.orgs import rbac_check
+from src.services.messages import create_inbox_message, resolve_action_by_dedupe
 from src.services.users.usergroups import create_usergroup
 
 
@@ -161,6 +162,11 @@ def decline_my_organization_invitation(
     invitation.declined_at = now
     invitation.updated_at = now
     db_session.add(invitation)
+    resolve_action_by_dedupe(
+        db_session,
+        f"organization_invitation:{invitation.invitation_uuid}",
+        accepted=False,
+    )
     db_session.commit()
 
     decrease_feature_usage("members", invitation.org_id, db_session)
@@ -1040,6 +1046,19 @@ async def invite_batch_users(
         )
         db_session.add(invitation)
         db_session.flush()
+        create_inbox_message(
+            db_session,
+            recipient_user_id=int(target_user.id) if target_user and target_user.id else None,
+            recipient_email=validated_email,
+            sender_org_id=int(org.id),
+            sender_user_id=int(current_user.id),
+            message_type="invitation",
+            subject=f"Invitation to join {org.name}",
+            body=f"{org.name} invited you to join as {role.name}.",
+            action_kind="organization_invitation",
+            action_data={"invitation_uuid": invitation.invitation_uuid},
+            dedupe_key=f"organization_invitation:{invitation.invitation_uuid}",
+        )
         new_invitations.append(invitation)
         results.append(InviteRecipientResult(email=validated_email, status="invited"))
 

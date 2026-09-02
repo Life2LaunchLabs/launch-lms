@@ -15,6 +15,7 @@ from src.services.orgs.invites import get_invite_code, redeem_join_link
 from src.services.orgs.orgs import get_org_join_mechanism
 from src.services.users.usergroups import add_users_to_usergroup
 from src.services.orgs.invitation_security import audit_invitation_acceptance, validate_invitation_acceptance
+from src.services.messages import resolve_action_by_dedupe
 
 
 class JoinOrg(BaseModel):
@@ -140,6 +141,11 @@ async def join_org(
                 invitation.accepted_at = datetime.utcnow()
                 invitation.updated_at = datetime.utcnow()
                 db_session.add(invitation)
+                resolve_action_by_dedupe(
+                    db_session,
+                    f"organization_invitation:{invitation.invitation_uuid}",
+                    accepted=True,
+                )
             elif inviteCode:
                 redeem_join_link(db_session, inviteCode["invite_code_uuid"], str(user.email))
             db_session.add(user_organization)
@@ -192,6 +198,11 @@ async def join_org(
                 invitation.accepted_at = datetime.utcnow()
                 invitation.updated_at = datetime.utcnow()
                 db_session.add(invitation)
+                resolve_action_by_dedupe(
+                    db_session,
+                    f"organization_invitation:{invitation.invitation_uuid}",
+                    accepted=True,
+                )
             elif inviteCode:
                 redeem_join_link(db_session, inviteCode["invite_code_uuid"], str(user.email))
             db_session.add(user_organization)

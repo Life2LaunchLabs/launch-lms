@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Request, status
 from sqlmodel import Session
 from src.core.capabilities import CORE_CAPABILITIES
 from src.core.events.database import get_db_session
+from src.db.messages import WelcomeMessageTemplateUpdate
 from src.db.organizations import OrganizationCreate
 from src.db.plan_requests import PlanRequestRead, PlanRequestUpdate
 from src.db.roles import Role, RoleTypeEnum
@@ -14,6 +15,7 @@ from src.services.email.utils import get_base_url_from_request
 from src.services.orgs.usage import get_org_usage_and_limits
 from src.services.superadmin import orgs as orgs_service
 from src.services.superadmin import users as users_service
+from src.services import messages as messages_service
 from src.services.superadmin.orgs import (
     OrgConfigUpdateRequest,
     OrgPackagesUpdateRequest,
@@ -37,6 +39,34 @@ router = APIRouter(dependencies=[Depends(require_superadmin)])
 @router.get("/status")
 async def superadmin_status(current_user: PublicUser = Depends(get_current_user)):
     return {"is_superadmin": True, "capabilities": CORE_CAPABILITIES}
+
+
+@router.get("/settings/welcome-message")
+async def get_welcome_message_template(
+    db_session: Session = Depends(get_db_session),
+):
+    return messages_service.get_welcome_template(db_session)
+
+
+@router.put("/settings/welcome-message")
+async def update_welcome_message_template(
+    payload: WelcomeMessageTemplateUpdate,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return messages_service.update_welcome_template(
+        db_session,
+        current_user,
+        subject=payload.subject,
+        body=payload.body,
+    )
+
+
+@router.delete("/settings/welcome-message")
+async def reset_welcome_message_template(
+    db_session: Session = Depends(get_db_session),
+):
+    return messages_service.reset_welcome_template(db_session)
 
 
 @router.get("/roles")

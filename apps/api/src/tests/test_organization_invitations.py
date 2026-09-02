@@ -6,6 +6,7 @@ from starlette.requests import Request
 from sqlmodel import Session, create_engine, select
 
 from src.db.audit_logs import AuditLog
+from src.db.messages import InboxMessage
 from src.db.organization_config import OrganizationConfig
 from src.db.organization_invitations import InviteUsersRequest, OrganizationInvitation, OrganizationJoinLink
 from src.db.organizations import Organization
@@ -31,7 +32,7 @@ NOW = datetime(2026, 8, 26, 12, 0, 0)
 @pytest.fixture
 def session():
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    for model in (Organization, User, Role, UserGroup, UserOrganization, OrganizationConfig, OrganizationInvitation, OrganizationJoinLink, AuditLog):
+    for model in (Organization, User, Role, UserGroup, UserOrganization, OrganizationConfig, OrganizationInvitation, OrganizationJoinLink, AuditLog, InboxMessage):
         model.__table__.create(engine)
     with Session(engine) as db_session:
         yield db_session
@@ -164,6 +165,9 @@ async def test_batch_invite_validates_deduplicates_and_records_role_and_group(se
     assert all(item.role_id == 4 and item.usergroup_id == 1 for item in invitations)
     assert all(item.invite_code_uuid is None for item in invitations)
     assert all(item.email_sent and item.delivery_attempts == 1 for item in invitations)
+    messages = session.exec(select(InboxMessage).order_by(InboxMessage.recipient_email_normalized)).all()
+    assert [item.recipient_email_normalized for item in messages] == ["existing@example.com", "new@example.com"]
+    assert all(item.action_kind == "organization_invitation" for item in messages)
 
 
 @pytest.mark.asyncio

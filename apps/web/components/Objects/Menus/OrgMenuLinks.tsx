@@ -6,6 +6,7 @@ import {
   Newspaper,
   ClipboardText,
 } from '@phosphor-icons/react'
+import { getCoreCapabilities } from '@services/config/config'
 
 export const KNOWN_SUBPATHS = [
   '/badges',
@@ -45,6 +46,7 @@ export function getPrimaryOrgMenuItems({
   pathname?: string | null
   resolvedFeatures: any
 }): OrgMenuNavItem[] {
+  const capabilities = getCoreCapabilities()
   const isHome = !KNOWN_SUBPATHS.some((subpath) => pathname?.includes(subpath))
   const isOnPortfolio = pathname?.includes('/portfolio')
   const isOnBadges = !isOnPortfolio && pathname?.includes('/badges')
@@ -88,7 +90,7 @@ export function getPrimaryOrgMenuItems({
       label: 'News',
       icon: <Newspaper size={18} weight="fill" />,
       active: Boolean(isOnNews),
-      show: true,
+      show: capabilities.news,
     },
   ]
 }

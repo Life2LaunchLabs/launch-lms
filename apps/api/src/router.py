@@ -8,6 +8,7 @@ from src.routers import (
     health,
     instance,
     media,
+    messages,
     news,
     orgs,
     plans,
@@ -169,6 +170,12 @@ v1_router.include_router(
     prefix="/media",
     tags=["media"],
     dependencies=[Depends(get_non_api_token_user)]
+)
+v1_router.include_router(
+    messages.router,
+    prefix="/messages",
+    tags=["messages"],
+    dependencies=[Depends(get_non_api_token_user)],
 )
 v1_router.include_router(
     portfolio.router,

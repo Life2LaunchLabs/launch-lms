@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
+from src.core.capabilities import CORE_CAPABILITIES
 from src.core.events.database import get_db_session
 from src.db.news import NewsArticleCreate, NewsArticleUpdate
 from src.db.users import PublicUser
@@ -15,7 +16,12 @@ from src.services.news import (
     update_article,
 )
 
-router = APIRouter()
+def require_news_enabled() -> None:
+    if not CORE_CAPABILITIES["news"]:
+        raise HTTPException(status_code=404, detail="Not found")
+
+
+router = APIRouter(dependencies=[Depends(require_news_enabled)])
 
 
 @router.get("/org/{org_id}")

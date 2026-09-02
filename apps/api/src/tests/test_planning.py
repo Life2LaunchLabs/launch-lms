@@ -7,6 +7,7 @@ from sqlmodel import SQLModel, Session, create_engine, select
 from src.db.learning import LearningBadge, LearningBadgeAward, LearningPage, LearningPageProgress, LearningRun
 from src.db.guest_sessions import GuestSession
 from src.db.media import MediaAsset, MediaOwnerType, MediaSourceType, MediaType
+from src.db.messages import InboxMessage
 from src.db.organizations import Organization
 from src.db.organization_config import OrganizationConfig
 from src.db.planning import (
@@ -64,6 +65,7 @@ def _session() -> Session:
         OrganizationPlanRole.__table__,
         PlanObjective.__table__, PlanObjectiveProgress.__table__, PlanInvitation.__table__, PlanActivity.__table__,
         MediaAsset.__table__, PlanAttachment.__table__, PlanCollaboratorRequest.__table__,
+        InboxMessage.__table__,
     ])
     session = Session(engine)
     session.add_all([
@@ -102,8 +104,13 @@ def test_recipient_bound_invitation_grants_plan_access_without_org_membership():
         invitation = planning.create_invitation(db, _user(1), created["slug"], PlanInvitationCreate(
             email="helper@example.com", role_key="reviewer", kind=PlanInvitationKind.COLLABORATOR,
         ))
+        message = db.exec(select(InboxMessage).where(InboxMessage.action_kind == "plan_invitation")).one()
+        assert message.recipient_user_id == 2
+        assert message.action_status == "pending"
         assert len(planning.list_my_invitations(db, _user(2))) == 1
         planning.respond_to_invitation(db, _user(2), invitation["invitation_uuid"], True)
+        db.refresh(message)
+        assert message.action_status == "accepted"
         helper_plan = planning.get_plan(db, _user(2), created["slug"])
         assert "complete_restricted_objectives" in helper_plan["capabilities"]
         assert helper_plan["subject"]["id"] == 1
@@ -807,6 +814,8 @@ def test_external_email_assignment_materializes_pending_recipient_bound_plan():
         assert len(invitations) == 1
         assert invitations[0]["kind"] == PlanInvitationKind.SUBJECT
         assert invitations[0]["plan"]["name"] == "External pathway"
+        message = db.exec(select(InboxMessage).where(InboxMessage.recipient_email_normalized == "future@example.com")).one()
+        assert message.action_data["invitation_uuid"] == invitations[0]["invitation_uuid"]
 
 
 def test_legacy_program_and_participant_identifiers_resolve_precise_plan():
@@ -897,3 +906,6 @@ def test_assignment_materialization_is_idempotent_and_preserves_states_owner_rol
         pending_invites = db.exec(select(PlanInvitation).where(PlanInvitation.plan_id == plans[0].id)).all()
         assert len(pending_invites) == 1
         assert pending_invites[0].status == "pending"
+        messages = db.exec(select(InboxMessage).where(InboxMessage.action_kind == "plan_invitation")).all()
+        assert len(messages) == 1
+        assert messages[0].dedupe_key == f"plan_invitation:{pending_invites[0].invitation_uuid}"

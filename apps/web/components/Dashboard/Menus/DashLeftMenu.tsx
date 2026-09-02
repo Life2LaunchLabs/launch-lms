@@ -469,11 +469,18 @@ function DashLeftMenu() {
               label: 'Requests',
             },
             {
-              href: routePaths.owner.platform.news(),
-              icon: <Newspaper size={20} weight="fill" />,
-              label: 'News',
+              href: routePaths.owner.platform.settings(),
+              icon: <Gear size={20} weight="fill" />,
+              label: 'Settings',
             },
-          ].map((item: any) => {
+            capabilities.news
+              ? {
+                  href: routePaths.owner.platform.news(),
+                  icon: <Newspaper size={20} weight="fill" />,
+                  label: 'News',
+                }
+              : null,
+          ].filter(Boolean).map((item: any) => {
             const isActive = item.exact
               ? pathname === `/orgs/${org.slug}${item.href}` ||
                 pathname === item.href

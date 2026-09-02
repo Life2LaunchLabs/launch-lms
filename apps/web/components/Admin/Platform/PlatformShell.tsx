@@ -3,19 +3,21 @@ import React from 'react'
 import {
   Buildings,
   ChartPie,
+  Gear,
   Newspaper,
   Tray,
   UsersThree,
 } from '@phosphor-icons/react'
 import AdminFeatureHeader from '@components/Admin/AdminFeatureHeader'
 import { useOrg } from '@components/Contexts/OrgContext'
-import { getDefaultOrg, getUriWithOrg } from '@services/config/config'
+import { getCoreCapabilities, getDefaultOrg, getUriWithOrg } from '@services/config/config'
 
 export type PlatformSection =
   | 'overview'
   | 'organizations'
   | 'users'
   | 'requests'
+  | 'settings'
   | 'news'
 
 const SECTIONS: {
@@ -23,6 +25,7 @@ const SECTIONS: {
   label: string
   icon: React.ReactNode
   href: string
+  requiresNews?: boolean
 }[] = [
   {
     id: 'overview',
@@ -49,10 +52,17 @@ const SECTIONS: {
     href: '/admin/platform/requests',
   },
   {
+    id: 'settings',
+    label: 'Settings',
+    icon: <Gear size={14} />,
+    href: '/admin/platform/settings',
+  },
+  {
     id: 'news',
     label: 'News',
     icon: <Newspaper size={14} />,
     href: '/admin/news',
+    requiresNews: true,
   },
 ]
 
@@ -89,7 +99,7 @@ export default function PlatformShell({
         activeTab={activeSection}
         tone="platform"
         actions={actions}
-        tabs={SECTIONS.map((section) => ({
+        tabs={SECTIONS.filter((section) => !section.requiresNews || getCoreCapabilities().news).map((section) => ({
           ...section,
           href: org?.slug ? getUriWithOrg(org.slug, section.href) : section.href,
         }))}

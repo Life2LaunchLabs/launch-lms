@@ -167,6 +167,13 @@ async def create_user(
         invitation.accepted_at = datetime.utcnow()
         invitation.updated_at = datetime.utcnow()
         db_session.add(invitation)
+        from src.services.messages import resolve_action_by_dedupe
+
+        resolve_action_by_dedupe(
+            db_session,
+            f"organization_invitation:{invitation.invitation_uuid}",
+            accepted=True,
+        )
 
     db_session.add(user_organization)
     db_session.commit()
@@ -206,6 +213,10 @@ async def create_user(
             logger.exception(
                 "Failed to send verification email to %s", user_read.email
             )
+
+    from src.services.messages import create_welcome_message_safely
+
+    create_welcome_message_safely(db_session, int(user.id or 0))
 
     return user_read
 
@@ -425,6 +436,10 @@ async def create_user_without_org(
                 logger.exception(
                     "Failed to send verification email to %s", user_read.email
                 )
+
+    from src.services.messages import create_welcome_message_safely
+
+    create_welcome_message_safely(db_session, int(user.id or 0))
 
     return user_read
 

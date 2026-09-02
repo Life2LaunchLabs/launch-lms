@@ -49,6 +49,7 @@ from src.db.planning import (
 )
 from src.db.users import PublicUser, User
 from src.security.org_auth import is_org_admin, require_org_admin
+from src.services.messages import create_inbox_message, resolve_action_by_dedupe
 
 
 ALL_CAPABILITIES = {
@@ -107,6 +108,37 @@ def _user_summary(db: Session, user_id: int | None) -> dict | None:
         "name": " ".join(filter(None, [user.first_name, user.last_name])) or user.username,
         "avatar_image": user.avatar_image,
     }
+
+
+def _create_plan_invitation_message(
+    db: Session,
+    plan: Plan,
+    invitation: PlanInvitation,
+    role_name: str,
+) -> None:
+    if invitation.status != PlanInvitationStatus.PENDING:
+        return
+    organization = db.get(Organization, plan.source_org_id) if plan.source_org_id else None
+    sender_name = organization.name if organization else "A Launch LMS member"
+    create_inbox_message(
+        db,
+        recipient_user_id=invitation.target_user_id,
+        recipient_email=invitation.email,
+        sender_org_id=int(organization.id) if organization and organization.id else None,
+        sender_user_id=invitation.invited_by_user_id,
+        message_type="invitation",
+        subject=f"Invitation to {plan.name}",
+        body=f"{sender_name} invited you to participate in {plan.name} as {role_name}.",
+        action_url=f"/plans/{plan.slug}",
+        action_kind="plan_invitation",
+        action_data={
+            "invitation_uuid": invitation.invitation_uuid,
+            "plan_slug": plan.slug,
+            "plan_name": plan.name,
+            "role_name": role_name,
+        },
+        dedupe_key=f"plan_invitation:{invitation.invitation_uuid}",
+    )
 
 
 def _org_summary(db: Session, org_id: int | None) -> dict | None:
@@ -687,14 +719,18 @@ def materialize_assignment_plans(db: Session, assignment_id: int) -> None:
             target = db.get(User, participant.user_id)
             if target:
                 email = str(target.email)
-                db.add(PlanInvitation(
+                invitation = PlanInvitation(
                     invitation_uuid=f"plan_invitation_{uuid4()}", plan_id=int(plan.id),
                     kind=PlanInvitationKind.SUBJECT, email=email, email_normalized=email.strip().lower(),
                     target_user_id=participant.user_id, role_id=int(roles[subject_role_key].id),
                     status=invitation_status, invited_by_user_id=int(owner_id),
                     viewed_at=participant.viewed_at, responded_at=participant.responded_at,
                     creation_date=participant.creation_date or now, update_date=now,
-                ))
+                )
+                db.add(invitation)
+                _create_plan_invitation_message(
+                    db, plan, invitation, roles[subject_role_key].name
+                )
 
 
 def materialize_external_assignment_plan(db: Session, assignment_id: int, subject_email: str) -> None:
@@ -787,12 +823,14 @@ def materialize_external_assignment_plan(db: Session, assignment_id: int, subjec
             creation_date=now, update_date=now,
         ))
     normalized = subject_email.strip().lower()
-    db.add(PlanInvitation(
+    invitation = PlanInvitation(
         invitation_uuid=f"plan_invitation_{uuid4()}", plan_id=int(plan.id),
         kind=PlanInvitationKind.SUBJECT, email=subject_email.strip(), email_normalized=normalized,
         role_id=int(roles[subject_role_key].id), status=PlanInvitationStatus.PENDING,
         invited_by_user_id=int(owner_id), creation_date=now, update_date=now,
-    ))
+    )
+    db.add(invitation)
+    _create_plan_invitation_message(db, plan, invitation, roles[subject_role_key].name)
 
 
 def _link_legacy_learning_runs(
@@ -1422,6 +1460,7 @@ def create_invitation(db: Session, current_user: PublicUser, identifier: str, pa
         expires_at=_now() + timedelta(days=30), creation_date=now, update_date=now,
     )
     db.add(invitation)
+    _create_plan_invitation_message(db, plan, invitation, role.name)
     _activity(db, plan, current_user.id, "invitation.created", {"kind": payload.kind.value, "role_key": role.key})
     db.commit()
     db.refresh(invitation)
@@ -1759,6 +1798,11 @@ def respond_to_invitation(db: Session, current_user: PublicUser, invitation_uuid
     invitation.responded_at = _now()
     invitation.update_date = _now_string()
     db.add(invitation)
+    resolve_action_by_dedupe(
+        db,
+        f"plan_invitation:{invitation.invitation_uuid}",
+        accepted=accept,
+    )
     if accept:
         existing = _collaboration(db, int(plan.id), current_user.id)
         if not existing:

@@ -6,7 +6,6 @@ import { Building2, Search, Users } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import OrganizationCard from '@components/Organizations/OrganizationCard'
 import { getDiscoverOrganizations } from '@services/organizations/orgs'
-import useOrganizationInvitations from '@components/Hooks/useOrganizationInvitations'
 import { getAPIUrl } from '@services/config/config'
 import { swrFetcher } from '@services/utils/ts/requests'
 
@@ -38,7 +37,6 @@ export default function AccountOrganizations({ orgslug }: AccountOrganizationsPr
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
   const [query, setQuery] = useState('')
-  const { invitations } = useOrganizationInvitations()
 
   const { data: organizations, error, isLoading } = useSWR(
     ['account-organizations', query, accessToken],
@@ -55,22 +53,7 @@ export default function AccountOrganizations({ orgslug }: AccountOrganizationsPr
     { revalidateOnFocus: false }
   )
   const adminSlugs = useMemo(() => new Set((adminOrganizations || []).map((organization: any) => organization.slug)), [adminOrganizations])
-  const invitationByOrgId = useMemo(() => new Map(invitations.map((invitation) => [invitation.org_id, invitation])), [invitations])
-
-  const organizationList = useMemo(() => {
-    const list = [...(organizations || [])]
-    const knownIds = new Set(list.map((organization) => organization.id))
-    invitations.forEach((invitation) => {
-      if (!invitation.organization || knownIds.has(invitation.org_id)) return
-      list.unshift({
-        ...invitation.organization,
-        signup_mode: 'inviteOnly',
-        is_member: false,
-        member_count: 0,
-      })
-    })
-    return list
-  }, [invitations, organizations])
+  const organizationList = useMemo(() => [...(organizations || [])], [organizations])
   const myOrganizations = useMemo(
     () => organizationList.filter((organization) => organization.is_member),
     [organizationList]
@@ -106,20 +89,6 @@ export default function AccountOrganizations({ orgslug }: AccountOrganizationsPr
       )}
 
       <div className="space-y-10">
-        {invitations.length > 0 && (
-          <section className="space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="rounded-full bg-blue-50 p-2"><Building2 className="h-4 w-4 text-blue-700" /></div>
-              <div><h2 className="text-lg font-semibold text-foreground">Invitations</h2><p className="text-sm text-muted-foreground">Organizations waiting for your response.</p></div>
-            </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {invitations.map((invitation) => {
-                const organization = organizationList.find((item) => item.id === invitation.org_id)
-                return organization ? <OrganizationCard key={invitation.invitation_uuid} organization={organization} currentOrgslug={orgslug} invitation={invitation} canAdmin={adminSlugs.has(organization.slug)} /> : null
-              })}
-            </div>
-          </section>
-        )}
         <section className="space-y-4">
           <div className="flex items-center gap-3">
             <div className="rounded-full bg-muted p-2">
@@ -137,7 +106,6 @@ export default function AccountOrganizations({ orgslug }: AccountOrganizationsPr
                 key={organization.org_uuid}
                 organization={organization}
                 currentOrgslug={orgslug}
-                invitation={invitationByOrgId.get(organization.id)}
                 canAdmin={adminSlugs.has(organization.slug)}
               />
             ))}
@@ -171,7 +139,6 @@ export default function AccountOrganizations({ orgslug }: AccountOrganizationsPr
                 key={organization.org_uuid}
                 organization={organization}
                 currentOrgslug={orgslug}
-                invitation={invitationByOrgId.get(organization.id)}
                 canAdmin={adminSlugs.has(organization.slug)}
               />
             ))}

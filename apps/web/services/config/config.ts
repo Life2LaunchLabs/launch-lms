@@ -301,6 +301,7 @@ export const getCoreCapabilities = () => ({
   sso: true,
   scorm: true,
   advanced_analytics: true,
+  news: getConfig('NEXT_PUBLIC_LAUNCHLMS_ENABLE_LEGACY_NEWS', 'false').toLowerCase() === 'true',
 })
 
 // Collaboration server WebSocket URL

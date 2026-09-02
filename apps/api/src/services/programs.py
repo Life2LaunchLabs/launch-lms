@@ -25,6 +25,7 @@ from src.db.planning import (
     DEFAULT_ROLE_DEFINITIONS,
     Plan,
     PlanInvitation,
+    PlanInvitationStatus,
     PlanObjective,
     PlanObjectiveProgress,
     PlanObjectiveStatus,
@@ -2354,6 +2355,21 @@ def respond_to_invitation(db: Session, current_user: PublicUser, org_id: int, pa
             initiate_date = initiate_date.replace(tzinfo=timezone.utc)
         if initiate_date.date() > _now().date():
             raise HTTPException(status_code=403, detail="This program invitation has not been sent yet")
+    live_plan = db.exec(select(Plan).where(
+        Plan.source_assignment_id == participant.assignment_id,
+        Plan.subject_user_id == current_user.id,
+    )).first() if _has_live_plan_tables(db) else None
+    plan_invitation = db.exec(select(PlanInvitation).where(
+        PlanInvitation.plan_id == live_plan.id,
+        PlanInvitation.target_user_id == current_user.id,
+        PlanInvitation.status == PlanInvitationStatus.PENDING,
+    )).first() if live_plan else None
+    if plan_invitation:
+        from src.services.planning import respond_to_invitation as respond_to_plan_invitation
+
+        respond_to_plan_invitation(
+            db, current_user, plan_invitation.invitation_uuid, accept
+        )
     response_status = ParticipantStatus.ACTIVE if accept else ParticipantStatus.DECLINED
     participant.status = response_status
     participant.viewed_at = participant.viewed_at or _now()
