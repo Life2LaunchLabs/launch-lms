@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "name": "Launch LMS design system",
+  "owner": "apps/web",
+  "preview_path": "/design-system",
+  "scope": "Current product foundations and shared UI; classification is descriptive, not a claim that every surface conforms.",
+  "foundations": [
+    { "name": "Background", "token": "--background", "tailwind": "bg-background", "role": "Page canvas" },
+    { "name": "Foreground", "token": "--foreground", "tailwind": "text-foreground", "role": "Primary content" },
+    { "name": "Card", "token": "--card", "tailwind": "bg-card", "role": "Raised and grouped surfaces" },
+    { "name": "Muted", "token": "--muted", "tailwind": "bg-muted", "role": "Quiet surfaces and secondary controls" },
+    { "name": "Border", "token": "--border", "tailwind": "border-border", "role": "Structural separation" },
+    { "name": "Destructive", "token": "--destructive", "tailwind": "bg-destructive", "role": "Destructive actions and errors" },
+    { "name": "Organization accent", "token": "--org-primary-color", "tailwind": "bg-[var(--org-primary-color)]", "role": "Tenant-controlled brand emphasis" },
+    { "name": "On organization accent", "token": "--org-on-primary-color", "tailwind": "text-[var(--org-on-primary-color)]", "role": "Contrast-aware content on tenant accent" }
+  ],
+  "components": [
+    { "name": "Button", "source": "apps/web/components/ui/button.tsx", "status": "adopted", "usage": 49, "category": "action", "notes": "Includes product-specific brand, surface, and CTA variants." },
+    { "name": "Input", "source": "apps/web/components/ui/input.tsx", "status": "adopted", "usage": 29, "category": "form" },
+    { "name": "Label", "source": "apps/web/components/ui/label.tsx", "status": "adopted", "usage": 22, "category": "form" },
+    { "name": "Dropdown menu", "source": "apps/web/components/ui/dropdown-menu.tsx", "status": "adopted", "usage": 22, "category": "overlay" },
+    { "name": "Textarea", "source": "apps/web/components/ui/textarea.tsx", "status": "adopted", "usage": 19, "category": "form" },
+    { "name": "Dialog", "source": "apps/web/components/ui/dialog.tsx", "status": "adopted", "usage": 17, "category": "overlay" },
+    { "name": "Switch", "source": "apps/web/components/ui/switch.tsx", "status": "adopted", "usage": 15, "category": "form" },
+    { "name": "Select", "source": "apps/web/components/ui/select.tsx", "status": "adopted", "usage": 10, "category": "form" },
+    { "name": "Badge", "source": "apps/web/components/ui/badge.tsx", "status": "adopted", "usage": 7, "category": "feedback" },
+    { "name": "Popover", "source": "apps/web/components/ui/popover.tsx", "status": "adopted", "usage": 6, "category": "overlay" },
+    { "name": "Tooltip", "source": "apps/web/components/ui/tooltip.tsx", "status": "adopted", "usage": 4, "category": "overlay" },
+    { "name": "Tabs", "source": "apps/web/components/ui/tabs.tsx", "status": "adopted", "usage": 4, "category": "navigation" },
+    { "name": "Table", "source": "apps/web/components/ui/table.tsx", "status": "adopted", "usage": 3, "category": "data" },
+    { "name": "Checkbox", "source": "apps/web/components/ui/checkbox.tsx", "status": "adopted", "usage": 2, "category": "form" },
+    { "name": "Card", "source": "apps/web/components/ui/card.tsx", "status": "adopted", "usage": 2, "category": "surface", "notes": "Includes product-specific interactive, subtle, filled, and flat variants." },
+    { "name": "Toggle", "source": "apps/web/components/ui/toggle.tsx", "status": "candidate", "usage": 1, "category": "form" },
+    { "name": "Hover menu", "source": "apps/web/components/ui/hover-menu.tsx", "status": "candidate", "usage": 1, "category": "overlay" },
+    { "name": "Alert", "source": "apps/web/components/ui/alert.tsx", "status": "candidate", "usage": 0, "category": "feedback" },
+    { "name": "Hover card", "source": "apps/web/components/ui/hover-card.tsx", "status": "candidate", "usage": 0, "category": "overlay" },
+    { "name": "Navigation menu", "source": "apps/web/components/ui/navigation-menu.tsx", "status": "candidate", "usage": 0, "category": "navigation" }
+  ],
+  "patterns": [
+    { "name": "General content wrapper", "source": "apps/web/components/Objects/StyledElements/Wrappers/GeneralWrapper.tsx", "status": "adopted", "role": "Responsive maximum-width content shell" },
+    { "name": "Content page header", "source": "apps/web/components/Objects/StyledElements/Headers/ContentPageHeader.tsx", "status": "adopted", "role": "Back navigation, centered title, tabs, or progress" },
+    { "name": "Tabbed page header", "source": "apps/web/components/Objects/StyledElements/Headers/TabbedPageHeader.tsx", "status": "adopted", "role": "Expanded-to-sticky product header" },
+    { "name": "Admin feature header", "source": "apps/web/components/Admin/AdminFeatureHeader.tsx", "status": "adopted", "role": "Administrative section navigation" },
+    { "name": "Legacy modal wrapper", "source": "apps/web/components/Objects/StyledElements/Modal/Modal.tsx", "status": "legacy", "role": "High-use wrapper over the shared Dialog primitive" },
+    { "name": "Legacy form kit", "source": "apps/web/components/Objects/StyledElements/Form/Form.tsx", "status": "legacy", "role": "Parallel form controls that overlap components/ui" },
+    { "name": "Legacy confirmation modal", "source": "apps/web/components/Objects/StyledElements/ConfirmationModal/ConfirmationModal.tsx", "status": "legacy", "role": "Direct Radix confirmation flow overlapping Dialog" }
+  ],
+  "standards": [
+    "Search this catalog and the product source before adding a component or layout.",
+    "Prefer an adopted shared primitive when it supports the required behavior.",
+    "Record why an adopted component does not fit before introducing a replacement.",
+    "Promote reusable additions into shared product code and add them to this manifest.",
+    "Exercise relevant loading, empty, populated, error, disabled, keyboard, light, dark, tenant-brand, and responsive states.",
+    "Add a design-system conformance check to every UI delivery task before product review."
+  ],
+  "documents": [
+    { "name": "Design-system contribution guide", "path": "apps/web/design-system/README.md" },
+    { "name": "Product CSS foundations", "path": "apps/web/styles/globals.css" },
+    { "name": "shadcn component configuration", "path": "apps/web/components.json" },
+    { "name": "Existing design QA record", "path": "design-qa.md" }
+  ],
+  "audit": {
+    "tsx_files": 490,
+    "files_importing_shared_ui": 92,
+    "native_buttons": 450,
+    "native_inputs": 153,
+    "native_selects": 54,
+    "native_textareas": 41,
+    "component_story_files": 0
+  }
+}

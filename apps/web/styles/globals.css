@@ -1,11 +1,10 @@
 /*
   ---break---
 */
-@plugin 'tailwindcss-animate';
-
 @import 'tailwindcss';
 @import 'react-grid-layout/css/styles.css';
 
+@plugin 'tailwindcss-animate';
 
 @custom-variant dark (&:is(.dark *));
 
