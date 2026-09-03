@@ -39,6 +39,14 @@ Production Docker images set `LAUNCHLMS_ENV=prod` and
 `LAUNCHLMS_DEVELOPMENT_MODE=false`. Keep `config/config.yaml` development-first;
 do not change it to simulate production.
 
+## Hub advisor
+
+The first Hub advisor uses OpenAI's Responses API through a server-only, stateless provider boundary. A
+Superadmin configures its API key, model, instructions, and enabled state in Platform Settings after deployment.
+The key is encrypted in the database and is write-only through the API; it is never returned to the browser.
+Each request sends the bounded browser-held conversation with response storage disabled and no tools; Launch
+LMS does not persist chat messages.
+
 ## Guardrail
 
 CI runs `./scripts/check_single_alembic_head.sh` on API changes and fails if Alembic reports more than one head.

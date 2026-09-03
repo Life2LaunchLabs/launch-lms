@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next'
 import { resendVerificationEmail } from '@services/auth/auth'
 import AuthLayout from '@components/Auth/AuthLayout'
 import { Button } from '@components/ui/button'
+import { Input } from '@components/ui/input'
 
 interface LoginClientProps {
   org: any
@@ -25,8 +26,6 @@ const LoginClient = (props: LoginClientProps) => {
   const { signIn } = useAuth()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
-  const [step, setStep] = useState<'email' | 'password'>('email')
-  const [emailError, setEmailError] = useState('')
   const [ssoEnabled, setSsoEnabled] = useState(false)
   const [ssoLoading, setSsoLoading] = useState(false)
   const searchParams = useSearchParams()
@@ -53,7 +52,7 @@ const LoginClient = (props: LoginClientProps) => {
         try {
           const result = await checkSSOEnabled(props.org.slug)
           setSsoEnabled(result.sso_enabled)
-        } catch (error) {
+        } catch {
           // SSO not available, silently ignore
         }
       }
@@ -91,33 +90,13 @@ const LoginClient = (props: LoginClientProps) => {
     }
   }
 
-  const handleEmailContinue = (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    setShowErrorModal(false)
-    setEmailError('')
-
-    const email = formik.values.email.trim()
-    if (!email) {
-      setEmailError(t('validation.required'))
-      return
-    }
-
-    if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(email)) {
-      setEmailError(t('validation.invalid_email'))
-      return
-    }
-
-    formik.setFieldValue('email', email)
-    setStep('password')
-  }
-
   const validate = (values: any) => {
     const errors: any = {}
+    const email = values.email.trim()
 
-    if (!values.email) {
+    if (!email) {
       errors.email = t('validation.required')
-    } else if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(values.email)) {
+    } else if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(email)) {
       errors.email = t('validation.invalid_email')
     }
 
@@ -141,7 +120,7 @@ const LoginClient = (props: LoginClientProps) => {
       } else {
         setError(res.error || t('auth.resend_verification_failed'))
       }
-    } catch (err) {
+    } catch {
       setError(t('auth.resend_verification_failed'))
     } finally {
       setIsResendingVerification(false)
@@ -157,6 +136,7 @@ const LoginClient = (props: LoginClientProps) => {
     validateOnBlur: true,
     validateOnChange: true,
     onSubmit: async (values, {validateForm, setErrors, setSubmitting}) => {
+      const email = values.email.trim()
       setIsSubmitting(true)
       setError('')
       setErrorType(null)
@@ -178,7 +158,7 @@ const LoginClient = (props: LoginClientProps) => {
 
       const res = await signIn('credentials', {
         redirect: false,
-        email: values.email,
+        email,
         password: values.password,
         callbackUrl
       });
@@ -192,7 +172,7 @@ const LoginClient = (props: LoginClientProps) => {
             setErrorType(errorData.code);
             setError(errorData.message || t('auth.wrong_email_password'));
             if (errorData.code === 'EMAIL_NOT_VERIFIED') {
-              setUnverifiedEmail(errorData.email || values.email);
+              setUnverifiedEmail(errorData.email || email);
             }
             if (errorData.retry_after) {
               setRetryAfter(errorData.retry_after);
@@ -205,7 +185,7 @@ const LoginClient = (props: LoginClientProps) => {
           if (res.error.includes('EMAIL_NOT_VERIFIED')) {
             setErrorType('EMAIL_NOT_VERIFIED');
             setError(t('auth.email_not_verified_message'));
-            setUnverifiedEmail(values.email);
+            setUnverifiedEmail(email);
           } else if (res.error.includes('ACCOUNT_LOCKED')) {
             setErrorType('ACCOUNT_LOCKED');
             setError(t('auth.account_locked_message'));
@@ -296,64 +276,30 @@ const LoginClient = (props: LoginClientProps) => {
             {props.embedded ? 'Sign in' : t('auth.welcome_back')}
           </h1>
 
-          {step === 'email' ? (
-            <div className={props.embedded ? 'mt-6 space-y-4' : 'mt-12 space-y-4'}>
-              <Button
-                type="button"
-                onClick={handleGoogleLogin}
-                disabled={isGoogleLoading}
-                variant="ctaSecondary"
-                size="cta"
-                className="w-full text-[16px]"
-              >
-                <SiGoogle size={20} color="#4285F4" />
-                {isGoogleLoading ? t('common.loading') : 'Continue with Google'}
-              </Button>
+          <div className={props.embedded ? 'mt-6 space-y-4' : 'mt-12 space-y-4'}>
+            <Button
+              type="button"
+              onClick={handleGoogleLogin}
+              disabled={isGoogleLoading}
+              variant="ctaSecondary"
+              size="cta"
+              className="w-full text-[16px]"
+            >
+              <SiGoogle size={20} color="#4285F4" />
+              {isGoogleLoading ? t('common.loading') : 'Continue with Google'}
+            </Button>
 
-              <div className="flex items-center gap-4 pt-5 text-sm font-semibold text-gray-400">
-                <div className="h-px flex-1 bg-gray-200" />
-                <span>or</span>
-                <div className="h-px flex-1 bg-gray-200" />
-              </div>
-
-              <form onSubmit={handleEmailContinue} className="space-y-4 pt-1">
-                <input
-                  name="email"
-                  onChange={(e) => {
-                    formik.handleChange(e)
-                    if (emailError) setEmailError('')
-                  }}
-                  onBlur={formik.handleBlur}
-                  value={formik.values.email}
-                  type="email"
-                  placeholder="Enter email address"
-                  autoComplete="email"
-                  className="h-12 w-full rounded-2xl border border-gray-200 bg-white px-4 text-[16px] text-gray-950 shadow-sm outline-none transition-colors placeholder:text-gray-400 focus:border-gray-300 focus:ring-2 focus:ring-gray-100"
-                  required
-                />
-                {emailError && (
-                  <p className="text-left text-sm font-medium text-red-600">{emailError}</p>
-                )}
-                <Button
-                  type="submit"
-                  size="cta"
-                  className="w-full bg-gray-950 text-[16px] font-semibold text-white shadow-none hover:bg-gray-800"
-                >
-                  Continue
-                </Button>
-              </form>
+            <div className="flex items-center gap-4 pt-5 text-sm font-semibold text-gray-400">
+              <div className="h-px flex-1 bg-gray-200" />
+              <span>or</span>
+              <div className="h-px flex-1 bg-gray-200" />
             </div>
-          ) : (
-            <form onSubmit={formik.handleSubmit} className={props.embedded ? 'mt-6 space-y-4 text-left' : 'mt-12 space-y-4 text-left'}>
-              <button
-                type="button"
-                onClick={() => setStep('email')}
-                className="mb-2 text-sm font-semibold text-gray-500 transition-colors hover:text-gray-950"
-              >
-                Back
-              </button>
 
-              <input
+            <form onSubmit={formik.handleSubmit} className="space-y-4 pt-1 text-left">
+              <Input
+                aria-describedby={formik.touched.email && formik.errors.email ? 'login-email-error' : undefined}
+                aria-invalid={Boolean(formik.touched.email && formik.errors.email)}
+                aria-label="Email address"
                 name="email"
                 onChange={formik.handleChange}
                 onBlur={formik.handleBlur}
@@ -365,10 +311,13 @@ const LoginClient = (props: LoginClientProps) => {
                 required
               />
               {formik.touched.email && formik.errors.email && (
-                <p className="text-sm font-medium text-red-600">{formik.errors.email}</p>
+                <p id="login-email-error" className="text-sm font-medium text-red-600">{formik.errors.email}</p>
               )}
 
-              <input
+              <Input
+                aria-describedby={formik.touched.password && formik.errors.password ? 'login-password-error' : undefined}
+                aria-invalid={Boolean(formik.touched.password && formik.errors.password)}
+                aria-label="Password"
                 name="password"
                 onChange={formik.handleChange}
                 onBlur={formik.handleBlur}
@@ -380,7 +329,7 @@ const LoginClient = (props: LoginClientProps) => {
                 required
               />
               {formik.touched.password && formik.errors.password && (
-                <p className="text-sm font-medium text-red-600">{formik.errors.password}</p>
+                <p id="login-password-error" className="text-sm font-medium text-red-600">{formik.errors.password}</p>
               )}
 
               <div className="flex items-center justify-between">
@@ -402,14 +351,14 @@ const LoginClient = (props: LoginClientProps) => {
 
               <Button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || isGoogleLoading || ssoLoading}
                 size="cta"
                 className="w-full bg-gray-950 text-[16px] font-semibold text-white shadow-none hover:bg-gray-800"
               >
                 {isSubmitting ? t('common.loading') : t('auth.login')}
               </Button>
             </form>
-          )}
+          </div>
 
           <p className="mt-5 text-center text-[12px] leading-relaxed text-gray-500">
             By continuing, you agree to Launch LMS&apos;s{' '}

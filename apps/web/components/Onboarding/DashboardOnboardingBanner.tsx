@@ -58,7 +58,7 @@ export default function DashboardOnboardingBanner({
   }
 
   const coursesHref = `${getUriWithOrg(orgslug, routePaths.org.badges())}?choose=1`
-  const resourcesHref = getUriWithOrg(orgslug, routePaths.org.resources())
+  const resourcesHref = getUriWithOrg(orgslug, routePaths.org.hub())
 
   return (
     <section

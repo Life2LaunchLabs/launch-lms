@@ -178,10 +178,24 @@ export default function ResourcesClient({
   orgslug,
   initialChannelUuid,
   initialUserChannelUuid,
+  initialQuery,
+  initialResourceTypes,
+  initialTags,
+  initialAccess,
+  initialProvider,
+  heading = 'Resources',
+  basePath = routePaths.org.resources(),
 }: {
   orgslug: string
   initialChannelUuid?: string
   initialUserChannelUuid?: string
+  initialQuery?: string
+  initialResourceTypes?: string
+  initialTags?: string
+  initialAccess?: string
+  initialProvider?: string
+  heading?: string
+  basePath?: string
 }) {
   const org = useOrg() as any
   const session = useLHSession() as any
@@ -193,12 +207,13 @@ export default function ResourcesClient({
     initialUserChannelUuid ? 'all' : initialChannelUuid || 'all'
   )
   const [activeUserChannel, setActiveUserChannel] = useState<string>(initialUserChannelUuid || '')
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(initialQuery || '')
   const [searchExpanded, setSearchExpanded] = useState(false)
-  const [resourceTypes, setResourceTypes] = useState<string[]>([])
+  const [resourceTypes, setResourceTypes] = useState<string[]>(() => (initialResourceTypes || '').split(',').filter(Boolean))
   const [selectedTags, setSelectedTags] = useState<string[]>([])
-  const [accessMode, setAccessMode] = useState('')
-  const [provider, setProvider] = useState('')
+  const [accessMode, setAccessMode] = useState(initialAccess || '')
+  const [provider, setProvider] = useState(initialProvider || '')
+  const initialTagsAppliedRef = useRef(false)
   const [newChannelModalOpen, setNewChannelModalOpen] = useState(false)
   const [editingChannel, setEditingChannel] = useState<UserResourceChannel | null>(null)
   const [channelActionsOpen, setChannelActionsOpen] = useState(false)
@@ -216,7 +231,7 @@ export default function ResourcesClient({
   const [canScrollChannelsLeft, setCanScrollChannelsLeft] = useState(false)
   const [canScrollChannelsRight, setCanScrollChannelsRight] = useState(false)
 
-  const { data: channelData, mutate: mutateChannels } = useSWR(
+  const { data: channelData, mutate: mutateChannels, isLoading: channelsLoading } = useSWR(
     orgId ? ['resource-channels', orgId, accessToken || 'anon'] : null,
     () => getResourceChannels(orgId, accessToken)
   )
@@ -241,7 +256,7 @@ export default function ResourcesClient({
     provider: provider || undefined,
   }), [activeChannel, activeUserChannel, search, resourceTypes, selectedTags, resourceTags, accessMode, provider])
 
-  const { data: resources = [] } = useSWR(
+  const { data: resources = [], isLoading: resourcesLoading } = useSWR(
     orgId ? ['resources', orgId, resourceParams, accessToken || 'anon'] : null,
     () => getResources(orgId, resourceParams, accessToken)
   )
@@ -268,7 +283,7 @@ export default function ResourcesClient({
     : activeChannelData
       ? activeChannelData.description || `${activeChannelData.resource_count} resources`
       : 'Browse across every accessible channel'
-  const resourcesUrl = getUriWithOrg(orgslug, routePaths.org.resources())
+  const resourcesUrl = getUriWithOrg(orgslug, basePath)
   const activeChannelUrl = activeUserChannelData
     ? `${resourcesUrl}?user_channel=${encodeURIComponent(activeUserChannelData.user_channel_uuid)}`
     : activeChannelData
@@ -522,6 +537,12 @@ export default function ResourcesClient({
       })),
     [resourceTags]
   )
+  useEffect(() => {
+    if (initialTagsAppliedRef.current || !initialTags || !resourceTags.length) return
+    const names = new Set(initialTags.split(',').map((item) => item.trim().toLocaleLowerCase()).filter(Boolean))
+    setSelectedTags(resourceTags.filter((tag) => names.has(tag.name.toLocaleLowerCase())).map((tag) => tag.tag_uuid))
+    initialTagsAppliedRef.current = true
+  }, [initialTags, resourceTags])
   const activeFilterChips = useMemo(() => {
     const chips: Array<{ key: string; label: string; onRemove: () => void }> = []
 
@@ -588,7 +609,10 @@ export default function ResourcesClient({
         <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-card nice-shadow">
           <Layers size={16} className="text-foreground" />
         </div>
-        <h1 className="text-xl font-bold text-foreground tracking-tight">Resources</h1>
+        <div>
+          <h1 className="text-xl font-bold text-foreground tracking-tight">{heading}</h1>
+          {heading === 'Hub' && <p className="mt-0.5 text-sm text-muted-foreground">Find resources, browse channels, and return to what you saved.</p>}
+        </div>
       </div>
 
       {/* Active channel */}
@@ -749,7 +773,7 @@ export default function ResourcesClient({
       <div className="mt-4 flex items-center gap-2 overflow-hidden rounded-2xl border border-border bg-card px-2 py-2">
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="outline" size="icon" className="h-10 w-10 shrink-0 rounded-xl border-border">
+            <Button variant="outline" size="icon" className="h-10 w-10 shrink-0 rounded-xl border-border" aria-label="Filter resources">
               <Filter size={16} />
             </Button>
           </PopoverTrigger>
@@ -864,11 +888,16 @@ export default function ResourcesClient({
       </div>
 
       {/* Resources list */}
-      <div className="mt-4 flex flex-col gap-3">
+      <div className="mt-4 flex flex-col gap-3" aria-live="polite" aria-busy={resourcesLoading}>
+        {resourcesLoading && (
+          <div className="rounded-2xl border border-border bg-muted p-10 text-center text-muted-foreground" role="status">
+            Loading resources…
+          </div>
+        )}
         {resources.map((resource) => (
           <ResourceCard key={resource.resource_uuid} resource={resource} orgslug={orgslug} orgUUID={orgUUID} />
         ))}
-        {resources.length === 0 && (
+        {!resourcesLoading && resources.length === 0 && (
           <div className="rounded-2xl border border-dashed border-border bg-muted p-10 text-center text-muted-foreground">
             No resources match this view yet.
           </div>
@@ -916,7 +945,7 @@ export default function ResourcesClient({
                       }}
                     />
                   ))}
-                  {userChannels.length === 0 && (
+                  {!channelsLoading && userChannels.length === 0 && (
                     <p className="py-1 text-sm text-muted-foreground">No channels yet</p>
                   )}
                 </div>

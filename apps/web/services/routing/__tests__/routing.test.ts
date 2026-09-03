@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { routePaths, withQuery } from '../paths.ts'
+import { hubFromLegacyResources, routePaths, withQuery } from '../paths.ts'
 import { resolveRequestRouting, type RequestInstanceInfo } from '../requestPolicy.ts'
 import { classifyRoute } from '../routeAccess.ts'
 import { buildPublicRequestUrl } from '../context.ts'
@@ -22,6 +22,14 @@ test('withQuery omits empty values and encodes query params', () => {
     }),
     '/signup?mode=create-org&next=%2Fadmin%2Fbadges'
   )
+})
+
+test('legacy resource links retain their discovery intent in Hub', () => {
+  assert.equal(
+    hubFromLegacyResources({ channel: 'shared channel', q: 'career planning', tag: ['one', 'two'] }),
+    '/hub?channel=shared+channel&q=career+planning&tag=one&tag=two'
+  )
+  assert.equal(hubFromLegacyResources({}), '/hub')
 })
 
 test('route manifest builds key dashboard and owner routes', () => {
@@ -50,6 +58,7 @@ test('route manifest builds auth, account, and public org paths used by navigati
   assert.equal(routePaths.owner.account.messages(), '/account/messages')
   assert.equal(routePaths.owner.account.organizations(), '/account/organizations')
   assert.equal(routePaths.owner.account.badges(), '/account/badges')
+  assert.equal(routePaths.org.hub(), '/hub')
   assert.equal(routePaths.org.portfolio(), '/portfolio')
   assert.equal(routePaths.org.portfolioEdit(), '/portfolio/edit')
   assert.equal(routePaths.org.portfolioResume(), '/portfolio/resume')
@@ -76,6 +85,7 @@ test('route manifest builds auth, account, and public org paths used by navigati
 
 test('navigation manifest smoke test keeps representative routes absolute and unique', () => {
   const navigationRoutes = [
+    routePaths.org.hub(),
     routePaths.org.portfolio(),
     routePaths.org.news(),
     routePaths.owner.account.root(),
@@ -104,7 +114,7 @@ test('legacy course and collection route helpers are absent', () => {
   assert.equal('courseSettings' in routePaths.org.dash, false)
 })
 
-test('request policy redirects authenticated org root to portfolio', () => {
+test('request policy redirects authenticated org root to hub', () => {
   const decision = resolveRequestRouting({
     requestUrl: 'https://acme.launchlms.test/',
     pathname: '/',
@@ -117,7 +127,7 @@ test('request policy redirects authenticated org root to portfolio', () => {
   })
 
   assert.equal(decision.action, 'redirect')
-  assert.equal(decision.destination, 'https://acme.launchlms.test/portfolio')
+  assert.equal(decision.destination, 'https://acme.launchlms.test/hub')
 })
 
 test('request policy rewrites nested account tabs to the current organization', () => {
@@ -267,7 +277,7 @@ test('request policy keeps auth query params when rewriting create-org signup fl
   assert.equal(decision.destination, '/auth/signup?mode=create-org')
 })
 
-test('request policy redirects authenticated login and signup pages to portfolio', () => {
+test('request policy redirects authenticated login and signup pages to hub', () => {
   const loginDecision = resolveRequestRouting({
     requestUrl: 'https://acme.launchlms.test/login',
     pathname: '/login',
@@ -290,9 +300,9 @@ test('request policy redirects authenticated login and signup pages to portfolio
   })
 
   assert.equal(loginDecision.action, 'redirect')
-  assert.equal(loginDecision.destination, 'https://acme.launchlms.test/portfolio')
+  assert.equal(loginDecision.destination, 'https://acme.launchlms.test/hub')
   assert.equal(signupDecision.action, 'redirect')
-  assert.equal(signupDecision.destination, 'https://acme.launchlms.test/portfolio')
+  assert.equal(signupDecision.destination, 'https://acme.launchlms.test/hub')
 })
 
 test('request policy redirects unauthenticated protected paths to root landing', () => {

@@ -2,13 +2,14 @@ import React from 'react'
 import {
   User,
   SealCheck,
-  FolderOpen,
   Newspaper,
   ClipboardText,
+  House,
 } from '@phosphor-icons/react'
 import { getCoreCapabilities } from '@services/config/config'
 
 export const KNOWN_SUBPATHS = [
+  '/hub',
   '/badges',
   '/plans',
   '/badge',
@@ -48,18 +49,25 @@ export function getPrimaryOrgMenuItems({
 }): OrgMenuNavItem[] {
   const capabilities = getCoreCapabilities()
   const isHome = !KNOWN_SUBPATHS.some((subpath) => pathname?.includes(subpath))
+  const isOnHub = pathname?.includes('/hub')
   const isOnPortfolio = pathname?.includes('/portfolio')
   const isOnBadges = !isOnPortfolio && pathname?.includes('/badges')
   const isOnPlans = pathname?.includes('/plans')
-  const isOnResources = pathname?.includes('/resources') || pathname?.includes('/resource/')
   const isOnNews = pathname?.includes('/news')
 
   return [
     {
+      href: '/hub',
+      label: 'Hub',
+      icon: <House size={18} weight="fill" />,
+      active: Boolean(isOnHub || isHome),
+      show: true,
+    },
+    {
       href: '/portfolio',
       label: 'Portfolio',
       icon: <User size={18} weight="fill" />,
-      active: Boolean(isOnPortfolio || isHome),
+      active: Boolean(isOnPortfolio),
       show: true,
     },
     {
@@ -76,14 +84,6 @@ export function getPrimaryOrgMenuItems({
       icon: <ClipboardText size={18} weight="fill" />,
       active: Boolean(isOnPlans),
       show: true,
-    },
-    {
-      href: '/resources',
-      label: 'Resources',
-      icon: <FolderOpen size={18} weight="fill" />,
-      active: Boolean(isOnResources),
-      show: isFeatureEnabled(resolvedFeatures, 'resources'),
-      onboardingFeature: 'resources',
     },
     {
       href: '/news',

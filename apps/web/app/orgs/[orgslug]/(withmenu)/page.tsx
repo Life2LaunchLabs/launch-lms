@@ -28,7 +28,7 @@ const OrgHomePage = async ({ params }: PageProps) => {
   const session = await getServerSession()
 
   if (session) {
-    redirect(getUriWithOrg(orgslug, routePaths.org.portfolio()))
+    redirect(getUriWithOrg(orgslug, routePaths.org.hub()))
   }
 
   const signupHref = getUriWithOrg(orgslug, routePaths.auth.signup())

@@ -21,6 +21,18 @@ export function withQuery(
   return query ? `${path}?${query}` : path
 }
 
+export function hubFromLegacyResources(
+  params: Record<string, string | string[] | undefined>
+): string {
+  const search = new URLSearchParams()
+  Object.entries(params).forEach(([key, value]) => {
+    if (Array.isArray(value)) value.forEach((item) => search.append(key, item))
+    else if (value !== undefined) search.set(key, value)
+  })
+  const query = search.toString()
+  return query ? `/hub?${query}` : '/hub'
+}
+
 export const routePaths = {
   auth: {
     login: (params?: { next?: string; redirect?: string }) =>
@@ -62,6 +74,7 @@ export const routePaths = {
   },
   org: {
     root: () => '/',
+    hub: () => '/hub',
     portfolio: () => '/portfolio',
     portfolioProjects: () => '/portfolio/projects',
     portfolioProjectsNew: () => '/portfolio/projects/new',

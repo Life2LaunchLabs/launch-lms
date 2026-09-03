@@ -6,6 +6,7 @@ from src.routers import (
     code_execution,
     dev,
     health,
+    hub,
     instance,
     media,
     messages,
@@ -87,6 +88,12 @@ v1_router.include_router(
     dependencies=[Depends(get_non_api_token_user)],
 )
 v1_router.include_router(auth.router, prefix="/auth", tags=["auth"])
+v1_router.include_router(
+    hub.router,
+    prefix="/hub",
+    tags=["hub"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
 v1_router.include_router(
     orgs.router,
     prefix="/orgs",
