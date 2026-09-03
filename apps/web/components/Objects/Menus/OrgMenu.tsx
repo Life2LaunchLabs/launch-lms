@@ -6,7 +6,6 @@ import { getUriWithOrg, routePaths } from '@services/config/config'
 import { getOrgLogoMediaDirectory } from '@services/media/media'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
-import { SearchBar } from '@components/Objects/Search/SearchBar'
 import { usePathname } from 'next/navigation'
 import { useTranslation } from 'react-i18next'
 import { Buildings, CaretDown, Envelope, Question, SidebarSimple, SignOut, Sun, User } from '@phosphor-icons/react'
@@ -192,27 +191,6 @@ export const OrgMenu = (props: { orgslug: string }) => {
                 </button>
               ) : null}
             </div>
-
-            {isDesktopNavExpanded ? (
-              <div className="mt-4 flex h-9 items-center">
-                <SearchBar orgslug={orgslug} className="w-full" />
-              </div>
-            ) : (
-              <div className="mt-4 flex h-9 items-center justify-center">
-                <TooltipProvider delayDuration={0}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div>
-                        <SearchBar orgslug={orgslug} isRail />
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent side="right" className="text-xs">
-                      {t('search.search_placeholder')}
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
-            )}
 
             <div className="mt-6 flex min-h-0 flex-1 flex-col justify-center">
               <nav className={cn('flex flex-col gap-1', isDesktopNavExpanded ? 'items-stretch' : 'items-center')}>

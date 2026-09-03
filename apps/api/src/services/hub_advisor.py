@@ -37,7 +37,24 @@ class AdvisorUnavailable(AdvisorError):
 
 
 class AdvisorProviderLimited(AdvisorError):
-    pass
+    def __init__(self, message: str, retry_after: int = 30):
+        super().__init__(message)
+        self.retry_after = retry_after
+
+
+def _retry_after_seconds(response: httpx.Response) -> int:
+    try:
+        return max(1, min(int(float(response.headers.get("retry-after", "30"))), 3600))
+    except (TypeError, ValueError):
+        return 30
+
+
+def _provider_error_code(response: httpx.Response) -> str:
+    try:
+        error = response.json().get("error") or {}
+    except ValueError:
+        return ""
+    return str(error.get("code") or error.get("type") or "").lower()
 
 
 @dataclass(frozen=True)
@@ -65,12 +82,14 @@ class OpenAIResponsesProvider:
         model: str = DEFAULT_MODEL,
         client: httpx.AsyncClient | None = None,
         instructions: str = DEFAULT_HUB_ADVISOR_INSTRUCTIONS,
+        advanced: dict | None = None,
     ):
         if not api_key.strip():
             raise AdvisorUnavailable("Hub Ask is not configured yet.")
         self.api_key = api_key.strip()
         self.model = model.strip() or DEFAULT_MODEL
         self.instructions = instructions.strip()
+        self.advanced = advanced or {}
         self.client = client
 
     async def respond(self, messages: list[AdvisorMessage], safety_identifier: str) -> AdvisorResult:
@@ -78,12 +97,16 @@ class OpenAIResponsesProvider:
             "model": self.model,
             "instructions": self.instructions,
             "input": [{"role": item.role, "content": item.content} for item in messages],
-            "max_output_tokens": MAX_OUTPUT_TOKENS,
+            "max_output_tokens": int(self.advanced.get("max_output_tokens", MAX_OUTPUT_TOKENS)),
             "store": False,
             "tools": [],
             "tool_choice": "none",
             "safety_identifier": safety_identifier,
         }
+        if self.advanced.get("reasoning_effort") not in (None, "default"):
+            payload["reasoning"] = {"effort": self.advanced["reasoning_effort"]}
+        if self.advanced.get("verbosity") not in (None, "default"):
+            payload["text"] = {"verbosity": self.advanced["verbosity"]}
         owned_client = self.client is None
         client = self.client or httpx.AsyncClient(timeout=30)
         try:
@@ -92,10 +115,32 @@ class OpenAIResponsesProvider:
                 headers={"Authorization": f"Bearer {self.api_key}"},
                 json=payload,
             )
-            if response.status_code == 429:
-                raise AdvisorProviderLimited("The advisor is busy. Try again shortly.")
             if response.status_code >= 400:
-                logger.warning("Hub advisor provider failure status=%s", response.status_code)
+                logger.warning(
+                    "Hub advisor provider failure provider=openai status=%s code=%s request_id=%s",
+                    response.status_code,
+                    _provider_error_code(response) or "unavailable",
+                    response.headers.get("x-request-id", "unavailable"),
+                )
+            if response.status_code == 429:
+                error_code = _provider_error_code(response)
+                if error_code in {"insufficient_quota", "billing_hard_limit_reached"}:
+                    raise AdvisorUnavailable(
+                        "OpenAI API quota is unavailable. Check API billing and project credits, then try again."
+                    )
+                raise AdvisorProviderLimited(
+                    "OpenAI is temporarily rate-limiting this API key. Try again shortly.",
+                    _retry_after_seconds(response),
+                )
+            if response.status_code == 401:
+                raise AdvisorUnavailable("OpenAI rejected the saved API key. Replace it in Platform Settings.")
+            if response.status_code == 403:
+                raise AdvisorUnavailable("This OpenAI API key cannot use the selected model.")
+            if response.status_code == 404:
+                raise AdvisorUnavailable("The selected OpenAI model is not available to this API key.")
+            if response.status_code == 400:
+                raise AdvisorUnavailable("OpenAI rejected the selected model or advanced configuration.")
+            if response.status_code >= 400:
                 raise AdvisorUnavailable("The advisor is temporarily unavailable.")
             data = response.json()
         except AdvisorError:
@@ -125,12 +170,101 @@ class OpenAIResponsesProvider:
         )
 
 
+class AnthropicMessagesProvider:
+    def __init__(
+        self,
+        api_key: str,
+        model: str,
+        client: httpx.AsyncClient | None = None,
+        instructions: str = DEFAULT_HUB_ADVISOR_INSTRUCTIONS,
+        advanced: dict | None = None,
+    ):
+        if not api_key.strip():
+            raise AdvisorUnavailable("Hub Ask is not configured yet.")
+        self.api_key = api_key.strip()
+        self.model = model.strip()
+        self.instructions = instructions.strip()
+        self.advanced = advanced or {}
+        self.client = client
+
+    async def respond(self, messages: list[AdvisorMessage], safety_identifier: str) -> AdvisorResult:
+        payload: dict = {
+            "model": self.model,
+            "system": self.instructions,
+            "messages": [{"role": item.role, "content": item.content} for item in messages],
+            "max_tokens": int(self.advanced.get("max_output_tokens", MAX_OUTPUT_TOKENS)),
+            "metadata": {"user_id": safety_identifier},
+        }
+        if self.advanced.get("thinking_effort") not in (None, "default"):
+            payload["thinking"] = {"type": "adaptive"}
+            payload["output_config"] = {"effort": self.advanced["thinking_effort"]}
+        owned_client = self.client is None
+        client = self.client or httpx.AsyncClient(timeout=30)
+        try:
+            response = await client.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={
+                    "x-api-key": self.api_key,
+                    "anthropic-version": "2023-06-01",
+                },
+                json=payload,
+            )
+            if response.status_code >= 400:
+                logger.warning(
+                    "Hub advisor provider failure provider=anthropic status=%s code=%s request_id=%s",
+                    response.status_code,
+                    _provider_error_code(response) or "unavailable",
+                    response.headers.get("request-id", "unavailable"),
+                )
+            if response.status_code == 429:
+                raise AdvisorProviderLimited(
+                    "Anthropic is temporarily rate-limiting this API key. Try again shortly.",
+                    _retry_after_seconds(response),
+                )
+            if response.status_code == 401:
+                raise AdvisorUnavailable("Anthropic rejected the saved API key. Replace it in Platform Settings.")
+            if response.status_code == 403:
+                raise AdvisorUnavailable("This Anthropic API key cannot use the selected model.")
+            if response.status_code == 404:
+                raise AdvisorUnavailable("The selected Anthropic model is not available to this API key.")
+            if response.status_code == 400:
+                raise AdvisorUnavailable("Anthropic rejected the selected model or advanced configuration.")
+            if response.status_code >= 400:
+                raise AdvisorUnavailable("The advisor is temporarily unavailable.")
+            data = response.json()
+        except AdvisorError:
+            raise
+        except (httpx.HTTPError, ValueError):
+            logger.exception("Hub advisor provider request failed")
+            raise AdvisorUnavailable("The advisor is temporarily unavailable.") from None
+        finally:
+            if owned_client:
+                await client.aclose()
+
+        text = "\n".join(
+            item.get("text", "").strip()
+            for item in data.get("content", [])
+            if item.get("type") == "text" and item.get("text", "").strip()
+        ).strip()
+        if not text:
+            raise AdvisorUnavailable("The advisor did not return a response. Please try again.")
+        usage = data.get("usage") or {}
+        return AdvisorResult(
+            text=text,
+            model=str(data.get("model") or self.model),
+            input_tokens=int(usage.get("input_tokens") or 0),
+            output_tokens=int(usage.get("output_tokens") or 0),
+        )
+
+
 def configured_advisor_provider(db_session: Session) -> AdvisorProvider:
     try:
-        api_key, model, instructions = get_enabled_hub_advisor_credentials(db_session)
+        provider, api_key, model, instructions, advanced = get_enabled_hub_advisor_credentials(db_session)
     except RuntimeError as error:
         raise AdvisorUnavailable(str(error)) from None
-    return OpenAIResponsesProvider(api_key, model, instructions=instructions)
+    if provider == "anthropic":
+        return AnthropicMessagesProvider(api_key, model, instructions=instructions, advanced=advanced)
+    return OpenAIResponsesProvider(api_key, model, instructions=instructions, advanced=advanced)
 
 
 def validate_conversation(messages: list[AdvisorMessage]) -> None:

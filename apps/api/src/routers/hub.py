@@ -48,7 +48,11 @@ async def create_hub_advice(
             db_session,
         )
     except AdvisorProviderLimited as error:
-        raise HTTPException(status_code=429, detail=str(error), headers={"Retry-After": "30"}) from None
+        raise HTTPException(
+            status_code=429,
+            detail=str(error),
+            headers={"Retry-After": str(error.retry_after)},
+        ) from None
     except AdvisorUnavailable as error:
         raise HTTPException(status_code=503, detail=str(error)) from None
     return HubAdvisorResponse(

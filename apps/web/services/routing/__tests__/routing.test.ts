@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { hubFromLegacyResources, routePaths, withQuery } from '../paths.ts'
+import { hubFromLegacyResources, hubFromLegacySearch, routePaths, withQuery } from '../paths.ts'
 import { resolveRequestRouting, type RequestInstanceInfo } from '../requestPolicy.ts'
 import { classifyRoute } from '../routeAccess.ts'
 import { buildPublicRequestUrl } from '../context.ts'
@@ -30,6 +30,14 @@ test('legacy resource links retain their discovery intent in Hub', () => {
     '/hub?channel=shared+channel&q=career+planning&tag=one&tag=two'
   )
   assert.equal(hubFromLegacyResources({}), '/hub')
+})
+
+test('legacy search links retain query and result type in Hub', () => {
+  assert.equal(
+    hubFromLegacySearch({ q: 'career planning', type: 'resources' }),
+    '/hub?q=career+planning&type=resources'
+  )
+  assert.equal(hubFromLegacySearch({}), '/hub')
 })
 
 test('route manifest builds key dashboard and owner routes', () => {
@@ -69,7 +77,7 @@ test('route manifest builds auth, account, and public org paths used by navigati
   assert.equal(routePaths.org.user('jane'), '/user/jane')
   assert.equal(routePaths.org.userResume('jane'), '/user/jane/resume')
   assert.equal(routePaths.org.userTimeline('jane'), '/user/jane/timeline')
-  assert.equal(routePaths.org.search('ai prompts'), '/search?q=ai+prompts')
+  assert.equal(routePaths.org.search('ai prompts'), '/hub?q=ai+prompts')
   assert.equal(routePaths.org.badges(), '/badges')
   assert.equal(routePaths.org.myBadges(), '/badges/my-badges')
   assert.equal(routePaths.org.programs(), '/programs')
@@ -92,7 +100,6 @@ test('navigation manifest smoke test keeps representative routes absolute and un
     routePaths.owner.account.messages(),
     routePaths.org.root(),
     routePaths.org.badges(),
-    routePaths.org.search(),
     routePaths.org.dash.root(),
     routePaths.org.dash.badges(),
     routePaths.org.dash.users.users(),

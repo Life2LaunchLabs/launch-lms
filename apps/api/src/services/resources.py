@@ -564,6 +564,8 @@ async def list_resources(
     saved_only: bool = False,
     completed_only: bool = False,
     include_private: bool = False,
+    offset: int = 0,
+    limit: int | None = None,
 ) -> list[dict]:
     _get_org_or_404(org_id, db_session)
     statement = select(Resource)
@@ -663,6 +665,10 @@ async def list_resources(
                 continue
             filtered.append(resource)
         resources = filtered
+    if offset:
+        resources = resources[offset:]
+    if limit is not None:
+        resources = resources[:limit]
     return [_serialize_resource(resource, db_session, current_user, org_id) for resource in resources]
 
 

@@ -33,6 +33,18 @@ export function hubFromLegacyResources(
   return query ? `/hub?${query}` : '/hub'
 }
 
+export function hubFromLegacySearch(
+  params: Record<string, string | string[] | undefined>
+): string {
+  const search = new URLSearchParams()
+  Object.entries(params).forEach(([key, value]) => {
+    if (Array.isArray(value)) value.forEach((item) => search.append(key, item))
+    else if (value !== undefined) search.set(key, value)
+  })
+  const query = search.toString()
+  return query ? `/hub?${query}` : '/hub'
+}
+
 export const routePaths = {
   auth: {
     login: (params?: { next?: string; redirect?: string }) =>
@@ -92,7 +104,7 @@ export const routePaths = {
     badgesVerify: (uuid: string) => `/badges/${uuid}/verify`,
     organizations: () => '/organizations',
     organization: (orgSlug: string) => `/organization/${orgSlug}`,
-    search: (query?: string) => withQuery('/search', { q: query }),
+    search: (query?: string) => withQuery('/hub', { q: query }),
     boards: () => '/boards',
     communities: () => '/communities',
     resources: () => '/resources',

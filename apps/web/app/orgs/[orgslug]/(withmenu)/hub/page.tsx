@@ -19,6 +19,7 @@ export default async function HubPage({
     user_channel?: string
     query?: string
     q?: string
+    type?: string
     resource_types?: string
     tags?: string
     access?: string

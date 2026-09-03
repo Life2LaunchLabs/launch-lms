@@ -13,6 +13,7 @@ from src.db.user_organizations import UserOrganization
 from src.db.users import AnonymousUser, APITokenUser, PublicUser, User, UserRead
 from src.security.org_auth import is_org_member
 from src.services.orgs.orgs import _build_discover_org_read
+from src.services.resources import _channel_is_accessible, list_resources
 from src.services.shared_content import owner_org_payload
 
 T = TypeVar('T')
@@ -24,6 +25,7 @@ class SearchResult(BaseModel):
     badge_collections: list[BadgeCollectionRead]
     communities: list[CommunityRead]
     organizations: list[OrganizationDiscoverRead]
+    resources: list[dict]
     resource_channels: list[ResourceChannelRead]
     users: list[UserRead]
 
@@ -65,7 +67,7 @@ async def search_across_org(
     org = db_session.exec(org_statement).first()
 
     if not org:
-        return SearchResult(badges=[], badge_collections=[], communities=[], organizations=[], resource_channels=[], users=[])
+        return SearchResult(badges=[], badge_collections=[], communities=[], organizations=[], resources=[], resource_channels=[], users=[])
 
     # API Token validation: verify token belongs to this organization
     if isinstance(current_user, APITokenUser):
@@ -194,7 +196,12 @@ async def search_across_org(
                 Community.shared == sa_true(),
             )
         )
-        raw_channels = db_session.exec(resource_channels_query.offset(offset).limit(limit)).all()
+        candidate_channels = db_session.exec(resource_channels_query).all()
+        raw_channels = [
+            channel
+            for channel in candidate_channels
+            if _channel_is_accessible(channel, db_session, current_user)
+        ][offset:offset + limit]
         channel_org_ids = list({c.org_id for c in raw_channels})
         channel_owner_orgs: dict[int, Organization] = {}
         if channel_org_ids:
@@ -277,6 +284,15 @@ async def search_across_org(
     communities = db_session.exec(communities_query.offset(offset).limit(limit)).all()
 
     badges = db_session.exec(badges_query.offset(offset).limit(limit)).all()
+    resources = await list_resources(
+        request,
+        org.id,
+        current_user,
+        db_session,
+        query=search_query,
+        offset=offset,
+        limit=limit,
+    )
     collection_reads = [
         BadgeCollectionRead(**collection.model_dump(), badges=[
             LearningBadgeRead.model_validate(badge)
@@ -301,6 +317,7 @@ async def search_across_org(
         badge_collections=collection_reads,
         communities=community_reads,
         organizations=organizations,
+        resources=resources,
         resource_channels=resource_channels,
         users=user_reads
     )

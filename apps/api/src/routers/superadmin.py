@@ -1,4 +1,5 @@
 import logging
+from typing import Literal
 
 from fastapi import APIRouter, Depends, Request, status
 from sqlmodel import Session
@@ -87,6 +88,14 @@ async def update_hub_advisor_configuration(
     return hub_configuration.update_hub_advisor_configuration(
         db_session, current_user, payload
     )
+
+
+@router.get("/settings/hub-advisor/models")
+async def list_hub_advisor_models(
+    provider: Literal["openai", "anthropic"],
+    db_session: Session = Depends(get_db_session),
+):
+    return await hub_configuration.list_hub_advisor_models(db_session, provider)
 
 
 @router.get("/roles")
