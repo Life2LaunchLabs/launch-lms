@@ -22,6 +22,7 @@ from src.db.programs import (
     ProgramObjective,
     ProgramPhase,
     ProgramPhaseCreate,
+    ProgramPhaseUpdate,
     ProgramPhaseOrder,
     ProgramReorder,
     ProgramParticipant,
@@ -60,6 +61,7 @@ from src.services.programs import (
     update_progress,
     update_program_objective_schedule,
     update_program_objective,
+    update_program_phase,
 )
 
 
@@ -631,6 +633,71 @@ def test_objectives_inherit_phase_targets_without_materializing_override_dates()
         rule = result["schedule"]["objectives"][0]
         assert rule["due_rule"] == "phase_end"
         assert rule["effective_due_date"] is None
+
+
+def test_objective_suggested_due_week_is_bounded_clipped_and_scheduled():
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    _tables(engine)
+    with Session(engine) as session:
+        admin = _setup(session)
+        program = create_program(session, admin, ProgramCreate(org_id=1, name="Creative Futures"))
+        phase = program["phases"][0]
+        program = update_program_phase(
+            session,
+            admin,
+            1,
+            program["program_uuid"],
+            phase["phase_uuid"],
+            ProgramPhaseUpdate(suggested_duration_weeks=6),
+        )
+        program = add_program_objective(
+            session,
+            admin,
+            1,
+            program["program_uuid"],
+            ObjectiveCreate(title="Showcase", suggested_due_week=5),
+        )
+        assert program["objectives"][0]["suggested_due_week"] == 5
+
+        with pytest.raises(HTTPException) as invalid:
+            add_program_objective(
+                session,
+                admin,
+                1,
+                program["program_uuid"],
+                ObjectiveCreate(title="Too late", suggested_due_week=7),
+            )
+        assert invalid.value.status_code == 422
+
+        program = update_program_phase(
+            session,
+            admin,
+            1,
+            program["program_uuid"],
+            phase["phase_uuid"],
+            ProgramPhaseUpdate(suggested_duration_weeks=3),
+        )
+        assert program["objectives"][0]["suggested_due_week"] == 3
+
+        result = assign_program(
+            session,
+            admin,
+            1,
+            program["program_uuid"],
+            ProgramAssignmentCreate(
+                usergroup_id=1,
+                staff_user_ids=[1],
+                schedule={"phases": [{
+                    "phase_uuid": phase["phase_uuid"],
+                    "start_date": "2026-10-01",
+                    "end_date": "2026-10-21",
+                }]},
+            ),
+        )
+        rule = result["schedule"]["objectives"][0]
+        assert rule["due_rule"] == "specific_date"
+        assert rule["due_date"] == "2026-10-21"
+        assert rule["effective_due_date"] == "2026-10-21"
 
 
 def test_objective_details_fields_and_timing_can_be_edited_together():

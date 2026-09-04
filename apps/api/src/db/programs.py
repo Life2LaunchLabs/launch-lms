@@ -92,10 +92,11 @@ class ProgramObjective(SQLModel, table=True):
     objective_id: int = Field(sa_column=Column(Integer, ForeignKey("objective.id", ondelete="CASCADE"), index=True))
     position: int = 0
     target_days: int | None = None
+    suggested_due_week: int | None = None
     badge_major_version: int | None = None
     accept_previous_major_versions: bool = False
     default_start_rule: ObjectiveStartRule = Field(default=ObjectiveStartRule.ANY_TIME, sa_column=Column(String, nullable=False))
-    default_due_rule: ObjectiveDueRule = Field(default=ObjectiveDueRule.OPTIONAL, sa_column=Column(String, nullable=False))
+    default_due_rule: ObjectiveDueRule = Field(default=ObjectiveDueRule.PHASE_END, sa_column=Column(String, nullable=False))
     default_allow_late: bool = False
     creation_date: str = ""
     update_date: str = ""
@@ -220,10 +221,11 @@ class ObjectiveCreate(SQLModel):
     custom_fields: list[dict] = Field(default_factory=list)
     badge_uuid: str | None = None
     target_days: int | None = None
+    suggested_due_week: int | None = None
     phase_uuid: str | None = None
     allow_learner_confirmation: bool = False
     default_start_rule: ObjectiveStartRule = ObjectiveStartRule.ANY_TIME
-    default_due_rule: ObjectiveDueRule = ObjectiveDueRule.OPTIONAL
+    default_due_rule: ObjectiveDueRule = ObjectiveDueRule.PHASE_END
     default_allow_late: bool = False
     requirement_node_uuids: list[str] = Field(default_factory=list)
 
@@ -232,6 +234,7 @@ class ProgramObjectiveScheduleUpdate(SQLModel):
     default_start_rule: ObjectiveStartRule
     default_due_rule: ObjectiveDueRule
     default_allow_late: bool = False
+    suggested_due_week: int | None = None
 
 
 class ProgramObjectiveUpdate(ProgramObjectiveScheduleUpdate):

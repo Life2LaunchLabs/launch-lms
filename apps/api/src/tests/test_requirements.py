@@ -60,9 +60,12 @@ def _session() -> tuple[Session, PublicUser]:
 
 def _framework(db: Session, admin: PublicUser) -> dict:
     created = requirements.create_framework(db, admin, RequirementFrameworkCreate(
-        org_id=1, name="Career readiness", nodes=[
-            RequirementNodeInput(node_uuid="node_career", code="B", title="Career exploration"),
-            RequirementNodeInput(node_uuid="node_experience", parent_node_uuid="node_career", code="B.3", title="Career experience"),
+        org_id=1, name="Career readiness", source_metadata={"requirement_levels": [
+            {"level_uuid": "level_domain", "name": "Domain", "code_style": "upper_alpha", "metadata_fields": []},
+            {"level_uuid": "level_requirement", "name": "Requirement", "code_style": "decimal", "metadata_fields": [{"field_uuid": "field_due", "name": "Review date", "type": "date", "required": False}]},
+        ]}, nodes=[
+            RequirementNodeInput(node_uuid="node_career", code="manual", title="Career exploration"),
+            RequirementNodeInput(node_uuid="node_experience", parent_node_uuid="node_career", code="manual", title="Career experience"),
         ],
     ))
     return requirements.publish_framework(db, admin, 1, created["framework_uuid"])
@@ -76,6 +79,9 @@ def test_framework_assignment_snapshots_leaf_requirements_and_syncs_group_member
         assert assigned["enrollment_count"] == 1
         enrollment = db.exec(select(RequirementEnrollment)).one()
         assert enrollment.framework_snapshot["leaf_node_uuids"] == ["node_experience"]
+        assert enrollment.framework_snapshot["source_metadata"]["requirement_levels"][1]["name"] == "Requirement"
+        assert enrollment.framework_snapshot["source_metadata"]["requirement_levels"][1]["code_style"] == "decimal"
+        assert [node["code"] for node in enrollment.framework_snapshot["nodes"]] == ["A", "A.1"]
         report = requirements.report(db, admin, 1, framework["framework_uuid"])
         assert report["learner_count"] == 1
         assert report["rows"][0]["total"] == 1
@@ -120,3 +126,44 @@ def test_verified_mapped_objective_satisfies_requirement_and_protects_completed_
         assert migrated["updated"] == 0
         enrollment = db.exec(select(RequirementEnrollment)).one()
         assert enrollment.framework_snapshot["version"] == 1
+
+
+def test_level_code_styles_generate_hierarchical_codes_and_preserve_published_versions():
+    db, admin = _session()
+    with db:
+        created = requirements.create_framework(db, admin, RequirementFrameworkCreate(
+            org_id=1,
+            name="Graduation requirements",
+            source_metadata={"requirement_levels": [
+                {"level_uuid": "domain", "name": "Domain", "code_style": "upper_alpha", "metadata_fields": []},
+                {"level_uuid": "strand", "name": "Strand", "code_style": "decimal", "metadata_fields": []},
+                {"level_uuid": "requirement", "name": "Requirement", "code_style": "lower_roman", "metadata_fields": []},
+            ]},
+            nodes=[
+                RequirementNodeInput(node_uuid="root_one", code="ignored", title="First domain", position=0),
+                RequirementNodeInput(node_uuid="child_one", parent_node_uuid="root_one", code="ignored", title="First strand", position=0),
+                RequirementNodeInput(node_uuid="leaf_one", parent_node_uuid="child_one", code="ignored", title="First requirement", position=0),
+                RequirementNodeInput(node_uuid="leaf_two", parent_node_uuid="child_one", code="ignored", title="Second requirement", position=1),
+                RequirementNodeInput(node_uuid="root_two", code="ignored", title="Second domain", position=1),
+            ],
+        ))
+        assert {node["node_uuid"]: node["code"] for node in created["nodes"]} == {
+            "root_one": "A",
+            "child_one": "A.1",
+            "leaf_one": "A.1.i",
+            "leaf_two": "A.1.ii",
+            "root_two": "B",
+        }
+        published = requirements.publish_framework(db, admin, 1, created["framework_uuid"])
+        updated = requirements.update_framework(db, admin, 1, created["framework_uuid"], RequirementFrameworkUpdate(
+            source_metadata={"requirement_levels": [
+                {"level_uuid": "domain", "name": "Domain", "code_style": "lower_alpha", "metadata_fields": []},
+                {"level_uuid": "strand", "name": "Strand", "code_style": "upper_roman", "metadata_fields": []},
+                {"level_uuid": "requirement", "name": "Requirement", "code_style": "decimal", "metadata_fields": []},
+            ]},
+        ))
+        assert published["version"] == 1
+        assert updated["version"] == 2
+        assert {node["node_uuid"]: node["code"] for node in updated["nodes"]}["leaf_two"] == "a.I.2"
+        original = requirements.get_framework(db, admin, 1, created["framework_uuid"], version=1)
+        assert {node["node_uuid"]: node["code"] for node in original["nodes"]}["leaf_two"] == "A.1.ii"

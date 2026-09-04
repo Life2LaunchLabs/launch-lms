@@ -45,6 +45,7 @@ test('route manifest builds key dashboard and owner routes', () => {
   assert.equal(routePaths.org.dash.badges(), '/admin/badges')
   assert.equal(routePaths.org.dash.planAssignments(), '/admin/plans/assignments')
   assert.equal(routePaths.org.dash.planRequirements(), '/admin/plans/requirements')
+  assert.equal(routePaths.org.dash.planRequirement('framework 1', 'levels'), '/admin/plans/requirements/framework%201/levels')
   assert.equal(routePaths.org.dash.planReporting(), '/admin/plans/reporting')
   assert.equal(routePaths.org.dash.planAssignment('assignment_1'), '/admin/plans/assignments/assignment_1/overview')
   assert.equal(routePaths.org.dash.livePlan('plan_1'), '/admin/plans/live/plan_1')

@@ -149,6 +149,11 @@ function isBeforeToday(value?: string) {
   return new Date(`${dateValue(value)}T00:00:00`).getTime() < today.getTime()
 }
 
+function byDueDate(left: any, right: any) {
+  const dateOrder = dateValue(left.due_date).localeCompare(dateValue(right.due_date))
+  return dateOrder || Number(left.position || 0) - Number(right.position || 0)
+}
+
 function PlanEditor({ detail, orgslug, token, viewerUserId, refresh, color, selectedObjectiveUuid, setSelectedObjectiveUuid }: any) {
   const canEdit = detail.capabilities.includes('edit_structure')
   const canSchedule = detail.capabilities.includes('edit_schedule')
@@ -219,7 +224,7 @@ function PlanEditor({ detail, orgslug, token, viewerUserId, refresh, color, sele
   const renderSection = (title: string, phase: any, objectives: any[], subtitle?: string, accent = false) => {
     const isVirtualSection = phase?.phase_uuid === 'right-now' || phase?.phase_uuid === 'completed'
     const addPhaseUuid = isVirtualSection ? (currentPhases[0]?.phase_uuid || phases[0]?.phase_uuid || null) : (phase?.phase_uuid || null)
-    const dated = objectives.filter((objective: any) => objective.due_date)
+    const dated = objectives.filter((objective: any) => objective.due_date).sort(byDueDate)
     const unscheduled = objectives.filter((objective: any) => !objective.due_date)
     const phaseKey = phase?.phase_uuid || 'none'
     const objectiveItem = (objective: any) => ({ ...objective, plan: { plan_uuid: detail.plan_uuid, slug: detail.slug, name: detail.name }, subject: detail.subject, is_mine: detail.is_mine })

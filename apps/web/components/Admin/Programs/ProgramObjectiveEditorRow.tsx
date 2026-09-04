@@ -25,6 +25,7 @@ export default function ProgramObjectiveEditorRow({ objective, orgId, token, pro
         allow_learner_confirmation: !draft.completion_restricted,
         default_start_rule: 'phase_start', default_due_rule: 'phase_end',
         default_allow_late: Boolean(draft.default_allow_late),
+        suggested_due_week: draft.suggested_due_week ?? null,
       }, token)
       await refresh(); toast.success('Objective updated.')
     } catch (error: any) { toast.error(error?.message || 'Could not update the objective.') } finally { setSaving(false) }

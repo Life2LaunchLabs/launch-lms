@@ -180,6 +180,7 @@ def _objective_dict(objective: Objective, relation: ProgramObjective | None = No
         result.update({
             "position": relation.position,
             "target_days": relation.target_days,
+            "suggested_due_week": relation.suggested_due_week,
             "badge_major_version": relation.badge_major_version,
             "accept_previous_major_versions": relation.accept_previous_major_versions,
             "phase_id": relation.phase_id,
@@ -512,6 +513,16 @@ def add_program_objective(
 ) -> dict:
     require_org_admin(current_user.id, org_id, db)
     program = _program_or_404(db, program_uuid, org_id)
+    if payload.phase_uuid:
+        phase = db.exec(select(ProgramPhase).where(
+            ProgramPhase.phase_uuid == payload.phase_uuid,
+            ProgramPhase.program_id == program.id,
+        )).first()
+        if not phase:
+            raise HTTPException(status_code=404, detail="Program phase not found")
+    else:
+        phase = _ensure_default_phase(db, program)
+    suggested_due_week = _validated_suggested_due_week(payload.suggested_due_week, phase)
     objective: Objective | None = None
     badge_major: int | None = None
     if payload.objective_uuid:
@@ -577,16 +588,6 @@ def add_program_objective(
     ).first()
     if existing:
         raise HTTPException(status_code=409, detail="Objective is already in this program")
-    phase = None
-    if payload.phase_uuid:
-        phase = db.exec(select(ProgramPhase).where(
-            ProgramPhase.phase_uuid == payload.phase_uuid,
-            ProgramPhase.program_id == program.id,
-        )).first()
-        if not phase:
-            raise HTTPException(status_code=404, detail="Program phase not found")
-    else:
-        phase = _ensure_default_phase(db, program)
     position = len(db.exec(select(ProgramObjective).where(
         ProgramObjective.program_id == program.id,
         ProgramObjective.phase_id == phase.id,
@@ -600,6 +601,7 @@ def add_program_objective(
         objective_id=objective.id,
         position=position,
         target_days=payload.target_days,
+        suggested_due_week=suggested_due_week,
         badge_major_version=badge_major,
         default_start_rule=payload.default_start_rule,
         default_due_rule=payload.default_due_rule,
@@ -640,9 +642,12 @@ def update_program_objective_schedule(
     ).first()
     if not relation:
         raise HTTPException(status_code=404, detail="Program objective not found")
+    phase = db.get(ProgramPhase, relation.phase_id) if relation.phase_id else None
     relation.default_start_rule = payload.default_start_rule
     relation.default_due_rule = payload.default_due_rule
     relation.default_allow_late = payload.default_allow_late
+    if "suggested_due_week" in payload.model_fields_set:
+        relation.suggested_due_week = _validated_suggested_due_week(payload.suggested_due_week, phase)
     now = _now_string()
     relation.update_date = now
     program.version += 1
@@ -674,6 +679,7 @@ def update_program_objective(
     if not row:
         raise HTTPException(status_code=404, detail="Program objective not found")
     relation, objective = row
+    phase = db.get(ProgramPhase, relation.phase_id) if relation.phase_id else None
     title = payload.title.strip()
     if not title:
         raise HTTPException(status_code=422, detail="Objective title is required")
@@ -692,6 +698,8 @@ def update_program_objective(
     relation.default_start_rule = payload.default_start_rule
     relation.default_due_rule = payload.default_due_rule
     relation.default_allow_late = payload.default_allow_late
+    if "suggested_due_week" in payload.model_fields_set:
+        relation.suggested_due_week = _validated_suggested_due_week(payload.suggested_due_week, phase)
     if payload.requirement_node_uuids is not None:
         from src.services.requirements import update_mappings
         update_mappings(db, current_user, org_id, relation, payload.requirement_node_uuids)
@@ -719,6 +727,24 @@ def _role_can_manage_programs(role: Role | None) -> bool:
     )
 
 
+def _validated_suggested_due_week(value: int | None, phase: ProgramPhase | None) -> int | None:
+    if value is None:
+        return None
+    if value < 1:
+        raise HTTPException(status_code=422, detail="Suggested objective due week must be at least 1")
+    if not phase or not phase.suggested_duration_weeks:
+        raise HTTPException(status_code=422, detail="Set the phase's suggested duration before choosing an objective due week")
+    if value > phase.suggested_duration_weeks:
+        raise HTTPException(status_code=422, detail="Suggested objective due week cannot exceed the phase duration")
+    return value
+
+
+def _validated_phase_duration(value: int | None) -> int | None:
+    if value is not None and value < 1:
+        raise HTTPException(status_code=422, detail="Suggested phase duration must be at least 1 week")
+    return value
+
+
 def create_program_phase(
     db: Session,
     current_user: PublicUser,
@@ -739,7 +765,7 @@ def create_program_phase(
         name=name,
         description=payload.description,
         target_days=payload.target_days,
-        suggested_duration_weeks=payload.suggested_duration_weeks,
+        suggested_duration_weeks=_validated_phase_duration(payload.suggested_duration_weeks),
         position=len(phases),
         creation_date=now,
         update_date=now,
@@ -774,8 +800,20 @@ def update_program_phase(
         changes["name"] = str(changes["name"] or "").strip()
         if not changes["name"]:
             raise HTTPException(status_code=422, detail="Phase name is required")
+    if "suggested_duration_weeks" in changes:
+        changes["suggested_duration_weeks"] = _validated_phase_duration(changes["suggested_duration_weeks"])
     for key, value in changes.items():
         setattr(phase, key, value)
+    if "suggested_duration_weeks" in changes:
+        relations = db.exec(select(ProgramObjective).where(ProgramObjective.phase_id == phase.id)).all()
+        for relation in relations:
+            if relation.suggested_due_week is None:
+                continue
+            relation.suggested_due_week = (
+                min(relation.suggested_due_week, phase.suggested_duration_weeks)
+                if phase.suggested_duration_weeks else None
+            )
+            db.add(relation)
     now = _now_string()
     phase.update_date = now
     program.version += 1
@@ -820,6 +858,11 @@ def reorder_program(
             relation = relation_by_uuid[objective_uuid]
             relation.phase_id = phase.id
             relation.position = objective_position
+            if relation.suggested_due_week is not None:
+                relation.suggested_due_week = (
+                    min(relation.suggested_due_week, phase.suggested_duration_weeks)
+                    if phase.suggested_duration_weeks else None
+                )
             relation.update_date = now
             db.add(relation)
     program.version += 1
@@ -911,10 +954,21 @@ def _validated_schedule(program: Program, phases: list[dict], payload: ProgramAs
         raise HTTPException(status_code=422, detail="Set scheduling rules for every objective")
     for phase in phases:
         for objective in phase["objectives"]:
+            suggested_due_date = None
+            suggested_due_week = objective.get("suggested_due_week")
+            scheduled_phase = phase_by_uuid[phase["phase_uuid"]]
+            if suggested_due_week and scheduled_phase.get("start_date"):
+                phase_start = datetime.fromisoformat(str(scheduled_phase["start_date"])).date()
+                phase_end = datetime.fromisoformat(str(scheduled_phase["end_date"])).date()
+                suggested_due_date = min(
+                    phase_start + timedelta(days=int(suggested_due_week) * 7 - 1),
+                    phase_end,
+                ).isoformat()
             rule = objective_by_uuid.setdefault(objective["objective_uuid"], {
                 "objective_uuid": objective["objective_uuid"], "phase_uuid": phase["phase_uuid"],
-                "due_rule": "phase_end", "allow_late": bool(objective.get("default_allow_late", False)),
-                "due_date": None,
+                "due_rule": "specific_date" if suggested_due_date else "phase_end",
+                "allow_late": bool(objective.get("default_allow_late", False)),
+                "due_date": suggested_due_date,
             })
             due_rule = rule.get("due_rule")
             if due_rule not in {"optional", "phase_end", "specific_date"}:

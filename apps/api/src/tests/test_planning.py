@@ -790,7 +790,7 @@ def test_external_email_assignment_materializes_pending_recipient_bound_plan():
     with _session() as db:
         program = Program(
             id=1, program_uuid="program_external", slug="external", org_id=1,
-            name="External pathway", created_by_user_id=1,
+            name="External plan", created_by_user_id=1,
             role_definitions=[], creation_date=NOW, update_date=NOW,
         )
         assignment = ProgramAssignment(
@@ -813,7 +813,7 @@ def test_external_email_assignment_materializes_pending_recipient_bound_plan():
         invitations = planning.list_my_invitations(db, recipient)
         assert len(invitations) == 1
         assert invitations[0]["kind"] == PlanInvitationKind.SUBJECT
-        assert invitations[0]["plan"]["name"] == "External pathway"
+        assert invitations[0]["plan"]["name"] == "External plan"
         message = db.exec(select(InboxMessage).where(InboxMessage.recipient_email_normalized == "future@example.com")).one()
         assert message.action_data["invitation_uuid"] == invitations[0]["invitation_uuid"]
 

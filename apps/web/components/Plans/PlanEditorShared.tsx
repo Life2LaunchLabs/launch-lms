@@ -175,8 +175,10 @@ type CardProps = {
   badges?: any[]
   saving?: boolean
   color?: string
+  initiallyOpen?: boolean
+  initiallyEditing?: boolean
   // eslint-disable-next-line no-unused-vars
-  onSave?(data: any): Promise<void> | void
+  onSave?(data: any): Promise<boolean | void> | boolean | void
   onDelete?: () => Promise<void> | void
   children?: React.ReactNode
 }
@@ -201,15 +203,18 @@ export function PlanObjectiveDefinitionCardLegacy({ objective, mode, canEdit = t
   </article>
 }
 
-export function PlanObjectiveDefinitionCard({ objective, mode, canEdit = true, badges = [], saving = false, color = '#2563eb', onSave, onDelete, children }: CardProps) {
-  const [open, setOpen] = React.useState(false)
-  const [editing, setEditing] = React.useState(false)
+export function PlanObjectiveDefinitionCard({ objective, mode, canEdit = true, badges = [], saving = false, color = '#2563eb', initiallyOpen = false, initiallyEditing = false, onSave, onDelete, children }: CardProps) {
+  const [open, setOpen] = React.useState(initiallyOpen || initiallyEditing)
+  const [editing, setEditing] = React.useState(initiallyEditing)
   const normalized = () => normalizePlanSteps(objective.fields || objective.custom_fields || [])
   const [draft, setDraft] = React.useState<any>({ ...objective, fields: normalized() })
   React.useEffect(() => setDraft({ ...objective, fields: normalizePlanSteps(objective.fields || objective.custom_fields || []) }), [objective])
   const stepDefinition = (type: string, options?: any) => ({ field_uuid: `field_${crypto.randomUUID()}`, title: options?.name || '', type, restricted: false, access: 'contributor', allowed_types: type === 'media' ? options?.allowed_types || ['image', 'document'] : [], ...(type === 'badge' && options ? { badge_uuid: options.badge_uuid, badge: { badge_uuid: options.badge_uuid, name: options.name, thumbnail_image: options.thumbnail_image } } : {}) })
   const changeStep = (index: number, type: string, options?: any) => setDraft((current: any) => ({ ...current, fields: current.fields.map((field: any, fieldIndex: number) => fieldIndex === index ? { ...stepDefinition(type, options), field_uuid: field.field_uuid, title: type === 'badge' ? options?.name || field.title : field.title } : field) }))
-  const save = async () => { await onSave?.({ ...draft, fields: draft.fields, custom_fields: draft.fields }); setEditing(false) }
+  const save = async () => {
+    const saved = await onSave?.({ ...draft, fields: draft.fields, custom_fields: draft.fields })
+    if (saved !== false) setEditing(false)
+  }
   const groupRange = objective.aggregate ? { min: Number(objective.aggregate.min_progress_percent || 0), max: Number(objective.aggregate.max_progress_percent || 0) } : null
   const steps = normalized()
   const individualCompletedSteps = steps.filter((field) => field.type === 'badge' ? Number(field.progress_percent || 0) >= 100 : Boolean(objective.progress?.field_values?.[field.field_uuid])).length
@@ -218,7 +223,7 @@ export function PlanObjectiveDefinitionCard({ objective, mode, canEdit = true, b
     <PlanObjectiveHeader
       title={objective.title}
       titleEditor={<input autoFocus value={draft.title || ''} onChange={(event) => setDraft({ ...draft, title: event.target.value })} className="min-w-0 flex-1 border-b border-dashed border-foreground/35 bg-transparent text-sm font-black outline-none" />}
-      details={<>{objective.phase_name ? <span className="rounded-full bg-muted px-2.5 py-1 text-[10px] font-black">{objective.phase_name}</span> : mode === 'template' ? <span className="rounded-full bg-muted px-2.5 py-1 text-[10px] font-black">{steps.length} step{steps.length === 1 ? '' : 's'}</span> : null}{targetLabel ? <span>{targetLabel}</span> : null}{objective.completion_restricted || !objective.allow_learner_confirmation ? <span className="inline-flex items-center gap-1"><Lock size={9} />Restricted completion</span> : null}</>}
+      details={<>{objective.phase_name ? <span className="rounded-full bg-muted px-2.5 py-1 text-[10px] font-black">{objective.phase_name}</span> : mode === 'template' ? <span className="rounded-full bg-muted px-2.5 py-1 text-[10px] font-black">{steps.length} step{steps.length === 1 ? '' : 's'}</span> : null}{mode === 'template' ? <span>{objective.suggested_due_week ? `Due week ${objective.suggested_due_week}` : 'Due at phase end'}</span> : null}{targetLabel ? <span>{targetLabel}</span> : null}{objective.completion_restricted || !objective.allow_learner_confirmation ? <span className="inline-flex items-center gap-1"><Lock size={9} />Restricted completion</span> : null}</>}
       open={open}
       editing={editing}
       color={color}
@@ -233,7 +238,7 @@ export function PlanObjectiveDefinitionCard({ objective, mode, canEdit = true, b
         return <button type="button" disabled={mode === 'group-live'} key={field.field_uuid} className="flex min-h-12 items-center gap-2 overflow-hidden rounded-xl bg-muted px-3 text-left disabled:opacity-100" style={{ background: mode === 'group-live' && range ? threeToneBackground(color, range.min_progress_percent, range.max_progress_percent) : undefined }}><StepTypeIcon type={field.type} /><span className="min-w-0 flex-1 truncate text-[11px] font-black">{field.title}</span>{field.restricted ? <Lock size={11} /> : null}</button>
       })}{editing ? <PlanStepPicker badges={badges} onAdd={(type, options) => setDraft((current: any) => ({ ...current, fields: [...current.fields, stepDefinition(type, options)] }))} /> : null}</div>
       {!editing ? children : null}
-      {editing ? <label className="mt-4 inline-flex items-center gap-2 text-[9px] font-bold text-muted-foreground"><input type="checkbox" checked={Boolean(draft.completion_restricted ?? !draft.allow_learner_confirmation)} onChange={(event) => setDraft({ ...draft, completion_restricted: event.target.checked, allow_learner_confirmation: !event.target.checked })} />Restricted completion</label> : null}
+      {editing ? <div className="mt-4 flex flex-wrap items-end justify-between gap-4"><label className="inline-flex items-center gap-2 text-[9px] font-bold text-muted-foreground"><input type="checkbox" checked={Boolean(draft.completion_restricted ?? !draft.allow_learner_confirmation)} onChange={(event) => setDraft({ ...draft, completion_restricted: event.target.checked, allow_learner_confirmation: !event.target.checked })} />Restricted completion</label>{mode === 'template' ? <label className="text-[9px] font-bold text-muted-foreground"><span className="mb-1 block">Suggested due week</span><select value={draft.suggested_due_week ?? ''} disabled={!draft.suggested_duration_weeks} onChange={(event) => setDraft({ ...draft, suggested_due_week: event.target.value ? Number(event.target.value) : null })} className="h-8 min-w-40 rounded-lg border border-border bg-card px-2 text-[10px] text-foreground disabled:bg-muted disabled:text-muted-foreground"><option value="">Phase end (default)</option>{Array.from({ length: Number(draft.suggested_duration_weeks || 0) }, (_, index) => index + 1).map((week) => <option key={week} value={week}>Week {week}</option>)}</select>{!draft.suggested_duration_weeks ? <span className="mt-1 block font-normal">Set a phase duration to choose a week.</span> : null}</label> : null}</div> : null}
     </div> : null}
   </article>
 }

@@ -14,11 +14,12 @@ import { programsApi } from '@services/programs/programs'
 import { cn } from '@/lib/utils'
 
 type PhaseDate = { phase_uuid: string; start_date: string; end_date: string }
-type ObjectiveRule = { objective_uuid: string; phase_uuid: string; start_rule: string; start_date: string; due_rule: string; due_date: string; allow_late: boolean }
+type ObjectiveRule = { objective_uuid: string; phase_uuid: string; start_rule: string; start_date: string; due_rule: string; due_date: string; allow_late: boolean; suggested_due_week?: number | null; uses_suggested_due_week?: boolean }
 
 const steps = ['Group', 'Staff', 'Schedule', 'Invitation']
 const dateValue = (date: Date) => date.toISOString().slice(0, 10)
 const addDays = (value: string, days: number) => { const date = new Date(`${value}T12:00:00`); date.setDate(date.getDate() + days); return dateValue(date) }
+const suggestedDueDate = (phase: PhaseDate, week?: number | null) => week ? [addDays(phase.start_date, week * 7 - 1), phase.end_date].sort()[0] : ''
 
 export default function ProgramAssignmentWizard({ orgslug, programUuid, initialGroupId }: { orgslug: string; programUuid: string; initialGroupId?: string }) {
   const org = useOrg() as any
@@ -52,22 +53,32 @@ export default function ProgramAssignmentWizard({ orgslug, programUuid, initialG
       return { phase_uuid: phase.phase_uuid, start_date: start, end_date: end }
     })
     setPhaseDates(phases)
-    setObjectiveRules((program.phases || []).flatMap((phase: any) => (phase.objectives || []).map((objective: any) => ({
+    setObjectiveRules((program.phases || []).flatMap((phase: any) => (phase.objectives || []).map((objective: any) => {
+      const phaseDate = phases.find((item: PhaseDate) => item.phase_uuid === phase.phase_uuid)!
+      const dueDate = suggestedDueDate(phaseDate, objective.suggested_due_week)
+      return {
       objective_uuid: objective.objective_uuid,
       phase_uuid: phase.phase_uuid,
       start_rule: objective.default_start_rule || 'any_time',
       start_date: '',
-      due_rule: objective.default_due_rule || 'optional',
-      due_date: '',
+      due_rule: dueDate ? 'specific_date' : 'phase_end',
+      due_date: dueDate,
       allow_late: Boolean(objective.default_allow_late),
-    }))))
+      suggested_due_week: objective.suggested_due_week,
+      uses_suggested_due_week: Boolean(dueDate),
+    }})))
     setWelcome(program.instructions || '')
   }, [program, phaseDates.length])
 
   if (isLoading || !program) return <div className="flex min-h-[70vh] items-center justify-center bg-[#f8f8f8]"><Loader2 className="animate-spin text-muted-foreground" /></div>
   const members = (people?.items || []).filter(isProgramStaff)
-  const updatePhase = (uuid: string, patch: Partial<PhaseDate>) => setPhaseDates((current) => current.map((item) => item.phase_uuid === uuid ? { ...item, ...patch } : item))
-  const updateObjective = (uuid: string, patch: Partial<ObjectiveRule>) => setObjectiveRules((current) => current.map((item) => item.objective_uuid === uuid ? { ...item, ...patch } : item))
+  const updatePhase = (uuid: string, patch: Partial<PhaseDate>) => setPhaseDates((current) => {
+    const next = current.map((item) => item.phase_uuid === uuid ? { ...item, ...patch } : item)
+    const changedPhase = next.find((item) => item.phase_uuid === uuid)
+    if (changedPhase) setObjectiveRules((rules) => rules.map((rule) => rule.phase_uuid === uuid && rule.uses_suggested_due_week ? { ...rule, due_date: suggestedDueDate(changedPhase, rule.suggested_due_week) } : rule))
+    return next
+  })
+  const updateObjective = (uuid: string, patch: Partial<ObjectiveRule>) => setObjectiveRules((current) => current.map((item) => item.objective_uuid === uuid ? { ...item, ...patch, ...(('due_rule' in patch || 'due_date' in patch) ? { uses_suggested_due_week: false } : {}) } : item))
   const selectedGroup = (groups || []).find((group: any) => String(group.id) === groupId)
 
   const next = async () => {
@@ -100,7 +111,7 @@ export default function ProgramAssignmentWizard({ orgslug, programUuid, initialG
         initiate_date: new Date(`${initiateDate}T09:00:00`).toISOString(),
         start_date: starts.length ? new Date(`${starts[0]}T00:00:00`).toISOString() : null,
         due_date: ends.length ? new Date(`${ends[ends.length - 1]}T23:59:59`).toISOString() : null,
-        schedule: { phases: phaseDates, objectives: objectiveRules }, welcome_message: welcome,
+        schedule: { phases: phaseDates, objectives: objectiveRules.map((rule) => ({ objective_uuid: rule.objective_uuid, phase_uuid: rule.phase_uuid, start_rule: rule.start_rule, start_date: rule.start_date, due_rule: rule.due_rule, due_date: rule.due_date, allow_late: rule.allow_late })) }, welcome_message: welcome,
       }, token)
       toast.success('Plan assignment scheduled.')
       router.push(getUriWithOrg(orgslug, routePaths.org.dash.planAssignment(assignment.assignment_uuid)))

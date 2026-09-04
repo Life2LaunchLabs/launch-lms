@@ -32,6 +32,22 @@ from src.db.users import PublicUser, User
 from src.security.org_auth import require_org_admin
 
 
+REQUIREMENT_CODE_STYLES = {
+    "upper_alpha",
+    "lower_alpha",
+    "decimal",
+    "upper_roman",
+    "lower_roman",
+}
+DEFAULT_REQUIREMENT_CODE_STYLES = (
+    "upper_alpha",
+    "decimal",
+    "lower_roman",
+    "lower_alpha",
+    "upper_roman",
+)
+
+
 def _now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -72,7 +88,72 @@ def _nodes(db: Session, version_id: int) -> list[RequirementNode]:
     ).order_by(RequirementNode.position, RequirementNode.id)).all())
 
 
-def _validate_nodes(items: list[RequirementNodeInput]) -> list[dict]:
+def _default_code_style(depth: int) -> str:
+    return DEFAULT_REQUIREMENT_CODE_STYLES[min(depth, len(DEFAULT_REQUIREMENT_CODE_STYLES) - 1)]
+
+
+def _normalize_source_metadata(source_metadata: dict | None, *, validate: bool = False) -> dict:
+    normalized = dict(source_metadata or {})
+    raw_levels = normalized.get("requirement_levels")
+    if not isinstance(raw_levels, list):
+        if validate and raw_levels is not None:
+            raise HTTPException(status_code=422, detail="Requirement levels must be a list")
+        return normalized
+    levels = []
+    for depth, raw_level in enumerate(raw_levels):
+        if not isinstance(raw_level, dict):
+            if validate:
+                raise HTTPException(status_code=422, detail="Every requirement level must be an object")
+            continue
+        level = dict(raw_level)
+        code_style = level.get("code_style") or _default_code_style(depth)
+        if code_style not in REQUIREMENT_CODE_STYLES:
+            if validate:
+                raise HTTPException(status_code=422, detail=f"Unsupported requirement code style: {code_style}")
+            code_style = _default_code_style(depth)
+        level["code_style"] = code_style
+        levels.append(level)
+    normalized["requirement_levels"] = levels
+    return normalized
+
+
+def _alpha_code(number: int) -> str:
+    result = ""
+    while number > 0:
+        number, remainder = divmod(number - 1, 26)
+        result = chr(65 + remainder) + result
+    return result
+
+
+def _roman_code(number: int) -> str:
+    numerals = (
+        (1000, "M"), (900, "CM"), (500, "D"), (400, "CD"),
+        (100, "C"), (90, "XC"), (50, "L"), (40, "XL"),
+        (10, "X"), (9, "IX"), (5, "V"), (4, "IV"), (1, "I"),
+    )
+    result = ""
+    for value, numeral in numerals:
+        while number >= value:
+            result += numeral
+            number -= value
+    return result
+
+
+def _code_segment(number: int, style: str) -> str:
+    if style == "decimal":
+        return str(number)
+    if style == "upper_alpha":
+        return _alpha_code(number)
+    if style == "lower_alpha":
+        return _alpha_code(number).lower()
+    if style == "upper_roman":
+        return _roman_code(number)
+    if style == "lower_roman":
+        return _roman_code(number).lower()
+    raise HTTPException(status_code=422, detail=f"Unsupported requirement code style: {style}")
+
+
+def _validate_nodes(items: list[RequirementNodeInput], source_metadata: dict | None = None) -> list[dict]:
     normalized: list[dict] = []
     identifiers: set[str] = set()
     for index, raw in enumerate(items):
@@ -103,17 +184,40 @@ def _validate_nodes(items: list[RequirementNodeInput]) -> list[dict]:
                 raise HTTPException(status_code=422, detail="Requirement hierarchy cannot contain a cycle")
             seen.add(parent)
             parent = by_uuid[parent]["parent_node_uuid"]
+    levels = _normalize_source_metadata(source_metadata, validate=True).get("requirement_levels") or []
+    if levels:
+        input_order = {item["node_uuid"]: index for index, item in enumerate(normalized)}
+        children: dict[str | None, list[dict]] = {}
+        for item in normalized:
+            children.setdefault(item["parent_node_uuid"], []).append(item)
+        for siblings in children.values():
+            siblings.sort(key=lambda item: (item["position"], input_order[item["node_uuid"]]))
+
+        def assign_codes(parent_uuid: str | None, depth: int, prefix: str = "") -> None:
+            if depth >= len(levels) and children.get(parent_uuid):
+                raise HTTPException(status_code=422, detail="Add enough hierarchy levels for every requirement node")
+            for sibling_number, item in enumerate(children.get(parent_uuid, []), start=1):
+                segment = _code_segment(sibling_number, levels[depth]["code_style"])
+                item["code"] = f"{prefix}.{segment}" if prefix else segment
+                assign_codes(item["node_uuid"], depth + 1, item["code"])
+
+        assign_codes(None, 0)
     return normalized
 
 
-def _replace_nodes(db: Session, version: RequirementFrameworkVersion, inputs: list[RequirementNodeInput]) -> None:
+def _replace_nodes(
+    db: Session,
+    version: RequirementFrameworkVersion,
+    inputs: list[RequirementNodeInput],
+    source_metadata: dict | None = None,
+) -> None:
     existing = _nodes(db, int(version.id))
     for node in existing:
         db.delete(node)
     if existing:
         db.flush()
     now = _now_string()
-    for item in _validate_nodes(inputs):
+    for item in _validate_nodes(inputs, source_metadata):
         db.add(RequirementNode(
             node_version_uuid=f"requirement_node_version_{uuid4()}",
             version_id=int(version.id), creation_date=now, update_date=now,
@@ -139,6 +243,7 @@ def _snapshot(db: Session, framework: RequirementFramework, version: Requirement
     return {
         "framework_uuid": framework.framework_uuid, "name": framework.name,
         "description": framework.description, "version": version.version_number,
+        "source_metadata": _normalize_source_metadata(framework.source_metadata),
         "nodes": nodes, "leaf_node_uuids": _leaf_ids(nodes),
     }
 
@@ -155,7 +260,7 @@ def _framework_dict(db: Session, framework: RequirementFramework, version_number
         "framework_uuid": framework.framework_uuid, "org_id": framework.org_id,
         "name": framework.name, "description": framework.description,
         "source_framework_uuid": framework.source_framework_uuid,
-        "source_version": framework.source_version, "source_metadata": framework.source_metadata or {},
+        "source_version": framework.source_version, "source_metadata": _normalize_source_metadata(framework.source_metadata),
         "current_version": framework.current_version, "published_version": framework.published_version,
         "version": version.version_number,
         "status": version.status.value if hasattr(version.status, "value") else version.status,
@@ -184,11 +289,12 @@ def create_framework(db: Session, current_user: PublicUser, payload: Requirement
     if not payload.name.strip():
         raise HTTPException(status_code=422, detail="Framework name is required")
     now = _now_string()
+    source_metadata = _normalize_source_metadata(payload.source_metadata, validate=True)
     framework = RequirementFramework(
         framework_uuid=f"requirement_framework_{uuid4()}", org_id=payload.org_id,
         name=payload.name.strip(), description=payload.description,
         source_framework_uuid=payload.source_framework_uuid, source_version=payload.source_version,
-        source_metadata=payload.source_metadata, created_by_user_id=current_user.id,
+        source_metadata=source_metadata, created_by_user_id=current_user.id,
         creation_date=now, update_date=now,
     )
     db.add(framework)
@@ -200,7 +306,7 @@ def create_framework(db: Session, current_user: PublicUser, payload: Requirement
     )
     db.add(version)
     db.flush()
-    _replace_nodes(db, version, payload.nodes)
+    _replace_nodes(db, version, payload.nodes, source_metadata)
     db.commit()
     db.refresh(framework)
     return _framework_dict(db, framework)
@@ -226,7 +332,12 @@ def update_framework(db: Session, current_user: PublicUser, org_id: int, framewo
         )
         db.add(current)
         db.flush()
-        _replace_nodes(db, current, [RequirementNodeInput(**item) for item in prior_nodes])
+        _replace_nodes(
+            db,
+            current,
+            [RequirementNodeInput(**item) for item in prior_nodes],
+            framework.source_metadata,
+        )
     changes = payload.model_dump(exclude_unset=True)
     if "name" in changes:
         name = str(changes["name"] or "").strip()
@@ -236,9 +347,17 @@ def update_framework(db: Session, current_user: PublicUser, org_id: int, framewo
     if "description" in changes:
         framework.description = changes["description"] or ""
     if "source_metadata" in changes:
-        framework.source_metadata = changes["source_metadata"] or {}
+        framework.source_metadata = _normalize_source_metadata(changes["source_metadata"], validate=True)
     if payload.nodes is not None:
-        _replace_nodes(db, current, payload.nodes)
+        _replace_nodes(db, current, payload.nodes, framework.source_metadata)
+    elif "source_metadata" in changes:
+        current_nodes = [_node_dict(item) for item in _nodes(db, int(current.id))]
+        _replace_nodes(
+            db,
+            current,
+            [RequirementNodeInput(**item) for item in current_nodes],
+            framework.source_metadata,
+        )
     framework.update_date = now
     current.update_date = now
     db.add(framework)
