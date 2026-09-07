@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from sqlmodel import Session
 
 from src.core.events.database import get_db_session
+from src.db.resources import ResourceTypeEnum
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
 from src.services.hub_advisor import (
@@ -12,7 +13,9 @@ from src.services.hub_advisor import (
     AdvisorProviderLimited,
     AdvisorUnavailable,
     ask_hub_advisor,
+    relevant_advisor_resources,
 )
+from src.services.resources import list_resources
 
 router = APIRouter()
 
@@ -26,9 +29,23 @@ class HubAdvisorRequest(BaseModel):
     messages: list[HubAdvisorMessage] = Field(min_length=1, max_length=12)
 
 
+class HubAdvisorResource(BaseModel):
+    resource_uuid: str
+    title: str
+    description: str | None = None
+    resource_type: ResourceTypeEnum
+    provider_name: str | None = None
+    cover_image_url: str | None = None
+    thumbnail_image: str | None = None
+    owner_org_uuid: str | None = None
+    access_mode: str
+    tags: list[str]
+
+
 class HubAdvisorResponse(BaseModel):
     answer: str
     usage: dict[str, int]
+    resources: list[HubAdvisorResource]
 
 
 @router.post("/advisor", response_model=HubAdvisorResponse)
@@ -39,6 +56,16 @@ async def create_hub_advice(
     current_user: PublicUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
+    accessible_resources = await list_resources(
+        request,
+        org_id,
+        current_user,
+        db_session,
+    )
+    grounding_resources = relevant_advisor_resources(
+        body.messages[-1].content,
+        accessible_resources,
+    )
     try:
         result = await ask_hub_advisor(
             request,
@@ -46,6 +73,7 @@ async def create_hub_advice(
             current_user.id,
             [AdvisorMessage(role=item.role, content=item.content.strip()) for item in body.messages],
             db_session,
+            grounding_resources=grounding_resources,
         )
     except AdvisorProviderLimited as error:
         raise HTTPException(
@@ -58,4 +86,5 @@ async def create_hub_advice(
     return HubAdvisorResponse(
         answer=result.text,
         usage={"input_tokens": result.input_tokens, "output_tokens": result.output_tokens},
+        resources=grounding_resources,
     )
