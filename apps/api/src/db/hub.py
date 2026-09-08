@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field as PydanticField
-from sqlalchemy import Column, ForeignKey, Integer, Text
+from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 
@@ -36,6 +36,61 @@ class HubAdvisorProviderConfiguration(SQLModel, table=True):
     api_key_ciphertext: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
     advanced_settings: str = Field(default="{}", sa_column=Column(Text, nullable=False))
     updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class HubConversation(SQLModel, table=True):
+    """A private Hub thread owned by one learner inside one organization."""
+
+    __tablename__ = "hubconversation"
+    __table_args__ = (Index("ix_hubconversation_owner_recent", "org_id", "user_id", "updated_at"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    conversation_uuid: str = Field(index=True, unique=True)
+    org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), nullable=False, index=True))
+    user_id: int = Field(sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True))
+    title: str
+    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    updated_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    archived_at: datetime | None = Field(default=None, index=True)
+
+
+class HubConversationMessage(SQLModel, table=True):
+    __tablename__ = "hubconversationmessage"
+    __table_args__ = (UniqueConstraint("conversation_id", "sequence", name="uq_hubconversationmessage_sequence"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    message_uuid: str = Field(index=True, unique=True)
+    conversation_id: int = Field(sa_column=Column(Integer, ForeignKey("hubconversation.id", ondelete="CASCADE"), nullable=False, index=True))
+    sequence: int = Field(index=True)
+    role: str = Field(sa_column=Column(String(16), nullable=False))
+    kind: str = Field(default="chat", sa_column=Column(String(16), nullable=False))
+    content: str = Field(sa_column=Column(Text, nullable=False))
+    model: str | None = None
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+
+
+class HubConversationMessageResource(SQLModel, table=True):
+    __tablename__ = "hubconversationmessageresource"
+    __table_args__ = (UniqueConstraint("message_id", "resource_uuid", name="uq_hubconversationmessage_resource"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    message_id: int = Field(sa_column=Column(Integer, ForeignKey("hubconversationmessage.id", ondelete="CASCADE"), nullable=False, index=True))
+    resource_uuid: str = Field(index=True)
+    display_order: int = 0
+    label: str
+
+
+class HubConversationResource(SQLModel, table=True):
+    __tablename__ = "hubconversationresource"
+    __table_args__ = (UniqueConstraint("conversation_id", "resource_uuid", name="uq_hubconversation_resource"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    conversation_id: int = Field(sa_column=Column(Integer, ForeignKey("hubconversation.id", ondelete="CASCADE"), nullable=False, index=True))
+    resource_uuid: str = Field(index=True)
+    display_order: int = 0
+    active: bool = Field(default=True, sa_column=Column(Boolean, nullable=False, default=True))
 
 
 class HubAdvisorAdvancedConfiguration(BaseModel):

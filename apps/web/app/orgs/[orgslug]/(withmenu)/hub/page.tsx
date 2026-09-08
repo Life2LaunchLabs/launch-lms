@@ -25,6 +25,7 @@ export default async function HubPage({
     access?: string
     provider?: string
     resource?: string
+    conversation?: string
   }>
 }) {
   const { orgslug } = await params

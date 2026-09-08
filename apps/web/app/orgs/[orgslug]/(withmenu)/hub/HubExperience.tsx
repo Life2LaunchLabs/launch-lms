@@ -1,19 +1,31 @@
 'use client'
 
-import { FormEvent, Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { Plus, RotateCcw, Send } from 'lucide-react'
+import { FormEvent, Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Plus, Send } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { Button } from '@components/ui/button'
 import { Textarea } from '@components/ui/textarea'
-import { askHubAdvisor, HubAdvisorMessage, HubAdvisorResource } from '@services/hub/advisor'
+import {
+  archiveHubConversation,
+  askHubAdvisor,
+  getHubConversation,
+  HubAdvisorMessage,
+  HubAdvisorResource,
+  HubConversationSummary,
+  listHubConversations,
+  recordHubSearch,
+  renameHubConversation,
+  saveHubConversationState,
+} from '@services/hub/advisor'
 import { getResource, Resource } from '@services/resources/resources'
 import HubQuickSearch from './HubQuickSearch'
+import HubHeader from './HubHeader'
+import HubHomeRecents from './HubHomeRecents'
 import HubResourceContext, { ActiveResourceWorkspace } from './HubResourceContext'
 import HubResourceLibrary from './HubResourceLibrary'
-import HubResourceTray from './HubResourceTray'
 import {
   addHubContextResource,
   addHubContextResources,
@@ -36,6 +48,7 @@ type HubFilters = {
   access?: string
   provider?: string
   resource?: string
+  conversation?: string
 }
 
 type HubConversationMessage = HubAdvisorMessage & {
@@ -94,6 +107,12 @@ function asAdvisorResource(resource: Resource): HubAdvisorResource {
 export default function HubExperience({ orgslug, filters }: { orgslug: string; filters: HubFilters }) {
   const initialQuery = filters.query || filters.q || ''
   const [messages, setMessages] = useState<HubConversationMessage[]>([])
+  const [conversationUuid, setConversationUuid] = useState<string | null>(null)
+  const [conversationTitle, setConversationTitle] = useState('')
+  const [conversations, setConversations] = useState<HubConversationSummary[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [resourcePanelConversationUuid, setResourcePanelConversationUuid] = useState<string | null>(null)
+  const [conversationLoading, setConversationLoading] = useState(false)
   const [draft, setDraft] = useState(initialQuery)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
@@ -110,6 +129,7 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
   const messageSequenceRef = useRef(0)
   const introducedResourceUuidsRef = useRef(new Set<string>())
   const resourceOriginRefs = useRef(new Map<string, HTMLDivElement>())
+  const stateSaveQueueRef = useRef<Promise<void>>(Promise.resolve())
   const org = useOrg() as any
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
@@ -117,6 +137,90 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
     ...messages.map((message) => ({ id: message.id, resources: message.resources })),
     { id: 'pending', resources: pendingResources },
   ]), [messages, pendingResources])
+
+  const setConversationInUrl = (uuid: string | null) => {
+    const url = new URL(window.location.href)
+    if (uuid) url.searchParams.set('conversation', uuid)
+    else url.searchParams.delete('conversation')
+    window.history.replaceState({}, '', url)
+  }
+
+  const refreshHistory = useCallback(async () => {
+    if (!accessToken || !org?.id) return
+    setHistoryLoading(true)
+    try {
+      setConversations(await listHubConversations(org.id, accessToken))
+    } catch (historyError: any) {
+      setError(historyError?.message || 'Conversation history is unavailable.')
+    } finally {
+      setHistoryLoading(false)
+    }
+  }, [accessToken, org?.id])
+
+  useEffect(() => {
+    if (!conversationUuid) void refreshHistory()
+  }, [conversationUuid, refreshHistory])
+
+  const openConversation = async (uuid: string, openResources = false) => {
+    if (!accessToken || !org?.id || sending) return
+    setResourcePanelConversationUuid(openResources ? uuid : null)
+    setConversationLoading(true)
+    setError('')
+    try {
+      const conversation = await getHubConversation(org.id, uuid, accessToken)
+      const restoredMessages = conversation.messages.map((message) => ({
+        id: message.id,
+        role: message.role,
+        content: message.content,
+        resources: message.resources,
+        resourceLabel: message.resource_label,
+        searchQuery: message.search_query,
+      }))
+      setMessages(restoredMessages)
+      setConversationUuid(conversation.conversation_uuid)
+      setConversationTitle(conversation.title)
+      setContextResources(conversation.context_resources)
+      setPendingResources([])
+      setActiveResourceUuid(null)
+      setActiveResourceGroupId(null)
+      introducedResourceUuidsRef.current = new Set(restoredMessages.flatMap((message) => (message.resources || []).map((resource) => resource.resource_uuid)))
+      setConversationInUrl(conversation.conversation_uuid)
+    } catch (loadError: any) {
+      setError(loadError?.message || 'This conversation could not be opened.')
+      if (loadError?.status === 404) setConversationInUrl(null)
+    } finally {
+      setConversationLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    const requestedConversation = filters.conversation?.trim()
+    if (!requestedConversation || !accessToken || !org?.id || conversationUuid === requestedConversation) return
+    openConversation(requestedConversation)
+    // The URL is the initial deep-link source; later switches call openConversation directly.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken, filters.conversation, org?.id])
+
+  const persistState = (nextMessages: HubConversationMessage[], nextContext: HubAdvisorResource[]) => {
+    if (!conversationUuid || !accessToken || !org?.id) return
+    const uuid = conversationUuid
+    const state = {
+      context_resource_uuids: nextContext.map((resource) => resource.resource_uuid),
+      message_resources: nextMessages
+        .filter((message) => message.id.startsWith('hub_message_'))
+        .map((message) => ({
+          message_uuid: message.id,
+          resource_uuids: (message.resources || []).map((resource) => resource.resource_uuid),
+          label: message.resourceLabel,
+        })),
+    }
+    stateSaveQueueRef.current = stateSaveQueueRef.current
+      .catch(() => undefined)
+      .then(() => saveHubConversationState(org.id, uuid, accessToken, state))
+      .catch((stateError: any) => {
+        setError(stateError?.message || 'Conversation changes could not be saved.')
+      })
+  }
 
   useEffect(() => {
     const requestedResource = filters.resource?.trim()
@@ -162,6 +266,8 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
 
   const resetChat = () => {
     setMessages([])
+    setConversationUuid(null)
+    setConversationTitle('')
     setContextResources([])
     setPendingResources([])
     setActiveResourceUuid(null)
@@ -169,28 +275,35 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
     introducedResourceUuidsRef.current.clear()
     setDraft('')
     setError('')
+    setConversationInUrl(null)
+    setResourcePanelConversationUuid(null)
   }
 
   const addResourceToConversation = (resource: Resource) => {
     const advisorResource = asAdvisorResource(resource)
     introducedResourceUuidsRef.current.add(resource.resource_uuid)
-    setContextResources((current) => addHubContextResource(current, advisorResource))
+    const nextContext = addHubContextResource(contextResources, advisorResource)
+    setContextResources(nextContext)
     setPendingResources((current) => addHubContextResource(current, advisorResource))
     setActiveResourceUuid(resource.resource_uuid)
     setActiveResourceGroupId('pending')
     setLibraryOpen(false)
+    persistState(messages, nextContext)
   }
 
   const inspectSearchResource = (groupId: string, resource: Resource) => {
     const advisorResource = asAdvisorResource(resource)
     const collapseActive = activeResourceGroupId === groupId && activeResourceUuid === resource.resource_uuid
     introducedResourceUuidsRef.current.add(resource.resource_uuid)
-    setContextResources((current) => addHubContextResource(current, advisorResource))
-    setMessages((current) => current.map((message) => message.id === groupId
+    const nextContext = addHubContextResource(contextResources, advisorResource)
+    const nextMessages = messages.map((message) => message.id === groupId
       ? { ...message, resources: addHubContextResource(message.resources || [], advisorResource) }
-      : message))
+      : message)
+    setContextResources(nextContext)
+    setMessages(nextMessages)
     setActiveResourceUuid(collapseActive ? null : resource.resource_uuid)
     setActiveResourceGroupId(collapseActive ? null : groupId)
+    persistState(nextMessages, nextContext)
   }
 
   const changeActiveResource = (groupId: string, resources: HubAdvisorResource[], resourceUuid: string | null) => {
@@ -198,7 +311,11 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
     setActiveResourceGroupId(resourceUuid ? groupId : null)
     if (resourceUuid) {
       const selected = resources.find((resource) => resource.resource_uuid === resourceUuid)
-      if (selected) setContextResources((current) => addHubContextResource(current, selected))
+      if (selected) {
+        const nextContext = addHubContextResource(contextResources, selected)
+        setContextResources(nextContext)
+        persistState(messages, nextContext)
+      }
     }
   }
 
@@ -209,13 +326,16 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
     if (activeResourceUuid === resourceUuid) setActiveResourceGroupId(null)
     if (groupId === 'pending') {
       setPendingResources((current) => current.filter((resource) => resource.resource_uuid !== resourceUuid))
+      persistState(messages, next.resources)
       return
     }
-    setMessages((current) => current.map((message) => (
+    const nextMessages = messages.map((message) => (
       message.id === groupId
         ? { ...message, resources: message.resources?.filter((resource) => resource.resource_uuid !== resourceUuid) }
         : message
-    )))
+    ))
+    setMessages(nextMessages)
+    persistState(nextMessages, next.resources)
   }
 
   const removeResourceEverywhere = (resourceUuid: string) => {
@@ -224,10 +344,12 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
     setActiveResourceUuid(next.activeResourceUuid)
     if (activeResourceUuid === resourceUuid) setActiveResourceGroupId(null)
     setPendingResources((current) => current.filter((resource) => resource.resource_uuid !== resourceUuid))
-    setMessages((current) => current.map((message) => ({
+    const nextMessages = messages.map((message) => ({
       ...message,
       resources: message.resources?.filter((resource) => resource.resource_uuid !== resourceUuid),
-    })))
+    }))
+    setMessages(nextMessages)
+    persistState(nextMessages, next.resources)
   }
 
   const returnToResourceOrigin = ({ resource, originGroupId }: HubResourceTrayEntry<HubAdvisorResource>) => {
@@ -264,35 +386,56 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
     if (activeResourceGroupId === 'pending') setActiveResourceGroupId(userMessageId)
     setDraft('')
     setError('')
+    setSending(true)
     if (inferHubResponseKind(content) === 'search') {
-      messageSequenceRef.current += 1
-      setMessages((current) => [...current, {
-        id: `search-${messageSequenceRef.current}`,
-        role: 'assistant',
-        content: '',
-        searchQuery: content,
-      }])
+      try {
+        const persisted = await recordHubSearch(org.id, content, accessToken, {
+          conversationUuid: conversationUuid || undefined,
+          resourceUuids: contextResources.map((resource) => resource.resource_uuid),
+          learnerResourceUuids: submittedResources.map((resource) => resource.resource_uuid),
+        })
+        const nextMessages: HubConversationMessage[] = [
+          ...previousMessages,
+          { id: persisted.user_message_uuid, role: 'user', content, resources: submittedResources, resourceLabel: submittedResources.length ? 'You added' : undefined },
+          { id: persisted.assistant_message_uuid, role: 'assistant', content: '', searchQuery: content },
+        ]
+        setMessages(nextMessages)
+        setConversationUuid(persisted.conversation_uuid)
+        setConversationTitle(persisted.title)
+        setConversationInUrl(persisted.conversation_uuid)
+        await refreshHistory()
+      } catch (requestError: any) {
+        setMessages(previousMessages)
+        setPendingResources(submittedResources)
+        setDraft(content)
+        setError(requestError?.message || 'The search could not be saved. Your message has been restored.')
+      } finally {
+        setSending(false)
+      }
       return
     }
-    setSending(true)
     try {
       const response = await askHubAdvisor(
         org.id,
         requestMessages,
         accessToken,
-        contextResources.map((resource) => resource.resource_uuid)
+        contextResources.map((resource) => resource.resource_uuid),
+        conversationUuid || undefined,
+        submittedResources.map((resource) => resource.resource_uuid)
       )
       const transcriptResources = newHubTranscriptResources(introducedResourceUuidsRef.current, response.resources)
       transcriptResources.forEach((resource) => introducedResourceUuidsRef.current.add(resource.resource_uuid))
-      messageSequenceRef.current += 1
-      setMessages((current) => [...current, {
-        id: `assistant-${messageSequenceRef.current}`,
-        role: 'assistant',
-        content: response.answer,
-        resources: transcriptResources,
-        resourceLabel: transcriptResources.length ? 'Suggested' : undefined,
-      }])
+      const nextMessages: HubConversationMessage[] = [
+        ...previousMessages,
+        { id: response.user_message_uuid, role: 'user', content, resources: submittedResources, resourceLabel: submittedResources.length ? 'You added' : undefined },
+        { id: response.assistant_message_uuid, role: 'assistant', content: response.answer, resources: transcriptResources, resourceLabel: transcriptResources.length ? 'Suggested' : undefined },
+      ]
+      setMessages(nextMessages)
       setContextResources((current) => addHubContextResources(current, response.resources))
+      setConversationUuid(response.conversation_uuid)
+      setConversationTitle(response.title)
+      setConversationInUrl(response.conversation_uuid)
+      await refreshHistory()
     } catch (requestError: any) {
       setMessages(previousMessages)
       setPendingResources(submittedResources)
@@ -304,29 +447,76 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
     }
   }
 
+  const renameConversation = async (uuid: string, title: string) => {
+    if (!accessToken || !org?.id) return
+    try {
+      const updated = await renameHubConversation(org.id, uuid, title, accessToken)
+      setConversations((current) => current.map((item) => item.conversation_uuid === uuid
+        ? { ...item, title: updated.title, updated_at: new Date().toISOString() }
+        : item))
+      if (conversationUuid === uuid) setConversationTitle(updated.title)
+    } catch (renameError: any) {
+      setError(renameError?.message || 'This conversation could not be renamed.')
+      throw renameError
+    }
+  }
+
+  const archiveConversation = async () => {
+    const uuid = conversationUuid
+    if (!uuid || !accessToken || !org?.id) return
+    try {
+      await stateSaveQueueRef.current.catch(() => undefined)
+      await archiveHubConversation(org.id, uuid, accessToken)
+      setConversations((current) => current.filter((item) => item.conversation_uuid !== uuid))
+      resetChat()
+    } catch (archiveError: any) {
+      setError(archiveError?.message || 'This conversation could not be archived.')
+    }
+  }
+
   return (
     <main className="relative mx-auto h-[calc(100dvh-5rem)] w-full max-w-[1056px] overflow-hidden md:h-dvh" aria-label="Hub">
-      <h1 className="sr-only">Hub</h1>
-      <HubResourceTray
-        entries={trayEntries}
-        orgslug={orgslug}
-        onRemove={removeResourceEverywhere}
-        onReturnToOrigin={returnToResourceOrigin}
-      />
+      <h1 className="sr-only">{conversationTitle || 'Hub'}</h1>
+      {conversationUuid && (
+        <HubHeader
+          key={`${conversationUuid}:${resourcePanelConversationUuid === conversationUuid ? 'resources' : 'conversation'}`}
+          orgslug={orgslug}
+          conversationUuid={conversationUuid}
+          title={conversationTitle}
+          conversations={conversations}
+          entries={trayEntries}
+          loading={historyLoading}
+          disabled={sending || conversationLoading}
+          onHistoryOpen={refreshHistory}
+          onBack={resetChat}
+          onNew={resetChat}
+          onSelect={openConversation}
+          onOpenResources={(uuid) => void openConversation(uuid, true)}
+          onRename={(title) => renameConversation(conversationUuid, title)}
+          onArchive={archiveConversation}
+          onRemoveResource={removeResourceEverywhere}
+          onReturnToOrigin={returnToResourceOrigin}
+          initialPanel={resourcePanelConversationUuid === conversationUuid ? 'resources' : null}
+        />
+      )}
 
       <div ref={scrollRef} className="absolute inset-0 overflow-y-auto overscroll-contain scroll-smooth">
         <div
-          className="mx-auto min-h-full w-full max-w-3xl px-4 pt-7 sm:px-6 sm:pt-10"
+          className={`mx-auto min-h-full w-full max-w-3xl px-4 sm:px-6 ${conversationUuid ? 'pt-16' : 'pt-7 sm:pt-10'}`}
           style={{ paddingBottom: composerHeight + 88 + (libraryOpen ? 290 : 0) }}
         >
-          <div className="space-y-7" aria-live="polite" aria-busy={sending}>
-            {(messages.length > 0 || contextResources.length > 0) && (
-              <div className="flex justify-end">
-                <Button type="button" variant="ghost" size="sm" className="gap-2 text-muted-foreground" onClick={resetChat}>
-                  <RotateCcw className="h-4 w-4" /> New chat
-                </Button>
-              </div>
+          <div className="space-y-7" aria-live="polite" aria-busy={sending || conversationLoading}>
+            {!conversationUuid && (
+              <HubHomeRecents
+                conversations={conversations}
+                loading={historyLoading}
+                disabled={sending || conversationLoading}
+                onHistoryOpen={refreshHistory}
+                onSelect={openConversation}
+                onOpenResources={(uuid) => void openConversation(uuid, true)}
+              />
             )}
+            {conversationLoading && <div className="py-16 text-center text-sm text-muted-foreground" role="status">Loading conversation…</div>}
               {messages.map((message) => message.role === 'user' ? (
                 <Fragment key={message.id}>
                   {message.resources && message.resources.length > 0 && (
