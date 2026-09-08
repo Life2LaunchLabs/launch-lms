@@ -47,6 +47,25 @@ The key is encrypted in the database and is write-only through the API; it is ne
 Each request sends the bounded browser-held conversation with response storage disabled and no tools; Launch
 LMS does not persist chat messages.
 
+## Resource search
+
+Hub resource discovery uses a server-owned lexical baseline plus optional semantic
+candidates. Managed development and self-hosted Compose use PostgreSQL 16 with
+pgvector and a CPU-local Ollama `all-minilm:33m` embedding service; catalog text
+does not leave the deployment. Resource and tag edits refresh a content-hashed
+search document and invalidate only the affected embedding. Run the incremental
+backfill after migrations or a model-version change:
+
+```bash
+LAUNCHLMS_RESOURCE_VECTOR_SEARCH_ENABLED=true \
+LAUNCHLMS_RESOURCE_EMBEDDING_URL=http://embeddings:11434/api/embed \
+uv run python scripts/backfill_resource_search.py
+```
+
+Semantic candidates must also pass the configurable cosine-distance cutoff
+(`LAUNCHLMS_RESOURCE_SEMANTIC_MAX_DISTANCE`, default `0.65`). If pgvector or
+Ollama is unavailable, search stays online using lexical ranking.
+
 ## Guardrail
 
 CI runs `./scripts/check_single_alembic_head.sh` on API changes and fails if Alembic reports more than one head.

@@ -1,6 +1,7 @@
 from enum import Enum
 
-from sqlalchemy import Boolean, CheckConstraint, Column, ForeignKey, Integer, Text, UniqueConstraint
+from pgvector.sqlalchemy import Vector
+from sqlalchemy import Boolean, CheckConstraint, Column, ForeignKey, Index, Integer, Text, UniqueConstraint, text
 from sqlmodel import Field, SQLModel
 
 
@@ -132,6 +133,44 @@ class ResourceRead(ResourceBase):
     creation_date: str
     update_date: str
     tags: list[ResourceTagRead] = Field(default_factory=list)
+
+
+class ResourceSearchDocument(SQLModel, table=True):
+    """Versioned searchable projection of a Resource and its tags."""
+
+    __tablename__ = "resourcesearchdocument"
+    __table_args__ = (
+        UniqueConstraint("resource_id", name="uq_resourcesearchdocument_resource_id"),
+        Index(
+            "ix_resourcesearchdocument_embedding_hnsw",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+            postgresql_where=text("embedding IS NOT NULL"),
+        ),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    resource_id: int = Field(
+        sa_column=Column(Integer, ForeignKey("resource.id", ondelete="CASCADE"), index=True)
+    )
+    org_id: int = Field(
+        sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True)
+    )
+    document_version: str = Field(max_length=50)
+    content_hash: str = Field(max_length=64, index=True)
+    title: str
+    description: str = Field(default="", sa_column=Column(Text, nullable=False))
+    provider: str = ""
+    resource_type: str = ""
+    tags_text: str = Field(default="", sa_column=Column(Text, nullable=False))
+    search_text: str = Field(default="", sa_column=Column(Text, nullable=False))
+    embedding: list[float] | None = Field(default=None, sa_column=Column(Vector(384), nullable=True))
+    embedding_model: str | None = Field(default=None, max_length=100)
+    embedding_version: str | None = Field(default=None, max_length=100)
+    embedding_updated_at: str | None = None
+    creation_date: str = ""
+    update_date: str = ""
 
 
 class ResourceChannelBase(SQLModel):

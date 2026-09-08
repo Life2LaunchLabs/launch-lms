@@ -111,6 +111,20 @@ export function generateEnvFile(config: SetupConfig): string {
     'LAUNCHLMS_LOGFIRE_ENABLED=False',
   )
 
+  if (config.useAiDatabase) {
+    lines.push(
+      '',
+      '# =============================================================================',
+      '# Self-hosted Resource Search',
+      '# =============================================================================',
+      '',
+      'LAUNCHLMS_RESOURCE_VECTOR_SEARCH_ENABLED=True',
+      'LAUNCHLMS_RESOURCE_EMBEDDING_URL=http://embeddings:11434/api/embed',
+      'LAUNCHLMS_RESOURCE_EMBEDDING_MODEL=all-minilm:33m',
+      'LAUNCHLMS_RESOURCE_SEMANTIC_MAX_DISTANCE=0.65',
+    )
+  }
+
   if (config.aiEnabled && config.geminiApiKey) {
     lines.push(
       '',

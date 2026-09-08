@@ -29,40 +29,6 @@ export function inferHubResponseKind(content: string): HubResponseKind {
   return words.length <= 6 && !/[.!]$/.test(normalized) ? 'search' : 'chat'
 }
 
-type SearchableResource = {
-  title: string
-  description?: string | null
-  provider_name?: string | null
-  resource_type?: string | null
-  tags?: Array<string | { name: string }>
-}
-
-function searchTerms(value: string) {
-  const ignored = new Set(['a', 'an', 'and', 'about', 'browse', 'find', 'for', 'look', 'me', 'on', 'please', 'resource', 'resources', 'search', 'show', 'some', 'the'])
-  return (value.toLowerCase().match(/[a-z0-9]+/g) || [])
-    .filter((term) => term.length > 1)
-    .map((term) => term.endsWith('ies') && term.length > 4 ? `${term.slice(0, -3)}y` : term.endsWith('s') && term.length > 3 ? term.slice(0, -1) : term)
-    .map((term) => term.endsWith('ing') && term.length > 5 ? term.slice(0, -3) : term)
-    .filter((term) => !ignored.has(term))
-}
-
-export function filterHubSearchResources<T extends SearchableResource>(resources: T[], query: string) {
-  const queryTerms = searchTerms(query)
-  if (queryTerms.length === 0) return resources
-  return resources
-    .map((resource, index) => {
-      const tags = (resource.tags || []).map((tag) => typeof tag === 'string' ? tag : tag.name).join(' ')
-      const titleTerms = new Set(searchTerms(resource.title))
-      const allTerms = new Set(searchTerms([resource.title, resource.description, resource.provider_name, resource.resource_type, tags].filter(Boolean).join(' ')))
-      const matched = queryTerms.filter((term) => allTerms.has(term))
-      const score = matched.length * 2 + queryTerms.filter((term) => titleTerms.has(term)).length * 3
-      return { resource, index, matched: matched.length, score }
-    })
-    .filter((result) => result.matched === queryTerms.length)
-    .sort((left, right) => right.score - left.score || left.index - right.index)
-    .map((result) => result.resource)
-}
-
 export function addHubContextResource<T extends { resource_uuid: string }>(current: T[], resource: T, limit = 8) {
   return [...current.filter((item) => item.resource_uuid !== resource.resource_uuid), resource].slice(-limit)
 }

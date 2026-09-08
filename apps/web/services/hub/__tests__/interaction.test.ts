@@ -5,7 +5,6 @@ import {
   addHubContextResource,
   addHubContextResources,
   buildHubResourceTrayEntries,
-  filterHubSearchResources,
   hubAdvisorHistory,
   inferHubResponseKind,
   newHubTranscriptResources,
@@ -32,17 +31,6 @@ test('search response objects preserve alternating advisor history for follow-up
     { role: 'user', content: 'personality quiz' },
     { role: 'assistant', content: 'Displayed resource search results for “personality quiz”.' },
   ])
-})
-
-test('resource search matches useful word forms and requires the submitted concepts', () => {
-  const resources = [
-    { title: 'Complete Guide to the FAFSA', description: 'Federal student aid application' },
-    { title: 'FAFSA deadline calendar', description: 'Important dates' },
-    { title: 'Resume guide', description: 'Writing help' },
-  ]
-  assert.deepEqual(filterHubSearchResources(resources, 'fafsa guides'), [resources[0]])
-  assert.deepEqual(filterHubSearchResources(resources, 'fafsa deadlines'), [resources[1]])
-  assert.deepEqual(filterHubSearchResources(resources, 'find me some FAFSA guides'), [resources[0]])
 })
 
 test('advisor resources only enter the transcript the first time they are introduced', () => {

@@ -1,6 +1,7 @@
 import csv
 import io
 import re
+from time import perf_counter
 from collections.abc import Iterable
 from datetime import datetime
 from html import unescape
@@ -56,6 +57,19 @@ from src.db.users import AnonymousUser, APITokenUser, PublicUser, User
 from src.security.org_auth import require_org_membership, require_org_role_permission
 from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
 from src.services.shared_content import owner_org_payload
+from src.services.analytics.analytics import track
+from src.services.analytics.events import RESOURCE_OPENED, RESOURCE_SAVED, RESOURCE_SEARCH_QUERY
+from src.services.search.resource_lexical import (
+    RESOURCE_SEARCH_VERSION,
+    lexical_terms,
+)
+from src.services.search.resource_search import (
+    query_fingerprint,
+    rank_resources,
+    refresh_resource_search_document,
+    refresh_search_documents,
+    refresh_search_documents_for_tag,
+)
 from src.services.utils.upload_content import upload_file
 
 
@@ -525,6 +539,7 @@ async def update_tag(
     db_session.add(tag)
     db_session.commit()
     db_session.refresh(tag)
+    refresh_search_documents_for_tag(tag.id, db_session)
     return ResourceTagRead.model_validate(tag).model_dump()
 
 
@@ -533,9 +548,13 @@ async def delete_tag(request: Request, tag_uuid: str, current_user: PublicUser, 
     if not tag:
         raise HTTPException(status_code=404, detail="Tag not found")
     require_org_role_permission(current_user.id, tag.org_id, db_session, "resources", "action_delete")
+    resource_ids = list(db_session.exec(
+        select(ResourceTagLink.resource_id).where(ResourceTagLink.tag_id == tag.id)
+    ).all())
     db_session.delete(tag)
     db_session.commit()
-    return {"detail": "Tag deleted"}
+    refresh_search_documents(resource_ids, db_session)
+    return {"detail": "Tag deleted", "org_id": tag.org_id}
 
 
 async def create_channel(request: Request, org_id: int, channel_data: ResourceChannelCreate, current_user: PublicUser, db_session: Session) -> dict:
@@ -594,6 +613,7 @@ async def list_resources(
     offset: int = 0,
     limit: int | None = None,
 ) -> list[dict]:
+    search_started_at = perf_counter()
     _get_org_or_404(org_id, db_session)
     statement = select(Resource)
     requested_types = [
@@ -620,15 +640,6 @@ async def list_resources(
         statement = statement.where(Resource.id.in_(matching_resource_ids))
     if provider:
         statement = statement.where(Resource.provider_name == provider)
-    if query:
-        q = f"%{query.lower()}%"
-        statement = statement.where(
-            or_(
-                func.lower(Resource.title).like(q),
-                func.lower(func.coalesce(Resource.description, "")).like(q),
-                func.lower(func.coalesce(Resource.provider_name, "")).like(q),
-            )
-        )
     if access in {"free", "paid", "restricted"}:
         statement = statement.where(Resource.access_mode == access)
     resources = db_session.exec(statement.order_by(Resource.creation_date.desc())).all()
@@ -692,11 +703,57 @@ async def list_resources(
                 continue
             filtered.append(resource)
         resources = filtered
+    ranked_by_resource_id = {}
+    search_version = RESOURCE_SEARCH_VERSION
+    if query:
+        tags_map = _resource_tags_map([resource.id for resource in resources], db_session)
+        ranked, search_version = await rank_resources(
+            resources,
+            {resource_id: [tag["name"] for tag in resource_tags] for resource_id, resource_tags in tags_map.items()},
+            query,
+            db_session,
+        )
+        resources_by_id = {str(resource.id): resource for resource in resources}
+        resources = [resources_by_id[result.document.key] for result in ranked]
+        ranked_by_resource_id = {result.document.key: result for result in ranked}
     if offset:
         resources = resources[offset:]
     if limit is not None:
         resources = resources[:limit]
-    return [_serialize_resource(resource, db_session, current_user, org_id) for resource in resources]
+    serialized_resources = []
+    search_query_id = None
+    if query:
+        from config.config import get_launchlms_config
+
+        search_query_id = query_fingerprint(
+            query,
+            get_launchlms_config().security_config.auth_jwt_secret_key,
+        )
+    for resource in resources:
+        serialized = _serialize_resource(resource, db_session, current_user, org_id)
+        ranked_result = ranked_by_resource_id.get(str(resource.id))
+        if ranked_result:
+            serialized["search_version"] = search_version
+            serialized["search_rank"] = offset + len(serialized_resources) + 1
+            serialized["search_score"] = ranked_result.score
+            serialized["search_match_quality"] = ranked_result.match_quality
+            serialized["search_query_id"] = search_query_id
+        serialized_resources.append(serialized)
+    if query:
+        await track(
+            event_name=RESOURCE_SEARCH_QUERY,
+            org_id=org_id,
+            user_id=getattr(current_user, "id", 0),
+            properties={
+                "query_fingerprint": search_query_id,
+                "query_terms": len(lexical_terms(query, remove_stop_words=True)),
+                "results_count": len(serialized_resources),
+                "zero_results": not serialized_resources,
+                "latency_ms": round((perf_counter() - search_started_at) * 1_000, 2),
+                "search_version": search_version,
+            },
+        )
+    return serialized_resources
 
 
 async def create_resource(
@@ -730,6 +787,7 @@ async def create_resource(
     db_session.refresh(resource)
     _set_resource_tags(resource.id, [tag.id for tag in resolved_tags], db_session)
     db_session.commit()
+    refresh_resource_search_document(resource, db_session)
     return _serialize_resource(resource, db_session, current_user, org_id)
 
 
@@ -748,6 +806,7 @@ async def update_resource(request: Request, resource_uuid: str, resource_data: R
         _set_resource_tags(resource.id, [tag.id for tag in resolved_tags], db_session)
         db_session.commit()
     db_session.refresh(resource)
+    refresh_resource_search_document(resource, db_session)
     return _serialize_resource(resource, db_session, current_user, resource.org_id)
 
 
@@ -763,7 +822,14 @@ async def get_resource(request: Request, resource_uuid: str, current_user, db_se
     resource = _get_resource_or_404(resource_uuid, db_session)
     if not include_private and not _resource_in_accessible_channel(resource, db_session, current_user):
         raise HTTPException(status_code=403, detail="You do not have access to this resource")
-    return _serialize_resource(resource, db_session, current_user, resource.org_id)
+    serialized = _serialize_resource(resource, db_session, current_user, resource.org_id)
+    await track(
+        event_name=RESOURCE_OPENED,
+        org_id=resource.org_id,
+        user_id=getattr(current_user, "id", 0),
+        properties={"resource_uuid": resource.resource_uuid},
+    )
+    return serialized
 
 
 async def list_channel_resources(request: Request, channel_uuid: str, current_user, db_session: Session, include_private: bool = False) -> list[dict]:
@@ -930,7 +996,14 @@ async def save_resource_for_user(request: Request, resource_uuid: str, save_data
     if channel_update_requested:
         _set_saved_resource_channels(saved_resource, channel_ids, db_session)
         db_session.commit()
-    return _serialize_resource(resource, db_session, current_user, resource.org_id)
+    serialized = _serialize_resource(resource, db_session, current_user, resource.org_id)
+    await track(
+        event_name=RESOURCE_SAVED,
+        org_id=resource.org_id,
+        user_id=current_user.id,
+        properties={"resource_uuid": resource.resource_uuid},
+    )
+    return serialized
 
 
 def _get_owned_note(note_uuid: str, current_user: PublicUser, db_session: Session) -> ResourceNoteBlock:

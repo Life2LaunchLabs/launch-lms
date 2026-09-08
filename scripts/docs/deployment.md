@@ -45,8 +45,10 @@ Production deploy order is infra-authoritative:
 2. App repo opens an infra PR updating `release.lock.json`.
 3. Infra deploy pulls the pinned image.
 4. Infra runs `docker compose run --rm migrate`.
-5. Infra restarts the `launch-lms` service only after migrations succeed.
-6. Infra verifies image identity, build metadata, DB revision, and service health.
+5. Infra starts the pinned local Ollama service, pulls `all-minilm:33m`, and waits for its health check.
+6. Infra restarts the `launch-lms` service only after migrations succeed.
+7. Infra runs `uv run python scripts/backfill_resource_search.py`; content hashes make repeat runs incremental.
+8. Infra verifies image identity, build metadata, DB revision, pgvector, embedding-model, and service health.
 
 App startup must not apply Alembic migrations automatically. Schema migrations
 stay an explicit deploy step.
@@ -60,6 +62,8 @@ architecture:
 2. Verifies `/app/build-info.json`.
 3. Starts a disposable pgvector database.
 4. Runs `./scripts/run_alembic_migrations.sh` from the built image.
+5. Starts the pinned Ollama runtime, pulls `all-minilm:33m`, and verifies a 384-dimensional local embedding.
+6. Verifies the migrated resource search vector column and pgvector extension.
 
 This workflow is intentionally heavier than unit tests. It should protect
 deploy-sensitive changes to Dockerfiles, dependency locks, migrations, and

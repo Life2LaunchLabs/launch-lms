@@ -58,9 +58,34 @@ services:
       timeout: 4s
       retries: 5
 
+  embeddings:
+    image: ollama/ollama:0.33.3
+    container_name: launch-lms-embeddings-dev
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - launch_lms_embedding_models:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  embeddings-init:
+    image: ollama/ollama:0.33.3
+    restart: "no"
+    environment:
+      - OLLAMA_HOST=http://embeddings:11434
+    command: ["pull", "all-minilm:33m"]
+    depends_on:
+      embeddings:
+        condition: service_healthy
+
 volumes:
   launch_lms_db_dev_data:
   launch_lms_redis_dev_data:
+  launch_lms_embedding_models:
 `
 
 function findProjectRoot(): string | null {
@@ -488,6 +513,12 @@ function isContainerRunning(name: string): boolean {
 }
 
 function isInfraRunning(): boolean {
+  return isContainerRunning('launch-lms-db-dev')
+    && isContainerRunning('launch-lms-redis-dev')
+    && isContainerRunning('launch-lms-embeddings-dev')
+}
+
+function isCoreInfraRunning(): boolean {
   return isContainerRunning('launch-lms-db-dev') && isContainerRunning('launch-lms-redis-dev')
 }
 
@@ -594,14 +625,15 @@ export async function devCommand(opts: { ee?: boolean; fresh?: boolean }) {
   const composePath = getDevComposePath(root)
 
   // Check if infrastructure is already running
+  const coreAlreadyRunning = isCoreInfraRunning()
   const alreadyRunning = isInfraRunning()
 
   if (alreadyRunning) {
-    p.log.success('Existing DB and Redis containers detected — reusing them')
+    p.log.success('Existing DB, Redis, and embedding containers detected — reusing them')
   }
 
   // Only ask for admin credentials on first setup
-  if (!alreadyRunning) {
+  if (!coreAlreadyRunning) {
     const email = await p.text({
       message: 'Admin email',
       placeholder: 'admin@school.dev',
@@ -625,9 +657,16 @@ export async function devCommand(opts: { ee?: boolean; fresh?: boolean }) {
       LAUNCHLMS_INITIAL_ADMIN_PASSWORD: password,
     }
 
-    // Start infrastructure
+  } else {
+    serviceEnv = {
+      FORCE_COLOR: '1',
+    }
+  }
+
+  if (!alreadyRunning) {
+    // Start missing or first-run infrastructure.
     const infraSpinner = p.spinner()
-    infraSpinner.start('Starting DB and Redis containers...')
+    infraSpinner.start('Starting DB, Redis, and local embedding containers...')
     try {
       execSync(`docker compose -f ${composePath} -p ${PROJECT_NAME} up -d`, {
         cwd: root,
@@ -639,28 +678,26 @@ export async function devCommand(opts: { ee?: boolean; fresh?: boolean }) {
       p.log.error(e.stderr?.toString() || 'docker compose up failed')
       process.exit(1)
     }
-  } else {
-    serviceEnv = {
-      FORCE_COLOR: '1',
-    }
   }
 
   // Health checks
   const healthSpinner = p.spinner()
-  healthSpinner.start('Waiting for DB and Redis to be healthy...')
+  healthSpinner.start('Waiting for DB, Redis, and the local embedding model...')
 
-  const [dbReady, redisReady] = await Promise.all([
+  const [dbReady, redisReady, embeddingsReady] = await Promise.all([
     waitForHealth('DB', 'docker', ['exec', 'launch-lms-db-dev', 'pg_isready', '-U', 'launchlms']),
     waitForHealth('Redis', 'docker', ['exec', 'launch-lms-redis-dev', 'redis-cli', 'ping']),
+    waitForHealth('Embeddings', 'docker', ['exec', 'launch-lms-embeddings-dev', 'ollama', 'show', 'all-minilm:33m']),
   ])
 
-  if (!dbReady || !redisReady) {
+  if (!dbReady || !redisReady || !embeddingsReady) {
     healthSpinner.stop('Health checks failed')
     if (!dbReady) p.log.error('Database did not become ready in time.')
     if (!redisReady) p.log.error('Redis did not become ready in time.')
+    if (!embeddingsReady) p.log.error('Local embedding model did not become ready in time.')
     process.exit(1)
   }
-  healthSpinner.stop('DB and Redis are healthy')
+  healthSpinner.stop('DB, Redis, and local embeddings are healthy')
 
   const webDir = path.join(root, 'apps', 'web')
   const collabDir = path.join(root, 'apps', 'collab')
@@ -705,6 +742,9 @@ export async function devCommand(opts: { ee?: boolean; fresh?: boolean }) {
   const devDatabaseUrl = explicitDatabaseUrl || getDevDatabaseUrl(selectedDatabase!.databaseName)
 
   serviceEnv.LAUNCHLMS_SQL_CONNECTION_STRING = devDatabaseUrl
+  serviceEnv.LAUNCHLMS_RESOURCE_VECTOR_SEARCH_ENABLED = 'True'
+  serviceEnv.LAUNCHLMS_RESOURCE_EMBEDDING_URL = 'http://127.0.0.1:11434/api/embed'
+  serviceEnv.LAUNCHLMS_RESOURCE_EMBEDDING_MODEL = 'all-minilm:33m'
   runDevMigrations(root, apiDir, devDatabaseUrl)
 
   if (selectedDatabase) {
@@ -713,6 +753,19 @@ export async function devCommand(opts: { ee?: boolean; fresh?: boolean }) {
 
   if (selectedDatabase?.importSourceDatabase) {
     importCompatibleDevData(root, apiDir, selectedDatabase.importSourceDatabase, devDatabaseUrl)
+  }
+
+  const searchBackfill = spawnSync(
+    'uv',
+    ['run', 'python', 'scripts/backfill_resource_search.py'],
+    {
+      cwd: apiDir,
+      stdio: 'inherit',
+      env: { ...process.env, ...serviceEnv },
+    },
+  )
+  if (searchBackfill.status !== 0) {
+    p.log.warning('Resource search backfill did not complete; lexical search remains available')
   }
 
   if (selectedDatabase) {

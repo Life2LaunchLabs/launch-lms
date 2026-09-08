@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "resources": [
+    {
+      "key": "mbti",
+      "title": "Myers-Briggs Personality Assessment",
+      "description": "Understand your preferences and strengths.",
+      "provider": "Career Center",
+      "resource_type": "assessment",
+      "tags": ["personality", "self discovery"]
+    },
+    {
+      "key": "interview",
+      "title": "Interview Preparation",
+      "description": "Practice common questions before your next job interview.",
+      "provider": "Career Center",
+      "resource_type": "guide",
+      "tags": ["jobs"]
+    },
+    {
+      "key": "resume",
+      "title": "Resume worksheet",
+      "description": "Draft a strong application.",
+      "provider": "Student Success",
+      "resource_type": "template",
+      "tags": ["career"]
+    },
+    {
+      "key": "fafsa",
+      "title": "FAFSA application walkthrough",
+      "description": "Apply for federal student aid.",
+      "provider": "Student Success",
+      "resource_type": "video",
+      "tags": ["college", "financial aid"]
+    }
+  ],
+  "judgments": [
+    {"query": "personality quiz", "relevant": ["mbti"]},
+    {"query": "personality assesment", "relevant": ["mbti"]},
+    {"query": "interview guides", "relevant": ["interview"]},
+    {"query": "CV template", "relevant": ["resume"]},
+    {"query": "Career Center personality", "relevant": ["mbti"]},
+    {"query": "financial aid video", "relevant": ["fafsa"]},
+    {"query": "psychometric questionnaire", "relevant": ["mbti"]},
+    {"query": "curriculum vitae", "relevant": ["resume"]},
+    {"query": "tuition assistance form", "relevant": ["fafsa"]}
+  ]
+}

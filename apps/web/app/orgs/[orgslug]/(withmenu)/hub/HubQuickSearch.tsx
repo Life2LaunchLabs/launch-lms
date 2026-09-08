@@ -1,6 +1,6 @@
 'use client'
 
-import { Dispatch, useEffect, useMemo, useRef, useState } from 'react'
+import { Dispatch, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown, ChevronRight, Loader2, Search, Star } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import ResourceTypeVisual from '@components/Resources/ResourceTypeVisual'
@@ -8,8 +8,8 @@ import { Button } from '@components/ui/button'
 import { Card } from '@components/ui/card'
 import { Input } from '@components/ui/input'
 import { getResourceThumbnailMediaDirectory } from '@services/media/media'
+import { trackEvent } from '@services/analytics/analytics'
 import { getResources, Resource, ResourceType } from '@services/resources/resources'
-import { filterHubSearchResources } from './hubInteraction'
 
 export type HubResourceFilters = {
   channel?: string
@@ -78,12 +78,21 @@ export default function HubQuickSearch({ orgId, orgUUID, query, resourceFilters,
   const accessToken = session?.data?.tokens?.access_token
   const [expanded, setExpanded] = useState(false)
   const [searchQuery, setSearchQuery] = useState(query)
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(query)
   const [resourceType, setResourceType] = useState<'all' | ResourceType>('all')
   const [access, setAccess] = useState('all')
   const [availableResources, setAvailableResources] = useState<Resource[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const selectedInitialResultRef = useRef(false)
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setLoading(true)
+      setDebouncedSearchQuery(searchQuery)
+    }, 200)
+    return () => window.clearTimeout(timeout)
+  }, [searchQuery])
 
   useEffect(() => {
     if (!orgId || !accessToken) return
@@ -96,6 +105,8 @@ export default function HubQuickSearch({ orgId, orgUUID, query, resourceFilters,
       resource_types: resourceType === 'all' ? resourceFilters.resource_types : undefined,
       tags: resourceFilters.tags,
       provider: resourceFilters.provider,
+      query: debouncedSearchQuery,
+      limit: 50,
     }, accessToken)
       .then((nextResources) => {
         if (!active) return
@@ -109,16 +120,28 @@ export default function HubQuickSearch({ orgId, orgUUID, query, resourceFilters,
       })
       .finally(() => active && setLoading(false))
     return () => { active = false }
-  }, [access, accessToken, orgId, resourceFilters.access, resourceFilters.channel, resourceFilters.provider, resourceFilters.resource_types, resourceFilters.tags, resourceFilters.user_channel, resourceType])
+  }, [access, accessToken, debouncedSearchQuery, orgId, resourceFilters.access, resourceFilters.channel, resourceFilters.provider, resourceFilters.resource_types, resourceFilters.tags, resourceFilters.user_channel, resourceType])
 
-  const resources = useMemo(() => filterHubSearchResources(availableResources, searchQuery), [availableResources, searchQuery])
+  const resources = availableResources
   const shownResources = useMemo(() => expanded ? resources : resources.slice(0, 4), [expanded, resources])
+
+  const selectSearchResult = useCallback((resource: Resource) => {
+    if (orgId && accessToken) {
+      void trackEvent('resource_search_opened', orgId, {
+        resource_uuid: resource.resource_uuid,
+        search_rank: resource.search_rank,
+        search_version: resource.search_version,
+        query_fingerprint: resource.search_query_id,
+      }, accessToken)
+    }
+    onSelectResource(resource)
+  }, [accessToken, onSelectResource, orgId])
 
   useEffect(() => {
     if (selectedInitialResultRef.current || loading || selectedResourceUuids?.length || resources.length === 0) return
     selectedInitialResultRef.current = true
-    onSelectResource(resources[0])
-  }, [loading, onSelectResource, resources, selectedResourceUuids?.length])
+    selectSearchResult(resources[0])
+  }, [loading, resources, selectSearchResult, selectedResourceUuids?.length])
 
   return (
     <section className="w-full max-w-full overflow-hidden" aria-live="polite" aria-busy={loading} aria-label={`Resource results for ${searchQuery}`}>
@@ -156,7 +179,7 @@ export default function HubQuickSearch({ orgId, orgUUID, query, resourceFilters,
         {!loading && !error && resources.length === 0 && <div className="flex h-24 items-center justify-center text-xs text-muted-foreground">No matching resources.</div>}
         {!loading && !error && resources.length > 0 && (
           <div className={expanded ? 'grid grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] gap-2' : 'flex snap-x gap-2 overflow-x-auto pb-0.5'}>
-            {shownResources.map((resource) => <ResourceSearchCard key={resource.resource_uuid} resource={resource} orgUUID={orgUUID} selected={selectedResourceUuids?.includes(resource.resource_uuid) || false} expanded={expanded} onSelect={onSelectResource} />)}
+            {shownResources.map((resource) => <ResourceSearchCard key={resource.resource_uuid} resource={resource} orgUUID={orgUUID} selected={selectedResourceUuids?.includes(resource.resource_uuid) || false} expanded={expanded} onSelect={selectSearchResult} />)}
           </div>
         )}
       </div>

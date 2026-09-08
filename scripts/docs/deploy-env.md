@@ -69,6 +69,10 @@ will start in reload mode.
 | `AWS_SECRET_ACCESS_KEY` | API | S3 credential. |
 | `LAUNCHLMS_IS_AI_ENABLED` | API | Enables AI features when true and configured. |
 | `LAUNCHLMS_GEMINI_API_KEY` | API | Gemini API key. |
+| `LAUNCHLMS_RESOURCE_VECTOR_SEARCH_ENABLED` | API | `true` enables hybrid resource retrieval. Requires pgvector and the local embedding endpoint. Defaults to `false` for safe lexical fallback. |
+| `LAUNCHLMS_RESOURCE_EMBEDDING_URL` | API | Ollama embed endpoint. Managed Compose uses `http://embeddings:11434/api/embed`. |
+| `LAUNCHLMS_RESOURCE_EMBEDDING_MODEL` | API, embeddings | Locally hosted embedding model. The supported default is `all-minilm:33m` (384 dimensions). |
+| `LAUNCHLMS_RESOURCE_SEMANTIC_MAX_DISTANCE` | API | Maximum pgvector cosine distance admitted as a semantic candidate. Defaults to `0.65`; lower is stricter. |
 | `LAUNCHLMS_TINYBIRD_API_URL` | API | Enables analytics when set. |
 | `LAUNCHLMS_TINYBIRD_INGEST_TOKEN` | API | Tinybird ingest token. |
 | `LAUNCHLMS_TINYBIRD_READ_TOKEN` | API | Tinybird read token. |

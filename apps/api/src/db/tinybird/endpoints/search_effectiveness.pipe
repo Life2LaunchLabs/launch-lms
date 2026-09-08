@@ -1,21 +1,25 @@
 DESCRIPTION >
-    Top search queries, zero-result rate, click-through rate
+    Privacy-safe resource-search volume, zero-result rate, latency, and click-through rate
 
 NODE search_effectiveness_node
 SQL >
     %
     SELECT
         org_id,
-        JSONExtractString(properties, 'query') AS query,
-        count() AS search_count,
-        countIf(JSONExtractInt(properties, 'results_count') = 0) AS zero_results,
-        round(zero_results / search_count * 100, 1) AS zero_result_rate
+        JSONExtractString(properties, 'query_fingerprint') AS query_fingerprint,
+        JSONExtractString(properties, 'search_version') AS search_version,
+        countIf(event_name = 'resource_search_query') AS search_count,
+        countIf(event_name = 'resource_search_query' AND JSONExtractInt(properties, 'results_count') = 0) AS zero_results,
+        round(if(search_count > 0, zero_results / search_count * 100, 0), 1) AS zero_result_rate,
+        quantileIf(0.95)(JSONExtractFloat(properties, 'latency_ms'), event_name = 'resource_search_query') AS p95_latency_ms,
+        countIf(event_name = 'resource_search_opened') AS opens,
+        round(if(search_count > 0, opens / search_count * 100, 0), 1) AS click_through_rate
     FROM events
     WHERE
         ({{Int64(org_id, 0)}} = 0 OR org_id = {{Int64(org_id, 0)}})
-        AND event_name = 'search_query'
+        AND event_name IN ('resource_search_query', 'resource_search_opened')
         AND timestamp >= now() - INTERVAL {{Int32(days, 30)}} DAY
-    GROUP BY org_id, query
+    GROUP BY org_id, query_fingerprint, search_version
     ORDER BY search_count DESC
     LIMIT 50
 

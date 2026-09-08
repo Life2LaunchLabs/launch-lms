@@ -9,6 +9,7 @@ on:
       - "apps/api/**"
       - "apps/collab/**"
       - "apps/web/**"
+      - "apps/cli/**"
       - ".github/workflows/deploy-readiness.yaml"
   push:
     branches:
@@ -21,6 +22,7 @@ on:
       - "apps/api/**"
       - "apps/collab/**"
       - "apps/web/**"
+      - "apps/cli/**"
       - ".github/workflows/deploy-readiness.yaml"
   workflow_dispatch:
 
@@ -73,6 +75,26 @@ jobs:
           docker logs launch-lms-ci-db
           exit 1
 
+      - name: Start local embedding service
+        run: |
+          docker run -d \
+            --name launch-lms-ci-embeddings \
+            --network launch-lms-ci \
+            -p 11434:11434 \
+            ollama/ollama:0.33.3
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null 2>&1; then
+              break
+            fi
+            sleep 1
+          done
+          docker exec launch-lms-ci-embeddings ollama pull all-minilm:33m
+          dimensions=$(curl -fsS http://127.0.0.1:11434/api/embed \
+            -H 'Content-Type: application/json' \
+            -d '{"model":"all-minilm:33m","input":"personality assessment"}' \
+            | python -c 'import json,sys; print(len(json.load(sys.stdin)["embeddings"][0]))')
+          test "$dimensions" = "384"
+
       - name: Run release migrations
         run: |
           docker run --rm \
@@ -84,8 +106,28 @@ jobs:
             "launch-lms-ci:${GITHUB_SHA}" \
             -lc 'cd /app/api && ./scripts/run_alembic_migrations.sh && uv run alembic current'
 
+      - name: Verify resource search storage
+        run: |
+          extension=$(docker exec launch-lms-ci-db psql -U launchlms -d launchlms -tAc "SELECT extname FROM pg_extension WHERE extname='vector'")
+          vector_type=$(docker exec launch-lms-ci-db psql -U launchlms -d launchlms -tAc "SELECT format_type(atttypid, atttypmod) FROM pg_attribute WHERE attrelid='resourcesearchdocument'::regclass AND attname='embedding'")
+          vector_index=$(docker exec launch-lms-ci-db psql -U launchlms -d launchlms -tAc "SELECT indexname FROM pg_indexes WHERE indexname='ix_resourcesearchdocument_embedding_hnsw'")
+          test "$extension" = "vector"
+          test "$vector_type" = "vector(384)"
+          test "$vector_index" = "ix_resourcesearchdocument_embedding_hnsw"
+
+      - name: Evaluate hybrid resource relevance
+        run: |
+          docker run --rm \
+            --network launch-lms-ci \
+            -e LAUNCHLMS_RESOURCE_EMBEDDING_URL=http://launch-lms-ci-embeddings:11434/api/embed \
+            -e LAUNCHLMS_RESOURCE_EMBEDDING_MODEL=all-minilm:33m \
+            --entrypoint sh \
+            "launch-lms-ci:${GITHUB_SHA}" \
+            -lc 'cd /app/api && uv run python scripts/evaluate_resource_search.py --require-improvement'
+
       - name: Cleanup
         if: always()
         run: |
           docker rm -f launch-lms-ci-db || true
+          docker rm -f launch-lms-ci-embeddings || true
           docker network rm launch-lms-ci || true

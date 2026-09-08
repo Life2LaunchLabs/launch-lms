@@ -103,6 +103,11 @@ export interface Resource {
   channels: ResourceChannel[]
   user_channel_uuids: string[]
   user_state: SavedResourceState | null
+  search_version?: string
+  search_rank?: number
+  search_score?: number
+  search_match_quality?: 'all_terms' | 'fuzzy' | 'partial' | 'hybrid' | 'semantic'
+  search_query_id?: string
 }
 
 export interface ResourceTag {
