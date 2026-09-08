@@ -106,11 +106,19 @@ export async function askHubAdvisor(
 }
 
 export function getHubMemory(orgId: number, accessToken: string) {
-  return hubRequest<{ enabled: boolean; memories: HubMemory[] }>(`memory?org_id=${encodeURIComponent(orgId)}`, 'GET', accessToken)
+  return hubRequest<{ enabled: boolean; notice_dismissed: boolean; memories: HubMemory[] }>(`memory?org_id=${encodeURIComponent(orgId)}`, 'GET', accessToken)
 }
 
 export function setHubMemoryEnabled(orgId: number, enabled: boolean, accessToken: string) {
-  return hubRequest<{ enabled: boolean }>(`memory/settings?org_id=${encodeURIComponent(orgId)}`, 'PATCH', accessToken, { enabled })
+  return updateHubMemorySettings(orgId, { enabled }, accessToken)
+}
+
+export function updateHubMemorySettings(
+  orgId: number,
+  settings: { enabled?: boolean; notice_dismissed?: boolean },
+  accessToken: string,
+) {
+  return hubRequest<{ enabled: boolean; notice_dismissed: boolean }>(`memory/settings?org_id=${encodeURIComponent(orgId)}`, 'PATCH', accessToken, settings)
 }
 
 export function updateHubMemory(orgId: number, memoryUuid: string, content: string, accessToken: string) {

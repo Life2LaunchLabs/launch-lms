@@ -93,7 +93,7 @@ export default function ResourceTypeVisual({
           />
           <Icon
             aria-hidden="true"
-            className={`relative z-10 h-14 w-14 text-white ${iconClassName}`}
+            className={`relative h-14 w-14 text-white ${iconClassName}`}
             strokeWidth={1.75}
           />
         </>

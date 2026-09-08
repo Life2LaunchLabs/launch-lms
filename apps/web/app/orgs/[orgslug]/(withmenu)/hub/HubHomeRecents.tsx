@@ -4,14 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import { ChevronDown, LibraryBig } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import type { HubConversationSummary } from '@services/hub/advisor'
+import { hubTimestampLabel } from '@services/hub/timestamp'
 import HubConversationHistory from './HubConversationHistory'
-
-function dateLabel(value: string) {
-  const date = new Date(value)
-  const today = new Date()
-  if (date.toDateString() === today.toDateString()) return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-  return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: date.getFullYear() === today.getFullYear() ? undefined : 'numeric' })
-}
 
 export default function HubHomeRecents({
   conversations,
@@ -76,7 +70,7 @@ export default function HubHomeRecents({
               onClick={() => onSelect(conversation.conversation_uuid)}
             >
               <span className="min-w-0 flex-1 truncate text-sm font-medium">{conversation.title}</span>
-              <span className="shrink-0 text-xs text-muted-foreground">{dateLabel(conversation.updated_at)}</span>
+              <span className="shrink-0 text-xs text-muted-foreground">{hubTimestampLabel(conversation.updated_at)}</span>
             </button>
             {conversation.resource_count > 0 && (
               <Button

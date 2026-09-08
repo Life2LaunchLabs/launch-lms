@@ -102,7 +102,8 @@ class HubMemoryPreference(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), nullable=False, index=True))
     user_id: int = Field(sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True))
-    enabled: bool = Field(default=False, sa_column=Column(Boolean, nullable=False, default=False))
+    enabled: bool = Field(default=True, sa_column=Column(Boolean, nullable=False, default=True))
+    notice_dismissed: bool = Field(default=False, sa_column=Column(Boolean, nullable=False, default=False))
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 

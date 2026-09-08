@@ -1,6 +1,6 @@
 'use client'
 
-import { FormEvent, Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { FormEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Plus, Send } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -11,6 +11,7 @@ import { Textarea } from '@components/ui/textarea'
 import {
   archiveHubConversation,
   askHubAdvisor,
+  getHubMemory,
   getHubConversation,
   HubAdvisorMessage,
   HubMemory,
@@ -20,12 +21,14 @@ import {
   recordHubSearch,
   renameHubConversation,
   saveHubConversationState,
+  updateHubMemorySettings,
 } from '@services/hub/advisor'
 import { getResource, Resource } from '@services/resources/resources'
 import HubQuickSearch from './HubQuickSearch'
 import HubHeader from './HubHeader'
 import HubHomeRecents from './HubHomeRecents'
 import HubMessageMicroBar from './HubMessageMicroBar'
+import HubMemoryNotice from './HubMemoryNotice'
 import HubResourceContext, { ActiveResourceWorkspace } from './HubResourceContext'
 import HubResourceLibrary from './HubResourceLibrary'
 import {
@@ -127,6 +130,10 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [composerHeight, setComposerHeight] = useState(COMPOSER_MIN_HEIGHT)
   const [composerFades, setComposerFades] = useState({ top: false, bottom: false })
+  const [memoryEnabled, setMemoryEnabled] = useState(true)
+  const [memoryNoticeVisible, setMemoryNoticeVisible] = useState(false)
+  const [memorySettingsLoaded, setMemorySettingsLoaded] = useState(false)
+  const [memorySettingSaving, setMemorySettingSaving] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const composerRef = useRef<HTMLTextAreaElement>(null)
   const openedResourceRef = useRef('')
@@ -134,9 +141,11 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
   const introducedResourceUuidsRef = useRef(new Set<string>())
   const resourceOriginRefs = useRef(new Map<string, HTMLDivElement>())
   const stateSaveQueueRef = useRef<Promise<void>>(Promise.resolve())
+  const initialPromptSubmittedRef = useRef(false)
   const org = useOrg() as any
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
+  const conversationStarted = Boolean(conversationUuid || messages.length > 0)
   const trayEntries = useMemo(() => buildHubResourceTrayEntries([
     ...messages.map((message) => ({ id: message.id, resources: message.resources })),
     { id: 'pending', resources: pendingResources },
@@ -164,6 +173,26 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
   useEffect(() => {
     if (!conversationUuid) void refreshHistory()
   }, [conversationUuid, refreshHistory])
+
+  useEffect(() => {
+    if (!accessToken || !org?.id) return
+    let active = true
+    getHubMemory(org.id, accessToken)
+      .then((settings) => {
+        if (!active) return
+        setMemoryEnabled(settings.enabled)
+        setMemoryNoticeVisible(!settings.notice_dismissed)
+      })
+      .catch(() => undefined)
+      .finally(() => active && setMemorySettingsLoaded(true))
+    return () => { active = false }
+  }, [accessToken, org?.id])
+
+  useEffect(() => {
+    if (!memorySettingsLoaded || !initialQuery.trim() || initialPromptSubmittedRef.current || !accessToken || !org?.id) return
+    initialPromptSubmittedRef.current = true
+    composerRef.current?.form?.requestSubmit()
+  }, [accessToken, initialQuery, memorySettingsLoaded, org?.id])
 
   const openConversation = async (uuid: string, openResources = false) => {
     if (!accessToken || !org?.id || sending) return
@@ -270,7 +299,39 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
     updateComposerFades(textarea)
   }, [draft])
 
+  const dismissMemoryNotice = useCallback(async () => {
+    if (!memoryNoticeVisible) return
+    setMemoryNoticeVisible(false)
+    if (accessToken && org?.id) {
+      try {
+        await updateHubMemorySettings(org.id, { notice_dismissed: true }, accessToken)
+      } catch {
+        // The acknowledgement can be retried on a later visit without blocking Hub.
+      }
+    }
+  }, [accessToken, memoryNoticeVisible, org?.id])
+
+  const changeMemoryEnabled = async (enabled: boolean) => {
+    if (!accessToken || !org?.id || memorySettingSaving) return
+    setMemorySettingSaving(true)
+    setError('')
+    try {
+      const settings = await updateHubMemorySettings(
+        org.id,
+        { enabled, notice_dismissed: true },
+        accessToken,
+      )
+      setMemoryEnabled(settings.enabled)
+      setMemoryNoticeVisible(false)
+    } catch (settingError: any) {
+      setError(settingError?.message || 'Your memory setting could not be saved.')
+    } finally {
+      setMemorySettingSaving(false)
+    }
+  }
+
   const resetChat = () => {
+    void dismissMemoryNotice()
     setMessages([])
     setConversationUuid(null)
     setConversationTitle('')
@@ -372,12 +433,17 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
     event.preventDefault()
     const content = draft.trim()
     if (!content || !accessToken || !org?.id || sending) return
+    void dismissMemoryNotice()
     const previousMessages = messages
     let history: HubAdvisorMessage[] = hubAdvisorHistory(messages)
     while (history.length >= 2 && history.reduce((sum, item) => sum + item.content.length, 0) + content.length > 7_500) {
       history = history.slice(2)
     }
     const requestMessages: HubAdvisorMessage[] = [...history, { role: 'user', content }]
+    if (!conversationUuid) {
+      const normalizedTitle = content.replace(/\s+/g, ' ').trim()
+      setConversationTitle(normalizedTitle.length <= 80 ? normalizedTitle : `${normalizedTitle.slice(0, 77).trimEnd()}…`)
+    }
     messageSequenceRef.current += 1
     const userMessageId = `user-${messageSequenceRef.current}`
     const submittedResources = pendingResources
@@ -483,11 +549,12 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
   return (
     <main className="relative mx-auto h-[calc(100dvh-5rem)] w-full max-w-[1056px] overflow-hidden md:h-dvh" aria-label="Hub">
       <h1 className="sr-only">{conversationTitle || 'Hub'}</h1>
-      {conversationUuid && (
+      {conversationStarted && (
         <HubHeader
           key={`${conversationUuid}:${resourcePanelConversationUuid === conversationUuid ? 'resources' : 'conversation'}`}
           orgslug={orgslug}
           conversationUuid={conversationUuid}
+          conversationStarted={conversationStarted}
           title={conversationTitle}
           conversations={conversations}
           entries={trayEntries}
@@ -498,7 +565,7 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
           onNew={resetChat}
           onSelect={openConversation}
           onOpenResources={(uuid) => void openConversation(uuid, true)}
-          onRename={(title) => renameConversation(conversationUuid, title)}
+          onRename={(title) => conversationUuid ? renameConversation(conversationUuid, title) : Promise.resolve()}
           onArchive={archiveConversation}
           onRemoveResource={removeResourceEverywhere}
           onReturnToOrigin={returnToResourceOrigin}
@@ -508,11 +575,11 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
 
       <div ref={scrollRef} className="absolute inset-0 overflow-y-auto overscroll-contain scroll-smooth">
         <div
-          className={`mx-auto min-h-full w-full max-w-3xl px-4 sm:px-6 ${conversationUuid ? 'pt-16' : 'pt-7 sm:pt-10'}`}
-          style={{ paddingBottom: composerHeight + 88 + (libraryOpen ? 290 : 0) }}
+          className={`mx-auto min-h-full w-full max-w-3xl px-4 sm:px-6 ${conversationStarted ? 'pt-16' : 'pt-7 sm:pt-10'}`}
+          style={{ paddingBottom: composerHeight + 88 + (memoryNoticeVisible ? 148 : 0) + (libraryOpen ? 290 : 0) }}
         >
           <div className="space-y-7" aria-live="polite" aria-busy={sending || conversationLoading}>
-            {!conversationUuid && (
+            {!conversationUuid && messages.length === 0 && (
               <HubHomeRecents
                 conversations={conversations}
                 loading={historyLoading}
@@ -524,7 +591,7 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
             )}
             {conversationLoading && <div className="py-16 text-center text-sm text-muted-foreground" role="status">Loading conversation…</div>}
               {messages.map((message) => message.role === 'user' ? (
-                <Fragment key={message.id}>
+                <div key={message.id} className="space-y-1.5">
                   {message.resources && message.resources.length > 0 && (
                     <div ref={(node) => { if (node) resourceOriginRefs.current.set(message.id, node); else resourceOriginRefs.current.delete(message.id) }} tabIndex={-1} className="rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
                       <HubResourceContext
@@ -543,11 +610,11 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
                     </div>
                   </div>
                   {accessToken && org?.id && <HubMessageMicroBar role="user" content={message.content} createdAt={message.createdAt} memories={message.memories} orgId={org.id} accessToken={accessToken} />}
-                </Fragment>
+                </div>
               ) : (
-                <Fragment key={message.id}>
+                <div key={message.id} className="space-y-1.5">
                   {message.searchQuery ? (
-                    <div ref={(node) => { if (node) resourceOriginRefs.current.set(message.id, node); else resourceOriginRefs.current.delete(message.id) }} tabIndex={-1} className="rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
+                    <div ref={(node) => { if (node) resourceOriginRefs.current.set(message.id, node); else resourceOriginRefs.current.delete(message.id) }} tabIndex={-1} className="space-y-1.5 rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
                       <HubQuickSearch
                         orgId={org?.id}
                         orgUUID={org?.org_uuid}
@@ -586,7 +653,7 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
                       )}
                     </>
                   )}
-                </Fragment>
+                </div>
               ))}
               {pendingResources.length > 0 && (
                 <div ref={(node) => { if (node) resourceOriginRefs.current.set('pending', node); else resourceOriginRefs.current.delete('pending') }} tabIndex={-1} className="rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
@@ -606,9 +673,21 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
         </div>
       </div>
 
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-sticky">
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[var(--z-sticky-header)]">
         <div aria-hidden="true" className="absolute inset-x-0 -top-10 bottom-0 bg-[linear-gradient(to_bottom,transparent_0%,color-mix(in_srgb,var(--org-page-background)_50%,transparent)_50%,var(--org-page-background)_78%)]" />
         <div className="pointer-events-auto relative mx-auto w-full max-w-[50rem] px-4 pb-4 sm:px-5 sm:pb-6">
+        {memoryNoticeVisible && (
+          <HubMemoryNotice
+            orgslug={orgslug}
+            enabled={memoryEnabled}
+            saving={memorySettingSaving}
+            onEnabledChange={(enabled) => void changeMemoryEnabled(enabled)}
+            onDismiss={() => void dismissMemoryNotice()}
+            onLearnMore={(href) => {
+              void dismissMemoryNotice().finally(() => window.location.assign(href))
+            }}
+          />
+        )}
         <form onSubmit={submit} className="flex flex-col justify-end">
           <div className="rounded-[1.6rem] border border-border/80 bg-background/90 p-2 shadow-sm backdrop-blur-md">
             <label htmlFor="hub-composer" className="sr-only">Ask a question or search Launch LMS</label>

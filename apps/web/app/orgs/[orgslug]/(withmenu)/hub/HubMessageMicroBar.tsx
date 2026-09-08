@@ -1,10 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { BrainCircuit, Check, CircleHelp, Copy } from 'lucide-react'
+import { Check, CircleHelp, Copy, Lightbulb } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@components/ui/popover'
 import type { HubMemory } from '@services/hub/advisor'
+import { hubTimestampDate } from '@services/hub/timestamp'
 import HubMemoryItems from './HubMemoryItems'
 
 type Props = {
@@ -43,10 +44,10 @@ export default function HubMessageMicroBar({ role, content, createdAt, memories 
       <Popover>
         <PopoverTrigger asChild>
           <Button type="button" size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground" aria-label={label} title={label}>
-            {role === 'assistant' ? <CircleHelp className="h-3.5 w-3.5" /> : <BrainCircuit className="h-3.5 w-3.5" />}
+            {role === 'assistant' ? <CircleHelp className="h-3.5 w-3.5" /> : <Lightbulb className="h-3.5 w-3.5" />}
           </Button>
         </PopoverTrigger>
-        <PopoverContent align={role === 'user' ? 'end' : 'start'} className="w-[min(24rem,calc(100vw-2rem))] p-3">
+        <PopoverContent align={role === 'user' ? 'end' : 'start'} className="w-[min(24rem,calc(100vw-2rem))] border-border/90 bg-background p-3 shadow-xl shadow-black/20">
           <p className="mb-2 px-1 text-xs font-semibold text-muted-foreground">{label}</p>
           {items.length > 0
             ? <HubMemoryItems memories={items} orgId={orgId} accessToken={accessToken} onChange={setItems} />
@@ -55,7 +56,7 @@ export default function HubMessageMicroBar({ role, content, createdAt, memories 
       </Popover>
       {role === 'assistant' && createdAt && (
         <time dateTime={createdAt} className="ml-1 text-[11px] text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-          {new Date(createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+          {hubTimestampDate(createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
         </time>
       )}
     </div>

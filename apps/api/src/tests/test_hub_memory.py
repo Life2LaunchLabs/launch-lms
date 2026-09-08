@@ -43,17 +43,13 @@ def _message(db: Session) -> HubConversationMessage:
     return message
 
 
-def test_memory_is_opt_in_tenant_scoped_and_stops_without_deleting(monkeypatch):
+def test_memory_defaults_on_is_tenant_scoped_and_stops_without_deleting(monkeypatch):
     with _session(monkeypatch) as db:
         _message(db)
-        assert hub_memory.memory_settings(db, 7, 11) == {"enabled": False}
-        assert hub_memory.apply_memory_candidates(
-            db, org_id=7, user_id=11, message_uuid="message_one",
-            candidates=[{"category": "goal", "content": "You want to become a nurse"}],
-            extraction_model="test",
-        ) == []
-
-        hub_memory.set_memory_enabled(db, 7, 11, True)
+        assert hub_memory.memory_settings(db, 7, 11) == {
+            "enabled": True,
+            "notice_dismissed": False,
+        }
         changed = hub_memory.apply_memory_candidates(
             db, org_id=7, user_id=11, message_uuid="message_one",
             candidates=[{"category": "goal", "content": "You want to become a nurse"}],
@@ -63,7 +59,10 @@ def test_memory_is_opt_in_tenant_scoped_and_stops_without_deleting(monkeypatch):
         assert len(hub_memory.list_memories(db, 7, 11)) == 1
         assert hub_memory.list_memories(db, 8, 11) == []
 
-        hub_memory.set_memory_enabled(db, 7, 11, False)
+        settings = hub_memory.update_memory_settings(
+            db, 7, 11, enabled=False, notice_dismissed=True,
+        )
+        assert settings == {"enabled": False, "notice_dismissed": True}
         assert hub_memory.select_memories(db, 7, 11, "nursing") == []
         assert len(hub_memory.list_memories(db, 7, 11)) == 1
 

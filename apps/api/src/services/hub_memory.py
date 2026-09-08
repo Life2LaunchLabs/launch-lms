@@ -63,20 +63,42 @@ def _preference(db_session: Session, org_id: int, user_id: int) -> HubMemoryPref
 def memory_settings(db_session: Session, org_id: int, user_id: int) -> dict:
     require_org_membership(user_id, org_id, db_session)
     preference = _preference(db_session, org_id, user_id)
-    return {"enabled": bool(preference and preference.enabled)}
+    return {
+        "enabled": preference.enabled if preference else True,
+        "notice_dismissed": preference.notice_dismissed if preference else False,
+    }
 
 
-def set_memory_enabled(db_session: Session, org_id: int, user_id: int, enabled: bool) -> dict:
+def update_memory_settings(
+    db_session: Session,
+    org_id: int,
+    user_id: int,
+    *,
+    enabled: bool | None = None,
+    notice_dismissed: bool | None = None,
+) -> dict:
     require_org_membership(user_id, org_id, db_session)
     preference = _preference(db_session, org_id, user_id)
     now = datetime.utcnow()
     if preference is None:
-        preference = HubMemoryPreference(org_id=org_id, user_id=user_id, enabled=enabled)
-    preference.enabled = enabled
+        preference = HubMemoryPreference(org_id=org_id, user_id=user_id)
+    if enabled is not None:
+        preference.enabled = enabled
+    if notice_dismissed is not None:
+        preference.notice_dismissed = notice_dismissed
     preference.updated_at = now
     db_session.add(preference)
     db_session.commit()
-    return {"enabled": preference.enabled}
+    return {
+        "enabled": preference.enabled,
+        "notice_dismissed": preference.notice_dismissed,
+    }
+
+
+def set_memory_enabled(db_session: Session, org_id: int, user_id: int, enabled: bool) -> dict:
+    return update_memory_settings(
+        db_session, org_id, user_id, enabled=enabled,
+    )
 
 
 def list_memories(db_session: Session, org_id: int, user_id: int) -> list[dict]:

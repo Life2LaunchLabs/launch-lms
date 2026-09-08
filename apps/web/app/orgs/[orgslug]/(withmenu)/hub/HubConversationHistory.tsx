@@ -5,13 +5,7 @@ import { LibraryBig, MessageSquare, Search } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import { Input } from '@components/ui/input'
 import type { HubConversationSummary } from '@services/hub/advisor'
-
-function dateLabel(value: string) {
-  const date = new Date(value)
-  const today = new Date()
-  if (date.toDateString() === today.toDateString()) return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-  return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: date.getFullYear() === today.getFullYear() ? undefined : 'numeric' })
-}
+import { hubTimestampLabel } from '@services/hub/timestamp'
 
 export default function HubConversationHistory({
   conversations,
@@ -79,7 +73,7 @@ export default function HubConversationHistory({
             >
               <span className="flex items-center gap-4">
                 <span className="min-w-0 flex-1 truncate text-sm font-medium">{conversation.title}</span>
-                <span className="shrink-0 text-xs text-muted-foreground">{dateLabel(conversation.updated_at)}</span>
+                <span className="shrink-0 text-xs text-muted-foreground">{hubTimestampLabel(conversation.updated_at)}</span>
               </span>
               <span className="mt-0.5 flex min-w-0 items-center gap-1.5">
                 {conversation.latest_user_resource_count > 0 && (

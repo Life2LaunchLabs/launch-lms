@@ -24,7 +24,7 @@ export default function AccountMemory() {
   const org = useOrg() as any
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token as string | undefined
-  const [enabled, setEnabled] = useState(false)
+  const [enabled, setEnabled] = useState(true)
   const [memories, setMemories] = useState<HubMemory[]>([])
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(true)

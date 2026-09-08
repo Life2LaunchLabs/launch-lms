@@ -4,6 +4,7 @@ import { hubFromLegacyResources, hubFromLegacySearch, routePaths, withQuery } fr
 import { resolveRequestRouting, type RequestInstanceInfo } from '../requestPolicy.ts'
 import { classifyRoute } from '../routeAccess.ts'
 import { buildPublicRequestUrl } from '../context.ts'
+import { hubTimestampDate } from '../../hub/timestamp.ts'
 
 const instanceInfo: RequestInstanceInfo = {
   multi_org_enabled: true,
@@ -11,6 +12,17 @@ const instanceInfo: RequestInstanceInfo = {
   frontend_domain: 'launchlms.test',
   top_domain: 'launchlms.test',
 }
+
+test('Hub treats timezone-less server timestamps as UTC before local display', () => {
+  assert.equal(
+    hubTimestampDate('2026-09-08T12:00:00').getTime(),
+    new Date('2026-09-08T12:00:00Z').getTime()
+  )
+  assert.equal(
+    hubTimestampDate('2026-09-08T12:00:00-07:00').getTime(),
+    new Date('2026-09-08T12:00:00-07:00').getTime()
+  )
+})
 
 test('withQuery omits empty values and encodes query params', () => {
   assert.equal(

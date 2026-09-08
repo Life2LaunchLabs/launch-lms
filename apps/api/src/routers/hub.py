@@ -42,6 +42,7 @@ from src.services.hub_memory import (
     record_used_memories,
     select_memories,
     set_memory_enabled,
+    update_memory_settings,
     update_memory,
 )
 
@@ -123,7 +124,8 @@ class HubConversationStateUpdate(BaseModel):
 
 
 class HubMemorySettingsUpdate(BaseModel):
-    enabled: bool
+    enabled: bool | None = None
+    notice_dismissed: bool | None = None
 
 
 class HubMemoryUpdate(BaseModel):
@@ -150,7 +152,15 @@ def update_hub_memory_settings(
     current_user: PublicUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
-    return set_memory_enabled(db_session, org_id, current_user.id, body.enabled)
+    if body.enabled is None and body.notice_dismissed is None:
+        raise HTTPException(status_code=422, detail="A memory setting is required")
+    return update_memory_settings(
+        db_session,
+        org_id,
+        current_user.id,
+        enabled=body.enabled,
+        notice_dismissed=body.notice_dismissed,
+    )
 
 
 @router.patch("/memory/{memory_uuid}")

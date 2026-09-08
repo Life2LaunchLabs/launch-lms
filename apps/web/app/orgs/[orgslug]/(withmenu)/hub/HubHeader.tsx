@@ -20,6 +20,7 @@ type Panel = 'history' | 'resources' | null
 export default function HubHeader({
   orgslug,
   conversationUuid,
+  conversationStarted = false,
   title,
   conversations,
   entries,
@@ -38,6 +39,7 @@ export default function HubHeader({
 }: {
   orgslug: string
   conversationUuid: string | null
+  conversationStarted?: boolean
   title: string
   conversations: HubConversationSummary[]
   entries: HubResourceTrayEntry<HubAdvisorResource>[]
@@ -60,6 +62,7 @@ export default function HubHeader({
   onReturnToOrigin: (_entry: HubResourceTrayEntry<HubAdvisorResource>) => void
   initialPanel: Panel
 }) {
+  const hasConversation = conversationStarted || Boolean(conversationUuid)
   const [panel, setPanel] = useState<Panel>(initialPanel)
   const [renaming, setRenaming] = useState(false)
   const [renameValue, setRenameValue] = useState(title)
@@ -99,10 +102,10 @@ export default function HubHeader({
   }
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-0 z-[var(--z-sticky)]">
-      <div ref={rootRef} className="pointer-events-auto mx-auto w-full max-w-3xl px-4 sm:px-6">
+    <div className="pointer-events-none absolute inset-x-0 top-0 z-[var(--z-sticky-header)]">
+      <div ref={rootRef} className="pointer-events-auto mx-auto w-full max-w-[50rem] px-4 sm:px-5">
         <header className="flex h-11 items-center gap-0.5 bg-background" aria-label="Hub conversation navigation">
-          {conversationUuid && (
+          {hasConversation && (
             <Button type="button" size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={onBack} disabled={disabled} aria-label="Back to Hub home">
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -115,12 +118,12 @@ export default function HubHeader({
             </form>
           ) : (
             <button type="button" className="flex min-w-0 items-center gap-1 rounded-md px-1.5 py-1 text-left text-sm font-medium hover:bg-muted/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring" onClick={toggleHistory} aria-expanded={panel === 'history'}>
-              <span className="truncate">{conversationUuid ? title : 'Hub'}</span>
+              <span className="truncate">{hasConversation ? title : 'Hub'}</span>
               <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${panel === 'history' ? 'rotate-180' : ''}`} />
             </button>
           )}
           <div className="flex-1" />
-          {conversationUuid && entries.length > 0 && !renaming && (
+          {hasConversation && entries.length > 0 && !renaming && (
             <Button type="button" variant="ghost" size="sm" className="h-8 gap-1.5 px-2 text-muted-foreground" onClick={() => setPanel((current) => current === 'resources' ? null : 'resources')} aria-expanded={panel === 'resources'} aria-label={`Open conversation resources (${entries.length})`}>
               <LibraryBig className="h-3.5 w-3.5" />
               <span className="text-xs tabular-nums">{entries.length}</span>
