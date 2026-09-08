@@ -89,6 +89,22 @@ def _seed(db: Session) -> tuple[Resource, User, User]:
     return resource, owner, other
 
 
+def test_resource_counts_include_real_rating_summary():
+    with _session() as db:
+        resource, owner, other = _seed(db)
+        db.add(ResourceComment(resource_id=resource.id, author_id=owner.id, comment_uuid="review-1", content="Great", rating=5))
+        db.add(ResourceComment(resource_id=resource.id, author_id=other.id, comment_uuid="review-2", content="Useful", rating=3))
+        db.add(ResourceComment(resource_id=resource.id, author_id=other.id, comment_uuid="comment-1", content="Question", rating=None))
+        db.commit()
+
+        save_counts, comment_counts, average_ratings, rating_counts = resource_service._resource_counts_map([resource.id], db)
+
+        assert save_counts == {}
+        assert comment_counts == {resource.id: 3}
+        assert average_ratings == {resource.id: 4.0}
+        assert rating_counts == {resource.id: 2}
+
+
 @pytest.mark.asyncio
 async def test_note_blocks_are_private_ordered_and_create_library_membership(monkeypatch):
     monkeypatch.setattr(resource_service, "_resource_in_accessible_channel", lambda *_args: True)

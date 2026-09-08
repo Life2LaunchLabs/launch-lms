@@ -95,6 +95,8 @@ export interface Resource {
   update_date: string
   save_count: number
   comment_count: number
+  average_rating: number | null
+  rating_count: number
   tags: ResourceTag[]
   is_saved: boolean
   has_outcome: boolean

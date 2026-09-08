@@ -291,9 +291,11 @@ def _set_saved_resource_channels(saved_resource: UserSavedResource, user_channel
         )
 
 
-def _resource_counts_map(resource_ids: list[int], db_session: Session) -> tuple[dict[int, int], dict[int, int]]:
+def _resource_counts_map(
+    resource_ids: list[int], db_session: Session
+) -> tuple[dict[int, int], dict[int, int], dict[int, float], dict[int, int]]:
     if not resource_ids:
-        return {}, {}
+        return {}, {}, {}, {}
     save_counts_raw = db_session.exec(
         select(UserSavedResource.resource_id, func.count(UserSavedResource.id))
         .where(UserSavedResource.resource_id.in_(resource_ids))
@@ -304,9 +306,23 @@ def _resource_counts_map(resource_ids: list[int], db_session: Session) -> tuple[
         .where(ResourceComment.resource_id.in_(resource_ids))
         .group_by(ResourceComment.resource_id)
     ).all()
+    rating_summaries_raw = db_session.exec(
+        select(
+            ResourceComment.resource_id,
+            func.avg(ResourceComment.rating),
+            func.count(ResourceComment.rating),
+        )
+        .where(
+            ResourceComment.resource_id.in_(resource_ids),
+            ResourceComment.rating.is_not(None),
+        )
+        .group_by(ResourceComment.resource_id)
+    ).all()
     return (
         {resource_id: count for resource_id, count in save_counts_raw},
         {resource_id: count for resource_id, count in comment_counts_raw},
+        {resource_id: float(average) for resource_id, average, _count in rating_summaries_raw},
+        {resource_id: count for resource_id, _average, count in rating_summaries_raw},
     )
 
 
@@ -345,7 +361,7 @@ def _serialize_resource(
     current_user,
     current_org_id: int | None = None,
 ) -> dict:
-    save_counts, comment_counts = _resource_counts_map([resource.id], db_session)
+    save_counts, comment_counts, average_ratings, rating_counts = _resource_counts_map([resource.id], db_session)
     tags_map = _resource_tags_map([resource.id], db_session)
     user_state_map = _resource_user_state_map([resource.id], current_user, db_session)
     user_state = user_state_map.get(resource.id)
@@ -371,6 +387,8 @@ def _serialize_resource(
         "channels": [ResourceChannelRead.model_validate(channel).model_dump() for channel in channel_rows],
         "save_count": int(save_counts.get(resource.id, 0)),
         "comment_count": int(comment_counts.get(resource.id, 0)),
+        "average_rating": average_ratings.get(resource.id),
+        "rating_count": int(rating_counts.get(resource.id, 0)),
         "tags": tags_map.get(resource.id, []),
         "is_saved": user_state is not None,
         "has_outcome": bool(user_state and (user_state.outcome_text or user_state.outcome_link or user_state.outcome_file)),

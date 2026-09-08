@@ -4,20 +4,45 @@ import test from 'node:test'
 import {
   addHubContextResource,
   addHubContextResources,
-  advisorFailureRecovery,
-  autoViewAfterBehaviorChange,
   buildHubResourceTrayEntries,
-  hubCanAsk,
+  filterHubSearchResources,
+  hubAdvisorHistory,
+  inferHubResponseKind,
   newHubTranscriptResources,
   removeHubContextResource,
-  showsHubDiscovery,
   toggleHubContextResource,
 } from '../../../app/orgs/[orgslug]/(withmenu)/hub/hubInteraction.ts'
 
-test('Auto moves from live discovery to conversation without changing behavior', () => {
-  assert.equal(showsHubDiscovery('auto', 'discover'), true)
-  assert.equal(showsHubDiscovery('auto', 'conversation'), false)
-  assert.equal(hubCanAsk('auto'), true)
+test('submission intent chooses a response object without a user-facing mode', () => {
+  assert.equal(inferHubResponseKind('fafsa guides'), 'search')
+  assert.equal(inferHubResponseKind('Find videos about interviewing'), 'search')
+  assert.equal(inferHubResponseKind('resume templates'), 'search')
+  assert.equal(inferHubResponseKind('How should I prepare for an interview?'), 'chat')
+  assert.equal(inferHubResponseKind('I need help choosing a career'), 'chat')
+  assert.equal(inferHubResponseKind('Explain FAFSA dependency status'), 'chat')
+  assert.equal(inferHubResponseKind('hello'), 'chat')
+  assert.equal(inferHubResponseKind('advice on FAFSA'), 'chat')
+})
+
+test('search response objects preserve alternating advisor history for follow-ups', () => {
+  assert.deepEqual(hubAdvisorHistory([
+    { role: 'user', content: 'personality quiz' },
+    { role: 'assistant', content: '', searchQuery: 'personality quiz' },
+  ]), [
+    { role: 'user', content: 'personality quiz' },
+    { role: 'assistant', content: 'Displayed resource search results for “personality quiz”.' },
+  ])
+})
+
+test('resource search matches useful word forms and requires the submitted concepts', () => {
+  const resources = [
+    { title: 'Complete Guide to the FAFSA', description: 'Federal student aid application' },
+    { title: 'FAFSA deadline calendar', description: 'Important dates' },
+    { title: 'Resume guide', description: 'Writing help' },
+  ]
+  assert.deepEqual(filterHubSearchResources(resources, 'fafsa guides'), [resources[0]])
+  assert.deepEqual(filterHubSearchResources(resources, 'fafsa deadlines'), [resources[1]])
+  assert.deepEqual(filterHubSearchResources(resources, 'find me some FAFSA guides'), [resources[0]])
 })
 
 test('advisor resources only enter the transcript the first time they are introduced', () => {
@@ -39,32 +64,6 @@ test('the resource tray keeps first-seen chronological order and origin', () => 
     { resource: first, originGroupId: 'assistant-1' },
     { resource: second, originGroupId: 'user-2' },
   ])
-})
-
-test('Search is deterministic and Ask is conversation-only', () => {
-  assert.equal(showsHubDiscovery('search', 'conversation'), true)
-  assert.equal(hubCanAsk('search'), false)
-  assert.equal(showsHubDiscovery('ask', 'discover'), false)
-  assert.equal(hubCanAsk('ask'), true)
-})
-
-test('returning to Auto preserves the surface the learner came from', () => {
-  assert.equal(autoViewAfterBehaviorChange('search', 'auto', true), 'discover')
-  assert.equal(autoViewAfterBehaviorChange('ask', 'auto', true), 'conversation')
-  assert.equal(autoViewAfterBehaviorChange('ask', 'auto', false), 'discover')
-  assert.equal(autoViewAfterBehaviorChange('auto', 'search', true), null)
-})
-
-test('advisor failure restores the submitted discovery query and a visible result type', () => {
-  assert.deepEqual(advisorFailureRecovery('resume templates', [], 'all'), {
-    draft: 'resume templates',
-    selectedTypes: ['all'],
-    autoView: 'discover',
-  })
-  assert.deepEqual(
-    advisorFailureRecovery('resume templates', ['resources'], 'all').selectedTypes,
-    ['resources']
-  )
 })
 
 test('resource context deduplicates, stays bounded, switches, collapses, and removes', () => {
