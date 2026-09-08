@@ -1,6 +1,6 @@
 'use client'
 
-import { Dispatch, useMemo, useState } from 'react'
+import { Dispatch, ReactNode, useMemo, useState } from 'react'
 import { Loader2, Star, X } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import useSWR from 'swr'
@@ -18,7 +18,7 @@ import { getResourceThumbnailMediaDirectory } from '@services/media/media'
 import { getResource, getResourceChannels, getResourceReviews, Resource, saveResource } from '@services/resources/resources'
 import { toggleHubContextResource } from './hubInteraction'
 
-function resourceImage(resource: HubAdvisorResource) {
+export function resourceImage(resource: HubAdvisorResource) {
   return resource.thumbnail_image && resource.owner_org_uuid
     ? getResourceThumbnailMediaDirectory(resource.owner_org_uuid, resource.resource_uuid, resource.thumbnail_image)
     : resource.cover_image_url
@@ -96,11 +96,12 @@ function ResourceListMembership({ resourceUuid }: { resourceUuid: string }) {
   )
 }
 
-function ActiveResourceWorkspace({ resource, orgslug }: { resource: HubAdvisorResource; orgslug: string }) {
+export function ActiveResourceWorkspace({ resource, orgslug }: { resource: HubAdvisorResource; orgslug: string }) {
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
   const [section, setSection] = useState<'notes' | 'reviews'>('notes')
   const [reviewComposeRequest, setReviewComposeRequest] = useState(0)
+  const [requestedRating, setRequestedRating] = useState(0)
   const { data: fullResource, mutate } = useSWR(
     accessToken ? ['hub-context-resource', resource.resource_uuid, accessToken] : null,
     () => getResource(resource.resource_uuid, accessToken)
@@ -114,6 +115,7 @@ function ActiveResourceWorkspace({ resource, orgslug }: { resource: HubAdvisorRe
     ? ratedReviews.reduce((total, review) => total + (review.rating || 0), 0) / ratedReviews.length
     : null
   const displayedRating = averageRating ?? 0
+  const headerRating = requestedRating || displayedRating
 
   const openResource = async () => {
     if (accessToken) {
@@ -144,21 +146,34 @@ function ActiveResourceWorkspace({ resource, orgslug }: { resource: HubAdvisorRe
             <button type="button" onClick={() => void openResource()} className="group mt-1 block max-w-full rounded-lg text-left focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring" aria-label={`Open ${resource.title}`}>
               <span className="mt-1 line-clamp-2 text-base font-semibold leading-5 tracking-tight group-hover:underline">{resource.title}</span>
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                setSection('reviews')
-                setReviewComposeRequest((current) => current + 1)
-              }}
-              className="mt-2 flex min-h-5 items-center gap-2 rounded text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
-              aria-label="Rate and review this resource"
-            >
-                <span className="flex items-center gap-0.5" aria-label={`${displayedRating.toFixed(1)} out of 5 stars`}>
-                  {[1, 2, 3, 4, 5].map((star) => <Star key={star} className={`h-3.5 w-3.5 ${star <= Math.round(displayedRating) ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground/25'}`} />)}
-                </span>
-                <span className="font-medium text-foreground">{displayedRating.toFixed(1)}</span>
+            <div className="mt-2 flex min-h-5 items-center gap-2 text-xs text-muted-foreground">
+              <span className="flex items-center gap-0.5" aria-label={`${headerRating.toFixed(1)} out of 5 stars`}>
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => {
+                      setRequestedRating(star)
+                      setSection('reviews')
+                      setReviewComposeRequest((current) => current + 1)
+                    }}
+                    className="rounded-sm focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+                    aria-label={`Rate this resource ${star} star${star === 1 ? '' : 's'}`}
+                  >
+                    <Star className={`h-3.5 w-3.5 ${star <= Math.round(headerRating) ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground/25 hover:text-amber-400'}`} />
+                  </button>
+                ))}
+              </span>
+              <button
+                type="button"
+                onClick={() => setSection('reviews')}
+                className="flex items-center gap-1 rounded hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="View resource reviews"
+              >
+                <span className="font-medium text-foreground">{headerRating.toFixed(1)}</span>
                 <span>({fullResource?.comment_count ?? reviews.length} reviews)</span>
-            </button>
+              </button>
+            </div>
             {resource.description && <p className="mt-3 line-clamp-3 text-xs leading-5 text-muted-foreground">{resource.description}</p>}
             <ResourceListMembership resourceUuid={resource.resource_uuid} />
           </div>
@@ -194,10 +209,67 @@ function ActiveResourceWorkspace({ resource, orgslug }: { resource: HubAdvisorRe
         <div key={section} className={`animate-in fade-in duration-200 ${section === 'reviews' ? 'slide-in-from-right-2' : 'slide-in-from-left-2'}`}>
           {section === 'notes'
             ? <ResourceNotes resourceUuid={resource.resource_uuid} compact onNotesChange={() => void mutate()} />
-            : <ResourceComments key={reviewComposeRequest} resourceUuid={resource.resource_uuid} compact composeOnMount={reviewComposeRequest > 0} onReviewsChange={() => void mutate()} />}
+            : <ResourceComments
+                resourceUuid={resource.resource_uuid}
+                compact
+                composeRequest={reviewComposeRequest}
+                initialRating={requestedRating}
+                onCancelDraft={() => setRequestedRating(0)}
+                onReviewsChange={() => {
+                  setRequestedRating(0)
+                  void mutate()
+                }}
+              />}
         </div>
       </div>
     </Card>
+  )
+}
+
+export function HubResourceSwitchItem({
+  resource,
+  active,
+  onSelect,
+  onRemove,
+  orientation = 'horizontal',
+}: {
+  resource: HubAdvisorResource
+  active: boolean
+  onSelect: Dispatch<string>
+  onRemove: Dispatch<string>
+  orientation?: 'horizontal' | 'vertical'
+}) {
+  return (
+    <div
+      className={`group relative flex h-16 items-center gap-2 rounded-2xl border p-2 pr-8 text-left transition-colors ${orientation === 'horizontal' ? 'w-[13rem] shrink-0 snap-start' : 'w-full'} ${active ? 'border-border bg-card shadow-sm' : 'border-transparent bg-muted/45 hover:bg-muted/70'}`}
+    >
+      <button
+        type="button"
+        onClick={() => onSelect(resource.resource_uuid)}
+        className="flex min-w-0 flex-1 items-center gap-2 text-left focus-visible:outline-hidden"
+        aria-pressed={active}
+      >
+        <span className="h-11 w-11 shrink-0 overflow-hidden rounded-xl bg-muted">
+          <ResourceTypeVisual
+            type={resource.resource_type}
+            title={resource.title}
+            imageSrc={resourceImage(resource)}
+            iconClassName="h-4 w-4"
+          />
+        </span>
+        <span className="min-w-0">
+          <span className="line-clamp-2 text-xs font-medium leading-4">{resource.title}</span>
+        </span>
+      </button>
+      <button
+        type="button"
+        onClick={() => onRemove(resource.resource_uuid)}
+        className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-background/80 hover:text-foreground"
+        aria-label={`Remove ${resource.title} from conversation`}
+      >
+        <X className="h-3 w-3" />
+      </button>
+    </div>
   )
 }
 
@@ -208,6 +280,7 @@ export default function HubResourceContext({
   onRemove,
   orgslug,
   label,
+  activeAction,
 }: {
   resources: HubAdvisorResource[]
   activeResourceUuid: string | null
@@ -215,6 +288,7 @@ export default function HubResourceContext({
   onRemove: Dispatch<string>
   orgslug: string
   label?: string
+  activeAction?: ReactNode
 }) {
   if (resources.length === 0) return null
   const activeResource = resources.find((resource) => resource.resource_uuid === activeResourceUuid)
@@ -226,43 +300,22 @@ export default function HubResourceContext({
         {resources.map((resource) => {
           const active = resource.resource_uuid === activeResourceUuid
           return (
-            <div
+            <HubResourceSwitchItem
               key={resource.resource_uuid}
-              className={`group relative flex h-16 w-[13rem] shrink-0 snap-start items-center gap-2 rounded-2xl border p-2 pr-8 text-left transition-colors ${active ? 'border-border bg-card shadow-sm' : 'border-transparent bg-muted/45 hover:bg-muted/70'}`}
-            >
-              <button
-                type="button"
-                onClick={() => onActiveChange(toggleHubContextResource(activeResourceUuid, resource.resource_uuid))}
-                className="flex min-w-0 flex-1 items-center gap-2 text-left focus-visible:outline-hidden"
-                aria-expanded={active}
-              >
-                <span className="h-11 w-11 shrink-0 overflow-hidden rounded-xl bg-muted">
-                  <ResourceTypeVisual
-                    type={resource.resource_type}
-                    title={resource.title}
-                    imageSrc={resourceImage(resource)}
-                    iconClassName="h-4 w-4"
-                  />
-                </span>
-                <span className="min-w-0">
-                  <span className="line-clamp-2 text-xs font-medium leading-4">{resource.title}</span>
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={() => onRemove(resource.resource_uuid)}
-                className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-background/80 hover:text-foreground"
-                aria-label={`Remove ${resource.title} from conversation`}
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </div>
+              resource={resource}
+              active={active}
+              onSelect={() => onActiveChange(toggleHubContextResource(activeResourceUuid, resource.resource_uuid))}
+              onRemove={onRemove}
+            />
           )
         })}
       </div>
 
       {activeResource && (
-        <ActiveResourceWorkspace key={activeResource.resource_uuid} resource={activeResource} orgslug={orgslug} />
+        <>
+          {activeAction}
+          <ActiveResourceWorkspace key={activeResource.resource_uuid} resource={activeResource} orgslug={orgslug} />
+        </>
       )}
     </section>
   )

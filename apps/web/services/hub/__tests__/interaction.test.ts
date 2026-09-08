@@ -6,7 +6,9 @@ import {
   addHubContextResources,
   advisorFailureRecovery,
   autoViewAfterBehaviorChange,
+  buildHubResourceTrayEntries,
   hubCanAsk,
+  newHubTranscriptResources,
   removeHubContextResource,
   showsHubDiscovery,
   toggleHubContextResource,
@@ -16,6 +18,27 @@ test('Auto moves from live discovery to conversation without changing behavior',
   assert.equal(showsHubDiscovery('auto', 'discover'), true)
   assert.equal(showsHubDiscovery('auto', 'conversation'), false)
   assert.equal(hubCanAsk('auto'), true)
+})
+
+test('advisor resources only enter the transcript the first time they are introduced', () => {
+  const first = { resource_uuid: 'one' }
+  const second = { resource_uuid: 'two' }
+
+  assert.deepEqual(newHubTranscriptResources(['one'], [first, second, second]), [second])
+  assert.deepEqual(newHubTranscriptResources([], [first, second]), [first, second])
+})
+
+test('the resource tray keeps first-seen chronological order and origin', () => {
+  const first = { resource_uuid: 'one' }
+  const second = { resource_uuid: 'two' }
+
+  assert.deepEqual(buildHubResourceTrayEntries([
+    { id: 'assistant-1', resources: [first] },
+    { id: 'user-2', resources: [second, first] },
+  ]), [
+    { resource: first, originGroupId: 'assistant-1' },
+    { resource: second, originGroupId: 'user-2' },
+  ])
 })
 
 test('Search is deterministic and Ask is conversation-only', () => {

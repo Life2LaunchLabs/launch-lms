@@ -58,16 +58,20 @@ export default function ResourceComments({
   resourceUuid,
   compact = false,
   onReviewsChange,
-  composeOnMount = false,
+  composeRequest = 0,
+  initialRating = 0,
+  onCancelDraft,
 }: {
   resourceUuid: string
   compact?: boolean
   onReviewsChange?: () => void
-  composeOnMount?: boolean
+  composeRequest?: number
+  initialRating?: number
+  onCancelDraft?: () => void
 }) {
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
-  const currentUserId = session?.data?.user?.id
+  const currentUserId = Number(session?.data?.user?.id || 0)
   const [draft, setDraft] = useState('')
   const [rating, setRating] = useState(0)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -75,29 +79,32 @@ export default function ResourceComments({
   const [editingRating, setEditingRating] = useState(0)
   const composerRef = useRef<HTMLTextAreaElement>(null)
   const editingRef = useRef<HTMLTextAreaElement>(null)
-  const composeHandledRef = useRef(false)
+  const composeHandledRef = useRef(0)
 
   const swrKey = useMemo(() => (resourceUuid ? ['resource-reviews', resourceUuid, accessToken || 'anon'] : null), [resourceUuid, accessToken])
   const { data: reviewsData, mutate } = useSWR(swrKey, () => getResourceReviews(resourceUuid, accessToken))
   const reviews = reviewsData ?? []
-  const hasReview = reviews.some((review) => review.author_id === currentUserId && review.rating !== null)
+  const hasReview = reviews.some((review) => Number(review.author_id) === currentUserId && review.rating !== null)
 
   useEffect(() => {
-    if (!composeOnMount || composeHandledRef.current || !accessToken || !reviewsData) return
-    composeHandledRef.current = true
-    const ownReview = reviewsData.find((review) => review.author_id === currentUserId && review.rating !== null)
+    if (!composeRequest || composeHandledRef.current === composeRequest || !accessToken || !reviewsData) return
+    composeHandledRef.current = composeRequest
+    const ownReview = reviewsData.find((review) => Number(review.author_id) === currentUserId && review.rating !== null)
     if (ownReview) {
       const frame = window.requestAnimationFrame(() => {
         setEditingId(ownReview.comment_uuid)
         setEditingDraft(ownReview.content)
-        setEditingRating(ownReview.rating || 0)
+        setEditingRating(initialRating || ownReview.rating || 0)
         window.requestAnimationFrame(() => editingRef.current?.focus())
       })
       return () => window.cancelAnimationFrame(frame)
     }
-    const frame = window.requestAnimationFrame(() => composerRef.current?.focus())
+    const frame = window.requestAnimationFrame(() => {
+      setRating(initialRating)
+      composerRef.current?.focus()
+    })
     return () => window.cancelAnimationFrame(frame)
-  }, [accessToken, composeOnMount, currentUserId, reviewsData])
+  }, [accessToken, composeRequest, currentUserId, initialRating, reviewsData])
 
   const handleCreate = async () => {
     if (!draft.trim() || !rating || !accessToken) return
@@ -145,7 +152,7 @@ export default function ResourceComments({
       {!compact && <p className="mt-1 text-sm text-muted-foreground">Ratings and comments are visible to people with access.</p>}
       <div className={compact ? 'max-h-48 space-y-1.5 overflow-y-auto pr-1' : 'mt-5 space-y-4'}>
         {reviews.map((review) => {
-          const isAuthor = currentUserId === review.author_id
+          const isAuthor = currentUserId === Number(review.author_id)
           const authorName = review.author
             ? `${review.author.first_name || ''} ${review.author.last_name || ''}`.trim() || review.author.username
             : 'Unknown'
@@ -193,7 +200,12 @@ export default function ResourceComments({
                   <Textarea ref={editingRef} value={editingDraft} onChange={(event) => setEditingDraft(event.target.value)} rows={compact ? 2 : 3} />
                   <div className="flex gap-2">
                     <Button size="sm" onClick={() => handleUpdate(review.comment_uuid)}>Save review</Button>
-                    <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>Cancel</Button>
+                    <Button size="sm" variant="outline" onClick={() => {
+                      setEditingId(null)
+                      setEditingDraft('')
+                      setEditingRating(0)
+                      onCancelDraft?.()
+                    }}>Cancel</Button>
                   </div>
                 </div>
               ) : (
@@ -209,7 +221,23 @@ export default function ResourceComments({
         <div className={compact ? 'mt-2 space-y-1.5 border-t border-border pt-2' : 'mt-6 space-y-3 border-t border-border pt-5'}>
           <RatingPicker value={rating} onChange={setRating} label="Your rating" compact={compact} />
           <Textarea ref={composerRef} className={compact ? 'min-h-16 resize-none text-xs' : ''} value={draft} onChange={(event) => setDraft(event.target.value)} rows={compact ? 2 : 3} placeholder="Share your experience" />
-          <Button size={compact ? 'sm' : 'default'} className={compact ? 'h-7 text-xs' : ''} onClick={handleCreate} disabled={!draft.trim() || !rating}>Post review</Button>
+          <div className="flex gap-2">
+            <Button size={compact ? 'sm' : 'default'} className={compact ? 'h-7 text-xs' : ''} onClick={handleCreate} disabled={!draft.trim() || !rating}>Post review</Button>
+            {(draft || rating > 0) && (
+              <Button
+                size={compact ? 'sm' : 'default'}
+                variant="outline"
+                className={compact ? 'h-7 text-xs' : ''}
+                onClick={() => {
+                  setDraft('')
+                  setRating(0)
+                  onCancelDraft?.()
+                }}
+              >
+                Cancel
+              </Button>
+            )}
+          </div>
         </div>
       ) : accessToken ? (
         <p className="mt-6 text-sm text-muted-foreground">You can edit your review above.</p>

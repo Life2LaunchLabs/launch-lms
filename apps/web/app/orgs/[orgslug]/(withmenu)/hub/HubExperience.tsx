@@ -1,6 +1,6 @@
 'use client'
 
-import { FormEvent, Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { FormEvent, Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Plus, RotateCcw, Search, Send, Sparkles } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -14,13 +14,17 @@ import { getResource, Resource } from '@services/resources/resources'
 import HubQuickSearch, { HubSearchType, HUB_SEARCH_TYPES } from './HubQuickSearch'
 import HubResourceContext from './HubResourceContext'
 import HubResourceLibrary from './HubResourceLibrary'
+import HubResourceTray from './HubResourceTray'
 import {
   addHubContextResource,
   addHubContextResources,
   advisorFailureRecovery,
   autoViewAfterBehaviorChange,
+  buildHubResourceTrayEntries,
   hubCanAsk,
   HubBehavior,
+  HubResourceTrayEntry,
+  newHubTranscriptResources,
   removeHubContextResource,
   showsHubDiscovery,
   AutoView,
@@ -116,11 +120,17 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
   const composerRef = useRef<HTMLTextAreaElement>(null)
   const openedResourceRef = useRef('')
   const messageSequenceRef = useRef(0)
+  const introducedResourceUuidsRef = useRef(new Set<string>())
+  const resourceOriginRefs = useRef(new Map<string, HTMLDivElement>())
   const org = useOrg() as any
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
   const showDiscovery = showsHubDiscovery(behavior, autoView)
   const canAsk = hubCanAsk(behavior)
+  const trayEntries = useMemo(() => buildHubResourceTrayEntries([
+    ...messages.map((message) => ({ id: message.id, resources: message.resources })),
+    { id: 'pending', resources: pendingResources },
+  ]), [messages, pendingResources])
 
   useEffect(() => {
     const requestedResource = filters.resource?.trim()
@@ -130,6 +140,7 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
     getResource(resourceUuid, accessToken)
       .then((resource) => {
         const advisorResource = asAdvisorResource(resource)
+        introducedResourceUuidsRef.current.add(resource.resource_uuid)
         setContextResources((current) => addHubContextResource(current, advisorResource))
         setPendingResources((current) => addHubContextResource(current, advisorResource))
         setActiveResourceUuid(resource.resource_uuid)
@@ -179,6 +190,7 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
     setPendingResources([])
     setActiveResourceUuid(null)
     setActiveResourceGroupId(null)
+    introducedResourceUuidsRef.current.clear()
     setDraft('')
     setError('')
     if (behavior === 'auto') setAutoView('discover')
@@ -186,6 +198,7 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
 
   const addResourceToConversation = (resource: Resource) => {
     const advisorResource = asAdvisorResource(resource)
+    introducedResourceUuidsRef.current.add(resource.resource_uuid)
     setContextResources((current) => addHubContextResource(current, advisorResource))
     setPendingResources((current) => addHubContextResource(current, advisorResource))
     setActiveResourceUuid(resource.resource_uuid)
@@ -218,6 +231,30 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
         ? { ...message, resources: message.resources?.filter((resource) => resource.resource_uuid !== resourceUuid) }
         : message
     )))
+  }
+
+  const removeResourceEverywhere = (resourceUuid: string) => {
+    const next = removeHubContextResource(contextResources, activeResourceUuid, resourceUuid)
+    setContextResources(next.resources)
+    setActiveResourceUuid(next.activeResourceUuid)
+    if (activeResourceUuid === resourceUuid) setActiveResourceGroupId(null)
+    setPendingResources((current) => current.filter((resource) => resource.resource_uuid !== resourceUuid))
+    setMessages((current) => current.map((message) => ({
+      ...message,
+      resources: message.resources?.filter((resource) => resource.resource_uuid !== resourceUuid),
+    })))
+  }
+
+  const returnToResourceOrigin = ({ resource, originGroupId }: HubResourceTrayEntry<HubAdvisorResource>) => {
+    setBehavior('auto')
+    setAutoView('conversation')
+    setActiveResourceUuid(resource.resource_uuid)
+    setActiveResourceGroupId(originGroupId)
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+      const origin = resourceOriginRefs.current.get(originGroupId)
+      origin?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      origin?.focus({ preventScroll: true })
+    }))
   }
 
   const changeBehavior = (next: HubBehavior) => {
@@ -261,13 +298,15 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
         accessToken,
         contextResources.map((resource) => resource.resource_uuid)
       )
+      const transcriptResources = newHubTranscriptResources(introducedResourceUuidsRef.current, response.resources)
+      transcriptResources.forEach((resource) => introducedResourceUuidsRef.current.add(resource.resource_uuid))
       messageSequenceRef.current += 1
       setMessages((current) => [...current, {
         id: `assistant-${messageSequenceRef.current}`,
         role: 'assistant',
         content: response.answer,
-        resources: response.resources,
-        resourceLabel: response.resources.length ? 'Suggested' : undefined,
+        resources: transcriptResources,
+        resourceLabel: transcriptResources.length ? 'Suggested' : undefined,
       }])
       setContextResources((current) => addHubContextResources(current, response.resources))
     } catch (requestError: any) {
@@ -287,6 +326,12 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
   return (
     <main className="relative mx-auto h-[calc(100dvh-5rem)] w-full max-w-[1056px] overflow-hidden md:h-dvh" aria-label="Hub">
       <h1 className="sr-only">Hub</h1>
+      <HubResourceTray
+        entries={trayEntries}
+        orgslug={orgslug}
+        onRemove={removeResourceEverywhere}
+        onReturnToOrigin={returnToResourceOrigin}
+      />
 
       <div ref={scrollRef} className="absolute inset-0 overflow-y-auto overscroll-contain scroll-smooth">
         <div
@@ -341,14 +386,16 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
               {messages.map((message) => message.role === 'user' ? (
                 <Fragment key={message.id}>
                   {message.resources && message.resources.length > 0 && (
-                    <HubResourceContext
-                      resources={message.resources}
-                      activeResourceUuid={activeResourceGroupId === message.id ? activeResourceUuid : null}
-                      onActiveChange={(resourceUuid) => changeActiveResource(message.id, message.resources || [], resourceUuid)}
-                      onRemove={(resourceUuid) => removeContextResource(message.id, resourceUuid)}
-                      orgslug={orgslug}
-                      label={message.resourceLabel}
-                    />
+                    <div ref={(node) => { if (node) resourceOriginRefs.current.set(message.id, node); else resourceOriginRefs.current.delete(message.id) }} tabIndex={-1} className="rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
+                      <HubResourceContext
+                        resources={message.resources}
+                        activeResourceUuid={activeResourceGroupId === message.id ? activeResourceUuid : null}
+                        onActiveChange={(resourceUuid) => changeActiveResource(message.id, message.resources || [], resourceUuid)}
+                        onRemove={(resourceUuid) => removeContextResource(message.id, resourceUuid)}
+                        orgslug={orgslug}
+                        label={message.resourceLabel}
+                      />
+                    </div>
                   )}
                   <div className="flex justify-end">
                     <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl bg-muted px-4 py-2.5 text-sm leading-6 text-foreground sm:max-w-[72%]">
@@ -360,26 +407,30 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
                 <Fragment key={message.id}>
                   <AssistantResponse content={message.content} />
                   {message.resources && message.resources.length > 0 && (
-                    <HubResourceContext
-                      resources={message.resources}
-                      activeResourceUuid={activeResourceGroupId === message.id ? activeResourceUuid : null}
-                      onActiveChange={(resourceUuid) => changeActiveResource(message.id, message.resources || [], resourceUuid)}
-                      onRemove={(resourceUuid) => removeContextResource(message.id, resourceUuid)}
-                      orgslug={orgslug}
-                      label={message.resourceLabel}
-                    />
+                    <div ref={(node) => { if (node) resourceOriginRefs.current.set(message.id, node); else resourceOriginRefs.current.delete(message.id) }} tabIndex={-1} className="rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
+                      <HubResourceContext
+                        resources={message.resources}
+                        activeResourceUuid={activeResourceGroupId === message.id ? activeResourceUuid : null}
+                        onActiveChange={(resourceUuid) => changeActiveResource(message.id, message.resources || [], resourceUuid)}
+                        onRemove={(resourceUuid) => removeContextResource(message.id, resourceUuid)}
+                        orgslug={orgslug}
+                        label={message.resourceLabel}
+                      />
+                    </div>
                   )}
                 </Fragment>
               ))}
               {pendingResources.length > 0 && (
-                <HubResourceContext
-                  resources={pendingResources}
-                  activeResourceUuid={activeResourceGroupId === 'pending' ? activeResourceUuid : null}
-                  onActiveChange={(resourceUuid) => changeActiveResource('pending', pendingResources, resourceUuid)}
-                  onRemove={(resourceUuid) => removeContextResource('pending', resourceUuid)}
-                  orgslug={orgslug}
-                  label="You added"
-                />
+                <div ref={(node) => { if (node) resourceOriginRefs.current.set('pending', node); else resourceOriginRefs.current.delete('pending') }} tabIndex={-1} className="rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
+                  <HubResourceContext
+                    resources={pendingResources}
+                    activeResourceUuid={activeResourceGroupId === 'pending' ? activeResourceUuid : null}
+                    onActiveChange={(resourceUuid) => changeActiveResource('pending', pendingResources, resourceUuid)}
+                    onRemove={(resourceUuid) => removeContextResource('pending', resourceUuid)}
+                    orgslug={orgslug}
+                    label="You added"
+                  />
+                </div>
               )}
               {sending && <div className="text-sm text-muted-foreground" role="status">Thinking…</div>}
               {error && <div className="rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">{error}</div>}

@@ -223,7 +223,7 @@ export default function SaveDropdown({
   const dropdown = (
     <div
       ref={dropdownRef}
-      className="fixed z-[200] w-60 rounded-xl border border-border bg-card py-1.5 shadow-lg"
+      className="fixed z-[var(--z-modal-content)] w-60 rounded-xl border border-border bg-card py-1.5 shadow-lg"
       style={{ top: pos.top, right: pos.right }}
     >
       {isMenu && (

@@ -35,6 +35,38 @@ export function addHubContextResources<T extends { resource_uuid: string }>(curr
   return resources.reduce((result, resource) => addHubContextResource(result, resource, limit), current)
 }
 
+export function newHubTranscriptResources<T extends { resource_uuid: string }>(
+  introducedResourceUuids: Iterable<string>,
+  resources: T[]
+) {
+  const seen = new Set(introducedResourceUuids)
+  return resources.filter((resource) => {
+    if (seen.has(resource.resource_uuid)) return false
+    seen.add(resource.resource_uuid)
+    return true
+  })
+}
+
+export type HubResourceTrayEntry<T> = {
+  resource: T
+  originGroupId: string
+}
+
+export function buildHubResourceTrayEntries<T extends { resource_uuid: string }>(
+  groups: Array<{ id: string; resources?: T[] }>
+) {
+  const seen = new Set<string>()
+  const entries: HubResourceTrayEntry<T>[] = []
+  for (const group of groups) {
+    for (const resource of group.resources || []) {
+      if (seen.has(resource.resource_uuid)) continue
+      seen.add(resource.resource_uuid)
+      entries.push({ resource, originGroupId: group.id })
+    }
+  }
+  return entries
+}
+
 export function toggleHubContextResource(activeResourceUuid: string | null, resourceUuid: string) {
   return activeResourceUuid === resourceUuid ? null : resourceUuid
 }
