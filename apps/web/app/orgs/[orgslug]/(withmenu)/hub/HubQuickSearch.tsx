@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { Dispatch, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
   Award,
@@ -96,31 +96,45 @@ export const HUB_SEARCH_TYPES: Array<{ value: HubSearchType; label: string }> = 
   { value: 'users', label: 'People' },
 ]
 
-function ResourceResultCard({ resource, orgslug, orgUUID }: { resource: Resource; orgslug: string; orgUUID?: string }) {
+function ResourceResultCard({ resource, orgslug, orgUUID, onSelect }: { resource: Resource; orgslug: string; orgUUID?: string; onSelect?: Dispatch<Resource> }) {
   const ownerOrgUuid = resource.owner_org_uuid || orgUUID
   const imageSrc = resource.thumbnail_image && ownerOrgUuid
     ? getResourceThumbnailMediaDirectory(ownerOrgUuid, resource.resource_uuid, resource.thumbnail_image)
     : resource.cover_image_url
   const href = getUriWithOrg(orgslug, routePaths.org.resource(resource.resource_uuid.replace('resource_', '')))
 
+  const content = (
+    <>
+      <ResourceTypeVisual
+        type={resource.resource_type}
+        title={resource.title}
+        imageSrc={imageSrc}
+        className="aspect-video w-full border-b border-border/50"
+        iconClassName="h-7 w-7 opacity-90"
+      />
+      <div className="min-h-20 p-2.5">
+        <div className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[0.09em] text-muted-foreground">
+          <span>{resource.resource_type}</span>
+          {resource.provider_name && <><span aria-hidden="true">·</span><span className="truncate">{resource.provider_name}</span></>}
+        </div>
+        <h3 className="mt-1 line-clamp-2 text-xs font-semibold leading-4 tracking-tight text-foreground">{resource.title}</h3>
+        {resource.description && <p className="mt-1 line-clamp-2 text-[9px] leading-3.5 text-muted-foreground">{resource.description}</p>}
+      </div>
+    </>
+  )
+
+  if (onSelect) return (
+    <Card variant="interactive" size="none" className="group overflow-hidden rounded-xl border border-border/70 bg-card shadow-sm hover:shadow-md">
+      <button type="button" onClick={() => onSelect(resource)} className="block w-full text-left" aria-label={`Add ${resource.title} to this conversation`}>
+        {content}
+      </button>
+    </Card>
+  )
+
   return (
     <Card asChild variant="interactive" size="none" className="group overflow-hidden rounded-xl border border-border/70 bg-card shadow-sm hover:shadow-md">
       <Link href={href} className="block">
-        <ResourceTypeVisual
-          type={resource.resource_type}
-          title={resource.title}
-          imageSrc={imageSrc}
-          className="aspect-video w-full border-b border-border/50"
-          iconClassName="h-7 w-7 opacity-90"
-        />
-        <div className="min-h-20 p-2.5">
-          <div className="flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-[0.09em] text-muted-foreground">
-            <span>{resource.resource_type}</span>
-            {resource.provider_name && <><span aria-hidden="true">·</span><span className="truncate">{resource.provider_name}</span></>}
-          </div>
-          <h3 className="mt-1 line-clamp-2 text-xs font-semibold leading-4 tracking-tight text-foreground">{resource.title}</h3>
-          {resource.description && <p className="mt-1 line-clamp-2 text-[9px] leading-3.5 text-muted-foreground">{resource.description}</p>}
-        </div>
+        {content}
       </Link>
     </Card>
   )
@@ -215,6 +229,7 @@ export default function HubQuickSearch({
   query,
   selectedTypes,
   resourceFilters,
+  onSelectResource,
 }: {
   orgslug: string
   orgId?: number
@@ -222,6 +237,7 @@ export default function HubQuickSearch({
   query: string
   selectedTypes: HubSearchType[]
   resourceFilters: HubResourceFilters
+  onSelectResource?: Dispatch<Resource>
 }) {
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
@@ -253,11 +269,11 @@ export default function HubQuickSearch({
         const resourceRequest = hasResourceFilters && orgId
           ? getResources(orgId, {
             access,
-            channel,
+            channel_uuid: channel,
             provider,
             resource_types: resourceTypes,
             tags,
-            user_channel: userChannel,
+            user_channel_uuid: userChannel,
             query: debouncedQuery || undefined,
           }, accessToken)
           : Promise.resolve<Resource[] | null>(null)
@@ -323,7 +339,7 @@ export default function HubQuickSearch({
         <ResultGroup label="Resources" showLabel={showGroupLabels}>
           <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,8.75rem),1fr))] gap-3">
             {results.resources.map((resource) => (
-              <ResourceResultCard key={resource.resource_uuid} resource={resource} orgslug={orgslug} orgUUID={orgUUID} />
+              <ResourceResultCard key={resource.resource_uuid} resource={resource} orgslug={orgslug} orgUUID={orgUUID} onSelect={onSelectResource} />
             ))}
           </div>
         </ResultGroup>

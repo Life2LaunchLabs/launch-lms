@@ -2,10 +2,14 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import {
+  addHubContextResource,
+  addHubContextResources,
   advisorFailureRecovery,
   autoViewAfterBehaviorChange,
   hubCanAsk,
+  removeHubContextResource,
   showsHubDiscovery,
+  toggleHubContextResource,
 } from '../../../app/orgs/[orgslug]/(withmenu)/hub/hubInteraction.ts'
 
 test('Auto moves from live discovery to conversation without changing behavior', () => {
@@ -38,4 +42,20 @@ test('advisor failure restores the submitted discovery query and a visible resul
     advisorFailureRecovery('resume templates', ['resources'], 'all').selectedTypes,
     ['resources']
   )
+})
+
+test('resource context deduplicates, stays bounded, switches, collapses, and removes', () => {
+  const first = { resource_uuid: 'one' }
+  const second = { resource_uuid: 'two' }
+  const replacedFirst = { resource_uuid: 'one', title: 'Updated' }
+  const context = addHubContextResources([], [first, second, replacedFirst], 2)
+
+  assert.deepEqual(context, [second, replacedFirst])
+  assert.equal(toggleHubContextResource(null, 'one'), 'one')
+  assert.equal(toggleHubContextResource('one', 'one'), null)
+  assert.deepEqual(addHubContextResource(context, { resource_uuid: 'three' }, 2), [replacedFirst, { resource_uuid: 'three' }])
+  assert.deepEqual(removeHubContextResource(context, 'one', 'one'), {
+    resources: [second],
+    activeResourceUuid: null,
+  })
 })

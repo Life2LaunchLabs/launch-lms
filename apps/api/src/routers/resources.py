@@ -9,6 +9,9 @@ from src.db.resources import (
     ResourceCommentCreate,
     ResourceCommentUpdate,
     ResourceCreate,
+    ResourceNoteBlockCreate,
+    ResourceNoteBlockUpdate,
+    ResourceReviewCreate,
     ResourceTagCreate,
     ResourceTagUpdate,
     ResourceUpdate,
@@ -21,18 +24,23 @@ from src.services.resources import (
     add_resource_to_channel,
     create_channel,
     create_comment,
+    create_note_block,
+    create_review,
     create_resource,
     create_tag,
     create_user_channel,
     delete_channel,
     delete_comment,
+    delete_note_block,
     delete_resource,
     delete_tag,
+    delete_user_channel,
     get_resource,
     import_resources_csv,
     list_channel_resources,
     list_channels,
     list_comments,
+    list_note_blocks,
     list_resources,
     list_tags,
     remove_resource_from_channel,
@@ -40,11 +48,13 @@ from src.services.resources import (
     unsave_resource_for_user,
     update_channel,
     update_comment,
+    update_note_block,
     update_resource,
     update_tag,
     update_user_channel,
     upload_channel_thumbnail,
     upload_resource_thumbnail,
+    upload_note_file,
     upload_saved_resource_outcome_file,
 )
 
@@ -311,6 +321,17 @@ async def api_update_user_channel(
     return await update_user_channel(request, org_id, user_channel_uuid, current_user, db_session, channel_data)
 
 
+@router.delete("/org/{org_id}/me/channels/{user_channel_uuid}")
+async def api_delete_user_channel(
+    request: Request,
+    org_id: int,
+    user_channel_uuid: str,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return await delete_user_channel(request, org_id, user_channel_uuid, current_user, db_session)
+
+
 @router.post("/{resource_uuid}/save")
 async def api_save_resource(
     request: Request,
@@ -343,6 +364,101 @@ async def api_upload_outcome_file(
     if not outcome_file:
         raise HTTPException(status_code=400, detail="outcome_file is required")
     return await upload_saved_resource_outcome_file(request, resource_uuid, outcome_file, current_user, db_session)
+
+
+@router.get("/{resource_uuid}/notes")
+async def api_list_note_blocks(
+    request: Request,
+    resource_uuid: str,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return await list_note_blocks(request, resource_uuid, current_user, db_session)
+
+
+@router.post("/{resource_uuid}/notes")
+async def api_create_note_block(
+    request: Request,
+    resource_uuid: str,
+    note_data: ResourceNoteBlockCreate,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return await create_note_block(request, resource_uuid, note_data, current_user, db_session)
+
+
+@router.post("/{resource_uuid}/notes/upload")
+async def api_upload_note_file(
+    request: Request,
+    resource_uuid: str,
+    file: UploadFile = File(...),
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return await upload_note_file(request, resource_uuid, file, current_user, db_session)
+
+
+@router.put("/notes/{note_uuid}")
+async def api_update_note_block(
+    request: Request,
+    note_uuid: str,
+    note_data: ResourceNoteBlockUpdate,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return await update_note_block(request, note_uuid, note_data, current_user, db_session)
+
+
+@router.delete("/notes/{note_uuid}")
+async def api_delete_note_block(
+    request: Request,
+    note_uuid: str,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return await delete_note_block(request, note_uuid, current_user, db_session)
+
+
+@router.get("/{resource_uuid}/reviews")
+async def api_list_reviews(
+    request: Request,
+    resource_uuid: str,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return await list_comments(request, resource_uuid, current_user, db_session)
+
+
+@router.post("/{resource_uuid}/reviews")
+async def api_create_review(
+    request: Request,
+    resource_uuid: str,
+    review_data: ResourceReviewCreate,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return await create_review(request, resource_uuid, review_data, current_user, db_session)
+
+
+@router.put("/reviews/{comment_uuid}")
+async def api_update_review(
+    request: Request,
+    comment_uuid: str,
+    review_data: ResourceCommentUpdate,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return await update_comment(request, comment_uuid, review_data, current_user, db_session)
+
+
+@router.delete("/reviews/{comment_uuid}")
+async def api_delete_review(
+    request: Request,
+    comment_uuid: str,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return await delete_comment(request, comment_uuid, current_user, db_session)
 
 
 @router.get("/{resource_uuid}/comments")

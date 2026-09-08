@@ -117,6 +117,15 @@ export function getResourceOutcomeMediaDirectory(
   return legacyMediaDirectory(fileId, () => `${getMediaUrl()}content/users/${userUUID}/resources/${resourceUUID}/outcomes/${fileId}`)
 }
 
+export function getResourceNoteMediaDirectory(
+  userUUID: string,
+  resourceUUID: string,
+  fileId: string,
+  storageDirectory = 'notes'
+) {
+  return legacyMediaDirectory(fileId, () => `${getMediaUrl()}content/users/${userUUID}/resources/${resourceUUID}/${storageDirectory}/${fileId}`)
+}
+
 export function getOrgLandingMediaDirectory(orgUUID: string, fileId: string) {
   return legacyMediaDirectory(fileId, () => `${getMediaUrl()}content/orgs/${orgUUID}/landing/${fileId}`)
 }

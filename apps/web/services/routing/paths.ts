@@ -122,7 +122,7 @@ export const routePaths = {
     badgeChapter: (courseUuid: string, chapterId: string) =>
       `/badges/${courseUuid}/chapter/${chapterId}`,
     badgeInvite: (courseUuid: string) => `/badges/${courseUuid}/invite`,
-    resource: (resourceUuid: string) => `/resource/${resourceUuid}`,
+    resource: (resourceUuid: string) => withQuery('/hub', { resource: resourceUuid }),
     podcast: (podcastUuid: string) => `/podcast/${podcastUuid}`,
     playground: (playgroundUuid: string) => `/playground/${playgroundUuid}`,
     community: (communityUuid: string) => `/community/${communityUuid}`,

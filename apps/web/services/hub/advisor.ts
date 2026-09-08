@@ -8,6 +8,7 @@ export type HubAdvisorResource = {
   description: string | null
   resource_type: ResourceType
   provider_name: string | null
+  external_url: string
   cover_image_url: string | null
   thumbnail_image: string | null
   owner_org_uuid: string | null
@@ -24,7 +25,8 @@ export type HubAdvisorMessage = {
 export async function askHubAdvisor(
   orgId: number,
   messages: HubAdvisorMessage[],
-  accessToken: string
+  accessToken: string,
+  resourceUuids: string[] = []
 ): Promise<{
   answer: string
   usage: { input_tokens: number; output_tokens: number }
@@ -34,7 +36,10 @@ export async function askHubAdvisor(
     `${getAPIUrl()}hub/advisor?org_id=${encodeURIComponent(orgId)}`,
     RequestBodyWithAuthHeader(
       'POST',
-      { messages: messages.map(({ role, content }) => ({ role, content })) },
+      {
+        messages: messages.map(({ role, content }) => ({ role, content })),
+        resource_uuids: resourceUuids,
+      },
       null,
       accessToken
     )

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { Dispatch, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Bookmark, Check, Loader2, MoreVertical, Plus, Share2, X } from 'lucide-react'
 import useSWR from 'swr'
@@ -14,7 +14,7 @@ import {
 } from '@services/resources/resources'
 import { toast } from 'react-hot-toast'
 import NewUserResourceChannelModal from '@components/Resources/NewUserResourceChannelModal'
-import { ResourceChannelStyleIcon } from '@components/Resources/ResourceChannelStyle'
+import { getChannelIcon } from '@components/Resources/ResourceChannelStyle'
 import ResourceShareModal from '@components/Resources/ResourceShareModal'
 
 interface SaveDropdownProps {
@@ -23,8 +23,9 @@ interface SaveDropdownProps {
   saveCount?: number
   /** UUIDs of user channels this resource is currently saved to (from resource.user_channel_uuids) */
   savedUserChannelUuids: string[]
-  onSaveChange: (saved: boolean) => void
-  variant?: 'card' | 'detail'
+  onSaveChange: Dispatch<boolean>
+  onMembershipChange?: Dispatch<string[]>
+  variant?: 'card' | 'detail' | 'chips' | 'menu'
   share?: {
     title: string
     description?: string | null
@@ -44,6 +45,7 @@ export default function SaveDropdown({
   saveCount,
   savedUserChannelUuids,
   onSaveChange,
+  onMembershipChange,
   variant = 'card',
   share,
 }: SaveDropdownProps) {
@@ -118,8 +120,9 @@ export default function SaveDropdown({
         requireSuccess(result, 'Failed to remove save')
         onSaveChange(false)
         setActiveUuids(new Set())
+        onMembershipChange?.([])
       } else {
-        const result = await saveResource(resourceUuid, { add_to_default_channel: true }, accessToken)
+        const result = await saveResource(resourceUuid, { add_to_default_channel: false }, accessToken)
         requireSuccess(result, 'Failed to save resource')
         onSaveChange(true)
       }
@@ -143,12 +146,13 @@ export default function SaveDropdown({
     setPendingChannelUuid(channelUuid)
     try {
       const result = await saveResource(resourceUuid, {
-        add_to_default_channel: true,
+        add_to_default_channel: false,
         user_channel_uuids: [...next],
       }, accessToken)
       requireSuccess(result, isActive ? 'Failed to remove from channel' : 'Failed to add to channel')
       if (!isSaved) onSaveChange(true)
       setActiveUuids(next)
+      onMembershipChange?.([...next])
       if (!isActive) {
         setConfirmedChannelUuid(channelUuid)
         window.setTimeout(() => {
@@ -167,12 +171,13 @@ export default function SaveDropdown({
     const next = new Set(activeUuids)
     next.add(created.user_channel_uuid)
     const saveResult = await saveResource(resourceUuid, {
-      add_to_default_channel: true,
+      add_to_default_channel: false,
       user_channel_uuids: [...next],
     }, accessToken)
     requireSuccess(saveResult, 'Failed to add to channel')
     if (!isSaved) onSaveChange(true)
     setActiveUuids(next)
+    onMembershipChange?.([...next])
     setConfirmedChannelUuid(created.user_channel_uuid)
     window.setTimeout(() => {
       setConfirmedChannelUuid((current) => current === created.user_channel_uuid ? null : current)
@@ -184,6 +189,8 @@ export default function SaveDropdown({
   if (!accessToken) return null
 
   const isCard = variant === 'card'
+  const isChips = variant === 'chips'
+  const isMenu = variant === 'menu'
 
   const saveButtonClass = isCard
     ? `rounded-full p-2 transition-colors ${
@@ -197,7 +204,11 @@ export default function SaveDropdown({
             : 'border-border text-muted-foreground hover:border-gray-400'
         }`
 
-  const menuButtonClass = isCard
+  const menuButtonClass = isChips
+    ? `flex h-7 w-7 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors hover:border-foreground/30 hover:bg-muted hover:text-foreground ${open ? 'bg-muted text-foreground' : ''}`
+    : isMenu
+    ? `flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors ${open ? 'bg-muted text-foreground' : 'hover:bg-muted hover:text-foreground'}`
+    : isCard
     ? `rounded-full p-2 transition-colors ${
         open
           ? 'bg-gray-950 text-white'
@@ -215,8 +226,36 @@ export default function SaveDropdown({
       className="fixed z-[200] w-60 rounded-xl border border-border bg-card py-1.5 shadow-lg"
       style={{ top: pos.top, right: pos.right }}
     >
+      {isMenu && (
+        <>
+          {share && (
+            <button
+              onClick={() => {
+                setOpen(false)
+                setShareOpen(true)
+              }}
+              className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <Share2 size={14} className="shrink-0" />
+              <span className="flex-1 truncate text-left">Share</span>
+            </button>
+          )}
+          <button
+            onClick={() => {
+              setOpen(false)
+              void handleSaveToggle()
+            }}
+            disabled={savingSave}
+            className={`flex w-full items-center gap-2.5 px-3 py-2 text-sm transition-colors hover:bg-muted disabled:cursor-wait ${isSaved ? 'text-destructive' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            {savingSave ? <Loader2 size={14} className="shrink-0 animate-spin" /> : <Bookmark size={14} className={`shrink-0 ${isSaved ? 'fill-current' : ''}`} />}
+            <span className="flex-1 truncate text-left">{isSaved ? 'Remove from Library' : 'Add to Library'}</span>
+          </button>
+          <div className="my-1 border-t border-border" />
+        </>
+      )}
       <div className="px-3 pb-1 pt-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
-        Add to
+        Add to lists
       </div>
       {userChannels.length > 0 ? (
         <>
@@ -224,28 +263,23 @@ export default function SaveDropdown({
             const isActive = activeUuids.has(channel.user_channel_uuid)
             const isPending = pendingChannelUuid === channel.user_channel_uuid
             const isConfirmed = confirmedChannelUuid === channel.user_channel_uuid
+            const Icon = getChannelIcon(channel.icon)
+            const hasStyle = Boolean(channel.color && channel.icon_color)
             return (
               <button
                 key={channel.user_channel_uuid}
                 onClick={(e) => handleToggleChannel(e, channel.user_channel_uuid, isActive)}
                 disabled={!!pendingChannelUuid}
-                className={`flex w-full items-center gap-2.5 px-3 py-2 text-sm transition-colors disabled:cursor-wait ${
-                  isActive ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted'
-                }`}
+                className={`mx-1.5 mb-1 flex w-[calc(100%-0.75rem)] items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-opacity disabled:cursor-wait ${hasStyle ? '' : 'bg-muted text-muted-foreground'} ${isActive ? 'ring-1 ring-foreground/35 ring-inset' : 'opacity-80 hover:opacity-100'}`}
+                style={{ background: channel.color || undefined, color: channel.icon_color || undefined }}
               >
-                <ResourceChannelStyleIcon
-                  icon={channel.icon}
-                  color={channel.color}
-                  iconColor={channel.icon_color}
-                  size={13}
-                  className="h-5 w-5 shrink-0 rounded-md"
-                />
+                <Icon className="h-3.5 w-3.5 shrink-0" />
                 <span className="flex-1 truncate text-left">{channel.name}</span>
                 <span className="ml-auto flex h-5 w-5 shrink-0 items-center justify-center rounded transition-colors">
                   {isPending ? (
-                    <Loader2 size={12} className="animate-spin text-muted-foreground" />
+                    <Loader2 size={12} className="animate-spin" />
                   ) : isConfirmed ? (
-                    <Check size={12} className="text-emerald-600" />
+                    <Check size={12} />
                   ) : isActive ? (
                     <X size={11} />
                   ) : (
@@ -257,7 +291,7 @@ export default function SaveDropdown({
           })}
         </>
       ) : (
-        <p className="px-3 py-2 text-xs text-muted-foreground">No channels yet</p>
+        <p className="px-3 py-2 text-xs text-muted-foreground">No lists yet</p>
       )}
       <button
         onClick={() => {
@@ -269,10 +303,10 @@ export default function SaveDropdown({
         <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded border border-border bg-muted text-muted-foreground">
           <Plus size={12} />
         </span>
-        <span className="flex-1 truncate text-left">New channel</span>
+        <span className="flex-1 truncate text-left">New list</span>
         <Plus size={12} className="text-muted-foreground" />
       </button>
-      {share && (
+      {share && !isMenu && (
         <>
           <div className="my-1 border-t border-border" />
           <button
@@ -292,26 +326,29 @@ export default function SaveDropdown({
 
   return (
     <>
-      <button
-        onClick={handleSaveToggle}
-        disabled={savingSave}
-        className={saveButtonClass}
-        title={isSaved ? 'Remove save' : 'Save'}
-      >
-        {savingSave ? (
-          <Loader2 size={isCard ? 15 : 14} className="animate-spin" />
-        ) : (
-          <Bookmark size={isCard ? 15 : 14} className={isSaved ? 'fill-current' : ''} />
-        )}
-        {!isCard && saveCount !== undefined && <span>{saveCount}</span>}
-      </button>
+      {!isChips && !isMenu && (
+        <button
+          onClick={handleSaveToggle}
+          disabled={savingSave}
+          className={saveButtonClass}
+          title={isSaved ? 'Remove from Library' : 'Add to Library'}
+        >
+          {savingSave ? (
+            <Loader2 size={isCard ? 15 : 14} className="animate-spin" />
+          ) : (
+            <Bookmark size={isCard ? 15 : 14} className={isSaved ? 'fill-current' : ''} />
+          )}
+          {!isCard && saveCount !== undefined && <span>{saveCount}</span>}
+        </button>
+      )}
       <button
         ref={menuButtonRef}
         onClick={open ? () => setOpen(false) : openDropdown}
         className={menuButtonClass}
-        title="Add to channel"
+        title={isMenu ? 'Resource actions' : 'Add to list'}
+        aria-label={isMenu ? 'Resource actions' : 'Add to list'}
       >
-        <MoreVertical size={isCard ? 15 : 16} />
+        {isChips ? <Plus size={13} /> : <MoreVertical size={isCard ? 15 : 16} />}
       </button>
       {mounted && open && createPortal(dropdown, document.body)}
       {mounted && createPortal(

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Dispatch, useEffect, useState } from 'react'
 import {
   FolderOpen,
   Loader2,
@@ -40,9 +40,9 @@ export default function NewUserResourceChannelModal({
 }: {
   open: boolean
   onClose: () => void
-  onCreated?: (channel: UserResourceChannel) => void | Promise<void>
+  onCreated?: Dispatch<UserResourceChannel>
   channel?: UserResourceChannel | null
-  onUpdated?: (channel: UserResourceChannel) => void | Promise<void>
+  onUpdated?: Dispatch<UserResourceChannel>
 }) {
   const org = useOrg() as any
   const session = useLHSession() as any
@@ -97,7 +97,7 @@ export default function NewUserResourceChannelModal({
       const result = channel
         ? await updateUserResourceChannel(orgId, channel.user_channel_uuid, payload, accessToken)
         : await createUserResourceChannel(orgId, payload, accessToken)
-      requireSuccess(result, channel ? 'Failed to update channel' : 'Failed to create channel')
+      requireSuccess(result, channel ? 'Failed to update list' : 'Failed to create list')
       if (channel) {
         await onUpdated?.(result.data as UserResourceChannel)
       } else {
@@ -108,9 +108,9 @@ export default function NewUserResourceChannelModal({
       setEditingPicker(false)
       setPickerMode('icon')
       onClose()
-      toast.success(channel ? 'Channel updated' : 'Channel created')
+      toast.success(channel ? 'List updated' : 'List created')
     } catch (error: any) {
-      toast.error(error?.message || (channel ? 'Failed to update channel' : 'Failed to create channel'))
+      toast.error(error?.message || (channel ? 'Failed to update list' : 'Failed to create list'))
     } finally {
       setCreating(false)
     }
@@ -120,7 +120,7 @@ export default function NewUserResourceChannelModal({
     <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/40 p-4">
       <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-card p-6 nice-shadow">
         <div className="mb-5 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-foreground">{isEditing ? 'Edit channel' : 'New channel'}</h3>
+          <h3 className="text-lg font-semibold text-foreground">{isEditing ? 'Edit list' : 'New list'}</h3>
           <button
             onClick={onClose}
             className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-muted transition-colors"
@@ -238,7 +238,7 @@ export default function NewUserResourceChannelModal({
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
               className="w-full rounded-xl border border-border px-3 py-2 text-sm outline-none focus:border-gray-400"
-              placeholder="Channel name"
+              placeholder="List name"
               autoFocus
             />
           </div>

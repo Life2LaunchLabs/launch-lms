@@ -1,26 +1,27 @@
 'use client'
 
-import { FormEvent, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { ArrowUpRight, Plus, RotateCcw, Search, Send, Sparkles } from 'lucide-react'
-import Link from 'next/link'
+import { FormEvent, Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Plus, RotateCcw, Search, Send, Sparkles } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { Button } from '@components/ui/button'
-import { Card } from '@components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@components/ui/select'
 import { Textarea } from '@components/ui/textarea'
-import ResourceTypeVisual from '@components/Resources/ResourceTypeVisual'
-import { getResourceThumbnailMediaDirectory } from '@services/media/media'
-import { getUriWithOrg, routePaths } from '@services/config/config'
 import { askHubAdvisor, HubAdvisorMessage, HubAdvisorResource } from '@services/hub/advisor'
+import { getResource, Resource } from '@services/resources/resources'
 import HubQuickSearch, { HubSearchType, HUB_SEARCH_TYPES } from './HubQuickSearch'
+import HubResourceContext from './HubResourceContext'
+import HubResourceLibrary from './HubResourceLibrary'
 import {
+  addHubContextResource,
+  addHubContextResources,
   advisorFailureRecovery,
   autoViewAfterBehaviorChange,
   hubCanAsk,
   HubBehavior,
+  removeHubContextResource,
   showsHubDiscovery,
   AutoView,
 } from './hubInteraction'
@@ -35,6 +36,12 @@ type HubFilters = {
   tags?: string
   access?: string
   provider?: string
+  resource?: string
+}
+
+type HubConversationMessage = HubAdvisorMessage & {
+  id: string
+  resourceLabel?: 'You added' | 'Suggested'
 }
 
 const COMPOSER_LINE_HEIGHT = 24
@@ -48,41 +55,7 @@ function initialSearchTypes(filters: HubFilters, query: string): HubSearchType[]
   return query.trim() ? ['all'] : []
 }
 
-function GroundedResourceCard({ resource, orgslug }: { resource: HubAdvisorResource; orgslug: string }) {
-  const imageSrc = resource.thumbnail_image && resource.owner_org_uuid
-    ? getResourceThumbnailMediaDirectory(resource.owner_org_uuid, resource.resource_uuid, resource.thumbnail_image)
-    : resource.cover_image_url
-  const href = getUriWithOrg(
-    orgslug,
-    routePaths.org.resource(resource.resource_uuid.replace('resource_', ''))
-  )
-
-  return (
-    <Card asChild variant="interactive" size="none" className="w-[15.5rem] shrink-0 snap-start overflow-hidden rounded-2xl border-border/70 bg-card shadow-sm">
-      <Link href={href} target="_blank" rel="noreferrer" className="group block" aria-label={`Open ${resource.title} in a new tab`}>
-        <ResourceTypeVisual
-          type={resource.resource_type}
-          title={resource.title}
-          imageSrc={imageSrc}
-          className="aspect-[16/9] w-full border-b border-border/50"
-          iconClassName="h-8 w-8 opacity-80"
-        />
-        <div className="p-3.5">
-          <div className="flex items-center justify-between gap-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            <span className="truncate">{resource.provider_name || resource.resource_type}</span>
-            <ArrowUpRight className="h-3.5 w-3.5 shrink-0 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-          </div>
-          <h3 className="mt-2 line-clamp-2 text-sm font-semibold leading-5 text-foreground">{resource.title}</h3>
-          {resource.description && (
-            <p className="mt-1.5 line-clamp-2 text-xs leading-5 text-muted-foreground">{resource.description}</p>
-          )}
-        </div>
-      </Link>
-    </Card>
-  )
-}
-
-function AssistantResponse({ content, resources = [], orgslug }: { content: string; resources?: HubAdvisorResource[]; orgslug: string }) {
+function AssistantResponse({ content }: { content: string }) {
   return (
     <article className="max-w-none text-[15px] leading-7 text-foreground">
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
@@ -103,41 +76,69 @@ function AssistantResponse({ content, resources = [], orgslug }: { content: stri
         }}>
         {content}
       </ReactMarkdown>
-      {resources.length > 0 && (
-        <section className="mt-6" aria-label="Related resources">
-          <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
-            <Sparkles className="h-4 w-4" /> Explore related resources
-            <span className="font-normal text-muted-foreground">{resources.length}</span>
-          </div>
-          <div className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-3">
-            {resources.map((resource) => (
-              <GroundedResourceCard key={resource.resource_uuid} resource={resource} orgslug={orgslug} />
-            ))}
-          </div>
-        </section>
-      )}
     </article>
   )
+}
+
+function asAdvisorResource(resource: Resource): HubAdvisorResource {
+  return {
+    resource_uuid: resource.resource_uuid,
+    title: resource.title,
+    description: resource.description,
+    resource_type: resource.resource_type,
+    provider_name: resource.provider_name,
+    external_url: resource.external_url,
+    cover_image_url: resource.cover_image_url,
+    thumbnail_image: resource.thumbnail_image,
+    owner_org_uuid: resource.owner_org_uuid || null,
+    access_mode: resource.access_mode,
+    tags: resource.tags.map((tag) => tag.name),
+  }
 }
 
 export default function HubExperience({ orgslug, filters }: { orgslug: string; filters: HubFilters }) {
   const initialQuery = filters.query || filters.q || ''
   const [behavior, setBehavior] = useState<HubBehavior>('auto')
   const [autoView, setAutoView] = useState<AutoView>('discover')
-  const [messages, setMessages] = useState<HubAdvisorMessage[]>([])
+  const [messages, setMessages] = useState<HubConversationMessage[]>([])
   const [draft, setDraft] = useState(initialQuery)
   const [searchTypes, setSearchTypes] = useState<HubSearchType[]>(() => initialSearchTypes(filters, initialQuery))
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
+  const [contextResources, setContextResources] = useState<HubAdvisorResource[]>([])
+  const [pendingResources, setPendingResources] = useState<HubAdvisorResource[]>([])
+  const [activeResourceUuid, setActiveResourceUuid] = useState<string | null>(null)
+  const [activeResourceGroupId, setActiveResourceGroupId] = useState<string | null>(null)
+  const [libraryOpen, setLibraryOpen] = useState(false)
   const [composerHeight, setComposerHeight] = useState(COMPOSER_MIN_HEIGHT)
   const [composerFades, setComposerFades] = useState({ top: false, bottom: false })
   const scrollRef = useRef<HTMLDivElement>(null)
   const composerRef = useRef<HTMLTextAreaElement>(null)
+  const openedResourceRef = useRef('')
+  const messageSequenceRef = useRef(0)
   const org = useOrg() as any
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
   const showDiscovery = showsHubDiscovery(behavior, autoView)
   const canAsk = hubCanAsk(behavior)
+
+  useEffect(() => {
+    const requestedResource = filters.resource?.trim()
+    if (!requestedResource || !accessToken || openedResourceRef.current === requestedResource) return
+    openedResourceRef.current = requestedResource
+    const resourceUuid = requestedResource.startsWith('resource_') ? requestedResource : `resource_${requestedResource}`
+    getResource(resourceUuid, accessToken)
+      .then((resource) => {
+        const advisorResource = asAdvisorResource(resource)
+        setContextResources((current) => addHubContextResource(current, advisorResource))
+        setPendingResources((current) => addHubContextResource(current, advisorResource))
+        setActiveResourceUuid(resource.resource_uuid)
+        setActiveResourceGroupId('pending')
+        setBehavior('auto')
+        setAutoView('conversation')
+      })
+      .catch((loadError: any) => setError(loadError?.message || 'This resource is not available.'))
+  }, [accessToken, filters.resource])
 
   const updateDraft = (value: string) => {
     const startedTyping = !draft.trim() && Boolean(value.trim())
@@ -151,7 +152,7 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
     if (!scrollArea) return
     if (showDiscovery) scrollArea.scrollTo({ top: 0 })
     else scrollArea.scrollTo({ top: scrollArea.scrollHeight, behavior: 'smooth' })
-  }, [showDiscovery, draft, searchTypes, messages, sending])
+  }, [showDiscovery, draft, searchTypes, messages, sending, contextResources, pendingResources, activeResourceUuid, activeResourceGroupId, libraryOpen])
 
   const updateComposerFades = (textarea: HTMLTextAreaElement) => {
     const hasOverflow = textarea.scrollHeight > textarea.clientHeight + 1
@@ -174,9 +175,49 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
 
   const resetChat = () => {
     setMessages([])
+    setContextResources([])
+    setPendingResources([])
+    setActiveResourceUuid(null)
+    setActiveResourceGroupId(null)
     setDraft('')
     setError('')
     if (behavior === 'auto') setAutoView('discover')
+  }
+
+  const addResourceToConversation = (resource: Resource) => {
+    const advisorResource = asAdvisorResource(resource)
+    setContextResources((current) => addHubContextResource(current, advisorResource))
+    setPendingResources((current) => addHubContextResource(current, advisorResource))
+    setActiveResourceUuid(resource.resource_uuid)
+    setActiveResourceGroupId('pending')
+    setLibraryOpen(false)
+    setBehavior('auto')
+    setAutoView('conversation')
+  }
+
+  const changeActiveResource = (groupId: string, resources: HubAdvisorResource[], resourceUuid: string | null) => {
+    setActiveResourceUuid(resourceUuid)
+    setActiveResourceGroupId(resourceUuid ? groupId : null)
+    if (resourceUuid) {
+      const selected = resources.find((resource) => resource.resource_uuid === resourceUuid)
+      if (selected) setContextResources((current) => addHubContextResource(current, selected))
+    }
+  }
+
+  const removeContextResource = (groupId: string, resourceUuid: string) => {
+    const next = removeHubContextResource(contextResources, activeResourceUuid, resourceUuid)
+    setContextResources(next.resources)
+    setActiveResourceUuid(next.activeResourceUuid)
+    if (activeResourceUuid === resourceUuid) setActiveResourceGroupId(null)
+    if (groupId === 'pending') {
+      setPendingResources((current) => current.filter((resource) => resource.resource_uuid !== resourceUuid))
+      return
+    }
+    setMessages((current) => current.map((message) => (
+      message.id === groupId
+        ? { ...message, resources: message.resources?.filter((resource) => resource.resource_uuid !== resourceUuid) }
+        : message
+    )))
   }
 
   const changeBehavior = (next: HubBehavior) => {
@@ -192,26 +233,48 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
     const content = draft.trim()
     if (!content || !accessToken || !org?.id || sending) return
     const previousMessages = messages
-    let history = messages.slice(-10)
+    let history: HubAdvisorMessage[] = messages.slice(-10).map(({ role, content }) => ({ role, content }))
     while (history.length >= 2 && history.reduce((sum, item) => sum + item.content.length, 0) + content.length > 7_500) {
       history = history.slice(2)
     }
     const requestMessages: HubAdvisorMessage[] = [...history, { role: 'user', content }]
-    setMessages(requestMessages)
+    messageSequenceRef.current += 1
+    const userMessageId = `user-${messageSequenceRef.current}`
+    const submittedResources = pendingResources
+    setMessages((current) => [...current, {
+      id: userMessageId,
+      role: 'user',
+      content,
+      resources: submittedResources,
+      resourceLabel: submittedResources.length ? 'You added' : undefined,
+    }])
+    setPendingResources([])
+    if (activeResourceGroupId === 'pending') setActiveResourceGroupId(userMessageId)
     updateDraft('')
     setError('')
     if (behavior === 'auto') setAutoView('conversation')
     setSending(true)
     try {
-      const response = await askHubAdvisor(org.id, requestMessages, accessToken)
+      const response = await askHubAdvisor(
+        org.id,
+        requestMessages,
+        accessToken,
+        contextResources.map((resource) => resource.resource_uuid)
+      )
+      messageSequenceRef.current += 1
       setMessages((current) => [...current, {
+        id: `assistant-${messageSequenceRef.current}`,
         role: 'assistant',
         content: response.answer,
         resources: response.resources,
+        resourceLabel: response.resources.length ? 'Suggested' : undefined,
       }])
+      setContextResources((current) => addHubContextResources(current, response.resources))
     } catch (requestError: any) {
       const recovery = advisorFailureRecovery(content, searchTypes, 'all' as HubSearchType)
       setMessages(previousMessages)
+      setPendingResources(submittedResources)
+      if (submittedResources.length > 0) setActiveResourceGroupId('pending')
       setDraft(recovery.draft)
       setSearchTypes(recovery.selectedTypes)
       if (behavior === 'auto') setAutoView(recovery.autoView)
@@ -227,8 +290,8 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
 
       <div ref={scrollRef} className="absolute inset-0 overflow-y-auto overscroll-contain scroll-smooth">
         <div
-          className="mx-auto min-h-full w-full max-w-4xl px-4 pt-7 sm:px-6 sm:pt-10"
-          style={{ paddingBottom: composerHeight + 128 }}
+          className="mx-auto min-h-full w-full max-w-3xl px-4 pt-7 sm:px-6 sm:pt-10"
+          style={{ paddingBottom: composerHeight + 128 + (libraryOpen ? 290 : 0) }}
         >
           {showDiscovery ? (
             <div>
@@ -258,11 +321,12 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
                   access: filters.access,
                   provider: filters.provider,
                 }}
+                onSelectResource={addResourceToConversation}
               />
             </div>
           ) : (
             <div className="space-y-7" aria-live="polite" aria-busy={sending}>
-              {messages.length > 0 && (
+              {(messages.length > 0 || contextResources.length > 0) && (
                 <div className="flex justify-end">
                   {behavior === 'auto' && (
                     <Button type="button" variant="ghost" size="sm" className="mr-auto gap-2 text-muted-foreground" onClick={() => setAutoView('discover')}>
@@ -274,20 +338,49 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
                   </Button>
                 </div>
               )}
-              {messages.map((message, index) => message.role === 'user' ? (
-                <div key={`${message.role}-${index}`} className="flex justify-end">
-                  <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl bg-muted px-4 py-2.5 text-sm leading-6 text-foreground sm:max-w-[72%]">
-                    {message.content}
+              {messages.map((message) => message.role === 'user' ? (
+                <Fragment key={message.id}>
+                  {message.resources && message.resources.length > 0 && (
+                    <HubResourceContext
+                      resources={message.resources}
+                      activeResourceUuid={activeResourceGroupId === message.id ? activeResourceUuid : null}
+                      onActiveChange={(resourceUuid) => changeActiveResource(message.id, message.resources || [], resourceUuid)}
+                      onRemove={(resourceUuid) => removeContextResource(message.id, resourceUuid)}
+                      orgslug={orgslug}
+                      label={message.resourceLabel}
+                    />
+                  )}
+                  <div className="flex justify-end">
+                    <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl bg-muted px-4 py-2.5 text-sm leading-6 text-foreground sm:max-w-[72%]">
+                      {message.content}
+                    </div>
                   </div>
-                </div>
+                </Fragment>
               ) : (
-                <AssistantResponse
-                  key={`${message.role}-${index}`}
-                  content={message.content}
-                  resources={message.resources}
-                  orgslug={orgslug}
-                />
+                <Fragment key={message.id}>
+                  <AssistantResponse content={message.content} />
+                  {message.resources && message.resources.length > 0 && (
+                    <HubResourceContext
+                      resources={message.resources}
+                      activeResourceUuid={activeResourceGroupId === message.id ? activeResourceUuid : null}
+                      onActiveChange={(resourceUuid) => changeActiveResource(message.id, message.resources || [], resourceUuid)}
+                      onRemove={(resourceUuid) => removeContextResource(message.id, resourceUuid)}
+                      orgslug={orgslug}
+                      label={message.resourceLabel}
+                    />
+                  )}
+                </Fragment>
               ))}
+              {pendingResources.length > 0 && (
+                <HubResourceContext
+                  resources={pendingResources}
+                  activeResourceUuid={activeResourceGroupId === 'pending' ? activeResourceUuid : null}
+                  onActiveChange={(resourceUuid) => changeActiveResource('pending', pendingResources, resourceUuid)}
+                  onRemove={(resourceUuid) => removeContextResource('pending', resourceUuid)}
+                  orgslug={orgslug}
+                  label="You added"
+                />
+              )}
               {sending && <div className="text-sm text-muted-foreground" role="status">Thinking…</div>}
               {error && <div className="rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">{error}</div>}
             </div>
@@ -297,7 +390,8 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
 
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-sticky">
         <div aria-hidden="true" className="absolute inset-x-0 -top-10 bottom-0 bg-[linear-gradient(to_bottom,transparent_0%,color-mix(in_srgb,var(--org-page-background)_50%,transparent)_50%,var(--org-page-background)_78%)]" />
-        <form onSubmit={submit} className="pointer-events-auto relative mx-auto flex w-full max-w-4xl flex-col justify-end px-4 pb-4 sm:px-6 sm:pb-6">
+        <div className="pointer-events-auto relative mx-auto w-full max-w-[50rem] px-4 pb-4 sm:px-5 sm:pb-6">
+        <form onSubmit={submit} className="flex flex-col justify-end">
           <div className="h-10 overflow-hidden">
             <div
               className={`flex h-10 items-center gap-1.5 overflow-x-auto pb-1 transition-opacity ${showDiscovery ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
@@ -358,7 +452,7 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
             </div>
             <div className="flex h-9 items-center justify-between gap-3">
               <div className="flex items-center gap-1">
-                <Button type="button" size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground" disabled title="Add context is not available yet" aria-label="Add context (coming soon)">
+                <Button type="button" size="icon" variant={libraryOpen ? 'secondary' : 'ghost'} className="h-8 w-8 text-muted-foreground" onClick={() => setLibraryOpen((current) => !current)} disabled={!accessToken || !org?.id} title="Add resources from your Library" aria-label="Add resource context" aria-expanded={libraryOpen}>
                   <Plus className="h-4 w-4" />
                 </Button>
                 <Select value={behavior} onValueChange={(value) => changeBehavior(value as HubBehavior)}>
@@ -385,6 +479,15 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
             </div>
           </div>
         </form>
+        <HubResourceLibrary
+          open={libraryOpen}
+          onClose={() => setLibraryOpen(false)}
+          orgslug={orgslug}
+          orgId={org?.id}
+          accessToken={accessToken}
+          onSelect={addResourceToConversation}
+        />
+        </div>
       </div>
     </main>
   )

@@ -13,7 +13,7 @@ from src.services.hub_advisor import (
     AdvisorProviderLimited,
     AdvisorUnavailable,
     ask_hub_advisor,
-    relevant_advisor_resources,
+    advisor_resources_for_request,
 )
 from src.services.resources import list_resources
 
@@ -27,6 +27,7 @@ class HubAdvisorMessage(BaseModel):
 
 class HubAdvisorRequest(BaseModel):
     messages: list[HubAdvisorMessage] = Field(min_length=1, max_length=12)
+    resource_uuids: list[str] = Field(default_factory=list, max_length=8)
 
 
 class HubAdvisorResource(BaseModel):
@@ -35,6 +36,7 @@ class HubAdvisorResource(BaseModel):
     description: str | None = None
     resource_type: ResourceTypeEnum
     provider_name: str | None = None
+    external_url: str
     cover_image_url: str | None = None
     thumbnail_image: str | None = None
     owner_org_uuid: str | None = None
@@ -62,9 +64,10 @@ async def create_hub_advice(
         current_user,
         db_session,
     )
-    grounding_resources = relevant_advisor_resources(
+    grounding_resources = advisor_resources_for_request(
         body.messages[-1].content,
         accessible_resources,
+        body.resource_uuids,
     )
     try:
         result = await ask_hub_advisor(

@@ -88,6 +88,31 @@ def _grounding_terms(value: str) -> set[str]:
     }
 
 
+def _public_advisor_resource(resource: dict) -> dict | None:
+    title = str(resource.get("title") or "")[:200]
+    description = str(resource.get("description") or "")
+    provider_name = str(resource.get("provider_name") or "")[:120]
+    raw_resource_type = resource.get("resource_type") or ""
+    resource_type = str(getattr(raw_resource_type, "value", raw_resource_type))[:40]
+    raw_access_mode = resource.get("access_mode") or "free"
+    access_mode = str(getattr(raw_access_mode, "value", raw_access_mode))[:40]
+    tags = [str(tag.get("name") or "")[:80] for tag in resource.get("tags") or []]
+    public_resource = {
+        "resource_uuid": str(resource.get("resource_uuid") or ""),
+        "title": title,
+        "description": description[:MAX_GROUNDING_DESCRIPTION_CHARS] or None,
+        "resource_type": resource_type,
+        "provider_name": provider_name or None,
+        "external_url": str(resource.get("external_url") or "")[:2_000],
+        "cover_image_url": resource.get("cover_image_url"),
+        "thumbnail_image": resource.get("thumbnail_image"),
+        "owner_org_uuid": resource.get("owner_org_uuid"),
+        "access_mode": access_mode,
+        "tags": tags[:8],
+    }
+    return public_resource if public_resource["resource_uuid"] else None
+
+
 def relevant_advisor_resources(query: str, resources: list[dict]) -> list[dict]:
     """Rank accessible serialized resources and return model-safe public metadata."""
     query_terms = _grounding_terms(query)
@@ -111,22 +136,40 @@ def relevant_advisor_resources(query: str, resources: list[dict]) -> list[dict]:
         )
         if score <= 0:
             continue
-        public_resource = {
-            "resource_uuid": str(resource.get("resource_uuid") or ""),
-            "title": title,
-            "description": description[:MAX_GROUNDING_DESCRIPTION_CHARS] or None,
-            "resource_type": resource_type,
-            "provider_name": provider_name or None,
-            "cover_image_url": resource.get("cover_image_url"),
-            "thumbnail_image": resource.get("thumbnail_image"),
-            "owner_org_uuid": resource.get("owner_org_uuid"),
-            "access_mode": access_mode,
-            "tags": tags[:8],
-        }
-        if public_resource["resource_uuid"]:
+        public_resource = _public_advisor_resource(resource)
+        if public_resource:
             ranked.append((score, title.casefold(), public_resource))
     ranked.sort(key=lambda item: (-item[0], item[1]))
     return [item[2] for item in ranked[:MAX_GROUNDING_RESOURCES]]
+
+
+def advisor_resources_for_request(
+    query: str,
+    accessible_resources: list[dict],
+    selected_resource_uuids: list[str],
+) -> list[dict]:
+    """Prefer explicitly selected, still-accessible context and fill with relevant suggestions."""
+    accessible_by_uuid = {
+        str(resource.get("resource_uuid")): resource
+        for resource in accessible_resources
+        if resource.get("resource_uuid")
+    }
+    selected: list[dict] = []
+    seen: set[str] = set()
+    for resource_uuid in selected_resource_uuids:
+        if resource_uuid in seen or resource_uuid not in accessible_by_uuid:
+            continue
+        public_resource = _public_advisor_resource(accessible_by_uuid[resource_uuid])
+        if public_resource:
+            selected.append(public_resource)
+            seen.add(resource_uuid)
+        if len(selected) >= MAX_GROUNDING_RESOURCES:
+            return selected
+    suggestions = relevant_advisor_resources(query, accessible_resources)
+    return [
+        *selected,
+        *(resource for resource in suggestions if resource["resource_uuid"] not in seen),
+    ][:MAX_GROUNDING_RESOURCES]
 
 
 def ground_advisor_messages(

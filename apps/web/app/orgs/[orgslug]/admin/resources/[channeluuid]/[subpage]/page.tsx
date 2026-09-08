@@ -1155,7 +1155,7 @@ function ChannelModerationSection({
             </div>
           </div>
         ))}
-        {comments.length === 0 && <div className="text-sm text-gray-400">No comments yet.</div>}
+        {comments.length === 0 && <div className="text-sm text-gray-400">No reviews yet.</div>}
       </div>
     </div>
   )
@@ -1176,7 +1176,7 @@ function ResourceChannelModerationTab({
         <div className="mx-3 my-3 flex flex-col rounded-md bg-gray-50 px-5 py-3">
           <h1 className="text-xl font-bold text-gray-800">Channel Moderation</h1>
           <h2 className="text-md text-gray-500">
-            Review and moderate comments across resources in this channel.
+            Review and moderate ratings and comments across resources in this channel.
           </h2>
         </div>
 
