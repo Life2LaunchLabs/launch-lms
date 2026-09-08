@@ -23,6 +23,7 @@ from src.services.hub_advisor import (
     OpenAIResponsesProvider,
     ask_hub_advisor,
     advisor_resources_for_request,
+    extract_hub_memory_candidates,
     ground_advisor_messages,
     relevant_advisor_resources,
     validate_conversation,
@@ -397,6 +398,35 @@ class FakeProvider:
         assert messages[-1].content == "Help"
         assert len(safety_identifier) == 64
         return AdvisorResult("Start here", "fake", 5, 3)
+
+
+class FakeMemoryProvider:
+    async def respond(self, messages, safety_identifier):
+        payload = json.loads(messages[-1].content)
+        assert payload["learner_message"] == "I hope to finish my teaching credential this year"
+        assert len(safety_identifier) == 64
+        return AdvisorResult(json.dumps({"candidates": [{
+            "action": "create", "category": "goal",
+            "content": "You want to finish your teaching credential this year",
+        }]}), "memory-model", 5, 3)
+
+
+@pytest.mark.asyncio
+async def test_memory_extraction_supports_explicit_commands_and_structured_provider_results():
+    explicit, model = await extract_hub_memory_candidates(
+        "Remember that I prefer short answers", [], "safe-user", FakeMemoryProvider(),
+    )
+    assert explicit == [{
+        "action": "create", "category": "background",
+        "content": "I prefer short answers", "explicit": True,
+    }]
+    assert model == "explicit"
+
+    candidates, model = await extract_hub_memory_candidates(
+        "I hope to finish my teaching credential this year", [], "x" * 64, FakeMemoryProvider(),
+    )
+    assert candidates[0]["category"] == "goal"
+    assert model == "memory-model"
 
 
 @pytest.mark.asyncio

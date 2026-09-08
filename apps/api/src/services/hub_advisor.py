@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 import re
 from dataclasses import dataclass
@@ -30,6 +31,13 @@ ADVISOR_RATE_WINDOW_SECONDS = 60
 DEFAULT_MODEL = "gpt-5.6-luna"
 MAX_GROUNDING_RESOURCES = 4
 MAX_GROUNDING_DESCRIPTION_CHARS = 360
+MEMORY_EXTRACTOR_INSTRUCTIONS = """You extract durable learner-controlled memory from one learner message.
+Return JSON only as an object with a candidates array. A candidate has action create, update, supersede, or forget;
+category goal, preference, constraint, or background; content written as a concise second-person statement; optional
+memory_uuid matching an existing memory; and explicit true only when the learner directly asks to remember it.
+Save only information likely to help in future unrelated conversations. Never save assistant claims, third-party facts,
+credentials, contact details, precise location, health/disability, protected identity, immigration, legal, financial,
+disciplinary, or secret information. Prefer no candidate over a speculative one. Use update/supersede for contradictions."""
 
 _GROUNDING_STOP_WORDS = {
     "a", "about", "an", "and", "are", "can", "do", "for", "from", "help", "how",
@@ -49,6 +57,10 @@ class AdvisorProviderLimited(AdvisorError):
     def __init__(self, message: str, retry_after: int = 30):
         super().__init__(message)
         self.retry_after = retry_after
+
+
+def advisor_safety_identifier(user_id: int) -> str:
+    return hashlib.sha256(f"launchlms-hub:{user_id}".encode()).hexdigest()[:64]
 
 
 def _retry_after_seconds(response: httpx.Response) -> int:
@@ -125,8 +137,6 @@ def relevant_advisor_resources(query: str, resources: list[dict]) -> list[dict]:
         provider_name = str(resource.get("provider_name") or "")[:120]
         raw_resource_type = resource.get("resource_type") or ""
         resource_type = str(getattr(raw_resource_type, "value", raw_resource_type))[:40]
-        raw_access_mode = resource.get("access_mode") or "free"
-        access_mode = str(getattr(raw_access_mode, "value", raw_access_mode))[:40]
         tags = [str(tag.get("name") or "")[:80] for tag in resource.get("tags") or []]
         score = (
             6 * len(query_terms & _grounding_terms(title))
@@ -402,6 +412,73 @@ def configured_advisor_provider(db_session: Session) -> AdvisorProvider:
     return OpenAIResponsesProvider(api_key, model, instructions=instructions, advanced=advanced)
 
 
+def configured_memory_provider(db_session: Session) -> AdvisorProvider:
+    try:
+        provider, api_key, model, _instructions, advanced = get_enabled_hub_advisor_credentials(db_session)
+    except RuntimeError as error:
+        raise AdvisorUnavailable(str(error)) from None
+    memory_advanced = {**advanced, "max_output_tokens": 500}
+    if provider == "anthropic":
+        return AnthropicMessagesProvider(
+            api_key, model, instructions=MEMORY_EXTRACTOR_INSTRUCTIONS, advanced=memory_advanced,
+        )
+    return OpenAIResponsesProvider(
+        api_key, model, instructions=MEMORY_EXTRACTOR_INSTRUCTIONS, advanced=memory_advanced,
+    )
+
+
+def _json_object(value: str) -> dict:
+    stripped = value.strip()
+    if stripped.startswith("```"):
+        stripped = re.sub(r"^```(?:json)?\s*|\s*```$", "", stripped, flags=re.I)
+    try:
+        parsed = json.loads(stripped)
+    except (TypeError, ValueError):
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
+
+
+async def extract_hub_memory_candidates(
+    user_content: str,
+    existing_memories: list[dict],
+    safety_identifier: str,
+    provider: AdvisorProvider | None = None,
+    db_session: Session | None = None,
+) -> tuple[list[dict], str | None]:
+    """Return bounded structured proposals; application services validate before writing."""
+    remember = re.match(r"^\s*(?:please\s+)?remember(?:\s+that)?\s+(.+)$", user_content, re.I | re.S)
+    if remember:
+        return ([{
+            "action": "create", "category": "background",
+            "content": remember.group(1).strip(), "explicit": True,
+        }], "explicit")
+    forget = re.match(r"^\s*(?:please\s+)?forget(?:\s+that)?\s+(.+)$", user_content, re.I | re.S)
+    if forget:
+        terms = _grounding_terms(forget.group(1))
+        ranked = sorted(
+            existing_memories,
+            key=lambda item: -len(terms & _grounding_terms(str(item.get("content") or ""))),
+        )
+        if ranked and terms & _grounding_terms(str(ranked[0].get("content") or "")):
+            return ([{
+                "action": "forget", "category": ranked[0].get("category", "background"),
+                "content": ranked[0].get("content", ""),
+                "memory_uuid": ranked[0].get("memory_uuid"), "explicit": True,
+            }], "explicit")
+        return [], "explicit"
+    selected_provider = provider or (configured_memory_provider(db_session) if db_session else None)
+    if selected_provider is None:
+        return [], None
+    existing = [{
+        "memory_uuid": item.get("memory_uuid"), "category": item.get("category"),
+        "content": item.get("content"),
+    } for item in existing_memories[:50]]
+    prompt = json.dumps({"existing_memories": existing, "learner_message": user_content}, ensure_ascii=False)
+    result = await selected_provider.respond([AdvisorMessage(role="user", content=prompt)], safety_identifier)
+    candidates = _json_object(result.text).get("candidates") or []
+    return ([item for item in candidates[:4] if isinstance(item, dict)], result.model)
+
+
 def validate_conversation(messages: list[AdvisorMessage]) -> None:
     if not messages or len(messages) > MAX_MESSAGES:
         raise HTTPException(status_code=422, detail=f"Send between 1 and {MAX_MESSAGES} messages.")
@@ -429,6 +506,7 @@ async def ask_hub_advisor(
     db_session: Session,
     provider: AdvisorProvider | None = None,
     grounding_resources: list[dict] | None = None,
+    grounding_memories: list[dict] | None = None,
 ) -> AdvisorResult:
     require_org_membership(user_id, org_id, db_session)
     validate_conversation(messages)
@@ -443,8 +521,11 @@ async def ask_hub_advisor(
             detail="Too many advisor requests. Try again shortly.",
             headers={"Retry-After": str(retry_after)},
         )
-    safety_identifier = hashlib.sha256(f"launchlms-hub:{user_id}".encode()).hexdigest()[:64]
+    safety_identifier = advisor_safety_identifier(user_id)
     provider_messages = ground_advisor_messages(messages, grounding_resources or [])
+    if grounding_memories:
+        from src.services.hub_memory import ground_messages_with_memories
+        provider_messages = ground_messages_with_memories(provider_messages, grounding_memories)
     result = await (provider or configured_advisor_provider(db_session)).respond(provider_messages, safety_identifier)
     logger.info(
         "hub_advisor_usage org_id=%s user_id=%s model=%s input_tokens=%s output_tokens=%s",

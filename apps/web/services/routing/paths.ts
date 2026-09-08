@@ -69,6 +69,7 @@ export const routePaths = {
       security: () => '/account',
       messages: () => '/account/messages',
       organizations: () => '/account/organizations',
+      memory: () => '/account/memory',
       preferences: () => '/account/preferences',
       badges: () => '/account/badges',
     },

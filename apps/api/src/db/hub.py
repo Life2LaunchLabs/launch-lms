@@ -93,6 +93,78 @@ class HubConversationResource(SQLModel, table=True):
     active: bool = Field(default=True, sa_column=Column(Boolean, nullable=False, default=True))
 
 
+class HubMemoryPreference(SQLModel, table=True):
+    """A learner's memory choice inside one organization."""
+
+    __tablename__ = "hubmemorypreference"
+    __table_args__ = (UniqueConstraint("org_id", "user_id", name="uq_hubmemorypreference_owner"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), nullable=False, index=True))
+    user_id: int = Field(sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True))
+    enabled: bool = Field(default=False, sa_column=Column(Boolean, nullable=False, default=False))
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class HubMemory(SQLModel, table=True):
+    """One editable, organization-scoped learner memory."""
+
+    __tablename__ = "hubmemory"
+    __table_args__ = (
+        Index("ix_hubmemory_owner_active", "org_id", "user_id", "status", "updated_at"),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    memory_uuid: str = Field(index=True, unique=True)
+    org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), nullable=False, index=True))
+    user_id: int = Field(sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True))
+    category: str = Field(sa_column=Column(String(32), nullable=False))
+    content: str = Field(sa_column=Column(Text, nullable=False))
+    normalized_key: str = Field(sa_column=Column(String(240), nullable=False, index=True))
+    status: str = Field(default="active", sa_column=Column(String(16), nullable=False, default="active"))
+    superseded_by_uuid: str | None = Field(default=None, max_length=120)
+    version: int = Field(default=1, sa_column=Column(Integer, nullable=False, default=1))
+    explicit: bool = Field(default=False, sa_column=Column(Boolean, nullable=False, default=False))
+    extraction_model: str | None = Field(default=None, max_length=200)
+    extraction_version: str = Field(default="memory-v1", max_length=40)
+    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    updated_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    last_used_at: datetime | None = Field(default=None, index=True)
+
+
+class HubMemorySource(SQLModel, table=True):
+    """Provenance from a learner-authored Hub message to a memory."""
+
+    __tablename__ = "hubmemorysource"
+    __table_args__ = (UniqueConstraint("memory_id", "message_uuid", name="uq_hubmemorysource_message"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    memory_id: int = Field(sa_column=Column(Integer, ForeignKey("hubmemory.id", ondelete="CASCADE"), nullable=False, index=True))
+    message_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("hubconversationmessage.id", ondelete="SET NULL"), nullable=True, index=True))
+    message_uuid: str = Field(index=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class HubConversationMessageMemory(SQLModel, table=True):
+    """Immutable receipt of memory created by or used for a Hub message."""
+
+    __tablename__ = "hubconversationmessagememory"
+    __table_args__ = (
+        UniqueConstraint("message_id", "memory_uuid", "relationship", name="uq_hubmessagememory_receipt"),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    message_id: int = Field(sa_column=Column(Integer, ForeignKey("hubconversationmessage.id", ondelete="CASCADE"), nullable=False, index=True))
+    memory_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("hubmemory.id", ondelete="SET NULL"), nullable=True, index=True))
+    memory_uuid: str = Field(index=True)
+    relationship: str = Field(sa_column=Column(String(16), nullable=False))
+    content_snapshot: str = Field(sa_column=Column(Text, nullable=False))
+    category_snapshot: str = Field(sa_column=Column(String(32), nullable=False))
+    memory_version: int = Field(sa_column=Column(Integer, nullable=False))
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class HubAdvisorAdvancedConfiguration(BaseModel):
     max_output_tokens: int = PydanticField(default=700, ge=128, le=4_000)
     reasoning_effort: Literal["default", "none", "low", "medium", "high", "xhigh"] = "default"

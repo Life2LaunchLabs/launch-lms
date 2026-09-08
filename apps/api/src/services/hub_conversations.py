@@ -15,6 +15,7 @@ from src.db.hub import (
     HubConversationResource,
 )
 from src.services.hub_advisor import AdvisorMessage
+from src.services.hub_memory import message_memory_receipts
 from src.security.org_auth import require_org_membership
 
 
@@ -247,6 +248,8 @@ def record_advice(
         "title": conversation.title,
         "user_message_uuid": user_message.message_uuid,
         "assistant_message_uuid": assistant_message.message_uuid,
+        "user_message_created_at": user_message.created_at,
+        "assistant_message_created_at": assistant_message.created_at,
         "assistant_resource_uuids": novel_suggestions,
     }
 
@@ -275,6 +278,8 @@ def record_search(
         "title": conversation.title,
         "user_message_uuid": user_message.message_uuid,
         "assistant_message_uuid": search_message.message_uuid,
+        "user_message_created_at": user_message.created_at,
+        "assistant_message_created_at": search_message.created_at,
     }
 
 
@@ -352,6 +357,9 @@ def conversation_detail(
         HubConversationResource.conversation_id == conversation.id,
         HubConversationResource.active.is_(True),  # type: ignore[union-attr]
     ).order_by(HubConversationResource.display_order)).all()
+    memory_receipts = message_memory_receipts(
+        db_session, [int(message.id) for message in messages]
+    )
     return {
         "conversation_uuid": conversation.conversation_uuid,
         "title": conversation.title,
@@ -364,6 +372,8 @@ def conversation_detail(
             "search_query": message.content if message.kind == "search" else None,
             "resource_label": next((row.label for row in by_message.get(int(message.id), [])), None),
             "resources": [resources_by_uuid[row.resource_uuid] for row in by_message.get(int(message.id), []) if row.resource_uuid in resources_by_uuid],
+            "created_at": message.created_at,
+            "memories": memory_receipts.get(int(message.id), []),
         } for message in messages],
         "context_resources": [resources_by_uuid[row.resource_uuid] for row in context if row.resource_uuid in resources_by_uuid],
     }

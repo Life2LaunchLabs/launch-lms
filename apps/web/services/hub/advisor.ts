@@ -22,10 +22,25 @@ export type HubAdvisorMessage = {
   resources?: HubAdvisorResource[]
 }
 
+export type HubMemory = {
+  memory_uuid: string
+  category: 'goal' | 'preference' | 'constraint' | 'background'
+  content: string
+  version: number
+  explicit?: boolean
+  created_at?: string
+  updated_at?: string
+  last_used_at?: string | null
+  relationship?: 'used' | 'created' | 'updated' | 'deleted'
+  editable?: boolean
+}
+
 export type HubConversationMessage = HubAdvisorMessage & {
   id: string
   resource_label?: 'You added' | 'Suggested'
   search_query?: string
+  created_at?: string
+  memories?: HubMemory[]
 }
 
 export type HubConversationSummary = {
@@ -48,6 +63,8 @@ type ConversationWriteResult = {
   title: string
   user_message_uuid: string
   assistant_message_uuid: string
+  user_message_created_at: string
+  assistant_message_created_at: string
 }
 
 async function hubRequest<T>(path: string, method: string, accessToken: string, data?: unknown): Promise<T> {
@@ -68,6 +85,8 @@ export async function askHubAdvisor(
   answer: string
   usage: { input_tokens: number; output_tokens: number }
   resources: HubAdvisorResource[]
+  memories_used: HubMemory[]
+  memory_changes: HubMemory[]
 } & ConversationWriteResult> {
   const response = await fetch(
     `${getAPIUrl()}hub/advisor?org_id=${encodeURIComponent(orgId)}`,
@@ -84,6 +103,26 @@ export async function askHubAdvisor(
     )
   )
   return errorHandling(response)
+}
+
+export function getHubMemory(orgId: number, accessToken: string) {
+  return hubRequest<{ enabled: boolean; memories: HubMemory[] }>(`memory?org_id=${encodeURIComponent(orgId)}`, 'GET', accessToken)
+}
+
+export function setHubMemoryEnabled(orgId: number, enabled: boolean, accessToken: string) {
+  return hubRequest<{ enabled: boolean }>(`memory/settings?org_id=${encodeURIComponent(orgId)}`, 'PATCH', accessToken, { enabled })
+}
+
+export function updateHubMemory(orgId: number, memoryUuid: string, content: string, accessToken: string) {
+  return hubRequest<HubMemory>(`memory/${encodeURIComponent(memoryUuid)}?org_id=${encodeURIComponent(orgId)}`, 'PATCH', accessToken, { content })
+}
+
+export function deleteHubMemory(orgId: number, memoryUuid: string, accessToken: string) {
+  return hubRequest<void>(`memory/${encodeURIComponent(memoryUuid)}?org_id=${encodeURIComponent(orgId)}`, 'DELETE', accessToken)
+}
+
+export function clearHubMemory(orgId: number, accessToken: string) {
+  return hubRequest<void>(`memory?org_id=${encodeURIComponent(orgId)}`, 'DELETE', accessToken)
 }
 
 export function listHubConversations(orgId: number, accessToken: string) {

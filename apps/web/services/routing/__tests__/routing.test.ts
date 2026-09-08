@@ -66,6 +66,7 @@ test('route manifest builds auth, account, and public org paths used by navigati
   assert.equal(routePaths.owner.account.security(), '/account')
   assert.equal(routePaths.owner.account.messages(), '/account/messages')
   assert.equal(routePaths.owner.account.organizations(), '/account/organizations')
+  assert.equal(routePaths.owner.account.memory(), '/account/memory')
   assert.equal(routePaths.owner.account.badges(), '/account/badges')
   assert.equal(routePaths.org.hub(), '/hub')
   assert.equal(routePaths.org.portfolio(), '/portfolio')
@@ -140,7 +141,7 @@ test('request policy redirects authenticated org root to hub', () => {
 })
 
 test('request policy rewrites nested account tabs to the current organization', () => {
-  for (const pathname of ['/account/messages', '/account/organizations', '/account/preferences']) {
+  for (const pathname of ['/account/messages', '/account/organizations', '/account/memory', '/account/preferences']) {
     const decision = resolveRequestRouting({
       requestUrl: `https://launchlms.test${pathname}`,
       pathname,

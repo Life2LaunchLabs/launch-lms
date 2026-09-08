@@ -6,6 +6,7 @@ import AccountGeneral from '@components/Objects/Account/subpages/AccountGeneral'
 import AccountSecurity from '@components/Objects/Account/subpages/AccountSecurity'
 import AccountMessages from '@components/Objects/Account/subpages/AccountMessages'
 import AccountOrganizations from '@components/Objects/Account/subpages/AccountOrganizations'
+import AccountMemory from '@components/Objects/Account/subpages/AccountMemory'
 import AccountPreferences from '@components/Objects/Account/subpages/AccountPreferences'
 
 interface AccountClientProps {
@@ -20,6 +21,8 @@ const AccountClient = ({ orgslug, subpage }: AccountClientProps) => {
         return <AccountMessages orgslug={orgslug} />
       case 'organizations':
         return <AccountOrganizations orgslug={orgslug} />
+      case 'memory':
+        return <AccountMemory />
       case 'preferences':
         return <AccountPreferences />
       default:

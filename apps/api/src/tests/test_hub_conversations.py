@@ -5,6 +5,10 @@ from src.db.hub import (
     HubConversationMessage,
     HubConversationMessageResource,
     HubConversationResource,
+    HubConversationMessageMemory,
+    HubMemory,
+    HubMemoryPreference,
+    HubMemorySource,
 )
 from src.db.organizations import Organization  # noqa: F401
 from src.db.users import User  # noqa: F401
@@ -19,6 +23,10 @@ def _session(monkeypatch):
         HubConversationMessage.__table__,
         HubConversationMessageResource.__table__,
         HubConversationResource.__table__,
+        HubMemoryPreference.__table__,
+        HubMemory.__table__,
+        HubMemorySource.__table__,
+        HubConversationMessageMemory.__table__,
     ])
     return Session(engine)
 

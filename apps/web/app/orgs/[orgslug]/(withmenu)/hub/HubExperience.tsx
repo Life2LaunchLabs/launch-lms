@@ -13,6 +13,7 @@ import {
   askHubAdvisor,
   getHubConversation,
   HubAdvisorMessage,
+  HubMemory,
   HubAdvisorResource,
   HubConversationSummary,
   listHubConversations,
@@ -24,6 +25,7 @@ import { getResource, Resource } from '@services/resources/resources'
 import HubQuickSearch from './HubQuickSearch'
 import HubHeader from './HubHeader'
 import HubHomeRecents from './HubHomeRecents'
+import HubMessageMicroBar from './HubMessageMicroBar'
 import HubResourceContext, { ActiveResourceWorkspace } from './HubResourceContext'
 import HubResourceLibrary from './HubResourceLibrary'
 import {
@@ -55,6 +57,8 @@ type HubConversationMessage = HubAdvisorMessage & {
   id: string
   resourceLabel?: 'You added' | 'Suggested'
   searchQuery?: string
+  createdAt?: string
+  memories?: HubMemory[]
 }
 
 const COMPOSER_LINE_HEIGHT = 24
@@ -175,6 +179,8 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
         resources: message.resources,
         resourceLabel: message.resource_label,
         searchQuery: message.search_query,
+        createdAt: message.created_at,
+        memories: message.memories,
       }))
       setMessages(restoredMessages)
       setConversationUuid(conversation.conversation_uuid)
@@ -396,8 +402,8 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
         })
         const nextMessages: HubConversationMessage[] = [
           ...previousMessages,
-          { id: persisted.user_message_uuid, role: 'user', content, resources: submittedResources, resourceLabel: submittedResources.length ? 'You added' : undefined },
-          { id: persisted.assistant_message_uuid, role: 'assistant', content: '', searchQuery: content },
+          { id: persisted.user_message_uuid, role: 'user', content, resources: submittedResources, resourceLabel: submittedResources.length ? 'You added' : undefined, createdAt: persisted.user_message_created_at },
+          { id: persisted.assistant_message_uuid, role: 'assistant', content: '', searchQuery: content, createdAt: persisted.assistant_message_created_at },
         ]
         setMessages(nextMessages)
         setConversationUuid(persisted.conversation_uuid)
@@ -427,8 +433,8 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
       transcriptResources.forEach((resource) => introducedResourceUuidsRef.current.add(resource.resource_uuid))
       const nextMessages: HubConversationMessage[] = [
         ...previousMessages,
-        { id: response.user_message_uuid, role: 'user', content, resources: submittedResources, resourceLabel: submittedResources.length ? 'You added' : undefined },
-        { id: response.assistant_message_uuid, role: 'assistant', content: response.answer, resources: transcriptResources, resourceLabel: transcriptResources.length ? 'Suggested' : undefined },
+        { id: response.user_message_uuid, role: 'user', content, resources: submittedResources, resourceLabel: submittedResources.length ? 'You added' : undefined, createdAt: response.user_message_created_at, memories: response.memory_changes },
+        { id: response.assistant_message_uuid, role: 'assistant', content: response.answer, resources: transcriptResources, resourceLabel: transcriptResources.length ? 'Suggested' : undefined, createdAt: response.assistant_message_created_at, memories: response.memories_used },
       ]
       setMessages(nextMessages)
       setContextResources((current) => addHubContextResources(current, response.resources))
@@ -536,6 +542,7 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
                       {message.content}
                     </div>
                   </div>
+                  {accessToken && org?.id && <HubMessageMicroBar role="user" content={message.content} createdAt={message.createdAt} memories={message.memories} orgId={org.id} accessToken={accessToken} />}
                 </Fragment>
               ) : (
                 <Fragment key={message.id}>
@@ -559,10 +566,12 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
                       {activeResourceGroupId === message.id && (message.resources || [])
                         .filter((resource) => resource.resource_uuid === activeResourceUuid)
                         .map((resource) => <div key={resource.resource_uuid} className="mt-2"><ActiveResourceWorkspace resource={resource} orgslug={orgslug} /></div>)}
+                      {accessToken && org?.id && <HubMessageMicroBar role="assistant" content={`Resource search results for ${message.searchQuery}`} createdAt={message.createdAt} memories={message.memories} orgId={org.id} accessToken={accessToken} />}
                     </div>
                   ) : (
                     <>
                       <AssistantResponse content={message.content} />
+                      {accessToken && org?.id && <HubMessageMicroBar role="assistant" content={message.content} createdAt={message.createdAt} memories={message.memories} orgId={org.id} accessToken={accessToken} />}
                       {message.resources && message.resources.length > 0 && (
                         <div ref={(node) => { if (node) resourceOriginRefs.current.set(message.id, node); else resourceOriginRefs.current.delete(message.id) }} tabIndex={-1} className="rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
                       <HubResourceContext

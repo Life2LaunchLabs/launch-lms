@@ -8,7 +8,7 @@ import { useLHSession } from '@components/Contexts/LHSessionContext'
 import useInboxMessages from '@components/Hooks/useInboxMessages'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 
-export type AccountPageTab = 'account' | 'messages' | 'organizations' | 'preferences'
+export type AccountPageTab = 'account' | 'messages' | 'organizations' | 'memory' | 'preferences'
 
 export default function AccountPageShell({ orgslug, activeTab, children }: { orgslug: string; activeTab: AccountPageTab; children: React.ReactNode }) {
   const session = useLHSession() as any
@@ -19,6 +19,7 @@ export default function AccountPageShell({ orgslug, activeTab, children }: { org
     { id: 'account' as const, label: 'Account', href: getUriWithOrg(orgslug, routePaths.owner.account.root()) },
     { id: 'messages' as const, label: messageLabel, href: getUriWithOrg(orgslug, routePaths.owner.account.messages()) },
     { id: 'organizations' as const, label: 'Organizations', href: getUriWithOrg(orgslug, routePaths.owner.account.organizations()) },
+    { id: 'memory' as const, label: 'Memory', href: getUriWithOrg(orgslug, routePaths.owner.account.memory()) },
     { id: 'preferences' as const, label: 'Appearance', href: getUriWithOrg(orgslug, routePaths.owner.account.preferences()) },
   ]
 
