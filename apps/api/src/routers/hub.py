@@ -41,7 +41,6 @@ from src.services.hub_memory import (
     memory_settings,
     record_used_memories,
     select_memories,
-    set_memory_enabled,
     update_memory_settings,
     update_memory,
 )

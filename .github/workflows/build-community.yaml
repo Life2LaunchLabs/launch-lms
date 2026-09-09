@@ -1,124 +1,160 @@
 name: Build Community Images
-
 on:
   push:
-    branches:
-      - prod
-      - dev
-      - main
+    branches: [dev, main]
   pull_request:
-    branches:
-      - prod
-      - dev
-      - main
+    branches: [dev, main]
   workflow_dispatch:
-    inputs: {}
-
 permissions:
   contents: read
-  packages: write
-
+concurrency:
+  group: candidate-${{ github.ref }}
+  cancel-in-progress: true
 env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: life2launchlabs/launch-lms
-
+  REPOSITORY: ghcr.io/life2launchlabs/launch-lms
 jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: python3 -m unittest discover -s scripts/ci -p 'test_*.py' -v
+      - run: bash -n scripts/ci/smoke-image.sh
+  api-tests:
+    uses: ./.github/workflows/api-tests.yaml
+  api-lint:
+    uses: ./.github/workflows/api-lint.yaml
+  migrations:
+    uses: ./.github/workflows/api-migrations.yaml
+  existing:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      run_id: ${{ steps.find.outputs.run_id }}
+    steps:
+      - uses: actions/checkout@v6
+      - id: find
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          run_id=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/build-community.yaml/runs?head_sha=$GITHUB_SHA&status=success&per_page=100" --jq '.workflow_runs | map(select((.event == "push" or .event == "workflow_dispatch") and (.head_branch == "main" or .head_branch == "dev"))) | first | .id // empty')
+          if [ -n "$run_id" ]; then
+            available=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/artifacts" --jq '[.artifacts[] | select(.name == "candidate" and .expired == false)] | length')
+            if [ "$available" = 0 ]; then run_id=''; fi
+          fi
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
   build:
-    name: Build (${{ matrix.platform }})
+    needs: existing
+    if: needs.existing.outputs.run_id == ''
+    name: Build and smoke (${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
     strategy:
       fail-fast: false
       matrix:
         include:
-          - platform: linux/amd64
+          - arch: amd64
             runner: ubuntu-latest
-          - platform: linux/arm64
+          - arch: arm64
             runner: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v6
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v4
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Prepare platform pair
-        id: prep
-        run: |
-          echo "platform_pair=$(echo '${{ matrix.platform }}' | tr '/' '-')" >> $GITHUB_OUTPUT
-
-      - name: Build and push by digest
-        id: build
+      - uses: docker/setup-buildx-action@v4
+      - name: Build once and load locally
         uses: docker/build-push-action@v7
         with:
           context: .
           file: ./Dockerfile
-          platforms: ${{ matrix.platform }}
+          platforms: linux/${{ matrix.arch }}
+          load: true
+          tags: ${{ env.REPOSITORY }}:build-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.arch }}
           build-args: |
-            LAUNCHLMS_PUBLIC=true
-            LAUNCHLMS_VERSION=${{ github.ref_name }}
+            LAUNCHLMS_VERSION=sha-${{ github.sha }}
             LAUNCHLMS_COMMIT_SHA=${{ github.sha }}
-            LAUNCHLMS_IMAGE_REF=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+            LAUNCHLMS_IMAGE_REF=${{ env.REPOSITORY }}:sha-${{ github.sha }}
             LAUNCHLMS_RELEASED_AT=${{ github.event.head_commit.timestamp || github.run_id }}
-          cache-from: type=gha,scope=${{ steps.prep.outputs.platform_pair }}
-          cache-to: type=gha,mode=max,scope=${{ steps.prep.outputs.platform_pair }}
-          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
-
-      - name: Export digest
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-        run: |
-          mkdir -p ${{ runner.temp }}/digests
-          digest="${{ steps.build.outputs.digest }}"
-          touch "${{ runner.temp }}/digests/${digest#sha256:}"
-
-      - name: Upload digest
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@v7
+          cache-from: type=gha,scope=${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.arch }}
+      - name: Test the built image
+        env:
+          IMAGE: ${{ env.REPOSITORY }}:build-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.arch }}
+        run: bash scripts/ci/smoke-image.sh
+      - uses: docker/login-action@v4
+        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')
         with:
-          name: digests-${{ steps.prep.outputs.platform_pair }}
-          path: ${{ runner.temp }}/digests/*
-          if-no-files-found: error
-          retention-days: 1
-
-  merge:
-    name: Create multi-platform manifest
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-    needs: build
-    steps:
-      - name: Download digests
-        uses: actions/download-artifact@v8
-        with:
-          path: ${{ runner.temp }}/digests
-          pattern: digests-*
-          merge-multiple: true
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v4
-        with:
-          registry: ${{ env.REGISTRY }}
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Generate image tags
-        id: meta
+      - name: Push the tested image (no build)
+        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')
+        env:
+          IMAGE: ${{ env.REPOSITORY }}:build-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.arch }}
         run: |
-          SHA_SHORT=$(echo "${{ github.sha }}" | cut -c1-7)
-          BRANCH="${{ github.ref_name }}"
-
-          TAGS="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${BRANCH}-${SHA_SHORT}"
-          TAGS="${TAGS},${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${BRANCH}"
-
-          echo "tags=${TAGS}" >> $GITHUB_OUTPUT
-
-      - name: Create manifest list and push
-        working-directory: ${{ runner.temp }}/digests
+          docker push "$IMAGE"
+          mkdir -p digests
+          docker buildx imagetools inspect "$IMAGE" --format '{{.Manifest.Digest}}' > "digests/${{ matrix.arch }}"
+      - uses: actions/upload-artifact@v7
+        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')
+        with:
+          name: digest-${{ matrix.arch }}
+          path: digests/*
+          retention-days: 1
+  candidate:
+    name: Publish verified candidate
+    needs: [existing, build, contract, api-tests, api-lint, migrations]
+    if: always() && github.event_name != 'pull_request' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main') && needs.existing.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'skipped') && needs.api-tests.result == 'success' && needs.api-lint.result == 'success' && needs.migrations.result == 'success' && needs.contract.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: docker/setup-buildx-action@v4
+      - uses: actions/download-artifact@v8
+        if: needs.existing.outputs.run_id == ''
+        with:
+          pattern: digest-*
+          path: digests
+          merge-multiple: true
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish checked manifest and evidence
+        env:
+          SOURCE_BRANCH: ${{ github.ref_name }}
+          EXISTING_RUN: ${{ needs.existing.outputs.run_id }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAGS=$(echo "${{ steps.meta.outputs.tags }}" | tr ',' '\n' | xargs -I{} echo "-t {}" | tr '\n' ' ')
-          docker buildx imagetools create $TAGS \
-            $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:%s ' *)
+          if [ -n "$EXISTING_RUN" ]; then
+            gh run download "$EXISTING_RUN" --name candidate --dir existing
+            IMAGE_DIGEST=$(python3 scripts/ci/release-contract.py reuse existing/candidate.json)
+            docker buildx imagetools create -t "$REPOSITORY:$SOURCE_BRANCH" "$REPOSITORY@$IMAGE_DIGEST"
+          else
+            amd64=$(cat digests/amd64)
+            arm64=$(cat digests/arm64)
+            [[ "$amd64" =~ ^sha256:[a-f0-9]{64}$ && "$arm64" =~ ^sha256:[a-f0-9]{64}$ ]]
+            docker buildx imagetools create -t "$REPOSITORY:sha-$GITHUB_SHA" -t "$REPOSITORY:$SOURCE_BRANCH" "$REPOSITORY@$amd64" "$REPOSITORY@$arm64"
+            IMAGE_DIGEST=$(docker buildx imagetools inspect "$REPOSITORY:sha-$GITHUB_SHA" --format '{{.Manifest.Digest}}')
+          fi
+          export IMAGE_DIGEST
+          python3 scripts/ci/release-contract.py candidate candidate.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: candidate
+          path: candidate.json
+          retention-days: 90
+      - name: Request unstable deployment
+        if: github.ref == 'refs/heads/dev' && vars.UNSTABLE_DEPLOY_ENABLED == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.INFRA_REPO_TOKEN }}
+        run: |
+          python3 scripts/ci/release-contract.py dispatch candidate.json > dispatch.json
+          gh api repos/Life2LaunchLabs/launch-lms-infra/dispatches --input dispatch.json

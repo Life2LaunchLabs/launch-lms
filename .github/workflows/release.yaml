@@ -1,225 +1,72 @@
 name: Release
-
 on:
   push:
-    tags:
-      - 'v*'
-
+    tags: ['v*']
 permissions:
   contents: write
+  actions: read
   packages: write
-
+concurrency:
+  group: production-release
+  cancel-in-progress: false
 env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: life2launchlabs/launch-lms
+  REPOSITORY: ghcr.io/life2launchlabs/launch-lms
   INFRA_REPO: Life2LaunchLabs/launch-lms-infra
-
 jobs:
-  build:
-    name: Build (${{ matrix.platform }})
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: linux/amd64
-            runner: ubuntu-latest
-          - platform: linux/arm64
-            runner: ubuntu-24.04-arm
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v4
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Prepare platform pair
-        id: prep
-        run: |
-          echo "platform_pair=$(echo '${{ matrix.platform }}' | tr '/' '-')" >> $GITHUB_OUTPUT
-
-      - name: Build and push by digest
-        id: build
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: ./Dockerfile
-          platforms: ${{ matrix.platform }}
-          build-args: |
-            LAUNCHLMS_PUBLIC=true
-            LAUNCHLMS_VERSION=${{ github.ref_name }}
-            LAUNCHLMS_COMMIT_SHA=${{ github.sha }}
-            LAUNCHLMS_IMAGE_REF=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
-            LAUNCHLMS_RELEASED_AT=${{ github.event.head_commit.timestamp || github.run_id }}
-          cache-from: type=gha,scope=release-${{ steps.prep.outputs.platform_pair }}
-          cache-to: type=gha,mode=max,scope=release-${{ steps.prep.outputs.platform_pair }}
-          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
-
-      - name: Export digest
-        run: |
-          mkdir -p ${{ runner.temp }}/digests
-          digest="${{ steps.build.outputs.digest }}"
-          touch "${{ runner.temp }}/digests/${digest#sha256:}"
-
-      - name: Upload digest
-        uses: actions/upload-artifact@v7
-        with:
-          name: digests-${{ steps.prep.outputs.platform_pair }}
-          path: ${{ runner.temp }}/digests/*
-          if-no-files-found: error
-          retention-days: 1
-
-  release:
-    name: Create release and push manifest
+  promote:
     runs-on: ubuntu-latest
-    needs: build
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-      digest: ${{ steps.digest.outputs.digest }}
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-
-      - name: Download digests
-        uses: actions/download-artifact@v8
+      - name: Find successful build for the tagged main commit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          [[ "$GITHUB_REF_NAME" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+          run_id=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/build-community.yaml/runs?head_sha=$GITHUB_SHA&branch=main&status=success&per_page=100" --jq '.workflow_runs | map(select(.event == "push" or .event == "workflow_dispatch")) | first | .id // empty')
+          test -n "$run_id" || { echo 'Wait for the main candidate build to pass, then rerun this release.'; exit 1; }
+          gh run download "$run_id" --name candidate --dir evidence
+          python3 scripts/ci/release-contract.py promote evidence/candidate.json release.lock.json
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
         with:
-          path: ${{ runner.temp }}/digests
-          pattern: digests-*
-          merge-multiple: true
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v4
-        with:
-          registry: ${{ env.REGISTRY }}
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract version from tag
-        id: version
-        run: echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
-
-      - name: Generate image tags
-        id: meta
+      - name: Promote the checked digest without rebuilding
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          TAGS="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v${VERSION}"
-          TAGS="${TAGS},${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${VERSION}"
-          TAGS="${TAGS},${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
-          echo "tags=${TAGS}" >> $GITHUB_OUTPUT
-
-      - name: Create manifest list and push
-        working-directory: ${{ runner.temp }}/digests
-        run: |
-          TAGS=$(echo "${{ steps.meta.outputs.tags }}" | tr ',' '\n' | xargs -I{} echo "-t {}" | tr '\n' ' ')
-          docker buildx imagetools create $TAGS \
-            $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:%s ' *)
-
-      - name: Capture release digest
-        id: digest
-        run: |
-          DIGEST=$(docker buildx imagetools inspect "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}" --format '{{json .Manifest.Digest}}' | tr -d '"')
-          echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
-
-      - name: Generate changelog
-        id: changelog
-        run: |
-          # Find previous v* tag (exclude cli-v* and current tag)
-          PREV_TAG=$(git tag --list 'v*' --sort=-v:refname | grep -v "$GITHUB_REF_NAME" | head -n1)
-          if [ -z "$PREV_TAG" ]; then
-            RANGE="HEAD"
-          else
-            RANGE="${PREV_TAG}..HEAD"
+          digest=$(python3 -c 'import json; print(json.load(open("release.lock.json"))["image_digest"])')
+          # Re-runs may reuse the same version; a version must never change images.
+          if existing=$(docker buildx imagetools inspect "$REPOSITORY:$GITHUB_REF_NAME" --format '{{.Manifest.Digest}}' 2>/dev/null); then
+            test "$existing" = "$digest" || { echo 'Version already points to another image'; exit 1; }
           fi
-
-          # Group commits by type
-          FEATURES=$(git log "$RANGE" --pretty=format:"- %s (%h)" --grep="^feat" || true)
-          FIXES=$(git log "$RANGE" --pretty=format:"- %s (%h)" --grep="^fix" || true)
-          OTHERS=$(git log "$RANGE" --pretty=format:"- %s (%h)" --invert-grep --grep="^feat" --grep="^fix" --grep="^chore" --grep="^docs" --grep="^ci" --grep="^style" --grep="^refactor" --grep="^test" || true)
-
-          {
-            echo "## What's Changed"
-            echo ""
-            if [ -n "$FEATURES" ]; then
-              echo "### Features"
-              echo "$FEATURES"
-              echo ""
-            fi
-            if [ -n "$FIXES" ]; then
-              echo "### Bug Fixes"
-              echo "$FIXES"
-              echo ""
-            fi
-            if [ -n "$OTHERS" ]; then
-              echo "### Other Changes"
-              echo "$OTHERS"
-              echo ""
-            fi
-            echo "---"
-            echo ""
-            echo "**Docker image:** \`ghcr.io/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}\`"
-          } > /tmp/changelog.md
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: v${{ steps.version.outputs.version }}
-          body_path: /tmp/changelog.md
-          make_latest: true
-
-  update-infra-lock:
-    name: Open infra release PR
-    runs-on: ubuntu-latest
-    needs: release
-    steps:
-      - name: Check out infra repo
-        uses: actions/checkout@v6
+          docker buildx imagetools create -t "$REPOSITORY:$GITHUB_REF_NAME" -t "$REPOSITORY:${GITHUB_REF_NAME#v}" "$REPOSITORY@$digest"
+          test "$(docker buildx imagetools inspect "$REPOSITORY:$GITHUB_REF_NAME" --format '{{.Manifest.Digest}}')" = "$digest"
+      - name: Record release evidence
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if ! gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes --latest=false
+          fi
+          gh release upload "$GITHUB_REF_NAME" release.lock.json --clobber
+      - uses: actions/checkout@v6
         with:
           repository: ${{ env.INFRA_REPO }}
-          token: ${{ secrets.INFRA_TOKEN }}
+          token: ${{ secrets.INFRA_REPO_TOKEN }}
           path: infra
-
-      - name: Update release lock
-        working-directory: infra
-        run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          from datetime import datetime, timezone
-
-          path = Path("release.lock.json")
-          data = json.loads(path.read_text())
-          data.update({
-              "image_repository": "ghcr.io/life2launchlabs/launch-lms",
-              "image_tag": "${{ needs.release.outputs.version }}",
-              "image_digest": "${{ needs.release.outputs.digest }}",
-              "image_ref": "ghcr.io/life2launchlabs/launch-lms@${{ needs.release.outputs.digest }}",
-              "version": "${{ needs.release.outputs.version }}",
-              "commit_sha": "${{ github.sha }}",
-              "released_at": datetime.now(timezone.utc).isoformat(),
-              "source_branch": "main",
-          })
-          path.write_text(json.dumps(data, indent=2) + "\n")
-          PY
-
-      - name: Create infra pull request
-        uses: peter-evans/create-pull-request@v7
+      - name: Update production lock
+        run: cp release.lock.json infra/release.lock.json
+      - uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.INFRA_REPO_TOKEN }}
           path: infra
-          commit-message: "chore: pin release ${{ needs.release.outputs.version }}"
-          branch: "release/pin-${{ needs.release.outputs.version }}"
-          title: "chore: pin Launch LMS release ${{ needs.release.outputs.version }}"
+          branch: release/pin-${{ github.ref_name }}
+          commit-message: 'chore: pin Launch LMS ${{ github.ref_name }}'
+          title: 'chore: deploy Launch LMS ${{ github.ref_name }}'
           body: |
-            Pin production deploys to the immutable Launch LMS release image.
-
-            - Version: `${{ needs.release.outputs.version }}`
-            - Commit: `${{ github.sha }}`
-            - Digest: `${{ needs.release.outputs.digest }}`
+            Promote the verified main candidate without rebuilding it.
+            Review release.lock.json for the source commit, build run, and exact image digest.
+            Merging this PR deploys production. Review migration/backup requirements first.

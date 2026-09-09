@@ -17,12 +17,28 @@ from src.services.setup.setup import (
 
 cli = typer.Typer()
 
+
+def initial_admin_credentials(config):
+    email = os.environ.get("LAUNCHLMS_INITIAL_ADMIN_EMAIL", "admin@school.dev")
+    password = os.environ.get("LAUNCHLMS_INITIAL_ADMIN_PASSWORD")
+    if not password:
+        if not config.general_config.development_mode:
+            raise ValueError("Set LAUNCHLMS_INITIAL_ADMIN_PASSWORD before initializing a deployed installation")
+        password = "Com8com8!"
+    elif len(password) < 12:
+        raise ValueError("LAUNCHLMS_INITIAL_ADMIN_PASSWORD must contain at least 12 characters")
+    return email, password
+
+
 @cli.command()
 def install(
     short: Annotated[bool, typer.Option(help="Install with predefined values")] = False
 ):
     # Get the database session
     launchlms_config = get_launchlms_config()
+    # Validate before creating any organization so a failed bootstrap is retryable.
+    if short:
+        email, password = initial_admin_credentials(launchlms_config)
     engine = create_engine(
         launchlms_config.database_config.sql_connection_string, echo=False, pool_pre_ping=True  # type: ignore
     )
@@ -57,8 +73,6 @@ def install(
 
         # Create Organization User
         print("Creating default organization user...")
-        email = os.environ.get("LAUNCHLMS_INITIAL_ADMIN_EMAIL", "admin@school.dev")
-        password = "Com8com8!"
         if email != "admin@school.dev":
             print(f"Using email from LAUNCHLMS_INITIAL_ADMIN_EMAIL environment variable: {email}")
         user = UserCreate(
@@ -78,7 +92,7 @@ def install(
         print()
         print("Login with the following credentials:")
         print("email: " + email)
-        print("password: Com8com8!")
+        print("password: The configured initial administrator password (local development uses its default)")
         print("⚠️ Remember to change the password after logging in ⚠️")
 
     else:

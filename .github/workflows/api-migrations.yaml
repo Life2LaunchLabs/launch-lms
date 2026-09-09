@@ -1,16 +1,7 @@
 name: API Migrations
 
 on:
-  push:
-    branches:
-      - dev
-    paths:
-      - "apps/api/**"
-      - ".github/workflows/api-migrations.yaml"
-  pull_request:
-    paths:
-      - "apps/api/**"
-      - ".github/workflows/api-migrations.yaml"
+  workflow_call:
 
 permissions:
   contents: read
