@@ -68,40 +68,141 @@ silently change that alias. Consumers must use version tags or, preferably, dige
 
 ## One-time GitHub setup
 
-In the **app repository**:
+Keep all deployment switches disabled until both hosts pass their manual setup.
+The current topology is:
 
-- Add `INFRA_REPO_TOKEN`, scoped to the infra repository with Contents read/write
-  and Pull requests read/write. It is used consistently for checkout, release
-  PR creation, and the unstable repository dispatch. A GitHub App installation
-  token can replace the PAT if you already manage one.
-- Keep repository variable `UNSTABLE_DEPLOY_ENABLED` unset/false during bootstrap.
-  Set it to `true` after the unstable droplet is initialized and its infra
-  environment is enabled. To retry a missing dispatch, rerun the candidate job
-  or the workflow on `dev`; it can reuse successful retained evidence.
-- Protect `dev` and `main`: require the build/smoke jobs, API tests, API lint, and
-  single-head migration check. Run the new workflow once to populate selectable
-  status names. The publication job itself explicitly waits for these checks.
-- Grant the **infra repository** read access to the `launch-lms` GHCR package via
-  package settings → Manage Actions access. Keep package deletion policies from
-  removing digests still used by releases/deployments.
+| Environment | Domain | Droplet | Application source |
+| --- | --- | --- | --- |
+| Production | `life2launch.app` | `146.190.134.27` | Tagged, verified `main` release |
+| Unstable | `life2launch.dev` | `137.184.34.50` | Verified `dev` candidate |
 
-In the **infra repository**:
+### Give the app workflow access to infra
 
-- Create GitHub environments named exactly `unstable` and `production`.
-- In each environment add `DROPLET_HOST`, `DROPLET_USER`, `DROPLET_SSH_KEY`, and
-  `DROPLET_SSH_FINGERPRINT`. Each environment points at its own droplet. Avoid
-  repository-level fallback secrets that could accidentally send unstable to
-  production. The host also checks `.deployment-environment` before doing work.
-- Set environment variable `DEPLOY_ENABLED=true` only after that host is ready.
-  Initially leave it false/unset. Add required reviewers to `production` if your
-  GitHub plan supports them; leave `unstable` automatic.
-- The infra default branch must be `main`; `repository_dispatch` executes its
-  workflow from the default branch. A production push deploys its exact infra
-  SHA, and an unstable dispatch uses the default-branch SHA at dispatch time.
-- The droplet's Git checkout needs persistent read access to the infra repository
-  (a read-only deploy key for a private repo). GHCR pulls during Actions use the
-  short-lived workflow token; its temporary Docker credential directory is
-  removed on both success and failure.
+1. In GitHub, open your profile settings, then **Developer settings → Personal
+   access tokens → Fine-grained tokens → Generate new token**. Select the
+   `Life2LaunchLabs` resource owner and restrict repository access to
+   `launch-lms-infra`. Grant **Contents: Read and write** and **Pull requests:
+   Read and write**. Metadata read access is automatic. If the organization
+   requires token approval, approve it before testing the workflows.
+2. Copy the token once. In `Life2LaunchLabs/launch-lms`, open **Settings →
+   Secrets and variables → Actions → Secrets → New repository secret**. Name it
+   `INFRA_REPO_TOKEN` and paste the token. This belongs to the app repository,
+   because app workflows dispatch unstable deployments and open release-lock
+   PRs in infra.
+3. On the same page, open **Variables → New repository variable** and create
+   `UNSTABLE_DEPLOY_ENABLED=false`. This switch is repository-level. Change it
+   to `true` only after the unstable host and its infra environment work.
+
+### Create the infra environments
+
+1. In `Life2LaunchLabs/launch-lms-infra`, open **Settings → Environments → New
+   environment** and create names exactly `unstable` and `production`.
+2. Open `unstable`. Under **Environment secrets**, add:
+
+   | Name | Unstable value |
+   | --- | --- |
+   | `DROPLET_HOST` | `137.184.34.50` |
+   | `DROPLET_USER` | `root`, unless a dedicated Docker-capable user was created |
+   | `DROPLET_SSH_KEY` | The complete private deploy key, including its BEGIN/END lines |
+   | `DROPLET_SSH_FINGERPRINT` | The droplet host key fingerprint beginning `SHA256:` |
+
+3. Under **Environment variables**, create `DEPLOY_ENABLED=false`. This is an
+   environment-level variable, not a repository variable or secret. Repeat the
+   same setup in `production` with the production host and its separate SSH key.
+   Do not create repository-level droplet fallbacks.
+4. Leave `unstable` without approval rules so checked candidates can deploy.
+   Add required reviewers to `production` when the GitHub plan supports them.
+   The production environment remains the final deployment boundary.
+
+### Create and install each Actions SSH key
+
+Generate a different key for each droplet on a trusted workstation. These keys
+cannot use a passphrase because GitHub Actions is non-interactive:
+
+```bash
+ssh-keygen -t ed25519 -C 'launch-lms-actions-unstable' \
+  -f ~/.ssh/launch-lms-actions-unstable
+ssh-keygen -t ed25519 -C 'launch-lms-actions-production' \
+  -f ~/.ssh/launch-lms-actions-production
+```
+
+For each command, leave the passphrase blank. Install only the matching `.pub`
+file on that droplet. If your normal administration key already connects, run
+this from the workstation:
+
+```bash
+cat ~/.ssh/launch-lms-actions-unstable.pub | \
+  ssh -i ~/.ssh/YOUR_ADMIN_KEY -o IdentitiesOnly=yes root@137.184.34.50 \
+  'umask 077; mkdir -p /root/.ssh; cat >> /root/.ssh/authorized_keys; chmod 600 /root/.ssh/authorized_keys'
+```
+
+Alternatively, use the DigitalOcean console to open
+`/root/.ssh/authorized_keys`, paste the complete single line from the `.pub`
+file on a new line, save it, and run `chmod 600 /root/.ssh/authorized_keys`.
+
+Test from the workstation before putting the private key in GitHub:
+
+```bash
+ssh -i ~/.ssh/launch-lms-actions-unstable -o IdentitiesOnly=yes \
+  root@137.184.34.50
+ssh -i ~/.ssh/launch-lms-actions-production -o IdentitiesOnly=yes \
+  root@146.190.134.27
+```
+
+If `ssh` or `scp` reports `Permission denied (publickey)`, supply the same `-i`
+and `-o IdentitiesOnly=yes` options; a successful interactive login proves the
+public key is installed. Copy the private key into `DROPLET_SSH_KEY` with:
+
+```bash
+cat ~/.ssh/launch-lms-actions-unstable
+```
+
+From the DigitalOcean console, obtain the server identity used by the Actions
+fingerprint check:
+
+```bash
+ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub -E sha256
+```
+
+Paste only the displayed `SHA256:...` fingerprint into
+`DROPLET_SSH_FINGERPRINT`. Do not use the deploy key's fingerprint here.
+
+### Allow package and repository reads
+
+Open the `launch-lms` container package in the GitHub organization, then
+**Package settings → Manage Actions access → Add repository**. Add
+`Life2LaunchLabs/launch-lms-infra` with read access. This lets the infra workflow's
+short-lived `GITHUB_TOKEN` pull the private package.
+
+The infra repository is currently public, so droplets can clone and fetch it
+over HTTPS without a Git deploy key. If it becomes private, create a separate
+read-only deploy key for each host checkout under **infra repository Settings →
+Deploy keys**. That outbound repository key is separate from the inbound Actions
+key above.
+
+### Protect branches and enable deployment
+
+Run **Build Community Images** at least once so GitHub knows its check names.
+Then create rulesets or branch protection for `dev` and `main` under **Settings →
+Rules → Rulesets**. Require a pull request and the image smoke/build, API tests,
+API lint, and single-head migration checks emitted by the workflow. Protect
+`main` from direct feature pushes and tag stable releases only from a checked
+`main` commit.
+
+Enable in this order after manual host verification:
+
+1. Set infra environment variable `DEPLOY_ENABLED=true` in `unstable`.
+2. Run **Deploy environment** manually with `unstable` and verify it.
+3. Set app repository variable `UNSTABLE_DEPLOY_ENABLED=true`.
+4. Keep production `DEPLOY_ENABLED=false` until its current installation has
+   been migrated to the new infra contract and `life2launch.app` passes TLS,
+   login, organization routing, file, search, and collaboration checks.
+5. Enable production last. A merge to infra `main` can then deploy the exact
+   infra revision and production lock, subject to its environment reviewers.
+
+To retry a missing unstable dispatch, rerun the successful candidate workflow
+on `dev`; it can reuse retained candidate evidence. Never replace a droplet
+environment secret to redirect a pending run between environments.
 
 ## Build and release contract
 
