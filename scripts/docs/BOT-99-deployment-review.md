@@ -1,14 +1,15 @@
 # BOT-99 deployment review
 
-Reviewed 2026-09-08 against local app commit `1abb36a5c` and infra commit
-`cec0e2c`, including the infra working tree. This is a design proposal; running
-servers, GitHub settings, DNS, and remote branch freshness have not been verified.
-Existing infra edits to README.md, setup.sh, and .env.example were preserved.
+The initial design review was completed on 2026-09-08 against app commit
+`1abb36a5c` and infra commit `cec0e2c`. Implementation and the first unstable
+rollout are now complete. This file preserves the reasoning and acceptance
+evidence; use [deployment.md](deployment.md) and the infra README for the current
+setup and operating walkthroughs.
 
 The owner selected periodic production copies with experimental changes kept
 separate and approved implementation with a separate test domain. BOT-99 is now
-In Progress. This file preserves the initial review; use [deployment.md](deployment.md)
-and the infra README for the implemented operating procedure.
+In Review. Scheduled refresh cadence and automation are tracked separately in
+BOT-139.
 
 ## Recommended deployment model
 
@@ -154,9 +155,26 @@ validates it before any organization is created, and never prints it. The legacy
 Redis URL ending in `/launchlms` is replaced with numeric `/0` in new setup and is
 called out in the existing-production migration guide.
 
-No production data was copied or modified. No remote application images were
-published, no GitHub settings were changed, and no cloud servers/DNS were provisioned.
-ARM image execution, registry promotion, SSH deployment, public DNS/TLS, complete
-host refresh/cutover, and representative tester journeys remain rollout/owner
-checks. Both repositories contain local, uncommitted changes. Deployment automation
-is opt-in through the documented variables.
+## Live rollout evidence (2026-09-09 UTC)
+
+The verified `dev` candidate for commit `9a94abdbae46975a266e759031eeddb83150fb31`
+is running at `life2launch.dev`. Its apex and wildcard TLS certificate issued
+successfully. The shared tester gate now exchanges Basic authentication for a
+12-hour secure domain cookie so application Bearer tokens continue to work after
+signup and login. The configured gate password remains a host secret and is not
+recorded in these docs.
+
+The first production snapshot was transferred directly over SSH and restored to
+a new unstable database and content volume. Migrations, sanitization, deployment,
+and the full host verification passed. Copied accounts/password hashes and
+learning data were retained; API tokens, custom domains, sessions, payment/SSO
+configuration, invitations, join links, and production signing state were not.
+The previous unstable environment and data remain available for rollback.
+
+Production is still serving `life2launch-core.com` from its legacy infra checkout.
+DNS for `life2launch.app`, `www.life2launch.app`, and its wildcard already resolves
+to the production droplet, but production Caddy does not yet name the new domain;
+HTTPS therefore cannot succeed there until the documented production migration
+and domain cutover are performed. Keep production automation disabled until that
+cutover passes. Deployment automation remains opt-in through the documented
+variables.
