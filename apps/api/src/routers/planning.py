@@ -318,6 +318,16 @@ def api_create_template(payload: ProgramCreate, db: Session = Depends(get_db_ses
     return template_service.create_program(db, current_user, payload)
 
 
+@router.get("/templates/library")
+def api_list_template_library(org_id: int, q: str = "", db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
+    return template_service.list_program_library(db, current_user, org_id, q)
+
+
+@router.post("/templates/library/{template_uuid}/copy")
+def api_copy_template_from_library(template_uuid: str, org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
+    return template_service.copy_program_from_library(db, current_user, org_id, template_uuid)
+
+
 @router.get("/templates/{template_uuid}")
 def api_get_template(template_uuid: str, org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
     return template_service.get_program(db, current_user, org_id, template_uuid)
@@ -326,6 +336,11 @@ def api_get_template(template_uuid: str, org_id: int, db: Session = Depends(get_
 @router.patch("/templates/{template_uuid}")
 def api_update_template(template_uuid: str, org_id: int, payload: ProgramUpdate, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
     return template_service.update_program(db, current_user, org_id, template_uuid, payload)
+
+
+@router.post("/templates/{template_uuid}/publish-to-library")
+def api_publish_template_to_library(template_uuid: str, org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
+    return template_service.publish_program_to_library(db, current_user, org_id, template_uuid)
 
 
 @router.post("/templates/{template_uuid}/assignment-batches")
@@ -469,6 +484,16 @@ def api_create_requirement_framework(payload: RequirementFrameworkCreate, db: Se
     return requirement_service.create_framework(db, current_user, payload)
 
 
+@router.get("/requirements/library")
+def api_list_requirement_library(org_id: int, q: str = "", db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
+    return requirement_service.list_framework_library(db, current_user, org_id, q)
+
+
+@router.post("/requirements/library/{framework_uuid}/copy")
+def api_copy_requirement_from_library(framework_uuid: str, org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
+    return requirement_service.copy_framework_from_library(db, current_user, org_id, framework_uuid)
+
+
 @router.get("/requirements/report")
 def api_requirement_report(
     org_id: int, framework_uuid: str | None = None, version: int | None = None, usergroup_id: int | None = None,
@@ -491,6 +516,11 @@ def api_update_requirement_framework(framework_uuid: str, org_id: int, payload: 
 @router.post("/requirements/{framework_uuid}/publish")
 def api_publish_requirement_framework(framework_uuid: str, org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
     return requirement_service.publish_framework(db, current_user, org_id, framework_uuid)
+
+
+@router.post("/requirements/{framework_uuid}/publish-to-library")
+def api_publish_requirement_to_library(framework_uuid: str, org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
+    return requirement_service.publish_framework_to_library(db, current_user, org_id, framework_uuid)
 
 
 @router.post("/requirements/{framework_uuid}/assignments")

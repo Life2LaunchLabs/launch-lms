@@ -8,6 +8,7 @@ from sqlalchemy import inspect
 from sqlmodel import Session, select
 
 from src.db.planning import Plan, PlanObjective, PlanObjectiveProgress, PlanObjectiveStatus
+from src.db.organizations import Organization
 from src.db.programs import Objective, ObjectiveProgress, ObjectiveProgressStatus, ProgramObjective
 from src.db.requirements import (
     ProgramObjectiveRequirement,
@@ -54,6 +55,19 @@ def _now() -> datetime:
 
 def _now_string() -> str:
     return _now().isoformat()
+
+
+def _owner_org(db: Session) -> Organization:
+    owner = db.exec(select(Organization).order_by(Organization.id).limit(1)).first()
+    if not owner:
+        raise HTTPException(status_code=404, detail="Owner organization not found")
+    return owner
+
+
+def _require_owner_org_admin(db: Session, current_user: PublicUser, org_id: int) -> None:
+    if _owner_org(db).id != org_id:
+        raise HTTPException(status_code=403, detail="Only the owner organization can publish to the global library")
+    require_org_admin(current_user.id, org_id, db)
 
 
 def _available(db: Session) -> bool:
@@ -262,6 +276,8 @@ def _framework_dict(db: Session, framework: RequirementFramework, version_number
         "source_framework_uuid": framework.source_framework_uuid,
         "source_version": framework.source_version, "source_metadata": _normalize_source_metadata(framework.source_metadata),
         "current_version": framework.current_version, "published_version": framework.published_version,
+        "library_published_version": framework.library_published_version,
+        "published_to_library": framework.library_published_version is not None,
         "version": version.version_number,
         "status": version.status.value if hasattr(version.status, "value") else version.status,
         "nodes": [_node_dict(item) for item in _nodes(db, int(version.id))],
@@ -282,6 +298,64 @@ def list_frameworks(db: Session, current_user: PublicUser, org_id: int) -> list[
         RequirementFramework.archived == False,  # noqa: E712
     ).order_by(RequirementFramework.name)).all()
     return [_framework_dict(db, item) for item in items]
+
+
+def publish_framework_to_library(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str) -> dict:
+    _require_owner_org_admin(db, current_user, org_id)
+    framework = _framework_or_404(db, org_id, framework_uuid)
+    if framework.published_version is None:
+        raise HTTPException(status_code=422, detail="Publish a framework version before adding it to the global library")
+    framework.library_published_version = framework.published_version
+    framework.library_snapshot = _snapshot(db, framework, _version(db, framework, framework.published_version))
+    framework.update_date = _now_string()
+    db.add(framework)
+    db.commit()
+    db.refresh(framework)
+    return _framework_dict(db, framework)
+
+
+def list_framework_library(db: Session, current_user: PublicUser, org_id: int, query: str = "") -> list[dict]:
+    require_org_admin(current_user.id, org_id, db)
+    owner = _owner_org(db)
+    items = db.exec(select(RequirementFramework).where(
+        RequirementFramework.org_id == owner.id,
+        RequirementFramework.library_published_version.is_not(None),
+        RequirementFramework.archived == False,  # noqa: E712
+    ).order_by(RequirementFramework.name)).all()
+    needle = query.strip().lower()
+    results = []
+    for item in items:
+        snapshot = dict(item.library_snapshot or {})
+        if needle and needle not in f"{snapshot.get('name', '')} {snapshot.get('description', '')}".lower():
+            continue
+        results.append({
+            "framework_uuid": item.framework_uuid, "name": snapshot.get("name", item.name),
+            "description": snapshot.get("description", item.description),
+            "version": snapshot.get("version", item.library_published_version),
+            "node_count": len(snapshot.get("nodes") or []),
+            "owner_org_name": owner.name,
+        })
+    return results
+
+
+def copy_framework_from_library(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str) -> dict:
+    require_org_admin(current_user.id, org_id, db)
+    owner = _owner_org(db)
+    source = db.exec(select(RequirementFramework).where(
+        RequirementFramework.framework_uuid == framework_uuid,
+        RequirementFramework.org_id == owner.id,
+        RequirementFramework.library_published_version.is_not(None),
+        RequirementFramework.archived == False,  # noqa: E712
+    )).first()
+    if not source or source.library_published_version is None or not source.library_snapshot:
+        raise HTTPException(status_code=404, detail="Library requirement framework not found")
+    snapshot = dict(source.library_snapshot)
+    return create_framework(db, current_user, RequirementFrameworkCreate(
+        org_id=org_id, name=str(snapshot.get("name") or source.name), description=str(snapshot.get("description") or ""),
+        source_framework_uuid=source.framework_uuid, source_version=source.library_published_version,
+        source_metadata=_normalize_source_metadata(snapshot.get("source_metadata")),
+        nodes=[RequirementNodeInput(**node) for node in snapshot.get("nodes") or []],
+    ))
 
 
 def create_framework(db: Session, current_user: PublicUser, payload: RequirementFrameworkCreate) -> dict:

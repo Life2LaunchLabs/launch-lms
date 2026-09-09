@@ -78,6 +78,10 @@ class Program(SQLModel, table=True):
     default_staff_role_key: str = "reviewer"
     status: ProgramStatus = Field(default=ProgramStatus.ACTIVE, sa_column=Column(String, nullable=False, index=True))
     version: int = 1
+    source_program_uuid: str | None = Field(default=None, nullable=True, index=True)
+    source_version: int | None = None
+    library_snapshot: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
+    library_published_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True, index=True))
     created_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
     creation_date: str = ""
     update_date: str = ""
