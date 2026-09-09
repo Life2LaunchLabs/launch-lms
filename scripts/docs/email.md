@@ -47,7 +47,7 @@ request time via `get_launchlms_config`, but restart after changes to be safe.
 1. Create a free account at [resend.com](https://resend.com) (100 emails/day,
    3,000/month on the free tier).
 2. In the Resend dashboard, **Domains → Add Domain**. Use a subdomain dedicated
-   to sending, e.g. `support.life2launch-core.com` — Resend recommends this and
+   to sending, e.g. `support.life2launch.app` — Resend recommends this and
    it isolates sending reputation from the root domain.
 3. Resend shows DNS records (SPF + DKIM). Add them wherever the domain's DNS is
    managed, then click **Verify**. Note: verifying the root domain does not
@@ -56,7 +56,7 @@ request time via `get_launchlms_config`, but restart after changes to be safe.
    sender guidelines expect one and its absence hurts inbox placement:
 
    ```
-   Name:  _dmarc.life2launch-core.com
+   Name:  _dmarc.life2launch.app
    Type:  TXT
    Value: v=DMARC1; p=none;
    ```
@@ -67,7 +67,7 @@ request time via `get_launchlms_config`, but restart after changes to be safe.
    ```bash
    LAUNCHLMS_EMAIL_PROVIDER=resend
    LAUNCHLMS_RESEND_API_KEY=re_...
-   LAUNCHLMS_SYSTEM_EMAIL_ADDRESS=noreply@support.life2launch-core.com
+   LAUNCHLMS_SYSTEM_EMAIL_ADDRESS=noreply@support.life2launch.app
    LAUNCHLMS_REQUIRE_EMAIL_VERIFICATION=true
    ```
 

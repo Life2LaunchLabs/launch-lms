@@ -171,10 +171,12 @@ learning data were retained; API tokens, custom domains, sessions, payment/SSO
 configuration, invitations, join links, and production signing state were not.
 The previous unstable environment and data remain available for rollback.
 
-Production is still serving `life2launch-core.com` from its legacy infra checkout.
-DNS for `life2launch.app`, `www.life2launch.app`, and its wildcard already resolves
-to the production droplet, but production Caddy does not yet name the new domain;
-HTTPS therefore cannot succeed there until the documented production migration
-and domain cutover are performed. Keep production automation disabled until that
-cutover passes. Deployment automation remains opt-in through the documented
-variables.
+Production was migrated in place to `life2launch.app` while retaining the exact
+0.2.13 image digest, database, and content volume. The apex, `www`, and wildcard
+DNS names resolve to the existing production droplet; Caddy issued trusted apex
+and wildcard certificates. The old `life2launch-core.com` apex, `www`, and
+organization subdomains remain on the same droplet and permanently redirect to
+the corresponding new host while preserving paths and query strings. Production
+automation remains disabled until the owner completes browser, email, and
+external-integration checks, then explicitly enables the documented environment
+switch.
