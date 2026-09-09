@@ -318,6 +318,37 @@ def test_badges_are_objective_requirements_and_legacy_badge_objectives_are_rejec
         assert legacy.value.status_code == 422
 
 
+def test_missing_badge_requirement_does_not_hide_plan_or_feed():
+    with _session() as db:
+        created = planning.create_plan(db, _user(1), _plan_create("Resilient plan"))
+        plan = db.exec(select(Plan).where(Plan.plan_uuid == created["plan_uuid"])).one()
+        phase = db.exec(select(PlanPhase).where(PlanPhase.plan_id == plan.id)).one()
+        db.add(PlanObjective(
+            objective_uuid="objective_missing_badge",
+            plan_id=int(plan.id),
+            phase_id=int(phase.id),
+            title="Complete a retired badge",
+            fields=[{
+                "field_uuid": "missing_badge",
+                "type": "badge",
+                "title": "Retired badge",
+                "badge_uuid": "badge_no_longer_available",
+            }],
+            creation_date=NOW,
+            update_date=NOW,
+        ))
+        db.commit()
+
+        listed = planning.list_plans(db, _user(1), "active")
+        assert len(listed) == 1
+        assert listed[0]["objective_count"] == 1
+        feed_item = planning.feed(db, _user(1))["future_groups"][0]["items"][0]
+        badge_step = feed_item["fields"][0]
+        assert badge_step["badge_unavailable"] is True
+        assert badge_step["badge_href"] is None
+        assert badge_step["badge"]["name"] == "Retired badge"
+
+
 def test_materialized_badge_snapshots_become_badge_requirements():
     with _session() as db:
         badge = LearningBadge(

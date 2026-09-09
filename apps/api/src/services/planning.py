@@ -371,10 +371,37 @@ def _objective_dict(db: Session, plan: Plan, objective: PlanObjective, capabilit
     status = progress.status.value if hasattr(progress.status, "value") else str(progress.status)
     completion_restricted = objective.completion_restricted
     fields = list(objective.fields or [])
-    requirement_badges = _badges_for_requirement_fields(db, fields)
+    # Published plans retain a snapshot of their objective definition. If a badge
+    # referenced by that snapshot is later removed (or imported under a different
+    # UUID), keep the rest of the plan readable and mark only that step unavailable.
+    requirement_badges: list[LearningBadge] = []
+    missing_badge_uuids: set[str] = set()
+    for field in fields:
+        if str(field.get("type") or "") != "badge":
+            continue
+        badge_uuid = str(field.get("badge_uuid") or "").strip()
+        badge = db.exec(select(LearningBadge).where(LearningBadge.badge_uuid == badge_uuid)).first() if badge_uuid else None
+        if badge:
+            requirement_badges.append(badge)
+        else:
+            missing_badge_uuids.add(badge_uuid)
     badges_by_uuid = {badge.badge_uuid: badge for badge in requirement_badges}
     fields = [
-        _badge_requirement(db, plan, objective, badges_by_uuid[str(field.get("badge_uuid"))], field)
+        (
+            _badge_requirement(db, plan, objective, badges_by_uuid[str(field.get("badge_uuid"))], field)
+            if str(field.get("badge_uuid") or "") not in missing_badge_uuids
+            else {
+                **field,
+                "badge": field.get("badge") or {
+                    "badge_uuid": field.get("badge_uuid"),
+                    "name": field.get("title") or "Unavailable badge",
+                    "thumbnail_image": "",
+                },
+                "badge_href": None,
+                "progress_percent": 0,
+                "badge_unavailable": True,
+            }
+        )
         if str(field.get("type") or "") == "badge" else field
         for field in fields
     ]
