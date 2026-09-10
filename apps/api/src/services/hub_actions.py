@@ -44,6 +44,19 @@ NAVIGATION_DESTINATIONS = {
 }
 
 
+def decorate_navigation_action(action: dict) -> dict:
+    """Add current code-owned presentation to persisted semantic actions."""
+    if action.get("destination") != "create_plan":
+        return action
+    return {
+        **action,
+        "primary_behavior": "begin_edit",
+        "primary_label": "Work on this plan",
+        "alternate_label": "Open plan without editing",
+        "edit_scope": {"kind": "new_plan", "label": "New personal plan"},
+    }
+
+
 def _org_config(db_session: Session, org_id: int) -> dict:
     row = db_session.exec(
         select(OrganizationConfig).where(OrganizationConfig.org_id == org_id)
@@ -99,7 +112,8 @@ def navigation_tool(provider: str) -> dict:
 
 
 def build_navigation_actions(
-    destinations: tuple[str, ...] | list[str], db_session: Session, org_id: int
+    destinations: tuple[str, ...] | list[str], db_session: Session, org_id: int,
+    goal: str | None = None,
 ) -> list[dict]:
     available = available_navigation_destinations(db_session, org_id)
     actions = []
@@ -107,14 +121,15 @@ def build_navigation_actions(
         destination = available.get(key)
         if not destination:
             continue
-        actions.append({
+        actions.append(decorate_navigation_action({
             "action_id": f"hub_action_{uuid4().hex}",
             "schema_version": ACTION_SCHEMA_VERSION,
             "capability": "navigate",
             "destination": key,
             "label": destination.label,
             "state": "proposed",
-        })
+            **({"goal": goal.strip()[:500]} if goal and key == "create_plan" else {}),
+        }))
         if len(actions) >= MAX_MESSAGE_ACTIONS:
             break
     return actions
@@ -145,7 +160,16 @@ def resolve_navigation_action(
     )
     if not action or action.get("capability") != "navigate" or action.get("schema_version") != ACTION_SCHEMA_VERSION:
         raise HTTPException(status_code=404, detail="Suggested action not found")
+    action = decorate_navigation_action(action)
     destination = available_navigation_destinations(db_session, org_id).get(str(action.get("destination") or ""))
     if destination is None:
         raise HTTPException(status_code=403, detail="That destination is no longer available")
-    return {"action_id": action_id, "route": destination.route, "label": destination.label}
+    return {
+        "action_id": action_id,
+        "route": destination.route,
+        "label": destination.label,
+        "destination": destination.key,
+        "primary_behavior": action.get("primary_behavior", "navigate"),
+        "edit_scope": action.get("edit_scope"),
+        "goal": action.get("goal"),
+    }

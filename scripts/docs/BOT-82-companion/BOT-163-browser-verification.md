@@ -17,7 +17,7 @@ passed 10/10 after normal-login preflight. Scenarios cover Start a plan by keybo
 rejection with an in-context alert, retained conversation text in the mounted companion after each handoff, Plans modal
 interaction, and phone composer usability. The run manifest is at
 `apps/web/test-results/ui/run-manifest.json`; captures are under the matching ignored `apps/web/test-results/ui/`
-scenario directories for `hub-create-plan-action.png`, `hub-add-timeline-action.png`, and `plans-create-modal.png`.
+scenario directories for `hub-create-plan-action.png`, `hub-add-timeline-action.png`, and `plans-create-editor.png`.
 
 Supporting checks: 25 focused Hub API tests, Ruff, TypeScript, focused ESLint, 33 routing tests, one Alembic head,
 optimized Next build, CI contract tests, and `git diff --check` passed. Direct whole-file ESLint on

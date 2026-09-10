@@ -47,6 +47,8 @@ from src.services.hub_memory import (
 
 from src.services.hub_context import HubSurfaceHint, page_context
 from src.services.hub_actions import build_navigation_actions, resolve_navigation_action
+from src.services.hub_edit_runs import active_edit_run, begin_edit_run, bind_created_plan, conclude_edit_run, save_object_state
+from src.services.hub_plan_tools import record_plan_proposals
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -93,11 +95,31 @@ class HubAdvisorResponse(BaseModel):
     memories_used: list[dict] = Field(default_factory=list)
     memory_changes: list[dict] = Field(default_factory=list)
     suggested_actions: list[dict] = Field(default_factory=list)
+    edit_operations: list[dict] = Field(default_factory=list)
+    edit_run: dict | None = None
 
 
 class HubNavigationActionResolve(BaseModel):
     conversation_uuid: str
     message_uuid: str
+    mode: Literal["navigate", "edit"] = "navigate"
+
+
+class HubEditRunConclusion(BaseModel):
+    status: Literal["cancelled", "completed"]
+
+
+class HubEditRunPlanTarget(BaseModel):
+    plan_identifier: str = Field(min_length=1, max_length=120)
+
+
+class HubEditObjectStateUpdate(BaseModel):
+    object_type: str = Field(min_length=1, max_length=40)
+    object_uuid: str | None = Field(default=None, max_length=160)
+    current_fields: dict
+    proposal_fields: dict = Field(default_factory=dict)
+    status: Literal["editing", "cancelled", "saved"] = "editing"
+    expected_revision: int | None = Field(default=None, ge=0)
 
 
 class HubConversationSummary(BaseModel):
@@ -312,6 +334,7 @@ async def create_hub_advice(
         else [AdvisorMessage(role=item.role, content=item.content.strip()) for item in body.messages]
     )
     context = page_context(db_session, org_id, current_user.id, body.surface)
+    edit_run = active_edit_run(db_session, body.conversation_uuid, org_id, current_user.id) if body.conversation_uuid else None
     used_memories = select_memories(db_session, org_id, current_user.id, user_content)
     grounding_resources = advisor_resources_for_request(
         user_content,
@@ -328,6 +351,7 @@ async def create_hub_advice(
             grounding_resources=grounding_resources,
             grounding_memories=used_memories,
             page_context=context,
+            edit_run=edit_run,
         )
     except AdvisorProviderLimited as error:
         raise HTTPException(
@@ -338,7 +362,8 @@ async def create_hub_advice(
     except AdvisorUnavailable as error:
         raise HTTPException(status_code=503, detail=str(error)) from None
     accessible = {str(item.get("resource_uuid")) for item in accessible_resources}
-    suggested_actions = build_navigation_actions(result.action_destinations, db_session, org_id)
+    suggested_actions = build_navigation_actions(result.action_destinations, db_session, org_id, user_content)
+    edit_operations = record_plan_proposals(db_session, edit_run["run_uuid"], result.plan_operations) if edit_run else []
     persisted = record_advice(
         db_session, org_id=org_id, user_id=current_user.id,
         conversation_uuid=body.conversation_uuid, user_content=user_content,
@@ -388,6 +413,8 @@ async def create_hub_advice(
         memories_used=used_memories,
         memory_changes=memory_changes,
         suggested_actions=suggested_actions,
+        edit_operations=edit_operations,
+        edit_run=active_edit_run(db_session, persisted["conversation_uuid"], org_id, current_user.id) if edit_run else None,
     )
 
 
@@ -399,11 +426,82 @@ def resolve_hub_navigation_action(
     current_user: PublicUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
-    return resolve_navigation_action(
+    resolved = resolve_navigation_action(
         db_session,
         org_id=org_id,
         user_id=current_user.id,
         conversation_uuid=body.conversation_uuid,
         message_uuid=body.message_uuid,
         action_id=action_id,
+    )
+    if body.mode != "edit":
+        return resolved
+    edit_scope = resolved.get("edit_scope")
+    if resolved.get("primary_behavior") != "begin_edit" or not edit_scope:
+        raise HTTPException(status_code=422, detail="That action does not grant editing")
+    run = begin_edit_run(
+        db_session,
+        conversation_uuid=body.conversation_uuid,
+        org_id=org_id,
+        user_id=current_user.id,
+        action_id=action_id,
+        route=resolved["route"],
+        scope_kind=edit_scope["kind"],
+        target_label=edit_scope["label"],
+        goal=resolved.get("goal") or "Create a personal plan together",
+    )
+    return {**resolved, "edit_run": run}
+
+
+@router.get("/conversations/{conversation_uuid}/edit-run")
+def get_active_hub_edit_run(
+    conversation_uuid: str,
+    org_id: int,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return {"edit_run": active_edit_run(db_session, conversation_uuid, org_id, current_user.id)}
+
+
+@router.post("/edit-runs/{run_uuid}/conclude")
+def conclude_hub_edit_run(
+    run_uuid: str,
+    org_id: int,
+    body: HubEditRunConclusion,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return conclude_edit_run(db_session, run_uuid, org_id, current_user.id, body.status)
+
+
+@router.post("/edit-runs/{run_uuid}/plan-target")
+def bind_hub_edit_run_plan(
+    run_uuid: str,
+    org_id: int,
+    body: HubEditRunPlanTarget,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return bind_created_plan(
+        db_session, run_uuid, org_id, current_user.id, body.plan_identifier,
+    )
+
+
+@router.put("/edit-runs/{run_uuid}/objects/{object_key}")
+def update_hub_edit_object_state(
+    run_uuid: str,
+    object_key: str,
+    org_id: int,
+    body: HubEditObjectStateUpdate,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    if not object_key or len(object_key) > 160:
+        raise HTTPException(status_code=422, detail="Invalid object key")
+    return save_object_state(
+        db_session, run_uuid=run_uuid, org_id=org_id, user_id=current_user.id,
+        object_key=object_key, object_type=body.object_type,
+        object_uuid=body.object_uuid,
+        current_fields=body.current_fields, proposal_fields=body.proposal_fields,
+        status=body.status, expected_revision=body.expected_revision,
     )

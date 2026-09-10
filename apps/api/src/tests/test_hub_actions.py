@@ -23,6 +23,19 @@ def test_actions_are_code_labeled_bounded_and_unknown_destinations_are_dropped(m
     assert [item["destination"] for item in actions] == ["create_plan", "add_timeline"]
     assert [item["label"] for item in actions] == ["Start a plan", "Add to Timeline"]
     assert all("route" not in item for item in actions)
+    assert actions[0]["primary_behavior"] == "begin_edit"
+    assert actions[0]["alternate_label"] == "Open plan without editing"
+    assert "primary_behavior" not in actions[1]
+
+
+def test_persisted_create_plan_actions_receive_current_split_button_contract():
+    action = hub_actions.decorate_navigation_action({
+        "action_id": "old", "schema_version": 1, "capability": "navigate",
+        "destination": "create_plan", "label": "Start a plan", "state": "proposed",
+    })
+
+    assert action["primary_label"] == "Work on this plan"
+    assert action["edit_scope"] == {"kind": "new_plan", "label": "New personal plan"}
 
 
 def test_action_resolution_rechecks_message_owner_and_uses_allowlisted_route(monkeypatch):
@@ -45,6 +58,7 @@ def test_action_resolution_rechecks_message_owner_and_uses_allowlisted_route(mon
             message_uuid="hub_message_assistant", action_id=action["action_id"],
         )
         assert resolved["route"] == "/plans?hub_action=create-plan"
+        assert resolved["edit_scope"] == {"kind": "new_plan", "label": "New personal plan"}
 
         with pytest.raises(HTTPException) as caught:
             hub_actions.resolve_navigation_action(

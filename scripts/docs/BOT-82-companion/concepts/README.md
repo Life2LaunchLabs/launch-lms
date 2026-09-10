@@ -33,6 +33,10 @@ All dimensions below are CSS viewport sizes and provisional design targets, not 
 
 Generate D01 in two visual treatments if useful (subtle border vs soft elevation). A right-dock alternate can be supplied for comparison, but the left arrangement is the proposed default. Do not spend effort on a movable dock system yet.
 
+Owner amendment, 10 September 2026: the implemented companion direction is right-docked. For Phase 3, the companion header carries the active editing scope in the same place as the unsupported-page notice. Entry uses a split **Work on this plan** button: the main segment confirms, while the arrow segment exposes **Open plan without editing**. The composer Send control becomes Stop for any active response or run. A compact outstanding-edits tray slides down immediately above the composer.
+
+Agent edits use the native object editor. Only the field currently being prepared becomes a quiet skeleton/shimmer; a focused or dirty learner field is never taken over. A complete validated value then appears with a fast, length-aware type-on effect. Touched fields use a calm accent, **Customized** plus Undo appears after learner modification, and each object retains its ordinary **Save** and **Cancel** actions. Several objects may remain in edit mode. Activity collapses from transient inspection lines into durable summaries, and object links produce one restrained outline pulse. Reduced-motion variants replace shimmer/type-on/pulse with static status and focus treatment.
+
 ## State boards for the read-only release
 
 These can be crops/contact sheets derived from the six compositions. For each state show both desktop placement and its phone adaptation where different.

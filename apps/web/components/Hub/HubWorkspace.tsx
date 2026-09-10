@@ -5,10 +5,12 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { PanelRightOpen } from 'lucide-react'
 import { OrgMenu } from '@components/Objects/Menus/OrgMenu'
 import { Button } from '@components/ui/button'
-import { HubWorkspaceContext, type HubSurface } from '@components/Contexts/HubWorkspaceContext'
+import { HubWorkspaceContext, type HubEditContinuation, type HubEditReviewItem, type HubSurface } from '@components/Contexts/HubWorkspaceContext'
 import { usePageTitle } from '@components/Contexts/PageTitleContext'
+import { useLHSession } from '@components/Contexts/LHSessionContext'
 import HubExperience from '@/app/orgs/[orgslug]/(withmenu)/hub/HubExperience'
 import { getUriWithOrg } from '@services/config/config'
+import type { HubEditOperation, HubEditRun } from '@services/hub/advisor'
 
 /** The conversation is a stable sibling of routed content, never a page child or moving portal. */
 export default function HubWorkspace({ children, orgslug }: { children: ReactNode; orgslug: string }) {
@@ -16,11 +18,18 @@ export default function HubWorkspace({ children, orgslug }: { children: ReactNod
   const search = useSearchParams()
   const router = useRouter()
   const pageTitle = usePageTitle()
+  const session = useLHSession() as any
+  const userId = session?.data?.user?.id
   const setPageTitle = pageTitle?.setPageTitle
   const full = /\/hub\/?$/.test(pathname)
   const [opened, setOpened] = useState(false)
   const [narrow, setNarrow] = useState(false)
   const [surface, setSurface] = useState<HubSurface | null>(null)
+  const [editRun, setEditRun] = useState<HubEditRun | null>(null)
+  const [editOperations, setEditOperations] = useState<HubEditOperation[]>([])
+  const [editReviewItems, setEditReviewItems] = useState<HubEditReviewItem[]>([])
+  const [editContinuations, setEditContinuations] = useState<HubEditContinuation[]>([])
+  const continuationStorageKey = `launchlms:hub-edit-continuation:${orgslug}:${userId || 'signed-out'}`
   const appRef = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLElement>(null)
   const launcherRef = useRef<HTMLButtonElement>(null)
@@ -28,6 +37,32 @@ export default function HubWorkspace({ children, orgslug }: { children: ReactNod
   const visible = full || opened
   const currentSurface = surface?.path === pathname ? surface : null
   const filters = useMemo(() => full ? Object.fromEntries(search.entries()) : {}, [full, search])
+
+  useEffect(() => {
+    if (!userId) return
+    try {
+      const stored = window.sessionStorage.getItem(continuationStorageKey)
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        setEditContinuations((Array.isArray(parsed) ? parsed : [parsed]).filter((item) => item?.id && item?.conversationUuid && item?.runUuid && item?.content))
+      }
+    } catch { /* a continuation can still run without browser storage */ }
+  }, [continuationStorageKey, userId])
+
+  const storeEditContinuations = useCallback((change: (current: HubEditContinuation[]) => HubEditContinuation[]) => {
+    setEditContinuations((current) => {
+      const resolved = change(current)
+      try {
+        if (!userId) return resolved
+        if (resolved.length) window.sessionStorage.setItem(continuationStorageKey, JSON.stringify(resolved))
+        else window.sessionStorage.removeItem(continuationStorageKey)
+      } catch { /* in-memory delivery remains available */ }
+      return resolved
+    })
+  }, [continuationStorageKey, userId])
+  const enqueueEditContinuation = useCallback((continuation: HubEditContinuation) => storeEditContinuations((current) => current.some((item) => item.id === continuation.id) ? current : [...current, continuation]), [storeEditContinuations])
+  const removeEditContinuation = useCallback((id: string) => storeEditContinuations((current) => current.filter((item) => item.id !== id)), [storeEditContinuations])
+  const clearEditContinuations = useCallback((runUuid?: string) => storeEditContinuations((current) => runUuid ? current.filter((item) => item.runUuid !== runUuid) : []), [storeEditContinuations])
 
   useEffect(() => {
     if (!currentSurface) return
@@ -73,7 +108,7 @@ export default function HubWorkspace({ children, orgslug }: { children: ReactNod
     }
   }, [narrow, opened, full])
 
-  const value = useMemo(() => ({ surface: currentSurface, setSurface, open, compact: opened && !full }), [currentSurface, open, opened, full])
+  const value = useMemo(() => ({ surface: currentSurface, setSurface, open, compact: opened && !full, editRun, setEditRun, editOperations, setEditOperations, editReviewItems, setEditReviewItems, editContinuations, enqueueEditContinuation, removeEditContinuation, clearEditContinuations }), [currentSurface, open, opened, full, editRun, editOperations, editReviewItems, editContinuations, enqueueEditContinuation, removeEditContinuation, clearEditContinuations])
   return <HubWorkspaceContext.Provider value={value}>
     <div className={`hub-workspace ${opened && !full ? 'hub-workspace--companion' : ''}`}>
       <div ref={appRef} className="hub-app-frame scrollbar-subtle scrollbar-subtle-rounded" hidden={full}>{children}</div>

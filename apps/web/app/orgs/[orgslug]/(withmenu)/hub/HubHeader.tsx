@@ -1,7 +1,7 @@
 'use client'
 
 import { FormEvent, useEffect, useRef, useState } from 'react'
-import { Archive, ArrowLeft, ChevronDown, CircleHelp, LibraryBig, Maximize2, MoreHorizontal, PanelLeft, Pencil, Plus } from 'lucide-react'
+import { Archive, ArrowLeft, ChevronDown, CircleHelp, LibraryBig, Maximize2, MoreHorizontal, PanelLeft, Pencil, Plus, X } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import {
   DropdownMenu,
@@ -12,7 +12,7 @@ import {
 } from '@components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@components/ui/tooltip'
 import { Input } from '@components/ui/input'
-import type { HubAdvisorResource, HubConversationSummary } from '@services/hub/advisor'
+import type { HubAdvisorResource, HubConversationSummary, HubEditRun } from '@services/hub/advisor'
 import HubConversationHistory from './HubConversationHistory'
 import HubResourceTray from './HubResourceTray'
 import type { HubResourceTrayEntry } from './hubInteraction'
@@ -40,6 +40,8 @@ export default function HubHeader({
   initialPanel,
   companion = false,
   contextUnavailable = false,
+  editRun,
+  onStopEditing,
   onCompanionCollapse,
   onCompanionExpand,
 }: {
@@ -69,6 +71,8 @@ export default function HubHeader({
   initialPanel: Panel
   companion?: boolean
   contextUnavailable?: boolean
+  editRun?: HubEditRun | null
+  onStopEditing?: () => void
   onCompanionCollapse?: () => void
   onCompanionExpand?: () => void
 }) {
@@ -172,7 +176,10 @@ export default function HubHeader({
             </DropdownMenu>
           )}
         </header>
-        {companion && contextUnavailable ? <div className="flex h-7 items-start gap-1.5 pl-1 text-xs text-muted-foreground">
+        {companion && editRun?.status === 'active' ? <div className="flex h-7 items-start gap-1.5 pl-1 text-xs text-muted-foreground">
+          <span className="truncate"><span className="font-semibold text-foreground">Editing:</span> {editRun.scope.label}</span>
+          <button type="button" onClick={onStopEditing} className="rounded-full p-0.5 hover:bg-muted focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring" aria-label={`Stop editing ${editRun.scope.label}`}><X className="h-3.5 w-3.5" /></button>
+        </div> : companion && contextUnavailable ? <div className="flex h-7 items-start gap-1.5 pl-1 text-xs text-muted-foreground">
           <span>I can&apos;t read this page yet.</span>
           <TooltipProvider delayDuration={200}>
             <Tooltip>

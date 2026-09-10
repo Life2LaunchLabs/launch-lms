@@ -208,6 +208,42 @@ def test_objective_position_updates_drive_plan_and_overview_order():
         assert feed_titles == ["Second step", "First step"]
 
 
+def test_objective_request_key_makes_retried_creation_idempotent():
+    with _session() as db:
+        created = planning.create_plan(db, _user(1), _plan_create("Career path"))
+        payload = PlanObjectiveCreate(title="Interview someone", request_key="hub_objective_one")
+        first = planning.create_objective(db, _user(1), created["slug"], payload)
+        retried = planning.create_objective(db, _user(1), created["slug"], payload)
+
+        assert len(first["objectives"]) == len(retried["objectives"]) == 1
+        assert first["objectives"][0]["objective_uuid"] == retried["objectives"][0]["objective_uuid"]
+        assert first["created_objective_uuid"] == retried["created_objective_uuid"]
+
+
+def test_phase_request_key_makes_retried_creation_idempotent():
+    with _session() as db:
+        created = planning.create_plan(db, _user(1), _plan_create("Career path"))
+        payload = PlanPhaseCreate(name="Explore", request_key="hub_phase_one")
+        first = planning.create_phase(db, _user(1), created["slug"], payload)
+        retried = planning.create_phase(db, _user(1), created["slug"], payload)
+
+        assert len(first["phases"]) == len(retried["phases"]) == 2
+        assert first["created_phase_uuid"] == retried["created_phase_uuid"]
+
+
+def test_phases_created_out_of_review_order_keep_requested_order():
+    with _session() as db:
+        created = planning.create_plan(db, _user(1), _plan_create("Career path"))
+        planning.create_phase(db, _user(1), created["slug"], PlanPhaseCreate(
+            name="Practice", request_key="hub_phase_second", position=2,
+        ))
+        result = planning.create_phase(db, _user(1), created["slug"], PlanPhaseCreate(
+            name="Explore", request_key="hub_phase_first", position=1,
+        ))
+
+        assert [phase["name"] for phase in result["phases"]] == ["Getting started", "Explore", "Practice"]
+
+
 def test_plan_and_objective_target_dates_are_required_and_bounded():
     with _session() as db:
         with pytest.raises(HTTPException) as missing_target:

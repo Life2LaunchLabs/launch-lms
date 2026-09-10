@@ -20,7 +20,7 @@ test('hub.action.create-plan: learner controls suggested navigation', async ({ p
   await assertActualApp(page)
   await askHub(page, 'I want to create a plan for changing careers')
 
-  const action = page.getByTestId('hub-suggested-actions').last().getByRole('button', { name: 'Start a plan' })
+  const action = page.getByTestId('hub-suggested-actions').last().getByRole('button', { name: 'Work on this plan' })
   await expect(action).toBeVisible()
   await expect(action).toBeEnabled()
   await action.focus()
@@ -29,10 +29,14 @@ test('hub.action.create-plan: learner controls suggested navigation', async ({ p
     await page.screenshot({ path: testInfo.outputPath('hub-create-plan-action.png'), fullPage: true })
   }
   await action.press('Enter')
-  await expect(page.getByRole('dialog', { name: 'Create a plan' })).toBeVisible()
-  await expect(page.getByLabel('Goal')).toBeFocused()
+  await expect(page.getByRole('heading', { name: 'What are you working toward?' })).toBeVisible()
   await expect(page).toHaveURL((url) => url.pathname.endsWith('/plans') && !url.searchParams.has('hub_action'))
   await expect(page.locator('[aria-label="Hub companion"]')).toContainText('I want to create a plan for changing careers')
+  await expect(page.locator('[aria-label="Hub companion"]')).toContainText('Editing:')
+
+  await expect(page.locator('[aria-label="Hub companion"]')).toContainText('Ready to review')
+  await expect(page.getByLabel('Goal')).toHaveValue('Career transition plan')
+  await expect(page.getByText('Suggested by Hub')).toHaveCount(3)
 
   expect(browserErrors, `Browser errors:\n${browserErrors.join('\n')}`).toEqual([])
 })
@@ -58,7 +62,7 @@ test('hub.action.unavailable: a rejected action stays in context and explains th
   await page.goto(environment.hubPath)
   await assertActualApp(page)
   await askHub(page, 'I want to create a plan for improving my interview skills')
-  const action = page.getByTestId('hub-suggested-actions').last().getByRole('button', { name: 'Start a plan' })
+  const action = page.getByTestId('hub-suggested-actions').last().getByRole('button', { name: 'Work on this plan' })
   await expect(action).toBeVisible()
 
   await page.route('**/api/v1/hub/actions/*/resolve?*', async (route) => {
@@ -69,14 +73,16 @@ test('hub.action.unavailable: a rejected action stays in context and explains th
   await expect(page).toHaveURL((url) => url.pathname.endsWith('/hub'))
 })
 
-test('plans.create-modal: plans surface is interactive', async ({ page }, testInfo) => {
+test('plans.create-editor: plans surface uses native object editing', async ({ page }, testInfo) => {
   await page.goto(environment.plansPath)
   await assertActualApp(page)
   await expect(page.getByRole('heading', { name: 'Plans', exact: true, level: 1 })).toBeVisible()
   const create = page.getByRole('button', { name: /create a plan|new plan/i }).first()
   await create.click()
-  await expect(page.getByRole('dialog', { name: 'Create a plan' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'What are you working toward?' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Save plan' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Cancel' })).toBeVisible()
   if (process.env.UI_TEST_CAPTURE === 'true') {
-    await page.screenshot({ path: testInfo.outputPath('plans-create-modal.png'), fullPage: true })
+    await page.screenshot({ path: testInfo.outputPath('plans-create-editor.png'), fullPage: true })
   }
 })

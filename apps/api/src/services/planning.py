@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from datetime import date, datetime, timedelta, timezone
-from uuid import uuid4
+from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from fastapi import HTTPException
 from sqlalchemy import inspect
@@ -1008,6 +1008,17 @@ def create_phase(db: Session, current_user: PublicUser, identifier: str, payload
     plan = _plan_or_404(db, identifier)
     _require_individual_definition(db, plan)
     _require(db, plan, current_user.id, "edit_structure")
+    phase_uuid = (
+        f"plan_phase_{uuid5(NAMESPACE_URL, f'launchlms:{plan.plan_uuid}:{payload.request_key}')}"
+        if payload.request_key else f"plan_phase_{uuid4()}"
+    )
+    existing = db.exec(select(PlanPhase).where(
+        PlanPhase.plan_id == plan.id, PlanPhase.phase_uuid == phase_uuid,
+    )).first()
+    if existing:
+        result = _plan_dict(db, plan, current_user.id, True)
+        result["created_phase_uuid"] = existing.phase_uuid
+        return result
     if payload.start_date is not None or payload.due_date is not None:
         _require(db, plan, current_user.id, "edit_schedule")
     name = payload.name.strip()
@@ -1016,21 +1027,29 @@ def create_phase(db: Session, current_user: PublicUser, identifier: str, payload
     if payload.due_date and plan.due_date and payload.due_date > plan.due_date:
         raise HTTPException(status_code=422, detail="Phase target date must be within the plan target date")
     existing_phases = db.exec(select(PlanPhase).where(PlanPhase.plan_id == plan.id).order_by(PlanPhase.position)).all()
-    prior_due = next((item.due_date for item in reversed(existing_phases) if item.due_date), plan.start_date)
+    position = min(payload.position if payload.position is not None else len(existing_phases), len(existing_phases))
+    prior_due = next((item.due_date for item in reversed(existing_phases[:position]) if item.due_date), plan.start_date)
+    next_due = next((item.due_date for item in existing_phases[position:] if item.due_date), plan.due_date)
     if payload.due_date and prior_due and payload.due_date < prior_due:
         raise HTTPException(status_code=422, detail="Phase target date cannot be before the previous phase")
-    count = len(db.exec(select(PlanPhase).where(PlanPhase.plan_id == plan.id)).all())
+    if payload.due_date and next_due and payload.due_date > next_due:
+        raise HTTPException(status_code=422, detail="Phase target date cannot be after the next phase")
+    for item in existing_phases[position:]:
+        item.position += 1
+        db.add(item)
     now = _now_string()
     db.add(PlanPhase(
-        phase_uuid=f"plan_phase_{uuid4()}", plan_id=int(plan.id), name=name,
-        description=payload.description, position=count, start_date=payload.start_date,
+        phase_uuid=phase_uuid, plan_id=int(plan.id), name=name,
+        description=payload.description, position=position, start_date=payload.start_date,
         due_date=payload.due_date, creation_date=now, update_date=now,
     ))
     plan.update_date = now
     db.add(plan)
     _activity(db, plan, current_user.id, "phase.created", {"name": name})
     db.commit()
-    return _plan_dict(db, plan, current_user.id, True)
+    result = _plan_dict(db, plan, current_user.id, True)
+    result["created_phase_uuid"] = phase_uuid
+    return result
 
 
 def update_phase(db: Session, current_user: PublicUser, identifier: str, phase_uuid: str, payload: PlanPhaseUpdate) -> dict:
@@ -1098,6 +1117,18 @@ def create_objective(db: Session, current_user: PublicUser, identifier: str, pay
     plan = _plan_or_404(db, identifier)
     _require_individual_definition(db, plan)
     _require(db, plan, current_user.id, "edit_structure")
+    objective_uuid = (
+        f"plan_objective_{uuid5(NAMESPACE_URL, f'launchlms:{plan.plan_uuid}:{payload.request_key}')}"
+        if payload.request_key else f"plan_objective_{uuid4()}"
+    )
+    existing = db.exec(select(PlanObjective).where(
+        PlanObjective.plan_id == plan.id,
+        PlanObjective.objective_uuid == objective_uuid,
+    )).first()
+    if existing:
+        result = _plan_dict(db, plan, current_user.id, True)
+        result["created_objective_uuid"] = existing.objective_uuid
+        return result
     if payload.start_date is not None or payload.due_date is not None or payload.allow_late:
         _require(db, plan, current_user.id, "edit_schedule")
     title = payload.title.strip()
@@ -1116,7 +1147,7 @@ def create_objective(db: Session, current_user: PublicUser, identifier: str, pay
     position = len(db.exec(select(PlanObjective).where(PlanObjective.plan_id == plan.id)).all())
     now = _now_string()
     objective = PlanObjective(
-        objective_uuid=f"plan_objective_{uuid4()}", plan_id=int(plan.id), phase_id=phase.id if phase else None,
+        objective_uuid=objective_uuid, plan_id=int(plan.id), phase_id=phase.id if phase else None,
         title=title, description=payload.description, kind="custom", position=position,
         priority=max(0, min(3, payload.priority)), badge_id=badges[0].id if badges else None,
         fields=fields, start_date=payload.start_date, due_date=payload.due_date,
@@ -1130,7 +1161,9 @@ def create_objective(db: Session, current_user: PublicUser, identifier: str, pay
     db.add(plan)
     _activity(db, plan, current_user.id, "objective.created", {"objective_uuid": objective.objective_uuid})
     db.commit()
-    return _plan_dict(db, plan, current_user.id, True)
+    result = _plan_dict(db, plan, current_user.id, True)
+    result["created_objective_uuid"] = objective.objective_uuid
+    return result
 
 
 def update_objective(db: Session, current_user: PublicUser, identifier: str, objective_uuid: str, payload: PlanObjectiveUpdate) -> dict:

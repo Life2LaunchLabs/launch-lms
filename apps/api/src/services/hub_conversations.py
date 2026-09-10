@@ -14,6 +14,7 @@ from src.db.hub import (
     HubConversationMessageResource,
     HubConversationResource,
 )
+from src.services.hub_actions import decorate_navigation_action
 from src.services.hub_advisor import AdvisorMessage
 from src.services.hub_memory import message_memory_receipts
 from src.security.org_auth import require_org_membership
@@ -390,7 +391,7 @@ def conversation_detail(
             "created_at": message.created_at,
             "memories": memory_receipts.get(int(message.id), []),
             "page_context": visible_receipt(db_session, message.page_context, org_id, user_id),
-            "suggested_actions": message.suggested_actions or [],
+            "suggested_actions": [decorate_navigation_action(action) for action in (message.suggested_actions or [])],
         } for message in messages],
         "context_resources": [resources_by_uuid[row.resource_uuid] for row in context if row.resource_uuid in resources_by_uuid],
     }

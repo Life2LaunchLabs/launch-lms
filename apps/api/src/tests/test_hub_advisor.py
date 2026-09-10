@@ -1,4 +1,7 @@
 import json
+from datetime import datetime
+import inspect
+from types import SimpleNamespace
 
 import httpx
 import pytest
@@ -15,6 +18,7 @@ from src.db.users import PublicUser, User
 from src.services import hub_advisor
 from src.services import hub_actions
 from src.services import hub_configuration
+from src.routers import hub as hub_router
 from src.services.hub_advisor import (
     AdvisorMessage,
     AdvisorResult,
@@ -42,10 +46,24 @@ async def test_ui_fixture_provider_returns_semantic_actions_without_external_cal
     plan = await provider.respond([message("user", "I want to make a plan")], "safe")
     timeline = await provider.respond([message("user", "Add this to my portfolio timeline")], "safe")
     memory = await DeterministicUiTestProvider(memory=True).respond([message("user", "anything")], "safe")
+    editing = await DeterministicUiTestProvider(edit_scope="new_plan").respond(
+        [message("user", "Prepare the plan details")], "safe",
+    )
+    continued = await DeterministicUiTestProvider(edit_scope="plan").respond(
+        [message("user", "I saved the plan details")], "safe",
+    )
+    cancelled = await DeterministicUiTestProvider(edit_scope="new_plan").respond(
+        [message("user", "I cancelled the new plan instead of saving it")], "safe",
+    )
 
     assert plan.action_destinations == ("create_plan",)
     assert timeline.action_destinations == ("add_timeline",)
     assert json.loads(memory.text) == {"candidates": []}
+    assert editing.plan_operations[0]["type"] == "set_new_plan_details"
+    assert editing.action_destinations == ()
+    assert continued.plan_operations[0]["type"] == "add_plan_phases"
+    assert len(continued.plan_operations[0]["phases"]) == 3
+    assert "Would you like" in cancelled.text
 
 
 def test_conversation_must_be_bounded_alternating_and_end_with_user():
@@ -511,3 +529,56 @@ async def test_advisor_returns_retry_after_when_rate_limited(monkeypatch):
 
     assert caught.value.status_code == 429
     assert caught.value.headers == {"Retry-After": "41"}
+
+
+@pytest.mark.asyncio
+async def test_advisor_route_returns_edit_operations_without_changing_conversation_contract(monkeypatch):
+    record_advice_signature = inspect.signature(hub_router.record_advice)
+    operation = {
+        "operation_id": "hub_plan_operation_test", "type": "set_new_plan_details",
+        "object_type": "plan", "object_uuid": None, "object_label": "Career plan",
+        "fields": {"name": "Career plan", "description": "", "due_date": "2099-12-31"},
+    }
+    run = {
+        "run_uuid": "hub_edit_run_test", "goal": "Create a plan",
+        "scope": {"kind": "new_plan", "label": "New plan", "route": "/plans"},
+    }
+    async def resources(*_args, **_kwargs):
+        return []
+    async def advice(*_args, **kwargs):
+        assert kwargs["edit_run"] == run
+        return AdvisorResult("Prepared.", "fake", plan_operations=(operation,))
+    def persist(db_session, **kwargs):
+        record_advice_signature.bind(db_session, **kwargs)
+        now = datetime.utcnow()
+        return {
+            "conversation_uuid": "conversation_test", "title": "Plan",
+            "user_message_uuid": "message_user", "assistant_message_uuid": "message_assistant",
+            "user_message_created_at": now, "assistant_message_created_at": now,
+        }
+
+    monkeypatch.setattr(hub_router, "list_resources", resources)
+    monkeypatch.setattr(hub_router, "advisor_history", lambda *_args: [AdvisorMessage(role="user", content="Prepare it")])
+    monkeypatch.setattr(hub_router, "page_context", lambda *_args: {"receipt": None})
+    monkeypatch.setattr(hub_router, "active_edit_run", lambda *_args: run)
+    monkeypatch.setattr(hub_router, "select_memories", lambda *_args: [])
+    monkeypatch.setattr(hub_router, "advisor_resources_for_request", lambda *_args: [])
+    monkeypatch.setattr(hub_router, "ask_hub_advisor", advice)
+    monkeypatch.setattr(hub_router, "build_navigation_actions", lambda *_args: [])
+    monkeypatch.setattr(hub_router, "record_plan_proposals", lambda *_args: [operation])
+    monkeypatch.setattr(hub_router, "record_advice", persist)
+    monkeypatch.setattr(hub_router, "record_used_memories", lambda *_args: None)
+    monkeypatch.setattr(hub_router, "memory_settings", lambda *_args: {"enabled": False})
+
+    response = await hub_router.create_hub_advice(
+        Request({"type": "http", "headers": [], "client": ("127.0.0.1", 1234)}),
+        7,
+        hub_router.HubAdvisorRequest(
+            conversation_uuid="conversation_test",
+            messages=[hub_router.HubAdvisorMessage(role="user", content="Prepare it")],
+        ),
+        SimpleNamespace(id=11),
+        object(),
+    )
+
+    assert response.edit_operations == [operation]

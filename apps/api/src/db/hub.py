@@ -168,6 +168,78 @@ class HubConversationMessageMemory(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class HubEditRun(SQLModel, table=True):
+    """A learner-granted, goal-scoped agent editing session.
+
+    This record is application machinery, not a learner-facing draft or version.
+    """
+
+    __tablename__ = "hubeditrun"
+    __table_args__ = (
+        UniqueConstraint("started_from_action_id", name="uq_hubeditrun_started_action"),
+        Index("ix_hubeditrun_owner_status", "org_id", "user_id", "status", "updated_at"),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    run_uuid: str = Field(index=True, unique=True)
+    conversation_id: int = Field(sa_column=Column(Integer, ForeignKey("hubconversation.id", ondelete="CASCADE"), nullable=False, index=True))
+    org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), nullable=False, index=True))
+    user_id: int = Field(sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True))
+    goal: str = Field(sa_column=Column(Text, nullable=False))
+    scope_kind: str = Field(sa_column=Column(String(32), nullable=False))
+    target_uuid: str | None = Field(default=None, max_length=120, index=True)
+    target_label: str = Field(max_length=240)
+    route: str = Field(max_length=500)
+    status: str = Field(default="active", sa_column=Column(String(24), nullable=False, index=True))
+    started_from_action_id: str = Field(max_length=120)
+    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    updated_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    ended_at: datetime | None = Field(default=None, index=True)
+
+
+class HubEditRunEvent(SQLModel, table=True):
+    """A durable, condensable domain event emitted by an editing run."""
+
+    __tablename__ = "hubeditrunevent"
+    __table_args__ = (
+        UniqueConstraint("run_id", "sequence", name="uq_hubeditrunevent_sequence"),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    event_uuid: str = Field(index=True, unique=True)
+    run_id: int = Field(sa_column=Column(Integer, ForeignKey("hubeditrun.id", ondelete="CASCADE"), nullable=False, index=True))
+    sequence: int = Field(index=True)
+    kind: str = Field(sa_column=Column(String(40), nullable=False))
+    summary: str = Field(sa_column=Column(Text, nullable=False))
+    object_type: str | None = Field(default=None, max_length=40)
+    object_uuid: str | None = Field(default=None, max_length=120, index=True)
+    object_label: str | None = Field(default=None, max_length=240)
+    transient: bool = Field(default=False, sa_column=Column(Boolean, nullable=False, default=False))
+    payload: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+
+
+class HubEditObjectState(SQLModel, table=True):
+    """Private recovery state for one native object editor in an editing run."""
+
+    __tablename__ = "hubeditobjectstate"
+    __table_args__ = (
+        UniqueConstraint("run_id", "object_key", name="uq_hubeditobjectstate_run_object"),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    run_id: int = Field(sa_column=Column(Integer, ForeignKey("hubeditrun.id", ondelete="CASCADE"), nullable=False, index=True))
+    object_key: str = Field(max_length=160)
+    object_type: str = Field(max_length=40)
+    object_uuid: str | None = Field(default=None, max_length=120, index=True)
+    status: str = Field(default="editing", sa_column=Column(String(24), nullable=False, index=True))
+    current_fields: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    proposal_fields: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    revision: int = Field(default=1, sa_column=Column(Integer, nullable=False, default=1))
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+
+
 class HubAdvisorAdvancedConfiguration(BaseModel):
     max_output_tokens: int = PydanticField(default=700, ge=128, le=4_000)
     reasoning_effort: Literal["default", "none", "low", "medium", "high", "xhigh"] = "default"
