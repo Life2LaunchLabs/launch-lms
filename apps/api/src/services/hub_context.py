@@ -82,6 +82,10 @@ def page_context(db: Session, org_id: int, user_id: int, hint: HubSurfaceHint | 
     result = {"receipt": receipt, "facts": []}
     if hint is None:
         return result
+    if hint.page_path:
+        receipt["page_path"] = hint.page_path
+    if hint.page_title:
+        receipt["page_title"] = hint.page_title.strip()[:200]
     receipt["status"] = "unavailable"
     if hint.surface == "unsupported":
         return result

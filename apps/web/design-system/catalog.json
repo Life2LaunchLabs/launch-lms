@@ -37,6 +37,7 @@
     { "name": "Navigation menu", "source": "apps/web/components/ui/navigation-menu.tsx", "status": "candidate", "usage": 0, "category": "navigation" }
   ],
   "patterns": [
+    {"name": "Product page titles", "source": "apps/web/services/routing/pageTitles.ts", "status": "adopted", "role": "Central Feature | Detail naming, safe route fallbacks, and dynamic entity registration for browser tabs and provenance."},
     {"name": "Subtle scrollbar", "source": "apps/web/styles/globals.css", "status": "adopted", "role": "Low-contrast scrollbar that becomes visible when its scroll region is hovered or focused."},
     {"name": "Hub companion header", "source": "apps/web/app/orgs/[orgslug]/(withmenu)/hub/HubHeader.tsx", "status": "adopted", "role": "Conversation navigation with companion collapse/full-Hub actions and contextual availability status."},
     { "name": "General content wrapper", "source": "apps/web/components/Objects/StyledElements/Wrappers/GeneralWrapper.tsx", "status": "adopted", "role": "Responsive maximum-width content shell" },

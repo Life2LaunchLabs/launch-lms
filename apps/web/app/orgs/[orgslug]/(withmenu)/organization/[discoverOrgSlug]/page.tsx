@@ -7,6 +7,7 @@ import {
   getOrganizationContextInfo,
 } from '@services/organizations/orgs'
 import OrganizationDetailClient from './organization'
+import { PageTitleRegistration } from '@components/Contexts/PageTitleContext'
 
 type OrganizationDetailPageProps = {
   params: Promise<{ orgslug: string; discoverOrgSlug: string }>
@@ -54,6 +55,7 @@ export default async function OrganizationDetailPage(props: OrganizationDetailPa
 
   return (
     <>
+      <PageTitleRegistration section="Organizations" detail={organization.name} />
       <JsonLd data={breadcrumbJsonLd} />
       <OrganizationDetailClient
         organization={organization}

@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { getServerSession } from '@/lib/auth/server'
 import { getPlayground } from '@services/playgrounds/playgrounds'
 import PlaygroundViewClient from './view'
+import { PageTitleRegistration } from '@components/Contexts/PageTitleContext'
 
 type PageParams = Promise<{ orgslug: string; playgrounduuid: string }>
 
@@ -36,10 +37,13 @@ export default async function PlaygroundViewPage({ params }: { params: PageParam
   }
 
   return (
+    <>
+    <PageTitleRegistration section="Playgrounds" detail={playground.name} />
     <PlaygroundViewClient
       playground={playground}
       orgslug={orgslug}
       canEdit={!!access_token}
     />
+    </>
   )
 }

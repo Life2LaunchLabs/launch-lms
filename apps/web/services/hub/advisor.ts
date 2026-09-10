@@ -14,6 +14,8 @@ export type HubSurfaceHint = {
 export type HubPageReceipt = {
   status: 'off' | 'unavailable' | 'ready'
   captured_at: string
+  page_path?: string
+  page_title?: string
   truncated?: boolean
   sources: Array<{ source_type?: 'group_plan'; plan_id: string; assignment_id?: string; title: string; objective_id?: string; objective_title?: string; updated_at: string; page_path?: string; page_title?: string }>
 }
@@ -82,6 +84,7 @@ type ConversationWriteResult = {
   assistant_message_uuid: string
   user_message_created_at: string
   assistant_message_created_at: string
+  page_context?: HubPageReceipt
 }
 
 async function hubRequest<T>(path: string, method: string, accessToken: string, data?: unknown): Promise<T> {
@@ -165,12 +168,14 @@ export function recordHubSearch(orgId: number, query: string, accessToken: strin
   conversationUuid?: string
   resourceUuids?: string[]
   learnerResourceUuids?: string[]
+  surface?: HubSurfaceHint
 } = {}) {
   return hubRequest<ConversationWriteResult>(`conversations/search?org_id=${encodeURIComponent(orgId)}`, 'POST', accessToken, {
     conversation_uuid: options.conversationUuid,
     query,
     resource_uuids: options.resourceUuids || [],
     learner_resource_uuids: options.learnerResourceUuids || [],
+    surface: options.surface,
   })
 }
 

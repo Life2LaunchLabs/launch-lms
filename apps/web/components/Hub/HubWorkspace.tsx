@@ -6,6 +6,7 @@ import { PanelRightOpen } from 'lucide-react'
 import { OrgMenu } from '@components/Objects/Menus/OrgMenu'
 import { Button } from '@components/ui/button'
 import { HubWorkspaceContext, type HubSurface } from '@components/Contexts/HubWorkspaceContext'
+import { usePageTitle } from '@components/Contexts/PageTitleContext'
 import HubExperience from '@/app/orgs/[orgslug]/(withmenu)/hub/HubExperience'
 import { getUriWithOrg } from '@services/config/config'
 
@@ -14,6 +15,8 @@ export default function HubWorkspace({ children, orgslug }: { children: ReactNod
   const pathname = usePathname()
   const search = useSearchParams()
   const router = useRouter()
+  const pageTitle = usePageTitle()
+  const setPageTitle = pageTitle?.setPageTitle
   const full = /\/hub\/?$/.test(pathname)
   const [opened, setOpened] = useState(false)
   const [narrow, setNarrow] = useState(false)
@@ -25,6 +28,14 @@ export default function HubWorkspace({ children, orgslug }: { children: ReactNod
   const visible = full || opened
   const currentSurface = surface?.path === pathname ? surface : null
   const filters = useMemo(() => full ? Object.fromEntries(search.entries()) : {}, [full, search])
+
+  useEffect(() => {
+    if (!currentSurface) return
+    const section = /\/plans(?:\/|$)/.test(pathname) ? 'Plans' : currentSurface.label
+    const detail = currentSurface.label === section ? undefined : currentSurface.label
+    setPageTitle?.({ path: pathname, section, detail })
+    return () => setPageTitle?.(null)
+  }, [currentSurface, pathname, setPageTitle])
 
   useEffect(() => {
     const query = window.matchMedia('(max-width: 1199px)')

@@ -5,6 +5,7 @@ import { JsonLd } from '@components/SEO/JsonLd'
 import { getPublicOffer } from '@services/payments/offers'
 import { getServerSession } from '@/lib/auth/server'
 import OfferDetailClient from './offer-detail'
+import { PageTitleRegistration } from '@components/Contexts/PageTitleContext'
 
 type PageParams = Promise<{ orgslug: string; offerid: string }>
 
@@ -16,7 +17,9 @@ export async function generateMetadata({ params }: { params: PageParams }): Prom
   try {
     const result = await getPublicOffer(org.id, offerid)
     offerName = result?.data?.name || 'Offer'
-  } catch {}
+  } catch {
+    // The stable Offer fallback keeps metadata useful when public offer lookup fails.
+  }
   const title = buildPageTitle(offerName, org?.name || 'Organization', seoConfig)
   return {
     title,
@@ -35,7 +38,9 @@ export default async function OfferPage({ params }: { params: PageParams }) {
   try {
     const result = await getPublicOffer(org.id, offerid)
     offer = result?.data ?? result
-  } catch {}
+  } catch {
+    // The detail client owns its unavailable state.
+  }
 
   const breadcrumbJsonLd = buildBreadcrumbJsonLd([
     { name: 'Home', url: getCanonicalUrl(orgslug, '/') },
@@ -45,6 +50,7 @@ export default async function OfferPage({ params }: { params: PageParams }) {
 
   return (
     <>
+      <PageTitleRegistration section="Store" detail={offer?.name || 'Offer'} />
       <JsonLd data={breadcrumbJsonLd} />
       <OfferDetailClient
         orgslug={orgslug}

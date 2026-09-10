@@ -6,6 +6,7 @@ import { getServerSession } from '@/lib/auth/server'
 import { getCanonicalUrl, getOrgSeoConfig, buildPageTitle, buildBreadcrumbJsonLd } from '@/lib/seo/utils'
 import { JsonLd } from '@components/SEO/JsonLd'
 import PodcastClient from './podcast'
+import { PageTitleRegistration } from '@components/Contexts/PageTitleContext'
 
 type PageParams = Promise<{
   orgslug: string
@@ -149,6 +150,7 @@ export default async function PodcastPage({ params }: { params: PageParams }) {
 
   return (
     <>
+      <PageTitleRegistration section="Podcasts" detail={podcastMeta.podcast.name} />
       <JsonLd data={breadcrumbJsonLd} />
       <JsonLd data={podcastJsonLd} />
       <PodcastClient

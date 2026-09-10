@@ -113,6 +113,7 @@ class HubConversationSearchRequest(BaseModel):
     query: str = Field(min_length=1, max_length=2_000)
     resource_uuids: list[str] = Field(default_factory=list, max_length=8)
     learner_resource_uuids: list[str] = Field(default_factory=list, max_length=8)
+    surface: HubSurfaceHint | None = None
 
 
 class HubConversationMessageResources(BaseModel):
@@ -255,11 +256,13 @@ async def create_hub_search_event(
 ):
     accessible_resources = await list_resources(request, org_id, current_user, db_session)
     accessible = {str(item.get("resource_uuid")) for item in accessible_resources}
+    context = page_context(db_session, org_id, current_user.id, body.surface)
     return record_search(
         db_session, org_id=org_id, user_id=current_user.id,
         conversation_uuid=body.conversation_uuid, query=body.query.strip(),
         learner_resource_uuids=[uuid for uuid in body.learner_resource_uuids if uuid in accessible],
         context_resource_uuids=[uuid for uuid in body.resource_uuids if uuid in accessible],
+        page_receipt=context["receipt"],
     )
 
 

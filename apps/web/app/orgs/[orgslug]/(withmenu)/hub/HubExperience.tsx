@@ -5,6 +5,7 @@ import { Plus, Send } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useHubWorkspace } from '@components/Contexts/HubWorkspaceContext'
+import { PageTitleRegistration, usePageTitle } from '@components/Contexts/PageTitleContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { Button } from '@components/ui/button'
@@ -114,6 +115,7 @@ function asAdvisorResource(resource: Resource): HubAdvisorResource {
 
 export default function HubExperience({ orgslug, filters, companion = false, visible = true, onCompanionCollapse, onCompanionExpand }: { orgslug: string; filters: HubFilters; companion?: boolean; visible?: boolean; onCompanionCollapse?: () => void; onCompanionExpand?: () => void }) {
   const workspace = useHubWorkspace()
+  const pageTitle = usePageTitle()
   const alive = useRef(true)
   const loadSequence = useRef(0)
   useEffect(() => { alive.current = true; return () => { alive.current = false; loadSequence.current += 1 } }, [])
@@ -488,16 +490,22 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
     setSending(true)
     if (inferHubResponseKind(content) === 'search') {
       try {
+        const searchSurface = {
+          ...(companion && workspace?.surface?.hint ? workspace.surface.hint : { surface: 'unsupported' as const }),
+          page_path: `${window.location.pathname}${window.location.search}`,
+          page_title: pageTitle?.title || document.title,
+        }
         const persisted = await recordHubSearch(org.id, content, accessToken, {
           conversationUuid: conversationUuid || undefined,
           resourceUuids: contextResources.map((resource) => resource.resource_uuid),
           learnerResourceUuids: submittedResources.map((resource) => resource.resource_uuid),
+          surface: searchSurface,
         })
         if (!alive.current) return
         const nextMessages: HubConversationMessage[] = [
           ...previousMessages,
-          { id: persisted.user_message_uuid, role: 'user', content, resources: submittedResources, resourceLabel: submittedResources.length ? 'You added' : undefined, createdAt: persisted.user_message_created_at },
-          { id: persisted.assistant_message_uuid, role: 'assistant', content: '', searchQuery: content, createdAt: persisted.assistant_message_created_at },
+          { id: persisted.user_message_uuid, role: 'user', content, resources: submittedResources, resourceLabel: submittedResources.length ? 'You added' : undefined, createdAt: persisted.user_message_created_at, page_context: persisted.page_context },
+          { id: persisted.assistant_message_uuid, role: 'assistant', content: '', searchQuery: content, createdAt: persisted.assistant_message_created_at, page_context: persisted.page_context },
         ]
         setMessages(nextMessages)
         setConversationUuid(persisted.conversation_uuid)
@@ -515,13 +523,11 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
       return
     }
     try {
-      const pageSurface = companion
-        ? {
-            ...(workspace?.surface?.hint || { surface: 'unsupported' as const }),
-            page_path: `${window.location.pathname}${window.location.search}`,
-            page_title: document.title,
-          }
-        : undefined
+      const pageSurface = {
+        ...(companion && workspace?.surface?.hint ? workspace.surface.hint : { surface: 'unsupported' as const }),
+        page_path: `${window.location.pathname}${window.location.search}`,
+        page_title: pageTitle?.title || document.title,
+      }
       const response = await askHubAdvisor(
         org.id,
         requestMessages,
@@ -586,6 +592,7 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
 
   return (
     <div className="relative mx-auto min-h-0 w-full max-w-[1056px] flex-1 overflow-hidden" aria-label="Hub conversation">
+      {!companion ? <PageTitleRegistration section="Hub" detail={conversationStarted ? conversationTitle : undefined} /> : null}
       <h1 className="sr-only">{conversationTitle || 'Hub'}</h1>
       {(conversationStarted || companion) && (
         <HubHeader
@@ -633,7 +640,7 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
             )}
             {conversationLoading && <div className="py-16 text-center text-sm text-muted-foreground" role="status">Loading conversation…</div>}
               {messages.map((message) => message.role === 'user' ? (
-                <div key={message.id} className="space-y-1.5">
+                <div key={message.id} className="group/message space-y-1.5">
                   {message.resources && message.resources.length > 0 && (
                     <div ref={(node) => { if (node) resourceOriginRefs.current.set(message.id, node); else resourceOriginRefs.current.delete(message.id) }} tabIndex={-1} className="rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
                       <HubResourceContext
@@ -654,7 +661,7 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
                   {accessToken && org?.id && <HubMessageMicroBar role="user" content={message.content} createdAt={message.createdAt} memories={message.memories} pageContext={message.page_context} orgId={org.id} accessToken={accessToken} />}
                 </div>
               ) : (
-                <div key={message.id} className="space-y-1.5">
+                <div key={message.id} className="group/message space-y-1.5">
                   {message.searchQuery ? (
                     <div ref={(node) => { if (node) resourceOriginRefs.current.set(message.id, node); else resourceOriginRefs.current.delete(message.id) }} tabIndex={-1} className="space-y-1.5 rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
                       <HubQuickSearch

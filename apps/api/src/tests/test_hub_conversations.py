@@ -50,6 +50,7 @@ def test_search_creates_private_resumable_rich_conversation(monkeypatch):
             db, org_id=7, user_id=11, conversation_uuid=None,
             query="career guides", learner_resource_uuids=["resource_one"],
             context_resource_uuids=["resource_one"],
+            page_receipt={"status": "unavailable", "captured_at": "2026-09-09T12:00:00Z", "sources": [], "page_path": "/orgs/acme/portfolio", "page_title": "Portfolio"},
         )
 
         summaries = hub_conversations.list_conversations(db, 7, 11)
@@ -65,6 +66,8 @@ def test_search_creates_private_resumable_rich_conversation(monkeypatch):
         assert [message["role"] for message in detail["messages"]] == ["user", "assistant"]
         assert detail["messages"][1]["search_query"] == "career guides"
         assert detail["messages"][0]["resources"][0]["title"] == "Career guide"
+        assert detail["messages"][0]["page_context"]["page_title"] == "Portfolio"
+        assert detail["messages"][1]["page_context"]["page_path"] == "/orgs/acme/portfolio"
         assert detail["context_resources"][0]["resource_uuid"] == "resource_one"
 
         hub_conversations.save_state(

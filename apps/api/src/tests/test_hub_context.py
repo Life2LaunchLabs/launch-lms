@@ -22,6 +22,8 @@ def test_page_context_uses_current_saved_definitions_and_never_private_fields():
         assert result['facts'][0]['objectives'][0]['title'] == 'Compare roles'
         assert result['receipt']['sources'][0]['page_path'] == '/orgs/default/plans?plan=career'
         assert result['receipt']['sources'][0]['page_title'] == 'Plans | Career'
+        assert result['receipt']['page_path'] == '/orgs/default/plans?plan=career'
+        assert result['receipt']['page_title'] == 'Plans | Career'
         assert 'field_values' not in json.dumps(result)
         assert 'reviewer_note' not in json.dumps(result)
         planning.update_plan(db, _user(1), plan['slug'], PlanUpdate(name='New title'))

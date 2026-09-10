@@ -263,6 +263,7 @@ def record_search(
     db_session: Session, *, org_id: int, user_id: int,
     conversation_uuid: str | None, query: str,
     learner_resource_uuids: list[str], context_resource_uuids: list[str],
+    page_receipt: dict | None = None,
 ) -> dict:
     conversation = (
         get_owned_conversation(db_session, conversation_uuid, org_id, user_id)
@@ -274,6 +275,8 @@ def record_search(
         resources=learner_resource_uuids, label="You added",
     )
     search_message = _add_message(db_session, conversation, sequence + 1, "assistant", query, kind="search")
+    user_message.page_context = page_receipt
+    search_message.page_context = page_receipt
     _replace_context(db_session, conversation, context_resource_uuids)
     conversation.updated_at = datetime.utcnow()
     db_session.add(conversation)
@@ -285,6 +288,7 @@ def record_search(
         "assistant_message_uuid": search_message.message_uuid,
         "user_message_created_at": user_message.created_at,
         "assistant_message_created_at": search_message.created_at,
+        "page_context": page_receipt,
     }
 
 
