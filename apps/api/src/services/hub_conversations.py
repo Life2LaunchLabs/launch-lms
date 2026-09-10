@@ -144,6 +144,7 @@ def _add_message(
     model: str | None = None,
     input_tokens: int | None = None,
     output_tokens: int | None = None,
+    suggested_actions: list[dict] | None = None,
 ) -> HubConversationMessage:
     message = HubConversationMessage(
         message_uuid=f"hub_message_{uuid4()}",
@@ -155,6 +156,7 @@ def _add_message(
         model=model,
         input_tokens=input_tokens,
         output_tokens=output_tokens,
+        suggested_actions=suggested_actions or None,
     )
     db_session.add(message)
     db_session.flush()
@@ -214,6 +216,7 @@ def record_advice(
     suggested_resource_uuids: list[str], model: str,
     input_tokens: int, output_tokens: int,
     page_receipt: dict | None = None,
+    suggested_actions: list[dict] | None = None,
 ) -> dict:
     conversation = (
         get_owned_conversation(db_session, conversation_uuid, org_id, user_id)
@@ -234,6 +237,7 @@ def record_advice(
         db_session, conversation, sequence + 1, "assistant", assistant_content,
         resources=novel_suggestions, label="Suggested", model=model,
         input_tokens=input_tokens, output_tokens=output_tokens,
+        suggested_actions=suggested_actions,
     )
     user_message.page_context = page_receipt
     assistant_message.page_context = page_receipt
@@ -256,6 +260,7 @@ def record_advice(
         "user_message_created_at": user_message.created_at,
         "assistant_message_created_at": assistant_message.created_at,
         "assistant_resource_uuids": novel_suggestions,
+        "suggested_actions": suggested_actions or [],
     }
 
 
@@ -385,6 +390,7 @@ def conversation_detail(
             "created_at": message.created_at,
             "memories": memory_receipts.get(int(message.id), []),
             "page_context": visible_receipt(db_session, message.page_context, org_id, user_id),
+            "suggested_actions": message.suggested_actions or [],
         } for message in messages],
         "context_resources": [resources_by_uuid[row.resource_uuid] for row in context if row.resource_uuid in resources_by_uuid],
     }

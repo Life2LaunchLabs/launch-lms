@@ -25,6 +25,8 @@ jobs:
     uses: ./.github/workflows/api-lint.yaml
   migrations:
     uses: ./.github/workflows/api-migrations.yaml
+  browser-ui:
+    uses: ./.github/workflows/browser-ui.yaml
   existing:
     runs-on: ubuntu-latest
     permissions:
@@ -106,8 +108,8 @@ jobs:
           retention-days: 1
   candidate:
     name: Publish verified candidate
-    needs: [existing, build, contract, api-tests, api-lint, migrations]
-    if: always() && github.event_name != 'pull_request' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main') && needs.existing.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'skipped') && needs.api-tests.result == 'success' && needs.api-lint.result == 'success' && needs.migrations.result == 'success' && needs.contract.result == 'success'
+    needs: [existing, build, contract, api-tests, api-lint, migrations, browser-ui]
+    if: always() && github.event_name != 'pull_request' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main') && needs.existing.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'skipped') && needs.api-tests.result == 'success' && needs.api-lint.result == 'success' && needs.migrations.result == 'success' && needs.browser-ui.result == 'success' && needs.contract.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: read

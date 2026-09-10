@@ -1,33 +1,37 @@
 # BOT-82: an agent alongside the learner workspace
 
-Planning proposal · 9 September 2026 · implementation has not started.
+Living delivery plan · updated 10 September 2026.
+
+BOT-156 has delivered the persistent companion and permission-checked personal/group-plan awareness and is In Review. BOT-159 has delivered consistent page-title/location provenance and is In Review. BOT-163 Phase 2 is implemented and browser-verified at desktop and phone widths; it is ready for owner review while the new CI lane awaits its first remote WebKit run. BOT-82 itself remains the later confirmed personal-plan co-creation slice; no plan or portfolio writes are enabled yet.
 
 The owner confirmed learner workspace first and structured page awareness first. The supplied Base44 image is the primary visual reference; the two attached conversations are inspiration, not technical specifications. This plan covers the companion through native plan co-creation, with other feature editing as a subsequent expansion.
 
 ## Recommendation
 
-Build a persistent Hub companion outside the application canvas. Keep the same conversation while the learner uses the real app. Start with read-only, permission-checked page context. Add deliberate navigation next, then a native Plans working copy that both the learner and agent can edit before the learner applies changes.
+Build on the persistent Hub companion now mounted outside the application canvas. Keep the same conversation while the learner uses the real app. Read-only, permission-checked plan context is now established. Add learner-initiated navigation suggestions next, then a native Plans working copy that both the learner and agent can edit before the learner applies changes.
 
 Use a custom shell and the existing React/FastAPI application boundaries. A new agent framework is not required for the first release. Separate three concerns: conversation continuity, current surface context, and proposed domain operations. The app owns saved facts and permissions; the model proposes text and operations.
 
-Recommend a new epic, **Co-create in the learner workspace with the Hub companion**. Keep BOT-64 as the broader Hub initiative and BOT-82 as the first confirmed personal-plan creation Story under the proposed epic. Shell/awareness should be separate Stories that can ship first. See [proposed backlog](backlog.md). This is a proposed hierarchy, not a Jira migration or implementation authorization.
+Keep BOT-64 as the broader Hub initiative. BOT-156 owns the delivered shell/awareness slice, BOT-159 owns shared location provenance, BOT-163 owns learner-controlled navigation suggestions, and BOT-82 remains the first confirmed personal-plan creation Story. See [delivery backlog](backlog.md).
+
+The companion is the beginning of a co-creating agent, not a collection of unrelated links. Its first useful act is often good advice followed by an appropriate place to continue. The same proposal envelope introduced for navigation should later carry private draft operations and confirmed writes without granting the model direct application authority.
 
 ## What exists, and what actually needs building
 
-Repository inspection is the basis for these findings; runtime behavior has not been exercised in this planning task.
+This inventory began as repository inspection and now also records delivered BOT-156/159 behavior. Rows describing missing work should be read together with the delivery sequence below.
 
 | Existing boundary | Evidence in this repository | Consequence |
 |---|---|---|
 | Durable conversations, history, resource context, memory | `apps/web/app/orgs/[orgslug]/(withmenu)/hub/HubExperience.tsx`; `apps/api/src/services/hub_conversations.py`; `apps/api/src/routers/hub.py` | Extract the current conversation controller into a shared owner. Preserve existing thread IDs, receipts, archive/delete behavior, and deterministic search. Do not create a separate companion chat history. |
-| Hub state currently lives in its page component | `HubExperience.tsx` owns messages, composer, conversation selection and resource state | Route continuity is a real refactor, not just positioning the existing page in a sidebar. |
-| Shared learner shell with app menu and right sidebar portal | `apps/web/app/orgs/[orgslug]/(withmenu)/layout.tsx` | Mount one companion owner here, keyed by authenticated user and organization. Account for Plans' existing right sidebar, mobile navigation, dialogs and podcast player. Admin and guest layouts are distinct. |
-| Plans selection sometimes uses browser history directly | `apps/web/components/Plans/PlansWorkspace.tsx` | Route parsing alone cannot describe the active plan/objective. Surface adapters must publish component state and support browser Back/Forward. |
+| Shared conversation owner is delivered | `HubExperience.tsx`; `apps/web/components/Hub/HubWorkspace.tsx` | The same mounted controller now owns messages, composer, thread selection and resource state across full/companion/tucked layouts. Preserve this boundary for every later capability. |
+| Shared learner shell hosts the companion | `apps/web/app/orgs/[orgslug]/(withmenu)/layout.tsx`; `HubWorkspace.tsx` | It is keyed by the authenticated organization experience and already accounts for compact navigation, mobile focus/inert behavior and Plans' panel. Admin and guest layouts remain distinct. |
+| Plans publishes structured attention | `apps/web/components/Plans/PlansWorkspace.tsx`; `apps/api/src/services/hub_context.py` | Personal/group plan and selected-object identifiers are revalidated server-side. Browser Back/Forward and query-selected group plans retain the intended context. |
 | Native plan fields, phases, objectives, dates and capability checks | `apps/web/components/Plans/PlanEditorShared.tsx`; `PlansWorkspace.tsx`; `apps/api/src/services/planning.py` | Reuse the editor and domain rules. The later working-copy mode needs an editor data/command adapter, not a second plan component in chat. |
 | Immediate plan writes | `create_plan`, `update_plan`, phase/objective mutations in `planning.py` commit individually | Batch apply needs transaction-safe domain commands. Calling current endpoints in a loop would allow partial plans. |
 | No dedicated co-creation draft or integer revision in Plan | `apps/api/src/db/planning.py` | Add separate working-copy/change-set records and concurrency control. Existing `pending` status is not an AI draft. |
 | Completion dates and shared assignment rules | `create_plan`, `update_plan`, `_require_individual_definition` | An incomplete draft may omit dates; applying it must satisfy current date validation. Group definition edits belong to the group workspace and must not be smuggled through personal-plan tools. |
-| Two text provider adapters | `apps/api/src/services/hub_advisor.py` has OpenAI Responses and Anthropic Messages; OpenAI currently sends `tools: []`, `tool_choice: none` | Read-only awareness can use bounded grounding with current adapters. Actions require a new provider-neutral tool/run contract. No provider/model change is assumed. |
-| Current advice endpoint also persists messages and may extract memory | `apps/api/src/routers/hub.py:create_hub_advice` | “Read-only” means no plan/navigation/domain actions. Existing intentional conversation persistence remains. Never feed surface snapshots into automatic long-term memory extraction. |
+| Two provider adapters now share one proposal capability | `apps/api/src/services/hub_advisor.py`; `apps/api/src/services/hub_actions.py` | OpenAI Responses and Anthropic Messages receive equivalent `suggest_navigation` schemas. Provider output is a proposal only; the server owns labels, persistence, permissions and routes. |
+| Advice persists messages, receipts, memories and inert proposals | `apps/api/src/routers/hub.py:create_hub_advice`; `hub_conversations.py` | Navigation proposals survive reload with their assistant message. They remain separate from memory and have no effect until their owner clicks and the server revalidates them. |
 | Grounding already planned | BOT-122 and its deliverables BOT-123/124/125 | Reuse its bounded server assembler and plan provider. First awareness release depends on BOT-123/124, not on every later grounding provider. |
 | Adjacent work | BOT-77 resource grounding; BOT-108 Library; BOT-109 resource context; BOT-126 organization knowledge; BOT-79 governance | Coordinate receipts/resource views. Organization document retrieval and a full AI operations console need not block the first companion. |
 
@@ -52,13 +56,13 @@ Pixel-based computer use, arbitrary DOM extraction, generated React, and a remot
 
 ## Interaction contract
 
-Three presentation states share one conversation: full Hub, companion beside the app, and tucked-away launcher. These are layout states, not different agents or permission modes. Desktop default: companion left, existing app navigation and page inside one frame to the right. Narrow layouts use an overlay/full-screen conversation with a clear return-to-page control.
+Three presentation states share one conversation: full Hub, companion beside the app, and tucked-away launcher. These are layout states, not different agents or permission modes. The delivered desktop direction places the application in an inset frame with the companion on the right. Narrow layouts use a focus-managed drawer with a clear return-to-page control.
 
 Opening the companion is intentional; thereafter it follows the learner's navigation. Hiding preserves the thread but initiates no background messages or new context transmission. Returning to Hub expands that thread. Starting a new chat clears prior conversation attachments and selections; the new thread uses the current supported page when the learner sends. Switching user or organization clears surface state and pending effects and restores only an authorized thread in the new scope. Resume after reload rechecks access. Unsupported pages preserve chat and show a compact header status with help text explaining the boundary.
 
-Keep supported page awareness out of the way during ordinary use. When the open page has no context provider, show only **I can't read this page yet** in the companion header with a help icon explaining that Hub can use saved details from supported learner pages, but cannot see unsaved text or the visual screen. Preserve a selected objective when the companion opens and identify the submitted target in the message receipt. Clear page selection on departure; any deliberately attached reference remains labeled separately from the current page. Release one has single-object targeting, not persistent multi-object pinning.
+Keep supported page awareness out of the way during ordinary use. Supported saved-page context is captured automatically on Send. When the open page has no context provider, show only **I can't read this page yet** in the companion header with a help icon explaining that Hub can use saved details from supported learner pages, but cannot see unsaved text or the visual screen. Preserve a selected objective when the companion opens and identify the submitted target in the message receipt. Clear page selection on departure; any deliberately attached reference remains labeled separately from the current page. Release one has single-object targeting, not persistent multi-object pinning.
 
-The first release follows user navigation only. It answers “What is this objective asking me to do?” using the registered selection; it can explain that editing isn't available yet. It must not claim to have changed something. Existing user-clicked resource links remain functional. It makes no unsolicited comments after scrolls, selections or edits.
+The awareness release follows user navigation only. Phase 2 may suggest where to continue, but never changes route until the learner activates a post-response action. It answers “What is this objective asking me to do?” using the registered selection; it can explain that editing isn't available yet. It must not claim to have changed something. Existing user-clicked resource links remain functional. It makes no unsolicited comments after scrolls, selections or edits.
 
 ## Structured awareness contract
 
@@ -67,26 +71,22 @@ Two distinct inputs meet at the server:
 1. **Browser attention hints:** surface type, entity ID, selected object ID, current tab, visible object IDs, filter/sort state, active dialog type, context generation and dirty-field identifiers. These indicate what the learner means, not authoritative facts or permissions.
 2. **Authoritative context:** server reloads the accessible entity through its owning services, applies viewer/field permissions, relevance and limits, and produces a bounded BOT-122 context bundle and source receipt.
 
-Proposed client envelope (design contract, not an existing API):
+Current client envelope (implemented first slice):
 
 ```ts
-type SurfaceHint = {
-  schemaVersion: 1;
-  surface: 'plans-list' | 'plan-detail' | 'hub-resource' | 'unsupported';
-  instanceId: string;
-  generation: number;
-  entityId?: string;
-  selectedObjectId?: string;
-  visibleObjectIds: string[];
-  tab?: string;
-  dirtyFieldIds: string[];
-  sharedDraftText?: { fieldId: string; text: string };
+type HubSurfaceHint = {
+  surface: 'plan' | 'plans' | 'group_plan' | 'unsupported';
+  entity_id?: string;
+  selected_objective_id?: string;
+  visible_ids?: string[];
+  page_path?: string;
+  page_title?: string;
 };
 ```
 
 Register/unregister adapters through the shared provider. Use semantic IDs from existing components, intersection observation for actually displayed rows, and explicit selection/open-panel state. Exclude collapsed, unloaded, occluded and virtualized-offscreen content from the “visible” label. Visibility is approximate semantic attention, not a screenshot claim. Server-enriched offscreen facts may be useful but must be labeled as plan context, not items currently in view. Prefer selected content, then visible summaries, then relevant broader facts. Unresolved “this” prompts clarification.
 
-Capture one immutable context generation on Send. Resolve references and permissions then; do not call the model on every keystroke or scroll. Starting budget proposal: at most 20 visible IDs, one selected object, 4,000 characters of explicitly shared draft text and roughly 2,000 tokens of live-page grounding; measure and tune. Truncation is explicit. The client is never trusted to supply its capabilities, canonical plan JSON, or server source receipts.
+Capture an immutable page/location receipt on Send. Resolve references and permissions then; do not call the model on every keystroke or scroll. The current bound is at most 20 visible IDs and one selected objective. Explicitly sharing unsaved draft text is deferred; when added it remains request-scoped and bounded to 4,000 characters. The client is never trusted to supply its capabilities, canonical plan JSON, server source receipts or navigation routes.
 
 Unsaved text is opt-in per field with **Include my unsaved text**. The ordinary answer uses saved values and mentions unsaved differences when relevant. Shared draft text is labeled user-provided, unverified and request-scoped; it cannot overwrite server facts. This is a new input channel alongside BOT-122's server-owned context, not an exception allowing the client to rewrite derived context.
 
@@ -96,25 +96,33 @@ Page text, resource titles and saved descriptions are untrusted data. They canno
 
 Answers carry a server-generated receipt of sources actually supplied, their freshness and selection status. Recheck access when resolving receipt links. Avoid raw context in operational logs. Do not copy surface context into durable learner memory; context removal prevents future retrieval but cannot make already-written conversation prose unseen. Preserve current conversation deletion controls and document retention behavior.
 
-## Navigation and action architecture
+## Navigation and action architecture (BOT-163)
 
 ```mermaid
 flowchart LR
   UI[Native page and selection] --> H[Surface hints]
   H --> C[Server context assembler and access checks]
-  C --> A[Hub provider and bounded run]
-  A --> P[Typed navigation or draft proposal]
-  P --> V[Validation and current authority]
-  V --> D[Private working copy]
+  C --> A[Hub provider and bounded response]
+  A --> P[Typed capability proposal]
+  P --> M[Persist with assistant message]
+  M --> B[Learner action button]
+  B --> V[Revalidate owner destination and authority]
+  V --> D[Navigation now; private working copy later]
   D --> E[Native plan editor and review]
   E --> U[User applies exact revision]
   U --> T[Atomic domain transaction]
   T --> UI
 ```
 
-Navigation tools resolve allowlisted routes and entity IDs through existing organization-aware routing helpers. Never accept model-authored arbitrary URLs, CSS selectors or JavaScript. Proposed initial effects: open an accessible plan/resource and reveal a registered objective. Require a direct user request or accepted navigation suggestion; guard unsaved editors. Bind effects to initiating user, organization, thread, tab, surface generation and run. Drop late effects after the learner changes page or conversation; acknowledge actual navigation before the agent says it happened. Back/Forward, focus restoration and reduced motion are part of delivery.
+The model does not navigate and does not author URLs. It may emit a bounded `suggest_navigation` proposal after its natural-language answer. The server validates the proposal against a code-owned capability registry, persists the semantic destination with the assistant message, and returns a display-safe action. The learner chooses whether and when to activate it. On activation the server rechecks message ownership, organization membership, enabled product features, entity access and the current route resolver, then returns the organization-aware route. The client navigates only after that successful resolution and keeps the companion mounted.
 
-Before tools, introduce `run_id`, client request idempotency and typed lifecycle events: started, text, proposal-ready, awaiting-review, completed, failed, cancelled. Server persistence owns terminal state; event replay is sequenced/deduplicated. Cancellation stops further effects, never pretends to roll back an already committed transaction. Network abort alone does not guarantee a backend task stopped. Release one may retain request/response generation, but must guard late responses and preserve the submitted draft on failure. Streaming can arrive with the run layer; WebSockets are not a prerequisite.
+Initial semantic destinations cover the main learner value surfaces: Hub, Plans, starting a personal plan, Portfolio, adding a Timeline experience, Badges, Communities, Programs/resources and Account. Entity-specific plan, badge and resource targets are added only when their canonical IDs came from authoritative accessible context; invalid or invented IDs produce no action. The registry is designed to grow into reveal-object, working-copy and confirmed-apply capabilities without exposing arbitrary URLs, CSS selectors or JavaScript.
+
+Platform superadmins already own one provider-independent Hub instruction set. Present that surface as platform guidance: it tunes voice, priorities, when to suggest a next action and which learner outcomes deserve emphasis. Each capability separately owns its schema, description, permission checks and execution rules in application code. Runtime composition supplies both to every provider. Editable guidance cannot alter schemas, grant access, auto-execute an action or weaken the click requirement. Future administration may add capability enablement and per-capability guidance, but Phase 2 does not duplicate prompts per provider or turn safety policy into free-form configuration.
+
+Phase 2 deliberately uses post-response action controls rather than turning every noun in prose into a link. A response may mention several ideas while recommending one useful continuation. Keep the prose readable; render a compact Confluence-like action row after the message, with a verb-first label and enough context to predict the destination. Repeated/resumed conversations show the same persisted proposal. No action is rendered for weak, irrelevant or invalid suggestions, and the assistant must not claim navigation occurred.
+
+Phase 2 may retain the current request/response transport because navigation is inert until a later click. Its persisted proposal envelope must nevertheless carry a stable action ID, capability key, schema version, semantic arguments and creation state so future runs can add `run_id`, idempotency and typed lifecycle events without changing transcript ownership. Streaming and WebSockets are not prerequisites. Consequential later tools still require proposal-ready, awaiting-review, completed, failed and cancelled lifecycle semantics.
 
 ## Co-creation and persistence
 
@@ -136,9 +144,9 @@ Undo within a draft is normal operation history. After apply, offer **Review rev
 
 | Phase | Deliverable and dependencies | Gate before proceeding |
 |---|---|---|
-| 0 — Design and contracts | Owner concept pack; native shell prototype; surface schema; provider integration spike scoped before phase 2 | Approve spatial hierarchy and mobile return behavior; settle awareness disclosure. |
-| 1 — Companion that understands the current page | Shared conversation owner, desktop/mobile shell, plan list/detail + Hub resource adapters, BOT-123/124 grounding, current-source receipt and unsaved-text opt-in | Same thread and composer survive navigation; accurate selected-object answers; unsupported pages honest; no navigation or plan writes. |
-| 2 — Help the learner navigate | Bounded run/events, cancellation/retry, allowlisted navigation/reveal and unsaved-change guard | No late route hijacks; actual target acknowledged; user Back/Forward and Stop work. |
+| 0 — Design and contracts | **Mostly delivered.** D01/M02 direction, native shell, surface schema and awareness disclosure are established through BOT-156. Provider-neutral proposal contract is completed in BOT-163 rather than a separate framework spike. | Owner review of BOT-156/159; retain right-dock/mobile-drawer direction. |
+| 1 — Companion that understands the current page | **First slice In Review (BOT-156/159).** Shared conversation owner, desktop/mobile shell, personal/group-plan adapters, saved-page receipt and location provenance are delivered. BOT-122/123/124 remain the broader live-progress assembler/providers. | Same thread and composer survive navigation; accurate selected-object answers; unsupported pages honest; no plan writes. |
+| 2 — Help the learner navigate (BOT-163) | **Implemented; owner review pending.** Provider-neutral semantic proposals, persisted post-response action controls, server capability registry and click-time route/permission resolution. Platform guidance is editable; capability safety stays code-owned. The optimized app passed normal-login Start a plan, Add to Timeline, rejection, keyboard and mobile-composer browser scenarios. | Owner review plus the first remote mobile WebKit CI result. No automatic or late route hijacks; no model-authored URL; resumed actions remain safe; the companion survives navigation. |
 | 3 — Create a personal plan together (BOT-82) | Native working copy, typed proposals, shared manual edits, revision checks, review/create transaction, recovery/history | Incomplete draft survives reload; edits remain private until Create; repeated apply creates one valid plan; attribution and draft undo work. |
 | 4 — Revise an existing personal plan | Before/after preview, all-writer concurrency, atomic apply and safe reversal | Concurrent manual edits and permission loss never cause silent overwrite; rejected proposals never affect saved plan. |
 | 5 — Extend capabilities deliberately | Accessible badge/resource targets, then separately scoped Notes/portfolio/group/admin support | Each surface/action has its own permission, review, recovery and owner-test contract. No universal “edit app” tool. |
@@ -155,7 +163,7 @@ Each Story must pass its relevant checks before In Review. Implementation tests 
 * Draft/apply: validation, invalid dates, group guard, user edits during generation, second-tab/collaborator change, role revocation, duplicate approval, replay after disconnect, transactional failure midway, safe reversal, expiry/discard. Migration up/down/upgrade-from-current fixtures and existing planning regression tests.
 * UI: 320/390/768/1024/1440/1920 widths, keyboard-only operation, screen reader status and focus, 200% zoom and narrow reflow, software keyboard, independent scrolling, nested dialogs, bottom navigation/player, tenant accents, dark/light and reduced motion. Catalog additions need a native design-system preview. Call ESLint directly: current `npm run lint` masks failures with `|| true`.
 
-Relevant existing suites: `apps/api/src/tests/test_hub_advisor.py`, `test_hub_conversations.py`, `test_hub_memory.py`, `test_planning.py`; `apps/web/services/hub/__tests__/interaction.test.ts`; web `test:routing`, TypeScript and production build. Add browser coverage for cross-page state, which unit tests cannot establish.
+Relevant suites: `apps/api/src/tests/test_hub_advisor.py`, `test_hub_actions.py`, `test_hub_conversations.py`, `test_hub_memory.py`, `test_planning.py`; `apps/web/services/hub/__tests__/interaction.test.ts`; web `test:routing`, TypeScript and production build. `apps/web/tests/ui` now covers normal-login cross-page actions, native destination editors, denied resolution and mobile composer usability. See [BOT-163 browser verification](BOT-163-browser-verification.md).
 
 Instrument bounded context size, source rejection reason, stale-context drops, time to answer, provider failures, run cancellation, proposal acceptance/rejection, conflict rate and duplicate-commit prevention. Exclude raw plan text from ordinary analytics. Performance budgets are provisional until measured: no model calls from passive navigation and a responsive shell independent of advisor availability.
 
@@ -165,6 +173,6 @@ Roll out behind separate shell, awareness, navigation and plan-proposal flags; s
 
 Confirmed: learner-first, structured awareness, Base44-like outer companion, awareness before navigation/editing.
 
-Proposed defaults to review through concepts: right dock; phone full-screen expansion from a compact launcher; current supported page included automatically when the learner sends; unsaved text shared explicitly; private recoverable drafts; batch review before saved-plan mutation. No decision here enables unattended writes.
+Current direction: right dock; phone drawer expansion from a compact launcher; current supported saved page included automatically when the learner sends; learner-clicked post-response navigation suggestions; private recoverable drafts; batch review before saved-plan mutation. Unsaved text is not currently shared. No decision here enables unattended writes.
 
 Before drafting ships, settle draft retention/deletion, whether to retain the current mandatory completion date at final creation (recommended), and precise policy for cross-organization plan context. Before phase 5, choose the next actual user outcome; Notes, portfolio publishing and group administration are separate expansions rather than promises hidden inside BOT-82.

@@ -97,6 +97,11 @@ def test_advice_uses_authoritative_history_and_revalidates_resources(monkeypatch
             learner_resource_uuids=[], context_resource_uuids=["resource_prior", "resource_visible"],
             suggested_resource_uuids=["resource_visible", "resource_revoked"],
             model="test", input_tokens=3, output_tokens=2,
+            suggested_actions=[{
+                "action_id": "hub_action_plan", "schema_version": 1,
+                "capability": "navigate", "destination": "create_plan",
+                "label": "Start a plan", "state": "proposed",
+            }],
         )
         history = hub_conversations.advisor_history(
             db, first["conversation_uuid"], 7, 11, "What next?"
@@ -113,6 +118,7 @@ def test_advice_uses_authoritative_history_and_revalidates_resources(monkeypatch
         ]
         assert [item["resource_uuid"] for item in detail["context_resources"]] == ["resource_prior", "resource_visible"]
         assert "resource_revoked" not in str(detail)
+        assert detail["messages"][1]["suggested_actions"][0]["destination"] == "create_plan"
 
 
 def test_state_rename_delete_and_owner_boundary(monkeypatch):

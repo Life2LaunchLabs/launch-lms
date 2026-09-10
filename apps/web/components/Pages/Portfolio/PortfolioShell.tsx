@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { FormEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { ArrowLeft, ArrowRight, Award, BookOpen, Briefcase, Camera, Check, ChevronDown, Circle, Eye, EyeOff, FileText, FolderOpen, Globe, Globe2, GraduationCap, Grid3X3, GripVertical, Instagram, Linkedin, MailWarning, MapPin, Minus, Pencil, Plus, Printer, Sparkles, Star, Trash2, UserPlus, Users, WandSparkles, Youtube, X, Zap } from 'lucide-react'
@@ -44,6 +44,7 @@ function tabs(orgslug: string, username: string | undefined, owner: boolean, she
 }
 
 export function PortfolioShell({ initialShell, orgslug, username, owner = false, active = 'overview', preview = false }: { initialShell: Shell; orgslug: string; username?: string; owner?: boolean; active?: PortfolioView; preview?: boolean }) {
+  const pathname = usePathname()
   const searchParams = useSearchParams()
   const reduceMotion = useReducedMotion()
   const session = useLHSession() as any
@@ -81,11 +82,14 @@ export function PortfolioShell({ initialShell, orgslug, username, owner = false,
     if (owner && createType) {
       setExperienceType(createType)
       setExperienceEditorOpen(true)
+      const next = new URLSearchParams(searchParams.toString())
+      next.delete('experience')
+      window.history.replaceState({}, '', `${pathname}${next.size ? `?${next.toString()}` : ''}`)
     }
     if (owner && searchParams.get('newProject') === '1') setProjectEditorOpen(true)
     if (owner && searchParams.get('editExperience')) setExperienceEditorOpen(true)
     if (owner && searchParams.get('editProject')) setProjectEditorOpen(true)
-  }, [owner, searchParams])
+  }, [owner, pathname, searchParams])
 
   async function experienceSaved() {
     if (!token) return

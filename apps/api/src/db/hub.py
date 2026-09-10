@@ -66,6 +66,7 @@ class HubConversationMessage(SQLModel, table=True):
     kind: str = Field(default="chat", sa_column=Column(String(16), nullable=False))
     content: str = Field(sa_column=Column(Text, nullable=False))
     page_context: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
+    suggested_actions: list | None = Field(default=None, sa_column=Column(JSON, nullable=True))
     model: str | None = None
     input_tokens: int | None = None
     output_tokens: int | None = None

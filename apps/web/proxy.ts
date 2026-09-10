@@ -172,7 +172,7 @@ function applyDecision(response: NextResponse, decision: RoutingDecision) {
 
 export const config = {
   matcher: [
-    '/((?!api|content|_next|fonts|umami|examples|embed|monitoring|[\\w-]+\\.\\w+).*)',
+    '/((?!api|auth|orgs|content|_next|fonts|umami|examples|embed|monitoring|[\\w-]+\\.\\w+).*)',
     '/sitemap.xml',
     '/robots.txt',
     '/payments/stripe/connect/oauth',

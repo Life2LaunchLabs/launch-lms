@@ -1,7 +1,8 @@
 'use client'
 
 import { FormEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { Plus, Send } from 'lucide-react'
+import { ArrowRight, Loader2, Plus, Send } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useHubWorkspace } from '@components/Contexts/HubWorkspaceContext'
@@ -19,13 +20,16 @@ import {
   HubMemory,
   HubAdvisorResource,
   HubConversationSummary,
+  HubSuggestedAction,
   listHubConversations,
   recordHubSearch,
   renameHubConversation,
+  resolveHubSuggestedAction,
   saveHubConversationState,
   updateHubMemorySettings,
 } from '@services/hub/advisor'
 import { getResource, Resource } from '@services/resources/resources'
+import { getUriWithOrg } from '@services/config/config'
 import HubQuickSearch from './HubQuickSearch'
 import HubHeader from './HubHeader'
 import HubHomeRecents from './HubHomeRecents'
@@ -64,6 +68,7 @@ type HubConversationMessage = HubAdvisorMessage & {
   searchQuery?: string
   createdAt?: string
   memories?: HubMemory[]
+  suggestedActions?: HubSuggestedAction[]
 }
 
 const COMPOSER_LINE_HEIGHT = 24
@@ -97,6 +102,30 @@ function AssistantResponse({ content }: { content: string }) {
   )
 }
 
+// eslint-disable-next-line no-unused-vars
+function HubSuggestedActions({ actions, onActivate }: { actions: HubSuggestedAction[]; onActivate: (action: HubSuggestedAction) => Promise<void> }) {
+  const [busy, setBusy] = useState<string | null>(null)
+  if (!actions.length) return null
+  return <div className="flex flex-wrap gap-2 pt-1" role="group" aria-label="Suggested next actions" data-testid="hub-suggested-actions">
+    {actions.map((action) => <Button
+      key={action.action_id}
+      type="button"
+      variant="outline"
+      size="sm"
+      className="h-8 rounded-lg bg-background px-3 text-xs font-semibold shadow-xs"
+      disabled={busy !== null}
+      onClick={async () => {
+        setBusy(action.action_id)
+        try { await onActivate(action) } finally { setBusy(null) }
+      }}
+    >
+      {busy === action.action_id ? <Loader2 size={13} className="animate-spin" /> : null}
+      {action.label}
+      {busy !== action.action_id ? <ArrowRight size={13} aria-hidden="true" /> : null}
+    </Button>)}
+  </div>
+}
+
 function asAdvisorResource(resource: Resource): HubAdvisorResource {
   return {
     resource_uuid: resource.resource_uuid,
@@ -114,6 +143,7 @@ function asAdvisorResource(resource: Resource): HubAdvisorResource {
 }
 
 export default function HubExperience({ orgslug, filters, companion = false, visible = true, onCompanionCollapse, onCompanionExpand }: { orgslug: string; filters: HubFilters; companion?: boolean; visible?: boolean; onCompanionCollapse?: () => void; onCompanionExpand?: () => void }) {
+  const router = useRouter()
   const workspace = useHubWorkspace()
   const pageTitle = usePageTitle()
   const alive = useRef(true)
@@ -226,6 +256,7 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
         createdAt: message.created_at,
         memories: message.memories,
         page_context: message.page_context,
+        suggestedActions: message.suggested_actions,
       }))
       setMessages(restoredMessages)
       setConversationUuid(conversation.conversation_uuid)
@@ -543,7 +574,7 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
       const nextMessages: HubConversationMessage[] = [
         ...previousMessages,
         { id: response.user_message_uuid, role: 'user', content, resources: submittedResources, resourceLabel: submittedResources.length ? 'You added' : undefined, createdAt: response.user_message_created_at, memories: response.memory_changes, page_context: response.page_context },
-        { id: response.assistant_message_uuid, role: 'assistant', content: response.answer, resources: transcriptResources, resourceLabel: transcriptResources.length ? 'Suggested' : undefined, createdAt: response.assistant_message_created_at, memories: response.memories_used, page_context: response.page_context },
+        { id: response.assistant_message_uuid, role: 'assistant', content: response.answer, resources: transcriptResources, resourceLabel: transcriptResources.length ? 'Suggested' : undefined, createdAt: response.assistant_message_created_at, memories: response.memories_used, page_context: response.page_context, suggestedActions: response.suggested_actions },
       ]
       setMessages(nextMessages)
       setContextResources((current) => addHubContextResources(current, response.resources))
@@ -560,6 +591,18 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
       setError(requestError?.message || 'The advisor is temporarily unavailable. Your message has been restored.')
     } finally {
       setSending(false)
+    }
+  }
+
+  const activateSuggestedAction = async (messageId: string, action: HubSuggestedAction) => {
+    if (!accessToken || !org?.id || !conversationUuid) return
+    setError('')
+    try {
+      const resolved = await resolveHubSuggestedAction(org.id, conversationUuid, messageId, action.action_id, accessToken)
+      workspace?.open()
+      router.push(getUriWithOrg(orgslug, resolved.route))
+    } catch (actionError: any) {
+      setError(actionError?.message || 'That suggested destination is no longer available.')
     }
   }
 
@@ -687,6 +730,7 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
                   ) : (
                     <>
                       <AssistantResponse content={message.content} />
+                      <HubSuggestedActions actions={message.suggestedActions || []} onActivate={(action) => activateSuggestedAction(message.id, action)} />
                       {accessToken && org?.id && <HubMessageMicroBar role="assistant" content={message.content} createdAt={message.createdAt} memories={message.memories} pageContext={message.page_context} orgId={org.id} accessToken={accessToken} />}
                       {message.resources && message.resources.length > 0 && (
                         <div ref={(node) => { if (node) resourceOriginRefs.current.set(message.id, node); else resourceOriginRefs.current.delete(message.id) }} tabIndex={-1} className="rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
@@ -722,7 +766,7 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
         </div>
       </div>
 
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[var(--z-sticky-header)]">
+      <div className="pointer-events-none absolute inset-x-0 bottom-20 z-[var(--z-sticky-header)] lg:bottom-0">
         <div aria-hidden="true" className="hub-composer-backdrop absolute bottom-0 left-0 right-2 -top-10" />
         <div className="pointer-events-auto relative mx-auto w-full max-w-[50rem] px-4 pb-4 sm:px-5 sm:pb-6">
         {memoryNoticeVisible && (

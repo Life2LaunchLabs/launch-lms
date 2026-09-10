@@ -46,6 +46,7 @@ from src.services.hub_memory import (
 )
 
 from src.services.hub_context import HubSurfaceHint, page_context
+from src.services.hub_actions import build_navigation_actions, resolve_navigation_action
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -91,6 +92,12 @@ class HubAdvisorResponse(BaseModel):
     assistant_message_created_at: datetime
     memories_used: list[dict] = Field(default_factory=list)
     memory_changes: list[dict] = Field(default_factory=list)
+    suggested_actions: list[dict] = Field(default_factory=list)
+
+
+class HubNavigationActionResolve(BaseModel):
+    conversation_uuid: str
+    message_uuid: str
 
 
 class HubConversationSummary(BaseModel):
@@ -331,6 +338,7 @@ async def create_hub_advice(
     except AdvisorUnavailable as error:
         raise HTTPException(status_code=503, detail=str(error)) from None
     accessible = {str(item.get("resource_uuid")) for item in accessible_resources}
+    suggested_actions = build_navigation_actions(result.action_destinations, db_session, org_id)
     persisted = record_advice(
         db_session, org_id=org_id, user_id=current_user.id,
         conversation_uuid=body.conversation_uuid, user_content=user_content,
@@ -340,6 +348,7 @@ async def create_hub_advice(
         suggested_resource_uuids=[item["resource_uuid"] for item in grounding_resources],
         model=result.model, input_tokens=result.input_tokens, output_tokens=result.output_tokens,
         page_receipt=context["receipt"],
+        suggested_actions=suggested_actions,
     )
     record_used_memories(
         db_session, persisted["assistant_message_uuid"], used_memories,
@@ -378,4 +387,23 @@ async def create_hub_advice(
         assistant_message_created_at=persisted["assistant_message_created_at"],
         memories_used=used_memories,
         memory_changes=memory_changes,
+        suggested_actions=suggested_actions,
+    )
+
+
+@router.post("/actions/{action_id}/resolve")
+def resolve_hub_navigation_action(
+    action_id: str,
+    org_id: int,
+    body: HubNavigationActionResolve,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return resolve_navigation_action(
+        db_session,
+        org_id=org_id,
+        user_id=current_user.id,
+        conversation_uuid=body.conversation_uuid,
+        message_uuid=body.message_uuid,
+        action_id=action_id,
     )

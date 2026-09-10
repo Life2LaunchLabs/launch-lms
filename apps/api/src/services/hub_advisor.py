@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import re
 from dataclasses import dataclass
 from typing import Literal, Protocol
@@ -90,6 +91,7 @@ class AdvisorResult:
     model: str
     input_tokens: int = 0
     output_tokens: int = 0
+    action_destinations: tuple[str, ...] = ()
 
 
 def _grounding_terms(value: str) -> set[str]:
@@ -220,6 +222,41 @@ class AdvisorProvider(Protocol):
     async def respond(self, messages: list[AdvisorMessage], safety_identifier: str) -> AdvisorResult: ...
 
 
+class DeterministicUiTestProvider:
+    """Local browser-fixture provider; it is never enabled in a production configuration."""
+
+    def __init__(self, memory: bool = False):
+        self.memory = memory
+
+    async def respond(self, messages: list[AdvisorMessage], safety_identifier: str) -> AdvisorResult:
+        if self.memory:
+            return AdvisorResult(text='{"candidates": []}', model="ui-test-memory")
+        prompt = messages[-1].content.casefold()
+        if "create a plan" in prompt or "start a plan" in prompt:
+            return AdvisorResult(
+                text="A plan can turn that direction into goals and next steps. You can start one and keep shaping it as you learn.",
+                model="ui-test-advisor", action_destinations=("create_plan",),
+            )
+        if "timeline" in prompt or "portfolio" in prompt:
+            return AdvisorResult(
+                text="That sounds worth preserving in your story. You can add it to your portfolio timeline when you are ready.",
+                model="ui-test-advisor", action_destinations=("add_timeline",),
+            )
+        return AdvisorResult(
+            text="A plan can turn that direction into goals and next steps. You can start one and keep shaping it as you learn.",
+            model="ui-test-advisor", action_destinations=("create_plan",),
+        )
+
+
+def _ui_test_provider(memory: bool = False) -> AdvisorProvider | None:
+    if os.getenv("LAUNCHLMS_UI_TEST_FIXTURES", "false").lower() != "true":
+        return None
+    from config.config import get_launchlms_config
+    if not get_launchlms_config().general_config.development_mode:
+        raise AdvisorUnavailable("UI test fixtures require development mode.")
+    return DeterministicUiTestProvider(memory=memory)
+
+
 class OpenAIResponsesProvider:
     def __init__(
         self,
@@ -228,24 +265,28 @@ class OpenAIResponsesProvider:
         client: httpx.AsyncClient | None = None,
         instructions: str = DEFAULT_HUB_ADVISOR_INSTRUCTIONS,
         advanced: dict | None = None,
+        allow_actions: bool = True,
     ):
         if not api_key.strip():
             raise AdvisorUnavailable("Hub Ask is not configured yet.")
         self.api_key = api_key.strip()
         self.model = model.strip() or DEFAULT_MODEL
-        self.instructions = instructions.strip()
+        from src.services.hub_actions import CAPABILITY_POLICY_INSTRUCTIONS
+        self.instructions = f"{instructions.strip()}\n\n{CAPABILITY_POLICY_INSTRUCTIONS}" if allow_actions else instructions.strip()
         self.advanced = advanced or {}
+        self.allow_actions = allow_actions
         self.client = client
 
     async def respond(self, messages: list[AdvisorMessage], safety_identifier: str) -> AdvisorResult:
+        from src.services.hub_actions import navigation_tool
         payload = {
             "model": self.model,
             "instructions": self.instructions,
             "input": [{"role": item.role, "content": item.content} for item in messages],
             "max_output_tokens": int(self.advanced.get("max_output_tokens", MAX_OUTPUT_TOKENS)),
             "store": False,
-            "tools": [],
-            "tool_choice": "none",
+            "tools": [navigation_tool("openai")] if self.allow_actions else [],
+            "tool_choice": "auto" if self.allow_actions else "none",
             "safety_identifier": safety_identifier,
         }
         if self.advanced.get("reasoning_effort") not in (None, "default"):
@@ -304,6 +345,17 @@ class OpenAIResponsesProvider:
             for content in output.get("content", [])
             if content.get("type") == "output_text" and content.get("text", "").strip()
         ).strip()
+        action_destinations = []
+        if self.allow_actions:
+            for output in data.get("output", []):
+                if output.get("type") != "function_call" or output.get("name") != "suggest_navigation":
+                    continue
+                try:
+                    arguments = json.loads(output.get("arguments") or "{}")
+                except (TypeError, ValueError):
+                    continue
+                if isinstance(arguments.get("destination"), str):
+                    action_destinations.append(arguments["destination"])
         if not text:
             raise AdvisorUnavailable("The advisor did not return a response. Please try again.")
         usage = data.get("usage") or {}
@@ -312,6 +364,7 @@ class OpenAIResponsesProvider:
             model=str(data.get("model") or self.model),
             input_tokens=int(usage.get("input_tokens") or 0),
             output_tokens=int(usage.get("output_tokens") or 0),
+            action_destinations=tuple(action_destinations),
         )
 
 
@@ -323,16 +376,20 @@ class AnthropicMessagesProvider:
         client: httpx.AsyncClient | None = None,
         instructions: str = DEFAULT_HUB_ADVISOR_INSTRUCTIONS,
         advanced: dict | None = None,
+        allow_actions: bool = True,
     ):
         if not api_key.strip():
             raise AdvisorUnavailable("Hub Ask is not configured yet.")
         self.api_key = api_key.strip()
         self.model = model.strip()
-        self.instructions = instructions.strip()
+        from src.services.hub_actions import CAPABILITY_POLICY_INSTRUCTIONS
+        self.instructions = f"{instructions.strip()}\n\n{CAPABILITY_POLICY_INSTRUCTIONS}" if allow_actions else instructions.strip()
         self.advanced = advanced or {}
+        self.allow_actions = allow_actions
         self.client = client
 
     async def respond(self, messages: list[AdvisorMessage], safety_identifier: str) -> AdvisorResult:
+        from src.services.hub_actions import navigation_tool
         payload: dict = {
             "model": self.model,
             "system": self.instructions,
@@ -340,6 +397,9 @@ class AnthropicMessagesProvider:
             "max_tokens": int(self.advanced.get("max_output_tokens", MAX_OUTPUT_TOKENS)),
             "metadata": {"user_id": safety_identifier},
         }
+        if self.allow_actions:
+            payload["tools"] = [navigation_tool("anthropic")]
+            payload["tool_choice"] = {"type": "auto"}
         if self.advanced.get("thinking_effort") not in (None, "default"):
             payload["thinking"] = {"type": "adaptive"}
             payload["output_config"] = {"effort": self.advanced["thinking_effort"]}
@@ -391,6 +451,13 @@ class AnthropicMessagesProvider:
             for item in data.get("content", [])
             if item.get("type") == "text" and item.get("text", "").strip()
         ).strip()
+        action_destinations = [
+            item.get("input", {}).get("destination")
+            for item in data.get("content", [])
+            if item.get("type") == "tool_use"
+            and item.get("name") == "suggest_navigation"
+            and isinstance(item.get("input", {}).get("destination"), str)
+        ] if self.allow_actions else []
         if not text:
             raise AdvisorUnavailable("The advisor did not return a response. Please try again.")
         usage = data.get("usage") or {}
@@ -399,10 +466,14 @@ class AnthropicMessagesProvider:
             model=str(data.get("model") or self.model),
             input_tokens=int(usage.get("input_tokens") or 0),
             output_tokens=int(usage.get("output_tokens") or 0),
+            action_destinations=tuple(action_destinations),
         )
 
 
 def configured_advisor_provider(db_session: Session) -> AdvisorProvider:
+    fixture = _ui_test_provider()
+    if fixture:
+        return fixture
     try:
         provider, api_key, model, instructions, advanced = get_enabled_hub_advisor_credentials(db_session)
     except RuntimeError as error:
@@ -413,6 +484,9 @@ def configured_advisor_provider(db_session: Session) -> AdvisorProvider:
 
 
 def configured_memory_provider(db_session: Session) -> AdvisorProvider:
+    fixture = _ui_test_provider(memory=True)
+    if fixture:
+        return fixture
     try:
         provider, api_key, model, _instructions, advanced = get_enabled_hub_advisor_credentials(db_session)
     except RuntimeError as error:
@@ -420,10 +494,10 @@ def configured_memory_provider(db_session: Session) -> AdvisorProvider:
     memory_advanced = {**advanced, "max_output_tokens": 500}
     if provider == "anthropic":
         return AnthropicMessagesProvider(
-            api_key, model, instructions=MEMORY_EXTRACTOR_INSTRUCTIONS, advanced=memory_advanced,
+            api_key, model, instructions=MEMORY_EXTRACTOR_INSTRUCTIONS, advanced=memory_advanced, allow_actions=False,
         )
     return OpenAIResponsesProvider(
-        api_key, model, instructions=MEMORY_EXTRACTOR_INSTRUCTIONS, advanced=memory_advanced,
+        api_key, model, instructions=MEMORY_EXTRACTOR_INSTRUCTIONS, advanced=memory_advanced, allow_actions=False,
     )
 
 
@@ -530,6 +604,12 @@ async def ask_hub_advisor(
     if page_context is not None:
         from src.services.hub_context import ground_page_context
         provider_messages = ground_page_context(provider_messages, page_context)
+    from src.services.hub_actions import navigation_capability_context
+    capability_context = navigation_capability_context(db_session, org_id)
+    provider_messages = [
+        *provider_messages[:-1],
+        AdvisorMessage(role="user", content=provider_messages[-1].content + capability_context),
+    ]
     result = await (provider or configured_advisor_provider(db_session)).respond(provider_messages, safety_identifier)
     logger.info(
         "hub_advisor_usage org_id=%s user_id=%s model=%s input_tokens=%s output_tokens=%s",

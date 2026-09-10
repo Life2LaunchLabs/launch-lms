@@ -87,6 +87,13 @@ export default function PlansWorkspace({ orgslug, initialPlanSlug, initialGroupA
   const [selectedObjectiveUuid, setSelectedObjectiveUuid] = React.useState('')
   const [mounted, setMounted] = React.useState(false)
   React.useEffect(() => setMounted(true), [])
+  React.useEffect(() => {
+    if (searchParams.get('hub_action') !== 'create-plan') return
+    setCreateOpen(true)
+    const next = new URLSearchParams(searchParams.toString())
+    next.delete('hub_action')
+    window.history.replaceState({}, '', `${pathname}${next.size ? `?${next.toString()}` : ''}`)
+  }, [pathname, searchParams])
   const { data: plans = EMPTY_PLANS, isLoading } = useSWR<PlanTarget[]>(token ? plansKey(lifecycle) : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: true })
   const { getPlanColor, setPlanColor } = usePlanColors(plans, session?.data?.user?.id)
   const selectedSummary = plans.find((plan) => plan.slug === selectedSlug)

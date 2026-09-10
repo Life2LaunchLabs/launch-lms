@@ -39,6 +39,16 @@ export type HubAdvisorMessage = {
   content: string
   page_context?: HubPageReceipt | null
   resources?: HubAdvisorResource[]
+  suggested_actions?: HubSuggestedAction[]
+}
+
+export type HubSuggestedAction = {
+  action_id: string
+  schema_version: 1
+  capability: 'navigate'
+  destination: string
+  label: string
+  state: 'proposed'
 }
 
 export type HubMemory = {
@@ -109,6 +119,7 @@ export async function askHubAdvisor(
   resources: HubAdvisorResource[]
   memories_used: HubMemory[]
   memory_changes: HubMemory[]
+  suggested_actions: HubSuggestedAction[]
 } & ConversationWriteResult> {
   const response = await fetch(
     `${getAPIUrl()}hub/advisor?org_id=${encodeURIComponent(orgId)}`,
@@ -126,6 +137,21 @@ export async function askHubAdvisor(
     )
   )
   return errorHandling(response)
+}
+
+export function resolveHubSuggestedAction(
+  orgId: number,
+  conversationUuid: string,
+  messageUuid: string,
+  actionId: string,
+  accessToken: string,
+) {
+  return hubRequest<{ action_id: string; route: string; label: string }>(
+    `actions/${encodeURIComponent(actionId)}/resolve?org_id=${encodeURIComponent(orgId)}`,
+    'POST',
+    accessToken,
+    { conversation_uuid: conversationUuid, message_uuid: messageUuid },
+  )
 }
 
 export function getHubMemory(orgId: number, accessToken: string) {

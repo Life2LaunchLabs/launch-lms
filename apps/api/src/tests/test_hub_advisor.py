@@ -13,6 +13,7 @@ from src.db.hub import (
 from src.db.resources import ResourceAccessModeEnum, ResourceTypeEnum
 from src.db.users import PublicUser, User
 from src.services import hub_advisor
+from src.services import hub_actions
 from src.services import hub_configuration
 from src.services.hub_advisor import (
     AdvisorMessage,
@@ -20,6 +21,7 @@ from src.services.hub_advisor import (
     AdvisorProviderLimited,
     AdvisorUnavailable,
     AnthropicMessagesProvider,
+    DeterministicUiTestProvider,
     OpenAIResponsesProvider,
     ask_hub_advisor,
     advisor_resources_for_request,
@@ -32,6 +34,18 @@ from src.services.hub_advisor import (
 
 def message(role: str, content: str) -> AdvisorMessage:
     return AdvisorMessage(role=role, content=content)  # type: ignore[arg-type]
+
+
+@pytest.mark.asyncio
+async def test_ui_fixture_provider_returns_semantic_actions_without_external_calls():
+    provider = DeterministicUiTestProvider()
+    plan = await provider.respond([message("user", "I want to make a plan")], "safe")
+    timeline = await provider.respond([message("user", "Add this to my portfolio timeline")], "safe")
+    memory = await DeterministicUiTestProvider(memory=True).respond([message("user", "anything")], "safe")
+
+    assert plan.action_destinations == ("create_plan",)
+    assert timeline.action_destinations == ("add_timeline",)
+    assert json.loads(memory.text) == {"candidates": []}
 
 
 def test_conversation_must_be_bounded_alternating_and_end_with_user():
@@ -144,7 +158,7 @@ def test_selected_resource_context_is_ordered_deduplicated_and_permission_revali
 
 
 @pytest.mark.asyncio
-async def test_openai_provider_is_stateless_tool_free_and_parses_usage():
+async def test_openai_provider_is_stateless_and_exposes_learner_controlled_navigation():
     captured = {}
 
     async def handler(request: httpx.Request):
@@ -162,11 +176,31 @@ async def test_openai_provider_is_stateless_tool_free_and_parses_usage():
 
     assert result == AdvisorResult("Try one small step.", "gpt-test", 12, 8)
     assert captured["store"] is False
-    assert captured["tools"] == []
-    assert captured["tool_choice"] == "none"
+    assert captured["tools"][0]["name"] == "suggest_navigation"
+    assert captured["tool_choice"] == "auto"
     assert captured["max_output_tokens"] == hub_advisor.MAX_OUTPUT_TOKENS
     assert "previous_response_id" not in captured
     assert "conversation" not in captured
+
+
+@pytest.mark.asyncio
+async def test_openai_provider_parses_navigation_proposal_separately_from_answer():
+    async def handler(_request: httpx.Request):
+        return httpx.Response(200, json={
+            "model": "gpt-test",
+            "output": [
+                {"type": "message", "content": [{"type": "output_text", "text": "A plan can make the next steps concrete."}]},
+                {"type": "function_call", "name": "suggest_navigation", "arguments": json.dumps({"destination": "create_plan"})},
+            ],
+        })
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        result = await OpenAIResponsesProvider("test-key", "gpt-test", client).respond(
+            [message("user", "I want to create a plan")], "safe-user"
+        )
+
+    assert result.text == "A plan can make the next steps concrete."
+    assert result.action_destinations == ("create_plan",)
 
 
 @pytest.mark.asyncio
@@ -244,6 +278,28 @@ async def test_anthropic_provider_is_stateless_and_applies_thinking_settings():
     assert captured["max_tokens"] == 900
     assert captured["thinking"] == {"type": "adaptive"}
     assert captured["output_config"] == {"effort": "low"}
+    assert captured["tools"][0]["name"] == "suggest_navigation"
+    assert captured["tool_choice"] == {"type": "auto"}
+
+
+@pytest.mark.asyncio
+async def test_anthropic_provider_parses_the_same_navigation_proposal_contract():
+    async def handler(_request: httpx.Request):
+        return httpx.Response(200, json={
+            "model": "claude-test",
+            "content": [
+                {"type": "text", "text": "That experience could strengthen your story."},
+                {"type": "tool_use", "name": "suggest_navigation", "input": {"destination": "add_timeline"}},
+            ],
+        })
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        result = await AnthropicMessagesProvider("test-key", "claude-test", client).respond(
+            [message("user", "I learned a lot in my last job")], "safe-user"
+        )
+
+    assert result.text == "That experience could strengthen your story."
+    assert result.action_destinations == ("add_timeline",)
 
 
 def _admin() -> PublicUser:
@@ -395,7 +451,8 @@ async def test_model_catalog_uses_curated_choices_without_a_provider_key():
 
 class FakeProvider:
     async def respond(self, messages, safety_identifier):
-        assert messages[-1].content == "Help"
+        assert messages[-1].content.startswith("Help\n\n<launch_lms_capabilities>")
+        assert "create_plan" in messages[-1].content
         assert len(safety_identifier) == 64
         return AdvisorResult("Start here", "fake", 5, 3)
 
@@ -434,6 +491,7 @@ async def test_advisor_requires_membership_and_applies_user_rate_limit(monkeypat
     membership = []
     monkeypatch.setattr(hub_advisor, "require_org_membership", lambda user_id, org_id, _db: membership.append((user_id, org_id)))
     monkeypatch.setattr(hub_advisor, "check_rate_limit", lambda *args: (True, 1, 60))
+    monkeypatch.setattr(hub_actions, "_org_config", lambda *_args: {})
     request = Request({"type": "http", "headers": [], "client": ("127.0.0.1", 1234)})
 
     result = await ask_hub_advisor(request, 7, 11, [message("user", "Help")], object(), FakeProvider())  # type: ignore[arg-type]

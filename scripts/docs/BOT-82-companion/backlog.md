@@ -1,6 +1,6 @@
 # Proposed delivery backlog
 
-Planning-only draft, 9 September 2026. No new Jira keys are assigned here. BOT-82 remains Idea with its original wording and existing Notes comment preserved. The owner requested a full plan, not implementation. Use the local Jira workflow to formalize approved slices; do not mark this feature In Review merely because this document is complete.
+Living delivery backlog, updated 10 September 2026. BOT-156 and BOT-159 are In Review; BOT-163 Phase 2 is implemented and locally browser-verified, with owner review and the first remote WebKit CI result pending. BOT-82 remains the later confirmed plan-creation capability. Use Jira as the delivery record and this file as the cross-phase map.
 
 Proposed epic: **Co-create in the learner workspace with the Hub companion**. Related initiative: BOT-64. Move BOT-82 under it only when adopting this proposed hierarchy. The current helper supports Story creation, not epic creation/reparenting; use a supported Jira administration path at that future boundary rather than inventing helper flags.
 
@@ -32,23 +32,23 @@ Priority: High. Links: changes `PATHWAYS-G006-A001`, related `PATHWAYS-G001-A002
 
 Deliverable Subtasks: native Plans/resource surface adapters; server attention resolution and bounded source receipt; context disclosure and selection controls.
 
-## C3 — Let Hub open and reveal requested learner content
+## BOT-163 — Let Hub suggest learner-controlled navigation across Launch LMS
 
-Priority: Medium. Links: changes `PATHWAYS-G006-A001`, related `PATHWAYS-G001-A002`. Depends on C2 and provider/run spike.
+Priority: High. Links: changes `PATHWAYS-G006-A001`, adds `PATHWAYS-G006-A004`. Builds on BOT-156/159.
 
-**Outcome** — On request, the companion takes the learner to an accessible plan/resource and points to the intended objective.
+**Outcome** — Hub recognizes when advice should continue elsewhere in Launch LMS and offers a clear post-response action; the learner decides whether and when to navigate.
 
-**Context** — Read-only context is proven; navigation now needs typed effects and stale-run protection.
+**Context** — Read-only context is proven. BOT-163's original clickable badge/plan references are the first presentation of a broader co-creation capability foundation.
 
-**Build notes** — Allowlisted entity routes, request-bound effects, actual execution acknowledgments, cancellation/idempotency and unsaved-editor guard. No arbitrary URL/code execution.
+**Build notes** — Provider-neutral semantic proposals persisted with assistant messages; code-owned capability registry; click-time ownership, feature, permission and route resolution. Render compact action controls after prose rather than model-authored inline links. Platform instructions tune suggestion priorities across providers while schemas and safety remain application-owned. No automatic navigation or arbitrary URL/code execution.
 
-**Owner test scenarios** — Ask to open a plan and reveal an objective; try Back, Stop, another page before response, unavailable targets and an unsaved editor. Confirm no late jump and no lost edits.
+**Owner test scenarios** — Ask how to create a plan, add experience to the portfolio Timeline, work on badges and reach other enabled learner surfaces. Confirm a useful action appears after advice, only a click navigates, the same conversation remains mounted, resumed actions are revalidated, and unavailable/disabled destinations fail safely.
 
-Deliverable Subtasks: provider-neutral bounded run/event lifecycle; safe navigation and reveal handlers with native target treatment.
+Deliverable Subtasks: provider-neutral capability catalog and proposal contract; persisted and revalidated navigation resolution; accessible post-response actions; Superadmin platform-guidance contract.
 
 ## BOT-82 — Co-create and confirm an independent personal plan
 
-Priority recommendation: High once C1/C2 are reviewed. Links: retain adds `PATHWAYS-G006-A004`; changes `PATHWAYS-G001-A003`. Depends on C3 and approved draft/review concepts.
+Priority recommendation: High once BOT-156/159 and BOT-163 are reviewed. Links: retain adds `PATHWAYS-G006-A004`; changes `PATHWAYS-G001-A003`. Depends on BOT-163 and approved draft/review concepts.
 
 **Outcome** — A learner and Hub build an independent personal plan in the native Plans workspace, then the learner creates it explicitly.
 

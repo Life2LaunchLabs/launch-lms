@@ -1,0 +1,54 @@
+from fastapi import HTTPException
+import pytest
+from sqlmodel import Session, SQLModel, create_engine
+
+from src.db.hub import HubConversation, HubConversationMessage
+from src.services import hub_actions
+
+
+def _session(monkeypatch):
+    monkeypatch.setattr(hub_actions, "require_org_membership", lambda *_args: None)
+    monkeypatch.setattr(hub_actions, "_org_config", lambda *_args: {})
+    engine = create_engine("sqlite:///:memory:")
+    SQLModel.metadata.create_all(engine, tables=[HubConversation.__table__, HubConversationMessage.__table__])
+    return Session(engine)
+
+
+def test_actions_are_code_labeled_bounded_and_unknown_destinations_are_dropped(monkeypatch):
+    with _session(monkeypatch) as db:
+        actions = hub_actions.build_navigation_actions(
+            ["create_plan", "invented_url", "add_timeline", "badges"], db, 7
+        )
+
+    assert [item["destination"] for item in actions] == ["create_plan", "add_timeline"]
+    assert [item["label"] for item in actions] == ["Start a plan", "Add to Timeline"]
+    assert all("route" not in item for item in actions)
+
+
+def test_action_resolution_rechecks_message_owner_and_uses_allowlisted_route(monkeypatch):
+    with _session(monkeypatch) as db:
+        conversation = HubConversation(
+            conversation_uuid="conversation_owner", org_id=7, user_id=11, title="Plan"
+        )
+        db.add(conversation)
+        db.flush()
+        action = hub_actions.build_navigation_actions(["create_plan"], db, 7)[0]
+        message = HubConversationMessage(
+            message_uuid="hub_message_assistant", conversation_id=conversation.id,
+            sequence=2, role="assistant", content="Let's make a plan.", suggested_actions=[action],
+        )
+        db.add(message)
+        db.commit()
+
+        resolved = hub_actions.resolve_navigation_action(
+            db, org_id=7, user_id=11, conversation_uuid="conversation_owner",
+            message_uuid="hub_message_assistant", action_id=action["action_id"],
+        )
+        assert resolved["route"] == "/plans?hub_action=create-plan"
+
+        with pytest.raises(HTTPException) as caught:
+            hub_actions.resolve_navigation_action(
+                db, org_id=7, user_id=12, conversation_uuid="conversation_owner",
+                message_uuid="hub_message_assistant", action_id=action["action_id"],
+            )
+        assert caught.value.status_code == 404

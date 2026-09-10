@@ -7,9 +7,13 @@ node_modules
 
 # testing
 coverage
+apps/web/.playwright/
+apps/web/playwright-report/
+apps/web/test-results/
 
 # next.js
 .next/
+apps/web/.next-ui-test/
 out/
 build
 
