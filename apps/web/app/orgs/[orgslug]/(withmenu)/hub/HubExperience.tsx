@@ -4,6 +4,7 @@ import { FormEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, us
 import { Plus, Send } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { useHubWorkspace } from '@components/Contexts/HubWorkspaceContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { Button } from '@components/ui/button'
@@ -111,7 +112,11 @@ function asAdvisorResource(resource: Resource): HubAdvisorResource {
   }
 }
 
-export default function HubExperience({ orgslug, filters }: { orgslug: string; filters: HubFilters }) {
+export default function HubExperience({ orgslug, filters, companion = false, visible = true, onCompanionCollapse, onCompanionExpand }: { orgslug: string; filters: HubFilters; companion?: boolean; visible?: boolean; onCompanionCollapse?: () => void; onCompanionExpand?: () => void }) {
+  const workspace = useHubWorkspace()
+  const alive = useRef(true)
+  const loadSequence = useRef(0)
+  useEffect(() => { alive.current = true; return () => { alive.current = false; loadSequence.current += 1 } }, [])
   const initialQuery = filters.query || filters.q || ''
   const [messages, setMessages] = useState<HubConversationMessage[]>([])
   const [conversationUuid, setConversationUuid] = useState<string | null>(null)
@@ -145,6 +150,8 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
   const org = useOrg() as any
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
+  const storageKey = `launchlms:hub-thread:${org?.id}:${session?.data?.user?.id}`
+  const restoredRef = useRef(false)
   const conversationStarted = Boolean(conversationUuid || messages.length > 0)
   const trayEntries = useMemo(() => buildHubResourceTrayEntries([
     ...messages.map((message) => ({ id: message.id, resources: message.resources })),
@@ -152,7 +159,10 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
   ]), [messages, pendingResources])
 
   const setConversationInUrl = (uuid: string | null) => {
+    if (!alive.current) return
+    try { if (uuid) sessionStorage.setItem(storageKey, uuid); else sessionStorage.removeItem(storageKey) } catch { /* storage is optional */ }
     const url = new URL(window.location.href)
+    if (!/\/hub\/?$/.test(url.pathname)) return
     if (uuid) url.searchParams.set('conversation', uuid)
     else url.searchParams.delete('conversation')
     window.history.replaceState({}, '', url)
@@ -162,7 +172,8 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
     if (!accessToken || !org?.id) return
     setHistoryLoading(true)
     try {
-      setConversations(await listHubConversations(org.id, accessToken))
+      const history = await listHubConversations(org.id, accessToken)
+      if (alive.current) setConversations(history)
     } catch (historyError: any) {
       setError(historyError?.message || 'Conversation history is unavailable.')
     } finally {
@@ -196,11 +207,13 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
 
   const openConversation = async (uuid: string, openResources = false) => {
     if (!accessToken || !org?.id || sending) return
+    const load = ++loadSequence.current
     setResourcePanelConversationUuid(openResources ? uuid : null)
     setConversationLoading(true)
     setError('')
     try {
       const conversation = await getHubConversation(org.id, uuid, accessToken)
+      if (!alive.current || load !== loadSequence.current) return
       const restoredMessages = conversation.messages.map((message) => ({
         id: message.id,
         role: message.role,
@@ -210,6 +223,7 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
         searchQuery: message.search_query,
         createdAt: message.created_at,
         memories: message.memories,
+        page_context: message.page_context,
       }))
       setMessages(restoredMessages)
       setConversationUuid(conversation.conversation_uuid)
@@ -221,10 +235,11 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
       introducedResourceUuidsRef.current = new Set(restoredMessages.flatMap((message) => (message.resources || []).map((resource) => resource.resource_uuid)))
       setConversationInUrl(conversation.conversation_uuid)
     } catch (loadError: any) {
+      if (!alive.current || load !== loadSequence.current) return
       setError(loadError?.message || 'This conversation could not be opened.')
       if (loadError?.status === 404) setConversationInUrl(null)
     } finally {
-      setConversationLoading(false)
+      if (alive.current && load === loadSequence.current) setConversationLoading(false)
     }
   }
 
@@ -235,6 +250,18 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
     // The URL is the initial deep-link source; later switches call openConversation directly.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken, filters.conversation, org?.id])
+
+  useEffect(() => {
+    if (restoredRef.current || !accessToken || !org?.id) return
+    restoredRef.current = true
+    if (filters.conversation) return
+    try {
+      const uuid = sessionStorage.getItem(storageKey)
+      if (uuid) void openConversation(uuid)
+    } catch { /* conversation history remains available without session storage */ }
+    // Restore once per authenticated workspace; explicit Hub links take precedence.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken, org?.id, storageKey])
 
   const persistState = (nextMessages: HubConversationMessage[], nextContext: HubAdvisorResource[]) => {
     if (!conversationUuid || !accessToken || !org?.id) return
@@ -432,7 +459,7 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     const content = draft.trim()
-    if (!content || !accessToken || !org?.id || sending) return
+    if (!content || !accessToken || !org?.id || sending || conversationLoading || !visible) return
     void dismissMemoryNotice()
     const previousMessages = messages
     let history: HubAdvisorMessage[] = hubAdvisorHistory(messages)
@@ -466,6 +493,7 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
           resourceUuids: contextResources.map((resource) => resource.resource_uuid),
           learnerResourceUuids: submittedResources.map((resource) => resource.resource_uuid),
         })
+        if (!alive.current) return
         const nextMessages: HubConversationMessage[] = [
           ...previousMessages,
           { id: persisted.user_message_uuid, role: 'user', content, resources: submittedResources, resourceLabel: submittedResources.length ? 'You added' : undefined, createdAt: persisted.user_message_created_at },
@@ -487,20 +515,29 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
       return
     }
     try {
+      const pageSurface = companion
+        ? {
+            ...(workspace?.surface?.hint || { surface: 'unsupported' as const }),
+            page_path: `${window.location.pathname}${window.location.search}`,
+            page_title: document.title,
+          }
+        : undefined
       const response = await askHubAdvisor(
         org.id,
         requestMessages,
         accessToken,
         contextResources.map((resource) => resource.resource_uuid),
         conversationUuid || undefined,
-        submittedResources.map((resource) => resource.resource_uuid)
+        submittedResources.map((resource) => resource.resource_uuid),
+        pageSurface
       )
+      if (!alive.current) return
       const transcriptResources = newHubTranscriptResources(introducedResourceUuidsRef.current, response.resources)
       transcriptResources.forEach((resource) => introducedResourceUuidsRef.current.add(resource.resource_uuid))
       const nextMessages: HubConversationMessage[] = [
         ...previousMessages,
-        { id: response.user_message_uuid, role: 'user', content, resources: submittedResources, resourceLabel: submittedResources.length ? 'You added' : undefined, createdAt: response.user_message_created_at, memories: response.memory_changes },
-        { id: response.assistant_message_uuid, role: 'assistant', content: response.answer, resources: transcriptResources, resourceLabel: transcriptResources.length ? 'Suggested' : undefined, createdAt: response.assistant_message_created_at, memories: response.memories_used },
+        { id: response.user_message_uuid, role: 'user', content, resources: submittedResources, resourceLabel: submittedResources.length ? 'You added' : undefined, createdAt: response.user_message_created_at, memories: response.memory_changes, page_context: response.page_context },
+        { id: response.assistant_message_uuid, role: 'assistant', content: response.answer, resources: transcriptResources, resourceLabel: transcriptResources.length ? 'Suggested' : undefined, createdAt: response.assistant_message_created_at, memories: response.memories_used, page_context: response.page_context },
       ]
       setMessages(nextMessages)
       setContextResources((current) => addHubContextResources(current, response.resources))
@@ -509,6 +546,7 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
       setConversationInUrl(response.conversation_uuid)
       await refreshHistory()
     } catch (requestError: any) {
+      if (!alive.current) return
       setMessages(previousMessages)
       setPendingResources(submittedResources)
       if (submittedResources.length > 0) setActiveResourceGroupId('pending')
@@ -547,9 +585,9 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
   }
 
   return (
-    <main className="relative mx-auto h-[calc(100dvh-5rem)] w-full max-w-[1056px] overflow-hidden md:h-dvh" aria-label="Hub">
+    <div className="relative mx-auto min-h-0 w-full max-w-[1056px] flex-1 overflow-hidden" aria-label="Hub conversation">
       <h1 className="sr-only">{conversationTitle || 'Hub'}</h1>
-      {conversationStarted && (
+      {(conversationStarted || companion) && (
         <HubHeader
           key={`${conversationUuid}:${resourcePanelConversationUuid === conversationUuid ? 'resources' : 'conversation'}`}
           orgslug={orgslug}
@@ -570,12 +608,16 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
           onRemoveResource={removeResourceEverywhere}
           onReturnToOrigin={returnToResourceOrigin}
           initialPanel={resourcePanelConversationUuid === conversationUuid ? 'resources' : null}
+          companion={companion}
+          contextUnavailable={companion && !workspace?.surface}
+          onCompanionCollapse={onCompanionCollapse}
+          onCompanionExpand={onCompanionExpand}
         />
       )}
 
-      <div ref={scrollRef} className="absolute inset-0 overflow-y-auto overscroll-contain scroll-smooth">
+      <div ref={scrollRef} className={`scrollbar-subtle absolute inset-x-0 bottom-0 overflow-y-auto overscroll-contain scroll-smooth ${conversationStarted || companion ? (companion && !workspace?.surface ? 'top-[4.5rem]' : 'top-11') : 'top-0'}`}>
         <div
-          className={`mx-auto min-h-full w-full max-w-3xl px-4 sm:px-6 ${conversationStarted ? 'pt-16' : 'pt-7 sm:pt-10'}`}
+          className={`mx-auto min-h-full w-full max-w-3xl px-4 sm:px-6 ${conversationStarted || companion ? 'pt-5' : 'pt-7 sm:pt-10'}`}
           style={{ paddingBottom: composerHeight + 88 + (memoryNoticeVisible ? 148 : 0) + (libraryOpen ? 290 : 0) }}
         >
           <div className="space-y-7" aria-live="polite" aria-busy={sending || conversationLoading}>
@@ -605,11 +647,11 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
                     </div>
                   )}
                   <div className="flex justify-end">
-                    <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl bg-muted px-4 py-2.5 text-sm leading-6 text-foreground sm:max-w-[72%]">
+                    <div className="hub-user-message max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm leading-6 text-foreground sm:max-w-[72%]">
                       {message.content}
                     </div>
                   </div>
-                  {accessToken && org?.id && <HubMessageMicroBar role="user" content={message.content} createdAt={message.createdAt} memories={message.memories} orgId={org.id} accessToken={accessToken} />}
+                  {accessToken && org?.id && <HubMessageMicroBar role="user" content={message.content} createdAt={message.createdAt} memories={message.memories} pageContext={message.page_context} orgId={org.id} accessToken={accessToken} />}
                 </div>
               ) : (
                 <div key={message.id} className="space-y-1.5">
@@ -633,12 +675,12 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
                       {activeResourceGroupId === message.id && (message.resources || [])
                         .filter((resource) => resource.resource_uuid === activeResourceUuid)
                         .map((resource) => <div key={resource.resource_uuid} className="mt-2"><ActiveResourceWorkspace resource={resource} orgslug={orgslug} /></div>)}
-                      {accessToken && org?.id && <HubMessageMicroBar role="assistant" content={`Resource search results for ${message.searchQuery}`} createdAt={message.createdAt} memories={message.memories} orgId={org.id} accessToken={accessToken} />}
+                      {accessToken && org?.id && <HubMessageMicroBar role="assistant" content={`Resource search results for ${message.searchQuery}`} createdAt={message.createdAt} memories={message.memories} pageContext={message.page_context} orgId={org.id} accessToken={accessToken} />}
                     </div>
                   ) : (
                     <>
                       <AssistantResponse content={message.content} />
-                      {accessToken && org?.id && <HubMessageMicroBar role="assistant" content={message.content} createdAt={message.createdAt} memories={message.memories} orgId={org.id} accessToken={accessToken} />}
+                      {accessToken && org?.id && <HubMessageMicroBar role="assistant" content={message.content} createdAt={message.createdAt} memories={message.memories} pageContext={message.page_context} orgId={org.id} accessToken={accessToken} />}
                       {message.resources && message.resources.length > 0 && (
                         <div ref={(node) => { if (node) resourceOriginRefs.current.set(message.id, node); else resourceOriginRefs.current.delete(message.id) }} tabIndex={-1} className="rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
                       <HubResourceContext
@@ -674,7 +716,7 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
       </div>
 
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[var(--z-sticky-header)]">
-        <div aria-hidden="true" className="absolute inset-x-0 -top-10 bottom-0 bg-[linear-gradient(to_bottom,transparent_0%,color-mix(in_srgb,var(--org-page-background)_50%,transparent)_50%,var(--org-page-background)_78%)]" />
+        <div aria-hidden="true" className="hub-composer-backdrop absolute bottom-0 left-0 right-2 -top-10" />
         <div className="pointer-events-auto relative mx-auto w-full max-w-[50rem] px-4 pb-4 sm:px-5 sm:pb-6">
         {memoryNoticeVisible && (
           <HubMemoryNotice
@@ -689,7 +731,7 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
           />
         )}
         <form onSubmit={submit} className="flex flex-col justify-end">
-          <div className="rounded-[1.6rem] border border-border/80 bg-background/90 p-2 shadow-sm backdrop-blur-md">
+          <div className="hub-composer-shell rounded-[1.6rem] p-2 backdrop-blur-md">
             <label htmlFor="hub-composer" className="sr-only">Ask a question or search Launch LMS</label>
             <div className="relative overflow-hidden rounded-xl">
               <Textarea
@@ -701,7 +743,7 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
                 maxLength={2000}
                 rows={1}
                 placeholder="Ask a question or search for resources…"
-                disabled={sending}
+                disabled={sending || conversationLoading}
                 className="min-h-11 resize-none border-0 bg-transparent px-3 py-2.5 text-base leading-6 shadow-none focus-visible:ring-0"
                 onKeyDown={(event) => {
                   if (event.key !== 'Enter' || event.shiftKey) return
@@ -715,7 +757,7 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
               />
               <div
                 aria-hidden="true"
-                className={`pointer-events-none absolute inset-x-0 bottom-0 h-7 bg-gradient-to-t from-background via-background/80 to-transparent transition-opacity ${composerFades.bottom ? 'opacity-100' : 'opacity-0'}`}
+                className={`hub-composer-fade pointer-events-none absolute inset-x-0 bottom-0 h-7 transition-opacity ${composerFades.bottom ? 'opacity-100' : 'opacity-0'}`}
               />
             </div>
             <div className="flex h-9 items-center justify-between gap-3">
@@ -728,7 +770,7 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
                 type="submit"
                 size="icon"
                 className="h-8 w-8"
-                disabled={!draft.trim() || sending || !accessToken}
+                disabled={!draft.trim() || sending || conversationLoading || !accessToken}
                 aria-label="Send message"
               >
                 <Send className="h-4 w-4" />
@@ -746,6 +788,6 @@ export default function HubExperience({ orgslug, filters }: { orgslug: string; f
         />
         </div>
       </div>
-    </main>
+    </div>
   )
 }

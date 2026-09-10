@@ -1,6 +1,8 @@
 'use client'
 
 import React from 'react'
+import { usePathname, useSearchParams } from 'next/navigation'
+import { useHubWorkspace } from '@components/Contexts/HubWorkspaceContext'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import useSWR, { mutate } from 'swr'
@@ -27,6 +29,7 @@ const plansKey = (lifecycle: PlanLifecycle) => `${getAPIUrl()}planning/plans?lif
 const invitesKey = () => `${getAPIUrl()}planning/invitations/me`
 const feedKey = (scope: PlanScope, planUuid?: string, exploreAll = false) => `${getAPIUrl()}planning/feed?scope=${scope}${planUuid ? `&plan_uuid=${encodeURIComponent(planUuid)}` : ''}${exploreAll ? '&explore_all=true' : ''}`
 const detailKey = (slug?: string) => slug ? `${getAPIUrl()}planning/plans/${encodeURIComponent(slug)}` : null
+const EMPTY_PLANS: PlanTarget[] = []
 const PLAN_COLORS = ['#7c3aed', '#0f9f9a', '#d97706', '#2563eb', '#db2777', '#65a30d', '#dc2626', '#0891b2']
 
 function fallbackPlanColor(planUuid = '') {
@@ -69,6 +72,10 @@ function usePlanColors(plans: PlanTarget[], viewerId: string | number | undefine
 
 export default function PlansWorkspace({ orgslug, initialPlanSlug, initialGroupAssignmentUuid }: { orgslug: string; initialPlanSlug?: string; initialGroupAssignmentUuid?: string }) {
   const session = useLHSession() as any
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const workspace = useHubWorkspace()
+  const setSurface = workspace?.setSurface
   const token = session?.data?.tokens?.access_token
   const [lifecycle, setLifecycle] = React.useState<PlanLifecycle>('active')
   const [scope, setScope] = React.useState<PlanScope>('all')
@@ -80,12 +87,30 @@ export default function PlansWorkspace({ orgslug, initialPlanSlug, initialGroupA
   const [selectedObjectiveUuid, setSelectedObjectiveUuid] = React.useState('')
   const [mounted, setMounted] = React.useState(false)
   React.useEffect(() => setMounted(true), [])
-  const { data: plans = [], isLoading } = useSWR<PlanTarget[]>(token ? plansKey(lifecycle) : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: true })
+  const { data: plans = EMPTY_PLANS, isLoading } = useSWR<PlanTarget[]>(token ? plansKey(lifecycle) : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: true })
   const { getPlanColor, setPlanColor } = usePlanColors(plans, session?.data?.user?.id)
   const selectedSummary = plans.find((plan) => plan.slug === selectedSlug)
   const { data: detail } = useSWR<any>(token && selectedSlug ? detailKey(selectedSlug) : null, (url: string) => swrFetcher(url, token))
   const { data: invitations = [] } = useSWR<any[]>(token ? invitesKey() : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: true })
   const { data: feed, isLoading: feedLoading } = useSWR<any>(token ? feedKey(scope, selectedSummary?.plan_uuid || detail?.plan_uuid, exploreAll) : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: true })
+
+  React.useEffect(() => {
+    const groupQuery = searchParams.get('group') || ''
+    if (groupQuery) {
+      setSelectedSlug('')
+      setSelectedGroupAssignmentUuid(groupQuery)
+      setSelectedObjectiveUuid('')
+      return
+    }
+    const suffix = pathname.split('/plans')[1] || ''
+    const segments = suffix.split('/').filter(Boolean)
+    if (segments.length > 1 && segments[0] !== 'groups') return
+    const group = segments[0] === 'groups' ? decodeURIComponent(segments[1] || '') : ''
+    const slug = group ? '' : decodeURIComponent(segments[0] || '')
+    setSelectedSlug(slug)
+    setSelectedGroupAssignmentUuid(group)
+    setSelectedObjectiveUuid('')
+  }, [pathname, searchParams])
 
   React.useEffect(() => {
     const assignmentUuid = detail?.source_assignment?.type === 'group' ? detail.source_assignment.assignment_uuid : null
@@ -95,6 +120,33 @@ export default function PlansWorkspace({ orgslug, initialPlanSlug, initialGroupA
       window.history.replaceState({}, '', getUriWithOrg(orgslug, routePaths.org.groupPlan(assignmentUuid)))
     }
   }, [detail?.source_assignment?.assignment_uuid, detail?.source_assignment?.type, orgslug])
+
+  React.useEffect(() => {
+    if (!setSurface) return
+    if (selectedGroupAssignmentUuid) { setSurface(null); return }
+    if (!selectedSlug) {
+      setSurface({ path: pathname, label: 'Plans', hint: { surface: 'plans', visible_ids: plans.slice(0, 8).map(item => item.plan_uuid) } })
+      return () => setSurface(null)
+    }
+    if (!detail || detail.slug !== selectedSlug) { setSurface(null); return }
+    const visible = new Set<string>()
+    const detailObjectives = detail.objectives || detail.phases?.flatMap((phase: any) => phase.objectives || []) || []
+    const publish = () => setSurface({
+      path: pathname, label: detail.name,
+      selectionLabel: detailObjectives.find((item: any) => item.objective_uuid === selectedObjectiveUuid)?.title,
+      hint: { surface: 'plan', entity_id: detail.plan_uuid, selected_objective_id: selectedObjectiveUuid || undefined, visible_ids: [...visible].slice(0, 20) },
+    })
+    const observer = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        const id = (entry.target as HTMLElement).dataset.objectiveShell!
+        if (entry.isIntersecting) visible.add(id); else visible.delete(id)
+      }
+      publish()
+    })
+    document.querySelectorAll('[data-objective-shell]').forEach(node => observer.observe(node))
+    publish()
+    return () => { observer.disconnect(); setSurface(null) }
+  }, [detail, plans, selectedSlug, selectedGroupAssignmentUuid, selectedObjectiveUuid, pathname, setSurface])
 
   const refresh = async () => {
     await mutate((key: unknown) => typeof key === 'string' && key.includes(`${getAPIUrl()}planning`))
@@ -132,12 +184,12 @@ export default function PlansWorkspace({ orgslug, initialPlanSlug, initialGroupA
   return <>
     <GeneralWrapperStyled>
       <main className="pb-20 pt-8">
-        {selectedSlug && detail ? <PlanWorkspaceHeader title={detail.name} color={getPlanColor(detail.plan_uuid)} onClose={clear} onOpenPanel={() => setMobilePanel(true)} /> : selectedGroupAssignmentUuid ? null : <><header className="flex items-start justify-between gap-4"><h1 className="text-4xl font-black tracking-tight">Plans</h1><button type="button" onClick={() => setMobilePanel(true)} className="inline-flex h-10 items-center gap-2 rounded-lg border border-border px-3 text-xs font-black lg:hidden"><Menu size={16} />Plans</button></header>{feed?.has_helping ? <div className="mt-7 flex h-11 gap-1 rounded-xl bg-muted p-1 w-fit">{(['all', 'mine', 'helping'] as PlanScope[]).map((value) => <button key={value} onClick={() => setScope(value)} className={cn('rounded-lg px-4 py-2 text-xs font-black capitalize', scope === value ? 'bg-card shadow-sm' : 'text-muted-foreground')}>{value === 'mine' ? 'My plans' : value}</button>)}</div> : <div className="mt-7 h-11" />}</>}
+        {selectedSlug && detail ? <PlanWorkspaceHeader title={detail.name} color={getPlanColor(detail.plan_uuid)} onClose={clear} onOpenPanel={() => setMobilePanel(true)} /> : selectedGroupAssignmentUuid ? null : <><header className="flex items-start justify-between gap-4"><h1 className="text-4xl font-black tracking-tight">Plans</h1><button type="button" onClick={() => setMobilePanel(true)} className="plan-panel-trigger inline-flex h-10 items-center gap-2 rounded-lg border border-border px-3 text-xs font-black lg:hidden"><Menu size={16} />Plans</button></header>{feed?.has_helping ? <div className="mt-7 flex h-11 gap-1 rounded-xl bg-muted p-1 w-fit">{(['all', 'mine', 'helping'] as PlanScope[]).map((value) => <button key={value} onClick={() => setScope(value)} className={cn('rounded-lg px-4 py-2 text-xs font-black capitalize', scope === value ? 'bg-card shadow-sm' : 'text-muted-foreground')}>{value === 'mine' ? 'My plans' : value}</button>)}</div> : <div className="mt-7 h-11" />}</>}
         {selectedGroupAssignmentUuid ? <GroupPlanWorkspace orgslug={orgslug} assignmentUuid={selectedGroupAssignmentUuid} embedded onClose={clear} onChanged={refresh} color={getPlanColor(`group:${selectedGroupAssignmentUuid}`)} onSetColor={(nextColor) => setPlanColor(`group:${selectedGroupAssignmentUuid}`, nextColor)} /> : isLoading || (selectedSlug ? !detail || detail.source_assignment?.type === 'group' : feedLoading) ? <div className="flex min-h-[45vh] items-center justify-center"><Loader2 className="animate-spin text-muted-foreground" /></div> : selectedSlug && detail ? <PlanEditor detail={detail} orgslug={orgslug} token={token} viewerUserId={session?.data?.user?.id} refresh={refresh} color={getPlanColor(detail.plan_uuid)} selectedObjectiveUuid={selectedObjectiveUuid} setSelectedObjectiveUuid={setSelectedObjectiveUuid} /> : <Feed feed={feed} orgslug={orgslug} token={token} viewerUserId={session?.data?.user?.id} refresh={refresh} getPlanColor={getPlanColor} onCreate={() => setCreateOpen(true)} />}
       </main>
     </GeneralWrapperStyled>
     {mounted && panel && document.getElementById('org-layout-right-sidebar') ? createPortal(<div className="sticky top-4 max-h-[calc(100dvh-2rem)] overflow-y-auto pb-6">{panel}</div>, document.getElementById('org-layout-right-sidebar')!) : null}
-    {mobilePanel ? <div className="fixed inset-0 z-[var(--z-modal)] bg-black/35 lg:hidden" onClick={() => setMobilePanel(false)}><aside onClick={(event) => event.stopPropagation()} className="ml-auto h-full w-[min(92vw,360px)] overflow-y-auto bg-background p-4 shadow-2xl"><div className="mb-3 flex justify-end"><button onClick={() => setMobilePanel(false)} className="rounded-lg p-2 hover:bg-muted"><X size={18} /></button></div>{panel}</aside></div> : null}
+    {mobilePanel ? <div className="plan-panel-overlay fixed inset-0 z-[var(--z-modal)] bg-black/35 lg:hidden" onClick={() => setMobilePanel(false)}><aside onClick={(event) => event.stopPropagation()} className="ml-auto h-full w-[min(92vw,360px)] overflow-y-auto bg-background p-4 shadow-2xl"><div className="mb-3 flex justify-end"><button onClick={() => setMobilePanel(false)} className="rounded-lg p-2 hover:bg-muted"><X size={18} /></button></div>{panel}</aside></div> : null}
     <CreatePlanModal open={createOpen} setOpen={setCreateOpen} token={token} refresh={refresh} onCreated={(plan: any) => choose(plan)} />
   </>
 }
@@ -378,7 +430,7 @@ function ObjectiveCard({ item, orgslug, token, viewerUserId, refresh, color, edi
     if (!open || editing) return
     const closeOutside = (event: PointerEvent) => {
       const target = event.target as HTMLElement | null
-      if (cardRef.current?.contains(target) || target?.closest(`[data-objective-shell="${item.objective_uuid}"]`) || target?.closest('[role="menu"], [role="dialog"]')) return
+      if (cardRef.current?.contains(target) || target?.closest(`[data-objective-shell="${item.objective_uuid}"]`) || target?.closest('[role="menu"], [role="dialog"], .hub-conversation-frame, .hub-companion-launcher')) return
       setOpen(false)
     }
     document.addEventListener('pointerdown', closeOutside)

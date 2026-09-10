@@ -11,6 +11,9 @@ const PodcastPlayer = dynamic(() => import('@components/Objects/Podcasts/Podcast
 import { PageViewTracker } from '@components/Analytics/PageViewTracker'
 import { usePathname } from 'next/navigation'
 import { GuestHeader } from '@components/Objects/Menus/GuestHeader'
+import HubWorkspace from '@components/Hub/HubWorkspace'
+import '@components/Hub/workspace.css'
+import { useHubWorkspace } from '@components/Contexts/HubWorkspaceContext'
 import ExperiencePreferenceTracker from '@components/Auth/ExperiencePreferenceTracker'
 
 function OrgFooter() {
@@ -31,6 +34,7 @@ function OrgFooter() {
 function LayoutContent({ children, orgslug }: { children: React.ReactNode; orgslug: string }) {
   const session = useLHSession() as any
   const pathname = usePathname()
+  const workspace = useHubWorkspace()
   const isLandingPage = session?.status === 'unauthenticated' && pathname === '/'
 
   const pathParts = pathname?.split('/').filter(Boolean) || []
@@ -77,7 +81,7 @@ function LayoutContent({ children, orgslug }: { children: React.ReactNode; orgsl
         <div className={`mx-auto w-full md:flex md:max-w-full md:items-start print:block print:px-0 ${isActivityPage ? 'md:w-full md:px-0' : 'md:w-fit md:gap-4 md:px-4 lg:px-5 xl:px-6 2xl:px-8'}`}>
           {showOrgMenu && (
             <div className="print:hidden md:contents">
-              <OrgMenu orgslug={orgslug} />
+              <OrgMenu orgslug={orgslug} compact={workspace?.compact} />
             </div>
           )}
           <div className={`min-w-0 w-full pb-[calc(5rem+env(safe-area-inset-bottom))] md:max-w-full md:shrink md:pb-0 print:pb-0 ${isActivityPage ? 'md:w-full' : 'md:w-[66rem]'}`}>
@@ -101,6 +105,8 @@ export default function RootLayout(
   }
 ) {
   const params = use(props.params);
+  const session = useLHSession() as any
+  const org = useOrg() as any
 
   const {
     children
@@ -110,9 +116,9 @@ export default function RootLayout(
     <>
       <OrgJoinBannerProvider>
         <PodcastPlayerProvider>
-          <LayoutContent orgslug={params?.orgslug}>
-            {children}
-          </LayoutContent>
+          {session?.status === 'authenticated' ? <HubWorkspace key={`${org?.id}:${session?.data?.user?.id}`} orgslug={params?.orgslug}>
+            <LayoutContent orgslug={params?.orgslug}>{children}</LayoutContent>
+          </HubWorkspace> : <LayoutContent orgslug={params?.orgslug}>{children}</LayoutContent>}
           <PodcastPlayer />
         </PodcastPlayerProvider>
       </OrgJoinBannerProvider>

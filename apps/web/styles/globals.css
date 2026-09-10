@@ -203,6 +203,46 @@
     display: none;  /* Safari and Chrome */
   }
 
+  /* Quiet product scrollbars: discoverable when the scroll region is active. */
+  .scrollbar-subtle {
+    scrollbar-color: transparent transparent;
+    scrollbar-width: thin;
+  }
+  .scrollbar-subtle:hover,
+  .scrollbar-subtle:focus-within {
+    scrollbar-color: hsl(var(--muted-foreground) / 0.28) transparent;
+  }
+  .scrollbar-subtle::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .scrollbar-subtle::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-subtle-rounded::-webkit-scrollbar-track {
+    margin-block: 14px;
+  }
+  .scrollbar-subtle-rounded::-webkit-scrollbar-button:single-button {
+    display: block;
+    width: 8px;
+    height: 14px;
+    border: 0;
+    background: transparent;
+  }
+  .scrollbar-subtle::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background: transparent;
+    background-clip: padding-box;
+  }
+  .scrollbar-subtle:hover::-webkit-scrollbar-thumb,
+  .scrollbar-subtle:focus-within::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted-foreground) / 0.28);
+  }
+  .scrollbar-subtle::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--muted-foreground) / 0.5);
+  }
+
   .custom-dots-bg {
     @apply bg-fixed;
     background-image:

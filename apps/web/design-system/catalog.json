@@ -37,6 +37,8 @@
     { "name": "Navigation menu", "source": "apps/web/components/ui/navigation-menu.tsx", "status": "candidate", "usage": 0, "category": "navigation" }
   ],
   "patterns": [
+    {"name": "Subtle scrollbar", "source": "apps/web/styles/globals.css", "status": "adopted", "role": "Low-contrast scrollbar that becomes visible when its scroll region is hovered or focused."},
+    {"name": "Hub companion header", "source": "apps/web/app/orgs/[orgslug]/(withmenu)/hub/HubHeader.tsx", "status": "adopted", "role": "Conversation navigation with companion collapse/full-Hub actions and contextual availability status."},
     { "name": "General content wrapper", "source": "apps/web/components/Objects/StyledElements/Wrappers/GeneralWrapper.tsx", "status": "adopted", "role": "Responsive maximum-width content shell" },
     { "name": "Content page header", "source": "apps/web/components/Objects/StyledElements/Headers/ContentPageHeader.tsx", "status": "adopted", "role": "Back navigation, centered title, tabs, or progress" },
     { "name": "Tabbed page header", "source": "apps/web/components/Objects/StyledElements/Headers/TabbedPageHeader.tsx", "status": "adopted", "role": "Expanded-to-sticky product header" },

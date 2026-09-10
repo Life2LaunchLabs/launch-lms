@@ -2,6 +2,22 @@ import { getAPIUrl } from '@services/config/config'
 import type { ResourceType } from '@services/resources/resources'
 import { RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/requests'
 
+
+export type HubSurfaceHint = {
+  surface: 'plan' | 'plans' | 'group_plan' | 'unsupported'
+  entity_id?: string
+  selected_objective_id?: string
+  visible_ids?: string[]
+  page_path?: string
+  page_title?: string
+}
+export type HubPageReceipt = {
+  status: 'off' | 'unavailable' | 'ready'
+  captured_at: string
+  truncated?: boolean
+  sources: Array<{ source_type?: 'group_plan'; plan_id: string; assignment_id?: string; title: string; objective_id?: string; objective_title?: string; updated_at: string; page_path?: string; page_title?: string }>
+}
+
 export type HubAdvisorResource = {
   resource_uuid: string
   title: string
@@ -19,6 +35,7 @@ export type HubAdvisorResource = {
 export type HubAdvisorMessage = {
   role: 'user' | 'assistant'
   content: string
+  page_context?: HubPageReceipt | null
   resources?: HubAdvisorResource[]
 }
 
@@ -80,9 +97,11 @@ export async function askHubAdvisor(
   accessToken: string,
   resourceUuids: string[] = [],
   conversationUuid?: string,
-  learnerResourceUuids: string[] = []
+  learnerResourceUuids: string[] = [],
+  surface?: HubSurfaceHint,
 ): Promise<{
   answer: string
+  page_context?: HubPageReceipt
   usage: { input_tokens: number; output_tokens: number }
   resources: HubAdvisorResource[]
   memories_used: HubMemory[]
@@ -97,6 +116,7 @@ export async function askHubAdvisor(
         resource_uuids: resourceUuids,
         learner_resource_uuids: learnerResourceUuids,
         conversation_uuid: conversationUuid,
+        surface,
       },
       null,
       accessToken

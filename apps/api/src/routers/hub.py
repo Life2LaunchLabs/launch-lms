@@ -45,6 +45,8 @@ from src.services.hub_memory import (
     update_memory,
 )
 
+from src.services.hub_context import HubSurfaceHint, page_context
+
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
@@ -55,6 +57,7 @@ class HubAdvisorMessage(BaseModel):
 
 
 class HubAdvisorRequest(BaseModel):
+    surface: HubSurfaceHint | None = None
     messages: list[HubAdvisorMessage] = Field(min_length=1, max_length=12)
     resource_uuids: list[str] = Field(default_factory=list, max_length=8)
     learner_resource_uuids: list[str] = Field(default_factory=list, max_length=8)
@@ -76,6 +79,7 @@ class HubAdvisorResource(BaseModel):
 
 
 class HubAdvisorResponse(BaseModel):
+    page_context: dict | None = None
     answer: str
     usage: dict[str, int]
     resources: list[HubAdvisorResource]
@@ -297,6 +301,7 @@ async def create_hub_advice(
         if body.conversation_uuid
         else [AdvisorMessage(role=item.role, content=item.content.strip()) for item in body.messages]
     )
+    context = page_context(db_session, org_id, current_user.id, body.surface)
     used_memories = select_memories(db_session, org_id, current_user.id, user_content)
     grounding_resources = advisor_resources_for_request(
         user_content,
@@ -312,6 +317,7 @@ async def create_hub_advice(
             db_session,
             grounding_resources=grounding_resources,
             grounding_memories=used_memories,
+            page_context=context,
         )
     except AdvisorProviderLimited as error:
         raise HTTPException(
@@ -330,6 +336,7 @@ async def create_hub_advice(
         context_resource_uuids=[uuid for uuid in body.resource_uuids if uuid in accessible],
         suggested_resource_uuids=[item["resource_uuid"] for item in grounding_resources],
         model=result.model, input_tokens=result.input_tokens, output_tokens=result.output_tokens,
+        page_receipt=context["receipt"],
     )
     record_used_memories(
         db_session, persisted["assistant_message_uuid"], used_memories,
@@ -356,6 +363,7 @@ async def create_hub_advice(
                 extraction_model=extraction_model,
             )
     return HubAdvisorResponse(
+        page_context=context["receipt"],
         answer=result.text,
         usage={"input_tokens": result.input_tokens, "output_tokens": result.output_tokens},
         resources=grounding_resources,

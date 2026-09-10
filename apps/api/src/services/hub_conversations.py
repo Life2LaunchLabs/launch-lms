@@ -213,6 +213,7 @@ def record_advice(
     learner_resource_uuids: list[str], context_resource_uuids: list[str],
     suggested_resource_uuids: list[str], model: str,
     input_tokens: int, output_tokens: int,
+    page_receipt: dict | None = None,
 ) -> dict:
     conversation = (
         get_owned_conversation(db_session, conversation_uuid, org_id, user_id)
@@ -234,6 +235,10 @@ def record_advice(
         resources=novel_suggestions, label="Suggested", model=model,
         input_tokens=input_tokens, output_tokens=output_tokens,
     )
+    user_message.page_context = page_receipt
+    assistant_message.page_context = page_receipt
+    db_session.add(user_message)
+    db_session.add(assistant_message)
     merged_context = list(dict.fromkeys(context_resource_uuids))[-8:]
     for resource_uuid in suggested_resource_uuids:
         merged_context = [uuid for uuid in merged_context if uuid != resource_uuid]
@@ -340,6 +345,7 @@ def conversation_detail(
     accessible_resources: list[dict],
 ) -> dict:
     conversation = get_owned_conversation(db_session, conversation_uuid, org_id, user_id)
+    from src.services.hub_context import visible_receipt
     resources_by_uuid = _public_resources(accessible_resources)
     messages = db_session.exec(select(HubConversationMessage).where(
         HubConversationMessage.conversation_id == conversation.id
@@ -374,6 +380,7 @@ def conversation_detail(
             "resources": [resources_by_uuid[row.resource_uuid] for row in by_message.get(int(message.id), []) if row.resource_uuid in resources_by_uuid],
             "created_at": message.created_at,
             "memories": memory_receipts.get(int(message.id), []),
+            "page_context": visible_receipt(db_session, message.page_context, org_id, user_id),
         } for message in messages],
         "context_resources": [resources_by_uuid[row.resource_uuid] for row in context if row.resource_uuid in resources_by_uuid],
     }

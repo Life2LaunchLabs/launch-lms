@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field as PydanticField
-from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import JSON, Boolean, Column, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 
@@ -65,6 +65,7 @@ class HubConversationMessage(SQLModel, table=True):
     role: str = Field(sa_column=Column(String(16), nullable=False))
     kind: str = Field(default="chat", sa_column=Column(String(16), nullable=False))
     content: str = Field(sa_column=Column(Text, nullable=False))
+    page_context: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
     model: str | None = None
     input_tokens: int | None = None
     output_tokens: int | None = None

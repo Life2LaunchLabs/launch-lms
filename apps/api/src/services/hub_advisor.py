@@ -507,6 +507,7 @@ async def ask_hub_advisor(
     provider: AdvisorProvider | None = None,
     grounding_resources: list[dict] | None = None,
     grounding_memories: list[dict] | None = None,
+    page_context: dict | None = None,
 ) -> AdvisorResult:
     require_org_membership(user_id, org_id, db_session)
     validate_conversation(messages)
@@ -526,6 +527,9 @@ async def ask_hub_advisor(
     if grounding_memories:
         from src.services.hub_memory import ground_messages_with_memories
         provider_messages = ground_messages_with_memories(provider_messages, grounding_memories)
+    if page_context is not None:
+        from src.services.hub_context import ground_page_context
+        provider_messages = ground_page_context(provider_messages, page_context)
     result = await (provider or configured_advisor_provider(db_session)).respond(provider_messages, safety_identifier)
     logger.info(
         "hub_advisor_usage org_id=%s user_id=%s model=%s input_tokens=%s output_tokens=%s",
