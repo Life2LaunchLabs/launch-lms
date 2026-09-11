@@ -290,14 +290,19 @@ class CandidateJira:
             for item in values
         ]
 
-    def create_feedback(self, *, org_id: int, user, message: str) -> dict:
+    def create_feedback(
+        self, *, org_id: int, user, message: str, intent: str | None = None
+    ) -> dict:
+        labels = ["launchlms-feedback", f"launchlms-org-{org_id}"]
+        if intent:
+            labels.append(f"feedback-intent-{intent}")
         fields = {
             "project": {"key": self.project},
             "issuetype": {"name": self.issue_type},
             "summary": message.strip().splitlines()[0][:110],
             "description": _adf(message.strip()),
             "priority": {"name": "Medium"},
-            "labels": ["launchlms-feedback", f"launchlms-org-{org_id}"],
+            "labels": labels,
         }
         created = self._request("POST", "/rest/api/3/issue", {"fields": fields})
         self.set_property(
@@ -308,6 +313,7 @@ class CandidateJira:
                 "user_id": user.id,
                 "user_uuid": user.user_uuid,
                 "username": user.username,
+                "intent": intent,
                 "source": "unstable",
             },
         )
@@ -561,6 +567,8 @@ def serialize_feedback(
         "priority_id": str(priority.get("id", "")),
         "visible_revision": f"{status.get('id', '')}:{last_shared_comment}",
         "submitter": metadata.get("username", "Tester") if admin else None,
+        "intent": metadata.get("intent"),
+        "tester_confirmed": "tester-confirmed" in set(fields.get("labels") or []),
         "created_at": fields.get("created"),
         "updated_at": fields.get("updated"),
         "entries": entries,

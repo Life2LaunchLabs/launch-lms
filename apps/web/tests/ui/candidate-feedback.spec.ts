@@ -11,6 +11,8 @@ const feedback = {
   priority_id: '2',
   visible_revision: '3:1',
   has_unread: true,
+  intent: 'broken',
+  tester_confirmed: false,
   submitter: 'Preview tester',
   created_at: '2026-09-10T17:00:00Z',
   updated_at: '2026-09-10T18:00:00Z',
@@ -72,6 +74,7 @@ async function mockCandidateApi(page: Page) {
     }
     if (path.endsWith('/reply')) return route.fulfill({ json: feedback })
     if (path.endsWith('/comment')) return route.fulfill({ json: feedback })
+    if (path.endsWith('/resolution')) return route.fulfill({ json: feedback })
     return route.fulfill({ json: feedback })
   })
 }
@@ -90,6 +93,8 @@ test('tester sees unread GitHub notes and can paste a screenshot into quick feed
   if (process.env.UI_TEST_CAPTURE === 'true') await page.screenshot({ path: testInfo.outputPath('candidate-whats-new.png'), fullPage: true })
 
   await page.getByRole('button', { name: 'Feedback' }).click()
+  await expect(page.getByRole('button', { name: "I'm stuck" })).toBeVisible()
+  await page.getByRole('button', { name: 'Something is broken' }).click()
   const textarea = page.getByLabel('Feedback message')
   await textarea.fill('The plan editor jumped while I was typing.')
   await textarea.evaluate((element) => {

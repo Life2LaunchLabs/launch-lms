@@ -5,6 +5,7 @@ export interface JiraColumn { id: string; name: string; status_ids: string[] }
 export interface JiraPriority { id: string; name: string }
 export interface CandidateAnnouncement { id: string; title: string; message: string; published_at: string }
 export interface CandidateAnnouncementFeed { items: CandidateAnnouncement[]; unread: CandidateAnnouncement[] }
+export type CandidateFeedbackIntent = 'stuck' | 'broken' | 'confusing' | 'missing' | 'love'
 
 export interface CandidateFeedback {
   key: string
@@ -17,6 +18,8 @@ export interface CandidateFeedback {
   priority_id: string
   visible_revision: string
   has_unread?: boolean
+  intent?: CandidateFeedbackIntent | null
+  tester_confirmed?: boolean
   submitter?: string | null
   created_at?: string
   updated_at?: string
@@ -62,11 +65,12 @@ export const getCandidateFeedback = (orgId: number | undefined, token: string, a
   return result<CandidateFeedback[]>(fetch(`${getAPIUrl()}candidate/feedback?${query}`, { headers: auth(token) }))
 }
 
-export async function submitCandidateFeedback(orgId: number, message: string, images: File[], context: object, token: string) {
+export async function submitCandidateFeedback(orgId: number, message: string, images: File[], context: object, token: string, intent?: CandidateFeedbackIntent | null) {
   const body = new FormData()
   body.append('org_id', String(orgId))
   body.append('message', message)
   body.append('context', JSON.stringify(context))
+  if (intent) body.append('intent', intent)
   images.forEach((image) => body.append('images', image))
   return result<CandidateFeedback>(fetch(`${getAPIUrl()}candidate/feedback`, { method: 'POST', headers: auth(token), body }))
 }
@@ -85,6 +89,11 @@ export const replyToCandidateFeedback = (key: string, message: string, internal:
 export const commentOnCandidateFeedback = (orgId: number, key: string, message: string, token: string) =>
   result<CandidateFeedback>(fetch(`${getAPIUrl()}candidate/feedback/${key}/comment?org_id=${orgId}`, {
     method: 'POST', headers: { ...auth(token), 'Content-Type': 'application/json' }, body: JSON.stringify({ message, internal: false }),
+  }))
+
+export const resolveCandidateFeedback = (orgId: number, key: string, outcome: 'looks_good' | 'still_happening', token: string) =>
+  result<CandidateFeedback>(fetch(`${getAPIUrl()}candidate/feedback/${key}/resolution?org_id=${orgId}`, {
+    method: 'POST', headers: { ...auth(token), 'Content-Type': 'application/json' }, body: JSON.stringify({ outcome }),
   }))
 
 export const markCandidateFeedbackViewed = (orgId: number, token: string) =>

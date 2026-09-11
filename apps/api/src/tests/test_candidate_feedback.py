@@ -26,6 +26,12 @@ class FakeJira:
             }
         ]
 
+    def board_columns(self):
+        return [
+            {"id": "column-0", "name": "Open", "status_ids": ["1"]},
+            {"id": "column-1", "name": "Done", "status_ids": ["5"]},
+        ]
+
 
 def issue(labels=None):
     return {
@@ -76,7 +82,9 @@ def issue(labels=None):
 
 
 def test_tester_serialization_hides_internal_jira_notes():
-    value = serialize_feedback(issue(), {"username": "tester"}, FakeJira(), admin=False)
+    value = serialize_feedback(
+        issue(), {"username": "tester", "intent": "broken"}, FakeJira(), admin=False
+    )
     assert value["status"] == "In Review"
     assert value["priority"] == "High"
     assert [entry["message"] for entry in value["entries"]] == [
@@ -85,6 +93,7 @@ def test_tester_serialization_hides_internal_jira_notes():
     ]
     assert value["entries"][-1]["author"] == "You"
     assert value["visible_revision"] == "4:1"
+    assert value["intent"] == "broken"
 
 
 def test_admin_serialization_includes_internal_jira_notes():
@@ -156,6 +165,86 @@ def test_feedback_board_uses_jira_column_configuration(monkeypatch):
         {"id": "column-0", "name": "Open", "status_ids": ["1"]},
         {"id": "column-1", "name": "Working", "status_ids": ["3", "4"]},
     ]
+
+
+def test_feedback_intent_is_saved_as_property_and_jira_label(monkeypatch):
+    client = CandidateJira({"LAUNCHLMS_FEEDBACK_JIRA_PROJECT_KEY": "BOT"})
+    requests = []
+
+    def request(method, path, payload=None):
+        requests.append((method, path, payload))
+        if method == "POST" and path == "/rest/api/3/issue":
+            return {"key": "BOT-301"}
+        if method == "GET" and path.startswith("/rest/api/3/issue/BOT-301?"):
+            return issue(["launchlms-feedback", "feedback-intent-stuck"])
+        return {}
+
+    monkeypatch.setattr(client, "_request", request)
+    client.create_feedback(
+        org_id=7,
+        user=SimpleNamespace(id=42, user_uuid="uuid", username="tester"),
+        message="I cannot continue",
+        intent="stuck",
+    )
+    create_payload = requests[0][2]
+    property_payload = requests[1][2]
+    assert "feedback-intent-stuck" in create_payload["fields"]["labels"]
+    assert property_payload["intent"] == "stuck"
+
+
+def test_tester_can_reopen_completed_feedback(monkeypatch):
+    class Jira(FakeJira):
+        def __init__(self):
+            self.actions = []
+            self.current_status = "5"
+
+        def issue(self, key):
+            value = issue(["launchlms-feedback", "tester-confirmed"])
+            value["fields"]["status"] = {
+                "id": self.current_status,
+                "name": "Done" if self.current_status == "5" else "Open",
+                "statusCategory": {
+                    "key": "done" if self.current_status == "5" else "new"
+                },
+            }
+            return value
+
+        def property(self, key, property_key):
+            return {"org_id": 7, "user_id": 42, "username": "tester"}
+
+        def transitions(self, key):
+            return [
+                {
+                    "id": "11",
+                    "name": "Reopen",
+                    "to": {"id": "1", "name": "Open", "category": "new"},
+                }
+            ]
+
+        def transition(self, key, status_id):
+            self.actions.append(("transition", status_id))
+            self.current_status = status_id
+
+        def update_fields(self, key, fields):
+            self.actions.append(("update", fields))
+
+        def add_tester_comment(self, key, message):
+            self.actions.append(("comment", message))
+
+    jira = Jira()
+    monkeypatch.setattr(router, "CandidateJira", lambda: jira)
+    monkeypatch.setattr(router, "require_org_membership", lambda *_args: None)
+    result = router.resolve_feedback(
+        "BOT-200",
+        router.FeedbackResolution(outcome="still_happening"),
+        org_id=7,
+        db_session=None,
+        current_user=SimpleNamespace(id=42),
+    )
+    assert result["status"] == "Open"
+    assert ("transition", "1") in jira.actions
+    assert ("update", {"labels": ["launchlms-feedback"]}) in jira.actions
+    assert ("comment", "Still happening after completion.") in jira.actions
 
 
 def test_reproduction_context_redacts_route_values_and_user_agent_detail():

@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import re
 from uuid import uuid4
+from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
 from pydantic import BaseModel
@@ -45,6 +46,13 @@ class FeedbackReply(BaseModel):
 class AnnouncementCreate(BaseModel):
     title: str
     message: str
+
+
+class FeedbackResolution(BaseModel):
+    outcome: Literal["looks_good", "still_happening"]
+
+
+FEEDBACK_INTENTS = {"stuck", "broken", "confusing", "missing", "love"}
 
 
 def _update_user_details(db_session: Session, user_id: int, key: str, value) -> None:
@@ -268,6 +276,17 @@ def list_feedback(
     else:
         require_org_membership(current_user.id, org_id, db_session)
     client = CandidateJira()
+    closed_status_ids = set()
+    if not admin:
+        try:
+            closed_status_ids = {
+                status_id
+                for column in client.board_columns()
+                if column["name"].casefold() in {"closed", "archive", "archived"}
+                for status_id in column["status_ids"]
+            }
+        except HTTPException:
+            pass
     org_label = _jql_value(f"launchlms-org-{org_id}")
     org_filter = "" if admin else f'AND labels = "{org_label}" '
     issues = client.search(
@@ -279,6 +298,12 @@ def list_feedback(
         if not admin and int(metadata.get("org_id", -1)) != org_id:
             continue
         if not admin and int(metadata.get("user_id", -1)) != current_user.id:
+            continue
+        labels = set((issue.get("fields") or {}).get("labels") or [])
+        status_id = str(((issue.get("fields") or {}).get("status") or {}).get("id", ""))
+        if not admin and (
+            "tester-confirmed" in labels or status_id in closed_status_ids
+        ):
             continue
         serialized = serialize_feedback(issue, metadata, client, admin=admin)
         if not admin:
@@ -298,6 +323,7 @@ def list_feedback(
 def create_feedback(
     org_id: int = Form(...),
     message: str = Form(...),
+    intent: str | None = Form(default=None),
     context: str | None = Form(default=None),
     images: list[UploadFile] = File(default=[]),
     db_session: Session = Depends(get_db_session),
@@ -309,8 +335,14 @@ def create_feedback(
             status_code=422, detail=f"Attach up to {MAX_ATTACHMENTS} screenshots"
         )
     client = CandidateJira()
+    normalized_intent = str(intent or "").strip().casefold() or None
+    if normalized_intent not in FEEDBACK_INTENTS | {None}:
+        raise HTTPException(status_code=422, detail="Unknown feedback intent")
     issue = client.create_feedback(
-        org_id=org_id, user=current_user, message=_clean_message(message)
+        org_id=org_id,
+        user=current_user,
+        message=_clean_message(message),
+        intent=normalized_intent,
     )
     client.add_comment(
         issue["key"],
@@ -375,6 +407,67 @@ def comment_on_feedback(
     client = CandidateJira()
     _, metadata = _feedback_issue(client, issue_key, org_id, current_user, db_session)
     client.add_tester_comment(issue_key, _clean_message(body.message))
+    return serialize_feedback(client.issue(issue_key), metadata, client, admin=False)
+
+
+@router.post("/feedback/{issue_key}/resolution")
+def resolve_feedback(
+    issue_key: str,
+    body: FeedbackResolution,
+    org_id: int,
+    db_session: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_current_user),
+):
+    client = CandidateJira()
+    issue, metadata = _feedback_issue(
+        client, issue_key, org_id, current_user, db_session
+    )
+    fields = issue.get("fields") or {}
+    if ((fields.get("status") or {}).get("statusCategory") or {}).get("key") != "done":
+        raise HTTPException(
+            status_code=409, detail="This feedback is not ready to review"
+        )
+    labels = set(fields.get("labels") or [])
+    columns = client.board_columns()
+    if body.outcome == "looks_good":
+        closed_ids = {
+            status_id
+            for column in columns
+            if column["name"].casefold() in {"closed", "archive", "archived"}
+            for status_id in column["status_ids"]
+        }
+        transition = next(
+            (
+                item
+                for item in client.transitions(issue_key)
+                if item["to"]["id"] in closed_ids
+            ),
+            None,
+        )
+        if transition:
+            client.transition(issue_key, transition["to"]["id"])
+        labels.add("tester-confirmed")
+        client.update_fields(issue_key, {"labels": sorted(labels)})
+        client.add_tester_comment(issue_key, "Looks good now.")
+    else:
+        open_ids = set(columns[0]["status_ids"] if columns else [])
+        transition = next(
+            (
+                item
+                for item in client.transitions(issue_key)
+                if item["to"]["id"] in open_ids
+            ),
+            None,
+        )
+        if not transition:
+            raise HTTPException(
+                status_code=409,
+                detail="Jira has no direct transition back to the open column",
+            )
+        client.transition(issue_key, transition["to"]["id"])
+        labels.discard("tester-confirmed")
+        client.update_fields(issue_key, {"labels": sorted(labels)})
+        client.add_tester_comment(issue_key, "Still happening after completion.")
     return serialize_feedback(client.issue(issue_key), metadata, client, admin=False)
 
 
