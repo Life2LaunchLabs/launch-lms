@@ -1,5 +1,6 @@
-import CandidateFeedbackQueue from '@components/Admin/CandidateFeedbackQueue'
+import { redirect } from 'next/navigation'
 
-export default function FeedbackPage() {
-  return <CandidateFeedbackQueue />
+export default async function LegacyFeedbackPage({ params }: { params: Promise<{ orgslug: string }> }) {
+  const { orgslug } = await params
+  redirect(`/orgs/${orgslug}/admin/platform/feedback`)
 }

@@ -86,11 +86,7 @@ will start in reload mode.
 | `LAUNCHLMS_FEEDBACK_JIRA_API_TOKEN` | API | Server-only Jira token able to create/edit/transition feedback issues and add attachments/comments. |
 | `LAUNCHLMS_FEEDBACK_JIRA_PROJECT_KEY` | API | Jira project that owns tester feedback. Prefer a dedicated board/project; falls back to `JIRA_PROJECT_KEY`. |
 | `LAUNCHLMS_FEEDBACK_JIRA_ISSUE_TYPE` | API | Jira issue type for feedback. Defaults to `Task`. |
-| `LAUNCHLMS_FEEDBACK_JIRA_STATUS_OPEN` | API | Open status name. Defaults to `To Do`. |
-| `LAUNCHLMS_FEEDBACK_JIRA_STATUS_IN_PROGRESS` | API | “In the works” status name. Defaults to `In Progress`. |
-| `LAUNCHLMS_FEEDBACK_JIRA_STATUS_CONFIRM` | API | Awaiting tester confirmation status. Defaults to `In Review`. |
-| `LAUNCHLMS_FEEDBACK_JIRA_STATUS_SOLVED` | API | Confirmed solution status. Defaults to `Done`. |
-| `LAUNCHLMS_FEEDBACK_JIRA_STATUS_IGNORED` | API | Ignored status. Defaults to `Done`; an issue label preserves the distinction. |
+| `LAUNCHLMS_FEEDBACK_JIRA_BOARD_ID` | API | Optional Jira Software board ID whose live columns should organize the platform feedback view. When omitted, the first Kanban board for the feedback project is discovered. |
 | `LAUNCHLMS_GITHUB_REPOSITORY` | API | GitHub `owner/repository` used for candidate notes. Defaults to `Life2LaunchLabs/launch-lms`. |
 | `LAUNCHLMS_GITHUB_TOKEN` | API | Server-only read token for commit/PR history; required for private repositories. |
 

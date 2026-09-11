@@ -117,10 +117,10 @@ export default function RootLayout(
     <>
       <OrgJoinBannerProvider>
         <PodcastPlayerProvider>
+          <CandidateExperience />
           {session?.status === 'authenticated' ? <HubWorkspace key={`${org?.id}:${session?.data?.user?.id}`} orgslug={params?.orgslug}>
             <LayoutContent orgslug={params?.orgslug}>{children}</LayoutContent>
           </HubWorkspace> : <LayoutContent orgslug={params?.orgslug}>{children}</LayoutContent>}
-          <CandidateExperience />
           <PodcastPlayer />
         </PodcastPlayerProvider>
       </OrgJoinBannerProvider>

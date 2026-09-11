@@ -4,6 +4,7 @@ import {
   Buildings,
   ChartPie,
   Gear,
+  Flag,
   Newspaper,
   Tray,
   UsersThree,
@@ -18,6 +19,7 @@ export type PlatformSection =
   | 'users'
   | 'requests'
   | 'settings'
+  | 'feedback'
   | 'news'
 
 const SECTIONS: {
@@ -50,6 +52,12 @@ const SECTIONS: {
     label: 'Requests',
     icon: <Tray size={14} />,
     href: '/admin/platform/requests',
+  },
+  {
+    id: 'feedback',
+    label: 'Tester feedback',
+    icon: <Flag size={14} />,
+    href: '/admin/platform/feedback',
   },
   {
     id: 'settings',
