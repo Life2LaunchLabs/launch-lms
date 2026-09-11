@@ -53,7 +53,13 @@ def test_advisor_text_is_bounded_at_a_readable_break():
 async def test_ui_fixture_provider_returns_semantic_actions_without_external_calls():
     provider = DeterministicUiTestProvider()
     plan = await provider.respond([message("user", "I want to make a plan")], "safe")
-    timeline = await provider.respond([message("user", "Add this to my portfolio timeline")], "safe")
+    timeline = await provider.respond([
+        message(
+            "user",
+            "Add this to my portfolio timeline\n\n"
+            "<launch_lms_capabilities>create a plan</launch_lms_capabilities>",
+        ),
+    ], "safe")
     memory = await DeterministicUiTestProvider(memory=True).respond([message("user", "anything")], "safe")
     editing = await DeterministicUiTestProvider(edit_scope="new_plan").respond(
         [message("user", "Prepare the plan details")], "safe",

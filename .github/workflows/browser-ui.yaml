@@ -92,7 +92,7 @@ jobs:
       - name: Migrate and seed isolated fixtures
         working-directory: apps/api
         run: |
-          uv run alembic upgrade head
+          ./scripts/run_alembic_migrations.sh
           uv run python cli.py install --short
 
       - name: Build the test application
