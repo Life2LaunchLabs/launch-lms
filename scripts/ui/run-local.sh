@@ -29,13 +29,23 @@ fi
 
 api_log="${TMPDIR:-/tmp}/launch-lms-ui-api-${API_PORT}.log"
 web_log="${TMPDIR:-/tmp}/launch-lms-ui-web-${WEB_PORT}.log"
+runtime_config_path="$WEB_DIR/public/runtime-config.js"
+runtime_config_created=false
 api_pid=''
 web_pid=''
 cleanup() {
   if [[ -n "$web_pid" ]]; then kill "$web_pid" 2>/dev/null || true; fi
   if [[ -n "$api_pid" ]]; then kill "$api_pid" 2>/dev/null || true; fi
+  if [[ "$runtime_config_created" == true ]]; then rm -f "$runtime_config_path"; fi
 }
 trap cleanup EXIT INT TERM
+
+# The production container generates this optional client config before start.
+# Mirror that contract when the browser harness launches Next directly.
+if [[ ! -f "$runtime_config_path" ]]; then
+  printf '%s\n' 'window.__RUNTIME_CONFIG__ = {};' > "$runtime_config_path"
+  runtime_config_created=true
+fi
 
 cd "$API_DIR"
 LAUNCHLMS_SQL_CONNECTION_STRING="$UI_TEST_DATABASE_URL" \
