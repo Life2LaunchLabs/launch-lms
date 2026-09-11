@@ -9,7 +9,8 @@
   page mockup exists.
 - Surfaces: learner and admin unstable banner; desktop dropdown panels; phone
   bottom tray; tester feedback history; and Platform > Tester feedback.
-- Implementation branch: `feat/bot-210-feedback-banner`.
+- Implementation branch: `feat/bot-210-feedback-banner`; feature revision
+  `7a25bdb94` (the report itself is finalized afterward).
 
 ## Automated evidence
 
