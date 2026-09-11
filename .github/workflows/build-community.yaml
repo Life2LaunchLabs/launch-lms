@@ -80,6 +80,7 @@ jobs:
             LAUNCHLMS_COMMIT_SHA=${{ github.sha }}
             LAUNCHLMS_IMAGE_REF=${{ env.REPOSITORY }}:sha-${{ github.sha }}
             LAUNCHLMS_RELEASED_AT=${{ github.event.head_commit.timestamp || github.run_id }}
+            LAUNCHLMS_SOURCE_BRANCH=${{ github.head_ref || github.ref_name }}
           cache-from: type=gha,scope=${{ matrix.arch }}
           cache-to: type=gha,mode=max,scope=${{ matrix.arch }}
       - name: Test the built image

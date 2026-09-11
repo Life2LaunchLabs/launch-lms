@@ -13,6 +13,7 @@ import {
   Home,
   Library,
   Menu,
+  MessageSquareWarning,
   MessagesSquare,
   Newspaper,
   Settings,
@@ -106,6 +107,11 @@ function DashMobileMenu() {
       href: routePaths.org.dash.users.users(),
       icon: Users,
       label: t('common.users'),
+    },
+    {
+      href: routePaths.org.dash.feedback(),
+      icon: MessageSquareWarning,
+      label: 'Tester feedback',
     },
     {
       href: routePaths.org.dash.orgSettings.general(),

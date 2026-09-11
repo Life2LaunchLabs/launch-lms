@@ -256,3 +256,13 @@ Do not copy `.env`, signing keys, Redis data, or production custom domains to th
 unstable droplet. The supported snapshot helper handles local PostgreSQL and
 filesystem storage. S3/managed-database installations need an explicit export
 adapter before using that helper; it refuses those configurations.
+
+### Tester feedback and candidate notes
+
+When the unstable host is allowed outbound access for reviewed integrations,
+set `LAUNCHLMS_RELEASE_CHANNEL=unstable`, configure the
+`LAUNCHLMS_FEEDBACK_JIRA_*` variables for a dedicated Jira integration account,
+and provide a read-only `LAUNCHLMS_GITHUB_TOKEN` when the application repository
+is private. Feedback is stored directly as Jira issues, comments, attachments,
+priorities, and transitions. GitHub merge/commit history supplies the candidate
+change feed. See [deploy-env.md](deploy-env.md) for the full contract.

@@ -15,6 +15,7 @@ import HubWorkspace from '@components/Hub/HubWorkspace'
 import '@components/Hub/workspace.css'
 import { useHubWorkspace } from '@components/Contexts/HubWorkspaceContext'
 import ExperiencePreferenceTracker from '@components/Auth/ExperiencePreferenceTracker'
+import CandidateExperience from '@components/Candidate/CandidateExperience'
 
 function OrgFooter() {
   const org = useOrg() as any
@@ -119,6 +120,7 @@ export default function RootLayout(
           {session?.status === 'authenticated' ? <HubWorkspace key={`${org?.id}:${session?.data?.user?.id}`} orgslug={params?.orgslug}>
             <LayoutContent orgslug={params?.orgslug}>{children}</LayoutContent>
           </HubWorkspace> : <LayoutContent orgslug={params?.orgslug}>{children}</LayoutContent>}
+          <CandidateExperience />
           <PodcastPlayer />
         </PodcastPlayerProvider>
       </OrgJoinBannerProvider>
