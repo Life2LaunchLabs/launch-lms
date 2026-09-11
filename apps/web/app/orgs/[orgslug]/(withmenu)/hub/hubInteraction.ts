@@ -9,9 +9,9 @@ type HubHistoryMessage = {
 export function hubAdvisorHistory(messages: HubHistoryMessage[], limit = 10) {
   return messages.slice(-limit).map((message) => ({
     role: message.role,
-    content: message.searchQuery
+    content: (message.searchQuery
       ? `Displayed resource search results for “${message.searchQuery}”.`
-      : message.content,
+      : message.content).slice(0, 2000),
   }))
 }
 

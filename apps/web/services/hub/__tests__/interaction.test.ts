@@ -46,6 +46,11 @@ test('search response objects preserve alternating advisor history for follow-up
   ])
 })
 
+test('advisor history bounds an oversized prior reply before resubmission', () => {
+  const history = hubAdvisorHistory([{ role: 'assistant', content: 'x'.repeat(2500) }])
+  assert.equal(history[0].content.length, 2000)
+})
+
 test('advisor resources only enter the transcript the first time they are introduced', () => {
   const first = { resource_uuid: 'one' }
   const second = { resource_uuid: 'two' }

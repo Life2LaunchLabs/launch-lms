@@ -1,7 +1,7 @@
 'use client'
 
 import { FormEvent, useEffect, useRef, useState } from 'react'
-import { Archive, ArrowLeft, ChevronDown, CircleHelp, LibraryBig, Maximize2, MoreHorizontal, PanelLeft, Pencil, Plus, X } from 'lucide-react'
+import { Archive, ArrowLeft, Check, ChevronDown, CircleHelp, LibraryBig, Loader2, Maximize2, MoreHorizontal, PanelLeft, Pencil, Plus, Radio } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import {
   DropdownMenu,
@@ -17,7 +17,7 @@ import HubConversationHistory from './HubConversationHistory'
 import HubResourceTray from './HubResourceTray'
 import type { HubResourceTrayEntry } from './hubInteraction'
 
-type Panel = 'history' | 'resources' | null
+type Panel = 'history' | 'resources' | 'session' | null
 
 export default function HubHeader({
   orgslug,
@@ -42,6 +42,7 @@ export default function HubHeader({
   contextUnavailable = false,
   editRun,
   onStopEditing,
+  onUpdateEditGoal,
   onCompanionCollapse,
   onCompanionExpand,
 }: {
@@ -73,13 +74,18 @@ export default function HubHeader({
   contextUnavailable?: boolean
   editRun?: HubEditRun | null
   onStopEditing?: () => void
+  onUpdateEditGoal?: (goal: string) => Promise<void>
   onCompanionCollapse?: () => void
   onCompanionExpand?: () => void
 }) {
   const hasConversation = conversationStarted || Boolean(conversationUuid)
+  const sessionModeLabel = editRun?.scope.kind === 'new_plan' || /\b(create|start|build)\b.*\bplan\b/i.test(editRun?.goal || '') ? 'Creating a plan' : 'Editing a plan'
   const [panel, setPanel] = useState<Panel>(initialPanel)
   const [renaming, setRenaming] = useState(false)
   const [renameValue, setRenameValue] = useState(title)
+  const [goalEditing, setGoalEditing] = useState(false)
+  const [goalValue, setGoalValue] = useState(editRun?.goal || '')
+  const [goalSaving, setGoalSaving] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -97,6 +103,11 @@ export default function HubHeader({
       document.removeEventListener('keydown', closeOnEscape)
     }
   }, [panel])
+
+  useEffect(() => {
+    setGoalValue(editRun?.goal || '')
+    setGoalEditing(false)
+  }, [editRun?.goal, editRun?.run_uuid])
 
   const toggleHistory = () => {
     if (panel !== 'history') onHistoryOpen()
@@ -176,9 +187,13 @@ export default function HubHeader({
             </DropdownMenu>
           )}
         </header>
-        {companion && editRun?.status === 'active' ? <div className="flex h-7 items-start gap-1.5 pl-1 text-xs text-muted-foreground">
-          <span className="truncate"><span className="font-semibold text-foreground">Editing:</span> {editRun.scope.label}</span>
-          <button type="button" onClick={onStopEditing} className="rounded-full p-0.5 hover:bg-muted focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring" aria-label={`Stop editing ${editRun.scope.label}`}><X className="h-3.5 w-3.5" /></button>
+        {companion && editRun?.status === 'active' ? <div className="flex h-8 items-center gap-2 border-l-2 border-violet-400 pl-2 text-xs">
+          <Radio className="h-3 w-3 shrink-0 text-violet-500" aria-hidden="true" />
+          <button type="button" onClick={() => setPanel((current) => current === 'session' ? null : 'session')} className="group/session flex min-w-0 flex-1 items-center gap-1 text-left" aria-expanded={panel === 'session'}>
+            <span className="min-w-0 flex-1 truncate"><span className="mr-1.5 font-semibold text-violet-700 dark:text-violet-300">{sessionModeLabel}:</span><span className="text-muted-foreground">{editRun.goal}</span></span>
+            <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${panel === 'session' ? 'rotate-180' : ''}`} />
+          </button>
+          <button type="button" onClick={onStopEditing} className="shrink-0 rounded-full border border-border px-2 py-1 text-[10px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring" aria-label={`End focused session for ${editRun.scope.label}`}>End</button>
         </div> : companion && contextUnavailable ? <div className="flex h-7 items-start gap-1.5 pl-1 text-xs text-muted-foreground">
           <span>I can&apos;t read this page yet.</span>
           <TooltipProvider delayDuration={200}>
@@ -187,6 +202,15 @@ export default function HubHeader({
               <TooltipContent side="bottom" className="max-w-72 text-xs leading-5">Hub can use saved details from supported learner pages when you send a message. It cannot see unsaved text or the visual screen.</TooltipContent>
             </Tooltip>
           </TooltipProvider>
+        </div> : null}
+
+        {panel === 'session' && editRun?.status === 'active' ? <div className="absolute inset-x-4 top-[4.75rem] z-[var(--z-popover)] rounded-xl border border-border bg-popover p-3 shadow-lg sm:inset-x-5">
+          <div><p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Scope</p><p className="mt-1 text-xs leading-5 text-muted-foreground">{editRun.scope.kind === 'new_plan' ? 'Create and populate a new personal plan' : `Edit plan: ${editRun.scope.label}`}</p></div>
+          <form className="mt-3" onSubmit={async (event) => { event.preventDefault(); if (!goalValue.trim() || !onUpdateEditGoal) return; setGoalSaving(true); try { await onUpdateEditGoal(goalValue.trim()); setGoalEditing(false) } finally { setGoalSaving(false) } }}>
+            <label htmlFor="hub-session-goal" className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Goal</label>
+            <textarea id="hub-session-goal" value={goalValue} onFocus={() => setGoalEditing(true)} onChange={(event) => setGoalValue(event.target.value)} maxLength={500} className="mt-1 min-h-16 w-full resize-y rounded-lg border border-border bg-background px-2.5 py-2 text-xs leading-5 outline-none transition focus:ring-2 focus:ring-ring" />
+            {goalEditing || goalValue !== editRun.goal ? <div className="mt-2 flex justify-end gap-1"><Button type="button" variant="ghost" size="sm" className="h-7 text-xs" disabled={goalSaving} onClick={() => { setGoalValue(editRun.goal); setGoalEditing(false) }}>Cancel</Button><Button type="submit" size="sm" className="h-7 gap-1 text-xs" disabled={goalSaving || !goalValue.trim() || goalValue.trim() === editRun.goal}>{goalSaving ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}Save</Button></div> : null}
+          </form>
         </div> : null}
 
         {panel === 'history' && (

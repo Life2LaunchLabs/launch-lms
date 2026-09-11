@@ -29,6 +29,7 @@ from src.services.hub_advisor import (
     OpenAIResponsesProvider,
     ask_hub_advisor,
     advisor_resources_for_request,
+    bound_advisor_text,
     extract_hub_memory_candidates,
     ground_advisor_messages,
     relevant_advisor_resources,
@@ -38,6 +39,14 @@ from src.services.hub_advisor import (
 
 def message(role: str, content: str) -> AdvisorMessage:
     return AdvisorMessage(role=role, content=content)  # type: ignore[arg-type]
+
+
+def test_advisor_text_is_bounded_at_a_readable_break():
+    result = bound_advisor_text(("Useful sentence. " * 200).strip())
+
+    assert len(result) <= hub_advisor.MAX_ASSISTANT_CHARS
+    assert result.endswith("…")
+    assert result.startswith("Useful sentence.")
 
 
 @pytest.mark.asyncio

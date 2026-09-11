@@ -195,13 +195,16 @@ export async function askHubAdvisor(
   edit_operations: HubEditOperation[]
   edit_run?: HubEditRun | null
 } & ConversationWriteResult> {
+  // The API reconstructs established threads from its owned transcript. Sending only
+  // the new turn prevents stale or oversized rendered history from poisoning a retry.
+  const requestMessages = conversationUuid ? messages.slice(-1) : messages
   const response = await fetch(
     `${getAPIUrl()}hub/advisor?org_id=${encodeURIComponent(orgId)}`,
     {
       ...RequestBodyWithAuthHeader(
         'POST',
         {
-        messages: messages.map(({ role, content }) => ({ role, content })),
+        messages: requestMessages.map(({ role, content }) => ({ role, content })),
         resource_uuids: resourceUuids,
         learner_resource_uuids: learnerResourceUuids,
         conversation_uuid: conversationUuid,
@@ -238,6 +241,14 @@ export function getActiveHubEditRun(orgId: number, conversationUuid: string, acc
 
 export function concludeHubEditRun(orgId: number, runUuid: string, status: 'cancelled' | 'completed', accessToken: string) {
   return hubRequest<HubEditRun>(`edit-runs/${encodeURIComponent(runUuid)}/conclude?org_id=${encodeURIComponent(orgId)}`, 'POST', accessToken, { status })
+}
+
+export function reopenHubEditRun(orgId: number, runUuid: string, accessToken: string) {
+  return hubRequest<HubEditRun>(`edit-runs/${encodeURIComponent(runUuid)}/reopen?org_id=${encodeURIComponent(orgId)}`, 'POST', accessToken)
+}
+
+export function updateHubEditRunGoal(orgId: number, runUuid: string, goal: string, accessToken: string) {
+  return hubRequest<HubEditRun>(`edit-runs/${encodeURIComponent(runUuid)}/goal?org_id=${encodeURIComponent(orgId)}`, 'PATCH', accessToken, { goal })
 }
 
 export function bindHubEditRunPlan(orgId: number, runUuid: string, planIdentifier: string, accessToken: string) {

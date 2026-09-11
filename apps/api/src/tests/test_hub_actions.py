@@ -38,6 +38,25 @@ def test_persisted_create_plan_actions_receive_current_split_button_contract():
     assert action["edit_scope"] == {"kind": "new_plan", "label": "New personal plan"}
 
 
+@pytest.mark.parametrize("content", [
+    "Create a plan",
+    "Can you create a plan for me?",
+    "Please help me build a plan to become a firefighter",
+    "I would like you to start a career plan",
+])
+def test_explicit_plan_creation_requests_are_recognized(content):
+    assert hub_actions.requests_plan_creation(content)
+
+
+@pytest.mark.parametrize("content", [
+    "How do plans work?",
+    "What should a good plan include?",
+    "Show me my plans",
+])
+def test_plan_questions_do_not_automatically_request_creation(content):
+    assert not hub_actions.requests_plan_creation(content)
+
+
 def test_action_resolution_rechecks_message_owner_and_uses_allowlisted_route(monkeypatch):
     with _session(monkeypatch) as db:
         conversation = HubConversation(

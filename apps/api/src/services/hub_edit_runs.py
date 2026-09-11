@@ -101,6 +101,15 @@ def active_edit_run(db: Session, conversation_uuid: str, org_id: int, user_id: i
     return _run_dict(db, run)
 
 
+def latest_edit_run(db: Session, conversation_uuid: str, org_id: int, user_id: int) -> dict | None:
+    """Return the latest run so the transcript can retain its terminal boundary."""
+    conversation = _owned_conversation(db, conversation_uuid, org_id, user_id)
+    run = db.exec(select(HubEditRun).where(
+        HubEditRun.conversation_id == conversation.id,
+    ).order_by(HubEditRun.updated_at.desc())).first()
+    return _run_dict(db, run) if run else None
+
+
 def begin_edit_run(
     db: Session, *, conversation_uuid: str, org_id: int, user_id: int,
     action_id: str, route: str, scope_kind: str, target_label: str, goal: str,
@@ -116,14 +125,12 @@ def begin_edit_run(
         return _run_dict(db, existing)
 
     now = datetime.utcnow()
-    for active in db.exec(select(HubEditRun).where(
+    active_runs = db.exec(select(HubEditRun).where(
         HubEditRun.conversation_id == conversation.id,
         HubEditRun.status == ACTIVE,
-    )).all():
-        active.status = "cancelled"
-        active.updated_at = now
-        active.ended_at = now
-        db.add(active)
+    )).all()
+    if active_runs:
+        raise HTTPException(status_code=409, detail="End the current focused session before starting another")
 
     run = HubEditRun(
         run_uuid=f"hub_edit_run_{uuid4().hex}", conversation_id=int(conversation.id),
@@ -137,7 +144,9 @@ def begin_edit_run(
         event_uuid=f"hub_edit_event_{uuid4().hex}", run_id=int(run.id), sequence=1,
         kind="run.started", summary=f"Started working on {target_label}",
         object_type="plan" if target_uuid else None, object_uuid=target_uuid,
-        object_label=target_label if target_uuid else None, created_at=now,
+        object_label=target_label if target_uuid else None,
+        payload={"goal": run.goal, "scope_kind": scope_kind, "scope_label": target_label},
+        created_at=now,
     ))
     db.commit()
     return _run_dict(db, run)
@@ -173,10 +182,101 @@ def conclude_edit_run(db: Session, run_uuid: str, org_id: int, user_id: int, sta
         event_uuid=f"hub_edit_event_{uuid4().hex}", run_id=int(run.id),
         sequence=int(last_sequence) + 1, kind=f"run.{status}",
         summary="Stopped editing" if status == "cancelled" else "Finished editing",
+        payload={"goal": run.goal, "scope_kind": run.scope_kind, "scope_label": run.target_label},
         created_at=now,
     ))
     db.commit()
     return _run_dict(db, run)
+
+
+def reopen_edit_run(db: Session, run_uuid: str, org_id: int, user_id: int) -> dict:
+    """Reopen the same learner-granted scope while preserving its activity history."""
+    require_org_membership(user_id, org_id, db)
+    run = db.exec(select(HubEditRun).where(
+        HubEditRun.run_uuid == run_uuid,
+        HubEditRun.org_id == org_id,
+        HubEditRun.user_id == user_id,
+    )).first()
+    if run is None:
+        raise HTTPException(status_code=404, detail="Editing run not found")
+    if run.status == ACTIVE:
+        return _run_dict(db, run)
+    other = db.exec(select(HubEditRun.id).where(
+        HubEditRun.conversation_id == run.conversation_id,
+        HubEditRun.status == ACTIVE,
+        HubEditRun.id != run.id,
+    )).first()
+    if other is not None:
+        raise HTTPException(status_code=409, detail="End the current focused session before restoring this one")
+    now = datetime.utcnow()
+    run.status = ACTIVE
+    run.ended_at = None
+    run.updated_at = now
+    db.add(run)
+    last_sequence = db.exec(select(HubEditRunEvent.sequence).where(
+        HubEditRunEvent.run_id == run.id,
+    ).order_by(HubEditRunEvent.sequence.desc())).first() or 0
+    db.add(HubEditRunEvent(
+        event_uuid=f"hub_edit_event_{uuid4().hex}", run_id=int(run.id),
+        sequence=int(last_sequence) + 1, kind="run.reopened",
+        summary="Reopened focused session",
+        payload={"goal": run.goal, "scope_kind": run.scope_kind, "scope_label": run.target_label},
+        created_at=now,
+    ))
+    db.commit()
+    return _run_dict(db, run)
+
+
+def update_edit_run_goal(db: Session, run_uuid: str, org_id: int, user_id: int, goal: str) -> dict:
+    """Update the learner-visible goal without changing the run's granted scope."""
+    require_org_membership(user_id, org_id, db)
+    run = db.exec(select(HubEditRun).where(
+        HubEditRun.run_uuid == run_uuid,
+        HubEditRun.org_id == org_id,
+        HubEditRun.user_id == user_id,
+    )).first()
+    if run is None:
+        raise HTTPException(status_code=404, detail="Editing run not found")
+    if run.status != ACTIVE:
+        raise HTTPException(status_code=409, detail="The editing run is no longer active")
+    normalized = goal.strip()
+    if not normalized:
+        raise HTTPException(status_code=422, detail="The editing goal is required")
+    if normalized == run.goal:
+        return _run_dict(db, run)
+    now = datetime.utcnow()
+    run.goal = normalized[:500]
+    run.updated_at = now
+    db.add(run)
+    last_sequence = db.exec(select(HubEditRunEvent.sequence).where(
+        HubEditRunEvent.run_id == run.id,
+    ).order_by(HubEditRunEvent.sequence.desc())).first() or 0
+    db.add(HubEditRunEvent(
+        event_uuid=f"hub_edit_event_{uuid4().hex}", run_id=int(run.id),
+        sequence=int(last_sequence) + 1, kind="run.goal_updated",
+        summary="Updated the session goal", payload={"goal": run.goal}, created_at=now,
+    ))
+    db.commit()
+    return _run_dict(db, run)
+
+
+def record_edit_run_activity(
+    db: Session, run_uuid: str, *, kind: str, summary: str, payload: dict | None = None,
+    transient: bool = True,
+) -> None:
+    """Append transparent agent activity to the ordered session transcript."""
+    run = db.exec(select(HubEditRun).where(HubEditRun.run_uuid == run_uuid)).first()
+    if run is None or run.status != ACTIVE:
+        return
+    last_sequence = db.exec(select(HubEditRunEvent.sequence).where(
+        HubEditRunEvent.run_id == run.id,
+    ).order_by(HubEditRunEvent.sequence.desc())).first() or 0
+    db.add(HubEditRunEvent(
+        event_uuid=f"hub_edit_event_{uuid4().hex}", run_id=int(run.id),
+        sequence=int(last_sequence) + 1, kind=kind[:40], summary=summary,
+        transient=transient, payload=payload or {}, created_at=datetime.utcnow(),
+    ))
+    db.commit()
 
 
 def save_object_state(

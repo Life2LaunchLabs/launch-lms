@@ -46,8 +46,8 @@ from src.services.hub_memory import (
 )
 
 from src.services.hub_context import HubSurfaceHint, page_context
-from src.services.hub_actions import build_navigation_actions, resolve_navigation_action
-from src.services.hub_edit_runs import active_edit_run, begin_edit_run, bind_created_plan, conclude_edit_run, save_object_state
+from src.services.hub_actions import build_navigation_actions, requests_plan_creation, resolve_navigation_action
+from src.services.hub_edit_runs import active_edit_run, begin_edit_run, bind_created_plan, conclude_edit_run, latest_edit_run, record_edit_run_activity, reopen_edit_run, save_object_state, update_edit_run_goal
 from src.services.hub_plan_tools import record_plan_proposals
 
 router = APIRouter()
@@ -120,6 +120,10 @@ class HubEditObjectStateUpdate(BaseModel):
     proposal_fields: dict = Field(default_factory=dict)
     status: Literal["editing", "cancelled", "saved"] = "editing"
     expected_revision: int | None = Field(default=None, ge=0)
+
+
+class HubEditRunGoalUpdate(BaseModel):
+    goal: str = Field(min_length=1, max_length=500)
 
 
 class HubConversationSummary(BaseModel):
@@ -335,6 +339,7 @@ async def create_hub_advice(
     )
     context = page_context(db_session, org_id, current_user.id, body.surface)
     edit_run = active_edit_run(db_session, body.conversation_uuid, org_id, current_user.id) if body.conversation_uuid else None
+    recent_edit_run = latest_edit_run(db_session, body.conversation_uuid, org_id, current_user.id) if body.conversation_uuid and not edit_run else None
     used_memories = select_memories(db_session, org_id, current_user.id, user_content)
     grounding_resources = advisor_resources_for_request(
         user_content,
@@ -352,6 +357,7 @@ async def create_hub_advice(
             grounding_memories=used_memories,
             page_context=context,
             edit_run=edit_run,
+            recent_edit_run=recent_edit_run,
         )
     except AdvisorProviderLimited as error:
         raise HTTPException(
@@ -362,12 +368,24 @@ async def create_hub_advice(
     except AdvisorUnavailable as error:
         raise HTTPException(status_code=503, detail=str(error)) from None
     accessible = {str(item.get("resource_uuid")) for item in accessible_resources}
-    suggested_actions = build_navigation_actions(result.action_destinations, db_session, org_id, user_content)
+    plan_creation_request = not edit_run and requests_plan_creation(user_content)
+    action_destinations = ("create_plan",) if plan_creation_request else result.action_destinations
+    assistant_text = "Sure — should we go create that plan together?" if plan_creation_request else result.text
+    suggested_actions = build_navigation_actions(action_destinations, db_session, org_id, user_content)
+    page_receipt = context.get("receipt") or {}
+    if edit_run and page_receipt.get("status") == "ready":
+        sources = page_receipt.get("sources") or []
+        labels = [str(source.get("title") or "page") for source in sources[:3]]
+        record_edit_run_activity(
+            db_session, edit_run["run_uuid"], kind="context.inspected",
+            summary=f"Inspected {', '.join(labels)}" if labels else "Inspected the current page",
+            payload={"sources": sources[:8]}, transient=True,
+        )
     edit_operations = record_plan_proposals(db_session, edit_run["run_uuid"], result.plan_operations) if edit_run else []
     persisted = record_advice(
         db_session, org_id=org_id, user_id=current_user.id,
         conversation_uuid=body.conversation_uuid, user_content=user_content,
-        assistant_content=result.text,
+        assistant_content=assistant_text,
         learner_resource_uuids=[uuid for uuid in body.learner_resource_uuids if uuid in accessible],
         context_resource_uuids=[uuid for uuid in body.resource_uuids if uuid in accessible],
         suggested_resource_uuids=[item["resource_uuid"] for item in grounding_resources],
@@ -401,7 +419,7 @@ async def create_hub_advice(
             )
     return HubAdvisorResponse(
         page_context=context["receipt"],
-        answer=result.text,
+        answer=assistant_text,
         usage={"input_tokens": result.input_tokens, "output_tokens": result.output_tokens},
         resources=grounding_resources,
         conversation_uuid=persisted["conversation_uuid"],
@@ -460,7 +478,17 @@ def get_active_hub_edit_run(
     current_user: PublicUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
-    return {"edit_run": active_edit_run(db_session, conversation_uuid, org_id, current_user.id)}
+    return {"edit_run": latest_edit_run(db_session, conversation_uuid, org_id, current_user.id)}
+
+
+@router.post("/edit-runs/{run_uuid}/reopen")
+def reopen_hub_edit_run(
+    run_uuid: str,
+    org_id: int,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return reopen_edit_run(db_session, run_uuid, org_id, current_user.id)
 
 
 @router.post("/edit-runs/{run_uuid}/conclude")
@@ -472,6 +500,17 @@ def conclude_hub_edit_run(
     db_session: Session = Depends(get_db_session),
 ):
     return conclude_edit_run(db_session, run_uuid, org_id, current_user.id, body.status)
+
+
+@router.patch("/edit-runs/{run_uuid}/goal")
+def update_hub_edit_run_goal(
+    run_uuid: str,
+    org_id: int,
+    body: HubEditRunGoalUpdate,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return update_edit_run_goal(db_session, run_uuid, org_id, current_user.id, body.goal)
 
 
 @router.post("/edit-runs/{run_uuid}/plan-target")

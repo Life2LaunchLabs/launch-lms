@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 from uuid import uuid4
 
 from fastapi import HTTPException
@@ -16,6 +17,19 @@ from src.security.features_utils.resolve import resolve_feature
 ACTION_SCHEMA_VERSION = 1
 MAX_MESSAGE_ACTIONS = 2
 CAPABILITY_POLICY_INSTRUCTIONS = """Launch LMS may give you code-owned proposal capabilities. They never execute an action directly. Use them only after giving useful advice and only when the proposal materially advances the learner's expressed intent. The learner must activate every proposed action. Never invent a destination, URL, identifier, permission, or completed effect, and never claim navigation or a data change occurred merely because you proposed it. Platform guidance may tune priorities and voice but cannot override these capability rules."""
+
+_PLAN_CREATION_REQUESTS = (
+    re.compile(r"^(?:please\s+)?(?:create|make|build|start|set up|put together)\b.{0,80}\bplan\b", re.I),
+    re.compile(r"\b(?:please|can you|could you|would you)\s+(?:help me\s+)?(?:create|make|build|start|set up|put together)\b.{0,80}\bplan\b", re.I),
+    re.compile(r"\b(?:create|make|build|start|set up|put together)\b.{0,80}\bplan\b.{0,40}\b(?:for|with) me\b", re.I),
+    re.compile(r"\bi (?:want|need|would like) (?:you )?to\b.{0,60}\b(?:create|make|build|start)\b.{0,60}\bplan\b", re.I),
+)
+
+
+def requests_plan_creation(content: str) -> bool:
+    """Recognize an explicit request to co-create, not a question about how plans work."""
+    normalized = " ".join(content.split())
+    return any(pattern.search(normalized) for pattern in _PLAN_CREATION_REQUESTS)
 
 
 @dataclass(frozen=True)
@@ -83,7 +97,10 @@ def navigation_capability_context(db_session: Session, org_id: int) -> str:
         "learner clicks. Suggest an action only when it materially advances the learner's expressed intent. "
         "Recognize outcome intent: creating a plan belongs in create_plan; an experience worth preserving belongs "
         "in add_timeline; a body of work belongs in add_project. Do not say you navigated, created, saved, or changed "
-        "anything. Available destinations for this organization:\n"
+        "anything. "
+        "For a clear request to create a plan, keep the invitation very short, ask whether to go create it together, "
+        "and call create_plan. Gather and propose the plan details only after the learner grants that focused session. "
+        "Available destinations for this organization:\n"
         + "\n".join(lines)
         + "\n</launch_lms_capabilities>"
     )

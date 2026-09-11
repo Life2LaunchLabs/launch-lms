@@ -1,7 +1,7 @@
 'use client'
 
 import { FormEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { ArrowRight, ChevronDown, Loader2, Plus, Send, Square } from 'lucide-react'
+import { ArrowRight, ChevronDown, ChevronsUp, Link2, ListChecks, Loader2, Plus, Send, Square } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -21,15 +21,19 @@ import {
   getHubConversation,
   HubAdvisorMessage,
   HubEditOperation,
+  HubEditObjectState,
+  HubEditRunEvent,
   HubMemory,
   HubAdvisorResource,
   HubConversationSummary,
   HubSuggestedAction,
   listHubConversations,
   recordHubSearch,
+  reopenHubEditRun,
   renameHubConversation,
   resolveHubSuggestedAction,
   saveHubConversationState,
+  updateHubEditRunGoal,
   updateHubMemorySettings,
 } from '@services/hub/advisor'
 import { getResource, Resource } from '@services/resources/resources'
@@ -77,7 +81,7 @@ type HubConversationMessage = HubAdvisorMessage & {
 }
 
 function recoverHubEditOperations(run: NonNullable<ReturnType<typeof useHubWorkspace>>['editRun']): HubEditOperation[] {
-  if (!run) return []
+  if (!run || run.status !== 'active') return []
   const stateByKey = new Map(run.objects.map((item) => [item.object_key, item]))
   return run.events.flatMap((event) => {
     const operation = event.payload?.operation
@@ -93,6 +97,29 @@ function recoverHubEditOperations(run: NonNullable<ReturnType<typeof useHubWorks
     }
     return [operation as HubEditOperation]
   })
+}
+
+function mergePendingHubEditOperations(current: HubEditOperation[], incoming: HubEditOperation[], run: NonNullable<ReturnType<typeof useHubWorkspace>>['editRun']): HubEditOperation[] {
+  if (run && run.status !== 'active') return []
+  const stateByKey = new Map((run?.objects || []).map((item) => [item.object_key, item]))
+  const pending = current.flatMap((operation) => {
+    if (operation.type === 'set_new_plan_details') {
+      const state = stateByKey.get('new-plan')
+      return !state || state.status === 'editing' ? [operation] : []
+    }
+    if (operation.type === 'add_plan_phases') {
+      const phases = operation.phases.filter((phase) => !stateByKey.has(phase.local_id) || stateByKey.get(phase.local_id)?.status === 'editing')
+      return phases.length ? [{ ...operation, phases } as HubEditOperation] : []
+    }
+    if (operation.type === 'add_plan_objectives') {
+      const objectives = operation.objectives.filter((objective) => !stateByKey.has(objective.local_id) || stateByKey.get(objective.local_id)?.status === 'editing')
+      return objectives.length ? [{ ...operation, objectives } as HubEditOperation] : []
+    }
+    return []
+  })
+  const merged = new Map(pending.map((operation) => [operation.operation_id, operation]))
+  for (const operation of incoming) merged.set(operation.operation_id, operation)
+  return [...merged.values()]
 }
 
 const COMPOSER_LINE_HEIGHT = 24
@@ -126,33 +153,107 @@ function AssistantResponse({ content }: { content: string }) {
   )
 }
 
-function HubEditActivity({ run, onPoint }: { run: NonNullable<ReturnType<typeof useHubWorkspace>>['editRun']; onPoint: (targetId: string) => void }) {
-  const events = (run?.events || []).filter((event) => !event.transient && !event.kind.startsWith('run.'))
-  if (!events.length) return null
-  const latest = events[events.length - 1]
-  const targetFor = (event: (typeof events)[number]) => {
+function sessionEventLabel(content: string) {
+  return content.match(/^\[\[hub-session-event\]\]\s+([^\n]+)/)?.[1] || ''
+}
+
+function advisorErrorMessage(error: any) {
+  if (error?.status === 422) return 'I couldn’t send that turn. Please try again—your message is still here.'
+  return error?.message || 'The advisor is temporarily unavailable. Your message has been restored.'
+}
+
+type HubRunTimelineEntry = { id: string; kind: 'agent' | 'learner' | 'boundary'; events: HubEditRunEvent[]; createdAt: string }
+
+function hubEventTarget(event: HubEditRunEvent, localId?: string) {
+    if (localId && event.kind === 'objectives.proposed') return `hub-edit-objective-${localId}`
+    if (localId && event.kind === 'phases.proposed') return `hub-edit-phase-${localId}`
     if (event.kind === 'plan.proposed') return 'hub-edit-new-plan'
-    if (event.kind === 'objectives.proposed') {
-      const operation = event.payload?.operation as { objectives?: Array<{ local_id?: string }> } | undefined
-      const localId = operation?.objectives?.[0]?.local_id
-      if (localId) return `hub-edit-objective-${localId}`
-    }
-    if (event.kind === 'phases.proposed') {
-      const operation = event.payload?.operation as { phases?: Array<{ local_id?: string }> } | undefined
-      const localId = operation?.phases?.[0]?.local_id
-      if (localId) return `hub-edit-phase-${localId}`
-    }
     if (!event.object_uuid) return ''
     return event.object_type === 'phase' ? `plan-phase-${event.object_uuid}` : `hub-object-${event.object_uuid}`
+}
+
+function buildHubRunTimeline(events: HubEditRunEvent[]): HubRunTimelineEntry[] {
+  const entries: HubRunTimelineEntry[] = []
+  for (const event of events) {
+    if (['run.started', 'run.completed', 'run.cancelled', 'run.reopened'].includes(event.kind)) {
+      entries.push({ id: event.event_uuid, kind: 'boundary', events: [event], createdAt: event.created_at })
+      continue
+    }
+    const learnerEvent = event.kind.endsWith('.saved') || event.kind.endsWith('.cancelled') || event.kind === 'run.goal_updated'
+    const previous = entries.at(-1)
+    if (learnerEvent && previous?.kind === 'learner' && previous.events.at(-1)?.kind === event.kind) {
+      previous.events.push(event)
+      continue
+    }
+    if (!learnerEvent && previous?.kind === 'agent' && !previous.events.some((item) => item.kind.endsWith('.proposed'))) {
+      previous.events.push(event)
+      continue
+    }
+    entries.push({ id: event.event_uuid, kind: learnerEvent ? 'learner' : 'agent', events: [event], createdAt: event.created_at })
   }
-  const eventLine = (event: (typeof events)[number]) => {
-    const targetId = targetFor(event)
-    return <button key={event.event_uuid} type="button" disabled={!targetId} onClick={() => targetId && onPoint(targetId)} className="flex w-full items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-left text-xs text-muted-foreground enabled:hover:bg-muted enabled:hover:text-foreground"><span className="truncate">{event.summary}</span>{targetId ? <ArrowRight size={12} className="shrink-0" /> : null}</button>
-  }
-  const line = eventLine(latest)
-  return <div className="rounded-xl border border-border/70 bg-muted/25 p-1.5" aria-label="Hub editing activity">
-    {events.length > 1 ? <details><summary className="cursor-pointer list-none px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{events.length} editing activities</summary><div className="mt-1 space-y-0.5">{events.slice(0, -1).map(eventLine)}</div>{line}</details> : line}
+  return entries
+}
+
+function HubSessionBoundary({ event, run, onRestore }: { event: HubEditRunEvent; run: NonNullable<ReturnType<typeof useHubWorkspace>>['editRun']; onRestore: () => void }) {
+  const terminal = event.kind === 'run.completed' || event.kind === 'run.cancelled'
+  const scopeKind = String(event.payload?.scope_kind || run?.scope.kind || '')
+  const rawGoal = String(event.payload?.goal || run?.goal || 'Focused work')
+  const goal = /^\s*(create|edit|update|build)\b/i.test(rawGoal) ? rawGoal : `${scopeKind === 'new_plan' ? 'Create a plan' : 'Edit a plan'}: ${rawGoal}`
+  const verb = event.kind === 'run.started' ? 'started session' : event.kind === 'run.reopened' ? 'reopened session' : 'ended session'
+  return <div className="flex items-center gap-2 py-1 text-[10px] text-muted-foreground" aria-label={`${verb}: ${goal}`}>
+    <span className="h-px flex-1 bg-border" />
+    {terminal ? <button type="button" onClick={onRestore} className="group/boundary flex max-w-[80%] flex-col items-center rounded-lg px-3 py-1 text-center leading-4 transition hover:bg-muted hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"><span className="inline-flex items-center gap-1"><span className="group-hover/boundary:hidden">ended session</span><span className="hidden items-center gap-1 group-hover/boundary:inline-flex"><ChevronsUp size={11} />restore session</span></span><span className="truncate text-[11px] font-medium">{goal}</span></button> : <div className="max-w-[80%] text-center leading-4"><div>{verb}</div><div className="truncate text-[11px] font-medium">{goal}</div></div>}
+    <span className="h-px flex-1 bg-border" />
   </div>
+}
+
+function HubEditActivity({ events, objects, onPoint, onFinish, pendingReviewCount = 0 }: { events: HubEditRunEvent[]; objects: HubEditObjectState[]; onPoint: (targetId: string) => void; onFinish?: () => void; pendingReviewCount?: number }) {
+  const conclusion = events.find((event) => event.kind === 'run.conclusion_proposed')
+  const [expanded, setExpanded] = useState(Boolean(conclusion))
+  const details = events.flatMap((event) => {
+    const operation = event.payload?.operation as { phases?: Array<{ local_id: string; name: string }>; objectives?: Array<{ local_id: string; title: string }> } | undefined
+    if (operation?.phases) return operation.phases.map((phase) => { const state = objects.find((item) => item.object_key === phase.local_id); return { id: `${event.event_uuid}:${phase.local_id}`, label: `Proposed phase “${phase.name}”`, targetId: state?.object_uuid ? `plan-phase-${state.object_uuid}` : hubEventTarget(event, phase.local_id) } })
+    if (operation?.objectives) return operation.objectives.map((objective) => { const state = objects.find((item) => item.object_key === objective.local_id); return { id: `${event.event_uuid}:${objective.local_id}`, label: `Proposed objective “${objective.title}”`, targetId: state?.object_uuid ? `hub-object-${state.object_uuid}` : hubEventTarget(event, objective.local_id) } })
+    return [{ id: event.event_uuid, label: event.summary, targetId: hubEventTarget(event) }]
+  })
+  const summary = events.map((event) => event.summary.replace(/^Prepared/, 'Proposed')).join(' · ')
+  return <details open={expanded} onToggle={(event) => setExpanded(event.currentTarget.open)} className="group/activity text-xs text-muted-foreground" aria-label="Hub editing activity">
+    <summary className="flex cursor-pointer list-none items-center gap-2 py-1.5 hover:text-foreground"><ListChecks size={13} className="shrink-0" /><span className="min-w-0 flex-1 truncate">{summary}</span><ChevronDown size={13} className="shrink-0 opacity-0 transition group-hover/activity:opacity-100 group-open/activity:rotate-180 group-open/activity:opacity-100" /></summary>
+    <div className="ml-5 mt-1 space-y-0.5 border-l border-border pl-2">{!conclusion ? details.map((detail) => <button key={detail.id} type="button" disabled={!detail.targetId} onClick={() => detail.targetId && onPoint(detail.targetId)} className="flex w-full items-center justify-between gap-3 rounded px-2 py-1.5 text-left text-[11px] enabled:hover:bg-muted enabled:hover:text-foreground"><span>{detail.label}</span>{detail.targetId ? <ArrowRight size={11} className="shrink-0" /> : null}</button>) : <div className="px-2 py-1"><p className="leading-5">{String(conclusion.payload?.operation && typeof conclusion.payload.operation === 'object' && 'summary' in conclusion.payload.operation ? conclusion.payload.operation.summary : conclusion.summary)}</p><Button type="button" size="sm" className="mt-2 h-8 text-xs" disabled={Boolean(pendingReviewCount)} onClick={onFinish}>Finish session</Button>{pendingReviewCount ? <p className="mt-1.5 text-[10px]">Review the remaining {pendingReviewCount} {pendingReviewCount === 1 ? 'object' : 'objects'} first.</p> : null}</div>}</div>
+  </details>
+}
+
+function HubLearnerSessionEvent({ events, onPoint }: { events: HubEditRunEvent[]; onPoint: (targetId: string) => void }) {
+  const first = events[0]
+  const status = first.kind.endsWith('.cancelled') ? 'cancelled' : 'saved'
+  const objectType = first.object_type || 'object'
+  const label = first.kind === 'run.goal_updated'
+    ? 'You updated the session goal'
+    : `You ${status} ${events.length === 1 ? (first.object_label ? `“${first.object_label}”` : `1 ${objectType}`) : `${events.length} ${objectType}s`}`
+  const targets = events.map((event) => ({ event, targetId: hubEventTarget(event) })).filter((item) => item.targetId)
+  if (targets.length <= 1) return <button type="button" disabled={!targets.length} onClick={() => targets[0]?.targetId && onPoint(targets[0].targetId)} className="w-fit text-left text-[11px] italic text-muted-foreground enabled:hover:text-foreground">{label}</button>
+  return <details className="group/session-event w-fit text-[11px] italic text-muted-foreground"><summary className="flex cursor-pointer list-none items-center gap-1.5 hover:text-foreground"><span>{label}</span><ChevronDown size={11} className="opacity-0 transition group-hover/session-event:opacity-100 group-open/session-event:rotate-180 group-open/session-event:opacity-100" /></summary><div className="ml-2 mt-1 space-y-1 border-l border-border pl-2">{targets.map(({ event, targetId }) => <button key={event.event_uuid} type="button" onClick={() => onPoint(targetId)} className="block hover:text-foreground">{event.object_label || event.summary}</button>)}</div></details>
+}
+
+function placeHubRunTimeline(entries: HubRunTimelineEntry[], messages: HubConversationMessage[]) {
+  const slots = new Map<number, HubRunTimelineEntry[]>()
+  const messageTimes = messages.map((message) => message.createdAt ? new Date(message.createdAt).getTime() : Number.NaN)
+  for (const entry of entries) {
+    const eventTime = new Date(entry.createdAt).getTime()
+    let slot = messageTimes.findIndex((time) => Number.isFinite(time) && time > eventTime)
+    if (slot < 0) slot = messages.length
+    if (entry.kind === 'agent') {
+      let closest = -1, distance = 30_000
+      messages.forEach((message, index) => {
+        if (message.role !== 'assistant' || !Number.isFinite(messageTimes[index])) return
+        const candidate = Math.abs(messageTimes[index] - eventTime)
+        if (candidate < distance) { closest = index; distance = candidate }
+      })
+      if (closest >= 0) slot = closest + 1
+    }
+    slots.set(slot, [...(slots.get(slot) || []), entry])
+  }
+  return slots
 }
 
 // eslint-disable-next-line no-unused-vars
@@ -173,9 +274,9 @@ function HubSuggestedActions({ actions, disabled = false, onActivate }: { action
     </div> : <Button
       key={action.action_id}
       type="button"
-      variant="outline"
+      variant="ghost"
       size="sm"
-      className="h-8 rounded-lg bg-background px-3 text-xs font-semibold shadow-xs"
+      className="h-7 rounded-full bg-muted/60 px-2.5 text-xs font-medium text-muted-foreground shadow-none hover:text-foreground"
       disabled={disabled || busy !== null}
       onClick={async () => {
         setBusy(action.action_id)
@@ -183,8 +284,8 @@ function HubSuggestedActions({ actions, disabled = false, onActivate }: { action
       }}
     >
       {busy === action.action_id ? <Loader2 size={13} className="animate-spin" /> : null}
-      {action.label}
-      {busy !== action.action_id ? <ArrowRight size={13} aria-hidden="true" /> : null}
+      {busy !== action.action_id ? <Link2 size={12} aria-hidden="true" /> : null}
+      {action.destination === 'plans' ? 'Plans page' : action.label.replace(/^View\s+/i, '')}
     </Button>)}
   </div>
 }
@@ -257,6 +358,28 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
     ...messages.map((message) => ({ id: message.id, resources: message.resources })),
     { id: 'pending', resources: pendingResources },
   ]), [messages, pendingResources])
+  const editTimelineSlots = useMemo(() => placeHubRunTimeline(buildHubRunTimeline(workspace?.editRun?.events || []), messages), [messages, workspace?.editRun?.events])
+  const narratedConclusionMessageId = useMemo(() => {
+    if (workspace?.editRun?.status !== 'active' || workspace.editRun.objects.some((item) => item.status === 'editing') || workspace.editRun.events.some((event) => event.kind === 'run.conclusion_proposed')) return ''
+    const last = messages.at(-1)
+    if (last?.role !== 'assistant') return ''
+    return /(?:finish|close|end).{0,50}(?:edit|editing|session|run)|(?:edit|editing|session|run).{0,50}(?:finish|close|end)/i.test(last.content) ? last.id : ''
+  }, [messages, workspace?.editRun])
+  const restoreOfferMessageId = useMemo(() => {
+    if (!workspace?.editRun || workspace.editRun.status === 'active') return ''
+    const assistant = messages.at(-1)
+    const learner = [...messages].reverse().find((message) => message.role === 'user' && !sessionEventLabel(message.content))
+    if (assistant?.role !== 'assistant' || !learner) return ''
+    const asksForWork = /\b(add|edit|change|update|continue|resume|reopen|work on|help with)\b/i.test(learner.content)
+    const namesScope = /\b(plan|phase|objective|timeline|session|it|that)\b/i.test(learner.content)
+    return asksForWork && namesScope ? assistant.id : ''
+  }, [messages, workspace?.editRun])
+
+  useEffect(() => {
+    if (!workspace?.editRun) return
+    const recovered = recoverHubEditOperations(workspace.editRun)
+    workspace.setEditOperations((current) => mergePendingHubEditOperations(current, recovered, workspace.editRun))
+  }, [workspace?.editRun, workspace?.setEditOperations])
 
   const setConversationInUrl = (uuid: string | null) => {
     if (!alive.current) return
@@ -664,7 +787,7 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
       ]
       setMessages(nextMessages)
       setContextResources((current) => addHubContextResources(current, response.resources))
-      workspace?.setEditOperations(response.edit_operations || [])
+      workspace?.setEditOperations((current) => mergePendingHubEditOperations(current, response.edit_operations || [], response.edit_run || workspace.editRun))
       if (response.edit_run) workspace?.setEditRun(response.edit_run)
       setConversationUuid(response.conversation_uuid)
       setConversationTitle(response.title)
@@ -682,7 +805,7 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
       if (submittedResources.length > 0) setActiveResourceGroupId('pending')
       if (!pendingSubmission?.preserveDraft) setDraft((current) => restoreSubmittedDraft(current, content))
       continuationInFlightRef.current = null
-      if (requestError?.name !== 'AbortError') setError(requestError?.message || 'The advisor is temporarily unavailable. Your message has been restored.')
+      if (requestError?.name !== 'AbortError') setError(advisorErrorMessage(requestError))
     } finally {
       advisorAbortRef.current = null
       setSending(false)
@@ -719,8 +842,8 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
   const stopEditing = async () => {
     if (!workspace?.editRun || !accessToken || !org?.id) return
     try {
-      await concludeHubEditRun(org.id, workspace.editRun.run_uuid, 'cancelled', accessToken)
-      workspace.setEditRun(null)
+      const ended = await concludeHubEditRun(org.id, workspace.editRun.run_uuid, 'cancelled', accessToken)
+      workspace.setEditRun(ended)
       workspace.setEditOperations([])
       workspace.setEditReviewItems([])
       workspace.clearEditContinuations(workspace.editRun.run_uuid)
@@ -732,13 +855,44 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
   const finishEditing = async () => {
     if (!workspace?.editRun || !accessToken || !org?.id) return
     try {
-      await concludeHubEditRun(org.id, workspace.editRun.run_uuid, 'completed', accessToken)
-      workspace.setEditRun(null)
+      const ended = await concludeHubEditRun(org.id, workspace.editRun.run_uuid, 'completed', accessToken)
+      workspace.setEditRun(ended)
       workspace.setEditOperations([])
       workspace.setEditReviewItems([])
       workspace.clearEditContinuations(workspace.editRun.run_uuid)
     } catch (finishError: any) {
       setError(finishError?.message || 'This editing goal could not be finished.')
+    }
+  }
+  const restoreEditing = async () => {
+    if (!workspace?.editRun || !accessToken || !org?.id || workspace.editRun.status === 'active') return
+    try {
+      const restored = await reopenHubEditRun(org.id, workspace.editRun.run_uuid, accessToken)
+      workspace.setEditRun(restored)
+      workspace.setEditOperations(recoverHubEditOperations(restored))
+      workspace.open()
+      router.push(getUriWithOrg(orgslug, restored.scope.route))
+      workspace.enqueueEditContinuation({
+        id: crypto.randomUUID(), conversationUuid: restored.conversation_uuid, runUuid: restored.run_uuid,
+        content: `[[hub-session-event]] You reopened the focused session\nThe learner restored the focused session “${restored.goal}”. Briefly assess its saved and unresolved state, then ask one short question about how they would like to continue. Do not make new edits before their answer.`,
+      })
+    } catch (restoreError: any) {
+      setError(restoreError?.message || 'This focused session could not be restored.')
+    }
+  }
+
+  const updateEditingGoal = async (goal: string) => {
+    if (!workspace?.editRun || !accessToken || !org?.id) return
+    try {
+      const updated = await updateHubEditRunGoal(org.id, workspace.editRun.run_uuid, goal, accessToken)
+      workspace.setEditRun(updated)
+      workspace.enqueueEditContinuation({
+        id: crypto.randomUUID(), conversationUuid: updated.conversation_uuid, runUuid: updated.run_uuid,
+        content: `[[hub-session-event]] You updated the session goal\nThe focused-session goal is now: ${updated.goal}. Continue within the existing scope.`,
+      })
+    } catch (goalError: any) {
+      setError(goalError?.message || 'The session goal could not be updated.')
+      throw goalError
     }
   }
 
@@ -810,12 +964,13 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
           contextUnavailable={companion && !workspace?.surface}
           editRun={workspace?.editRun}
           onStopEditing={() => void stopEditing()}
+          onUpdateEditGoal={updateEditingGoal}
           onCompanionCollapse={onCompanionCollapse}
           onCompanionExpand={onCompanionExpand}
         />
       )}
 
-      <div ref={scrollRef} className={`scrollbar-subtle absolute inset-x-0 bottom-0 overflow-y-auto overscroll-contain scroll-smooth ${conversationStarted || companion ? (companion && (!workspace?.surface || workspace.editRun?.status === 'active') ? 'top-[4.5rem]' : 'top-11') : 'top-0'}`}>
+      <div ref={scrollRef} className={`scrollbar-subtle absolute inset-x-0 bottom-0 overflow-y-auto overscroll-contain scroll-smooth ${conversationStarted || companion ? (companion && workspace?.editRun?.status === 'active' ? 'top-[4.75rem]' : companion && !workspace?.surface ? 'top-[4.5rem]' : 'top-11') : 'top-0'}`}>
         <div
           className={`mx-auto min-h-full w-full max-w-3xl px-4 sm:px-6 ${conversationStarted || companion ? 'pt-5' : 'pt-7 sm:pt-10'}`}
           style={{ paddingBottom: composerHeight + 88 + (memoryNoticeVisible ? 148 : 0) + (libraryOpen ? 290 : 0) + (workspace?.editReviewItems.length ? 58 : 0) }}
@@ -832,7 +987,9 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
               />
             )}
             {conversationLoading && <div className="py-16 text-center text-sm text-muted-foreground" role="status">Loading conversation…</div>}
-              {messages.map((message) => message.role === 'user' ? (
+              {messages.map((message, messageIndex) => <div key={`timeline:${message.id}`} className="contents">
+                {(editTimelineSlots.get(messageIndex) || []).map((entry) => entry.kind === 'agent' ? <HubEditActivity key={entry.id} events={entry.events} objects={workspace?.editRun?.objects || []} onPoint={pointToEditObject} onFinish={() => void finishEditing()} pendingReviewCount={workspace?.editReviewItems.length || 0} /> : entry.kind === 'boundary' ? <HubSessionBoundary key={entry.id} event={entry.events[0]} run={workspace?.editRun || null} onRestore={() => void restoreEditing()} /> : <HubLearnerSessionEvent key={entry.id} events={entry.events} onPoint={pointToEditObject} />)}
+                {message.role === 'user' ? sessionEventLabel(message.content) ? null : (
                 <div key={message.id} className="group/message space-y-1.5">
                   {message.resources && message.resources.length > 0 && (
                     <div ref={(node) => { if (node) resourceOriginRefs.current.set(message.id, node); else resourceOriginRefs.current.delete(message.id) }} tabIndex={-1} className="rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
@@ -881,6 +1038,8 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
                     <>
                       <AssistantResponse content={message.content} />
                       <HubSuggestedActions actions={message.suggestedActions || []} disabled={sending} onActivate={(action, mode) => activateSuggestedAction(message.id, action, mode)} />
+                      {message.id === narratedConclusionMessageId ? <Button type="button" size="sm" className="mt-2 h-8 text-xs" onClick={() => void finishEditing()}>Finish session</Button> : null}
+                      {message.id === restoreOfferMessageId ? <Button type="button" size="sm" className="mt-2 h-8 gap-1.5 text-xs" onClick={() => void restoreEditing()}>Continue focused session<ArrowRight size={13} /></Button> : null}
                       {accessToken && org?.id && <HubMessageMicroBar role="assistant" content={message.content} createdAt={message.createdAt} memories={message.memories} pageContext={message.page_context} orgId={org.id} accessToken={accessToken} />}
                       {message.resources && message.resources.length > 0 && (
                         <div ref={(node) => { if (node) resourceOriginRefs.current.set(message.id, node); else resourceOriginRefs.current.delete(message.id) }} tabIndex={-1} className="rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
@@ -897,16 +1056,8 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
                     </>
                   )}
                 </div>
-              ))}
-              <HubEditActivity run={workspace?.editRun || null} onPoint={pointToEditObject} />
-              {workspace?.editOperations.find((operation) => operation.type === 'propose_edit_conclusion') && workspace.editRun?.status === 'active' ? (() => {
-                const conclusion = workspace.editOperations.find((operation) => operation.type === 'propose_edit_conclusion')
-                return conclusion?.type === 'propose_edit_conclusion' ? <div className="rounded-xl border border-border bg-card p-3 shadow-xs">
-                  <p className="text-xs text-muted-foreground">{conclusion.summary}</p>
-                  <Button type="button" size="sm" className="mt-3 h-8 text-xs" disabled={Boolean(workspace.editReviewItems.length)} onClick={() => void finishEditing()}>Finish this edit</Button>
-                  {workspace.editReviewItems.length ? <p className="mt-2 text-[11px] text-muted-foreground">Save or cancel the remaining {workspace.editReviewItems.length === 1 ? 'object' : `${workspace.editReviewItems.length} objects`} first.</p> : null}
-                </div> : null
-              })() : null}
+              )}</div>)}
+              {(editTimelineSlots.get(messages.length) || []).map((entry) => entry.kind === 'agent' ? <HubEditActivity key={entry.id} events={entry.events} objects={workspace?.editRun?.objects || []} onPoint={pointToEditObject} onFinish={() => void finishEditing()} pendingReviewCount={workspace?.editReviewItems.length || 0} /> : entry.kind === 'boundary' ? <HubSessionBoundary key={entry.id} event={entry.events[0]} run={workspace?.editRun || null} onRestore={() => void restoreEditing()} /> : <HubLearnerSessionEvent key={entry.id} events={entry.events} onPoint={pointToEditObject} />)}
               {pendingResources.length > 0 && (
                 <div ref={(node) => { if (node) resourceOriginRefs.current.set('pending', node); else resourceOriginRefs.current.delete('pending') }} tabIndex={-1} className="rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
                   <HubResourceContext

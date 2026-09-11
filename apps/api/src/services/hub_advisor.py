@@ -7,7 +7,7 @@ import json
 import logging
 import os
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Literal, Protocol
 
 import httpx
@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 
 MAX_MESSAGES = 12
 MAX_MESSAGE_CHARS = 2_000
+MAX_ASSISTANT_CHARS = 1_600
 MAX_CONVERSATION_CHARS = 8_000
 MAX_OUTPUT_TOKENS = 700
 ADVISOR_RATE_LIMIT = 12
@@ -58,6 +59,19 @@ class AdvisorProviderLimited(AdvisorError):
     def __init__(self, message: str, retry_after: int = 30):
         super().__init__(message)
         self.retry_after = retry_after
+
+
+def bound_advisor_text(text: str, limit: int = MAX_ASSISTANT_CHARS) -> str:
+    """Keep persisted replies safe to replay without exposing transport limits."""
+    normalized = text.strip()
+    if len(normalized) <= limit:
+        return normalized
+    window = normalized[: limit - 1]
+    breaks = [window.rfind(marker) for marker in ("\n\n", ". ", "? ", "! ")]
+    boundary = max(breaks)
+    if boundary >= limit // 2:
+        window = window[:boundary + (0 if normalized[boundary] == "\n" else 1)]
+    return window.rstrip() + "…"
 
 
 def advisor_safety_identifier(user_id: int) -> str:
@@ -254,7 +268,7 @@ class DeterministicUiTestProvider:
         if self.edit_scope == "plan":
             from src.services.hub_plan_tools import parse_plan_tool_call
             if "saved phase" in prompt or "cancelled phase" in prompt:
-                if "remaining proposed phases: 0" not in prompt:
+                if "all proposed phases have now been reviewed" not in prompt and "remaining proposed phases: 0" not in prompt:
                     return AdvisorResult(
                         text="I’ve recorded that choice. The other proposed phases are still ready for your review.",
                         model="ui-test-advisor",
@@ -269,7 +283,7 @@ class DeterministicUiTestProvider:
                     model="ui-test-advisor", plan_operations=(operation,) if operation else (),
                 )
             if "saved objective" in prompt or "cancelled objective" in prompt:
-                if "remaining proposed objectives: 0" not in prompt:
+                if "all proposed objectives have now been reviewed" not in prompt and "remaining proposed objectives: 0" not in prompt:
                     return AdvisorResult(
                         text="I’ve recorded that choice. The other proposed objectives are still ready for your review.",
                         model="ui-test-advisor",
@@ -657,6 +671,7 @@ async def ask_hub_advisor(
     grounding_memories: list[dict] | None = None,
     page_context: dict | None = None,
     edit_run: dict | None = None,
+    recent_edit_run: dict | None = None,
 ) -> AdvisorResult:
     require_org_membership(user_id, org_id, db_session)
     validate_conversation(messages)
@@ -681,6 +696,10 @@ async def ask_hub_advisor(
         provider_messages = ground_page_context(provider_messages, page_context)
     from src.services.hub_actions import navigation_capability_context
     capability_context = navigation_capability_context(db_session, org_id)
+    capability_context += (
+        "\n\nKeep every learner-facing reply under 1,600 characters. Prefer a few short paragraphs and do not "
+        "repeat background the learner already supplied."
+    )
     if edit_run:
         pending_objects = [item for item in edit_run.get("objects", []) if item.get("status") == "editing"]
         capability_context += (
@@ -688,18 +707,33 @@ async def ask_hub_advisor(
             f"{edit_run['goal']}. Current scope: {edit_run['scope']['label']}. "
             f"Native objects currently awaiting learner review: {len(pending_objects)}. "
             "Typed editing tools prepare complete values in the real editor; they never save. "
-            "Do not propose edits outside this scope. Every turn in an active editing run must end in an explicit "
-            "state: prepare a supported edit, ask one clear question needed to continue, or propose finishing the "
-            "editing goal. When native objects are still awaiting learner review, explicitly say so and wait for that "
+            "Do not propose edits outside this scope. A conversational refinement may update the goal while retaining "
+            "the same scope, but a request to act on another plan or product surface requires a new learner-granted run. "
+            "When that happens, ask how to resolve any unfinished objects, propose concluding this run, and only then "
+            "offer the separately scoped action. Keep useful out-of-scope follow-up ideas until this run concludes rather "
+            "than silently widening authority. Every turn in an active editing run must end in an explicit "
+            "state: prepare a supported edit, ask one clear question needed to continue, or call the conclusion tool "
+            "to propose finishing the editing goal. Never merely promise that a finish button will appear. When native "
+            "objects are still awaiting learner review, explicitly say so and wait for that "
             "review rather than duplicating the proposal. Never propose phases and objectives that depend on those "
             "phases in the same turn; wait until every proposed phase is reviewed and saved. Never stop at a bare "
             "acknowledgement.\n</hub_editing_scope>"
+        )
+    elif recent_edit_run and recent_edit_run.get("status") in {"cancelled", "completed"}:
+        capability_context += (
+            "\n\n<hub_recent_editing_scope>\nA focused session recently ended. Goal: "
+            f"{recent_edit_run['goal']}. Scope: {recent_edit_run['scope']['label']}. "
+            "If the learner clearly asks for more work in that same scope, acknowledge it briefly and explain that "
+            "you can reopen the session using the offered continuation control. Do not claim it is reopened and do "
+            "not propose edits until the learner activates that control. A different scope requires a new grant."
+            "\n</hub_recent_editing_scope>"
         )
     provider_messages = [
         *provider_messages[:-1],
         AdvisorMessage(role="user", content=provider_messages[-1].content + capability_context),
     ]
     result = await (provider or configured_advisor_provider(db_session, edit_run["scope"]["kind"] if edit_run else None)).respond(provider_messages, safety_identifier)
+    result = replace(result, text=bound_advisor_text(result.text))
     logger.info(
         "hub_advisor_usage org_id=%s user_id=%s model=%s input_tokens=%s output_tokens=%s",
         org_id, user_id, result.model, result.input_tokens, result.output_tokens,

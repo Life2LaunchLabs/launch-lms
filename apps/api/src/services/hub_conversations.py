@@ -199,7 +199,7 @@ def advisor_history(
         ).all()
         history = [AdvisorMessage(
             role=row.role,  # type: ignore[arg-type]
-            content=(f'Displayed resource search results for “{row.content}”.' if row.kind == "search" else row.content),
+            content=(f'Displayed resource search results for “{row.content}”.' if row.kind == "search" else row.content)[:2_000],
         ) for row in rows]
     else:
         require_org_membership(user_id, org_id, db_session)

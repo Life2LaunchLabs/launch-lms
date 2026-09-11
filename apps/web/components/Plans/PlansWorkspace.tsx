@@ -204,7 +204,7 @@ export default function PlansWorkspace({ orgslug, initialPlanSlug, initialGroupA
     <GeneralWrapperStyled>
       <main className="pb-20 pt-8">
         {selectedSlug && detail ? <PlanWorkspaceHeader title={detail.name} color={getPlanColor(detail.plan_uuid)} onClose={clear} onOpenPanel={() => setMobilePanel(true)} /> : selectedGroupAssignmentUuid ? null : <><header className="flex items-start justify-between gap-4"><h1 className="text-4xl font-black tracking-tight">Plans</h1><button type="button" onClick={() => setMobilePanel(true)} className="plan-panel-trigger inline-flex h-10 items-center gap-2 rounded-lg border border-border px-3 text-xs font-black lg:hidden"><Menu size={16} />Plans</button></header>{feed?.has_helping ? <div className="mt-7 flex h-11 gap-1 rounded-xl bg-muted p-1 w-fit">{(['all', 'mine', 'helping'] as PlanScope[]).map((value) => <button key={value} onClick={() => setScope(value)} className={cn('rounded-lg px-4 py-2 text-xs font-black capitalize', scope === value ? 'bg-card shadow-sm' : 'text-muted-foreground')}>{value === 'mine' ? 'My plans' : value}</button>)}</div> : <div className="mt-7 h-11" />}</>}
-        {creating ? <CreatePlanEditor token={token} onCancel={(content?: string) => { setCreating(false); const run = workspace?.editRun; if (content && run?.status === 'active') workspace?.enqueueEditContinuation({ id: crypto.randomUUID(), conversationUuid: run.conversation_uuid, runUuid: run.run_uuid, content }) }} refresh={refresh} onCreated={async (plan: any, content?: string) => { setCreating(false); let continuedRun = null; if (workspace?.editRun?.scope.kind === 'new_plan' && org?.id) { try { continuedRun = await bindHubEditRunPlan(org.id, workspace.editRun.run_uuid, plan.plan_uuid, token); workspace.setEditRun(continuedRun) } catch { toast.error('The plan was saved, but Hub lost its editing scope.') } } choose(plan); if (continuedRun && content) workspace?.enqueueEditContinuation({ id: crypto.randomUUID(), conversationUuid: continuedRun.conversation_uuid, runUuid: continuedRun.run_uuid, content }) }} /> : selectedGroupAssignmentUuid ? <GroupPlanWorkspace orgslug={orgslug} assignmentUuid={selectedGroupAssignmentUuid} embedded onClose={clear} onChanged={refresh} color={getPlanColor(`group:${selectedGroupAssignmentUuid}`)} onSetColor={(nextColor) => setPlanColor(`group:${selectedGroupAssignmentUuid}`, nextColor)} /> : isLoading || (selectedSlug ? !detail || detail.source_assignment?.type === 'group' : feedLoading) ? <div className="flex min-h-[45vh] items-center justify-center"><Loader2 className="animate-spin text-muted-foreground" /></div> : selectedSlug && detail ? <PlanEditor detail={detail} orgslug={orgslug} token={token} viewerUserId={session?.data?.user?.id} refresh={refresh} color={getPlanColor(detail.plan_uuid)} selectedObjectiveUuid={selectedObjectiveUuid} setSelectedObjectiveUuid={setSelectedObjectiveUuid} /> : <Feed feed={feed} orgslug={orgslug} token={token} viewerUserId={session?.data?.user?.id} refresh={refresh} getPlanColor={getPlanColor} onCreate={() => setCreating(true)} />}
+        {creating ? <CreatePlanEditor token={token} onCancel={(content?: string) => { setCreating(false); const run = workspace?.editRun; if (content && run?.status === 'active') workspace?.enqueueEditContinuation({ id: crypto.randomUUID(), conversationUuid: run.conversation_uuid, runUuid: run.run_uuid, content: `[[hub-session-event]] You cancelled the new plan\n${content}` }) }} refresh={refresh} onCreated={async (plan: any, content?: string) => { setCreating(false); let continuedRun = null; if (workspace?.editRun?.scope.kind === 'new_plan' && org?.id) { try { continuedRun = await bindHubEditRunPlan(org.id, workspace.editRun.run_uuid, plan.plan_uuid, token); workspace.setEditRun(continuedRun) } catch { toast.error('The plan was saved, but Hub lost its editing scope.') } } choose(plan); if (continuedRun && content) workspace?.enqueueEditContinuation({ id: crypto.randomUUID(), conversationUuid: continuedRun.conversation_uuid, runUuid: continuedRun.run_uuid, content: `[[hub-session-event]] You saved the plan\n${content}` }) }} /> : selectedGroupAssignmentUuid ? <GroupPlanWorkspace orgslug={orgslug} assignmentUuid={selectedGroupAssignmentUuid} embedded onClose={clear} onChanged={refresh} color={getPlanColor(`group:${selectedGroupAssignmentUuid}`)} onSetColor={(nextColor) => setPlanColor(`group:${selectedGroupAssignmentUuid}`, nextColor)} /> : isLoading || (selectedSlug ? !detail || detail.source_assignment?.type === 'group' : feedLoading) ? <div className="flex min-h-[45vh] items-center justify-center"><Loader2 className="animate-spin text-muted-foreground" /></div> : selectedSlug && detail ? <PlanEditor detail={detail} orgslug={orgslug} token={token} viewerUserId={session?.data?.user?.id} refresh={refresh} color={getPlanColor(detail.plan_uuid)} selectedObjectiveUuid={selectedObjectiveUuid} setSelectedObjectiveUuid={setSelectedObjectiveUuid} /> : <Feed feed={feed} orgslug={orgslug} token={token} viewerUserId={session?.data?.user?.id} refresh={refresh} getPlanColor={getPlanColor} onCreate={() => setCreating(true)} />}
       </main>
     </GeneralWrapperStyled>
     {mounted && panel && document.getElementById('org-layout-right-sidebar') ? createPortal(<div className="sticky top-4 max-h-[calc(100dvh-2rem)] overflow-y-auto pb-6">{panel}</div>, document.getElementById('org-layout-right-sidebar')!) : null}
@@ -213,6 +213,23 @@ export default function PlansWorkspace({ orgslug, initialPlanSlug, initialGroupA
 }
 
 function dateValue(value?: string) { return value ? String(value).slice(0, 10) : '' }
+function updateRunObjectState(run: any, saved: any, status: 'editing' | 'cancelled' | 'saved', label: string) {
+  const objects = [...run.objects.filter((item: any) => item.object_key !== saved.object_key), saved]
+  if (status === 'editing' || run.events.some((event: any) => event.payload?.object_key === saved.object_key && event.kind === `${saved.object_type}.${status}`)) return { ...run, objects }
+  const sequence = Math.max(0, ...run.events.map((event: any) => Number(event.sequence || 0))) + 1
+  return { ...run, objects, events: [...run.events, {
+    event_uuid: `local:${saved.object_key}:${status}`,
+    sequence,
+    kind: `${saved.object_type}.${status}`,
+    summary: `${status === 'saved' ? 'Saved' : 'Cancelled'} ${label}`,
+    object_type: saved.object_type,
+    object_uuid: saved.object_uuid,
+    object_label: label,
+    transient: false,
+    payload: { object_key: saved.object_key },
+    created_at: new Date().toISOString(),
+  }] }
+}
 function isBeforeToday(value?: string) {
   if (!value) return false
   const today = new Date(); today.setHours(0, 0, 0, 0)
@@ -235,7 +252,7 @@ function PlanEditor({ detail, orgslug, token, viewerUserId, refresh, color, sele
   const [newObjectiveUuid, setNewObjectiveUuid] = React.useState('')
   const [pendingMove, setPendingMove] = React.useState<any>(null)
   const [agentPhases, setAgentPhases] = React.useState<Array<{ operationId: string; position: number; phase: { local_id: string; name: string; description: string; due_date: string } }>>([])
-  const [agentObjectives, setAgentObjectives] = React.useState<Array<{ operationId: string; objective: { local_id: string; title: string; description: string; due_date: string; phase_name: string } }>>([])
+  const [agentObjectives, setAgentObjectives] = React.useState<Array<{ operationId: string; targetPhaseUuid: string; objective: { local_id: string; title: string; description: string; due_date: string; phase_name: string } }>>([])
   const handledAgentOperations = React.useRef(new Set<string>())
   const phases = detail.phases || []
   const allObjectives = detail.objectives || phases.flatMap((phase: any) => phase.objectives || [])
@@ -246,14 +263,17 @@ function PlanEditor({ detail, orgslug, token, viewerUserId, refresh, color, sele
   const overdueIds = new Set(overdue.map((objective: any) => objective.objective_uuid))
   const currentPhases = phases.filter((phase: any) => !isBeforeToday(phaseDue(phase)))
   const completedFromPast = allObjectives.filter((objective: any) => isComplete(objective) && isBeforeToday(phaseDue(phaseByObjective.get(objective.objective_uuid))))
+  const completedFromPastIds = new Set(completedFromPast.map((objective: any) => objective.objective_uuid))
 
   React.useEffect(() => {
     if (workspace?.editRun?.status === 'active' && workspace.editRun.scope.kind === 'plan' && workspace.editRun.scope.target_uuid === detail.plan_uuid) return
     setAgentPhases([])
     setAgentObjectives([])
+    handledAgentOperations.current.clear()
   }, [detail.plan_uuid, workspace?.editRun])
 
   React.useEffect(() => {
+    if (workspace?.editRun?.status !== 'active' || workspace.editRun.scope.kind !== 'plan' || workspace.editRun.scope.target_uuid !== detail.plan_uuid) return
     const pendingOperations = workspace?.editOperations || []
     const phaseAdditions = pendingOperations.flatMap((operation) => operation.type === 'add_plan_phases' && !handledAgentOperations.current.has(operation.operation_id) ? [operation] : [])
     const additions = pendingOperations.flatMap((operation) => operation.type === 'add_plan_objectives' && !handledAgentOperations.current.has(operation.operation_id) ? [operation] : [])
@@ -272,55 +292,39 @@ function PlanEditor({ detail, orgslug, token, viewerUserId, refresh, color, sele
         ...current,
         ...additions.flatMap((operation) => operation.objectives
           .filter((objective) => !known.has(objective.local_id) && !settledKeys.has(objective.local_id))
-          .map((objective) => ({ operationId: operation.operation_id, objective }))),
+          .map((objective) => {
+            const recovered = workspace?.editRun?.objects.find((item) => item.object_key === objective.local_id && item.status === 'editing')
+            return { operationId: operation.operation_id, targetPhaseUuid: String(recovered?.current_fields.phase_uuid || phases.find((phase: any) => phase.name === objective.phase_name)?.phase_uuid || phases[0]?.phase_uuid || ''), objective }
+          })),
       ]
     })
-    workspace?.setEditOperations((current) => current.filter((operation) => ![...phaseAdditions, ...additions].some((addition) => addition.operation_id === operation.operation_id)))
   }, [phases.length, workspace?.editOperations, workspace?.editRun?.objects, workspace?.setEditOperations])
 
   const settleAgentObjective = (localId: string, decision: string) => {
     const remaining = agentObjectives.filter((item) => item.objective.local_id !== localId).length
     setAgentObjectives((current) => current.filter((item) => item.objective.local_id !== localId))
     const run = workspace?.editRun
-    if (!run) return
+    if (!run || remaining) return
     workspace.enqueueEditContinuation({
       id: crypto.randomUUID(),
       conversationUuid: run.conversation_uuid,
       runUuid: run.run_uuid,
-      content: `${decision}\nRemaining proposed objectives: ${remaining}. ${remaining ? 'Wait for me to review those objects before proposing duplicates.' : 'Continue working toward our editing goal.'}`,
+      content: `[[hub-session-event]] You finished reviewing the proposed objectives\n${decision}\nAll proposed objectives have now been reviewed. Continue working toward our editing goal.`,
     })
   }
-
-  const agentObjectiveEditors = agentObjectives.length ? <section className="space-y-3" aria-label="Hub objective proposals">
-    <div><p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ready to review</p><h2 className="mt-1 text-lg font-black">Proposed objectives</h2></div>
-    {agentObjectives.map(({ operationId, objective }) => <ProposedObjectiveEditor
-      key={objective.local_id}
-      operationId={operationId}
-      objective={objective}
-      recovered={workspace?.editRun?.objects.find((item) => item.object_key === objective.local_id && item.status === 'editing')}
-      detail={detail}
-      phases={phases}
-      token={token}
-      refresh={refresh}
-      onSettled={settleAgentObjective}
-    />)}
-  </section> : null
 
   const settleAgentPhase = (localId: string, decision: string) => {
     const remaining = agentPhases.filter((item) => item.phase.local_id !== localId).length
     setAgentPhases((current) => current.filter((item) => item.phase.local_id !== localId))
     const run = workspace?.editRun
-    if (!run) return
+    if (!run || remaining) return
     workspace.enqueueEditContinuation({
       id: crypto.randomUUID(), conversationUuid: run.conversation_uuid, runUuid: run.run_uuid,
-      content: `${decision}\nRemaining proposed phases: ${remaining}. ${remaining ? 'Wait for me to review those objects before proposing duplicates.' : 'Continue working toward our editing goal.'}`,
+      content: `[[hub-session-event]] You finished reviewing the proposed phases\n${decision}\nAll proposed phases have now been reviewed. Continue working toward our editing goal.`,
     })
   }
 
-  const agentPhaseEditors = agentPhases.length ? <section className="space-y-3" aria-label="Hub phase proposals">
-    <div><p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ready to review</p><h2 className="mt-1 text-lg font-black">Proposed phases</h2></div>
-    {agentPhases.map(({ operationId, position, phase }) => <ProposedPhaseEditor key={phase.local_id} operationId={operationId} position={position} phase={phase} recovered={workspace?.editRun?.objects.find((item) => item.object_key === phase.local_id && item.status === 'editing')} detail={detail} token={token} refresh={refresh} onSettled={settleAgentPhase} />)}
-  </section> : null
+  const agentPhaseEditors = agentPhases.map(({ operationId, position, phase }) => <ProposedPhaseEditor key={phase.local_id} operationId={operationId} position={position} phase={phase} recovered={workspace?.editRun?.objects.find((item) => item.object_key === phase.local_id && item.status === 'editing')} detail={detail} token={token} refresh={refresh} onSettled={settleAgentPhase} />)
 
   const addObjective = async (phaseUuid: string | null) => {
     if (!newTitle.trim()) return
@@ -376,6 +380,7 @@ function PlanEditor({ detail, orgslug, token, viewerUserId, refresh, color, sele
     const dated = objectives.filter((objective: any) => objective.due_date).sort(byDueDate)
     const unscheduled = objectives.filter((objective: any) => !objective.due_date)
     const phaseKey = phase?.phase_uuid || 'none'
+    const proposedObjectives = isVirtualSection ? [] : agentObjectives.filter((item) => item.targetPhaseUuid === (phase?.phase_uuid || ''))
     const objectiveItem = (objective: any) => ({ ...objective, plan: { plan_uuid: detail.plan_uuid, slug: detail.slug, name: detail.name }, subject: detail.subject, is_mine: detail.is_mine })
     const zone = (items: any[], kind: 'dated' | 'flex') => <Droppable droppableId={`plan-zone:${phaseKey}:${kind}`} isDropDisabled={!canEdit || kind === 'dated'}>
       {(provided, snapshot) => <div ref={provided.innerRef} {...provided.droppableProps} className={cn('min-h-3 rounded-lg transition-[background-color,box-shadow,min-height] duration-150', dragging && 'min-h-12 ring-1 ring-dashed ring-violet-200', snapshot.isDraggingOver && 'bg-violet-50/80 ring-2 ring-solid ring-violet-300')}>
@@ -390,19 +395,19 @@ function PlanEditor({ detail, orgslug, token, viewerUserId, refresh, color, sele
         {zone(dated, 'dated')}
         {dated.length && unscheduled.length ? <div className="mx-5 h-px bg-border/60" /> : null}
         {zone(unscheduled, 'flex')}
-        {!objectives.length ? <p className="px-1 py-4 text-xs text-muted-foreground">Nothing here yet.</p> : null}
+        {proposedObjectives.map(({ operationId, objective }) => <div key={objective.local_id} className="flex items-stretch"><span className="w-8 shrink-0" aria-hidden="true" /><div className="min-w-0 flex-1"><ProposedObjectiveEditor operationId={operationId} objective={objective} recovered={workspace?.editRun?.objects.find((item) => item.object_key === objective.local_id && item.status === 'editing')} detail={detail} phases={phases} color={color} token={token} refresh={refresh} onPhaseChange={(nextPhaseUuid: string) => setAgentObjectives((current) => current.map((item) => item.objective.local_id === objective.local_id ? { ...item, targetPhaseUuid: nextPhaseUuid } : item))} onSettled={settleAgentObjective} /></div></div>)}
+        {!objectives.length && !proposedObjectives.length ? <p className="px-1 py-4 text-xs text-muted-foreground">Nothing here yet.</p> : null}
       </div>
       {canEdit && phase?.phase_uuid !== 'completed' ? <InlineObjectiveAdder phaseUuid={addPhaseUuid} open={addingPhaseUuid === (phase?.phase_uuid || 'none')} setOpen={(open: boolean) => setAddingPhaseUuid(open ? (phase?.phase_uuid || 'none') : null)} title={newTitle} setTitle={setNewTitle} saving={saving} onAdd={addObjective} /> : null}
     </EditorSection>
   }
 
-  if (!allObjectives.length) return <div className="mt-9 space-y-8">{agentPhaseEditors}{agentObjectiveEditors}{!agentObjectives.length && !agentPhases.length ? <div className="rounded-2xl border border-dashed border-border py-16 text-center"><Target className="mx-auto text-muted-foreground" size={40} /><h2 className="mt-4 text-xl font-black">What is the first step?</h2><p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">Add an objective to turn this plan into something you can act on.</p>{canEdit ? <button onClick={() => setAddingPhaseUuid(phases[0]?.phase_uuid || 'none')} className="mt-5 inline-flex items-center gap-2 rounded-lg bg-foreground px-4 py-3 text-sm font-black text-background"><Plus size={16} />Add an objective</button> : null}{addingPhaseUuid ? <div className="mx-auto mt-4 max-w-md"><InlineObjectiveAdder phaseUuid={phases[0]?.phase_uuid || null} open setOpen={(open: boolean) => !open && setAddingPhaseUuid(null)} title={newTitle} setTitle={setNewTitle} saving={saving} onAdd={addObjective} /></div> : null}</div> : null}</div>
+  if (!phases.length && !allObjectives.length && !agentObjectives.length && !agentPhases.length) return <div className="mt-10 rounded-2xl border border-dashed border-border py-16 text-center"><Target className="mx-auto text-muted-foreground" size={40} /><h2 className="mt-4 text-xl font-black">What is the first step?</h2><p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">Add an objective to turn this plan into something you can act on.</p>{canEdit ? <button onClick={() => setAddingPhaseUuid(phases[0]?.phase_uuid || 'none')} className="mt-5 inline-flex items-center gap-2 rounded-lg bg-foreground px-4 py-3 text-sm font-black text-background"><Plus size={16} />Add an objective</button> : null}{addingPhaseUuid ? <div className="mx-auto mt-4 max-w-md"><InlineObjectiveAdder phaseUuid={phases[0]?.phase_uuid || null} open setOpen={(open: boolean) => !open && setAddingPhaseUuid(null)} title={newTitle} setTitle={setNewTitle} saving={saving} onAdd={addObjective} /></div> : null}</div>
 
   return <DragDropContext onDragStart={() => setDragging(true)} onDragEnd={(result) => { setDragging(false); onDragEnd(result) }}><div className="mt-9 space-y-10">
-    {agentPhaseEditors}
-    {agentObjectiveEditors}
     {overdue.length ? renderSection('Right now', { phase_uuid: 'right-now' }, overdue, `${overdue.length} overdue ${overdue.length === 1 ? 'objective' : 'objectives'}`, true) : null}
-    {currentPhases.map((phase: any) => renderSection(phase.name, phase, (phase.objectives || []).filter((objective: any) => !overdueIds.has(objective.objective_uuid)), `Phase ends ${new Date(`${dateValue(phaseDue(phase))}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}${!phase.due_date ? ' · plan target' : ''}`))}
+    {phases.map((phase: any) => renderSection(phase.name, phase, (phase.objectives || []).filter((objective: any) => !overdueIds.has(objective.objective_uuid) && !completedFromPastIds.has(objective.objective_uuid)), phaseDue(phase) ? `Phase ends ${new Date(`${dateValue(phaseDue(phase))}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}${!phase.due_date ? ' · plan target' : ''}` : 'No target date'))}
+    {agentPhaseEditors}
     {completedFromPast.length ? renderSection('Completed', { phase_uuid: 'completed' }, completedFromPast, 'Finished work from earlier phases') : null}
     {pendingMove ? <div role="alertdialog" className="fixed bottom-6 left-1/2 z-[var(--z-modal)] w-[min(92vw,420px)] -translate-x-1/2 rounded-2xl border border-border bg-card p-4 shadow-2xl"><p className="text-sm font-black">Remove target date {new Date(`${dateValue(pendingMove.objective.due_date)}T12:00:00`).toLocaleDateString()}?</p><p className="mt-1 text-xs text-muted-foreground">Dropping into the phase’s flexible area means this objective will use the phase deadline.</p><div className="mt-4 flex justify-end gap-2"><button onClick={() => setPendingMove(null)} className="rounded-lg border border-border px-3 py-2 text-xs font-black">Cancel</button><button onClick={() => { const move = pendingMove; setPendingMove(null); void persistMove(move.objective, move.phaseUuid, move.targetIndex, true) }} className="rounded-lg bg-foreground px-3 py-2 text-xs font-black text-background">Remove date & move</button></div></div> : null}
   </div></DragDropContext>
@@ -446,6 +451,7 @@ function ProposedPhaseEditor({ operationId, position, phase, recovered, detail, 
     persistQueue.current = persistQueue.current.catch(() => undefined).then(async () => {
       const saved = await saveHubEditObjectState(org.id, run.run_uuid, objectKey, { object_type: 'phase', object_uuid: objectUuid, ...snapshot(state), status, expected_revision: revision.current }, token)
       revision.current = saved.revision
+      workspace.setEditRun((current) => current?.run_uuid === run.run_uuid ? updateRunObjectState(current, saved, status, String(state.name?.current || phase.name)) : current)
     }).catch((error: any) => { toast.error(error?.status === 409 ? 'This phase changed in another tab. Reload to recover the latest version.' : 'Hub could not preserve this unsaved phase yet.') })
     return persistQueue.current
   }
@@ -486,17 +492,20 @@ function ProposedPhaseEditor({ operationId, position, phase, recovered, detail, 
     } catch (error: any) { toast.error(error?.message || 'Could not add phase.') } finally { setSaving(false) }
   }
 
-  return <article id={targetId} tabIndex={-1} className="rounded-2xl border border-border bg-card p-4 shadow-xs outline-none sm:p-5">
-    <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_10rem]">
-      <label className="block text-xs font-black">Phase{fields.name.interaction === 'agent' ? <div className="mt-2">{skeleton('h-10')}</div> : <input value={name} onFocus={() => focus('name')} onBlur={() => blur('name')} onChange={(event) => change('name', event.target.value)} className={fieldClass('name', 'mt-2 h-10 w-full rounded-lg border border-border bg-background px-3 text-sm')} />}{fieldStatus('name')}</label>
-      <label className="block text-xs font-black">Target date{fields.due_date.interaction === 'agent' ? <div className="mt-2">{skeleton('h-10')}</div> : <input type="date" value={dueDate} onFocus={() => focus('due_date')} onBlur={() => blur('due_date')} onChange={(event) => change('due_date', event.target.value)} className={fieldClass('due_date', 'mt-2 h-10 w-full rounded-lg border border-border bg-background px-3 text-xs')} />}{fieldStatus('due_date')}</label>
+  return <section id={targetId} tabIndex={-1} className="outline-none">
+    <div className="mb-3 flex items-start gap-2 rounded-xl bg-muted/60 px-3 py-2">
+      <div className="min-w-0 flex-1">{fields.name.interaction === 'agent' ? skeleton('h-8') : <input autoFocus aria-label="Phase name" value={name} onFocus={() => focus('name')} onBlur={() => blur('name')} onChange={(event) => change('name', event.target.value)} className={fieldClass('name', cn(inlineEditableClass, 'h-8 w-full text-sm font-black uppercase tracking-[0.12em]'))} />}{fieldStatus('name')}</div>
+      <div className="w-36 shrink-0">{fields.due_date.interaction === 'agent' ? skeleton('h-8') : <input type="date" aria-label="Phase completion date" value={dueDate} onFocus={() => focus('due_date')} onBlur={() => blur('due_date')} onChange={(event) => change('due_date', event.target.value)} className={fieldClass('due_date', 'h-8 w-full rounded-lg border border-border bg-card px-2 text-[10px]')} />}{fieldStatus('due_date')}</div>
+      <button type="button" disabled={saving} onClick={() => void cancel()} aria-label={`Cancel phase ${name || phase.name}`} className="rounded p-1.5 text-muted-foreground hover:bg-muted"><X size={13} /></button>
+      <button type="button" disabled={saving || !name.trim()} onClick={() => void save()} aria-label={`Save phase ${name || phase.name}`} className="rounded-lg bg-foreground p-2 text-background disabled:opacity-40">{saving ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}</button>
     </div>
-    <label className="mt-4 block text-xs font-black">Details{fields.description.interaction === 'agent' ? <div className="mt-2">{skeleton('h-20')}</div> : <textarea value={description} onFocus={() => focus('description')} onBlur={() => blur('description')} onChange={(event) => change('description', event.target.value)} className={fieldClass('description', 'mt-2 min-h-20 w-full rounded-lg border border-border bg-background p-3 text-sm')} />}{fieldStatus('description')}</label>
-    <div className="mt-4 flex justify-end gap-2"><Button type="button" variant="outline" disabled={saving} onClick={() => void cancel()}>Cancel</Button><Button type="button" disabled={saving || !name.trim()} onClick={() => void save()}>{saving ? <Loader2 size={14} className="animate-spin" /> : null}Save phase</Button></div>
-  </article>
+    <div className="mb-6 ml-3 border-l border-border pl-4">
+      <label className="block"><span className="text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground">Phase details</span>{fields.description.interaction === 'agent' ? <div className="mt-2">{skeleton('h-20')}</div> : <textarea value={description} onFocus={() => focus('description')} onBlur={() => blur('description')} onChange={(event) => change('description', event.target.value)} placeholder="Add context for this phase" className={fieldClass('description', cn(inlineEditableClass, 'mt-2 min-h-20 w-full resize-y px-1 py-2 text-sm leading-5'))} />}{fieldStatus('description')}</label>
+    </div>
+  </section>
 }
 
-function ProposedObjectiveEditor({ operationId, objective, recovered, detail, phases, token, refresh, onSettled }: any) {
+function ProposedObjectiveEditor({ operationId, objective, recovered, detail, phases, color, token, refresh, onPhaseChange, onSettled }: any) {
   const workspace = useHubWorkspace()
   const org = useOrg() as any
   const suggestedPhaseUuid = phases.find((item: any) => item.name === objective.phase_name)?.phase_uuid || phases[0]?.phase_uuid || ''
@@ -541,6 +550,7 @@ function ProposedObjectiveEditor({ operationId, objective, recovered, detail, ph
         object_type: 'objective', object_uuid: objectUuid, ...snapshot(state), status, expected_revision: revision.current,
       }, token)
       revision.current = saved.revision
+      workspace.setEditRun((current) => current?.run_uuid === run.run_uuid ? updateRunObjectState(current, saved, status, String(state.title?.current || objective.title)) : current)
     }).catch((error: any) => {
       if (!conflictShown.current) {
         conflictShown.current = true
@@ -594,15 +604,26 @@ function ProposedObjectiveEditor({ operationId, objective, recovered, detail, ph
       setSaving(false)
     }
   }
+  const restorePhaseProposal = () => {
+    const proposedPhaseUuid = String(fields.phase_uuid.proposal || '')
+    setFields((current) => restoreAgentProposal(current, 'phase_uuid'))
+    onPhaseChange(proposedPhaseUuid)
+  }
 
-  return <article id={targetId} tabIndex={-1} className="rounded-2xl border border-border bg-card p-4 shadow-xs outline-none sm:p-5">
-    <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_10rem]">
-      <label className="block text-xs font-black">Objective{fields.title.interaction === 'agent' ? <div className="mt-2">{skeleton('h-10')}</div> : <input value={title} onFocus={() => focus('title')} onBlur={() => blur('title')} onChange={(event) => change('title', event.target.value)} className={fieldClass('title', 'mt-2 h-10 w-full rounded-lg border border-border bg-background px-3 text-sm')} />}{fieldStatus('title')}</label>
-      <label className="block text-xs font-black">Target date{fields.due_date.interaction === 'agent' ? <div className="mt-2">{skeleton('h-10')}</div> : <input type="date" value={dueDate} onFocus={() => focus('due_date')} onBlur={() => blur('due_date')} onChange={(event) => change('due_date', event.target.value)} className={fieldClass('due_date', 'mt-2 h-10 w-full rounded-lg border border-border bg-background px-3 text-xs')} />}{fieldStatus('due_date')}</label>
+  const titleEditor = fields.title.interaction === 'agent' ? skeleton('h-7') : <div className="min-w-0 flex-1"><input autoFocus aria-label="Objective title" value={title} onFocus={() => focus('title')} onBlur={() => blur('title')} onChange={(event) => change('title', event.target.value)} className={fieldClass('title', cn(inlineEditableClass, 'h-7 w-full text-sm font-black'))} />{fieldStatus('title')}</div>
+  const details = <>
+    <span className={cn('relative inline-flex h-6 items-center gap-1 rounded-full bg-muted px-2.5 text-[10px] font-black', fields.phase_uuid.presentation === 'proposed' && 'ring-1 ring-violet-200')}>{fields.phase_uuid.interaction === 'agent' ? <span className="block w-20">{skeleton('h-4')}</span> : <><span className="max-w-32 truncate">{phases.find((item: any) => item.phase_uuid === phaseUuid)?.name || 'Choose phase'}</span><ChevronDown size={10} /><select aria-label="Objective phase" value={phaseUuid} onFocus={() => focus('phase_uuid')} onBlur={() => blur('phase_uuid')} onChange={(event) => { change('phase_uuid', event.target.value); onPhaseChange(event.target.value) }} className="absolute inset-0 cursor-pointer opacity-0">{phases.map((item: any) => <option key={item.phase_uuid} value={item.phase_uuid}>{item.name}</option>)}</select></>}</span>
+    <span className={cn('inline-flex h-7 items-center gap-1 rounded-full bg-muted pl-2 pr-1 text-[10px] font-black', fields.due_date.presentation === 'proposed' && 'ring-1 ring-violet-200')}>{fields.due_date.interaction === 'agent' ? <span className="block w-28">{skeleton('h-4')}</span> : <><CalendarDays size={10} /><input type="date" aria-label="Objective target date" value={dueDate} onFocus={() => focus('due_date')} onBlur={() => blur('due_date')} onChange={(event) => change('due_date', event.target.value)} className="h-6 min-w-28 bg-transparent text-[10px] outline-none" />{dueDate ? <button type="button" onClick={() => change('due_date', '')} aria-label="Remove target date" className="rounded-full p-1 hover:bg-background"><X size={11} /></button> : null}</>}</span>
+    {fields.phase_uuid.presentation === 'customized' ? <button type="button" onClick={restorePhaseProposal} className="inline-flex items-center gap-1 text-[10px] text-sky-700"><RotateCcw size={10} />Custom phase</button> : null}
+    {fields.due_date.presentation === 'customized' ? <button type="button" onClick={() => setFields((current) => restoreAgentProposal(current, 'due_date'))} className="inline-flex items-center gap-1 text-[10px] text-sky-700"><RotateCcw size={10} />Custom date</button> : null}
+  </>
+  const actions = <span className="flex items-center gap-1"><button type="button" disabled={saving} onClick={() => void cancel()} aria-label={`Cancel objective ${title || objective.title}`} className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"><X size={14} /></button><button type="button" disabled={saving || !title.trim()} onClick={() => void save()} aria-label={`Save objective ${title || objective.title}`} className="flex h-8 w-8 items-center justify-center rounded-lg bg-foreground text-background disabled:opacity-40">{saving ? <Loader2 size={13} className="animate-spin" /> : <Check size={14} />}</button></span>
+
+  return <article id={targetId} tabIndex={-1} className="relative z-10 my-2 rounded-2xl bg-card shadow-lg ring-1 ring-black/5 outline-none">
+    <PlanObjectiveHeader title={title} titleEditor={titleEditor} details={details} open editing color={color} actions={actions} onToggle={() => undefined} />
+    <div className="px-4 pb-5">
+      <div className="border-t border-border pt-4"><label className="block"><span className="text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground">Description</span>{fields.description.interaction === 'agent' ? <div className="mt-2">{skeleton('h-20')}</div> : <textarea value={description} onFocus={() => focus('description')} onBlur={() => blur('description')} onChange={(event) => change('description', event.target.value)} placeholder="Add helpful context" className={fieldClass('description', cn(inlineEditableClass, 'mt-2 min-h-20 w-full resize-y px-1 py-2 text-sm leading-5'))} />}{fieldStatus('description')}</label></div>
     </div>
-    <label className="mt-4 block text-xs font-black">Phase{fields.phase_uuid.interaction === 'agent' ? <div className="mt-2">{skeleton('h-10')}</div> : <select value={phaseUuid} onFocus={() => focus('phase_uuid')} onBlur={() => blur('phase_uuid')} onChange={(event) => change('phase_uuid', event.target.value)} className={fieldClass('phase_uuid', 'mt-2 h-10 w-full rounded-lg border border-border bg-background px-3 text-sm')}>{phases.map((item: any) => <option key={item.phase_uuid} value={item.phase_uuid}>{item.name}</option>)}</select>}{fieldStatus('phase_uuid')}</label>
-    <label className="mt-4 block text-xs font-black">Details{fields.description.interaction === 'agent' ? <div className="mt-2">{skeleton('h-20')}</div> : <textarea value={description} onFocus={() => focus('description')} onBlur={() => blur('description')} onChange={(event) => change('description', event.target.value)} className={fieldClass('description', 'mt-2 min-h-20 w-full rounded-lg border border-border bg-background p-3 text-sm')} />}{fieldStatus('description')}</label>
-    <div className="mt-4 flex justify-end gap-2"><Button type="button" variant="outline" disabled={saving} onClick={() => void cancel()}>Cancel</Button><Button type="button" disabled={saving || !title.trim()} onClick={() => void save()}>{saving ? <Loader2 size={14} className="animate-spin" /> : null}Save objective</Button></div>
   </article>
 }
 
@@ -612,17 +633,18 @@ function EditorSection({ title, subtitle, accent, phase, detail, token, refresh,
 
 function PhaseSectionHeader({ title, subtitle, accent, phase, detail, token, refresh, canEdit, canSchedule }: any) {
   const [editing, setEditing] = React.useState(false)
-  const [draft, setDraft] = React.useState({ name: title, due_date: dateValue(phase?.due_date) })
+  const [detailsOpen, setDetailsOpen] = React.useState(false)
+  const [draft, setDraft] = React.useState({ name: title, description: phase?.description || '', due_date: dateValue(phase?.due_date) })
   const [saving, setSaving] = React.useState(false)
-  React.useEffect(() => setDraft({ name: title, due_date: dateValue(phase?.due_date) }), [title, phase?.due_date])
-  const cancel = () => { setDraft({ name: title, due_date: dateValue(phase?.due_date) }); setEditing(false) }
+  React.useEffect(() => setDraft({ name: title, description: phase?.description || '', due_date: dateValue(phase?.due_date) }), [title, phase?.description, phase?.due_date])
+  const cancel = () => { setDraft({ name: title, description: phase?.description || '', due_date: dateValue(phase?.due_date) }); setEditing(false) }
   const save = async () => {
     if (!phase || !draft.name.trim()) return
     setSaving(true)
-    try { await planningApi.updatePhase(detail.slug, phase.phase_uuid, { ...(canEdit ? { name: draft.name.trim() } : {}), ...(canSchedule ? { due_date: draft.due_date || null } : {}) }, token); await refresh(); setEditing(false); toast.success('Phase updated.') } catch (error: any) { toast.error(error?.message || 'Could not update phase.') } finally { setSaving(false) }
+    try { await planningApi.updatePhase(detail.slug, phase.phase_uuid, { ...(canEdit ? { name: draft.name.trim(), description: draft.description } : {}), ...(canSchedule ? { due_date: draft.due_date || null } : {}) }, token); await refresh(); setEditing(false); toast.success('Phase updated.') } catch (error: any) { toast.error(error?.message || 'Could not update phase.') } finally { setSaving(false) }
   }
-  if (editing) return <div className="mb-3 flex items-center gap-2 rounded-xl bg-muted/60 px-3 py-2"><input autoFocus value={draft.name} disabled={!canEdit} onChange={(event) => setDraft({ ...draft, name: event.target.value })} className={cn(inlineEditableClass, 'min-w-0 flex-1 text-sm font-black uppercase tracking-[0.12em]')} />{canSchedule ? <input type="date" aria-label={`${title} completion date`} value={draft.due_date} onChange={(event) => setDraft({ ...draft, due_date: event.target.value })} className="h-8 rounded-lg border border-border bg-card px-2 text-[10px]" /> : null}<button type="button" onClick={cancel} disabled={saving} aria-label={`Cancel editing ${title}`} className="rounded p-1.5 text-muted-foreground"><X size={13} /></button><button type="button" disabled={saving || !draft.name.trim()} onClick={() => void save()} aria-label={`Save ${title}`} className="rounded-lg bg-foreground p-2 text-background disabled:opacity-40">{saving ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}</button></div>
-  return <div className="group/phase mb-3 flex items-end gap-3"><h2 className={cn('text-sm font-black uppercase tracking-[0.12em]', accent && 'text-red-700')}>{title}</h2>{subtitle ? <p className="pb-px text-xs text-muted-foreground">{subtitle}</p> : null}{phase && (canEdit || canSchedule) ? <button type="button" onClick={() => setEditing(true)} aria-label={`Edit ${title}`} className="mb-[-2px] rounded p-1.5 text-muted-foreground opacity-0 transition-opacity hover:bg-muted group-hover/phase:opacity-100 focus:opacity-100"><Pencil size={12} /></button> : null}</div>
+  if (editing) return <><div className="mb-3 flex items-center gap-2 rounded-xl bg-muted/60 px-3 py-2"><input autoFocus value={draft.name} disabled={!canEdit} onChange={(event) => setDraft({ ...draft, name: event.target.value })} className={cn(inlineEditableClass, 'min-w-0 flex-1 text-sm font-black uppercase tracking-[0.12em]')} />{canSchedule ? <input type="date" aria-label={`${title} completion date`} value={draft.due_date} onChange={(event) => setDraft({ ...draft, due_date: event.target.value })} className="h-8 rounded-lg border border-border bg-card px-2 text-[10px]" /> : null}<button type="button" onClick={cancel} disabled={saving} aria-label={`Cancel editing ${title}`} className="rounded p-1.5 text-muted-foreground"><X size={13} /></button><button type="button" disabled={saving || !draft.name.trim()} onClick={() => void save()} aria-label={`Save ${title}`} className="rounded-lg bg-foreground p-2 text-background disabled:opacity-40">{saving ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}</button></div>{canEdit ? <div className="mb-6 ml-3 border-l border-border pl-4"><label className="block"><span className="text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground">Phase details</span><textarea value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} placeholder="Add context for this phase" className={cn(inlineEditableClass, 'mt-2 min-h-20 w-full resize-y px-1 py-2 text-sm leading-5')} /></label></div> : null}</>
+  return <><div className="group/phase mb-3 flex items-end gap-3"><h2 className={cn('text-sm font-black uppercase tracking-[0.12em]', accent && 'text-red-700')}>{title}</h2>{subtitle ? <p className="pb-px text-xs text-muted-foreground">{subtitle}</p> : null}{phase?.description ? <button type="button" onClick={() => setDetailsOpen(!detailsOpen)} aria-label={`${detailsOpen ? 'Hide' : 'Show'} details for ${title}`} className="mb-[-2px] rounded p-1.5 text-muted-foreground hover:bg-muted"><ChevronDown size={12} className={cn('transition-transform', detailsOpen && 'rotate-180')} /></button> : null}{phase && (canEdit || canSchedule) ? <button type="button" onClick={() => setEditing(true)} aria-label={`Edit ${title}`} className="mb-[-2px] rounded p-1.5 text-muted-foreground opacity-0 transition-opacity hover:bg-muted group-hover/phase:opacity-100 focus:opacity-100"><Pencil size={12} /></button> : null}</div>{detailsOpen && phase?.description ? <p className="mb-5 ml-3 border-l border-border py-1 pl-4 text-xs leading-5 text-muted-foreground">{phase.description}</p> : null}</>
 }
 
 function InlineObjectiveAdder({ phaseUuid, open, setOpen, title, setTitle, saving, onAdd }: any) {

@@ -57,6 +57,35 @@ def test_edit_run_is_scoped_idempotent_and_cancellable(monkeypatch):
         assert stopped["status"] == "cancelled"
         assert stopped["events"][-1]["kind"] == "run.cancelled"
         assert hub_edit_runs.active_edit_run(db, conversation.conversation_uuid, 7, 11) is None
+        assert hub_edit_runs.latest_edit_run(db, conversation.conversation_uuid, 7, 11)["status"] == "cancelled"
+
+        reopened = hub_edit_runs.reopen_edit_run(db, first["run_uuid"], 7, 11)
+        assert reopened["status"] == "active"
+        assert reopened["ended_at"] is None
+        assert reopened["events"][-1]["kind"] == "run.reopened"
+        assert reopened["scope"]["target_uuid"] == "plan_one"
+
+
+def test_new_scope_cannot_silently_replace_an_active_run(monkeypatch):
+    with _session(monkeypatch) as db:
+        conversation = HubConversation(conversation_uuid="conversation_scope", org_id=7, user_id=11, title="Plan")
+        db.add(conversation)
+        db.commit()
+        first = hub_edit_runs.begin_edit_run(
+            db, conversation_uuid=conversation.conversation_uuid, org_id=7, user_id=11,
+            action_id="hub_action_first", route="/plans/one", scope_kind="plan",
+            target_label="First plan", target_uuid="plan_one", goal="Edit the first plan",
+        )
+
+        with pytest.raises(HTTPException) as caught:
+            hub_edit_runs.begin_edit_run(
+                db, conversation_uuid=conversation.conversation_uuid, org_id=7, user_id=11,
+                action_id="hub_action_second", route="/plans/two", scope_kind="plan",
+                target_label="Second plan", target_uuid="plan_two", goal="Edit the second plan",
+            )
+
+        assert caught.value.status_code == 409
+        assert hub_edit_runs.active_edit_run(db, conversation.conversation_uuid, 7, 11)["run_uuid"] == first["run_uuid"]
 
 
 def test_edit_run_cannot_cross_conversation_owner(monkeypatch):
@@ -75,6 +104,30 @@ def test_edit_run_cannot_cross_conversation_owner(monkeypatch):
 
         with pytest.raises(HTTPException) as caught:
             hub_edit_runs.conclude_edit_run(db, run["run_uuid"], 7, 12, "cancelled")
+        assert caught.value.status_code == 404
+
+
+def test_edit_run_goal_changes_without_widening_scope(monkeypatch):
+    with _session(monkeypatch) as db:
+        conversation = HubConversation(conversation_uuid="conversation_goal", org_id=7, user_id=11, title="Plan")
+        db.add(conversation)
+        db.commit()
+        run = hub_edit_runs.begin_edit_run(
+            db, conversation_uuid=conversation.conversation_uuid, org_id=7, user_id=11,
+            action_id="hub_action_goal", route="/plans", scope_kind="plan",
+            target_label="EMT plan", target_uuid="plan_one", goal="Improve my EMT plan",
+        )
+
+        updated = hub_edit_runs.update_edit_run_goal(
+            db, run["run_uuid"], 7, 11, "Refocus the plan on becoming a firefighter",
+        )
+
+        assert updated["goal"] == "Refocus the plan on becoming a firefighter"
+        assert updated["scope"] == run["scope"]
+        assert updated["events"][-1]["kind"] == "run.goal_updated"
+
+        with pytest.raises(HTTPException) as caught:
+            hub_edit_runs.update_edit_run_goal(db, run["run_uuid"], 7, 12, "Take over")
         assert caught.value.status_code == 404
 
 

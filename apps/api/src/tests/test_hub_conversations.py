@@ -121,6 +121,22 @@ def test_advice_uses_authoritative_history_and_revalidates_resources(monkeypatch
         assert detail["messages"][1]["suggested_actions"][0]["destination"] == "create_plan"
 
 
+def test_authoritative_history_bounds_a_legacy_oversized_reply(monkeypatch):
+    with _session(monkeypatch) as db:
+        first = hub_conversations.record_advice(
+            db, org_id=7, user_id=11, conversation_uuid=None,
+            user_content="Create a plan for me", assistant_content="x" * 2_500,
+            learner_resource_uuids=[], context_resource_uuids=[], suggested_resource_uuids=[],
+            model="test", input_tokens=3, output_tokens=700,
+        )
+
+        history = hub_conversations.advisor_history(
+            db, first["conversation_uuid"], 7, 11, "Let's continue",
+        )
+
+        assert len(history[-2].content) == 2_000
+
+
 def test_state_rename_delete_and_owner_boundary(monkeypatch):
     with _session(monkeypatch) as db:
         created = hub_conversations.record_search(

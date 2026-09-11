@@ -132,7 +132,14 @@ export const errorHandling = async (res: any) => {
     } catch (_e) {
       // If we can't parse JSON, use statusText
     }
-    const error: any = new Error(typeof detail === 'string' ? detail : JSON.stringify(detail))
+    const message = typeof detail === 'string'
+      ? detail
+      : Array.isArray(detail)
+        ? 'The request could not be completed. Please review your entry and try again.'
+        : detail && typeof detail.message === 'string'
+          ? detail.message
+          : 'The request could not be completed. Please try again.'
+    const error: any = new Error(message)
     error.status = res.status
     error.detail = detail
     throw error

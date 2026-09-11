@@ -3,9 +3,14 @@
 .hub-app-frame[hidden], .hub-conversation-frame[hidden] { display: none; }
 .hub-conversation-frame { position: sticky; top: 0; display: flex; flex-direction: column; flex-shrink: 0; width: clamp(340px, 31vw, 460px); height: 100dvh; min-width: 0; background: hsl(var(--background)); outline: none; }
 .hub-conversation-frame--full { width: 100%; max-width: 1056px; margin: 0 auto; }
-.hub-workspace--companion { --hub-workspace-surface: color-mix(in srgb, hsl(var(--foreground)) 8%, hsl(var(--background))); height: 100dvh; min-height: 0; overflow: hidden; padding: 14px; gap: 14px; background: var(--hub-workspace-surface); }
+.hub-workspace--companion { --hub-workspace-surface: color-mix(in srgb, hsl(var(--foreground)) 8%, hsl(var(--background))); height: 100dvh; min-height: 0; overflow: hidden; padding: 14px; gap: 0; background: var(--hub-workspace-surface); }
 .hub-workspace--companion .hub-app-frame { height: 100%; min-height: 0; overflow: auto; border: 1px solid hsl(var(--border) / 0.8); border-radius: 18px; background: var(--org-page-background); box-shadow: 0 2px 8px rgb(0 0 0 / 0.09); }
-.hub-workspace--companion .hub-conversation-frame { height: 100%; overflow: hidden; border-radius: 18px; background: transparent; }
+.hub-workspace--companion .hub-conversation-frame { height: 100%; overflow: hidden; border-radius: 18px; background: transparent; transition: width 120ms ease, opacity 90ms ease; }
+.hub-workspace-resizer { position: relative; z-index: 2; width: 14px; flex: 0 0 14px; cursor: col-resize; outline: none; touch-action: none; }
+.hub-workspace-resizer::after { content: ''; position: absolute; inset-block: 22px; left: 50%; width: 3px; border-radius: 999px; background: hsl(var(--foreground) / 0.24); opacity: 0; transform: translateX(-50%); transition: opacity 120ms ease, background-color 120ms ease; }
+.hub-workspace-resizer:hover::after, .hub-workspace-resizer:focus-visible::after, .hub-resizing .hub-workspace-resizer::after { opacity: 1; }
+.hub-resizing, .hub-resizing * { cursor: col-resize !important; user-select: none !important; }
+.hub-resizing .hub-conversation-frame { transition: none; }
 .hub-composer-backdrop { background: linear-gradient(to bottom, transparent 0%, color-mix(in srgb, var(--org-page-background) 50%, transparent) 50%, var(--org-page-background) 78%); }
 .hub-workspace--companion .hub-composer-backdrop { background: linear-gradient(to bottom, transparent 0%, color-mix(in srgb, var(--hub-workspace-surface) 50%, transparent) 50%, var(--hub-workspace-surface) 78%); }
 .hub-composer-fade { background: linear-gradient(to top, hsl(var(--background)), hsl(var(--background) / 0.8), transparent); }
@@ -26,6 +31,9 @@
   .hub-workspace--companion { padding: 0; gap: 0; }
   .hub-workspace--companion .hub-app-frame { height: 100dvh; border: 0; border-radius: 0; box-shadow: none; }
   .hub-conversation-frame:not(.hub-conversation-frame--full) { position: fixed; inset: 8px 8px 8px auto; z-index: var(--z-modal); width: min(calc(92vw - 8px), 460px); height: auto; border: 1px solid hsl(var(--border) / 0.75); border-radius: 18px; background: hsl(var(--background)); box-shadow: -6px 2px 18px rgb(0 0 0 / 0.12); padding-bottom: env(safe-area-inset-bottom); }
+}
+@media (min-width: 1200px) {
+  .hub-workspace--companion .hub-app-frame { min-width: 768px; }
 }
 @media print { .hub-conversation-frame { display: none; } .hub-workspace--companion { padding: 0; } }
 

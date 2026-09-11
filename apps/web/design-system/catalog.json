@@ -39,7 +39,8 @@
   "patterns": [
     {"name": "Product page titles", "source": "apps/web/services/routing/pageTitles.ts", "status": "adopted", "role": "Central Feature | Detail naming, safe route fallbacks, and dynamic entity registration for browser tabs and provenance."},
     {"name": "Subtle scrollbar", "source": "apps/web/styles/globals.css", "status": "adopted", "role": "Low-contrast scrollbar that becomes visible when its scroll region is hovered or focused."},
-    {"name": "Hub companion header", "source": "apps/web/app/orgs/[orgslug]/(withmenu)/hub/HubHeader.tsx", "status": "adopted", "role": "Conversation navigation with companion collapse/full-Hub actions and contextual availability status."},
+    {"name": "Hub companion header", "source": "apps/web/app/orgs/[orgslug]/(withmenu)/hub/HubHeader.tsx", "status": "adopted", "role": "Conversation navigation plus a visibly active focused-session bar with disclosed immutable scope, editable goal and explicit End control."},
+    {"name": "Resizable Hub companion split", "source": "apps/web/components/Hub/HubWorkspace.tsx", "status": "adopted", "role": "Pointer- and keyboard-resizable desktop companion with a 768px minimum app surface, collapse threshold, persisted chat width and narrow-viewport overlay fallback."},
     { "name": "General content wrapper", "source": "apps/web/components/Objects/StyledElements/Wrappers/GeneralWrapper.tsx", "status": "adopted", "role": "Responsive maximum-width content shell" },
     { "name": "Content page header", "source": "apps/web/components/Objects/StyledElements/Headers/ContentPageHeader.tsx", "status": "adopted", "role": "Back navigation, centered title, tabs, or progress" },
     { "name": "Tabbed page header", "source": "apps/web/components/Objects/StyledElements/Headers/TabbedPageHeader.tsx", "status": "adopted", "role": "Expanded-to-sticky product header" },

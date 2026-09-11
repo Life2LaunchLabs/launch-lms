@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { PanelRightOpen } from 'lucide-react'
 import { OrgMenu } from '@components/Objects/Menus/OrgMenu'
@@ -29,6 +29,8 @@ export default function HubWorkspace({ children, orgslug }: { children: ReactNod
   const [editOperations, setEditOperations] = useState<HubEditOperation[]>([])
   const [editReviewItems, setEditReviewItems] = useState<HubEditReviewItem[]>([])
   const [editContinuations, setEditContinuations] = useState<HubEditContinuation[]>([])
+  const [companionWidth, setCompanionWidth] = useState(420)
+  const [resizeCollapsed, setResizeCollapsed] = useState(false)
   const continuationStorageKey = `launchlms:hub-edit-continuation:${orgslug}:${userId || 'signed-out'}`
   const appRef = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLElement>(null)
@@ -81,6 +83,55 @@ export default function HubWorkspace({ children, orgslug }: { children: ReactNod
   }, [])
 
   useEffect(() => {
+    try {
+      const stored = Number(window.localStorage.getItem('launchlms:hub-companion-width'))
+      if (Number.isFinite(stored) && stored >= 280) setCompanionWidth(stored)
+    } catch { /* the default width remains usable */ }
+  }, [])
+
+  useEffect(() => {
+    if (narrow || full) return
+    const constrain = () => {
+      const maximum = Math.max(320, window.innerWidth - 28 - 14 - 768)
+      setCompanionWidth((current) => Math.max(320, Math.min(current, maximum, 720)))
+    }
+    constrain()
+    window.addEventListener('resize', constrain)
+    return () => window.removeEventListener('resize', constrain)
+  }, [full, narrow])
+
+  const beginResize = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (narrow || full) return
+    event.preventDefault()
+    const resize = (clientX: number) => {
+      const rawWidth = window.innerWidth - clientX - 14
+      const maximum = Math.max(320, window.innerWidth - 28 - 14 - 768)
+      setResizeCollapsed(rawWidth < 280)
+      setCompanionWidth(Math.max(0, Math.min(rawWidth, maximum, 720)))
+    }
+    const move = (moveEvent: PointerEvent) => resize(moveEvent.clientX)
+    const finish = (upEvent: PointerEvent) => {
+      const rawWidth = window.innerWidth - upEvent.clientX - 14
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', finish)
+      document.body.classList.remove('hub-resizing')
+      setResizeCollapsed(false)
+      if (rawWidth < 280) {
+        setOpened(false)
+        return
+      }
+      const maximum = Math.max(320, window.innerWidth - 28 - 14 - 768)
+      const settled = Math.max(320, Math.min(rawWidth, maximum, 720))
+      setCompanionWidth(settled)
+      try { window.localStorage.setItem('launchlms:hub-companion-width', String(settled)) } catch { /* persistence is optional */ }
+    }
+    document.body.classList.add('hub-resizing')
+    resize(event.clientX)
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', finish)
+  }, [full, narrow])
+
+  useEffect(() => {
     if (!narrow || !opened || full) return
     const app = appRef.current
     const previous = document.activeElement as HTMLElement | null
@@ -115,7 +166,8 @@ export default function HubWorkspace({ children, orgslug }: { children: ReactNod
       {!full && !opened && <Button ref={launcherRef} variant="secondary" onClick={open} className="hub-companion-launcher fixed bottom-24 right-4 z-[var(--z-nav)] gap-2 rounded-full shadow-md md:bottom-6" aria-label="Open Hub companion"><PanelRightOpen size={18} />Continue with Hub</Button>}
       {!full && opened && narrow && <button type="button" tabIndex={-1} className="fixed inset-0 z-[var(--z-modal-backdrop)] bg-black/20" aria-label="Return to app" onClick={() => setOpened(false)} />}
       {full && <div className="print:hidden"><OrgMenu orgslug={orgslug} /></div>}
-      <section ref={panelRef} tabIndex={-1} hidden={!visible} className={`hub-conversation-frame ${full ? 'hub-conversation-frame--full' : ''}`} role={narrow && !full && opened ? 'dialog' : 'region'} aria-modal={narrow && !full && opened ? true : undefined} aria-label="Hub companion">
+      {!full && opened && !narrow ? <div role="separator" aria-label="Resize Hub companion" aria-orientation="vertical" tabIndex={0} className="hub-workspace-resizer" onPointerDown={beginResize} onKeyDown={(event) => { const delta = event.key === 'ArrowLeft' ? 24 : event.key === 'ArrowRight' ? -24 : 0; if (!delta) return; event.preventDefault(); const maximum = Math.max(320, window.innerWidth - 28 - 14 - 768); setCompanionWidth((current) => Math.max(320, Math.min(maximum, 720, current + delta))) }}><span /></div> : null}
+      <section ref={panelRef} tabIndex={-1} hidden={!visible} style={!full && opened && !narrow ? { width: resizeCollapsed ? 0 : companionWidth, opacity: resizeCollapsed ? 0 : 1 } : undefined} className={`hub-conversation-frame ${full ? 'hub-conversation-frame--full' : ''}`} role={narrow && !full && opened ? 'dialog' : 'region'} aria-modal={narrow && !full && opened ? true : undefined} aria-label="Hub companion">
         <HubExperience
           orgslug={orgslug}
           filters={filters}
