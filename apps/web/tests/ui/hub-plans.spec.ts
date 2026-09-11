@@ -20,7 +20,7 @@ test('hub.action.create-plan: learner controls suggested navigation', async ({ p
   await assertActualApp(page)
   await askHub(page, 'I want to create a plan for changing careers')
 
-  const action = page.getByTestId('hub-suggested-actions').last().getByRole('button', { name: 'Work on this plan' })
+  const action = page.getByTestId('hub-suggested-actions').last().getByRole('button', { name: 'Work on this plan', exact: true })
   await expect(action).toBeVisible()
   await expect(action).toBeEnabled()
   await action.focus()
@@ -32,9 +32,9 @@ test('hub.action.create-plan: learner controls suggested navigation', async ({ p
   await expect(page.getByRole('heading', { name: 'What are you working toward?' })).toBeVisible()
   await expect(page).toHaveURL((url) => url.pathname.endsWith('/plans') && !url.searchParams.has('hub_action'))
   await expect(page.locator('[aria-label="Hub companion"]')).toContainText('I want to create a plan for changing careers')
-  await expect(page.locator('[aria-label="Hub companion"]')).toContainText('Editing:')
+  await expect(page.locator('[aria-label="Hub companion"]')).toContainText('Creating a plan:')
 
-  await expect(page.locator('[aria-label="Hub companion"]')).toContainText('Ready to review')
+  await expect(page.getByText('Ready to review', { exact: true })).toBeVisible()
   await expect(page.getByLabel('Goal')).toHaveValue('Career transition plan')
   await expect(page.getByText('Suggested by Hub')).toHaveCount(3)
 
@@ -62,7 +62,7 @@ test('hub.action.unavailable: a rejected action stays in context and explains th
   await page.goto(environment.hubPath)
   await assertActualApp(page)
   await askHub(page, 'I want to create a plan for improving my interview skills')
-  const action = page.getByTestId('hub-suggested-actions').last().getByRole('button', { name: 'Work on this plan' })
+  const action = page.getByTestId('hub-suggested-actions').last().getByRole('button', { name: 'Work on this plan', exact: true })
   await expect(action).toBeVisible()
 
   await page.route('**/api/v1/hub/actions/*/resolve?*', async (route) => {

@@ -118,8 +118,11 @@ function mergePendingHubEditOperations(current: HubEditOperation[], incoming: Hu
     return []
   })
   const merged = new Map(pending.map((operation) => [operation.operation_id, operation]))
-  for (const operation of incoming) merged.set(operation.operation_id, operation)
-  return [...merged.values()]
+  for (const operation of incoming) {
+    if (!merged.has(operation.operation_id)) merged.set(operation.operation_id, operation)
+  }
+  const next = [...merged.values()]
+  return next.length === current.length && next.every((operation, index) => operation === current[index]) ? current : next
 }
 
 const COMPOSER_LINE_HEIGHT = 24

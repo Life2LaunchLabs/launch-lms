@@ -245,7 +245,10 @@ class DeterministicUiTestProvider:
         self.edit_scope = edit_scope
 
     async def respond(self, messages: list[AdvisorMessage], safety_identifier: str) -> AdvisorResult:
-        prompt = messages[-1].content.casefold()
+        # Browser fixtures append trusted capability instructions and untrusted
+        # grounding after the learner's text. Match only the learner-authored
+        # portion so words in that context cannot select the fixture response.
+        prompt = messages[-1].content.split("\n\n", 1)[0].casefold()
         if self.memory:
             return AdvisorResult(text='{"candidates": []}', model="ui-test-memory")
         if self.edit_scope == "new_plan" and "cancelled the new plan" in prompt:
