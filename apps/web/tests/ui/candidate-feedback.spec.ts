@@ -92,9 +92,9 @@ test('tester sees unread GitHub notes and can paste a screenshot into quick feed
   await expect(page.getByText('You can now duplicate a plan without rebuilding its objectives.')).toBeVisible()
   if (process.env.UI_TEST_CAPTURE === 'true') await page.screenshot({ path: testInfo.outputPath('candidate-whats-new.png'), fullPage: true })
 
-  await page.getByRole('button', { name: 'Feedback' }).click()
+  await page.getByRole('button', { name: /^Feedback/ }).click()
   await expect(page.getByRole('button', { name: "I'm stuck" })).toBeVisible()
-  await page.getByRole('button', { name: 'Something is broken' }).click()
+  await page.getByRole('button', { name: 'Something is broken', exact: true }).click()
   const textarea = page.getByLabel('Feedback message')
   await textarea.fill('The plan editor jumped while I was typing.')
   await textarea.evaluate((element) => {
