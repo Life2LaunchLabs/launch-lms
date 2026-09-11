@@ -25,6 +25,7 @@ import {
   UserCircle,
   ChartPieSlice,
   Tray,
+  Flag,
 } from '@phosphor-icons/react'
 import Link from 'next/link'
 import React, { useState } from 'react'
@@ -307,13 +308,6 @@ function DashLeftMenu() {
               label="Plans"
               isCollapsed={isCollapsed}
             />
-            <MenuLink
-              href={routePaths.org.dash.feedback()}
-              icon={<Tray size={20} weight="fill" />}
-              label="Tester feedback"
-              isCollapsed={isCollapsed}
-            />
-
             {showCommunities && (
               <MenuLink
                 href={routePaths.org.dash.communities()}
@@ -472,6 +466,11 @@ function DashLeftMenu() {
               href: routePaths.owner.platform.requests(),
               icon: <Tray size={20} weight="fill" />,
               label: 'Requests',
+            },
+            {
+              href: routePaths.owner.platform.feedback(),
+              icon: <Flag size={20} weight="fill" />,
+              label: 'Tester feedback',
             },
             {
               href: routePaths.owner.platform.settings(),
