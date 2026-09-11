@@ -7,9 +7,8 @@ import { getOrgLogoMediaDirectory } from '@services/media/media'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { usePathname } from 'next/navigation'
-import { useTranslation } from 'react-i18next'
 import { Buildings, CaretDown, Envelope, Question, SidebarSimple, SignOut, Sun, User } from '@phosphor-icons/react'
-import { FeedbackModal } from '@components/Objects/Modals/FeedbackModal'
+import { openCandidatePanel } from '@components/Candidate/CandidateExperience'
 import { useJoinBannerVisible, JOIN_BANNER_HEIGHT } from '@components/Objects/Banners/OrgJoinBanner'
 import { GuestHeader } from '@components/Objects/Menus/GuestHeader'
 import {
@@ -37,17 +36,15 @@ const DESKTOP_NAV_COLLAPSED_WIDTH = '44px'
 const DESKTOP_NAV_EXPANDED_WIDTH = '264px'
 const DESKTOP_NAV_STORAGE_KEY = 'org-menu-collapsed'
 
-export const OrgMenu = (props: { orgslug: string }) => {
+export const OrgMenu = (props: { orgslug: string; compact?: boolean }) => {
   const orgslug = props.orgslug
   const session = useLHSession() as any
   const org = useOrg() as any
   const pathname = usePathname()
-  const { t } = useTranslation()
   const [isDesktopExpanded, setIsDesktopExpanded] = useState(() => {
     if (typeof window === 'undefined') return true
     return window.localStorage.getItem(DESKTOP_NAV_STORAGE_KEY) !== 'true'
   })
-  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false)
   const { isVisible: isJoinBannerVisible } = useJoinBannerVisible()
   const { unreadCount } = useInboxMessages()
   const topOffset = isJoinBannerVisible ? JOIN_BANNER_HEIGHT : 0
@@ -69,7 +66,7 @@ export const OrgMenu = (props: { orgslug: string }) => {
     resolvedFeatures,
   }).filter((item) => item.show)
 
-  const isDesktopNavExpanded = isDesktopExpanded
+  const isDesktopNavExpanded = isDesktopExpanded && !props.compact
   const desktopNavWidth = isDesktopNavExpanded
     ? DESKTOP_NAV_EXPANDED_WIDTH
     : DESKTOP_NAV_COLLAPSED_WIDTH
@@ -79,6 +76,9 @@ export const OrgMenu = (props: { orgslug: string }) => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(DESKTOP_NAV_STORAGE_KEY, String(!expanded))
     }
+  }
+  const openFeedback = () => {
+    openCandidatePanel('feedback')
   }
 
   return (
@@ -207,7 +207,7 @@ export const OrgMenu = (props: { orgslug: string }) => {
 
             <div className={cn('mt-auto flex flex-col pt-6', isDesktopNavExpanded ? 'items-stretch' : 'items-center')}>
               <div className="mt-6">
-                <DesktopAccountLink orgslug={orgslug} onHelp={() => setFeedbackModalOpen(true)} isExpanded={isDesktopNavExpanded} unreadCount={unreadCount} />
+                <DesktopAccountLink orgslug={orgslug} onHelp={openFeedback} isExpanded={isDesktopNavExpanded} unreadCount={unreadCount} />
               </div>
             </div>
           </div>
@@ -234,19 +234,12 @@ export const OrgMenu = (props: { orgslug: string }) => {
           ))}
           <MobileMoreMenu
             orgslug={orgslug}
-            onHelp={() => setFeedbackModalOpen(true)}
+            onHelp={openFeedback}
             unreadCount={unreadCount}
           />
         </div>
       </nav>
 
-      <FeedbackModal
-        open={feedbackModalOpen}
-        onOpenChange={setFeedbackModalOpen}
-        theme="light"
-        userName={session?.data?.user?.username}
-        userEmail={session?.data?.user?.email}
-      />
     </>
   )
 }

@@ -1,347 +1,177 @@
 'use client'
 
-import React, { useState, useRef } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { CheckCircle, Clock, ImageSquare, Info, PaperPlaneTilt, Sparkle, Warning, X } from '@phosphor-icons/react'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@components/ui/dialog'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@components/ui/tabs'
+import { Textarea } from '@components/ui/textarea'
+import { Button } from '@components/ui/button'
+import { Badge } from '@components/ui/badge'
+import { Alert, AlertDescription } from '@components/ui/alert'
 import {
-  ChatCircleDots,
-  PaperPlaneTilt,
-  Check,
-  Smiley,
-  SmileyMeh,
-  SmileySad,
-  ImageSquare,
-  X,
-} from '@phosphor-icons/react'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@components/ui/dialog'
-import { cn } from '@/lib/utils'
-import { useTranslation } from 'react-i18next'
-import * as Sentry from '@sentry/nextjs'
+  CandidateFeedback, CandidateReleaseFeed, candidateAttachmentUrl,
+  confirmCandidateFeedback, editCandidateFeedback, getCandidateFeedback,
+  getCandidateReleases, markCandidateReleasesViewed, submitCandidateFeedback,
+} from '@services/candidate/candidate'
+
+export type CandidatePanel = 'feedback' | 'releases' | 'about'
 
 interface FeedbackModalProps {
   open: boolean
-  onOpenChange: (open: boolean) => void
+  onOpenChange: React.ComponentProps<typeof Dialog>['onOpenChange']
   theme?: 'light' | 'dark'
-  userName?: string
-  userEmail?: string
+  orgId?: number
+  accessToken?: string
+  initialPanel?: CandidatePanel
+  feedbackConfigured?: boolean
+  unstable?: boolean
+  onReleasesViewed?: () => void
 }
 
-export function FeedbackModal({
-  open,
-  onOpenChange,
-  theme = 'light',
-  userName,
-  userEmail,
-}: FeedbackModalProps) {
-  const { t } = useTranslation()
-  const [feedbackMessage, setFeedbackMessage] = useState('')
-  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false)
-  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false)
-  const [feedbackReaction, setFeedbackReaction] = useState<'happy' | 'neutral' | 'sad' | null>(null)
-  const [feedbackImages, setFeedbackImages] = useState<{ file: File; preview: string }[]>([])
-  const fileInputRef = useRef<HTMLInputElement>(null)
+const STATUS_LABELS: Record<string, string> = {
+  open: 'Open', in_progress: 'In the works', awaiting_confirmation: 'Ready to test', solved: 'Solved', ignored: 'Closed',
+}
 
+export function FeedbackModal({ open, onOpenChange, theme = 'light', orgId, accessToken, initialPanel = 'feedback', feedbackConfigured = true, unstable = true, onReleasesViewed }: FeedbackModalProps) {
+  const [panel, setPanel] = useState<CandidatePanel>(initialPanel)
+  const [message, setMessage] = useState('')
+  const [images, setImages] = useState<Array<{ file: File; preview: string }>>([])
+  const [history, setHistory] = useState<CandidateFeedback[]>([])
+  const [releases, setReleases] = useState<CandidateReleaseFeed | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [editing, setEditing] = useState<string | null>(null)
+  const [editMessage, setEditMessage] = useState('')
+  const fileInput = useRef<HTMLInputElement>(null)
   const isDark = theme === 'dark'
 
-  function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = e.target.files
-    if (!files) return
+  useEffect(() => setPanel(initialPanel), [initialPanel, open])
 
-    const newImages: { file: File; preview: string }[] = []
-    Array.from(files).forEach((file) => {
-      if (file.type.startsWith('image/') && feedbackImages.length + newImages.length < 3) {
-        newImages.push({
-          file,
-          preview: URL.createObjectURL(file),
-        })
-      }
-    })
-    setFeedbackImages((prev) => [...prev, ...newImages].slice(0, 3))
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
-    }
-  }
-
-  function removeImage(index: number) {
-    setFeedbackImages((prev) => {
-      const newImages = [...prev]
-      URL.revokeObjectURL(newImages[index].preview)
-      newImages.splice(index, 1)
-      return newImages
-    })
-  }
-
-  function resetForm() {
-    setFeedbackMessage('')
-    setFeedbackReaction(null)
-    feedbackImages.forEach((img) => URL.revokeObjectURL(img.preview))
-    setFeedbackImages([])
-  }
-
-  async function submitFeedback() {
-    if (!feedbackMessage.trim() && !feedbackReaction) return
-
-    setFeedbackSubmitting(true)
+  const load = useCallback(async () => {
+    if (!open || !accessToken) return
+    setLoading(true); setError('')
     try {
-      const reactionEmoji = feedbackReaction === 'happy' ? '😊' : feedbackReaction === 'neutral' ? '😐' : feedbackReaction === 'sad' ? '😞' : ''
-      const fullMessage = `${reactionEmoji ? `[${reactionEmoji}] ` : ''}${feedbackMessage}`
+      const [feedbackResult, releaseResult] = await Promise.allSettled([
+        orgId && feedbackConfigured ? getCandidateFeedback(orgId, accessToken) : Promise.resolve([]),
+        getCandidateReleases(accessToken),
+      ])
+      if (feedbackResult.status === 'fulfilled') setHistory(feedbackResult.value)
+      if (releaseResult.status === 'fulfilled') setReleases(releaseResult.value)
+      if (feedbackResult.status === 'rejected' && releaseResult.status === 'rejected') throw feedbackResult.reason
+      if (feedbackResult.status === 'rejected') setError(feedbackResult.reason instanceof Error ? feedbackResult.reason.message : 'Feedback history is unavailable')
+      else if (releaseResult.status === 'rejected') setError('What’s new is temporarily unavailable')
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not load candidate updates')
+    } finally { setLoading(false) }
+  }, [accessToken, feedbackConfigured, open, orgId])
 
-      const attachments: { filename: string; data: Uint8Array; contentType: string }[] = []
-      for (const img of feedbackImages) {
-        const arrayBuffer = await img.file.arrayBuffer()
-        attachments.push({
-          filename: img.file.name,
-          data: new Uint8Array(arrayBuffer),
-          contentType: img.file.type,
-        })
-      }
+  useEffect(() => { void load() }, [load])
 
-      Sentry.captureFeedback({
-        message: fullMessage,
-        name: userName || 'Anonymous',
-        email: userEmail || undefined,
-      }, {
-        includeReplay: true,
-        attachments: attachments.length > 0 ? attachments : undefined,
-      })
-
-      setFeedbackSubmitted(true)
-      resetForm()
-      setTimeout(() => {
-        onOpenChange(false)
-        setFeedbackSubmitted(false)
-      }, 2000)
-    } catch (error) {
-      console.error('Failed to submit feedback:', error)
-    } finally {
-      setFeedbackSubmitting(false)
-    }
+  const addImages = (files: File[]) => {
+    const accepted = files.filter((file) => file.type.startsWith('image/')).slice(0, Math.max(0, 3 - images.length))
+    setImages((current) => [...current, ...accepted.map((file) => ({ file, preview: URL.createObjectURL(file) }))].slice(0, 3))
   }
 
-  function handleOpenChange(newOpen: boolean) {
-    onOpenChange(newOpen)
-    if (!newOpen) {
-      resetForm()
-      setFeedbackSubmitted(false)
-    }
+  const removeImage = (image: { file: File; preview: string }) => {
+    URL.revokeObjectURL(image.preview)
+    setImages((current) => current.filter((entry) => entry !== image))
   }
 
-  return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent
-        className={cn(
-          'sm:max-w-md',
-          isDark
-            ? 'bg-[#0f0f10] border-white/10 text-white'
-            : 'bg-card border-border'
-        )}
-      >
-        <DialogHeader className="p-6 pb-2">
-          <DialogTitle
-            className={cn(
-              'flex items-center gap-2',
-              isDark ? 'text-white' : 'text-foreground'
-            )}
-          >
-            <ChatCircleDots size={20} weight="fill" />
-            {t('common.help_menu.feedback_title')}
-          </DialogTitle>
-          <DialogDescription className={isDark ? 'text-white/60' : 'text-muted-foreground'}>
-            {t('common.help_menu.feedback_description')}
-          </DialogDescription>
-        </DialogHeader>
+  const submit = async () => {
+    if (!message.trim() || !orgId || !accessToken) return
+    setLoading(true); setError('')
+    try {
+      const created = await submitCandidateFeedback(orgId, message, images.map((image) => image.file), accessToken)
+      setHistory((current) => [created, ...current]); setMessage('')
+      images.forEach((image) => URL.revokeObjectURL(image.preview)); setImages([])
+    } catch (caught) { setError(caught instanceof Error ? caught.message : 'Could not send feedback') }
+    finally { setLoading(false) }
+  }
 
-        <div className="px-6 pb-2">
-          {feedbackSubmitted ? (
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <div
-                className={cn(
-                  'w-12 h-12 rounded-full flex items-center justify-center mb-3',
-                  isDark ? 'bg-green-500/20' : 'bg-green-100'
-                )}
-              >
-                <Check
-                  size={24}
-                  weight="bold"
-                  className={isDark ? 'text-green-500' : 'text-green-600'}
-                />
-              </div>
-              <p className={cn('font-medium', isDark ? 'text-white/90' : 'text-foreground')}>
-                {t('common.help_menu.feedback_success')}
-              </p>
+  const saveEdit = async (item: CandidateFeedback) => {
+    if (!orgId || !accessToken) return
+    try {
+      const updated = await editCandidateFeedback(orgId, item.key, editMessage, accessToken)
+      setHistory((current) => current.map((entry) => entry.key === item.key ? updated : entry)); setEditing(null)
+    } catch (caught) { setError(caught instanceof Error ? caught.message : 'Could not edit feedback') }
+  }
+
+  const confirm = async (item: CandidateFeedback, solved: boolean) => {
+    if (!orgId || !accessToken) return
+    try {
+      const updated = await confirmCandidateFeedback(orgId, item.key, solved, accessToken)
+      setHistory((current) => current.map((entry) => entry.key === item.key ? updated : entry))
+    } catch (caught) { setError(caught instanceof Error ? caught.message : 'Could not update feedback') }
+  }
+
+  const changePanel = async (value: string) => {
+    setPanel(value as CandidatePanel)
+  }
+
+  useEffect(() => {
+    if (!open || panel !== 'releases' || !releases?.has_unread || !accessToken) return
+    let active = true
+    void (async () => {
+      try {
+        await markCandidateReleasesViewed(accessToken)
+        if (!active) return
+        setReleases((current) => current ? { ...current, has_unread: false } : current)
+        onReleasesViewed?.()
+      } catch { /* retain unread when acknowledgement fails */ }
+    })()
+    return () => { active = false }
+  }, [accessToken, onReleasesViewed, open, panel, releases?.has_unread])
+
+  const downloadAttachment = async (item: CandidateFeedback, attachmentId: string, filename: string) => {
+    if (!orgId || !accessToken) return
+    const response = await fetch(candidateAttachmentUrl(orgId, item.key, attachmentId), { headers: { Authorization: `Bearer ${accessToken}` } })
+    if (!response.ok) return setError('Could not open that screenshot')
+    const url = URL.createObjectURL(await response.blob())
+    const anchor = document.createElement('a'); anchor.href = url; anchor.download = filename; anchor.click()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }
+
+  return <Dialog open={open} onOpenChange={onOpenChange}>
+    <DialogContent className={isDark ? 'max-h-[92dvh] sm:max-w-2xl border-white/10 bg-[#0f0f10] text-white' : 'max-h-[92dvh] sm:max-w-2xl'}>
+      <DialogHeader><DialogTitle className={isDark ? 'text-white' : ''}>{unstable ? 'Unstable preview' : 'Feedback'}</DialogTitle><DialogDescription className={isDark ? 'text-white/55' : ''}>{unstable ? 'See what changed or tell us what needs attention.' : 'Tell us what needs attention. A quick sentence is plenty.'}</DialogDescription></DialogHeader>
+      <Tabs value={panel} onValueChange={(value) => void changePanel(value)} className="mt-4 min-h-0">
+        {unstable ? <TabsList className={isDark ? 'grid w-full grid-cols-3 bg-white/[0.07]' : 'grid w-full grid-cols-3'}>
+          <TabsTrigger value="feedback"><PaperPlaneTilt className="mr-1" /> Feedback</TabsTrigger>
+          <TabsTrigger value="releases"><Sparkle className="mr-1" /> What&apos;s new{releases?.has_unread ? <span className="ml-1 h-2 w-2 rounded-full bg-amber-500" /> : null}</TabsTrigger>
+          <TabsTrigger value="about"><Info className="mr-1" /> About</TabsTrigger>
+        </TabsList> : null}
+        {error ? <Alert variant="destructive" className="mt-3"><AlertDescription>{error}</AlertDescription></Alert> : null}
+
+        <TabsContent value="feedback" className="max-h-[68dvh] overflow-y-auto pr-1">
+          {!feedbackConfigured ? <Alert className={isDark ? 'border-white/10 bg-white/[0.04] text-white' : ''}><AlertDescription>Feedback is temporarily unavailable because this preview is not connected to its Jira feedback board.</AlertDescription></Alert> : <>
+            <div className={isDark ? 'rounded-xl border border-white/10 bg-white/[0.04] p-3' : 'rounded-xl border border-border bg-card p-3'} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); addImages(Array.from(event.dataTransfer.files)) }} onPaste={(event) => addImages(Array.from(event.clipboardData.files))}>
+              <Textarea autoFocus value={message} onChange={(event) => setMessage(event.target.value)} placeholder="What did you notice?" aria-label="Feedback message" className={isDark ? 'min-h-24 resize-none border-white/10 bg-black/20 text-white placeholder:text-white/30' : 'min-h-24 resize-none'} />
+              {images.length ? <div className="mt-3 flex gap-2">{images.map((image) => <div key={image.preview} className="relative"><img src={image.preview} alt={image.file.name} className="h-16 w-16 rounded-lg object-cover" /><button type="button" aria-label={`Remove ${image.file.name}`} onClick={() => removeImage(image)} className="absolute -right-1 -top-1 rounded-full bg-black p-1 text-white"><X size={11} /></button></div>)}</div> : null}
+              <div className="mt-3 flex items-center justify-between gap-3"><div><input ref={fileInput} className="hidden" type="file" accept="image/jpeg,image/png,image/gif,image/webp" multiple onChange={(event) => addImages(Array.from(event.target.files || []))} /><Button type="button" variant="ghost" size="sm" onClick={() => fileInput.current?.click()} disabled={images.length >= 3}><ImageSquare /> Add screenshots <span className="text-muted-foreground">{images.length}/3</span></Button></div><Button type="button" size="sm" onClick={() => void submit()} disabled={!message.trim() || loading}><PaperPlaneTilt weight="fill" /> {loading ? 'Sending…' : 'Send'}</Button></div>
+              <p className={isDark ? 'mt-2 text-xs text-white/35' : 'mt-2 text-xs text-muted-foreground'}>Paste, drop, or choose up to 3 images.</p>
             </div>
-          ) : (
-            <div className="space-y-4">
-              {/* Reaction Selection */}
-              <div>
-                <p className={cn('text-sm mb-2', isDark ? 'text-white/60' : 'text-muted-foreground')}>
-                  {t('common.help_menu.how_was_experience')}
-                </p>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setFeedbackReaction(feedbackReaction === 'happy' ? null : 'happy')}
-                    className={cn(
-                      'flex-1 flex flex-col items-center gap-1 p-3 rounded-lg border transition-all',
-                      feedbackReaction === 'happy'
-                        ? isDark
-                          ? 'border-green-500 bg-green-500/10 text-green-500'
-                          : 'border-green-500 bg-green-50 text-green-600'
-                        : isDark
-                          ? 'border-white/10 hover:border-white/20 text-white/60 hover:text-white'
-                          : 'border-border hover:border-border text-muted-foreground hover:text-muted-foreground'
-                    )}
-                  >
-                    <Smiley size={28} weight={feedbackReaction === 'happy' ? 'fill' : 'regular'} />
-                    <span className="text-xs">{t('common.help_menu.reaction_happy')}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFeedbackReaction(feedbackReaction === 'neutral' ? null : 'neutral')}
-                    className={cn(
-                      'flex-1 flex flex-col items-center gap-1 p-3 rounded-lg border transition-all',
-                      feedbackReaction === 'neutral'
-                        ? isDark
-                          ? 'border-yellow-500 bg-yellow-500/10 text-yellow-500'
-                          : 'border-yellow-500 bg-yellow-50 text-yellow-600'
-                        : isDark
-                          ? 'border-white/10 hover:border-white/20 text-white/60 hover:text-white'
-                          : 'border-border hover:border-border text-muted-foreground hover:text-muted-foreground'
-                    )}
-                  >
-                    <SmileyMeh size={28} weight={feedbackReaction === 'neutral' ? 'fill' : 'regular'} />
-                    <span className="text-xs">{t('common.help_menu.reaction_neutral')}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFeedbackReaction(feedbackReaction === 'sad' ? null : 'sad')}
-                    className={cn(
-                      'flex-1 flex flex-col items-center gap-1 p-3 rounded-lg border transition-all',
-                      feedbackReaction === 'sad'
-                        ? isDark
-                          ? 'border-red-500 bg-red-500/10 text-red-500'
-                          : 'border-red-500 bg-red-50 text-red-600'
-                        : isDark
-                          ? 'border-white/10 hover:border-white/20 text-white/60 hover:text-white'
-                          : 'border-border hover:border-border text-muted-foreground hover:text-muted-foreground'
-                    )}
-                  >
-                    <SmileySad size={28} weight={feedbackReaction === 'sad' ? 'fill' : 'regular'} />
-                    <span className="text-xs">{t('common.help_menu.reaction_sad')}</span>
-                  </button>
-                </div>
-              </div>
+            <div className={isDark ? 'my-5 flex items-center gap-3 text-xs text-white/35' : 'my-5 flex items-center gap-3 text-xs text-muted-foreground'}><span className="h-px flex-1 bg-current opacity-20" />Your submission history<span className="h-px flex-1 bg-current opacity-20" /></div>
+            <div className="space-y-3">{!history.length && !loading ? <p className="py-8 text-center text-sm text-muted-foreground">Nothing here yet. A quick sentence is plenty.</p> : null}{history.map((item) => <article key={item.key} className={isDark ? 'rounded-xl border border-white/10 p-4' : 'rounded-xl border border-border p-4'}>
+              <div className="flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2"><Badge variant="outline" className={isDark ? 'border-white/15 text-white/70' : ''}>{STATUS_LABELS[item.status]}</Badge>{item.priority === 'high' ? <Badge variant="destructive">High priority</Badge> : null}</div><span className="text-xs text-muted-foreground">{item.created_at ? new Date(item.created_at).toLocaleDateString() : item.key}</span></div>
+              {editing === item.key ? <div className="mt-3"><Textarea value={editMessage} onChange={(event) => setEditMessage(event.target.value)} /><div className="mt-2 flex justify-end gap-2"><Button variant="ghost" size="sm" onClick={() => setEditing(null)}>Cancel</Button><Button size="sm" onClick={() => void saveEdit(item)}>Save</Button></div></div> : <button type="button" className="mt-3 w-full text-left text-sm leading-6" onClick={() => { setEditing(item.key); setEditMessage(item.message) }}>{item.message}<span className="ml-2 text-xs text-muted-foreground">Edit</span></button>}
+              {item.attachments.length ? <div className="mt-3 flex flex-wrap gap-2">{item.attachments.map((attachment) => <Button key={attachment.id} variant="outline" size="sm" onClick={() => void downloadAttachment(item, attachment.id, attachment.filename)}><ImageSquare />{attachment.filename}</Button>)}</div> : null}
+              {item.entries.length ? <div className="mt-4 space-y-2 border-l-2 border-amber-400/40 pl-3">{item.entries.map((entry) => <div key={entry.id}><p className="text-sm">{entry.message}</p><p className="mt-1 text-xs text-muted-foreground">{entry.author}</p></div>)}</div> : null}
+              {item.status === 'awaiting_confirmation' ? <div className="mt-4 rounded-lg bg-amber-500/10 p-3"><p className="text-sm font-medium">Does the latest push solve this?</p><div className="mt-2 flex gap-2"><Button size="sm" onClick={() => void confirm(item, true)}><CheckCircle />Yes, solved</Button><Button size="sm" variant="outline" onClick={() => void confirm(item, false)}><Clock />Still happening</Button></div></div> : null}
+            </article>)}</div>
+          </>}
+        </TabsContent>
 
-              {/* Message Input */}
-              <textarea
-                value={feedbackMessage}
-                onChange={(e) => setFeedbackMessage(e.target.value)}
-                aria-label={t('common.help_menu.feedback_placeholder')}
-                placeholder={t('common.help_menu.feedback_placeholder')}
-                className={cn(
-                  'w-full h-28 px-3 py-2 rounded-lg resize-none',
-                  isDark
-                    ? 'bg-white/5 border border-white/10 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-white/20'
-                    : 'bg-muted border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-border'
-                )}
-              />
+        <TabsContent value="releases" className="max-h-[68dvh] overflow-y-auto pr-1">
+          {releases?.unseen.length ? <section><Badge className="mb-3 bg-amber-500 text-black hover:bg-amber-500">New since you last tested</Badge><ReleaseList releases={releases.unseen} dark={isDark} /><div className="my-5 flex items-center gap-3 text-xs text-muted-foreground"><span className="h-px flex-1 bg-border" />Earlier updates<span className="h-px flex-1 bg-border" /></div></section> : null}
+          <ReleaseList releases={releases?.previous || []} dark={isDark} />
+          {!loading && !releases?.unseen.length && !releases?.previous.length ? <p className="py-12 text-center text-sm text-muted-foreground">No GitHub changes are available for this build yet.</p> : null}
+        </TabsContent>
+        <TabsContent value="about"><Alert className={isDark ? 'border-amber-400/20 bg-amber-400/10 text-white' : 'border-amber-300 bg-amber-50'}><Warning className="text-amber-600" /><AlertDescription><strong>This is a testing version.</strong> Things may change or occasionally break. Data entered here may be reset and should not be treated as a permanent record. If something feels wrong, send a quick note in Feedback—screenshots help, but they are optional.</AlertDescription></Alert></TabsContent>
+      </Tabs>
+    </DialogContent>
+  </Dialog>
+}
 
-              {/* Image Upload */}
-              <div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleImageUpload}
-                  className="hidden"
-                />
-                {feedbackImages.length > 0 && (
-                  <div className="flex gap-2 mb-2">
-                    {feedbackImages.map((img, index) => (
-                      <div key={index} className="relative group">
-                        <img
-                          src={img.preview}
-                          alt={`Upload ${index + 1}`}
-                          className={cn(
-                            'w-16 h-16 object-cover rounded-lg border',
-                            isDark ? 'border-white/10' : 'border-border'
-                          )}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeImage(index)}
-                          className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <X size={12} weight="bold" className="text-white" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {feedbackImages.length < 3 && (
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className={cn(
-                      'flex items-center gap-2 text-sm transition-colors',
-                      isDark
-                        ? 'text-white/50 hover:text-white'
-                        : 'text-muted-foreground hover:text-muted-foreground'
-                    )}
-                  >
-                    <ImageSquare size={18} />
-                    <span>{t('common.help_menu.attach_image')}</span>
-                    <span className={isDark ? 'text-white/30' : 'text-muted-foreground'}>
-                      ({feedbackImages.length}/3)
-                    </span>
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {!feedbackSubmitted && (
-          <DialogFooter className="p-6 pt-2">
-            <button
-              onClick={() => handleOpenChange(false)}
-              className={cn(
-                'px-4 py-2 text-sm transition-colors',
-                isDark
-                  ? 'text-white/60 hover:text-white'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-            >
-              {t('common.cancel')}
-            </button>
-            <button
-              onClick={submitFeedback}
-              disabled={(!feedbackMessage.trim() && !feedbackReaction) || feedbackSubmitting}
-              className={cn(
-                'flex items-center gap-2 px-4 py-2 text-sm rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
-                isDark
-                  ? 'bg-card text-foreground hover:bg-card/90'
-                  : 'bg-black text-white hover:bg-gray-800'
-              )}
-            >
-              {feedbackSubmitting ? (
-                t('common.help_menu.sending')
-              ) : (
-                <>
-                  <PaperPlaneTilt size={16} weight="fill" />
-                  {t('common.help_menu.send_feedback')}
-                </>
-              )}
-            </button>
-          </DialogFooter>
-        )}
-      </DialogContent>
-    </Dialog>
-  )
+function ReleaseList({ releases, dark }: { releases: CandidateReleaseFeed['unseen']; dark: boolean }) {
+  return <div className="space-y-3">{releases.map((release) => <article key={release.revision} className={dark ? 'rounded-xl border border-white/10 p-4' : 'rounded-xl border border-border p-4'}><div className="flex items-center justify-between gap-3"><h3 className="text-sm font-semibold">{release.title}</h3><span className="font-mono text-xs text-muted-foreground">{release.revision.slice(0, 7)}</span></div><ul className="mt-3 space-y-2">{release.notes.map((note, index) => <li key={`${release.revision}-${index}`} className="flex gap-2 text-sm leading-6"><Sparkle className="mt-1 shrink-0 text-amber-500" />{note.url ? <a href={note.url} target="_blank" rel="noreferrer" className="hover:underline">{note.text}</a> : note.text}</li>)}</ul></article>)}</div>
 }

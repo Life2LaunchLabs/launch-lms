@@ -5,6 +5,7 @@ import AdminAuthorization from '@components/Security/AdminAuthorization'
 import React from 'react'
 import { useMediaQuery } from 'usehooks-ts';
 import ExperiencePreferenceTracker from '@components/Auth/ExperiencePreferenceTracker'
+import CandidateExperience from '@components/Candidate/CandidateExperience'
 
 function ClientAdminLayout({
     children,
@@ -18,6 +19,7 @@ function ClientAdminLayout({
     return (
         <AdminAuthorization authorizationMode="page">
             <ExperiencePreferenceTracker side="admin" orgslug={params.orgslug} />
+            <CandidateExperience theme="dark" />
             <div className="flex min-h-[100dvh] flex-col md:h-[100dvh] md:flex-row md:overflow-hidden">
                 {isMobile ? (
                     <DashMobileMenu />

@@ -1,0 +1,123 @@
+name: Browser UI
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: launchlms
+          POSTGRES_PASSWORD: launchlms
+          POSTGRES_DB: launchlms_browser_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U launchlms -d launchlms_browser_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      UI_TEST_DATABASE_URL: postgresql+psycopg2://launchlms:launchlms@127.0.0.1:5432/launchlms_browser_test
+      UI_TEST_EMAIL: ui-learner@example.org
+      UI_TEST_PASSWORD: ui-test-password-123
+      UI_TEST_API_PORT: "19001"
+      UI_TEST_WEB_PORT: "13100"
+      UI_TEST_HTTPS: "false"
+      UI_TEST_WEB_MODE: start
+      UI_TEST_NEXT_DIST_DIR: .next-ui-test
+      UI_TEST_CAPTURE: "false"
+      LAUNCHLMS_SQL_CONNECTION_STRING: postgresql+psycopg2://launchlms:launchlms@127.0.0.1:5432/launchlms_browser_test
+      LAUNCHLMS_REDIS_CONNECTION_STRING: redis://127.0.0.1:6379/1
+      LAUNCHLMS_AUTH_JWT_SECRET_KEY: ui-test-secret-key-at-least-32-chars
+      LAUNCHLMS_INITIAL_ADMIN_EMAIL: ui-learner@example.org
+      LAUNCHLMS_INITIAL_ADMIN_PASSWORD: ui-test-password-123
+      LAUNCHLMS_DEVELOPMENT_MODE: "true"
+      LAUNCHLMS_UI_TEST_FIXTURES: "true"
+      LAUNCHLMS_DOMAIN: 127.0.0.1.sslip.io:19001
+      LAUNCHLMS_FRONTEND_DOMAIN: 127.0.0.1.sslip.io:13100
+      LAUNCHLMS_COOKIE_DOMAIN: .127.0.0.1.sslip.io
+      LAUNCHLMS_SSL: "false"
+      COLLAB_INTERNAL_KEY: ui-test-collab-key
+      NEXT_PUBLIC_LAUNCHLMS_BACKEND_URL: http://127.0.0.1:19001
+      NEXT_PUBLIC_LAUNCHLMS_DOMAIN: 127.0.0.1.sslip.io:13100
+      NEXT_PUBLIC_LAUNCHLMS_TOP_DOMAIN: 127.0.0.1.sslip.io
+      NEXT_PUBLIC_LAUNCHLMS_HTTPS: "false"
+      LAUNCHLMS_INTERNAL_API_URL: http://127.0.0.1:19001/api/v1/
+      LAUNCHLMS_INTERNAL_BACKEND_URL: http://127.0.0.1:19001
+      NEXT_DIST_DIR: .next-ui-test
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14.3"
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: latest
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install API dependencies
+        run: uv sync --frozen
+        working-directory: apps/api
+
+      - name: Install web dependencies
+        run: bun install --frozen-lockfile
+        working-directory: apps/web
+
+      - name: Install pinned browsers
+        run: bunx playwright install --with-deps chromium webkit
+        working-directory: apps/web
+
+      - name: Migrate and seed isolated fixtures
+        working-directory: apps/api
+        run: |
+          ./scripts/run_alembic_migrations.sh
+          uv run python cli.py install --short
+
+      - name: Build the test application
+        run: bun run build
+        working-directory: apps/web
+
+      - name: Run browser scenarios
+        run: bash scripts/ui/run-local.sh
+
+      - name: Retain browser run manifest
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: browser-ui-manifest
+          path: apps/web/test-results/ui/run-manifest.json
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Retain browser failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: browser-ui-failure
+          path: |
+            apps/web/test-results/
+            apps/web/playwright-report/
+          retention-days: 7
+          if-no-files-found: ignore

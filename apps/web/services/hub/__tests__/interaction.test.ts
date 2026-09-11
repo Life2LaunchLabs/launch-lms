@@ -9,8 +9,14 @@ import {
   inferHubResponseKind,
   newHubTranscriptResources,
   removeHubContextResource,
+  restoreSubmittedDraft,
   toggleHubContextResource,
 } from '../../../app/orgs/[orgslug]/(withmenu)/hub/hubInteraction.ts'
+
+test('stopping preserves a new message typed while the previous response was running', () => {
+  assert.equal(restoreSubmittedDraft('My next message', 'Stopped message'), 'My next message')
+  assert.equal(restoreSubmittedDraft('', 'Stopped message'), 'Stopped message')
+})
 
 test('submission intent chooses a response object without a user-facing mode', () => {
   assert.equal(inferHubResponseKind('fafsa guides'), 'search')
@@ -21,6 +27,13 @@ test('submission intent chooses a response object without a user-facing mode', (
   assert.equal(inferHubResponseKind('Explain FAFSA dependency status'), 'chat')
   assert.equal(inferHubResponseKind('hello'), 'chat')
   assert.equal(inferHubResponseKind('advice on FAFSA'), 'chat')
+  assert.equal(inferHubResponseKind('probably 2 years'), 'chat')
+  assert.equal(inferHubResponseKind('two years'), 'chat')
+  assert.equal(inferHubResponseKind('yes'), 'chat')
+  assert.equal(inferHubResponseKind('next September'), 'chat')
+  assert.equal(inferHubResponseKind('the second option'), 'chat')
+  assert.equal(inferHubResponseKind('nursing programs'), 'chat')
+  assert.equal(inferHubResponseKind('personality quiz'), 'search')
 })
 
 test('search response objects preserve alternating advisor history for follow-ups', () => {
@@ -31,6 +44,11 @@ test('search response objects preserve alternating advisor history for follow-up
     { role: 'user', content: 'personality quiz' },
     { role: 'assistant', content: 'Displayed resource search results for “personality quiz”.' },
   ])
+})
+
+test('advisor history bounds an oversized prior reply before resubmission', () => {
+  const history = hubAdvisorHistory([{ role: 'assistant', content: 'x'.repeat(2500) }])
+  assert.equal(history[0].content.length, 2000)
 })
 
 test('advisor resources only enter the transcript the first time they are introduced', () => {

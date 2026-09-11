@@ -9,15 +9,15 @@ type HubHistoryMessage = {
 export function hubAdvisorHistory(messages: HubHistoryMessage[], limit = 10) {
   return messages.slice(-limit).map((message) => ({
     role: message.role,
-    content: message.searchQuery
+    content: (message.searchQuery
       ? `Displayed resource search results for “${message.searchQuery}”.`
-      : message.content,
+      : message.content).slice(0, 2000),
   }))
 }
 
 const QUESTION_OPENERS = /^(?:how|why|what|when|where|who|which|should|can|could|would|will|do|does|did|is|are|am|tell|explain|help|i\b|we\b|hi\b|hello\b|hey\b|thanks?\b|good (?:morning|afternoon|evening)\b)/i
 const SEARCH_OPENERS = /^(?:find|search|show me|look for|browse|resources? (?:for|about|on))\b/i
-const RESOURCE_WORDS = /\b(?:resources?|guides?|videos?|articles?|courses?|tools?|templates?|examples?|tutorials?|worksheets?|checklists?|assessments?)\b/i
+const RESOURCE_WORDS = /\b(?:resources?|guides?|videos?|articles?|courses?|tools?|templates?|examples?|tutorials?|worksheets?|checklists?|assessments?|quiz(?:zes)?)\b/i
 const ADVICE_WORDS = /\b(?:advice|advise|recommend|suggest|think|decide|choose|feel|worried|help)\b/i
 
 export function inferHubResponseKind(content: string): HubResponseKind {
@@ -25,8 +25,14 @@ export function inferHubResponseKind(content: string): HubResponseKind {
   if (!normalized) return 'chat'
   if (normalized.includes('?') || QUESTION_OPENERS.test(normalized) || ADVICE_WORDS.test(normalized)) return 'chat'
   if (SEARCH_OPENERS.test(normalized) || RESOURCE_WORDS.test(normalized)) return 'search'
-  const words = normalized.split(/\s+/)
-  return words.length <= 6 && !/[.!]$/.test(normalized) ? 'search' : 'chat'
+  // A short noun phrase is often an answer to Hub (a duration, date, choice or
+  // confirmation). Prefer conversation unless the learner actually signals
+  // search intent; the advisor can still offer a resource action afterward.
+  return 'chat'
+}
+
+export function restoreSubmittedDraft(currentDraft: string, submittedContent: string) {
+  return currentDraft.trim() ? currentDraft : submittedContent
 }
 
 export function addHubContextResource<T extends { resource_uuid: string }>(current: T[], resource: T, limit = 8) {

@@ -160,6 +160,7 @@ export const routePaths = {
       planAssignment: (assignmentUuid: string, subpage = 'overview') => `/admin/plans/assignments/${encodeURIComponent(assignmentUuid)}/${encodeURIComponent(subpage)}`,
       livePlan: (planUuid: string, subpage = 'overview') => subpage === 'overview' ? `/admin/plans/live/${encodeURIComponent(planUuid)}` : `/admin/plans/live/${encodeURIComponent(planUuid)}/${encodeURIComponent(subpage)}`,
       news: () => '/admin/news',
+      feedback: () => '/admin/feedback',
       newsNewPost: () => '/admin/news/new-post',
       newsPost: (articleUuid: string) => `/admin/news/${articleUuid}`,
       communities: () => '/admin/communities',

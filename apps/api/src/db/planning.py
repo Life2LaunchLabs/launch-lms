@@ -268,6 +268,8 @@ class PlanUpdate(SQLModel):
 
 
 class PlanPhaseCreate(SQLModel):
+    request_key: str | None = Field(default=None, min_length=1, max_length=160)
+    position: int | None = Field(default=None, ge=0)
     name: str
     description: str = ""
     start_date: date | None = None
@@ -283,6 +285,7 @@ class PlanPhaseUpdate(SQLModel):
 
 
 class PlanObjectiveCreate(SQLModel):
+    request_key: str | None = Field(default=None, min_length=1, max_length=160)
     phase_uuid: str | None = None
     title: str
     description: str = ""

@@ -41,11 +41,12 @@ do not change it to simulate production.
 
 ## Hub advisor
 
-The first Hub advisor uses OpenAI's Responses API through a server-only, stateless provider boundary. A
-Superadmin configures its API key, model, instructions, and enabled state in Platform Settings after deployment.
+The Hub advisor supports OpenAI Responses and Anthropic Messages through server-only, stateless provider boundaries. A
+Superadmin configures the active provider, API key, model, platform guidance, and enabled state in Platform Settings after deployment.
 The key is encrypted in the database and is write-only through the API; it is never returned to the browser.
-Each request sends the bounded browser-held conversation with response storage disabled and no tools; Launch
-LMS does not persist chat messages.
+Each request sends bounded conversation and authorized context with provider response storage disabled. Launch LMS
+persists the learner-owned conversation. Providers may return typed navigation proposals from the code-owned
+capability schema; proposals have no effect until their owner clicks and the server revalidates the allowlisted route.
 
 ## Resource search
 

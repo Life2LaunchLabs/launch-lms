@@ -55,9 +55,7 @@ export type GroupPlanTarget = PlanTargetBase & {
 export type PlanTarget = IndividualPlanTarget | GroupPlanTarget
 
 export function PlanWorkspaceHeader({ title, color, onClose, onOpenPanel }: { title: string; color: string; onClose(): void; onOpenPanel(): void }) {
-  const [open, setOpen] = React.useState(false)
-  React.useEffect(() => { const frame = requestAnimationFrame(() => setOpen(true)); return () => cancelAnimationFrame(frame) }, [])
-  return <div className="h-16 overflow-hidden rounded-2xl"><div className={cn('flex h-16 origin-left items-center overflow-hidden rounded-2xl px-5 text-white shadow-sm transition-[transform,opacity] duration-200 ease-out', open ? 'scale-x-100 opacity-100' : 'scale-x-0 opacity-0')} style={{ backgroundColor: color }}><span className={cn('min-w-0 flex-1 truncate text-xl font-black tracking-tight transition-opacity delay-150 sm:text-2xl', open ? 'opacity-100' : 'opacity-0')}>{title}</span><button onClick={onOpenPanel} className="mr-2 flex h-8 items-center gap-1.5 rounded-full bg-black/15 px-3 text-[10px] font-black lg:hidden"><Menu size={14} />Details</button><button onClick={onClose} aria-label="Close plan editor and return to all plans" className="ml-3 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-black/15 transition hover:bg-black/25"><X size={16} /></button></div></div>
+  return <div className="h-16 overflow-hidden rounded-2xl"><div className="flex h-16 items-center overflow-hidden rounded-2xl px-5 text-white shadow-sm" style={{ backgroundColor: color }}><span className="min-w-0 flex-1 truncate text-xl font-black tracking-tight sm:text-2xl">{title}</span><button onClick={onOpenPanel} className="plan-panel-trigger mr-2 flex h-8 items-center gap-1.5 rounded-full bg-black/15 px-3 text-[10px] font-black lg:hidden"><Menu size={14} />Details</button><button onClick={onClose} aria-label="Close plan editor and return to all plans" className="ml-3 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-black/15 transition hover:bg-black/25"><X size={16} /></button></div></div>
 }
 
 type ObjectiveHeaderProgress = {

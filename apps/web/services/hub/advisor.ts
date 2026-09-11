@@ -2,6 +2,24 @@ import { getAPIUrl } from '@services/config/config'
 import type { ResourceType } from '@services/resources/resources'
 import { RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/requests'
 
+
+export type HubSurfaceHint = {
+  surface: 'plan' | 'plans' | 'group_plan' | 'unsupported'
+  entity_id?: string
+  selected_objective_id?: string
+  visible_ids?: string[]
+  page_path?: string
+  page_title?: string
+}
+export type HubPageReceipt = {
+  status: 'off' | 'unavailable' | 'ready'
+  captured_at: string
+  page_path?: string
+  page_title?: string
+  truncated?: boolean
+  sources: Array<{ source_type?: 'group_plan'; plan_id: string; assignment_id?: string; title: string; objective_id?: string; objective_title?: string; updated_at: string; page_path?: string; page_title?: string }>
+}
+
 export type HubAdvisorResource = {
   resource_uuid: string
   title: string
@@ -19,7 +37,89 @@ export type HubAdvisorResource = {
 export type HubAdvisorMessage = {
   role: 'user' | 'assistant'
   content: string
+  page_context?: HubPageReceipt | null
   resources?: HubAdvisorResource[]
+  suggested_actions?: HubSuggestedAction[]
+}
+
+export type HubSuggestedAction = {
+  action_id: string
+  schema_version: 1
+  capability: 'navigate'
+  destination: string
+  label: string
+  state: 'proposed'
+  primary_behavior?: 'navigate' | 'begin_edit'
+  primary_label?: string
+  alternate_label?: string
+  edit_scope?: { kind: 'new_plan' | 'plan'; label: string }
+}
+
+export type HubEditRunEvent = {
+  event_uuid: string
+  sequence: number
+  kind: string
+  summary: string
+  object_type?: string | null
+  object_uuid?: string | null
+  object_label?: string | null
+  transient: boolean
+  payload: Record<string, unknown>
+  created_at: string
+}
+
+export type HubEditOperation = {
+  operation_id: string
+  type: 'set_new_plan_details'
+  object_type: 'plan'
+  object_uuid?: string | null
+  object_label: string
+  fields: { name: string; description: string; due_date: string }
+} | {
+  operation_id: string
+  type: 'add_plan_phases'
+  object_type: 'phase'
+  object_uuid?: string | null
+  object_label: string
+  phases: Array<{ local_id: string; name: string; description: string; due_date: string }>
+} | {
+  operation_id: string
+  type: 'add_plan_objectives'
+  object_type: 'objective'
+  object_uuid?: string | null
+  object_label: string
+  objectives: Array<{ local_id: string; title: string; description: string; due_date: string; phase_name: string }>
+} | {
+  operation_id: string
+  type: 'propose_edit_conclusion'
+  object_type: 'run'
+  object_uuid?: string | null
+  object_label: string
+  summary: string
+}
+
+export type HubEditRun = {
+  run_uuid: string
+  conversation_uuid: string
+  goal: string
+  scope: { kind: 'new_plan' | 'plan'; target_uuid?: string | null; label: string; route: string }
+  status: 'active' | 'cancelled' | 'completed'
+  created_at: string
+  updated_at: string
+  ended_at?: string | null
+  events: HubEditRunEvent[]
+  objects: HubEditObjectState[]
+}
+
+export type HubEditObjectState = {
+  object_key: string
+  object_type: string
+  object_uuid?: string | null
+  status: 'editing' | 'cancelled' | 'saved' | 'expired'
+  current_fields: Record<string, string | number | boolean | null>
+  proposal_fields: Record<string, string | number | boolean | null>
+  revision: number
+  updated_at: string
 }
 
 export type HubMemory = {
@@ -65,10 +165,11 @@ type ConversationWriteResult = {
   assistant_message_uuid: string
   user_message_created_at: string
   assistant_message_created_at: string
+  page_context?: HubPageReceipt
 }
 
-async function hubRequest<T>(path: string, method: string, accessToken: string, data?: unknown): Promise<T> {
-  const response = await fetch(`${getAPIUrl()}hub/${path}`, RequestBodyWithAuthHeader(method, data ?? null, null, accessToken))
+async function hubRequest<T>(path: string, method: string, accessToken: string, data?: unknown, signal?: AbortSignal): Promise<T> {
+  const response = await fetch(`${getAPIUrl()}hub/${path}`, { ...RequestBodyWithAuthHeader(method, data ?? null, null, accessToken), signal })
   if (!response.ok) return errorHandling(response)
   if (response.status === 204) return undefined as T
   return response.json()
@@ -80,29 +181,88 @@ export async function askHubAdvisor(
   accessToken: string,
   resourceUuids: string[] = [],
   conversationUuid?: string,
-  learnerResourceUuids: string[] = []
+  learnerResourceUuids: string[] = [],
+  surface?: HubSurfaceHint,
+  signal?: AbortSignal,
 ): Promise<{
   answer: string
+  page_context?: HubPageReceipt
   usage: { input_tokens: number; output_tokens: number }
   resources: HubAdvisorResource[]
   memories_used: HubMemory[]
   memory_changes: HubMemory[]
+  suggested_actions: HubSuggestedAction[]
+  edit_operations: HubEditOperation[]
+  edit_run?: HubEditRun | null
 } & ConversationWriteResult> {
+  // The API reconstructs established threads from its owned transcript. Sending only
+  // the new turn prevents stale or oversized rendered history from poisoning a retry.
+  const requestMessages = conversationUuid ? messages.slice(-1) : messages
   const response = await fetch(
     `${getAPIUrl()}hub/advisor?org_id=${encodeURIComponent(orgId)}`,
-    RequestBodyWithAuthHeader(
-      'POST',
-      {
-        messages: messages.map(({ role, content }) => ({ role, content })),
+    {
+      ...RequestBodyWithAuthHeader(
+        'POST',
+        {
+        messages: requestMessages.map(({ role, content }) => ({ role, content })),
         resource_uuids: resourceUuids,
         learner_resource_uuids: learnerResourceUuids,
         conversation_uuid: conversationUuid,
+        surface,
       },
-      null,
-      accessToken
-    )
+        null,
+        accessToken
+      ),
+      signal,
+    }
   )
   return errorHandling(response)
+}
+
+export function resolveHubSuggestedAction(
+  orgId: number,
+  conversationUuid: string,
+  messageUuid: string,
+  actionId: string,
+  accessToken: string,
+  mode: 'navigate' | 'edit' = 'navigate',
+) {
+  return hubRequest<{ action_id: string; route: string; label: string; edit_run?: HubEditRun }>(
+    `actions/${encodeURIComponent(actionId)}/resolve?org_id=${encodeURIComponent(orgId)}`,
+    'POST',
+    accessToken,
+    { conversation_uuid: conversationUuid, message_uuid: messageUuid, mode },
+  )
+}
+
+export function getActiveHubEditRun(orgId: number, conversationUuid: string, accessToken: string) {
+  return hubRequest<{ edit_run: HubEditRun | null }>(`conversations/${encodeURIComponent(conversationUuid)}/edit-run?org_id=${encodeURIComponent(orgId)}`, 'GET', accessToken)
+}
+
+export function concludeHubEditRun(orgId: number, runUuid: string, status: 'cancelled' | 'completed', accessToken: string) {
+  return hubRequest<HubEditRun>(`edit-runs/${encodeURIComponent(runUuid)}/conclude?org_id=${encodeURIComponent(orgId)}`, 'POST', accessToken, { status })
+}
+
+export function reopenHubEditRun(orgId: number, runUuid: string, accessToken: string) {
+  return hubRequest<HubEditRun>(`edit-runs/${encodeURIComponent(runUuid)}/reopen?org_id=${encodeURIComponent(orgId)}`, 'POST', accessToken)
+}
+
+export function updateHubEditRunGoal(orgId: number, runUuid: string, goal: string, accessToken: string) {
+  return hubRequest<HubEditRun>(`edit-runs/${encodeURIComponent(runUuid)}/goal?org_id=${encodeURIComponent(orgId)}`, 'PATCH', accessToken, { goal })
+}
+
+export function bindHubEditRunPlan(orgId: number, runUuid: string, planIdentifier: string, accessToken: string) {
+  return hubRequest<HubEditRun>(`edit-runs/${encodeURIComponent(runUuid)}/plan-target?org_id=${encodeURIComponent(orgId)}`, 'POST', accessToken, { plan_identifier: planIdentifier })
+}
+
+export function saveHubEditObjectState(
+  orgId: number,
+  runUuid: string,
+  objectKey: string,
+  state: Pick<HubEditObjectState, 'object_type' | 'current_fields' | 'proposal_fields' | 'status'> & { expected_revision?: number; object_uuid?: string | null },
+  accessToken: string,
+) {
+  return hubRequest<HubEditObjectState>(`edit-runs/${encodeURIComponent(runUuid)}/objects/${encodeURIComponent(objectKey)}?org_id=${encodeURIComponent(orgId)}`, 'PUT', accessToken, state)
 }
 
 export function getHubMemory(orgId: number, accessToken: string) {
@@ -145,13 +305,16 @@ export function recordHubSearch(orgId: number, query: string, accessToken: strin
   conversationUuid?: string
   resourceUuids?: string[]
   learnerResourceUuids?: string[]
+  surface?: HubSurfaceHint
+  signal?: AbortSignal
 } = {}) {
   return hubRequest<ConversationWriteResult>(`conversations/search?org_id=${encodeURIComponent(orgId)}`, 'POST', accessToken, {
     conversation_uuid: options.conversationUuid,
     query,
     resource_uuids: options.resourceUuids || [],
     learner_resource_uuids: options.learnerResourceUuids || [],
-  })
+    surface: options.surface,
+  }, options.signal)
 }
 
 export function renameHubConversation(orgId: number, conversationUuid: string, title: string, accessToken: string) {
