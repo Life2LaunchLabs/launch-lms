@@ -109,11 +109,6 @@ function DashMobileMenu() {
       label: t('common.users'),
     },
     {
-      href: routePaths.org.dash.feedback(),
-      icon: MessageSquareWarning,
-      label: 'Tester feedback',
-    },
-    {
       href: routePaths.org.dash.orgSettings.general(),
       icon: School,
       label: t('common.organization'),
@@ -135,6 +130,11 @@ function DashMobileMenu() {
           href: getUriWithOrg(org.slug, routePaths.owner.platform.users()),
           icon: Users,
           label: 'Users',
+        },
+        {
+          href: getUriWithOrg(org.slug, routePaths.owner.platform.feedback()),
+          icon: MessageSquareWarning,
+          label: 'Tester feedback',
         },
         {
           href: getUriWithOrg(org.slug, routePaths.owner.platform.settings()),

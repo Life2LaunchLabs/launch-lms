@@ -264,5 +264,6 @@ set `LAUNCHLMS_RELEASE_CHANNEL=unstable`, configure the
 `LAUNCHLMS_FEEDBACK_JIRA_*` variables for a dedicated Jira integration account,
 and provide a read-only `LAUNCHLMS_GITHUB_TOKEN` when the application repository
 is private. Feedback is stored directly as Jira issues, comments, attachments,
-priorities, and transitions. GitHub merge/commit history supplies the candidate
-change feed. See [deploy-env.md](deploy-env.md) for the full contract.
+priorities, and transitions. Human-authored GitHub merge messages and explicit
+release notes supply the candidate change feed; technical commit subjects are
+omitted. See [deploy-env.md](deploy-env.md) for the full contract.
