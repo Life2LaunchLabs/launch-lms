@@ -41,6 +41,7 @@ from src.services.programs import (
     assignment_reviews,
     cohort_overview,
     change_assignment_status,
+    copy_program_from_library,
     create_program_phase,
     create_program,
     delete_assignment,
@@ -48,12 +49,14 @@ from src.services.programs import (
     get_program,
     list_program_assignments,
     list_objectives,
+    list_program_library,
     mark_my_program_invitations_viewed,
     my_enrollment_detail,
     my_program_detail,
     my_programs_all,
     my_program_summaries,
     reorder_program,
+    publish_program_to_library,
     respond_to_invitation,
     review_objective_submission,
     update_my_progress,
@@ -66,6 +69,49 @@ from src.services.programs import (
 
 
 NOW = "2026-08-18T12:00:00+00:00"
+
+
+def test_owner_can_publish_searchable_template_and_other_org_gets_independent_copy():
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    _tables(engine)
+    with Session(engine) as session:
+        admin = _setup(session)
+        session.add(Organization(id=2, org_uuid="org_2", name="Partner", slug="partner", email="partner@example.com", creation_date=NOW, update_date=NOW))
+        session.commit()
+        source = create_program(session, admin, ProgramCreate(org_id=1, name="Career Launch", description="A shared starting point"))
+        source = add_program_objective(session, admin, 1, source["program_uuid"], ObjectiveCreate(title="Build a portfolio"))
+        publish_program_to_library(session, admin, 1, source["program_uuid"])
+
+        assert [item["name"] for item in list_program_library(session, admin, 2, "career")] == ["Career Launch"]
+        copied = copy_program_from_library(session, admin, 2, source["program_uuid"])
+        assert copied["org_id"] == 2
+        assert copied["source_program_uuid"] == source["program_uuid"]
+        assert copied["objectives"][0]["title"] == "Build a portfolio"
+        assert copied["objectives"][0]["objective_uuid"] != source["objectives"][0]["objective_uuid"]
+
+        # Updating the library snapshot is safe after the first publication.
+        republished = publish_program_to_library(session, admin, 1, source["program_uuid"])
+        assert republished["published_to_library"] is True
+
+        update_program_objective(
+            session, admin, 2, copied["program_uuid"], copied["objectives"][0]["objective_uuid"],
+            ProgramObjectiveUpdate(title="Partner portfolio", default_start_rule="any_time", default_due_rule="phase_end"),
+        )
+        unchanged = get_program(session, admin, 1, source["program_uuid"])
+        assert unchanged["objectives"][0]["title"] == "Build a portfolio"
+
+
+def test_non_owner_org_cannot_publish_plan_template_to_library():
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    _tables(engine)
+    with Session(engine) as session:
+        admin = _setup(session)
+        session.add(Organization(id=2, org_uuid="org_2", name="Partner", slug="partner", email="partner@example.com", creation_date=NOW, update_date=NOW))
+        session.commit()
+        template = create_program(session, admin, ProgramCreate(org_id=2, name="Private template"))
+        with pytest.raises(HTTPException) as exc:
+            publish_program_to_library(session, admin, 2, template["program_uuid"])
+        assert exc.value.status_code == 403
 
 
 def _tables(engine):

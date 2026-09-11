@@ -31,6 +31,8 @@ class RequirementFramework(SQLModel, table=True):
     source_metadata: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
     current_version: int = 1
     published_version: int | None = None
+    library_published_version: int | None = None
+    library_snapshot: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
     archived: bool = Field(default=False, sa_column=Column(Boolean, nullable=False, index=True))
     created_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
     creation_date: str = ""

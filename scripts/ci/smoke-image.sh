@@ -20,7 +20,7 @@ trap cleanup EXIT
 (
 docker run --rm --entrypoint sh "${IMAGE}" -lc '
   test -f /app/build-info.json
-  python3 -c "import json; from pathlib import Path; data=json.loads(Path(\"/app/build-info.json\").read_text());  assert data[\"commit_sha\"] == \"'${GITHUB_SHA}'\", data; assert data[\"alembic_head\"], data; print(json.dumps(data, indent=2))"
+  python3 -c "import json; from pathlib import Path; data=json.loads(Path(\"/app/build-info.json\").read_text()); assert data[\"commit_sha\"] == \"'${GITHUB_SHA}'\", data; assert data[\"alembic_head\"], data; assert data[\"source_branch\"], data; print(json.dumps(data, indent=2))"
 '
 
 )

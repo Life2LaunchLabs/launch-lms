@@ -220,9 +220,9 @@ export default function PlatformSettings() {
             <div className="border-t border-black/10 pt-5">
               <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Agent behavior</p>
               <label className="mt-3 block">
-                <span className="text-sm font-bold text-gray-900">Instructions</span>
+                <span className="text-sm font-bold text-gray-900">Platform guidance</span>
                 <Textarea value={advisorInstructions} onChange={(event) => setAdvisorInstructions(event.target.value)} maxLength={20000} rows={9} className="mt-2 resize-y rounded-xl leading-6" />
-                <span className="mt-2 block text-xs text-gray-500">These instructions apply whichever provider is selected.</span>
+                <span className="mt-2 block text-xs leading-5 text-gray-500">Applies whichever provider is selected. Tune voice, priorities, and when Hub should suggest a useful next action. Launch LMS separately owns capability schemas, permissions, and the rule that learners must click before navigation or changes.</span>
               </label>
             </div>
           </div>
@@ -252,6 +252,7 @@ export default function PlatformSettings() {
   )
 }
 
+// eslint-disable-next-line no-unused-vars
 function AdvancedSelect({ label, value, values, onChange, help }: { label: string; value: string; values: string[]; onChange: (value: string) => void; help: string }) {
   return (
     <label className="block">

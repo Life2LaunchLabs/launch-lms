@@ -74,6 +74,21 @@ def _now_string() -> str:
     return _now().isoformat()
 
 
+def _owner_org(db: Session) -> Organization:
+    owner = db.exec(select(Organization).order_by(Organization.id).limit(1)).first()
+    if not owner:
+        raise HTTPException(status_code=404, detail="Owner organization not found")
+    return owner
+
+
+def _require_owner_org_admin(db: Session, current_user: PublicUser, org_id: int) -> Organization:
+    owner = _owner_org(db)
+    if owner.id != org_id:
+        raise HTTPException(status_code=403, detail="Only the owner organization can publish to the global library")
+    require_org_admin(current_user.id, org_id, db)
+    return owner
+
+
 def _has_live_plan_tables(db: Session) -> bool:
     return inspect(db.get_bind()).has_table("plan") and inspect(db.get_bind()).has_table("planobjective")
 
@@ -282,6 +297,10 @@ def _program_dict(
         "default_staff_role_key": program.default_staff_role_key,
         "status": program.status.value if hasattr(program.status, "value") else program.status,
         "version": program.version,
+        "source_program_uuid": program.source_program_uuid,
+        "source_version": program.source_version,
+        "published_to_library": program.library_published_at is not None,
+        "library_published_at": program.library_published_at,
         "creation_date": program.creation_date,
         "update_date": program.update_date,
         "assignment_count": len(db.exec(
@@ -376,6 +395,109 @@ def list_programs(db: Session, current_user: PublicUser, org_id: int) -> list[di
         item["assignment_count"] = assignment_counts.get(program.id or 0, 0)
         result.append(item)
     return result
+
+
+def publish_program_to_library(db: Session, current_user: PublicUser, org_id: int, program_uuid: str) -> dict:
+    _require_owner_org_admin(db, current_user, org_id)
+    program = _program_or_404(db, program_uuid, org_id)
+    snapshot = _program_dict(db, program)
+    for transient_key in ("assignment_count", "published_to_library", "library_published_at"):
+        snapshot.pop(transient_key, None)
+    program.library_snapshot = snapshot
+    program.library_published_at = _now()
+    program.update_date = _now_string()
+    db.add(program)
+    db.commit()
+    db.refresh(program)
+    return _program_dict(db, program)
+
+
+def list_program_library(db: Session, current_user: PublicUser, org_id: int, query: str = "") -> list[dict]:
+    require_org_admin(current_user.id, org_id, db)
+    owner = _owner_org(db)
+    programs = db.exec(select(Program).where(
+        Program.org_id == owner.id,
+        Program.library_published_at.is_not(None),
+    ).order_by(Program.name)).all()
+    needle = query.strip().lower()
+    results = []
+    for program in programs:
+        snapshot = dict(program.library_snapshot or {})
+        if needle and needle not in f"{snapshot.get('name', '')} {snapshot.get('description', '')}".lower():
+            continue
+        results.append({
+            "program_uuid": program.program_uuid,
+            "name": snapshot.get("name", program.name),
+            "description": snapshot.get("description", program.description),
+            "version": snapshot.get("version", program.version),
+            "objective_count": len(snapshot.get("objectives") or []),
+            "phase_count": len(snapshot.get("phases") or []),
+            "published_at": program.library_published_at,
+            "owner_org_name": owner.name,
+        })
+    return results
+
+
+def copy_program_from_library(db: Session, current_user: PublicUser, org_id: int, program_uuid: str) -> dict:
+    require_org_admin(current_user.id, org_id, db)
+    owner = _owner_org(db)
+    source = db.exec(select(Program).where(
+        Program.program_uuid == program_uuid,
+        Program.org_id == owner.id,
+        Program.library_published_at.is_not(None),
+    )).first()
+    if not source or not source.library_snapshot:
+        raise HTTPException(status_code=404, detail="Library template not found")
+    snapshot = dict(source.library_snapshot)
+    now = _now_string()
+    program = Program(
+        program_uuid=f"program_{uuid4()}", slug=_unique_program_slug(db, str(snapshot.get("name") or source.name)),
+        org_id=org_id, name=str(snapshot.get("name") or source.name),
+        description=str(snapshot.get("description") or ""), thumbnail_image=str(snapshot.get("thumbnail_image") or ""),
+        instructions=str(snapshot.get("instructions") or ""), role_definitions=list(snapshot.get("role_definitions") or DEFAULT_ROLE_DEFINITIONS),
+        default_subject_role_key=str(snapshot.get("default_subject_role_key") or "subject"),
+        default_staff_role_key=str(snapshot.get("default_staff_role_key") or "reviewer"),
+        status=ProgramStatus.ACTIVE, source_program_uuid=source.program_uuid,
+        source_version=int(snapshot.get("version") or source.version), created_by_user_id=current_user.id,
+        creation_date=now, update_date=now,
+    )
+    db.add(program)
+    db.flush()
+    phase_ids: dict[int, int] = {}
+    for item in snapshot.get("phases") or []:
+        phase = ProgramPhase(
+            phase_uuid=f"program_phase_{uuid4()}", program_id=int(program.id), name=str(item.get("name") or "Phase"),
+            description=str(item.get("description") or ""), position=int(item.get("position") or 0),
+            target_days=item.get("target_days"), suggested_duration_weeks=item.get("suggested_duration_weeks"),
+            creation_date=now, update_date=now,
+        )
+        db.add(phase)
+        db.flush()
+        if item.get("id") is not None:
+            phase_ids[int(item["id"])] = int(phase.id)
+    for item in snapshot.get("objectives") or []:
+        objective = Objective(
+            objective_uuid=f"objective_{uuid4()}", org_id=org_id, title=str(item.get("title") or "Objective"),
+            description=str(item.get("description") or ""), kind=item.get("kind") or ObjectiveKind.CUSTOM,
+            completion_policy=item.get("completion_policy") or "staff", evidence_policy=item.get("evidence_policy") or "none",
+            allow_learner_confirmation=bool(item.get("allow_learner_confirmation")), custom_fields=list(item.get("custom_fields") or []),
+            badge_id=item.get("badge_id"), created_by_user_id=current_user.id, creation_date=now, update_date=now,
+        )
+        db.add(objective)
+        db.flush()
+        relation = ProgramObjective(
+            program_id=int(program.id), objective_id=int(objective.id), phase_id=phase_ids.get(item.get("phase_id")),
+            position=int(item.get("position") or 0), target_days=item.get("target_days"), suggested_due_week=item.get("suggested_due_week"),
+            badge_major_version=item.get("badge_major_version"), accept_previous_major_versions=bool(item.get("accept_previous_major_versions")),
+            default_start_rule=item.get("default_start_rule") or "any_time", default_due_rule=item.get("default_due_rule") or "phase_end",
+            default_allow_late=bool(item.get("default_allow_late")), creation_date=now, update_date=now,
+        )
+        db.add(relation)
+    if not snapshot.get("phases"):
+        _ensure_default_phase(db, program)
+    db.commit()
+    db.refresh(program)
+    return _program_dict(db, program)
 
 
 def list_program_assignments(db: Session, current_user: PublicUser, org_id: int) -> list[dict]:

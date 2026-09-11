@@ -747,7 +747,8 @@ function BoardEditorInner({
       <FeedbackModal
         open={feedbackOpen}
         onOpenChange={setFeedbackOpen}
-        userName={username}
+        orgId={Number(board.org_id)}
+        accessToken={accessToken}
       />
     </div>
     </BoardSelectionProvider>

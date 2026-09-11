@@ -80,3 +80,22 @@ will start in reload mode.
 | `LAUNCHLMS_STRIPE_PUBLISHABLE_KEY` | API, web | Stripe publishable key. |
 | `LAUNCHLMS_STRIPE_WEBHOOK_STANDARD_SECRET` | API | Standard webhook secret. |
 | `LAUNCHLMS_STRIPE_WEBHOOK_CONNECT_SECRET` | API | Connect webhook secret. |
+| `LAUNCHLMS_RELEASE_CHANNEL` | API | Set to `unstable` on the testing deployment. A `dev` source build is also recognized as unstable. |
+| `LAUNCHLMS_FEEDBACK_JIRA_BASE_URL` | API | Jira Cloud site URL used by tester feedback. HTTPS is required. |
+| `LAUNCHLMS_FEEDBACK_JIRA_EMAIL` | API | Dedicated least-privilege Jira integration account. Never expose it to the browser. |
+| `LAUNCHLMS_FEEDBACK_JIRA_API_TOKEN` | API | Server-only Jira token able to create/edit/transition feedback issues and add attachments/comments. |
+| `LAUNCHLMS_FEEDBACK_JIRA_PROJECT_KEY` | API | Jira project that owns tester feedback. Prefer a dedicated board/project; falls back to `JIRA_PROJECT_KEY`. |
+| `LAUNCHLMS_FEEDBACK_JIRA_ISSUE_TYPE` | API | Jira issue type for feedback. Defaults to `Task`. |
+| `LAUNCHLMS_FEEDBACK_JIRA_STATUS_OPEN` | API | Open status name. Defaults to `To Do`. |
+| `LAUNCHLMS_FEEDBACK_JIRA_STATUS_IN_PROGRESS` | API | “In the works” status name. Defaults to `In Progress`. |
+| `LAUNCHLMS_FEEDBACK_JIRA_STATUS_CONFIRM` | API | Awaiting tester confirmation status. Defaults to `In Review`. |
+| `LAUNCHLMS_FEEDBACK_JIRA_STATUS_SOLVED` | API | Confirmed solution status. Defaults to `Done`. |
+| `LAUNCHLMS_FEEDBACK_JIRA_STATUS_IGNORED` | API | Ignored status. Defaults to `Done`; an issue label preserves the distinction. |
+| `LAUNCHLMS_GITHUB_REPOSITORY` | API | GitHub `owner/repository` used for candidate notes. Defaults to `Life2LaunchLabs/launch-lms`. |
+| `LAUNCHLMS_GITHUB_TOKEN` | API | Server-only read token for commit/PR history; required for private repositories. |
+
+Candidate notes compare `/app/build-info.json` with the signed-in tester’s
+last-viewed commit. Put concise language under `## Release note` in a pull
+request, or add `Release note: ...` to the merge/commit body. The merge or
+squash title is the fallback. Jira feedback and GitHub release notes never
+expose their server credentials to the web client.

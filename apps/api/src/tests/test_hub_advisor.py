@@ -1,4 +1,7 @@
 import json
+from datetime import datetime
+import inspect
+from types import SimpleNamespace
 
 import httpx
 import pytest
@@ -13,16 +16,20 @@ from src.db.hub import (
 from src.db.resources import ResourceAccessModeEnum, ResourceTypeEnum
 from src.db.users import PublicUser, User
 from src.services import hub_advisor
+from src.services import hub_actions
 from src.services import hub_configuration
+from src.routers import hub as hub_router
 from src.services.hub_advisor import (
     AdvisorMessage,
     AdvisorResult,
     AdvisorProviderLimited,
     AdvisorUnavailable,
     AnthropicMessagesProvider,
+    DeterministicUiTestProvider,
     OpenAIResponsesProvider,
     ask_hub_advisor,
     advisor_resources_for_request,
+    bound_advisor_text,
     extract_hub_memory_candidates,
     ground_advisor_messages,
     relevant_advisor_resources,
@@ -32,6 +39,40 @@ from src.services.hub_advisor import (
 
 def message(role: str, content: str) -> AdvisorMessage:
     return AdvisorMessage(role=role, content=content)  # type: ignore[arg-type]
+
+
+def test_advisor_text_is_bounded_at_a_readable_break():
+    result = bound_advisor_text(("Useful sentence. " * 200).strip())
+
+    assert len(result) <= hub_advisor.MAX_ASSISTANT_CHARS
+    assert result.endswith("…")
+    assert result.startswith("Useful sentence.")
+
+
+@pytest.mark.asyncio
+async def test_ui_fixture_provider_returns_semantic_actions_without_external_calls():
+    provider = DeterministicUiTestProvider()
+    plan = await provider.respond([message("user", "I want to make a plan")], "safe")
+    timeline = await provider.respond([message("user", "Add this to my portfolio timeline")], "safe")
+    memory = await DeterministicUiTestProvider(memory=True).respond([message("user", "anything")], "safe")
+    editing = await DeterministicUiTestProvider(edit_scope="new_plan").respond(
+        [message("user", "Prepare the plan details")], "safe",
+    )
+    continued = await DeterministicUiTestProvider(edit_scope="plan").respond(
+        [message("user", "I saved the plan details")], "safe",
+    )
+    cancelled = await DeterministicUiTestProvider(edit_scope="new_plan").respond(
+        [message("user", "I cancelled the new plan instead of saving it")], "safe",
+    )
+
+    assert plan.action_destinations == ("create_plan",)
+    assert timeline.action_destinations == ("add_timeline",)
+    assert json.loads(memory.text) == {"candidates": []}
+    assert editing.plan_operations[0]["type"] == "set_new_plan_details"
+    assert editing.action_destinations == ()
+    assert continued.plan_operations[0]["type"] == "add_plan_phases"
+    assert len(continued.plan_operations[0]["phases"]) == 3
+    assert "Would you like" in cancelled.text
 
 
 def test_conversation_must_be_bounded_alternating_and_end_with_user():
@@ -144,7 +185,7 @@ def test_selected_resource_context_is_ordered_deduplicated_and_permission_revali
 
 
 @pytest.mark.asyncio
-async def test_openai_provider_is_stateless_tool_free_and_parses_usage():
+async def test_openai_provider_is_stateless_and_exposes_learner_controlled_navigation():
     captured = {}
 
     async def handler(request: httpx.Request):
@@ -162,11 +203,31 @@ async def test_openai_provider_is_stateless_tool_free_and_parses_usage():
 
     assert result == AdvisorResult("Try one small step.", "gpt-test", 12, 8)
     assert captured["store"] is False
-    assert captured["tools"] == []
-    assert captured["tool_choice"] == "none"
+    assert captured["tools"][0]["name"] == "suggest_navigation"
+    assert captured["tool_choice"] == "auto"
     assert captured["max_output_tokens"] == hub_advisor.MAX_OUTPUT_TOKENS
     assert "previous_response_id" not in captured
     assert "conversation" not in captured
+
+
+@pytest.mark.asyncio
+async def test_openai_provider_parses_navigation_proposal_separately_from_answer():
+    async def handler(_request: httpx.Request):
+        return httpx.Response(200, json={
+            "model": "gpt-test",
+            "output": [
+                {"type": "message", "content": [{"type": "output_text", "text": "A plan can make the next steps concrete."}]},
+                {"type": "function_call", "name": "suggest_navigation", "arguments": json.dumps({"destination": "create_plan"})},
+            ],
+        })
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        result = await OpenAIResponsesProvider("test-key", "gpt-test", client).respond(
+            [message("user", "I want to create a plan")], "safe-user"
+        )
+
+    assert result.text == "A plan can make the next steps concrete."
+    assert result.action_destinations == ("create_plan",)
 
 
 @pytest.mark.asyncio
@@ -244,6 +305,28 @@ async def test_anthropic_provider_is_stateless_and_applies_thinking_settings():
     assert captured["max_tokens"] == 900
     assert captured["thinking"] == {"type": "adaptive"}
     assert captured["output_config"] == {"effort": "low"}
+    assert captured["tools"][0]["name"] == "suggest_navigation"
+    assert captured["tool_choice"] == {"type": "auto"}
+
+
+@pytest.mark.asyncio
+async def test_anthropic_provider_parses_the_same_navigation_proposal_contract():
+    async def handler(_request: httpx.Request):
+        return httpx.Response(200, json={
+            "model": "claude-test",
+            "content": [
+                {"type": "text", "text": "That experience could strengthen your story."},
+                {"type": "tool_use", "name": "suggest_navigation", "input": {"destination": "add_timeline"}},
+            ],
+        })
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        result = await AnthropicMessagesProvider("test-key", "claude-test", client).respond(
+            [message("user", "I learned a lot in my last job")], "safe-user"
+        )
+
+    assert result.text == "That experience could strengthen your story."
+    assert result.action_destinations == ("add_timeline",)
 
 
 def _admin() -> PublicUser:
@@ -395,7 +478,8 @@ async def test_model_catalog_uses_curated_choices_without_a_provider_key():
 
 class FakeProvider:
     async def respond(self, messages, safety_identifier):
-        assert messages[-1].content == "Help"
+        assert messages[-1].content.startswith("Help\n\n<launch_lms_capabilities>")
+        assert "create_plan" in messages[-1].content
         assert len(safety_identifier) == 64
         return AdvisorResult("Start here", "fake", 5, 3)
 
@@ -434,6 +518,7 @@ async def test_advisor_requires_membership_and_applies_user_rate_limit(monkeypat
     membership = []
     monkeypatch.setattr(hub_advisor, "require_org_membership", lambda user_id, org_id, _db: membership.append((user_id, org_id)))
     monkeypatch.setattr(hub_advisor, "check_rate_limit", lambda *args: (True, 1, 60))
+    monkeypatch.setattr(hub_actions, "_org_config", lambda *_args: {})
     request = Request({"type": "http", "headers": [], "client": ("127.0.0.1", 1234)})
 
     result = await ask_hub_advisor(request, 7, 11, [message("user", "Help")], object(), FakeProvider())  # type: ignore[arg-type]
@@ -453,3 +538,56 @@ async def test_advisor_returns_retry_after_when_rate_limited(monkeypatch):
 
     assert caught.value.status_code == 429
     assert caught.value.headers == {"Retry-After": "41"}
+
+
+@pytest.mark.asyncio
+async def test_advisor_route_returns_edit_operations_without_changing_conversation_contract(monkeypatch):
+    record_advice_signature = inspect.signature(hub_router.record_advice)
+    operation = {
+        "operation_id": "hub_plan_operation_test", "type": "set_new_plan_details",
+        "object_type": "plan", "object_uuid": None, "object_label": "Career plan",
+        "fields": {"name": "Career plan", "description": "", "due_date": "2099-12-31"},
+    }
+    run = {
+        "run_uuid": "hub_edit_run_test", "goal": "Create a plan",
+        "scope": {"kind": "new_plan", "label": "New plan", "route": "/plans"},
+    }
+    async def resources(*_args, **_kwargs):
+        return []
+    async def advice(*_args, **kwargs):
+        assert kwargs["edit_run"] == run
+        return AdvisorResult("Prepared.", "fake", plan_operations=(operation,))
+    def persist(db_session, **kwargs):
+        record_advice_signature.bind(db_session, **kwargs)
+        now = datetime.utcnow()
+        return {
+            "conversation_uuid": "conversation_test", "title": "Plan",
+            "user_message_uuid": "message_user", "assistant_message_uuid": "message_assistant",
+            "user_message_created_at": now, "assistant_message_created_at": now,
+        }
+
+    monkeypatch.setattr(hub_router, "list_resources", resources)
+    monkeypatch.setattr(hub_router, "advisor_history", lambda *_args: [AdvisorMessage(role="user", content="Prepare it")])
+    monkeypatch.setattr(hub_router, "page_context", lambda *_args: {"receipt": None})
+    monkeypatch.setattr(hub_router, "active_edit_run", lambda *_args: run)
+    monkeypatch.setattr(hub_router, "select_memories", lambda *_args: [])
+    monkeypatch.setattr(hub_router, "advisor_resources_for_request", lambda *_args: [])
+    monkeypatch.setattr(hub_router, "ask_hub_advisor", advice)
+    monkeypatch.setattr(hub_router, "build_navigation_actions", lambda *_args: [])
+    monkeypatch.setattr(hub_router, "record_plan_proposals", lambda *_args: [operation])
+    monkeypatch.setattr(hub_router, "record_advice", persist)
+    monkeypatch.setattr(hub_router, "record_used_memories", lambda *_args: None)
+    monkeypatch.setattr(hub_router, "memory_settings", lambda *_args: {"enabled": False})
+
+    response = await hub_router.create_hub_advice(
+        Request({"type": "http", "headers": [], "client": ("127.0.0.1", 1234)}),
+        7,
+        hub_router.HubAdvisorRequest(
+            conversation_uuid="conversation_test",
+            messages=[hub_router.HubAdvisorMessage(role="user", content="Prepare it")],
+        ),
+        SimpleNamespace(id=11),
+        object(),
+    )
+
+    assert response.edit_operations == [operation]

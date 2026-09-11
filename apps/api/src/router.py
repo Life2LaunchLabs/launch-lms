@@ -3,6 +3,7 @@ from src.routers import analytics as analytics_router_module
 from src.routers import (
     api_tokens,
     auth,
+    candidate_feedback,
     code_execution,
     dev,
     health,
@@ -88,6 +89,12 @@ v1_router.include_router(
     dependencies=[Depends(get_non_api_token_user)],
 )
 v1_router.include_router(auth.router, prefix="/auth", tags=["auth"])
+v1_router.include_router(
+    candidate_feedback.router,
+    prefix="/candidate",
+    tags=["candidate-feedback"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
 v1_router.include_router(
     hub.router,
     prefix="/hub",

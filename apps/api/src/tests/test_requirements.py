@@ -1,3 +1,5 @@
+import pytest
+from fastapi import HTTPException
 from sqlmodel import SQLModel, Session, create_engine, select
 
 from src.db.organizations import Organization
@@ -69,6 +71,37 @@ def _framework(db: Session, admin: PublicUser) -> dict:
         ],
     ))
     return requirements.publish_framework(db, admin, 1, created["framework_uuid"])
+
+
+def test_library_framework_copy_uses_published_version_and_is_tenant_owned():
+    db, admin = _session()
+    with db:
+        db.add(Organization(id=2, org_uuid="org_2", name="Partner", slug="partner", email="partner@example.com", creation_date=NOW, update_date=NOW))
+        db.commit()
+        source = _framework(db, admin)
+        requirements.publish_framework_to_library(db, admin, 1, source["framework_uuid"])
+        requirements.update_framework(db, admin, 1, source["framework_uuid"], RequirementFrameworkUpdate(nodes=[
+            RequirementNodeInput(node_uuid="node_career", title="Changed after library publication"),
+        ]))
+
+        assert requirements.list_framework_library(db, admin, 2, "career")[0]["version"] == 1
+        copied = requirements.copy_framework_from_library(db, admin, 2, source["framework_uuid"])
+        assert copied["org_id"] == 2
+        assert copied["source_framework_uuid"] == source["framework_uuid"]
+        assert copied["source_version"] == 1
+        assert [node["title"] for node in copied["nodes"]] == ["Career exploration", "Career experience"]
+
+
+def test_non_owner_org_cannot_publish_requirement_to_library():
+    db, admin = _session()
+    with db:
+        db.add(Organization(id=2, org_uuid="org_2", name="Partner", slug="partner", email="partner@example.com", creation_date=NOW, update_date=NOW))
+        db.commit()
+        created = requirements.create_framework(db, admin, RequirementFrameworkCreate(org_id=2, name="Private", nodes=[RequirementNodeInput(title="One")]))
+        requirements.publish_framework(db, admin, 2, created["framework_uuid"])
+        with pytest.raises(HTTPException) as exc:
+            requirements.publish_framework_to_library(db, admin, 2, created["framework_uuid"])
+        assert exc.value.status_code == 403
 
 
 def test_framework_assignment_snapshots_leaf_requirements_and_syncs_group_membership():

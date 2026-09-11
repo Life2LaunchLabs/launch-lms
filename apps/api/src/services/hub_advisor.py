@@ -5,8 +5,9 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Literal, Protocol
 
 import httpx
@@ -24,6 +25,7 @@ logger = logging.getLogger(__name__)
 
 MAX_MESSAGES = 12
 MAX_MESSAGE_CHARS = 2_000
+MAX_ASSISTANT_CHARS = 1_600
 MAX_CONVERSATION_CHARS = 8_000
 MAX_OUTPUT_TOKENS = 700
 ADVISOR_RATE_LIMIT = 12
@@ -59,6 +61,19 @@ class AdvisorProviderLimited(AdvisorError):
         self.retry_after = retry_after
 
 
+def bound_advisor_text(text: str, limit: int = MAX_ASSISTANT_CHARS) -> str:
+    """Keep persisted replies safe to replay without exposing transport limits."""
+    normalized = text.strip()
+    if len(normalized) <= limit:
+        return normalized
+    window = normalized[: limit - 1]
+    breaks = [window.rfind(marker) for marker in ("\n\n", ". ", "? ", "! ")]
+    boundary = max(breaks)
+    if boundary >= limit // 2:
+        window = window[:boundary + (0 if normalized[boundary] == "\n" else 1)]
+    return window.rstrip() + "…"
+
+
 def advisor_safety_identifier(user_id: int) -> str:
     return hashlib.sha256(f"launchlms-hub:{user_id}".encode()).hexdigest()[:64]
 
@@ -90,6 +105,8 @@ class AdvisorResult:
     model: str
     input_tokens: int = 0
     output_tokens: int = 0
+    action_destinations: tuple[str, ...] = ()
+    plan_operations: tuple[dict, ...] = ()
 
 
 def _grounding_terms(value: str) -> set[str]:
@@ -220,6 +237,100 @@ class AdvisorProvider(Protocol):
     async def respond(self, messages: list[AdvisorMessage], safety_identifier: str) -> AdvisorResult: ...
 
 
+class DeterministicUiTestProvider:
+    """Local browser-fixture provider; it is never enabled in a production configuration."""
+
+    def __init__(self, memory: bool = False, edit_scope: str | None = None):
+        self.memory = memory
+        self.edit_scope = edit_scope
+
+    async def respond(self, messages: list[AdvisorMessage], safety_identifier: str) -> AdvisorResult:
+        prompt = messages[-1].content.casefold()
+        if self.memory:
+            return AdvisorResult(text='{"candidates": []}', model="ui-test-memory")
+        if self.edit_scope == "new_plan" and "cancelled the new plan" in prompt:
+            return AdvisorResult(
+                text="You cancelled that plan. Would you like to revise the idea, create a different plan, or finish here?",
+                model="ui-test-advisor",
+            )
+        if self.edit_scope == "new_plan":
+            from src.services.hub_plan_tools import parse_plan_tool_call
+            operation = parse_plan_tool_call("propose_new_plan_details", {
+                "name": "Career transition plan",
+                "description": "Build the skills, experience, and connections needed for a thoughtful career change.",
+                "due_date": "2099-12-31",
+            })
+            return AdvisorResult(
+                text="I prepared complete plan details in the editor for you to review. Nothing is saved until you choose Save plan.",
+                model="ui-test-advisor",
+                plan_operations=(operation,) if operation else (),
+            )
+        if self.edit_scope == "plan":
+            from src.services.hub_plan_tools import parse_plan_tool_call
+            if "saved phase" in prompt or "cancelled phase" in prompt:
+                if "all proposed phases have now been reviewed" not in prompt and "remaining proposed phases: 0" not in prompt:
+                    return AdvisorResult(
+                        text="I’ve recorded that choice. The other proposed phases are still ready for your review.",
+                        model="ui-test-advisor",
+                    )
+                operation = parse_plan_tool_call("propose_plan_objectives", {"objectives": [
+                    {"title": "Clarify the target role", "description": "Define the kind of role and work environment to aim for.", "due_date": "", "phase_name": "Explore"},
+                    {"title": "Map skills and gaps", "description": "Compare current experience with the requirements of promising roles.", "due_date": "", "phase_name": "Prepare"},
+                    {"title": "Complete one practical experiment", "description": "Test the direction through a small project, course, or conversation.", "due_date": "", "phase_name": "Transition"},
+                ]})
+                return AdvisorResult(
+                    text="The phases are set. I prepared three starting objectives for you to review next.",
+                    model="ui-test-advisor", plan_operations=(operation,) if operation else (),
+                )
+            if "saved objective" in prompt or "cancelled objective" in prompt:
+                if "all proposed objectives have now been reviewed" not in prompt and "remaining proposed objectives: 0" not in prompt:
+                    return AdvisorResult(
+                        text="I’ve recorded that choice. The other proposed objectives are still ready for your review.",
+                        model="ui-test-advisor",
+                    )
+                operation = parse_plan_tool_call("propose_edit_conclusion", {
+                    "summary": "The plan now has a clear starting structure.",
+                })
+                return AdvisorResult(
+                    text="That gives the plan a useful starting structure. If it looks right, we can finish this edit.",
+                    model="ui-test-advisor",
+                    plan_operations=(operation,) if operation else (),
+                )
+            operation = parse_plan_tool_call("propose_plan_phases", {"phases": [
+                {"name": "Explore", "description": "Clarify the direction and compare realistic paths.", "due_date": ""},
+                {"name": "Prepare", "description": "Build the skills, evidence, and relationships needed to move.", "due_date": ""},
+                {"name": "Transition", "description": "Test opportunities and make the move deliberately.", "due_date": ""},
+            ]})
+            return AdvisorResult(
+                text="I prepared three phases for you to review. Each stays unsaved until you choose Save phase.",
+                model="ui-test-advisor",
+                plan_operations=(operation,) if operation else (),
+            )
+        if "create a plan" in prompt or "start a plan" in prompt:
+            return AdvisorResult(
+                text="A plan can turn that direction into goals and next steps. You can start one and keep shaping it as you learn.",
+                model="ui-test-advisor", action_destinations=("create_plan",),
+            )
+        if "timeline" in prompt or "portfolio" in prompt:
+            return AdvisorResult(
+                text="That sounds worth preserving in your story. You can add it to your portfolio timeline when you are ready.",
+                model="ui-test-advisor", action_destinations=("add_timeline",),
+            )
+        return AdvisorResult(
+            text="A plan can turn that direction into goals and next steps. You can start one and keep shaping it as you learn.",
+            model="ui-test-advisor", action_destinations=("create_plan",),
+        )
+
+
+def _ui_test_provider(memory: bool = False, edit_scope: str | None = None) -> AdvisorProvider | None:
+    if os.getenv("LAUNCHLMS_UI_TEST_FIXTURES", "false").lower() != "true":
+        return None
+    from config.config import get_launchlms_config
+    if not get_launchlms_config().general_config.development_mode:
+        raise AdvisorUnavailable("UI test fixtures require development mode.")
+    return DeterministicUiTestProvider(memory=memory, edit_scope=edit_scope)
+
+
 class OpenAIResponsesProvider:
     def __init__(
         self,
@@ -228,24 +339,32 @@ class OpenAIResponsesProvider:
         client: httpx.AsyncClient | None = None,
         instructions: str = DEFAULT_HUB_ADVISOR_INSTRUCTIONS,
         advanced: dict | None = None,
+        allow_actions: bool = True,
+        edit_scope: str | None = None,
     ):
         if not api_key.strip():
             raise AdvisorUnavailable("Hub Ask is not configured yet.")
         self.api_key = api_key.strip()
         self.model = model.strip() or DEFAULT_MODEL
-        self.instructions = instructions.strip()
+        from src.services.hub_actions import CAPABILITY_POLICY_INSTRUCTIONS
+        self.instructions = f"{instructions.strip()}\n\n{CAPABILITY_POLICY_INSTRUCTIONS}" if allow_actions else instructions.strip()
         self.advanced = advanced or {}
+        self.allow_actions = allow_actions
+        self.edit_scope = edit_scope
         self.client = client
 
     async def respond(self, messages: list[AdvisorMessage], safety_identifier: str) -> AdvisorResult:
+        from src.services.hub_actions import navigation_tool
+        from src.services.hub_plan_tools import parse_plan_tool_call, plan_edit_tools
+        tools = [navigation_tool("openai"), *plan_edit_tools("openai", self.edit_scope)] if self.allow_actions else []
         payload = {
             "model": self.model,
             "instructions": self.instructions,
             "input": [{"role": item.role, "content": item.content} for item in messages],
             "max_output_tokens": int(self.advanced.get("max_output_tokens", MAX_OUTPUT_TOKENS)),
             "store": False,
-            "tools": [],
-            "tool_choice": "none",
+            "tools": tools,
+            "tool_choice": "auto" if self.allow_actions else "none",
             "safety_identifier": safety_identifier,
         }
         if self.advanced.get("reasoning_effort") not in (None, "default"):
@@ -304,6 +423,21 @@ class OpenAIResponsesProvider:
             for content in output.get("content", [])
             if content.get("type") == "output_text" and content.get("text", "").strip()
         ).strip()
+        action_destinations = []
+        plan_operations = []
+        if self.allow_actions:
+            for output in data.get("output", []):
+                if output.get("type") != "function_call":
+                    continue
+                try:
+                    arguments = json.loads(output.get("arguments") or "{}")
+                except (TypeError, ValueError):
+                    continue
+                if output.get("name") == "suggest_navigation" and isinstance(arguments.get("destination"), str):
+                    action_destinations.append(arguments["destination"])
+                operation = parse_plan_tool_call(str(output.get("name") or ""), arguments)
+                if operation:
+                    plan_operations.append(operation)
         if not text:
             raise AdvisorUnavailable("The advisor did not return a response. Please try again.")
         usage = data.get("usage") or {}
@@ -312,6 +446,8 @@ class OpenAIResponsesProvider:
             model=str(data.get("model") or self.model),
             input_tokens=int(usage.get("input_tokens") or 0),
             output_tokens=int(usage.get("output_tokens") or 0),
+            action_destinations=tuple(action_destinations),
+            plan_operations=tuple(plan_operations),
         )
 
 
@@ -323,16 +459,23 @@ class AnthropicMessagesProvider:
         client: httpx.AsyncClient | None = None,
         instructions: str = DEFAULT_HUB_ADVISOR_INSTRUCTIONS,
         advanced: dict | None = None,
+        allow_actions: bool = True,
+        edit_scope: str | None = None,
     ):
         if not api_key.strip():
             raise AdvisorUnavailable("Hub Ask is not configured yet.")
         self.api_key = api_key.strip()
         self.model = model.strip()
-        self.instructions = instructions.strip()
+        from src.services.hub_actions import CAPABILITY_POLICY_INSTRUCTIONS
+        self.instructions = f"{instructions.strip()}\n\n{CAPABILITY_POLICY_INSTRUCTIONS}" if allow_actions else instructions.strip()
         self.advanced = advanced or {}
+        self.allow_actions = allow_actions
+        self.edit_scope = edit_scope
         self.client = client
 
     async def respond(self, messages: list[AdvisorMessage], safety_identifier: str) -> AdvisorResult:
+        from src.services.hub_actions import navigation_tool
+        from src.services.hub_plan_tools import parse_plan_tool_call, plan_edit_tools
         payload: dict = {
             "model": self.model,
             "system": self.instructions,
@@ -340,6 +483,9 @@ class AnthropicMessagesProvider:
             "max_tokens": int(self.advanced.get("max_output_tokens", MAX_OUTPUT_TOKENS)),
             "metadata": {"user_id": safety_identifier},
         }
+        if self.allow_actions:
+            payload["tools"] = [navigation_tool("anthropic"), *plan_edit_tools("anthropic", self.edit_scope)]
+            payload["tool_choice"] = {"type": "auto"}
         if self.advanced.get("thinking_effort") not in (None, "default"):
             payload["thinking"] = {"type": "adaptive"}
             payload["output_config"] = {"effort": self.advanced["thinking_effort"]}
@@ -391,6 +537,14 @@ class AnthropicMessagesProvider:
             for item in data.get("content", [])
             if item.get("type") == "text" and item.get("text", "").strip()
         ).strip()
+        action_destinations = [
+            item.get("input", {}).get("destination")
+            for item in data.get("content", [])
+            if item.get("type") == "tool_use"
+            and item.get("name") == "suggest_navigation"
+            and isinstance(item.get("input", {}).get("destination"), str)
+        ] if self.allow_actions else []
+        plan_operations = [operation for item in data.get("content", []) if item.get("type") == "tool_use" for operation in [parse_plan_tool_call(str(item.get("name") or ""), item.get("input") or {})] if operation] if self.allow_actions else []
         if not text:
             raise AdvisorUnavailable("The advisor did not return a response. Please try again.")
         usage = data.get("usage") or {}
@@ -399,20 +553,28 @@ class AnthropicMessagesProvider:
             model=str(data.get("model") or self.model),
             input_tokens=int(usage.get("input_tokens") or 0),
             output_tokens=int(usage.get("output_tokens") or 0),
+            action_destinations=tuple(action_destinations),
+            plan_operations=tuple(plan_operations),
         )
 
 
-def configured_advisor_provider(db_session: Session) -> AdvisorProvider:
+def configured_advisor_provider(db_session: Session, edit_scope: str | None = None) -> AdvisorProvider:
+    fixture = _ui_test_provider(edit_scope=edit_scope)
+    if fixture:
+        return fixture
     try:
         provider, api_key, model, instructions, advanced = get_enabled_hub_advisor_credentials(db_session)
     except RuntimeError as error:
         raise AdvisorUnavailable(str(error)) from None
     if provider == "anthropic":
-        return AnthropicMessagesProvider(api_key, model, instructions=instructions, advanced=advanced)
-    return OpenAIResponsesProvider(api_key, model, instructions=instructions, advanced=advanced)
+        return AnthropicMessagesProvider(api_key, model, instructions=instructions, advanced=advanced, edit_scope=edit_scope)
+    return OpenAIResponsesProvider(api_key, model, instructions=instructions, advanced=advanced, edit_scope=edit_scope)
 
 
 def configured_memory_provider(db_session: Session) -> AdvisorProvider:
+    fixture = _ui_test_provider(memory=True)
+    if fixture:
+        return fixture
     try:
         provider, api_key, model, _instructions, advanced = get_enabled_hub_advisor_credentials(db_session)
     except RuntimeError as error:
@@ -420,10 +582,10 @@ def configured_memory_provider(db_session: Session) -> AdvisorProvider:
     memory_advanced = {**advanced, "max_output_tokens": 500}
     if provider == "anthropic":
         return AnthropicMessagesProvider(
-            api_key, model, instructions=MEMORY_EXTRACTOR_INSTRUCTIONS, advanced=memory_advanced,
+            api_key, model, instructions=MEMORY_EXTRACTOR_INSTRUCTIONS, advanced=memory_advanced, allow_actions=False,
         )
     return OpenAIResponsesProvider(
-        api_key, model, instructions=MEMORY_EXTRACTOR_INSTRUCTIONS, advanced=memory_advanced,
+        api_key, model, instructions=MEMORY_EXTRACTOR_INSTRUCTIONS, advanced=memory_advanced, allow_actions=False,
     )
 
 
@@ -507,6 +669,9 @@ async def ask_hub_advisor(
     provider: AdvisorProvider | None = None,
     grounding_resources: list[dict] | None = None,
     grounding_memories: list[dict] | None = None,
+    page_context: dict | None = None,
+    edit_run: dict | None = None,
+    recent_edit_run: dict | None = None,
 ) -> AdvisorResult:
     require_org_membership(user_id, org_id, db_session)
     validate_conversation(messages)
@@ -526,7 +691,49 @@ async def ask_hub_advisor(
     if grounding_memories:
         from src.services.hub_memory import ground_messages_with_memories
         provider_messages = ground_messages_with_memories(provider_messages, grounding_memories)
-    result = await (provider or configured_advisor_provider(db_session)).respond(provider_messages, safety_identifier)
+    if page_context is not None:
+        from src.services.hub_context import ground_page_context
+        provider_messages = ground_page_context(provider_messages, page_context)
+    from src.services.hub_actions import navigation_capability_context
+    capability_context = navigation_capability_context(db_session, org_id)
+    capability_context += (
+        "\n\nKeep every learner-facing reply under 1,600 characters. Prefer a few short paragraphs and do not "
+        "repeat background the learner already supplied."
+    )
+    if edit_run:
+        pending_objects = [item for item in edit_run.get("objects", []) if item.get("status") == "editing"]
+        capability_context += (
+            "\n\n<hub_editing_scope>\nThe learner has granted a native editing run for: "
+            f"{edit_run['goal']}. Current scope: {edit_run['scope']['label']}. "
+            f"Native objects currently awaiting learner review: {len(pending_objects)}. "
+            "Typed editing tools prepare complete values in the real editor; they never save. "
+            "Do not propose edits outside this scope. A conversational refinement may update the goal while retaining "
+            "the same scope, but a request to act on another plan or product surface requires a new learner-granted run. "
+            "When that happens, ask how to resolve any unfinished objects, propose concluding this run, and only then "
+            "offer the separately scoped action. Keep useful out-of-scope follow-up ideas until this run concludes rather "
+            "than silently widening authority. Every turn in an active editing run must end in an explicit "
+            "state: prepare a supported edit, ask one clear question needed to continue, or call the conclusion tool "
+            "to propose finishing the editing goal. Never merely promise that a finish button will appear. When native "
+            "objects are still awaiting learner review, explicitly say so and wait for that "
+            "review rather than duplicating the proposal. Never propose phases and objectives that depend on those "
+            "phases in the same turn; wait until every proposed phase is reviewed and saved. Never stop at a bare "
+            "acknowledgement.\n</hub_editing_scope>"
+        )
+    elif recent_edit_run and recent_edit_run.get("status") in {"cancelled", "completed"}:
+        capability_context += (
+            "\n\n<hub_recent_editing_scope>\nA focused session recently ended. Goal: "
+            f"{recent_edit_run['goal']}. Scope: {recent_edit_run['scope']['label']}. "
+            "If the learner clearly asks for more work in that same scope, acknowledge it briefly and explain that "
+            "you can reopen the session using the offered continuation control. Do not claim it is reopened and do "
+            "not propose edits until the learner activates that control. A different scope requires a new grant."
+            "\n</hub_recent_editing_scope>"
+        )
+    provider_messages = [
+        *provider_messages[:-1],
+        AdvisorMessage(role="user", content=provider_messages[-1].content + capability_context),
+    ]
+    result = await (provider or configured_advisor_provider(db_session, edit_run["scope"]["kind"] if edit_run else None)).respond(provider_messages, safety_identifier)
+    result = replace(result, text=bound_advisor_text(result.text))
     logger.info(
         "hub_advisor_usage org_id=%s user_id=%s model=%s input_tokens=%s output_tokens=%s",
         org_id, user_id, result.model, result.input_tokens, result.output_tokens,

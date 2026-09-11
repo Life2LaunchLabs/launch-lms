@@ -75,6 +75,7 @@ ARG LAUNCHLMS_VERSION=dev
 ARG LAUNCHLMS_COMMIT_SHA=unknown
 ARG LAUNCHLMS_IMAGE_REF=ghcr.io/life2launchlabs/launch-lms:dev
 ARG LAUNCHLMS_RELEASED_AT=unknown
+ARG LAUNCHLMS_SOURCE_BRANCH=unknown
 
 # Single apt layer: nginx, curl, netcat, node, pm2
 RUN apt-get update \
@@ -105,6 +106,7 @@ RUN python ./scripts/get_alembic_head.py > /tmp/launchlms_alembic_head \
        LAUNCHLMS_COMMIT_SHA="$LAUNCHLMS_COMMIT_SHA" \
        LAUNCHLMS_IMAGE_REF="$LAUNCHLMS_IMAGE_REF" \
        LAUNCHLMS_RELEASED_AT="$LAUNCHLMS_RELEASED_AT" \
+       LAUNCHLMS_SOURCE_BRANCH="$LAUNCHLMS_SOURCE_BRANCH" \
        python - <<'PY'
 from pathlib import Path
 import json
@@ -115,6 +117,7 @@ build_info = {
     "commit_sha": os.environ.get("LAUNCHLMS_COMMIT_SHA", "unknown"),
     "image_ref": os.environ.get("LAUNCHLMS_IMAGE_REF", "ghcr.io/life2launchlabs/launch-lms:dev"),
     "released_at": os.environ.get("LAUNCHLMS_RELEASED_AT", "unknown"),
+    "source_branch": os.environ.get("LAUNCHLMS_SOURCE_BRANCH", "unknown"),
     "alembic_head": Path("/tmp/launchlms_alembic_head").read_text().strip(),
 }
 Path("/app/build-info.json").write_text(json.dumps(build_info, indent=2) + "\n")

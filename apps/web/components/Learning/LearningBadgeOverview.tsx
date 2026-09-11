@@ -8,6 +8,7 @@ import { Award, Check, CheckCircle2, ChevronDown, ChevronRight, Clock3, Circle, 
 import { SafeImage } from '@components/Objects/SafeImage'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
+import { PageTitleRegistration } from '@components/Contexts/PageTitleContext'
 import { findQuestionBlocks } from '@components/Learning/schema'
 import { getUriWithOrg } from '@services/config/config'
 import { deleteIssuerLearnerLink, requestIssuerLearnerSupport } from '@services/learning/marketplace'
@@ -52,6 +53,8 @@ export default function LearningBadgeOverview({ orgslug, badgePath, programAssig
   }
 
   return (
+    <>
+    <PageTitleRegistration section="Badges" detail={badge.name || 'Badge'} />
     <main className="mx-auto w-full max-w-5xl px-5 py-10 sm:px-8">
       <section className="overflow-hidden rounded-2xl bg-card shadow-sm">
         <div className="grid gap-8 p-6 md:grid-cols-[260px_1fr] md:p-8">
@@ -107,6 +110,7 @@ export default function LearningBadgeOverview({ orgslug, badgePath, programAssig
         </div>
       </section>
     </main>
+    </>
   )
 }
 

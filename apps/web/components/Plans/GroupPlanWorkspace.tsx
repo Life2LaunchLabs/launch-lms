@@ -3,6 +3,7 @@
 import React from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import useSWR from 'swr'
 import toast from 'react-hot-toast'
 import { AlertCircle, Check, CheckCircle2, Circle, Clock3, FileCheck2, FileText, Link2, Loader2, Lock, Pencil, RotateCcw, Search, Trash2, X } from 'lucide-react'
@@ -12,6 +13,7 @@ import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 import { DiscussionEditor } from '@components/Objects/Communities/DiscussionEditor'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
+import { useHubWorkspace } from '@components/Contexts/HubWorkspaceContext'
 import { programsApi } from '@services/programs/programs'
 import { getLearningBadges } from '@services/learning/learning'
 import { getUriWithOrg } from '@services/config/config'
@@ -24,6 +26,9 @@ type Filter = 'all' | 'attention' | 'review'
 // eslint-disable-next-line no-unused-vars
 export default function GroupPlanWorkspace({ orgslug, assignmentUuid, embedded = false, onClose, onChanged, color = '#2563eb', onSetColor }: { orgslug: string; assignmentUuid: string; embedded?: boolean; onClose?: () => void; onChanged?: () => Promise<void> | void; color?: string; onSetColor?: (value: string) => void }) {
   const org = useOrg() as any
+  const pathname = usePathname()
+  const hubWorkspace = useHubWorkspace()
+  const setHubSurface = hubWorkspace?.setSurface
   const session = useLHSession() as any
   const token = session?.data?.tokens?.access_token
   const orgId = Number(org?.id)
@@ -42,6 +47,16 @@ export default function GroupPlanWorkspace({ orgslug, assignmentUuid, embedded =
   const [mounted, setMounted] = React.useState(false)
   const [mobilePanel, setMobilePanel] = React.useState(false)
   React.useEffect(() => setMounted(true), [])
+  React.useEffect(() => {
+    if (!setHubSurface || !data) return
+    const title = `${data.cohort?.name || 'Group'}’s plan`
+    setHubSurface({
+      path: pathname,
+      label: title,
+      hint: { surface: 'group_plan', entity_id: assignmentUuid },
+    })
+    return () => setHubSurface(null)
+  }, [assignmentUuid, data, pathname, setHubSurface])
   if (error) {
     const message = error?.message || 'This group plan could not be opened.'
     const failure = <div className="mx-auto my-12 max-w-lg rounded-2xl border border-red-200 bg-red-50 p-6 text-center"><h2 className="text-lg font-black text-red-950">Could not open group plan</h2><p className="mt-2 text-sm text-red-800">{message}</p>{onClose ? <button type="button" onClick={onClose} className="mt-5 rounded-lg bg-red-950 px-4 py-2 text-xs font-black text-white">Back to plans</button> : null}</div>

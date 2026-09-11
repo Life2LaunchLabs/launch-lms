@@ -14,6 +14,7 @@ from src.db.hub import (
     HubConversationMessageResource,
     HubConversationResource,
 )
+from src.services.hub_actions import decorate_navigation_action
 from src.services.hub_advisor import AdvisorMessage
 from src.services.hub_memory import message_memory_receipts
 from src.security.org_auth import require_org_membership
@@ -144,6 +145,7 @@ def _add_message(
     model: str | None = None,
     input_tokens: int | None = None,
     output_tokens: int | None = None,
+    suggested_actions: list[dict] | None = None,
 ) -> HubConversationMessage:
     message = HubConversationMessage(
         message_uuid=f"hub_message_{uuid4()}",
@@ -155,6 +157,7 @@ def _add_message(
         model=model,
         input_tokens=input_tokens,
         output_tokens=output_tokens,
+        suggested_actions=suggested_actions or None,
     )
     db_session.add(message)
     db_session.flush()
@@ -196,7 +199,7 @@ def advisor_history(
         ).all()
         history = [AdvisorMessage(
             role=row.role,  # type: ignore[arg-type]
-            content=(f'Displayed resource search results for “{row.content}”.' if row.kind == "search" else row.content),
+            content=(f'Displayed resource search results for “{row.content}”.' if row.kind == "search" else row.content)[:2_000],
         ) for row in rows]
     else:
         require_org_membership(user_id, org_id, db_session)
@@ -213,6 +216,8 @@ def record_advice(
     learner_resource_uuids: list[str], context_resource_uuids: list[str],
     suggested_resource_uuids: list[str], model: str,
     input_tokens: int, output_tokens: int,
+    page_receipt: dict | None = None,
+    suggested_actions: list[dict] | None = None,
 ) -> dict:
     conversation = (
         get_owned_conversation(db_session, conversation_uuid, org_id, user_id)
@@ -233,7 +238,12 @@ def record_advice(
         db_session, conversation, sequence + 1, "assistant", assistant_content,
         resources=novel_suggestions, label="Suggested", model=model,
         input_tokens=input_tokens, output_tokens=output_tokens,
+        suggested_actions=suggested_actions,
     )
+    user_message.page_context = page_receipt
+    assistant_message.page_context = page_receipt
+    db_session.add(user_message)
+    db_session.add(assistant_message)
     merged_context = list(dict.fromkeys(context_resource_uuids))[-8:]
     for resource_uuid in suggested_resource_uuids:
         merged_context = [uuid for uuid in merged_context if uuid != resource_uuid]
@@ -251,6 +261,7 @@ def record_advice(
         "user_message_created_at": user_message.created_at,
         "assistant_message_created_at": assistant_message.created_at,
         "assistant_resource_uuids": novel_suggestions,
+        "suggested_actions": suggested_actions or [],
     }
 
 
@@ -258,6 +269,7 @@ def record_search(
     db_session: Session, *, org_id: int, user_id: int,
     conversation_uuid: str | None, query: str,
     learner_resource_uuids: list[str], context_resource_uuids: list[str],
+    page_receipt: dict | None = None,
 ) -> dict:
     conversation = (
         get_owned_conversation(db_session, conversation_uuid, org_id, user_id)
@@ -269,6 +281,8 @@ def record_search(
         resources=learner_resource_uuids, label="You added",
     )
     search_message = _add_message(db_session, conversation, sequence + 1, "assistant", query, kind="search")
+    user_message.page_context = page_receipt
+    search_message.page_context = page_receipt
     _replace_context(db_session, conversation, context_resource_uuids)
     conversation.updated_at = datetime.utcnow()
     db_session.add(conversation)
@@ -280,6 +294,7 @@ def record_search(
         "assistant_message_uuid": search_message.message_uuid,
         "user_message_created_at": user_message.created_at,
         "assistant_message_created_at": search_message.created_at,
+        "page_context": page_receipt,
     }
 
 
@@ -340,6 +355,7 @@ def conversation_detail(
     accessible_resources: list[dict],
 ) -> dict:
     conversation = get_owned_conversation(db_session, conversation_uuid, org_id, user_id)
+    from src.services.hub_context import visible_receipt
     resources_by_uuid = _public_resources(accessible_resources)
     messages = db_session.exec(select(HubConversationMessage).where(
         HubConversationMessage.conversation_id == conversation.id
@@ -374,6 +390,8 @@ def conversation_detail(
             "resources": [resources_by_uuid[row.resource_uuid] for row in by_message.get(int(message.id), []) if row.resource_uuid in resources_by_uuid],
             "created_at": message.created_at,
             "memories": memory_receipts.get(int(message.id), []),
+            "page_context": visible_receipt(db_session, message.page_context, org_id, user_id),
+            "suggested_actions": [decorate_navigation_action(action) for action in (message.suggested_actions or [])],
         } for message in messages],
         "context_resources": [resources_by_uuid[row.resource_uuid] for row in context if row.resource_uuid in resources_by_uuid],
     }
