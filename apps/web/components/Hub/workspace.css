@@ -1,8 +1,8 @@
-.hub-workspace { display: flex; align-items: stretch; width: 100%; min-height: 100dvh; }
+.hub-workspace { display: flex; align-items: stretch; width: 100%; max-width: 100%; min-width: 0; min-height: 100dvh; overflow-x: clip; }
 .hub-app-frame { flex: 1; min-width: 0; }
 .hub-app-frame[hidden], .hub-conversation-frame[hidden] { display: none; }
 .hub-conversation-frame { position: sticky; top: 0; display: flex; flex-direction: column; flex-shrink: 0; width: clamp(340px, 31vw, 460px); height: 100dvh; min-width: 0; background: hsl(var(--background)); outline: none; }
-.hub-conversation-frame--full { width: 100%; max-width: 1056px; margin: 0 auto; }
+.hub-conversation-frame--full { flex: 1 1 0%; width: auto; max-width: 1056px; margin: 0 auto; }
 .hub-workspace--companion { --hub-workspace-surface: color-mix(in srgb, hsl(var(--foreground)) 8%, hsl(var(--background))); height: 100dvh; min-height: 0; overflow: hidden; padding: 14px; gap: 0; background: var(--hub-workspace-surface); }
 .hub-workspace--companion .hub-app-frame { height: 100%; min-height: 0; overflow: auto; border: 1px solid hsl(var(--border) / 0.8); border-radius: 18px; background: var(--org-page-background); box-shadow: 0 2px 8px rgb(0 0 0 / 0.09); }
 .hub-workspace--companion .hub-conversation-frame { height: 100%; overflow: hidden; border-radius: 18px; background: transparent; transition: width 120ms ease, opacity 90ms ease; }
