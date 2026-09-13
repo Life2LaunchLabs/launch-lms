@@ -23,7 +23,9 @@ test('BOT-217 populated Hub and candidate viewport', async ({ page }, testInfo) 
       const capture = async (state: string) => {
         const bounds = await page.evaluate(() => ({ width: innerWidth, height: innerHeight, documentWidth: document.documentElement.scrollWidth, documentHeight: document.documentElement.scrollHeight, scrollX, scrollY, hub: document.querySelector('.hub-conversation-frame')?.getBoundingClientRect().toJSON(), panel: document.querySelector('[aria-modal="true"]')?.getBoundingClientRect().toJSON(), panelWidth: document.querySelector('[aria-modal="true"]')?.scrollWidth }))
         console.log(prefix, state, JSON.stringify(bounds))
-        await page.screenshot({ path: testInfo.outputPath(`bot217-${prefix}-${state}.png`), fullPage: true })
+        const screenshot = await page.screenshot({ path: testInfo.outputPath(`bot217-${prefix}-${state}.png`), fullPage: true })
+        // Only this synthetic fixture opts into portable review evidence.
+        await testInfo.attach(`synthetic-review:bot217-${prefix}-${state}.png`, { body: screenshot, contentType: 'image/png' })
         expect.soft(bounds.documentWidth, `${prefix} ${state} horizontal document bounds`).toBeLessThanOrEqual(viewport.width)
         expect.soft(bounds.documentHeight, `${prefix} ${state} vertical document bounds`).toBeLessThanOrEqual(viewport.height)
         if (bounds.panel) {

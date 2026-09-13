@@ -174,7 +174,7 @@ export function CandidatePanelContent({ panel, theme = 'light', orgId, accessTok
     setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
 
-  return <div className={isDark ? 'text-white' : 'text-foreground'}>
+  return <div className={`min-w-0 [overflow-wrap:anywhere] ${isDark ? 'text-white' : 'text-foreground'}`}>
     {error ? <Alert variant="destructive" className="mb-3"><AlertDescription>{error}</AlertDescription></Alert> : null}
     {panel === 'feedback' ? !feedbackConfigured ? <Alert><AlertDescription>Feedback is temporarily unavailable because this preview is not connected to Jira.</AlertDescription></Alert> : <>
       <div className={isDark ? 'rounded-xl border border-white/10 bg-white/[0.04] p-3 shadow-lg shadow-black/15' : 'rounded-xl border border-border bg-card p-3 shadow-md'} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); addImages(Array.from(event.dataTransfer.files)) }} onPaste={(event) => addImages(Array.from(event.clipboardData.files))}>
