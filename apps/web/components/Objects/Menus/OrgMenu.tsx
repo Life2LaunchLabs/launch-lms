@@ -94,7 +94,7 @@ export const OrgMenu = (props: { orgslug: string; compact?: boolean }) => {
         )}
         style={{
           top: topOffset,
-          height: `calc(100dvh - ${topOffset}px)`,
+          height: `calc(100dvh - ${topOffset}px - var(--candidate-experience-height, 0px))`,
           position: 'sticky',
           zIndex: 'var(--z-sticky)',
         }}

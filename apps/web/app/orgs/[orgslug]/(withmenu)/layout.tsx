@@ -67,7 +67,7 @@ function LayoutContent({ children, orgslug }: { children: React.ReactNode; orgsl
 
   return (
     <div
-      className="flex flex-col min-h-screen print:min-h-0"
+      className="org-layout-shell flex flex-col min-h-screen print:min-h-0"
       style={{ backgroundColor: 'var(--org-page-background)' }}
     >
       <PageViewTracker />

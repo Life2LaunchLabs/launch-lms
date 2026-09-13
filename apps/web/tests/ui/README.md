@@ -28,5 +28,9 @@ sensitive request data; keep them in restricted local/CI storage and delete them
 `.github/workflows/browser-ui.yaml` provisions an isolated Postgres/Redis namespace, migrates and seeds it through the
 supported CLI, builds the application, and runs the real-login suite in Chromium desktop, Chromium phone, and mobile
 WebKit. The release candidate job depends on this lane. Failure traces and reports are retained for seven days; successful
-runs retain only the manifest in the job log. A login page, missing fixture, failed health check or absent expected UI is
+runs retain the run manifest as an artifact. Tests may explicitly attach PNGs named
+`synthetic-review:<filename>` to embed those captures (with hashes and project/attempt
+metadata) in the manifest for review. Use that prefix only with entirely synthetic
+fixtures; ordinary screenshots and traces are never embedded. Decode `png_base64`
+from `synthetic_review_captures` to recover the original PNGs for visual inspection. A login page, missing fixture, failed health check or absent expected UI is
 a failure; baselines are never accepted automatically.
