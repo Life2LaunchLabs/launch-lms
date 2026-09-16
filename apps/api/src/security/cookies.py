@@ -15,8 +15,12 @@ def get_cookie_domain_for_request(request: Request) -> str | None:
     referer = request.headers.get("referer", "")
     host = request.headers.get("host", "")
 
-    config_domain = get_launchlms_config().hosting_config.domain
-    config_cookie_domain = get_launchlms_config().hosting_config.cookie_config.domain
+    hosting_config = get_launchlms_config().hosting_config
+    config_domain = hosting_config.domain
+    cookie_config = hosting_config.cookie_config
+    if cookie_config.scope == "host-only":
+        return None
+    config_cookie_domain = cookie_config.domain
 
     check_value = origin or referer or host
     if not check_value:

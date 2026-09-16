@@ -12,6 +12,7 @@ import { mutate } from 'swr'
 import {
   getAPIUrl,
   getCoreCapabilities,
+  getConfig,
   getLAUNCHLMS_TOP_DOMAIN_VAL,
   getLAUNCHLMS_DOMAIN_VAL,
 } from '@services/config/config'
@@ -113,7 +114,8 @@ function getCookieAttributes(): { secureAttr: string; domainAttr: string; sameSi
   // For localhost, don't set domain attribute
   // For subdomains of main domain, set domain to allow sharing
   let domainAttr = ''
-  if (!isCustomDomain() && topDomain !== 'localhost') {
+  const cookieScope = getConfig('NEXT_PUBLIC_LAUNCHLMS_COOKIE_SCOPE', 'shared-domain')
+  if (cookieScope !== 'host-only' && !isCustomDomain() && topDomain !== 'localhost') {
     domainAttr = `; domain=.${topDomain}`
   }
 
@@ -123,9 +125,15 @@ function getCookieAttributes(): { secureAttr: string; domainAttr: string; sameSi
   return { secureAttr, domainAttr, sameSiteAttr }
 }
 
-// Store OAuth CSRF state in a cookie (shared across subdomains, unlike sessionStorage)
-// For custom domains, cookie is host-only so it stays on the same origin.
-// For subdomains, cookie is scoped to top domain so callback on main domain can read it.
+function oauthCallbackRequiresBounce(): boolean {
+  if (typeof window === 'undefined') return false
+  if (isCustomDomain()) return true
+  if (getConfig('NEXT_PUBLIC_LAUNCHLMS_COOKIE_SCOPE', 'shared-domain') !== 'host-only') return false
+  const callbackOrigin = `${window.location.protocol}//${getLAUNCHLMS_DOMAIN_VAL()}`
+  return window.location.origin !== callbackOrigin
+}
+
+// In host-only mode the main callback bounces back before reading this cookie.
 function setOAuthStateCookie(csrf: string): void {
   const { secureAttr, domainAttr, sameSiteAttr } = getCookieAttributes()
   // 5 minute expiry matching the state validation window
@@ -638,8 +646,9 @@ export function SessionProvider({
             timestamp: Date.now(),
           }
 
-          // For custom domains, embed returnOrigin so the main domain callback can bounce back
-          if (isCustomDomain()) {
+          // Host-only tenant and custom-domain cookies can only be read after the
+          // registered main callback bounces back to the initiating origin.
+          if (oauthCallbackRequiresBounce()) {
             stateData.returnOrigin = window.location.origin
           }
 
@@ -808,8 +817,7 @@ export async function signIn(
       timestamp: Date.now(),
     }
 
-    // For custom domains, embed returnOrigin so the main domain callback can bounce back
-    if (isCustomDomain()) {
+    if (oauthCallbackRequiresBounce()) {
       stateData.returnOrigin = window.location.origin
     }
 

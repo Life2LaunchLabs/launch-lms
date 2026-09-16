@@ -27,6 +27,7 @@ from src.security.auth import (
     create_refresh_token,
     get_current_user,
 )
+from src.security.cookies import get_cookie_domain_for_request, is_request_secure
 from src.services.orgs.orgs import rbac_check
 from src.services.sso import (
     check_sso_enabled,
@@ -102,18 +103,19 @@ def get_token_expiry_ms() -> int | None:
     return int(expiry_time.timestamp() * 1000)
 
 
-def set_auth_cookies(response: Response, access_token: str, refresh_token: str):
+def set_auth_cookies(response: Response, access_token: str, refresh_token: str, request: Request):
     """Helper to set authentication cookies."""
     from datetime import timedelta
 
-    from config.config import get_launch_lms_config
-
-    cookie_domain = get_launch_lms_config().hosting_config.cookie_config.domain
+    cookie_domain = get_cookie_domain_for_request(request)
+    is_secure = is_request_secure(request)
 
     response.set_cookie(
         key="access_token_cookie",
         value=access_token,
         httponly=True,
+        secure=is_secure,
+        samesite="lax",
         domain=cookie_domain,
         expires=int(timedelta(hours=8).total_seconds()),
     )
@@ -121,6 +123,8 @@ def set_auth_cookies(response: Response, access_token: str, refresh_token: str):
         key="refresh_token_cookie",
         value=refresh_token,
         httponly=True,
+        secure=is_secure,
+        samesite="lax",
         domain=cookie_domain,
         expires=int(timedelta(days=30).total_seconds()),
     )
@@ -354,6 +358,7 @@ class SSOErrorResponse(BaseModel):
 @router.get("/callback")
 async def sso_callback(
     *,
+    request: Request,
     response: Response,
     code: str | None = Query(None, description="Authorization code from IdP"),
     state: str | None = Query(None, description="State parameter for CSRF verification"),
@@ -416,19 +421,16 @@ async def sso_callback(
     refresh_token = create_refresh_token(data={"sub": user.email})
 
     # Set cookies
-    set_auth_cookies(response, access_token, refresh_token)
+    set_auth_cookies(response, access_token, refresh_token, request)
 
     # Build redirect URL
     # In production, this should come from frontend config
-    from config.config import get_launch_lms_config
-    config = get_launch_lms_config()
+    from config.config import get_launchlms_config
+    config = get_launchlms_config()
     frontend_domain = config.hosting_config.domain
     protocol = "https" if config.hosting_config.ssl else "http"
 
     redirect_url = f"{protocol}://{org_slug}.{frontend_domain}/redirect_from_auth"
-
-    # Set cookies
-    set_auth_cookies(response, access_token, refresh_token)
 
     return {
         "user": user,

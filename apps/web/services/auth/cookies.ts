@@ -30,6 +30,9 @@ export function getDomainFromRequest(request: NextRequest): { domain: string; to
 }
 
 export function getCookieDomain(request: NextRequest): string | undefined {
+  if (getConfig('NEXT_PUBLIC_LAUNCHLMS_COOKIE_SCOPE', 'shared-domain') === 'host-only') {
+    return undefined
+  }
   const host = request.headers.get('host')
   const { domain, topDomain } = getDomainFromRequest(request)
 
