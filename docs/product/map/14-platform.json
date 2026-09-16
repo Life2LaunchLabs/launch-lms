@@ -4169,33 +4169,38 @@
           "references": [
             {
               "kind": "code",
-              "path": "../launch-lms-infra/scripts/refresh-unstable.sh",
+              "path": "scripts/refresh-unstable.sh",
               "symbol": null,
-              "responsibility": ""
+              "responsibility": "",
+              "repository": "Life2LaunchLabs/launch-lms-infra"
             },
             {
               "kind": "code",
-              "path": "../launch-lms-infra/setup.sh",
+              "path": "setup.sh",
               "symbol": null,
-              "responsibility": ""
+              "responsibility": "",
+              "repository": "Life2LaunchLabs/launch-lms-infra"
             },
             {
               "kind": "documentation",
-              "path": "../launch-lms-infra/README.md",
+              "path": "README.md",
               "symbol": null,
-              "responsibility": ""
+              "responsibility": "",
+              "repository": "Life2LaunchLabs/launch-lms-infra"
             },
             {
               "kind": "test",
-              "path": "../launch-lms-infra/tests/rehearse-copy.sh",
+              "path": "tests/rehearse-copy.sh",
               "symbol": null,
-              "responsibility": ""
+              "responsibility": "",
+              "repository": "Life2LaunchLabs/launch-lms-infra"
             },
             {
               "kind": "test",
-              "path": "../launch-lms-infra/tests/test_deployment.py",
+              "path": "tests/test_deployment.py",
               "symbol": null,
-              "responsibility": ""
+              "responsibility": "",
+              "repository": "Life2LaunchLabs/launch-lms-infra"
             }
           ],
           "relationships": []

@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+import re
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -46,6 +47,7 @@ def import_export(source: Path) -> None:
     MANIFEST.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     expected_files = set()
     for group in payload["groups"]:
+        normalize_external_references(group)
         path = MAP / f"{group['display_order']:02d}-{group['id'].lower()}.json"
         expected_files.add(path)
         path.write_text(json.dumps(group, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
@@ -53,6 +55,16 @@ def import_export(source: Path) -> None:
         if path not in expected_files:
             path.unlink()
     render(payload["groups"])
+
+
+def normalize_external_references(group: dict) -> None:
+    """Turn legacy sibling paths into stable cross-repository coordinates."""
+    for _, node in nodes([group]):
+        for reference in node.get("references", []):
+            prefix = "../launch-lms-infra/"
+            if reference.get("path", "").startswith(prefix):
+                reference["repository"] = "Life2LaunchLabs/launch-lms-infra"
+                reference["path"] = reference["path"][len(prefix):]
 
 
 def nodes(groups: list[dict]):
@@ -142,8 +154,13 @@ def validate(groups: list[dict], manifest: dict) -> list[str]:
                         path = reference.get("path")
                         if reference.get("kind") not in {"code", "test", "doc", "documentation"}:
                             errors.append(f"{owner['id']}: invalid reference kind {reference.get('kind')}")
-                        if path and not (ROOT / path).exists():
+                        repository = reference.get("repository")
+                        if repository and not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repository):
+                            errors.append(f"{owner['id']}: invalid external repository {repository}")
+                        if path and not repository and not (ROOT / path).exists():
                             errors.append(f"{owner['id']}: missing {reference.get('kind')} reference {path}")
+                        if path and repository and path.startswith(("/", "../")):
+                            errors.append(f"{owner['id']}: invalid external reference path {path}")
                         if not path:
                             errors.append(f"{owner['id']}: reference without path")
     return errors
