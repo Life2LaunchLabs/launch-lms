@@ -12,3 +12,6 @@ removed outcomes to make the map look cleaner.
 
 The operations platform may index and present this data, but changes are made by
 pull request here. Its database is a cache, not product authority.
+
+`feedback-policy.yaml` owns Launch-specific privacy, grouping, communication,
+attachment, BOT-linking, and resolution rules consumed by the generic platform.

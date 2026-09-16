@@ -12,7 +12,9 @@ import {
 } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { createNewOrganization } from '@services/organizations/orgs'
+import { slugifyOrganizationName } from '@services/organizations/slug'
 import { getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config'
+import { authenticatedOrgHref } from '@services/auth/handoff'
 import { submitPlanRequest } from '@services/plans/plan_requests'
 import {
   updateOrgColorConfig,
@@ -24,13 +26,6 @@ import { Button } from '@components/ui/button'
 import LoginClient from '../login/login'
 import OpenSignUpComponent from './OpenSignup'
 import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
-
-const slugifyOrganizationName = (name: string): string =>
-  name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
 
 const packageOptions = [
   { id: 'analytics', label: 'Analytics' },
@@ -195,7 +190,7 @@ export default function CreateOrgWizard({ ownerOrg }: CreateOrgWizardProps) {
       }
 
       await session?.update?.(true)
-      window.location.href = getUriWithOrg(organization.slug, routePaths.org.dash.root())
+      window.location.href = authenticatedOrgHref(getUriWithOrg(organization.slug, routePaths.org.dash.root()), true)
     } catch (err: any) {
       setError(err?.detail || err?.message || 'Failed to create organization.')
       setIsSubmitting(false)

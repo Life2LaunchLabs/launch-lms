@@ -8,6 +8,7 @@ import toast from 'react-hot-toast'
 import { ArrowUpRight, Check, Loader2, LogIn, LogOut, Lock, ShieldCheck, X } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getAPIUrl, getDefaultOrg, getUriWithOrg } from '@services/config/config'
+import { authenticatedOrgHref } from '@services/auth/handoff'
 import {
   DiscoverOrganization,
   OrganizationInvitation,
@@ -126,7 +127,7 @@ export default function OrganizationMembershipActions({
     <div className={`flex ${compact ? 'flex-wrap gap-2' : 'flex-wrap gap-3'}`}>
       {showOpen && (
         <Link
-          href={getUriWithOrg(organization.slug, '/')}
+          href={authenticatedOrgHref(getUriWithOrg(organization.slug, '/'), isAuthenticated)}
           className={`${buttonClass} border border-border bg-card text-foreground/70 hover:bg-foreground/[0.03]`}
         >
           <ArrowUpRight className="mr-2 h-4 w-4" />
@@ -135,7 +136,7 @@ export default function OrganizationMembershipActions({
       )}
 
       {canAdmin && (
-        <Link href={getUriWithOrg(organization.slug, '/admin')} className={`${buttonClass} bg-foreground text-background hover:bg-foreground/85`}>
+        <Link href={authenticatedOrgHref(getUriWithOrg(organization.slug, '/admin'), isAuthenticated)} className={`${buttonClass} bg-foreground text-background hover:bg-foreground/85`}>
           <ShieldCheck className="mr-2 h-4 w-4" />Admin panel
         </Link>
       )}

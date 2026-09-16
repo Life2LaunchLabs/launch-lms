@@ -9,6 +9,7 @@ import { useLHSession } from '@components/Contexts/LHSessionContext'
 import CandidateToolbar from './CandidateToolbar'
 import { CandidatePanel, CandidatePanelContent, recordCandidateRoute } from '@components/Objects/Modals/FeedbackModal'
 import { CandidateAnnouncement, markCandidateAnnouncementsViewed } from '@services/candidate/candidate'
+import { getConfig } from '@services/config/config'
 
 export const CANDIDATE_OPEN_EVENT = 'launchlms-candidate-open'
 
@@ -80,7 +81,7 @@ export default function CandidateExperience({ theme = 'light' }: { theme?: 'ligh
     }).catch(() => undefined)
   }, [currentAnnouncement, token, unreadAnnouncements.length])
 
-  if (session?.status !== 'authenticated') return null
+  if (session?.status !== 'authenticated' || getConfig('NEXT_PUBLIC_CANDIDATE_LEGACY_ENABLED', 'true') !== 'true') return null
   return <div className={`candidate-experience relative w-full min-w-0 max-w-full shrink-0 print:hidden ${unstable ? 'candidate-experience--unstable' : ''}`} style={{ zIndex: 'var(--z-overlay)' }}>
     <CandidateToolbar accessToken={token} orgId={Number(org?.id)} activePanel={open ? panel : null} onConfiguration={configure} onOpen={show} onUnreadAnnouncements={receiveUnreadAnnouncements} />
     {currentAnnouncement && !open ? <section aria-live="polite" aria-label="Unread tester announcement" className="absolute right-3 top-full mt-2 w-[min(24rem,calc(100dvw-1.5rem))] min-w-0 [overflow-wrap:anywhere] rounded-2xl border border-amber-200 bg-background p-4 shadow-2xl" style={{ zIndex: 'var(--z-overlay)' }}><p className="text-xs font-black uppercase tracking-wide text-amber-700">Announcement</p><h2 className="mt-1 font-bold">{currentAnnouncement.title}</h2><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{currentAnnouncement.message}</p><Button className="mt-4 w-full" size="sm" onClick={() => setUnreadAnnouncements((items) => items.slice(1))}>{unreadAnnouncements.length > 1 ? 'Next' : 'Done'}</Button></section> : null}

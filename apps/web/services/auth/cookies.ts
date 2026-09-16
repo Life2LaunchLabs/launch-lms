@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { isSubdomainOf, isSameHost, isLocalhost, stripPort } from '@services/utils/ts/hostUtils'
 import { getConfig } from '@services/config/config'
+import { legacyParentCookieDomain } from '@services/routing/handoff'
 
 export const ACCESS_TOKEN_COOKIE = 'access_token_cookie'
 export const REFRESH_TOKEN_COOKIE = 'refresh_token_cookie'
@@ -30,6 +31,9 @@ export function getDomainFromRequest(request: NextRequest): { domain: string; to
 }
 
 export function getCookieDomain(request: NextRequest): string | undefined {
+  if (getConfig('NEXT_PUBLIC_LAUNCHLMS_COOKIE_SCOPE', 'shared-domain') === 'host-only') {
+    return undefined
+  }
   const host = request.headers.get('host')
   const { domain, topDomain } = getDomainFromRequest(request)
 
@@ -51,4 +55,11 @@ export function getCookieOptions(request: NextRequest) {
     path: '/',
     ...(domain ? { domain } : {}),
   }
+}
+
+export function getLegacyParentCookieDomain(request: NextRequest): string | undefined {
+  if (getConfig('NEXT_PUBLIC_LAUNCHLMS_COOKIE_SCOPE', 'shared-domain') !== 'host-only') return undefined
+  const configured = getConfig('NEXT_PUBLIC_LAUNCHLMS_LEGACY_COOKIE_DOMAIN')
+  if (!configured) return undefined
+  return legacyParentCookieDomain(getDomainFromRequest(request).domain, configured)
 }

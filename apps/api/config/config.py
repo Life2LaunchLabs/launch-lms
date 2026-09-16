@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 class CookieConfig(BaseModel):
     domain: str
+    scope: Literal["shared-domain", "host-only"] = "shared-domain"
 
 
 class SentryConfig(BaseModel):
@@ -201,6 +202,7 @@ def get_launchlms_config() -> LaunchLMSConfig:
     env_use_default_org = os.environ.get("LAUNCHLMS_USE_DEFAULT_ORG")
     env_allowed_origins = os.environ.get("LAUNCHLMS_ALLOWED_ORIGINS")
     env_cookie_domain = os.environ.get("LAUNCHLMS_COOKIE_DOMAIN")
+    env_cookie_scope = os.environ.get("LAUNCHLMS_COOKIE_SCOPE")
     env_frontend_domain = os.environ.get("LAUNCHLMS_FRONTEND_DOMAIN")
 
     # Allowed origins should be a comma separated string
@@ -236,7 +238,10 @@ def get_launchlms_config() -> LaunchLMSConfig:
     cookies_domain = env_cookie_domain or yaml_config.get("hosting_config", {}).get(
         "cookies_config", {}
     ).get("domain")
-    cookie_config = CookieConfig(domain=cookies_domain)
+    cookie_scope = env_cookie_scope or yaml_config.get("hosting_config", {}).get(
+        "cookies_config", {}
+    ).get("scope", "shared-domain")
+    cookie_config = CookieConfig(domain=cookies_domain, scope=cookie_scope)
 
     frontend_domain = env_frontend_domain or yaml_config.get("hosting_config", {}).get(
         "frontend_domain", "localhost:3000"

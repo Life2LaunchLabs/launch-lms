@@ -21,8 +21,11 @@ names. Keep it aligned with `launch-lms-infra/.env.example` and `setup.sh`.
 | `LAUNCHLMS_ALLOWED_ORIGINS` | API | Comma-separated CORS allowlist. |
 | `LAUNCHLMS_ALLOWED_REGEXP` | API | CORS origin regex. |
 | `LAUNCHLMS_COOKIE_DOMAIN` | API | Cookie domain. |
+| `LAUNCHLMS_COOKIE_SCOPE` | API | `shared-domain` (default) or `host-only`. Hosted preview environments nested beneath another environment's base domain must use `host-only`. |
 | `LAUNCHLMS_INTERNAL_API_URL` | web | Server-side internal API URL. In the all-in-one image this should be `http://localhost/api/v1/`. |
 | `NEXT_PUBLIC_LAUNCHLMS_DOMAIN` | web | Browser/runtime public frontend domain. |
+| `NEXT_PUBLIC_LAUNCHLMS_COOKIE_SCOPE` | web | Must match `LAUNCHLMS_COOKIE_SCOPE`; injected at container startup. |
+| `NEXT_PUBLIC_LAUNCHLMS_LEGACY_COOKIE_DOMAIN` | web | Temporary migration-only parent domain whose old shared auth/routing cookies are expired while cookie scope is `host-only`. It must be an actual parent of the environment frontend domain. Keep it set for at least the previous refresh-cookie lifetime (30 days), then remove it. |
 | `NEXT_PUBLIC_LAUNCHLMS_BACKEND_URL` | web | Public backend origin fallback. Same-origin `/api/v1` is preferred for browser calls. |
 | `NEXT_PUBLIC_LAUNCHLMS_API_URL` | web | Leave blank for same-origin production deployments. Set only for split frontend/backend deployments. |
 | `NEXT_PUBLIC_COLLAB_URL` | web | Public WebSocket URL, usually `wss://<domain>/collab`. |
