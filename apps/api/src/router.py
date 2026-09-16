@@ -3,6 +3,7 @@ from src.routers import analytics as analytics_router_module
 from src.routers import (
     api_tokens,
     auth,
+    auth_handoff,
     candidate_feedback,
     code_execution,
     dev,
@@ -90,6 +91,7 @@ v1_router.include_router(
     dependencies=[Depends(get_non_api_token_user)],
 )
 v1_router.include_router(auth.router, prefix="/auth", tags=["auth"])
+v1_router.include_router(auth_handoff.router, prefix="/auth", tags=["auth"])
 v1_router.include_router(
     operations_surface.router,
     prefix="/operations",

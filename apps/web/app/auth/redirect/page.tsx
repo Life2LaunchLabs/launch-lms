@@ -7,6 +7,7 @@ import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getAPIUrl, getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { EXPERIENCE_PREFERENCE_KEY } from '@components/Auth/ExperiencePreferenceTracker'
+import { authenticatedOrgHref } from '@services/auth/handoff'
 
 export default function AuthRedirectPage() {
   const session = useLHSession() as any
@@ -38,11 +39,11 @@ export default function AuthRedirectPage() {
     if (preference.side === 'admin') {
       const target = adminOrgs.find((organization: any) => organization.slug === preference.orgslug) || adminOrgs[0]
       if (target) {
-        window.location.href = getUriWithOrg(target.slug, routePaths.org.dash.root())
+        window.location.href = authenticatedOrgHref(getUriWithOrg(target.slug, routePaths.org.dash.root()), true)
         return
       }
     }
-    window.location.href = getUriWithOrg(preference.orgslug || ownerOrgSlug, routePaths.owner.root())
+    window.location.href = authenticatedOrgHref(getUriWithOrg(preference.orgslug || ownerOrgSlug, routePaths.owner.root()), true)
   }, [adminOrgs, ownerOrgSlug, session?.status])
 
   return (

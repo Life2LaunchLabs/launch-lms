@@ -1,5 +1,9 @@
 # Security baseline
 
+Hosted tenant-cookie isolation and cross-host transfer:
+[host-only handoff](host-only-handoff.md). Its browser and legacy-cookie gates
+remain open until explicitly verified.
+
 - Validate untrusted data at HTTP, WebSocket, file, and third-party boundaries.
 - Enforce tenant and resource authorization server-side after authentication.
 - Keep secrets server-only, narrowly scoped, rotatable, and absent from logs,

@@ -5,6 +5,27 @@ import { resolveRequestRouting, type RequestInstanceInfo } from '../requestPolic
 import { classifyRoute } from '../routeAccess.ts'
 import { buildPublicRequestUrl } from '../context.ts'
 import { hubTimestampDate } from '../../hub/timestamp.ts'
+import { isManagedHost, safeHandoffPath } from '../handoff.ts'
+
+test('session handoff only targets the same installation and one organization label', () => {
+  const domain = 'unstable.life2launch.app'
+  assert.equal(isManagedHost(domain, domain), true)
+  assert.equal(isManagedHost(`school.${domain}`, domain), true)
+  for (const host of [
+    'school.life2launch.app', 'life2launch.dev',
+    `nested.school.${domain}`, `school.${domain}.evil.test`,
+    `school.${domain}:9999`, `${domain}@evil.test`,
+  ]) {
+    assert.equal(isManagedHost(host, domain), false, host)
+  }
+})
+
+test('handoff return paths cannot navigate to another origin', () => {
+  assert.equal(safeHandoffPath('/admin?tab=users#roles'), true)
+  for (const path of ['//evil.test', '/\\evil.test', 'https://evil.test', '/home\nX-Test: bad']) {
+    assert.equal(safeHandoffPath(path), false, path)
+  }
+})
 
 const instanceInfo: RequestInstanceInfo = {
   multi_org_enabled: true,

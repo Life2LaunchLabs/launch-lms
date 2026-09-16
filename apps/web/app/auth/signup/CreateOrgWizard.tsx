@@ -13,6 +13,7 @@ import {
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { createNewOrganization } from '@services/organizations/orgs'
 import { getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config'
+import { authenticatedOrgHref } from '@services/auth/handoff'
 import { submitPlanRequest } from '@services/plans/plan_requests'
 import {
   updateOrgColorConfig,
@@ -195,7 +196,7 @@ export default function CreateOrgWizard({ ownerOrg }: CreateOrgWizardProps) {
       }
 
       await session?.update?.(true)
-      window.location.href = getUriWithOrg(organization.slug, routePaths.org.dash.root())
+      window.location.href = authenticatedOrgHref(getUriWithOrg(organization.slug, routePaths.org.dash.root()), true)
     } catch (err: any) {
       setError(err?.detail || err?.message || 'Failed to create organization.')
       setIsSubmitting(false)

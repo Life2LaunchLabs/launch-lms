@@ -11,6 +11,7 @@ import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
+import { authenticatedOrgHref } from '@services/auth/handoff'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { programsApi, type LearnerProgramDetailResponse, type LearnerProgramEnrollment } from '@services/programs/programs'
 import { cn } from '@/lib/utils'
@@ -100,7 +101,7 @@ function ProgramDetail({ orgslug, orgId, token, item, enrollments, onSelectEnrol
   const completeCount = item.objectives.filter((entry: any) => entry.progress.status === 'completed').length
   const openObjective = (entry: any) => {
     if (entry.kind === 'badge' && entry.badge_uuid) {
-      window.location.assign(getUriWithOrg(owningOrgslug, `${routePaths.org.badgeDetail(entry.badge_uuid)}?assignment=${encodeURIComponent(item.assignment.assignment_uuid)}`))
+      window.location.assign(authenticatedOrgHref(getUriWithOrg(owningOrgslug, `${routePaths.org.badgeDetail(entry.badge_uuid)}?assignment=${encodeURIComponent(item.assignment.assignment_uuid)}`), true))
       return
     }
     setObjective(entry)
