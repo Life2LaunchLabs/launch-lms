@@ -1,5 +1,20 @@
 const LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/
 
+function stripPort(domain: string): string {
+  try {
+    return new URL(`https://${domain}`).hostname
+  } catch {
+    return ''
+  }
+}
+
+export function legacyParentCookieDomain(frontendDomain: string, legacyDomain: string): string | undefined {
+  const frontend = stripPort(frontendDomain).toLowerCase().replace(/^\.+|\.+$/g, '')
+  const legacy = stripPort(legacyDomain).toLowerCase().replace(/^\.+|\.+$/g, '')
+  if (!legacy || (frontend !== legacy && !frontend.endsWith(`.${legacy}`))) return undefined
+  return `.${legacy}`
+}
+
 export function isManagedHost(host: string, configuredDomain: string): boolean {
   if (!/^[a-zA-Z0-9.:-]{1,253}$/.test(host)) return false
   try {

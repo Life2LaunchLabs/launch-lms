@@ -29,6 +29,10 @@ checks and rollback are documented.
 
 Existing `Domain=.life2launch.app` cookies are a **separate migration gate**:
 the first request to nested unstable can still carry a legacy shared cookie.
-Expire legacy parent-domain auth cookies on the existing hosts and verify their
-absence in a real browser before nested traffic is enabled. Do not infer that
-setting new host-only cookies removed an older parent-domain cookie.
+Set `NEXT_PUBLIC_LAUNCHLMS_LEGACY_COOKIE_DOMAIN=life2launch.app` alongside
+host-only mode on managed deployments. Every web response then expires the old
+parent-domain auth marker and routing cookies; the configured value is ignored
+unless it is an actual parent of the current environment domain. Keep this
+migration flag for at least the old 30-day refresh-cookie lifetime, verify cookie
+absence in a real browser before nested traffic is enabled, then remove it. Do
+not infer that setting new host-only cookies removed an older parent-domain cookie.

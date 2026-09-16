@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { getAPIUrl } from './services/config/config'
-import { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from './services/auth/cookies'
+import {
+  ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE, getLegacyParentCookieDomain,
+} from './services/auth/cookies'
 import { ROUTING_COOKIES } from './services/routing/cookies'
 import { isCustomDomainHost, getOrgSlugFromSubdomain } from './services/routing/context'
 import {
@@ -84,6 +86,24 @@ function setInstanceCookies(response: NextResponse, info: RequestInstanceInfo) {
     path: '/',
   })
 
+  return response
+}
+
+function expireLegacyParentCookies(response: NextResponse, request: NextRequest) {
+  const domain = getLegacyParentCookieDomain(request)
+  if (!domain) return response
+  const secure = request.nextUrl.protocol === 'https:'
+  for (const name of [ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE]) {
+    response.cookies.set(name, '', {
+      domain, path: '/', maxAge: 0, httpOnly: true, sameSite: 'lax', secure,
+    })
+  }
+  for (const name of [
+    'launchlms_has_session', ROUTING_COOKIES.orgSlug, ROUTING_COOKIES.legacyOrgSlug,
+    ROUTING_COOKIES.customDomain,
+  ]) {
+    response.cookies.set(name, '', { domain, path: '/', maxAge: 0, sameSite: 'lax', secure })
+  }
   return response
 }
 
@@ -224,5 +244,6 @@ export default async function proxy(req: NextRequest) {
   const response = buildResponse(req, decision)
   setInstanceCookies(response, instanceInfo)
   applyDecision(response, decision)
+  expireLegacyParentCookies(response, req)
   return response
 }

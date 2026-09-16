@@ -5,7 +5,7 @@ import { resolveRequestRouting, type RequestInstanceInfo } from '../requestPolic
 import { classifyRoute } from '../routeAccess.ts'
 import { buildPublicRequestUrl } from '../context.ts'
 import { hubTimestampDate } from '../../hub/timestamp.ts'
-import { isManagedHost, safeHandoffPath } from '../handoff.ts'
+import { isManagedHost, legacyParentCookieDomain, safeHandoffPath } from '../handoff.ts'
 
 test('session handoff only targets the same installation and one organization label', () => {
   const domain = 'unstable.life2launch.app'
@@ -25,6 +25,13 @@ test('handoff return paths cannot navigate to another origin', () => {
   for (const path of ['//evil.test', '/\\evil.test', 'https://evil.test', '/home\nX-Test: bad']) {
     assert.equal(safeHandoffPath(path), false, path)
   }
+})
+
+test('legacy cookie cleanup only accepts an actual parent of the environment domain', () => {
+  assert.equal(legacyParentCookieDomain('unstable.life2launch.app', 'life2launch.app'), '.life2launch.app')
+  assert.equal(legacyParentCookieDomain('life2launch.app', '.life2launch.app'), '.life2launch.app')
+  assert.equal(legacyParentCookieDomain('unstable.life2launch.app', 'evil.test'), undefined)
+  assert.equal(legacyParentCookieDomain('evil-life2launch.app', 'life2launch.app'), undefined)
 })
 
 const instanceInfo: RequestInstanceInfo = {
