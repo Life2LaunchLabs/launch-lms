@@ -1,0 +1,2655 @@
+{
+  "id": "RESOURCES",
+  "display_order": 7,
+  "title": "Find, use, and curate resources",
+  "intent": "Connect people to useful external and internal resources, help them retain what matters, and capture outcomes.",
+  "product_areas": "Resource catalog, channels, tags, saved channels, notes/outcomes, comments, administration.",
+  "model_distinction": null,
+  "source_json": "{\"baseline\": {\"derived_at\": \"2026-09-02\", \"source\": \"PRODUCT_ACTIVITY_HIERARCHY.md\", \"traceability\": \"partial\", \"verification\": \"unverified\"}, \"display_order\": 7, \"goals\": [{\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"RESOURCES-G001-A001\", \"implementation_notes\": \"Channels can be public, shared, private, or group-linked, including cross-organization sharing.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Browse resource channels\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"RESOURCES-G001-A002\", \"implementation_notes\": \"Resource types include assessment, video, article, tool, guide, course, and other; access can be free, paid, or restricted.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Search and filter resources\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"RESOURCES-G001-A003\", \"implementation_notes\": \"Inspect description, tags, channel context, author/source, access expectation, comments, and external destination.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Review resource details and attribution\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 4, \"health\": \"unknown\", \"id\": \"RESOURCES-G001-A004\", \"implementation_notes\": \"Test return behavior, broken links, and whether completion is inferred or explicitly recorded.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Open an external or hosted resource\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"visitor\", \"prospective_learner\", \"learner_youth\", \"educator\", \"counselor_mentor\", \"employer\", \"nonprofit_community_partner\"], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"RESOURCES-G001\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"outcome\": \"A person can discover a relevant resource and understand what it is before opening it.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Find a useful resource\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"RESOURCES-G002-A001\", \"implementation_notes\": \"Saving can organize content into personal saved channels.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Save or unsave a resource\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"RESOURCES-G002-A002\", \"implementation_notes\": \"Test whether the resulting personal collection is easy to find later.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Save or follow a channel\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"RESOURCES-G002-A003\", \"implementation_notes\": \"Outcomes can include text, a link, or an uploaded file; open/completion counts provide lightweight engagement signals.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Record a note or outcome\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 4, \"health\": \"unknown\", \"id\": \"RESOURCES-G002-A004\", \"implementation_notes\": \"People can add and manage their own comments; moderators can manage broader discussion.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional` on authentication and moderation rights\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Comment on a resource\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"learner_youth\", \"educator\", \"counselor_mentor\", \"employer\", \"nonprofit_community_partner\"], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"RESOURCES-G002\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"outcome\": \"A person can retain useful material and connect it to a meaningful result.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Organize and reflect on resources\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"RESOURCES-G003-A001\", \"implementation_notes\": \"Create, edit, delete, thumbnail, feature, publish/live-state, tag, and CSV-import workflows are present.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Create and maintain resources\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"RESOURCES-G003-A002\", \"implementation_notes\": \"Curators set description, image, ordering, visibility, and linked resources.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Create and organize channels\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"RESOURCES-G003-A003\", \"implementation_notes\": \"Group access and shared ownership require careful testing for leaks and unclear source ownership.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Restrict a channel to groups or share it across organizations\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 4, \"health\": \"unknown\", \"id\": \"RESOURCES-G003-A004\", \"implementation_notes\": \"Admins can create, edit, and delete resource tags.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Maintain the tag vocabulary\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"educator\", \"counselor_mentor\", \"employer\", \"nonprofit_community_partner\", \"content_author\", \"organization_maintainer\", \"organization_administrator\"], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"RESOURCES-G003\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"outcome\": \"Staff can maintain a relevant, navigable collection for particular audiences.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Curate a resource library\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"id\": \"RESOURCES\", \"intent\": \"Connect people to useful external and internal resources, help them retain what matters, and capture outcomes.\", \"model_distinction\": null, \"product_areas\": \"Resource catalog, channels, tags, saved channels, notes/outcomes, comments, administration.\", \"source_refs\": [\"apps/web/app/orgs/[orgslug]/(withmenu)/resources\", \"apps/web/app/orgs/[orgslug]/admin/resources\", \"apps/api/src/routers/resources.py\", \"apps/api/src/services/resources.py\", \"apps/api/src/db/resources.py\"], \"title\": \"Find, use, and curate resources\"}",
+  "goals": [
+    {
+      "id": "RESOURCES-G001",
+      "group_id": "RESOURCES",
+      "display_order": 1,
+      "title": "Find a useful resource",
+      "outcome": "A person can discover a relevant resource and understand what it is before opening it.",
+      "product_state": "live",
+      "health": "unknown",
+      "traceability": "partial",
+      "availability_json": "{\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}",
+      "verification_json": "{\"status\": \"unverified\"}",
+      "signoff_json": "{\"status\": \"not_requested\"}",
+      "original_state": "`Live`",
+      "source_json": "{\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"RESOURCES-G001-A001\", \"implementation_notes\": \"Channels can be public, shared, private, or group-linked, including cross-organization sharing.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Browse resource channels\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"RESOURCES-G001-A002\", \"implementation_notes\": \"Resource types include assessment, video, article, tool, guide, course, and other; access can be free, paid, or restricted.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Search and filter resources\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"RESOURCES-G001-A003\", \"implementation_notes\": \"Inspect description, tags, channel context, author/source, access expectation, comments, and external destination.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Review resource details and attribution\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 4, \"health\": \"unknown\", \"id\": \"RESOURCES-G001-A004\", \"implementation_notes\": \"Test return behavior, broken links, and whether completion is inferred or explicitly recorded.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Open an external or hosted resource\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"visitor\", \"prospective_learner\", \"learner_youth\", \"educator\", \"counselor_mentor\", \"employer\", \"nonprofit_community_partner\"], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"RESOURCES-G001\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"outcome\": \"A person can discover a relevant resource and understand what it is before opening it.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Find a useful resource\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}",
+      "updated_at": "2026-09-02T21:12:02+00:00",
+      "actors": [
+        "counselor_mentor",
+        "educator",
+        "employer",
+        "learner_youth",
+        "nonprofit_community_partner",
+        "prospective_learner",
+        "visitor"
+      ],
+      "activities": [
+        {
+          "id": "RESOURCES-G001-A001",
+          "goal_id": "RESOURCES-G001",
+          "display_order": 1,
+          "title": "Browse resource channels",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "complete",
+          "priority": "unset",
+          "implementation_notes": "Hub uses a minimal unified composer. Learners can find accessible channels by search and open channel-filtered resource results; the former browse-all panel is intentionally absent.",
+          "original_state": "`Live` / `Conditional`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Find a useful resource",
+          "group_title": "Find, use, and curate resources",
+          "availability": {
+            "constraints": [],
+            "mode": "conditional",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-69",
+            "effect": "changes",
+            "issue_key": "BOT-69",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-69",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "conditional",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 1,
+            "health": "unknown",
+            "id": "RESOURCES-G001-A001",
+            "implementation_notes": "Channels can be public, shared, private, or group-linked, including cross-organization sharing.",
+            "lifecycle": "live",
+            "original_state": "`Live` / `Conditional`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Browse resource channels",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [
+            {
+              "id": "RESOURCES-G001-A001-AC01",
+              "activity_id": "RESOURCES-G001-A001",
+              "display_order": 1,
+              "criterion": "Hub exposes only channels and resources the current learner can access.",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "notes": null,
+              "source_json": null,
+              "created_at": "2026-09-03T21:04:15+00:00"
+            }
+          ],
+          "steps": [
+            {
+              "id": "RESOURCES-G001-A001-S001",
+              "activity_id": "RESOURCES-G001-A001",
+              "display_order": 1,
+              "title": "Browse public channels",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RESOURCES-G001-A001-S002",
+              "activity_id": "RESOURCES-G001-A001",
+              "display_order": 2,
+              "title": "Browse shared channels",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RESOURCES-G001-A001-S003",
+              "activity_id": "RESOURCES-G001-A001",
+              "display_order": 3,
+              "title": "Browse private channels",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RESOURCES-G001-A001-S004",
+              "activity_id": "RESOURCES-G001-A001",
+              "display_order": 4,
+              "title": "Browse group-linked channels",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RESOURCES-G001-A001-S005",
+              "activity_id": "RESOURCES-G001-A001",
+              "display_order": 5,
+              "title": "Open a cross-organization channel",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [
+            {
+              "kind": "code",
+              "path": "apps/api/src/services/search/search.py",
+              "symbol": null,
+              "responsibility": "Permission-filtered resource-channel quick search"
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/app/orgs/[orgslug]/(withmenu)/hub/HubQuickSearch.tsx",
+              "symbol": null,
+              "responsibility": "Permission-filtered channel and resource quick results"
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/app/orgs/[orgslug]/(withmenu)/hub/page.tsx",
+              "symbol": null,
+              "responsibility": "Canonical learner resource entry"
+            },
+            {
+              "kind": "test",
+              "path": "apps/web/services/routing/__tests__/routing.test.ts",
+              "symbol": null,
+              "responsibility": "Hub routing and legacy resource-link continuity"
+            }
+          ],
+          "relationships": []
+        },
+        {
+          "id": "RESOURCES-G001-A002",
+          "goal_id": "RESOURCES-G001",
+          "display_order": 2,
+          "title": "Find a resource",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "complete",
+          "priority": "unset",
+          "implementation_notes": "Hub search is server-owned, permission-filtered before ranking, and paginated after ranking. Lexical-v2 weights title, tags, resource type, provider, and description with accent normalization, lightweight lemmatization (including quizzes to quiz), bounded typo tolerance, and partial fallback; it contains no hard-coded conceptual aliases. Hybrid-v1 fuses lexical rank with self-hosted all-minilm:33m semantic candidates stored in pgvector(384), with versioned content hashes, incremental mutation refresh, deployment/dev backfill, an admin status/backfill API, and lexical fallback whenever vectors or Ollama are unavailable. Privacy-safe query fingerprints and result open/save events support zero-result, p95 latency, click-through, Recall@10, nDCG@10, and MRR evaluation.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-08T19:26:29.505811+00:00",
+          "description": "",
+          "goal_title": "Find a useful resource",
+          "group_title": "Find, use, and curate resources",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-115",
+            "effect": "changes",
+            "issue_key": "BOT-102",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-08T19:26:29.505811+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-102",
+            "signed_off_at": "2026-09-08T19:26:29.505811+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 2,
+            "health": "unknown",
+            "id": "RESOURCES-G001-A002",
+            "implementation_notes": "Resource types include assessment, video, article, tool, guide, course, and other; access can be free, paid, or restricted.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Search and filter resources",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [
+            {
+              "id": "RESOURCES-G001-A002-AC01",
+              "activity_id": "RESOURCES-G001-A002",
+              "display_order": 1,
+              "criterion": "Learners can search resource title, description, or provider and refine results by type, tag, access, and provider.",
+              "automated_status": "passed",
+              "manual_status": "passed",
+              "notes": "BOT-115 tests cover lexical-v2 weighted fields, lemmatization, accents, typo tolerance, partial fallback, privacy-safe hybrid RRF, permission-before-ranking, stable pagination, and committed Recall@10/nDCG@10/MRR metrics. A real disposable Postgres smoke test verified pgvector 0.8.2, vector(384), the HNSW cosine index, seven embedded documents, and personality quiz ranking the 16Personalities assessment first without conceptual alias mappings.",
+              "source_json": null,
+              "created_at": "2026-09-03T21:04:15+00:00"
+            },
+            {
+              "id": "RESOURCES-G001-A002-AC02",
+              "activity_id": "RESOURCES-G001-A002",
+              "display_order": 2,
+              "criterion": "Resources suggested through Hub Ask follow the same organization, channel, and learner-group visibility rules as deterministic discovery.",
+              "automated_status": "passed",
+              "manual_status": "passed",
+              "notes": "BOT-115 service regression proves inaccessible exact-title candidates are removed before lexical ranking and pagination; focused Search and Hub advisor permission tests also pass.",
+              "source_json": null,
+              "created_at": "2026-09-07T20:13:23+00:00"
+            },
+            {
+              "id": "RESOURCES-G001-A002-AC03",
+              "activity_id": "RESOURCES-G001-A002",
+              "display_order": 3,
+              "criterion": "A submitted resource search appears as a compact inline response object whose See more action expands and refines the same object in place.",
+              "automated_status": "passed",
+              "manual_status": "passed",
+              "notes": "Hub search regression covers inferred submitted searches and singular/plural matching; production build verifies the compact and expanded responsive response object.",
+              "source_json": null,
+              "created_at": "2026-09-08T04:39:15+00:00"
+            },
+            {
+              "id": "RESOURCES-G001-A002-AC04",
+              "activity_id": "RESOURCES-G001-A002",
+              "display_order": 4,
+              "criterion": "The compact result row remains visible above the selected resource detail workspace and replaces any redundant second resource switcher.",
+              "automated_status": "passed",
+              "manual_status": "passed",
+              "notes": "Focused TypeScript/ESLint, Hub interaction and routing regressions, and the production build verify the compact result row directly controls the existing detail workspace without a duplicate switcher.",
+              "source_json": null,
+              "created_at": "2026-09-08T05:14:05+00:00"
+            },
+            {
+              "id": "RESOURCES-G001-A002-AC05",
+              "activity_id": "RESOURCES-G001-A002",
+              "display_order": 5,
+              "criterion": "A submitted resource search occupies the assistant turn in conversation order, selects its first result by default, and preserves valid alternating history for the learner's next follow-up.",
+              "automated_status": "passed",
+              "manual_status": "passed",
+              "notes": "Hub interaction regression proves the learner search plus assistant search-component event becomes valid alternating advisor history; TypeScript, focused ESLint, routing tests, and the production build passed.",
+              "source_json": null,
+              "created_at": "2026-09-08T05:46:54+00:00"
+            }
+          ],
+          "steps": [
+            {
+              "id": "RESOURCES-G001-A002-S001",
+              "activity_id": "RESOURCES-G001-A002",
+              "display_order": 1,
+              "title": "Search resources",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RESOURCES-G001-A002-S002",
+              "activity_id": "RESOURCES-G001-A002",
+              "display_order": 2,
+              "title": "Filter by resource type",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RESOURCES-G001-A002-S003",
+              "activity_id": "RESOURCES-G001-A002",
+              "display_order": 3,
+              "title": "Filter by access expectation",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RESOURCES-G001-A002-S004",
+              "activity_id": "RESOURCES-G001-A002",
+              "display_order": 4,
+              "title": "Open a matching result",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [
+            {
+              "kind": "code",
+              "path": "apps/api/migrations/versions/i6j7k8l9m0n1_add_resource_search_documents.py",
+              "symbol": null,
+              "responsibility": "Versioned resource search documents and pgvector(384) HNSW index"
+            },
+            {
+              "kind": "code",
+              "path": "apps/api/scripts/backfill_resource_search.py",
+              "symbol": null,
+              "responsibility": "Incremental organization-scoped search-document and embedding backfill"
+            },
+            {
+              "kind": "code",
+              "path": "apps/api/src/routers/hub.py",
+              "symbol": null,
+              "responsibility": "Permission-filtered resource retrieval for grounded Hub answers"
+            },
+            {
+              "kind": "code",
+              "path": "apps/api/src/services/resources.py",
+              "symbol": null,
+              "responsibility": "Resource serialization including aggregate rating summaries used by Hub search cards"
+            },
+            {
+              "kind": "code",
+              "path": "apps/api/src/services/search/resource_lexical.py",
+              "symbol": null,
+              "responsibility": "Lexical-v2 weighted ranking, morphology, typo tolerance, partial fallback, and reciprocal-rank fusion without conceptual aliases"
+            },
+            {
+              "kind": "code",
+              "path": "apps/api/src/services/search/resource_search.py",
+              "symbol": null,
+              "responsibility": "Persistent search projections, self-hosted embeddings, permission-scoped pgvector retrieval, hybrid fusion, and lexical fallback"
+            },
+            {
+              "kind": "code",
+              "path": "apps/api/src/services/search/search.py",
+              "symbol": null,
+              "responsibility": "Organization search response including permission-filtered resources"
+            },
+            {
+              "kind": "code",
+              "path": "apps/cli/src/templates/docker-compose.ts",
+              "symbol": null,
+              "responsibility": "Managed pgvector, pinned Ollama model service, health dependencies, and post-deploy backfill"
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/app/orgs/[orgslug]/(withmenu)/hub/HubExperience.tsx",
+              "symbol": null,
+              "responsibility": "Inline grounded-resource presentation within advisor responses"
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/app/orgs/[orgslug]/(withmenu)/hub/HubQuickSearch.tsx",
+              "symbol": null,
+              "responsibility": "Unified Hub live search results and content-type filtering"
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/app/orgs/[orgslug]/(withmenu)/hub/page.tsx",
+              "symbol": null,
+              "responsibility": "Canonical learner resource entry"
+            },
+            {
+              "kind": "test",
+              "path": "apps/api/src/tests/fixtures/resource_search_relevance.json",
+              "symbol": null,
+              "responsibility": "Reviewed lexical relevance judgments and baseline ranking metrics"
+            },
+            {
+              "kind": "test",
+              "path": "apps/api/src/tests/test_hub_advisor.py",
+              "symbol": null,
+              "responsibility": "Grounding relevance and private-state exclusion coverage"
+            },
+            {
+              "kind": "test",
+              "path": "apps/api/src/tests/test_resource_lexical_search.py",
+              "symbol": null,
+              "responsibility": "Lexical ranking, normalization, visibility-before-ranking, and pagination coverage"
+            },
+            {
+              "kind": "test",
+              "path": "apps/api/src/tests/test_resource_notes_reviews.py",
+              "symbol": null,
+              "responsibility": "Aggregate resource rating and review-count coverage"
+            },
+            {
+              "kind": "test",
+              "path": "apps/api/src/tests/test_search.py",
+              "symbol": null,
+              "responsibility": "Resource result inclusion and pagination coverage"
+            },
+            {
+              "kind": "test",
+              "path": "apps/web/services/hub/__tests__/interaction.test.ts",
+              "symbol": null,
+              "responsibility": "Search intent, lexical matching, transcript role ordering, and resource context regression coverage"
+            },
+            {
+              "kind": "test",
+              "path": "apps/web/services/routing/__tests__/routing.test.ts",
+              "symbol": null,
+              "responsibility": "Hub routing and legacy resource-link continuity"
+            }
+          ],
+          "relationships": []
+        },
+        {
+          "id": "RESOURCES-G001-A003",
+          "goal_id": "RESOURCES-G001",
+          "display_order": 3,
+          "title": "Review a resource",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "complete",
+          "priority": "unset",
+          "implementation_notes": "Hub is the authoritative learner resource workspace. The compact in-conversation card presents description, tags, provider, Library/list context, save/review/open metrics, sharing, external destination, private Notes, attachments, and public Reviews; legacy resource detail URLs redirect into the Hub card.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-08T19:26:29.505811+00:00",
+          "description": "",
+          "goal_title": "Find a useful resource",
+          "group_title": "Find, use, and curate resources",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-90",
+            "effect": "changes",
+            "issue_key": "BOT-90",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-08T19:26:29.505811+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-90",
+            "signed_off_at": "2026-09-08T19:26:29.505811+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 3,
+            "health": "unknown",
+            "id": "RESOURCES-G001-A003",
+            "implementation_notes": "Inspect description, tags, channel context, author/source, access expectation, comments, and external destination.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Review resource details and attribution",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [
+            {
+              "id": "RESOURCES-G001-A003-AC01",
+              "activity_id": "RESOURCES-G001-A003",
+              "display_order": 1,
+              "criterion": "Learner resource details and actions open as an in-conversation Hub card, while legacy detail URLs preserve intent through a Hub redirect.",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "notes": null,
+              "source_json": null,
+              "created_at": "2026-09-07T23:22:08+00:00"
+            },
+            {
+              "id": "RESOURCES-G001-A003-AC02",
+              "activity_id": "RESOURCES-G001-A003",
+              "display_order": 2,
+              "criterion": "The bounded Hub card presents metadata, activity metrics, List membership, private Notes and attachments, Reviews, sharing, and the external destination without navigating to a second details view.",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "notes": null,
+              "source_json": null,
+              "created_at": "2026-09-07T23:22:08+00:00"
+            },
+            {
+              "id": "RESOURCES-G001-A003-AC03",
+              "activity_id": "RESOURCES-G001-A003",
+              "display_order": 3,
+              "criterion": "Header stars initialize and mirror the learner's review rating, draft cancellation discards that temporary selection, and resource action menus remain interactive inside the conversation-resource dialog.",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "notes": null,
+              "source_json": null,
+              "created_at": "2026-09-08T03:49:32+00:00"
+            }
+          ],
+          "steps": [
+            {
+              "id": "RESOURCES-G001-A003-S001",
+              "activity_id": "RESOURCES-G001-A003",
+              "display_order": 1,
+              "title": "Read the resource description",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RESOURCES-G001-A003-S002",
+              "activity_id": "RESOURCES-G001-A003",
+              "display_order": 2,
+              "title": "Review tags and channel context",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RESOURCES-G001-A003-S003",
+              "activity_id": "RESOURCES-G001-A003",
+              "display_order": 3,
+              "title": "Review author or source attribution",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RESOURCES-G001-A003-S004",
+              "activity_id": "RESOURCES-G001-A003",
+              "display_order": 4,
+              "title": "Understand access expectations",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RESOURCES-G001-A003-S005",
+              "activity_id": "RESOURCES-G001-A003",
+              "display_order": 5,
+              "title": "Review discussion and destination",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [
+            {
+              "kind": "code",
+              "path": "apps/web/app/orgs/[orgslug]/(withmenu)/hub/HubResourceContext.tsx",
+              "symbol": null,
+              "responsibility": "Authoritative compact in-conversation resource workspace"
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/app/orgs/[orgslug]/(withmenu)/resource/[resourceuuid]/page.tsx",
+              "symbol": null,
+              "responsibility": "Legacy resource-detail redirect into Hub context"
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/components/Resources/ResourceComments.tsx",
+              "symbol": null,
+              "responsibility": "Synchronized rating draft, cancellation, and review persistence interface"
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/components/Resources/SaveDropdown.tsx",
+              "symbol": null,
+              "responsibility": "Resource action menu portal above modal surfaces"
+            },
+            {
+              "kind": "test",
+              "path": "apps/web/services/routing/__tests__/routing.test.ts",
+              "symbol": null,
+              "responsibility": "Legacy resource links preserve intent by entering the Hub card"
+            }
+          ],
+          "relationships": []
+        },
+        {
+          "id": "RESOURCES-G001-A004",
+          "goal_id": "RESOURCES-G001",
+          "display_order": 4,
+          "title": "Use a resource",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Test return behavior, broken links, and whether completion is inferred or explicitly recorded.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Find a useful resource",
+          "group_title": "Find, use, and curate resources",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 4,
+            "health": "unknown",
+            "id": "RESOURCES-G001-A004",
+            "implementation_notes": "Test return behavior, broken links, and whether completion is inferred or explicitly recorded.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Open an external or hosted resource",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "RESOURCES-G001-A004-S001",
+              "activity_id": "RESOURCES-G001-A004",
+              "display_order": 1,
+              "title": "Open an external resource",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RESOURCES-G001-A004-S002",
+              "activity_id": "RESOURCES-G001-A004",
+              "display_order": 2,
+              "title": "Open a hosted resource",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RESOURCES-G001-A004-S003",
+              "activity_id": "RESOURCES-G001-A004",
+              "display_order": 3,
+              "title": "Return to the resource record",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RESOURCES-G001-A004-S004",
+              "activity_id": "RESOURCES-G001-A004",
+              "display_order": 4,
+              "title": "Record completion when required",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        }
+      ]
+    },
+    {
+      "id": "RESOURCES-G002",
+      "group_id": "RESOURCES",
+      "display_order": 2,
+      "title": "Organize and reflect on resources",
+      "outcome": "A person can retain useful material and connect it to a meaningful result.",
+      "product_state": "live",
+      "health": "unknown",
+      "traceability": "partial",
+      "availability_json": "{\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}",
+      "verification_json": "{\"status\": \"unverified\"}",
+      "signoff_json": "{\"status\": \"not_requested\"}",
+      "original_state": "`Live`",
+      "source_json": "{\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"RESOURCES-G002-A001\", \"implementation_notes\": \"Saving can organize content into personal saved channels.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Save or unsave a resource\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"RESOURCES-G002-A002\", \"implementation_notes\": \"Test whether the resulting personal collection is easy to find later.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Save or follow a channel\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"RESOURCES-G002-A003\", \"implementation_notes\": \"Outcomes can include text, a link, or an uploaded file; open/completion counts provide lightweight engagement signals.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Record a note or outcome\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 4, \"health\": \"unknown\", \"id\": \"RESOURCES-G002-A004\", \"implementation_notes\": \"People can add and manage their own comments; moderators can manage broader discussion.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional` on authentication and moderation rights\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Comment on a resource\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"learner_youth\", \"educator\", \"counselor_mentor\", \"employer\", \"nonprofit_community_partner\"], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"RESOURCES-G002\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"outcome\": \"A person can retain useful material and connect it to a meaningful result.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Organize and reflect on resources\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}",
+      "updated_at": "2026-09-02T21:12:02+00:00",
+      "actors": [
+        "counselor_mentor",
+        "educator",
+        "employer",
+        "learner_youth",
+        "nonprofit_community_partner"
+      ],
+      "activities": [
+        {
+          "id": "RESOURCES-G002-A001",
+          "goal_id": "RESOURCES-G002",
+          "display_order": 1,
+          "title": "Keep a resource in the Library",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "complete",
+          "priority": "unset",
+          "implementation_notes": "A UserSavedResource is the learner's Library membership. Opening, adding to a custom List, writing Notes or attaching media, reviewing, or explicitly saving a resource can establish membership without requiring a default List. Passive suggestion, selection, display, and expansion do not save it. The Hub detail and Library row action menus expose explicit add/remove Library and List actions; later engagement updates preserve custom List membership.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-08T19:26:29.505811+00:00",
+          "description": "",
+          "goal_title": "Organize and reflect on resources",
+          "group_title": "Find, use, and curate resources",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-90",
+            "effect": "changes",
+            "issue_key": "BOT-90",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-08T19:26:29.505811+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-90",
+            "signed_off_at": "2026-09-08T19:26:29.505811+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 1,
+            "health": "unknown",
+            "id": "RESOURCES-G002-A001",
+            "implementation_notes": "Saving can organize content into personal saved channels.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Save or unsave a resource",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [
+            {
+              "id": "RESOURCES-G002-A001-AC01",
+              "activity_id": "RESOURCES-G002-A001",
+              "display_order": 1,
+              "criterion": "Saved resource state and personal channels remain available when resources are accessed through Hub.",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "notes": null,
+              "source_json": null,
+              "created_at": "2026-09-03T21:04:15+00:00"
+            },
+            {
+              "id": "RESOURCES-G002-A001-AC02",
+              "activity_id": "RESOURCES-G002-A001",
+              "display_order": 2,
+              "criterion": "Library membership is independent of custom List membership and no default List is created for new saves.",
+              "automated_status": "passed",
+              "manual_status": "passed",
+              "notes": "API regression verifies no default List is created.",
+              "source_json": null,
+              "created_at": "2026-09-07T21:32:53+00:00"
+            },
+            {
+              "id": "RESOURCES-G002-A001-AC03",
+              "activity_id": "RESOURCES-G002-A001",
+              "display_order": 3,
+              "criterion": "Updating engagement state does not silently remove a resource from its custom Lists.",
+              "automated_status": "passed",
+              "manual_status": "passed",
+              "notes": "API regression verifies engagement updates preserve List membership.",
+              "source_json": null,
+              "created_at": "2026-09-07T21:32:53+00:00"
+            },
+            {
+              "id": "RESOURCES-G002-A001-AC04",
+              "activity_id": "RESOURCES-G002-A001",
+              "display_order": 4,
+              "criterion": "Library membership is established only by opening the destination, adding to a List, writing Notes or attaching media, submitting a review, or explicitly adding to Library; passive display, selection, and expansion do not save.",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "notes": null,
+              "source_json": null,
+              "created_at": "2026-09-08T00:53:59+00:00"
+            }
+          ],
+          "steps": [
+            {
+              "id": "RESOURCES-G002-A001-S001",
+              "activity_id": "RESOURCES-G002-A001",
+              "display_order": 1,
+              "title": "Add a resource to the Library",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-07T21:32:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RESOURCES-G002-A001-S002",
+              "activity_id": "RESOURCES-G002-A001",
+              "display_order": 2,
+              "title": "Remove a resource from the Library",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-07T21:32:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RESOURCES-G002-A001-S003",
+              "activity_id": "RESOURCES-G002-A001",
+              "display_order": 3,
+              "title": "Find the Library resource later",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-07T21:32:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [
+            {
+              "kind": "code",
+              "path": "apps/api/src/services/resources.py",
+              "symbol": "save_resource_for_user",
+              "responsibility": "Independent Library membership and custom List updates"
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/app/orgs/[orgslug]/(withmenu)/hub/HubQuickSearch.tsx",
+              "symbol": null,
+              "responsibility": "Resource discovery path into detail and saved-state actions"
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/app/orgs/[orgslug]/(withmenu)/hub/HubResourceLibrary.tsx",
+              "symbol": null,
+              "responsibility": "In-Hub Library and custom List browser"
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/app/orgs/[orgslug]/(withmenu)/hub/page.tsx",
+              "symbol": null,
+              "responsibility": "Canonical learner resource entry"
+            },
+            {
+              "kind": "test",
+              "path": "apps/api/src/tests/test_resource_notes_reviews.py",
+              "symbol": "test_library_membership_is_independent_from_lists_and_activity_updates_preserve_lists",
+              "responsibility": "Library and List independence regression"
+            },
+            {
+              "kind": "test",
+              "path": "apps/web/services/routing/__tests__/routing.test.ts",
+              "symbol": null,
+              "responsibility": "Hub routing and legacy resource-link continuity"
+            }
+          ],
+          "relationships": []
+        },
+        {
+          "id": "RESOURCES-G002-A002",
+          "goal_id": "RESOURCES-G002",
+          "display_order": 2,
+          "title": "Organize resources into a custom List",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "complete",
+          "priority": "unset",
+          "implementation_notes": "Personal resource channels remain the storage model but are presented to learners as optional custom Lists. Legacy default channels remain compatible and are hidden from current learner controls.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-08T19:26:29.505811+00:00",
+          "description": "",
+          "goal_title": "Organize and reflect on resources",
+          "group_title": "Find, use, and curate resources",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-90",
+            "effect": "changes",
+            "issue_key": "BOT-90",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-08T19:26:29.505811+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-90",
+            "signed_off_at": "2026-09-08T19:26:29.505811+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 2,
+            "health": "unknown",
+            "id": "RESOURCES-G002-A002",
+            "implementation_notes": "Test whether the resulting personal collection is easy to find later.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Save or follow a channel",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [
+            {
+              "id": "RESOURCES-G002-A002-AC01",
+              "activity_id": "RESOURCES-G002-A002",
+              "display_order": 1,
+              "criterion": "Personal saved channels remain discoverable from Hub.",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "notes": null,
+              "source_json": null,
+              "created_at": "2026-09-03T21:04:15+00:00"
+            },
+            {
+              "id": "RESOURCES-G002-A002-AC02",
+              "activity_id": "RESOURCES-G002-A002",
+              "display_order": 2,
+              "criterion": "A learner can add or remove a Library resource from optional custom Lists without changing its Library membership.",
+              "automated_status": "passed",
+              "manual_status": "passed",
+              "notes": "Resource save regression verifies List links are independent from Library membership.",
+              "source_json": null,
+              "created_at": "2026-09-07T21:32:53+00:00"
+            }
+          ],
+          "steps": [
+            {
+              "id": "RESOURCES-G002-A002-S001",
+              "activity_id": "RESOURCES-G002-A002",
+              "display_order": 1,
+              "title": "Add a resource to a custom List",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-07T21:32:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RESOURCES-G002-A002-S002",
+              "activity_id": "RESOURCES-G002-A002",
+              "display_order": 2,
+              "title": "Remove a resource from a custom List",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-07T21:32:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RESOURCES-G002-A002-S003",
+              "activity_id": "RESOURCES-G002-A002",
+              "display_order": 3,
+              "title": "Find a custom List later",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-07T21:32:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [
+            {
+              "kind": "code",
+              "path": "apps/web/app/orgs/[orgslug]/(withmenu)/hub/HubQuickSearch.tsx",
+              "symbol": null,
+              "responsibility": "Resource-channel discovery and query-preserving links"
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/app/orgs/[orgslug]/(withmenu)/hub/HubResourceLibrary.tsx",
+              "symbol": null,
+              "responsibility": "Responsive List navigation, filters, and management actions"
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/app/orgs/[orgslug]/(withmenu)/hub/page.tsx",
+              "symbol": null,
+              "responsibility": "Canonical learner resource entry"
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/components/Resources/SaveDropdown.tsx",
+              "symbol": null,
+              "responsibility": "Learner-facing Library and List controls"
+            },
+            {
+              "kind": "test",
+              "path": "apps/web/services/routing/__tests__/routing.test.ts",
+              "symbol": null,
+              "responsibility": "Hub routing and legacy resource-link continuity"
+            }
+          ],
+          "relationships": []
+        },
+        {
+          "id": "RESOURCES-G002-A003",
+          "goal_id": "RESOURCES-G002",
+          "display_order": 3,
+          "title": "Keep private Notes on a resource",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "complete",
+          "priority": "unset",
+          "implementation_notes": "Private Notes use one editable text surface that saves on blur. Links, pasted/dropped files, and images or PDFs selected/uploaded through the learner Media Library appear in a compact attachment carousel; owned Media Library assets are permission-validated before attachment.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-08T19:26:29.505811+00:00",
+          "description": "",
+          "goal_title": "Organize and reflect on resources",
+          "group_title": "Find, use, and curate resources",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-90",
+            "effect": "changes",
+            "issue_key": "BOT-90",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-08T19:26:29.505811+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-90",
+            "signed_off_at": "2026-09-08T19:26:29.505811+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 3,
+            "health": "unknown",
+            "id": "RESOURCES-G002-A003",
+            "implementation_notes": "Outcomes can include text, a link, or an uploaded file; open/completion counts provide lightweight engagement signals.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Record a note or outcome",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [
+            {
+              "id": "RESOURCES-G002-A003-AC01",
+              "activity_id": "RESOURCES-G002-A003",
+              "display_order": 1,
+              "criterion": "Notes are private to their learner and ordered within the resource.",
+              "automated_status": "passed",
+              "manual_status": "passed",
+              "notes": "Service tests verify owner-only selection and ordering.",
+              "source_json": null,
+              "created_at": "2026-09-07T21:32:53+00:00"
+            },
+            {
+              "id": "RESOURCES-G002-A003-AC02",
+              "activity_id": "RESOURCES-G002-A003",
+              "display_order": 2,
+              "criterion": "A pasted HTTP or HTTPS link becomes an editable card using retrieved title, description, and image metadata when available.",
+              "automated_status": "passed",
+              "manual_status": "passed",
+              "notes": "Service tests verify URL enrichment fields; production build validates editable card UI.",
+              "source_json": null,
+              "created_at": "2026-09-07T21:32:53+00:00"
+            },
+            {
+              "id": "RESOURCES-G002-A003-AC03",
+              "activity_id": "RESOURCES-G002-A003",
+              "display_order": 3,
+              "criterion": "Images and documents can be added through the picker, clipboard paste, or file drag and drop using validated media upload.",
+              "automated_status": "passed",
+              "manual_status": "passed",
+              "notes": "Upload tests cover image and PDF block classification; production build validates paste/drop handlers.",
+              "source_json": null,
+              "created_at": "2026-09-07T21:32:53+00:00"
+            },
+            {
+              "id": "RESOURCES-G002-A003-AC04",
+              "activity_id": "RESOURCES-G002-A003",
+              "display_order": 4,
+              "criterion": "Legacy notes, outcome text, outcome links, and outcome files each migrate exactly once into distinct Note blocks.",
+              "automated_status": "passed",
+              "manual_status": "passed",
+              "notes": "Migration SQL test runs twice and verifies four distinct idempotent blocks.",
+              "source_json": null,
+              "created_at": "2026-09-07T21:32:54+00:00"
+            },
+            {
+              "id": "RESOURCES-G002-A003-AC05",
+              "activity_id": "RESOURCES-G002-A003",
+              "display_order": 5,
+              "criterion": "Selecting or uploading an owned image or PDF through the shared Media Library picker creates a reusable Note attachment without granting access to another learner’s media.",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "notes": null,
+              "source_json": null,
+              "created_at": "2026-09-08T00:18:34+00:00"
+            }
+          ],
+          "steps": [
+            {
+              "id": "RESOURCES-G002-A003-S001",
+              "activity_id": "RESOURCES-G002-A003",
+              "display_order": 1,
+              "title": "Add a text Note",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-07T21:32:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RESOURCES-G002-A003-S002",
+              "activity_id": "RESOURCES-G002-A003",
+              "display_order": 2,
+              "title": "Add an enriched link Note",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-07T21:32:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RESOURCES-G002-A003-S003",
+              "activity_id": "RESOURCES-G002-A003",
+              "display_order": 3,
+              "title": "Paste, drag, or upload Note media",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-07T21:32:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [
+            {
+              "kind": "code",
+              "path": "apps/api/migrations/versions/h5i6j7k8l9m0_link_resource_notes_to_media_library.py",
+              "symbol": null,
+              "responsibility": "Media Library asset reference for Note attachments"
+            },
+            {
+              "kind": "code",
+              "path": "apps/api/src/db/resources.py",
+              "symbol": "ResourceNoteBlock",
+              "responsibility": "Private block-based Notes model"
+            },
+            {
+              "kind": "code",
+              "path": "apps/api/src/services/resources.py",
+              "symbol": "create_note_block",
+              "responsibility": "Permission-safe Notes CRUD, enrichment, and upload"
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/app/orgs/[orgslug]/(withmenu)/hub/HubResourceContext.tsx",
+              "symbol": null,
+              "responsibility": "Inline Notes in active Hub resource context"
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/components/Objects/Media/MediaPickerDialog.tsx",
+              "symbol": null,
+              "responsibility": "Shared choose-from-library or upload-new media workflow"
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/components/Resources/ResourceNotes.tsx",
+              "symbol": null,
+              "responsibility": "Reusable Notes interface with paste and drag/drop"
+            },
+            {
+              "kind": "test",
+              "path": "apps/api/src/tests/test_resource_notes_reviews.py",
+              "symbol": null,
+              "responsibility": "Notes privacy, media, Library membership, and legacy migration coverage"
+            }
+          ],
+          "relationships": []
+        },
+        {
+          "id": "RESOURCES-G002-A004",
+          "goal_id": "RESOURCES-G002",
+          "display_order": 4,
+          "title": "Publish a rating and review",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "complete",
+          "priority": "High",
+          "implementation_notes": "Public resource comments are presented as Reviews. New Reviews require a 1-5 rating and each learner can publish one rated Review per resource; legacy comments remain visible as unrated Reviews. Authors can edit/remove their own Review and existing moderation permissions remain.",
+          "original_state": "`Live` / `Conditional` on authentication and moderation rights",
+          "updated_at": "2026-09-08T19:26:29.505811+00:00",
+          "description": "",
+          "goal_title": "Organize and reflect on resources",
+          "group_title": "Find, use, and curate resources",
+          "availability": {
+            "constraints": [],
+            "mode": "conditional",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-90",
+            "effect": "changes",
+            "issue_key": "BOT-90",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-08T19:26:29.505811+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-90",
+            "signed_off_at": "2026-09-08T19:26:29.505811+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "conditional",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 4,
+            "health": "unknown",
+            "id": "RESOURCES-G002-A004",
+            "implementation_notes": "People can add and manage their own comments; moderators can manage broader discussion.",
+            "lifecycle": "live",
+            "original_state": "`Live` / `Conditional` on authentication and moderation rights",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Comment on a resource",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [
+            {
+              "id": "RESOURCES-G002-A004-AC01",
+              "activity_id": "RESOURCES-G002-A004",
+              "display_order": 1,
+              "criterion": "A new public Review includes a comment and a rating from one to five stars.",
+              "automated_status": "passed",
+              "manual_status": "passed",
+              "notes": "Pydantic and service tests require a 1-5 rating for Review creation.",
+              "source_json": null,
+              "created_at": "2026-09-07T21:33:32+00:00"
+            },
+            {
+              "id": "RESOURCES-G002-A004-AC02",
+              "activity_id": "RESOURCES-G002-A004",
+              "display_order": 2,
+              "criterion": "A learner can have at most one rated Review per resource and can edit or remove it.",
+              "automated_status": "passed",
+              "manual_status": "passed",
+              "notes": "Service regression verifies duplicate rated Reviews return conflict.",
+              "source_json": null,
+              "created_at": "2026-09-07T21:33:32+00:00"
+            },
+            {
+              "id": "RESOURCES-G002-A004-AC03",
+              "activity_id": "RESOURCES-G002-A004",
+              "display_order": 3,
+              "criterion": "Legacy comments remain visible as clearly identified unrated Reviews.",
+              "automated_status": "passed",
+              "manual_status": "passed",
+              "notes": "Service regression verifies legacy null-rated comments remain in the Review feed.",
+              "source_json": null,
+              "created_at": "2026-09-07T21:33:32+00:00"
+            }
+          ],
+          "steps": [
+            {
+              "id": "RESOURCES-G002-A004-S001",
+              "activity_id": "RESOURCES-G002-A004",
+              "display_order": 1,
+              "title": "Publish a rating and review",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-07T21:33:31+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RESOURCES-G002-A004-S002",
+              "activity_id": "RESOURCES-G002-A004",
+              "display_order": 2,
+              "title": "Edit or remove one's own review",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-07T21:33:31+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RESOURCES-G002-A004-S003",
+              "activity_id": "RESOURCES-G002-A004",
+              "display_order": 3,
+              "title": "Read accessible resource reviews",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-07T21:33:32+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [
+            {
+              "kind": "code",
+              "path": "apps/api/src/services/resources.py",
+              "symbol": "create_review",
+              "responsibility": "Rated review integrity and Library interaction"
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/app/orgs/[orgslug]/(withmenu)/hub/HubResourceContext.tsx",
+              "symbol": null,
+              "responsibility": "Inline Notes and Reviews panel navigation with review metrics"
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/components/Resources/ResourceComments.tsx",
+              "symbol": null,
+              "responsibility": "Accessible rating and public review interface"
+            },
+            {
+              "kind": "test",
+              "path": "apps/api/src/tests/test_resource_notes_reviews.py",
+              "symbol": "test_new_reviews_require_rating_and_one_rated_review_per_learner",
+              "responsibility": "Rated and legacy Review regression"
+            }
+          ],
+          "relationships": []
+        },
+        {
+          "id": "RESOURCES-G002-A005",
+          "goal_id": "RESOURCES-G002",
+          "display_order": 5,
+          "title": "Publish a rating and review",
+          "product_state": "cancelled",
+          "health": "not_applicable",
+          "traceability": "none",
+          "priority": "High",
+          "implementation_notes": "Cancelled immediately during planning after discovering RESOURCES-G002-A004 already represented this durable outcome; ID retained as a tombstone.",
+          "original_state": null,
+          "updated_at": "2026-09-07T21:33:31+00:00",
+          "description": "",
+          "goal_title": "Organize and reflect on resources",
+          "group_title": "Find, use, and curate resources",
+          "availability": {},
+          "verification": {},
+          "signoff": {},
+          "source": {},
+          "acceptance": [],
+          "steps": [],
+          "references": [],
+          "relationships": []
+        }
+      ]
+    },
+    {
+      "id": "RESOURCES-G003",
+      "group_id": "RESOURCES",
+      "display_order": 3,
+      "title": "Curate a resource library",
+      "outcome": "Staff can maintain a relevant, navigable collection for particular audiences.",
+      "product_state": "live",
+      "health": "unknown",
+      "traceability": "partial",
+      "availability_json": "{\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}",
+      "verification_json": "{\"status\": \"unverified\"}",
+      "signoff_json": "{\"status\": \"not_requested\"}",
+      "original_state": "`Live`",
+      "source_json": "{\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"RESOURCES-G003-A001\", \"implementation_notes\": \"Create, edit, delete, thumbnail, feature, publish/live-state, tag, and CSV-import workflows are present.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Create and maintain resources\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"RESOURCES-G003-A002\", \"implementation_notes\": \"Curators set description, image, ordering, visibility, and linked resources.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Create and organize channels\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"RESOURCES-G003-A003\", \"implementation_notes\": \"Group access and shared ownership require careful testing for leaks and unclear source ownership.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Restrict a channel to groups or share it across organizations\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 4, \"health\": \"unknown\", \"id\": \"RESOURCES-G003-A004\", \"implementation_notes\": \"Admins can create, edit, and delete resource tags.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Maintain the tag vocabulary\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"educator\", \"counselor_mentor\", \"employer\", \"nonprofit_community_partner\", \"content_author\", \"organization_maintainer\", \"organization_administrator\"], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"RESOURCES-G003\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"outcome\": \"Staff can maintain a relevant, navigable collection for particular audiences.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Curate a resource library\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}",
+      "updated_at": "2026-09-02T21:12:02+00:00",
+      "actors": [
+        "content_author",
+        "counselor_mentor",
+        "educator",
+        "employer",
+        "nonprofit_community_partner",
+        "organization_administrator",
+        "organization_maintainer"
+      ],
+      "activities": [
+        {
+          "id": "RESOURCES-G003-A001",
+          "goal_id": "RESOURCES-G003",
+          "display_order": 1,
+          "title": "Manage a resource",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Create, edit, delete, thumbnail, feature, publish/live-state, tag, and CSV-import workflows are present.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Curate a resource library",
+          "group_title": "Find, use, and curate resources",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 1,
+            "health": "unknown",
+            "id": "RESOURCES-G003-A001",
+            "implementation_notes": "Create, edit, delete, thumbnail, feature, publish/live-state, tag, and CSV-import workflows are present.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Create and maintain resources",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "RESOURCES-G003-A001-S001",
+              "activity_id": "RESOURCES-G003-A001",
+              "display_order": 1,
+              "title": "Create a resource",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RESOURCES-G003-A001-S002",
+              "activity_id": "RESOURCES-G003-A001",
+              "display_order": 2,
+              "title": "Edit resource metadata",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RESOURCES-G003-A001-S003",
+              "activity_id": "RESOURCES-G003-A001",
+              "display_order": 3,
+              "title": "Set the thumbnail",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RESOURCES-G003-A001-S004",
+              "activity_id": "RESOURCES-G003-A001",
+              "display_order": 4,
+              "title": "Tag the resource",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RESOURCES-G003-A001-S005",
+              "activity_id": "RESOURCES-G003-A001",
+              "display_order": 5,
+              "title": "Feature the resource",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RESOURCES-G003-A001-S006",
+              "activity_id": "RESOURCES-G003-A001",
+              "display_order": 6,
+              "title": "Change publication state",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RESOURCES-G003-A001-S007",
+              "activity_id": "RESOURCES-G003-A001",
+              "display_order": 7,
+              "title": "Import resources from CSV",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RESOURCES-G003-A001-S008",
+              "activity_id": "RESOURCES-G003-A001",
+              "display_order": 8,
+              "title": "Delete a resource",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "RESOURCES-G003-A002",
+          "goal_id": "RESOURCES-G003",
+          "display_order": 2,
+          "title": "Manage a resource channel",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Curators set description, image, ordering, visibility, and linked resources.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Curate a resource library",
+          "group_title": "Find, use, and curate resources",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 2,
+            "health": "unknown",
+            "id": "RESOURCES-G003-A002",
+            "implementation_notes": "Curators set description, image, ordering, visibility, and linked resources.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Create and organize channels",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "RESOURCES-G003-A002-S001",
+              "activity_id": "RESOURCES-G003-A002",
+              "display_order": 1,
+              "title": "Create a channel",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RESOURCES-G003-A002-S002",
+              "activity_id": "RESOURCES-G003-A002",
+              "display_order": 2,
+              "title": "Edit channel identity",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RESOURCES-G003-A002-S003",
+              "activity_id": "RESOURCES-G003-A002",
+              "display_order": 3,
+              "title": "Set channel visibility",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RESOURCES-G003-A002-S004",
+              "activity_id": "RESOURCES-G003-A002",
+              "display_order": 4,
+              "title": "Order linked resources",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RESOURCES-G003-A002-S005",
+              "activity_id": "RESOURCES-G003-A002",
+              "display_order": 5,
+              "title": "Reorder channels",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "RESOURCES-G003-A003",
+          "goal_id": "RESOURCES-G003",
+          "display_order": 3,
+          "title": "Control channel access",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Group access and shared ownership require careful testing for leaks and unclear source ownership.",
+          "original_state": "`Live` / `Conditional`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Curate a resource library",
+          "group_title": "Find, use, and curate resources",
+          "availability": {
+            "constraints": [],
+            "mode": "conditional",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "conditional",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 3,
+            "health": "unknown",
+            "id": "RESOURCES-G003-A003",
+            "implementation_notes": "Group access and shared ownership require careful testing for leaks and unclear source ownership.",
+            "lifecycle": "live",
+            "original_state": "`Live` / `Conditional`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Restrict a channel to groups or share it across organizations",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "RESOURCES-G003-A003-S001",
+              "activity_id": "RESOURCES-G003-A003",
+              "display_order": 1,
+              "title": "Restrict a channel to groups",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RESOURCES-G003-A003-S002",
+              "activity_id": "RESOURCES-G003-A003",
+              "display_order": 2,
+              "title": "Share a channel across organizations",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RESOURCES-G003-A003-S003",
+              "activity_id": "RESOURCES-G003-A003",
+              "display_order": 3,
+              "title": "Review shared ownership",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "RESOURCES-G003-A004",
+          "goal_id": "RESOURCES-G003",
+          "display_order": 4,
+          "title": "Maintain the tag vocabulary",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Admins can create, edit, and delete resource tags.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Curate a resource library",
+          "group_title": "Find, use, and curate resources",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 4,
+            "health": "unknown",
+            "id": "RESOURCES-G003-A004",
+            "implementation_notes": "Admins can create, edit, and delete resource tags.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Maintain the tag vocabulary",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "RESOURCES-G003-A004-S001",
+              "activity_id": "RESOURCES-G003-A004",
+              "display_order": 1,
+              "title": "Create a resource tag",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RESOURCES-G003-A004-S002",
+              "activity_id": "RESOURCES-G003-A004",
+              "display_order": 2,
+              "title": "Edit a resource tag",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RESOURCES-G003-A004-S003",
+              "activity_id": "RESOURCES-G003-A004",
+              "display_order": 3,
+              "title": "Delete a resource tag",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        }
+      ]
+    }
+  ]
+}

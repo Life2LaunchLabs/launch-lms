@@ -1,0 +1,42 @@
+{
+  "policy": "Counts are debt ceilings, not approvals. New violations and growth fail.",
+  "rules": {
+    "api-db-imports-router": {},
+    "api-service-imports-router": {
+      "apps/api/src/services/orgs/join.py": 2,
+      "apps/api/src/services/orgs/orgs.py": 3,
+      "apps/api/src/services/orgs/users.py": 4,
+      "apps/api/src/services/roles/roles.py": 2,
+      "apps/api/src/services/sso/sso.py": 1,
+      "apps/api/src/services/superadmin/orgs.py": 2,
+      "apps/api/src/services/superadmin/users.py": 1
+    },
+    "api-unstructured-print": {},
+    "component-direct-fetch": {
+      "apps/web/components/Admin/CandidateFeedbackQueue.tsx": 1,
+      "apps/web/components/Admin/Programs/ProgramAssignmentWizard.tsx": 1,
+      "apps/web/components/Admin/Programs/ProgramObjectiveEditorRow.tsx": 1,
+      "apps/web/components/Contexts/AuthContext.tsx": 7,
+      "apps/web/components/Dashboard/Boards/Tabs/BoardThumbnailTab.tsx": 1,
+      "apps/web/components/Dashboard/Pages/Community/CommunityEditThumbnail.tsx": 1,
+      "apps/web/components/Dashboard/Pages/Org/OrgAuditLogs/OrgAuditLogs.tsx": 1,
+      "apps/web/components/Dashboard/Pages/Org/OrgEditAI/OrgEditAI.tsx": 1,
+      "apps/web/components/Dashboard/Pages/Org/OrgEditAPIAccess/APIDocumentation.tsx": 1,
+      "apps/web/components/Dashboard/Pages/Org/OrgEditFeatures/OrgEditFeatures.tsx": 1,
+      "apps/web/components/Hooks/useActivityVersioning.tsx": 1,
+      "apps/web/components/Hooks/useProgramInvitations.ts": 1,
+      "apps/web/components/Objects/Modals/FeedbackModal.tsx": 2,
+      "apps/web/components/Objects/Modals/Podcast/Create/CreatePodcast.tsx": 1,
+      "apps/web/components/Pages/Portfolio/PortfolioShareDialog.tsx": 1,
+      "apps/web/components/Pages/Portfolio/PortfolioShell.tsx": 4
+    },
+    "component-direct-mui": {
+      "apps/web/components/Admin/Programs/RequirementsAdmin.tsx": 2
+    },
+    "web-service-imports-ui": {},
+    "web-unstructured-console": {
+      "apps/web/ee/services/scorm/ScormRuntimeAPI.ts": 3
+    }
+  },
+  "schema_version": 1
+}

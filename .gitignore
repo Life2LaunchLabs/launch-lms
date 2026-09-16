@@ -66,6 +66,7 @@ apps/web/runtime-config.json
 apps/cli/dist/
 
 # agent files
+.agent/
 CLAUDE.md 
 .codex
 TODO.md

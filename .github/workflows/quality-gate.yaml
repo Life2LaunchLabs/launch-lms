@@ -1,0 +1,108 @@
+name: Quality Gate
+
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    outputs:
+      api: ${{ steps.plan.outputs.api }}
+      web: ${{ steps.plan.outputs.web }}
+      browser: ${{ steps.plan.outputs.browser }}
+      full: ${{ steps.plan.outputs.full }}
+      docs_only: ${{ steps.plan.outputs.docs_only }}
+      files: ${{ steps.plan.outputs.files }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - id: plan
+        name: Classify changed files
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: python3 scripts/quality-plan.py "$BASE_SHA" HEAD --github-output "$GITHUB_OUTPUT"
+
+  contracts:
+    needs: analyze
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Validate repository-owned truth
+        run: ./scripts/agent docs
+      - name: Validate release contracts
+        run: python3 -m unittest discover -s scripts/ci -p 'test_*.py' -v
+
+  api:
+    needs: analyze
+    if: needs.analyze.outputs.api == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14.3"
+      - uses: astral-sh/setup-uv@v7
+        with:
+          version: latest
+      - name: Install API dependencies
+        run: uv sync --frozen
+        working-directory: apps/api
+      - name: Lint API
+        run: uvx ruff check src
+        working-directory: apps/api
+      - name: Test API
+        run: uv run pytest src/tests -q
+        working-directory: apps/api
+        env:
+          TESTING: "true"
+
+  web:
+    needs: analyze
+    if: needs.analyze.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install web dependencies
+        run: bun install --frozen-lockfile
+        working-directory: apps/web
+      - name: Lint, type check, and unit test web
+        run: bun run lint && bun run typecheck && bun run test:unit
+        working-directory: apps/web
+
+  browser:
+    needs: analyze
+    if: needs.analyze.outputs.browser == 'true'
+    uses: ./.github/workflows/browser-ui.yaml
+
+  quality-gate:
+    name: quality-gate
+    if: always()
+    needs: [analyze, contracts, api, web, browser]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every selected check
+        env:
+          ANALYZE: ${{ needs.analyze.result }}
+          CONTRACTS: ${{ needs.contracts.result }}
+          API: ${{ needs.api.result }}
+          WEB: ${{ needs.web.result }}
+          BROWSER: ${{ needs.browser.result }}
+        run: |
+          for result in "$ANALYZE" "$CONTRACTS" "$API" "$WEB" "$BROWSER"; do
+            case "$result" in success|skipped) ;; *) exit 1 ;; esac
+          done
+          printf 'quality-gate passed (api=%s web=%s browser=%s)\n' "$API" "$WEB" "$BROWSER"

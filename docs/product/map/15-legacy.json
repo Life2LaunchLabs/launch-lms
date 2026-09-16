@@ -1,0 +1,1056 @@
+{
+  "id": "LEGACY",
+  "display_order": 15,
+  "title": "Legacy, compatibility, and not-yet-delivered scope",
+  "intent": "Make non-current capabilities visible so research does not confuse historical code, migrations, or intentions with the current product proposition.",
+  "product_areas": "Legacy courses/dashboard/program routes, migration helpers, SCORM remnants, deployment/CLI.",
+  "model_distinction": null,
+  "source_json": "{\"baseline\": {\"derived_at\": \"2026-09-02\", \"source\": \"PRODUCT_ACTIVITY_HIERARCHY.md\", \"traceability\": \"partial\", \"verification\": \"unverified\"}, \"display_order\": 15, \"goals\": [{\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"LEGACY-G001-A001\", \"implementation_notes\": \"README, payment UI copy, database aliases, and older components still use “course,” while current product direction centers badge learning paths. Treat terminology mismatches as defects or migration work, not separate present-day user goals.\", \"lifecycle\": \"deprecated\", \"original_state\": \"`Legacy`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Recognize legacy course terminology\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"LEGACY-G001-A002\", \"implementation_notes\": \"Older program endpoints/admin routes coexist with newer plan/template/personal-plan concepts. Validate the intended vocabulary before formalizing focus-group prompts.\", \"lifecycle\": \"live\", \"original_state\": \"`Legacy` / `Live` overlap\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Recognize overlapping program and plan routes\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"partial\", \"id\": \"LEGACY-G001-A003\", \"implementation_notes\": \"Several old organization-management and nested board routes redirect to newer locations; general analytics redirects away entirely.\", \"lifecycle\": \"deprecated\", \"original_state\": \"`Legacy` / `Partial`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Recognize legacy dashboard catch-all routes and redirects\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 4, \"health\": \"unknown\", \"id\": \"LEGACY-G001-A004\", \"implementation_notes\": \"Portfolio import and selected badge/package imports are supported; migration is an operator/admin activity, not a core learner journey.\", \"lifecycle\": \"live\", \"original_state\": \"`Legacy` / `Live` migration aid\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Import or migrate legacy data where supported\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"content_author\", \"organization_administrator\", \"platform_administrator\", \"self_hosting_operator\"], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"partial\", \"id\": \"LEGACY-G001\", \"lifecycle\": \"deprecated\", \"original_state\": \"`Legacy` / `Partial`\", \"outcome\": \"Product and research teams can identify transitional concepts without promising them as current workflows.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Interpret older product concepts safely\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unavailable\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unavailable\", \"id\": \"LEGACY-G002-A001\", \"implementation_notes\": \"Do not present SCORM import/playback as a testable capability until a complete implementation is restored.\", \"lifecycle\": \"removed\", \"original_state\": \"`Planned` / removed backend with front-end remnants noted in project TODOs\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Treat SCORM as not currently supported\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"LEGACY-G002-A002\", \"implementation_notes\": \"The monorepo includes self-hosting, collaboration-server, configuration, migration, and CLI concerns. Include them only in a dedicated operator study.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` for technical operation, outside the main stakeholder activity map\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Treat deployment and CLI workflows as operator tooling\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"LEGACY-G002-A003\", \"implementation_notes\": \"Examples include additional résumé templates and unresolved navigation/naming improvements. Convert them to proposals only when linked to observed user need.\", \"lifecycle\": \"planned\", \"original_state\": \"`Planned`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Treat TODO ideas as hypotheses, not current activities\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"content_author\", \"organization_administrator\", \"platform_administrator\", \"self_hosting_operator\"], \"availability\": {\"constraints\": [], \"mode\": \"service_only\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"LEGACY-G002\", \"lifecycle\": \"planned\", \"original_state\": \"`Planned` / `Service only`\", \"outcome\": \"Feedback sessions clearly separate unmet needs from broken current functionality.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Avoid testing unsupported intentions as delivered features\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"id\": \"LEGACY\", \"intent\": \"Make non-current capabilities visible so research does not confuse historical code, migrations, or intentions with the current product proposition.\", \"model_distinction\": null, \"product_areas\": \"Legacy courses/dashboard/program routes, migration helpers, SCORM remnants, deployment/CLI.\", \"source_refs\": [\"README.md\", \"TODO.md\", \"apps/web/app/orgs/[orgslug]/dash\", \"apps/api/src/routers/courses\", \"apps/api/src/services/courses\"], \"title\": \"Legacy, compatibility, and not-yet-delivered scope\"}",
+  "goals": [
+    {
+      "id": "LEGACY-G001",
+      "group_id": "LEGACY",
+      "display_order": 1,
+      "title": "Interpret older product concepts safely",
+      "outcome": "Product and research teams can identify transitional concepts without promising them as current workflows.",
+      "product_state": "deprecated",
+      "health": "partial",
+      "traceability": "partial",
+      "availability_json": "{\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}",
+      "verification_json": "{\"status\": \"unverified\"}",
+      "signoff_json": "{\"status\": \"not_requested\"}",
+      "original_state": "`Legacy` / `Partial`",
+      "source_json": "{\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"LEGACY-G001-A001\", \"implementation_notes\": \"README, payment UI copy, database aliases, and older components still use “course,” while current product direction centers badge learning paths. Treat terminology mismatches as defects or migration work, not separate present-day user goals.\", \"lifecycle\": \"deprecated\", \"original_state\": \"`Legacy`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Recognize legacy course terminology\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"LEGACY-G001-A002\", \"implementation_notes\": \"Older program endpoints/admin routes coexist with newer plan/template/personal-plan concepts. Validate the intended vocabulary before formalizing focus-group prompts.\", \"lifecycle\": \"live\", \"original_state\": \"`Legacy` / `Live` overlap\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Recognize overlapping program and plan routes\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"partial\", \"id\": \"LEGACY-G001-A003\", \"implementation_notes\": \"Several old organization-management and nested board routes redirect to newer locations; general analytics redirects away entirely.\", \"lifecycle\": \"deprecated\", \"original_state\": \"`Legacy` / `Partial`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Recognize legacy dashboard catch-all routes and redirects\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 4, \"health\": \"unknown\", \"id\": \"LEGACY-G001-A004\", \"implementation_notes\": \"Portfolio import and selected badge/package imports are supported; migration is an operator/admin activity, not a core learner journey.\", \"lifecycle\": \"live\", \"original_state\": \"`Legacy` / `Live` migration aid\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Import or migrate legacy data where supported\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"content_author\", \"organization_administrator\", \"platform_administrator\", \"self_hosting_operator\"], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"partial\", \"id\": \"LEGACY-G001\", \"lifecycle\": \"deprecated\", \"original_state\": \"`Legacy` / `Partial`\", \"outcome\": \"Product and research teams can identify transitional concepts without promising them as current workflows.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Interpret older product concepts safely\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}",
+      "updated_at": "2026-09-02T21:12:02+00:00",
+      "actors": [
+        "content_author",
+        "organization_administrator",
+        "platform_administrator",
+        "self_hosting_operator"
+      ],
+      "activities": [
+        {
+          "id": "LEGACY-G001-A001",
+          "goal_id": "LEGACY-G001",
+          "display_order": 1,
+          "title": "Recognize legacy course terminology",
+          "product_state": "deprecated",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "README, payment UI copy, database aliases, and older components still use “course,” while current product direction centers badge learning paths. Treat terminology mismatches as defects or migration work, not separate present-day user goals.",
+          "original_state": "`Legacy`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Interpret older product concepts safely",
+          "group_title": "Legacy, compatibility, and not-yet-delivered scope",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 1,
+            "health": "unknown",
+            "id": "LEGACY-G001-A001",
+            "implementation_notes": "README, payment UI copy, database aliases, and older components still use “course,” while current product direction centers badge learning paths. Treat terminology mismatches as defects or migration work, not separate present-day user goals.",
+            "lifecycle": "deprecated",
+            "original_state": "`Legacy`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Recognize legacy course terminology",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "LEGACY-G001-A001-S001",
+              "activity_id": "LEGACY-G001-A001",
+              "display_order": 1,
+              "title": "Recognize legacy course copy",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "deprecated",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "LEGACY-G001-A001-S002",
+              "activity_id": "LEGACY-G001-A001",
+              "display_order": 2,
+              "title": "Map course language to current badge learning paths",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "deprecated",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "LEGACY-G001-A001-S003",
+              "activity_id": "LEGACY-G001-A001",
+              "display_order": 3,
+              "title": "Record a terminology defect instead of a new goal",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "deprecated",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "LEGACY-G001-A002",
+          "goal_id": "LEGACY-G001",
+          "display_order": 2,
+          "title": "Interpret overlapping plan concepts",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Older program endpoints and admin routes coexist with newer plan-template, assignment, and live-plan concepts. Validate the intended plan vocabulary before formalizing focus-group prompts.",
+          "original_state": "`Legacy` / `Live` overlap",
+          "updated_at": "2026-09-04T01:50:43+00:00",
+          "description": "",
+          "goal_title": "Interpret older product concepts safely",
+          "group_title": "Legacy, compatibility, and not-yet-delivered scope",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 2,
+            "health": "unknown",
+            "id": "LEGACY-G001-A002",
+            "implementation_notes": "Older program endpoints/admin routes coexist with newer plan/template/personal-plan concepts. Validate the intended vocabulary before formalizing focus-group prompts.",
+            "lifecycle": "live",
+            "original_state": "`Legacy` / `Live` overlap",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Recognize overlapping program and plan routes",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "LEGACY-G001-A002-S001",
+              "activity_id": "LEGACY-G001-A002",
+              "display_order": 1,
+              "title": "Identify an older program route",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "LEGACY-G001-A002-S002",
+              "activity_id": "LEGACY-G001-A002",
+              "display_order": 2,
+              "title": "Identify the corresponding plan or template concept",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "LEGACY-G001-A002-S003",
+              "activity_id": "LEGACY-G001-A002",
+              "display_order": 3,
+              "title": "Use the intended vocabulary in research or planning",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "LEGACY-G001-A003",
+          "goal_id": "LEGACY-G001",
+          "display_order": 3,
+          "title": "Interpret a legacy redirect",
+          "product_state": "deprecated",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Several old organization-management and nested board routes redirect to newer locations; general analytics redirects away entirely.",
+          "original_state": "`Legacy` / `Partial`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Interpret older product concepts safely",
+          "group_title": "Legacy, compatibility, and not-yet-delivered scope",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 3,
+            "health": "partial",
+            "id": "LEGACY-G001-A003",
+            "implementation_notes": "Several old organization-management and nested board routes redirect to newer locations; general analytics redirects away entirely.",
+            "lifecycle": "deprecated",
+            "original_state": "`Legacy` / `Partial`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Recognize legacy dashboard catch-all routes and redirects",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "LEGACY-G001-A003-S001",
+              "activity_id": "LEGACY-G001-A003",
+              "display_order": 1,
+              "title": "Open an older organization-management route",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "deprecated",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "LEGACY-G001-A003-S002",
+              "activity_id": "LEGACY-G001-A003",
+              "display_order": 2,
+              "title": "Open an older nested-board route",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "deprecated",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "LEGACY-G001-A003-S003",
+              "activity_id": "LEGACY-G001-A003",
+              "display_order": 3,
+              "title": "Recognize the general-analytics redirect",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "deprecated",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "LEGACY-G001-A003-S004",
+              "activity_id": "LEGACY-G001-A003",
+              "display_order": 4,
+              "title": "Follow the supported destination",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "deprecated",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "LEGACY-G001-A004",
+          "goal_id": "LEGACY-G001",
+          "display_order": 4,
+          "title": "Migrate supported legacy data",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Portfolio import and selected badge/package imports are supported; migration is an operator/admin activity, not a core learner journey.",
+          "original_state": "`Legacy` / `Live` migration aid",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Interpret older product concepts safely",
+          "group_title": "Legacy, compatibility, and not-yet-delivered scope",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 4,
+            "health": "unknown",
+            "id": "LEGACY-G001-A004",
+            "implementation_notes": "Portfolio import and selected badge/package imports are supported; migration is an operator/admin activity, not a core learner journey.",
+            "lifecycle": "live",
+            "original_state": "`Legacy` / `Live` migration aid",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Import or migrate legacy data where supported",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "LEGACY-G001-A004-S001",
+              "activity_id": "LEGACY-G001-A004",
+              "display_order": 1,
+              "title": "Import legacy portfolio content",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "LEGACY-G001-A004-S002",
+              "activity_id": "LEGACY-G001-A004",
+              "display_order": 2,
+              "title": "Import a supported badge or package",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "LEGACY-G001-A004-S003",
+              "activity_id": "LEGACY-G001-A004",
+              "display_order": 3,
+              "title": "Review the migrated result",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        }
+      ]
+    },
+    {
+      "id": "LEGACY-G002",
+      "group_id": "LEGACY",
+      "display_order": 2,
+      "title": "Avoid testing unsupported intentions as delivered features",
+      "outcome": "Feedback sessions clearly separate unmet needs from broken current functionality.",
+      "product_state": "planned",
+      "health": "unknown",
+      "traceability": "partial",
+      "availability_json": "{\"constraints\": [], \"mode\": \"service_only\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}",
+      "verification_json": "{\"status\": \"unverified\"}",
+      "signoff_json": "{\"status\": \"not_requested\"}",
+      "original_state": "`Planned` / `Service only`",
+      "source_json": "{\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unavailable\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unavailable\", \"id\": \"LEGACY-G002-A001\", \"implementation_notes\": \"Do not present SCORM import/playback as a testable capability until a complete implementation is restored.\", \"lifecycle\": \"removed\", \"original_state\": \"`Planned` / removed backend with front-end remnants noted in project TODOs\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Treat SCORM as not currently supported\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"LEGACY-G002-A002\", \"implementation_notes\": \"The monorepo includes self-hosting, collaboration-server, configuration, migration, and CLI concerns. Include them only in a dedicated operator study.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` for technical operation, outside the main stakeholder activity map\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Treat deployment and CLI workflows as operator tooling\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"LEGACY-G002-A003\", \"implementation_notes\": \"Examples include additional résumé templates and unresolved navigation/naming improvements. Convert them to proposals only when linked to observed user need.\", \"lifecycle\": \"planned\", \"original_state\": \"`Planned`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Treat TODO ideas as hypotheses, not current activities\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"content_author\", \"organization_administrator\", \"platform_administrator\", \"self_hosting_operator\"], \"availability\": {\"constraints\": [], \"mode\": \"service_only\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"LEGACY-G002\", \"lifecycle\": \"planned\", \"original_state\": \"`Planned` / `Service only`\", \"outcome\": \"Feedback sessions clearly separate unmet needs from broken current functionality.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Avoid testing unsupported intentions as delivered features\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}",
+      "updated_at": "2026-09-02T21:12:02+00:00",
+      "actors": [
+        "content_author",
+        "organization_administrator",
+        "platform_administrator",
+        "self_hosting_operator"
+      ],
+      "activities": [
+        {
+          "id": "LEGACY-G002-A001",
+          "goal_id": "LEGACY-G002",
+          "display_order": 1,
+          "title": "Treat SCORM as not currently supported",
+          "product_state": "removed",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Do not present SCORM import/playback as a testable capability until a complete implementation is restored.",
+          "original_state": "`Planned` / removed backend with front-end remnants noted in project TODOs",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Avoid testing unsupported intentions as delivered features",
+          "group_title": "Legacy, compatibility, and not-yet-delivered scope",
+          "availability": {
+            "constraints": [],
+            "mode": "unavailable",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unavailable",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 1,
+            "health": "unavailable",
+            "id": "LEGACY-G002-A001",
+            "implementation_notes": "Do not present SCORM import/playback as a testable capability until a complete implementation is restored.",
+            "lifecycle": "removed",
+            "original_state": "`Planned` / removed backend with front-end remnants noted in project TODOs",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Treat SCORM as not currently supported",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "LEGACY-G002-A001-S001",
+              "activity_id": "LEGACY-G002-A001",
+              "display_order": 1,
+              "title": "Recognize SCORM as removed",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "removed",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "LEGACY-G002-A001-S002",
+              "activity_id": "LEGACY-G002-A001",
+              "display_order": 2,
+              "title": "Avoid presenting SCORM as a delivered workflow",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "removed",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "LEGACY-G002-A002",
+          "goal_id": "LEGACY-G002",
+          "display_order": 2,
+          "title": "Use operator tooling",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "The monorepo includes self-hosting, collaboration-server, configuration, migration, and CLI concerns. Include them only in a dedicated operator study.",
+          "original_state": "`Live` for technical operation, outside the main stakeholder activity map",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Avoid testing unsupported intentions as delivered features",
+          "group_title": "Legacy, compatibility, and not-yet-delivered scope",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 2,
+            "health": "unknown",
+            "id": "LEGACY-G002-A002",
+            "implementation_notes": "The monorepo includes self-hosting, collaboration-server, configuration, migration, and CLI concerns. Include them only in a dedicated operator study.",
+            "lifecycle": "live",
+            "original_state": "`Live` for technical operation, outside the main stakeholder activity map",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Treat deployment and CLI workflows as operator tooling",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "LEGACY-G002-A002-S001",
+              "activity_id": "LEGACY-G002-A002",
+              "display_order": 1,
+              "title": "Deploy a self-hosted installation",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "LEGACY-G002-A002-S002",
+              "activity_id": "LEGACY-G002-A002",
+              "display_order": 2,
+              "title": "Run a supported CLI workflow",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "LEGACY-G002-A002-S003",
+              "activity_id": "LEGACY-G002-A002",
+              "display_order": 3,
+              "title": "Configure or migrate an installation",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "LEGACY-G002-A002-S004",
+              "activity_id": "LEGACY-G002-A002",
+              "display_order": 4,
+              "title": "Study the workflow only with platform operators",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "LEGACY-G002-A003",
+          "goal_id": "LEGACY-G002",
+          "display_order": 3,
+          "title": "Treat TODO ideas as hypotheses, not current activities",
+          "product_state": "planned",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Examples include additional résumé templates and unresolved navigation/naming improvements. Convert them to proposals only when linked to observed user need.",
+          "original_state": "`Planned`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Avoid testing unsupported intentions as delivered features",
+          "group_title": "Legacy, compatibility, and not-yet-delivered scope",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 3,
+            "health": "unknown",
+            "id": "LEGACY-G002-A003",
+            "implementation_notes": "Examples include additional résumé templates and unresolved navigation/naming improvements. Convert them to proposals only when linked to observed user need.",
+            "lifecycle": "planned",
+            "original_state": "`Planned`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Treat TODO ideas as hypotheses, not current activities",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "LEGACY-G002-A003-S001",
+              "activity_id": "LEGACY-G002-A003",
+              "display_order": 1,
+              "title": "Identify a TODO as an unvalidated hypothesis",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "planned",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "LEGACY-G002-A003-S002",
+              "activity_id": "LEGACY-G002-A003",
+              "display_order": 2,
+              "title": "Connect the hypothesis to an observed need",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "planned",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "LEGACY-G002-A003-S003",
+              "activity_id": "LEGACY-G002-A003",
+              "display_order": 3,
+              "title": "Create a proposal before treating it as planned behavior",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "planned",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        }
+      ]
+    }
+  ]
+}

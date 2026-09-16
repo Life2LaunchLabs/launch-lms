@@ -1,0 +1,3044 @@
+{
+  "id": "COMMUNITY",
+  "display_order": 8,
+  "title": "Participate in communication and community",
+  "intent": "Keep members informed and create places for peer and stakeholder exchange.",
+  "product_areas": "Inbox messages, retired News, communities, discussions, comments, votes, and reactions.",
+  "model_distinction": null,
+  "source_json": "{\"baseline\": {\"derived_at\": \"2026-09-02\", \"source\": \"PRODUCT_ACTIVITY_HIERARCHY.md\", \"traceability\": \"partial\", \"verification\": \"unverified\"}, \"display_order\": 8, \"goals\": [{\"activities\": [{\"acceptance\": [{\"criterion\": \"News is absent from member navigation and cannot be opened through its former public routes after sunset.\", \"id\": \"COMMUNITY-G001-A001-AC01\", \"status\": \"passed\"}], \"availability\": {\"constraints\": [\"feature_flag_disabled_by_default\"], \"feature_flags\": [\"NEXT_PUBLIC_LAUNCHLMS_ENABLE_LEGACY_NEWS\"], \"mode\": \"unavailable\", \"notes\": \"Set the shared web/API flag true to restore retained News routes and navigation.\"}, \"code_refs\": [{\"path\": \"apps/web/app/orgs/[orgslug]/(withmenu)/news\", \"responsibility\": \"Public News routes return not found while the legacy flag is disabled.\"}, {\"path\": \"apps/web/components/Objects/Menus/OrgMenuLinks.tsx\", \"responsibility\": \"Shows News only when the legacy flag is enabled.\"}], \"display_order\": 1, \"health\": \"unavailable\", \"id\": \"COMMUNITY-G001-A001\", \"implementation_notes\": \"Sunset approved 2026-09-02. Keep implementation and stored articles intact for easy restoration, but remove all supported access and navigation. Candidate for later permanent removal.\", \"lifecycle\": \"sunset\", \"original_state\": \"`Live` / `Conditional` on publication\", \"relationships\": [], \"signoff\": {\"status\": \"pending\"}, \"test_refs\": [{\"path\": \"apps/web/services/routing/__tests__/routing.test.ts\", \"responsibility\": \"Current public News route expectations to replace with sunset behavior.\"}], \"title\": \"Browse featured and recent news\", \"traceability\": \"complete\", \"verification\": {\"status\": \"ready\"}}, {\"acceptance\": [{\"criterion\": \"Former article URLs no longer expose News content after sunset.\", \"id\": \"COMMUNITY-G001-A002-AC01\", \"status\": \"passed\"}], \"availability\": {\"constraints\": [\"feature_flag_disabled_by_default\"], \"feature_flags\": [\"NEXT_PUBLIC_LAUNCHLMS_ENABLE_LEGACY_NEWS\"], \"mode\": \"unavailable\", \"notes\": \"Retained article routes can be restored with the shared legacy News flag.\"}, \"code_refs\": [{\"path\": \"apps/web/app/orgs/[orgslug]/(withmenu)/news/[slug]/page.tsx\", \"responsibility\": \"Public article route to disable at sunset.\"}, {\"path\": \"apps/api/src/routers/news.py\", \"responsibility\": \"Retained API rejects requests while the legacy News flag is disabled.\"}], \"display_order\": 2, \"health\": \"unavailable\", \"id\": \"COMMUNITY-G001-A002\", \"implementation_notes\": \"Sunset approved 2026-09-02. Historical implementation supports internal and external articles; retain it for restoration while making it unreachable.\", \"lifecycle\": \"sunset\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"pending\"}, \"test_refs\": [], \"title\": \"Read an internal article or follow an external story\", \"traceability\": \"complete\", \"verification\": {\"status\": \"ready\"}}, {\"acceptance\": [{\"criterion\": \"Creating an organization or plan invitation creates exactly one actionable inbox message.\", \"id\": \"COMMUNITY-G001-A003-AC01\", \"status\": \"not_tested\"}, {\"criterion\": \"An invitation sent before account creation appears after the matching account opens its inbox.\", \"id\": \"COMMUNITY-G001-A003-AC02\", \"status\": \"not_tested\"}, {\"criterion\": \"Accepting or declining from either the inbox or a retained invitation endpoint updates the message state.\", \"id\": \"COMMUNITY-G001-A003-AC03\", \"status\": \"not_tested\"}], \"availability\": {\"constraints\": [], \"mode\": \"authenticated\", \"notes\": \"Invitation domain records authorize the action; durable messages own presentation and unread state.\"}, \"code_refs\": [{\"path\": \"apps/api/src/services/orgs/users.py\", \"responsibility\": \"Creates organization-invitation messages in the invitation transaction.\"}, {\"path\": \"apps/api/src/services/planning.py\", \"responsibility\": \"Creates plan-invitation messages, including assigned-program compatibility paths.\"}, {\"path\": \"apps/api/src/routers/messages.py\", \"responsibility\": \"Dispatches message actions through existing secured invitation services.\"}], \"display_order\": 3, \"health\": \"works\", \"id\": \"COMMUNITY-G001-A003\", \"implementation_notes\": \"Program assignment invitations materialize as plan invitations and therefore create one plan message; the legacy ProgramParticipant unread field is no longer an inbox source.\", \"lifecycle\": \"ready_for_verification\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"pending\"}, \"test_refs\": [{\"path\": \"apps/api/src/tests/test_organization_invitations.py\", \"responsibility\": \"Verifies organization invitations create durable messages.\"}, {\"path\": \"apps/api/src/tests/test_planning.py\", \"responsibility\": \"Verifies plan invitation messages and synchronized action state.\"}], \"title\": \"Receive and respond to an invitation as an inbox message\", \"traceability\": \"complete\", \"verification\": {\"status\": \"ready\"}}, {\"acceptance\": [{\"criterion\": \"The Messages page displays welcome, invitation, and future message types from one durable inbox feed.\", \"id\": \"COMMUNITY-G001-A004-AC01\", \"status\": \"not_tested\"}, {\"criterion\": \"The account and navigation unread badges count every unread inbox message.\", \"id\": \"COMMUNITY-G001-A004-AC02\", \"status\": \"not_tested\"}, {\"criterion\": \"Opening Messages marks the inbox messages as read.\", \"id\": \"COMMUNITY-G001-A004-AC03\", \"status\": \"not_tested\"}, {\"criterion\": \"An API failure is explained without presenting an incorrect empty-inbox state.\", \"id\": \"COMMUNITY-G001-A004-AC04\", \"status\": \"not_tested\"}], \"availability\": {\"constraints\": [], \"mode\": \"authenticated\", \"notes\": \"Durable inbox messages are the only source for the inbox and its unread count.\"}, \"boundary_cases\": [\"Empty inbox\", \"Inbox API failure\", \"More than nine unread items in compact navigation\"], \"code_refs\": [{\"path\": \"apps/web/components/Objects/Account/subpages/AccountMessages.tsx\", \"responsibility\": \"Canonical inbox UI for all durable message types and actions.\"}, {\"path\": \"apps/web/components/Objects/Account/AccountPageShell.tsx\", \"responsibility\": \"Existing account-level unread badge.\"}, {\"path\": \"apps/web/components/Objects/Menus/OrgMenu.tsx\", \"responsibility\": \"Existing desktop and mobile unread indicators.\"}, {\"path\": \"apps/web/components/Hooks/useInboxMessages.ts\", \"responsibility\": \"Shared feed, unread count, read transition, and response behavior.\"}, {\"path\": \"apps/api/src/db/messages.py\", \"responsibility\": \"Durable message, sender, action, recipient, and read-state model.\"}, {\"path\": \"apps/api/src/routers/messages.py\", \"responsibility\": \"Authenticated inbox, read, and invitation-response API.\"}, {\"path\": \"apps/api/migrations/versions/c0d1e2f3a4b5_add_inbox_messages.py\", \"responsibility\": \"Creates inbox message and platform template storage.\"}], \"display_order\": 4, \"health\": \"works\", \"id\": \"COMMUNITY-G001-A004\", \"implementation_notes\": \"The inbox no longer aggregates organization, program, and plan invitation feeds. Those domain records remain for authorization and state, while each new invitation emits one durable message.\", \"lifecycle\": \"ready_for_verification\", \"priority\": \"core\", \"relationships\": [{\"reason\": \"Account navigation currently describes the same inbox surface.\", \"target\": \"IDENTITY-G004-A003\", \"type\": \"related_to\"}], \"signoff\": {\"status\": \"pending\"}, \"test_refs\": [{\"path\": \"apps/api/src/tests/test_messages.py\", \"responsibility\": \"Covers the canonical feed and unread transition.\"}], \"title\": \"Review messages in a single inbox\", \"traceability\": \"complete\", \"updated_at\": \"2026-09-02\", \"updated_by\": \"product_owner_and_codex\", \"verification\": {\"status\": \"ready\"}}, {\"acceptance\": [{\"criterion\": \"Every newly created account receives exactly one unread welcome message from the owner organization.\", \"id\": \"COMMUNITY-G001-A005-AC01\", \"status\": \"not_tested\"}, {\"criterion\": \"Email, OAuth, invitation, organization-less, welcome-onboarding, and platform-admin creation paths are covered.\", \"id\": \"COMMUNITY-G001-A005-AC02\", \"status\": \"not_tested\"}, {\"criterion\": \"A welcome-message failure does not roll back or block account creation.\", \"id\": \"COMMUNITY-G001-A005-AC03\", \"status\": \"not_tested\"}, {\"criterion\": \"Existing accounts do not receive a duplicate welcome message during login or membership changes.\", \"id\": \"COMMUNITY-G001-A005-AC04\", \"status\": \"not_tested\"}], \"availability\": {\"constraints\": [], \"mode\": \"authenticated\", \"notes\": \"Applies to all account-creation paths, including platform-admin-created accounts.\"}, \"boundary_cases\": [\"Owner organization is missing\", \"Welcome-message template is blank or unavailable\", \"User creation retries after an unrelated failure\"], \"code_refs\": [{\"path\": \"apps/api/src/services/users/users.py\", \"responsibility\": \"Shared account-creation services where welcome delivery must be attached.\"}, {\"path\": \"apps/api/src/routers/auth.py\", \"responsibility\": \"Special welcome-onboarding signup path.\"}, {\"path\": \"apps/api/src/services/auth/utils.py\", \"responsibility\": \"OAuth account creation paths.\"}, {\"path\": \"apps/api/src/services/sso/sso.py\", \"responsibility\": \"SSO auto-provisioning path that creates users outside the shared signup service.\"}, {\"path\": \"apps/api/src/routers/superadmin.py\", \"responsibility\": \"Platform-admin account creation path.\"}, {\"path\": \"apps/api/src/services/messages.py\", \"responsibility\": \"Idempotent best-effort welcome delivery using owner organization and current template.\"}], \"display_order\": 5, \"health\": \"works\", \"id\": \"COMMUNITY-G001-A005\", \"implementation_notes\": \"Default subject is “Welcome to Launch LMS”. The owner organization is the sender regardless of the organization through which the account was created.\", \"lifecycle\": \"ready_for_verification\", \"priority\": \"core\", \"relationships\": [{\"reason\": \"Replaces News as the initial work-in-progress communication for new users.\", \"target\": \"COMMUNITY-G001-A001\", \"type\": \"replaces\"}], \"signoff\": {\"status\": \"pending\"}, \"test_refs\": [{\"path\": \"apps/api/src/tests/test_messages.py\", \"responsibility\": \"Covers copy, owner sender, exactly-once behavior, and template timing.\"}, {\"path\": \"apps/api/src/tests/test_superadmin_users.py\", \"responsibility\": \"Covers welcome delivery for platform-admin-created accounts.\"}], \"title\": \"Receive a welcome message when an account is created\", \"traceability\": \"complete\", \"updated_at\": \"2026-09-02\", \"updated_by\": \"product_owner_and_codex\", \"verification\": {\"status\": \"ready\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [\"future_permissions_and_recipient_policy\"], \"mode\": \"authenticated\", \"notes\": \"Future organization-to-user messaging; not part of the welcome-message implementation.\"}, \"boundary_cases\": [\"organization_authorization\", \"recipient_consent\", \"moderation\", \"blocking\", \"notification_preferences\"], \"code_refs\": [], \"display_order\": 6, \"health\": \"not_applicable\", \"id\": \"COMMUNITY-G001-A006\", \"implementation_notes\": \"No organization composer, campaign, or general send endpoint is included yet.\", \"lifecycle\": \"planned\", \"priority\": \"unset\", \"relationships\": [{\"reason\": \"Uses the durable inbox and unread behavior.\", \"target\": \"COMMUNITY-G001-A004\", \"type\": \"depends_on\"}], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Receive a direct message from an organization\", \"traceability\": \"none\", \"updated_at\": \"2026-09-02\", \"updated_by\": \"product_owner_and_codex\", \"verification\": {\"status\": \"not_tested\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [\"future_relationship_safety_and_moderation_policy\"], \"mode\": \"authenticated\", \"notes\": \"Future user-to-user messaging; not part of the welcome-message implementation.\"}, \"boundary_cases\": [\"youth_safety\", \"blocking\", \"reporting\", \"consent\", \"shared_context\", \"notification_preferences\"], \"code_refs\": [], \"display_order\": 7, \"health\": \"not_applicable\", \"id\": \"COMMUNITY-G001-A007\", \"implementation_notes\": \"No user composer, conversation thread, or reply behavior is included yet.\", \"lifecycle\": \"planned\", \"priority\": \"unset\", \"relationships\": [{\"reason\": \"Uses the durable inbox and unread behavior.\", \"target\": \"COMMUNITY-G001-A004\", \"type\": \"depends_on\"}], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Exchange direct messages with another user\", \"traceability\": \"none\", \"updated_at\": \"2026-09-02\", \"updated_by\": \"product_owner_and_codex\", \"verification\": {\"status\": \"not_tested\"}}], \"actors\": [\"visitor\", \"learner_youth\", \"educator\", \"counselor_mentor\", \"employer\", \"nonprofit_community_partner\", \"organization_administrator\"], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [{\"path\": \"apps/web/components/Objects/Account/subpages/AccountMessages.tsx\", \"responsibility\": \"Renders the canonical durable inbox and its actions.\"}, {\"path\": \"apps/web/components/Objects/Account/AccountPageShell.tsx\", \"responsibility\": \"Displays the inbox tab and unread badge.\"}, {\"path\": \"apps/api/src/services/messages.py\", \"responsibility\": \"Creates, lists, claims, reads, deduplicates, and resolves durable messages.\"}], \"display_order\": 1, \"health\": \"works\", \"id\": \"COMMUNITY-G001\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"outcome\": \"A person can notice, read, and act on relevant communication in one inbox.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [{\"path\": \"apps/api/src/tests/test_organization_invitations.py\", \"responsibility\": \"Covers organization invitations exposed as inbox items.\"}, {\"path\": \"apps/api/src/tests/test_messages.py\", \"responsibility\": \"Covers durable delivery, unread state, email claiming, templates, and deduplication.\"}], \"title\": \"Receive relevant messages and organizational communication\", \"traceability\": \"complete\", \"verification\": {\"status\": \"unverified\"}}, {\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"COMMUNITY-G002-A001\", \"implementation_notes\": \"Community lists and detail pages support discovery; visibility and action rights may differ.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Browse available communities and discussions\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"COMMUNITY-G002-A002\", \"implementation_notes\": \"Labels, pinned state, recency, and voting support navigation.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Filter and sort discussions by relevance\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"COMMUNITY-G002-A003\", \"implementation_notes\": \"Test authorship, label selection, editing limits, and deletion expectations.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional` on rights\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Start or edit a discussion\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 4, \"health\": \"unknown\", \"id\": \"COMMUNITY-G002-A004\", \"implementation_notes\": \"Comments support replies and votes; discussions support votes and reactions.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional` on authentication/membership\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Comment, reply, vote, and react\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 5, \"health\": \"unknown\", \"id\": \"COMMUNITY-G002-A005\", \"implementation_notes\": \"Authorized users can edit/delete, pin, lock, and moderate conversation.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional` on management rights\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Moderate a discussion\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"visitor\", \"learner_youth\", \"educator\", \"counselor_mentor\", \"employer\", \"nonprofit_community_partner\", \"organization_maintainer\"], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"COMMUNITY-G002\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional` on membership and rights\", \"outcome\": \"People can exchange questions, experience, and feedback in a bounded community.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Participate in a community discussion\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"activities\": [{\"acceptance\": [{\"criterion\": \"News authoring is absent from organization and platform administration after sunset.\", \"id\": \"COMMUNITY-G003-A001-AC01\", \"status\": \"not_tested\"}], \"availability\": {\"constraints\": [\"feature_flag_disabled_by_default\"], \"feature_flags\": [\"NEXT_PUBLIC_LAUNCHLMS_ENABLE_LEGACY_NEWS\"], \"mode\": \"unavailable\", \"notes\": \"The retained authoring surface and API return not found until the shared flag is enabled.\"}, \"code_refs\": [{\"path\": \"apps/web/app/orgs/[orgslug]/admin/news\", \"responsibility\": \"Retained News authoring routes gated by the legacy News flag.\"}, {\"path\": \"apps/web/components/Dashboard/Menus/DashLeftMenu.tsx\", \"responsibility\": \"Shows the retained News entry only when its flag is enabled.\"}, {\"path\": \"apps/web/components/Dashboard/Menus/DashMobileMenu.tsx\", \"responsibility\": \"Shows the retained News entry only when its flag is enabled.\"}, {\"path\": \"apps/api/src/routers/news.py\", \"responsibility\": \"Retained News API protected by the default-off capability dependency.\"}, {\"path\": \"apps/api/src/services/news.py\", \"responsibility\": \"Retained News behavior for restoration or later removal.\"}, {\"path\": \"apps/api/src/db/news.py\", \"responsibility\": \"Retained News data model and stored data.\"}], \"display_order\": 1, \"health\": \"unavailable\", \"id\": \"COMMUNITY-G003-A001\", \"implementation_notes\": \"Sunset approved 2026-09-02. Preserve the implementation, migrations, tests, and data for easy restoration. One shared environment flag restores API routes, pages, and navigation. Candidate for later removal.\", \"lifecycle\": \"sunset\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"pending\"}, \"test_refs\": [{\"path\": \"apps/api/src/tests/test_news.py\", \"responsibility\": \"Retained feature tests; excluded from active delivery rather than deleted during sunset.\"}], \"title\": \"Draft, preview, publish, and unpublish news\", \"traceability\": \"complete\", \"verification\": {\"status\": \"ready\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"COMMUNITY-G003-A002\", \"implementation_notes\": \"Admins manage identity, thumbnail, availability, and rights.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Create and configure a community\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"COMMUNITY-G003-A003\", \"implementation_notes\": \"Validate roles with real mixed-stakeholder groups, especially youth safety and external partners.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Set who may view, create, or manage community content\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"content_author\", \"organization_maintainer\", \"organization_administrator\", \"nonprofit_community_partner\"], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"COMMUNITY-G003\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"outcome\": \"Staff can create timely information and safe participation spaces.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Manage organization communication and community spaces\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"id\": \"COMMUNITY\", \"intent\": \"Keep members informed and create places for peer and stakeholder exchange.\", \"model_distinction\": null, \"product_areas\": \"Inbox messages, retired News, communities, discussions, comments, votes, and reactions.\", \"source_refs\": [\"apps/web/app/orgs/[orgslug]/(withmenu)/community\", \"apps/web/app/orgs/[orgslug]/(withmenu)/news\", \"apps/web/app/orgs/[orgslug]/admin/communities\", \"apps/web/app/orgs/[orgslug]/admin/news\", \"apps/api/src/routers/communities\", \"apps/api/src/routers/news.py\", \"apps/web/components/Objects/Account/subpages/AccountMessages.tsx\"], \"title\": \"Participate in communication and community\"}",
+  "goals": [
+    {
+      "id": "COMMUNITY-G001",
+      "group_id": "COMMUNITY",
+      "display_order": 1,
+      "title": "Receive relevant messages and organizational communication",
+      "outcome": "A person can notice, read, and act on relevant communication in one inbox.",
+      "product_state": "live",
+      "health": "works",
+      "traceability": "complete",
+      "availability_json": "{\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}",
+      "verification_json": "{\"status\": \"unverified\"}",
+      "signoff_json": "{\"status\": \"not_requested\"}",
+      "original_state": "`Live`",
+      "source_json": "{\"activities\": [{\"acceptance\": [{\"criterion\": \"News is absent from member navigation and cannot be opened through its former public routes after sunset.\", \"id\": \"COMMUNITY-G001-A001-AC01\", \"status\": \"passed\"}], \"availability\": {\"constraints\": [\"feature_flag_disabled_by_default\"], \"feature_flags\": [\"NEXT_PUBLIC_LAUNCHLMS_ENABLE_LEGACY_NEWS\"], \"mode\": \"unavailable\", \"notes\": \"Set the shared web/API flag true to restore retained News routes and navigation.\"}, \"code_refs\": [{\"path\": \"apps/web/app/orgs/[orgslug]/(withmenu)/news\", \"responsibility\": \"Public News routes return not found while the legacy flag is disabled.\"}, {\"path\": \"apps/web/components/Objects/Menus/OrgMenuLinks.tsx\", \"responsibility\": \"Shows News only when the legacy flag is enabled.\"}], \"display_order\": 1, \"health\": \"unavailable\", \"id\": \"COMMUNITY-G001-A001\", \"implementation_notes\": \"Sunset approved 2026-09-02. Keep implementation and stored articles intact for easy restoration, but remove all supported access and navigation. Candidate for later permanent removal.\", \"lifecycle\": \"sunset\", \"original_state\": \"`Live` / `Conditional` on publication\", \"relationships\": [], \"signoff\": {\"status\": \"pending\"}, \"test_refs\": [{\"path\": \"apps/web/services/routing/__tests__/routing.test.ts\", \"responsibility\": \"Current public News route expectations to replace with sunset behavior.\"}], \"title\": \"Browse featured and recent news\", \"traceability\": \"complete\", \"verification\": {\"status\": \"ready\"}}, {\"acceptance\": [{\"criterion\": \"Former article URLs no longer expose News content after sunset.\", \"id\": \"COMMUNITY-G001-A002-AC01\", \"status\": \"passed\"}], \"availability\": {\"constraints\": [\"feature_flag_disabled_by_default\"], \"feature_flags\": [\"NEXT_PUBLIC_LAUNCHLMS_ENABLE_LEGACY_NEWS\"], \"mode\": \"unavailable\", \"notes\": \"Retained article routes can be restored with the shared legacy News flag.\"}, \"code_refs\": [{\"path\": \"apps/web/app/orgs/[orgslug]/(withmenu)/news/[slug]/page.tsx\", \"responsibility\": \"Public article route to disable at sunset.\"}, {\"path\": \"apps/api/src/routers/news.py\", \"responsibility\": \"Retained API rejects requests while the legacy News flag is disabled.\"}], \"display_order\": 2, \"health\": \"unavailable\", \"id\": \"COMMUNITY-G001-A002\", \"implementation_notes\": \"Sunset approved 2026-09-02. Historical implementation supports internal and external articles; retain it for restoration while making it unreachable.\", \"lifecycle\": \"sunset\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"pending\"}, \"test_refs\": [], \"title\": \"Read an internal article or follow an external story\", \"traceability\": \"complete\", \"verification\": {\"status\": \"ready\"}}, {\"acceptance\": [{\"criterion\": \"Creating an organization or plan invitation creates exactly one actionable inbox message.\", \"id\": \"COMMUNITY-G001-A003-AC01\", \"status\": \"not_tested\"}, {\"criterion\": \"An invitation sent before account creation appears after the matching account opens its inbox.\", \"id\": \"COMMUNITY-G001-A003-AC02\", \"status\": \"not_tested\"}, {\"criterion\": \"Accepting or declining from either the inbox or a retained invitation endpoint updates the message state.\", \"id\": \"COMMUNITY-G001-A003-AC03\", \"status\": \"not_tested\"}], \"availability\": {\"constraints\": [], \"mode\": \"authenticated\", \"notes\": \"Invitation domain records authorize the action; durable messages own presentation and unread state.\"}, \"code_refs\": [{\"path\": \"apps/api/src/services/orgs/users.py\", \"responsibility\": \"Creates organization-invitation messages in the invitation transaction.\"}, {\"path\": \"apps/api/src/services/planning.py\", \"responsibility\": \"Creates plan-invitation messages, including assigned-program compatibility paths.\"}, {\"path\": \"apps/api/src/routers/messages.py\", \"responsibility\": \"Dispatches message actions through existing secured invitation services.\"}], \"display_order\": 3, \"health\": \"works\", \"id\": \"COMMUNITY-G001-A003\", \"implementation_notes\": \"Program assignment invitations materialize as plan invitations and therefore create one plan message; the legacy ProgramParticipant unread field is no longer an inbox source.\", \"lifecycle\": \"ready_for_verification\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"pending\"}, \"test_refs\": [{\"path\": \"apps/api/src/tests/test_organization_invitations.py\", \"responsibility\": \"Verifies organization invitations create durable messages.\"}, {\"path\": \"apps/api/src/tests/test_planning.py\", \"responsibility\": \"Verifies plan invitation messages and synchronized action state.\"}], \"title\": \"Receive and respond to an invitation as an inbox message\", \"traceability\": \"complete\", \"verification\": {\"status\": \"ready\"}}, {\"acceptance\": [{\"criterion\": \"The Messages page displays welcome, invitation, and future message types from one durable inbox feed.\", \"id\": \"COMMUNITY-G001-A004-AC01\", \"status\": \"not_tested\"}, {\"criterion\": \"The account and navigation unread badges count every unread inbox message.\", \"id\": \"COMMUNITY-G001-A004-AC02\", \"status\": \"not_tested\"}, {\"criterion\": \"Opening Messages marks the inbox messages as read.\", \"id\": \"COMMUNITY-G001-A004-AC03\", \"status\": \"not_tested\"}, {\"criterion\": \"An API failure is explained without presenting an incorrect empty-inbox state.\", \"id\": \"COMMUNITY-G001-A004-AC04\", \"status\": \"not_tested\"}], \"availability\": {\"constraints\": [], \"mode\": \"authenticated\", \"notes\": \"Durable inbox messages are the only source for the inbox and its unread count.\"}, \"boundary_cases\": [\"Empty inbox\", \"Inbox API failure\", \"More than nine unread items in compact navigation\"], \"code_refs\": [{\"path\": \"apps/web/components/Objects/Account/subpages/AccountMessages.tsx\", \"responsibility\": \"Canonical inbox UI for all durable message types and actions.\"}, {\"path\": \"apps/web/components/Objects/Account/AccountPageShell.tsx\", \"responsibility\": \"Existing account-level unread badge.\"}, {\"path\": \"apps/web/components/Objects/Menus/OrgMenu.tsx\", \"responsibility\": \"Existing desktop and mobile unread indicators.\"}, {\"path\": \"apps/web/components/Hooks/useInboxMessages.ts\", \"responsibility\": \"Shared feed, unread count, read transition, and response behavior.\"}, {\"path\": \"apps/api/src/db/messages.py\", \"responsibility\": \"Durable message, sender, action, recipient, and read-state model.\"}, {\"path\": \"apps/api/src/routers/messages.py\", \"responsibility\": \"Authenticated inbox, read, and invitation-response API.\"}, {\"path\": \"apps/api/migrations/versions/c0d1e2f3a4b5_add_inbox_messages.py\", \"responsibility\": \"Creates inbox message and platform template storage.\"}], \"display_order\": 4, \"health\": \"works\", \"id\": \"COMMUNITY-G001-A004\", \"implementation_notes\": \"The inbox no longer aggregates organization, program, and plan invitation feeds. Those domain records remain for authorization and state, while each new invitation emits one durable message.\", \"lifecycle\": \"ready_for_verification\", \"priority\": \"core\", \"relationships\": [{\"reason\": \"Account navigation currently describes the same inbox surface.\", \"target\": \"IDENTITY-G004-A003\", \"type\": \"related_to\"}], \"signoff\": {\"status\": \"pending\"}, \"test_refs\": [{\"path\": \"apps/api/src/tests/test_messages.py\", \"responsibility\": \"Covers the canonical feed and unread transition.\"}], \"title\": \"Review messages in a single inbox\", \"traceability\": \"complete\", \"updated_at\": \"2026-09-02\", \"updated_by\": \"product_owner_and_codex\", \"verification\": {\"status\": \"ready\"}}, {\"acceptance\": [{\"criterion\": \"Every newly created account receives exactly one unread welcome message from the owner organization.\", \"id\": \"COMMUNITY-G001-A005-AC01\", \"status\": \"not_tested\"}, {\"criterion\": \"Email, OAuth, invitation, organization-less, welcome-onboarding, and platform-admin creation paths are covered.\", \"id\": \"COMMUNITY-G001-A005-AC02\", \"status\": \"not_tested\"}, {\"criterion\": \"A welcome-message failure does not roll back or block account creation.\", \"id\": \"COMMUNITY-G001-A005-AC03\", \"status\": \"not_tested\"}, {\"criterion\": \"Existing accounts do not receive a duplicate welcome message during login or membership changes.\", \"id\": \"COMMUNITY-G001-A005-AC04\", \"status\": \"not_tested\"}], \"availability\": {\"constraints\": [], \"mode\": \"authenticated\", \"notes\": \"Applies to all account-creation paths, including platform-admin-created accounts.\"}, \"boundary_cases\": [\"Owner organization is missing\", \"Welcome-message template is blank or unavailable\", \"User creation retries after an unrelated failure\"], \"code_refs\": [{\"path\": \"apps/api/src/services/users/users.py\", \"responsibility\": \"Shared account-creation services where welcome delivery must be attached.\"}, {\"path\": \"apps/api/src/routers/auth.py\", \"responsibility\": \"Special welcome-onboarding signup path.\"}, {\"path\": \"apps/api/src/services/auth/utils.py\", \"responsibility\": \"OAuth account creation paths.\"}, {\"path\": \"apps/api/src/services/sso/sso.py\", \"responsibility\": \"SSO auto-provisioning path that creates users outside the shared signup service.\"}, {\"path\": \"apps/api/src/routers/superadmin.py\", \"responsibility\": \"Platform-admin account creation path.\"}, {\"path\": \"apps/api/src/services/messages.py\", \"responsibility\": \"Idempotent best-effort welcome delivery using owner organization and current template.\"}], \"display_order\": 5, \"health\": \"works\", \"id\": \"COMMUNITY-G001-A005\", \"implementation_notes\": \"Default subject is “Welcome to Launch LMS”. The owner organization is the sender regardless of the organization through which the account was created.\", \"lifecycle\": \"ready_for_verification\", \"priority\": \"core\", \"relationships\": [{\"reason\": \"Replaces News as the initial work-in-progress communication for new users.\", \"target\": \"COMMUNITY-G001-A001\", \"type\": \"replaces\"}], \"signoff\": {\"status\": \"pending\"}, \"test_refs\": [{\"path\": \"apps/api/src/tests/test_messages.py\", \"responsibility\": \"Covers copy, owner sender, exactly-once behavior, and template timing.\"}, {\"path\": \"apps/api/src/tests/test_superadmin_users.py\", \"responsibility\": \"Covers welcome delivery for platform-admin-created accounts.\"}], \"title\": \"Receive a welcome message when an account is created\", \"traceability\": \"complete\", \"updated_at\": \"2026-09-02\", \"updated_by\": \"product_owner_and_codex\", \"verification\": {\"status\": \"ready\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [\"future_permissions_and_recipient_policy\"], \"mode\": \"authenticated\", \"notes\": \"Future organization-to-user messaging; not part of the welcome-message implementation.\"}, \"boundary_cases\": [\"organization_authorization\", \"recipient_consent\", \"moderation\", \"blocking\", \"notification_preferences\"], \"code_refs\": [], \"display_order\": 6, \"health\": \"not_applicable\", \"id\": \"COMMUNITY-G001-A006\", \"implementation_notes\": \"No organization composer, campaign, or general send endpoint is included yet.\", \"lifecycle\": \"planned\", \"priority\": \"unset\", \"relationships\": [{\"reason\": \"Uses the durable inbox and unread behavior.\", \"target\": \"COMMUNITY-G001-A004\", \"type\": \"depends_on\"}], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Receive a direct message from an organization\", \"traceability\": \"none\", \"updated_at\": \"2026-09-02\", \"updated_by\": \"product_owner_and_codex\", \"verification\": {\"status\": \"not_tested\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [\"future_relationship_safety_and_moderation_policy\"], \"mode\": \"authenticated\", \"notes\": \"Future user-to-user messaging; not part of the welcome-message implementation.\"}, \"boundary_cases\": [\"youth_safety\", \"blocking\", \"reporting\", \"consent\", \"shared_context\", \"notification_preferences\"], \"code_refs\": [], \"display_order\": 7, \"health\": \"not_applicable\", \"id\": \"COMMUNITY-G001-A007\", \"implementation_notes\": \"No user composer, conversation thread, or reply behavior is included yet.\", \"lifecycle\": \"planned\", \"priority\": \"unset\", \"relationships\": [{\"reason\": \"Uses the durable inbox and unread behavior.\", \"target\": \"COMMUNITY-G001-A004\", \"type\": \"depends_on\"}], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Exchange direct messages with another user\", \"traceability\": \"none\", \"updated_at\": \"2026-09-02\", \"updated_by\": \"product_owner_and_codex\", \"verification\": {\"status\": \"not_tested\"}}], \"actors\": [\"visitor\", \"learner_youth\", \"educator\", \"counselor_mentor\", \"employer\", \"nonprofit_community_partner\", \"organization_administrator\"], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [{\"path\": \"apps/web/components/Objects/Account/subpages/AccountMessages.tsx\", \"responsibility\": \"Renders the canonical durable inbox and its actions.\"}, {\"path\": \"apps/web/components/Objects/Account/AccountPageShell.tsx\", \"responsibility\": \"Displays the inbox tab and unread badge.\"}, {\"path\": \"apps/api/src/services/messages.py\", \"responsibility\": \"Creates, lists, claims, reads, deduplicates, and resolves durable messages.\"}], \"display_order\": 1, \"health\": \"works\", \"id\": \"COMMUNITY-G001\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"outcome\": \"A person can notice, read, and act on relevant communication in one inbox.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [{\"path\": \"apps/api/src/tests/test_organization_invitations.py\", \"responsibility\": \"Covers organization invitations exposed as inbox items.\"}, {\"path\": \"apps/api/src/tests/test_messages.py\", \"responsibility\": \"Covers durable delivery, unread state, email claiming, templates, and deduplication.\"}], \"title\": \"Receive relevant messages and organizational communication\", \"traceability\": \"complete\", \"verification\": {\"status\": \"unverified\"}}",
+      "updated_at": "2026-09-02T21:12:02+00:00",
+      "actors": [
+        "counselor_mentor",
+        "educator",
+        "employer",
+        "learner_youth",
+        "nonprofit_community_partner",
+        "organization_administrator",
+        "visitor"
+      ],
+      "activities": [
+        {
+          "id": "COMMUNITY-G001-A001",
+          "goal_id": "COMMUNITY-G001",
+          "display_order": 1,
+          "title": "Browse organization news",
+          "product_state": "sunset",
+          "health": "works",
+          "traceability": "complete",
+          "priority": "unset",
+          "implementation_notes": "Sunset approved 2026-09-02. Keep implementation and stored articles intact for easy restoration, but remove all supported access and navigation. Candidate for later permanent removal.",
+          "original_state": "`Live` / `Conditional` on publication",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Receive relevant messages and organizational communication",
+          "group_title": "Participate in communication and community",
+          "availability": {
+            "constraints": [
+              "feature_flag_disabled_by_default"
+            ],
+            "feature_flags": [
+              "NEXT_PUBLIC_LAUNCHLMS_ENABLE_LEGACY_NEWS"
+            ],
+            "mode": "unavailable",
+            "notes": "Set the shared web/API flag true to restore retained News routes and navigation."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [
+              {
+                "criterion": "News is absent from member navigation and cannot be opened through its former public routes after sunset.",
+                "id": "COMMUNITY-G001-A001-AC01",
+                "status": "passed"
+              }
+            ],
+            "availability": {
+              "constraints": [
+                "feature_flag_disabled_by_default"
+              ],
+              "feature_flags": [
+                "NEXT_PUBLIC_LAUNCHLMS_ENABLE_LEGACY_NEWS"
+              ],
+              "mode": "unavailable",
+              "notes": "Set the shared web/API flag true to restore retained News routes and navigation."
+            },
+            "code_refs": [
+              {
+                "path": "apps/web/app/orgs/[orgslug]/(withmenu)/news",
+                "responsibility": "Public News routes return not found while the legacy flag is disabled."
+              },
+              {
+                "path": "apps/web/components/Objects/Menus/OrgMenuLinks.tsx",
+                "responsibility": "Shows News only when the legacy flag is enabled."
+              }
+            ],
+            "display_order": 1,
+            "health": "unavailable",
+            "id": "COMMUNITY-G001-A001",
+            "implementation_notes": "Sunset approved 2026-09-02. Keep implementation and stored articles intact for easy restoration, but remove all supported access and navigation. Candidate for later permanent removal.",
+            "lifecycle": "sunset",
+            "original_state": "`Live` / `Conditional` on publication",
+            "relationships": [],
+            "signoff": {
+              "status": "pending"
+            },
+            "test_refs": [
+              {
+                "path": "apps/web/services/routing/__tests__/routing.test.ts",
+                "responsibility": "Current public News route expectations to replace with sunset behavior."
+              }
+            ],
+            "title": "Browse featured and recent news",
+            "traceability": "complete",
+            "verification": {
+              "status": "ready"
+            }
+          },
+          "acceptance": [
+            {
+              "id": "COMMUNITY-G001-A001-AC01",
+              "activity_id": "COMMUNITY-G001-A001",
+              "display_order": 1,
+              "criterion": "News is absent from member navigation and cannot be opened through its former public routes after sunset.",
+              "automated_status": "passed",
+              "manual_status": "passed",
+              "notes": "Verified by product_owner at 2026-09-02T22:21:42+00:00",
+              "source_json": "{\"criterion\": \"News is absent from member navigation and cannot be opened through its former public routes after sunset.\", \"id\": \"COMMUNITY-G001-A001-AC01\", \"status\": \"passed\"}",
+              "created_at": "2026-09-02 22:12:16"
+            }
+          ],
+          "steps": [
+            {
+              "id": "COMMUNITY-G001-A001-S001",
+              "activity_id": "COMMUNITY-G001-A001",
+              "display_order": 1,
+              "title": "Browse featured news",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "sunset",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMUNITY-G001-A001-S002",
+              "activity_id": "COMMUNITY-G001-A001",
+              "display_order": 2,
+              "title": "Browse recent news",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "sunset",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [
+            {
+              "kind": "code",
+              "path": "apps/web/app/orgs/[orgslug]/(withmenu)/news",
+              "symbol": null,
+              "responsibility": "Public News routes return not found while the legacy flag is disabled."
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/components/Objects/Menus/OrgMenuLinks.tsx",
+              "symbol": null,
+              "responsibility": "Shows News only when the legacy flag is enabled."
+            },
+            {
+              "kind": "test",
+              "path": "apps/web/services/routing/__tests__/routing.test.ts",
+              "symbol": null,
+              "responsibility": "Current public News route expectations to replace with sunset behavior."
+            }
+          ],
+          "relationships": []
+        },
+        {
+          "id": "COMMUNITY-G001-A002",
+          "goal_id": "COMMUNITY-G001",
+          "display_order": 2,
+          "title": "Read an organization story",
+          "product_state": "sunset",
+          "health": "works",
+          "traceability": "complete",
+          "priority": "unset",
+          "implementation_notes": "Sunset approved 2026-09-02. Historical implementation supports internal and external articles; retain it for restoration while making it unreachable.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Receive relevant messages and organizational communication",
+          "group_title": "Participate in communication and community",
+          "availability": {
+            "constraints": [
+              "feature_flag_disabled_by_default"
+            ],
+            "feature_flags": [
+              "NEXT_PUBLIC_LAUNCHLMS_ENABLE_LEGACY_NEWS"
+            ],
+            "mode": "unavailable",
+            "notes": "Retained article routes can be restored with the shared legacy News flag."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [
+              {
+                "criterion": "Former article URLs no longer expose News content after sunset.",
+                "id": "COMMUNITY-G001-A002-AC01",
+                "status": "passed"
+              }
+            ],
+            "availability": {
+              "constraints": [
+                "feature_flag_disabled_by_default"
+              ],
+              "feature_flags": [
+                "NEXT_PUBLIC_LAUNCHLMS_ENABLE_LEGACY_NEWS"
+              ],
+              "mode": "unavailable",
+              "notes": "Retained article routes can be restored with the shared legacy News flag."
+            },
+            "code_refs": [
+              {
+                "path": "apps/web/app/orgs/[orgslug]/(withmenu)/news/[slug]/page.tsx",
+                "responsibility": "Public article route to disable at sunset."
+              },
+              {
+                "path": "apps/api/src/routers/news.py",
+                "responsibility": "Retained API rejects requests while the legacy News flag is disabled."
+              }
+            ],
+            "display_order": 2,
+            "health": "unavailable",
+            "id": "COMMUNITY-G001-A002",
+            "implementation_notes": "Sunset approved 2026-09-02. Historical implementation supports internal and external articles; retain it for restoration while making it unreachable.",
+            "lifecycle": "sunset",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "pending"
+            },
+            "test_refs": [],
+            "title": "Read an internal article or follow an external story",
+            "traceability": "complete",
+            "verification": {
+              "status": "ready"
+            }
+          },
+          "acceptance": [
+            {
+              "id": "COMMUNITY-G001-A002-AC01",
+              "activity_id": "COMMUNITY-G001-A002",
+              "display_order": 1,
+              "criterion": "Former article URLs no longer expose News content after sunset.",
+              "automated_status": "passed",
+              "manual_status": "passed",
+              "notes": "Verified by product_owner at 2026-09-02T22:21:54+00:00",
+              "source_json": "{\"criterion\": \"Former article URLs no longer expose News content after sunset.\", \"id\": \"COMMUNITY-G001-A002-AC01\", \"status\": \"passed\"}",
+              "created_at": "2026-09-02 22:12:16"
+            }
+          ],
+          "steps": [
+            {
+              "id": "COMMUNITY-G001-A002-S001",
+              "activity_id": "COMMUNITY-G001-A002",
+              "display_order": 1,
+              "title": "Read an internal article",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "sunset",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMUNITY-G001-A002-S002",
+              "activity_id": "COMMUNITY-G001-A002",
+              "display_order": 2,
+              "title": "Follow an external story",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "sunset",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [
+            {
+              "kind": "code",
+              "path": "apps/api/src/routers/news.py",
+              "symbol": null,
+              "responsibility": "Retained API rejects requests while the legacy News flag is disabled."
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/app/orgs/[orgslug]/(withmenu)/news/[slug]/page.tsx",
+              "symbol": null,
+              "responsibility": "Public article route to disable at sunset."
+            }
+          ],
+          "relationships": []
+        },
+        {
+          "id": "COMMUNITY-G001-A003",
+          "goal_id": "COMMUNITY-G001",
+          "display_order": 3,
+          "title": "Respond to an inbox invitation",
+          "product_state": "planned",
+          "health": "works",
+          "traceability": "complete",
+          "priority": "unset",
+          "implementation_notes": "Program assignment invitations materialize as plan invitations and therefore create one plan message; the legacy ProgramParticipant unread field is no longer an inbox source.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Receive relevant messages and organizational communication",
+          "group_title": "Participate in communication and community",
+          "availability": {
+            "constraints": [],
+            "mode": "authenticated",
+            "notes": "Invitation domain records authorize the action; durable messages own presentation and unread state."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [
+              {
+                "criterion": "Creating an organization or plan invitation creates exactly one actionable inbox message.",
+                "id": "COMMUNITY-G001-A003-AC01",
+                "status": "not_tested"
+              },
+              {
+                "criterion": "An invitation sent before account creation appears after the matching account opens its inbox.",
+                "id": "COMMUNITY-G001-A003-AC02",
+                "status": "not_tested"
+              },
+              {
+                "criterion": "Accepting or declining from either the inbox or a retained invitation endpoint updates the message state.",
+                "id": "COMMUNITY-G001-A003-AC03",
+                "status": "not_tested"
+              }
+            ],
+            "availability": {
+              "constraints": [],
+              "mode": "authenticated",
+              "notes": "Invitation domain records authorize the action; durable messages own presentation and unread state."
+            },
+            "code_refs": [
+              {
+                "path": "apps/api/src/services/orgs/users.py",
+                "responsibility": "Creates organization-invitation messages in the invitation transaction."
+              },
+              {
+                "path": "apps/api/src/services/planning.py",
+                "responsibility": "Creates plan-invitation messages, including assigned-program compatibility paths."
+              },
+              {
+                "path": "apps/api/src/routers/messages.py",
+                "responsibility": "Dispatches message actions through existing secured invitation services."
+              }
+            ],
+            "display_order": 3,
+            "health": "works",
+            "id": "COMMUNITY-G001-A003",
+            "implementation_notes": "Program assignment invitations materialize as plan invitations and therefore create one plan message; the legacy ProgramParticipant unread field is no longer an inbox source.",
+            "lifecycle": "ready_for_verification",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "pending"
+            },
+            "test_refs": [
+              {
+                "path": "apps/api/src/tests/test_organization_invitations.py",
+                "responsibility": "Verifies organization invitations create durable messages."
+              },
+              {
+                "path": "apps/api/src/tests/test_planning.py",
+                "responsibility": "Verifies plan invitation messages and synchronized action state."
+              }
+            ],
+            "title": "Receive and respond to an invitation as an inbox message",
+            "traceability": "complete",
+            "verification": {
+              "status": "ready"
+            }
+          },
+          "acceptance": [
+            {
+              "id": "COMMUNITY-G001-A003-AC01",
+              "activity_id": "COMMUNITY-G001-A003",
+              "display_order": 1,
+              "criterion": "Creating an organization or plan invitation creates exactly one actionable inbox message.",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "notes": "Verified by product_owner at 2026-09-02T22:59:25+00:00",
+              "source_json": "{\"criterion\": \"Creating an organization or plan invitation creates exactly one actionable inbox message.\", \"id\": \"COMMUNITY-G001-A003-AC01\", \"status\": \"not_tested\"}",
+              "created_at": "2026-09-02 22:12:16"
+            },
+            {
+              "id": "COMMUNITY-G001-A003-AC02",
+              "activity_id": "COMMUNITY-G001-A003",
+              "display_order": 2,
+              "criterion": "An invitation sent before account creation appears after the matching account opens its inbox.",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "notes": "Verified by product_owner at 2026-09-02T23:00:20+00:00",
+              "source_json": "{\"criterion\": \"An invitation sent before account creation appears after the matching account opens its inbox.\", \"id\": \"COMMUNITY-G001-A003-AC02\", \"status\": \"not_tested\"}",
+              "created_at": "2026-09-02 22:12:16"
+            },
+            {
+              "id": "COMMUNITY-G001-A003-AC03",
+              "activity_id": "COMMUNITY-G001-A003",
+              "display_order": 3,
+              "criterion": "Accepting or declining from either the inbox or a retained invitation endpoint updates the message state.",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "notes": "Verified by product_owner at 2026-09-02T23:00:20+00:00",
+              "source_json": "{\"criterion\": \"Accepting or declining from either the inbox or a retained invitation endpoint updates the message state.\", \"id\": \"COMMUNITY-G001-A003-AC03\", \"status\": \"not_tested\"}",
+              "created_at": "2026-09-02 22:12:16"
+            }
+          ],
+          "steps": [
+            {
+              "id": "COMMUNITY-G001-A003-S001",
+              "activity_id": "COMMUNITY-G001-A003",
+              "display_order": 1,
+              "title": "Receive one durable invitation message",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "planned",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMUNITY-G001-A003-S002",
+              "activity_id": "COMMUNITY-G001-A003",
+              "display_order": 2,
+              "title": "Open the invitation message",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "planned",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMUNITY-G001-A003-S003",
+              "activity_id": "COMMUNITY-G001-A003",
+              "display_order": 3,
+              "title": "Respond to the underlying invitation",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "planned",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [
+            {
+              "kind": "code",
+              "path": "apps/api/src/routers/messages.py",
+              "symbol": null,
+              "responsibility": "Dispatches message actions through existing secured invitation services."
+            },
+            {
+              "kind": "code",
+              "path": "apps/api/src/services/orgs/users.py",
+              "symbol": null,
+              "responsibility": "Creates organization-invitation messages in the invitation transaction."
+            },
+            {
+              "kind": "code",
+              "path": "apps/api/src/services/planning.py",
+              "symbol": null,
+              "responsibility": "Creates plan-invitation messages, including assigned-program compatibility paths."
+            },
+            {
+              "kind": "test",
+              "path": "apps/api/src/tests/test_organization_invitations.py",
+              "symbol": null,
+              "responsibility": "Verifies organization invitations create durable messages."
+            },
+            {
+              "kind": "test",
+              "path": "apps/api/src/tests/test_planning.py",
+              "symbol": null,
+              "responsibility": "Verifies plan invitation messages and synchronized action state."
+            }
+          ],
+          "relationships": []
+        },
+        {
+          "id": "COMMUNITY-G001-A004",
+          "goal_id": "COMMUNITY-G001",
+          "display_order": 4,
+          "title": "Review messages in a single inbox",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "complete",
+          "priority": "core",
+          "implementation_notes": "The inbox no longer aggregates organization, program, and plan invitation feeds. Those domain records remain for authorization and state, while each new invitation emits one durable message.",
+          "original_state": null,
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Receive relevant messages and organizational communication",
+          "group_title": "Participate in communication and community",
+          "availability": {
+            "constraints": [],
+            "mode": "authenticated",
+            "notes": "Durable inbox messages are the only source for the inbox and its unread count."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [
+              {
+                "criterion": "The Messages page displays welcome, invitation, and future message types from one durable inbox feed.",
+                "id": "COMMUNITY-G001-A004-AC01",
+                "status": "not_tested"
+              },
+              {
+                "criterion": "The account and navigation unread badges count every unread inbox message.",
+                "id": "COMMUNITY-G001-A004-AC02",
+                "status": "not_tested"
+              },
+              {
+                "criterion": "Opening Messages marks the inbox messages as read.",
+                "id": "COMMUNITY-G001-A004-AC03",
+                "status": "not_tested"
+              },
+              {
+                "criterion": "An API failure is explained without presenting an incorrect empty-inbox state.",
+                "id": "COMMUNITY-G001-A004-AC04",
+                "status": "not_tested"
+              }
+            ],
+            "availability": {
+              "constraints": [],
+              "mode": "authenticated",
+              "notes": "Durable inbox messages are the only source for the inbox and its unread count."
+            },
+            "boundary_cases": [
+              "Empty inbox",
+              "Inbox API failure",
+              "More than nine unread items in compact navigation"
+            ],
+            "code_refs": [
+              {
+                "path": "apps/web/components/Objects/Account/subpages/AccountMessages.tsx",
+                "responsibility": "Canonical inbox UI for all durable message types and actions."
+              },
+              {
+                "path": "apps/web/components/Objects/Account/AccountPageShell.tsx",
+                "responsibility": "Existing account-level unread badge."
+              },
+              {
+                "path": "apps/web/components/Objects/Menus/OrgMenu.tsx",
+                "responsibility": "Existing desktop and mobile unread indicators."
+              },
+              {
+                "path": "apps/web/components/Hooks/useInboxMessages.ts",
+                "responsibility": "Shared feed, unread count, read transition, and response behavior."
+              },
+              {
+                "path": "apps/api/src/db/messages.py",
+                "responsibility": "Durable message, sender, action, recipient, and read-state model."
+              },
+              {
+                "path": "apps/api/src/routers/messages.py",
+                "responsibility": "Authenticated inbox, read, and invitation-response API."
+              },
+              {
+                "path": "apps/api/migrations/versions/c0d1e2f3a4b5_add_inbox_messages.py",
+                "responsibility": "Creates inbox message and platform template storage."
+              }
+            ],
+            "display_order": 4,
+            "health": "works",
+            "id": "COMMUNITY-G001-A004",
+            "implementation_notes": "The inbox no longer aggregates organization, program, and plan invitation feeds. Those domain records remain for authorization and state, while each new invitation emits one durable message.",
+            "lifecycle": "ready_for_verification",
+            "priority": "core",
+            "relationships": [
+              {
+                "reason": "Account navigation currently describes the same inbox surface.",
+                "target": "IDENTITY-G004-A003",
+                "type": "related_to"
+              }
+            ],
+            "signoff": {
+              "status": "pending"
+            },
+            "test_refs": [
+              {
+                "path": "apps/api/src/tests/test_messages.py",
+                "responsibility": "Covers the canonical feed and unread transition."
+              }
+            ],
+            "title": "Review messages in a single inbox",
+            "traceability": "complete",
+            "updated_at": "2026-09-02",
+            "updated_by": "product_owner_and_codex",
+            "verification": {
+              "status": "ready"
+            }
+          },
+          "acceptance": [
+            {
+              "id": "COMMUNITY-G001-A004-AC01",
+              "activity_id": "COMMUNITY-G001-A004",
+              "display_order": 1,
+              "criterion": "The Messages page displays welcome, invitation, and future message types from one durable inbox feed.",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "notes": "Verified by product_owner at 2026-09-02T23:00:29+00:00",
+              "source_json": "{\"criterion\": \"The Messages page displays welcome, invitation, and future message types from one durable inbox feed.\", \"id\": \"COMMUNITY-G001-A004-AC01\", \"status\": \"not_tested\"}",
+              "created_at": "2026-09-02 22:12:16"
+            },
+            {
+              "id": "COMMUNITY-G001-A004-AC02",
+              "activity_id": "COMMUNITY-G001-A004",
+              "display_order": 2,
+              "criterion": "The account and navigation unread badges count every unread inbox message.",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "notes": "Verified by product_owner at 2026-09-02T23:00:31+00:00",
+              "source_json": "{\"criterion\": \"The account and navigation unread badges count every unread inbox message.\", \"id\": \"COMMUNITY-G001-A004-AC02\", \"status\": \"not_tested\"}",
+              "created_at": "2026-09-02 22:12:16"
+            },
+            {
+              "id": "COMMUNITY-G001-A004-AC03",
+              "activity_id": "COMMUNITY-G001-A004",
+              "display_order": 3,
+              "criterion": "Opening Messages marks the inbox messages as read.",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "notes": "Verified by product_owner at 2026-09-02T23:00:34+00:00",
+              "source_json": "{\"criterion\": \"Opening Messages marks the inbox messages as read.\", \"id\": \"COMMUNITY-G001-A004-AC03\", \"status\": \"not_tested\"}",
+              "created_at": "2026-09-02 22:12:16"
+            },
+            {
+              "id": "COMMUNITY-G001-A004-AC04",
+              "activity_id": "COMMUNITY-G001-A004",
+              "display_order": 4,
+              "criterion": "An API failure is explained without presenting an incorrect empty-inbox state.",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "notes": "Verified by product_owner at 2026-09-02T23:00:35+00:00",
+              "source_json": "{\"criterion\": \"An API failure is explained without presenting an incorrect empty-inbox state.\", \"id\": \"COMMUNITY-G001-A004-AC04\", \"status\": \"not_tested\"}",
+              "created_at": "2026-09-02 22:12:16"
+            }
+          ],
+          "steps": [
+            {
+              "id": "COMMUNITY-G001-A004-S001",
+              "activity_id": "COMMUNITY-G001-A004",
+              "display_order": 1,
+              "title": "View the unified message list",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "planned",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMUNITY-G001-A004-S002",
+              "activity_id": "COMMUNITY-G001-A004",
+              "display_order": 2,
+              "title": "Notice unread messages",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "planned",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMUNITY-G001-A004-S003",
+              "activity_id": "COMMUNITY-G001-A004",
+              "display_order": 3,
+              "title": "Open a message",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "planned",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMUNITY-G001-A004-S004",
+              "activity_id": "COMMUNITY-G001-A004",
+              "display_order": 4,
+              "title": "Return to the related product action",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "planned",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [
+            {
+              "kind": "code",
+              "path": "apps/api/migrations/versions/c0d1e2f3a4b5_add_inbox_messages.py",
+              "symbol": null,
+              "responsibility": "Creates inbox message and platform template storage."
+            },
+            {
+              "kind": "code",
+              "path": "apps/api/src/db/messages.py",
+              "symbol": null,
+              "responsibility": "Durable message, sender, action, recipient, and read-state model."
+            },
+            {
+              "kind": "code",
+              "path": "apps/api/src/routers/messages.py",
+              "symbol": null,
+              "responsibility": "Authenticated inbox, read, and invitation-response API."
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/components/Hooks/useInboxMessages.ts",
+              "symbol": null,
+              "responsibility": "Shared feed, unread count, read transition, and response behavior."
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/components/Objects/Account/AccountPageShell.tsx",
+              "symbol": null,
+              "responsibility": "Existing account-level unread badge."
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/components/Objects/Account/subpages/AccountMessages.tsx",
+              "symbol": null,
+              "responsibility": "Canonical inbox UI for all durable message types and actions."
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/components/Objects/Menus/OrgMenu.tsx",
+              "symbol": null,
+              "responsibility": "Existing desktop and mobile unread indicators."
+            },
+            {
+              "kind": "test",
+              "path": "apps/api/src/tests/test_messages.py",
+              "symbol": null,
+              "responsibility": "Covers the canonical feed and unread transition."
+            }
+          ],
+          "relationships": [
+            {
+              "relationship_type": "related_to",
+              "target_id": "IDENTITY-G004-A003",
+              "reason": "Account navigation currently describes the same inbox surface."
+            }
+          ]
+        },
+        {
+          "id": "COMMUNITY-G001-A005",
+          "goal_id": "COMMUNITY-G001",
+          "display_order": 5,
+          "title": "Receive a welcome message when an account is created",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "complete",
+          "priority": "core",
+          "implementation_notes": "Default subject is “Welcome to Launch LMS”. The owner organization is the sender regardless of the organization through which the account was created.",
+          "original_state": null,
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Receive relevant messages and organizational communication",
+          "group_title": "Participate in communication and community",
+          "availability": {
+            "constraints": [],
+            "mode": "authenticated",
+            "notes": "Applies to all account-creation paths, including platform-admin-created accounts."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [
+              {
+                "criterion": "Every newly created account receives exactly one unread welcome message from the owner organization.",
+                "id": "COMMUNITY-G001-A005-AC01",
+                "status": "not_tested"
+              },
+              {
+                "criterion": "Email, OAuth, invitation, organization-less, welcome-onboarding, and platform-admin creation paths are covered.",
+                "id": "COMMUNITY-G001-A005-AC02",
+                "status": "not_tested"
+              },
+              {
+                "criterion": "A welcome-message failure does not roll back or block account creation.",
+                "id": "COMMUNITY-G001-A005-AC03",
+                "status": "not_tested"
+              },
+              {
+                "criterion": "Existing accounts do not receive a duplicate welcome message during login or membership changes.",
+                "id": "COMMUNITY-G001-A005-AC04",
+                "status": "not_tested"
+              }
+            ],
+            "availability": {
+              "constraints": [],
+              "mode": "authenticated",
+              "notes": "Applies to all account-creation paths, including platform-admin-created accounts."
+            },
+            "boundary_cases": [
+              "Owner organization is missing",
+              "Welcome-message template is blank or unavailable",
+              "User creation retries after an unrelated failure"
+            ],
+            "code_refs": [
+              {
+                "path": "apps/api/src/services/users/users.py",
+                "responsibility": "Shared account-creation services where welcome delivery must be attached."
+              },
+              {
+                "path": "apps/api/src/routers/auth.py",
+                "responsibility": "Special welcome-onboarding signup path."
+              },
+              {
+                "path": "apps/api/src/services/auth/utils.py",
+                "responsibility": "OAuth account creation paths."
+              },
+              {
+                "path": "apps/api/src/services/sso/sso.py",
+                "responsibility": "SSO auto-provisioning path that creates users outside the shared signup service."
+              },
+              {
+                "path": "apps/api/src/routers/superadmin.py",
+                "responsibility": "Platform-admin account creation path."
+              },
+              {
+                "path": "apps/api/src/services/messages.py",
+                "responsibility": "Idempotent best-effort welcome delivery using owner organization and current template."
+              }
+            ],
+            "display_order": 5,
+            "health": "works",
+            "id": "COMMUNITY-G001-A005",
+            "implementation_notes": "Default subject is “Welcome to Launch LMS”. The owner organization is the sender regardless of the organization through which the account was created.",
+            "lifecycle": "ready_for_verification",
+            "priority": "core",
+            "relationships": [
+              {
+                "reason": "Replaces News as the initial work-in-progress communication for new users.",
+                "target": "COMMUNITY-G001-A001",
+                "type": "replaces"
+              }
+            ],
+            "signoff": {
+              "status": "pending"
+            },
+            "test_refs": [
+              {
+                "path": "apps/api/src/tests/test_messages.py",
+                "responsibility": "Covers copy, owner sender, exactly-once behavior, and template timing."
+              },
+              {
+                "path": "apps/api/src/tests/test_superadmin_users.py",
+                "responsibility": "Covers welcome delivery for platform-admin-created accounts."
+              }
+            ],
+            "title": "Receive a welcome message when an account is created",
+            "traceability": "complete",
+            "updated_at": "2026-09-02",
+            "updated_by": "product_owner_and_codex",
+            "verification": {
+              "status": "ready"
+            }
+          },
+          "acceptance": [
+            {
+              "id": "COMMUNITY-G001-A005-AC01",
+              "activity_id": "COMMUNITY-G001-A005",
+              "display_order": 1,
+              "criterion": "Every newly created account receives exactly one unread welcome message from the owner organization.",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "notes": "Verified by product_owner at 2026-09-02T22:42:41+00:00",
+              "source_json": "{\"criterion\": \"Every newly created account receives exactly one unread welcome message from the owner organization.\", \"id\": \"COMMUNITY-G001-A005-AC01\", \"status\": \"not_tested\"}",
+              "created_at": "2026-09-02 22:12:16"
+            },
+            {
+              "id": "COMMUNITY-G001-A005-AC02",
+              "activity_id": "COMMUNITY-G001-A005",
+              "display_order": 2,
+              "criterion": "Email, OAuth, invitation, organization-less, welcome-onboarding, and platform-admin creation paths are covered.",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "notes": "Verified by product_owner at 2026-09-02T22:42:51+00:00",
+              "source_json": "{\"criterion\": \"Email, OAuth, invitation, organization-less, welcome-onboarding, and platform-admin creation paths are covered.\", \"id\": \"COMMUNITY-G001-A005-AC02\", \"status\": \"not_tested\"}",
+              "created_at": "2026-09-02 22:12:16"
+            },
+            {
+              "id": "COMMUNITY-G001-A005-AC03",
+              "activity_id": "COMMUNITY-G001-A005",
+              "display_order": 3,
+              "criterion": "A welcome-message failure does not roll back or block account creation.",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "notes": "Verified by product_owner at 2026-09-02T22:42:50+00:00",
+              "source_json": "{\"criterion\": \"A welcome-message failure does not roll back or block account creation.\", \"id\": \"COMMUNITY-G001-A005-AC03\", \"status\": \"not_tested\"}",
+              "created_at": "2026-09-02 22:12:16"
+            },
+            {
+              "id": "COMMUNITY-G001-A005-AC04",
+              "activity_id": "COMMUNITY-G001-A005",
+              "display_order": 4,
+              "criterion": "Existing accounts do not receive a duplicate welcome message during login or membership changes.",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "notes": "Verified by product_owner at 2026-09-02T22:42:46+00:00",
+              "source_json": "{\"criterion\": \"Existing accounts do not receive a duplicate welcome message during login or membership changes.\", \"id\": \"COMMUNITY-G001-A005-AC04\", \"status\": \"not_tested\"}",
+              "created_at": "2026-09-02 22:12:16"
+            }
+          ],
+          "steps": [
+            {
+              "id": "COMMUNITY-G001-A005-S001",
+              "activity_id": "COMMUNITY-G001-A005",
+              "display_order": 1,
+              "title": "Receive the automatic welcome message",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "planned",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMUNITY-G001-A005-S002",
+              "activity_id": "COMMUNITY-G001-A005",
+              "display_order": 2,
+              "title": "Open the welcome message",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "planned",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMUNITY-G001-A005-S003",
+              "activity_id": "COMMUNITY-G001-A005",
+              "display_order": 3,
+              "title": "Identify the owner organization as sender",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "planned",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [
+            {
+              "kind": "code",
+              "path": "apps/api/src/routers/auth.py",
+              "symbol": null,
+              "responsibility": "Special welcome-onboarding signup path."
+            },
+            {
+              "kind": "code",
+              "path": "apps/api/src/routers/superadmin.py",
+              "symbol": null,
+              "responsibility": "Platform-admin account creation path."
+            },
+            {
+              "kind": "code",
+              "path": "apps/api/src/services/auth/utils.py",
+              "symbol": null,
+              "responsibility": "OAuth account creation paths."
+            },
+            {
+              "kind": "code",
+              "path": "apps/api/src/services/messages.py",
+              "symbol": null,
+              "responsibility": "Idempotent best-effort welcome delivery using owner organization and current template."
+            },
+            {
+              "kind": "code",
+              "path": "apps/api/src/services/sso/sso.py",
+              "symbol": null,
+              "responsibility": "SSO auto-provisioning path that creates users outside the shared signup service."
+            },
+            {
+              "kind": "code",
+              "path": "apps/api/src/services/users/users.py",
+              "symbol": null,
+              "responsibility": "Shared account-creation services where welcome delivery must be attached."
+            },
+            {
+              "kind": "test",
+              "path": "apps/api/src/tests/test_messages.py",
+              "symbol": null,
+              "responsibility": "Covers copy, owner sender, exactly-once behavior, and template timing."
+            },
+            {
+              "kind": "test",
+              "path": "apps/api/src/tests/test_superadmin_users.py",
+              "symbol": null,
+              "responsibility": "Covers welcome delivery for platform-admin-created accounts."
+            }
+          ],
+          "relationships": [
+            {
+              "relationship_type": "replaces",
+              "target_id": "COMMUNITY-G001-A001",
+              "reason": "Replaces News as the initial work-in-progress communication for new users."
+            }
+          ]
+        },
+        {
+          "id": "COMMUNITY-G001-A006",
+          "goal_id": "COMMUNITY-G001",
+          "display_order": 6,
+          "title": "Receive a direct message from an organization",
+          "product_state": "planned",
+          "health": "works",
+          "traceability": "none",
+          "priority": "unset",
+          "implementation_notes": "No organization composer, campaign, or general send endpoint is included yet.",
+          "original_state": null,
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Receive relevant messages and organizational communication",
+          "group_title": "Participate in communication and community",
+          "availability": {
+            "constraints": [
+              "future_permissions_and_recipient_policy"
+            ],
+            "mode": "authenticated",
+            "notes": "Future organization-to-user messaging; not part of the welcome-message implementation."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [
+                "future_permissions_and_recipient_policy"
+              ],
+              "mode": "authenticated",
+              "notes": "Future organization-to-user messaging; not part of the welcome-message implementation."
+            },
+            "boundary_cases": [
+              "organization_authorization",
+              "recipient_consent",
+              "moderation",
+              "blocking",
+              "notification_preferences"
+            ],
+            "code_refs": [],
+            "display_order": 6,
+            "health": "not_applicable",
+            "id": "COMMUNITY-G001-A006",
+            "implementation_notes": "No organization composer, campaign, or general send endpoint is included yet.",
+            "lifecycle": "planned",
+            "priority": "unset",
+            "relationships": [
+              {
+                "reason": "Uses the durable inbox and unread behavior.",
+                "target": "COMMUNITY-G001-A004",
+                "type": "depends_on"
+              }
+            ],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Receive a direct message from an organization",
+            "traceability": "none",
+            "updated_at": "2026-09-02",
+            "updated_by": "product_owner_and_codex",
+            "verification": {
+              "status": "not_tested"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "COMMUNITY-G001-A006-S001",
+              "activity_id": "COMMUNITY-G001-A006",
+              "display_order": 1,
+              "title": "Receive an organization-authored message",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "planned",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMUNITY-G001-A006-S002",
+              "activity_id": "COMMUNITY-G001-A006",
+              "display_order": 2,
+              "title": "Open the organization message",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "planned",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMUNITY-G001-A006-S003",
+              "activity_id": "COMMUNITY-G001-A006",
+              "display_order": 3,
+              "title": "Act on its destination",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "planned",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": [
+            {
+              "relationship_type": "depends_on",
+              "target_id": "COMMUNITY-G001-A004",
+              "reason": "Uses the durable inbox and unread behavior."
+            }
+          ]
+        },
+        {
+          "id": "COMMUNITY-G001-A007",
+          "goal_id": "COMMUNITY-G001",
+          "display_order": 7,
+          "title": "Exchange direct messages with another user",
+          "product_state": "planned",
+          "health": "works",
+          "traceability": "none",
+          "priority": "unset",
+          "implementation_notes": "No user composer, conversation thread, or reply behavior is included yet.",
+          "original_state": null,
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Receive relevant messages and organizational communication",
+          "group_title": "Participate in communication and community",
+          "availability": {
+            "constraints": [
+              "future_relationship_safety_and_moderation_policy"
+            ],
+            "mode": "authenticated",
+            "notes": "Future user-to-user messaging; not part of the welcome-message implementation."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [
+                "future_relationship_safety_and_moderation_policy"
+              ],
+              "mode": "authenticated",
+              "notes": "Future user-to-user messaging; not part of the welcome-message implementation."
+            },
+            "boundary_cases": [
+              "youth_safety",
+              "blocking",
+              "reporting",
+              "consent",
+              "shared_context",
+              "notification_preferences"
+            ],
+            "code_refs": [],
+            "display_order": 7,
+            "health": "not_applicable",
+            "id": "COMMUNITY-G001-A007",
+            "implementation_notes": "No user composer, conversation thread, or reply behavior is included yet.",
+            "lifecycle": "planned",
+            "priority": "unset",
+            "relationships": [
+              {
+                "reason": "Uses the durable inbox and unread behavior.",
+                "target": "COMMUNITY-G001-A004",
+                "type": "depends_on"
+              }
+            ],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Exchange direct messages with another user",
+            "traceability": "none",
+            "updated_at": "2026-09-02",
+            "updated_by": "product_owner_and_codex",
+            "verification": {
+              "status": "not_tested"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "COMMUNITY-G001-A007-S001",
+              "activity_id": "COMMUNITY-G001-A007",
+              "display_order": 1,
+              "title": "Receive a user-authored direct message",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "planned",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMUNITY-G001-A007-S002",
+              "activity_id": "COMMUNITY-G001-A007",
+              "display_order": 2,
+              "title": "Open the conversation",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "planned",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMUNITY-G001-A007-S003",
+              "activity_id": "COMMUNITY-G001-A007",
+              "display_order": 3,
+              "title": "Reply to the other user",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "planned",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": [
+            {
+              "relationship_type": "depends_on",
+              "target_id": "COMMUNITY-G001-A004",
+              "reason": "Uses the durable inbox and unread behavior."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "COMMUNITY-G002",
+      "group_id": "COMMUNITY",
+      "display_order": 2,
+      "title": "Participate in a community discussion",
+      "outcome": "People can exchange questions, experience, and feedback in a bounded community.",
+      "product_state": "live",
+      "health": "unknown",
+      "traceability": "partial",
+      "availability_json": "{\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}",
+      "verification_json": "{\"status\": \"unverified\"}",
+      "signoff_json": "{\"status\": \"not_requested\"}",
+      "original_state": "`Live` / `Conditional` on membership and rights",
+      "source_json": "{\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"COMMUNITY-G002-A001\", \"implementation_notes\": \"Community lists and detail pages support discovery; visibility and action rights may differ.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Browse available communities and discussions\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"COMMUNITY-G002-A002\", \"implementation_notes\": \"Labels, pinned state, recency, and voting support navigation.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Filter and sort discussions by relevance\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"COMMUNITY-G002-A003\", \"implementation_notes\": \"Test authorship, label selection, editing limits, and deletion expectations.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional` on rights\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Start or edit a discussion\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 4, \"health\": \"unknown\", \"id\": \"COMMUNITY-G002-A004\", \"implementation_notes\": \"Comments support replies and votes; discussions support votes and reactions.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional` on authentication/membership\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Comment, reply, vote, and react\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 5, \"health\": \"unknown\", \"id\": \"COMMUNITY-G002-A005\", \"implementation_notes\": \"Authorized users can edit/delete, pin, lock, and moderate conversation.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional` on management rights\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Moderate a discussion\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"visitor\", \"learner_youth\", \"educator\", \"counselor_mentor\", \"employer\", \"nonprofit_community_partner\", \"organization_maintainer\"], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"COMMUNITY-G002\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional` on membership and rights\", \"outcome\": \"People can exchange questions, experience, and feedback in a bounded community.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Participate in a community discussion\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}",
+      "updated_at": "2026-09-02T21:12:02+00:00",
+      "actors": [
+        "counselor_mentor",
+        "educator",
+        "employer",
+        "learner_youth",
+        "nonprofit_community_partner",
+        "organization_maintainer",
+        "visitor"
+      ],
+      "activities": [
+        {
+          "id": "COMMUNITY-G002-A001",
+          "goal_id": "COMMUNITY-G002",
+          "display_order": 1,
+          "title": "Find a community discussion",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Community lists and detail pages support discovery; visibility and action rights may differ.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Participate in a community discussion",
+          "group_title": "Participate in communication and community",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 1,
+            "health": "unknown",
+            "id": "COMMUNITY-G002-A001",
+            "implementation_notes": "Community lists and detail pages support discovery; visibility and action rights may differ.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Browse available communities and discussions",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "COMMUNITY-G002-A001-S001",
+              "activity_id": "COMMUNITY-G002-A001",
+              "display_order": 1,
+              "title": "Browse available communities",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMUNITY-G002-A001-S002",
+              "activity_id": "COMMUNITY-G002-A001",
+              "display_order": 2,
+              "title": "Open a community",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMUNITY-G002-A001-S003",
+              "activity_id": "COMMUNITY-G002-A001",
+              "display_order": 3,
+              "title": "Browse its discussions",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMUNITY-G002-A001-S004",
+              "activity_id": "COMMUNITY-G002-A001",
+              "display_order": 4,
+              "title": "Open a visible discussion",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "COMMUNITY-G002-A002",
+          "goal_id": "COMMUNITY-G002",
+          "display_order": 2,
+          "title": "Find a relevant discussion",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Labels, pinned state, recency, and voting support navigation.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Participate in a community discussion",
+          "group_title": "Participate in communication and community",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 2,
+            "health": "unknown",
+            "id": "COMMUNITY-G002-A002",
+            "implementation_notes": "Labels, pinned state, recency, and voting support navigation.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Filter and sort discussions by relevance",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "COMMUNITY-G002-A002-S001",
+              "activity_id": "COMMUNITY-G002-A002",
+              "display_order": 1,
+              "title": "Filter by label",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMUNITY-G002-A002-S002",
+              "activity_id": "COMMUNITY-G002-A002",
+              "display_order": 2,
+              "title": "Sort by recency",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMUNITY-G002-A002-S003",
+              "activity_id": "COMMUNITY-G002-A002",
+              "display_order": 3,
+              "title": "Use pinned state",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMUNITY-G002-A002-S004",
+              "activity_id": "COMMUNITY-G002-A002",
+              "display_order": 4,
+              "title": "Use voting signals",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "COMMUNITY-G002-A003",
+          "goal_id": "COMMUNITY-G002",
+          "display_order": 3,
+          "title": "Maintain a discussion",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Test authorship, label selection, editing limits, and deletion expectations.",
+          "original_state": "`Live` / `Conditional` on rights",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Participate in a community discussion",
+          "group_title": "Participate in communication and community",
+          "availability": {
+            "constraints": [],
+            "mode": "conditional",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "conditional",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 3,
+            "health": "unknown",
+            "id": "COMMUNITY-G002-A003",
+            "implementation_notes": "Test authorship, label selection, editing limits, and deletion expectations.",
+            "lifecycle": "live",
+            "original_state": "`Live` / `Conditional` on rights",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Start or edit a discussion",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "COMMUNITY-G002-A003-S001",
+              "activity_id": "COMMUNITY-G002-A003",
+              "display_order": 1,
+              "title": "Start a discussion",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMUNITY-G002-A003-S002",
+              "activity_id": "COMMUNITY-G002-A003",
+              "display_order": 2,
+              "title": "Choose discussion labels",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMUNITY-G002-A003-S003",
+              "activity_id": "COMMUNITY-G002-A003",
+              "display_order": 3,
+              "title": "Edit one's discussion",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMUNITY-G002-A003-S004",
+              "activity_id": "COMMUNITY-G002-A003",
+              "display_order": 4,
+              "title": "Delete one's discussion when permitted",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "COMMUNITY-G002-A004",
+          "goal_id": "COMMUNITY-G002",
+          "display_order": 4,
+          "title": "Participate in a discussion",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Comments support replies and votes; discussions support votes and reactions.",
+          "original_state": "`Live` / `Conditional` on authentication/membership",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Participate in a community discussion",
+          "group_title": "Participate in communication and community",
+          "availability": {
+            "constraints": [],
+            "mode": "conditional",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "conditional",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 4,
+            "health": "unknown",
+            "id": "COMMUNITY-G002-A004",
+            "implementation_notes": "Comments support replies and votes; discussions support votes and reactions.",
+            "lifecycle": "live",
+            "original_state": "`Live` / `Conditional` on authentication/membership",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Comment, reply, vote, and react",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "COMMUNITY-G002-A004-S001",
+              "activity_id": "COMMUNITY-G002-A004",
+              "display_order": 1,
+              "title": "Add a comment",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMUNITY-G002-A004-S002",
+              "activity_id": "COMMUNITY-G002-A004",
+              "display_order": 2,
+              "title": "Reply to a comment",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMUNITY-G002-A004-S003",
+              "activity_id": "COMMUNITY-G002-A004",
+              "display_order": 3,
+              "title": "Vote on a discussion or comment",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMUNITY-G002-A004-S004",
+              "activity_id": "COMMUNITY-G002-A004",
+              "display_order": 4,
+              "title": "React to a discussion",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "COMMUNITY-G002-A005",
+          "goal_id": "COMMUNITY-G002",
+          "display_order": 5,
+          "title": "Moderate a discussion",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Authorized users can edit/delete, pin, lock, and moderate conversation.",
+          "original_state": "`Live` / `Conditional` on management rights",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Participate in a community discussion",
+          "group_title": "Participate in communication and community",
+          "availability": {
+            "constraints": [],
+            "mode": "conditional",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "conditional",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 5,
+            "health": "unknown",
+            "id": "COMMUNITY-G002-A005",
+            "implementation_notes": "Authorized users can edit/delete, pin, lock, and moderate conversation.",
+            "lifecycle": "live",
+            "original_state": "`Live` / `Conditional` on management rights",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Moderate a discussion",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "COMMUNITY-G002-A005-S001",
+              "activity_id": "COMMUNITY-G002-A005",
+              "display_order": 1,
+              "title": "Pin or unpin a discussion",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMUNITY-G002-A005-S002",
+              "activity_id": "COMMUNITY-G002-A005",
+              "display_order": 2,
+              "title": "Lock or unlock a discussion",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMUNITY-G002-A005-S003",
+              "activity_id": "COMMUNITY-G002-A005",
+              "display_order": 3,
+              "title": "Edit prohibited content",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMUNITY-G002-A005-S004",
+              "activity_id": "COMMUNITY-G002-A005",
+              "display_order": 4,
+              "title": "Delete prohibited content",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        }
+      ]
+    },
+    {
+      "id": "COMMUNITY-G003",
+      "group_id": "COMMUNITY",
+      "display_order": 3,
+      "title": "Manage organization communication and community spaces",
+      "outcome": "Staff can create timely information and safe participation spaces.",
+      "product_state": "live",
+      "health": "unknown",
+      "traceability": "partial",
+      "availability_json": "{\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}",
+      "verification_json": "{\"status\": \"unverified\"}",
+      "signoff_json": "{\"status\": \"not_requested\"}",
+      "original_state": "`Live`",
+      "source_json": "{\"activities\": [{\"acceptance\": [{\"criterion\": \"News authoring is absent from organization and platform administration after sunset.\", \"id\": \"COMMUNITY-G003-A001-AC01\", \"status\": \"not_tested\"}], \"availability\": {\"constraints\": [\"feature_flag_disabled_by_default\"], \"feature_flags\": [\"NEXT_PUBLIC_LAUNCHLMS_ENABLE_LEGACY_NEWS\"], \"mode\": \"unavailable\", \"notes\": \"The retained authoring surface and API return not found until the shared flag is enabled.\"}, \"code_refs\": [{\"path\": \"apps/web/app/orgs/[orgslug]/admin/news\", \"responsibility\": \"Retained News authoring routes gated by the legacy News flag.\"}, {\"path\": \"apps/web/components/Dashboard/Menus/DashLeftMenu.tsx\", \"responsibility\": \"Shows the retained News entry only when its flag is enabled.\"}, {\"path\": \"apps/web/components/Dashboard/Menus/DashMobileMenu.tsx\", \"responsibility\": \"Shows the retained News entry only when its flag is enabled.\"}, {\"path\": \"apps/api/src/routers/news.py\", \"responsibility\": \"Retained News API protected by the default-off capability dependency.\"}, {\"path\": \"apps/api/src/services/news.py\", \"responsibility\": \"Retained News behavior for restoration or later removal.\"}, {\"path\": \"apps/api/src/db/news.py\", \"responsibility\": \"Retained News data model and stored data.\"}], \"display_order\": 1, \"health\": \"unavailable\", \"id\": \"COMMUNITY-G003-A001\", \"implementation_notes\": \"Sunset approved 2026-09-02. Preserve the implementation, migrations, tests, and data for easy restoration. One shared environment flag restores API routes, pages, and navigation. Candidate for later removal.\", \"lifecycle\": \"sunset\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"pending\"}, \"test_refs\": [{\"path\": \"apps/api/src/tests/test_news.py\", \"responsibility\": \"Retained feature tests; excluded from active delivery rather than deleted during sunset.\"}], \"title\": \"Draft, preview, publish, and unpublish news\", \"traceability\": \"complete\", \"verification\": {\"status\": \"ready\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"COMMUNITY-G003-A002\", \"implementation_notes\": \"Admins manage identity, thumbnail, availability, and rights.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Create and configure a community\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"COMMUNITY-G003-A003\", \"implementation_notes\": \"Validate roles with real mixed-stakeholder groups, especially youth safety and external partners.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Set who may view, create, or manage community content\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"content_author\", \"organization_maintainer\", \"organization_administrator\", \"nonprofit_community_partner\"], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"COMMUNITY-G003\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"outcome\": \"Staff can create timely information and safe participation spaces.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Manage organization communication and community spaces\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}",
+      "updated_at": "2026-09-02T21:12:02+00:00",
+      "actors": [
+        "content_author",
+        "nonprofit_community_partner",
+        "organization_administrator",
+        "organization_maintainer"
+      ],
+      "activities": [
+        {
+          "id": "COMMUNITY-G003-A001",
+          "goal_id": "COMMUNITY-G003",
+          "display_order": 1,
+          "title": "Manage organization news",
+          "product_state": "sunset",
+          "health": "works",
+          "traceability": "complete",
+          "priority": "unset",
+          "implementation_notes": "Sunset approved 2026-09-02. Preserve the implementation, migrations, tests, and data for easy restoration. One shared environment flag restores API routes, pages, and navigation. Candidate for later removal.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Manage organization communication and community spaces",
+          "group_title": "Participate in communication and community",
+          "availability": {
+            "constraints": [
+              "feature_flag_disabled_by_default"
+            ],
+            "feature_flags": [
+              "NEXT_PUBLIC_LAUNCHLMS_ENABLE_LEGACY_NEWS"
+            ],
+            "mode": "unavailable",
+            "notes": "The retained authoring surface and API return not found until the shared flag is enabled."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [
+              {
+                "criterion": "News authoring is absent from organization and platform administration after sunset.",
+                "id": "COMMUNITY-G003-A001-AC01",
+                "status": "not_tested"
+              }
+            ],
+            "availability": {
+              "constraints": [
+                "feature_flag_disabled_by_default"
+              ],
+              "feature_flags": [
+                "NEXT_PUBLIC_LAUNCHLMS_ENABLE_LEGACY_NEWS"
+              ],
+              "mode": "unavailable",
+              "notes": "The retained authoring surface and API return not found until the shared flag is enabled."
+            },
+            "code_refs": [
+              {
+                "path": "apps/web/app/orgs/[orgslug]/admin/news",
+                "responsibility": "Retained News authoring routes gated by the legacy News flag."
+              },
+              {
+                "path": "apps/web/components/Dashboard/Menus/DashLeftMenu.tsx",
+                "responsibility": "Shows the retained News entry only when its flag is enabled."
+              },
+              {
+                "path": "apps/web/components/Dashboard/Menus/DashMobileMenu.tsx",
+                "responsibility": "Shows the retained News entry only when its flag is enabled."
+              },
+              {
+                "path": "apps/api/src/routers/news.py",
+                "responsibility": "Retained News API protected by the default-off capability dependency."
+              },
+              {
+                "path": "apps/api/src/services/news.py",
+                "responsibility": "Retained News behavior for restoration or later removal."
+              },
+              {
+                "path": "apps/api/src/db/news.py",
+                "responsibility": "Retained News data model and stored data."
+              }
+            ],
+            "display_order": 1,
+            "health": "unavailable",
+            "id": "COMMUNITY-G003-A001",
+            "implementation_notes": "Sunset approved 2026-09-02. Preserve the implementation, migrations, tests, and data for easy restoration. One shared environment flag restores API routes, pages, and navigation. Candidate for later removal.",
+            "lifecycle": "sunset",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "pending"
+            },
+            "test_refs": [
+              {
+                "path": "apps/api/src/tests/test_news.py",
+                "responsibility": "Retained feature tests; excluded from active delivery rather than deleted during sunset."
+              }
+            ],
+            "title": "Draft, preview, publish, and unpublish news",
+            "traceability": "complete",
+            "verification": {
+              "status": "ready"
+            }
+          },
+          "acceptance": [
+            {
+              "id": "COMMUNITY-G003-A001-AC01",
+              "activity_id": "COMMUNITY-G003-A001",
+              "display_order": 1,
+              "criterion": "News authoring is absent from organization and platform administration after sunset.",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "notes": "Verified by product_owner at 2026-09-02T22:54:47+00:00",
+              "source_json": "{\"criterion\": \"News authoring is absent from organization and platform administration after sunset.\", \"id\": \"COMMUNITY-G003-A001-AC01\", \"status\": \"not_tested\"}",
+              "created_at": "2026-09-02 22:12:16"
+            }
+          ],
+          "steps": [
+            {
+              "id": "COMMUNITY-G003-A001-S001",
+              "activity_id": "COMMUNITY-G003-A001",
+              "display_order": 1,
+              "title": "Draft an article",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "sunset",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMUNITY-G003-A001-S002",
+              "activity_id": "COMMUNITY-G003-A001",
+              "display_order": 2,
+              "title": "Preview the article",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "sunset",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMUNITY-G003-A001-S003",
+              "activity_id": "COMMUNITY-G003-A001",
+              "display_order": 3,
+              "title": "Publish the article",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "sunset",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMUNITY-G003-A001-S004",
+              "activity_id": "COMMUNITY-G003-A001",
+              "display_order": 4,
+              "title": "Unpublish the article",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "sunset",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [
+            {
+              "kind": "code",
+              "path": "apps/api/src/db/news.py",
+              "symbol": null,
+              "responsibility": "Retained News data model and stored data."
+            },
+            {
+              "kind": "code",
+              "path": "apps/api/src/routers/news.py",
+              "symbol": null,
+              "responsibility": "Retained News API protected by the default-off capability dependency."
+            },
+            {
+              "kind": "code",
+              "path": "apps/api/src/services/news.py",
+              "symbol": null,
+              "responsibility": "Retained News behavior for restoration or later removal."
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/app/orgs/[orgslug]/admin/news",
+              "symbol": null,
+              "responsibility": "Retained News authoring routes gated by the legacy News flag."
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/components/Dashboard/Menus/DashLeftMenu.tsx",
+              "symbol": null,
+              "responsibility": "Shows the retained News entry only when its flag is enabled."
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/components/Dashboard/Menus/DashMobileMenu.tsx",
+              "symbol": null,
+              "responsibility": "Shows the retained News entry only when its flag is enabled."
+            },
+            {
+              "kind": "test",
+              "path": "apps/api/src/tests/test_news.py",
+              "symbol": null,
+              "responsibility": "Retained feature tests; excluded from active delivery rather than deleted during sunset."
+            }
+          ],
+          "relationships": []
+        },
+        {
+          "id": "COMMUNITY-G003-A002",
+          "goal_id": "COMMUNITY-G003",
+          "display_order": 2,
+          "title": "Manage a community space",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Admins manage identity, thumbnail, availability, and rights.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Manage organization communication and community spaces",
+          "group_title": "Participate in communication and community",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 2,
+            "health": "unknown",
+            "id": "COMMUNITY-G003-A002",
+            "implementation_notes": "Admins manage identity, thumbnail, availability, and rights.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Create and configure a community",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "COMMUNITY-G003-A002-S001",
+              "activity_id": "COMMUNITY-G003-A002",
+              "display_order": 1,
+              "title": "Create a community",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMUNITY-G003-A002-S002",
+              "activity_id": "COMMUNITY-G003-A002",
+              "display_order": 2,
+              "title": "Edit community identity",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMUNITY-G003-A002-S003",
+              "activity_id": "COMMUNITY-G003-A002",
+              "display_order": 3,
+              "title": "Choose the thumbnail",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMUNITY-G003-A002-S004",
+              "activity_id": "COMMUNITY-G003-A002",
+              "display_order": 4,
+              "title": "Configure availability",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMUNITY-G003-A002-S005",
+              "activity_id": "COMMUNITY-G003-A002",
+              "display_order": 5,
+              "title": "Configure participation rights",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "COMMUNITY-G003-A003",
+          "goal_id": "COMMUNITY-G003",
+          "display_order": 3,
+          "title": "Control community permissions",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Validate roles with real mixed-stakeholder groups, especially youth safety and external partners.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Manage organization communication and community spaces",
+          "group_title": "Participate in communication and community",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 3,
+            "health": "unknown",
+            "id": "COMMUNITY-G003-A003",
+            "implementation_notes": "Validate roles with real mixed-stakeholder groups, especially youth safety and external partners.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Set who may view, create, or manage community content",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "COMMUNITY-G003-A003-S001",
+              "activity_id": "COMMUNITY-G003-A003",
+              "display_order": 1,
+              "title": "Set who may view",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMUNITY-G003-A003-S002",
+              "activity_id": "COMMUNITY-G003-A003",
+              "display_order": 2,
+              "title": "Set who may create content",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMUNITY-G003-A003-S003",
+              "activity_id": "COMMUNITY-G003-A003",
+              "display_order": 3,
+              "title": "Set who may manage content",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        }
+      ]
+    }
+  ]
+}
