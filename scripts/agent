@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+command_name="${1:-help}"
+shift || true
+
+docs() {
+  python3 "$root_dir/scripts/validate-docs.py"
+  python3 "$root_dir/scripts/product-map.py" validate
+  python3 "$root_dir/scripts/product-map.py" render --check
+  python3 "$root_dir/scripts/source-size.py" check
+  python3 "$root_dir/scripts/architecture-check.py" check
+}
+
+frontend() {
+  (cd "$root_dir/apps/web" && bun run lint && bun run typecheck && bun run test:unit)
+}
+
+api() {
+  (cd "$root_dir/apps/api" && uvx ruff check src && TESTING=true uv run pytest src/tests -q)
+}
+
+changed_files() {
+  local base_ref="${AGENT_BASE_REF:-origin/dev}"
+  if git -C "$root_dir" rev-parse --verify "$base_ref" >/dev/null 2>&1; then
+    base_commit="$(git -C "$root_dir" merge-base HEAD "$base_ref")"
+  else
+    base_commit="HEAD~1"
+  fi
+  {
+    git -C "$root_dir" diff --name-only "$base_commit" HEAD
+    git -C "$root_dir" diff --name-only
+    git -C "$root_dir" diff --name-only --cached
+  } | sort -u
+}
+
+case "$command_name" in
+  doctor)
+    missing=0
+    for tool in git python3 uv bun; do
+      if ! command -v "$tool" >/dev/null 2>&1; then
+        printf 'missing required tool: %s\n' "$tool" >&2
+        missing=1
+      fi
+    done
+    for file in AGENTS.md WORKFLOW.md ARCHITECTURE.md docs/product/manifest.json; do
+      if [[ ! -f "$root_dir/$file" ]]; then
+        printf 'missing required file: %s\n' "$file" >&2
+        missing=1
+      fi
+    done
+    [[ "$missing" -eq 0 ]]
+    docs
+    printf 'Launch LMS agent environment is ready.\n'
+    ;;
+  docs|product)
+    docs
+    ;;
+  check)
+    scope="${1:---changed}"
+    docs
+    if [[ "$scope" == "--all" ]]; then
+      frontend
+      api
+      exit 0
+    fi
+    files="$(changed_files)"
+    if grep -Eq '^(apps/web/|bun.lock$)' <<<"$files"; then frontend; fi
+    if grep -Eq '^(apps/api/|uv.lock$|pyproject.toml$)' <<<"$files"; then api; fi
+    ;;
+  plan)
+    changed_files
+    ;;
+  evidence)
+    "$0" check --changed
+    evidence_dir="$root_dir/.agent/evidence"
+    mkdir -p "$evidence_dir"
+    revision="$(git -C "$root_dir" rev-parse HEAD)"
+    timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+    output="$evidence_dir/$timestamp-$revision.json"
+    python3 - "$output" "$revision" "$timestamp" "$root_dir" <<'PY'
+import json
+import pathlib
+import subprocess
+import sys
+root = pathlib.Path(sys.argv[4])
+def git(*args):
+    return subprocess.check_output(["git", "-C", str(root), *args], text=True).strip()
+payload = {
+    "schema_version": 1,
+    "revision": sys.argv[2],
+    "created_at": sys.argv[3],
+    "branch": git("branch", "--show-current"),
+    "working_tree": git("status", "--short").splitlines(),
+    "checks": {"changed_scope": "passed"},
+}
+pathlib.Path(sys.argv[1]).write_text(json.dumps(payload, indent=2) + "\n")
+PY
+    printf '%s\n' "$output"
+    ;;
+  *)
+    printf 'usage: scripts/agent {doctor|docs|product|plan|check [--changed|--all]|evidence}\n' >&2
+    exit 2
+    ;;
+esac

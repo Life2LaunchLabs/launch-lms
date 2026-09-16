@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "productOS/workspaces/launch-lms/product.db",
+  "source_exported_at": "2026-09-16T02:22:55+00:00",
+  "migration_source_sha256": "f10cd92276489be664944191679dc6ff1f090d3a73537b5c765829407d04aaa6",
+  "expected_counts": {
+    "groups": 15,
+    "goals": 60,
+    "activities": 269,
+    "steps": 980
+  },
+  "migration_baseline": {
+    "counts": {
+      "groups": 15,
+      "goals": 60,
+      "activities": 269,
+      "steps": 980
+    },
+    "acceptance_criteria": 138,
+    "references": 207,
+    "relationships": 23,
+    "lifecycle_states": {
+      "cancelled": 1,
+      "deprecated": 10,
+      "live": 1235,
+      "planned": 49,
+      "removed": 3,
+      "sunset": 11
+    }
+  }
+}

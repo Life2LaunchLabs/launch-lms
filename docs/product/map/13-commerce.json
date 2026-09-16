@@ -1,0 +1,2825 @@
+{
+  "id": "COMMERCE",
+  "display_order": 13,
+  "title": "Sell and grant access to paid offerings",
+  "intent": "Let organizations package learning/media access, accept payments, and connect purchase state to entitlements and groups.",
+  "product_areas": "Store, offers, payment groups, enrollments, Stripe Connect, customers, charges, subscriptions.",
+  "model_distinction": null,
+  "source_json": "{\"baseline\": {\"derived_at\": \"2026-09-02\", \"source\": \"PRODUCT_ACTIVITY_HIERARCHY.md\", \"traceability\": \"partial\", \"verification\": \"unverified\"}, \"display_order\": 13, \"goals\": [{\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"COMMERCE-G001-A001\", \"implementation_notes\": \"Store cards distinguish one-time and subscription offers and preview included badges, podcasts, or playgrounds.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Browse the organization store\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"COMMERCE-G001-A002\", \"implementation_notes\": \"Supports fixed price and customer-choice minimum pricing. Ensure recurring cadence and cancellation expectations are explicit.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Inspect price, recurrence, benefits, and included resources\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"COMMERCE-G001-A003\", \"implementation_notes\": \"Signed-out checkout redirects to login and should return to the exact offer.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Sign in before checkout when necessary\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 4, \"health\": \"unknown\", \"id\": \"COMMERCE-G001-A004\", \"implementation_notes\": \"Stripe session creation and webhook processing drive payment state.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional` on payment-provider connection\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Complete hosted checkout\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 5, \"health\": \"unknown\", \"id\": \"COMMERCE-G001-A005\", \"implementation_notes\": \"Enrollments and payment-group synchronization add users to groups/resources and remove them on cancellation. Test failed, pending, refunded, past-due, and canceled states.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Receive or lose access as payment state changes\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 6, \"health\": \"unknown\", \"id\": \"COMMERCE-G001-A006\", \"implementation_notes\": \"A Stripe customer-portal endpoint supports subscription/billing self-service; confirm how users reach it.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Manage billing through the customer portal\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"visitor\", \"prospective_learner\", \"learner_youth\", \"customer\"], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"COMMERCE-G001\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional` on full plan, payments feature, and Stripe configuration\", \"outcome\": \"A person can understand an offer, pay safely, and receive the promised access.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Purchase access to an offering\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"COMMERCE-G002-A001\", \"implementation_notes\": \"Configure name, description, benefits, currency, amount, fixed/customer-choice price, and offer type.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Create a one-time or subscription offer\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"COMMERCE-G002-A002\", \"implementation_notes\": \"Some UI copy still says “course” while the implementation links badges; flag this for terminology testing.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Link included badges, podcasts, and playgrounds\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"COMMERCE-G002-A003\", \"implementation_notes\": \"Confirm whether access for existing customers changes when an offer is archived or edited.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Publish, unpublish, edit, or archive an offer\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 4, \"health\": \"unknown\", \"id\": \"COMMERCE-G002-A004\", \"implementation_notes\": \"Admin links can open the shop in a separate view.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Preview the public store\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"organization_administrator\", \"organization_maintainer\", \"content_author\"], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"COMMERCE-G002\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional`\", \"outcome\": \"An organization can define exactly what a purchase grants and present it accurately.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Package and publish offers\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"COMMERCE-G003-A001\", \"implementation_notes\": \"A payment group bundles resources independently from ordinary user groups.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Create and edit a payment group\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"COMMERCE-G003-A002\", \"implementation_notes\": \"Current resource picker is badge-focused despite broader offer support.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Add or remove resources in a payment group\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"COMMERCE-G003-A003\", \"implementation_notes\": \"Successful enrollment adds the customer; cancellation removes them.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Synchronize payment enrollment with user groups\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"organization_administrator\", \"organization_maintainer\"], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"COMMERCE-G003\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional`\", \"outcome\": \"Entitlements are applied consistently without manual member administration.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Connect paid access to organizational groups\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"COMMERCE-G004-A001\", \"implementation_notes\": \"OAuth onboarding is used. Removal is blocked when active subscriptions exist.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Connect, reconnect, or remove Stripe Connect\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"COMMERCE-G004-A002\", \"implementation_notes\": \"Overview includes MRR, ARR, total revenue, subscribers, customers, churn, and recent charges.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` in payments administration\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Review revenue and subscription metrics\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"COMMERCE-G004-A003\", \"implementation_notes\": \"Tables include offer, amount, payment method, last/next billing, status, and links to Stripe where applicable.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Inspect customers, transactions, and subscriptions\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 4, \"health\": \"unknown\", \"id\": \"COMMERCE-G004-A004\", \"implementation_notes\": \"Include pending, failed, canceled/cancelled, refunded, trialing, and past-due scenarios in testing.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` at service/status level\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Handle incomplete or adverse payment states\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"organization_administrator\", \"platform_administrator\"], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 4, \"health\": \"unknown\", \"id\": \"COMMERCE-G004\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional`\", \"outcome\": \"An organization can connect a payment provider, understand revenue, and support customers.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Configure and monitor payment operations\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"id\": \"COMMERCE\", \"intent\": \"Let organizations package learning/media access, accept payments, and connect purchase state to entitlements and groups.\", \"model_distinction\": null, \"product_areas\": \"Store, offers, payment groups, enrollments, Stripe Connect, customers, charges, subscriptions.\", \"source_refs\": [\"apps/web/app/orgs/[orgslug]/(withmenu)/store\", \"apps/web/app/orgs/[orgslug]/admin/payments\", \"apps/web/components/Dashboard/Pages/Payments\", \"apps/api/src/routers/payments.py\", \"apps/api/src/services/payments\", \"apps/api/src/db/payments\"], \"title\": \"Sell and grant access to paid offerings\"}",
+  "goals": [
+    {
+      "id": "COMMERCE-G001",
+      "group_id": "COMMERCE",
+      "display_order": 1,
+      "title": "Purchase access to an offering",
+      "outcome": "A person can understand an offer, pay safely, and receive the promised access.",
+      "product_state": "live",
+      "health": "unknown",
+      "traceability": "partial",
+      "availability_json": "{\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}",
+      "verification_json": "{\"status\": \"unverified\"}",
+      "signoff_json": "{\"status\": \"not_requested\"}",
+      "original_state": "`Live` / `Conditional` on full plan, payments feature, and Stripe configuration",
+      "source_json": "{\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"COMMERCE-G001-A001\", \"implementation_notes\": \"Store cards distinguish one-time and subscription offers and preview included badges, podcasts, or playgrounds.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Browse the organization store\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"COMMERCE-G001-A002\", \"implementation_notes\": \"Supports fixed price and customer-choice minimum pricing. Ensure recurring cadence and cancellation expectations are explicit.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Inspect price, recurrence, benefits, and included resources\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"COMMERCE-G001-A003\", \"implementation_notes\": \"Signed-out checkout redirects to login and should return to the exact offer.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Sign in before checkout when necessary\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 4, \"health\": \"unknown\", \"id\": \"COMMERCE-G001-A004\", \"implementation_notes\": \"Stripe session creation and webhook processing drive payment state.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional` on payment-provider connection\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Complete hosted checkout\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 5, \"health\": \"unknown\", \"id\": \"COMMERCE-G001-A005\", \"implementation_notes\": \"Enrollments and payment-group synchronization add users to groups/resources and remove them on cancellation. Test failed, pending, refunded, past-due, and canceled states.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Receive or lose access as payment state changes\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 6, \"health\": \"unknown\", \"id\": \"COMMERCE-G001-A006\", \"implementation_notes\": \"A Stripe customer-portal endpoint supports subscription/billing self-service; confirm how users reach it.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Manage billing through the customer portal\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"visitor\", \"prospective_learner\", \"learner_youth\", \"customer\"], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"COMMERCE-G001\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional` on full plan, payments feature, and Stripe configuration\", \"outcome\": \"A person can understand an offer, pay safely, and receive the promised access.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Purchase access to an offering\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}",
+      "updated_at": "2026-09-02T21:12:02+00:00",
+      "actors": [
+        "customer",
+        "learner_youth",
+        "prospective_learner",
+        "visitor"
+      ],
+      "activities": [
+        {
+          "id": "COMMERCE-G001-A001",
+          "goal_id": "COMMERCE-G001",
+          "display_order": 1,
+          "title": "Browse the organization store",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Store cards distinguish one-time and subscription offers and preview included badges, podcasts, or playgrounds.",
+          "original_state": "`Live` / `Conditional`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Purchase access to an offering",
+          "group_title": "Sell and grant access to paid offerings",
+          "availability": {
+            "constraints": [],
+            "mode": "conditional",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "conditional",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 1,
+            "health": "unknown",
+            "id": "COMMERCE-G001-A001",
+            "implementation_notes": "Store cards distinguish one-time and subscription offers and preview included badges, podcasts, or playgrounds.",
+            "lifecycle": "live",
+            "original_state": "`Live` / `Conditional`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Browse the organization store",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "COMMERCE-G001-A001-S001",
+              "activity_id": "COMMERCE-G001-A001",
+              "display_order": 1,
+              "title": "Browse one-time offers",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:51+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:51+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G001-A001-S002",
+              "activity_id": "COMMERCE-G001-A001",
+              "display_order": 2,
+              "title": "Browse subscription offers",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:51+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:51+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G001-A001-S003",
+              "activity_id": "COMMERCE-G001-A001",
+              "display_order": 3,
+              "title": "Preview included resources",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:51+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:51+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G001-A001-S004",
+              "activity_id": "COMMERCE-G001-A001",
+              "display_order": 4,
+              "title": "Open an offer",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:51+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:51+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "COMMERCE-G001-A002",
+          "goal_id": "COMMERCE-G001",
+          "display_order": 2,
+          "title": "Inspect a paid offer",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Supports fixed price and customer-choice minimum pricing. Ensure recurring cadence and cancellation expectations are explicit.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Purchase access to an offering",
+          "group_title": "Sell and grant access to paid offerings",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 2,
+            "health": "unknown",
+            "id": "COMMERCE-G001-A002",
+            "implementation_notes": "Supports fixed price and customer-choice minimum pricing. Ensure recurring cadence and cancellation expectations are explicit.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Inspect price, recurrence, benefits, and included resources",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "COMMERCE-G001-A002-S001",
+              "activity_id": "COMMERCE-G001-A002",
+              "display_order": 1,
+              "title": "Review the price",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:51+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:51+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G001-A002-S002",
+              "activity_id": "COMMERCE-G001-A002",
+              "display_order": 2,
+              "title": "Review recurrence and cancellation expectations",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:51+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:51+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G001-A002-S003",
+              "activity_id": "COMMERCE-G001-A002",
+              "display_order": 3,
+              "title": "Review benefits",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:51+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:51+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G001-A002-S004",
+              "activity_id": "COMMERCE-G001-A002",
+              "display_order": 4,
+              "title": "Review included resources",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:51+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:51+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G001-A002-S005",
+              "activity_id": "COMMERCE-G001-A002",
+              "display_order": 5,
+              "title": "Understand customer-choice minimum pricing",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:51+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:51+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "COMMERCE-G001-A003",
+          "goal_id": "COMMERCE-G001",
+          "display_order": 3,
+          "title": "Sign in before checkout when necessary",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Signed-out checkout redirects to login and should return to the exact offer.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Purchase access to an offering",
+          "group_title": "Sell and grant access to paid offerings",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 3,
+            "health": "unknown",
+            "id": "COMMERCE-G001-A003",
+            "implementation_notes": "Signed-out checkout redirects to login and should return to the exact offer.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Sign in before checkout when necessary",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "COMMERCE-G001-A003-S001",
+              "activity_id": "COMMERCE-G001-A003",
+              "display_order": 1,
+              "title": "Begin checkout while signed out",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:51+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:51+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G001-A003-S002",
+              "activity_id": "COMMERCE-G001-A003",
+              "display_order": 2,
+              "title": "Sign in",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:51+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:51+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G001-A003-S003",
+              "activity_id": "COMMERCE-G001-A003",
+              "display_order": 3,
+              "title": "Return to the exact offer",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:51+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:51+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "COMMERCE-G001-A004",
+          "goal_id": "COMMERCE-G001",
+          "display_order": 4,
+          "title": "Complete hosted checkout",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Stripe session creation and webhook processing drive payment state.",
+          "original_state": "`Live` / `Conditional` on payment-provider connection",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Purchase access to an offering",
+          "group_title": "Sell and grant access to paid offerings",
+          "availability": {
+            "constraints": [],
+            "mode": "conditional",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "conditional",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 4,
+            "health": "unknown",
+            "id": "COMMERCE-G001-A004",
+            "implementation_notes": "Stripe session creation and webhook processing drive payment state.",
+            "lifecycle": "live",
+            "original_state": "`Live` / `Conditional` on payment-provider connection",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Complete hosted checkout",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "COMMERCE-G001-A004-S001",
+              "activity_id": "COMMERCE-G001-A004",
+              "display_order": 1,
+              "title": "Enter hosted checkout",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:51+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:51+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G001-A004-S002",
+              "activity_id": "COMMERCE-G001-A004",
+              "display_order": 2,
+              "title": "Complete provider payment",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:51+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:51+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G001-A004-S003",
+              "activity_id": "COMMERCE-G001-A004",
+              "display_order": 3,
+              "title": "Return to the product",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:51+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:51+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G001-A004-S004",
+              "activity_id": "COMMERCE-G001-A004",
+              "display_order": 4,
+              "title": "Wait for confirmed payment state",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:51+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:51+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "COMMERCE-G001-A005",
+          "goal_id": "COMMERCE-G001",
+          "display_order": 5,
+          "title": "Respond to paid-access state",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Enrollments and payment-group synchronization add users to groups/resources and remove them on cancellation. Test failed, pending, refunded, past-due, and canceled states.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Purchase access to an offering",
+          "group_title": "Sell and grant access to paid offerings",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 5,
+            "health": "unknown",
+            "id": "COMMERCE-G001-A005",
+            "implementation_notes": "Enrollments and payment-group synchronization add users to groups/resources and remove them on cancellation. Test failed, pending, refunded, past-due, and canceled states.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Receive or lose access as payment state changes",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "COMMERCE-G001-A005-S001",
+              "activity_id": "COMMERCE-G001-A005",
+              "display_order": 1,
+              "title": "Receive access after successful payment",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:51+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:51+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G001-A005-S002",
+              "activity_id": "COMMERCE-G001-A005",
+              "display_order": 2,
+              "title": "Retain or await access during pending states",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:51+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:51+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G001-A005-S003",
+              "activity_id": "COMMERCE-G001-A005",
+              "display_order": 3,
+              "title": "Lose access after cancellation",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:51+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:51+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G001-A005-S004",
+              "activity_id": "COMMERCE-G001-A005",
+              "display_order": 4,
+              "title": "Understand failed, refunded, or past-due status",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:51+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:51+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "COMMERCE-G001-A006",
+          "goal_id": "COMMERCE-G001",
+          "display_order": 6,
+          "title": "Manage billing through the customer portal",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "A Stripe customer-portal endpoint supports subscription/billing self-service; confirm how users reach it.",
+          "original_state": "`Live` / `Conditional`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Purchase access to an offering",
+          "group_title": "Sell and grant access to paid offerings",
+          "availability": {
+            "constraints": [],
+            "mode": "conditional",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "conditional",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 6,
+            "health": "unknown",
+            "id": "COMMERCE-G001-A006",
+            "implementation_notes": "A Stripe customer-portal endpoint supports subscription/billing self-service; confirm how users reach it.",
+            "lifecycle": "live",
+            "original_state": "`Live` / `Conditional`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Manage billing through the customer portal",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "COMMERCE-G001-A006-S001",
+              "activity_id": "COMMERCE-G001-A006",
+              "display_order": 1,
+              "title": "Open the customer billing portal",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:51+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:51+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G001-A006-S002",
+              "activity_id": "COMMERCE-G001-A006",
+              "display_order": 2,
+              "title": "Update payment or subscription details",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:51+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:51+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G001-A006-S003",
+              "activity_id": "COMMERCE-G001-A006",
+              "display_order": 3,
+              "title": "Return to the organization",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:51+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:51+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        }
+      ]
+    },
+    {
+      "id": "COMMERCE-G002",
+      "group_id": "COMMERCE",
+      "display_order": 2,
+      "title": "Package and publish offers",
+      "outcome": "An organization can define exactly what a purchase grants and present it accurately.",
+      "product_state": "live",
+      "health": "unknown",
+      "traceability": "partial",
+      "availability_json": "{\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}",
+      "verification_json": "{\"status\": \"unverified\"}",
+      "signoff_json": "{\"status\": \"not_requested\"}",
+      "original_state": "`Live` / `Conditional`",
+      "source_json": "{\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"COMMERCE-G002-A001\", \"implementation_notes\": \"Configure name, description, benefits, currency, amount, fixed/customer-choice price, and offer type.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Create a one-time or subscription offer\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"COMMERCE-G002-A002\", \"implementation_notes\": \"Some UI copy still says “course” while the implementation links badges; flag this for terminology testing.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Link included badges, podcasts, and playgrounds\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"COMMERCE-G002-A003\", \"implementation_notes\": \"Confirm whether access for existing customers changes when an offer is archived or edited.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Publish, unpublish, edit, or archive an offer\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 4, \"health\": \"unknown\", \"id\": \"COMMERCE-G002-A004\", \"implementation_notes\": \"Admin links can open the shop in a separate view.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Preview the public store\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"organization_administrator\", \"organization_maintainer\", \"content_author\"], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"COMMERCE-G002\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional`\", \"outcome\": \"An organization can define exactly what a purchase grants and present it accurately.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Package and publish offers\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}",
+      "updated_at": "2026-09-02T21:12:02+00:00",
+      "actors": [
+        "content_author",
+        "organization_administrator",
+        "organization_maintainer"
+      ],
+      "activities": [
+        {
+          "id": "COMMERCE-G002-A001",
+          "goal_id": "COMMERCE-G002",
+          "display_order": 1,
+          "title": "Create a paid offer",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Configure name, description, benefits, currency, amount, fixed/customer-choice price, and offer type.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Package and publish offers",
+          "group_title": "Sell and grant access to paid offerings",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 1,
+            "health": "unknown",
+            "id": "COMMERCE-G002-A001",
+            "implementation_notes": "Configure name, description, benefits, currency, amount, fixed/customer-choice price, and offer type.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Create a one-time or subscription offer",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "COMMERCE-G002-A001-S001",
+              "activity_id": "COMMERCE-G002-A001",
+              "display_order": 1,
+              "title": "Choose a one-time offer",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:51+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:51+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G002-A001-S002",
+              "activity_id": "COMMERCE-G002-A001",
+              "display_order": 2,
+              "title": "Choose a subscription offer",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:51+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:51+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G002-A001-S003",
+              "activity_id": "COMMERCE-G002-A001",
+              "display_order": 3,
+              "title": "Define price and currency",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:51+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:51+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G002-A001-S004",
+              "activity_id": "COMMERCE-G002-A001",
+              "display_order": 4,
+              "title": "Set a fixed price",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:51+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:51+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G002-A001-S005",
+              "activity_id": "COMMERCE-G002-A001",
+              "display_order": 5,
+              "title": "Set customer-choice minimum pricing",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:51+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:51+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G002-A001-S006",
+              "activity_id": "COMMERCE-G002-A001",
+              "display_order": 6,
+              "title": "Describe benefits",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:51+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:51+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "COMMERCE-G002-A002",
+          "goal_id": "COMMERCE-G002",
+          "display_order": 2,
+          "title": "Bundle resources in an offer",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Some UI copy still says “course” while the implementation links badges; flag this for terminology testing.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Package and publish offers",
+          "group_title": "Sell and grant access to paid offerings",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 2,
+            "health": "unknown",
+            "id": "COMMERCE-G002-A002",
+            "implementation_notes": "Some UI copy still says “course” while the implementation links badges; flag this for terminology testing.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Link included badges, podcasts, and playgrounds",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "COMMERCE-G002-A002-S001",
+              "activity_id": "COMMERCE-G002-A002",
+              "display_order": 1,
+              "title": "Add included badges",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:51+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:51+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G002-A002-S002",
+              "activity_id": "COMMERCE-G002-A002",
+              "display_order": 2,
+              "title": "Add included podcasts",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:51+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:51+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G002-A002-S003",
+              "activity_id": "COMMERCE-G002-A002",
+              "display_order": 3,
+              "title": "Add included playgrounds",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:51+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:51+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G002-A002-S004",
+              "activity_id": "COMMERCE-G002-A002",
+              "display_order": 4,
+              "title": "Remove an included resource",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:51+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:51+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "COMMERCE-G002-A003",
+          "goal_id": "COMMERCE-G002",
+          "display_order": 3,
+          "title": "Manage an offer lifecycle",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Confirm whether access for existing customers changes when an offer is archived or edited.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Package and publish offers",
+          "group_title": "Sell and grant access to paid offerings",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 3,
+            "health": "unknown",
+            "id": "COMMERCE-G002-A003",
+            "implementation_notes": "Confirm whether access for existing customers changes when an offer is archived or edited.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Publish, unpublish, edit, or archive an offer",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "COMMERCE-G002-A003-S001",
+              "activity_id": "COMMERCE-G002-A003",
+              "display_order": 1,
+              "title": "Publish an offer",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:51+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:51+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G002-A003-S002",
+              "activity_id": "COMMERCE-G002-A003",
+              "display_order": 2,
+              "title": "Unpublish an offer",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:51+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:51+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G002-A003-S003",
+              "activity_id": "COMMERCE-G002-A003",
+              "display_order": 3,
+              "title": "Edit an offer",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:51+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:51+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G002-A003-S004",
+              "activity_id": "COMMERCE-G002-A003",
+              "display_order": 4,
+              "title": "Archive an offer",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:51+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:51+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G002-A003-S005",
+              "activity_id": "COMMERCE-G002-A003",
+              "display_order": 5,
+              "title": "Review effects on existing customers",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:51+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:51+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "COMMERCE-G002-A004",
+          "goal_id": "COMMERCE-G002",
+          "display_order": 4,
+          "title": "Preview the public store",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Admin links can open the shop in a separate view.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Package and publish offers",
+          "group_title": "Sell and grant access to paid offerings",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 4,
+            "health": "unknown",
+            "id": "COMMERCE-G002-A004",
+            "implementation_notes": "Admin links can open the shop in a separate view.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Preview the public store",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "COMMERCE-G002-A004-S001",
+              "activity_id": "COMMERCE-G002-A004",
+              "display_order": 1,
+              "title": "Open the public store preview",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G002-A004-S002",
+              "activity_id": "COMMERCE-G002-A004",
+              "display_order": 2,
+              "title": "Inspect the offer as a customer",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        }
+      ]
+    },
+    {
+      "id": "COMMERCE-G003",
+      "group_id": "COMMERCE",
+      "display_order": 3,
+      "title": "Connect paid access to organizational groups",
+      "outcome": "Entitlements are applied consistently without manual member administration.",
+      "product_state": "live",
+      "health": "unknown",
+      "traceability": "partial",
+      "availability_json": "{\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}",
+      "verification_json": "{\"status\": \"unverified\"}",
+      "signoff_json": "{\"status\": \"not_requested\"}",
+      "original_state": "`Live` / `Conditional`",
+      "source_json": "{\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"COMMERCE-G003-A001\", \"implementation_notes\": \"A payment group bundles resources independently from ordinary user groups.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Create and edit a payment group\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"COMMERCE-G003-A002\", \"implementation_notes\": \"Current resource picker is badge-focused despite broader offer support.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Add or remove resources in a payment group\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"COMMERCE-G003-A003\", \"implementation_notes\": \"Successful enrollment adds the customer; cancellation removes them.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Synchronize payment enrollment with user groups\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"organization_administrator\", \"organization_maintainer\"], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"COMMERCE-G003\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional`\", \"outcome\": \"Entitlements are applied consistently without manual member administration.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Connect paid access to organizational groups\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}",
+      "updated_at": "2026-09-02T21:12:02+00:00",
+      "actors": [
+        "organization_administrator",
+        "organization_maintainer"
+      ],
+      "activities": [
+        {
+          "id": "COMMERCE-G003-A001",
+          "goal_id": "COMMERCE-G003",
+          "display_order": 1,
+          "title": "Manage a payment group",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "A payment group bundles resources independently from ordinary user groups.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Connect paid access to organizational groups",
+          "group_title": "Sell and grant access to paid offerings",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 1,
+            "health": "unknown",
+            "id": "COMMERCE-G003-A001",
+            "implementation_notes": "A payment group bundles resources independently from ordinary user groups.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Create and edit a payment group",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "COMMERCE-G003-A001-S001",
+              "activity_id": "COMMERCE-G003-A001",
+              "display_order": 1,
+              "title": "Create a payment group",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G003-A001-S002",
+              "activity_id": "COMMERCE-G003-A001",
+              "display_order": 2,
+              "title": "Edit the payment group",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G003-A001-S003",
+              "activity_id": "COMMERCE-G003-A001",
+              "display_order": 3,
+              "title": "Review bundled entitlements",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "COMMERCE-G003-A002",
+          "goal_id": "COMMERCE-G003",
+          "display_order": 2,
+          "title": "Change payment-group resources",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Current resource picker is badge-focused despite broader offer support.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Connect paid access to organizational groups",
+          "group_title": "Sell and grant access to paid offerings",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 2,
+            "health": "unknown",
+            "id": "COMMERCE-G003-A002",
+            "implementation_notes": "Current resource picker is badge-focused despite broader offer support.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Add or remove resources in a payment group",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "COMMERCE-G003-A002-S001",
+              "activity_id": "COMMERCE-G003-A002",
+              "display_order": 1,
+              "title": "Add a resource",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G003-A002-S002",
+              "activity_id": "COMMERCE-G003-A002",
+              "display_order": 2,
+              "title": "Remove a resource",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G003-A002-S003",
+              "activity_id": "COMMERCE-G003-A002",
+              "display_order": 3,
+              "title": "Review the resulting bundle",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "COMMERCE-G003-A003",
+          "goal_id": "COMMERCE-G003",
+          "display_order": 3,
+          "title": "Synchronize payment enrollment with user groups",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Successful enrollment adds the customer; cancellation removes them.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Connect paid access to organizational groups",
+          "group_title": "Sell and grant access to paid offerings",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 3,
+            "health": "unknown",
+            "id": "COMMERCE-G003-A003",
+            "implementation_notes": "Successful enrollment adds the customer; cancellation removes them.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Synchronize payment enrollment with user groups",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "COMMERCE-G003-A003-S001",
+              "activity_id": "COMMERCE-G003-A003",
+              "display_order": 1,
+              "title": "Add a paid customer to synchronized groups",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G003-A003-S002",
+              "activity_id": "COMMERCE-G003-A003",
+              "display_order": 2,
+              "title": "Update access after subscription changes",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G003-A003-S003",
+              "activity_id": "COMMERCE-G003-A003",
+              "display_order": 3,
+              "title": "Remove group access after cancellation",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        }
+      ]
+    },
+    {
+      "id": "COMMERCE-G004",
+      "group_id": "COMMERCE",
+      "display_order": 4,
+      "title": "Configure and monitor payment operations",
+      "outcome": "An organization can connect a payment provider, understand revenue, and support customers.",
+      "product_state": "live",
+      "health": "unknown",
+      "traceability": "partial",
+      "availability_json": "{\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}",
+      "verification_json": "{\"status\": \"unverified\"}",
+      "signoff_json": "{\"status\": \"not_requested\"}",
+      "original_state": "`Live` / `Conditional`",
+      "source_json": "{\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"COMMERCE-G004-A001\", \"implementation_notes\": \"OAuth onboarding is used. Removal is blocked when active subscriptions exist.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Connect, reconnect, or remove Stripe Connect\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"COMMERCE-G004-A002\", \"implementation_notes\": \"Overview includes MRR, ARR, total revenue, subscribers, customers, churn, and recent charges.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` in payments administration\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Review revenue and subscription metrics\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"COMMERCE-G004-A003\", \"implementation_notes\": \"Tables include offer, amount, payment method, last/next billing, status, and links to Stripe where applicable.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Inspect customers, transactions, and subscriptions\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 4, \"health\": \"unknown\", \"id\": \"COMMERCE-G004-A004\", \"implementation_notes\": \"Include pending, failed, canceled/cancelled, refunded, trialing, and past-due scenarios in testing.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` at service/status level\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Handle incomplete or adverse payment states\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"organization_administrator\", \"platform_administrator\"], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 4, \"health\": \"unknown\", \"id\": \"COMMERCE-G004\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional`\", \"outcome\": \"An organization can connect a payment provider, understand revenue, and support customers.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Configure and monitor payment operations\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}",
+      "updated_at": "2026-09-02T21:12:02+00:00",
+      "actors": [
+        "organization_administrator",
+        "platform_administrator"
+      ],
+      "activities": [
+        {
+          "id": "COMMERCE-G004-A001",
+          "goal_id": "COMMERCE-G004",
+          "display_order": 1,
+          "title": "Manage Stripe Connect",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "OAuth onboarding is used. Removal is blocked when active subscriptions exist.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Configure and monitor payment operations",
+          "group_title": "Sell and grant access to paid offerings",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 1,
+            "health": "unknown",
+            "id": "COMMERCE-G004-A001",
+            "implementation_notes": "OAuth onboarding is used. Removal is blocked when active subscriptions exist.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Connect, reconnect, or remove Stripe Connect",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "COMMERCE-G004-A001-S001",
+              "activity_id": "COMMERCE-G004-A001",
+              "display_order": 1,
+              "title": "Connect Stripe",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G004-A001-S002",
+              "activity_id": "COMMERCE-G004-A001",
+              "display_order": 2,
+              "title": "Reconnect Stripe",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G004-A001-S003",
+              "activity_id": "COMMERCE-G004-A001",
+              "display_order": 3,
+              "title": "Remove Stripe when no active subscription blocks it",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "COMMERCE-G004-A002",
+          "goal_id": "COMMERCE-G004",
+          "display_order": 2,
+          "title": "Review commerce performance",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Overview includes MRR, ARR, total revenue, subscribers, customers, churn, and recent charges.",
+          "original_state": "`Live` in payments administration",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Configure and monitor payment operations",
+          "group_title": "Sell and grant access to paid offerings",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 2,
+            "health": "unknown",
+            "id": "COMMERCE-G004-A002",
+            "implementation_notes": "Overview includes MRR, ARR, total revenue, subscribers, customers, churn, and recent charges.",
+            "lifecycle": "live",
+            "original_state": "`Live` in payments administration",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Review revenue and subscription metrics",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "COMMERCE-G004-A002-S001",
+              "activity_id": "COMMERCE-G004-A002",
+              "display_order": 1,
+              "title": "Review recurring revenue",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G004-A002-S002",
+              "activity_id": "COMMERCE-G004-A002",
+              "display_order": 2,
+              "title": "Review total revenue",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G004-A002-S003",
+              "activity_id": "COMMERCE-G004-A002",
+              "display_order": 3,
+              "title": "Review subscriber and customer counts",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G004-A002-S004",
+              "activity_id": "COMMERCE-G004-A002",
+              "display_order": 4,
+              "title": "Review churn",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G004-A002-S005",
+              "activity_id": "COMMERCE-G004-A002",
+              "display_order": 5,
+              "title": "Review recent charges",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "COMMERCE-G004-A003",
+          "goal_id": "COMMERCE-G004",
+          "display_order": 3,
+          "title": "Inspect commerce records",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Tables include offer, amount, payment method, last/next billing, status, and links to Stripe where applicable.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Configure and monitor payment operations",
+          "group_title": "Sell and grant access to paid offerings",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 3,
+            "health": "unknown",
+            "id": "COMMERCE-G004-A003",
+            "implementation_notes": "Tables include offer, amount, payment method, last/next billing, status, and links to Stripe where applicable.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Inspect customers, transactions, and subscriptions",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "COMMERCE-G004-A003-S001",
+              "activity_id": "COMMERCE-G004-A003",
+              "display_order": 1,
+              "title": "Inspect a customer",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G004-A003-S002",
+              "activity_id": "COMMERCE-G004-A003",
+              "display_order": 2,
+              "title": "Inspect a transaction",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G004-A003-S003",
+              "activity_id": "COMMERCE-G004-A003",
+              "display_order": 3,
+              "title": "Inspect a subscription",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G004-A003-S004",
+              "activity_id": "COMMERCE-G004-A003",
+              "display_order": 4,
+              "title": "Open the related Stripe record",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "COMMERCE-G004-A004",
+          "goal_id": "COMMERCE-G004",
+          "display_order": 4,
+          "title": "Resolve an adverse payment state",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Include pending, failed, canceled/cancelled, refunded, trialing, and past-due scenarios in testing.",
+          "original_state": "`Live` at service/status level",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Configure and monitor payment operations",
+          "group_title": "Sell and grant access to paid offerings",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 4,
+            "health": "unknown",
+            "id": "COMMERCE-G004-A004",
+            "implementation_notes": "Include pending, failed, canceled/cancelled, refunded, trialing, and past-due scenarios in testing.",
+            "lifecycle": "live",
+            "original_state": "`Live` at service/status level",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Handle incomplete or adverse payment states",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "COMMERCE-G004-A004-S001",
+              "activity_id": "COMMERCE-G004-A004",
+              "display_order": 1,
+              "title": "Review a pending or failed payment",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G004-A004-S002",
+              "activity_id": "COMMERCE-G004-A004",
+              "display_order": 2,
+              "title": "Review a canceled subscription",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G004-A004-S003",
+              "activity_id": "COMMERCE-G004-A004",
+              "display_order": 3,
+              "title": "Review a refund",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G004-A004-S004",
+              "activity_id": "COMMERCE-G004-A004",
+              "display_order": 4,
+              "title": "Review trialing or past-due status",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "COMMERCE-G004-A004-S005",
+              "activity_id": "COMMERCE-G004-A004",
+              "display_order": 5,
+              "title": "Take the appropriate support action",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        }
+      ]
+    }
+  ]
+}

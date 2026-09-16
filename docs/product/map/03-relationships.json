@@ -1,0 +1,1575 @@
+{
+  "id": "RELATIONSHIPS",
+  "display_order": 3,
+  "title": "Join and navigate organizational relationships",
+  "intent": "Let a person connect with the organizations and programs that can serve, employ, teach, credential, or support them.",
+  "product_areas": "Organization memberships, invitations, join mechanisms, program invitations, multi-organization account context.",
+  "model_distinction": null,
+  "source_json": "{\"baseline\": {\"derived_at\": \"2026-09-02\", \"source\": \"PRODUCT_ACTIVITY_HIERARCHY.md\", \"traceability\": \"partial\", \"verification\": \"unverified\"}, \"display_order\": 3, \"goals\": [{\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"RELATIONSHIPS-G001-A001\", \"implementation_notes\": \"The organization detail surface distinguishes open joining from invitation-only access.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Join an organization with open enrollment\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"RELATIONSHIPS-G001-A002\", \"implementation_notes\": \"Invitations appear in account messages/organizations and may also be reached from email links.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Accept or decline an organization invitation\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"RELATIONSHIPS-G001-A003\", \"implementation_notes\": \"Admin-generated links can be constrained by expiry, maximum joins, domain, role, and group. The secret/link must be treated as sensitive.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Join through a controlled link or QR code\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 4, \"health\": \"unknown\", \"id\": \"RELATIONSHIPS-G001-A004\", \"implementation_notes\": \"“Member,” organization role, learner/staff relationship, program participant, and plan collaborator are distinct concepts that may feel like one relationship to users.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`, but terminology should be tested\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Understand membership, role, and resulting access\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"prospective_learner\", \"learner_youth\", \"educator\", \"counselor_mentor\", \"employer\", \"nonprofit_community_partner\"], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"RELATIONSHIPS-G001\", \"lifecycle\": \"live\", \"original_state\": \"`Live`; mechanism varies by organization\", \"outcome\": \"A person becomes an appropriate member of an organization with clear consent and expectations.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Join an organization\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"RELATIONSHIPS-G002-A001\", \"implementation_notes\": \"The account Organizations tab combines search, invitations, current memberships, and the broader organization directory.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"View memberships and pending invitations\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"RELATIONSHIPS-G002-A002\", \"implementation_notes\": \"The app is tenant-scoped by organization slug. Test whether switching context preserves a person's orientation and explains differences in navigation/features.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Move between organization contexts\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"RELATIONSHIPS-G002-A003\", \"implementation_notes\": \"Confirm consequences for plans, awards, saved content, and public portfolio are clearly communicated.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`, subject to ownership/permission constraints\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Leave an organization\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"learner_youth\", \"educator\", \"counselor_mentor\", \"employer\", \"nonprofit_community_partner\", \"content_author\", \"organization_administrator\"], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"RELATIONSHIPS-G002\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"outcome\": \"A person can see and control which organizations they belong to.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Manage relationships across organizations\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"RELATIONSHIPS-G003-A001\", \"implementation_notes\": \"Program terminology overlaps with plan templates and badge programs; this is a high-priority comprehension test.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`, across organization detail, program, badge, and plan surfaces\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Discover programs offered by an organization\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"RELATIONSHIPS-G003-A002\", \"implementation_notes\": \"Invitations appear in account messages and program views.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Accept or decline a program invitation\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"RELATIONSHIPS-G003-A003\", \"implementation_notes\": \"Assignment may create a personal plan and connect the participant to a cohort/group, schedule, staff, and objectives.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Enter an assigned group or personal plan\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"learner_youth\", \"educator\", \"counselor_mentor\", \"employer\", \"nonprofit_community_partner\"], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"RELATIONSHIPS-G003\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional`\", \"outcome\": \"A person can knowingly enter a time-bound or supported pathway.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Join a structured program or assignment\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"id\": \"RELATIONSHIPS\", \"intent\": \"Let a person connect with the organizations and programs that can serve, employ, teach, credential, or support them.\", \"model_distinction\": null, \"product_areas\": \"Organization memberships, invitations, join mechanisms, program invitations, multi-organization account context.\", \"source_refs\": [\"apps/web/app/orgs/[orgslug]/(withmenu)/organizations\", \"apps/web/components/Objects/Account/subpages/AccountOrganizations.tsx\", \"apps/api/src/routers/orgs\", \"apps/api/src/routers/programs.py\"], \"title\": \"Join and navigate organizational relationships\"}",
+  "goals": [
+    {
+      "id": "RELATIONSHIPS-G001",
+      "group_id": "RELATIONSHIPS",
+      "display_order": 1,
+      "title": "Join an organization",
+      "outcome": "A person becomes an appropriate member of an organization with clear consent and expectations.",
+      "product_state": "live",
+      "health": "unknown",
+      "traceability": "partial",
+      "availability_json": "{\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}",
+      "verification_json": "{\"status\": \"unverified\"}",
+      "signoff_json": "{\"status\": \"not_requested\"}",
+      "original_state": "`Live`; mechanism varies by organization",
+      "source_json": "{\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"RELATIONSHIPS-G001-A001\", \"implementation_notes\": \"The organization detail surface distinguishes open joining from invitation-only access.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Join an organization with open enrollment\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"RELATIONSHIPS-G001-A002\", \"implementation_notes\": \"Invitations appear in account messages/organizations and may also be reached from email links.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Accept or decline an organization invitation\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"RELATIONSHIPS-G001-A003\", \"implementation_notes\": \"Admin-generated links can be constrained by expiry, maximum joins, domain, role, and group. The secret/link must be treated as sensitive.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Join through a controlled link or QR code\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 4, \"health\": \"unknown\", \"id\": \"RELATIONSHIPS-G001-A004\", \"implementation_notes\": \"“Member,” organization role, learner/staff relationship, program participant, and plan collaborator are distinct concepts that may feel like one relationship to users.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`, but terminology should be tested\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Understand membership, role, and resulting access\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"prospective_learner\", \"learner_youth\", \"educator\", \"counselor_mentor\", \"employer\", \"nonprofit_community_partner\"], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"RELATIONSHIPS-G001\", \"lifecycle\": \"live\", \"original_state\": \"`Live`; mechanism varies by organization\", \"outcome\": \"A person becomes an appropriate member of an organization with clear consent and expectations.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Join an organization\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}",
+      "updated_at": "2026-09-02T21:12:02+00:00",
+      "actors": [
+        "counselor_mentor",
+        "educator",
+        "employer",
+        "learner_youth",
+        "nonprofit_community_partner",
+        "prospective_learner"
+      ],
+      "activities": [
+        {
+          "id": "RELATIONSHIPS-G001-A001",
+          "goal_id": "RELATIONSHIPS-G001",
+          "display_order": 1,
+          "title": "Join an organization with open enrollment",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "The organization detail surface distinguishes open joining from invitation-only access.",
+          "original_state": "`Live` / `Conditional`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Join an organization",
+          "group_title": "Join and navigate organizational relationships",
+          "availability": {
+            "constraints": [],
+            "mode": "conditional",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "conditional",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 1,
+            "health": "unknown",
+            "id": "RELATIONSHIPS-G001-A001",
+            "implementation_notes": "The organization detail surface distinguishes open joining from invitation-only access.",
+            "lifecycle": "live",
+            "original_state": "`Live` / `Conditional`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Join an organization with open enrollment",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "RELATIONSHIPS-G001-A001-S001",
+              "activity_id": "RELATIONSHIPS-G001-A001",
+              "display_order": 1,
+              "title": "Review open-enrollment membership",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RELATIONSHIPS-G001-A001-S002",
+              "activity_id": "RELATIONSHIPS-G001-A001",
+              "display_order": 2,
+              "title": "Confirm joining the organization",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RELATIONSHIPS-G001-A001-S003",
+              "activity_id": "RELATIONSHIPS-G001-A001",
+              "display_order": 3,
+              "title": "Enter the joined organization",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "RELATIONSHIPS-G001-A002",
+          "goal_id": "RELATIONSHIPS-G001",
+          "display_order": 2,
+          "title": "Respond to an organization invitation",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Invitations appear in account messages/organizations and may also be reached from email links.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Join an organization",
+          "group_title": "Join and navigate organizational relationships",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 2,
+            "health": "unknown",
+            "id": "RELATIONSHIPS-G001-A002",
+            "implementation_notes": "Invitations appear in account messages/organizations and may also be reached from email links.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Accept or decline an organization invitation",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "RELATIONSHIPS-G001-A002-S001",
+              "activity_id": "RELATIONSHIPS-G001-A002",
+              "display_order": 1,
+              "title": "Open an invitation from Messages",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RELATIONSHIPS-G001-A002-S002",
+              "activity_id": "RELATIONSHIPS-G001-A002",
+              "display_order": 2,
+              "title": "Open an invitation from email",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RELATIONSHIPS-G001-A002-S003",
+              "activity_id": "RELATIONSHIPS-G001-A002",
+              "display_order": 3,
+              "title": "Accept the invitation",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RELATIONSHIPS-G001-A002-S004",
+              "activity_id": "RELATIONSHIPS-G001-A002",
+              "display_order": 4,
+              "title": "Decline the invitation",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "RELATIONSHIPS-G001-A003",
+          "goal_id": "RELATIONSHIPS-G001",
+          "display_order": 3,
+          "title": "Join through controlled access",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Admin-generated links can be constrained by expiry, maximum joins, domain, role, and group. The secret/link must be treated as sensitive.",
+          "original_state": "`Live` / `Conditional`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Join an organization",
+          "group_title": "Join and navigate organizational relationships",
+          "availability": {
+            "constraints": [],
+            "mode": "conditional",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "conditional",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 3,
+            "health": "unknown",
+            "id": "RELATIONSHIPS-G001-A003",
+            "implementation_notes": "Admin-generated links can be constrained by expiry, maximum joins, domain, role, and group. The secret/link must be treated as sensitive.",
+            "lifecycle": "live",
+            "original_state": "`Live` / `Conditional`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Join through a controlled link or QR code",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "RELATIONSHIPS-G001-A003-S001",
+              "activity_id": "RELATIONSHIPS-G001-A003",
+              "display_order": 1,
+              "title": "Open a controlled join link",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RELATIONSHIPS-G001-A003-S002",
+              "activity_id": "RELATIONSHIPS-G001-A003",
+              "display_order": 2,
+              "title": "Scan a controlled join QR code",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RELATIONSHIPS-G001-A003-S003",
+              "activity_id": "RELATIONSHIPS-G001-A003",
+              "display_order": 3,
+              "title": "Meet the link's eligibility constraints",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RELATIONSHIPS-G001-A003-S004",
+              "activity_id": "RELATIONSHIPS-G001-A003",
+              "display_order": 4,
+              "title": "Join with the assigned role or group",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "RELATIONSHIPS-G001-A004",
+          "goal_id": "RELATIONSHIPS-G001",
+          "display_order": 4,
+          "title": "Understand the organization relationship",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "“Member,” organization role, learner/staff relationship, program participant, and plan collaborator are distinct concepts that may feel like one relationship to users.",
+          "original_state": "`Live`, but terminology should be tested",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Join an organization",
+          "group_title": "Join and navigate organizational relationships",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 4,
+            "health": "unknown",
+            "id": "RELATIONSHIPS-G001-A004",
+            "implementation_notes": "“Member,” organization role, learner/staff relationship, program participant, and plan collaborator are distinct concepts that may feel like one relationship to users.",
+            "lifecycle": "live",
+            "original_state": "`Live`, but terminology should be tested",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Understand membership, role, and resulting access",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "RELATIONSHIPS-G001-A004-S001",
+              "activity_id": "RELATIONSHIPS-G001-A004",
+              "display_order": 1,
+              "title": "Understand membership status",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RELATIONSHIPS-G001-A004-S002",
+              "activity_id": "RELATIONSHIPS-G001-A004",
+              "display_order": 2,
+              "title": "Understand the organization role",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RELATIONSHIPS-G001-A004-S003",
+              "activity_id": "RELATIONSHIPS-G001-A004",
+              "display_order": 3,
+              "title": "Understand learner-support relationships",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RELATIONSHIPS-G001-A004-S004",
+              "activity_id": "RELATIONSHIPS-G001-A004",
+              "display_order": 4,
+              "title": "Understand program or plan participation",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        }
+      ]
+    },
+    {
+      "id": "RELATIONSHIPS-G002",
+      "group_id": "RELATIONSHIPS",
+      "display_order": 2,
+      "title": "Manage relationships across organizations",
+      "outcome": "A person can see and control which organizations they belong to.",
+      "product_state": "live",
+      "health": "unknown",
+      "traceability": "partial",
+      "availability_json": "{\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}",
+      "verification_json": "{\"status\": \"unverified\"}",
+      "signoff_json": "{\"status\": \"not_requested\"}",
+      "original_state": "`Live`",
+      "source_json": "{\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"RELATIONSHIPS-G002-A001\", \"implementation_notes\": \"The account Organizations tab combines search, invitations, current memberships, and the broader organization directory.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"View memberships and pending invitations\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"RELATIONSHIPS-G002-A002\", \"implementation_notes\": \"The app is tenant-scoped by organization slug. Test whether switching context preserves a person's orientation and explains differences in navigation/features.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Move between organization contexts\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"RELATIONSHIPS-G002-A003\", \"implementation_notes\": \"Confirm consequences for plans, awards, saved content, and public portfolio are clearly communicated.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`, subject to ownership/permission constraints\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Leave an organization\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"learner_youth\", \"educator\", \"counselor_mentor\", \"employer\", \"nonprofit_community_partner\", \"content_author\", \"organization_administrator\"], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"RELATIONSHIPS-G002\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"outcome\": \"A person can see and control which organizations they belong to.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Manage relationships across organizations\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}",
+      "updated_at": "2026-09-02T21:12:02+00:00",
+      "actors": [
+        "content_author",
+        "counselor_mentor",
+        "educator",
+        "employer",
+        "learner_youth",
+        "nonprofit_community_partner",
+        "organization_administrator"
+      ],
+      "activities": [
+        {
+          "id": "RELATIONSHIPS-G002-A001",
+          "goal_id": "RELATIONSHIPS-G002",
+          "display_order": 1,
+          "title": "Review organization relationships",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "The account Organizations tab combines search, invitations, current memberships, and the broader organization directory.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Manage relationships across organizations",
+          "group_title": "Join and navigate organizational relationships",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 1,
+            "health": "unknown",
+            "id": "RELATIONSHIPS-G002-A001",
+            "implementation_notes": "The account Organizations tab combines search, invitations, current memberships, and the broader organization directory.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "View memberships and pending invitations",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "RELATIONSHIPS-G002-A001-S001",
+              "activity_id": "RELATIONSHIPS-G002-A001",
+              "display_order": 1,
+              "title": "View current memberships",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RELATIONSHIPS-G002-A001-S002",
+              "activity_id": "RELATIONSHIPS-G002-A001",
+              "display_order": 2,
+              "title": "View pending invitations",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RELATIONSHIPS-G002-A001-S003",
+              "activity_id": "RELATIONSHIPS-G002-A001",
+              "display_order": 3,
+              "title": "Search the organization directory",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "RELATIONSHIPS-G002-A002",
+          "goal_id": "RELATIONSHIPS-G002",
+          "display_order": 2,
+          "title": "Move between organization contexts",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "The app is tenant-scoped by organization slug. Test whether switching context preserves a person's orientation and explains differences in navigation/features.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Manage relationships across organizations",
+          "group_title": "Join and navigate organizational relationships",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 2,
+            "health": "unknown",
+            "id": "RELATIONSHIPS-G002-A002",
+            "implementation_notes": "The app is tenant-scoped by organization slug. Test whether switching context preserves a person's orientation and explains differences in navigation/features.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Move between organization contexts",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "RELATIONSHIPS-G002-A002-S001",
+              "activity_id": "RELATIONSHIPS-G002-A002",
+              "display_order": 1,
+              "title": "Choose another organization",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RELATIONSHIPS-G002-A002-S002",
+              "activity_id": "RELATIONSHIPS-G002-A002",
+              "display_order": 2,
+              "title": "Enter the selected organization context",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RELATIONSHIPS-G002-A002-S003",
+              "activity_id": "RELATIONSHIPS-G002-A002",
+              "display_order": 3,
+              "title": "Understand context-specific navigation and features",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "RELATIONSHIPS-G002-A003",
+          "goal_id": "RELATIONSHIPS-G002",
+          "display_order": 3,
+          "title": "Leave an organization",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Confirm consequences for plans, awards, saved content, and public portfolio are clearly communicated.",
+          "original_state": "`Live`, subject to ownership/permission constraints",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Manage relationships across organizations",
+          "group_title": "Join and navigate organizational relationships",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 3,
+            "health": "unknown",
+            "id": "RELATIONSHIPS-G002-A003",
+            "implementation_notes": "Confirm consequences for plans, awards, saved content, and public portfolio are clearly communicated.",
+            "lifecycle": "live",
+            "original_state": "`Live`, subject to ownership/permission constraints",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Leave an organization",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "RELATIONSHIPS-G002-A003-S001",
+              "activity_id": "RELATIONSHIPS-G002-A003",
+              "display_order": 1,
+              "title": "Review the consequences of leaving",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RELATIONSHIPS-G002-A003-S002",
+              "activity_id": "RELATIONSHIPS-G002-A003",
+              "display_order": 2,
+              "title": "Confirm departure",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RELATIONSHIPS-G002-A003-S003",
+              "activity_id": "RELATIONSHIPS-G002-A003",
+              "display_order": 3,
+              "title": "Retain access to independently owned records where permitted",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        }
+      ]
+    },
+    {
+      "id": "RELATIONSHIPS-G003",
+      "group_id": "RELATIONSHIPS",
+      "display_order": 3,
+      "title": "Join a structured program or assignment",
+      "outcome": "A person can knowingly enter a time-bound or supported plan.",
+      "product_state": "live",
+      "health": "unknown",
+      "traceability": "partial",
+      "availability_json": "{\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}",
+      "verification_json": "{\"status\": \"unverified\"}",
+      "signoff_json": "{\"status\": \"not_requested\"}",
+      "original_state": "`Live` / `Conditional`",
+      "source_json": "{\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"RELATIONSHIPS-G003-A001\", \"implementation_notes\": \"Program terminology overlaps with plan templates and badge programs; this is a high-priority comprehension test.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`, across organization detail, program, badge, and plan surfaces\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Discover programs offered by an organization\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"RELATIONSHIPS-G003-A002\", \"implementation_notes\": \"Invitations appear in account messages and program views.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Accept or decline a program invitation\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"RELATIONSHIPS-G003-A003\", \"implementation_notes\": \"Assignment may create a personal plan and connect the participant to a cohort/group, schedule, staff, and objectives.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Enter an assigned group or personal plan\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"learner_youth\", \"educator\", \"counselor_mentor\", \"employer\", \"nonprofit_community_partner\"], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"RELATIONSHIPS-G003\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional`\", \"outcome\": \"A person can knowingly enter a time-bound or supported pathway.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Join a structured program or assignment\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}",
+      "updated_at": "2026-09-04 01:50:42",
+      "actors": [
+        "counselor_mentor",
+        "educator",
+        "employer",
+        "learner_youth",
+        "nonprofit_community_partner"
+      ],
+      "activities": [
+        {
+          "id": "RELATIONSHIPS-G003-A001",
+          "goal_id": "RELATIONSHIPS-G003",
+          "display_order": 1,
+          "title": "Discover programs offered by an organization",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Program terminology overlaps with plan templates and badge programs; this is a high-priority comprehension test.",
+          "original_state": "`Live`, across organization detail, program, badge, and plan surfaces",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Join a structured program or assignment",
+          "group_title": "Join and navigate organizational relationships",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 1,
+            "health": "unknown",
+            "id": "RELATIONSHIPS-G003-A001",
+            "implementation_notes": "Program terminology overlaps with plan templates and badge programs; this is a high-priority comprehension test.",
+            "lifecycle": "live",
+            "original_state": "`Live`, across organization detail, program, badge, and plan surfaces",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Discover programs offered by an organization",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "RELATIONSHIPS-G003-A001-S001",
+              "activity_id": "RELATIONSHIPS-G003-A001",
+              "display_order": 1,
+              "title": "Browse offered programs",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RELATIONSHIPS-G003-A001-S002",
+              "activity_id": "RELATIONSHIPS-G003-A001",
+              "display_order": 2,
+              "title": "Review a program's purpose",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RELATIONSHIPS-G003-A001-S003",
+              "activity_id": "RELATIONSHIPS-G003-A001",
+              "display_order": 3,
+              "title": "Distinguish a program from a plan template or badge program",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "RELATIONSHIPS-G003-A002",
+          "goal_id": "RELATIONSHIPS-G003",
+          "display_order": 2,
+          "title": "Respond to a program invitation",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Invitations appear in account messages and program views.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Join a structured program or assignment",
+          "group_title": "Join and navigate organizational relationships",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 2,
+            "health": "unknown",
+            "id": "RELATIONSHIPS-G003-A002",
+            "implementation_notes": "Invitations appear in account messages and program views.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Accept or decline a program invitation",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "RELATIONSHIPS-G003-A002-S001",
+              "activity_id": "RELATIONSHIPS-G003-A002",
+              "display_order": 1,
+              "title": "Open the program invitation",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RELATIONSHIPS-G003-A002-S002",
+              "activity_id": "RELATIONSHIPS-G003-A002",
+              "display_order": 2,
+              "title": "Accept the program invitation",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RELATIONSHIPS-G003-A002-S003",
+              "activity_id": "RELATIONSHIPS-G003-A002",
+              "display_order": 3,
+              "title": "Decline the program invitation",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "RELATIONSHIPS-G003-A003",
+          "goal_id": "RELATIONSHIPS-G003",
+          "display_order": 3,
+          "title": "Enter an assigned plan",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Assignment may create a personal plan and connect the participant to a group, schedule, staff, and objectives.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:50:42+00:00",
+          "description": "",
+          "goal_title": "Join a structured program or assignment",
+          "group_title": "Join and navigate organizational relationships",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 3,
+            "health": "unknown",
+            "id": "RELATIONSHIPS-G003-A003",
+            "implementation_notes": "Assignment may create a personal plan and connect the participant to a cohort/group, schedule, staff, and objectives.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Enter an assigned group or personal plan",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "RELATIONSHIPS-G003-A003-S001",
+              "activity_id": "RELATIONSHIPS-G003-A003",
+              "display_order": 1,
+              "title": "Join the assigned cohort or group",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RELATIONSHIPS-G003-A003-S002",
+              "activity_id": "RELATIONSHIPS-G003-A003",
+              "display_order": 2,
+              "title": "Open the created personal plan",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RELATIONSHIPS-G003-A003-S003",
+              "activity_id": "RELATIONSHIPS-G003-A003",
+              "display_order": 3,
+              "title": "Review the schedule and objectives",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "RELATIONSHIPS-G003-A003-S004",
+              "activity_id": "RELATIONSHIPS-G003-A003",
+              "display_order": 4,
+              "title": "Identify assigned support staff",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:55+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        }
+      ]
+    }
+  ]
+}

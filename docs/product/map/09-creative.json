@@ -1,0 +1,3024 @@
+{
+  "id": "CREATIVE",
+  "display_order": 9,
+  "title": "Collaborate and create interactive media",
+  "intent": "Give organizations and participants flexible spaces for visual collaboration, interactive experiences, and audio learning.",
+  "product_areas": "Collaborative boards, AI playgrounds, podcasts, media library.",
+  "model_distinction": null,
+  "source_json": "{\"baseline\": {\"derived_at\": \"2026-09-02\", \"source\": \"PRODUCT_ACTIVITY_HIERARCHY.md\", \"traceability\": \"partial\", \"verification\": \"unverified\"}, \"display_order\": 9, \"goals\": [{\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"CREATIVE-G001-A001\", \"implementation_notes\": \"Boards have owner/editor/viewer membership and may be reached through public links or catalogs.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional` on public, membership, and group access\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Find or open a board\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"CREATIVE-G001-A002\", \"implementation_notes\": \"Canvas tools include drawing, cards, frames, notes, todos, stickers, YouTube, webpage/embed, podcast, and AI-playground elements, plus drag/resize/multi-select and undo/redo.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Add and arrange visual content\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"CREATIVE-G001-A003\", \"implementation_notes\": \"Yjs-backed presence/cursors, ephemeral chat/reactions, and timers/Pomodoro support live sessions.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Collaborate synchronously\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 4, \"health\": \"unknown\", \"id\": \"CREATIVE-G001-A004\", \"implementation_notes\": \"Include link sharing, zoom/pan, access-denied behavior, and public-viewer expectations in testing.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Share, navigate, and present the board\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 5, \"health\": \"partial\", \"id\": \"CREATIVE-G001-A005\", \"implementation_notes\": \"CRUD, thumbnail, member roles, and group-access support exist, but a nested admin settings route currently redirects to the board root. Confirm the actually reachable management workflow.\", \"lifecycle\": \"live\", \"original_state\": \"`Partial`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Manage board access and presentation\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"learner_youth\", \"educator\", \"counselor_mentor\", \"employer\", \"nonprofit_community_partner\", \"content_author\"], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"partial\", \"id\": \"CREATIVE-G001\", \"lifecycle\": \"live\", \"original_state\": \"`Live`; some administration/settings routing is `Partial`\", \"outcome\": \"A group can think, organize, and create together in real time.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Collaborate on a visual board\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"CREATIVE-G002-A001\", \"implementation_notes\": \"Access modes include public, authenticated, and restricted; users can react where allowed.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Browse and launch published playgrounds\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"CREATIVE-G002-A002\", \"implementation_notes\": \"Duplication supports adaptation and reuse.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional` on rights\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Duplicate an existing playground\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"CREATIVE-G002-A003\", \"implementation_notes\": \"The creator starts a generation session and receives an interactive HTML result.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional` on AI feature and credits\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Generate a playground from a prompt\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 4, \"health\": \"unknown\", \"id\": \"CREATIVE-G002-A004\", \"implementation_notes\": \"Authors can request revisions, inspect the live result, rename, and save.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Iterate through conversation and live preview\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 5, \"health\": \"unknown\", \"id\": \"CREATIVE-G002-A005\", \"implementation_notes\": \"Manage thumbnail, publication, access mode, group access, and deletion/bulk actions.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Publish and control access\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"visitor\", \"learner_youth\", \"educator\", \"counselor_mentor\", \"content_author\", \"organization_maintainer\"], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"CREATIVE-G002\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional` on AI and access configuration\", \"outcome\": \"A person can learn or demonstrate through a lightweight interactive web experience.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Use or create an interactive playground\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"CREATIVE-G003-A001\", \"implementation_notes\": \"Show pages include description/about, imagery, tags, and authors with roles.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional` on public/published state\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Browse podcasts and inspect show information\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"CREATIVE-G003-A002\", \"implementation_notes\": \"Player behavior includes waveform seeking, volume, 15-second skip, minimize, and close.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Play and control an episode\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"CREATIVE-G003-A003\", \"implementation_notes\": \"A podcast feed route supports external distribution/consumption.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Subscribe through an RSS feed\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 4, \"health\": \"unknown\", \"id\": \"CREATIVE-G003-A004\", \"implementation_notes\": \"Staff manage metadata, public/published state, SEO, thumbnail, authors, and ordering.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Create and manage a podcast\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 5, \"health\": \"unknown\", \"id\": \"CREATIVE-G003-A005\", \"implementation_notes\": \"Episode administration includes title/description, audio replacement, duration/number, thumbnail, publish state, and ordering.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Create, upload, publish, reorder, or remove episodes\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"visitor\", \"learner_youth\", \"educator\", \"counselor_mentor\", \"employer\", \"nonprofit_community_partner\", \"content_author\"], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"CREATIVE-G003\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"outcome\": \"People can consume and distribute serialized audio content.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Listen to and publish podcasts\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"CREATIVE-G004-A001\", \"implementation_notes\": \"Media picking is reused for avatars, organization branding, learning content, thumbnails, portfolios, and evidence.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Upload or select an asset\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"CREATIVE-G004-A002\", \"implementation_notes\": \"Folder CRUD, asset move, and linking behavior exist.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Organize assets into folders and move them\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"CREATIVE-G004-A003\", \"implementation_notes\": \"Test ownership, accessible previews, broken/deleted asset handling, and whether users understand reuse versus copying.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Apply an asset in context\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"learner_youth\", \"content_author\", \"organization_maintainer\", \"organization_administrator\"], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 4, \"health\": \"unknown\", \"id\": \"CREATIVE-G004\", \"lifecycle\": \"live\", \"original_state\": \"`Live` as an embedded library rather than a prominent standalone destination\", \"outcome\": \"A person can upload, organize, select, and reuse media without repeatedly managing files.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Reuse media safely across the product\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"id\": \"CREATIVE\", \"intent\": \"Give organizations and participants flexible spaces for visual collaboration, interactive experiences, and audio learning.\", \"model_distinction\": null, \"product_areas\": \"Collaborative boards, AI playgrounds, podcasts, media library.\", \"source_refs\": [\"apps/web/app/board\", \"apps/web/app/editor\", \"apps/web/app/orgs/[orgslug]/(withmenu)/boards\", \"apps/web/app/orgs/[orgslug]/(withmenu)/playgrounds\", \"apps/web/app/orgs/[orgslug]/(withmenu)/podcasts\", \"apps/api/src/routers/boards\", \"apps/api/src/routers/playgrounds.py\", \"apps/api/src/routers/podcasts.py\", \"apps/api/src/routers/media.py\"], \"title\": \"Collaborate and create interactive media\"}",
+  "goals": [
+    {
+      "id": "CREATIVE-G001",
+      "group_id": "CREATIVE",
+      "display_order": 1,
+      "title": "Collaborate on a visual board",
+      "outcome": "A group can think, organize, and create together in real time.",
+      "product_state": "live",
+      "health": "partial",
+      "traceability": "partial",
+      "availability_json": "{\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}",
+      "verification_json": "{\"status\": \"unverified\"}",
+      "signoff_json": "{\"status\": \"not_requested\"}",
+      "original_state": "`Live`; some administration/settings routing is `Partial`",
+      "source_json": "{\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"CREATIVE-G001-A001\", \"implementation_notes\": \"Boards have owner/editor/viewer membership and may be reached through public links or catalogs.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional` on public, membership, and group access\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Find or open a board\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"CREATIVE-G001-A002\", \"implementation_notes\": \"Canvas tools include drawing, cards, frames, notes, todos, stickers, YouTube, webpage/embed, podcast, and AI-playground elements, plus drag/resize/multi-select and undo/redo.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Add and arrange visual content\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"CREATIVE-G001-A003\", \"implementation_notes\": \"Yjs-backed presence/cursors, ephemeral chat/reactions, and timers/Pomodoro support live sessions.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Collaborate synchronously\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 4, \"health\": \"unknown\", \"id\": \"CREATIVE-G001-A004\", \"implementation_notes\": \"Include link sharing, zoom/pan, access-denied behavior, and public-viewer expectations in testing.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Share, navigate, and present the board\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 5, \"health\": \"partial\", \"id\": \"CREATIVE-G001-A005\", \"implementation_notes\": \"CRUD, thumbnail, member roles, and group-access support exist, but a nested admin settings route currently redirects to the board root. Confirm the actually reachable management workflow.\", \"lifecycle\": \"live\", \"original_state\": \"`Partial`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Manage board access and presentation\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"learner_youth\", \"educator\", \"counselor_mentor\", \"employer\", \"nonprofit_community_partner\", \"content_author\"], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"partial\", \"id\": \"CREATIVE-G001\", \"lifecycle\": \"live\", \"original_state\": \"`Live`; some administration/settings routing is `Partial`\", \"outcome\": \"A group can think, organize, and create together in real time.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Collaborate on a visual board\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}",
+      "updated_at": "2026-09-02T21:12:02+00:00",
+      "actors": [
+        "content_author",
+        "counselor_mentor",
+        "educator",
+        "employer",
+        "learner_youth",
+        "nonprofit_community_partner"
+      ],
+      "activities": [
+        {
+          "id": "CREATIVE-G001-A001",
+          "goal_id": "CREATIVE-G001",
+          "display_order": 1,
+          "title": "Enter a visual board",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Boards have owner/editor/viewer membership and may be reached through public links or catalogs.",
+          "original_state": "`Live` / `Conditional` on public, membership, and group access",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Collaborate on a visual board",
+          "group_title": "Collaborate and create interactive media",
+          "availability": {
+            "constraints": [],
+            "mode": "conditional",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "conditional",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 1,
+            "health": "unknown",
+            "id": "CREATIVE-G001-A001",
+            "implementation_notes": "Boards have owner/editor/viewer membership and may be reached through public links or catalogs.",
+            "lifecycle": "live",
+            "original_state": "`Live` / `Conditional` on public, membership, and group access",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Find or open a board",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "CREATIVE-G001-A001-S001",
+              "activity_id": "CREATIVE-G001-A001",
+              "display_order": 1,
+              "title": "Find a board in a catalog",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G001-A001-S002",
+              "activity_id": "CREATIVE-G001-A001",
+              "display_order": 2,
+              "title": "Open a board from a shared link",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G001-A001-S003",
+              "activity_id": "CREATIVE-G001-A001",
+              "display_order": 3,
+              "title": "Enter with owner, editor, or viewer access",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "CREATIVE-G001-A002",
+          "goal_id": "CREATIVE-G001",
+          "display_order": 2,
+          "title": "Compose a visual board",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Canvas tools include drawing, cards, frames, notes, todos, stickers, YouTube, webpage/embed, podcast, and AI-playground elements, plus drag/resize/multi-select and undo/redo.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Collaborate on a visual board",
+          "group_title": "Collaborate and create interactive media",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 2,
+            "health": "unknown",
+            "id": "CREATIVE-G001-A002",
+            "implementation_notes": "Canvas tools include drawing, cards, frames, notes, todos, stickers, YouTube, webpage/embed, podcast, and AI-playground elements, plus drag/resize/multi-select and undo/redo.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Add and arrange visual content",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "CREATIVE-G001-A002-S001",
+              "activity_id": "CREATIVE-G001-A002",
+              "display_order": 1,
+              "title": "Add a canvas object",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G001-A002-S002",
+              "activity_id": "CREATIVE-G001-A002",
+              "display_order": 2,
+              "title": "Arrange or resize content",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G001-A002-S003",
+              "activity_id": "CREATIVE-G001-A002",
+              "display_order": 3,
+              "title": "Select multiple objects",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G001-A002-S004",
+              "activity_id": "CREATIVE-G001-A002",
+              "display_order": 4,
+              "title": "Undo or redo a change",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "CREATIVE-G001-A003",
+          "goal_id": "CREATIVE-G001",
+          "display_order": 3,
+          "title": "Collaborate synchronously",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Yjs-backed presence/cursors, ephemeral chat/reactions, and timers/Pomodoro support live sessions.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Collaborate on a visual board",
+          "group_title": "Collaborate and create interactive media",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 3,
+            "health": "unknown",
+            "id": "CREATIVE-G001-A003",
+            "implementation_notes": "Yjs-backed presence/cursors, ephemeral chat/reactions, and timers/Pomodoro support live sessions.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Collaborate synchronously",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "CREATIVE-G001-A003-S001",
+              "activity_id": "CREATIVE-G001-A003",
+              "display_order": 1,
+              "title": "See collaborator presence and cursors",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G001-A003-S002",
+              "activity_id": "CREATIVE-G001-A003",
+              "display_order": 2,
+              "title": "Use ephemeral session chat",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G001-A003-S003",
+              "activity_id": "CREATIVE-G001-A003",
+              "display_order": 3,
+              "title": "Send a live reaction",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G001-A003-S004",
+              "activity_id": "CREATIVE-G001-A003",
+              "display_order": 4,
+              "title": "Use a shared timer",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "CREATIVE-G001-A004",
+          "goal_id": "CREATIVE-G001",
+          "display_order": 4,
+          "title": "Present a visual board",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Include link sharing, zoom/pan, access-denied behavior, and public-viewer expectations in testing.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Collaborate on a visual board",
+          "group_title": "Collaborate and create interactive media",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 4,
+            "health": "unknown",
+            "id": "CREATIVE-G001-A004",
+            "implementation_notes": "Include link sharing, zoom/pan, access-denied behavior, and public-viewer expectations in testing.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Share, navigate, and present the board",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "CREATIVE-G001-A004-S001",
+              "activity_id": "CREATIVE-G001-A004",
+              "display_order": 1,
+              "title": "Share a board link",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G001-A004-S002",
+              "activity_id": "CREATIVE-G001-A004",
+              "display_order": 2,
+              "title": "Navigate with zoom and pan",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G001-A004-S003",
+              "activity_id": "CREATIVE-G001-A004",
+              "display_order": 3,
+              "title": "Present the board",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G001-A004-S004",
+              "activity_id": "CREATIVE-G001-A004",
+              "display_order": 4,
+              "title": "Experience the public-viewer boundary",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "CREATIVE-G001-A005",
+          "goal_id": "CREATIVE-G001",
+          "display_order": 5,
+          "title": "Administer a visual board",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "CRUD, thumbnail, member roles, and group-access support exist, but a nested admin settings route currently redirects to the board root. Confirm the actually reachable management workflow.",
+          "original_state": "`Partial`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Collaborate on a visual board",
+          "group_title": "Collaborate and create interactive media",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 5,
+            "health": "partial",
+            "id": "CREATIVE-G001-A005",
+            "implementation_notes": "CRUD, thumbnail, member roles, and group-access support exist, but a nested admin settings route currently redirects to the board root. Confirm the actually reachable management workflow.",
+            "lifecycle": "live",
+            "original_state": "`Partial`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Manage board access and presentation",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "CREATIVE-G001-A005-S001",
+              "activity_id": "CREATIVE-G001-A005",
+              "display_order": 1,
+              "title": "Edit board identity and thumbnail",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G001-A005-S002",
+              "activity_id": "CREATIVE-G001-A005",
+              "display_order": 2,
+              "title": "Assign member roles",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G001-A005-S003",
+              "activity_id": "CREATIVE-G001-A005",
+              "display_order": 3,
+              "title": "Grant group access",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G001-A005-S004",
+              "activity_id": "CREATIVE-G001-A005",
+              "display_order": 4,
+              "title": "Remove a board",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        }
+      ]
+    },
+    {
+      "id": "CREATIVE-G002",
+      "group_id": "CREATIVE",
+      "display_order": 2,
+      "title": "Use or create an interactive playground",
+      "outcome": "A person can learn or demonstrate through a lightweight interactive web experience.",
+      "product_state": "live",
+      "health": "unknown",
+      "traceability": "partial",
+      "availability_json": "{\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}",
+      "verification_json": "{\"status\": \"unverified\"}",
+      "signoff_json": "{\"status\": \"not_requested\"}",
+      "original_state": "`Live` / `Conditional` on AI and access configuration",
+      "source_json": "{\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"CREATIVE-G002-A001\", \"implementation_notes\": \"Access modes include public, authenticated, and restricted; users can react where allowed.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Browse and launch published playgrounds\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"CREATIVE-G002-A002\", \"implementation_notes\": \"Duplication supports adaptation and reuse.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional` on rights\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Duplicate an existing playground\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"CREATIVE-G002-A003\", \"implementation_notes\": \"The creator starts a generation session and receives an interactive HTML result.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional` on AI feature and credits\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Generate a playground from a prompt\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 4, \"health\": \"unknown\", \"id\": \"CREATIVE-G002-A004\", \"implementation_notes\": \"Authors can request revisions, inspect the live result, rename, and save.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Iterate through conversation and live preview\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 5, \"health\": \"unknown\", \"id\": \"CREATIVE-G002-A005\", \"implementation_notes\": \"Manage thumbnail, publication, access mode, group access, and deletion/bulk actions.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Publish and control access\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"visitor\", \"learner_youth\", \"educator\", \"counselor_mentor\", \"content_author\", \"organization_maintainer\"], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"CREATIVE-G002\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional` on AI and access configuration\", \"outcome\": \"A person can learn or demonstrate through a lightweight interactive web experience.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Use or create an interactive playground\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}",
+      "updated_at": "2026-09-02T21:12:02+00:00",
+      "actors": [
+        "content_author",
+        "counselor_mentor",
+        "educator",
+        "learner_youth",
+        "organization_maintainer",
+        "visitor"
+      ],
+      "activities": [
+        {
+          "id": "CREATIVE-G002-A001",
+          "goal_id": "CREATIVE-G002",
+          "display_order": 1,
+          "title": "Use a published playground",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Access modes include public, authenticated, and restricted; users can react where allowed.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Use or create an interactive playground",
+          "group_title": "Collaborate and create interactive media",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 1,
+            "health": "unknown",
+            "id": "CREATIVE-G002-A001",
+            "implementation_notes": "Access modes include public, authenticated, and restricted; users can react where allowed.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Browse and launch published playgrounds",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "CREATIVE-G002-A001-S001",
+              "activity_id": "CREATIVE-G002-A001",
+              "display_order": 1,
+              "title": "Browse published playgrounds",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G002-A001-S002",
+              "activity_id": "CREATIVE-G002-A001",
+              "display_order": 2,
+              "title": "Launch an accessible playground",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G002-A001-S003",
+              "activity_id": "CREATIVE-G002-A001",
+              "display_order": 3,
+              "title": "Use the interactive experience",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G002-A001-S004",
+              "activity_id": "CREATIVE-G002-A001",
+              "display_order": 4,
+              "title": "React to the playground",
+              "description": "",
+              "step_kind": "optional",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "CREATIVE-G002-A002",
+          "goal_id": "CREATIVE-G002",
+          "display_order": 2,
+          "title": "Duplicate an existing playground",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Duplication supports adaptation and reuse.",
+          "original_state": "`Live` / `Conditional` on rights",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Use or create an interactive playground",
+          "group_title": "Collaborate and create interactive media",
+          "availability": {
+            "constraints": [],
+            "mode": "conditional",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "conditional",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 2,
+            "health": "unknown",
+            "id": "CREATIVE-G002-A002",
+            "implementation_notes": "Duplication supports adaptation and reuse.",
+            "lifecycle": "live",
+            "original_state": "`Live` / `Conditional` on rights",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Duplicate an existing playground",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "CREATIVE-G002-A002-S001",
+              "activity_id": "CREATIVE-G002-A002",
+              "display_order": 1,
+              "title": "Open an existing playground",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G002-A002-S002",
+              "activity_id": "CREATIVE-G002-A002",
+              "display_order": 2,
+              "title": "Duplicate it into an editable copy",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G002-A002-S003",
+              "activity_id": "CREATIVE-G002-A002",
+              "display_order": 3,
+              "title": "Adapt the copied experience",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "CREATIVE-G002-A003",
+          "goal_id": "CREATIVE-G002",
+          "display_order": 3,
+          "title": "Generate a playground from a prompt",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "The creator starts a generation session and receives an interactive HTML result.",
+          "original_state": "`Live` / `Conditional` on AI feature and credits",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Use or create an interactive playground",
+          "group_title": "Collaborate and create interactive media",
+          "availability": {
+            "constraints": [],
+            "mode": "conditional",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "conditional",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 3,
+            "health": "unknown",
+            "id": "CREATIVE-G002-A003",
+            "implementation_notes": "The creator starts a generation session and receives an interactive HTML result.",
+            "lifecycle": "live",
+            "original_state": "`Live` / `Conditional` on AI feature and credits",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Generate a playground from a prompt",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "CREATIVE-G002-A003-S001",
+              "activity_id": "CREATIVE-G002-A003",
+              "display_order": 1,
+              "title": "Describe the intended experience",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G002-A003-S002",
+              "activity_id": "CREATIVE-G002-A003",
+              "display_order": 2,
+              "title": "Start a generation session",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G002-A003-S003",
+              "activity_id": "CREATIVE-G002-A003",
+              "display_order": 3,
+              "title": "Receive an interactive HTML result",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "CREATIVE-G002-A004",
+          "goal_id": "CREATIVE-G002",
+          "display_order": 4,
+          "title": "Refine a generated playground",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Authors can request revisions, inspect the live result, rename, and save.",
+          "original_state": "`Live` / `Conditional`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Use or create an interactive playground",
+          "group_title": "Collaborate and create interactive media",
+          "availability": {
+            "constraints": [],
+            "mode": "conditional",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "conditional",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 4,
+            "health": "unknown",
+            "id": "CREATIVE-G002-A004",
+            "implementation_notes": "Authors can request revisions, inspect the live result, rename, and save.",
+            "lifecycle": "live",
+            "original_state": "`Live` / `Conditional`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Iterate through conversation and live preview",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "CREATIVE-G002-A004-S001",
+              "activity_id": "CREATIVE-G002-A004",
+              "display_order": 1,
+              "title": "Request a conversational revision",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G002-A004-S002",
+              "activity_id": "CREATIVE-G002-A004",
+              "display_order": 2,
+              "title": "Inspect the live preview",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G002-A004-S003",
+              "activity_id": "CREATIVE-G002-A004",
+              "display_order": 3,
+              "title": "Rename the playground",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G002-A004-S004",
+              "activity_id": "CREATIVE-G002-A004",
+              "display_order": 4,
+              "title": "Save the current result",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "CREATIVE-G002-A005",
+          "goal_id": "CREATIVE-G002",
+          "display_order": 5,
+          "title": "Manage playground distribution",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Manage thumbnail, publication, access mode, group access, and deletion/bulk actions.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Use or create an interactive playground",
+          "group_title": "Collaborate and create interactive media",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 5,
+            "health": "unknown",
+            "id": "CREATIVE-G002-A005",
+            "implementation_notes": "Manage thumbnail, publication, access mode, group access, and deletion/bulk actions.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Publish and control access",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "CREATIVE-G002-A005-S001",
+              "activity_id": "CREATIVE-G002-A005",
+              "display_order": 1,
+              "title": "Set the thumbnail",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G002-A005-S002",
+              "activity_id": "CREATIVE-G002-A005",
+              "display_order": 2,
+              "title": "Publish or unpublish",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G002-A005-S003",
+              "activity_id": "CREATIVE-G002-A005",
+              "display_order": 3,
+              "title": "Choose the access mode",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G002-A005-S004",
+              "activity_id": "CREATIVE-G002-A005",
+              "display_order": 4,
+              "title": "Grant group access",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G002-A005-S005",
+              "activity_id": "CREATIVE-G002-A005",
+              "display_order": 5,
+              "title": "Delete one or more playgrounds",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        }
+      ]
+    },
+    {
+      "id": "CREATIVE-G003",
+      "group_id": "CREATIVE",
+      "display_order": 3,
+      "title": "Listen to and publish podcasts",
+      "outcome": "People can consume and distribute serialized audio content.",
+      "product_state": "live",
+      "health": "unknown",
+      "traceability": "partial",
+      "availability_json": "{\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}",
+      "verification_json": "{\"status\": \"unverified\"}",
+      "signoff_json": "{\"status\": \"not_requested\"}",
+      "original_state": "`Live`",
+      "source_json": "{\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"CREATIVE-G003-A001\", \"implementation_notes\": \"Show pages include description/about, imagery, tags, and authors with roles.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional` on public/published state\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Browse podcasts and inspect show information\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"CREATIVE-G003-A002\", \"implementation_notes\": \"Player behavior includes waveform seeking, volume, 15-second skip, minimize, and close.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Play and control an episode\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"CREATIVE-G003-A003\", \"implementation_notes\": \"A podcast feed route supports external distribution/consumption.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Subscribe through an RSS feed\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 4, \"health\": \"unknown\", \"id\": \"CREATIVE-G003-A004\", \"implementation_notes\": \"Staff manage metadata, public/published state, SEO, thumbnail, authors, and ordering.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Create and manage a podcast\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 5, \"health\": \"unknown\", \"id\": \"CREATIVE-G003-A005\", \"implementation_notes\": \"Episode administration includes title/description, audio replacement, duration/number, thumbnail, publish state, and ordering.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Create, upload, publish, reorder, or remove episodes\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"visitor\", \"learner_youth\", \"educator\", \"counselor_mentor\", \"employer\", \"nonprofit_community_partner\", \"content_author\"], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"CREATIVE-G003\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"outcome\": \"People can consume and distribute serialized audio content.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Listen to and publish podcasts\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}",
+      "updated_at": "2026-09-02T21:12:02+00:00",
+      "actors": [
+        "content_author",
+        "counselor_mentor",
+        "educator",
+        "employer",
+        "learner_youth",
+        "nonprofit_community_partner",
+        "visitor"
+      ],
+      "activities": [
+        {
+          "id": "CREATIVE-G003-A001",
+          "goal_id": "CREATIVE-G003",
+          "display_order": 1,
+          "title": "Discover a podcast",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Show pages include description/about, imagery, tags, and authors with roles.",
+          "original_state": "`Live` / `Conditional` on public/published state",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Listen to and publish podcasts",
+          "group_title": "Collaborate and create interactive media",
+          "availability": {
+            "constraints": [],
+            "mode": "conditional",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "conditional",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 1,
+            "health": "unknown",
+            "id": "CREATIVE-G003-A001",
+            "implementation_notes": "Show pages include description/about, imagery, tags, and authors with roles.",
+            "lifecycle": "live",
+            "original_state": "`Live` / `Conditional` on public/published state",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Browse podcasts and inspect show information",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "CREATIVE-G003-A001-S001",
+              "activity_id": "CREATIVE-G003-A001",
+              "display_order": 1,
+              "title": "Browse podcasts",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G003-A001-S002",
+              "activity_id": "CREATIVE-G003-A001",
+              "display_order": 2,
+              "title": "Open a show",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G003-A001-S003",
+              "activity_id": "CREATIVE-G003-A001",
+              "display_order": 3,
+              "title": "Review show description and imagery",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G003-A001-S004",
+              "activity_id": "CREATIVE-G003-A001",
+              "display_order": 4,
+              "title": "Review tags and authors",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "CREATIVE-G003-A002",
+          "goal_id": "CREATIVE-G003",
+          "display_order": 2,
+          "title": "Listen to a podcast episode",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Player behavior includes waveform seeking, volume, 15-second skip, minimize, and close.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Listen to and publish podcasts",
+          "group_title": "Collaborate and create interactive media",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 2,
+            "health": "unknown",
+            "id": "CREATIVE-G003-A002",
+            "implementation_notes": "Player behavior includes waveform seeking, volume, 15-second skip, minimize, and close.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Play and control an episode",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "CREATIVE-G003-A002-S001",
+              "activity_id": "CREATIVE-G003-A002",
+              "display_order": 1,
+              "title": "Play or pause the episode",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G003-A002-S002",
+              "activity_id": "CREATIVE-G003-A002",
+              "display_order": 2,
+              "title": "Seek on the waveform",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G003-A002-S003",
+              "activity_id": "CREATIVE-G003-A002",
+              "display_order": 3,
+              "title": "Change volume",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G003-A002-S004",
+              "activity_id": "CREATIVE-G003-A002",
+              "display_order": 4,
+              "title": "Skip backward or forward",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G003-A002-S005",
+              "activity_id": "CREATIVE-G003-A002",
+              "display_order": 5,
+              "title": "Minimize or close the player",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "CREATIVE-G003-A003",
+          "goal_id": "CREATIVE-G003",
+          "display_order": 3,
+          "title": "Subscribe through an RSS feed",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "A podcast feed route supports external distribution/consumption.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Listen to and publish podcasts",
+          "group_title": "Collaborate and create interactive media",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 3,
+            "health": "unknown",
+            "id": "CREATIVE-G003-A003",
+            "implementation_notes": "A podcast feed route supports external distribution/consumption.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Subscribe through an RSS feed",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "CREATIVE-G003-A003-S001",
+              "activity_id": "CREATIVE-G003-A003",
+              "display_order": 1,
+              "title": "Open the podcast RSS feed",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G003-A003-S002",
+              "activity_id": "CREATIVE-G003-A003",
+              "display_order": 2,
+              "title": "Add the feed to an external player",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "CREATIVE-G003-A004",
+          "goal_id": "CREATIVE-G003",
+          "display_order": 4,
+          "title": "Manage a podcast show",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Staff manage metadata, public/published state, SEO, thumbnail, authors, and ordering.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Listen to and publish podcasts",
+          "group_title": "Collaborate and create interactive media",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 4,
+            "health": "unknown",
+            "id": "CREATIVE-G003-A004",
+            "implementation_notes": "Staff manage metadata, public/published state, SEO, thumbnail, authors, and ordering.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Create and manage a podcast",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "CREATIVE-G003-A004-S001",
+              "activity_id": "CREATIVE-G003-A004",
+              "display_order": 1,
+              "title": "Create a podcast",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G003-A004-S002",
+              "activity_id": "CREATIVE-G003-A004",
+              "display_order": 2,
+              "title": "Edit show metadata",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G003-A004-S003",
+              "activity_id": "CREATIVE-G003-A004",
+              "display_order": 3,
+              "title": "Manage authors",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G003-A004-S004",
+              "activity_id": "CREATIVE-G003-A004",
+              "display_order": 4,
+              "title": "Set public or published state",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G003-A004-S005",
+              "activity_id": "CREATIVE-G003-A004",
+              "display_order": 5,
+              "title": "Set SEO and imagery",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G003-A004-S006",
+              "activity_id": "CREATIVE-G003-A004",
+              "display_order": 6,
+              "title": "Order the show",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "CREATIVE-G003-A005",
+          "goal_id": "CREATIVE-G003",
+          "display_order": 5,
+          "title": "Manage a podcast episode",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Episode administration includes title/description, audio replacement, duration/number, thumbnail, publish state, and ordering.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Listen to and publish podcasts",
+          "group_title": "Collaborate and create interactive media",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 5,
+            "health": "unknown",
+            "id": "CREATIVE-G003-A005",
+            "implementation_notes": "Episode administration includes title/description, audio replacement, duration/number, thumbnail, publish state, and ordering.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Create, upload, publish, reorder, or remove episodes",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "CREATIVE-G003-A005-S001",
+              "activity_id": "CREATIVE-G003-A005",
+              "display_order": 1,
+              "title": "Create an episode",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G003-A005-S002",
+              "activity_id": "CREATIVE-G003-A005",
+              "display_order": 2,
+              "title": "Upload or replace audio",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G003-A005-S003",
+              "activity_id": "CREATIVE-G003-A005",
+              "display_order": 3,
+              "title": "Edit episode metadata",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G003-A005-S004",
+              "activity_id": "CREATIVE-G003-A005",
+              "display_order": 4,
+              "title": "Publish or unpublish",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G003-A005-S005",
+              "activity_id": "CREATIVE-G003-A005",
+              "display_order": 5,
+              "title": "Reorder episodes",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G003-A005-S006",
+              "activity_id": "CREATIVE-G003-A005",
+              "display_order": 6,
+              "title": "Remove an episode",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        }
+      ]
+    },
+    {
+      "id": "CREATIVE-G004",
+      "group_id": "CREATIVE",
+      "display_order": 4,
+      "title": "Reuse media safely across the product",
+      "outcome": "A person can upload, organize, select, and reuse media without repeatedly managing files.",
+      "product_state": "live",
+      "health": "unknown",
+      "traceability": "partial",
+      "availability_json": "{\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}",
+      "verification_json": "{\"status\": \"unverified\"}",
+      "signoff_json": "{\"status\": \"not_requested\"}",
+      "original_state": "`Live` as an embedded library rather than a prominent standalone destination",
+      "source_json": "{\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"CREATIVE-G004-A001\", \"implementation_notes\": \"Media picking is reused for avatars, organization branding, learning content, thumbnails, portfolios, and evidence.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Upload or select an asset\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"CREATIVE-G004-A002\", \"implementation_notes\": \"Folder CRUD, asset move, and linking behavior exist.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Organize assets into folders and move them\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"CREATIVE-G004-A003\", \"implementation_notes\": \"Test ownership, accessible previews, broken/deleted asset handling, and whether users understand reuse versus copying.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Apply an asset in context\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"learner_youth\", \"content_author\", \"organization_maintainer\", \"organization_administrator\"], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 4, \"health\": \"unknown\", \"id\": \"CREATIVE-G004\", \"lifecycle\": \"live\", \"original_state\": \"`Live` as an embedded library rather than a prominent standalone destination\", \"outcome\": \"A person can upload, organize, select, and reuse media without repeatedly managing files.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Reuse media safely across the product\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}",
+      "updated_at": "2026-09-02T21:12:02+00:00",
+      "actors": [
+        "content_author",
+        "learner_youth",
+        "organization_administrator",
+        "organization_maintainer"
+      ],
+      "activities": [
+        {
+          "id": "CREATIVE-G004-A001",
+          "goal_id": "CREATIVE-G004",
+          "display_order": 1,
+          "title": "Choose a reusable media asset",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Media picking is reused for avatars, organization branding, learning content, thumbnails, portfolios, and evidence.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Reuse media safely across the product",
+          "group_title": "Collaborate and create interactive media",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 1,
+            "health": "unknown",
+            "id": "CREATIVE-G004-A001",
+            "implementation_notes": "Media picking is reused for avatars, organization branding, learning content, thumbnails, portfolios, and evidence.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Upload or select an asset",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "CREATIVE-G004-A001-S001",
+              "activity_id": "CREATIVE-G004-A001",
+              "display_order": 1,
+              "title": "Upload a new asset",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G004-A001-S002",
+              "activity_id": "CREATIVE-G004-A001",
+              "display_order": 2,
+              "title": "Select an existing asset",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G004-A001-S003",
+              "activity_id": "CREATIVE-G004-A001",
+              "display_order": 3,
+              "title": "Preview the selected asset",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "CREATIVE-G004-A002",
+          "goal_id": "CREATIVE-G004",
+          "display_order": 2,
+          "title": "Organize reusable media",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Folder CRUD, asset move, and linking behavior exist.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Reuse media safely across the product",
+          "group_title": "Collaborate and create interactive media",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 2,
+            "health": "unknown",
+            "id": "CREATIVE-G004-A002",
+            "implementation_notes": "Folder CRUD, asset move, and linking behavior exist.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Organize assets into folders and move them",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "CREATIVE-G004-A002-S001",
+              "activity_id": "CREATIVE-G004-A002",
+              "display_order": 1,
+              "title": "Create or rename a folder",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G004-A002-S002",
+              "activity_id": "CREATIVE-G004-A002",
+              "display_order": 2,
+              "title": "Move an asset",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G004-A002-S003",
+              "activity_id": "CREATIVE-G004-A002",
+              "display_order": 3,
+              "title": "Link an asset to a folder",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G004-A002-S004",
+              "activity_id": "CREATIVE-G004-A002",
+              "display_order": 4,
+              "title": "Remove a folder",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "CREATIVE-G004-A003",
+          "goal_id": "CREATIVE-G004",
+          "display_order": 3,
+          "title": "Apply an asset in context",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Test ownership, accessible previews, broken/deleted asset handling, and whether users understand reuse versus copying.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Reuse media safely across the product",
+          "group_title": "Collaborate and create interactive media",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 3,
+            "health": "unknown",
+            "id": "CREATIVE-G004-A003",
+            "implementation_notes": "Test ownership, accessible previews, broken/deleted asset handling, and whether users understand reuse versus copying.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Apply an asset in context",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "CREATIVE-G004-A003-S001",
+              "activity_id": "CREATIVE-G004-A003",
+              "display_order": 1,
+              "title": "Apply the chosen asset",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G004-A003-S002",
+              "activity_id": "CREATIVE-G004-A003",
+              "display_order": 2,
+              "title": "Preview it in the destination context",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "CREATIVE-G004-A003-S003",
+              "activity_id": "CREATIVE-G004-A003",
+              "display_order": 3,
+              "title": "Respond to a missing or deleted asset",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:52+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:52+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        }
+      ]
+    }
+  ]
+}
