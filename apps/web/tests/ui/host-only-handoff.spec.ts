@@ -7,13 +7,20 @@ const hostOnly = process.env.NEXT_PUBLIC_LAUNCHLMS_COOKIE_SCOPE === 'host-only'
 test('host-only login hands off to the installation root without sharing auth cookies', async ({ page }) => {
   test.skip(!hostOnly, 'Only the host-only browser lane exercises this protocol')
 
-  const source = new URL(environment.baseUrl)
+  const target = new URL(environment.baseUrl)
   const rootHost = process.env.UI_TEST_PUBLIC_HOST || 'unstable.127.0.0.1.sslip.io'
   const legacyDomain = process.env.NEXT_PUBLIC_LAUNCHLMS_LEGACY_COOKIE_DOMAIN || ''
+  expect(target.hostname).toBe(rootHost)
+  const source = new URL(target)
+  source.hostname = `life2launch.${rootHost}`
   expect(source.hostname).toBe(`life2launch.${rootHost}`)
   expect(rootHost.endsWith(`.${legacyDomain}`)).toBe(true)
-  const target = new URL(source)
-  target.hostname = rootHost
+
+  await page.context().clearCookies()
+  const login = await page.request.post(new URL('/api/auth/login', source).toString(), {
+    form: { username: environment.email, password: environment.password },
+  })
+  expect(login.status()).toBe(200)
 
   const before = await page.context().cookies()
   expect(before.some(cookie => cookie.name === 'refresh_token_cookie' && cookie.domain === source.hostname)).toBe(true)
