@@ -10,6 +10,18 @@ jobs:
   smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - cookie_scope: shared-domain
+            public_host: 127.0.0.1.sslip.io
+            browser_host: 127.0.0.1.sslip.io
+            legacy_domain: ''
+          - cookie_scope: host-only
+            public_host: unstable.127.0.0.1.sslip.io
+            browser_host: life2launch.unstable.127.0.0.1.sslip.io
+            legacy_domain: 127.0.0.1.sslip.io
     services:
       postgres:
         image: pgvector/pgvector:pg16
@@ -43,6 +55,8 @@ jobs:
       UI_TEST_WEB_MODE: start
       UI_TEST_NEXT_DIST_DIR: .next-ui-test
       UI_TEST_CAPTURE: "false"
+      UI_TEST_PUBLIC_HOST: ${{ matrix.public_host }}
+      UI_TEST_BROWSER_HOST: ${{ matrix.browser_host }}
       LAUNCHLMS_SQL_CONNECTION_STRING: postgresql+psycopg2://launchlms:launchlms@127.0.0.1:5432/launchlms_browser_test
       LAUNCHLMS_REDIS_CONNECTION_STRING: redis://127.0.0.1:6379/1
       LAUNCHLMS_AUTH_JWT_SECRET_KEY: ui-test-secret-key-at-least-32-chars
@@ -50,14 +64,17 @@ jobs:
       LAUNCHLMS_INITIAL_ADMIN_PASSWORD: ui-test-password-123
       LAUNCHLMS_DEVELOPMENT_MODE: "true"
       LAUNCHLMS_UI_TEST_FIXTURES: "true"
-      LAUNCHLMS_DOMAIN: 127.0.0.1.sslip.io:19001
-      LAUNCHLMS_FRONTEND_DOMAIN: 127.0.0.1.sslip.io:13100
-      LAUNCHLMS_COOKIE_DOMAIN: .127.0.0.1.sslip.io
+      LAUNCHLMS_DOMAIN: ${{ matrix.public_host }}:19001
+      LAUNCHLMS_FRONTEND_DOMAIN: ${{ matrix.public_host }}:13100
+      LAUNCHLMS_COOKIE_DOMAIN: .${{ matrix.public_host }}
+      LAUNCHLMS_COOKIE_SCOPE: ${{ matrix.cookie_scope }}
       LAUNCHLMS_SSL: "false"
       COLLAB_INTERNAL_KEY: ui-test-collab-key
       NEXT_PUBLIC_LAUNCHLMS_BACKEND_URL: http://127.0.0.1:19001
-      NEXT_PUBLIC_LAUNCHLMS_DOMAIN: 127.0.0.1.sslip.io:13100
-      NEXT_PUBLIC_LAUNCHLMS_TOP_DOMAIN: 127.0.0.1.sslip.io
+      NEXT_PUBLIC_LAUNCHLMS_DOMAIN: ${{ matrix.public_host }}:13100
+      NEXT_PUBLIC_LAUNCHLMS_TOP_DOMAIN: ${{ matrix.public_host }}
+      NEXT_PUBLIC_LAUNCHLMS_COOKIE_SCOPE: ${{ matrix.cookie_scope }}
+      NEXT_PUBLIC_LAUNCHLMS_LEGACY_COOKIE_DOMAIN: ${{ matrix.legacy_domain }}
       NEXT_PUBLIC_LAUNCHLMS_HTTPS: "false"
       LAUNCHLMS_INTERNAL_API_URL: http://127.0.0.1:19001/api/v1/
       LAUNCHLMS_INTERNAL_BACKEND_URL: http://127.0.0.1:19001
@@ -106,7 +123,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: browser-ui-manifest
+          name: browser-ui-manifest-${{ matrix.cookie_scope }}
           path: apps/web/test-results/ui/run-manifest.json
           retention-days: 30
           if-no-files-found: error
@@ -115,7 +132,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: browser-ui-failure
+          name: browser-ui-failure-${{ matrix.cookie_scope }}
           path: |
             apps/web/test-results/
             apps/web/playwright-report/

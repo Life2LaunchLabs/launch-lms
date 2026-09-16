@@ -7,6 +7,7 @@ WEB_DIR="${UI_TEST_WEB_ROOT:-$ROOT_DIR/apps/web}"
 API_PORT="${UI_TEST_API_PORT:-19001}"
 WEB_PORT="${UI_TEST_WEB_PORT:-13100}"
 PUBLIC_HOST="${UI_TEST_PUBLIC_HOST:-127.0.0.1.sslip.io}"
+BROWSER_HOST="${UI_TEST_BROWSER_HOST:-$PUBLIC_HOST}"
 USE_HTTPS="${UI_TEST_HTTPS:-true}"
 WEB_MODE="${UI_TEST_WEB_MODE:-dev}"
 WEB_PROTOCOL=http
@@ -40,10 +41,13 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-# The production container generates this optional client config before start.
-# Mirror that contract when the browser harness launches Next directly.
+# The production container publishes NEXT_PUBLIC_* settings at startup. Mirror
+# that contract here so browser tests exercise the same routing configuration.
 if [[ ! -f "$runtime_config_path" ]]; then
-  printf '%s\n' 'window.__RUNTIME_CONFIG__ = {};' > "$runtime_config_path"
+  NEXT_PUBLIC_LAUNCHLMS_DOMAIN="$PUBLIC_HOST:$WEB_PORT" \
+  NEXT_PUBLIC_LAUNCHLMS_TOP_DOMAIN="$PUBLIC_HOST" \
+  NEXT_PUBLIC_LAUNCHLMS_HTTPS="$USE_HTTPS" \
+  node -e 'const fs = require("fs"); const config = Object.fromEntries(Object.entries(process.env).filter(([key]) => key.startsWith("NEXT_PUBLIC_"))); fs.writeFileSync(process.argv[1], `window.__RUNTIME_CONFIG__ = ${JSON.stringify(config)};`)' "$runtime_config_path"
   runtime_config_created=true
 fi
 
@@ -93,12 +97,12 @@ for attempt in $(seq 1 120); do
 done
 
 cd "$ROOT_DIR/apps/web"
-UI_TEST_BASE_URL="$WEB_PROTOCOL://$PUBLIC_HOST:$WEB_PORT" UI_TEST_TARGET_KIND=local \
+UI_TEST_BASE_URL="$WEB_PROTOCOL://$BROWSER_HOST:$WEB_PORT" UI_TEST_TARGET_KIND=local \
 UI_TEST_ORG_SLUG="${UI_TEST_ORG_SLUG:-life2launch}" \
 UI_TEST_HUB_PATH="${UI_TEST_HUB_PATH:-/hub}" UI_TEST_PLANS_PATH="${UI_TEST_PLANS_PATH:-/plans}" \
 UI_TEST_CAPTURE="${UI_TEST_CAPTURE:-true}" \
 bun tests/ui/doctor.ts
-UI_TEST_BASE_URL="$WEB_PROTOCOL://$PUBLIC_HOST:$WEB_PORT" UI_TEST_TARGET_KIND=local \
+UI_TEST_BASE_URL="$WEB_PROTOCOL://$BROWSER_HOST:$WEB_PORT" UI_TEST_TARGET_KIND=local \
 UI_TEST_ORG_SLUG="${UI_TEST_ORG_SLUG:-life2launch}" \
 UI_TEST_HUB_PATH="${UI_TEST_HUB_PATH:-/hub}" UI_TEST_PLANS_PATH="${UI_TEST_PLANS_PATH:-/plans}" \
 UI_TEST_CAPTURE="${UI_TEST_CAPTURE:-true}" \

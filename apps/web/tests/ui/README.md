@@ -27,7 +27,15 @@ sensitive request data; keep them in restricted local/CI storage and delete them
 
 `.github/workflows/browser-ui.yaml` provisions an isolated Postgres/Redis namespace, migrates and seeds it through the
 supported CLI, builds the application, and runs the real-login suite in Chromium desktop, Chromium phone, and mobile
-WebKit. The release candidate job depends on this lane. Failure traces and reports are retained for seven days; successful
+WebKit. It runs both the existing shared-cookie mode and a separate host-only mode using
+`life2launch.unstable.127.0.0.1.sslip.io` and `unstable.127.0.0.1.sslip.io` on a disposable database. The host-only
+lane verifies a browser login, cross-host one-use handoff, host-only auth cookies, legacy parent-cookie expiry,
+absence of credentials in URLs, and replay rejection. Set `UI_TEST_PUBLIC_HOST`, `UI_TEST_BROWSER_HOST`,
+`LAUNCHLMS_COOKIE_SCOPE`, `NEXT_PUBLIC_LAUNCHLMS_COOKIE_SCOPE`, and
+`NEXT_PUBLIC_LAUNCHLMS_LEGACY_COOKIE_DOMAIN` to reproduce it locally. This synthetic HTTP lane is a prerequisite,
+not evidence of live TLS, Google/enterprise SSO, or owner acceptance of the nested-domain cutover.
+
+The release candidate job depends on this lane. Failure traces and reports are retained for seven days; successful
 runs retain the run manifest as an artifact. Tests may explicitly attach PNGs named
 `synthetic-review:<filename>` to embed those captures (with hashes and project/attempt
 metadata) in the manifest for review. Use that prefix only with entirely synthetic
