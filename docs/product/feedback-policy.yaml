@@ -1,0 +1,27 @@
+schema_version: 1
+project: launch-lms
+tracker:
+  feedback_project: FEED
+  delivery_project: BOT
+communication:
+  public_reply_prefix: "[Launch LMS reply]"
+  internal_note_prefix: "[Launch LMS internal note]"
+  preserve_tester_wording: true
+privacy:
+  allowed_identity: [opaque_user_id, opaque_organization_id, role]
+  forbidden: [access_tokens, passwords, private_learner_data, raw_email, raw_user_id, raw_organization_id]
+  route_values: sanitize_dynamic_segments
+attachments:
+  maximum_images: 3
+  stream_directly_to_tracker: true
+  accepted_types: [image/png, image/jpeg, image/webp]
+  partial_failure_status: pending
+triage:
+  grouping_requires_agent_judgment: true
+  impact_requires_agent_judgment: true
+  public_questions_require_agent_judgment: true
+  declines_require_reason: true
+  delivery_links_target_project: BOT
+resolution:
+  tester_confirmation: [looks_good, still_happening]
+  completed_delivery_milestones_propagate_to_feedback: true

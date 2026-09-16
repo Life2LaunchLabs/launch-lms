@@ -13,6 +13,7 @@ from src.routers import (
     messages,
     news,
     orgs,
+    operations_surface,
     plans,
     planning,
     portfolio,
@@ -89,6 +90,12 @@ v1_router.include_router(
     dependencies=[Depends(get_non_api_token_user)],
 )
 v1_router.include_router(auth.router, prefix="/auth", tags=["auth"])
+v1_router.include_router(
+    operations_surface.router,
+    prefix="/operations",
+    tags=["operations-surface"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
 v1_router.include_router(
     candidate_feedback.router,
     prefix="/candidate",
