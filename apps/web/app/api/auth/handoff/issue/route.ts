@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getConfig } from '@services/config/config'
 import { getDomainFromRequest, REFRESH_TOKEN_COOKIE } from '@services/auth/cookies'
 import { isManagedHost, safeHandoffPath } from '@services/routing/handoff'
+import { buildPublicRequestUrl } from '@services/routing/context'
 
 export const runtime = 'nodejs'
 
@@ -18,16 +19,19 @@ function escapeHtml(value: string): string {
 }
 
 export async function GET(request: NextRequest) {
+  const publicUrl = new URL(buildPublicRequestUrl(request.url,
+    request.headers.get('x-forwarded-host') || request.headers.get('host'),
+    request.headers.get('x-forwarded-proto')))
   const target = request.nextUrl.searchParams.get('target') || ''
   const state = request.nextUrl.searchParams.get('state') || ''
   const returnPath = request.nextUrl.searchParams.get('return') || '/'
   const domain = getDomainFromRequest(request).domain
   if (getConfig('NEXT_PUBLIC_LAUNCHLMS_COOKIE_SCOPE', 'shared-domain') !== 'host-only' ||
-      !isManagedHost(request.nextUrl.host, domain) || !isManagedHost(target, domain) ||
+      !isManagedHost(publicUrl.host, domain) || !isManagedHost(target, domain) ||
       !/^[A-Za-z0-9_-]{32,128}$/.test(state) || !safeHandoffPath(returnPath)) {
     return NextResponse.json({ error: 'Invalid session handoff' }, { status: 400 })
   }
-  const targetOrigin = `${request.nextUrl.protocol}//${target}`
+  const targetOrigin = `${publicUrl.protocol}//${target}`
   const loginUrl = new URL('/login', targetOrigin)
   loginUrl.searchParams.set('next', returnPath)
   const refresh = request.cookies.get(REFRESH_TOKEN_COOKIE)?.value
