@@ -12,11 +12,12 @@ import { mutate } from 'swr'
 import {
   getAPIUrl,
   getCoreCapabilities,
-  getConfig,
-  getLAUNCHLMS_TOP_DOMAIN_VAL,
   getLAUNCHLMS_DOMAIN_VAL,
 } from '@services/config/config'
-import { isSubdomainOf, isSameHost, isLocalhost as isLocalhostCheck } from '@services/utils/ts/hostUtils'
+import {
+  clearOAuthStateCookie, getCookieAttributes, getOAuthStateCookie,
+  oauthCallbackRequiresBounce, setOAuthStateCookie,
+} from '@services/auth/browserCookies'
 
 // Types matching NextAuth's session structure
 export interface Session {
@@ -74,7 +75,6 @@ interface SessionCache {
 const SESSION_CACHE_TTL = 10 * 60 * 1000 // 10 minutes
 const TOKEN_REFRESH_THRESHOLD = 60 * 1000 // 1 minute before expiry
 const AUTH_BROADCAST_CHANNEL = 'launchlms_auth_sync'
-const OAUTH_STATE_COOKIE = 'launchlms_oauth_state'
 const ROUTING_ORG_COOKIES = ['launchlms_orgslug', 'launchlms_current_orgslug', 'launchlms_custom_domain']
 
 // Context
@@ -94,70 +94,6 @@ function generateSecureToken(length: number = 32): string {
   const array = new Uint8Array(length)
   crypto.getRandomValues(array)
   return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('')
-}
-
-// Check if current hostname is a custom domain
-function isCustomDomain(): boolean {
-  if (typeof window === 'undefined') return false
-  const hostname = window.location.hostname
-  const domain = getLAUNCHLMS_DOMAIN_VAL()
-  return !isSubdomainOf(hostname, domain) && !isSameHost(hostname, domain) && !isLocalhostCheck(hostname)
-}
-
-// Get cookie attributes based on current domain context
-function getCookieAttributes(): { secureAttr: string; domainAttr: string; sameSiteAttr: string } {
-  const isSecure = typeof window !== 'undefined' && window.location.protocol === 'https:'
-  const secureAttr = isSecure ? '; Secure' : ''
-  const topDomain = getLAUNCHLMS_TOP_DOMAIN_VAL()
-
-  // For custom domains, don't set domain attribute (host-only cookie)
-  // For localhost, don't set domain attribute
-  // For subdomains of main domain, set domain to allow sharing
-  let domainAttr = ''
-  const cookieScope = getConfig('NEXT_PUBLIC_LAUNCHLMS_COOKIE_SCOPE', 'shared-domain')
-  if (cookieScope !== 'host-only' && !isCustomDomain() && topDomain !== 'localhost') {
-    domainAttr = `; domain=.${topDomain}`
-  }
-
-  // SameSite=Lax is generally safe and allows top-level navigation
-  const sameSiteAttr = '; SameSite=Lax'
-
-  return { secureAttr, domainAttr, sameSiteAttr }
-}
-
-function oauthCallbackRequiresBounce(): boolean {
-  if (typeof window === 'undefined') return false
-  if (isCustomDomain()) return true
-  if (getConfig('NEXT_PUBLIC_LAUNCHLMS_COOKIE_SCOPE', 'shared-domain') !== 'host-only') return false
-  const callbackOrigin = `${window.location.protocol}//${getLAUNCHLMS_DOMAIN_VAL()}`
-  return window.location.origin !== callbackOrigin
-}
-
-// In host-only mode the main callback bounces back before reading this cookie.
-function setOAuthStateCookie(csrf: string): void {
-  const { secureAttr, domainAttr, sameSiteAttr } = getCookieAttributes()
-  // 5 minute expiry matching the state validation window
-  const expires = new Date(Date.now() + 5 * 60 * 1000).toUTCString()
-  const value = JSON.stringify({ csrf, timestamp: Date.now() })
-  document.cookie = `${OAUTH_STATE_COOKIE}=${encodeURIComponent(value)}; path=/${sameSiteAttr}${secureAttr}${domainAttr}; expires=${expires}`
-}
-
-function getOAuthStateCookie(): { csrf: string; timestamp: number } | null {
-  try {
-    const cookies = document.cookie.split(';')
-    for (const cookie of cookies) {
-      const [name, ...rest] = cookie.trim().split('=')
-      if (name === OAUTH_STATE_COOKIE) {
-        return JSON.parse(decodeURIComponent(rest.join('=')))
-      }
-    }
-  } catch {}
-  return null
-}
-
-function clearOAuthStateCookie(): void {
-  const { secureAttr, domainAttr, sameSiteAttr } = getCookieAttributes()
-  document.cookie = `${OAUTH_STATE_COOKIE}=; path=/${sameSiteAttr}${secureAttr}${domainAttr}; expires=Thu, 01 Jan 1970 00:00:00 GMT`
 }
 
 // Session Provider Component

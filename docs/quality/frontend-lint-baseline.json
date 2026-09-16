@@ -34,7 +34,6 @@
     "components/Admin/Users/GroupAdminDetail.tsx|no-unused-vars|error": 1,
     "components/Auth/PasswordStrengthIndicator.tsx|no-unused-vars|error": 1,
     "components/Auth/PasswordStrengthIndicator.tsx|no-useless-escape|error": 2,
-    "components/Contexts/AuthContext.tsx|no-empty|error": 1,
     "components/Contexts/AuthContext.tsx|no-unused-vars|error": 5,
     "components/Contexts/AuthContext.tsx|react-hooks/exhaustive-deps|warning": 1,
     "components/Contexts/Editor/EditorContext.tsx|no-unused-vars|error": 1,

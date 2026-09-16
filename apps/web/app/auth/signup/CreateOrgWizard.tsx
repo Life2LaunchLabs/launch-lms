@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { createNewOrganization } from '@services/organizations/orgs'
+import { slugifyOrganizationName } from '@services/organizations/slug'
 import { getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config'
 import { authenticatedOrgHref } from '@services/auth/handoff'
 import { submitPlanRequest } from '@services/plans/plan_requests'
@@ -25,13 +26,6 @@ import { Button } from '@components/ui/button'
 import LoginClient from '../login/login'
 import OpenSignUpComponent from './OpenSignup'
 import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
-
-const slugifyOrganizationName = (name: string): string =>
-  name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
 
 const packageOptions = [
   { id: 'analytics', label: 'Analytics' },
