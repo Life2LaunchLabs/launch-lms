@@ -27,11 +27,19 @@ test('host-only login hands off to the installation root without sharing auth co
   page.on('request', request => requestUrls.push(request.url()))
   const completed = page.waitForRequest(request =>
     new URL(request.url()).pathname === '/api/auth/handoff/complete' && request.method() === 'POST')
+  const defaultOrgLoaded = page.waitForResponse(response => {
+    const url = new URL(response.url())
+    return url.origin === target.origin &&
+      url.pathname === `/api/v1/orgs/slug/${environment.orgSlug}` &&
+      response.status() === 200
+  })
   const start = new URL('/api/auth/handoff/start', target)
   start.searchParams.set('source', source.host)
   start.searchParams.set('return', '/account')
   await page.goto(start.toString())
   const completion = await completed
+  await expect(page).toHaveURL(url => url.origin === target.origin && url.pathname === '/account')
+  await defaultOrgLoaded
   await expect(page).toHaveURL(url => url.origin === target.origin && url.pathname === '/account')
   await expect(page).not.toHaveURL(/\/login(?:\?|$)/)
   expect(await page.evaluate(() =>
