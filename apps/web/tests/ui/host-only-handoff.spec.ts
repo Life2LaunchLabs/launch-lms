@@ -34,6 +34,9 @@ test('host-only login hands off to the installation root without sharing auth co
   const completion = await completed
   await expect(page).toHaveURL(url => url.origin === target.origin && url.pathname === '/account')
   await expect(page).not.toHaveURL(/\/login(?:\?|$)/)
+  expect(await page.evaluate(() =>
+    (window as Window & { __RUNTIME_CONFIG__?: Record<string, string> })
+      .__RUNTIME_CONFIG__?.NEXT_PUBLIC_LAUNCHLMS_COOKIE_SCOPE)).toBe('host-only')
 
   const after = await page.context().cookies()
   for (const name of ['access_token_cookie', 'refresh_token_cookie']) {

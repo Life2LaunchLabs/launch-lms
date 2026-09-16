@@ -41,10 +41,13 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-# The production container generates this optional client config before start.
-# Mirror that contract when the browser harness launches Next directly.
+# The production container publishes NEXT_PUBLIC_* settings at startup. Mirror
+# that contract here so browser tests exercise the same routing configuration.
 if [[ ! -f "$runtime_config_path" ]]; then
-  printf '%s\n' 'window.__RUNTIME_CONFIG__ = {};' > "$runtime_config_path"
+  NEXT_PUBLIC_LAUNCHLMS_DOMAIN="$PUBLIC_HOST:$WEB_PORT" \
+  NEXT_PUBLIC_LAUNCHLMS_TOP_DOMAIN="$PUBLIC_HOST" \
+  NEXT_PUBLIC_LAUNCHLMS_HTTPS="$USE_HTTPS" \
+  node -e 'const fs = require("fs"); const config = Object.fromEntries(Object.entries(process.env).filter(([key]) => key.startsWith("NEXT_PUBLIC_"))); fs.writeFileSync(process.argv[1], `window.__RUNTIME_CONFIG__ = ${JSON.stringify(config)};`)' "$runtime_config_path"
   runtime_config_created=true
 fi
 
