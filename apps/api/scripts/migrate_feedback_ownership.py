@@ -15,6 +15,7 @@ import os
 from pathlib import Path
 import re
 import sys
+from uuid import UUID
 
 from sqlalchemy import create_engine
 from sqlmodel import Session, select
@@ -50,11 +51,11 @@ def feedback_issues(client: CandidateJira) -> list[dict]:
             payload["nextPageToken"] = token
         page = client._request("POST", "/rest/api/3/search/jql", payload)
         issues.extend(page.get("issues", []))
-        next_token = page.get("nextPageToken")
-        if page.get("isLast") is True or not next_token:
+        if page.get("isLast") is True:
             break
-        if next_token in seen:
-            raise ValueError("Jira search pagination repeated a token")
+        next_token = page.get("nextPageToken")
+        if not isinstance(next_token, str) or not next_token or next_token in seen:
+            raise ValueError("Jira search pagination was incomplete")
         seen.add(next_token)
         token = next_token
     keys = [issue.get("key") for issue in issues]
@@ -86,13 +87,29 @@ def migration_plan(client: CandidateJira, session: Session, secret: str) -> tupl
             raise ValueError(f"{key}: Jira labels disagree with legacy organization ownership")
         user = session.exec(select(User).where(User.id == user_id)).first()
         org = session.exec(select(Organization).where(Organization.id == org_id)).first()
-        if not user or not org or not user.user_uuid or not org.org_uuid:
-            raise ValueError(f"{key}: app owner or durable UUID is missing")
-        if legacy.get("user_uuid") != user.user_uuid:
-            raise ValueError(f"{key}: legacy user UUID does not match the app database")
+        if not org or not org.org_uuid:
+            raise ValueError(f"{key}: app organization or durable UUID is missing")
+        legacy_user_uuid = legacy.get("user_uuid")
+        if user:
+            if not user.user_uuid or legacy_user_uuid != user.user_uuid:
+                raise ValueError(f"{key}: legacy user UUID does not match the app database")
+        else:
+            # Deleted users cannot sign in, but their Jira conversation must retain
+            # its original opaque owner rather than being reassigned or discarded.
+            if not isinstance(legacy_user_uuid, str) or not legacy_user_uuid.startswith("user_"):
+                raise ValueError(f"{key}: deleted user's legacy UUID is invalid")
+            try:
+                parsed_uuid = UUID(legacy_user_uuid[5:])
+            except ValueError:
+                raise ValueError(f"{key}: deleted user's legacy UUID is invalid") from None
+            if str(parsed_uuid) != legacy_user_uuid[5:]:
+                raise ValueError(f"{key}: deleted user's legacy UUID is invalid")
+            reused = session.exec(select(User).where(User.user_uuid == legacy_user_uuid)).first()
+            if reused:
+                raise ValueError(f"{key}: deleted user's UUID belongs to another app user")
         desired = {
             "project": "launch-lms", "environment": "unstable",
-            "opaque_user_id": opaque_subject("user", user.user_uuid, secret),
+            "opaque_user_id": opaque_subject("user", legacy_user_uuid, secret),
             "opaque_organization_id": opaque_subject("organization", org.org_uuid, secret),
             "intent": legacy.get("intent"), "synchronization_revision": 1,
         }
