@@ -49,8 +49,8 @@ class FakeJira:
         assert method == "POST" and path == "/rest/api/3/search/jql"
         self.searches.append(payload)
         if payload.get("nextPageToken"):
-            return {"issues": [{"key": "FEED-2"}], "isLast": True}
-        return {"issues": [{"key": "FEED-1"}], "nextPageToken": "page-2"}
+            return {"issues": [{"key": "FEED-2", "fields": {"labels": ["launchlms-feedback", "launchlms-org-3"]}}], "isLast": True}
+        return {"issues": [{"key": "FEED-1", "fields": {"labels": ["launchlms-feedback", "launchlms-org-3"]}}], "nextPageToken": "page-2"}
 
     def property(self, key, name):
         return self.properties.get((key, name))
@@ -94,4 +94,12 @@ def test_audit_rejects_missing_or_conflicting_owners_before_writes():
     jira.properties[("FEED-1", "launch-operations")] = {"opaque_user_id": "wrong"}
     with pytest.raises(ValueError, match="changed after audit"):
         apply_plan(jira, plan)
+    assert jira.writes == []
+
+
+def test_audit_rejects_legacy_org_label_mismatch():
+    jira = FakeJira()
+    jira.properties[("FEED-1", "launchlms.feedback")]["org_id"] = 4
+    with pytest.raises(ValueError, match="labels disagree"):
+        migration_plan(jira, FakeSession(), SECRET)
     assert jira.writes == []

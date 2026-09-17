@@ -44,7 +44,7 @@ def feedback_issues(client: CandidateJira) -> list[dict]:
     while True:
         payload = {
             "jql": f'project = "{client.project}" AND labels = "launchlms-feedback" ORDER BY key ASC',
-            "fields": ["summary"], "maxResults": 100,
+            "fields": ["labels"], "maxResults": 100,
         }
         if token:
             payload["nextPageToken"] = token
@@ -58,7 +58,10 @@ def feedback_issues(client: CandidateJira) -> list[dict]:
         seen.add(next_token)
         token = next_token
     keys = [issue.get("key") for issue in issues]
-    if len(keys) != len(set(keys)) or any(not isinstance(key, str) or not ISSUE_KEY.fullmatch(key) for key in keys):
+    if len(keys) != len(set(keys)) or any(
+        not isinstance(key, str) or not ISSUE_KEY.fullmatch(key) or
+        not key.startswith(client.project + "-") for key in keys
+    ):
         raise ValueError("Jira search returned duplicate or invalid issue keys")
     return issues
 
@@ -78,6 +81,9 @@ def migration_plan(client: CandidateJira, session: Session, secret: str) -> tupl
         user_id, org_id = legacy.get("user_id"), legacy.get("org_id")
         if type(user_id) is not int or type(org_id) is not int:
             raise ValueError(f"{key}: legacy owner IDs are invalid")
+        labels = set(issue.get("fields", {}).get("labels") or [])
+        if "launchlms-feedback" not in labels or f"launchlms-org-{org_id}" not in labels:
+            raise ValueError(f"{key}: Jira labels disagree with legacy organization ownership")
         user = session.exec(select(User).where(User.id == user_id)).first()
         org = session.exec(select(Organization).where(Organization.id == org_id)).first()
         if not user or not org or not user.user_uuid or not org.org_uuid:
