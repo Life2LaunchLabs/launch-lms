@@ -20,6 +20,9 @@ least-privilege FEED identity, not a delivery or full-access Jira token.
 2. Run the workflow in `audit` mode. Record its issue count and digest with the
    deployed app SHA. Investigate any missing legacy property, user/organization,
    UUID mismatch, or conflicting platform property; audit stops without writes.
+   A deleted user's conversation may be preserved using its original legacy
+   `user_<UUID>` value only if its organization still resolves and no current
+   user has claimed that UUID. The deleted user is not restored or granted access.
 3. Compare the count to an independently captured FEED parity inventory.
    Do not treat a zero count or a successful command alone as parity.
 4. Run `apply` with that exact count and digest. The command re-audits before

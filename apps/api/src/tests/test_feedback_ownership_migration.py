@@ -30,6 +30,20 @@ class FakeSession:
         return FakeResult(SimpleNamespace(org_uuid="org-uuid"))
 
 
+class DeletedUserSession:
+    def __init__(self, *, reused=False):
+        self.calls = 0
+        self.reused = reused
+
+    def exec(self, _statement):
+        self.calls += 1
+        if self.calls % 3 == 1:
+            return FakeResult(None)
+        if self.calls % 3 == 2:
+            return FakeResult(SimpleNamespace(org_uuid="org-uuid"))
+        return FakeResult(SimpleNamespace(user_uuid="reused") if self.reused else None)
+
+
 class FakeJira:
     project = "FEED"
 
@@ -103,3 +117,33 @@ def test_audit_rejects_legacy_org_label_mismatch():
     with pytest.raises(ValueError, match="labels disagree"):
         migration_plan(jira, FakeSession(), SECRET)
     assert jira.writes == []
+
+
+def test_audit_preserves_deleted_user_history_without_reassigning_owner():
+    jira = FakeJira()
+    legacy_uuid = "user_12345678-1234-4234-8234-123456789abc"
+    for key in ("FEED-1", "FEED-2"):
+        jira.properties[(key, "launchlms.feedback")]["user_uuid"] = legacy_uuid
+    plan, _, _ = migration_plan(jira, DeletedUserSession(), SECRET)
+    assert len(plan) == 2
+    assert all(value["opaque_user_id"] == opaque_subject("user", legacy_uuid, SECRET)
+               for _, value in plan)
+    assert jira.writes == []
+
+
+def test_audit_rejects_invalid_or_reused_deleted_user_uuid():
+    jira = FakeJira()
+    jira.properties[("FEED-1", "launchlms.feedback")]["user_uuid"] = "not-a-durable-uuid"
+    with pytest.raises(ValueError, match="FEED-1.*invalid"):
+        migration_plan(jira, DeletedUserSession(), SECRET)
+    jira.properties[("FEED-1", "launchlms.feedback")]["user_uuid"] = "user_12345678-1234-4234-8234-123456789abc"
+    with pytest.raises(ValueError, match="FEED-1.*another app user"):
+        migration_plan(jira, DeletedUserSession(reused=True), SECRET)
+    assert jira.writes == []
+
+
+def test_audit_rejects_incomplete_jira_pagination():
+    jira = FakeJira()
+    jira._request = lambda *_args: {"issues": [], "isLast": False}
+    with pytest.raises(ValueError, match="pagination was incomplete"):
+        feedback_issues(jira)
