@@ -7,7 +7,19 @@ import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getConfig } from '@services/config/config'
 import { issueOperationsSession } from '@services/operations/operations'
 
-type Controller = { update: Function; open: Function; destroy: Function }
+type SurfaceContext = {
+  route: string
+  theme: 'light' | 'dark'
+  viewport: { width: number; height: number }
+  organization: string | null
+  role: string
+  release: string
+}
+type Controller = {
+  update: Function
+  open: Function
+  destroy: Function
+}
 declare global {
   interface Window {
     LaunchOperationsV1?: { protocol: string; mount: Function }
@@ -15,6 +27,10 @@ declare global {
 }
 
 const OPEN_EVENT = 'launchlms-candidate-open'
+
+function viewport() {
+  return { width: window.innerWidth, height: window.innerHeight }
+}
 
 function safePlatformUrl(value: string): string {
   try {
@@ -32,6 +48,7 @@ export default function OperationsSurface({ theme = 'light' }: { theme?: 'light'
   const pathname = usePathname()
   const controller = useRef<Controller | null>(null)
   const [unavailable, setUnavailable] = useState(false)
+  const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 })
   const enabled = getConfig('NEXT_PUBLIC_OPERATIONS_SURFACE_ENABLED') === 'true'
   const platformUrl = safePlatformUrl(getConfig('NEXT_PUBLIC_OPERATIONS_PLATFORM_URL'))
   const environment = getConfig('NEXT_PUBLIC_OPERATIONS_ENVIRONMENT')
@@ -39,18 +56,37 @@ export default function OperationsSurface({ theme = 'light' }: { theme?: 'light'
   const release = getConfig('NEXT_PUBLIC_LAUNCHLMS_BUILD_REVISION', 'unknown')
   const accessToken = session?.data?.tokens?.access_token as string | undefined
   const authenticated = session?.status === 'authenticated'
+  const role = session?.data?.user?.is_superadmin ? 'superadmin' : 'member'
+  const orgId = org?.id
+  const context = useRef<SurfaceContext>({ route: pathname, theme, viewport: viewportSize, organization: org?.org_uuid || null, role, release })
 
   useEffect(() => {
-    if (!enabled || !authenticated || !accessToken || !org?.id || !platformUrl || !environment) return
+    context.current = { route: pathname, theme, viewport: viewportSize, organization: org?.org_uuid || null, role, release }
+  }, [org?.org_uuid, pathname, release, role, theme, viewportSize])
+
+  useEffect(() => {
+    let frame = 0
+    const update = () => {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => setViewportSize(viewport()))
+    }
+    update()
+    window.addEventListener('resize', update)
+    return () => { cancelAnimationFrame(frame); window.removeEventListener('resize', update) }
+  }, [])
+
+  useEffect(() => {
+    if (!enabled || !authenticated || !accessToken || !orgId || !platformUrl || !environment) return
     let active = true
     const start = () => {
       if (!active || !window.LaunchOperationsV1 || controller.current) return
+      setUnavailable(false)
       controller.current = window.LaunchOperationsV1.mount({
         project, environment, hideWhenUnavailable: false,
-        context: { route: pathname, theme, organization: org.org_uuid || null, role: session?.data?.user?.is_superadmin ? 'superadmin' : 'member', release },
+        context: { ...context.current, route: window.location.pathname, viewport: viewport() },
         onUnavailable: () => setUnavailable(true),
         getSessionToken: ({ nonce, protocol }: { nonce: string; protocol: string }) =>
-          issueOperationsSession(Number(org.id), nonce, protocol, accessToken),
+          issueOperationsSession(Number(orgId), nonce, protocol, accessToken),
       }) as Controller
     }
     const existing = document.querySelector<HTMLScriptElement>('script[data-launch-operations="v1"]')
@@ -66,9 +102,11 @@ export default function OperationsSurface({ theme = 'light' }: { theme?: 'light'
     const open = (event: Event) => controller.current?.open((event as CustomEvent<string>).detail || 'feedback')
     window.addEventListener(OPEN_EVENT, open)
     return () => { active = false; window.removeEventListener(OPEN_EVENT, open); controller.current?.destroy(); controller.current = null }
-  }, [accessToken, authenticated, enabled, environment, org?.id, org?.org_uuid, pathname, platformUrl, project, release, session?.data?.user?.is_superadmin, theme])
+  }, [accessToken, authenticated, enabled, environment, orgId, platformUrl, project])
 
-  useEffect(() => { controller.current?.update({ route: pathname, theme, organization: org?.org_uuid || null, release }) }, [org?.org_uuid, pathname, release, theme])
+  useEffect(() => {
+    controller.current?.update({ route: pathname, theme, viewport: viewportSize, organization: org?.org_uuid || null, role, release })
+  }, [org?.org_uuid, pathname, release, role, theme, viewportSize])
 
   if (!enabled || !authenticated || !platformUrl || !environment) return null
   return unavailable ? <div className="fixed bottom-3 right-3 z-[1000] rounded-full border bg-background/95 px-3 py-2 text-xs text-muted-foreground shadow" role="status">Project tools unavailable</div> : null
