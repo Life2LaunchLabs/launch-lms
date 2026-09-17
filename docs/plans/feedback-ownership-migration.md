@@ -39,3 +39,23 @@ The legacy Jira property, comments, attachments, statuses, and BOT links are
 left untouched. Never print the HMAC secret or raw user/organization IDs in
 workflow logs. Do not remove the old credentials or routes until the complete
 feedback parity gate, including unread markers and browser behavior, passes.
+
+## Ownership-property execution record — 2026-09-17 UTC
+
+- Unstable application commit: `a26e9598f58b4d6f6c2298bef14edd2473f5b68a`.
+  Deployed image digest: `sha256:210b97e0e6eb5d64a96cb176bab2466eecd05b9caff84635635681ccbc470f84`.
+- Independent read-only inventory: 7 FEED issues, 7 feedback labels, 7 legacy
+  properties. One deleted-user row (`FEED-1`) had a noncanonical legacy ID and
+  received an issue-specific, non-login tombstone owner; its original property
+  remains in Jira. Evidence: [diagnostic run](https://github.com/Life2LaunchLabs/launch-lms-infra/actions/runs/35244173589).
+- [Pre-write audit](https://github.com/Life2LaunchLabs/launch-lms-infra/actions/runs/35246456683):
+  7 issues, 0 already migrated. Approved ownership digest:
+  `1563e078c631bc9b22c16a242f6e03a45a940d485b2e01ca0a72d0616c67b32d`.
+- [Guarded apply](https://github.com/Life2LaunchLabs/launch-lms-infra/actions/runs/35246713290):
+  re-audited the same count/digest and wrote 7 platform properties with Jira
+  readback. [Post-write audit](https://github.com/Life2LaunchLabs/launch-lms-infra/actions/runs/35246916738):
+  7 already migrated and the identical digest.
+
+This verifies ownership metadata only. Unread markers, representative history,
+attachments, replies, admin workflow, and the external surface still require
+parity testing before unstable cutover or removal of old app credentials/routes.
