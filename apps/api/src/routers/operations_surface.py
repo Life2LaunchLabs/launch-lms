@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-import hashlib
-import hmac
 import os
 import re
 
@@ -18,6 +16,7 @@ from src.db.organizations import Organization
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
 from src.security.org_auth import get_user_org_role, require_org_membership
+from src.services.operations_identity import opaque_subject
 
 
 router = APIRouter()
@@ -40,9 +39,11 @@ def _enabled() -> tuple[str, str]:
 
 def _opaque(kind: str, value: str) -> str:
     secret = os.getenv("LAUNCHLMS_OPERATIONS_SUBJECT_SECRET", "")
-    if len(secret) < 32:
-        raise HTTPException(status_code=503, detail="Operations subject signing is not configured")
-    return hmac.new(secret.encode(), f"{kind}:{value}".encode(), hashlib.sha256).hexdigest()
+    try:
+        return opaque_subject(kind, value, secret)
+    except ValueError as error:
+        raise HTTPException(status_code=503, detail="Operations subject signing is not configured") from error
+
 
 
 @router.post("/session")
