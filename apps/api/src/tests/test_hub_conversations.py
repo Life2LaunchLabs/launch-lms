@@ -1,4 +1,4 @@
-from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel import Session, SQLModel, create_engine, select
 
 from src.db.hub import (
     HubConversation,
@@ -64,6 +64,8 @@ def test_search_creates_private_resumable_rich_conversation(monkeypatch):
         assert summaries[0]["latest_user_message"] == "career guides"
         assert summaries[0]["latest_user_resource_count"] == 1
         assert [message["role"] for message in detail["messages"]] == ["user", "assistant"]
+        assert detail["messages"][0]["intent"] == "search"
+        assert detail["messages"][0]["content"] == "career guides"
         assert detail["messages"][1]["search_query"] == "career guides"
         assert detail["messages"][0]["resources"][0]["title"] == "Career guide"
         assert detail["messages"][0]["page_context"]["page_title"] == "Portfolio"
@@ -102,6 +104,7 @@ def test_advice_uses_authoritative_history_and_revalidates_resources(monkeypatch
                 "capability": "navigate", "destination": "create_plan",
                 "label": "Start a plan", "state": "proposed",
             }],
+            turn_intent="work",
         )
         history = hub_conversations.advisor_history(
             db, first["conversation_uuid"], 7, 11, "What next?"
@@ -116,6 +119,7 @@ def test_advice_uses_authoritative_history_and_revalidates_resources(monkeypatch
             ("assistant", "Start small."),
             ("user", "What next?"),
         ]
+        assert detail["messages"][0]["intent"] == "work"
         assert [item["resource_uuid"] for item in detail["context_resources"]] == ["resource_prior", "resource_visible"]
         assert "resource_revoked" not in str(detail)
         assert detail["messages"][1]["suggested_actions"][0]["destination"] == "create_plan"
@@ -135,6 +139,29 @@ def test_authoritative_history_bounds_a_legacy_oversized_reply(monkeypatch):
         )
 
         assert len(history[-2].content) == 2_000
+
+
+def test_legacy_default_kind_messages_are_not_relabelled_as_explicit_chat(monkeypatch):
+    with _session(monkeypatch) as db:
+        created = hub_conversations.record_advice(
+            db, org_id=7, user_id=11, conversation_uuid=None,
+            user_content="Find interview guides", assistant_content="Try these.",
+            learner_resource_uuids=[], context_resource_uuids=[], suggested_resource_uuids=[],
+            model="test", input_tokens=3, output_tokens=2,
+        )
+        legacy_user_message = db.exec(select(HubConversationMessage).where(
+            HubConversationMessage.message_uuid == created["user_message_uuid"],
+        )).one()
+        assert legacy_user_message is not None
+        legacy_user_message.kind = "chat"
+        db.add(legacy_user_message)
+        db.commit()
+
+        detail = hub_conversations.conversation_detail(
+            db, created["conversation_uuid"], 7, 11, [],
+        )
+
+        assert detail["messages"][0]["intent"] is None
 
 
 def test_state_rename_delete_and_owner_boundary(monkeypatch):

@@ -19,8 +19,8 @@ from src.services.hub_configuration import (
     DEFAULT_HUB_ADVISOR_INSTRUCTIONS,
     get_enabled_hub_advisor_credentials,
 )
+from src.services.hub_intent import HubAdviceIntent, trusted_turn_intent_context
 from src.services.security.rate_limiting import check_rate_limit, get_client_ip
-
 logger = logging.getLogger(__name__)
 
 MAX_MESSAGES = 12
@@ -235,8 +235,6 @@ def ground_advisor_messages(
 
 class AdvisorProvider(Protocol):
     async def respond(self, messages: list[AdvisorMessage], safety_identifier: str) -> AdvisorResult: ...
-
-
 class DeterministicUiTestProvider:
     """Local browser-fixture provider; it is never enabled in a production configuration."""
 
@@ -675,6 +673,7 @@ async def ask_hub_advisor(
     page_context: dict | None = None,
     edit_run: dict | None = None,
     recent_edit_run: dict | None = None,
+    turn_intent: HubAdviceIntent = "chat",
 ) -> AdvisorResult:
     require_org_membership(user_id, org_id, db_session)
     validate_conversation(messages)
@@ -703,6 +702,7 @@ async def ask_hub_advisor(
         "\n\nKeep every learner-facing reply under 1,600 characters. Prefer a few short paragraphs and do not "
         "repeat background the learner already supplied."
     )
+    capability_context += trusted_turn_intent_context(turn_intent)
     if edit_run:
         pending_objects = [item for item in edit_run.get("objects", []) if item.get("status") == "editing"]
         capability_context += (

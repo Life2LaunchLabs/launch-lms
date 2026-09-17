@@ -1,7 +1,6 @@
 from datetime import datetime
 import logging
 from typing import Literal
-
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlmodel import Session
@@ -49,22 +48,19 @@ from src.services.hub_context import HubSurfaceHint, page_context
 from src.services.hub_actions import build_navigation_actions, requests_plan_creation, resolve_navigation_action
 from src.services.hub_edit_runs import active_edit_run, begin_edit_run, bind_created_plan, conclude_edit_run, latest_edit_run, record_edit_run_activity, reopen_edit_run, save_object_state, update_edit_run_goal
 from src.services.hub_plan_tools import record_plan_proposals
-
+from src.services.hub_intent import HubAdviceIntent, HubSearchIntent
 router = APIRouter()
 logger = logging.getLogger(__name__)
-
-
 class HubAdvisorMessage(BaseModel):
     role: Literal["user", "assistant"]
     content: str = Field(min_length=1, max_length=2_000)
-
-
 class HubAdvisorRequest(BaseModel):
     surface: HubSurfaceHint | None = None
     messages: list[HubAdvisorMessage] = Field(min_length=1, max_length=12)
     resource_uuids: list[str] = Field(default_factory=list, max_length=8)
     learner_resource_uuids: list[str] = Field(default_factory=list, max_length=8)
     conversation_uuid: str | None = None
+    intent: HubAdviceIntent = "chat"
 
 
 class HubAdvisorResource(BaseModel):
@@ -147,6 +143,7 @@ class HubConversationSearchRequest(BaseModel):
     resource_uuids: list[str] = Field(default_factory=list, max_length=8)
     learner_resource_uuids: list[str] = Field(default_factory=list, max_length=8)
     surface: HubSurfaceHint | None = None
+    intent: HubSearchIntent = "search"
 
 
 class HubConversationMessageResources(BaseModel):
@@ -358,6 +355,7 @@ async def create_hub_advice(
             page_context=context,
             edit_run=edit_run,
             recent_edit_run=recent_edit_run,
+            turn_intent=body.intent,
         )
     except AdvisorProviderLimited as error:
         raise HTTPException(
@@ -392,6 +390,7 @@ async def create_hub_advice(
         model=result.model, input_tokens=result.input_tokens, output_tokens=result.output_tokens,
         page_receipt=context["receipt"],
         suggested_actions=suggested_actions,
+        turn_intent=body.intent,
     )
     record_used_memories(
         db_session, persisted["assistant_message_uuid"], used_memories,

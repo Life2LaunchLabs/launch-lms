@@ -11,6 +11,7 @@ export type HubSurfaceHint = {
   page_path?: string
   page_title?: string
 }
+export type HubTurnIntent = 'chat' | 'search' | 'work'
 export type HubPageReceipt = {
   status: 'off' | 'unavailable' | 'ready'
   captured_at: string
@@ -37,6 +38,7 @@ export type HubAdvisorResource = {
 export type HubAdvisorMessage = {
   role: 'user' | 'assistant'
   content: string
+  intent?: HubTurnIntent
   page_context?: HubPageReceipt | null
   resources?: HubAdvisorResource[]
   suggested_actions?: HubSuggestedAction[]
@@ -184,6 +186,7 @@ export async function askHubAdvisor(
   learnerResourceUuids: string[] = [],
   surface?: HubSurfaceHint,
   signal?: AbortSignal,
+  intent: Exclude<HubTurnIntent, 'search'> = 'chat',
 ): Promise<{
   answer: string
   page_context?: HubPageReceipt
@@ -209,6 +212,7 @@ export async function askHubAdvisor(
         learner_resource_uuids: learnerResourceUuids,
         conversation_uuid: conversationUuid,
         surface,
+        intent,
       },
         null,
         accessToken
@@ -314,6 +318,7 @@ export function recordHubSearch(orgId: number, query: string, accessToken: strin
     resource_uuids: options.resourceUuids || [],
     learner_resource_uuids: options.learnerResourceUuids || [],
     surface: options.surface,
+    intent: 'search',
   }, options.signal)
 }
 

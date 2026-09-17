@@ -267,7 +267,7 @@
           "priority": "unset",
           "implementation_notes": "Hub search is server-owned, permission-filtered before ranking, and paginated after ranking. Lexical-v2 weights title, tags, resource type, provider, and description with accent normalization, lightweight lemmatization (including quizzes to quiz), bounded typo tolerance, and partial fallback; it contains no hard-coded conceptual aliases. Hybrid-v1 fuses lexical rank with self-hosted all-minilm:33m semantic candidates stored in pgvector(384), with versioned content hashes, incremental mutation refresh, deployment/dev backfill, an admin status/backfill API, and lexical fallback whenever vectors or Ollama are unavailable. Privacy-safe query fingerprints and result open/save events support zero-result, p95 latency, click-through, Recall@10, nDCG@10, and MRR evaluation.",
           "original_state": "`Live`",
-          "updated_at": "2026-09-08T19:26:29.505811+00:00",
+          "updated_at": "2026-09-17T21:36:22.953114+00:00",
           "description": "",
           "goal_title": "Find a useful resource",
           "group_title": "Find, use, and curate resources",
@@ -277,20 +277,20 @@
             "notes": "Initial source-derived classification; refine when this area is touched."
           },
           "verification": {
-            "delivery_issue_key": "BOT-115",
+            "delivery_issue_key": "BOT-205",
             "effect": "changes",
-            "issue_key": "BOT-102",
-            "issue_status": "Done",
-            "reviewed_at": "2026-09-08T19:26:29.505811+00:00",
-            "reviewed_by": "product_owner_via_jira",
+            "issue_key": "BOT-205",
+            "issue_status": "In Progress",
+            "reviewed_at": null,
+            "reviewed_by": null,
             "source": "jira",
-            "status": "passed"
+            "status": "pending"
           },
           "signoff": {
-            "issue_key": "BOT-102",
-            "signed_off_at": "2026-09-08T19:26:29.505811+00:00",
+            "issue_key": "BOT-205",
+            "signed_off_at": null,
             "source": "jira",
-            "status": "signed_off"
+            "status": "pending"
           },
           "source": {
             "acceptance": [],
@@ -347,7 +347,7 @@
               "criterion": "A submitted resource search appears as a compact inline response object whose See more action expands and refines the same object in place.",
               "automated_status": "passed",
               "manual_status": "passed",
-              "notes": "Hub search regression covers inferred submitted searches and singular/plural matching; production build verifies the compact and expanded responsive response object.",
+              "notes": "Hub search regression covers explicit submitted Search turns and singular/plural matching; production build verifies the compact and expanded responsive response object.",
               "source_json": null,
               "created_at": "2026-09-08T04:39:15+00:00"
             },
