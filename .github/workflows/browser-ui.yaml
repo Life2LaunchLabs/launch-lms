@@ -20,7 +20,7 @@ jobs:
             legacy_domain: ''
           - cookie_scope: host-only
             public_host: unstable.127.0.0.1.sslip.io
-            browser_host: life2launch.unstable.127.0.0.1.sslip.io
+            browser_host: unstable.127.0.0.1.sslip.io
             legacy_domain: 127.0.0.1.sslip.io
     services:
       postgres:

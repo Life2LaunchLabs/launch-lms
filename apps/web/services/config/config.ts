@@ -1,6 +1,7 @@
 import { ROUTING_COOKIES } from '@services/routing/cookies'
 import { routePaths } from '@services/routing/paths'
 import {
+  getCanonicalOrgHostname,
   replaceHostPreservingPort,
   resolveOrgHostContext,
 } from '@services/routing/context'
@@ -209,7 +210,6 @@ export const getCustomDomainFromContext = (): string | null => {
 export const getUriWithOrg = (orgslug: string, path: string) => {
   const ownerOrgSlug = getDefaultOrg()
   const normalizedPath = path.startsWith('/') ? path : `/${path}`
-  const hostOnlyCookies = getConfig('NEXT_PUBLIC_LAUNCHLMS_COOKIE_SCOPE', 'shared-domain') === 'host-only'
 
   // Client-side: prefer using current origin when appropriate
   if (typeof window !== 'undefined') {
@@ -226,14 +226,16 @@ export const getUriWithOrg = (orgslug: string, path: string) => {
     }
 
     const isOwnerOrg = orgslug === ownerOrgSlug
-    const expectedHostname = isOwnerOrg && !hostOnlyCookies
-      ? context.bareFrontendDomain
-      : `${orgslug}.${context.bareFrontendDomain}`
+    const expectedHostname = getCanonicalOrgHostname(
+      orgslug,
+      ownerOrgSlug,
+      context.bareFrontendDomain
+    )
 
     if (
       window.location.hostname === expectedHostname ||
       (window.location.hostname === context.bareFrontendDomain &&
-        (context.isLocalhost || (isOwnerOrg && !hostOnlyCookies)))
+        (context.isLocalhost || isOwnerOrg))
     ) {
       return `${window.location.origin}${normalizedPath}`
     }
@@ -251,7 +253,7 @@ export const getUriWithOrg = (orgslug: string, path: string) => {
   if (multi_org) {
     const protocol = getLAUNCHLMS_HTTP_PROTOCOL()
     const domain = getLAUNCHLMS_DOMAIN()
-    if (orgslug === ownerOrgSlug && !hostOnlyCookies) {
+    if (orgslug === ownerOrgSlug) {
       return `${protocol}${domain}${normalizedPath}`
     }
     return `${protocol}${orgslug}.${domain}${normalizedPath}`

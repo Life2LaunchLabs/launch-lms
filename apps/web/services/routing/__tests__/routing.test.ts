@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { hubFromLegacyResources, hubFromLegacySearch, routePaths, withQuery } from '../paths.ts'
 import { resolveRequestRouting, type RequestInstanceInfo } from '../requestPolicy.ts'
 import { classifyRoute } from '../routeAccess.ts'
-import { buildPublicRequestUrl } from '../context.ts'
+import { buildPublicRequestUrl, getCanonicalOrgHostname } from '../context.ts'
 import { hubTimestampDate } from '../../hub/timestamp.ts'
 import { isManagedHost, legacyParentCookieDomain, safeHandoffPath } from '../handoff.ts'
 
@@ -40,6 +40,21 @@ const instanceInfo: RequestInstanceInfo = {
   frontend_domain: 'launchlms.test',
   top_domain: 'launchlms.test',
 }
+
+test('default organization canonical host is the installation apex regardless of cookie scope', () => {
+  assert.equal(
+    getCanonicalOrgHostname('default', 'default', 'unstable.life2launch.app'),
+    'unstable.life2launch.app'
+  )
+  assert.equal(
+    getCanonicalOrgHostname('school', 'default', 'unstable.life2launch.app'),
+    'school.unstable.life2launch.app'
+  )
+  assert.equal(
+    getCanonicalOrgHostname('default', 'default', 'localhost:3000'),
+    'localhost'
+  )
+})
 
 test('Hub treats timezone-less server timestamps as UTC before local display', () => {
   assert.equal(
