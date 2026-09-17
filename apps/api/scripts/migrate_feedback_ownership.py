@@ -90,26 +90,33 @@ def migration_plan(client: CandidateJira, session: Session, secret: str) -> tupl
         if not org or not org.org_uuid:
             raise ValueError(f"{key}: app organization or durable UUID is missing")
         legacy_user_uuid = legacy.get("user_uuid")
+        owner_kind, owner_value = "user", legacy_user_uuid
         if user:
             if not user.user_uuid or legacy_user_uuid != user.user_uuid:
                 raise ValueError(f"{key}: legacy user UUID does not match the app database")
         else:
             # Deleted users cannot sign in, but their Jira conversation must retain
-            # its original opaque owner rather than being reassigned or discarded.
-            if not isinstance(legacy_user_uuid, str) or not legacy_user_uuid.startswith("user_"):
-                raise ValueError(f"{key}: deleted user's legacy UUID is invalid")
-            try:
-                parsed_uuid = UUID(legacy_user_uuid[5:])
-            except ValueError:
-                raise ValueError(f"{key}: deleted user's legacy UUID is invalid") from None
-            if str(parsed_uuid) != legacy_user_uuid[5:]:
+            # its original scope rather than being reassigned or discarded.
+            if (not isinstance(legacy_user_uuid, str) or not legacy_user_uuid.strip()
+                    or len(legacy_user_uuid) > 256):
                 raise ValueError(f"{key}: deleted user's legacy UUID is invalid")
             reused = session.exec(select(User).where(User.user_uuid == legacy_user_uuid)).first()
             if reused:
                 raise ValueError(f"{key}: deleted user's UUID belongs to another app user")
+            canonical_uuid = False
+            if legacy_user_uuid.startswith("user_"):
+                try:
+                    canonical_uuid = str(UUID(legacy_user_uuid[5:])) == legacy_user_uuid[5:]
+                except ValueError:
+                    pass
+            if not canonical_uuid:
+                # Pre-UUID historical values must not be capable of matching a
+                # present or future login. Keep an issue-specific operator-visible
+                # tombstone while the original legacy property remains untouched.
+                owner_kind, owner_value = "deleted-feedback-user", key
         desired = {
             "project": "launch-lms", "environment": "unstable",
-            "opaque_user_id": opaque_subject("user", legacy_user_uuid, secret),
+            "opaque_user_id": opaque_subject(owner_kind, owner_value, secret),
             "opaque_organization_id": opaque_subject("organization", org.org_uuid, secret),
             "intent": legacy.get("intent"), "synchronization_revision": 1,
         }

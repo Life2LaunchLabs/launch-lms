@@ -81,6 +81,7 @@ def test_opaque_subject_matches_embed_identity_contract(monkeypatch):
     assert _opaque("user", "user-uuid") == opaque_subject("user", "user-uuid", SECRET)
     assert _opaque("organization", "org-uuid") == opaque_subject("organization", "org-uuid", SECRET)
     assert _opaque("user", "user-uuid") != _opaque("organization", "user-uuid")
+    assert opaque_subject("deleted-feedback-user", "FEED-1", SECRET) != _opaque("user", "FEED-1")
 
 
 def test_audit_paginates_and_apply_is_idempotent():
@@ -131,9 +132,20 @@ def test_audit_preserves_deleted_user_history_without_reassigning_owner():
     assert jira.writes == []
 
 
-def test_audit_rejects_invalid_or_reused_deleted_user_uuid():
+def test_audit_tombstones_pre_uuid_deleted_user_per_issue():
     jira = FakeJira()
-    jira.properties[("FEED-1", "launchlms.feedback")]["user_uuid"] = "not-a-durable-uuid"
+    jira.properties[("FEED-1", "launchlms.feedback")]["user_uuid"] = "historical-user"
+    jira.properties[("FEED-2", "launchlms.feedback")]["user_uuid"] = "historical-user"
+    plan, _, _ = migration_plan(jira, DeletedUserSession(), SECRET)
+    assert plan[0][1]["opaque_user_id"] == opaque_subject("deleted-feedback-user", "FEED-1", SECRET)
+    assert plan[1][1]["opaque_user_id"] == opaque_subject("deleted-feedback-user", "FEED-2", SECRET)
+    assert plan[0][1]["opaque_user_id"] != plan[1][1]["opaque_user_id"]
+    assert jira.writes == []
+
+
+def test_audit_rejects_empty_or_reused_deleted_user_uuid():
+    jira = FakeJira()
+    jira.properties[("FEED-1", "launchlms.feedback")]["user_uuid"] = ""
     with pytest.raises(ValueError, match="FEED-1.*invalid"):
         migration_plan(jira, DeletedUserSession(), SECRET)
     jira.properties[("FEED-1", "launchlms.feedback")]["user_uuid"] = "user_12345678-1234-4234-8234-123456789abc"
