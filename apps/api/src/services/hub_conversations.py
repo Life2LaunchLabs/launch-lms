@@ -16,6 +16,7 @@ from src.db.hub import (
 )
 from src.services.hub_actions import decorate_navigation_action
 from src.services.hub_advisor import AdvisorMessage
+from src.services.hub_intent import HubTurnIntent, intent_for_message_kind, message_kind_for_intent
 from src.services.hub_memory import message_memory_receipts
 from src.security.org_auth import require_org_membership
 
@@ -199,7 +200,7 @@ def advisor_history(
         ).all()
         history = [AdvisorMessage(
             role=row.role,  # type: ignore[arg-type]
-            content=(f'Displayed resource search results for “{row.content}”.' if row.kind == "search" else row.content)[:2_000],
+            content=(f'Displayed resource search results for “{row.content}”.' if row.role == "assistant" and row.kind == "search" else row.content)[:2_000],
         ) for row in rows]
     else:
         require_org_membership(user_id, org_id, db_session)
@@ -218,6 +219,7 @@ def record_advice(
     input_tokens: int, output_tokens: int,
     page_receipt: dict | None = None,
     suggested_actions: list[dict] | None = None,
+    turn_intent: HubTurnIntent = "chat",
 ) -> dict:
     conversation = (
         get_owned_conversation(db_session, conversation_uuid, org_id, user_id)
@@ -226,7 +228,7 @@ def record_advice(
     sequence = _next_sequence(db_session, int(conversation.id))
     user_message = _add_message(
         db_session, conversation, sequence, "user", user_content,
-        resources=learner_resource_uuids, label="You added",
+        kind=message_kind_for_intent(turn_intent), resources=learner_resource_uuids, label="You added",
     )
     introduced = set(db_session.exec(
         select(HubConversationMessageResource.resource_uuid)
@@ -278,7 +280,7 @@ def record_search(
     sequence = _next_sequence(db_session, int(conversation.id))
     user_message = _add_message(
         db_session, conversation, sequence, "user", query,
-        resources=learner_resource_uuids, label="You added",
+        kind=message_kind_for_intent("search"), resources=learner_resource_uuids, label="You added",
     )
     search_message = _add_message(db_session, conversation, sequence + 1, "assistant", query, kind="search")
     user_message.page_context = page_receipt
@@ -384,8 +386,9 @@ def conversation_detail(
         "messages": [{
             "id": message.message_uuid,
             "role": message.role,
-            "content": "" if message.kind == "search" else message.content,
-            "search_query": message.content if message.kind == "search" else None,
+            "content": "" if message.role == "assistant" and message.kind == "search" else message.content,
+            "search_query": message.content if message.role == "assistant" and message.kind == "search" else None,
+            "intent": intent_for_message_kind(message.kind) if message.role == "user" else None,
             "resource_label": next((row.label for row in by_message.get(int(message.id), [])), None),
             "resources": [resources_by_uuid[row.resource_uuid] for row in by_message.get(int(message.id), []) if row.resource_uuid in resources_by_uuid],
             "created_at": message.created_at,

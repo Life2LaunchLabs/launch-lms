@@ -6,7 +6,6 @@ import {
   addHubContextResources,
   buildHubResourceTrayEntries,
   hubAdvisorHistory,
-  inferHubResponseKind,
   newHubTranscriptResources,
   removeHubContextResource,
   restoreSubmittedDraft,
@@ -16,24 +15,6 @@ import {
 test('stopping preserves a new message typed while the previous response was running', () => {
   assert.equal(restoreSubmittedDraft('My next message', 'Stopped message'), 'My next message')
   assert.equal(restoreSubmittedDraft('', 'Stopped message'), 'Stopped message')
-})
-
-test('submission intent chooses a response object without a user-facing mode', () => {
-  assert.equal(inferHubResponseKind('fafsa guides'), 'search')
-  assert.equal(inferHubResponseKind('Find videos about interviewing'), 'search')
-  assert.equal(inferHubResponseKind('resume templates'), 'search')
-  assert.equal(inferHubResponseKind('How should I prepare for an interview?'), 'chat')
-  assert.equal(inferHubResponseKind('I need help choosing a career'), 'chat')
-  assert.equal(inferHubResponseKind('Explain FAFSA dependency status'), 'chat')
-  assert.equal(inferHubResponseKind('hello'), 'chat')
-  assert.equal(inferHubResponseKind('advice on FAFSA'), 'chat')
-  assert.equal(inferHubResponseKind('probably 2 years'), 'chat')
-  assert.equal(inferHubResponseKind('two years'), 'chat')
-  assert.equal(inferHubResponseKind('yes'), 'chat')
-  assert.equal(inferHubResponseKind('next September'), 'chat')
-  assert.equal(inferHubResponseKind('the second option'), 'chat')
-  assert.equal(inferHubResponseKind('nursing programs'), 'chat')
-  assert.equal(inferHubResponseKind('personality quiz'), 'search')
 })
 
 test('search response objects preserve alternating advisor history for follow-ups', () => {

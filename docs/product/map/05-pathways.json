@@ -5543,28 +5543,28 @@
           "health": "works",
           "traceability": "complete",
           "priority": "high",
-          "implementation_notes": "Hub has one mode and one composer. Nothing searches while the learner types. On submission, deterministic intent inference chooses inline resource search or grounded guidance. In the learner companion, supported individual and group-plan pages automatically provide identifier-only hints; the server revalidates access, resolves bounded saved definitions, excludes unsaved/private learner data, and returns source receipts. Unsupported pages show a compact header limitation. The first slice cannot navigate or mutate plans.",
+          "implementation_notes": "Hub has one composer with Chat, Search, and Work choices for the next submitted turn. Chat is the default, Search always invokes permission-filtered inline resource search, and Work adds server-owned focused-session guidance without granting edit scope or changing learner data. The selected intent is persisted with the visible user message and shown in the transcript; old clients default to Chat. In the learner companion, supported individual and group-plan pages provide identifier-only hints that the server revalidates before resolving bounded saved context. Unsupported pages continue to disclose the context limitation.",
           "original_state": null,
-          "updated_at": "2026-09-16T02:21:15.096461+00:00",
+          "updated_at": "2026-09-17T21:36:22.953114+00:00",
           "description": "",
           "goal_title": "Choose a useful next action",
           "group_title": "Plan goals and coordinate support",
           "availability": {},
           "verification": {
-            "delivery_issue_key": "BOT-163",
+            "delivery_issue_key": "BOT-205",
             "effect": "changes",
-            "issue_key": "BOT-163",
-            "issue_status": "Done",
-            "reviewed_at": "2026-09-16T02:21:15.096461+00:00",
-            "reviewed_by": "product_owner_via_jira",
+            "issue_key": "BOT-205",
+            "issue_status": "In Progress",
+            "reviewed_at": null,
+            "reviewed_by": null,
             "source": "jira",
-            "status": "passed"
+            "status": "pending"
           },
           "signoff": {
-            "issue_key": "BOT-163",
-            "signed_off_at": "2026-09-16T02:21:15.096461+00:00",
+            "issue_key": "BOT-205",
+            "signed_off_at": null,
             "source": "jira",
-            "status": "signed_off"
+            "status": "pending"
           },
           "source": {},
           "acceptance": [
@@ -5594,10 +5594,10 @@
               "id": "PATHWAYS-G006-A001-AC03",
               "activity_id": "PATHWAYS-G006-A001",
               "display_order": 3,
-              "criterion": "A learner uses one composer for deterministic resource search and ephemeral guidance without selecting or switching modes.",
+              "criterion": "A learner uses one composer and can choose Chat, Search, or Work for the next submitted turn; Chat is the default.",
               "automated_status": "passed",
-              "manual_status": "passed",
-              "notes": "Revised owner-review contract covered by the Hub interaction regression, focused TypeScript/ESLint, routing regression, and production build.",
+              "manual_status": "not_tested",
+              "notes": "BOT-205 API, interaction, and browser coverage verifies the typed next-turn choices; owner review is pending.",
               "source_json": null,
               "created_at": "2026-09-03T21:13:39+00:00"
             },
@@ -5616,10 +5616,10 @@
               "id": "PATHWAYS-G006-A001-AC05",
               "activity_id": "PATHWAYS-G006-A001",
               "display_order": 5,
-              "criterion": "The Hub retains one recoverable composer draft and the current in-memory conversation across inferred response types.",
+              "criterion": "The Hub retains one recoverable composer draft and conversation while the learner switches Chat, Search, and Work between turns.",
               "automated_status": "passed",
-              "manual_status": "passed",
-              "notes": "Revised owner-review contract covered by the Hub interaction regression, focused TypeScript/ESLint, routing regression, and production build.",
+              "manual_status": "not_tested",
+              "notes": "BOT-205 browser coverage switches modes, reloads the transcript, and checks stopped-request recovery; owner review is pending.",
               "source_json": null,
               "created_at": "2026-09-04T03:42:08+00:00"
             },
@@ -5671,10 +5671,10 @@
               "id": "PATHWAYS-G006-A001-AC10",
               "activity_id": "PATHWAYS-G006-A001",
               "display_order": 10,
-              "criterion": "Typing does not search; submitting infers whether to render an inline resource search object or request grounded guidance.",
+              "criterion": "Typing does not search; submitting Search renders the existing permission-filtered inline resource results even when the wording is ambiguous.",
               "automated_status": "passed",
-              "manual_status": "passed",
-              "notes": "Revised owner-review contract covered by the Hub interaction regression, focused TypeScript/ESLint, routing regression, and production build.",
+              "manual_status": "not_tested",
+              "notes": "BOT-205 route and browser coverage verifies that explicit Search rejects mismatched intent and uses inline results for question-like wording; owner review is pending.",
               "source_json": null,
               "created_at": "2026-09-07T20:25:29+00:00"
             },
@@ -5682,10 +5682,10 @@
               "id": "PATHWAYS-G006-A001-AC11",
               "activity_id": "PATHWAYS-G006-A001",
               "display_order": 11,
-              "criterion": "Resource-seeking prompts bypass advisor prose, while questions invoke the advisor and may render grounded suggested resources.",
+              "criterion": "Search bypasses advisor prose, while Chat requests guidance and may render grounded suggested resources.",
               "automated_status": "passed",
-              "manual_status": "passed",
-              "notes": "Revised owner-review contract covered by the Hub interaction regression, focused TypeScript/ESLint, routing regression, and production build.",
+              "manual_status": "not_tested",
+              "notes": "BOT-205 browser coverage verifies ordinary Chat and question-like Search turns; owner review is pending.",
               "source_json": null,
               "created_at": "2026-09-07T20:25:29+00:00"
             },
@@ -5704,10 +5704,10 @@
               "id": "PATHWAYS-G006-A001-AC13",
               "activity_id": "PATHWAYS-G006-A001",
               "display_order": 13,
-              "criterion": "One Hub composer infers a search or conversational response only after submission, without exposing modes or changing the interface while the learner types.",
+              "criterion": "The Hub composer exposes an accessible Chat, Search, and Work selector whose choice applies only to the next submitted turn and is visibly recorded in the transcript.",
               "automated_status": "passed",
-              "manual_status": "passed",
-              "notes": "Hub interaction regression covers terse resource searches, explicit search wording, advice/questions, greetings, and search-term normalization; focused ESLint, TypeScript, routing, and production build pass.",
+              "manual_status": "not_tested",
+              "notes": "BOT-205 browser coverage verifies keyboard selection, next-turn reset, visible receipts, and reload persistence; owner review is pending.",
               "source_json": null,
               "created_at": "2026-09-08T04:39:15+00:00"
             },
@@ -5732,6 +5732,17 @@
               "notes": null,
               "source_json": null,
               "created_at": "2026-09-10T04:36:57+00:00"
+            },
+            {
+              "id": "PATHWAYS-G006-A001-AC16",
+              "activity_id": "PATHWAYS-G006-A001",
+              "display_order": 16,
+              "criterion": "The server validates each submitted intent and translates Work into trusted focused-session guidance without accepting client-authored system messages or granting edit scope.",
+              "automated_status": "passed",
+              "manual_status": "not_tested",
+              "notes": "BOT-205 focused API tests cover invalid and mismatched intents, server-owned Work instructions, and preservation of the learner-authored visible message.",
+              "source_json": null,
+              "created_at": "2026-09-17T00:00:00+00:00"
             }
           ],
           "steps": [],
@@ -5762,9 +5773,15 @@
             },
             {
               "kind": "code",
+              "path": "apps/web/app/orgs/[orgslug]/(withmenu)/hub/HubComposer.tsx",
+              "symbol": null,
+              "responsibility": "Accessible next-turn selector, composer, attachment, and Send/Stop controls"
+            },
+            {
+              "kind": "code",
               "path": "apps/web/app/orgs/[orgslug]/(withmenu)/hub/HubExperience.tsx",
               "symbol": null,
-              "responsibility": "Responsive Search and ephemeral Ask interaction"
+              "responsibility": "Responsive Chat, Search, and Work interaction"
             },
             {
               "kind": "code",
@@ -5776,7 +5793,7 @@
               "kind": "code",
               "path": "apps/web/app/orgs/[orgslug]/(withmenu)/hub/hubInteraction.ts",
               "symbol": null,
-              "responsibility": "Predictable Auto, Search, and Ask surface transitions"
+              "responsibility": "Transcript history and recoverable draft helpers"
             },
             {
               "kind": "code",
@@ -5800,7 +5817,13 @@
               "kind": "test",
               "path": "apps/web/services/hub/__tests__/interaction.test.ts",
               "symbol": null,
-              "responsibility": "Adaptive behavior and explicit override state coverage"
+              "responsibility": "Transcript history, resource context, and recoverable draft coverage"
+            },
+            {
+              "kind": "test",
+              "path": "apps/web/tests/ui/hub-modes.spec.ts",
+              "symbol": null,
+              "responsibility": "Desktop and phone mode selection, transcript persistence, attachment, keyboard, and stop recovery coverage"
             },
             {
               "kind": "test",
@@ -6129,28 +6152,28 @@
           "health": "works",
           "traceability": "none",
           "priority": "low",
-          "implementation_notes": null,
+          "implementation_notes": "Selecting Work asks Hub to use the existing focused-session flow and may produce a code-owned, learner-controlled action. The selected mode itself never resolves the action, starts an edit run, or changes learner data.",
           "original_state": null,
-          "updated_at": "2026-09-16T02:21:15.096461+00:00",
+          "updated_at": "2026-09-17T21:36:22.953114+00:00",
           "description": "",
           "goal_title": "Choose a useful next action",
           "group_title": "Plan goals and coordinate support",
           "availability": {},
           "verification": {
-            "delivery_issue_key": "BOT-163",
-            "effect": "adds",
-            "issue_key": "BOT-163",
-            "issue_status": "Done",
-            "reviewed_at": "2026-09-16T02:21:15.096461+00:00",
-            "reviewed_by": "product_owner_via_jira",
+            "delivery_issue_key": "BOT-205",
+            "effect": "changes",
+            "issue_key": "BOT-205",
+            "issue_status": "In Progress",
+            "reviewed_at": null,
+            "reviewed_by": null,
             "source": "jira",
-            "status": "passed"
+            "status": "pending"
           },
           "signoff": {
-            "issue_key": "BOT-163",
-            "signed_off_at": "2026-09-16T02:21:15.096461+00:00",
+            "issue_key": "BOT-205",
+            "signed_off_at": null,
             "source": "jira",
-            "status": "signed_off"
+            "status": "pending"
           },
           "source": {},
           "acceptance": [
@@ -6175,6 +6198,17 @@
               "notes": null,
               "source_json": null,
               "created_at": "2026-09-10T04:36:57+00:00"
+            },
+            {
+              "id": "PATHWAYS-G006-A004-AC03",
+              "activity_id": "PATHWAYS-G006-A004",
+              "display_order": 3,
+              "criterion": "Choosing Work can request an appropriate focused-session next step but does not start editing or change learner data until the learner activates the existing confirmed action.",
+              "automated_status": "passed",
+              "manual_status": "not_tested",
+              "notes": "BOT-205 API and browser coverage verifies trusted Work guidance and a proposed plan action without resolving it or entering the focused editor.",
+              "source_json": null,
+              "created_at": "2026-09-17T00:00:00+00:00"
             }
           ],
           "steps": [],

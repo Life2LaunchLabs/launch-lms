@@ -1,7 +1,7 @@
 'use client'
 
 import { FormEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { ArrowRight, ChevronDown, ChevronsUp, Link2, ListChecks, Loader2, Plus, Send, Square } from 'lucide-react'
+import { ArrowRight, ChevronDown, ChevronsUp, Link2, ListChecks, Loader2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -10,7 +10,6 @@ import { PageTitleRegistration, usePageTitle } from '@components/Contexts/PageTi
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { Button } from '@components/ui/button'
-import { Textarea } from '@components/ui/textarea'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
 import {
   archiveHubConversation,
@@ -27,6 +26,7 @@ import {
   HubAdvisorResource,
   HubConversationSummary,
   HubSuggestedAction,
+  HubTurnIntent,
   listHubConversations,
   recordHubSearch,
   reopenHubEditRun,
@@ -39,6 +39,7 @@ import {
 import { getResource, Resource } from '@services/resources/resources'
 import { getUriWithOrg } from '@services/config/config'
 import HubQuickSearch from './HubQuickSearch'
+import HubComposer, { HubIntentReceipt } from './HubComposer'
 import HubHeader from './HubHeader'
 import HubHomeRecents from './HubHomeRecents'
 import HubMessageMicroBar from './HubMessageMicroBar'
@@ -50,7 +51,6 @@ import {
   addHubContextResources,
   buildHubResourceTrayEntries,
   hubAdvisorHistory,
-  inferHubResponseKind,
   HubResourceTrayEntry,
   newHubTranscriptResources,
   removeHubContextResource,
@@ -78,6 +78,7 @@ type HubConversationMessage = HubAdvisorMessage & {
   createdAt?: string
   memories?: HubMemory[]
   suggestedActions?: HubSuggestedAction[]
+  intent?: HubTurnIntent
 }
 
 function recoverHubEditOperations(run: NonNullable<ReturnType<typeof useHubWorkspace>>['editRun']): HubEditOperation[] {
@@ -325,6 +326,7 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
   const [resourcePanelConversationUuid, setResourcePanelConversationUuid] = useState<string | null>(null)
   const [conversationLoading, setConversationLoading] = useState(false)
   const [draft, setDraft] = useState(initialQuery)
+  const [turnIntent, setTurnIntent] = useState<HubTurnIntent>('chat')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
   const [contextResources, setContextResources] = useState<HubAdvisorResource[]>([])
@@ -346,7 +348,7 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
   const resourceOriginRefs = useRef(new Map<string, HTMLDivElement>())
   const stateSaveQueueRef = useRef<Promise<void>>(Promise.resolve())
   const advisorAbortRef = useRef<AbortController | null>(null)
-  const pendingSubmissionRef = useRef<{ content: string; preserveDraft: boolean; allowHidden?: boolean } | null>(null)
+  const pendingSubmissionRef = useRef<{ content: string; preserveDraft: boolean; allowHidden?: boolean; intent?: HubTurnIntent } | null>(null)
   const continuationInFlightRef = useRef<string | null>(null)
   const attemptedContinuationsRef = useRef(new Set<string>())
   const automaticallyStartedRunsRef = useRef(new Set<string>())
@@ -451,6 +453,7 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
         memories: message.memories,
         page_context: message.page_context,
         suggestedActions: message.suggested_actions,
+        intent: message.intent,
       }))
       setMessages(restoredMessages)
       setConversationUuid(conversation.conversation_uuid)
@@ -602,6 +605,7 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
     setActiveResourceGroupId(null)
     introducedResourceUuidsRef.current.clear()
     setDraft('')
+    setTurnIntent('chat')
     setError('')
     setConversationInUrl(null)
     setResourcePanelConversationUuid(null)
@@ -699,6 +703,7 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
     const pendingSubmission = pendingSubmissionRef.current
     pendingSubmissionRef.current = null
     const content = (pendingSubmission?.content || draft).trim()
+    const submittedIntent = pendingSubmission?.intent || turnIntent
     if (!content || !accessToken || !org?.id || sending || conversationLoading || (!visible && !pendingSubmission?.allowHidden)) return
     void dismissMemoryNotice()
     const previousMessages = messages
@@ -720,6 +725,7 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
       content,
       resources: submittedResources,
       resourceLabel: submittedResources.length ? 'You added' : undefined,
+      intent: submittedIntent,
     }])
     setPendingResources([])
     if (activeResourceGroupId === 'pending') setActiveResourceGroupId(userMessageId)
@@ -728,7 +734,7 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
     setSending(true)
     const controller = new AbortController()
     advisorAbortRef.current = controller
-    if (inferHubResponseKind(content) === 'search') {
+    if (submittedIntent === 'search') {
       try {
         const searchSurface = {
           ...(companion && workspace?.surface?.hint ? workspace.surface.hint : { surface: 'unsupported' as const }),
@@ -745,13 +751,14 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
         if (!alive.current) return
         const nextMessages: HubConversationMessage[] = [
           ...previousMessages,
-          { id: persisted.user_message_uuid, role: 'user', content, resources: submittedResources, resourceLabel: submittedResources.length ? 'You added' : undefined, createdAt: persisted.user_message_created_at, page_context: persisted.page_context },
+          { id: persisted.user_message_uuid, role: 'user', content, intent: submittedIntent, resources: submittedResources, resourceLabel: submittedResources.length ? 'You added' : undefined, createdAt: persisted.user_message_created_at, page_context: persisted.page_context },
           { id: persisted.assistant_message_uuid, role: 'assistant', content: '', searchQuery: content, createdAt: persisted.assistant_message_created_at, page_context: persisted.page_context },
         ]
         setMessages(nextMessages)
         setConversationUuid(persisted.conversation_uuid)
         setConversationTitle(persisted.title)
         setConversationInUrl(persisted.conversation_uuid)
+        if (!pendingSubmission) setTurnIntent('chat')
         await refreshHistory()
       } catch (requestError: any) {
         setMessages(previousMessages)
@@ -779,13 +786,14 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
         submittedResources.map((resource) => resource.resource_uuid),
         pageSurface,
         controller.signal,
+        submittedIntent,
       )
       if (!alive.current) return
       const transcriptResources = newHubTranscriptResources(introducedResourceUuidsRef.current, response.resources)
       transcriptResources.forEach((resource) => introducedResourceUuidsRef.current.add(resource.resource_uuid))
       const nextMessages: HubConversationMessage[] = [
         ...previousMessages,
-        { id: response.user_message_uuid, role: 'user', content, resources: submittedResources, resourceLabel: submittedResources.length ? 'You added' : undefined, createdAt: response.user_message_created_at, memories: response.memory_changes, page_context: response.page_context },
+        { id: response.user_message_uuid, role: 'user', content, intent: submittedIntent, resources: submittedResources, resourceLabel: submittedResources.length ? 'You added' : undefined, createdAt: response.user_message_created_at, memories: response.memory_changes, page_context: response.page_context },
         { id: response.assistant_message_uuid, role: 'assistant', content: response.answer, resources: transcriptResources, resourceLabel: transcriptResources.length ? 'Suggested' : undefined, createdAt: response.assistant_message_created_at, memories: response.memories_used, page_context: response.page_context, suggestedActions: response.suggested_actions },
       ]
       setMessages(nextMessages)
@@ -795,6 +803,7 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
       setConversationUuid(response.conversation_uuid)
       setConversationTitle(response.title)
       setConversationInUrl(response.conversation_uuid)
+      if (!pendingSubmission) setTurnIntent('chat')
       await refreshHistory()
       if (continuationInFlightRef.current) {
         const completedId = continuationInFlightRef.current
@@ -820,7 +829,7 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
     if (!continuation || !accessToken || !org?.id || !conversationUuid || sending || conversationLoading || attemptedContinuationsRef.current.has(continuation.id)) return
     attemptedContinuationsRef.current.add(continuation.id)
     continuationInFlightRef.current = continuation.id
-    pendingSubmissionRef.current = { content: continuation.content, preserveDraft: true, allowHidden: true }
+    pendingSubmissionRef.current = { content: continuation.content, preserveDraft: true, allowHidden: true, intent: 'chat' }
     window.requestAnimationFrame(() => composerRef.current?.form?.requestSubmit())
   }, [accessToken, conversationLoading, conversationUuid, org?.id, sending, workspace?.editContinuations, workspace?.editRun?.run_uuid])
 
@@ -1007,9 +1016,7 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
                     </div>
                   )}
                   <div className="flex justify-end">
-                    <div className="hub-user-message max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm leading-6 text-foreground sm:max-w-[72%]">
-                      {message.content}
-                    </div>
+                    <div className="max-w-[85%] space-y-1 sm:max-w-[72%]">{message.intent && <HubIntentReceipt intent={message.intent} />}<div className="hub-user-message whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm leading-6 text-foreground">{message.content}</div></div>
                   </div>
                   {accessToken && org?.id && <HubMessageMicroBar role="user" content={message.content} createdAt={message.createdAt} memories={message.memories} pageContext={message.page_context} orgId={org.id} accessToken={accessToken} />}
                 </div>
@@ -1076,6 +1083,7 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
               {sending && <div className="text-sm text-muted-foreground" role="status">Thinking…</div>}
               {error && <div className="rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">{error}</div>}
           </div>
+          <div aria-hidden="true" className="h-20 lg:hidden" />
         </div>
       </div>
 
@@ -1100,55 +1108,23 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
             <Button type="button" size="sm" variant="ghost" className="h-7 shrink-0 gap-1 px-2 text-xs" onClick={() => pointToEditObject(workspace.editReviewItems[0].targetId)}>Review <ArrowRight size={12} /></Button>
           </div>
         ) : null}
-        <form onSubmit={submit} className="flex flex-col justify-end">
-          <div className="hub-composer-shell rounded-[1.6rem] p-2 backdrop-blur-md">
-            <label htmlFor="hub-composer" className="sr-only">Ask a question or search Launch LMS</label>
-            <div className="relative overflow-hidden rounded-xl">
-              <Textarea
-                ref={composerRef}
-                id="hub-composer"
-                value={draft}
-                onChange={(event) => setDraft(event.target.value)}
-                onScroll={(event) => updateComposerFades(event.currentTarget)}
-                maxLength={2000}
-                rows={1}
-                placeholder="Ask a question or search for resources…"
-                disabled={conversationLoading}
-                className="min-h-11 resize-none border-0 bg-transparent px-3 py-2.5 text-base leading-6 shadow-none focus-visible:ring-0"
-                onKeyDown={(event) => {
-                  if (event.key !== 'Enter' || event.shiftKey) return
-                  event.preventDefault()
-                  event.currentTarget.form?.requestSubmit()
-                }}
-              />
-              <div
-                aria-hidden="true"
-                className={`pointer-events-none absolute inset-x-0 top-0 h-7 bg-gradient-to-b from-background via-background/80 to-transparent transition-opacity ${composerFades.top ? 'opacity-100' : 'opacity-0'}`}
-              />
-              <div
-                aria-hidden="true"
-                className={`hub-composer-fade pointer-events-none absolute inset-x-0 bottom-0 h-7 transition-opacity ${composerFades.bottom ? 'opacity-100' : 'opacity-0'}`}
-              />
-            </div>
-            <div className="flex h-9 items-center justify-between gap-3">
-              <div className="flex items-center gap-1">
-                <Button type="button" size="icon" variant={libraryOpen ? 'secondary' : 'ghost'} className="h-8 w-8 text-muted-foreground" onClick={() => setLibraryOpen((current) => !current)} disabled={!accessToken || !org?.id} title="Add resources from your Library" aria-label="Add resource context" aria-expanded={libraryOpen}>
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-              <Button
-                type={sending ? 'button' : 'submit'}
-                size="icon"
-                className="h-8 w-8"
-                disabled={sending ? false : !draft.trim() || conversationLoading || !accessToken}
-                aria-label={sending ? 'Stop response' : 'Send message'}
-                onClick={sending ? () => advisorAbortRef.current?.abort() : undefined}
-              >
-                {sending ? <Square className="h-3.5 w-3.5 fill-current" /> : <Send className="h-4 w-4" />}
-              </Button>
-            </div>
-          </div>
-        </form>
+        <HubComposer
+          onSubmit={submit}
+          composerRef={composerRef}
+          draft={draft}
+          onDraftChange={setDraft}
+          onComposerScroll={updateComposerFades}
+          composerFades={composerFades}
+          conversationLoading={conversationLoading}
+          libraryOpen={libraryOpen}
+          onLibraryToggle={() => setLibraryOpen((current) => !current)}
+          canAttach={Boolean(accessToken && org?.id)}
+          sending={sending}
+          canSend={Boolean(draft.trim() && !conversationLoading && accessToken)}
+          onStop={() => advisorAbortRef.current?.abort()}
+          intent={turnIntent}
+          onIntentChange={setTurnIntent}
+        />
         <HubResourceLibrary
           open={libraryOpen}
           onClose={() => setLibraryOpen(false)}

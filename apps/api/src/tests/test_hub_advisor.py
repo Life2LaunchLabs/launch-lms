@@ -95,6 +95,16 @@ def test_conversation_must_be_bounded_alternating_and_end_with_user():
         ])
 
 
+def test_hub_routes_reject_mismatched_or_unknown_client_intents():
+    user_message = [hub_router.HubAdvisorMessage(role="user", content="Help")]
+    with pytest.raises(ValueError):
+        hub_router.HubAdvisorRequest(messages=user_message, intent="search")  # type: ignore[arg-type]
+    with pytest.raises(ValueError):
+        hub_router.HubAdvisorRequest(messages=user_message, intent="system")  # type: ignore[arg-type]
+    with pytest.raises(ValueError):
+        hub_router.HubConversationSearchRequest(query="guides", intent="chat")  # type: ignore[arg-type]
+
+
 def test_resource_grounding_ranks_matches_and_excludes_private_learner_state():
     resources = [
         {
@@ -534,6 +544,30 @@ async def test_advisor_requires_membership_and_applies_user_rate_limit(monkeypat
 
 
 @pytest.mark.asyncio
+async def test_work_intent_adds_only_server_owned_focused_session_guidance(monkeypatch):
+    captured = []
+
+    class WorkProvider:
+        async def respond(self, messages, _safety_identifier):
+            captured.extend(messages)
+            return AdvisorResult("Choose the next step.", "fake")
+
+    monkeypatch.setattr(hub_advisor, "require_org_membership", lambda *_args: None)
+    monkeypatch.setattr(hub_advisor, "check_rate_limit", lambda *_args: (True, 1, 60))
+    monkeypatch.setattr(hub_actions, "_org_config", lambda *_args: {})
+    request = Request({"type": "http", "headers": [], "client": ("127.0.0.1", 1234)})
+
+    await ask_hub_advisor(
+        request, 7, 11, [message("user", "Help me shape a plan")], object(),
+        WorkProvider(), turn_intent="work",
+    )  # type: ignore[arg-type]
+
+    assert captured[-1].content.startswith("Help me shape a plan\n\n<launch_lms_capabilities>")
+    assert "server verified that the learner selected Work" in captured[-1].content
+    assert "only explicit action resolution can grant that scope" in captured[-1].content
+
+
+@pytest.mark.asyncio
 async def test_advisor_returns_retry_after_when_rate_limited(monkeypatch):
     monkeypatch.setattr(hub_advisor, "require_org_membership", lambda *_args: None)
     monkeypatch.setattr(hub_advisor, "check_rate_limit", lambda *args: (False, 12, 41))
@@ -562,9 +596,11 @@ async def test_advisor_route_returns_edit_operations_without_changing_conversati
         return []
     async def advice(*_args, **kwargs):
         assert kwargs["edit_run"] == run
+        assert kwargs["turn_intent"] == "work"
         return AdvisorResult("Prepared.", "fake", plan_operations=(operation,))
     def persist(db_session, **kwargs):
         record_advice_signature.bind(db_session, **kwargs)
+        assert kwargs["turn_intent"] == "work"
         now = datetime.utcnow()
         return {
             "conversation_uuid": "conversation_test", "title": "Plan",
@@ -591,6 +627,7 @@ async def test_advisor_route_returns_edit_operations_without_changing_conversati
         hub_router.HubAdvisorRequest(
             conversation_uuid="conversation_test",
             messages=[hub_router.HubAdvisorMessage(role="user", content="Prepare it")],
+            intent="work",
         ),
         SimpleNamespace(id=11),
         object(),
