@@ -39,3 +39,31 @@ test('portfolio.access: unauthenticated navigation uses the safe organization fa
   await expect(page.getByRole('link', { name: /already have an account/i })).toBeVisible()
   await context.close()
 })
+
+test('portfolio.access: an expired access-only cookie does not bounce back to Hub', async ({ browser }) => {
+  const target = new URL(environment.baseUrl)
+  const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url')
+  const expiredAccessToken = `${encode({ alg: 'none' })}.${encode({ exp: 1 })}.unsigned`
+  const context = await browser.newContext({
+    ignoreHTTPSErrors: true,
+    storageState: { cookies: [], origins: [] },
+  })
+  await context.addCookies([{
+    name: 'access_token_cookie',
+    value: expiredAccessToken,
+    domain: target.hostname,
+    path: '/',
+    httpOnly: true,
+    secure: target.protocol === 'https:',
+    sameSite: 'Lax',
+    expires: Math.floor(Date.now() / 1000) + 3600,
+  }])
+  const page = await context.newPage()
+
+  await page.goto(new URL('/portfolio', target).toString())
+
+  await expect(page).not.toHaveURL((url) => url.pathname === '/hub')
+  await expect(page.getByRole('navigation', { name: 'Portfolio views' })).toHaveCount(0)
+  await expect(page.getByRole('link', { name: /already have an account/i })).toBeVisible()
+  await context.close()
+})

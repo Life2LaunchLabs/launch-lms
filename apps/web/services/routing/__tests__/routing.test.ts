@@ -6,6 +6,21 @@ import { classifyRoute } from '../routeAccess.ts'
 import { buildPublicRequestUrl, getCanonicalOrgHostname } from '../context.ts'
 import { hubTimestampDate } from '../../hub/timestamp.ts'
 import { isManagedHost, legacyParentCookieDomain, safeHandoffPath } from '../handoff.ts'
+import { hasRoutableSession } from '../../auth/sessionCookies.ts'
+
+function unsignedToken(exp: number): string {
+  const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url')
+  return `${encode({ alg: 'none' })}.${encode({ exp })}.unsigned`
+}
+
+test('routing ignores expired access-only cookies but preserves recoverable sessions', () => {
+  const now = 2_000_000_000
+  assert.equal(hasRoutableSession({}, now), false)
+  assert.equal(hasRoutableSession({ accessToken: 'not-a-jwt' }, now), false)
+  assert.equal(hasRoutableSession({ accessToken: unsignedToken(now - 1) }, now), false)
+  assert.equal(hasRoutableSession({ accessToken: unsignedToken(now + 1) }, now), true)
+  assert.equal(hasRoutableSession({ accessToken: unsignedToken(now - 1), refreshToken: 'refresh' }, now), true)
+})
 
 test('session handoff only targets the same installation and one organization label', () => {
   const domain = 'unstable.life2launch.app'
