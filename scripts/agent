@@ -99,8 +99,14 @@ pathlib.Path(sys.argv[1]).write_text(json.dumps(payload, indent=2) + "\n")
 PY
     printf '%s\n' "$output"
     ;;
+  jira)
+    python3 "$root_dir/scripts/jira.py" "$@"
+    ;;
+  feedback)
+    python3 "$root_dir/scripts/feedback.py" "$@"
+    ;;
   *)
-    printf 'usage: scripts/agent {doctor|docs|product|plan|check [--changed|--all]|evidence}\n' >&2
+    printf 'usage: scripts/agent {doctor|docs|product|plan|check [--changed|--all]|evidence|jira|feedback}\n' >&2
     exit 2
     ;;
 esac

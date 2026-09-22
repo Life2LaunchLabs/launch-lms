@@ -276,17 +276,6 @@ def list_feedback(
     else:
         require_org_membership(current_user.id, org_id, db_session)
     client = CandidateJira()
-    closed_status_ids = set()
-    if not admin:
-        try:
-            closed_status_ids = {
-                status_id
-                for column in client.board_columns()
-                if column["name"].casefold() in {"closed", "archive", "archived"}
-                for status_id in column["status_ids"]
-            }
-        except HTTPException:
-            pass
     org_label = _jql_value(f"launchlms-org-{org_id}")
     org_filter = "" if admin else f'AND labels = "{org_label}" '
     issues = client.search(
@@ -300,10 +289,7 @@ def list_feedback(
         if not admin and int(metadata.get("user_id", -1)) != current_user.id:
             continue
         labels = set((issue.get("fields") or {}).get("labels") or [])
-        status_id = str(((issue.get("fields") or {}).get("status") or {}).get("id", ""))
-        if not admin and (
-            "tester-confirmed" in labels or status_id in closed_status_ids
-        ):
+        if not admin and "tester-confirmed" in labels:
             continue
         serialized = serialize_feedback(issue, metadata, client, admin=admin)
         if not admin:
@@ -428,44 +414,26 @@ def resolve_feedback(
             status_code=409, detail="This feedback is not ready to review"
         )
     labels = set(fields.get("labels") or [])
-    columns = client.board_columns()
     if body.outcome == "looks_good":
-        closed_ids = {
-            status_id
-            for column in columns
-            if column["name"].casefold() in {"closed", "archive", "archived"}
-            for status_id in column["status_ids"]
-        }
-        transition = next(
-            (
-                item
-                for item in client.transitions(issue_key)
-                if item["to"]["id"] in closed_ids
-            ),
-            None,
-        )
-        if transition:
-            client.transition(issue_key, transition["to"]["id"])
-        labels.add("tester-confirmed")
+        labels = (labels | {"tester-confirmed"}) - {"feedback-reopened"}
         client.update_fields(issue_key, {"labels": sorted(labels)})
         client.add_tester_comment(issue_key, "Looks good now.")
     else:
-        open_ids = set(columns[0]["status_ids"] if columns else [])
         transition = next(
             (
                 item
                 for item in client.transitions(issue_key)
-                if item["to"]["id"] in open_ids
+                if item["to"].get("category") == "new"
             ),
             None,
         )
         if not transition:
             raise HTTPException(
                 status_code=409,
-                detail="Jira has no direct transition back to the open column",
+                detail="Jira has no direct transition back to an open lifecycle state",
             )
         client.transition(issue_key, transition["to"]["id"])
-        labels.discard("tester-confirmed")
+        labels = (labels | {"feedback-reopened"}) - {"tester-confirmed"}
         client.update_fields(issue_key, {"labels": sorted(labels)})
         client.add_tester_comment(issue_key, "Still happening after completion.")
     return serialize_feedback(client.issue(issue_key), metadata, client, admin=False)

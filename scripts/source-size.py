@@ -13,7 +13,7 @@ BASELINE = ROOT / "docs" / "quality" / "source-size-baseline.json"
 ROOTS = (ROOT / "apps" / "api" / "src", ROOT / "apps" / "web")
 EXTENSIONS = {".py", ".js", ".jsx", ".ts", ".tsx"}
 EXCLUDED_PARTS = {
-    ".next", "node_modules", "migrations", "tests", "test", "fixtures", "generated",
+    ".next", ".next-ui-test", "node_modules", "migrations", "tests", "test", "fixtures", "generated",
     "playwright-report", "test-results", "__snapshots__", "__pycache__",
 }
 

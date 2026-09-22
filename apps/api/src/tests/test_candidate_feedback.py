@@ -221,6 +221,9 @@ def test_tester_can_reopen_completed_feedback(monkeypatch):
                 }
             ]
 
+        def board_columns(self):
+            raise AssertionError("resolution must not depend on board column names or order")
+
         def transition(self, key, status_id):
             self.actions.append(("transition", status_id))
             self.current_status = status_id
@@ -243,8 +246,54 @@ def test_tester_can_reopen_completed_feedback(monkeypatch):
     )
     assert result["status"] == "Open"
     assert ("transition", "1") in jira.actions
-    assert ("update", {"labels": ["launchlms-feedback"]}) in jira.actions
+    assert (
+        "update",
+        {"labels": ["feedback-reopened", "launchlms-feedback"]},
+    ) in jira.actions
     assert ("comment", "Still happening after completion.") in jira.actions
+
+
+def test_tester_confirmation_uses_durable_label_without_a_closed_column(monkeypatch):
+    class Jira(FakeJira):
+        def __init__(self):
+            self.actions = []
+
+        def issue(self, key):
+            value = issue(["feedback-reopened", "launchlms-feedback"])
+            value["fields"]["status"] = {
+                "id": "5",
+                "name": "Ready for verification",
+                "statusCategory": {"key": "done"},
+            }
+            return value
+
+        def property(self, key, property_key):
+            return {"org_id": 7, "user_id": 42, "username": "tester"}
+
+        def board_columns(self):
+            raise AssertionError("confirmation must not depend on a closed column name")
+
+        def update_fields(self, key, fields):
+            self.actions.append(("update", fields))
+
+        def add_tester_comment(self, key, message):
+            self.actions.append(("comment", message))
+
+    jira = Jira()
+    monkeypatch.setattr(router, "CandidateJira", lambda: jira)
+    monkeypatch.setattr(router, "require_org_membership", lambda *_args: None)
+    router.resolve_feedback(
+        "BOT-200",
+        router.FeedbackResolution(outcome="looks_good"),
+        org_id=7,
+        db_session=None,
+        current_user=SimpleNamespace(id=42),
+    )
+    assert (
+        "update",
+        {"labels": ["launchlms-feedback", "tester-confirmed"]},
+    ) in jira.actions
+    assert ("comment", "Looks good now.") in jira.actions
 
 
 def test_reproduction_context_redacts_route_values_and_user_agent_detail():
