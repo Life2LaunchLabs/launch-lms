@@ -15,3 +15,5 @@ pull request here. Its database is a cache, not product authority.
 
 `feedback-policy.yaml` owns Launch-specific privacy, grouping, communication,
 attachment, BOT-linking, and resolution rules consumed by the generic platform.
+The local and Symphony-compatible operating flow is documented in
+[feedback operations](feedback-operations.md).
