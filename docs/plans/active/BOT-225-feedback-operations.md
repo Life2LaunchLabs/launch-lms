@@ -26,8 +26,8 @@ an idempotent automation boundary.
 - [x] Added repository-owned Jira and feedback commands plus policy schema v2.
 - [x] Added durable Jira-property triage and native FEED↔BOT link handling.
 - [x] Added deterministic, dry-run-first reconciliation and reopen handling.
-- [ ] Complete automated checks and a live doctor/audit dry run.
-- [ ] Review and apply the first feedback intake cycle.
+- [x] Complete automated checks and a live doctor/audit dry run.
+- [x] Review and apply the first feedback intake cycle.
 
 ## Decisions
 
@@ -80,5 +80,20 @@ transition:
   without creating product work.”
 - FEED-9: “Thanks for flagging this. Being redirected away from Portfolio blocks
   a core workflow, so we are treating it as our highest-priority new defect.”
-- FEED-10: “Good idea. We will review a safe show/hide-password control and ask
+- FEED-10: “Good idea. We will add a safe show/hide-password control and ask
   you to test it when it is ready.”
+
+## Applied intake result
+
+Applied 2026-09-22 after a fresh live doctor and audit:
+
+- Migrated FEED-2 through FEED-5 to Jira properties and native issue links.
+- Triaged all ten FEED items; the final audit contains no untriaged reports and
+  no remaining legacy migration work.
+- Linked FEED-6 and FEED-7 to active replacement-surface parent BOT-248.
+- Created Highest-priority BOT-267 with BOT-268/BOT-269 for the Portfolio access
+  defect and Medium-priority BOT-270 with BOT-271/BOT-272 for password visibility.
+- Reconciled completed BOT-217 into FEED-5 Done and published its one-time
+  ready-to-test request. A second reconciliation produced no operations.
+- Kept FEED-1, FEED-2, and FEED-8 as handled history without manufacturing BOT
+  delivery work.

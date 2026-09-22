@@ -131,6 +131,13 @@ class JiraClient:
     def comment(self, key: str, text: str) -> None:
         self.request("POST", f"/rest/api/3/issue/{quote(key)}/comment", {"body": adf(text)})
 
+    def update_comment(self, key: str, comment_id: str, text: str) -> None:
+        self.request(
+            "PUT",
+            f"/rest/api/3/issue/{quote(key)}/comment/{quote(comment_id)}",
+            {"body": adf(text)},
+        )
+
     def property(self, key: str, name: str) -> dict:
         try:
             return self.request("GET", f"/rest/api/3/issue/{quote(key)}/properties/{quote(name)}").get("value") or {}

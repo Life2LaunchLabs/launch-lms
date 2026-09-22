@@ -7,7 +7,7 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
-from jira_rest import JiraClient, JiraError, adf, adf_text, summarize
+from jira_rest import JiraClient, JiraError, adf_text, summarize
 
 TRIAGE_PROPERTY = "launchlms.feedback-triage"
 PUBLIC_PREFIX = "[Launch LMS reply]"
@@ -120,7 +120,9 @@ def linked_bot_keys(issue: dict, delivery_project: str) -> list[str]:
             result.append(key)
     pattern = re.compile(rf"\b{re.escape(delivery_project)}-\d+\b")
     for comment in ((issue.get("fields") or {}).get("comment") or {}).get("comments") or []:
-        result.extend(pattern.findall(adf_text(comment.get("body"))))
+        body = adf_text(comment.get("body"))
+        if re.search(r"\bDelivery link:", body, re.IGNORECASE):
+            result.extend(pattern.findall(body))
     return list(dict.fromkeys(result))
 
 
@@ -231,7 +233,10 @@ def triage(
 
 
 def already_linked(issue: dict, target: str) -> bool:
-    return target in linked_bot_keys(issue, target.split("-", 1)[0])
+    return target in {
+        str((link.get("outwardIssue") or link.get("inwardIssue") or {}).get("key", ""))
+        for link in (issue.get("fields") or {}).get("issuelinks") or []
+    }
 
 
 def link_feedback(feed: JiraClient, policy: dict, feed_key: str, bot_key: str, apply: bool) -> dict:
@@ -315,9 +320,21 @@ def reconcile(feed: JiraClient, bot: JiraClient, policy: dict, apply: bool) -> l
     return results
 
 
-def story_description(outcome: str, context: str, build_notes: str, tests: list[str]) -> str:
-    scenarios = "\n".join(f"* {item}" for item in tests)
-    return f"h2. Outcome\n\n{outcome}\n\nh2. Context\n\n{context}\n\nh2. Build notes\n\n{build_notes or 'None.'}\n\nh2. Owner test scenarios\n\n{scenarios}"
+def story_description(outcome: str, context: str, build_notes: str, tests: list[str]) -> dict:
+    content = []
+    for title, paragraphs in (
+        ("Outcome", [outcome]),
+        ("Context", context.split("\n\n")),
+        ("Build notes", [build_notes or "None."]),
+    ):
+        content.append({"type": "heading", "attrs": {"level": 2}, "content": [{"type": "text", "text": title}]})
+        content.extend({"type": "paragraph", "content": [{"type": "text", "text": value}]} for value in paragraphs if value)
+    content.append({"type": "heading", "attrs": {"level": 2}, "content": [{"type": "text", "text": "Owner test scenarios"}]})
+    content.append({"type": "bulletList", "content": [
+        {"type": "listItem", "content": [{"type": "paragraph", "content": [{"type": "text", "text": item}]}]}
+        for item in tests
+    ]})
+    return {"type": "doc", "version": 1, "content": content}
 
 
 def create_work(
@@ -334,7 +351,7 @@ def create_work(
         "project": {"key": policy["tracker"]["delivery_project"]},
         "issuetype": {"name": policy["tracker"]["delivery_issue_type"]},
         "summary": summary,
-        "description": adf(story_description(outcome, context + "\n\nFeedback sources:\n" + sources, build_notes, tests)),
+        "description": story_description(outcome, context + "\n\nFeedback sources:\n" + sources, build_notes, tests),
         "priority": {"name": priority}, "labels": [f"feedback-concept-{concept}"],
     }
     if not apply:

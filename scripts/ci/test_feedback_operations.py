@@ -8,11 +8,13 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from feedback_ops import (
     TRIAGE_PROPERTY,
+    already_linked,
     delivery_stage,
     load_policy,
     migrate_legacy,
     reconcile,
     resolve_roles,
+    story_description,
     triage,
     validate_delivery_roles,
 )
@@ -150,6 +152,18 @@ class FeedbackOperationsTests(unittest.TestCase):
         self.assertEqual(changes[0]["native_links"], ["BOT-9"])
         self.assertTrue(any(action[0] == "property" for action in feed.actions))
         self.assertTrue(any(action[0] == "link" for action in feed.actions))
+
+    def test_plain_bot_mention_is_not_treated_as_native_link(self):
+        value = issue()
+        value["fields"]["comment"]["comments"] = [
+            {"body": "Triage rationale: BOT-248 owns the replacement surface."}
+        ]
+        self.assertFalse(already_linked(value, "BOT-248"))
+
+    def test_created_work_uses_native_adf_sections(self):
+        value = story_description("Outcome text", "Context text", "Build text", ["Owner test"])
+        self.assertEqual(value["content"][0]["type"], "heading")
+        self.assertEqual(value["content"][-1]["type"], "bulletList")
 
     def test_ready_to_test_is_idempotent(self):
         link = {"outwardIssue": {"key": "BOT-9"}}
