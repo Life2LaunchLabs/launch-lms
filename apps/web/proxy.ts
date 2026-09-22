@@ -13,6 +13,7 @@ import {
 } from './services/routing/requestPolicy'
 import { stripPort } from './services/utils/ts/hostUtils'
 import { buildPublicRequestUrl } from './services/routing/context'
+import { hasRoutableSession } from './services/auth/sessionCookies'
 
 interface OrgSubdomainAccess {
   user_site_enabled: boolean
@@ -210,9 +211,10 @@ export default async function proxy(req: NextRequest) {
     req.headers.get('x-forwarded-host') || host,
     req.headers.get('x-forwarded-proto')
   )
-  const hasSession =
-    !!req.cookies.get(ACCESS_TOKEN_COOKIE)?.value ||
-    !!req.cookies.get(REFRESH_TOKEN_COOKIE)?.value
+  const hasSession = hasRoutableSession({
+    accessToken: req.cookies.get(ACCESS_TOKEN_COOKIE)?.value,
+    refreshToken: req.cookies.get(REFRESH_TOKEN_COOKIE)?.value,
+  })
 
   let resolvedCustomDomainOrgSlug: string | null = null
   if (isCustomDomainHost(host, instanceInfo.frontend_domain) && host) {
