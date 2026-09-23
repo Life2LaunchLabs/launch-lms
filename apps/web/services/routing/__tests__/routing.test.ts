@@ -7,6 +7,8 @@ import { buildPublicRequestUrl, getCanonicalOrgHostname } from '../context.ts'
 import { hubTimestampDate } from '../../hub/timestamp.ts'
 import { isManagedHost, legacyParentCookieDomain, safeHandoffPath } from '../handoff.ts'
 import { hasRoutableSession } from '../../auth/sessionCookies.ts'
+import { NextRequest } from 'next/server.js'
+import { rewriteWithRequestHeaders } from '../rewriteResponse.ts'
 
 function unsignedToken(exp: number): string {
   const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url')
@@ -22,6 +24,18 @@ test('routing ignores expired access-only cookies but preserves recoverable sess
   assert.equal(hasRoutableSession({ accessToken: unsignedToken(now - 1), refreshToken: 'not-a-jwt' }, now), false)
   assert.equal(hasRoutableSession({ accessToken: unsignedToken(now - 1), refreshToken: unsignedToken(now - 1) }, now), false)
   assert.equal(hasRoutableSession({ accessToken: unsignedToken(now - 1), refreshToken: unsignedToken(now + 1) }, now), true)
+})
+
+test('organization rewrites explicitly carry auth cookies into Server Component requests', () => {
+  const cookie = 'access_token_cookie=access.jwt; refresh_token_cookie=refresh.jwt'
+  const request = new NextRequest('https://unstable.life2launch.app/portfolio', {
+    headers: { cookie },
+  })
+  const response = rewriteWithRequestHeaders(request, '/orgs/default/portfolio')
+
+  assert.match(response.headers.get('x-middleware-override-headers') || '', /(^|,)cookie(,|$)/)
+  assert.equal(response.headers.get('x-middleware-request-cookie'), cookie)
+  assert.equal(response.headers.get('cookie'), null)
 })
 
 test('session handoff only targets the same installation and one organization label', () => {

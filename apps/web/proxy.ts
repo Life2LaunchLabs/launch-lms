@@ -14,6 +14,7 @@ import {
 import { stripPort } from './services/utils/ts/hostUtils'
 import { buildPublicRequestUrl } from './services/routing/context'
 import { hasRoutableSession } from './services/auth/sessionCookies'
+import { rewriteWithRequestHeaders } from './services/routing/rewriteResponse'
 
 interface OrgSubdomainAccess {
   user_site_enabled: boolean
@@ -175,7 +176,7 @@ function buildResponse(req: NextRequest, decision: RoutingDecision): NextRespons
       return NextResponse.redirect(new URL(decision.destination || '/', req.url))
     case 'rewrite':
     default:
-      return NextResponse.rewrite(new URL(decision.destination || '/', req.url))
+      return rewriteWithRequestHeaders(req, decision.destination || '/')
   }
 }
 
