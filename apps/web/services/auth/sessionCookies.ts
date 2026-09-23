@@ -15,6 +15,12 @@ function decodeJwtPayload(token: string): Record<string, unknown> | null {
   }
 }
 
+export function isUnexpiredJwt(token: string | null | undefined, nowSeconds = Date.now() / 1000): boolean {
+  if (!token) return false
+  const expiry = decodeJwtPayload(token)?.exp
+  return typeof expiry === 'number' && expiry > nowSeconds
+}
+
 /**
  * Routing only needs to know whether a request can plausibly recover a session.
  * Authentication and signature verification remain the responsibility of the API.
@@ -23,9 +29,5 @@ export function hasRoutableSession(
   { accessToken, refreshToken }: SessionCookieValues,
   nowSeconds = Date.now() / 1000
 ): boolean {
-  if (refreshToken) return true
-  if (!accessToken) return false
-
-  const expiry = decodeJwtPayload(accessToken)?.exp
-  return typeof expiry === 'number' && expiry > nowSeconds
+  return [accessToken, refreshToken].some(token => isUnexpiredJwt(token, nowSeconds))
 }

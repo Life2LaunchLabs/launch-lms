@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers'
 import { getServerAPIUrl } from '@services/config/config'
+import { isUnexpiredJwt } from '@services/auth/sessionCookies'
 
 const API_URL = getServerAPIUrl().replace(/\/+$/, '')
 
@@ -120,8 +121,9 @@ export async function getServerAccessToken(): Promise<string | null> {
 
     // Try access token first
     const accessToken = cookieStore.get(ACCESS_TOKEN_COOKIE)
-    if (accessToken?.value) {
-      return accessToken.value
+    const accessTokenValue = accessToken?.value
+    if (accessTokenValue && isUnexpiredJwt(accessTokenValue)) {
+      return accessTokenValue
     }
 
     // Try to refresh

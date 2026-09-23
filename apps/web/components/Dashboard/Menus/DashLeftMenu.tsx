@@ -34,6 +34,7 @@ import UserAvatar from '../../Objects/UserAvatar'
 import AdminAuthorization from '@components/Security/AdminAuthorization'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getUriWithOrg, getAPIUrl, getCoreCapabilities, getDefaultOrg, routePaths } from '@services/config/config'
+import { authenticatedOrgHref } from '@services/auth/handoff'
 import { useTranslation } from 'react-i18next'
 import {
   Tooltip,
@@ -65,7 +66,6 @@ import { getOrgLogoMediaDirectory } from '@services/media/media'
 import { cn } from '@/lib/utils'
 import useSWR from 'swr'
 import { swrFetcher } from '@services/utils/ts/requests'
-
 import { usePlan } from '@components/Hooks/usePlan'
 import {
   BADGE_ADMIN_PAGES,
@@ -561,7 +561,7 @@ function DashLeftMenu() {
             </DropdownMenuLabel>
             <DropdownMenuSeparator className="bg-white/[0.08]" />
             <DropdownMenuItem asChild>
-              <Link href={getUriWithOrg(getDefaultOrg(), routePaths.owner.root())} className="flex items-center gap-2 rounded-md px-3 py-2 text-white/70 focus:bg-white/[0.08] focus:text-white">
+              <Link href={authenticatedOrgHref(getUriWithOrg(getDefaultOrg(), routePaths.owner.root()), true)} className="flex items-center gap-2 rounded-md px-3 py-2 text-white/70 focus:bg-white/[0.08] focus:text-white">
                 <House size={16} weight="fill" />
                 <span>Return to User Experience</span>
               </Link>
@@ -598,13 +598,13 @@ function DashLeftMenu() {
             </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-white/[0.08]" />
             <DropdownMenuItem asChild>
-              <Link href={getUriWithOrg(getDefaultOrg(), routePaths.org.portfolio())} className="flex items-center gap-2 rounded-md px-3 py-2 text-white/70 focus:bg-white/[0.08] focus:text-white">
+              <Link href={authenticatedOrgHref(getUriWithOrg(getDefaultOrg(), routePaths.org.portfolio()), true)} className="flex items-center gap-2 rounded-md px-3 py-2 text-white/70 focus:bg-white/[0.08] focus:text-white">
                 <UserCircle size={16} weight="fill" />
                 <span>Portfolio</span>
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link href={getUriWithOrg(getDefaultOrg(), routePaths.owner.account.root())} className="flex items-center gap-2 rounded-md px-3 py-2 text-white/70 focus:bg-white/[0.08] focus:text-white">
+              <Link href={authenticatedOrgHref(getUriWithOrg(getDefaultOrg(), routePaths.owner.account.root()), true)} className="flex items-center gap-2 rounded-md px-3 py-2 text-white/70 focus:bg-white/[0.08] focus:text-white">
                 <Gear size={16} weight="fill" />
                 <span>{t('common.settings')}</span>
               </Link>

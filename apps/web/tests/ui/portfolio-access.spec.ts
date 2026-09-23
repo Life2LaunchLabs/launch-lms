@@ -67,3 +67,31 @@ test('portfolio.access: an expired access-only cookie does not bounce back to Hu
   await expect(page.getByRole('link', { name: /already have an account/i })).toBeVisible()
   await context.close()
 })
+
+test('portfolio.access: a rejected refresh hint reaches sign-in instead of bouncing to Hub', async ({ browser }) => {
+  const target = new URL(environment.baseUrl)
+  const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url')
+  const rejectedRefreshToken = `${encode({ alg: 'none' })}.${encode({ exp: Math.floor(Date.now() / 1000) + 3600 })}.unsigned`
+  const context = await browser.newContext({
+    ignoreHTTPSErrors: true,
+    storageState: { cookies: [], origins: [] },
+  })
+  await context.addCookies([{
+    name: 'refresh_token_cookie',
+    value: rejectedRefreshToken,
+    domain: target.hostname,
+    path: '/',
+    httpOnly: true,
+    secure: target.protocol === 'https:',
+    sameSite: 'Lax',
+    expires: Math.floor(Date.now() / 1000) + 3600,
+  }])
+  const page = await context.newPage()
+
+  await page.goto(new URL('/portfolio', target).toString())
+
+  await expect(page).toHaveURL(url => url.pathname === '/login' && url.searchParams.get('next') === '/portfolio')
+  await expect(page.getByRole('heading', { name: /welcome back|sign in/i })).toBeVisible()
+  await expect(page).not.toHaveURL((url) => url.pathname === '/hub')
+  await context.close()
+})
