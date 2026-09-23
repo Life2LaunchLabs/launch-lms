@@ -3,6 +3,32 @@ type SessionCookieValues = {
   refreshToken?: string | null
 }
 
+export function cookieValueFromHeader(cookieHeader: string | null, name: string): string | undefined {
+  if (!cookieHeader) return undefined
+
+  for (const cookie of cookieHeader.split(';')) {
+    const separator = cookie.indexOf('=')
+    if (separator < 0 || cookie.slice(0, separator).trim() !== name) continue
+
+    const value = cookie.slice(separator + 1).trim()
+    try {
+      return decodeURIComponent(value)
+    } catch {
+      return value
+    }
+  }
+
+  return undefined
+}
+
+export function resolveRequestCookie(
+  cookieStoreValue: string | undefined,
+  cookieHeader: string | null,
+  name: string
+): string | undefined {
+  return cookieStoreValue || cookieValueFromHeader(cookieHeader, name)
+}
+
 function decodeJwtPayload(token: string): Record<string, unknown> | null {
   try {
     const payload = token.split('.')[1]

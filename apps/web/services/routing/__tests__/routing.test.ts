@@ -6,7 +6,7 @@ import { classifyRoute } from '../routeAccess.ts'
 import { buildPublicRequestUrl, getCanonicalOrgHostname } from '../context.ts'
 import { hubTimestampDate } from '../../hub/timestamp.ts'
 import { isManagedHost, legacyParentCookieDomain, safeHandoffPath } from '../handoff.ts'
-import { hasRoutableSession } from '../../auth/sessionCookies.ts'
+import { cookieValueFromHeader, hasRoutableSession, resolveRequestCookie } from '../../auth/sessionCookies.ts'
 import { NextRequest } from 'next/server.js'
 import { rewriteWithRequestHeaders } from '../rewriteResponse.ts'
 
@@ -36,6 +36,17 @@ test('organization rewrites explicitly carry auth cookies into Server Component 
   assert.match(response.headers.get('x-middleware-override-headers') || '', /(^|,)cookie(,|$)/)
   assert.equal(response.headers.get('x-middleware-request-cookie'), cookie)
   assert.equal(response.headers.get('cookie'), null)
+})
+
+test('server auth can recover rewritten cookies from the forwarded request header', () => {
+  const cookie = 'theme=dark; access_token_cookie=access%2Ejwt%3Dvalue; refresh_token_cookie=refresh.jwt'
+
+  assert.equal(cookieValueFromHeader(cookie, 'access_token_cookie'), 'access.jwt=value')
+  assert.equal(cookieValueFromHeader(cookie, 'refresh_token_cookie'), 'refresh.jwt')
+  assert.equal(cookieValueFromHeader(cookie, 'missing'), undefined)
+  assert.equal(cookieValueFromHeader('malformed; access_token_cookie=%E0%A4%A', 'access_token_cookie'), '%E0%A4%A')
+  assert.equal(resolveRequestCookie('cookie-store-token', cookie, 'access_token_cookie'), 'cookie-store-token')
+  assert.equal(resolveRequestCookie(undefined, cookie, 'access_token_cookie'), 'access.jwt=value')
 })
 
 test('session handoff only targets the same installation and one organization label', () => {
