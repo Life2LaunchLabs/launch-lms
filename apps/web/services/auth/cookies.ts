@@ -2,9 +2,10 @@ import { NextRequest } from 'next/server'
 import { isSubdomainOf, isSameHost, isLocalhost, stripPort } from '@services/utils/ts/hostUtils'
 import { getConfig } from '@services/config/config'
 import { legacyParentCookieDomain } from '@services/routing/handoff'
+import { SESSION_COOKIE_NAMES } from '@services/auth/sessionCookies'
 
-export const ACCESS_TOKEN_COOKIE = 'access_token_cookie'
-export const REFRESH_TOKEN_COOKIE = 'refresh_token_cookie'
+export const ACCESS_TOKEN_COOKIE = SESSION_COOKIE_NAMES.accessToken
+export const REFRESH_TOKEN_COOKIE = SESSION_COOKIE_NAMES.refreshToken
 export const ACCESS_TOKEN_MAX_AGE = 8 * 60 * 60 // 8 hours
 export const REFRESH_TOKEN_MAX_AGE = 30 * 24 * 60 * 60 // 30 days
 

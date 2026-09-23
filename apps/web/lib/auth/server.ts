@@ -1,12 +1,12 @@
 import { cookies, headers } from 'next/headers'
 import { getServerAPIUrl } from '@services/config/config'
-import { isUnexpiredJwt, resolveRequestCookie } from '@services/auth/sessionCookies'
+import { isUnexpiredJwt, SERVER_AUTH_HEADERS, SESSION_COOKIE_NAMES } from '@services/auth/sessionCookies'
 
 const API_URL = getServerAPIUrl().replace(/\/+$/, '')
 
 // Cookie names (must match the API routes)
-const ACCESS_TOKEN_COOKIE = 'access_token_cookie'
-const REFRESH_TOKEN_COOKIE = 'refresh_token_cookie'
+const ACCESS_TOKEN_COOKIE = SESSION_COOKIE_NAMES.accessToken
+const REFRESH_TOKEN_COOKIE = SESSION_COOKIE_NAMES.refreshToken
 
 async function getServerCookieValues(): Promise<{
   accessToken?: string
@@ -20,13 +20,13 @@ async function getServerCookieValues(): Promise<{
     return { accessToken: storedAccessToken, refreshToken: storedRefreshToken }
   }
 
-  // Rewritten organization routes explicitly forward the original Cookie header.
-  // In some deployed Next.js topologies, cookies() does not reflect that override,
-  // while headers() still exposes the forwarded request header.
-  const cookieHeader = (await headers()).get('cookie')
+  // The organization-route proxy owns these bridge headers: it removes any
+  // client values, then repopulates them only from cookies observed at the
+  // public request boundary. The API remains responsible for token validation.
+  const requestHeaders = await headers()
   return {
-    accessToken: resolveRequestCookie(storedAccessToken, cookieHeader, ACCESS_TOKEN_COOKIE),
-    refreshToken: resolveRequestCookie(storedRefreshToken, cookieHeader, REFRESH_TOKEN_COOKIE),
+    accessToken: storedAccessToken || requestHeaders.get(SERVER_AUTH_HEADERS.accessToken) || undefined,
+    refreshToken: storedRefreshToken || requestHeaders.get(SERVER_AUTH_HEADERS.refreshToken) || undefined,
   }
 }
 
