@@ -4,6 +4,7 @@ import { useOrg } from '@components/Contexts/OrgContext'
 import { cn } from '@/lib/utils'
 import { getCoreCapabilities, getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config'
 import { getOrgLogoMediaDirectory } from '@services/media/media'
+import { authenticatedOrgHref } from '@services/auth/handoff'
 import {
   BadgeDollarSign,
   Building2,
@@ -264,13 +265,13 @@ function DashMobileMenu() {
 
             <div className="border-t border-white/[0.08] p-3">
               <MobileMenuLink
-                href={getUriWithOrg(getDefaultOrg(), routePaths.org.portfolio())}
+                href={authenticatedOrgHref(getUriWithOrg(getDefaultOrg(), routePaths.org.portfolio()), true)}
                 icon={UserRound}
                 label="Portfolio"
                 onClick={closeMenu}
               />
               <MobileMenuLink
-                href={getUriWithOrg(getDefaultOrg(), routePaths.org.root())}
+                href={authenticatedOrgHref(getUriWithOrg(getDefaultOrg(), routePaths.org.root()), true)}
                 icon={Home}
                 label="Return to User Experience"
                 onClick={closeMenu}

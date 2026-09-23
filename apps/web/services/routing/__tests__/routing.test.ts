@@ -19,7 +19,9 @@ test('routing ignores expired access-only cookies but preserves recoverable sess
   assert.equal(hasRoutableSession({ accessToken: 'not-a-jwt' }, now), false)
   assert.equal(hasRoutableSession({ accessToken: unsignedToken(now - 1) }, now), false)
   assert.equal(hasRoutableSession({ accessToken: unsignedToken(now + 1) }, now), true)
-  assert.equal(hasRoutableSession({ accessToken: unsignedToken(now - 1), refreshToken: 'refresh' }, now), true)
+  assert.equal(hasRoutableSession({ accessToken: unsignedToken(now - 1), refreshToken: 'not-a-jwt' }, now), false)
+  assert.equal(hasRoutableSession({ accessToken: unsignedToken(now - 1), refreshToken: unsignedToken(now - 1) }, now), false)
+  assert.equal(hasRoutableSession({ accessToken: unsignedToken(now - 1), refreshToken: unsignedToken(now + 1) }, now), true)
 })
 
 test('session handoff only targets the same installation and one organization label', () => {
@@ -383,6 +385,22 @@ test('request policy redirects authenticated login and signup pages to hub', () 
   assert.equal(loginDecision.destination, 'https://acme.launchlms.test/hub')
   assert.equal(signupDecision.action, 'redirect')
   assert.equal(signupDecision.destination, 'https://acme.launchlms.test/hub')
+})
+
+test('request policy preserves an explicit login recovery target despite a stale session hint', () => {
+  const decision = resolveRequestRouting({
+    requestUrl: 'https://acme.launchlms.test/login?next=%2Fportfolio',
+    pathname: '/login',
+    search: '?next=%2Fportfolio',
+    host: 'acme.launchlms.test',
+    hasSession: true,
+    instanceInfo,
+    resolvedCustomDomainOrgSlug: null,
+    orgSubdomainAccess: null,
+  })
+
+  assert.equal(decision.action, 'rewrite')
+  assert.equal(decision.destination, '/auth/login?next=%2Fportfolio')
 })
 
 test('request policy redirects unauthenticated protected paths to root landing', () => {

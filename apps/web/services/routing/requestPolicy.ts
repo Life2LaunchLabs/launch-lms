@@ -138,7 +138,11 @@ export function resolveRequestRouting(
   }
 
   if (route.kind === 'auth') {
-    if (input.hasSession && isAuthenticatedAuthRedirectPath(pathname)) {
+    if (
+      input.hasSession &&
+      isAuthenticatedAuthRedirectPath(pathname) &&
+      !new URLSearchParams(search).has('next')
+    ) {
       return {
         action: 'redirect',
         destination: getHubRedirectDestination(input.requestUrl),
