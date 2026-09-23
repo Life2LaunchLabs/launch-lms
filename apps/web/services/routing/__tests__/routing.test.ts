@@ -6,7 +6,7 @@ import { classifyRoute } from '../routeAccess.ts'
 import { buildPublicRequestUrl, getCanonicalOrgHostname } from '../context.ts'
 import { hubTimestampDate } from '../../hub/timestamp.ts'
 import { isManagedHost, legacyParentCookieDomain, safeHandoffPath } from '../handoff.ts'
-import { cookieValueFromHeader, hasRoutableSession, resolveRequestCookie } from '../../auth/sessionCookies.ts'
+import { hasRoutableSession, SERVER_AUTH_HEADERS } from '../../auth/sessionCookies.ts'
 import { NextRequest } from 'next/server.js'
 import { rewriteWithRequestHeaders } from '../rewriteResponse.ts'
 
@@ -26,27 +26,34 @@ test('routing ignores expired access-only cookies but preserves recoverable sess
   assert.equal(hasRoutableSession({ accessToken: unsignedToken(now - 1), refreshToken: unsignedToken(now + 1) }, now), true)
 })
 
-test('organization rewrites explicitly carry auth cookies into Server Component requests', () => {
+test('organization rewrites carry a sanitized server auth context', () => {
   const cookie = 'access_token_cookie=access.jwt; refresh_token_cookie=refresh.jwt'
   const request = new NextRequest('https://unstable.life2launch.app/portfolio', {
-    headers: { cookie },
+    headers: {
+      cookie,
+      [SERVER_AUTH_HEADERS.accessToken]: 'client-forged-access',
+      [SERVER_AUTH_HEADERS.refreshToken]: 'client-forged-refresh',
+    },
   })
   const response = rewriteWithRequestHeaders(request, '/orgs/default/portfolio')
 
   assert.match(response.headers.get('x-middleware-override-headers') || '', /(^|,)cookie(,|$)/)
   assert.equal(response.headers.get('x-middleware-request-cookie'), cookie)
+  assert.equal(response.headers.get(`x-middleware-request-${SERVER_AUTH_HEADERS.accessToken}`), 'access.jwt')
+  assert.equal(response.headers.get(`x-middleware-request-${SERVER_AUTH_HEADERS.refreshToken}`), 'refresh.jwt')
   assert.equal(response.headers.get('cookie'), null)
-})
 
-test('server auth can recover rewritten cookies from the forwarded request header', () => {
-  const cookie = 'theme=dark; access_token_cookie=access%2Ejwt%3Dvalue; refresh_token_cookie=refresh.jwt'
-
-  assert.equal(cookieValueFromHeader(cookie, 'access_token_cookie'), 'access.jwt=value')
-  assert.equal(cookieValueFromHeader(cookie, 'refresh_token_cookie'), 'refresh.jwt')
-  assert.equal(cookieValueFromHeader(cookie, 'missing'), undefined)
-  assert.equal(cookieValueFromHeader('malformed; access_token_cookie=%E0%A4%A', 'access_token_cookie'), '%E0%A4%A')
-  assert.equal(resolveRequestCookie('cookie-store-token', cookie, 'access_token_cookie'), 'cookie-store-token')
-  assert.equal(resolveRequestCookie(undefined, cookie, 'access_token_cookie'), 'access.jwt=value')
+  const unauthenticatedRequest = new NextRequest('https://unstable.life2launch.app/portfolio', {
+    headers: { [SERVER_AUTH_HEADERS.accessToken]: 'client-forged-access' },
+  })
+  const unauthenticatedResponse = rewriteWithRequestHeaders(
+    unauthenticatedRequest,
+    '/orgs/default/portfolio'
+  )
+  assert.equal(
+    unauthenticatedResponse.headers.get(`x-middleware-request-${SERVER_AUTH_HEADERS.accessToken}`),
+    null
+  )
 })
 
 test('session handoff only targets the same installation and one organization label', () => {
