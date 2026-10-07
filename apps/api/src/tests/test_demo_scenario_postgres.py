@@ -1,9 +1,10 @@
 """PostgreSQL scenario export checks against a disposable synthetic database."""
 
 import os
+from uuid import uuid4
 import pytest
 from sqlalchemy import create_engine
-from sqlmodel import Session
+from sqlmodel import Session, select
 from src.db.users import User
 from src.db.organizations import Organization
 from src.db.user_organizations import UserOrganization
@@ -26,12 +27,18 @@ def test_full_cohort_capture_preserves_stages_and_drops_real_attribution():
         ObjectiveProgress,
     )
     from src.services.demo.checkpoints import capture
+    from src.services.demo.namespaces import materialize, remap, drop_namespace
     from src.db.planning import Plan, PlanRole, PlanInvitation
     from src.db.resources import Resource
     from src.db.usergroups import UserGroup
     from src.db.usergroup_resources import UserGroupResource
     from src.db.resource_authors import ResourceAuthor
-    from src.db.learning import BadgeIssuerAuthorization
+    from src.db.learning import (
+        BadgeIssuerAuthorization,
+        LearningRun,
+        LearningPageProgress,
+        LearningBadgeAward,
+    )
 
     import_all_models()
     engine = create_engine(url)
@@ -60,6 +67,33 @@ def test_full_cohort_capture_preserves_stages_and_drops_real_attribution():
                     )
                 )
             db.flush()
+            db.add(
+                LearningRun(
+                    id=90002,
+                    run_uuid="run_cohort_test",
+                    badge_id=1,
+                    path_id=1,
+                    badge_version_id=1,
+                    org_id=1,
+                    issuing_org_id=org_id,
+                    user_id=90201,
+                    data={"prepared": True},
+                )
+            )
+            db.flush()
+            db.add(LearningPageProgress(run_id=90002, page_id=1, complete=True))
+            db.add(
+                LearningBadgeAward(
+                    award_uuid="award_cohort_test",
+                    badge_id=1,
+                    badge_version_id=1,
+                    run_id=90002,
+                    org_id=1,
+                    issuing_org_id=org_id,
+                    user_id=90201,
+                    conferred_by_user_id=1,
+                )
+            )
             db.add(
                 Plan(
                     id=90002,
@@ -246,6 +280,23 @@ def test_full_cohort_capture_preserves_stages_and_drops_real_attribution():
                 "learningpage",
             ):
                 assert any(row["id"] == 1 for row in snapshot[name]), name
+            run = next(row for row in snapshot["learningrun"] if row["id"] == 90002)
+            assert (
+                run["org_id"] == 1
+                and run["issuing_org_id"] == org_id
+                and run["data"]["prepared"]
+            )
+            assert any(
+                row["run_id"] == 90002 and row["complete"]
+                for row in snapshot["learningpageprogress"]
+            )
+            award = next(
+                row
+                for row in snapshot["learningbadgeaward"]
+                if row["award_uuid"] == "award_cohort_test"
+            )
+            assert award["issuing_org_id"] == org_id
+            assert award["conferred_by_user_id"] is None
             authorization = next(
                 row
                 for row in snapshot["badgeissuerauthorization"]
@@ -270,6 +321,43 @@ def test_full_cohort_capture_preserves_stages_and_drops_real_attribution():
                 ]
                 is None
             )
+            namespaces = []
+            try:
+                for _ in range(2):
+                    session_id = uuid4().hex
+                    namespace = "demo_" + session_id
+                    namespaces.append(namespace)
+                    rows, _ = remap(snapshot, session_id)
+                    materialize(engine, namespace, rows)
+                for index, namespace in enumerate(namespaces):
+                    with Session(
+                        engine.execution_options(schema_translate_map={None: namespace})
+                    ) as private:
+                        prepared = private.get(LearningRun, 90002)
+                        assert prepared.data == {"prepared": True}
+                        progress = private.exec(
+                            select(LearningPageProgress).where(
+                                LearningPageProgress.run_id == 90002
+                            )
+                        ).one()
+                        assert progress.complete
+                        if index == 0:
+                            progress.complete = False
+                            private.add(progress)
+                            private.commit()
+                assert db.get(LearningRun, 90002).data == {"prepared": True}
+                assert (
+                    db.exec(
+                        select(LearningPageProgress).where(
+                            LearningPageProgress.run_id == 90002
+                        )
+                    )
+                    .one()
+                    .complete
+                )
+            finally:
+                for namespace in namespaces:
+                    drop_namespace(engine, namespace)
             db.rollback()
     finally:
         engine.dispose()

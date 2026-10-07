@@ -11,6 +11,7 @@ from sqlmodel import Session, select
 from src.core.events.database import engine
 from src.db.demo import DemoConfiguration, DemoSession, DemoCheckpoint
 from src.db.users import User
+from src.db.learning import LearningRun, LearningPageProgress
 from src.services.demo.lifecycle import cleanup, end
 from src.services.demo.namespaces import visitor_session
 
@@ -25,6 +26,8 @@ with Session(engine) as db:
     ]
     originals = {identifier: db.get(User, identifier).bio for identifier in pilot_ids}
     cohort_size = len(checkpoint.data["rows"]["user"])
+    prepared_runs = checkpoint.data["rows"].get("learningrun", [])
+    prepared_pages = checkpoint.data["rows"].get("learningpageprogress", [])
     for previous in db.exec(
         select(DemoSession).where(
             DemoSession.state.in_(["active", "preparing", "provisioning"])
@@ -97,6 +100,15 @@ with httpx.Client(timeout=60, limits=httpx.Limits(max_connections=40)) as client
             for session in sessions:
                 with visitor_session(engine, session.namespace, session.id) as copy:
                     assert len(copy.exec(select(User)).all()) == cohort_size
+                    for prepared in prepared_runs:
+                        run = copy.get(LearningRun, prepared["id"])
+                        assert run.user_id == prepared["user_id"]
+                        assert run.org_id == prepared["org_id"]
+                        assert run.issuing_org_id == prepared["issuing_org_id"]
+                        assert run.data == prepared["data"]
+                    for prepared in prepared_pages:
+                        page = copy.get(LearningPageProgress, prepared["id"])
+                        assert page.complete == prepared["complete"]
                     user = copy.get(User, session.pilot_user_id)
                     user.bio = "Private edit " + session.id
                     copy.add(user)
@@ -128,6 +140,8 @@ with httpx.Client(timeout=60, limits=httpx.Limits(max_connections=40)) as client
                     "sessions": 200,
                     "pilots": len(pilot_ids),
                     "cohort_members_per_copy": cohort_size,
+                    "prepared_runs_per_copy": len(prepared_runs),
+                    "prepared_pages_per_copy": len(prepared_pages),
                     "concurrent_http_workers": 32,
                     "isolation": "passed",
                     "live_unchanged": True,

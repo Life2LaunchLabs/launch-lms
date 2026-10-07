@@ -32,6 +32,9 @@ portfolio hubconversation hubmemorypreference hubmemory hubeditrun
 boardmember playgroundreaction inboxmessage mediaasset mediafolder
 """.split()
 )
+# These rows belong to the fake learner but carry the catalog creator's org_id.
+# Keep their prepared state when the fictional org uses a shared live badge.
+CATALOG_PERSONAL = frozenset("learningrun learningbadgeaward".split())
 CHILDREN = frozenset(
     """
 learningactivityrun learningpageprogress usersavedresourcechannel portfoliosection
@@ -155,7 +158,11 @@ def capture(
         )
         if owner is not None:
             condition = owner.in_(user_ids)
-            if cohort_ids is not None and "org_id" in table.c:
+            if (
+                cohort_ids is not None
+                and "org_id" in table.c
+                and name not in CATALOG_PERSONAL
+            ):
                 condition &= table.c.org_id == entry_org_id
             add(name, read(name, condition))
     plan = tables["plan"]
