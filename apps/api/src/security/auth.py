@@ -176,6 +176,29 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
 
+    payload = decode_jwt(extract_jwt_from_request(request) or "") or {}
+    if payload.get("demo_session"):
+        if not getattr(request.state, "demo_namespace", None):
+            raise credentials_exception
+        from src.services.demo.access import session_user
+        public_user = session_user(db_session, payload)
+        request.state.user = public_user
+        request.state.is_api_token = False
+        return public_user
+    if payload.get("demo_operator"):
+        # Recheck the operator's live permission on every impersonated request.
+        from src.services.demo.access import operator
+        operator(request, db_session)
+        from sqlmodel import select
+        from src.db.demo import DemoMember
+        from src.services.demo.configuration import configuration
+        from src.services.demo.cohort import validate_member
+
+        target = db_session.exec(select(User).where(User.email == payload.get("sub"))).first()
+        if not target or not db_session.get(DemoMember, target.id):
+            raise HTTPException(403, "This account is no longer in the fictional demo cohort.")
+        validate_member(db_session, target, configuration(db_session).entry_org_id)
+
     # Step 1: Check for API token (Bearer lh_...)
     auth_header = request.headers.get("Authorization", "").strip()
 

@@ -170,6 +170,16 @@ async def api_check_board_membership(
 
 # Internal endpoints for Hocuspocus collab server (protected by verify_internal_key dependency on internal_router)
 
+@internal_router.get("/{board_uuid}/demo-active")
+async def api_demo_room_active(board_uuid: str):
+    # DemoMiddleware verifies the owning session before internal handlers run.
+    return {"active": True}
+
+
+@internal_router.get("/{board_uuid}/demo-context")
+async def api_demo_room_context(board_uuid: str, request: Request):
+    return {"aliases": getattr(request.state, "demo_aliases", {})}
+
 @internal_router.get("/{board_uuid}/ydoc")
 async def api_get_ydoc_state(
     board_uuid: str,

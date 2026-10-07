@@ -26,6 +26,7 @@ from src.services.orgs.join import JoinOrg
 from src.services.users import users as user_service
 
 
+# Keep pending-invitation fixtures valid regardless of the execution date.
 NOW = datetime.utcnow().replace(microsecond=0)
 
 

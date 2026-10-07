@@ -4,6 +4,7 @@ from fastapi import Request
 from sqlmodel import Session, select
 from src.core.events.database import engine
 from src.db.organizations import Organization
+from src.db.users import User
 from src.security.auth import decode_jwt, extract_jwt_from_request
 from src.services.audit_logs import record_audit_log, resolve_user_snapshot
 from src.services.users.users import security_get_user
@@ -14,10 +15,15 @@ AUDITED_PREFIXES = (
     "/api/v1/users",
     "/api/v1/superadmin",
     "/api/v1/audit_logs",
+    "/api/v1/demo/admin",
+    "/api/v1/demo/settings",
+    "/api/v1/demo/checkpoints",
 )
 
 
 async def log_request_audit_event(request: Request, status_code: int) -> None:
+    if getattr(request.state, "demo_namespace", None):
+        return
     if request.method not in {"POST", "PUT", "PATCH", "DELETE"}:
         return
     if not request.url.path.startswith(AUDITED_PREFIXES):
@@ -32,7 +38,8 @@ async def log_request_audit_event(request: Request, status_code: int) -> None:
         email = payload.get("sub") if payload else None
         if email:
             with Session(engine) as db_session:
-                user = await security_get_user(request, db_session, email=email)
+                user = (db_session.get(User, payload["demo_operator"]) if payload.get("demo_operator")
+                        else await security_get_user(request, db_session, email=email))
                 if user:
                     user_id = user.id
                     username, full_name = resolve_user_snapshot(db_session, user.id)

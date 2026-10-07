@@ -187,9 +187,9 @@ async def refresh_resource_search_embedding(resource_id: int, db_session: Sessio
 
 
 async def refresh_resource_search_embedding_task(resource_id: int) -> None:
-    from src.core.events.database import engine
+    from src.services.demo.namespaces import context_session
 
-    with Session(engine) as db_session:
+    with context_session() as db_session:
         try:
             await refresh_resource_search_embedding(resource_id, db_session)
         except (httpx.HTTPError, RuntimeError, ValueError):
@@ -201,7 +201,8 @@ async def semantic_resource_ids(query: str, allowed_resource_ids: list[int], db_
         return []
     try:
         query_embedding = (await _embed_texts([query], embedding_model()))[0]
-        distance = PersistentResourceSearchDocument.embedding.cosine_distance(query_embedding)
+        from src.services.demo.namespaces import vector_distance
+        distance = vector_distance(PersistentResourceSearchDocument.embedding, query_embedding)
         rows = db_session.exec(
             select(PersistentResourceSearchDocument.resource_id)
             .where(
@@ -254,11 +255,11 @@ async def rank_resources(
 
 
 async def backfill_resource_search_documents(org_id: int) -> dict[str, int | str | bool]:
-    from src.core.events.database import engine
+    from src.services.demo.namespaces import context_session
 
     created_or_refreshed = 0
     embedded = 0
-    with Session(engine) as db_session:
+    with context_session() as db_session:
         resources = db_session.exec(select(Resource).where(Resource.org_id == org_id)).all()
         for resource in resources:
             stored = refresh_resource_search_document(resource, db_session)

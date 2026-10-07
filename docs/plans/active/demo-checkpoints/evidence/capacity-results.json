@@ -1,0 +1,6 @@
+{
+  "fixture": "local synthetic PostgreSQL pgvector:pg16; default lock settings",
+  "direct_namespace_probe": {"sessions": 200, "provision_threads": 12, "edit_threads": 20, "isolation": "passed", "live_unchanged": true, "over_capacity": 503, "elapsed_seconds": 571.78},
+  "http_probe": {"sessions": 200, "concurrent_http_workers": 32, "admission_seconds": 9.07, "over_capacity": 503, "authenticated_private_reads": 200, "isolation": "passed", "live_unchanged": true, "elapsed_seconds": 347.61},
+  "scope": "Synthetic checkpoint; cold preparation queues behind four DDL lanes. This is not production infrastructure sizing."
+}

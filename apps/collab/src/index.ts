@@ -6,6 +6,7 @@ import type { onRequestPayload, onAuthenticatePayload, onConnectPayload } from '
 import { Database } from '@hocuspocus/extension-database'
 import jwt from 'jsonwebtoken'
 import Redis from 'ioredis'
+import { rebaseDemoBoard, assertDemoRoom } from './demo.js'
 
 const PORT = parseInt(process.env.COLLAB_PORT || '4000', 10)
 const API_URL = process.env.LAUNCHLMS_API_URL || 'http://localhost:8000'
@@ -108,6 +109,16 @@ function redisYdocKey(boardUuid: string): string {
   return `collab:ydoc:${boardUuid}`
 }
 
+async function demoRoomActive(boardUuid: string): Promise<boolean> {
+  if (!/^board_demo_[0-9a-f]{32}_/.test(boardUuid)) return true
+  const response = await fetchWithTimeout(`${API_URL}/api/v1/boards/${boardUuid}/demo-active`, {
+    headers: { 'X-Internal-Key': INTERNAL_KEY },
+  })
+  if (response.status === 401 || response.status === 403) return false
+  if (!response.ok) throw new Error('Demo session validation unavailable')
+  return true
+}
+
 // ── Debounced DB persistence ────────────────────────────────────────────────
 
 // Store both the timer and latest state so shutdown can flush without Redis
@@ -202,6 +213,7 @@ const server = new Server({
     if (!boardUuid) {
       throw new Error('Invalid document name')
     }
+    assertDemoRoom(boardUuid, payload.demo_session)
 
     // Verify board membership via backend API (with timeout)
     let response: Response
@@ -291,7 +303,15 @@ const server = new Server({
           const buffer = await response.arrayBuffer()
           if (buffer.byteLength === 0) return null
 
-          const state = new Uint8Array(buffer)
+          let state = new Uint8Array(buffer)
+          if (boardUuid.startsWith('board_demo_')) {
+            const context = await fetchWithTimeout(`${API_URL}/api/v1/boards/${boardUuid}/demo-context`, {
+              headers: { 'X-Internal-Key': INTERNAL_KEY },
+            })
+            if (!context.ok) throw new Error('Demo context is unavailable')
+            const { aliases } = await context.json() as { aliases: Record<string, string> }
+            state = new Uint8Array(rebaseDemoBoard(state, aliases))
+          }
           console.log(
             `[collab] Fetched ydoc from DB for ${boardUuid}: ${buffer.byteLength} bytes`,
           )
@@ -324,6 +344,7 @@ const server = new Server({
       async store({ documentName, state }) {
         const boardUuid = extractBoardUuid(documentName)
         if (!boardUuid) return
+        if (!(await demoRoomActive(boardUuid))) return
 
         // 1. Write to Redis immediately (fast)
         try {
@@ -347,6 +368,25 @@ const server = new Server({
   ],
 })
 
+// End/expiry also disconnects rooms that are idle. Refuse later stores and remove
+// pending flushes so an open socket cannot recreate discarded demo state.
+const demoRoomCleanup = setInterval(async () => {
+  for (const [documentName] of server.hocuspocus.documents) {
+    const boardUuid = extractBoardUuid(documentName)
+    if (!boardUuid?.startsWith('board_demo_')) continue
+    try {
+      if (await demoRoomActive(boardUuid)) continue
+      const pending = pendingFlushes.get(boardUuid)
+      if (pending) clearTimeout(pending.timer)
+      pendingFlushes.delete(boardUuid)
+      server.hocuspocus.closeConnections(documentName)
+      await getRedis().del(redisYdocKey(boardUuid))
+    } catch (error) {
+      console.error('[collab] Demo room cleanup will retry:', error)
+    }
+  }
+}, 15000)
+
 // ── Graceful shutdown ─────────────────────────────────────────────────────
 
 async function gracefulShutdown() {
@@ -354,6 +394,7 @@ async function gracefulShutdown() {
 
   // Stop accepting new connections
   clearInterval(rateLimitCleanupInterval)
+  clearInterval(demoRoomCleanup)
   await server.destroy()
 
   // Flush all pending writes directly from the captured state (no Redis dependency)

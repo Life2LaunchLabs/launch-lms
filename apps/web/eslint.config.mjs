@@ -3,6 +3,7 @@ import nextConfig from "eslint-config-next";
 import js from "@eslint/js";
 
 export default [
+    { ignores: [".next-*/**"] },
     js.configs.recommended,
     ...nextConfig,
     {

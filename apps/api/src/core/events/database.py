@@ -3,7 +3,7 @@ import logging
 import os
 
 from config.config import get_launchlms_config
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from sqlalchemy import event
 from sqlmodel import Session, create_engine
 
@@ -101,9 +101,16 @@ async def connect_to_db(app: FastAPI):
     app.db_engine = engine  # type: ignore
     logging.info("Launch LMS database has been started.")
 
-def get_db_session():
-    with Session(engine) as session:
-        yield session
+def get_db_session(request: Request):
+    namespace = getattr(request.state, "demo_namespace", None)
+    if namespace:
+        from src.services.demo.namespaces import visitor_session
+        session = visitor_session(engine, namespace, request.state.demo_session_id)
+        with session:
+            yield session
+    else:
+        with Session(engine) as session:
+            yield session
 
 async def close_database(app: FastAPI):
     logging.info("Launch LMS has been shut down.")

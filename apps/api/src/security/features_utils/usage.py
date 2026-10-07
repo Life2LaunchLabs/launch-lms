@@ -43,9 +43,7 @@ REDIS_TRACKED_FEATURES = {"ai", "analytics", "api", "collaboration",
                           "payments", "podcasts", "storage", "usergroups"}
 
 def _get_redis_client():
-    """Get a Redis client instance."""
-    LH_CONFIG = get_launchlms_config()
-    redis_conn_string = LH_CONFIG.redis_config.redis_connection_string
+    redis_conn_string = get_launchlms_config().redis_config.redis_connection_string
 
     if not redis_conn_string:
         raise HTTPException(
@@ -53,7 +51,9 @@ def _get_redis_client():
             detail="Redis connection string not found",
         )
 
-    return redis.Redis.from_url(redis_conn_string)
+    from src.services.demo.context import NamespacedRedis, current_demo
+    client = redis.Redis.from_url(redis_conn_string)
+    return NamespacedRedis(client) if current_demo.get() else client
 
 
 def _get_org_plan(org_config: OrganizationConfig) -> PlanLevel:

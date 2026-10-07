@@ -1,6 +1,9 @@
 import { getBackendUrl, getConfig, getUriWithoutOrg } from '@services/config/config'
 
 function getMediaUrl() {
+  if (typeof window !== 'undefined' && window.location.hostname === (getConfig('NEXT_PUBLIC_LAUNCHLMS_DEMO_HOST') || 'demo.life2launch.app')) {
+    return `${window.location.origin}/`
+  }
   const mediaUrl = getConfig('NEXT_PUBLIC_LAUNCHLMS_MEDIA_URL')
   if (mediaUrl) {
     return mediaUrl
