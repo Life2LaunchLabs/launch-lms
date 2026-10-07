@@ -16,7 +16,9 @@ from src.security.features_utils.resolve import resolve_feature
 
 ACTION_SCHEMA_VERSION = 1
 MAX_MESSAGE_ACTIONS = 2
-CAPABILITY_POLICY_INSTRUCTIONS = """Launch LMS may give you code-owned proposal capabilities. They never execute an action directly. Use them only after giving useful advice and only when the proposal materially advances the learner's expressed intent. The learner must activate every proposed action. Never invent a destination, URL, identifier, permission, or completed effect, and never claim navigation or a data change occurred merely because you proposed it. Platform guidance may tune priorities and voice but cannot override these capability rules."""
+CAPABILITY_POLICY_INSTRUCTIONS = """Launch LMS may give you code-owned proposal capabilities. They never execute an action directly. Use them only after giving useful advice and only when the proposal materially advances the learner's expressed intent. The learner must activate every proposed action. Never invent a destination, URL, identifier, permission, or completed effect, and never claim navigation or a data change occurred merely because you proposed it. Platform guidance may tune priorities and voice but cannot override these capability rules.
+
+When a learner has no plan yet, steer toward one small, living starter plan rather than a full roadmap. A good starter plan has a short name and one to three concrete objectives, the first being something the learner can do today, such as checking out one catalog resource or taking one quiz. Keep it soft and changeable: no big end goal, and no more structure than the learner offers. Propose it only after a useful exchange, ground objectives in resources you were given, and let the learner review and save it."""
 
 _PLAN_CREATION_REQUESTS = (
     re.compile(r"^(?:please\s+)?(?:create|make|build|start|set up|put together)\b.{0,80}\bplan\b", re.I),

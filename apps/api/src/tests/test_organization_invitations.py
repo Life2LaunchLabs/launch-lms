@@ -26,7 +26,7 @@ from src.services.orgs.join import JoinOrg
 from src.services.users import users as user_service
 
 
-NOW = datetime(2026, 8, 26, 12, 0, 0)
+NOW = datetime.utcnow().replace(microsecond=0)
 
 
 @pytest.fixture

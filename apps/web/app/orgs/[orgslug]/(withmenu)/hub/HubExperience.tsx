@@ -41,7 +41,7 @@ import { getUriWithOrg } from '@services/config/config'
 import HubQuickSearch from './HubQuickSearch'
 import HubHeader from './HubHeader'
 import HubHomeRecents from './HubHomeRecents'
-import HubLaunchCards from './HubLaunchCards'
+import HubHomeStack from './HubHomeStack'
 import HubMessageMicroBar from './HubMessageMicroBar'
 import HubMemoryNotice from './HubMemoryNotice'
 import HubResourceContext, { ActiveResourceWorkspace } from './HubResourceContext'
@@ -980,7 +980,7 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
           style={{ paddingBottom: composerHeight + 88 + (memoryNoticeVisible ? 148 : 0) + (libraryOpen ? 290 : 0) + (workspace?.editReviewItems.length ? 58 : 0) }}
         >
           <div className="space-y-7" aria-live="polite" aria-busy={sending || conversationLoading}>
-            {!conversationUuid && messages.length === 0 && !companion && <HubLaunchCards disabled={sending || conversationLoading} onPick={(content) => { pendingSubmissionRef.current = { content, preserveDraft: true }; composerRef.current?.form?.requestSubmit() }} />}
+            {!conversationUuid && messages.length === 0 && !companion && <HubHomeStack orgslug={orgslug} token={accessToken} disabled={sending || conversationLoading} onPick={(content) => { pendingSubmissionRef.current = { content, preserveDraft: true }; composerRef.current?.form?.requestSubmit() }} />}
             {!conversationUuid && messages.length === 0 && (
               <HubHomeRecents conversations={conversations} loading={historyLoading} disabled={conversationLoading} onHistoryOpen={refreshHistory} onSelect={openConversation} onOpenResources={(uuid) => void openConversation(uuid, true)} />
             )}
