@@ -9,6 +9,7 @@ import FormLayout, {
   Textarea,
 } from '@components/Objects/StyledElements/Form/Form'
 import * as Form from '@radix-ui/react-form'
+import { PasswordInput } from '@components/ui/password-input'
 import { AlertTriangle } from 'lucide-react'
 import Link from 'next/link'
 import { signUpWithInvitation, signUpWithInviteCode } from '@services/auth/auth'
@@ -188,11 +189,11 @@ function InviteOnlySignUpComponent(props: InviteOnlySignUpProps) {
               message={formik.touched.password ? formik.errors.password : undefined}
             />
             <Form.Control asChild>
-              <Input
+              <PasswordInput
+                component={Input}
                 onChange={formik.handleChange}
                 onBlur={formik.handleBlur}
                 value={formik.values.password}
-                type="password"
                 autoComplete="new-password"
                 required
               />

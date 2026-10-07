@@ -4,7 +4,7 @@ import { updatePassword } from '@services/settings/password'
 import { Formik, Form } from 'formik'
 import React from 'react'
 import { AlertTriangle, ChevronDown, KeyRound } from 'lucide-react'
-import { Input } from "@components/ui/input"
+import { PasswordInput } from "@components/ui/password-input"
 import { Button } from "@components/ui/button"
 import { Label } from "@components/ui/label"
 import { toast } from 'react-hot-toast'
@@ -89,8 +89,7 @@ function AccountSecurity() {
               <Form className="w-full max-w-2xl mx-auto space-y-6">
                 <div>
                   <Label htmlFor="old_password">{t('user.settings.password.current_password')}</Label>
-                  <Input
-                    type="password"
+                  <PasswordInput
                     autoComplete="current-password"
                     id="old_password"
                     name="old_password"
@@ -104,8 +103,7 @@ function AccountSecurity() {
 
                 <div>
                   <Label htmlFor="new_password">{t('user.settings.password.new_password')}</Label>
-                  <Input
-                    type="password"
+                  <PasswordInput
                     autoComplete="new-password"
                     id="new_password"
                     name="new_password"

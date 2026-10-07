@@ -1,7 +1,7 @@
 'use client'
 import { useFormik } from 'formik'
 import React, { useState, useEffect } from 'react'
-import { AlertTriangle, Eye, EyeOff, Lock, Mail, Shield, X, Clock } from 'lucide-react'
+import { AlertTriangle, Lock, Mail, Shield, X, Clock } from 'lucide-react'
 import { SiGoogle } from '@icons-pack/react-simple-icons'
 import { checkSSOEnabled, redirectToSSOLogin } from '@services/auth/sso'
 import { useSearchParams } from 'next/navigation'
@@ -13,6 +13,7 @@ import { resendVerificationEmail } from '@services/auth/auth'
 import AuthLayout from '@components/Auth/AuthLayout'
 import { Button } from '@components/ui/button'
 import { Input } from '@components/ui/input'
+import { PasswordInput } from '@components/ui/password-input'
 
 interface LoginClientProps {
   org: any
@@ -26,7 +27,6 @@ const LoginClient = (props: LoginClientProps) => {
   const { signIn } = useAuth()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
   const [ssoEnabled, setSsoEnabled] = useState(false)
   const [ssoLoading, setSsoLoading] = useState(false)
   const searchParams = useSearchParams()
@@ -315,31 +315,19 @@ const LoginClient = (props: LoginClientProps) => {
                 <p id="login-email-error" className="text-sm font-medium text-red-600">{formik.errors.email}</p>
               )}
 
-              <div className="relative">
-                <Input
-                  aria-describedby={formik.touched.password && formik.errors.password ? 'login-password-error' : undefined}
-                  aria-invalid={Boolean(formik.touched.password && formik.errors.password)}
-                  aria-label="Password"
-                  name="password"
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  value={formik.values.password}
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Password"
-                  autoComplete="current-password"
-                  className="h-12 w-full rounded-2xl border border-gray-200 bg-white pl-4 pr-12 text-[16px] text-gray-950 shadow-sm outline-none transition-colors placeholder:text-gray-400 focus:border-gray-300 focus:ring-2 focus:ring-gray-100"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  aria-pressed={showPassword}
-                  className="absolute inset-y-0 right-0 flex w-12 items-center justify-center rounded-r-2xl text-gray-500 transition-colors hover:text-gray-950"
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
+              <PasswordInput
+                aria-describedby={formik.touched.password && formik.errors.password ? 'login-password-error' : undefined}
+                aria-invalid={Boolean(formik.touched.password && formik.errors.password)}
+                aria-label="Password"
+                name="password"
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                value={formik.values.password}
+                placeholder="Password"
+                autoComplete="current-password"
+                className="h-12 w-full rounded-2xl border border-gray-200 bg-white px-4 text-[16px] text-gray-950 shadow-sm outline-none transition-colors placeholder:text-gray-400 focus:border-gray-300 focus:ring-2 focus:ring-gray-100"
+                required
+              />
               {formik.touched.password && formik.errors.password && (
                 <p id="login-password-error" className="text-sm font-medium text-red-600">{formik.errors.password}</p>
               )}
