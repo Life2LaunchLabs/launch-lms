@@ -6,18 +6,24 @@ link this plan and the verification report to a BOT Story/workpad when access re
 
 ## Outcome and decisions
 
-A platform admin enters a designated real live user through the normal application,
-then manually publishes an immutable checkpoint. Each visitor starts a private,
+A platform admin designates a fictional live organization and its fake cohort,
+prepares those accounts through the normal application, then manually publishes one
+immutable checkpoint of the whole scenario. Only accounts marked pilotable appear
+on the visitor selector; all designated cohort members retain their actual identities.
+Each visitor starts a private,
 disposable copy at the demo entry point. Publishing never changes existing sessions.
 Target: 200 concurrent sessions, configurable admission control. Badges, assigned
 plans and real AI remain functional. No persistent countdown; warn five minutes
-before expiry and allow extension. Reset/end revoke old access, including other tabs.
+before expiry and allow extension. Reset/Back revoke old access, including other tabs.
+Back discards the copy and
+returns to user selection; Reset keeps the selected pilot.
 Reset and extension preserve abuse/spend accounting. External effects are explicitly
 simulated or visibly unavailable. Never change ordinary account behavior.
 
 ## Design readiness
 
-Existing code target: CandidateToolbar/CandidateExperience and adopted Button,
+Historical references v1–v3 (superseded where the owner amendment below differs):
+CandidateToolbar/CandidateExperience and adopted Button,
 Popover, Input, Label and Dialog. Owner explicitly authorized agent-designed UI.
 Use a slim indigo demo bar outside the normal application layout. Visitor: Demo,
 Changes are temporary, Reset demo, End demo. Admin: Demo admin, Editing live account,
@@ -36,7 +42,8 @@ Reference v3 keeps management controls on the live `/demo` page and active demo 
 at exactly 48px, subtracting that height from the Hub/sidebar viewport. Ordinary
 admin pages retain their existing layout. Reference v2 bounds the panel on phone with scrolling fields and a fixed Save footer.
 This refinement follows the owner's agent-design authorization; owner signoff remains
-pending. Current rendered evidence is inspected in [verification](verification.md).
+pending. Historical verification is in [verification](verification.md); the cohort amendment
+is tracked in [cohort verification](cohort-verification.md).
 
 ## Architecture
 
@@ -72,9 +79,12 @@ accounts. Admission and budget decisions serialize across workers.
 
 ## Implemented behavior and capacity
 
-- Manual publication snapshots the designated live learner and connected org content,
-  assigned plans, badges, portfolio and chat. Existing visits retain their snapshot.
-  A source account must have ordinary product permissions, not platform admin access.
+- Manual publication snapshots all designated fake accounts and connected org content,
+  programs, assigned plans/progress, badges, portfolios and chat. Existing visits retain
+  their snapshot. All pilots share that checkpoint, capacity and spend controls.
+  Cohort accounts must have ordinary product permissions, not platform admin access.
+  Real user records, memberships, personal work, invitations and typed identity references
+  are excluded. Fictional invitations and cohort resource links are preserved.
 - Admission defaults to a hard, configurable 200-visitor ceiling, counting queued visits.
   At capacity, Start explains that the demo is busy and supplies Retry-After.
   Normal product sessions do not consume this capacity.
@@ -112,10 +122,14 @@ host-only demo cookies; do not point visitors directly at the backend or live CD
 The normal live site remains the place admins edit the source account. No separate
 product fork is required.
 
-Apply the migration first; it seeds **disabled** demo settings. As a platform admin,
-open `/demo` on the live site and select Demo settings, select the existing learner's email and starting
-organization, set capacity/expiry/AI budgets and save. Enter Edit demo account, prepare
-it with normal editors and Save checkpoint. Enable new visits, let Ready workspaces
+Apply the migrations first; settings are **disabled**. The cohort migration also
+disables any previous single-user checkpoint. As a platform admin, open `/demo` on
+the live site. In Demo settings, choose the fictional organization and set limits.
+Use Manage demo accounts to designate its existing fake accounts, add optional
+descriptions, mark the few pilotable accounts and Save cohort. Enter Edit live account
+for any member, prepare it with normal editors, and use Switch demo user to prepare
+the next. Save checkpoint publishes the whole scenario, including the pilot selector.
+Enable new visits, let Ready workspaces
 fill, then share the demo link. Publish again whenever the source scenario or org
 content should become the new starting point. Re-publish after DB schema updates.
 
@@ -129,3 +143,28 @@ No production settings, DNS, database or deployment were changed in this task.
 Jira credentials are absent: BOT assignment/workpad and exact-revision Merge approval
 remain unavailable. Delivery stops at a checked PR; do not mark Jira Done or claim a
 verified dev deployment before the approved revision actually deploys.
+
+## Owner amendment: shared fictional scenario (2026-10-07)
+
+The owner selected one fictional org with an explicitly designated fake cohort
+(e.g. 20 learners), of which only a few accounts are pilotable. Save checkpoint
+captures all designated accounts, memberships, programs, plans and progress in one
+atomic snapshot. Each visit gets its own copy of that same snapshot; its selected
+pilot determines permissions. Preserve all fake identities. Drop real-user records
+and references; never import unrelated memberships or personal work. Actual product
+resources/badges remain connected; live chat remains metered. No per-user checkpoints.
+
+Reference v4: extend the existing /demo entry into a responsive card grid, using the
+users' actual names/avatars and optional descriptions, without custom display names.
+Authenticated platform operators manage cohort membership and pilot toggles from the
+same live /demo surface. They enter any cohort account with normal editors, then
+publish the whole scenario through the existing bar. Settings retains scenario org,
+capacity/duration/AI controls. Visitor End becomes Back to demo users, confirming
+that it discards work. Reset keeps the pilot and shared usage accounting. Visitor
+cards come from the published snapshot, never live profiles or unpublished changes.
+
+Reuse adopted Button/Input/Label/Switch/Textarea and existing Popover/Dialog/card
+patterns. Verify desktop 1440x900 and phone 390x844, light/dark selection, cohort
+management, nonpilot exclusion, admin switching/publication, visitor back/reset,
+org-admin cohort/progress, and no ordinary-admin banner/layout changes. Refresh
+rendered evidence and update PR #90; its earlier checks are historical after edits.

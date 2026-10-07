@@ -4474,12 +4474,12 @@
           "id": "PLATFORM-G007-A004",
           "goal_id": "PLATFORM-G007",
           "display_order": 4,
-          "title": "Provide private disposable product demos from a live account",
+          "title": "Provide private disposable demos from a shared fictional scenario",
           "product_state": "planned",
           "health": "unknown",
           "traceability": "complete",
           "priority": "high",
-          "implementation_notes": "Owner authorized design/build on 2026-10-06. Admins edit a real live demo account through normal interfaces and manually publish immutable scoped checkpoints. Visitors receive isolated data, media/cache identities, reset/end controls, extendable expiry, and real AI within explicit token allowances. Capacity target 200. Deployment and owner signoff remain pending.",
+          "implementation_notes": "Owner authorized design/build on 2026-10-06. Admins designate a fictional live organization and fake cohort, mark a few pilotable accounts, edit any cohort member through normal interfaces and manually publish one immutable checkpoint of the whole scenario. Public selection uses actual names/avatars and published descriptions. Real user references are dropped; fake identities and prepared progress are preserved. Visitors receive isolated data, media/cache identities, reset/end controls, extendable expiry, and real AI within explicit token allowances. Capacity target 200. Deployment and owner signoff remain pending.",
           "availability": {
             "mode": "planned",
             "constraints": [
@@ -4497,7 +4497,7 @@
               "id": "PLATFORM-G007-A004-AC01",
               "activity_id": "PLATFORM-G007-A004",
               "display_order": 1,
-              "criterion": "Each visitor starts from the manually published real-user checkpoint; edits never reach another visitor or the live source.",
+              "criterion": "Visitors choose a pilotable fake account and start from the same whole-scenario checkpoint through that account's permissions; edits never reach another visitor or the live source.",
               "automated_status": "not_tested",
               "manual_status": "not_tested"
             },
@@ -4505,7 +4505,7 @@
               "id": "PLATFORM-G007-A004-AC02",
               "activity_id": "PLATFORM-G007-A004",
               "display_order": 2,
-              "criterion": "Admins enter the live demo account, use normal editors, and publish checkpoints/settings through the top bar with current platform authorization.",
+              "criterion": "Admins manage fictional cohort membership, pilot toggles and descriptions on live /demo, enter any cohort member with normal editors, switch accounts and publish the whole scenario through the top bar with current platform authorization.",
               "automated_status": "not_tested",
               "manual_status": "not_tested"
             },
@@ -4513,7 +4513,7 @@
               "id": "PLATFORM-G007-A004-AC03",
               "activity_id": "PLATFORM-G007-A004",
               "display_order": 3,
-              "criterion": "Reset/end/expiry revoke access and trigger restart-safe data, media and cache cleanup.",
+              "criterion": "Reset/Back/expiry revoke access and trigger restart-safe data, media and cache cleanup. Back returns to user selection; Reset preserves the pilot and usage accounting.",
               "automated_status": "not_tested",
               "manual_status": "not_tested"
             },
@@ -4540,6 +4540,14 @@
               "criterion": "Admission handles 200 active copies and rejects excess capacity explicitly.",
               "automated_status": "not_tested",
               "manual_status": "not_tested"
+            },
+            {
+              "id": "PLATFORM-G007-A004-AC07",
+              "activity_id": "PLATFORM-G007-A004",
+              "display_order": 7,
+              "criterion": "One checkpoint preserves every designated fictional cohort member and prepared program stage; only pilotable members are selectable, and real user records/references are excluded. Draft edits remain private until manual publication.",
+              "automated_status": "not_tested",
+              "manual_status": "not_tested"
             }
           ],
           "steps": [
@@ -4547,7 +4555,7 @@
               "id": "PLATFORM-G007-A004-S001",
               "activity_id": "PLATFORM-G007-A004",
               "display_order": 1,
-              "title": "Start and explore a private demo",
+              "title": "Choose a pilot and explore a private scenario",
               "product_state": "planned",
               "step_kind": "action"
             },
@@ -4555,7 +4563,7 @@
               "id": "PLATFORM-G007-A004-S002",
               "activity_id": "PLATFORM-G007-A004",
               "display_order": 2,
-              "title": "Reset, extend or end a demo session",
+              "title": "Reset, extend or return to demo user selection",
               "product_state": "planned",
               "step_kind": "action"
             },
@@ -4563,7 +4571,7 @@
               "id": "PLATFORM-G007-A004-S003",
               "activity_id": "PLATFORM-G007-A004",
               "display_order": 3,
-              "title": "Prepare the live account and publish a checkpoint",
+              "title": "Designate and prepare the fictional cohort, then publish one checkpoint",
               "product_state": "planned",
               "step_kind": "action"
             },

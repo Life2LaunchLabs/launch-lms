@@ -1351,10 +1351,10 @@ Give authorized operators evidence about use, tools for tenant-wide governance, 
     - `PLATFORM-G007-A003-S001` [planned / core] Review candidate announcements and merge updates
     - `PLATFORM-G007-A003-S002` [planned / core] Submit and continue candidate feedback
     - `PLATFORM-G007-A003-S003` [planned / core] Operate platform tester feedback
-  - `PLATFORM-G007-A004` [planned] Provide private disposable product demos from a live account
-    - `PLATFORM-G007-A004-S001` [planned / action] Start and explore a private demo
-    - `PLATFORM-G007-A004-S002` [planned / action] Reset, extend or end a demo session
-    - `PLATFORM-G007-A004-S003` [planned / action] Prepare the live account and publish a checkpoint
+  - `PLATFORM-G007-A004` [planned] Provide private disposable demos from a shared fictional scenario
+    - `PLATFORM-G007-A004-S001` [planned / action] Choose a pilot and explore a private scenario
+    - `PLATFORM-G007-A004-S002` [planned / action] Reset, extend or return to demo user selection
+    - `PLATFORM-G007-A004-S003` [planned / action] Designate and prepare the fictional cohort, then publish one checkpoint
     - `PLATFORM-G007-A004-S004` [planned / action] Configure demo capacity and AI allowances
 
 ## LEGACY: Legacy, compatibility, and not-yet-delivered scope

@@ -1,5 +1,8 @@
 # Demo checkpoint verification
 
+Historical first-iteration report. The owner's shared fictional scenario amendment
+and refreshed captures are documented in [cohort verification](cohort-verification.md).
+
 Initial implementation revision: `680195bf2dcfff1006b0c26b24347c169b965c1f` on
 `feat/disposable-demo-checkpoints`. PR #90 includes subsequent CI regression fixes;
 the verified code revision is `f86f3b6c5bad264ebe74ec0d9bbb1d3c870d68b5`.

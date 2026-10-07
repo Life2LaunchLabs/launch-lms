@@ -1,0 +1,16 @@
+[
+  {
+    "admitted": 200,
+    "admission_seconds": 5.71,
+    "over_capacity": 503
+  },
+  {
+    "sessions": 200,
+    "pilots": 3,
+    "cohort_members_per_copy": 20,
+    "concurrent_http_workers": 32,
+    "isolation": "passed",
+    "live_unchanged": true,
+    "elapsed_seconds": 298.61
+  }
+]
