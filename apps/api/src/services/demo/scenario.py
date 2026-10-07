@@ -15,6 +15,15 @@ def exclude_real_users(
     uuids = {
         row["user_uuid"] for row in rows["user"].values() if row["id"] in cohort_ids
     }
+    # Identifiers of every account being excluded; none may survive in the export.
+    real_identifiers = {
+        value.lower()
+        for row in rows["user"].values()
+        if row["id"] not in cohort_ids
+        for value in (row["email"], row["user_uuid"])
+        if value
+    }
+    lowered = {email.lower() for email in emails}
     rows["user"] = {
         key: row for key, row in rows["user"].items() if row["id"] in cohort_ids
     }
@@ -44,7 +53,13 @@ def exclude_real_users(
                 and item not in cohort_ids
             ):
                 result[key] = None
-            elif key.endswith("user_uuid") and item not in uuids:
+            elif key.endswith(("user_uuids", "user_uuid")) and isinstance(item, list):
+                result[key] = [value for value in item if value in uuids]
+            elif (
+                key.endswith("user_uuid")
+                and isinstance(item, str)
+                and item not in uuids
+            ):
                 result[key] = None
             elif (
                 key
@@ -65,7 +80,7 @@ def exclude_real_users(
                 and row["subject_email"] not in emails
             )
             if name in {"planinvitation", "plancollaboratorrequest"}:
-                remove = row["email"].lower() not in {email.lower() for email in emails}
+                remove = (row.get("email") or "").lower() not in lowered
             if name in personal:
                 owner = next(
                     (
@@ -131,7 +146,21 @@ def exclude_real_users(
                     del records[key]
                     changed = True
         if not changed:
-            return
+            return reject_leaked_identifiers(rows, real_identifiers)
     raise HTTPException(
         422, "The demo scenario contains unsupported cyclic references."
     )
+
+
+def reject_leaked_identifiers(rows: dict, real_identifiers: set[str]) -> None:
+    """Key-name scrubbing cannot know every JSON shape; fail closed on any survivor."""
+    from src.services.demo.media import strings
+
+    for name, records in rows.items():
+        for row in records.values():
+            if any(value.lower() in real_identifiers for value in strings(row)):
+                raise HTTPException(
+                    422,
+                    f"The demo scenario references an account outside the cohort ({name}). "
+                    "Remove that reference before publishing.",
+                )

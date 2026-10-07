@@ -5,16 +5,19 @@ import logging
 from datetime import datetime, timedelta
 from uuid import uuid4
 
-from sqlmodel import Session
-from sqlmodel import select
-from sqlalchemy import func, case
+from fastapi import HTTPException
+from sqlalchemy import case, func, text
+from sqlmodel import Session, select
 from src.db.demo import DemoSession
-from src.services.demo.lifecycle import cleanup, prepare
+from src.services.demo.lifecycle import cleanup, prepare, publish
 from src.services.demo.configuration import configuration
 from src.services.demo.metadata import checkpoint_info
 from src.services.demo.namespaces import schema_signature
 
 logger = logging.getLogger(__name__)
+
+# Fixed advisory-lock key so only one API worker republishes at a time.
+RECAPTURE_LOCK = 0x44454D4F
 
 
 def cleanup_batch(engine):
@@ -119,3 +122,85 @@ async def run_preparation(engine):
         except Exception:
             logger.exception("Demo preparation will retry")
         await asyncio.sleep(1)
+
+
+def recapture_stale(engine) -> bool:
+    """Republish the live scenario when a product update outdated the checkpoint.
+
+    The previous checkpoint stays current until the new one commits. A failure is
+    recorded for the operator and not retried until the schema changes again.
+    """
+    current = schema_signature()
+    with Session(engine) as db:
+        config = configuration(db)
+        info = (
+            checkpoint_info(db, config.checkpoint_id) if config.checkpoint_id else None
+        )
+        if (
+            not (config.enabled and config.auto_recapture and info)
+            or info.schema_signature == current
+            or config.recapture_error_signature == current
+        ):
+            return False
+        revision, actor_id = config.revision, info.created_by
+    # Publication needs one stable snapshot; SQLite (tests) has no such level.
+    options = (
+        {"isolation_level": "REPEATABLE READ"}
+        if engine.dialect.name == "postgresql"
+        else {}
+    )
+    try:
+        with Session(engine.execution_options(**options)) as db:
+            publish(db, actor_id, revision)
+    except Exception as error:
+        transient = (
+            isinstance(error, HTTPException)
+            and error.status_code == 409
+            or getattr(getattr(error, "orig", None), "pgcode", None) == "40001"
+        )
+        if transient:
+            return False  # Settings or live data moved underneath; try again next tick.
+        detail = error.detail if isinstance(error, HTTPException) else None
+        if detail is None:
+            logger.exception("Automatic demo checkpoint failed")
+        else:
+            logger.error("Automatic demo checkpoint failed: %s", detail)
+        with Session(engine) as db:
+            config = configuration(db, lock=True)
+            config.recapture_error = (
+                detail
+                if isinstance(detail, str)
+                else "Automatic checkpoint failed. See the server logs."
+            )
+            config.recapture_error_signature = current
+            db.add(config)
+            db.commit()
+        return False
+    logger.info("Automatic demo checkpoint published for schema %s", current[:12])
+    return True
+
+
+def recapture(engine) -> bool:
+    with engine.connect() as lease:
+        acquired = lease.execute(
+            text("SELECT pg_try_advisory_lock(:key)"), {"key": RECAPTURE_LOCK}
+        ).scalar()
+        lease.commit()
+        if not acquired:
+            return False
+        try:
+            return recapture_stale(engine)
+        finally:
+            lease.execute(
+                text("SELECT pg_advisory_unlock(:key)"), {"key": RECAPTURE_LOCK}
+            )
+            lease.commit()
+
+
+async def run_recapture(engine):
+    while True:
+        try:
+            await asyncio.to_thread(recapture, engine)
+        except Exception:
+            logger.exception("Demo recapture check will retry")
+        await asyncio.sleep(30)

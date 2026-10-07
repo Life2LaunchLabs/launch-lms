@@ -1,17 +1,18 @@
 from fastapi import HTTPException
-from pydantic import BaseModel, Field, EmailStr
+from datetime import datetime
+
+from pydantic import BaseModel, Field
 from sqlalchemy import update
-from sqlmodel import Session, select
-from src.db.demo import DemoConfiguration
+from sqlmodel import Session, delete, select
+from src.db.demo import DemoConfiguration, DemoMember, DemoSession
 from src.db.organizations import Organization
 
 
 class DemoSettings(BaseModel):
     revision: int = Field(ge=1)
     enabled: bool
-    source_user_id: int | None = Field(default=None, gt=0)
+    auto_recapture: bool = True
     entry_org_id: int | None = Field(default=None, gt=0)
-    source_user_email: EmailStr | None = None
     entry_org_slug: str | None = Field(default=None, min_length=1, max_length=100)
     capacity: int = Field(default=200, ge=1, le=1000)
     session_minutes: int = Field(default=60, ge=10, le=1440)
@@ -22,8 +23,6 @@ class DemoSettings(BaseModel):
 
 
 def configuration(db: Session, *, lock: bool = False) -> DemoConfiguration:
-    from sqlmodel import select
-
     statement = select(DemoConfiguration).where(DemoConfiguration.id == 1)
     if lock:
         statement = statement.with_for_update()
@@ -45,18 +44,18 @@ def save_settings(db: Session, settings: DemoSettings) -> DemoConfiguration:
         raise HTTPException(422, "The fictional scenario organization was not found.")
     settings.entry_org_id = org.id
     previous = configuration(db, lock=True)
-    values = settings.model_dump(
-        exclude={"revision", "source_user_email", "entry_org_slug"}
-    )
-    if previous.entry_org_id != settings.entry_org_id:
-        from src.db.demo import DemoMember
-        from sqlmodel import delete
-
+    values = settings.model_dump(exclude={"revision", "entry_org_slug"})
+    if previous.entry_org_id not in (None, settings.entry_org_id):
+        # A different scenario invalidates the cohort and checkpoint. Stay disabled
+        # until the new one is published, and revoke workspaces built from the old one.
         db.exec(delete(DemoMember))
+        db.execute(
+            update(DemoSession)
+            .where(DemoSession.ended_at.is_(None))
+            .values(ended_at=datetime.utcnow(), state="ended")
+        )
         values["checkpoint_id"] = None
-        values["source_user_id"] = None
-    else:
-        values["source_user_id"] = previous.source_user_id
+        values["enabled"] = False
     changed = db.execute(
         update(DemoConfiguration)
         .where(

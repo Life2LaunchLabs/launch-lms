@@ -31,11 +31,10 @@ def publish(db: Session, actor_id: int, revision: int) -> DemoCheckpoint:
         raise HTTPException(
             409, "Demo settings or checkpoint changed. Reload before publishing."
         )
-    user = db.get(User, config.source_user_id)
-    org = db.get(Organization, config.entry_org_id)
-    if not user or not org:
+    org = db.get(Organization, config.entry_org_id) if config.entry_org_id else None
+    if not org:
         raise HTTPException(
-            422, "Configure the live demo user and entry organization first."
+            422, "Choose the fictional scenario organization in Settings first."
         )
     from src.services.demo.cohort import members, validate_member, identity
 
@@ -51,36 +50,36 @@ def publish(db: Session, actor_id: int, revision: int) -> DemoCheckpoint:
     }
     user_ids = set(cohort_users)
     # Publication captures one database transaction; callers use REPEATABLE READ.
+    rows = capture(db, org.id, user_ids)
+    files = capture_files(rows, user_ids)
+    from src.services.demo.portraits import published_portrait
+
+    pilots, portraits = {}, {}
+    for member in cohort:
+        if not member.pilotable:
+            continue
+        user = cohort_users[member.user_id]
+        portrait = published_portrait(user, files)
+        if portrait:
+            portraits[str(user.id)] = portrait
+        pilots[str(user.id)] = {
+            **identity(user),
+            "email": user.email,
+            "description": member.description,
+            "has_avatar": bool(portrait),
+        }
     checkpoint = DemoCheckpoint(
         id=uuid4().hex,
         schema_signature=schema_signature(),
         created_by=actor_id,
-        source_user_id=user.id,
-        source_email=user.email,
         entry_org_slug=org.slug,
-        data=capture(db, user.id, org.id, user_ids),
+        pilots=pilots,
+        portraits=portraits,
+        data={"schema": schema_signature(), "rows": rows, "files": files},
     )
-    checkpoint.data = {
-        "schema": schema_signature(),
-        "rows": checkpoint.data,
-        "files": capture_files(checkpoint.data, user.id, user_ids),
-    }
-    from src.services.demo.portraits import published_portrait
-
-    checkpoint.pilots = {
-        str(member.user_id): {
-            **identity(cohort_users[member.user_id]),
-            "email": cohort_users[member.user_id].email,
-            "description": member.description,
-            "avatar_url": published_portrait(
-                cohort_users[member.user_id], checkpoint.data["files"]
-            ),
-        }
-        for member in cohort
-        if member.pilotable
-    }
     db.add(checkpoint)
     config.checkpoint_id = checkpoint.id
+    config.recapture_error = config.recapture_error_signature = None
     config.revision += 1
     db.add(config)
     db.commit()
@@ -104,13 +103,40 @@ def active_session(db: Session, identifier: str, *, lock: bool = False) -> DemoS
 
 
 def admit(
-    db: Session, visitor_id: str, pilot_user_id: int | None = None
+    db: Session,
+    visitor_id: str,
+    pilot_user_id: int | None = None,
+    replacing: tuple[str, ...] = (),
 ) -> DemoSession:
+    """Admit a visitor; sessions in `replacing` end only if admission succeeds."""
     config = configuration(db, lock=True)
     if not config.enabled or not config.checkpoint_id:
         raise HTTPException(
             503, "The demo is not available yet. Please try again later."
         )
+    from src.services.demo.metadata import checkpoint_info
+
+    checkpoint = checkpoint_info(db, config.checkpoint_id)
+    if not checkpoint:
+        raise HTTPException(503, "The demo checkpoint is unavailable.")
+    from src.services.demo.cohort import pilot
+
+    account = pilot(checkpoint, pilot_user_id)
+    if checkpoint.schema_signature != schema_signature():
+        raise HTTPException(
+            503,
+            "The demo needs a fresh checkpoint after this product update. Please try again later.",
+        )
+    # Revoking inside this transaction frees capacity for the replacement, and an
+    # admission failure above or below rolls the revocation back with it.
+    for previous in db.exec(
+        select(DemoSession)
+        .where(DemoSession.id.in_(replacing), DemoSession.ended_at.is_(None))
+        .with_for_update()
+    ).all():
+        previous.ended_at, previous.state = datetime.utcnow(), "ended"
+        db.add(previous)
+    db.flush()
     # Preparing sessions count toward capacity. Publication and admission share a row lock.
     count = db.exec(
         select(func.count())
@@ -127,19 +153,6 @@ def admit(
             503,
             "The demo is busy. Please try again shortly.",
             headers={"Retry-After": "30"},
-        )
-    from src.services.demo.metadata import checkpoint_info
-
-    checkpoint = checkpoint_info(db, config.checkpoint_id)
-    if not checkpoint:
-        raise HTTPException(503, "The demo checkpoint is unavailable.")
-    from src.services.demo.cohort import pilot
-
-    account = pilot(checkpoint, pilot_user_id)
-    if checkpoint.schema_signature != schema_signature():
-        raise HTTPException(
-            503,
-            "The demo needs a fresh checkpoint after this product update. Please try again later.",
         )
     warmed = db.exec(
         select(DemoSession)

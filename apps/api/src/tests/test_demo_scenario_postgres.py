@@ -248,7 +248,7 @@ def test_full_cohort_capture_preserves_stages_and_drops_real_attribution():
                     )
                 )
             db.flush()
-            snapshot = capture(db, 90200, org_id, identifiers)
+            snapshot = capture(db, org_id, identifiers)
             assert {row["id"] for row in snapshot["user"]} == identifiers
             assert all(
                 row["first_name"] == f"Stage {row['id']}" for row in snapshot["user"]

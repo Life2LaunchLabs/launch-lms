@@ -9,7 +9,10 @@ from sqlmodel import Field, SQLModel
 class DemoConfiguration(SQLModel, table=True):
     id: int = Field(default=1, primary_key=True)
     enabled: bool = False
-    source_user_id: int | None = None
+    # Republish the live scenario after a product update outdates the checkpoint.
+    auto_recapture: bool = True
+    recapture_error: str | None = None
+    recapture_error_signature: str | None = None
     entry_org_id: int | None = None
     capacity: int = 200
     session_minutes: int = 60
@@ -26,10 +29,12 @@ class DemoCheckpoint(SQLModel, table=True):
     schema_signature: str = ""
     created_at: datetime = Field(default_factory=datetime.utcnow)
     created_by: int
-    source_user_id: int
     entry_org_slug: str
-    source_email: str
     pilots: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    # Published pilot avatars as data URIs, kept out of `pilots` so status polling stays small.
+    portraits: dict = Field(
+        default_factory=dict, sa_column=Column(JSON, nullable=False)
+    )
     data: dict = Field(sa_column=Column(JSON, nullable=False))
 
 

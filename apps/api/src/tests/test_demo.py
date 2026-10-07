@@ -150,7 +150,7 @@ def test_checkpoint_media_copies_embedded_urls_and_binary_board_uploads(
         "organization": [{"id": 1, "org_uuid": "org_source"}],
         "board": [{"id": 1, "org_id": 1, "board_uuid": "board_source"}],
     }
-    files = capture_files(rows, 1)
+    files = capture_files(rows, {1})
     assert set(files) == {str(original), str(board_file)}
     identifier = "c" * 32
     copied, aliases = remap(rows, identifier)
@@ -212,6 +212,9 @@ def test_stale_checkpoint_revision_is_rejected_before_capture(control):
     assert error.value.status_code == 409
 
 
+PILOTS = {"2": {"user_id": 2, "email": "demo@example.com"}}
+
+
 def test_background_admission_pins_checkpoint_and_reserves_capacity(control):
     from src.services.demo.lifecycle import admit
     from src.services.demo.namespaces import schema_signature
@@ -221,25 +224,24 @@ def test_background_admission_pins_checkpoint_and_reserves_capacity(control):
         id="release",
         schema_signature=schema_signature(),
         created_by=1,
-        source_user_id=2,
-        source_email="demo@example.com",
         entry_org_slug="demo",
         data={},
+        pilots=PILOTS,
     )
     db.add(checkpoint)
     config = db.get(DemoConfiguration, 1)
     config.enabled, config.capacity, config.checkpoint_id = True, 1, checkpoint.id
     db.add(config)
     db.commit()
-    admitted = admit(db, "visitor")
+    admitted = admit(db, "visitor", 2)
     assert admitted.state == "preparing" and admitted.checkpoint_id == "release"
     assert admitted.duration_minutes == 60
     with pytest.raises(HTTPException) as error:
-        admit(db, "second")
+        admit(db, "second", 2)
     assert error.value.status_code == 503
     db.rollback()
     end(db, admitted.id)
-    assert admit(db, "replacement").state == "preparing"
+    assert admit(db, "replacement", 2).state == "preparing"
 
 
 def test_clean_pool_is_bounded_and_disabled_without_ending_visitors(control):
@@ -253,10 +255,9 @@ def test_clean_pool_is_bounded_and_disabled_without_ending_visitors(control):
             id="release",
             schema_signature=schema_signature(),
             created_by=1,
-            source_user_id=2,
-            source_email="demo@example.com",
             entry_org_slug="demo",
             data={},
+            pilots=PILOTS,
         )
     )
     config = db.get(DemoConfiguration, 1)
@@ -270,7 +271,7 @@ def test_clean_pool_is_bounded_and_disabled_without_ending_visitors(control):
     slots[0].state = "available"
     db.add(slots[0])
     db.commit()
-    visitor = admit(db, "visitor")
+    visitor = admit(db, "visitor", 2)
     assert visitor.id == slots[0].id and visitor.state == "active"
     replenish(engine)
     assert len(db.exec(select(DemoSession)).all()) == 2
@@ -384,7 +385,7 @@ def test_checkpoint_excludes_private_peer_work_and_credentials():
             )
         )
         db.flush()
-        snapshot = capture(db, 2, 1)
+        snapshot = capture(db, 1, {2})
         assert not any(
             row["board_uuid"] == "board_peer_private_test"
             for row in snapshot.get("board", [])

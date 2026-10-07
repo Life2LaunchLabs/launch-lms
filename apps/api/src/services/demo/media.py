@@ -22,9 +22,7 @@ def strings(value):
             yield from strings(item)
 
 
-def capture_files(
-    data: dict, source_user_id: int, cohort_ids: set[int] | None = None
-) -> dict:
+def capture_files(data: dict, cohort_ids: set[int]) -> dict:
     # A filename match alone is never enough: require the record's owner/entity path.
     from urllib.parse import urlsplit, unquote
 
@@ -37,14 +35,10 @@ def capture_files(
             if path.startswith(("/content/", "content/")):
                 paths.add(path.lstrip("/"))
     orgs = {record["id"]: record["org_uuid"] for record in data.get("organization", [])}
-    users = [
-        record
-        for record in data["user"]
-        if record["id"] in (cohort_ids or {source_user_id})
-    ]
+    users = [record for record in data["user"] if record["id"] in cohort_ids]
     for name, records in data.items():
         for record in records:
-            if name == "user" and record["id"] not in (cohort_ids or {source_user_id}):
+            if name == "user" and record["id"] not in cohort_ids:
                 continue
             if name == "organization":
                 prefix = f"content/orgs/{record['org_uuid']}"
@@ -111,9 +105,6 @@ def capture_files(
 
 
 def write_files(files: dict, uuid_map: dict) -> list[str]:
-    from src.services.utils.storage import is_s3_enabled, upload_to_s3
-    from pathlib import Path
-
     written = []
     for path, encoded in files.items():
         for old, new in uuid_map.items():
@@ -121,16 +112,40 @@ def write_files(files: dict, uuid_map: dict) -> list[str]:
         # At least the owner must have been remapped before any file write.
         if not re.match(r"^content/(orgs/org|users/user)_demo_[0-9a-f]{32}_", path):
             raise ValueError("Checkpoint media owner was not isolated")
-        content = b64decode(encoded)
-        if is_s3_enabled():
-            if not upload_to_s3(path, content):
-                raise RuntimeError("Demo media upload failed")
-        else:
-            destination = Path(path)
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            destination.write_bytes(content)
+        store_file(path, b64decode(encoded))
         written.append(path)
     return written
+
+
+def store_file(path: str, content: bytes) -> None:
+    from src.services.utils.storage import is_s3_enabled, upload_to_s3
+    from pathlib import Path
+
+    if is_s3_enabled():
+        if not upload_to_s3(path, content):
+            raise RuntimeError("Demo media upload failed")
+    else:
+        destination = Path(path)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(content)
+
+
+def copy_user_files(source_uuid: str, target_uuid: str) -> None:
+    """Duplicate a user's stored media (avatar, covers) under another user's prefix."""
+    source = f"content/users/{source_uuid}"
+    copied = 0
+    for directory, _, files in walk_directory(source):
+        for filename in files:
+            content = read_file_content(f"{directory}/{filename}")
+            if content is None:
+                continue
+            copied += len(content)
+            if copied > MAX_ASSET_BYTES:
+                raise HTTPException(
+                    422, "The account's media exceeds the 100 MiB copy limit."
+                )
+            relative = f"{directory}/{filename}"[len(source) :]
+            store_file(f"content/users/{target_uuid}{relative}", content)
 
 
 def clean_files(session_id: str) -> None:

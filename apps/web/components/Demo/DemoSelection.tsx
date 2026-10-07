@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { FlaskConical, ArrowRight, UserRound } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import { getConfig } from '@services/config/config'
-import { demoRequest, demoAccountName, type DemoStatus } from '@services/demo/demo'
+import { demoRequest, demoAccountName, demoAvatarUrl, type DemoStatus } from '@services/demo/demo'
 import DemoCohortManager from './DemoCohortManager'
 
 export default function DemoSelection({ busy, error, onStart, onCancel }: { busy: boolean; error: string; onStart: React.Dispatch<number>; onCancel: () => void }) {
@@ -40,7 +40,7 @@ export default function DemoSelection({ busy, error, onStart, onCancel }: { busy
       {!state && !failure && <p role="status" className="text-muted-foreground">Loading demo accounts…</p>}
       {state && !accounts.length && <div className="rounded-2xl border p-6 text-sm leading-6 text-muted-foreground">{operator ? 'Choose the fictional organization in Settings, then add its demo accounts here. At least one account must be pilotable before publication.' : 'No demo accounts are available yet. Please try again later.'}</div>}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{accounts.map(account => <article key={account.user_id} data-testid={`demo-account-${account.user_id}`} className="flex min-w-0 flex-col rounded-2xl border bg-card p-6">
-        <div className="mb-5 flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-muted">{account.avatar_url ? <Image src={account.avatar_url} width={56} height={56} unoptimized alt="" className="h-full w-full object-cover" /> : <UserRound aria-hidden className="h-6 w-6 text-muted-foreground" />}</div>
+        <div className="mb-5 flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-muted">{demoAvatarUrl(state?.checkpoint_id, account) ? <Image src={demoAvatarUrl(state?.checkpoint_id, account)!} width={56} height={56} unoptimized alt="" className="h-full w-full object-cover" /> : <UserRound aria-hidden className="h-6 w-6 text-muted-foreground" />}</div>
         <h2 className="break-words text-lg font-semibold">{demoAccountName(account)}</h2>
         {operator && <p className="mt-1 text-xs text-muted-foreground">{'pilotable' in account && account.pilotable ? 'Pilotable after publication' : 'Cohort member · setup only'}</p>}
         <p className="mb-6 mt-3 flex-1 whitespace-pre-wrap break-words text-sm leading-6 text-muted-foreground">{account.description}</p>

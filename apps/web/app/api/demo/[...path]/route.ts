@@ -4,10 +4,20 @@ import { getConfig } from '@services/config/config'
 import { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from '@services/auth/cookies'
 
 const BACKEND = (process.env.LAUNCHLMS_INTERNAL_BACKEND_URL || getConfig('NEXT_PUBLIC_LAUNCHLMS_BACKEND_URL') || 'http://localhost:1338').replace(/\/+$/, '')
-const PATHS = new Set(['status', 'ready', 'settings', 'cohort', 'checkpoints', 'admin/enter', 'admin/exit', 'start', 'reset', 'end', 'extend'])
+const PATHS = new Set(['status', 'ready', 'settings', 'cohort', 'checkpoints', 'cohort/clone', 'admin/enter', 'admin/exit', 'start', 'reset', 'end', 'extend'])
+
+const PORTRAIT = /^portraits\/[0-9a-f]{32}\/\d+$/
 
 async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname.replace('/api/demo/', '')
+  if (request.method === 'GET' && PORTRAIT.test(path)) {
+    // Checkpoint ids are immutable, so published portraits cache indefinitely.
+    try {
+      const image = await fetch(`${BACKEND}/api/v1/demo/${path}`, { signal: AbortSignal.timeout(15000) })
+      if (!image.ok) return new NextResponse(null, { status: image.status })
+      return new NextResponse(await image.arrayBuffer(), { headers: { 'Content-Type': image.headers.get('content-type') || 'image/png', 'Cache-Control': image.headers.get('cache-control') || 'no-store', 'X-Content-Type-Options': 'nosniff' } })
+    } catch { return new NextResponse(null, { status: 503 }) }
+  }
   if (!PATHS.has(path)) return NextResponse.json({ detail: 'Unknown demo action' }, { status: 404 })
   const publicUrl = new URL(buildPublicRequestUrl(request.url, request.headers.get('host'), request.headers.get('x-forwarded-proto')))
   if (request.method !== 'GET' && request.headers.get('origin') !== publicUrl.origin) {

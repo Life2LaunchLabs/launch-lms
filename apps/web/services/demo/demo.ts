@@ -1,9 +1,9 @@
 export type DemoSettings = {
   revision: number
   enabled: boolean
-  source_user_id: number | null
+  auto_recapture: boolean
+  recapture_error?: string | null
   entry_org_id: number | null
-  source_user_email?: string
   entry_org_slug?: string
   capacity: number
   session_minutes: number
@@ -18,7 +18,7 @@ export type DemoAccount = {
   last_name: string
   username: string
   description: string
-  avatar_url?: string | null
+  has_avatar?: boolean
 }
 export type DemoMember = DemoAccount & { user_email: string; pilotable: boolean }
 export type DemoStatus = {
@@ -30,7 +30,7 @@ export type DemoStatus = {
   preparing?: boolean
   ready_workspaces?: number
   expires_at?: string
-  checkpoint_id?: string
+  checkpoint_id?: string | null
   published_at?: string | null
   settings?: DemoSettings
 }
@@ -58,6 +58,10 @@ export async function waitForDemo(signal: AbortSignal): Promise<{ entry_org_slug
     await new Promise((resolve) => window.setTimeout(resolve, 1000))
   }
   throw new DOMException('Preparation cancelled', 'AbortError')
+}
+
+export function demoAvatarUrl(checkpointId: string | null | undefined, account: Pick<DemoAccount, 'user_id' | 'has_avatar'>): string | null {
+  return checkpointId && account.has_avatar ? `/api/demo/portraits/${checkpointId}/${account.user_id}` : null
 }
 
 export function demoAccountName(account: Pick<DemoAccount, 'first_name' | 'last_name' | 'username'>): string {

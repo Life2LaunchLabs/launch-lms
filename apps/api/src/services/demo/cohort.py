@@ -53,14 +53,16 @@ def save_cohort(db: Session, body: CohortSettings) -> dict:
             422, "Choose the fictional scenario organization in Settings first."
         )
     resolved = []
+    seen = set()
     for item in body.members:
         user = validate_member(
             db,
             db.exec(select(User).where(User.email == item.user_email)).first(),
             config.entry_org_id,
         )
-        if any(member.user_id == user.id for member in resolved):
+        if user.id in seen:
             raise HTTPException(422, "Each demo account can appear only once.")
+        seen.add(user.id)
         resolved.append(
             DemoMember(
                 user_id=user.id,
@@ -71,7 +73,6 @@ def save_cohort(db: Session, body: CohortSettings) -> dict:
     db.exec(delete(DemoMember))
     for item in resolved:
         db.add(item)
-    config.source_user_id = resolved[0].user_id if resolved else None
     config.revision += 1
     db.add(config)
     # Draft changes do not alter published pilots or already prepared workspaces.
@@ -116,10 +117,6 @@ def public_pilots(checkpoint) -> list[dict]:
 def pilot(checkpoint, identifier: int | None) -> dict:
     if not checkpoint:
         raise HTTPException(503, "The demo checkpoint is unavailable.")
-    # Old internal fixtures can still exercise the original single-user contract;
-    # migration disables old published checkpoints before public admission.
-    if not checkpoint.pilots and identifier in (None, checkpoint.source_user_id):
-        return {"user_id": checkpoint.source_user_id, "email": checkpoint.source_email}
     account = checkpoint.pilots.get(str(identifier))
     if not account:
         raise HTTPException(

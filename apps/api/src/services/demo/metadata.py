@@ -9,8 +9,7 @@ def checkpoint_info(db: Session, identifier: str):
         select(
             DemoCheckpoint.id,
             DemoCheckpoint.created_at,
-            DemoCheckpoint.source_user_id,
-            DemoCheckpoint.source_email,
+            DemoCheckpoint.created_by,
             DemoCheckpoint.pilots,
             DemoCheckpoint.entry_org_slug,
             DemoCheckpoint.schema_signature,

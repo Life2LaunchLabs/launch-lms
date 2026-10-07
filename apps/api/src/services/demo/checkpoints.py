@@ -116,9 +116,7 @@ def encode_value(value):
     return value
 
 
-def capture(
-    db: Session, user_id: int, entry_org_id: int, cohort_ids: set[int] | None = None
-) -> dict:
+def capture(db: Session, entry_org_id: int, user_ids: set[int]) -> dict:
     tables = SQLModel.metadata.tables
     rows: dict[str, dict] = {name: {} for name in tables}
 
@@ -132,14 +130,10 @@ def capture(
     def read(name, condition):
         return db.execute(select(tables[name]).where(condition)).mappings().all()
 
-    user_ids = cohort_ids or {user_id}
     memberships = read(
         "userorganization", tables["userorganization"].c.user_id.in_(user_ids)
     )
-    if cohort_ids is not None:
-        memberships = [
-            record for record in memberships if record["org_id"] == entry_org_id
-        ]
+    memberships = [record for record in memberships if record["org_id"] == entry_org_id]
     org_ids = {record["org_id"] for record in memberships}
     if entry_org_id not in org_ids:
         raise HTTPException(422, "The demo user must belong to the entry organization.")
@@ -158,11 +152,7 @@ def capture(
         )
         if owner is not None:
             condition = owner.in_(user_ids)
-            if (
-                cohort_ids is not None
-                and "org_id" in table.c
-                and name not in CATALOG_PERSONAL
-            ):
+            if "org_id" in table.c and name not in CATALOG_PERSONAL:
                 condition &= table.c.org_id == entry_org_id
             add(name, read(name, condition))
     plan = tables["plan"]
@@ -181,12 +171,11 @@ def capture(
             ),
         ),
     )
-    if cohort_ids is not None:
-        rows["plan"] = {
-            key: record
-            for key, record in rows["plan"].items()
-            if record["source_org_id"] in (None, entry_org_id)
-        }
+    rows["plan"] = {
+        key: record
+        for key, record in rows["plan"].items()
+        if record["source_org_id"] in (None, entry_org_id)
+    }
     # Include collaborators only on this learner's plans, never their other work.
     add(
         "plancollaborator",
@@ -208,7 +197,7 @@ def capture(
             add(name, read(name, condition))
         elif name == "role":
             add(name, read(name, table.c.org_id.is_(None)))
-        elif cohort_ids is not None and name == "badgeissuerauthorization":
+        elif name == "badgeissuerauthorization":
             add(
                 name,
                 read(
@@ -219,40 +208,34 @@ def capture(
                     ),
                 ),
             )
-        elif cohort_ids is not None and name == "resourceauthor":
+        elif name == "resourceauthor":
             add(name, read(name, table.c.user_id.in_(user_ids)))
     # Group/resource links use UUIDs rather than a database foreign key.
     # Preserve shared catalog resources assigned to the fictional cohort.
-    if cohort_ids is not None:
-        resource_uuids = {
-            record["resource_uuid"] for record in rows["usergroupresource"].values()
-        }
-        resource_uuids |= {
-            record["resource_uuid"] for record in rows["resourceauthor"].values()
-        }
-        if resource_uuids:
-            add(
-                "resource",
-                read(
-                    "resource", tables["resource"].c.resource_uuid.in_(resource_uuids)
-                ),
-            )
-    if cohort_ids is not None:
-        for name in ("programassignment", "requirementassignmentbatch"):
-            add(name, read(name, tables[name].c.org_id == entry_org_id))
-    # Iterate to a fixed point; never follow private peer state or credential tables.
-    scenario_tables = set()
-    if cohort_ids is not None:
-        scenario_tables = set(
-            "discussion discussioncomment discussionvote discussioncommentvote discussionreaction planinvitation plancollaboratorrequest".split()
+    resource_uuids = {
+        record["resource_uuid"] for record in rows["usergroupresource"].values()
+    }
+    resource_uuids |= {
+        record["resource_uuid"] for record in rows["resourceauthor"].values()
+    }
+    if resource_uuids:
+        add(
+            "resource",
+            read("resource", tables["resource"].c.resource_uuid.in_(resource_uuids)),
         )
-        for name in scenario_tables - {"planinvitation", "plancollaboratorrequest"}:
-            table = tables[name]
-            owner = table.c.author_id if "author_id" in table.c else table.c.user_id
-            condition = owner.in_(user_ids)
-            if "org_id" in table.c:
-                condition &= table.c.org_id == entry_org_id
-            add(name, read(name, condition))
+    for name in ("programassignment", "requirementassignmentbatch"):
+        add(name, read(name, tables[name].c.org_id == entry_org_id))
+    # Iterate to a fixed point; never follow private peer state or credential tables.
+    scenario_tables = set(
+        "discussion discussioncomment discussionvote discussioncommentvote discussionreaction planinvitation plancollaboratorrequest".split()
+    )
+    for name in scenario_tables - {"planinvitation", "plancollaboratorrequest"}:
+        table = tables[name]
+        owner = table.c.author_id if "author_id" in table.c else table.c.user_id
+        condition = owner.in_(user_ids)
+        if "org_id" in table.c:
+            condition &= table.c.org_id == entry_org_id
+        add(name, read(name, condition))
     allowed = (
         scenario_tables
         | CONTENT
@@ -281,7 +264,7 @@ def capture(
                         if record[column.name] is not None
                     }
                     if values:
-                        if cohort_ids is not None and parent == "user":
+                        if parent == "user":
                             values &= user_ids
                         add(parent, read(parent, fk.column.in_(values)))
                     if ANCHORS.get(name) == column.name:
@@ -290,10 +273,7 @@ def capture(
                         }
                         if parent_values:
                             condition = column.in_(parent_values)
-                            if (
-                                cohort_ids is not None
-                                and name == "learningbadgeversion"
-                            ):
+                            if name == "learningbadgeversion":
                                 condition &= or_(
                                     table.c.org_id.in_(org_ids),
                                     table.c.state == "published",
@@ -323,7 +303,6 @@ def capture(
         ),
     )
     for record in rows["user"].values():
-        is_source = record["id"] in user_ids
         record.update(
             password="!demo-login-disabled",
             is_superadmin=False,
@@ -331,19 +310,9 @@ def capture(
             locked_until=None,
             last_login_ip=None,
         )
-        if not is_source:
-            record.update(
-                email=f"person-{record['id']}@demo.example.com",
-                bio="",
-                details={},
-                profile={},
-                avatar_image="",
-                last_login_at=None,
-            )
-    if cohort_ids is not None:
-        from src.services.demo.scenario import exclude_real_users
+    from src.services.demo.scenario import exclude_real_users
 
-        exclude_real_users(rows, tables, user_ids, PERSONAL)
+    exclude_real_users(rows, tables, user_ids, PERSONAL)
     # Empty live-only tokens embedded in configuration/content JSON; never copy scripts.
     for name, records in rows.items():
         for record in records.values():

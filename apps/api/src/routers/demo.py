@@ -1,15 +1,20 @@
-from fastapi import APIRouter, Depends, Request
+from datetime import datetime, timedelta
+from uuid import uuid4
+from base64 import b64decode
+
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
-from sqlmodel import Session
-from sqlmodel import select, func
+from sqlalchemy.exc import OperationalError
+from sqlmodel import Session, select, func
 from src.core.events.database import engine
-from src.db.demo import DemoSession, DemoMember
+from src.db.demo import DemoCheckpoint, DemoSession, DemoMember
 from src.services.demo.metadata import checkpoint_info
 from src.db.users import User
 from src.db.organizations import Organization
 from src.security.auth import create_access_token, create_refresh_token, decode_jwt
 from src.security.security import SECRET_KEY
 from src.services.demo.access import claims, operator, visitor_credentials
+from src.services.demo.clone import CloneRequest, clone_account
 from src.services.demo.configuration import DemoSettings, configuration, save_settings
 from src.services.demo.cohort import (
     CohortSettings,
@@ -26,7 +31,7 @@ from src.services.demo.lifecycle import (
     admit,
     visitor_fingerprint,
 )
-from src.services.security.rate_limiting import get_client_ip
+from src.services.security.rate_limiting import check_rate_limit, get_client_ip
 
 router = APIRouter()
 
@@ -48,8 +53,6 @@ def visitor_id(request: Request) -> str:
     payload = claims(request)
     identifier = payload.get("demo_session")
     if not identifier:
-        from fastapi import HTTPException
-
         raise HTTPException(401, "Start a demo session first.")
     return identifier
 
@@ -62,8 +65,6 @@ def pending_id(request: Request) -> str | None:
 
 
 def pending_ticket(session: DemoSession) -> dict:
-    from datetime import timedelta
-
     return {
         "preparing": True,
         "pending_token": create_access_token(
@@ -93,11 +94,8 @@ def status(request: Request, db: Session = Depends(control_db)):
     if payload.get("sub"):
         try:
             actor = operator(request, db)
-        except Exception as exc:
-            from fastapi import HTTPException
-
-            if not isinstance(exc, HTTPException):
-                raise
+        except HTTPException:
+            pass
         else:
             checkpoint = (
                 checkpoint_info(db, config.checkpoint_id)
@@ -106,11 +104,9 @@ def status(request: Request, db: Session = Depends(control_db)):
             )
             return {
                 "mode": "admin" if payload.get("demo_operator") else "operator",
+                "checkpoint_id": config.checkpoint_id,
                 "settings": {
                     **config.model_dump(),
-                    "source_user_email": db.get(User, config.source_user_id).email
-                    if config.source_user_id
-                    else "",
                     "entry_org_slug": db.get(Organization, config.entry_org_id).slug
                     if config.entry_org_id
                     else "",
@@ -136,6 +132,7 @@ def status(request: Request, db: Session = Depends(control_db)):
         "accounts": public_pilots(checkpoint_info(db, config.checkpoint_id))
         if config.enabled
         else [],
+        "checkpoint_id": config.checkpoint_id if config.enabled else None,
         "available": bool(config.enabled and config.checkpoint_id),
         "preparing": bool(pending_id(request)),
     }
@@ -155,6 +152,33 @@ def cohort_settings(
     return save_cohort(db, body)
 
 
+@router.post("/cohort/clone")
+def clone_member(
+    request: Request, body: CloneRequest, db: Session = Depends(control_db)
+):
+    actor = operator(request, db)
+    return clone_account(db, actor.id, body)
+
+
+@router.get("/portraits/{checkpoint_id}/{user_id}")
+def portrait(checkpoint_id: str, user_id: int, db: Session = Depends(control_db)):
+    # Public like the selection page; checkpoint ids are immutable, so cache hard.
+    portraits = db.exec(
+        select(DemoCheckpoint.portraits).where(DemoCheckpoint.id == checkpoint_id)
+    ).first()
+    header, _, encoded = (portraits or {}).get(str(user_id), "").partition(",")
+    if not encoded:
+        raise HTTPException(404, "No portrait.")
+    return Response(
+        b64decode(encoded),
+        media_type=header.removeprefix("data:").removesuffix(";base64"),
+        headers={
+            "Cache-Control": "public, max-age=31536000, immutable",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
 @router.post("/admin/enter")
 def enter_admin(
     request: Request,
@@ -163,21 +187,11 @@ def enter_admin(
 ):
     actor = operator(request, db)
     config = configuration(db)
-    source_id = body.user_id or config.source_user_id
-    source = db.get(User, source_id)
-    if not db.get(DemoMember, source_id):
-        from fastapi import HTTPException
-
+    if body.user_id is None or not db.get(DemoMember, body.user_id):
         raise HTTPException(
             422, "Choose an account in the designated fictional cohort."
         )
-    validate_member(db, source, config.entry_org_id)
-    if not source:
-        from fastapi import HTTPException
-
-        raise HTTPException(422, "Choose the live demo account in Settings first.")
-    from datetime import timedelta
-
+    source = validate_member(db, db.get(User, body.user_id), config.entry_org_id)
     payload = {"sub": source.email, "demo_operator": actor.id}
     return {
         "tokens": {
@@ -204,15 +218,11 @@ def checkpoint(request: Request, body: Revision):
     # A stable transaction prevents org edits halfway through an export.
     with Session(engine.execution_options(isolation_level="REPEATABLE READ")) as db:
         actor = operator(request, db)
-        from sqlalchemy.exc import OperationalError
-
         try:
             result = publish(db, actor.id, body.revision)
         except OperationalError as error:
             if getattr(error.orig, "pgcode", None) != "40001":
                 raise
-            from fastapi import HTTPException
-
             raise HTTPException(
                 409,
                 "The live account changed while publishing. Reload and save the checkpoint again.",
@@ -229,11 +239,6 @@ def start_session(
     body: PilotSelection = PilotSelection(),
     db: Session = Depends(control_db),
 ):
-    from src.services.security.rate_limiting import check_rate_limit
-    from fastapi import HTTPException
-    from datetime import timedelta
-    from uuid import uuid4
-
     network = visitor_fingerprint(get_client_ip(request), SECRET_KEY)
     visitor = decode_jwt(request.cookies.get("demo_visitor_cookie", "")) or {}
     fingerprint = (
@@ -249,21 +254,17 @@ def start_session(
             "Please wait before starting another demo.",
             headers={"Retry-After": str(retry)},
         )
-    previous = claims(request).get("demo_session")
-    if previous:
-        end(db, previous)
-    queued = pending_id(request)
-    if queued:
-        end(db, queued)
-    session = admit(db, fingerprint, body.user_id)
+    replacing = tuple(
+        identifier
+        for identifier in (claims(request).get("demo_session"), pending_id(request))
+        if identifier
+    )
+    session = admit(db, fingerprint, body.user_id, replacing)
     return {**pending_ticket(session), "visitor_token": visitor_token}
 
 
 @router.get("/ready")
 def ready(request: Request, db: Session = Depends(control_db)):
-    from fastapi import HTTPException
-    from datetime import datetime
-
     identifier = pending_id(request)
     session = db.get(DemoSession, identifier) if identifier else None
     if not session:
@@ -284,9 +285,9 @@ def ready(request: Request, db: Session = Depends(control_db)):
 @router.post("/reset", status_code=202)
 def reset_session(request: Request, db: Session = Depends(control_db)):
     session = active_session(db, visitor_id(request))
-    fingerprint, pilot_id = session.visitor_id, session.pilot_user_id
-    end(db, session.id)
-    replacement = admit(db, fingerprint, pilot_id)
+    replacement = admit(
+        db, session.visitor_id, session.pilot_user_id, replacing=(session.id,)
+    )
     return pending_ticket(replacement)
 
 
