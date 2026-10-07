@@ -1,32 +1,29 @@
 'use client'
 
+import useSWR from 'swr'
 import { Compass, GraduationCap, Hammer, Route, Sparkles } from 'lucide-react'
 import type { ComponentType } from 'react'
+import { getAPIUrl } from '@services/config/config'
+import { FALLBACK_LAUNCH_CARDS, HUB_LAUNCH_CARDS_PATH, usableLaunchCards, type HubLaunchCard } from '@services/hub/launchCards'
+import { swrFetcher } from '@services/utils/ts/requests'
 
-type LaunchCard = {
-  key: string
-  label: string
-  hint: string
-  firstMessage: string
-  icon: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>
-}
-
-// Seeds for a coach conversation. The first message is what the learner "says".
-export const LAUNCH_CARDS: LaunchCard[] = [
-  { key: 'unsure', label: 'Not sure what comes next', hint: 'Figure out a first step together', icon: Compass, firstMessage: "I'm not sure what to do after high school. Can you help me find one small thing to try first?" },
-  { key: 'career', label: 'I have a career in mind', hint: 'See what it would take to get there', icon: Route, firstMessage: "I have a career in mind and want to know what a good first step would be." },
-  { key: 'experience', label: 'Build real experience', hint: 'Projects, jobs and ways to try things', icon: Hammer, firstMessage: 'I want to build experience that shows what I can do. Where could I start?' },
-  { key: 'graduate', label: 'Stay on track to graduate', hint: 'Check what you still need', icon: GraduationCap, firstMessage: 'I want to stay on track to graduate. What should I focus on right now?' },
-]
+// Cards are plain text from the platform; icons are decoration chosen by position.
+const ICONS: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>[] = [Compass, Route, Hammer, GraduationCap, Sparkles]
 
 export default function HubLaunchCards({
+  token,
   disabled,
   onPick,
 }: {
+  token?: string
   disabled: boolean
   // eslint-disable-next-line no-unused-vars
   onPick: (_message: string) => void
 }) {
+  const { data } = useSWR<HubLaunchCard[]>(token ? `${getAPIUrl()}${HUB_LAUNCH_CARDS_PATH}` : null, (url: string) => swrFetcher(url, token))
+  const loaded = usableLaunchCards(data)
+  const cards = loaded.length > 0 ? loaded : FALLBACK_LAUNCH_CARDS
+
   return (
     <section aria-label="Ways to get started" className="pb-1">
       <div className="mb-3 flex items-center gap-2 px-2">
@@ -34,8 +31,10 @@ export default function HubLaunchCards({
         <h2 className="text-sm font-medium text-foreground">Where do you want to start?</h2>
       </div>
       <ul className="grid gap-3 sm:grid-cols-2">
-        {LAUNCH_CARDS.map(({ key, label, hint, firstMessage, icon: Icon }) => (
-          <li key={key}>
+        {cards.map(({ label, hint, first_message: firstMessage }, index) => {
+          const Icon = ICONS[index % ICONS.length]
+          return (
+          <li key={`${index}:${label}`}>
             <button
               type="button"
               disabled={disabled}
@@ -47,11 +46,12 @@ export default function HubLaunchCards({
               </span>
               <span className="min-w-0">
                 <span className="block text-sm font-medium text-foreground">{label}</span>
-                <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{hint}</span>
+                {hint ? <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{hint}</span> : null}
               </span>
             </button>
           </li>
-        ))}
+          )
+        })}
       </ul>
     </section>
   )

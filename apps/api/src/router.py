@@ -9,6 +9,7 @@ from src.routers import (
     dev,
     health,
     hub,
+    hub_launch,
     hub_next,
     instance,
     media,
@@ -46,6 +47,7 @@ from src.routers.playgrounds import (
 from src.routers.podcasts import episodes as episodes_router_module
 from src.routers.podcasts import podcasts as podcasts_router_module
 from src.routers.superadmin import router as superadmin_router
+from src.routers.superadmin_hub_launch import router as superadmin_hub_launch_router
 from src.routers.utils import router as utils_router
 from src.security.api_token_utils import require_non_api_token_user
 from src.security.auth import get_current_user
@@ -107,6 +109,12 @@ v1_router.include_router(
 )
 v1_router.include_router(
     hub.router,
+    prefix="/hub",
+    tags=["hub"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
+v1_router.include_router(
+    hub_launch.router,
     prefix="/hub",
     tags=["hub"],
     dependencies=[Depends(get_non_api_token_user)],
@@ -300,6 +308,13 @@ v1_router.include_router(
 
 v1_router.include_router(
     superadmin_router,
+    prefix="/superadmin",
+    tags=["superadmin"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
+
+v1_router.include_router(
+    superadmin_hub_launch_router,
     prefix="/superadmin",
     tags=["superadmin"],
     dependencies=[Depends(get_non_api_token_user)],

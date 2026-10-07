@@ -28,7 +28,7 @@ export default function HubHomeStack({
   const actions = actionableHubActions(data)
 
   if (isLoading) return <div className="h-40 animate-pulse rounded-2xl bg-muted/50 motion-reduce:animate-none" role="status" aria-label="Loading your next steps" />
-  if (actions.length === 0) return <HubLaunchCards disabled={disabled} onPick={onPick} />
+  if (actions.length === 0) return <HubLaunchCards token={token} disabled={disabled} onPick={onPick} />
 
   return (
     <section aria-label="Your next steps" className="space-y-3 pb-1">

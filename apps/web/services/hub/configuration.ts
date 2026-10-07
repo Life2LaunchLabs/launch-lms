@@ -1,5 +1,6 @@
 import { getAPIUrl } from '@services/config/config'
 import { RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/requests'
+import type { HubLaunchCard, HubLaunchCardsSettings } from './launchCards'
 
 export type HubAdvisorConfiguration = {
   provider: HubAdvisorProvider
@@ -66,4 +67,18 @@ export const hubAdvisorConfigurationApi = {
     )
     return errorHandling(response) as Promise<HubAdvisorModelCatalog>
   },
+}
+
+async function launchCardsRequest(token?: string, method = 'GET', body: unknown = null) {
+  const response = await fetch(
+    `${getAPIUrl()}superadmin/settings/hub-launch-cards`,
+    RequestBodyWithAuthHeader(method, body, null, token)
+  )
+  return errorHandling(response) as Promise<HubLaunchCardsSettings>
+}
+
+export const hubLaunchCardsApi = {
+  get: (token?: string) => launchCardsRequest(token),
+  // Passing null restores the platform defaults.
+  save: (cards: HubLaunchCard[] | null, token?: string) => launchCardsRequest(token, 'PUT', { cards }),
 }
