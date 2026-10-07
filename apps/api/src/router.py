@@ -9,6 +9,7 @@ from src.routers import (
     dev,
     health,
     hub,
+    hub_next,
     instance,
     media,
     messages,
@@ -106,6 +107,12 @@ v1_router.include_router(
 )
 v1_router.include_router(
     hub.router,
+    prefix="/hub",
+    tags=["hub"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
+v1_router.include_router(
+    hub_next.router,
     prefix="/hub",
     tags=["hub"],
     dependencies=[Depends(get_non_api_token_user)],
