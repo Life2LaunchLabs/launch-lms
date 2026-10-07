@@ -2,9 +2,12 @@
 
 Owner amendment: 2026-10-07. PR [#90](https://github.com/Life2LaunchLabs/launch-lms/pull/90)
 on `feat/disposable-demo-checkpoints`. Verified code revision:
-[`cffae72bd6560377524b275bc2dc9d35e8dbe433`](https://github.com/Life2LaunchLabs/launch-lms/commit/cffae72bd6560377524b275bc2dc9d35e8dbe433).
+[`d43362ab4d527fb83f5c9ca65d1b89e39cf0a8f0`](https://github.com/Life2LaunchLabs/launch-lms/commit/d43362ab4d527fb83f5c9ca65d1b89e39cf0a8f0).
 The following evidence commit changes documentation/captures only. Owner signoff and approved dev deployment remain pending.
-All records and captures use synthetic fixtures.
+All records and captures use synthetic fixtures. The rendered UI is unchanged from
+`cffae72bd6560377524b275bc2dc9d35e8dbe433`; the final code amendment preserves
+prepared cross-org badge runs, completed pages and awards during capture.
+The full local gates and focused PostgreSQL suite were rerun on this amendment.
 
 ## Reference and scope
 
@@ -28,7 +31,9 @@ New settings/design changes supersede the initial single-user brief; earlier
   suite. Those cases passed separately with `DEMO_TEST_DATABASE_URL` below.
 - Focused PostgreSQL checks: 25 passed, including 20-member capture with three
   progress stages, real author/staff exclusion, fake pending invitation retention,
-  cross-org resource preservation, private copy isolation and revocation.
+  cross-org resource preservation, prepared badge runs/pages/awards, private copy
+  isolation and revocation. The prepared-page regression materializes two whole
+  scenarios and verifies a mutation leaves the other copy and source unchanged.
 - Migration roundtrip in a separate disposable DB: stamp current schema, downgrade
   to `u1v2w3x4y5z6`, seed enabled legacy configuration, upgrade `v2w3x4y5z6a7`.
   Admission disabled, old checkpoint cleared, source retained, cohort empty and
@@ -40,9 +45,10 @@ New settings/design changes supersede the initial single-user brief; earlier
   checks. [Scenario results](evidence/cohort-browser-results.json).
 
 - `test_demo_http_capacity.py`: 200 admissions across three pilots over 32 workers
-  in 5.71 seconds; visitor 201 returned 503. All copies contained 20 fake people,
+  in 3.81 seconds; visitor 201 returned 503. All copies contained 20 fake people,
+  saved cross-org badge runs and completed pages were retained in all 200 copies,
   private edits matched 200 authenticated reads, all three live pilot accounts stayed
-  unchanged. Cold preparation plus verification took 298.61 seconds.
+  unchanged. Cold preparation plus verification took 237.24 seconds.
   [Scenario capacity results](evidence/cohort-capacity-results.json). This is synthetic
   local evidence, not production sizing; warm copies prepare before admission.
 - Expiry/feature probe at both sizes: warning visible at four minutes, extension
@@ -81,7 +87,8 @@ published identity/description metadata survives draft changes and raster portra
 are bound to their captured fake owner, never fetched from live profiles.
 
 Inspection/testing found and fixed wrong default-org entry routing, cross-org badge
-paths/issuer permissions omitted from export, and manager feedback lost on refresh.
+paths/issuer permissions and prepared badge progress omitted from export, and
+manager feedback lost on refresh.
 The optional PostgreSQL regression captures badge versions/paths/pages, permissions,
 cohort resource links and fake pending invitations. No owner-accepted deviations or
 new screenshot baseline are implied; owner signoff remains pending.
