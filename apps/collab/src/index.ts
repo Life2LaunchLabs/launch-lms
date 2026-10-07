@@ -6,7 +6,7 @@ import type { onRequestPayload, onAuthenticatePayload, onConnectPayload } from '
 import { Database } from '@hocuspocus/extension-database'
 import jwt from 'jsonwebtoken'
 import Redis from 'ioredis'
-import { rebaseDemoBoard, assertDemoRoom } from './demo'
+import { rebaseDemoBoard, assertDemoRoom } from './demo.js'
 
 const PORT = parseInt(process.env.COLLAB_PORT || '4000', 10)
 const API_URL = process.env.LAUNCHLMS_API_URL || 'http://localhost:8000'

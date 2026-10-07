@@ -1,3 +1,4 @@
+.org-layout-shell { min-height: calc(100dvh - var(--candidate-experience-height, 0px) - var(--demo-bar-height, 0px)); }
 .hub-workspace { --candidate-experience-height: 0px; display: flex; align-items: stretch; width: 100%; max-width: 100%; min-width: 0; min-height: calc(100dvh - var(--candidate-experience-height) - var(--demo-bar-height, 0px)); overflow-x: clip; }
 .hub-app-frame { flex: 1; min-width: 0; }
 .hub-app-frame[hidden], .hub-conversation-frame[hidden] { display: none; }

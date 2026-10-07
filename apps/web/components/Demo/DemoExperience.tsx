@@ -9,6 +9,7 @@ import { demoRequest, DemoRequestError, type DemoStatus } from '@services/demo/d
 import DemoSettingsPanel from './DemoSettingsPanel'
 import DemoToolbar from './DemoToolbar'
 import { getConfig } from '@services/config/config'
+import { usePathname } from 'next/navigation'
 
 export default function DemoExperience() {
   const session = useSession()
@@ -24,6 +25,8 @@ export default function DemoExperience() {
   const warnedExpiry = useRef('')
   const demoHost = getConfig('NEXT_PUBLIC_LAUNCHLMS_DEMO_HOST', 'demo.life2launch.app')
   const onDemoHost = typeof window !== 'undefined' && (window.location.hostname === demoHost || window.location.hostname.endsWith(`.${demoHost}`))
+  const pathname = usePathname()
+  const showBar = Boolean(state && state.mode !== 'public' && (!onDemoHost || state.mode === 'visitor') && (state.mode !== 'operator' || pathname === '/demo'))
   const refresh = useCallback(async () => {
     try { setState(await demoRequest<DemoStatus>('status')) }
     catch (failure) {
@@ -55,9 +58,9 @@ export default function DemoExperience() {
     return () => window.clearInterval(interval)
   }, [state?.mode, state?.expires_at])
   useEffect(() => {
-    document.documentElement.style.setProperty('--demo-bar-height', state && state.mode !== 'public' && (!onDemoHost || state.mode === 'visitor') ? '3rem' : '0px')
+    document.documentElement.style.setProperty('--demo-bar-height', showBar ? '3rem' : '0px')
     return () => { document.documentElement.style.removeProperty('--demo-bar-height') }
-  }, [state, onDemoHost])
+  }, [showBar])
   async function act(action: string) {
     setBusy(true); setError(''); setNotice('')
     try {
@@ -74,13 +77,14 @@ export default function DemoExperience() {
         if (action === 'end') window.location.assign('/demo?ended=1')
         else if (action === 'reset') window.location.assign('/demo?preparing=1')
         else if (action === 'admin/enter') window.location.assign(`/orgs/${encodeURIComponent(result.tokens?.entry_org_slug || 'default')}/hub`)
+        else if (action === 'admin/exit') window.location.assign('/demo')
         else window.location.assign('/')
         void result
       }
     } catch (failure) { setError((failure as Error).message) }
     finally { setBusy(false) }
   }
-  if (!state || state.mode === 'public' || (onDemoHost && state.mode !== 'visitor')) return null
+  if (!state || !showBar) return null
   const visitor = state.mode === 'visitor'
   const admin = state.mode === 'admin'
   return <>
