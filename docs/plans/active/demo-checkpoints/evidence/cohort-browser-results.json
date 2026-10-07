@@ -1,0 +1,24 @@
+[
+  {
+    "publicPilots": 3,
+    "sameCheckpoint": "145fcb2ab676459c95f2db07610bb2ca",
+    "cohortRoster": "fake identities preserved; real operator absent",
+    "preparedStages": [
+      "completed",
+      "in_progress",
+      "not_started"
+    ],
+    "platformNavigation": "absent",
+    "orgAdminEdit": 200,
+    "learnerEdit": 403,
+    "backRevocation": 401,
+    "resetPilot": 4
+  },
+  {
+    "cohortMembers": 20,
+    "managerSave": "passed",
+    "nonpilotLiveEditing": "passed",
+    "sourceUnchanged": "passed",
+    "phoneOverflow": false
+  }
+]

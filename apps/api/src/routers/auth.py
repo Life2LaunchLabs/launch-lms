@@ -527,10 +527,7 @@ async def claim_welcome_session(
 
 @router.get("/refresh")
 def refresh(request: Request, response: Response):
-    """
-    Validates the refresh token and issues a new access token.
-    The refresh token is read from cookies.
-    """
+    """Validate the refresh cookie and preserve the account/session boundary."""
     # Rate limit refresh endpoint to prevent brute force attacks
     is_allowed, retry_after = check_refresh_rate_limit(request)
     if not is_allowed:
@@ -558,6 +555,11 @@ def refresh(request: Request, response: Response):
             detail="Invalid refresh token",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    from src.services.demo.refresh import refresh_demo
+    demo_credentials = refresh_demo(request, response, payload, set_auth_cookies, get_token_expiry_ms)
+    if demo_credentials:
+        return demo_credentials
 
     current_user = payload.get("sub")
     new_access_token = create_access_token(
@@ -742,11 +744,7 @@ async def third_party_login(
 
 @router.delete("/logout")
 def logout(request: Request, response: Response):
-    """
-    Because the JWT are stored in an httponly cookie now, we cannot
-    log the user out by simply deleting the cookies in the frontend.
-    We need the backend to send us a response to delete the cookies.
-    """
+    """Clear browser credentials and revoke disposable demo sessions."""
     token = extract_jwt_from_request(request)
     if not token:
         raise HTTPException(
@@ -755,6 +753,8 @@ def logout(request: Request, response: Response):
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    from src.services.demo.refresh import revoke_demo
+    revoke_demo(token)
     unset_auth_cookies(response, request)
     return {"msg": "Successfully logout"}
 

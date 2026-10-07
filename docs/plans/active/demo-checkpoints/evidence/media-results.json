@@ -1,0 +1,6 @@
+{
+  "privateRead": 200,
+  "otherVisitor": 403,
+  "endedSession": 401,
+  "filesystemCleanup": "passed"
+}

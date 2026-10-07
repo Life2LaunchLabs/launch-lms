@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import DemoToolbar from '@components/Demo/DemoToolbar'
 import { Check, ChevronRight, Moon, Palette, Search, Sun } from 'lucide-react'
 import catalog from '@/design-system/catalog.json'
 import { Alert, AlertDescription, AlertTitle } from '@components/ui/alert'
@@ -76,6 +77,7 @@ function Inventory() {
 function Layouts() {
   return <section><SectionHeading eyebrow="Layouts" title="Recurring product compositions" body="These specimens use the actual shared wrapper and product primitives. The inventory beneath them identifies established headers and the legacy overlaps that still need deliberate migration." />
     <div className="space-y-4">
+      <Specimen title="Demo session strip" source="apps/web/components/Demo/DemoToolbar.tsx"><div className="space-y-4"><DemoToolbar><span className="text-sm font-semibold">Demo · Changes are temporary</span><div className="flex gap-1"><Button variant="ghost" size="sm">Reset</Button><Button variant="ghost" size="sm">Back</Button></div></DemoToolbar><DemoToolbar><span className="text-sm font-semibold">Demo admin · Editing live account</span><Button size="sm">Save checkpoint</Button></DemoToolbar></div></Specimen>
       <Specimen title="Product page titles" source="apps/web/services/routing/pageTitles.ts"><div className="grid gap-3 sm:grid-cols-3">{[{ section: 'Plans' }, { section: 'Plans', detail: 'SB3 Journey' }, { section: 'Hub', detail: 'Finding my next step' }].map((example) => <div key={JSON.stringify(example)} className="rounded-xl border border-border bg-card p-4"><p className="text-xs text-muted-foreground">Browser tab</p><p className="mt-2 truncate font-semibold">{formatAppPageTitle(example)}</p></div>)}</div><p className="mt-3 text-xs text-muted-foreground">Feature landing pages use one label; loaded details and Hub conversations add their meaningful name.</p></Specimen>
       <Specimen title="Subtle scrollbar" source="apps/web/styles/globals.css"><div className="scrollbar-subtle scrollbar-subtle-rounded h-40 overflow-y-auto rounded-xl border border-border bg-muted/30 p-4">{Array.from({ length: 9 }, (_, index) => <p key={index} className="border-b border-border py-2 text-sm">Scrollable item {index + 1}</p>)}</div><p className="mt-3 text-xs text-muted-foreground">The thumb stays quiet until the region is hovered or receives focus. Rounded containers add end spacers so the thumb cannot enter their corner curves.</p></Specimen>
       <Specimen title="General content wrapper" source="apps/web/components/Objects/StyledElements/Wrappers/GeneralWrapper.tsx"><div className="overflow-hidden rounded-xl border border-dashed border-border bg-muted/30"><GeneralWrapperStyled><div className="rounded-xl border border-border bg-card p-5"><p className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">Contained product page</p><h3 className="mt-2 text-2xl font-black">A bounded reading and working area</h3><p className="mt-2 max-w-xl text-sm text-muted-foreground">The wrapper supplies the established maximum width, padding, and tracking.</p></div></GeneralWrapperStyled></div></Specimen>

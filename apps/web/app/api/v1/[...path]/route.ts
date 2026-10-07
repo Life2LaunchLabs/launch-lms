@@ -189,6 +189,7 @@ async function proxyToBackend(request: NextRequest): Promise<Response> {
     }
   }
 
+  headers.set('x-forwarded-host', request.headers.get('host') || request.nextUrl.host)
   try {
     if (multipartBytes) {
       return await proxyMultipartViaNode(backendUrl, request.method, headers, multipartBytes)

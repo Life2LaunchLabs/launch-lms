@@ -91,6 +91,12 @@ const getLAUNCHLMS_HTTP_PROTOCOL = () =>
   (getConfig('NEXT_PUBLIC_LAUNCHLMS_HTTPS') === 'true') ? 'https://' : 'http://'
 const getLAUNCHLMS_BACKEND_URL = () => getConfig('NEXT_PUBLIC_LAUNCHLMS_BACKEND_URL', 'http://localhost/')
 const getLAUNCHLMS_DOMAIN = () => {
+  if (typeof window !== 'undefined') {
+    const demoHost = getConfig('NEXT_PUBLIC_LAUNCHLMS_DEMO_HOST', 'demo.life2launch.app')
+    if (window.location.hostname === demoHost || window.location.hostname.endsWith(`.${demoHost}`)) {
+      return `${demoHost}${window.location.port ? ':' + window.location.port : ''}`
+    }
+  }
   // 1. Env var (backward compat for existing deploys)
   const envVal = getConfig('NEXT_PUBLIC_LAUNCHLMS_DOMAIN')
   if (envVal) return envVal
@@ -213,6 +219,10 @@ export const getUriWithOrg = (orgslug: string, path: string) => {
 
   // Client-side: prefer using current origin when appropriate
   if (typeof window !== 'undefined') {
+    const demoHost = getConfig('NEXT_PUBLIC_LAUNCHLMS_DEMO_HOST', 'demo.life2launch.app')
+    if (window.location.hostname === demoHost || window.location.hostname.endsWith(`.${demoHost}`)) {
+      return `${window.location.origin}/orgs/${encodeURIComponent(orgslug)}${normalizedPath}`
+    }
     const multi_org = isMultiOrgModeEnabled()
     const context = resolveOrgHostContext({
       host: window.location.host,

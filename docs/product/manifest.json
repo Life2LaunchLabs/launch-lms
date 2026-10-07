@@ -6,8 +6,8 @@
   "expected_counts": {
     "groups": 15,
     "goals": 60,
-    "activities": 269,
-    "steps": 980
+    "activities": 270,
+    "steps": 984
   },
   "migration_baseline": {
     "counts": {

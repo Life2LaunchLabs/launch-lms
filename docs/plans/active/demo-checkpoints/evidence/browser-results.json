@@ -1,0 +1,50 @@
+[
+  {
+    "cancelDuringAdmission": "passed"
+  },
+  {
+    "surface": "visitor-desktop",
+    "bounds": {
+      "height": 900,
+      "documentHeight": 900,
+      "width": 1440,
+      "documentWidth": 1440,
+      "bar": 48
+    }
+  },
+  {
+    "viewport": "desktop",
+    "resetRevocation": 401,
+    "end": "passed",
+    "overflow": false
+  },
+  {
+    "surface": "visitor-phone",
+    "bounds": {
+      "height": 844,
+      "documentHeight": 844,
+      "width": 390,
+      "documentWidth": 390,
+      "bar": 48
+    }
+  },
+  {
+    "viewport": "phone",
+    "resetRevocation": 401,
+    "end": "passed",
+    "overflow": false
+  },
+  {
+    "surface": "admin-live-desktop",
+    "bounds": {
+      "height": 900,
+      "documentHeight": 900,
+      "width": 1440,
+      "documentWidth": 1440,
+      "bar": 48
+    }
+  },
+  {
+    "admin": "enter, settings, publish, exit passed"
+  }
+]

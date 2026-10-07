@@ -14,6 +14,7 @@ from fastapi import (
 )
 from pydantic import BaseModel, EmailStr
 from sqlmodel import Session
+from src.services.demo.context import cache_key
 from src.core.events.database import get_db_session
 from src.db.users import (
     AnonymousUser,
@@ -60,7 +61,6 @@ router = APIRouter()
 
 SESSION_CACHE_TTL = 600  # 10 minutes
 
-
 def _get_redis_client() -> redis.Redis | None:
     """Return a Redis client or None if unavailable."""
     try:
@@ -79,7 +79,7 @@ def _get_session_cache(user_id: int) -> dict | None:
     if r is None:
         return None
     try:
-        raw = r.get(f"session:{user_id}")
+        raw = r.get(cache_key(f"session:{user_id}"))
         if raw:
             return json.loads(raw)
     except Exception:
@@ -93,7 +93,7 @@ def _set_session_cache(user_id: int, session_data: dict) -> None:
     if r is None:
         return
     try:
-        r.setex(f"session:{user_id}", SESSION_CACHE_TTL, json.dumps(session_data))
+        r.setex(cache_key(f"session:{user_id}"), SESSION_CACHE_TTL, json.dumps(session_data))
     except Exception:
         logger.debug("Session cache write failed for user %s", user_id, exc_info=True)
 
@@ -104,7 +104,7 @@ def _invalidate_session_cache(user_id: int) -> None:
     if r is None:
         return
     try:
-        r.delete(f"session:{user_id}")
+        r.delete(cache_key(f"session:{user_id}"))
     except Exception:
         logger.debug("Session cache invalidation failed for user %s", user_id, exc_info=True)
 
