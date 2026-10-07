@@ -1,0 +1,20 @@
+[
+  {
+    "cancelDuringAdmission": "passed"
+  },
+  {
+    "viewport": "desktop",
+    "resetRevocation": 401,
+    "end": "passed",
+    "overflow": false
+  },
+  {
+    "viewport": "phone",
+    "resetRevocation": 401,
+    "end": "passed",
+    "overflow": false
+  },
+  {
+    "admin": "enter, settings, publish, exit passed"
+  }
+]

@@ -85,6 +85,10 @@ def get_base_url_from_request(request: Request) -> str:
 
 
 def send_email(to: EmailStr, subject: str, body: str):
+    from src.services.demo.context import current_demo
+    if current_demo.get():
+        # Do not deliver live messages from a visitor copy.
+        return {"id": None, "demo": True, "delivered": False}
     lh_config = get_launchlms_config()
     mailing = lh_config.mailing_config
     sender = f"Launch LMS <{mailing.system_email_address}>"

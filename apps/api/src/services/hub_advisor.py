@@ -15,10 +15,8 @@ from fastapi import HTTPException, Request
 from sqlmodel import Session
 
 from src.security.org_auth import require_org_membership
-from src.services.hub_configuration import (
-    DEFAULT_HUB_ADVISOR_INSTRUCTIONS,
-    get_enabled_hub_advisor_credentials,
-)
+from src.services.hub_configuration import DEFAULT_HUB_ADVISOR_INSTRUCTIONS
+from src.services.demo.providers import advisor_credentials as _advisor_credentials, reserve_ai as _reserve_demo_ai
 from src.services.security.rate_limiting import check_rate_limit, get_client_ip
 
 logger = logging.getLogger(__name__)
@@ -374,6 +372,7 @@ class OpenAIResponsesProvider:
             payload["reasoning"] = {"effort": self.advanced["reasoning_effort"]}
         if self.advanced.get("verbosity") not in (None, "default"):
             payload["text"] = {"verbosity": self.advanced["verbosity"]}
+        _reserve_demo_ai(payload, int(self.advanced.get("max_output_tokens", MAX_OUTPUT_TOKENS)))
         owned_client = self.client is None
         client = self.client or httpx.AsyncClient(timeout=30)
         try:
@@ -492,6 +491,7 @@ class AnthropicMessagesProvider:
         if self.advanced.get("thinking_effort") not in (None, "default"):
             payload["thinking"] = {"type": "adaptive"}
             payload["output_config"] = {"effort": self.advanced["thinking_effort"]}
+        _reserve_demo_ai(payload, int(self.advanced.get("max_output_tokens", MAX_OUTPUT_TOKENS)))
         owned_client = self.client is None
         client = self.client or httpx.AsyncClient(timeout=30)
         try:
@@ -566,7 +566,7 @@ def configured_advisor_provider(db_session: Session, edit_scope: str | None = No
     if fixture:
         return fixture
     try:
-        provider, api_key, model, instructions, advanced = get_enabled_hub_advisor_credentials(db_session)
+        provider, api_key, model, instructions, advanced = _advisor_credentials(db_session)
     except RuntimeError as error:
         raise AdvisorUnavailable(str(error)) from None
     if provider == "anthropic":
@@ -579,7 +579,7 @@ def configured_memory_provider(db_session: Session) -> AdvisorProvider:
     if fixture:
         return fixture
     try:
-        provider, api_key, model, _instructions, advanced = get_enabled_hub_advisor_credentials(db_session)
+        provider, api_key, model, _instructions, advanced = _advisor_credentials(db_session)
     except RuntimeError as error:
         raise AdvisorUnavailable(str(error)) from None
     memory_advanced = {**advanced, "max_output_tokens": 500}

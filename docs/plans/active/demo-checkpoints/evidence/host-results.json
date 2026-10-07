@@ -1,0 +1,7 @@
+{
+  "host": "demo.life2launch.app",
+  "localDnsOverride": true,
+  "entryRedirect": "passed",
+  "orgLinks": "stay on demo host",
+  "assignedPlan": "visible"
+}

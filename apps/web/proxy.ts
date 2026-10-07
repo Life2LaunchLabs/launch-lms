@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { getConfig } from './services/config/config'
 import { getAPIUrl } from './services/config/config'
 import {
   ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE, getLegacyParentCookieDomain,
@@ -203,7 +204,24 @@ export const config = {
 }
 
 export default async function proxy(req: NextRequest) {
-  const instanceInfo = await getInstanceInfo()
+  if (req.nextUrl.pathname === '/demo') return NextResponse.next()
+  let instanceInfo = await getInstanceInfo()
+  const demoHost = getConfig('NEXT_PUBLIC_LAUNCHLMS_DEMO_HOST', 'demo.life2launch.app')
+  const requestHost = (req.headers.get('host') || '').split(':')[0]
+  const demoEntryUrl = new URL('/demo', buildPublicRequestUrl(req.url, req.headers.get('x-forwarded-host') || req.headers.get('host'), req.headers.get('x-forwarded-proto')))
+  const isDemoHost = requestHost === demoHost || requestHost.endsWith(`.${demoHost}`)
+  if (isDemoHost) {
+    instanceInfo = { ...instanceInfo, frontend_domain: demoHost, top_domain: demoHost }
+    if (!req.cookies.get(ACCESS_TOKEN_COOKIE)?.value) return NextResponse.redirect(demoEntryUrl)
+    // Resolve the entry org from the session's published checkpoint, never from live state.
+    const status = await fetch(`${process.env.LAUNCHLMS_INTERNAL_API_URL || getAPIUrl()}demo/status`, {
+      headers: { Authorization: `Bearer ${req.cookies.get(ACCESS_TOKEN_COOKIE)?.value}` }, cache: 'no-store',
+    })
+    if (!status.ok) return NextResponse.redirect(demoEntryUrl)
+    const demo = await status.json()
+    if (demo.mode !== 'visitor') return NextResponse.redirect(demoEntryUrl)
+    instanceInfo.default_org_slug = demo.entry_org_slug
+  }
   const pathname = req.nextUrl.pathname
   const search = req.nextUrl.search
   const host = req.headers.get('host')

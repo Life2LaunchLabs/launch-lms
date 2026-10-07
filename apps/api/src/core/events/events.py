@@ -54,6 +54,12 @@ def startup_app(app: FastAPI) -> Callable:
         # Reconcile pack credits (Redis ↔ DB)
         _reconcile_packs()
 
+        import asyncio
+        from src.core.events.database import engine
+        from src.services.demo.worker import run_cleanup, run_preparation
+        app.state.demo_cleanup = asyncio.create_task(run_cleanup(engine))
+        app.state.demo_preparation = asyncio.create_task(run_preparation(engine))
+
         # Former EE startup work has either been folded into core startup
         # or intentionally disabled until a native rebuild lands.
 
@@ -62,6 +68,15 @@ def startup_app(app: FastAPI) -> Callable:
 
 def shutdown_app(app: FastAPI) -> Callable:
     async def close_app() -> None:
+        import asyncio
+        for name in ('demo_cleanup', 'demo_preparation'):
+            task = getattr(app.state, name, None)
+            if task:
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
         await close_database(app)
 
     return close_app

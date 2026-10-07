@@ -1,0 +1,18 @@
+[
+  {
+    "viewport": 1440,
+    "warning": "visible",
+    "extension": "passed",
+    "assignedPlan": 200,
+    "badgeStart": 200,
+    "chat": "fixture response passed"
+  },
+  {
+    "viewport": 390,
+    "warning": "visible",
+    "extension": "passed",
+    "assignedPlan": 200,
+    "badgeStart": 200,
+    "chat": "fixture response passed"
+  }
+]

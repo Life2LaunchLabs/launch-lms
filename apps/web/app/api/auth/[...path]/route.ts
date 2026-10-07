@@ -21,6 +21,13 @@ function shouldExtractTokens(path: string): boolean {
   return TOKEN_RESPONSE_PATHS.some(p => path.startsWith(p))
 }
 
+function isDemoToken(token?: string): boolean {
+  try {
+    const payload = JSON.parse(Buffer.from(token?.split('.')[1] || '', 'base64url').toString())
+    return Boolean(payload.demo_session || payload.demo_operator)
+  } catch { return false }
+}
+
 async function proxyRequest(
   request: NextRequest,
   method: string
@@ -34,6 +41,7 @@ async function proxyRequest(
 
   // Build headers
   const headers: HeadersInit = {}
+  headers['X-Forwarded-Host'] = request.headers.get('host') || ''
   const cookieStore = await cookies()
 
   // Forward content-type
@@ -64,11 +72,12 @@ async function proxyRequest(
     // Best-effort backend token invalidation
     try {
       const logoutHeaders: HeadersInit = {}
+      if (accessToken?.value) logoutHeaders['Authorization'] = `Bearer ${accessToken.value}`
       if (refreshToken?.value) {
         logoutHeaders['Cookie'] = `${REFRESH_TOKEN_COOKIE}=${refreshToken.value}`
       }
       await fetch(`${BACKEND_URL}/api/v1/auth/logout`, {
-        method: 'POST',
+        method: 'DELETE',
         headers: logoutHeaders,
         signal: AbortSignal.timeout(3000),
       }).catch(() => {})
@@ -78,7 +87,7 @@ async function proxyRequest(
 
     const response = NextResponse.json({ ok: true })
     const isSecure = request.nextUrl.protocol === 'https:'
-    const domain = getCookieDomain(request)
+    const domain = isDemoToken(accessToken?.value) || isDemoToken(refreshToken?.value) ? undefined : getCookieDomain(request)
     const securePart = isSecure ? '; Secure' : ''
 
     // Clear domain-scoped cookies (the ones set during login on subdomains)
@@ -167,10 +176,13 @@ async function proxyRequest(
 
   // Extract and set auth cookies if this is a token-returning endpoint
   if (backendResponse.ok && shouldExtractTokens(pathSegments) && responseData) {
-    const cookieOptions = getCookieOptions(request)
-
     // Handle different response structures
     const tokens = responseData.tokens || responseData
+    const cookieOptions = getCookieOptions(request)
+    if (isDemoToken(tokens.access_token) || isDemoToken(tokens.refresh_token)) {
+      delete cookieOptions.domain
+      cookieOptions.secure = request.nextUrl.protocol === 'https:' || request.headers.get('x-forwarded-proto')?.split(',')[0] === 'https'
+    }
 
     if (tokens.access_token) {
       response.cookies.set(ACCESS_TOKEN_COOKIE, tokens.access_token, {
