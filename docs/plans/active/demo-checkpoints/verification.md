@@ -1,7 +1,7 @@
 # Demo checkpoint verification
 
-Implementation: `feat/disposable-demo-checkpoints`; final implementation revision is
-recorded below before PR handoff. Owner signoff and approved dev deployment remain
+Implementation revision: `680195bf2dcfff1006b0c26b24347c169b965c1f` on
+`feat/disposable-demo-checkpoints`. The subsequent evidence commit changes only docs. Owner signoff and approved dev deployment remain
 pending. All fixtures are synthetic; captures contain no real learner records.
 
 ## Design references and inspection

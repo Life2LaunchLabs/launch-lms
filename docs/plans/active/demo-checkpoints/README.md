@@ -24,7 +24,7 @@ Changes are temporary, Reset demo, End demo. Admin: Demo admin, Editing live acc
 Save checkpoint, Settings, Exit admin mode. Settings: source user, entry org,
 capacity, session/extension duration, AI request and token budgets. Clearly disclose
 that live admin edits persist and publication affects only future sessions.
-Settings opens an anchored desktop panel/mobile dialog; destructive reset/end use
+Settings opens an anchored panel; destructive reset/end use
 confirmation. Expiry warning uses Dialog with Extend session as primary action.
 No new editor, artificial org or persistent countdown.
 
@@ -32,7 +32,9 @@ Reference v1: this precise brief and existing candidate toolbar code. Viewports:
 1440x900 desktop, 390x844 phone; light/dark, settings open, confirmations, expiry,
 capacity/error/unconfigured states. Browser plan: local synthetic fixture, keyboard
 focus and Escape, reset/end/revisit, expiry extension, admin publish/settings/exit.
-Current rendered evidence must be inspected before handoff; absent inputs are blockers.
+Reference v2 bounds the panel on phone with scrolling fields and a fixed Save footer.
+This refinement follows the owner's agent-design authorization; owner signoff remains
+pending. Current rendered evidence is inspected in [verification](verification.md).
 
 ## Architecture
 
