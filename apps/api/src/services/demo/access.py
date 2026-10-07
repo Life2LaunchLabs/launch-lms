@@ -44,11 +44,14 @@ def operator(request: Request, db: Session) -> User:
 def visitor_credentials(db: Session, identifier: str) -> dict:
     session = active_session(db, identifier)
     checkpoint = checkpoint_info(db, session.checkpoint_id)
-    email = checkpoint.source_email
+    from src.services.demo.cohort import pilot
+
+    account = pilot(checkpoint, session.pilot_user_id)
+    email = account["email"]
     payload = {
         "sub": email,
         "demo_session": identifier,
-        "demo_user": checkpoint.source_user_id,
+        "demo_user": account["user_id"],
     }
     # Session expiry/revocation is authoritative; extensions need no cookie changes.
     return {

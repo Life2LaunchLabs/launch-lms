@@ -12,8 +12,20 @@ export type DemoSettings = {
   ai_tokens_per_visitor: number
   ai_tokens_per_day: number
 }
+export type DemoAccount = {
+  user_id: number
+  first_name: string
+  last_name: string
+  username: string
+  description: string
+  avatar_url?: string | null
+}
+export type DemoMember = DemoAccount & { user_email: string; pilotable: boolean }
 export type DemoStatus = {
   mode: 'public' | 'operator' | 'admin' | 'visitor'
+  accounts?: DemoAccount[]
+  members?: DemoMember[]
+  pilot_user_id?: number
   available?: boolean
   preparing?: boolean
   ready_workspaces?: number
@@ -39,11 +51,19 @@ export async function demoRequest<T>(path: string, method = 'GET', body?: unknow
   return data as T
 }
 
-export async function waitForDemo(signal: AbortSignal): Promise<void> {
+export async function waitForDemo(signal: AbortSignal): Promise<{ entry_org_slug: string }> {
   while (!signal.aborted) {
-    const result = await demoRequest<{ preparing?: boolean; tokens?: unknown }>('ready', 'GET', undefined, signal)
-    if (result.tokens) return
+    const result = await demoRequest<{ preparing?: boolean; tokens?: { entry_org_slug: string } }>('ready', 'GET', undefined, signal)
+    if (result.tokens) return result.tokens
     await new Promise((resolve) => window.setTimeout(resolve, 1000))
   }
   throw new DOMException('Preparation cancelled', 'AbortError')
+}
+
+export function demoAccountName(account: Pick<DemoAccount, 'first_name' | 'last_name' | 'username'>): string {
+  return `${account.first_name} ${account.last_name}`.trim() || account.username
+}
+
+export function announceDemoSetupChange(): void {
+  window.dispatchEvent(new Event('demo-setup-changed'))
 }

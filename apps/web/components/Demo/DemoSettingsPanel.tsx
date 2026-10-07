@@ -4,7 +4,7 @@ import { Button } from '@components/ui/button'
 import { Input } from '@components/ui/input'
 import { Label } from '@components/ui/label'
 import { Switch } from '@components/ui/switch'
-import { demoRequest, type DemoSettings } from '@services/demo/demo'
+import { demoRequest, announceDemoSetupChange, type DemoSettings } from '@services/demo/demo'
 
 const LIMITS = [
   ['capacity', 'Concurrent visitors', 1, 1000],
@@ -22,17 +22,16 @@ export default function DemoSettingsPanel({ settings, readyWorkspaces = 0, onSav
   async function save(event: React.FormEvent) {
     event.preventDefault()
     setBusy(true); setError('')
-    try { await demoRequest('settings', 'PUT', draft); onSaved() }
+    try { await demoRequest('settings', 'PUT', draft); announceDemoSetupChange(); onSaved() }
     catch (failure) { setError((failure as Error).message) }
     finally { setBusy(false) }
   }
   return <form onSubmit={save} className="flex max-h-[80dvh] flex-col">
     <div className="scrollbar-subtle min-h-0 space-y-5 overflow-y-auto p-5">
-    <div><h2 className="text-lg font-semibold">Demo settings</h2><p className="mt-1 text-sm text-muted-foreground">Prepare the live account, then save a checkpoint for visitors.</p></div>
+    <div><h2 className="text-lg font-semibold">Demo settings</h2><p className="mt-1 text-sm text-muted-foreground">Choose the fictional organization, prepare its cohort, then publish one shared checkpoint.</p></div>
     <p className="text-sm text-muted-foreground">Ready workspaces: {readyWorkspaces} of {settings.capacity}. Clean copies prepare in the background after publication and refill as visitors leave.</p>
     <div className="flex items-center justify-between gap-4"><Label htmlFor="demo-enabled">Accept new demo sessions</Label><Switch id="demo-enabled" checked={draft.enabled} onCheckedChange={(enabled) => setDraft({ ...draft, enabled })} /></div>
-    <div className="space-y-2"><Label htmlFor="demo-source">Live demo account email</Label><Input id="demo-source" type="email" required value={draft.source_user_email || ''} onChange={(event) => setDraft({ ...draft, source_user_email: event.target.value })} /></div>
-    <div className="space-y-2"><Label htmlFor="demo-org">Starting organization</Label><Input id="demo-org" required placeholder="Organization slug" value={draft.entry_org_slug || ''} onChange={(event) => setDraft({ ...draft, entry_org_slug: event.target.value })} /><p className="text-xs text-muted-foreground">The account must already belong to this organization.</p></div>
+    <div className="space-y-2"><Label htmlFor="demo-org">Fictional scenario organization</Label><Input id="demo-org" required placeholder="Organization slug" value={draft.entry_org_slug || ''} onChange={(event) => setDraft({ ...draft, entry_org_slug: event.target.value })} /><p className="text-xs text-muted-foreground">Designated demo accounts must belong to this organization. Changing it clears the draft cohort and requires a new checkpoint.</p></div>
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{LIMITS.map(([key, label, min, max]) => <div className="space-y-2" key={key}><Label htmlFor={`demo-${key}`}>{label}</Label><Input id={`demo-${key}`} type="number" required min={min} max={max} step={1} value={draft[key]} onChange={(event) => setDraft({ ...draft, [key]: Number(event.target.value) })} /></div>)}</div>
     <p className="text-xs leading-5 text-muted-foreground">Visitors see a five-minute warning and can extend. AI allowances cover chat, AI generation and background memory processing. Starting over does not replenish the daily allowance.</p>
     </div>

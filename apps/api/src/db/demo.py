@@ -29,6 +29,7 @@ class DemoCheckpoint(SQLModel, table=True):
     source_user_id: int
     entry_org_slug: str
     source_email: str
+    pilots: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
     data: dict = Field(sa_column=Column(JSON, nullable=False))
 
 
@@ -36,6 +37,7 @@ class DemoSession(SQLModel, table=True):
     id: str = Field(primary_key=True)
     checkpoint_id: str
     visitor_id: str = Field(index=True)
+    pilot_user_id: int | None = None
     namespace: str = Field(index=True, unique=True)
     schema_signature: str = ""
     duration_minutes: int = 60
@@ -52,3 +54,11 @@ class DemoUsage(SQLModel, table=True):
     id: str = Field(primary_key=True)
     tokens: int = 0
     requests: int = 0
+
+
+class DemoMember(SQLModel, table=True):
+    """Explicitly designated fictional accounts; only pilots appear publicly."""
+
+    user_id: int = Field(primary_key=True)
+    pilotable: bool = False
+    description: str = ""

@@ -66,6 +66,15 @@ class DemoMiddleware(BaseHTTPMiddleware):
                         raise HTTPException(
                             401, "The demo was updated. Start a fresh session."
                         )
+                    if (
+                        not board
+                        and session.pilot_user_id is not None
+                        and payload.get("demo_user") != session.pilot_user_id
+                    ):
+                        raise HTTPException(
+                            401,
+                            "This credential does not belong to the selected demo account.",
+                        )
                     request.state.demo_namespace = session.namespace
                     request.state.demo_session_id = session.id
                     request.state.demo_aliases = session.aliases

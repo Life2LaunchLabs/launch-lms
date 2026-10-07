@@ -4,8 +4,6 @@ from sqlalchemy import update
 from sqlmodel import Session, select
 from src.db.demo import DemoConfiguration
 from src.db.organizations import Organization
-from src.db.user_organizations import UserOrganization
-from src.db.users import User
 
 
 class DemoSettings(BaseModel):
@@ -36,11 +34,6 @@ def configuration(db: Session, *, lock: bool = False) -> DemoConfiguration:
 
 
 def save_settings(db: Session, settings: DemoSettings) -> DemoConfiguration:
-    user = (
-        db.exec(select(User).where(User.email == settings.source_user_email)).first()
-        if settings.source_user_email
-        else db.get(User, settings.source_user_id)
-    )
     org = (
         db.exec(
             select(Organization).where(Organization.slug == settings.entry_org_slug)
@@ -48,37 +41,22 @@ def save_settings(db: Session, settings: DemoSettings) -> DemoConfiguration:
         if settings.entry_org_slug
         else db.get(Organization, settings.entry_org_id)
     )
-    if not user or not org:
-        raise HTTPException(
-            422, "The live demo account or starting organization was not found."
-        )
-    settings.source_user_id, settings.entry_org_id = user.id, org.id
-    from src.security.superadmin import is_user_owner_org_admin
-
-    if is_user_owner_org_admin(user.id, db):
-        raise HTTPException(
-            422, "The demo source must not have platform administrator privileges."
-        )
-    membership = db.exec(
-        select(UserOrganization).where(
-            UserOrganization.user_id == settings.source_user_id,
-            UserOrganization.org_id == settings.entry_org_id,
-        )
-    ).first()
-    if not user or user.is_superadmin or not org or not membership:
-        raise HTTPException(
-            422,
-            "Choose a non-superadmin demo user who belongs to the entry organization.",
-        )
+    if not org:
+        raise HTTPException(422, "The fictional scenario organization was not found.")
+    settings.entry_org_id = org.id
     previous = configuration(db, lock=True)
     values = settings.model_dump(
         exclude={"revision", "source_user_email", "entry_org_slug"}
     )
-    if (
-        previous.source_user_id != settings.source_user_id
-        or previous.entry_org_id != settings.entry_org_id
-    ):
+    if previous.entry_org_id != settings.entry_org_id:
+        from src.db.demo import DemoMember
+        from sqlmodel import delete
+
+        db.exec(delete(DemoMember))
         values["checkpoint_id"] = None
+        values["source_user_id"] = None
+    else:
+        values["source_user_id"] = previous.source_user_id
     changed = db.execute(
         update(DemoConfiguration)
         .where(

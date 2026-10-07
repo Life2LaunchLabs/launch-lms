@@ -44,6 +44,11 @@ hubeditobjectstate requirementattainmentsource
 )
 # Private peer work is deliberately excluded even when it belongs to an included org.
 ANCHORS = {
+    "learningbadgeversion": "badge_id",
+    "learningpath": "version_id",
+    "learningactivity": "path_id",
+    "learningpage": "activity_id",
+    "learningvariable": "org_id",
     "learningactivityrun": "run_id",
     "learningpageprogress": "run_id",
     "usersavedresourcechannel": "saved_resource_id",
@@ -61,6 +66,8 @@ ANCHORS = {
     "planobjectiveprogress": "plan_objective_id",
     "planattachment": "plan_id",
     "planactivity": "plan_id",
+    "planinvitation": "plan_id",
+    "plancollaboratorrequest": "plan_id",
     "hubconversationmessage": "conversation_id",
     "hubconversationmessageresource": "message_id",
     "hubconversationresource": "conversation_id",
@@ -106,7 +113,9 @@ def encode_value(value):
     return value
 
 
-def capture(db: Session, user_id: int, entry_org_id: int) -> dict:
+def capture(
+    db: Session, user_id: int, entry_org_id: int, cohort_ids: set[int] | None = None
+) -> dict:
     tables = SQLModel.metadata.tables
     rows: dict[str, dict] = {name: {} for name in tables}
 
@@ -120,13 +129,18 @@ def capture(db: Session, user_id: int, entry_org_id: int) -> dict:
     def read(name, condition):
         return db.execute(select(tables[name]).where(condition)).mappings().all()
 
+    user_ids = cohort_ids or {user_id}
     memberships = read(
-        "userorganization", tables["userorganization"].c.user_id == user_id
+        "userorganization", tables["userorganization"].c.user_id.in_(user_ids)
     )
+    if cohort_ids is not None:
+        memberships = [
+            record for record in memberships if record["org_id"] == entry_org_id
+        ]
     org_ids = {record["org_id"] for record in memberships}
     if entry_org_id not in org_ids:
         raise HTTPException(422, "The demo user must belong to the entry organization.")
-    add("user", read("user", tables["user"].c.id == user_id))
+    add("user", read("user", tables["user"].c.id.in_(user_ids)))
     add("organization", read("organization", tables["organization"].c.id.in_(org_ids)))
     add("userorganization", memberships)
     for name in PERSONAL:
@@ -140,10 +154,13 @@ def capture(db: Session, user_id: int, entry_org_id: int) -> dict:
             None,
         )
         if owner is not None:
-            add(name, read(name, owner == user_id))
+            condition = owner.in_(user_ids)
+            if cohort_ids is not None and "org_id" in table.c:
+                condition &= table.c.org_id == entry_org_id
+            add(name, read(name, condition))
     plan = tables["plan"]
     collaborators = read(
-        "plancollaborator", tables["plancollaborator"].c.user_id == user_id
+        "plancollaborator", tables["plancollaborator"].c.user_id.in_(user_ids)
     )
     plan_ids = {record["plan_id"] for record in collaborators}
     add(
@@ -151,12 +168,18 @@ def capture(db: Session, user_id: int, entry_org_id: int) -> dict:
         read(
             "plan",
             or_(
-                plan.c.subject_user_id == user_id,
-                plan.c.owner_user_id == user_id,
+                plan.c.subject_user_id.in_(user_ids),
+                plan.c.owner_user_id.in_(user_ids),
                 plan.c.id.in_(plan_ids),
             ),
         ),
     )
+    if cohort_ids is not None:
+        rows["plan"] = {
+            key: record
+            for key, record in rows["plan"].items()
+            if record["source_org_id"] in (None, entry_org_id)
+        }
     # Include collaborators only on this learner's plans, never their other work.
     add(
         "plancollaborator",
@@ -173,14 +196,59 @@ def capture(db: Session, user_id: int, entry_org_id: int) -> dict:
             condition = table.c.org_id.in_(org_ids)
             if name == "board":
                 condition = condition & or_(
-                    table.c.public.is_(True), table.c.created_by == user_id
+                    table.c.public.is_(True), table.c.created_by.in_(user_ids)
                 )
             add(name, read(name, condition))
         elif name == "role":
             add(name, read(name, table.c.org_id.is_(None)))
+        elif cohort_ids is not None and name == "badgeissuerauthorization":
+            add(
+                name,
+                read(
+                    name,
+                    or_(
+                        table.c.issuer_org_id.in_(org_ids),
+                        table.c.creator_org_id.in_(org_ids),
+                    ),
+                ),
+            )
+        elif cohort_ids is not None and name == "resourceauthor":
+            add(name, read(name, table.c.user_id.in_(user_ids)))
+    # Group/resource links use UUIDs rather than a database foreign key.
+    # Preserve shared catalog resources assigned to the fictional cohort.
+    if cohort_ids is not None:
+        resource_uuids = {
+            record["resource_uuid"] for record in rows["usergroupresource"].values()
+        }
+        resource_uuids |= {
+            record["resource_uuid"] for record in rows["resourceauthor"].values()
+        }
+        if resource_uuids:
+            add(
+                "resource",
+                read(
+                    "resource", tables["resource"].c.resource_uuid.in_(resource_uuids)
+                ),
+            )
+    if cohort_ids is not None:
+        for name in ("programassignment", "requirementassignmentbatch"):
+            add(name, read(name, tables[name].c.org_id == entry_org_id))
     # Iterate to a fixed point; never follow private peer state or credential tables.
+    scenario_tables = set()
+    if cohort_ids is not None:
+        scenario_tables = set(
+            "discussion discussioncomment discussionvote discussioncommentvote discussionreaction planinvitation plancollaboratorrequest".split()
+        )
+        for name in scenario_tables - {"planinvitation", "plancollaboratorrequest"}:
+            table = tables[name]
+            owner = table.c.author_id if "author_id" in table.c else table.c.user_id
+            condition = owner.in_(user_ids)
+            if "org_id" in table.c:
+                condition &= table.c.org_id == entry_org_id
+            add(name, read(name, condition))
     allowed = (
-        CONTENT
+        scenario_tables
+        | CONTENT
         | PERSONAL
         | CHILDREN
         | {
@@ -206,13 +274,35 @@ def capture(db: Session, user_id: int, entry_org_id: int) -> dict:
                         if record[column.name] is not None
                     }
                     if values:
+                        if cohort_ids is not None and parent == "user":
+                            values &= user_ids
                         add(parent, read(parent, fk.column.in_(values)))
                     if ANCHORS.get(name) == column.name:
                         parent_values = {
                             record[fk.column.name] for record in rows[parent].values()
                         }
                         if parent_values:
-                            add(name, read(name, column.in_(parent_values)))
+                            condition = column.in_(parent_values)
+                            if (
+                                cohort_ids is not None
+                                and name == "learningbadgeversion"
+                            ):
+                                condition &= or_(
+                                    table.c.org_id.in_(org_ids),
+                                    table.c.state == "published",
+                                )
+                            add(name, read(name, condition))
+        # Legacy unversioned paths have no version FK to anchor from.
+        badge_ids = {record["id"] for record in rows["learningbadge"].values()}
+        if badge_ids:
+            path = tables["learningpath"]
+            add(
+                "learningpath",
+                read(
+                    "learningpath",
+                    path.c.badge_id.in_(badge_ids) & path.c.version_id.is_(None),
+                ),
+            )
         if before == sum(map(len, rows.values())):
             break
     # Role IDs are global in legacy authorization; include definitions, not memberships.
@@ -226,7 +316,7 @@ def capture(db: Session, user_id: int, entry_org_id: int) -> dict:
         ),
     )
     for record in rows["user"].values():
-        is_source = record["id"] == user_id
+        is_source = record["id"] in user_ids
         record.update(
             password="!demo-login-disabled",
             is_superadmin=False,
@@ -243,6 +333,10 @@ def capture(db: Session, user_id: int, entry_org_id: int) -> dict:
                 avatar_image="",
                 last_login_at=None,
             )
+    if cohort_ids is not None:
+        from src.services.demo.scenario import exclude_real_users
+
+        exclude_real_users(rows, tables, user_ids, PERSONAL)
     # Empty live-only tokens embedded in configuration/content JSON; never copy scripts.
     for name, records in rows.items():
         for record in records.values():

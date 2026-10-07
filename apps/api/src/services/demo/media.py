@@ -22,7 +22,9 @@ def strings(value):
             yield from strings(item)
 
 
-def capture_files(data: dict, source_user_id: int) -> dict:
+def capture_files(
+    data: dict, source_user_id: int, cohort_ids: set[int] | None = None
+) -> dict:
     # A filename match alone is never enough: require the record's owner/entity path.
     from urllib.parse import urlsplit, unquote
 
@@ -35,15 +37,19 @@ def capture_files(data: dict, source_user_id: int) -> dict:
             if path.startswith(("/content/", "content/")):
                 paths.add(path.lstrip("/"))
     orgs = {record["id"]: record["org_uuid"] for record in data.get("organization", [])}
-    source = next(record for record in data["user"] if record["id"] == source_user_id)
+    users = [
+        record
+        for record in data["user"]
+        if record["id"] in (cohort_ids or {source_user_id})
+    ]
     for name, records in data.items():
         for record in records:
-            if name == "user" and record["id"] != source_user_id:
+            if name == "user" and record["id"] not in (cohort_ids or {source_user_id}):
                 continue
             if name == "organization":
                 prefix = f"content/orgs/{record['org_uuid']}"
             elif name == "user":
-                prefix = f"content/users/{source['user_uuid']}"
+                prefix = f"content/users/{record['user_uuid']}"
             else:
                 org_uuid = orgs.get(record.get("org_id"))
                 entity = next(
@@ -80,7 +86,7 @@ def capture_files(data: dict, source_user_id: int) -> dict:
     result = {}
     total = 0
     allowed = {f"content/orgs/{uuid}/" for uuid in orgs.values()} | {
-        f"content/users/{source['user_uuid']}/"
+        f"content/users/{user['user_uuid']}/" for user in users
     }
     for path in sorted(paths):
         if ".." in PurePosixPath(path).parts or not any(

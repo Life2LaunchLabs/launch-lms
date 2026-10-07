@@ -11,6 +11,7 @@ def checkpoint_info(db: Session, identifier: str):
             DemoCheckpoint.created_at,
             DemoCheckpoint.source_user_id,
             DemoCheckpoint.source_email,
+            DemoCheckpoint.pilots,
             DemoCheckpoint.entry_org_slug,
             DemoCheckpoint.schema_signature,
         ).where(DemoCheckpoint.id == identifier)

@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 from sqlmodel import Session
 from sqlmodel import select, func
 from src.core.events.database import engine
-from src.db.demo import DemoSession
+from src.db.demo import DemoSession, DemoMember
 from src.services.demo.metadata import checkpoint_info
 from src.db.users import User
 from src.db.organizations import Organization
@@ -11,6 +11,13 @@ from src.security.auth import create_access_token, create_refresh_token, decode_
 from src.security.security import SECRET_KEY
 from src.services.demo.access import claims, operator, visitor_credentials
 from src.services.demo.configuration import DemoSettings, configuration, save_settings
+from src.services.demo.cohort import (
+    CohortSettings,
+    save_cohort,
+    draft_accounts,
+    public_pilots,
+    validate_member,
+)
 from src.services.demo.lifecycle import (
     active_session,
     end,
@@ -27,6 +34,10 @@ router = APIRouter()
 def control_db():
     with Session(engine) as db:
         yield db
+
+
+class PilotSelection(BaseModel):
+    user_id: int | None = Field(default=None, gt=0)
 
 
 class Revision(BaseModel):
@@ -76,6 +87,7 @@ def status(request: Request, db: Session = Depends(control_db)):
             "mode": "visitor",
             "expires_at": session.expires_at.isoformat() + "Z",
             "checkpoint_id": session.checkpoint_id,
+            "pilot_user_id": session.pilot_user_id,
             "entry_org_slug": checkpoint_info(db, session.checkpoint_id).entry_org_slug,
         }
     if payload.get("sub"):
@@ -104,6 +116,8 @@ def status(request: Request, db: Session = Depends(control_db)):
                     else "",
                 },
                 "actor_id": actor.id,
+                "members": draft_accounts(db),
+                "accounts": public_pilots(checkpoint),
                 "ready_workspaces": db.exec(
                     select(func.count())
                     .select_from(DemoSession)
@@ -119,6 +133,9 @@ def status(request: Request, db: Session = Depends(control_db)):
             }
     return {
         "mode": "public",
+        "accounts": public_pilots(checkpoint_info(db, config.checkpoint_id))
+        if config.enabled
+        else [],
         "available": bool(config.enabled and config.checkpoint_id),
         "preparing": bool(pending_id(request)),
     }
@@ -130,11 +147,31 @@ def settings(request: Request, body: DemoSettings, db: Session = Depends(control
     return save_settings(db, body)
 
 
+@router.put("/cohort")
+def cohort_settings(
+    request: Request, body: CohortSettings, db: Session = Depends(control_db)
+):
+    operator(request, db)
+    return save_cohort(db, body)
+
+
 @router.post("/admin/enter")
-def enter_admin(request: Request, db: Session = Depends(control_db)):
+def enter_admin(
+    request: Request,
+    body: PilotSelection = PilotSelection(),
+    db: Session = Depends(control_db),
+):
     actor = operator(request, db)
     config = configuration(db)
-    source = db.get(User, config.source_user_id)
+    source_id = body.user_id or config.source_user_id
+    source = db.get(User, source_id)
+    if not db.get(DemoMember, source_id):
+        from fastapi import HTTPException
+
+        raise HTTPException(
+            422, "Choose an account in the designated fictional cohort."
+        )
+    validate_member(db, source, config.entry_org_id)
     if not source:
         from fastapi import HTTPException
 
@@ -187,7 +224,11 @@ def checkpoint(request: Request, body: Revision):
 
 
 @router.post("/start", status_code=202)
-def start_session(request: Request, db: Session = Depends(control_db)):
+def start_session(
+    request: Request,
+    body: PilotSelection = PilotSelection(),
+    db: Session = Depends(control_db),
+):
     from src.services.security.rate_limiting import check_rate_limit
     from fastapi import HTTPException
     from datetime import timedelta
@@ -214,7 +255,7 @@ def start_session(request: Request, db: Session = Depends(control_db)):
     queued = pending_id(request)
     if queued:
         end(db, queued)
-    session = admit(db, fingerprint)
+    session = admit(db, fingerprint, body.user_id)
     return {**pending_ticket(session), "visitor_token": visitor_token}
 
 
@@ -243,9 +284,9 @@ def ready(request: Request, db: Session = Depends(control_db)):
 @router.post("/reset", status_code=202)
 def reset_session(request: Request, db: Session = Depends(control_db)):
     session = active_session(db, visitor_id(request))
-    fingerprint = session.visitor_id
+    fingerprint, pilot_id = session.visitor_id, session.pilot_user_id
     end(db, session.id)
-    replacement = admit(db, fingerprint)
+    replacement = admit(db, fingerprint, pilot_id)
     return pending_ticket(replacement)
 
 

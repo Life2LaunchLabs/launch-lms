@@ -37,6 +37,19 @@ def publish(db: Session, actor_id: int, revision: int) -> DemoCheckpoint:
         raise HTTPException(
             422, "Configure the live demo user and entry organization first."
         )
+    from src.services.demo.cohort import members, validate_member, identity
+
+    cohort = members(db)
+    if not cohort or not any(member.pilotable for member in cohort):
+        raise HTTPException(
+            422,
+            "Designate the fictional cohort and at least one pilotable account first.",
+        )
+    cohort_users = {
+        member.user_id: validate_member(db, db.get(User, member.user_id), org.id)
+        for member in cohort
+    }
+    user_ids = set(cohort_users)
     # Publication captures one database transaction; callers use REPEATABLE READ.
     checkpoint = DemoCheckpoint(
         id=uuid4().hex,
@@ -45,12 +58,26 @@ def publish(db: Session, actor_id: int, revision: int) -> DemoCheckpoint:
         source_user_id=user.id,
         source_email=user.email,
         entry_org_slug=org.slug,
-        data=capture(db, user.id, org.id),
+        data=capture(db, user.id, org.id, user_ids),
     )
     checkpoint.data = {
         "schema": schema_signature(),
         "rows": checkpoint.data,
-        "files": capture_files(checkpoint.data, user.id),
+        "files": capture_files(checkpoint.data, user.id, user_ids),
+    }
+    from src.services.demo.portraits import published_portrait
+
+    checkpoint.pilots = {
+        str(member.user_id): {
+            **identity(cohort_users[member.user_id]),
+            "email": cohort_users[member.user_id].email,
+            "description": member.description,
+            "avatar_url": published_portrait(
+                cohort_users[member.user_id], checkpoint.data["files"]
+            ),
+        }
+        for member in cohort
+        if member.pilotable
     }
     db.add(checkpoint)
     config.checkpoint_id = checkpoint.id
@@ -76,7 +103,9 @@ def active_session(db: Session, identifier: str, *, lock: bool = False) -> DemoS
     return session
 
 
-def admit(db: Session, visitor_id: str) -> DemoSession:
+def admit(
+    db: Session, visitor_id: str, pilot_user_id: int | None = None
+) -> DemoSession:
     config = configuration(db, lock=True)
     if not config.enabled or not config.checkpoint_id:
         raise HTTPException(
@@ -104,6 +133,9 @@ def admit(db: Session, visitor_id: str) -> DemoSession:
     checkpoint = checkpoint_info(db, config.checkpoint_id)
     if not checkpoint:
         raise HTTPException(503, "The demo checkpoint is unavailable.")
+    from src.services.demo.cohort import pilot
+
+    account = pilot(checkpoint, pilot_user_id)
     if checkpoint.schema_signature != schema_signature():
         raise HTTPException(
             503,
@@ -126,6 +158,7 @@ def admit(db: Session, visitor_id: str) -> DemoSession:
     ).first()
     if warmed:
         warmed.visitor_id = visitor_id
+        warmed.pilot_user_id = account["user_id"]
         warmed.duration_minutes = config.session_minutes
         warmed.expires_at = datetime.utcnow() + timedelta(
             minutes=config.session_minutes if warmed.state == "available" else 15
@@ -143,6 +176,7 @@ def admit(db: Session, visitor_id: str) -> DemoSession:
         schema_signature=schema_signature(),
         checkpoint_id=checkpoint.id,
         visitor_id=visitor_id,
+        pilot_user_id=account["user_id"],
         duration_minutes=config.session_minutes,
         expires_at=datetime.utcnow() + timedelta(minutes=15),
     )
@@ -228,9 +262,11 @@ def prepare(engine, identifier: str) -> bool:
             lease.commit()
 
 
-def start(db: Session, engine, visitor_id: str) -> DemoSession:
+def start(
+    db: Session, engine, visitor_id: str, pilot_user_id: int | None = None
+) -> DemoSession:
     """Blocking composition used by internal probes; HTTP admission stays quick."""
-    session = admit(db, visitor_id)
+    session = admit(db, visitor_id, pilot_user_id)
     identifier = session.id
     db.rollback()
     deadline = time.monotonic() + 900

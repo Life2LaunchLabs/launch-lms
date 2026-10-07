@@ -4,7 +4,7 @@ import { getConfig } from '@services/config/config'
 import { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from '@services/auth/cookies'
 
 const BACKEND = (process.env.LAUNCHLMS_INTERNAL_BACKEND_URL || getConfig('NEXT_PUBLIC_LAUNCHLMS_BACKEND_URL') || 'http://localhost:1338').replace(/\/+$/, '')
-const PATHS = new Set(['status', 'ready', 'settings', 'checkpoints', 'admin/enter', 'admin/exit', 'start', 'reset', 'end', 'extend'])
+const PATHS = new Set(['status', 'ready', 'settings', 'cohort', 'checkpoints', 'admin/enter', 'admin/exit', 'start', 'reset', 'end', 'extend'])
 
 async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname.replace('/api/demo/', '')

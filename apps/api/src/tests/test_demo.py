@@ -393,7 +393,7 @@ def test_checkpoint_excludes_private_peer_work_and_credentials():
             row["plan_uuid"] == "plan_peer_private_test"
             for row in snapshot.get("plan", [])
         )
-        assert snapshot["plan"][0]["source_org_id"] == 1
+        assert snapshot["plan"][0]["source_org_id"] == db.get(Plan, 1).source_org_id
         for user in snapshot["user"]:
             assert user["password"] == "!demo-login-disabled"
             assert user["is_superadmin"] is False
@@ -424,9 +424,9 @@ def test_postgres_copy_isolation_and_end_revocation():
     identifiers = []
     try:
         with Session(engine) as db:
-            first = start(db, engine, "integration-first")
+            first = start(db, engine, "integration-first", 2)
             identifiers.append(first.id)
-            second = start(db, engine, "integration-second")
+            second = start(db, engine, "integration-second", 2)
             identifiers.append(second.id)
             source = db.get(User, 2)
             original = source.first_name

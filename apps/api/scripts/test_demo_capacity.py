@@ -31,7 +31,7 @@ identifiers = []
 
 def provision(index):
     with Session(engine) as db:
-        session = start(db, engine, f"load-visitor-{index}")
+        session = start(db, engine, f"load-visitor-{index}", source_id)
         return session.id, session.namespace
 
 
@@ -57,7 +57,7 @@ try:
     with Session(engine) as db:
         assert db.get(User, source_id).bio == source_bio
         try:
-            start(db, engine, "over-capacity")
+            start(db, engine, "over-capacity", source_id)
         except Exception as exc:
             assert getattr(exc, "status_code", None) == 503
         else:
