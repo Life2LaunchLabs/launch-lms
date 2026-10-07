@@ -1,14 +1,18 @@
 # Demo checkpoint verification
 
-Implementation revision: `680195bf2dcfff1006b0c26b24347c169b965c1f` on
-`feat/disposable-demo-checkpoints`. The subsequent evidence commit changes only docs. Owner signoff and approved dev deployment remain
+Initial implementation revision: `680195bf2dcfff1006b0c26b24347c169b965c1f` on
+`feat/disposable-demo-checkpoints`. PR #90 includes subsequent CI regression fixes;
+the verified code revision is `f86f3b6c5bad264ebe74ec0d9bbb1d3c870d68b5`.
+The follow-up evidence commit changes only documentation and captures. Owner signoff and approved dev deployment remain
 pending. All fixtures are synthetic; captures contain no real learner records.
 
 ## Design references and inspection
 
 Selected reference v1: the owner-authorized design brief in [README](README.md),
 existing CandidateToolbar/CandidateExperience, and adopted Button, Dialog, Popover,
-Switch, Label and Input. Reference v2 retains that composition and fixes the settings
+Switch, Label and Input. Reference v3 limits management controls to live `/demo`,
+keeps the active bar at 48px and accounts for it in the Hub, loading shell and sidebar.
+Reference v2 retains that composition and fixes the settings
 panel to keep its Save footer visible while its fields scroll. DemoToolbar has a
 catalog entry and native preview in the existing design-system catalog.
 
@@ -18,8 +22,9 @@ phone dark entry; expiry warning at both sizes. The visitor bar stays outside th
 normal Hub layout, with Reset/End always available. The admin bar distinguishes live
 editing and checkpoint publication. Phone labels simplify without losing accessible
 names. The settings footer remains visible and forms scroll within the viewport.
-Entry and dialogs have legible spacing and fit the agreed viewports. No horizontal
-page overflow was observed. The existing shared Dialog's phone treatment is retained.
+Entry and dialogs have legible spacing and fit the agreed viewports. Final explicit bounds checks found no horizontal or vertical overflow on the
+visitor Hub at either size or live admin Hub on desktop; all three bars measured
+48px. Ordinary operator Hub pages have no demo bar. The existing shared Dialog's phone treatment is retained.
 Owner approval is still required; these captures are evidence, not a new baseline.
 
 Inspection found and fixed two issues: Escape did not return confirmation focus to
@@ -83,7 +88,7 @@ storage and representative checkpoint sizing require dev/activation verification
 
 ## Owner test scenarios
 
-1. Configure the existing non-platform-admin source learner and its org. Enter Edit
+1. As a platform admin, open `/demo` on the live site. Configure the existing non-platform-admin source learner and its org. Enter Edit
    demo account, edit normal portfolio/plan/badge content, then Save checkpoint.
 2. Start demos in two separate browser profiles. Edit the same item differently;
    verify neither visitor nor the source account sees the other's edits.
@@ -96,6 +101,23 @@ storage and representative checkpoint sizing require dev/activation verification
    stale settings revision instead of overwriting another admin's change.
 7. On dev, confirm host-only cookies and same-origin private media on the dedicated
    demo hostname, storage deletion, provider configuration and Ready workspaces refill.
+
+## CI regression follow-up
+
+The first CI head (`8c2e10e164a956db95f9f20f6d929941aff0f511`) failed browser
+viewport/feedback checks and both image runtime smoke checks. Ordinary admin pages
+were receiving a demo bar, and the collaboration ESM import lacked the `.js`
+extension required by Node. Management controls now appear on live `/demo`; active
+admin editing and visitor sessions keep their bar. The compiled Node 24 server was
+built and started directly, and `/health` returned 200. The final captures were inspected at the selected viewports, including the
+refreshed expiry dialogs. Both warning/extension/assigned-plan/badge-start/test-chat
+flows passed again. Commands: `node scripts/verify-demo-browser.cjs`,
+`bunx playwright test candidate-viewport.spec.ts candidate-feedback.spec.ts`, and
+the local expiry fixture probe.
+
+The eight existing candidate Hub/feedback regression scenarios passed locally on
+desktop and phone. Demo captures are refreshed with explicit horizontal/vertical
+bounds assertions and exact 48px bar height; latest-head CI remains required.
 
 ## Delivery blockers
 

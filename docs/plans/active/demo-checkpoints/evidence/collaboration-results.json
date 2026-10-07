@@ -3,5 +3,11 @@
   "createdRoom": "isolated",
   "persistedEdit": "passed",
   "endedSocket": "disconnected",
-  "revokedAccess": 401
+  "revokedAccess": 401,
+  "compiledNodeStartup": {
+    "runtime": "Node 24",
+    "build": "bun run build",
+    "health": 200,
+    "esmImport": "./demo.js"
+  }
 }

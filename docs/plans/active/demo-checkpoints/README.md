@@ -32,7 +32,9 @@ Reference v1: this precise brief and existing candidate toolbar code. Viewports:
 1440x900 desktop, 390x844 phone; light/dark, settings open, confirmations, expiry,
 capacity/error/unconfigured states. Browser plan: local synthetic fixture, keyboard
 focus and Escape, reset/end/revisit, expiry extension, admin publish/settings/exit.
-Reference v2 bounds the panel on phone with scrolling fields and a fixed Save footer.
+Reference v3 keeps management controls on the live `/demo` page and active demo bars
+at exactly 48px, subtracting that height from the Hub/sidebar viewport. Ordinary
+admin pages retain their existing layout. Reference v2 bounds the panel on phone with scrolling fields and a fixed Save footer.
 This refinement follows the owner's agent-design authorization; owner signoff remains
 pending. Current rendered evidence is inspected in [verification](verification.md).
 
@@ -111,7 +113,7 @@ The normal live site remains the place admins edit the source account. No separa
 product fork is required.
 
 Apply the migration first; it seeds **disabled** demo settings. As a platform admin,
-open Demo settings on the live site, select the existing learner's email and starting
+open `/demo` on the live site and select Demo settings, select the existing learner's email and starting
 organization, set capacity/expiry/AI budgets and save. Enter Edit demo account, prepare
 it with normal editors and Save checkpoint. Enable new visits, let Ready workspaces
 fill, then share the demo link. Publish again whenever the source scenario or org
