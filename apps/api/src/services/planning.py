@@ -567,9 +567,7 @@ def create_plan(db: Session, current_user: PublicUser, payload: PlanCreate) -> d
     name = payload.name.strip()
     if not name:
         raise HTTPException(status_code=422, detail="Plan name is required")
-    if payload.due_date is None:
-        raise HTTPException(status_code=422, detail="A target completion date is required")
-    if payload.start_date and payload.start_date > payload.due_date:
+    if payload.start_date and payload.due_date and payload.start_date > payload.due_date:
         raise HTTPException(status_code=422, detail="Plan target date must be on or after its start date")
     now = _now_string()
     plan = Plan(
