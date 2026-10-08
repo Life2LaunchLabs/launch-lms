@@ -433,5 +433,76 @@ def test_failed_preparation_keeps_the_cause_for_operators(world, monkeypatch):
     assert failed.error == "Workspace preparation failed. Please start again."
     assert "No space left on device" in failed.failure_detail
     from src.routers.demo import _preparation_error
+    from src.services.demo.namespaces import drop_namespace
 
     assert "No space left" in _preparation_error(db, failed.checkpoint_id)
+    drop_namespace(engine, failed.namespace)
+
+
+def test_workspace_accepts_enums_the_live_schema_stores_as_text(world):
+    """Migrations created some model enums as VARCHAR; their types never exist."""
+    db, engine, users, M = world
+    users.create_demo_user(
+        db,
+        10,
+        users.CreateDemoUser(
+            start_from="copy",
+            first_name="Maya",
+            source_email="sam@example.com",
+            password="consented",
+            orgs=[users.OrgChoice(slug="oregon-high")],
+        ),
+    )
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "ALTER TABLE learningvariable ALTER COLUMN value_type TYPE varchar "
+                "USING value_type::text"
+            )
+        )
+        conn.execute(text("DROP TYPE learningvariablevaluetype"))
+        conn.execute(
+            text(
+                "INSERT INTO learningvariable (org_id, key, label, description, "
+                "value_type, options, variable_uuid, creation_date, update_date) "
+                "VALUES (1, 'goal', 'Goal', '', 'TEXT', '[]', 'var_goal', '', '')"
+            )
+        )
+    from src.services.demo.lifecycle import publish
+    from src.services.demo.namespaces import drop_namespace, materialize, remap
+
+    try:
+        revision = db.exec(text("SELECT revision FROM democonfiguration")).scalar()
+        checkpoint = publish(db, 10, revision)
+        assert checkpoint.data["rows"]["learningvariable"]
+        session = "e" * 32
+        namespace = f"demo_{session}"
+        data, _ = remap(checkpoint.data["rows"], session, checkpoint.data["files"])
+        drop_namespace(engine, namespace)
+        try:
+            materialize(engine, namespace, data)
+            with engine.connect() as conn:
+                assert (
+                    conn.execute(
+                        text(f'SELECT value_type FROM "{namespace}".learningvariable')
+                    ).scalar()
+                    == "TEXT"
+                )
+        finally:
+            drop_namespace(engine, namespace)
+    finally:
+        db.rollback()
+        with engine.begin() as conn:
+            conn.execute(text("DELETE FROM learningvariable"))
+            from src.db.learning import LearningVariableValueType
+
+            labels = ", ".join(f"'{item.name}'" for item in LearningVariableValueType)
+            conn.execute(
+                text(f"CREATE TYPE learningvariablevaluetype AS ENUM ({labels})")
+            )
+            conn.execute(
+                text(
+                    "ALTER TABLE learningvariable ALTER COLUMN value_type TYPE "
+                    "learningvariablevaluetype USING value_type::learningvariablevaluetype"
+                )
+            )
