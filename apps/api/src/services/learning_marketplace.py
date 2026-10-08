@@ -34,6 +34,7 @@ from src.db.user_organizations import UserOrganization
 from src.db.users import AnonymousUser, PublicUser, User
 from src.security.features_utils.resolve import resolve_feature
 from src.security.superadmin import is_user_superadmin
+from src.services.learning_issuer_links import ensure_learner_membership, simulate_issuer_acceptance
 from src.services.learning import (
     _clean_uuid,
     _get_badge,
@@ -597,7 +598,7 @@ async def create_learner_link(
             db_session.add(existing)
             db_session.commit()
             db_session.refresh(existing)
-        return _serialize_learner_link(db_session, existing)
+        return _serialize_learner_link(db_session, simulate_issuer_acceptance(db_session, existing))
 
     now = _now()
     link = BadgeIssuerLearnerLink(
@@ -662,7 +663,7 @@ async def request_learner_support(
             db_session.add(existing)
             db_session.commit()
             db_session.refresh(existing)
-        return _serialize_learner_link(db_session, existing)
+        return _serialize_learner_link(db_session, simulate_issuer_acceptance(db_session, existing))
     link = BadgeIssuerLearnerLink(
         link_uuid=f"issuer_link_{uuid4()}",
         authorization_id=authorization.id or 0,
@@ -678,7 +679,7 @@ async def request_learner_support(
     db_session.add(link)
     db_session.commit()
     db_session.refresh(link)
-    return _serialize_learner_link(db_session, link)
+    return _serialize_learner_link(db_session, simulate_issuer_acceptance(db_session, link))
 
 
 async def decide_learner_request(
@@ -724,20 +725,7 @@ async def decide_learner_request(
     link.ended_at = None
     link.update_date = _now()
     if accepted:
-        membership = db_session.exec(
-            select(UserOrganization).where(
-                UserOrganization.org_id == link.issuer_org_id,
-                UserOrganization.user_id == link.user_id,
-            )
-        ).first()
-        if not membership:
-            db_session.add(UserOrganization(
-                user_id=link.user_id,
-                org_id=link.issuer_org_id,
-                role_id=4,
-                creation_date=_now(),
-                update_date=_now(),
-            ))
+        ensure_learner_membership(db_session, link, _now())
     db_session.add(link)
     db_session.commit()
     db_session.refresh(link)

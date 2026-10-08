@@ -561,11 +561,34 @@ def test_publish_includes_the_public_badge_catalog_of_every_org(world):
             org_id=3,
         )
     )
+    # Org 4 issues the catalog badge without any tie to the demo users.
+    from src.db.organizations import Organization
+
+    db.add(Organization(id=4, org_uuid="org_issuer", name="Issuer", slug="issuer", email="i@example.com"))
+    db.flush()
+    from src.db.learning import BadgeIssuerAuthorization, BadgeIssuerAuthorizationStatus
+
+    for identifier, state in ((1, BadgeIssuerAuthorizationStatus.APPROVED), (2, BadgeIssuerAuthorizationStatus.REQUESTED)):
+        db.add(
+            BadgeIssuerAuthorization(
+                id=identifier,
+                authorization_uuid=f"issuer_auth_{identifier}",
+                badge_id=49 + identifier,
+                creator_org_id=3,
+                issuer_org_id=4,
+                status=state,
+            )
+        )
     db.commit()
     from src.services.demo.lifecycle import publish
 
     revision = db.exec(text("SELECT revision FROM democonfiguration")).scalar()
     rows = publish(db, 10, revision).data["rows"]
+    # Approved issuers of catalog badges come along so learners can choose one.
+    assert [row["id"] for row in rows["badgeissuerauthorization"]] == [1]
+    # No issuer staff in a demo copy: visitors may request any captured issuer.
+    assert rows["badgeissuerauthorization"][0]["open_to_all"] is True
+    assert "Issuer" in {row["name"] for row in rows["organization"]}
     names = {row["name"] for row in rows["learningbadge"]}
     assert {"CPR", "Phlebotomy", "First Aid"} <= names
     assert "Unfinished" not in names

@@ -29,8 +29,8 @@ export default function LearningBadgeOverview({ orgslug, badgePath, programAssig
   const requestSupport = async (issuerOrgId: number) => {
     setRequesting(issuerOrgId)
     try {
-      await requestIssuerLearnerSupport({ badge_uuid: badge.badge_uuid, issuer_org_id: issuerOrgId }, session.data?.tokens?.access_token)
-      toast.success('Request sent. You can start when the organization accepts it.')
+      const link = await requestIssuerLearnerSupport({ badge_uuid: badge.badge_uuid, issuer_org_id: issuerOrgId }, session.data?.tokens?.access_token)
+      toast.success(link?.active ? 'The organization joined you on this badge. You can start now.' : 'Request sent. You can start when the organization accepts it.')
       router.refresh()
     } catch (error: any) {
       toast.error(error?.message || 'Could not send your request.')
