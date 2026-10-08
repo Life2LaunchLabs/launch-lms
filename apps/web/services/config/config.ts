@@ -221,7 +221,10 @@ export const getUriWithOrg = (orgslug: string, path: string) => {
   if (typeof window !== 'undefined') {
     const demoHost = getConfig('NEXT_PUBLIC_LAUNCHLMS_DEMO_HOST', 'demo.life2launch.app')
     if (window.location.hostname === demoHost || window.location.hostname.endsWith(`.${demoHost}`)) {
-      return `${window.location.origin}/orgs/${encodeURIComponent(orgslug)}${normalizedPath}`
+      // Demo cookies are host-only: the main org uses plain paths, others a path prefix.
+      return orgslug === ownerOrgSlug
+        ? `${window.location.origin}${normalizedPath}`
+        : `${window.location.origin}/orgs/${encodeURIComponent(orgslug)}${normalizedPath}`
     }
     const multi_org = isMultiOrgModeEnabled()
     const context = resolveOrgHostContext({

@@ -8,6 +8,7 @@ from src.routers import (
     code_execution,
     dev,
     demo,
+    demo_guide,
     health,
     hub,
     hub_launch,
@@ -64,6 +65,7 @@ from src.services.dev.dev import isDevModeEnabledOrRaise
 
 v1_router = APIRouter(prefix="/api/v1")
 v1_router.include_router(demo.router, prefix="/demo", tags=["demo"])
+v1_router.include_router(demo_guide.router, prefix="/demo", tags=["demo"])
 
 # Helper dependency to reject API token access
 async def get_non_api_token_user(user = Depends(get_current_user)):

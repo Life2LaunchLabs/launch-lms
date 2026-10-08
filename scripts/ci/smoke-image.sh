@@ -122,8 +122,16 @@ docker run -d --name launch-lms-ci-app --network launch-lms-ci \
 for _attempt in $(seq 1 90); do
   if docker exec launch-lms-ci-app sh -c 'curl -fsS http://localhost/api/v1/health && curl -fsS http://localhost:8000/login >/dev/null && curl -fsS http://localhost:4000/health'; then
     # Exercise configured initial credentials and Redis-backed login controls.
-    docker exec launch-lms-ci-app sh -c 'curl -fsS http://localhost/api/v1/auth/login --data-urlencode username=smoke@example.org --data-urlencode password=smoke-initial-password-123' > /dev/null
-    exit 0
+    login_status=$(docker exec launch-lms-ci-app curl -sS -o /tmp/smoke-login.json -w '%{http_code}' http://localhost/api/v1/auth/login --data-urlencode username=smoke@example.org --data-urlencode password=smoke-initial-password-123 || true)
+    if [[ "$login_status" == 200 ]]; then
+      exit 0
+    fi
+    # Print enough to diagnose a failed login instead of exiting silently.
+    echo "Initial admin login returned HTTP ${login_status}:" >&2
+    docker exec launch-lms-ci-app cat /tmp/smoke-login.json >&2 || true
+    docker logs --tail 200 launch-lms-ci-app >&2
+    docker exec launch-lms-ci-app sh -c 'tail -n 80 /root/.pm2/logs/launch-lms-api-error.log /root/.pm2/logs/launch-lms-api-out.log' >&2 || true
+    exit 1
   fi
   sleep 2
 done

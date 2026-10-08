@@ -8,7 +8,13 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy import create_engine
 from sqlmodel import Session, SQLModel, select
-from src.db.demo import DemoConfiguration, DemoSession, DemoUsage, DemoCheckpoint
+from src.db.demo import (
+    DemoCheckpoint,
+    DemoConfiguration,
+    DemoMember,
+    DemoSession,
+    DemoUsage,
+)
 from src.db.users import User
 from src.services.demo.budgets import reserve
 from src.services.demo.checkpoints import encode_value, scrub_json
@@ -27,10 +33,12 @@ def control():
             DemoSession.__table__,
             DemoUsage.__table__,
             DemoCheckpoint.__table__,
+            DemoMember.__table__,
         ],
     )
     with Session(engine) as db:
         db.add(DemoConfiguration())
+        db.add(DemoMember(user_id=2, pilotable=True))
         db.commit()
         yield engine, db
 
@@ -489,3 +497,47 @@ def test_postgres_copy_isolation_and_end_revocation():
                 end(db, identifier)
             cleanup(db, engine)
         engine.dispose()
+
+
+def test_warm_pool_stays_small_when_capacity_is_large(control):
+    from src.services.demo.worker import WARM_WORKSPACES, replenish
+    from src.services.demo.namespaces import schema_signature
+
+    engine, db = control
+    db.add(
+        DemoCheckpoint(
+            id="release",
+            schema_signature=schema_signature(),
+            created_by=1,
+            entry_org_slug="demo",
+            data={},
+            pilots=PILOTS,
+        )
+    )
+    config = db.get(DemoConfiguration, 1)
+    config.enabled, config.capacity, config.checkpoint_id = True, 100, "release"
+    db.add(config)
+    db.commit()
+    replenish(engine)
+    replenish(engine)
+    db.expire_all()
+    assert len(db.exec(select(DemoSession)).all()) == WARM_WORKSPACES
+
+
+def test_remap_replaces_every_identifier_including_prefixes():
+    from src.services.demo.namespaces import remap
+
+    session = "a" * 32
+    rows = {
+        "organization": [{"org_uuid": "org_1", "logo": "content/orgs/org_1/logo.png"}],
+        "user": [
+            {"user_uuid": "user_1", "bio": "see user_12 and user_1"},
+            {"user_uuid": "user_12", "bio": ""},
+        ],
+    }
+    data, identifiers = remap(rows, session, ["content/orgs/org_1/logo.png"])
+    one, twelve = identifiers["user_1"], identifiers["user_12"]
+    assert data["user"][0]["bio"] == f"see {twelve} and {one}"
+    assert data["organization"][0]["logo"] == (
+        f"content/orgs/{identifiers['org_1']}/logo.png"
+    )

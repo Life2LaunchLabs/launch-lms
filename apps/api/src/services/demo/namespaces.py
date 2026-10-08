@@ -69,8 +69,16 @@ def decode_value(value):
     return value
 
 
-def remap(data: dict, session_id: str) -> tuple[dict, dict]:
+def remap(data: dict, session_id: str, files=()) -> tuple[dict, dict]:
     identifiers = {}
+    # Included files can belong to owners with no captured row (pseudonymized
+    # accounts, catalog orgs). Isolate those owners too.
+    for path in files:
+        owner = re.match(r"^content/(?:orgs|users)/((org|user)_[^/]+)/", path)
+        if owner:
+            identifiers.setdefault(
+                owner.group(1), f"{owner.group(2)}_demo_{session_id}_{uuid4().hex}"
+            )
     for records in data.values():
         for record in records:
             for key, value in record.items():
@@ -84,10 +92,14 @@ def remap(data: dict, session_id: str) -> tuple[dict, dict]:
                         value, f"{prefix}_demo_{session_id}_{uuid4().hex}"
                     )
 
+    # One pass per string; longest first so no identifier shadows a longer one.
+    pattern = re.compile(
+        "|".join(map(re.escape, sorted(identifiers, key=len, reverse=True))) or r"(?!)"
+    )
+
     def replace(value):
         if isinstance(value, str):
-            for old, new in identifiers.items():
-                value = value.replace(old, new)
+            value = pattern.sub(lambda match: identifiers[match.group(0)], value)
             # Private files use the visitor's host/cookies, including when the
             # live account stored an absolute CDN or API URL inside HTML/JSON.
             value = re.sub(
@@ -109,6 +121,33 @@ def remap(data: dict, session_id: str) -> tuple[dict, dict]:
     return replace(decode_value(data)), identifiers
 
 
+def match_live_enums(conn, metadata: MetaData) -> None:
+    """Store enums as text where the live database does.
+
+    Some migrations created model enums as VARCHAR, so their PostgreSQL types never
+    exist. The live columns hold plain strings; workspaces must accept the same rows.
+    """
+    from sqlalchemy import Enum, String
+
+    existing = set(
+        conn.execute(
+            text(
+                """SELECT t.typname FROM pg_type t
+                JOIN pg_namespace n ON n.oid = t.typnamespace
+                WHERE n.nspname = 'public' AND t.typtype = 'e'"""
+            )
+        ).scalars()
+    )
+    for table in metadata.tables.values():
+        for column in table.c:
+            if (
+                isinstance(column.type, Enum)
+                and column.type.native_enum
+                and column.type.name not in existing
+            ):
+                column.type = String()
+
+
 def materialize(engine, namespace: str, data: dict) -> None:
     validate_namespace(namespace)
     if engine.dialect.name != "postgresql":
@@ -120,6 +159,7 @@ def materialize(engine, namespace: str, data: dict) -> None:
         # Bound DDL bursts across all API processes. Hundreds of concurrent
         # table/index creations exhaust PostgreSQL's shared lock table.
         lock_ddl(conn)
+        match_live_enums(conn, metadata)
         conn.execute(text(f'CREATE SCHEMA "{namespace}"'))
         from sqlalchemy.schema import CreateTable, CreateIndex
 

@@ -46,7 +46,7 @@ def visitor_credentials(db: Session, identifier: str) -> dict:
     checkpoint = checkpoint_info(db, session.checkpoint_id)
     from src.services.demo.cohort import pilot
 
-    account = pilot(checkpoint, session.pilot_user_id)
+    account = pilot(db, checkpoint, session.pilot_user_id, pickable=False)
     email = account["email"]
     payload = {
         "sub": email,
@@ -59,6 +59,8 @@ def visitor_credentials(db: Session, identifier: str) -> dict:
         "refresh_token": create_refresh_token(payload),
         "expiry": int((datetime.utcnow() + timedelta(days=30)).timestamp() * 1000),
         "entry_org_slug": checkpoint.entry_org_slug,
+        "start_path": account["start_path"],
+        "start_org_slug": account["start_org_slug"],
     }
 
 

@@ -116,7 +116,8 @@ def encode_value(value):
     return value
 
 
-def capture(db: Session, entry_org_id: int, user_ids: set[int]) -> dict:
+def capture(db: Session, main_org_id: int, user_ids: set[int]) -> dict:
+    """Capture demo users, every org they belong to and the main portal org."""
     tables = SQLModel.metadata.tables
     rows: dict[str, dict] = {name: {} for name in tables}
 
@@ -133,10 +134,8 @@ def capture(db: Session, entry_org_id: int, user_ids: set[int]) -> dict:
     memberships = read(
         "userorganization", tables["userorganization"].c.user_id.in_(user_ids)
     )
-    memberships = [record for record in memberships if record["org_id"] == entry_org_id]
-    org_ids = {record["org_id"] for record in memberships}
-    if entry_org_id not in org_ids:
-        raise HTTPException(422, "The demo user must belong to the entry organization.")
+    # The main org always exists in a copy: the demo host routes bare paths to it.
+    org_ids = {record["org_id"] for record in memberships} | {main_org_id}
     add("user", read("user", tables["user"].c.id.in_(user_ids)))
     add("organization", read("organization", tables["organization"].c.id.in_(org_ids)))
     add("userorganization", memberships)
@@ -153,7 +152,7 @@ def capture(db: Session, entry_org_id: int, user_ids: set[int]) -> dict:
         if owner is not None:
             condition = owner.in_(user_ids)
             if "org_id" in table.c and name not in CATALOG_PERSONAL:
-                condition &= table.c.org_id == entry_org_id
+                condition &= table.c.org_id.in_(org_ids)
             add(name, read(name, condition))
     plan = tables["plan"]
     collaborators = read(
@@ -174,7 +173,7 @@ def capture(db: Session, entry_org_id: int, user_ids: set[int]) -> dict:
     rows["plan"] = {
         key: record
         for key, record in rows["plan"].items()
-        if record["source_org_id"] in (None, entry_org_id)
+        if record["source_org_id"] is None or record["source_org_id"] in org_ids
     }
     # Include collaborators only on this learner's plans, never their other work.
     add(
@@ -210,6 +209,9 @@ def capture(db: Session, entry_org_id: int, user_ids: set[int]) -> dict:
             )
         elif name == "resourceauthor":
             add(name, read(name, table.c.user_id.in_(user_ids)))
+    # The badge hub lists every public collection and badge on the platform, not
+    # only those of the demo users' orgs. Parents and paths follow by FK closure.
+    catalog(add, read, tables)
     # Group/resource links use UUIDs rather than a database foreign key.
     # Preserve shared catalog resources assigned to the fictional cohort.
     resource_uuids = {
@@ -224,7 +226,7 @@ def capture(db: Session, entry_org_id: int, user_ids: set[int]) -> dict:
             read("resource", tables["resource"].c.resource_uuid.in_(resource_uuids)),
         )
     for name in ("programassignment", "requirementassignmentbatch"):
-        add(name, read(name, tables[name].c.org_id == entry_org_id))
+        add(name, read(name, tables[name].c.org_id.in_(org_ids)))
     # Iterate to a fixed point; never follow private peer state or credential tables.
     scenario_tables = set(
         "discussion discussioncomment discussionvote discussioncommentvote discussionreaction planinvitation plancollaboratorrequest".split()
@@ -234,7 +236,7 @@ def capture(db: Session, entry_org_id: int, user_ids: set[int]) -> dict:
         owner = table.c.author_id if "author_id" in table.c else table.c.user_id
         condition = owner.in_(user_ids)
         if "org_id" in table.c:
-            condition &= table.c.org_id == entry_org_id
+            condition &= table.c.org_id.in_(org_ids)
         add(name, read(name, condition))
     allowed = (
         scenario_tables
@@ -292,6 +294,16 @@ def capture(db: Session, entry_org_id: int, user_ids: set[int]) -> dict:
             )
         if before == sum(map(len, rows.values())):
             break
+    # Catalog issuers show their branding; their other content stays out.
+    add(
+        "organizationconfig",
+        read(
+            "organizationconfig",
+            tables["organizationconfig"].c.org_id.in_(
+                [record["id"] for record in rows["organization"].values()]
+            ),
+        ),
+    )
     # Role IDs are global in legacy authorization; include definitions, not memberships.
     add(
         "role",
@@ -343,6 +355,33 @@ def capture(db: Session, entry_org_id: int, user_ids: set[int]) -> dict:
         for name, records in rows.items()
         if records
     }
+
+
+def catalog(add, read, tables) -> None:
+    """Mirror the public badge hub listing (learning.list_collections)."""
+    from src.db.learning import LearningBadgeStatus
+
+    collection, badge = tables["badgecollection"], tables["learningbadge"]
+    add(
+        "badgecollection",
+        read(
+            "badgecollection",
+            collection.c.public.is_(True)
+            & collection.c.hidden.is_(False)
+            & collection.c.deleted_at.is_(None),
+        ),
+    )
+    add(
+        "learningbadge",
+        read(
+            "learningbadge",
+            badge.c.public.is_(True)
+            & badge.c.status.in_(
+                [LearningBadgeStatus.COMING_SOON, LearningBadgeStatus.PUBLISHED]
+            )
+            & badge.c.deleted_at.is_(None),
+        ),
+    )
 
 
 def scrub_json(value):

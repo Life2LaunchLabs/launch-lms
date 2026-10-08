@@ -10,7 +10,6 @@ from fastapi import HTTPException
 from sqlalchemy import func, case
 from sqlmodel import Session, select
 from src.db.demo import DemoCheckpoint, DemoSession
-from src.db.organizations import Organization
 from src.db.users import User
 from src.services.demo.checkpoints import capture
 from src.services.demo.configuration import configuration
@@ -21,61 +20,133 @@ from src.services.demo.namespaces import (
     remap,
     schema_signature,
 )
+from src.services.demo.rehearsal import describe, rehearse
 
 logger = logging.getLogger(__name__)
 
 
-def publish(db: Session, actor_id: int, revision: int) -> DemoCheckpoint:
-    config = configuration(db, lock=True)
-    if config.revision != revision:
-        raise HTTPException(
-            409, "Demo settings or checkpoint changed. Reload before publishing."
-        )
-    org = db.get(Organization, config.entry_org_id) if config.entry_org_id else None
-    if not org:
-        raise HTTPException(
-            422, "Choose the fictional scenario organization in Settings first."
-        )
-    from src.services.demo.cohort import members, validate_member, identity
+def build(db: Session) -> dict:
+    """Capture the demo world as it is now. Raises HTTPException for blockers."""
+    from src.services.demo.cohort import default_org, members, validate_member, identity
 
     cohort = members(db)
     if not cohort or not any(member.pilotable for member in cohort):
         raise HTTPException(
-            422,
-            "Designate the fictional cohort and at least one pilotable account first.",
+            422, "Add demo users and show at least one on the picker first."
         )
-    cohort_users = {
-        member.user_id: validate_member(db, db.get(User, member.user_id), org.id)
+    main = default_org(db)
+    users = {
+        member.user_id: validate_member(db, db.get(User, member.user_id))
         for member in cohort
     }
-    user_ids = set(cohort_users)
-    # Publication captures one database transaction; callers use REPEATABLE READ.
-    rows = capture(db, org.id, user_ids)
-    files = capture_files(rows, user_ids)
+    rows = capture(db, main.id, set(users))
+    warnings: list[dict] = []
+    files = capture_files(rows, set(users), warnings)
     from src.services.demo.portraits import published_portrait
 
     pilots, portraits = {}, {}
+    # Every demo user is published; whether visitors can pick one is read live.
     for member in cohort:
-        if not member.pilotable:
-            continue
-        user = cohort_users[member.user_id]
+        user = users[member.user_id]
         portrait = published_portrait(user, files)
         if portrait:
             portraits[str(user.id)] = portrait
         pilots[str(user.id)] = {
             **identity(user),
             "email": user.email,
-            "description": member.description,
             "has_avatar": bool(portrait),
         }
+    return {
+        "main": main,
+        "users": users,
+        "rows": rows,
+        "files": files,
+        "warnings": warnings,
+        "pilots": pilots,
+        "portraits": portraits,
+    }
+
+
+def summarize(world: dict) -> dict:
+    rows, users = world["rows"], world["users"]
+
+    def count(table, field, user_id):
+        return sum(1 for row in rows.get(table, []) if row.get(field) == user_id)
+
+    portfolios = {row["id"]: row["user_id"] for row in rows.get("portfolio", [])}
+    member_of = {
+        (row["user_id"], row["org_id"]) for row in rows.get("userorganization", [])
+    }
+    people = []
+    warnings = list(world["warnings"])
+    for user_id, user in users.items():
+        if (user_id, world["main"].id) not in member_of:
+            warnings.append(
+                {
+                    "kind": "not_in_main_org",
+                    "user_id": user_id,
+                    "message": f"{user.first_name} {user.last_name}".strip()
+                    + f" is not a member of {world['main'].name}, so the main portal treats them as a guest.",
+                }
+            )
+        people.append(
+            {
+                "user_id": user_id,
+                "name": f"{user.first_name} {user.last_name}".strip() or user.username,
+                "badges": count("learningbadgeaward", "user_id", user_id),
+                "badge_runs": count("learningrun", "user_id", user_id),
+                "projects": sum(
+                    1
+                    for row in rows.get("projectitem", [])
+                    if portfolios.get(row["portfolio_id"]) == user_id
+                ),
+                "plans": count("plan", "subject_user_id", user_id),
+                "conversations": count("hubconversation", "user_id", user_id),
+            }
+        )
+    return {
+        "users": people,
+        "warnings": warnings,
+        "records": sum(len(records) for records in rows.values()),
+        "files": len(world["files"]),
+        "bytes": sum(len(encoded) * 3 // 4 for encoded in world["files"].values()),
+        "organizations": sorted(row["name"] for row in rows.get("organization", [])),
+    }
+
+
+def preflight(db: Session) -> dict:
+    """Run the publish capture without saving anything."""
+    try:
+        world = build(db)
+    except HTTPException as error:
+        return {"ok": False, "error": str(error.detail), "users": [], "warnings": []}
+    finally:
+        db.rollback()
+    return {"ok": True, "error": None, **summarize(world)}
+
+
+def publish(db: Session, actor_id: int, revision: int) -> DemoCheckpoint:
+    config = configuration(db, lock=True)
+    if config.revision != revision:
+        raise HTTPException(
+            409, "The demo changed since you loaded this page. Reload, then publish."
+        )
+    # Publication captures one database transaction; callers use REPEATABLE READ.
+    world = build(db)
+    rehearse(db.get_bind(), world["rows"], world["files"])
     checkpoint = DemoCheckpoint(
         id=uuid4().hex,
         schema_signature=schema_signature(),
         created_by=actor_id,
-        entry_org_slug=org.slug,
-        pilots=pilots,
-        portraits=portraits,
-        data={"schema": schema_signature(), "rows": rows, "files": files},
+        entry_org_slug=world["main"].slug,
+        pilots=world["pilots"],
+        portraits=world["portraits"],
+        data={
+            "schema": schema_signature(),
+            "rows": world["rows"],
+            "files": world["files"],
+            "summary": summarize(world),
+        },
     )
     db.add(checkpoint)
     config.checkpoint_id = checkpoint.id
@@ -84,6 +155,30 @@ def publish(db: Session, actor_id: int, revision: int) -> DemoCheckpoint:
     db.add(config)
     db.commit()
     db.refresh(checkpoint, attribute_names=["id", "created_at"])
+    return checkpoint
+
+
+def restore(db: Session, checkpoint_id: str, revision: int) -> DemoCheckpoint:
+    """Point new visits at an earlier published version."""
+    config = configuration(db, lock=True)
+    if config.revision != revision:
+        raise HTTPException(
+            409, "The demo changed since you loaded this page. Reload, then try again."
+        )
+    from src.services.demo.metadata import checkpoint_info
+
+    checkpoint = checkpoint_info(db, checkpoint_id)
+    if not checkpoint:
+        raise HTTPException(404, "That version no longer exists.")
+    if checkpoint.schema_signature != schema_signature():
+        raise HTTPException(
+            422,
+            "That version was published before a product update and can no longer be used. Publish a new one instead.",
+        )
+    config.checkpoint_id = checkpoint.id
+    config.revision += 1
+    db.add(config)
+    db.commit()
     return checkpoint
 
 
@@ -107,6 +202,7 @@ def admit(
     visitor_id: str,
     pilot_user_id: int | None = None,
     replacing: tuple[str, ...] = (),
+    tag: str | None = None,
 ) -> DemoSession:
     """Admit a visitor; sessions in `replacing` end only if admission succeeds."""
     config = configuration(db, lock=True)
@@ -121,7 +217,7 @@ def admit(
         raise HTTPException(503, "The demo checkpoint is unavailable.")
     from src.services.demo.cohort import pilot
 
-    account = pilot(checkpoint, pilot_user_id)
+    account = pilot(db, checkpoint, pilot_user_id)
     if checkpoint.schema_signature != schema_signature():
         raise HTTPException(
             503,
@@ -172,6 +268,7 @@ def admit(
     if warmed:
         warmed.visitor_id = visitor_id
         warmed.pilot_user_id = account["user_id"]
+        warmed.tag = tag
         warmed.duration_minutes = config.session_minutes
         warmed.expires_at = datetime.utcnow() + timedelta(
             minutes=config.session_minutes if warmed.state == "available" else 15
@@ -190,6 +287,7 @@ def admit(
         checkpoint_id=checkpoint.id,
         visitor_id=visitor_id,
         pilot_user_id=account["user_id"],
+        tag=tag,
         duration_minutes=config.session_minutes,
         expires_at=datetime.utcnow() + timedelta(minutes=15),
     )
@@ -225,8 +323,10 @@ def prepare(engine, identifier: str) -> bool:
                 if session.state not in {"preparing", "provisioning"}:
                     return False
                 retry = session.state == "provisioning"
-                checkpoint = db.get(DemoCheckpoint, session.checkpoint_id)
-                if not checkpoint or session.schema_signature != schema_signature():
+                from src.services.demo.metadata import checkpoint_content
+
+                content = checkpoint_content(db, session.checkpoint_id)
+                if not content or session.schema_signature != schema_signature():
                     session.state = "failed"
                     session.ended_at = datetime.utcnow()
                     session.error = (
@@ -235,8 +335,8 @@ def prepare(engine, identifier: str) -> bool:
                     db.add(session)
                     db.commit()
                     return False
-                data, identifiers = remap(checkpoint.data["rows"], identifier)
-                files = checkpoint.data["files"]
+                files = content["files"]
+                data, identifiers = remap(content["rows"], identifier, files)
                 session.aliases = identifiers
                 session.state = "provisioning"
                 db.add(session)
@@ -247,12 +347,14 @@ def prepare(engine, identifier: str) -> bool:
                         clean_files(identifier)
                     materialize(engine, session.namespace, data)
                     write_files(files, identifiers)
-                except Exception:
+                except Exception as error:
                     db.rollback()
                     db.refresh(session)
                     session.state = "failed"
                     session.ended_at = session.ended_at or datetime.utcnow()
                     session.error = "Workspace preparation failed. Please start again."
+                    # Visitors see `error`; Demo Studio shows the cause.
+                    session.failure_detail = describe(error)
                     db.add(session)
                     db.commit()
                     logger.exception(

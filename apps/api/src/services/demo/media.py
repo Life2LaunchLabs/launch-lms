@@ -3,12 +3,14 @@
 import re
 from base64 import b64decode, b64encode
 from pathlib import PurePosixPath
+from uuid import uuid4
 
 from fastapi import HTTPException
 from src.services.utils.storage import read_file_content, walk_directory
 
 MAX_ASSET_BYTES = 100 * 1024 * 1024
 UUID = re.compile(r"(?:org|user)_[A-Za-z0-9_-]+")
+OWNER = re.compile(r"^content/(orgs|users)/([^/]+)/")
 
 
 def strings(value):
@@ -22,7 +24,9 @@ def strings(value):
             yield from strings(item)
 
 
-def capture_files(data: dict, cohort_ids: set[int]) -> dict:
+def capture_files(
+    data: dict, cohort_ids: set[int], warnings: list | None = None
+) -> dict:
     # A filename match alone is never enough: require the record's owner/entity path.
     from urllib.parse import urlsplit, unquote
 
@@ -79,39 +83,108 @@ def capture_files(data: dict, cohort_ids: set[int]) -> dict:
                         paths.add(f"{directory}/{filename}")
     result = {}
     total = 0
-    allowed = {f"content/orgs/{uuid}/" for uuid in orgs.values()} | {
-        f"content/users/{user['user_uuid']}/" for user in users
-    }
+    org_uuids = set(orgs.values())
+    cast_uuids = {user["user_uuid"] for user in users}
+    # Owners outside the demo get a pseudonym: their file is included because
+    # captured content shows it, but their identifier never enters the snapshot.
+    outside: dict[str, str] = {}
     for path in sorted(paths):
-        if ".." in PurePosixPath(path).parts or not any(
-            path.startswith(prefix) for prefix in allowed
-        ):
-            raise HTTPException(
-                422, "A checkpoint file is outside the demo user's allowed content."
+        owner = OWNER.match(path)
+        if ".." in PurePosixPath(path).parts or not owner:
+            report(
+                warnings,
+                "unsafe_path",
+                path,
+                data,
+                "This file path is not a stored upload, so it was skipped.",
             )
+            continue
         content = read_file_content(path)
         if content is None:
-            raise HTTPException(
-                422,
-                "A referenced checkpoint file is missing. Restore the file before publishing.",
+            report(
+                warnings,
+                "missing_file",
+                path,
+                data,
+                "This file is referenced but missing from storage. It will appear broken in the demo, as it does on the live site.",
             )
+            continue
+        kind, identifier = owner.groups()
+        if kind == "users" and identifier not in cast_uuids:
+            pseudonym = outside.setdefault(identifier, f"user_{uuid4()}")
+            report(
+                warnings,
+                "outside_owner",
+                path,
+                data,
+                "This file belongs to an account outside the demo. A copy is included without that account's identity.",
+                owner_uuid=identifier,
+            )
+            stored = path.replace(identifier, pseudonym, 1)
+        else:
+            if kind == "orgs" and identifier not in org_uuids:
+                report(
+                    warnings,
+                    "outside_org",
+                    path,
+                    data,
+                    "This file belongs to an organization the demo users are not members of. A copy is included.",
+                )
+            stored = path
         total += len(content)
         if total > MAX_ASSET_BYTES:
             raise HTTPException(
                 422, "Checkpoint files exceed the 100 MiB publication limit."
             )
-        result[path] = b64encode(content).decode()
+        result[stored] = b64encode(content).decode()
+    if outside:
+        pattern = re.compile("|".join(re.escape(key) for key in outside))
+        for records in data.values():
+            for index, record in enumerate(records):
+                records[index] = substitute(record, pattern, outside)
     return result
+
+
+def substitute(value, pattern, mapping):
+    if isinstance(value, str):
+        return pattern.sub(lambda match: mapping[match.group(0)], value)
+    if isinstance(value, dict):
+        return {key: substitute(item, pattern, mapping) for key, item in value.items()}
+    if isinstance(value, list):
+        return [substitute(item, pattern, mapping) for item in value]
+    return value
+
+
+def report(warnings, kind, path, data, message, **extra) -> None:
+    if warnings is None:
+        return
+    where = next(
+        (
+            name
+            for name, records in data.items()
+            for record in records
+            if any(path.split("/")[-1] in value for value in strings(record))
+        ),
+        None,
+    )
+    warnings.append(
+        {"kind": kind, "path": path, "table": where, "message": message, **extra}
+    )
+
+
+def isolated_path(path: str, uuid_map: dict) -> str:
+    for old, new in uuid_map.items():
+        path = path.replace(old, new)
+    # At least the owner must have been remapped before any file write.
+    if not re.match(r"^content/(orgs/org|users/user)_demo_[0-9a-f]{32}_", path):
+        raise ValueError(f"Checkpoint media owner was not isolated: {path}")
+    return path
 
 
 def write_files(files: dict, uuid_map: dict) -> list[str]:
     written = []
     for path, encoded in files.items():
-        for old, new in uuid_map.items():
-            path = path.replace(old, new)
-        # At least the owner must have been remapped before any file write.
-        if not re.match(r"^content/(orgs/org|users/user)_demo_[0-9a-f]{32}_", path):
-            raise ValueError("Checkpoint media owner was not isolated")
+        path = isolated_path(path, uuid_map)
         store_file(path, b64decode(encoded))
         written.append(path)
     return written
