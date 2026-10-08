@@ -4,7 +4,7 @@ import { getConfig } from '@services/config/config'
 import { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE, getCookieDomain } from '@services/auth/cookies'
 
 const BACKEND = (process.env.LAUNCHLMS_INTERNAL_BACKEND_URL || getConfig('NEXT_PUBLIC_LAUNCHLMS_BACKEND_URL') || 'http://localhost:1338').replace(/\/+$/, '')
-const PATHS = new Set(['status', 'ready', 'settings', 'users', 'users/existing', 'preflight', 'checkpoints', 'admin/enter', 'admin/exit', 'start', 'reset', 'end', 'extend', 'guide', 'announcements', 'feedback'])
+const PATHS = new Set(['status', 'ready', 'settings', 'users', 'users/existing', 'preflight', 'checkpoints', 'admin/enter', 'admin/exit', 'start', 'reset', 'end', 'extend', 'guide', 'guide/shared', 'announcements', 'feedback'])
 const DYNAMIC = [/^users\/\d+$/, /^checkpoints\/[0-9a-f]{32}\/restore$/]
 
 const PORTRAIT = /^portraits\/[0-9a-f]{32}\/\d+$/

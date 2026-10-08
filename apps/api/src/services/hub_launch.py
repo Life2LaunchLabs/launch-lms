@@ -15,6 +15,7 @@ from src.db.hub import HubAdvisorConfiguration
 from src.db.users import PublicUser
 from src.services.hub_configuration import CONFIGURATION_ID, get_configuration_record
 from src.services.hub_advisor import DEFAULT_HUB_ADVISOR_INSTRUCTIONS
+from src.services.demo.providers import platform_read
 
 MAX_CARDS = 6
 
@@ -43,6 +44,11 @@ DEFAULT_LAUNCH_CARDS = [
 
 
 def effective_launch_cards(db_session: Session) -> list[dict]:
+    # Learners in a demo see the platform's live cards, not the code defaults.
+    return platform_read(db_session, _stored_or_default_cards)
+
+
+def _stored_or_default_cards(db_session: Session) -> list[dict]:
     record = get_configuration_record(db_session)
     stored = record.launch_cards if record and record.launch_cards else None
     cards = [HubLaunchCard(**card) for card in stored] if stored else DEFAULT_LAUNCH_CARDS

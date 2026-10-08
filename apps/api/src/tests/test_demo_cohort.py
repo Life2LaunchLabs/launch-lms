@@ -32,6 +32,7 @@ from src.services.demo.access import visitor_credentials
 from src.services.demo.namespaces import schema_signature
 from src.services.demo.scenario import exclude_real_users
 from src.services.demo.context import DemoContext, current_demo
+from src.services.demo.guide import GuidePage, GuidePages, save_shared_pages, shared_pages, user_pages, visitor_guide
 
 
 @pytest.fixture
@@ -627,7 +628,7 @@ def test_duplicate_copies_another_demo_user_and_its_guide(clone_env):
             start_from="duplicate", first_name="Twin", source_user_id=2
         ),
     )
-    assert twin["guide"]["goals"] == ["Earn a badge"] and rows[-1][0] == 2
+    assert "- Earn a badge" in twin["guide"]["pages"][0]["body"] and rows[-1][0] == 2
 
 
 def test_guide_and_handle_updates_are_validated(clone_env):
@@ -641,23 +642,20 @@ def test_guide_and_handle_updates_are_validated(clone_env):
         2,
         users.UpdateDemoUser(
             handle="maya",
-            guide=users.Guide(
-                goals=["  Find a summer program ", ""],
-                journeys=[
-                    users.Journey(
-                        title="Earn a badge",
-                        steps=["Open Badges", " "],
-                        link_path="/badges",
-                    )
-                ],
+            guide=GuidePages(
+                pages=[
+                    GuidePage(id="meet", title=" Meet {{name}} ", body="Hi"),
+                    GuidePage(title="Earn a badge", kind="try", section="Journeys", link_path="/badges"),
+                ]
             ),
         ),
     )
     assert updated["handle"] == "maya"
-    assert updated["guide"]["goals"] == ["Find a summer program"]
-    assert updated["guide"]["journeys"][0]["steps"] == ["Open Badges"]
+    assert [page["title"] for page in updated["guide"]["pages"]] == ["Meet {{name}}", "Earn a badge"]
     with pytest.raises(ValueError):
-        users.Journey(title="Off-site", link_path="https://example.com")
+        GuidePage(title="Off-site", link_path="https://example.com")
+    with pytest.raises(ValueError):
+        GuidePages(pages=[GuidePage(id="a", title="One"), GuidePage(id="a", title="Two")])
 
 
 def security_verify(hashed, password):
@@ -842,3 +840,41 @@ def test_visitors_see_the_tester_announcements_newest_first(cohort_db, monkeypat
     assert [item["id"] for item in result["items"]] == ["new", "old"]
     Jira.configured = False
     assert demo_guide.announcements(SimpleNamespace(), db) == {"items": []}
+
+
+def test_earlier_guides_convert_to_markdown_pages():
+    pages = user_pages({
+        "goals": ["Find a summer program"],
+        "has": [],
+        "journeys": [{"id": "j1", "title": "Earn a badge", "why": "Core loop.", "steps": ["Open Badges", "Pick one"], "minutes": 5, "link_path": "/badges"}],
+    })
+    meet, journey = pages
+    assert meet["id"] == "meet" and meet["title"] == "Meet {{name}}"
+    assert "### What {{first_name}} wants\n- Find a summer program" in meet["body"]
+    assert "{{section:Things to try}}" in meet["body"] and "Already in" not in meet["body"]
+    assert journey == {**journey, "id": "j1", "kind": "try", "section": "Things to try", "body": "Core loop.\n\n1. Open Badges\n2. Pick one", "minutes": 5}
+    # A guide saved as pages is kept as written.
+    assert user_pages({"pages": pages}) == pages
+
+
+def test_shared_pages_default_then_save_and_follow_user_pages(cohort_db):
+    _, db = cohort_db
+    designation(db)
+    assert [page["id"] for page in shared_pages(db)] == ["how"]
+    assert "{{first_name}}" in shared_pages(db)[0]["body"]
+    save_shared_pages(db, GuidePages(pages=[GuidePage(id="faq", section="About", title="FAQ", body="**Q**")]))
+    member = db.get(DemoMember, 2)
+    member.guide = {"pages": [GuidePage(id="meet", title="Meet {{name}}").model_dump(), GuidePage(id="go", section="Journeys", title="Plan a summer", kind="try").model_dump()]}
+    db.commit()
+    guide = visitor_guide(db, member.guide)
+    assert [(page["id"], page["scope"]) for page in guide] == [("faq", "global"), ("meet", "user"), ("go", "user")]
+    assert next(pilot for pilot in public_pilots(db, _checkpoint_with(db, 2)) if pilot["user_id"] == 2)["journeys"] == ["Plan a summer"]
+    # Clearing the shared pages hides them rather than restoring the defaults.
+    save_shared_pages(db, GuidePages(pages=[]))
+    assert [page["scope"] for page in visitor_guide(db, member.guide)] == ["user", "user"]
+
+
+def _checkpoint_with(db, user_id):
+    from types import SimpleNamespace
+
+    return SimpleNamespace(pilots={str(user_id): {"user_id": user_id, "first_name": "M", "last_name": "", "username": "m"}})

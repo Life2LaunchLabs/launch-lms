@@ -13,16 +13,21 @@ export type DemoSettings = {
   ai_tokens_per_day: number
   checkpoint_id?: string | null
 }
-export type DemoJourney = {
+export type GuideScope = 'user' | 'global'
+/** One markdown guide page. A "try" page is a suggested action visitors can rate. */
+export type DemoGuidePage = {
   id: string
+  section: string
   title: string
+  body: string
+  kind: 'page' | 'try'
   minutes?: number | null
-  why: string
-  steps: string[]
   link_label: string
   link_path: string
+  scope?: GuideScope
 }
-export type DemoGuide = { goals: string[]; has: string[]; journeys: DemoJourney[] }
+export type DemoJourney = DemoGuidePage
+export type DemoGuide = { pages: DemoGuidePage[] }
 export type DemoAccount = {
   user_id: number
   first_name: string
@@ -42,7 +47,7 @@ export type DemoMember = DemoAccount & {
   pilotable: boolean
   start_path: string
   start_org_slug: string
-  guide: Partial<DemoGuide>
+  guide: DemoGuide
   position: number
   orgs: DemoOrgMembership[]
   changed: boolean
@@ -136,9 +141,21 @@ export function announceDemoSetupChange(): void {
   window.dispatchEvent(new Event('demo-setup-changed'))
 }
 
-export const emptyGuide = (guide?: Partial<DemoGuide> | null): DemoGuide => ({
-  goals: guide?.goals || [], has: guide?.has || [], journeys: guide?.journeys || [],
+export const newGuidePage = (patch: Partial<DemoGuidePage> = {}): DemoGuidePage => ({
+  id: Math.random().toString(16).slice(2, 10), section: '', title: 'New page', body: '', kind: 'page', minutes: null, link_label: '', link_path: '', ...patch,
 })
+
+export type GuidePerson = { first_name: string; name: string; role_line?: string; description?: string }
+
+/** Fill {{placeholders}}; a line left with only markdown punctuation is dropped. */
+export function fillGuideText(text: string, person: GuidePerson): string {
+  const values: Record<string, string> = { first_name: person.first_name, name: person.name, role_line: person.role_line || '', description: person.description || '' }
+  return text.split('\n').flatMap((line) => {
+    if (!/\{\{(first_name|name|role_line|description)\}\}/.test(line)) return [line]
+    const filled = line.replace(/\{\{(first_name|name|role_line|description)\}\}/g, (_, key: string) => values[key])
+    return filled.replace(/[\s*_#>-]/g, '') ? [filled] : []
+  }).join('\n')
+}
 
 // The demo bar replaces the unstable tester bar while it is showing.
 let barActive = false

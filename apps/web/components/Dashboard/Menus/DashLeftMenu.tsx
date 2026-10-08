@@ -26,6 +26,7 @@ import {
   ChartPieSlice,
   Tray,
   Flag,
+  Flask,
 } from '@phosphor-icons/react'
 import Link from 'next/link'
 import React, { useState } from 'react'
@@ -34,6 +35,7 @@ import UserAvatar from '../../Objects/UserAvatar'
 import AdminAuthorization from '@components/Security/AdminAuthorization'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getUriWithOrg, getAPIUrl, getCoreCapabilities, getDefaultOrg, routePaths } from '@services/config/config'
+import { platformSections, type PlatformSection } from '@components/Admin/Platform/platformSections'
 import { authenticatedOrgHref } from '@services/auth/handoff'
 import { useTranslation } from 'react-i18next'
 import {
@@ -445,46 +447,7 @@ function DashLeftMenu() {
               Platform
             </p>
           )}
-          {[
-            {
-              href: routePaths.owner.platform.overview(),
-              icon: <ChartPieSlice size={20} weight="fill" />,
-              label: 'Overview',
-              exact: true,
-            },
-            {
-              href: routePaths.owner.platform.organizations(),
-              icon: <Buildings size={20} weight="fill" />,
-              label: 'Organizations',
-            },
-            {
-              href: routePaths.owner.platform.users(),
-              icon: <UsersThree size={20} weight="fill" />,
-              label: 'Users',
-            },
-            {
-              href: routePaths.owner.platform.requests(),
-              icon: <Tray size={20} weight="fill" />,
-              label: 'Requests',
-            },
-            {
-              href: routePaths.owner.platform.feedback(),
-              icon: <Flag size={20} weight="fill" />,
-              label: 'Tester feedback',
-            },
-            {
-              href: routePaths.owner.platform.settings(),
-              icon: <Gear size={20} weight="fill" />,
-              label: 'Settings',
-            },
-            capabilities.news
-              ? {
-                  href: routePaths.owner.platform.news(),
-                  icon: <Newspaper size={20} weight="fill" />,
-                  label: 'News',
-                }
-              : null,
-          ].filter(Boolean).map((item: any) => {
+          {platformSections().map((section) => ({ ...section, icon: PLATFORM_ICONS[section.id] })).map((item) => {
             const isActive = item.exact
               ? pathname === `/orgs/${org.slug}${item.href}` ||
                 pathname === item.href
@@ -676,4 +639,15 @@ const MenuLink = ({ href, icon, label, isCollapsed, isExternal }: {
   return linkElement
 }
 
+
+const PLATFORM_ICONS: Record<PlatformSection, React.ReactNode> = {
+  overview: <ChartPieSlice size={20} weight="fill" />,
+  organizations: <Buildings size={20} weight="fill" />,
+  users: <UsersThree size={20} weight="fill" />,
+  requests: <Tray size={20} weight="fill" />,
+  feedback: <Flag size={20} weight="fill" />,
+  demo: <Flask size={20} weight="fill" />,
+  settings: <Gear size={20} weight="fill" />,
+  news: <Newspaper size={20} weight="fill" />,
+}
 export default DashLeftMenu

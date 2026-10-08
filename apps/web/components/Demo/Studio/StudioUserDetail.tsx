@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
-import { ArrowDown, ArrowUp, Copy, Download, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Copy, Download, Pencil, Trash2 } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@components/ui/dialog'
 import { Input } from '@components/ui/input'
@@ -11,14 +11,13 @@ import { Label } from '@components/ui/label'
 import { Switch } from '@components/ui/switch'
 import { Textarea } from '@components/ui/textarea'
 import { getUriWithOrg } from '@services/config/config'
-import { announceDemoSetupChange, demoAccountName, demoRequest, emptyGuide, type DemoGuide, type DemoJourney, type DemoMember, type DemoTokens } from '@services/demo/demo'
+import { announceDemoSetupChange, demoAccountName, demoRequest, type DemoMember, type DemoTokens } from '@services/demo/demo'
+import StudioGuideEditor from './StudioGuideEditor'
 import StudioShell, { demoLink, MemberAvatar, useDemoStudio, useStudioHref } from './StudioShell'
 import { START_PAGES } from './StudioNewUser'
 
 type Tab = 'profile' | 'guide' | 'link'
-type SaveRequest = { patch: Record<string, unknown>; message?: string }
-const lines = (value: string) => value.split('\n').map((line) => line.trim()).filter(Boolean)
-const newJourney = (): DemoJourney => ({ id: Math.random().toString(16).slice(2, 10), title: 'New thing to try', minutes: 5, why: '', steps: [], link_label: '', link_path: '' })
+type SaveRequest = { patch: Record<string, unknown>; message?: string; before?: () => Promise<unknown> }
 
 export default function StudioUserDetail({ userId }: { userId: number }) {
   const { data, mutate } = useDemoStudio()
@@ -31,9 +30,9 @@ export default function StudioUserDetail({ userId }: { userId: number }) {
   const [removing, setRemoving] = useState(false)
   const member = data?.members?.find((item) => item.user_id === userId)
 
-  async function save({ patch, message = 'Saved.' }: SaveRequest) {
+  async function save({ patch, message = 'Saved.', before }: SaveRequest) {
     setBusy(true); setError(''); setNotice('')
-    try { await demoRequest(`users/${userId}`, 'PATCH', patch); announceDemoSetupChange(); await mutate(); setNotice(message) }
+    try { if (before) await before(); await demoRequest(`users/${userId}`, 'PATCH', patch); announceDemoSetupChange(); await mutate(); setNotice(message) }
     catch (failure) { setError((failure as Error).message) }
     finally { setBusy(false) }
   }
@@ -64,7 +63,7 @@ export default function StudioUserDetail({ userId }: { userId: number }) {
       <p className="text-sm text-muted-foreground">Set up signs you in as this account on the live site. Edit their portfolio, badges and plans with the normal product, then publish.</p>
       <div role="tablist" className="flex gap-1 border-b">{([['profile', 'Profile'], ['guide', 'Guide'], ['link', 'Link & QR']] as const).map(([id, label]) => <button key={id} role="tab" type="button" aria-selected={tab === id} onClick={() => { setTab(id); setNotice(''); setError('') }} className={`-mb-px border-b-2 px-3 py-2 text-sm font-semibold ${tab === id ? 'border-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>{label}</button>)}</div>
       {tab === 'profile' ? <ProfileTab key={`p-${member.user_id}`} member={member} busy={busy} onSave={(request) => void save(request)} /> : null}
-      {tab === 'guide' ? <GuideTab key={`g-${member.user_id}`} member={member} busy={busy} onSave={(guide) => void save({ patch: { guide }, message: 'Guide saved. Visitors see it right away.' })} /> : null}
+      {tab === 'guide' ? <StudioGuideEditor key={`g-${member.user_id}`} member={member} busy={busy} onSave={({ pages, shared }) => void save({ patch: { guide: { pages } }, before: shared ? () => demoRequest('guide/shared', 'PUT', { pages: shared }) : undefined, message: shared ? 'Guide saved, including shared pages. Visitors see it right away.' : 'Guide saved. Visitors see it right away.' })} /> : null}
       {tab === 'link' ? <LinkTab key={`l-${member.user_id}`} member={member} busy={busy} published={Boolean(data?.checkpoint_id)} onSave={(request) => void save(request)} /> : null}
       {notice ? <p role="status" className="text-sm text-emerald-700">{notice}</p> : null}
       {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
@@ -90,52 +89,6 @@ function ProfileTab({ member, busy, onSave }: { member: DemoMember; busy: boolea
       <p className="text-xs text-muted-foreground">Card text, start page and picker visibility apply right away. Name changes reach visitors after you publish.</p>
     </form>
     <div className="space-y-2"><p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Picker card</p><article className="flex flex-col gap-3 rounded-2xl border bg-card p-5"><MemberAvatar member={member} size={56} /><div><p className="text-lg font-semibold">{`${draft.first_name} ${draft.last_name}`.trim()}</p>{draft.role_line ? <p className="text-sm font-medium text-indigo-600">{draft.role_line}</p> : null}</div><p className="whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{draft.description || 'Add a sentence or two about who they are.'}</p><span className="rounded-md bg-indigo-600 px-3 py-2 text-center text-sm font-semibold text-white">Explore as {draft.first_name || '…'}</span></article></div>
-  </div>
-}
-
-function GuideTab({ member, busy, onSave }: { member: DemoMember; busy: boolean; onSave: React.Dispatch<DemoGuide> }) {
-  const [guide, setGuide] = useState<DemoGuide>(() => emptyGuide(member.guide))
-  const [goals, setGoals] = useState(() => guide.goals.join('\n'))
-  const [has, setHas] = useState(() => guide.has.join('\n'))
-  const [page, setPage] = useState<string>('about')
-  const journey = guide.journeys.find((item) => item.id === page)
-  const updateJourney = (patch: Partial<DemoJourney>) => setGuide((current) => ({ ...current, journeys: current.journeys.map((item) => item.id === page ? { ...item, ...patch } : item) }))
-  const move = (offset: number) => setGuide((current) => {
-    const index = current.journeys.findIndex((item) => item.id === page)
-    const target = index + offset
-    if (index < 0 || target < 0 || target >= current.journeys.length) return current
-    const journeys = [...current.journeys];
-    [journeys[index], journeys[target]] = [journeys[target], journeys[index]]
-    return { ...current, journeys }
-  })
-  const first = member.first_name || 'them'
-  const nav = (id: string, label: string) => <button key={id} type="button" aria-current={page === id} onClick={() => setPage(id)} className={`w-full truncate rounded-lg px-2.5 py-2 text-left text-sm ${page === id ? 'bg-background font-semibold shadow-sm' : 'hover:bg-background/60'}`}>{label}</button>
-  return <div className="space-y-4">
-    <div className="grid overflow-hidden rounded-xl border bg-card md:grid-cols-[14rem_minmax(0,1fr)]">
-      <nav aria-label="Guide pages" className="space-y-0.5 border-b bg-muted/50 p-2 md:border-b-0 md:border-r">
-        {nav('about', `Meet ${first}`)}
-        <p className="px-2.5 pb-1 pt-3 text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground">Things to try</p>
-        {guide.journeys.map((item) => nav(item.id, item.title || 'Untitled'))}
-        <button type="button" disabled={guide.journeys.length >= 8} onClick={() => { const item = newJourney(); setGuide((current) => ({ ...current, journeys: [...current.journeys, item] })); setPage(item.id) }} className="flex w-full items-center gap-1.5 rounded-lg px-2.5 py-2 text-left text-sm text-muted-foreground hover:bg-background/60 disabled:opacity-50"><Plus className="h-3.5 w-3.5" />Add a thing to try</button>
-        <p className="px-2.5 pb-1 pt-3 text-[10.5px] font-bold uppercase tracking-wider text-muted-foreground">Built in</p>
-        <p className="px-2.5 py-1 text-xs text-muted-foreground">A How this demo works page is added automatically.</p>
-      </nav>
-      <div className="space-y-4 p-5">
-        {page === 'about' ? <>
-          <p className="text-sm text-muted-foreground">The first page visitors see. It opens with the card text from Profile.</p>
-          <div className="space-y-1.5"><Label htmlFor="g-goals">What {first} wants <span className="font-normal text-muted-foreground">(one per line)</span></Label><Textarea id="g-goals" rows={4} value={goals} onChange={(event) => setGoals(event.target.value)} placeholder="Get into a summer health-sciences program" /></div>
-          <div className="space-y-1.5"><Label htmlFor="g-has">Already in {first}&apos;s account <span className="font-normal text-muted-foreground">(one per line)</span></Label><Textarea id="g-has" rows={4} value={has} onChange={(event) => setHas(event.target.value)} placeholder="3 earned badges and 1 in progress" /></div>
-        </> : journey ? <>
-          <div className="flex flex-wrap items-center gap-1"><Button type="button" variant="ghost" size="sm" onClick={() => move(-1)} aria-label="Move up"><ArrowUp className="h-4 w-4" /></Button><Button type="button" variant="ghost" size="sm" onClick={() => move(1)} aria-label="Move down"><ArrowDown className="h-4 w-4" /></Button><span className="flex-1" /><Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => { setGuide((current) => ({ ...current, journeys: current.journeys.filter((item) => item.id !== page) })); setPage('about') }}><Trash2 className="mr-1 h-4 w-4" />Delete</Button></div>
-          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_7rem]"><div className="space-y-1.5"><Label htmlFor="j-title">Title</Label><Input id="j-title" maxLength={120} value={journey.title} onChange={(event) => updateJourney({ title: event.target.value })} /></div><div className="space-y-1.5"><Label htmlFor="j-minutes">Minutes</Label><Input id="j-minutes" type="number" min={1} max={120} value={journey.minutes ?? ''} onChange={(event) => updateJourney({ minutes: event.target.value ? Number(event.target.value) : null })} /></div></div>
-          <div className="space-y-1.5"><Label htmlFor="j-why">Why it matters</Label><Textarea id="j-why" maxLength={600} value={journey.why} onChange={(event) => updateJourney({ why: event.target.value })} placeholder="Maya is one activity away from her First Aid badge. This is the core learner loop." /></div>
-          <div className="space-y-1.5"><Label htmlFor="j-steps">Steps <span className="font-normal text-muted-foreground">(one per line)</span></Label><Textarea id="j-steps" rows={5} value={journey.steps.join('\n')} onChange={(event) => updateJourney({ steps: event.target.value.split('\n') })} /></div>
-          <div className="grid gap-3 sm:grid-cols-2"><div className="space-y-1.5"><Label htmlFor="j-link-label">Button label</Label><Input id="j-link-label" maxLength={60} placeholder="Go to Badges" value={journey.link_label} onChange={(event) => updateJourney({ link_label: event.target.value })} /></div><div className="space-y-1.5"><Label htmlFor="j-link-path">Takes them to</Label><Input id="j-link-path" maxLength={300} placeholder="/badges" value={journey.link_path} onChange={(event) => updateJourney({ link_path: event.target.value })} /></div></div>
-          <p className="text-xs text-muted-foreground">Use a path on the site, like /portfolio or /badges/first-aid. Visitors rate each journey Easy, Okay or Hard, and that goes to the feedback board.</p>
-        </> : null}
-      </div>
-    </div>
-    <Button disabled={busy} onClick={() => onSave({ ...guide, goals: lines(goals), has: lines(has), journeys: guide.journeys.map((item) => ({ ...item, steps: lines(item.steps.join('\n')) })) })}>{busy ? 'Saving…' : 'Save guide'}</Button>
   </div>
 }
 
