@@ -42,7 +42,7 @@ export default function StudioUsers() {
     <tbody>{rows.map((member) => <tr key={member.user_id} className="cursor-pointer border-b last:border-0 hover:bg-muted/50" onClick={() => router.push(href(`/${member.user_id}`))}>
       <td className="px-4 py-3"><Link href={href(`/${member.user_id}`)} onClick={(event) => event.stopPropagation()} className="flex min-w-0 items-center gap-3"><MemberAvatar member={member} /><span className="min-w-0"><span className="block truncate font-semibold">{demoAccountName(member)}</span><span className="block truncate text-xs text-muted-foreground">{member.role_line || member.user_email}</span></span></Link></td>
       <td className="max-w-56 px-4 py-3 text-xs text-muted-foreground">{orgSummary(member)}</td>
-      <td className="px-4 py-3 text-xs text-muted-foreground">{member.guide?.journeys?.length ? `${member.guide.journeys.length} things to try` : 'Not written'}</td>
+      <td className="px-4 py-3 text-xs text-muted-foreground">{member.guide?.pages?.length ? `${member.guide.pages.length} page${member.guide.pages.length === 1 ? '' : 's'}` : 'Not written'}</td>
       <td className="px-4 py-3">{member.changed ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">Set up since publishing</span> : <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-800">Published</span>}</td>
       <td className="px-4 py-3" onClick={(event) => event.stopPropagation()}><Switch aria-label={`Show ${demoAccountName(member)} on the picker`} checked={member.pilotable} onCheckedChange={(value) => void toggle(member, value)} /></td>
     </tr>)}</tbody>

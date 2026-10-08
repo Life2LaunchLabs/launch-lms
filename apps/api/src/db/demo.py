@@ -22,6 +22,8 @@ class DemoConfiguration(SQLModel, table=True):
     ai_tokens_per_day: int = 2000000
     revision: int = 1
     checkpoint_id: str | None = None
+    # Guide pages every demo user shows; NULL means the built-in defaults.
+    guide_pages: list | None = Field(default=None, sa_column=Column(JSON, nullable=True))
 
 
 class DemoCheckpoint(SQLModel, table=True):

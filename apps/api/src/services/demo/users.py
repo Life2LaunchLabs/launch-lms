@@ -26,45 +26,13 @@ from src.services.demo.cohort import (
     validate_member,
 )
 from src.services.demo.configuration import configuration
+from src.services.demo.guide import GuidePages
 from src.services.demo.media import copy_user_files
 from src.services.security.rate_limiting import check_rate_limit
 
 DEMO_EMAIL_DOMAIN = "demo.example.com"
 REJECTED = "The email or password for the account to copy is incorrect."
 ROLES = {"student": USER_ROLE_ID, "staff": MAINTAINER_ROLE_ID, "admin": ADMIN_ROLE_ID}
-
-
-class Journey(BaseModel):
-    id: str = Field(default_factory=lambda: uuid4().hex[:8], max_length=40)
-    title: str = Field(min_length=1, max_length=120)
-    minutes: int | None = Field(default=None, ge=1, le=120)
-    why: str = Field(default="", max_length=600)
-    steps: list[str] = Field(default_factory=list, max_length=12)
-    link_label: str = Field(default="", max_length=60)
-    link_path: str = Field(default="", max_length=300)
-
-    @field_validator("link_path")
-    @classmethod
-    def relative(cls, value: str) -> str:
-        if value and (not value.startswith("/") or value.startswith("//")):
-            raise ValueError("Links must be paths on this site, starting with /.")
-        return value
-
-    @field_validator("steps")
-    @classmethod
-    def short_steps(cls, value: list[str]) -> list[str]:
-        return [step.strip()[:300] for step in value if step.strip()]
-
-
-class Guide(BaseModel):
-    goals: list[str] = Field(default_factory=list, max_length=10)
-    has: list[str] = Field(default_factory=list, max_length=10)
-    journeys: list[Journey] = Field(default_factory=list, max_length=8)
-
-    @field_validator("goals", "has")
-    @classmethod
-    def lines(cls, value: list[str]) -> list[str]:
-        return [line.strip()[:300] for line in value if line.strip()]
 
 
 class OrgChoice(BaseModel):
@@ -107,7 +75,7 @@ class UpdateDemoUser(StartPage):
     handle: str | None = Field(default=None, max_length=40)
     pilotable: bool | None = None
     position: int | None = None
-    guide: Guide | None = None
+    guide: GuidePages | None = None
     start_path: str | None = Field(default=None, max_length=300)  # type: ignore[assignment]
     start_org_slug: str | None = Field(default=None, max_length=100)  # type: ignore[assignment]
 

@@ -39,7 +39,7 @@ export default function DemoExperience() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [guideOpen, setGuideOpen] = useState(false)
-  const [topic, setTopic] = useState<GuideTopic>('about')
+  const [topic, setTopic] = useState<GuideTopic>('')
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [journey, setJourney] = useState<string | null>(null)
@@ -83,7 +83,7 @@ export default function DemoExperience() {
     if (url.searchParams.get('demo_guide') !== '1') return
     url.searchParams.delete('demo_guide')
     window.history.replaceState(window.history.state, '', url.toString())
-    setTopic('about'); setGuideOpen(true)
+    setTopic(''); setGuideOpen(true)
   }, [visitor])
   useEffect(() => {
     document.documentElement.style.setProperty('--demo-bar-height', showBar ? '3rem' : '0px')
@@ -162,7 +162,7 @@ export default function DemoExperience() {
       <div className="flex min-w-0 items-center gap-1.5 sm:gap-2"><DemoTag tone="live">Live</DemoTag>{state.unstable ? <DemoTag tone="unstable">Unstable</DemoTag> : null}<span className="truncate text-sm font-semibold">Setting up {name}</span><span className="hidden truncate text-xs opacity-75 lg:inline">Edits save to the demo. Visitors get them after you publish.</span></div>
       <div className="flex shrink-0 items-center gap-0.5">
         {member?.changed ? <span className="mr-1 hidden rounded-full bg-orange-500/20 px-2 py-0.5 text-[11px] font-semibold text-orange-100 md:inline">Set up since last publish</span> : null}
-        <Button variant="ghost" size="sm" className={barButton} onClick={() => { setTopic('about'); setGuideOpen(true) }}><BookOpen className="h-4 w-4" /><span className="hidden sm:inline">Guide</span></Button>
+        <Button variant="ghost" size="sm" className={barButton} onClick={() => { setTopic(''); setGuideOpen(true) }}><BookOpen className="h-4 w-4" /><span className="hidden sm:inline">Guide</span></Button>
         <Button variant="ghost" size="sm" className={barButton} disabled={busy} onClick={(event) => confirm('publish', event.currentTarget)}><Upload className="h-4 w-4" /><span className="hidden sm:inline">Publish</span></Button>
         <Button variant="ghost" size="sm" className={barButton} disabled={busy} onClick={() => void act('exit')}><LogOut className="h-4 w-4" /><span className="hidden sm:inline">Back to Studio</span></Button>
       </div>
@@ -183,7 +183,7 @@ export default function DemoExperience() {
         </Popover>
       </div>
       <div className="flex shrink-0 items-center gap-0.5">
-        <Button variant="ghost" size="sm" className={barButton} aria-expanded={guideOpen} onClick={() => { setTopic('about'); setGuideOpen(true) }}><BookOpen className="h-4 w-4" /><span className="hidden sm:inline">Guide</span></Button>
+        <Button variant="ghost" size="sm" className={barButton} aria-expanded={guideOpen} onClick={() => { setTopic(''); setGuideOpen(true) }}><BookOpen className="h-4 w-4" /><span className="hidden sm:inline">Guide</span></Button>
         <Popover open={feedbackOpen} onOpenChange={setFeedbackOpen}>
           <PopoverTrigger asChild><Button variant="ghost" size="sm" className={barButton}><MessageCircle className="h-4 w-4" /><span className="hidden sm:inline">Feedback</span></Button></PopoverTrigger>
           <PopoverContent align="end" className="w-[min(24rem,calc(100dvw-1.5rem))] rounded-2xl p-4"><DemoFeedback personName={name} journey={journey} tag={state.tag} configured={state.feedback_configured !== false} /></PopoverContent>

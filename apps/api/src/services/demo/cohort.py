@@ -8,6 +8,7 @@ from src.db.demo import DemoMember
 from src.db.organizations import Organization
 from src.db.user_organizations import UserOrganization
 from src.db.users import User
+from src.services.demo.guide import try_titles, user_pages
 
 HANDLE = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$")
 # Top-level paths on the demo host that a handle must never shadow.
@@ -69,7 +70,7 @@ def presentation(member: DemoMember) -> dict:
         "handle": member.handle,
         "start_path": member.start_path,
         "start_org_slug": member.start_org_slug,
-        "guide": member.guide or {},
+        "guide": {"pages": user_pages(member.guide)},
         "position": member.position,
     }
 
@@ -111,7 +112,6 @@ def public_pilots(db: Session, checkpoint) -> list[dict]:
         member = live.get(account["user_id"])
         if not member or not member.pilotable:
             continue
-        guide = member.guide or {}
         result.append(
             {
                 **{key: value for key, value in account.items() if key != "email"},
@@ -119,11 +119,7 @@ def public_pilots(db: Session, checkpoint) -> list[dict]:
                 "role_line": member.role_line,
                 "handle": member.handle,
                 "position": member.position,
-                "journeys": [
-                    journey.get("title", "")
-                    for journey in guide.get("journeys", [])[:3]
-                    if journey.get("title")
-                ],
+                "journeys": try_titles(member.guide),
             }
         )
     return sorted(result, key=lambda item: (item["position"], item["user_id"]))

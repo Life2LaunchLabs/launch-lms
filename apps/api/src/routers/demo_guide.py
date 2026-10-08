@@ -8,6 +8,7 @@ from src.db.demo import DemoMember
 from src.db.users import User
 from src.services.demo.access import claims, operator
 from src.services.demo.cohort import default_org
+from src.services.demo.guide import GuidePages, save_shared_pages, shared_pages, visitor_guide
 from src.services.demo.lifecycle import active_session
 from src.services.security.rate_limiting import check_rate_limit
 
@@ -51,10 +52,23 @@ def guide(request: Request, db: Session = Depends(control_db)):
     if not member:
         raise HTTPException(404, "No guide is available.")
     return {
-        "guide": member.guide or {},
+        "pages": visitor_guide(db, member.guide),
         "description": member.description,
         "role_line": member.role_line,
     }
+
+
+@router.get("/guide/shared")
+def shared_guide(request: Request, db: Session = Depends(control_db)):
+    """Pages every demo user shows, for Demo Studio."""
+    operator(request, db)
+    return {"pages": shared_pages(db)}
+
+
+@router.put("/guide/shared")
+def update_shared_guide(request: Request, body: GuidePages, db: Session = Depends(control_db)):
+    operator(request, db)
+    return {"pages": save_shared_pages(db, body)}
 
 
 @router.get("/announcements")
