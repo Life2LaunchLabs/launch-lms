@@ -8,7 +8,13 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy import create_engine
 from sqlmodel import Session, SQLModel, select
-from src.db.demo import DemoConfiguration, DemoSession, DemoUsage, DemoCheckpoint
+from src.db.demo import (
+    DemoCheckpoint,
+    DemoConfiguration,
+    DemoMember,
+    DemoSession,
+    DemoUsage,
+)
 from src.db.users import User
 from src.services.demo.budgets import reserve
 from src.services.demo.checkpoints import encode_value, scrub_json
@@ -27,10 +33,12 @@ def control():
             DemoSession.__table__,
             DemoUsage.__table__,
             DemoCheckpoint.__table__,
+            DemoMember.__table__,
         ],
     )
     with Session(engine) as db:
         db.add(DemoConfiguration())
+        db.add(DemoMember(user_id=2, pilotable=True))
         db.commit()
         yield engine, db
 

@@ -168,3 +168,37 @@ patterns. Verify desktop 1440x900 and phone 390x844, light/dark selection, cohor
 management, nonpilot exclusion, admin switching/publication, visitor back/reset,
 org-admin cohort/progress, and no ordinary-admin banner/layout changes. Refresh
 rendered evidence and update PR #90; its earlier checks are historical after edits.
+
+## Owner amendment: demo users without a scenario org (2026-10-07)
+
+Supersedes the scenario-organization design above. A demo user is an ordinary fake
+account flagged as demo. It belongs to the main organization like every real learner,
+plus whichever schools or issuers its story needs. Publishing captures every demo user,
+all organizations they belong to and the main organization; no entry org is configured.
+Visitors land on the user's own start page on the main portal (bare paths on the demo
+host). An organization admin start page uses that organization's normal routing.
+
+- **Demo Studio** (`/admin/platform/demo`): demo users and supporting cast, New demo user
+  (blank, deep copy of a consenting real account, or duplicate of a demo user), per-user
+  Profile, Guide and Link & QR tabs, Publish (preflight, publish, version history and
+  restore) and Limits & AI. The visitor `/demo` page no longer carries admin controls.
+- **Deep copy** (`services/demo/copy.py`) copies the person's own rows (portfolio, badge
+  runs and awards, plans, saved resources, media, optionally coach history) with fresh ids
+  and identifiers; shared catalog content stays linked. Inbox messages never copy.
+- **Live presentation**: card text, guide, start page, link handle and picker visibility
+  are read live and need no publish. Account data reaches visitors on publish.
+- **Direct links**: `/demo/<handle>` starts that user immediately; `?tag=` labels the
+  session's feedback. QR codes download from the user's Link & QR tab.
+- **One bar**: visitor bar (Demo/Unstable tags, user menu, Guide, Feedback, Announcements)
+  replaces the unstable tester bar while shown. Setup mode has its own striped LIVE bar.
+  Visitor feedback and journey ratings post through the control database to the same
+  Jira board, labeled `launchlms-demo`, `demo-user-*`, `demo-tag-*`, `demo-journey-*`.
+- **Media**: files referenced by captured content are included even when owned by an
+  account outside the demo (copied under a pseudonymous owner); missing files are
+  warnings. Preflight lists both with the referencing table.
+- Default capacity is 100 concurrent visitors (migration lowers higher values).
+
+Activation per environment: set `LAUNCHLMS_DEMO_HOST` (API) and
+`NEXT_PUBLIC_LAUNCHLMS_DEMO_HOST` (web), e.g. `demo.unstable.life2launch.app` on unstable
+and `demo.life2launch.app` on production, and route that host to the same web app. Then
+create demo users in Studio, set them up, publish, and share `/demo/<handle>` links.

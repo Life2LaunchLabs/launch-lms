@@ -14,7 +14,7 @@ class DemoConfiguration(SQLModel, table=True):
     recapture_error: str | None = None
     recapture_error_signature: str | None = None
     entry_org_id: int | None = None
-    capacity: int = 200
+    capacity: int = 100
     session_minutes: int = 60
     extension_minutes: int = 30
     ai_requests_per_minute: int = 10
@@ -53,6 +53,8 @@ class DemoSession(SQLModel, table=True):
     cleaned_at: datetime | None = None
     state: str = Field(default="preparing", index=True)
     error: str | None = Field(default=None, sa_column=Column(Text))
+    # Optional label from a shared link (e.g. ?tag=oct-fair), attached to feedback.
+    tag: str | None = None
 
 
 class DemoUsage(SQLModel, table=True):
@@ -62,8 +64,21 @@ class DemoUsage(SQLModel, table=True):
 
 
 class DemoMember(SQLModel, table=True):
-    """Explicitly designated fictional accounts; only pilots appear publicly."""
+    """Explicitly designated fictional accounts; only pilots appear publicly.
+
+    Presentation (card text, guide, start page, link handle) is read live, so
+    editing it never needs a new checkpoint. Account data is published.
+    """
 
     user_id: int = Field(primary_key=True)
     pilotable: bool = False
     description: str = ""
+    role_line: str = ""
+    # Direct-link slug: demo.<host>/<handle>.
+    handle: str | None = Field(default=None, unique=True)
+    # Where the user lands; empty org slug means the main portal.
+    start_path: str = ""
+    start_org_slug: str = ""
+    guide: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    position: int = 0
+    last_setup_at: datetime | None = None

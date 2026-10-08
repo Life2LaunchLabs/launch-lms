@@ -69,8 +69,16 @@ def decode_value(value):
     return value
 
 
-def remap(data: dict, session_id: str) -> tuple[dict, dict]:
+def remap(data: dict, session_id: str, files=()) -> tuple[dict, dict]:
     identifiers = {}
+    # Included files can belong to owners with no captured row (pseudonymized
+    # accounts, catalog orgs). Isolate those owners too.
+    for path in files:
+        owner = re.match(r"^content/(?:orgs|users)/((org|user)_[^/]+)/", path)
+        if owner:
+            identifiers.setdefault(
+                owner.group(1), f"{owner.group(2)}_demo_{session_id}_{uuid4().hex}"
+            )
     for records in data.values():
         for record in records:
             for key, value in record.items():

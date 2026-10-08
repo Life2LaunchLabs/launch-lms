@@ -1,20 +1,16 @@
 from fastapi import HTTPException
-from datetime import datetime
 
 from pydantic import BaseModel, Field
 from sqlalchemy import update
-from sqlmodel import Session, delete, select
-from src.db.demo import DemoConfiguration, DemoMember, DemoSession
-from src.db.organizations import Organization
+from sqlmodel import Session, select
+from src.db.demo import DemoConfiguration
 
 
 class DemoSettings(BaseModel):
     revision: int = Field(ge=1)
     enabled: bool
     auto_recapture: bool = True
-    entry_org_id: int | None = Field(default=None, gt=0)
-    entry_org_slug: str | None = Field(default=None, min_length=1, max_length=100)
-    capacity: int = Field(default=200, ge=1, le=1000)
+    capacity: int = Field(default=100, ge=1, le=1000)
     session_minutes: int = Field(default=60, ge=10, le=1440)
     extension_minutes: int = Field(default=30, ge=10, le=1440)
     ai_requests_per_minute: int = Field(default=10, ge=1, le=60)
@@ -33,29 +29,8 @@ def configuration(db: Session, *, lock: bool = False) -> DemoConfiguration:
 
 
 def save_settings(db: Session, settings: DemoSettings) -> DemoConfiguration:
-    org = (
-        db.exec(
-            select(Organization).where(Organization.slug == settings.entry_org_slug)
-        ).first()
-        if settings.entry_org_slug
-        else db.get(Organization, settings.entry_org_id)
-    )
-    if not org:
-        raise HTTPException(422, "The fictional scenario organization was not found.")
-    settings.entry_org_id = org.id
-    previous = configuration(db, lock=True)
-    values = settings.model_dump(exclude={"revision", "entry_org_slug"})
-    if previous.entry_org_id not in (None, settings.entry_org_id):
-        # A different scenario invalidates the cohort and checkpoint. Stay disabled
-        # until the new one is published, and revoke workspaces built from the old one.
-        db.exec(delete(DemoMember))
-        db.execute(
-            update(DemoSession)
-            .where(DemoSession.ended_at.is_(None))
-            .values(ended_at=datetime.utcnow(), state="ended")
-        )
-        values["checkpoint_id"] = None
-        values["enabled"] = False
+    configuration(db, lock=True)
+    values = settings.model_dump(exclude={"revision"})
     changed = db.execute(
         update(DemoConfiguration)
         .where(

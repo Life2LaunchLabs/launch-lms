@@ -49,7 +49,7 @@
     { "name": "Legacy modal wrapper", "source": "apps/web/components/Objects/StyledElements/Modal/Modal.tsx", "status": "legacy", "role": "High-use wrapper over the shared Dialog primitive" },
     { "name": "Legacy form kit", "source": "apps/web/components/Objects/StyledElements/Form/Form.tsx", "status": "legacy", "role": "Parallel form controls that overlap components/ui" },
     { "name": "Legacy confirmation modal", "source": "apps/web/components/Objects/StyledElements/ConfirmationModal/ConfirmationModal.tsx", "status": "legacy", "role": "Direct Radix confirmation flow overlapping Dialog" },
-    {"name": "Disposable demo session bar", "source": "apps/web/components/Demo/DemoToolbar.tsx", "status": "adopted", "role": "Normal editing of designated fictional cohort accounts and whole-scenario checkpoint publication for authorized platform operators; visitor reset/back-to-selection controls and an extendable five-minute expiry warning. Reuses Button, Popover, Dialog, Input, Label and Switch."}
+    {"name": "Demo bar", "source": "apps/web/components/Demo/DemoToolbar.tsx", "status": "adopted", "role": "One 48px bar above the product during a demo. Visitor variant (indigo): Demo/Unstable tags, demo-user menu (switch, start over, add time, end), Guide, Feedback, Announcements (when there are any). Setup variant (dark striped, LIVE tag): admin signed in as a real demo account, with Guide, Publish and Back to Studio. Replaces the unstable tester bar while shown. Reuses Button, Popover and Dialog."}
   ],
   "standards": [
     "Search this catalog and the product source before adding a component or layout.",

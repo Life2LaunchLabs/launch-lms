@@ -10,16 +10,14 @@ from src.core.events.database import engine
 from src.db.demo import DemoCheckpoint, DemoSession, DemoMember
 from src.services.demo.metadata import checkpoint_info
 from src.db.users import User
-from src.db.organizations import Organization
 from src.security.auth import create_access_token, create_refresh_token, decode_jwt
 from src.security.security import SECRET_KEY
 from src.services.demo.access import claims, operator, visitor_credentials
-from src.services.demo.clone import CloneRequest, clone_account
 from src.services.demo.configuration import DemoSettings, configuration, save_settings
 from src.services.demo.cohort import (
-    CohortSettings,
-    save_cohort,
+    default_org,
     draft_accounts,
+    pilot,
     public_pilots,
     validate_member,
 )
@@ -27,9 +25,23 @@ from src.services.demo.lifecycle import (
     active_session,
     end,
     extend,
+    preflight,
     publish,
+    restore,
     admit,
     visitor_fingerprint,
+)
+from src.services.demo.namespaces import schema_signature
+from src.routers.demo_guide import _environment
+from src.services.demo.users import (
+    AddExisting,
+    CreateDemoUser,
+    UpdateDemoUser,
+    add_existing,
+    create_demo_user,
+    mark_setup,
+    remove_demo_user,
+    update_demo_user,
 )
 from src.services.security.rate_limiting import check_rate_limit, get_client_ip
 
@@ -43,6 +55,8 @@ def control_db():
 
 class PilotSelection(BaseModel):
     user_id: int | None = Field(default=None, gt=0)
+    # Optional label from a shared link, e.g. ?tag=oct-fair.
+    tag: str | None = Field(default=None, max_length=40, pattern="^[A-Za-z0-9_-]*$")
 
 
 class Revision(BaseModel):
@@ -78,18 +92,37 @@ def pending_ticket(session: DemoSession) -> dict:
     }
 
 
+def _published_at(db: Session, checkpoint_id: str | None):
+    checkpoint = checkpoint_info(db, checkpoint_id) if checkpoint_id else None
+    return checkpoint.created_at if checkpoint else None
+
+
 @router.get("/status")
 def status(request: Request, db: Session = Depends(control_db)):
     config = configuration(db)
     payload = claims(request)
     if payload.get("demo_session"):
         session = active_session(db, payload["demo_session"])
+        checkpoint = checkpoint_info(db, session.checkpoint_id)
+        account = pilot(db, checkpoint, session.pilot_user_id, pickable=False)
+        member = db.get(DemoMember, session.pilot_user_id)
         return {
             "mode": "visitor",
             "expires_at": session.expires_at.isoformat() + "Z",
             "checkpoint_id": session.checkpoint_id,
             "pilot_user_id": session.pilot_user_id,
-            "entry_org_slug": checkpoint_info(db, session.checkpoint_id).entry_org_slug,
+            "entry_org_slug": checkpoint.entry_org_slug,
+            "start_path": account["start_path"],
+            "start_org_slug": account["start_org_slug"],
+            "tag": session.tag,
+            "accounts": public_pilots(db, checkpoint),
+            "pilot": {
+                **{key: value for key, value in account.items() if key != "email"},
+                "role_line": member.role_line if member else "",
+                "description": member.description if member else "",
+                "handle": member.handle if member else None,
+            },
+            **_environment(),
         }
     if payload.get("sub"):
         try:
@@ -97,23 +130,26 @@ def status(request: Request, db: Session = Depends(control_db)):
         except HTTPException:
             pass
         else:
-            checkpoint = (
-                checkpoint_info(db, config.checkpoint_id)
-                if config.checkpoint_id
-                else None
-            )
+            published_at = _published_at(db, config.checkpoint_id)
+            setup_user = None
+            if payload.get("demo_operator"):
+                target = db.exec(
+                    select(User).where(User.email == payload.get("sub"))
+                ).first()
+                setup_user = target.id if target else None
             return {
                 "mode": "admin" if payload.get("demo_operator") else "operator",
                 "checkpoint_id": config.checkpoint_id,
-                "settings": {
-                    **config.model_dump(),
-                    "entry_org_slug": db.get(Organization, config.entry_org_id).slug
-                    if config.entry_org_id
-                    else "",
-                },
+                "settings": config.model_dump(
+                    exclude={"entry_org_id", "recapture_error_signature"}
+                ),
                 "actor_id": actor.id,
-                "members": draft_accounts(db),
-                "accounts": public_pilots(checkpoint),
+                "setup_user_id": setup_user,
+                "main_org_slug": default_org(db).slug,
+                "members": draft_accounts(db, published_at),
+                "accounts": public_pilots(db, checkpoint_info(db, config.checkpoint_id))
+                if config.checkpoint_id
+                else [],
                 "ready_workspaces": db.exec(
                     select(func.count())
                     .select_from(DemoSession)
@@ -123,18 +159,31 @@ def status(request: Request, db: Session = Depends(control_db)):
                         DemoSession.ended_at.is_(None),
                     )
                 ).one(),
-                "published_at": checkpoint.created_at.isoformat() + "Z"
-                if checkpoint
+                "active_sessions": db.exec(
+                    select(func.count())
+                    .select_from(DemoSession)
+                    .where(
+                        DemoSession.state == "active",
+                        DemoSession.visitor_id != "",
+                        DemoSession.ended_at.is_(None),
+                        DemoSession.expires_at > datetime.utcnow(),
+                    )
+                ).one(),
+                "published_at": published_at.isoformat() + "Z"
+                if published_at
                 else None,
+                **_environment(),
             }
+    published = config.enabled and config.checkpoint_id
     return {
         "mode": "public",
-        "accounts": public_pilots(checkpoint_info(db, config.checkpoint_id))
-        if config.enabled
+        "accounts": public_pilots(db, checkpoint_info(db, config.checkpoint_id))
+        if published
         else [],
-        "checkpoint_id": config.checkpoint_id if config.enabled else None,
-        "available": bool(config.enabled and config.checkpoint_id),
+        "checkpoint_id": config.checkpoint_id if published else None,
+        "available": bool(published),
         "preparing": bool(pending_id(request)),
+        "unstable": _environment()["unstable"],
     }
 
 
@@ -144,20 +193,45 @@ def settings(request: Request, body: DemoSettings, db: Session = Depends(control
     return save_settings(db, body)
 
 
-@router.put("/cohort")
-def cohort_settings(
-    request: Request, body: CohortSettings, db: Session = Depends(control_db)
-):
+@router.get("/users")
+def list_users(request: Request, db: Session = Depends(control_db)):
     operator(request, db)
-    return save_cohort(db, body)
+    config = configuration(db)
+    return draft_accounts(db, _published_at(db, config.checkpoint_id))
 
 
-@router.post("/cohort/clone")
-def clone_member(
-    request: Request, body: CloneRequest, db: Session = Depends(control_db)
+@router.post("/users", status_code=201)
+def create_user(
+    request: Request, body: CreateDemoUser, db: Session = Depends(control_db)
 ):
     actor = operator(request, db)
-    return clone_account(db, actor.id, body)
+    return create_demo_user(db, actor.id, body)
+
+
+@router.post("/users/existing", status_code=201)
+def add_existing_user(
+    request: Request, body: AddExisting, db: Session = Depends(control_db)
+):
+    operator(request, db)
+    return add_existing(db, body)
+
+
+@router.patch("/users/{user_id}")
+def update_user(
+    user_id: int,
+    request: Request,
+    body: UpdateDemoUser,
+    db: Session = Depends(control_db),
+):
+    operator(request, db)
+    return update_demo_user(db, user_id, body)
+
+
+@router.delete("/users/{user_id}")
+def remove_user(user_id: int, request: Request, db: Session = Depends(control_db)):
+    operator(request, db)
+    remove_demo_user(db, user_id)
+    return {"removed": True}
 
 
 @router.get("/portraits/{checkpoint_id}/{user_id}")
@@ -186,18 +260,19 @@ def enter_admin(
     db: Session = Depends(control_db),
 ):
     actor = operator(request, db)
-    config = configuration(db)
-    if body.user_id is None or not db.get(DemoMember, body.user_id):
-        raise HTTPException(
-            422, "Choose an account in the designated fictional cohort."
-        )
-    source = validate_member(db, db.get(User, body.user_id), config.entry_org_id)
+    member = db.get(DemoMember, body.user_id) if body.user_id else None
+    if not member:
+        raise HTTPException(422, "Choose one of the demo users.")
+    source = validate_member(db, db.get(User, body.user_id))
+    mark_setup(db, source.id)
     payload = {"sub": source.email, "demo_operator": actor.id}
     return {
         "tokens": {
             "access_token": create_access_token(payload),
             "refresh_token": create_refresh_token(payload, timedelta(hours=8)),
-            "entry_org_slug": db.get(Organization, config.entry_org_id).slug,
+            "entry_org_slug": default_org(db).slug,
+            "start_path": member.start_path,
+            "start_org_slug": member.start_org_slug,
         }
     }
 
@@ -213,6 +288,58 @@ def exit_admin(request: Request, db: Session = Depends(control_db)):
     }
 
 
+@router.get("/preflight")
+def check_publish(request: Request):
+    with Session(engine.execution_options(isolation_level="REPEATABLE READ")) as db:
+        operator(request, db)
+        return preflight(db)
+
+
+@router.get("/checkpoints")
+def history(request: Request, db: Session = Depends(control_db)):
+    operator(request, db)
+    config = configuration(db)
+    rows = db.exec(
+        select(
+            DemoCheckpoint.id,
+            DemoCheckpoint.created_at,
+            DemoCheckpoint.created_by,
+            DemoCheckpoint.schema_signature,
+        )
+        .order_by(DemoCheckpoint.created_at.desc())
+        .limit(15)
+    ).all()
+    authors = {
+        user.id: f"{user.first_name} {user.last_name}".strip() or user.username
+        for user in db.exec(
+            select(User).where(User.id.in_({row.created_by for row in rows}))
+        ).all()
+    }
+    signature = schema_signature()
+    return [
+        {
+            "id": row.id,
+            "published_at": row.created_at.isoformat() + "Z",
+            "published_by": authors.get(row.created_by, "Unknown"),
+            "current": row.id == config.checkpoint_id,
+            "compatible": row.schema_signature == signature,
+        }
+        for row in rows
+    ]
+
+
+@router.post("/checkpoints/{checkpoint_id}/restore")
+def restore_checkpoint(
+    checkpoint_id: str,
+    request: Request,
+    body: Revision,
+    db: Session = Depends(control_db),
+):
+    operator(request, db)
+    result = restore(db, checkpoint_id, body.revision)
+    return {"checkpoint_id": result.id}
+
+
 @router.post("/checkpoints")
 def checkpoint(request: Request, body: Revision):
     # A stable transaction prevents org edits halfway through an export.
@@ -225,7 +352,7 @@ def checkpoint(request: Request, body: Revision):
                 raise
             raise HTTPException(
                 409,
-                "The live account changed while publishing. Reload and save the checkpoint again.",
+                "A demo account changed while publishing. Publish again.",
             ) from None
         return {
             "checkpoint_id": result.id,
@@ -259,7 +386,7 @@ def start_session(
         for identifier in (claims(request).get("demo_session"), pending_id(request))
         if identifier
     )
-    session = admit(db, fingerprint, body.user_id, replacing)
+    session = admit(db, fingerprint, body.user_id, replacing, body.tag or None)
     return {**pending_ticket(session), "visitor_token": visitor_token}
 
 
@@ -286,7 +413,11 @@ def ready(request: Request, db: Session = Depends(control_db)):
 def reset_session(request: Request, db: Session = Depends(control_db)):
     session = active_session(db, visitor_id(request))
     replacement = admit(
-        db, session.visitor_id, session.pilot_user_id, replacing=(session.id,)
+        db,
+        session.visitor_id,
+        session.pilot_user_id,
+        replacing=(session.id,),
+        tag=session.tag,
     )
     return pending_ticket(replacement)
 
