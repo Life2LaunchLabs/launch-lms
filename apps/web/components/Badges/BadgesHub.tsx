@@ -30,10 +30,12 @@ export default function BadgesHub({
   const [choosing, setChoosing] = useState(choosingBadge)
 
   // Server navigation (e.g. a link from elsewhere) re-renders with new props; keep local state in step.
-  useEffect(() => {
+  const [syncedProps, setSyncedProps] = useState({ initialTab, choosingBadge })
+  if (syncedProps.initialTab !== initialTab || syncedProps.choosingBadge !== choosingBadge) {
+    setSyncedProps({ initialTab, choosingBadge })
     setActiveTab(initialTab)
     setChoosing(choosingBadge)
-  }, [initialTab, choosingBadge])
+  }
 
   useEffect(() => {
     const handlePopState = () => {
