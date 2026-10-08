@@ -369,7 +369,10 @@ function BadgeDiscoverContent({ orgslug, collections, choosingBadge }: BadgeDisc
     [badges, progressReady]
   )
   const featuredBadges = useMemo(
-    () => progressReady ? badges.filter((badge) => badge.status === 'available') : [],
+    // Startable badges lead; coming-soon badges trail so learners see what they can begin now.
+    () => progressReady ? badges
+      .filter((badge) => badge.status === 'available')
+      .sort((a, b) => Number(a.publishStatus === 'coming_soon') - Number(b.publishStatus === 'coming_soon')) : [],
     [badges, progressReady]
   )
 
