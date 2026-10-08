@@ -80,6 +80,7 @@ export const routePaths = {
       user: (username: string) => `/admin/platform/users/${encodeURIComponent(username)}`,
       requests: () => '/admin/platform/requests',
       feedback: () => '/admin/platform/feedback',
+      demo: () => '/admin/platform/demo',
       settings: () => '/admin/platform/settings',
       news: () => '/admin/news',
       analytics: () => '/admin/platform',

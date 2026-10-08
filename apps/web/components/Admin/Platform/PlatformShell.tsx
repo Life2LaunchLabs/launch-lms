@@ -12,75 +12,21 @@ import {
 } from '@phosphor-icons/react'
 import AdminFeatureHeader from '@components/Admin/AdminFeatureHeader'
 import { useOrg } from '@components/Contexts/OrgContext'
-import { getCoreCapabilities, getDefaultOrg, getUriWithOrg } from '@services/config/config'
+import { getDefaultOrg, getUriWithOrg } from '@services/config/config'
+import { platformSections, type PlatformSection } from './platformSections'
 
-export type PlatformSection =
-  | 'overview'
-  | 'organizations'
-  | 'users'
-  | 'requests'
-  | 'settings'
-  | 'feedback'
-  | 'news'
-  | 'demo'
+export type { PlatformSection }
 
-const SECTIONS: {
-  id: PlatformSection
-  label: string
-  icon: React.ReactNode
-  href: string
-  requiresNews?: boolean
-}[] = [
-  {
-    id: 'overview',
-    label: 'Overview',
-    icon: <ChartPie size={14} />,
-    href: '/admin/platform',
-  },
-  {
-    id: 'organizations',
-    label: 'Organizations',
-    icon: <Buildings size={14} />,
-    href: '/admin/platform/orgs',
-  },
-  {
-    id: 'users',
-    label: 'Users',
-    icon: <UsersThree size={14} />,
-    href: '/admin/platform/users',
-  },
-  {
-    id: 'requests',
-    label: 'Requests',
-    icon: <Tray size={14} />,
-    href: '/admin/platform/requests',
-  },
-  {
-    id: 'feedback',
-    label: 'Tester feedback',
-    icon: <Flag size={14} />,
-    href: '/admin/platform/feedback',
-  },
-  {
-    id: 'demo',
-    label: 'Demo',
-    icon: <Flask size={14} />,
-    href: '/admin/platform/demo',
-  },
-  {
-    id: 'settings',
-    label: 'Settings',
-    icon: <Gear size={14} />,
-    href: '/admin/platform/settings',
-  },
-  {
-    id: 'news',
-    label: 'News',
-    icon: <Newspaper size={14} />,
-    href: '/admin/news',
-    requiresNews: true,
-  },
-]
+const ICONS: Record<PlatformSection, React.ReactNode> = {
+  overview: <ChartPie size={14} />,
+  organizations: <Buildings size={14} />,
+  users: <UsersThree size={14} />,
+  requests: <Tray size={14} />,
+  feedback: <Flag size={14} />,
+  demo: <Flask size={14} />,
+  settings: <Gear size={14} />,
+  news: <Newspaper size={14} />,
+}
 
 export default function PlatformShell({
   activeSection,
@@ -115,8 +61,10 @@ export default function PlatformShell({
         activeTab={activeSection}
         tone="platform"
         actions={actions}
-        tabs={SECTIONS.filter((section) => !section.requiresNews || getCoreCapabilities().news).map((section) => ({
-          ...section,
+        tabs={platformSections().map((section) => ({
+          id: section.id,
+          label: section.label,
+          icon: ICONS[section.id],
           href: org?.slug ? getUriWithOrg(org.slug, section.href) : section.href,
         }))}
       />

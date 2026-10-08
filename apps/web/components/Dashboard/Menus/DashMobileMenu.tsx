@@ -8,6 +8,9 @@ import { authenticatedOrgHref } from '@services/auth/handoff'
 import {
   BadgeDollarSign,
   Building2,
+  ChartPie,
+  FlaskConical,
+  Inbox,
   ClipboardList,
   FolderOpen,
   Headphones,
@@ -25,6 +28,7 @@ import {
   X,
 } from 'lucide-react'
 import Link from 'next/link'
+import { platformSections, type PlatformSection } from '@components/Admin/Platform/platformSections'
 import React, { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -121,35 +125,7 @@ function DashMobileMenu() {
   }>
 
   const platformItems = isOwnerOrg
-    ? [
-        {
-          href: getUriWithOrg(org.slug, routePaths.owner.platform.organizations()),
-          icon: Building2,
-          label: 'Organizations',
-        },
-        {
-          href: getUriWithOrg(org.slug, routePaths.owner.platform.users()),
-          icon: Users,
-          label: 'Users',
-        },
-        {
-          href: getUriWithOrg(org.slug, routePaths.owner.platform.feedback()),
-          icon: MessageSquareWarning,
-          label: 'Tester feedback',
-        },
-        {
-          href: getUriWithOrg(org.slug, routePaths.owner.platform.settings()),
-          icon: Settings,
-          label: 'Settings',
-        },
-        capabilities.news
-          ? {
-              href: getUriWithOrg(org.slug, routePaths.owner.platform.news()),
-              icon: Newspaper,
-              label: 'News',
-            }
-          : null,
-      ].filter(Boolean) as Array<{ href: string; icon: React.ComponentType<{ className?: string }>; label: string }>
+    ? platformSections().map((section) => ({ href: getUriWithOrg(org.slug, section.href), icon: PLATFORM_ICONS[section.id], label: section.label }))
     : []
 
   return (
@@ -312,4 +288,15 @@ function MobileMenuLink({
   )
 }
 
+
+const PLATFORM_ICONS: Record<PlatformSection, React.ComponentType<{ className?: string }>> = {
+  overview: ChartPie,
+  organizations: Building2,
+  users: Users,
+  requests: Inbox,
+  feedback: MessageSquareWarning,
+  demo: FlaskConical,
+  settings: Settings,
+  news: Newspaper,
+}
 export default DashMobileMenu
