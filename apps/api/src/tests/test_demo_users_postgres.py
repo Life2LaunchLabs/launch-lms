@@ -354,3 +354,84 @@ def test_preflight_and_publish_include_main_org_and_outside_files(world):
         )
     finally:
         drop_namespace(engine, namespace)
+
+
+def test_publish_rejects_a_version_visitors_could_not_get(world, monkeypatch):
+    db, engine, users, M = world
+    users.create_demo_user(
+        db,
+        10,
+        users.CreateDemoUser(
+            start_from="copy",
+            first_name="Maya",
+            source_email="sam@example.com",
+            password="consented",
+            orgs=[users.OrgChoice(slug="oregon-high")],
+        ),
+    )
+    from fastapi import HTTPException
+    from src.services.demo import lifecycle
+
+    real = lifecycle.materialize
+    namespaces = []
+
+    def broken(engine, namespace, data):
+        namespaces.append(namespace)
+        real(engine, namespace, data)
+        raise ValueError("value too long for type character varying(120)")
+
+    monkeypatch.setattr(lifecycle, "materialize", broken)
+    revision = db.exec(text("SELECT revision FROM democonfiguration")).scalar()
+    with pytest.raises(HTTPException) as rejected:
+        lifecycle.publish(db, 10, revision)
+    assert rejected.value.status_code == 422
+    assert "character varying(120)" in rejected.value.detail
+    db.rollback()
+    assert db.exec(text("SELECT checkpoint_id FROM democonfiguration")).scalar() is None
+    # The rehearsal workspace never outlives the publish attempt.
+    with engine.connect() as conn:
+        assert not conn.execute(
+            text("SELECT 1 FROM pg_namespace WHERE nspname = :name"),
+            {"name": namespaces[0]},
+        ).first()
+
+
+def test_failed_preparation_keeps_the_cause_for_operators(world, monkeypatch):
+    db, engine, users, M = world
+    created = users.create_demo_user(
+        db,
+        10,
+        users.CreateDemoUser(
+            start_from="copy",
+            first_name="Maya",
+            source_email="sam@example.com",
+            password="consented",
+            orgs=[users.OrgChoice(slug="oregon-high")],
+        ),
+    )
+    from src.db.demo import DemoConfiguration, DemoSession
+    from src.services.demo import lifecycle
+
+    revision = db.exec(text("SELECT revision FROM democonfiguration")).scalar()
+    lifecycle.publish(db, 10, revision)
+    config = db.get(DemoConfiguration, 1)
+    config.enabled = True
+    db.add(config)
+    db.commit()
+    session = lifecycle.admit(db, "visitor", created["user_id"])
+    identifier = session.id
+    db.rollback()
+
+    def disk_full(files, identifiers):
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(lifecycle, "write_files", disk_full)
+    assert not lifecycle.prepare(engine, identifier)
+    db.expire_all()
+    failed = db.get(DemoSession, identifier)
+    assert failed.state == "failed"
+    assert failed.error == "Workspace preparation failed. Please start again."
+    assert "No space left on device" in failed.failure_detail
+    from src.routers.demo import _preparation_error
+
+    assert "No space left" in _preparation_error(db, failed.checkpoint_id)

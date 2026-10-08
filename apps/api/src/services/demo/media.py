@@ -172,14 +172,19 @@ def report(warnings, kind, path, data, message, **extra) -> None:
     )
 
 
+def isolated_path(path: str, uuid_map: dict) -> str:
+    for old, new in uuid_map.items():
+        path = path.replace(old, new)
+    # At least the owner must have been remapped before any file write.
+    if not re.match(r"^content/(orgs/org|users/user)_demo_[0-9a-f]{32}_", path):
+        raise ValueError(f"Checkpoint media owner was not isolated: {path}")
+    return path
+
+
 def write_files(files: dict, uuid_map: dict) -> list[str]:
     written = []
     for path, encoded in files.items():
-        for old, new in uuid_map.items():
-            path = path.replace(old, new)
-        # At least the owner must have been remapped before any file write.
-        if not re.match(r"^content/(orgs/org|users/user)_demo_[0-9a-f]{32}_", path):
-            raise ValueError("Checkpoint media owner was not isolated")
+        path = isolated_path(path, uuid_map)
         store_file(path, b64decode(encoded))
         written.append(path)
     return written

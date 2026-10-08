@@ -13,7 +13,12 @@ from src.db.demo import DemoCheckpoint, DemoSession
 from src.db.users import User
 from src.services.demo.checkpoints import capture
 from src.services.demo.configuration import configuration
-from src.services.demo.media import capture_files, write_files, clean_files
+from src.services.demo.media import (
+    capture_files,
+    clean_files,
+    isolated_path,
+    write_files,
+)
 from src.services.demo.namespaces import (
     drop_namespace,
     materialize,
@@ -124,6 +129,40 @@ def preflight(db: Session) -> dict:
     return {"ok": True, "error": None, **summarize(world)}
 
 
+def describe(error: Exception) -> str:
+    """Operator-facing cause; the database message names the table and constraint."""
+    cause = getattr(error, "orig", None) or error
+    lines = [line.strip() for line in str(cause).splitlines() if line.strip()]
+    text = " ".join(lines[:2]) or type(cause).__name__
+    return f"{type(cause).__name__}: {text}"[:600]
+
+
+def rehearse(engine, rows: dict, files: dict) -> None:
+    """Build one throwaway workspace exactly as visitors get it, then drop it.
+
+    Live data can satisfy the live schema yet not the model-built workspace, so a
+    checkpoint that cannot be prepared is rejected here instead of failing every visit.
+    """
+    if engine.dialect.name != "postgresql":
+        return
+    identifier = uuid4().hex
+    namespace = f"demo_{identifier}"
+    try:
+        data, identifiers = remap(rows, identifier, files)
+        for path in files:
+            isolated_path(path, identifiers)
+        materialize(engine, namespace, data)
+    except Exception as error:
+        logger.exception("Demo publish rehearsal failed")
+        raise HTTPException(
+            422,
+            "This version cannot be turned into a visitor workspace, so it was not "
+            f"published. {describe(error)}",
+        ) from None
+    finally:
+        drop_namespace(engine, namespace)
+
+
 def publish(db: Session, actor_id: int, revision: int) -> DemoCheckpoint:
     config = configuration(db, lock=True)
     if config.revision != revision:
@@ -132,6 +171,7 @@ def publish(db: Session, actor_id: int, revision: int) -> DemoCheckpoint:
         )
     # Publication captures one database transaction; callers use REPEATABLE READ.
     world = build(db)
+    rehearse(db.get_bind(), world["rows"], world["files"])
     checkpoint = DemoCheckpoint(
         id=uuid4().hex,
         schema_signature=schema_signature(),
@@ -343,12 +383,14 @@ def prepare(engine, identifier: str) -> bool:
                         clean_files(identifier)
                     materialize(engine, session.namespace, data)
                     write_files(files, identifiers)
-                except Exception:
+                except Exception as error:
                     db.rollback()
                     db.refresh(session)
                     session.state = "failed"
                     session.ended_at = session.ended_at or datetime.utcnow()
                     session.error = "Workspace preparation failed. Please start again."
+                    # Visitors see `error`; Demo Studio shows the cause.
+                    session.failure_detail = describe(error)
                     db.add(session)
                     db.commit()
                     logger.exception(

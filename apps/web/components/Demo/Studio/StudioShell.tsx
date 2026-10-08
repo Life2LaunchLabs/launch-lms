@@ -70,5 +70,6 @@ export function PublishStrip({ status, onPublishPage = false }: { status: DemoSt
     <a href={demoLink()} target="_blank" rel="noreferrer" className="text-xs font-semibold underline underline-offset-4">Open picker</a>
     {onPublishPage ? null : <Link href={href('/publish')} className="rounded-lg bg-foreground px-3 py-1.5 text-xs font-semibold text-background">Review & publish</Link>}
     {settings?.recapture_error ? <p role="alert" className="w-full text-xs text-destructive">The last automatic publish failed: {settings.recapture_error}</p> : null}
+    {status.preparation_error ? <p role="alert" className="w-full text-xs text-destructive">Visitor workspaces for this version are failing to prepare: {status.preparation_error}</p> : null}
   </div>
 }
