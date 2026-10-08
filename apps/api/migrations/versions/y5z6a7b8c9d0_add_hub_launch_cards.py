@@ -1,7 +1,7 @@
 """add editable Hub launch cards
 
 Revision ID: y5z6a7b8c9d0
-Revises: x4y5z6a7b8c9
+Revises: d3m0f4i1d3t4
 """
 
 from alembic import op
@@ -9,7 +9,7 @@ import sqlalchemy as sa
 
 
 revision = "y5z6a7b8c9d0"
-down_revision = "x4y5z6a7b8c9"
+down_revision = "d3m0f4i1d3t4"
 branch_labels = None
 depends_on = None
 
