@@ -53,6 +53,8 @@ class DemoSession(SQLModel, table=True):
     cleaned_at: datetime | None = None
     state: str = Field(default="preparing", index=True)
     error: str | None = Field(default=None, sa_column=Column(Text))
+    # Operator-only cause of a failed preparation, shown in Demo Studio.
+    failure_detail: str | None = Field(default=None, sa_column=Column(Text))
     # Optional label from a shared link (e.g. ?tag=oct-fair), attached to feedback.
     tag: str | None = None
 

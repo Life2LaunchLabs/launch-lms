@@ -60,6 +60,7 @@ export type DemoStatus = {
   available?: boolean
   preparing?: boolean
   ready_workspaces?: number
+  preparation_error?: string | null
   active_sessions?: number
   expires_at?: string
   checkpoint_id?: string | null

@@ -97,6 +97,24 @@ def _published_at(db: Session, checkpoint_id: str | None):
     return checkpoint.created_at if checkpoint else None
 
 
+def _preparation_error(db: Session, checkpoint_id: str | None) -> str | None:
+    """The latest workspace failure for the current version, unless one since succeeded."""
+    if not checkpoint_id:
+        return None
+    latest = db.exec(
+        select(DemoSession)
+        .where(
+            DemoSession.checkpoint_id == checkpoint_id,
+            DemoSession.state.in_(["failed", "available", "active"]),
+            DemoSession.created_at > datetime.utcnow() - timedelta(days=1),
+        )
+        .order_by(DemoSession.created_at.desc())
+    ).first()
+    if not latest or latest.state != "failed":
+        return None
+    return latest.failure_detail or latest.error
+
+
 @router.get("/status")
 def status(request: Request, db: Session = Depends(control_db)):
     config = configuration(db)
@@ -172,6 +190,7 @@ def status(request: Request, db: Session = Depends(control_db)):
                 "published_at": published_at.isoformat() + "Z"
                 if published_at
                 else None,
+                "preparation_error": _preparation_error(db, config.checkpoint_id),
                 **_environment(),
             }
     published = config.enabled and config.checkpoint_id

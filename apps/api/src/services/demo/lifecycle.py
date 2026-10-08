@@ -20,6 +20,7 @@ from src.services.demo.namespaces import (
     remap,
     schema_signature,
 )
+from src.services.demo.rehearsal import describe, rehearse
 
 logger = logging.getLogger(__name__)
 
@@ -132,6 +133,7 @@ def publish(db: Session, actor_id: int, revision: int) -> DemoCheckpoint:
         )
     # Publication captures one database transaction; callers use REPEATABLE READ.
     world = build(db)
+    rehearse(db.get_bind(), world["rows"], world["files"])
     checkpoint = DemoCheckpoint(
         id=uuid4().hex,
         schema_signature=schema_signature(),
@@ -343,12 +345,14 @@ def prepare(engine, identifier: str) -> bool:
                         clean_files(identifier)
                     materialize(engine, session.namespace, data)
                     write_files(files, identifiers)
-                except Exception:
+                except Exception as error:
                     db.rollback()
                     db.refresh(session)
                     session.state = "failed"
                     session.ended_at = session.ended_at or datetime.utcnow()
                     session.error = "Workspace preparation failed. Please start again."
+                    # Visitors see `error`; Demo Studio shows the cause.
+                    session.failure_detail = describe(error)
                     db.add(session)
                     db.commit()
                     logger.exception(
