@@ -26,7 +26,7 @@ export function guideSections(pages: DemoGuidePage[]): Array<[string, DemoGuideP
 
 /**
  * A small docs site for one demo user, written as markdown pages in Demo Studio:
- * the user's own pages, then pages every demo user shares. `preview` is the admin in setup mode.
+ * pages every demo user shares, then the user's own pages. `preview` is the admin in setup mode.
  */
 export default function DemoGuide({ open, onOpenChange, topic, onTopic, personName, firstName, roleLine, description, preview, onJourney }: {
   open: boolean

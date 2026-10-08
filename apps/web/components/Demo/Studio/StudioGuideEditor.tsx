@@ -30,7 +30,8 @@ export default function StudioGuideEditor({ member, busy, onSave }: { member: De
     demoRequest<{ pages: DemoGuidePage[] }>('guide/shared').then((result) => setShared(result.pages)).catch((failure) => setLoadError((failure as Error).message))
   }, [])
 
-  const pages: DemoGuidePage[] = [...own.map((page) => ({ ...page, scope: 'user' as GuideScope })), ...(shared || []).map((page) => ({ ...page, scope: 'global' as GuideScope }))]
+  // Shared pages come first, as visitors see them.
+  const pages: DemoGuidePage[] = [...(shared || []).map((page) => ({ ...page, scope: 'global' as GuideScope })), ...own.map((page) => ({ ...page, scope: 'user' as GuideScope }))]
   const page = pages.find((item) => item.id === selected)
   const sections = [...new Set(pages.map((item) => item.section).filter(Boolean))]
   const person = { first_name: member.first_name || 'them', name: demoAccountName(member), role_line: member.role_line, description: member.description }

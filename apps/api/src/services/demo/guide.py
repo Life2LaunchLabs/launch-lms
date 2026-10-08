@@ -2,7 +2,7 @@
 
 A user's pages live on DemoMember.guide as {"pages": [...]}; pages shared by every demo
 user live on DemoConfiguration.guide_pages (NULL means the built-in defaults below).
-Visitors see the user's pages first, then the shared ones, grouped under section titles.
+Visitors see the shared pages first, then the user's own, grouped under section titles.
 
 Bodies are markdown. Placeholders fill in the current demo user: {{first_name}},
 {{name}}, {{role_line}} and {{description}}. A line holding only {{section:Title}}
@@ -117,7 +117,7 @@ def visitor_guide(db: Session, member_guide: dict | None) -> list[dict]:
     own = [{**page, "scope": "user"} for page in user_pages(member_guide)]
     taken = {page["id"] for page in own}
     shared = [{**page, "scope": "global"} for page in shared_pages(db) if page["id"] not in taken]
-    return own + shared
+    return shared + own
 
 
 def try_titles(member_guide: dict | None, limit: int = 3) -> list[str]:

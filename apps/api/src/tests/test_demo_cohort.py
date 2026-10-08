@@ -867,7 +867,7 @@ def test_shared_pages_default_then_save_and_follow_user_pages(cohort_db):
     member.guide = {"pages": [GuidePage(id="meet", title="Meet {{name}}").model_dump(), GuidePage(id="go", section="Journeys", title="Plan a summer", kind="try").model_dump()]}
     db.commit()
     guide = visitor_guide(db, member.guide)
-    assert [(page["id"], page["scope"]) for page in guide] == [("meet", "user"), ("go", "user"), ("faq", "global")]
+    assert [(page["id"], page["scope"]) for page in guide] == [("faq", "global"), ("meet", "user"), ("go", "user")]
     assert next(pilot for pilot in public_pilots(db, _checkpoint_with(db, 2)) if pilot["user_id"] == 2)["journeys"] == ["Plan a summer"]
     # Clearing the shared pages hides them rather than restoring the defaults.
     save_shared_pages(db, GuidePages(pages=[]))
