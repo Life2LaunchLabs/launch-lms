@@ -24,7 +24,8 @@ function shouldExtractTokens(path: string): boolean {
 function isDemoToken(token?: string): boolean {
   try {
     const payload = JSON.parse(Buffer.from(token?.split('.')[1] || '', 'base64url').toString())
-    return Boolean(payload.demo_session || payload.demo_operator)
+    // Visitor copies stay on the demo host. Setup mode is an admin session, shared like a login.
+    return Boolean(payload.demo_session)
   } catch { return false }
 }
 

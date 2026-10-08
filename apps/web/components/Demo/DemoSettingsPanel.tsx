@@ -26,19 +26,17 @@ export default function DemoSettingsPanel({ settings, readyWorkspaces = 0, onSav
     catch (failure) { setError((failure as Error).message) }
     finally { setBusy(false) }
   }
-  return <form onSubmit={save} className="flex max-h-[80dvh] flex-col">
-    <div className="scrollbar-subtle min-h-0 space-y-5 overflow-y-auto p-5">
-    <div><h2 className="text-lg font-semibold">Demo settings</h2><p className="mt-1 text-sm text-muted-foreground">Choose the fictional organization, prepare its cohort, then publish one shared checkpoint.</p></div>
-    <p className="text-sm text-muted-foreground">Ready workspaces: {readyWorkspaces} of {settings.capacity}. Clean copies prepare in the background after publication and refill as visitors leave.</p>
-    <div className="flex items-center justify-between gap-4"><Label htmlFor="demo-enabled">Accept new demo sessions</Label><Switch id="demo-enabled" checked={draft.enabled} onCheckedChange={(enabled) => setDraft({ ...draft, enabled })} /></div>
-    <div className="space-y-2"><div className="flex items-center justify-between gap-4"><Label htmlFor="demo-auto-recapture">Save a new checkpoint automatically after product updates</Label><Switch id="demo-auto-recapture" checked={draft.auto_recapture} onCheckedChange={(auto_recapture) => setDraft({ ...draft, auto_recapture })} /></div><p className="text-xs leading-5 text-muted-foreground">A product update outdates the checkpoint, so new sessions pause until it is replaced. This republishes the live scenario as it is at that moment; turn it off while you are mid-edit and save the checkpoint yourself.</p>{settings.recapture_error && <p role="alert" className="text-xs leading-5 text-destructive">The last automatic checkpoint failed: {settings.recapture_error} Fix this, then save a checkpoint manually.</p>}</div>
-    <div className="space-y-2"><Label htmlFor="demo-org">Fictional scenario organization</Label><Input id="demo-org" required placeholder="Organization slug" value={draft.entry_org_slug || ''} onChange={(event) => setDraft({ ...draft, entry_org_slug: event.target.value })} /><p className="text-xs text-muted-foreground">Designated demo accounts must belong to this organization. Changing it clears the draft cohort and requires a new checkpoint.</p></div>
+  return <form onSubmit={save} className="flex max-w-2xl flex-col rounded-xl border bg-card">
+    <div className="space-y-5 p-5">
+    <p className="text-sm text-muted-foreground">Ready copies: {readyWorkspaces} of {settings.capacity}. Clean copies prepare in the background after publishing and refill as visitors leave.</p>
+    <div className="flex items-center justify-between gap-4"><Label htmlFor="demo-enabled">Accept new visitors</Label><Switch id="demo-enabled" checked={draft.enabled} onCheckedChange={(enabled) => setDraft({ ...draft, enabled })} /></div>
+    <div className="space-y-2"><div className="flex items-center justify-between gap-4"><Label htmlFor="demo-auto-recapture">Publish again automatically after product updates</Label><Switch id="demo-auto-recapture" checked={draft.auto_recapture} onCheckedChange={(auto_recapture) => setDraft({ ...draft, auto_recapture })} /></div><p className="text-xs leading-5 text-muted-foreground">A product update outdates the published version, so new visits pause until it is replaced. This republishes the demo users as they are at that moment. Turn it off while you are mid-setup and publish yourself.</p>{settings.recapture_error && <p role="alert" className="text-xs leading-5 text-destructive">The last automatic publish failed: {settings.recapture_error} Fix this, then publish from the Publish tab.</p>}</div>
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{LIMITS.map(([key, label, min, max]) => <div className="space-y-2" key={key}><Label htmlFor={`demo-${key}`}>{label}</Label><Input id={`demo-${key}`} type="number" required min={min} max={max} step={1} value={draft[key]} onChange={(event) => setDraft({ ...draft, [key]: Number(event.target.value) })} /></div>)}</div>
     <p className="text-xs leading-5 text-muted-foreground">Visitors see a five-minute warning and can extend. AI allowances cover chat, AI generation and background memory processing. Starting over does not replenish the daily allowance.</p>
     </div>
     <div className="shrink-0 space-y-3 border-t p-4">
     {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-    <Button type="submit" disabled={busy} className="w-full">{busy ? 'Saving…' : 'Save settings'}</Button>
+    <Button type="submit" disabled={busy}>{busy ? 'Saving…' : 'Save settings'}</Button>
     </div>
   </form>
 }

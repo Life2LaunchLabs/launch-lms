@@ -204,7 +204,8 @@ export const config = {
 }
 
 export default async function proxy(req: NextRequest) {
-  if (req.nextUrl.pathname === '/demo') return NextResponse.next()
+  // The picker and direct demo-user links (/demo/<handle>) work without a session.
+  if (req.nextUrl.pathname === '/demo' || /^\/demo\/[a-z0-9-]{1,40}$/.test(req.nextUrl.pathname)) return NextResponse.next()
   let instanceInfo = await getInstanceInfo()
   const demoHost = getConfig('NEXT_PUBLIC_LAUNCHLMS_DEMO_HOST', 'demo.life2launch.app')
   const requestHost = (req.headers.get('host') || '').split(':')[0]
@@ -213,7 +214,7 @@ export default async function proxy(req: NextRequest) {
   if (isDemoHost) {
     instanceInfo = { ...instanceInfo, frontend_domain: demoHost, top_domain: demoHost }
     if (!req.cookies.get(ACCESS_TOKEN_COOKIE)?.value) return NextResponse.redirect(demoEntryUrl)
-    // Resolve the entry org from the session's published checkpoint, never from live state.
+    // The published checkpoint names the main org, so bare paths behave as on the live site.
     const status = await fetch(`${process.env.LAUNCHLMS_INTERNAL_API_URL || getAPIUrl()}demo/status`, {
       headers: { Authorization: `Bearer ${req.cookies.get(ACCESS_TOKEN_COOKIE)?.value}` }, cache: 'no-store',
     })

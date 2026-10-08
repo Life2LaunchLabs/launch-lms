@@ -291,9 +291,9 @@ class CandidateJira:
         ]
 
     def create_feedback(
-        self, *, org_id: int, user, message: str, intent: str | None = None
+        self, *, org_id: int, user, message: str, intent=None, labels=()
     ) -> dict:
-        labels = ["launchlms-feedback", f"launchlms-org-{org_id}"]
+        labels = ["launchlms-feedback", f"launchlms-org-{org_id}", *labels]
         if intent:
             labels.append(f"feedback-intent-{intent}")
         fields = {
