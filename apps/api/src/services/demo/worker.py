@@ -16,6 +16,11 @@ from src.services.demo.namespaces import schema_signature
 
 logger = logging.getLogger(__name__)
 
+# Clean copies kept ready; each is a full database schema plus media.
+WARM_WORKSPACES = 3
+# Concurrent preparations per API process; visitor requests share its CPU.
+PREPARATION_CONCURRENCY = 2
+
 # Fixed advisory-lock key so only one API worker republishes at a time.
 RECAPTURE_LOCK = 0x44454D4F
 
@@ -46,7 +51,7 @@ def pending(engine):
             .order_by(
                 case((DemoSession.visitor_id != "", 0), else_=1), DemoSession.created_at
             )
-            .limit(4)
+            .limit(PREPARATION_CONCURRENCY)
         ).all()
 
 
@@ -69,7 +74,11 @@ def replenish(engine):
                 DemoSession.state.in_(["preparing", "provisioning", "active"]),
             )
         ).one()
-        target = max(0, config.capacity - occupied) if usable else 0
+        # Visitors beyond the warm few are prepared on demand, first in line. Building
+        # a copy per free seat starves the API process that also serves visitors.
+        target = (
+            max(0, min(WARM_WORKSPACES, config.capacity - occupied)) if usable else 0
+        )
         unused = db.exec(
             select(DemoSession)
             .where(

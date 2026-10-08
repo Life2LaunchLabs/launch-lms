@@ -323,8 +323,10 @@ def prepare(engine, identifier: str) -> bool:
                 if session.state not in {"preparing", "provisioning"}:
                     return False
                 retry = session.state == "provisioning"
-                checkpoint = db.get(DemoCheckpoint, session.checkpoint_id)
-                if not checkpoint or session.schema_signature != schema_signature():
+                from src.services.demo.metadata import checkpoint_content
+
+                content = checkpoint_content(db, session.checkpoint_id)
+                if not content or session.schema_signature != schema_signature():
                     session.state = "failed"
                     session.ended_at = datetime.utcnow()
                     session.error = (
@@ -333,8 +335,8 @@ def prepare(engine, identifier: str) -> bool:
                     db.add(session)
                     db.commit()
                     return False
-                files = checkpoint.data["files"]
-                data, identifiers = remap(checkpoint.data["rows"], identifier, files)
+                files = content["files"]
+                data, identifiers = remap(content["rows"], identifier, files)
                 session.aliases = identifiers
                 session.state = "provisioning"
                 db.add(session)
