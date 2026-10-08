@@ -117,6 +117,33 @@ def remap(data: dict, session_id: str, files=()) -> tuple[dict, dict]:
     return replace(decode_value(data)), identifiers
 
 
+def match_live_enums(conn, metadata: MetaData) -> None:
+    """Store enums as text where the live database does.
+
+    Some migrations created model enums as VARCHAR, so their PostgreSQL types never
+    exist. The live columns hold plain strings; workspaces must accept the same rows.
+    """
+    from sqlalchemy import Enum, String
+
+    existing = set(
+        conn.execute(
+            text(
+                """SELECT t.typname FROM pg_type t
+                JOIN pg_namespace n ON n.oid = t.typnamespace
+                WHERE n.nspname = 'public' AND t.typtype = 'e'"""
+            )
+        ).scalars()
+    )
+    for table in metadata.tables.values():
+        for column in table.c:
+            if (
+                isinstance(column.type, Enum)
+                and column.type.native_enum
+                and column.type.name not in existing
+            ):
+                column.type = String()
+
+
 def materialize(engine, namespace: str, data: dict) -> None:
     validate_namespace(namespace)
     if engine.dialect.name != "postgresql":
@@ -128,6 +155,7 @@ def materialize(engine, namespace: str, data: dict) -> None:
         # Bound DDL bursts across all API processes. Hundreds of concurrent
         # table/index creations exhaust PostgreSQL's shared lock table.
         lock_ddl(conn)
+        match_live_enums(conn, metadata)
         conn.execute(text(f'CREATE SCHEMA "{namespace}"'))
         from sqlalchemy.schema import CreateTable, CreateIndex
 
