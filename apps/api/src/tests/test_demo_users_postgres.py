@@ -370,9 +370,9 @@ def test_publish_rejects_a_version_visitors_could_not_get(world, monkeypatch):
         ),
     )
     from fastapi import HTTPException
-    from src.services.demo import lifecycle
+    from src.services.demo import lifecycle, rehearsal
 
-    real = lifecycle.materialize
+    real = rehearsal.materialize
     namespaces = []
 
     def broken(engine, namespace, data):
@@ -380,7 +380,7 @@ def test_publish_rejects_a_version_visitors_could_not_get(world, monkeypatch):
         real(engine, namespace, data)
         raise ValueError("value too long for type character varying(120)")
 
-    monkeypatch.setattr(lifecycle, "materialize", broken)
+    monkeypatch.setattr(rehearsal, "materialize", broken)
     revision = db.exec(text("SELECT revision FROM democonfiguration")).scalar()
     with pytest.raises(HTTPException) as rejected:
         lifecycle.publish(db, 10, revision)
