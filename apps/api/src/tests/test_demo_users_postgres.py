@@ -506,3 +506,70 @@ def test_workspace_accepts_enums_the_live_schema_stores_as_text(world):
                     "learningvariablevaluetype USING value_type::learningvariablevaluetype"
                 )
             )
+
+
+def test_publish_includes_the_public_badge_catalog_of_every_org(world):
+    """Visitors browse the same badge hub as live learners, not only their own badges."""
+    db, engine, users, M = world
+    users.create_demo_user(
+        db,
+        10,
+        users.CreateDemoUser(
+            start_from="copy",
+            first_name="Maya",
+            source_email="sam@example.com",
+            password="consented",
+            orgs=[users.OrgChoice(slug="oregon-high")],
+        ),
+    )
+    from src.db.learning import (
+        BadgeCollection,
+        LearningBadge,
+        LearningBadgeStatus,
+        LearningBadgeVersion,
+    )
+
+    # "Unrelated" (org 3) has no demo user, as with a separate issuer org.
+    db.add(
+        BadgeCollection(
+            id=50, org_id=3, name="Health careers", collection_uuid="collection_hc"
+        )
+    )
+    db.flush()
+    for identifier, name, state in (
+        (50, "CPR", LearningBadgeStatus.PUBLISHED),
+        (51, "Phlebotomy", LearningBadgeStatus.COMING_SOON),
+        (52, "Unfinished", LearningBadgeStatus.DRAFT),
+    ):
+        db.add(
+            LearningBadge(
+                id=identifier,
+                org_id=3,
+                collection_id=50,
+                name=name,
+                status=state,
+                badge_uuid=f"badge_{identifier}",
+            )
+        )
+    db.flush()
+    db.add(
+        LearningBadgeVersion(
+            id=50,
+            version_uuid="version_cpr",
+            badge_id=50,
+            state="published",
+            org_id=3,
+        )
+    )
+    db.commit()
+    from src.services.demo.lifecycle import publish
+
+    revision = db.exec(text("SELECT revision FROM democonfiguration")).scalar()
+    rows = publish(db, 10, revision).data["rows"]
+    names = {row["name"] for row in rows["learningbadge"]}
+    assert {"CPR", "Phlebotomy", "First Aid"} <= names
+    assert "Unfinished" not in names
+    assert any(row["id"] == 50 for row in rows["badgecollection"])
+    assert any(row["id"] == 50 for row in rows["learningbadgeversion"])
+    # The issuer org comes along for display, without making it a scenario org.
+    assert "Unrelated" in {row["name"] for row in rows["organization"]}
