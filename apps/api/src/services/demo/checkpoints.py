@@ -209,6 +209,9 @@ def capture(db: Session, main_org_id: int, user_ids: set[int]) -> dict:
             )
         elif name == "resourceauthor":
             add(name, read(name, table.c.user_id.in_(user_ids)))
+    # The badge hub lists every public collection and badge on the platform, not
+    # only those of the demo users' orgs. Parents and paths follow by FK closure.
+    catalog(add, read, tables)
     # Group/resource links use UUIDs rather than a database foreign key.
     # Preserve shared catalog resources assigned to the fictional cohort.
     resource_uuids = {
@@ -291,6 +294,16 @@ def capture(db: Session, main_org_id: int, user_ids: set[int]) -> dict:
             )
         if before == sum(map(len, rows.values())):
             break
+    # Catalog issuers show their branding; their other content stays out.
+    add(
+        "organizationconfig",
+        read(
+            "organizationconfig",
+            tables["organizationconfig"].c.org_id.in_(
+                [record["id"] for record in rows["organization"].values()]
+            ),
+        ),
+    )
     # Role IDs are global in legacy authorization; include definitions, not memberships.
     add(
         "role",
@@ -342,6 +355,33 @@ def capture(db: Session, main_org_id: int, user_ids: set[int]) -> dict:
         for name, records in rows.items()
         if records
     }
+
+
+def catalog(add, read, tables) -> None:
+    """Mirror the public badge hub listing (learning.list_collections)."""
+    from src.db.learning import LearningBadgeStatus
+
+    collection, badge = tables["badgecollection"], tables["learningbadge"]
+    add(
+        "badgecollection",
+        read(
+            "badgecollection",
+            collection.c.public.is_(True)
+            & collection.c.hidden.is_(False)
+            & collection.c.deleted_at.is_(None),
+        ),
+    )
+    add(
+        "learningbadge",
+        read(
+            "learningbadge",
+            badge.c.public.is_(True)
+            & badge.c.status.in_(
+                [LearningBadgeStatus.COMING_SOON, LearningBadgeStatus.PUBLISHED]
+            )
+            & badge.c.deleted_at.is_(None),
+        ),
+    )
 
 
 def scrub_json(value):
