@@ -1035,7 +1035,7 @@
           "priority": "unset",
           "implementation_notes": "A UserSavedResource is the learner's Library membership. Opening, adding to a custom List, writing Notes or attaching media, reviewing, or explicitly saving a resource can establish membership without requiring a default List. Passive suggestion, selection, display, and expansion do not save it. The Hub detail and Library row action menus expose explicit add/remove Library and List actions; later engagement updates preserve custom List membership.",
           "original_state": "`Live`",
-          "updated_at": "2026-09-08T19:26:29.505811+00:00",
+          "updated_at": "2026-10-08T18:30:00+00:00",
           "description": "",
           "goal_title": "Organize and reflect on resources",
           "group_title": "Find, use, and curate resources",
@@ -1129,6 +1129,17 @@
               "notes": null,
               "source_json": null,
               "created_at": "2026-09-08T00:53:59+00:00"
+            },
+            {
+              "id": "RESOURCES-G002-A001-AC05",
+              "activity_id": "RESOURCES-G002-A001",
+              "display_order": 5,
+              "criterion": "Hub has a Resources tab, separate from conversations, where learners search accessible resources or their Library, filter by type or List, save with one tap, open details, and start or continue a chat about a resource.",
+              "automated_status": "not_tested",
+              "manual_status": "not_tested",
+              "notes": "Browser check at phone and desktop widths (FEED-16).",
+              "source_json": null,
+              "created_at": "2026-10-08T18:30:00+00:00"
             }
           ],
           "steps": [
@@ -1241,6 +1252,12 @@
               "path": "apps/web/services/routing/__tests__/routing.test.ts",
               "symbol": null,
               "responsibility": "Hub routing and legacy resource-link continuity"
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/app/orgs/[orgslug]/(withmenu)/hub/HubResourcesView.tsx",
+              "symbol": null,
+              "responsibility": "Hub Resources tab: search, Discover/Saved, filters, save, and detail"
             }
           ],
           "relationships": []

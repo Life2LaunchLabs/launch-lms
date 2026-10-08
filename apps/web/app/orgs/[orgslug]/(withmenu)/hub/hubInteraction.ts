@@ -55,37 +55,12 @@ export function newHubTranscriptResources<T extends { resource_uuid: string }>(
   })
 }
 
-export type HubResourceTrayEntry<T> = {
-  resource: T
-  originGroupId: string
-}
-
-export function buildHubResourceTrayEntries<T extends { resource_uuid: string }>(
-  groups: Array<{ id: string; resources?: T[] }>
-) {
-  const seen = new Set<string>()
-  const entries: HubResourceTrayEntry<T>[] = []
-  for (const group of groups) {
-    for (const resource of group.resources || []) {
-      if (seen.has(resource.resource_uuid)) continue
-      seen.add(resource.resource_uuid)
-      entries.push({ resource, originGroupId: group.id })
-    }
-  }
-  return entries
-}
-
-export function toggleHubContextResource(activeResourceUuid: string | null, resourceUuid: string) {
-  return activeResourceUuid === resourceUuid ? null : resourceUuid
-}
-
-export function removeHubContextResource<T extends { resource_uuid: string }>(
-  current: T[],
-  activeResourceUuid: string | null,
-  resourceUuid: string
-) {
+// Removing a resource from the chat tray selects its neighbour so the tray stays useful.
+export function removeHubContextResource<T extends { resource_uuid: string }>(current: T[], resourceUuid: string) {
+  const index = current.findIndex((item) => item.resource_uuid === resourceUuid)
+  const resources = current.filter((item) => item.resource_uuid !== resourceUuid)
   return {
-    resources: current.filter((item) => item.resource_uuid !== resourceUuid),
-    activeResourceUuid: activeResourceUuid === resourceUuid ? null : activeResourceUuid,
+    resources,
+    nextActiveUuid: resources[Math.min(Math.max(index, 0), resources.length - 1)]?.resource_uuid ?? null,
   }
 }

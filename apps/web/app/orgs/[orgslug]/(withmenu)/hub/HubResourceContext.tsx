@@ -1,7 +1,7 @@
 'use client'
 
-import { Dispatch, ReactNode, useMemo, useState } from 'react'
-import { Loader2, Star, X } from 'lucide-react'
+import { Dispatch, useMemo, useState } from 'react'
+import { ChevronUp, Loader2, Star, X } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import useSWR from 'swr'
 import { useOrg } from '@components/Contexts/OrgContext'
@@ -16,12 +16,27 @@ import { getUriWithOrg, routePaths } from '@services/config/config'
 import type { HubAdvisorResource } from '@services/hub/advisor'
 import { getResourceThumbnailMediaDirectory } from '@services/media/media'
 import { getResource, getResourceChannels, getResourceReviews, Resource, saveResource } from '@services/resources/resources'
-import { toggleHubContextResource } from './hubInteraction'
 
 export function resourceImage(resource: HubAdvisorResource) {
   return resource.thumbnail_image && resource.owner_org_uuid
     ? getResourceThumbnailMediaDirectory(resource.owner_org_uuid, resource.resource_uuid, resource.thumbnail_image)
     : resource.cover_image_url
+}
+
+export function asAdvisorResource(resource: Resource): HubAdvisorResource {
+  return {
+    resource_uuid: resource.resource_uuid,
+    title: resource.title,
+    description: resource.description,
+    resource_type: resource.resource_type,
+    provider_name: resource.provider_name,
+    external_url: resource.external_url,
+    cover_image_url: resource.cover_image_url,
+    thumbnail_image: resource.thumbnail_image,
+    owner_org_uuid: resource.owner_org_uuid || null,
+    access_mode: resource.access_mode,
+    tags: resource.tags.map((tag) => tag.name),
+  }
 }
 
 function ResourceListMembership({ resourceUuid }: { resourceUuid: string }) {
@@ -226,97 +241,58 @@ export function ActiveResourceWorkspace({ resource, orgslug }: { resource: HubAd
   )
 }
 
-export function HubResourceSwitchItem({
-  resource,
-  active,
-  onSelect,
-  onRemove,
-  orientation = 'horizontal',
-}: {
-  resource: HubAdvisorResource
-  active: boolean
-  onSelect: Dispatch<string>
-  onRemove: Dispatch<string>
-  orientation?: 'horizontal' | 'vertical'
-}) {
-  return (
-    <div
-      className={`group relative flex h-16 items-center gap-2 rounded-2xl border p-2 pr-8 text-left transition-colors ${orientation === 'horizontal' ? 'w-[13rem] shrink-0 snap-start' : 'w-full'} ${active ? 'border-border bg-card shadow-sm' : 'border-transparent bg-muted/45 hover:bg-muted/70'}`}
-    >
-      <button
-        type="button"
-        onClick={() => onSelect(resource.resource_uuid)}
-        className="flex min-w-0 flex-1 items-center gap-2 text-left focus-visible:outline-hidden"
-        aria-pressed={active}
-      >
-        <span className="h-11 w-11 shrink-0 overflow-hidden rounded-xl bg-muted">
-          <ResourceTypeVisual
-            type={resource.resource_type}
-            title={resource.title}
-            imageSrc={resourceImage(resource)}
-            iconClassName="h-4 w-4"
-          />
-        </span>
-        <span className="min-w-0">
-          <span className="line-clamp-2 text-xs font-medium leading-4">{resource.title}</span>
-        </span>
-      </button>
-      <button
-        type="button"
-        onClick={() => onRemove(resource.resource_uuid)}
-        className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-background/80 hover:text-foreground"
-        aria-label={`Remove ${resource.title} from conversation`}
-      >
-        <X className="h-3 w-3" />
-      </button>
-    </div>
-  )
-}
-
-export default function HubResourceContext({
-  resources,
-  activeResourceUuid,
-  onActiveChange,
-  onRemove,
-  orgslug,
-  label,
-  activeAction,
-}: {
+// A transcript entry point: compact cards for what Hub suggested or the learner added.
+// Opening a card shows it in the chat tray; cards removed from the chat stay, dimmed.
+export default function HubResourceCarousel({ resources, inChat, label, onOpen }: {
   resources: HubAdvisorResource[]
-  activeResourceUuid: string | null
-  onActiveChange: Dispatch<string | null>
-  onRemove: Dispatch<string>
-  orgslug: string
+  inChat: ReadonlySet<string>
   label?: string
-  activeAction?: ReactNode
+  onOpen: Dispatch<HubAdvisorResource>
 }) {
   if (resources.length === 0) return null
-  const activeResource = resources.find((resource) => resource.resource_uuid === activeResourceUuid)
-
   return (
-    <section aria-label="Resources in this conversation">
-      {label && <p className="mb-1.5 px-1 text-[10px] italic text-muted-foreground">{label}</p>}
-      <div className="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-3">
+    <section aria-label={label || 'Resources'}>
+      {label && <p className="mb-1.5 px-1 text-[11px] font-medium text-muted-foreground">{label}</p>}
+      <div className="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1">
         {resources.map((resource) => {
-          const active = resource.resource_uuid === activeResourceUuid
+          const present = inChat.has(resource.resource_uuid)
           return (
-            <HubResourceSwitchItem
+            <button
               key={resource.resource_uuid}
-              resource={resource}
-              active={active}
-              onSelect={() => onActiveChange(toggleHubContextResource(activeResourceUuid, resource.resource_uuid))}
-              onRemove={onRemove}
-            />
+              type="button"
+              onClick={() => onOpen(resource)}
+              aria-label={present ? `Open ${resource.title}` : `Add ${resource.title} back to this chat`}
+              className={`flex h-16 w-[15rem] shrink-0 snap-start items-center gap-2.5 rounded-2xl border border-border/60 bg-card p-2 text-left transition hover:border-border hover:shadow-sm focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring ${present ? '' : 'opacity-55'}`}
+            >
+              <span className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-muted">
+                <ResourceTypeVisual type={resource.resource_type} title={resource.title} imageSrc={resourceImage(resource)} iconClassName="h-4 w-4" />
+              </span>
+              <span className="min-w-0">
+                <span className="line-clamp-2 text-xs font-medium leading-4">{resource.title}</span>
+                <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{present ? resource.provider_name || resource.resource_type : 'Not in this chat · tap to add back'}</span>
+              </span>
+            </button>
           )
         })}
       </div>
-
-      {activeResource && (
-        <>
-          {activeAction}
-          <ActiveResourceWorkspace key={activeResource.resource_uuid} resource={activeResource} orgslug={orgslug} />
-        </>
-      )}
     </section>
+  )
+}
+
+// The way into the chat tray from the composer, so earlier resources never need scrolling back to.
+export function HubResourceTrayHandle({ resources, onOpen }: { resources: HubAdvisorResource[]; onOpen: () => void }) {
+  if (resources.length === 0) return null
+  return (
+    <button type="button" onClick={onOpen} aria-label={`Show the ${resources.length === 1 ? 'resource' : `${resources.length} resources`} in this chat`} className="mb-2 flex h-9 items-center gap-2 rounded-full border border-border/70 bg-background/95 pl-1.5 pr-3 text-xs font-medium shadow-xs backdrop-blur-md transition hover:bg-muted focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
+      <span className="flex">
+        {resources.slice(-3).map((resource, index) => (
+          <span key={resource.resource_uuid} className={`h-6 w-6 overflow-hidden rounded-md ring-2 ring-background ${index ? '-ml-2' : ''}`}>
+            <ResourceTypeVisual type={resource.resource_type} title={resource.title} imageSrc={resourceImage(resource)} iconClassName="h-3 w-3" />
+          </span>
+        ))}
+      </span>
+      {resources.length === 1 ? '1 resource' : `${resources.length} resources`}
+      <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+    </button>
   )
 }

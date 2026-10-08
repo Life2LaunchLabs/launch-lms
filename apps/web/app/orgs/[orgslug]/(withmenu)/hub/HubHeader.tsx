@@ -1,7 +1,7 @@
 'use client'
 
 import { FormEvent, useEffect, useRef, useState } from 'react'
-import { Archive, ArrowLeft, Check, ChevronDown, CircleHelp, LibraryBig, Loader2, Maximize2, MoreHorizontal, PanelLeft, Pencil, Plus, Radio } from 'lucide-react'
+import { Archive, ArrowLeft, Check, ChevronDown, CircleHelp, Loader2, Maximize2, MoreHorizontal, PanelLeft, Pencil, Plus, Radio } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import {
   DropdownMenu,
@@ -12,20 +12,16 @@ import {
 } from '@components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@components/ui/tooltip'
 import { Input } from '@components/ui/input'
-import type { HubAdvisorResource, HubConversationSummary, HubEditRun } from '@services/hub/advisor'
+import type { HubConversationSummary, HubEditRun } from '@services/hub/advisor'
 import HubConversationHistory from './HubConversationHistory'
-import HubResourceTray from './HubResourceTray'
-import type { HubResourceTrayEntry } from './hubInteraction'
 
-type Panel = 'history' | 'resources' | 'session' | null
+type Panel = 'history' | 'session' | null
 
 export default function HubHeader({
-  orgslug,
   conversationUuid,
   conversationStarted = false,
   title,
   conversations,
-  entries,
   loading,
   disabled,
   onHistoryOpen,
@@ -35,9 +31,6 @@ export default function HubHeader({
   onOpenResources,
   onRename,
   onArchive,
-  onRemoveResource,
-  onReturnToOrigin,
-  initialPanel,
   companion = false,
   contextUnavailable = false,
   editRun,
@@ -46,12 +39,10 @@ export default function HubHeader({
   onCompanionCollapse,
   onCompanionExpand,
 }: {
-  orgslug: string
   conversationUuid: string | null
   conversationStarted?: boolean
   title: string
   conversations: HubConversationSummary[]
-  entries: HubResourceTrayEntry<HubAdvisorResource>[]
   loading: boolean
   disabled: boolean
   onHistoryOpen: () => void
@@ -65,11 +56,6 @@ export default function HubHeader({
   // eslint-disable-next-line no-unused-vars
   onRename: (_title: string) => Promise<void>
   onArchive: () => Promise<void>
-  // eslint-disable-next-line no-unused-vars
-  onRemoveResource: (_resourceUuid: string) => void
-  // eslint-disable-next-line no-unused-vars
-  onReturnToOrigin: (_entry: HubResourceTrayEntry<HubAdvisorResource>) => void
-  initialPanel: Panel
   companion?: boolean
   contextUnavailable?: boolean
   editRun?: HubEditRun | null
@@ -80,7 +66,7 @@ export default function HubHeader({
 }) {
   const hasConversation = conversationStarted || Boolean(conversationUuid)
   const sessionModeLabel = editRun?.scope.kind === 'new_plan' || /\b(create|start|build)\b.*\bplan\b/i.test(editRun?.goal || '') ? 'Creating a plan' : 'Editing a plan'
-  const [panel, setPanel] = useState<Panel>(initialPanel)
+  const [panel, setPanel] = useState<Panel>(null)
   const [renaming, setRenaming] = useState(false)
   const [renameValue, setRenameValue] = useState(title)
   const [goalEditing, setGoalEditing] = useState(false)
@@ -152,12 +138,6 @@ export default function HubHeader({
             </button>
           )}
           <div className="flex-1" />
-          {hasConversation && entries.length > 0 && !renaming && (
-            <Button type="button" variant="ghost" size="sm" className="h-8 gap-1.5 px-2 text-muted-foreground" onClick={() => setPanel((current) => current === 'resources' ? null : 'resources')} aria-expanded={panel === 'resources'} aria-label={`Open conversation resources (${entries.length})`}>
-              <LibraryBig className="h-3.5 w-3.5" />
-              <span className="text-xs tabular-nums">{entries.length}</span>
-            </Button>
-          )}
           {companion && !renaming && (
             <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={onCompanionExpand} aria-label="Open full Hub">
               <Maximize2 className="h-4 w-4" />
@@ -221,15 +201,6 @@ export default function HubHeader({
             disabled={disabled}
             onSelect={(uuid) => { setPanel(null); onSelect(uuid) }}
             onOpenResources={(uuid) => { setPanel(null); onOpenResources(uuid) }}
-          />
-        )}
-        {panel === 'resources' && entries.length > 0 && (
-          <HubResourceTray
-            entries={entries}
-            orgslug={orgslug}
-            onRemove={onRemoveResource}
-            onReturnToOrigin={onReturnToOrigin}
-            onClose={() => setPanel(null)}
           />
         )}
       </div>
