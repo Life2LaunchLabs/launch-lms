@@ -114,16 +114,14 @@ test('candidate panels stay in the visual viewport and dismiss back to their tri
   if (process.env.UI_TEST_CAPTURE === 'true') await page.screenshot({ path: testInfo.outputPath('candidate-feedback-dark.png'), fullPage: true })
 })
 
-test('tester sees unread GitHub notes and can paste a screenshot into quick feedback', async ({ page }, testInfo) => {
+test('tester sees announcements and can paste a screenshot into quick feedback', async ({ page }, testInfo) => {
   await page.goto('/hub')
   await expect(page.getByText('Unstable', { exact: true })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Unread tester announcement' })).toContainText('Test data refresh Friday')
   await expect(page.getByRole('button', { name: /announcements.*1 unread/i })).toHaveCount(0)
   await expect(page.getByRole('button', { name: /feedback.*1 unread/i })).toBeVisible()
-  await page.getByRole('button', { name: /what's new/i }).click()
-  await expect(page.getByText('New since you last tested')).toBeVisible()
-  await expect(page.getByText('You can now duplicate a plan without rebuilding its objectives.')).toBeVisible()
-  if (process.env.UI_TEST_CAPTURE === 'true') await page.screenshot({ path: testInfo.outputPath('candidate-whats-new.png'), fullPage: true })
+  // Release notes are no longer offered from the tester bar.
+  await expect(page.getByRole('button', { name: /what's new/i })).toHaveCount(0)
 
   await page.getByRole('button', { name: /^Feedback/ }).click()
   await expect(page.getByText('Share feedback', { exact: true })).toBeVisible()
