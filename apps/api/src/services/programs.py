@@ -2586,7 +2586,7 @@ def _activate_program_badge_collaborations(
                 badge_id=badge.id or 0,
                 creator_org_id=badge.org_id,
                 issuer_org_id=assignment.org_id,
-                status=BadgeIssuerAuthorizationStatus.APPROVED,
+                status=BadgeIssuerAuthorizationStatus.APPROVED, learner_access="open", open_to_all=True,
                 decided_by_user_id=decided_by_user_id,
                 decided_at=now,
                 creation_date=now.isoformat(),

@@ -269,9 +269,9 @@ class BadgeIssuerAuthorization(SQLModel, table=True):
     creator_org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
     issuer_org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
     status: BadgeIssuerAuthorizationStatus = Field(default=BadgeIssuerAuthorizationStatus.REQUESTED, sa_column=Column(String, nullable=False))
-    # When true the issuer accepts submissions from any learner; when false only
-    # learners with a BadgeIssuerLearnerLink can select this issuer.
+    # How learners join: "open" (start now), "request" (issuer accepts) or "invite"; open_to_all mirrors open|request.
     open_to_all: bool = False
+    learner_access: str = Field(default="invite", sa_column=Column(String, nullable=False, server_default="invite"))
     message: str | None = ""
     requested_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
     decided_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
@@ -335,10 +335,6 @@ class IssuerAuthorizationInvite(SQLModel):
     badge_uuid: str
     issuer_org_slug: str
     message: str | None = ""
-
-
-class IssuerAuthorizationUpdate(SQLModel):
-    open_to_all: bool | None = None
 
 
 class IssuerLearnerLinkCreate(SQLModel):

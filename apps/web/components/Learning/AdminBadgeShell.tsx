@@ -14,7 +14,8 @@ import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { deleteLearningBadge, getLearningResponses, gradeLearningResponse, updateLearningBadge } from '@services/learning/learning'
-import { approveIssuerAuthorization, getIssuerAuthorizations, getIssuerBadgeMetrics, inviteIssuerOrg, rejectIssuerAuthorization, revokeIssuerAuthorization, updateIssuerAuthorization } from '@services/learning/marketplace'
+import { approveIssuerAuthorization, getIssuerAuthorizations, getIssuerBadgeMetrics, inviteIssuerOrg, LearnerAccess, rejectIssuerAuthorization, revokeIssuerAuthorization, updateIssuerAuthorization } from '@services/learning/marketplace'
+import { CreatorIssuingCard, LearnerAccessSelect, learnerAccessLabel } from '@components/Learning/BadgeIssuing'
 import CertificatePreview from '@components/Learning/BadgeCertificatePreview'
 import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
@@ -266,7 +267,7 @@ function IssuerBadgeAnalyticsPanel({ badge, issuerOrgId, orgslug }: { badge: any
             <div className="mt-6 grid gap-4 sm:grid-cols-3">
               <AnalyticsStat label="Issued by your org" value={String(metrics?.issued_count || 0)} />
               <AnalyticsStat label="Used in programs" value={String(metrics?.programs?.length || 0)} />
-              <AnalyticsStat label="Learner access" value={metrics?.authorization?.open_to_all ? 'Open to all' : 'Invited learners'} />
+              <AnalyticsStat label="Learner access" value={learnerAccessLabel(metrics?.authorization?.learner_access)} />
             </div>
 
             <div className="mt-8">
@@ -557,13 +558,7 @@ function BadgeIssuersPanel({ badge, onPatch }: { badge: any; onPatch: (patch: Re
         </div>
 
         <div className="mt-6 space-y-3">
-          <article className="flex flex-col gap-3 rounded-xl border border-lime-200 bg-lime-50/40 p-4 md:flex-row md:items-center md:justify-between">
-            <div className="min-w-0">
-              <p className="text-sm font-bold text-foreground">{org?.name || 'Your organization'}</p>
-              <p className="mt-1 text-xs text-muted-foreground">Badge creator · automatically authorized to issue</p>
-            </div>
-            <span className="rounded-full bg-lime-100 px-3 py-1 text-xs font-bold text-lime-800">Authorized</span>
-          </article>
+          <CreatorIssuingCard badge={badge} orgName={org?.name} refreshKey={authorizations.filter((item) => item.status === 'approved').length} />
           {loading ? (
             <div className="flex items-center justify-center py-12 text-muted-foreground">
               <Loader2 className="h-5 w-5 animate-spin" />
@@ -575,7 +570,7 @@ function BadgeIssuersPanel({ badge, onPatch }: { badge: any; onPatch: (patch: Re
                 <p className="mt-1 text-xs text-muted-foreground">
                   {authorization.issuer_org?.slug}
                   {authorization.message ? ` · “${authorization.message}”` : ''}
-                  {authorization.status === 'approved' ? (authorization.open_to_all ? ' · open to all learners' : ' · invited learners only') : ''}
+                  {authorization.status === 'approved' ? ` · ${learnerAccessLabel(authorization.learner_access).toLowerCase()}` : ''}
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
@@ -870,13 +865,13 @@ function IssuerBadgeSettingsPanel({ orgslug, badge, issuerOrgId }: { orgslug: st
     void load()
   }, [load])
 
-  const toggleOpenToAll = async (value: boolean) => {
+  const changeAccess = async (value: LearnerAccess) => {
     if (!authorization || saving) return
     setSaving(true)
     try {
-      const updated = await updateIssuerAuthorization(authorization.authorization_uuid, { open_to_all: value }, accessToken)
+      const updated = await updateIssuerAuthorization(authorization.authorization_uuid, { learner_access: value }, accessToken)
       setAuthorization(updated)
-      toast.success(value ? 'This badge is now open to all learners.' : 'This badge is now limited to invited learners.')
+      toast.success(`Learner access: ${learnerAccessLabel(value).toLowerCase()}.`)
     } catch (error: any) {
       toast.error(error?.message || 'Failed to update learner access.')
     } finally {
@@ -907,14 +902,8 @@ function IssuerBadgeSettingsPanel({ orgslug, badge, issuerOrgId }: { orgslug: st
         {loading ? (
           <div className="flex items-center justify-center py-14 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /></div>
         ) : authorization ? (
-          <div className="mt-5 divide-y divide-border">
-            <SettingRow
-              title="Open to all learners"
-              description="Allow any learner to choose your organization for delivery and grading. Turn this off to limit access to learners your team accepts or adds."
-              disabled={saving}
-              checked={authorization.open_to_all === true}
-              onChange={(value) => void toggleOpenToAll(value)}
-            />
+          <div className="mt-5">
+            <LearnerAccessSelect value={authorization.learner_access || 'invite'} disabled={saving} onChange={(value) => void changeAccess(value as LearnerAccess)} />
           </div>
         ) : (
           <p className="mt-5 rounded-lg bg-muted p-4 text-sm text-muted-foreground">No active issuing authorization was found.</p>

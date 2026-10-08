@@ -9,7 +9,7 @@ import { ActivityAggregateGradeForm } from '@components/Admin/Programs/CohortPro
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { SafeImage } from '@components/Objects/SafeImage'
 import { Button } from '@components/ui/button'
-import { Switch } from '@components/ui/switch'
+import { LearnerAccessSelect, learnerAccessLabel } from '@components/Learning/BadgeIssuing'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getLearningResponses, gradeLearningResponse } from '@services/learning/learning'
 import {
@@ -23,6 +23,7 @@ import {
   requestIssuerAuthorization,
   revokeIssuerAuthorization,
   updateIssuerAuthorization,
+  type LearnerAccess,
 } from '@services/learning/marketplace'
 import AdminBadgesHome from '@components/Learning/AdminBadgesHome'
 import { BADGE_ADMIN_PAGES } from '@components/Admin/adminFeaturePages'
@@ -282,11 +283,11 @@ export function IssuingAuthorizationsPanel({ orgId }: { orgId: number }) {
     void load()
   }, [load])
 
-  const toggleOpenToAll = async (authorization: any, value: boolean) => {
+  const changeAccess = async (authorization: any, value: LearnerAccess) => {
     setActingOn(authorization.authorization_uuid)
     try {
-      await updateIssuerAuthorization(authorization.authorization_uuid, { open_to_all: value }, accessToken)
-      toast.success(value ? 'Now open to all learners.' : 'Restricted to invited learners.')
+      await updateIssuerAuthorization(authorization.authorization_uuid, { learner_access: value }, accessToken)
+      toast.success(`Learner access: ${learnerAccessLabel(value).toLowerCase()}.`)
       await load()
     } catch (error: any) {
       toast.error(error?.message || 'Failed to update authorization.')
@@ -434,13 +435,7 @@ export function IssuingAuthorizationsPanel({ orgId }: { orgId: number }) {
 
                 {authorization.status === 'approved' ? (
                   <div className="mt-4 rounded-lg bg-muted p-4">
-                    <div className="flex items-center justify-between gap-4">
-                      <div>
-                        <p className="text-xs font-bold uppercase text-muted-foreground">Open to all learners</p>
-                        <p className="mt-1 text-xs text-muted-foreground">When off, only learners you add below can pick your organization for this badge.</p>
-                      </div>
-                      <Switch checked={authorization.open_to_all === true} disabled={actingOn === authorization.authorization_uuid} onCheckedChange={(value) => void toggleOpenToAll(authorization, value)} />
-                    </div>
+                    <LearnerAccessSelect value={authorization.learner_access || 'invite'} disabled={actingOn === authorization.authorization_uuid} onChange={(value) => void changeAccess(authorization, value as LearnerAccess)} />
 
                     <div className="mt-4">
                       <p className="text-xs font-bold uppercase text-muted-foreground">Supported learners ({authorizationLinks.length})</p>

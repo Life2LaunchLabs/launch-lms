@@ -18,7 +18,6 @@ from src.db.learning import (
     BadgeIssuerLearnerLinkStatus,
     IssuerAuthorizationInvite,
     IssuerAuthorizationRequest,
-    IssuerAuthorizationUpdate,
     IssuerLearnerLinkCreate,
     IssuerLearnerRequestCreate,
     IssuerLearnerRequestDecision,
@@ -35,6 +34,7 @@ from src.db.users import AnonymousUser, PublicUser, User
 from src.security.features_utils.resolve import resolve_feature
 from src.security.superadmin import is_user_superadmin
 from src.services.learning_issuer_links import ensure_learner_membership, simulate_issuer_acceptance
+from src.services import learning_issuers as issuers
 from src.services.learning import (
     _clean_uuid,
     _get_badge,
@@ -161,12 +161,12 @@ def get_active_authorization(db_session: Session, badge_id: int, issuer_org_id: 
     ).first()
 
 
-def _serialize_authorization(db_session: Session, authorization: BadgeIssuerAuthorization) -> BadgeIssuerAuthorizationRead:
+def _serialize_authorization(db_session: Session, authorization: BadgeIssuerAuthorization) -> issuers.BadgeIssuerAuthorizationAccessRead:
     badge = db_session.get(LearningBadge, authorization.badge_id)
     creator_org = db_session.get(Organization, authorization.creator_org_id)
     issuer_org = db_session.get(Organization, authorization.issuer_org_id)
-    return BadgeIssuerAuthorizationRead(
-        **authorization.model_dump(),
+    return issuers.BadgeIssuerAuthorizationAccessRead(
+        **{**authorization.model_dump(), "learner_access": issuers.learner_access(authorization)},
         badge=_badge_summary(badge) if badge else None,
         creator_org=_org_summary(creator_org) if creator_org else None,
         issuer_org=_org_summary(issuer_org) if issuer_org else None,
@@ -433,14 +433,14 @@ async def revoke_authorization(
 async def update_authorization(
     request: Request,
     authorization_uuid: str,
-    data: IssuerAuthorizationUpdate,
+    data: issuers.IssuerAccessUpdate,
     current_user: PublicUser | AnonymousUser,
     db_session: Session,
 ) -> BadgeIssuerAuthorizationRead:
     authorization = _get_authorization(db_session, authorization_uuid)
     _require_org_admin(db_session, current_user, authorization.issuer_org_id)
-    if data.open_to_all is not None:
-        authorization.open_to_all = data.open_to_all
+    if data.learner_access is not None or data.open_to_all is not None:
+        issuers.set_learner_access(authorization, data.learner_access or ("request" if data.open_to_all else "invite"))
     authorization.update_date = _now()
     db_session.add(authorization)
     db_session.commit()
@@ -503,61 +503,34 @@ async def list_eligible_issuers(
     current_user: PublicUser | AnonymousUser,
     db_session: Session,
 ) -> list[dict]:
-    """Orgs the current user can select as issuer when starting this badge.
-
-    The creator org is always eligible (default behavior). Other orgs must hold an
-    approved authorization and either be open to all learners or have marked this
-    specific user as supported.
-    """
+    """Issuers the current user can see for this badge, the creator first when it issues."""
     badge = _get_badge(db_session, badge_uuid)
-    creator_org = _get_org(db_session, badge.org_id)
-    results = [{
-        "org": _org_summary(creator_org),
-        "is_creator": True,
-        "open_to_all": True,
-        "via_link": False,
-    }]
-
-    authorizations = db_session.exec(
-        select(BadgeIssuerAuthorization).where(
-            BadgeIssuerAuthorization.badge_id == badge.id,
-            BadgeIssuerAuthorization.status == BadgeIssuerAuthorizationStatus.APPROVED,
-        )
-    ).all()
-    if not authorizations:
-        return results
-
     user_id = current_user.id if isinstance(current_user, PublicUser) else None
-    linked_authorization_ids: set[int] = set()
-    if user_id is not None:
-        authorization_ids = [a.id or 0 for a in authorizations]
-        linked_authorization_ids = {
-            link.authorization_id
-            for link in db_session.exec(
-                select(BadgeIssuerLearnerLink).where(
-                    BadgeIssuerLearnerLink.user_id == user_id,
-                    BadgeIssuerLearnerLink.authorization_id.in_(authorization_ids),  # type: ignore
-                    BadgeIssuerLearnerLink.status == BadgeIssuerLearnerLinkStatus.ACCEPTED,
-                )
-            ).all()
-        }
+    options = issuers.issuer_options(db_session, badge, user_id, set())["issuers"]
+    return [{**option, "via_link": option["request_status"] == BadgeIssuerLearnerLinkStatus.ACCEPTED} for option in options]
 
-    for authorization in authorizations:
-        if authorization.issuer_org_id == badge.org_id:
-            continue
-        via_link = (authorization.id or 0) in linked_authorization_ids
-        if not authorization.open_to_all and not via_link:
-            continue
-        issuer_org = db_session.get(Organization, authorization.issuer_org_id)
-        if not issuer_org:
-            continue
-        results.append({
-            "org": _org_summary(issuer_org),
-            "is_creator": False,
-            "open_to_all": authorization.open_to_all,
-            "via_link": via_link,
-        })
-    return results
+
+async def get_issuing_settings(
+    request: Request,
+    badge_uuid: str,
+    current_user: PublicUser | AnonymousUser,
+    db_session: Session,
+) -> dict:
+    badge = _get_badge(db_session, badge_uuid)
+    _require_org_admin(db_session, current_user, badge.org_id)
+    return issuers.issuing_settings(db_session, badge)
+
+
+async def update_issuing_settings(
+    request: Request,
+    badge_uuid: str,
+    data: issuers.BadgeIssuingSettingsUpdate,
+    current_user: PublicUser | AnonymousUser,
+    db_session: Session,
+) -> dict:
+    badge = _get_badge(db_session, badge_uuid)
+    admin = _require_org_admin(db_session, current_user, badge.org_id)
+    return issuers.update_issuing_settings(db_session, badge, data, admin.id)
 
 
 async def create_learner_link(
@@ -633,6 +606,9 @@ async def request_learner_support(
     authorization = get_active_authorization(
         db_session, badge.id or 0, data.issuer_org_id
     )
+    if authorization and issuers.learner_access(authorization) == "open":
+        link = issuers.validate_issuer_start(db_session, badge, data.issuer_org_id, learner.id, set())
+        return _serialize_learner_link(db_session, link) if link else {"status": BadgeIssuerLearnerLinkStatus.ACCEPTED, "active": True}
     if not authorization or not authorization.open_to_all:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
