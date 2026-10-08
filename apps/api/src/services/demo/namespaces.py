@@ -92,10 +92,14 @@ def remap(data: dict, session_id: str, files=()) -> tuple[dict, dict]:
                         value, f"{prefix}_demo_{session_id}_{uuid4().hex}"
                     )
 
+    # One pass per string; longest first so no identifier shadows a longer one.
+    pattern = re.compile(
+        "|".join(map(re.escape, sorted(identifiers, key=len, reverse=True))) or r"(?!)"
+    )
+
     def replace(value):
         if isinstance(value, str):
-            for old, new in identifiers.items():
-                value = value.replace(old, new)
+            value = pattern.sub(lambda match: identifiers[match.group(0)], value)
             # Private files use the visitor's host/cookies, including when the
             # live account stored an absolute CDN or API URL inside HTML/JSON.
             value = re.sub(
