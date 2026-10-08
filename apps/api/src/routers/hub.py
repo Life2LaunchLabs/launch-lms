@@ -381,7 +381,7 @@ async def create_hub_advice(
             summary=f"Inspected {', '.join(labels)}" if labels else "Inspected the current page",
             payload={"sources": sources[:8]}, transient=True,
         )
-    edit_operations = record_plan_proposals(db_session, edit_run["run_uuid"], result.plan_operations) if edit_run else []
+    edit_operations = record_plan_proposals(db_session, edit_run["run_uuid"], result.plan_operations, grounding_resources) if edit_run else []
     persisted = record_advice(
         db_session, org_id=org_id, user_id=current_user.id,
         conversation_uuid=body.conversation_uuid, user_content=user_content,

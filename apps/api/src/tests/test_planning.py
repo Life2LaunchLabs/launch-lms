@@ -244,11 +244,14 @@ def test_phases_created_out_of_review_order_keep_requested_order():
         assert [phase["name"] for phase in result["phases"]] == ["Getting started", "Explore", "Practice"]
 
 
-def test_plan_and_objective_target_dates_are_required_and_bounded():
+def test_plan_target_date_is_optional_and_dates_are_bounded():
     with _session() as db:
-        with pytest.raises(HTTPException) as missing_target:
-            planning.create_plan(db, _user(1), PlanCreate(name="No target"))
-        assert missing_target.value.status_code == 422
+        undated = planning.create_plan(db, _user(1), PlanCreate(name="No target"))
+        assert undated["due_date"] is None and undated["status"] == "active"
+        assert [phase["name"] for phase in undated["phases"]] == ["Getting started"]
+        with pytest.raises(HTTPException) as inverted:
+            planning.create_plan(db, _user(1), PlanCreate(name="Backwards", start_date=date(2027, 1, 2), due_date=date(2027, 1, 1)))
+        assert inverted.value.status_code == 422
 
         created = planning.create_plan(db, _user(1), PlanCreate(
             name="Bounded plan", start_date=date(2026, 9, 1), due_date=date(2026, 12, 31),

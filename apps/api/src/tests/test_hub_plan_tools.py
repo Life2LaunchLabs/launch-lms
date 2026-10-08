@@ -112,3 +112,38 @@ async def test_both_providers_return_the_same_typed_new_plan_operation():
     assert len(openai.plan_operations) == len(anthropic.plan_operations) == 1
     assert openai.plan_operations[0]["fields"] == fields
     assert anthropic.plan_operations[0]["fields"] == fields
+
+
+def test_new_plan_target_date_is_optional():
+    operation = parse_plan_tool_call(NEW_PLAN_TOOL, {"name": "Try something small", "description": "", "due_date": ""})
+    assert operation["fields"] == {"name": "Try something small", "description": "", "due_date": ""}
+
+
+def _objective_operation(*resource_uuids):
+    return parse_plan_tool_call(PLAN_OBJECTIVES_TOOL, {"objectives": [
+        {"title": f"Step {index}", "description": "Look around.", "due_date": "", "phase_name": "", "resource_uuid": resource_uuid}
+        for index, resource_uuid in enumerate(resource_uuids)
+    ]})
+
+
+def test_objective_resources_are_resolved_from_shown_catalog_entries_only():
+    from src.services.hub_plan_tools import attach_catalog_resources
+
+    shown = [
+        {"resource_uuid": "res_quiz", "title": "Interest quiz", "external_url": "https://example.org/quiz"},
+        {"resource_uuid": "res_nolink", "title": "Offline book", "external_url": ""},
+        {"resource_uuid": "res_script", "title": "Odd", "external_url": "javascript:alert(1)"},
+    ]
+    operation = _objective_operation("res_quiz", "res_nolink", "res_script", "res_unknown", "https://evil.example", "")
+    resolved = attach_catalog_resources([operation], shown)[0]["objectives"]
+    assert resolved[0]["resource"] == {"resource_uuid": "res_quiz", "title": "Interest quiz", "url": "https://example.org/quiz"}
+    assert resolved[0]["description"].endswith("Resource: Interest quiz (https://example.org/quiz)")
+    assert all("resource" not in item and "Resource:" not in item["description"] for item in resolved[1:])
+    assert all("resource_uuid" not in item for item in resolved)
+
+
+def test_attach_catalog_resources_without_any_shown_resources_is_a_no_op_for_links():
+    from src.services.hub_plan_tools import attach_catalog_resources
+
+    resolved = attach_catalog_resources([_objective_operation("res_quiz")], None)[0]["objectives"]
+    assert "resource" not in resolved[0]

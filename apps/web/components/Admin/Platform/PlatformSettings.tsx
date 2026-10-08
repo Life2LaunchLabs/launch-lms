@@ -19,6 +19,7 @@ import { Input } from '@components/ui/input'
 import { Textarea } from '@components/ui/textarea'
 import { Switch } from '@components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@components/ui/select'
+import HubLaunchCardsEditor from './HubLaunchCardsEditor'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@components/ui/tooltip'
 
 const providerNames: Record<HubAdvisorProvider, string> = { openai: 'OpenAI', anthropic: 'Anthropic' }
@@ -235,6 +236,8 @@ export default function PlatformSettings() {
             </div>
           </div>
         </section>
+
+        <HubLaunchCardsEditor />
 
         <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm sm:p-8">
           <div><p className="text-xs font-bold uppercase tracking-wider text-gray-500">Account messaging</p><h2 className="mt-1 text-2xl font-black text-gray-950">New-account welcome message</h2><p className="mt-2 text-sm leading-6 text-gray-600">Sent from the owner organization to every newly created account. Changes apply only to future messages.</p></div>

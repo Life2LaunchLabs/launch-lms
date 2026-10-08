@@ -23,7 +23,7 @@ def plan_edit_tools(provider: str, scope_kind: str | None) -> list[dict]:
         "properties": {
             "name": {"type": "string", "description": "A concise name for the learner's goal."},
             "description": {"type": "string", "description": "Useful context the learner can revise; use an empty string when none is needed."},
-            "due_date": {"type": "string", "description": "Target completion date in YYYY-MM-DD format."},
+            "due_date": {"type": "string", "description": "Target completion date in YYYY-MM-DD format; use an empty string unless the learner has a date in mind."},
         },
         "required": ["name", "description", "due_date"],
         "additionalProperties": False,
@@ -31,7 +31,7 @@ def plan_edit_tools(provider: str, scope_kind: str | None) -> list[dict]:
     new_plan_description = (
         "Prepare complete values for the open native new-plan editor. This does not save or create the plan; "
         "the learner reviews the fields and uses Save plan. Call only when the active editing goal provides "
-        "enough information for a useful name and target date."
+        "enough information for a useful name. A target date is optional."
     )
     objectives_schema = {
         "type": "object",
@@ -47,8 +47,9 @@ def plan_edit_tools(provider: str, scope_kind: str | None) -> list[dict]:
                         "description": {"type": "string", "description": "Useful detail the learner can revise; use an empty string when none is needed."},
                         "due_date": {"type": "string", "description": "An optional target date in YYYY-MM-DD format; use an empty string when no separate date is useful."},
                         "phase_name": {"type": "string", "description": "The exact saved phase name this objective belongs in; use an empty string for the plan's default phase."},
+                        "resource_uuid": {"type": "string", "description": "The id of one catalog entry shown to you in this conversation that the learner should use for this objective; use an empty string when none fits. Never write a URL."},
                     },
-                    "required": ["title", "description", "due_date", "phase_name"],
+                    "required": ["title", "description", "due_date", "phase_name", "resource_uuid"],
                     "additionalProperties": False,
                 },
             },
@@ -117,7 +118,8 @@ def parse_plan_tool_call(name: str, arguments: dict) -> dict | None:
         if not plan_name or len(plan_name) > 200 or len(description) > 2_000:
             return None
         try:
-            date.fromisoformat(due_date)
+            if due_date:
+                date.fromisoformat(due_date)
         except ValueError:
             return None
         return {
@@ -148,6 +150,7 @@ def parse_plan_tool_call(name: str, arguments: dict) -> dict | None:
                 "description": description,
                 "due_date": due_date,
                 "phase_name": phase_name[:200],
+                "resource_uuid": str(raw.get("resource_uuid") or "").strip()[:64],
             })
         if not objectives:
             return None
@@ -199,9 +202,39 @@ def parse_plan_tool_call(name: str, arguments: dict) -> dict | None:
     return None
 
 
-def record_plan_proposals(db: Session, run_uuid: str, operations: tuple[dict, ...] | list[dict]) -> list[dict]:
+def attach_catalog_resources(operations: tuple[dict, ...] | list[dict], resources: list[dict] | None) -> list[dict]:
+    """Turn a model-chosen resource id into a server-built reference on the objective.
+
+    Only catalog entries the advisor was actually shown (with an http(s) address held by the
+    server) can be attached. The model never supplies the link text or address, so an unknown id
+    just leaves the objective without a resource.
+    """
+    shown = {str(item.get("resource_uuid")): item for item in resources or []}
+    result: list[dict] = []
+    for operation in operations:
+        if operation.get("type") != "add_plan_objectives":
+            result.append(operation)
+            continue
+        objectives = []
+        for objective in operation.get("objectives") or []:
+            objective = dict(objective)
+            resource = shown.get(str(objective.pop("resource_uuid", "") or ""))
+            url = str((resource or {}).get("external_url") or "")
+            if resource and url.startswith(("https://", "http://")):
+                title = str(resource.get("title") or "Resource")[:200]
+                objective["resource"] = {"resource_uuid": resource["resource_uuid"], "title": title, "url": url}
+                objective["description"] = f"{objective['description']}\n\nResource: {title} ({url})".strip()
+            objectives.append(objective)
+        result.append({**operation, "objectives": objectives})
+    return result
+
+
+def record_plan_proposals(
+    db: Session, run_uuid: str, operations: tuple[dict, ...] | list[dict], resources: list[dict] | None = None,
+) -> list[dict]:
     if not operations:
         return []
+    operations = attach_catalog_resources(operations, resources)
     run = db.exec(select(HubEditRun).where(HubEditRun.run_uuid == run_uuid)).first()
     if run is None or run.status != "active":
         raise HTTPException(status_code=409, detail="The editing run is no longer active")

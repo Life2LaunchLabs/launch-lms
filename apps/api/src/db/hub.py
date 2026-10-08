@@ -15,6 +15,8 @@ class HubAdvisorConfiguration(SQLModel, table=True):
     provider: str = Field(default="openai", max_length=50)
     enabled: bool = False
     instructions: str = Field(sa_column=Column(Text, nullable=False))
+    # Conversation-starter cards shown on the Hub home; NULL means the code defaults.
+    launch_cards: list | None = Field(default=None, sa_column=Column(JSON, nullable=True))
     updated_by_user_id: int | None = Field(
         default=None,
         sa_column=Column(
