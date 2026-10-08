@@ -44,6 +44,21 @@ def test_reset_restores_defaults():
     assert result["is_default"] is True and len(result["cards"]) == len(DEFAULT_LAUNCH_CARDS)
 
 
+def test_demo_learners_see_the_platform_cards(monkeypatch):
+    from src.core.events import database
+    from src.services.demo.context import DemoContext, current_demo
+
+    control = _db()
+    save_launch_cards(control, _admin(), [_card("Platform card")])
+    # The demo copy never holds platform settings, so its own table is empty.
+    monkeypatch.setattr(database, "engine", control.get_bind())
+    token = current_demo.set(DemoContext("demo", "demo_" + "a" * 32, "visitor"))
+    try:
+        assert [card["label"] for card in effective_launch_cards(_db())] == ["Platform card"]
+    finally:
+        current_demo.reset(token)
+
+
 @pytest.mark.parametrize("cards", [[], [_card()] * 7])
 def test_invalid_card_sets_are_rejected(cards):
     with pytest.raises(HTTPException) as error:
