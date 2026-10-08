@@ -13,6 +13,7 @@ import { resendVerificationEmail } from '@services/auth/auth'
 import AuthLayout from '@components/Auth/AuthLayout'
 import { Button } from '@components/ui/button'
 import { Input } from '@components/ui/input'
+import { PasswordInput } from '@components/ui/password-input'
 
 interface LoginClientProps {
   org: any
@@ -314,7 +315,7 @@ const LoginClient = (props: LoginClientProps) => {
                 <p id="login-email-error" className="text-sm font-medium text-red-600">{formik.errors.email}</p>
               )}
 
-              <Input
+              <PasswordInput
                 aria-describedby={formik.touched.password && formik.errors.password ? 'login-password-error' : undefined}
                 aria-invalid={Boolean(formik.touched.password && formik.errors.password)}
                 aria-label="Password"
@@ -322,7 +323,6 @@ const LoginClient = (props: LoginClientProps) => {
                 onChange={formik.handleChange}
                 onBlur={formik.handleBlur}
                 value={formik.values.password}
-                type="password"
                 placeholder="Password"
                 autoComplete="current-password"
                 className="h-12 w-full rounded-2xl border border-gray-200 bg-white px-4 text-[16px] text-gray-950 shadow-sm outline-none transition-colors placeholder:text-gray-400 focus:border-gray-300 focus:ring-2 focus:ring-gray-100"

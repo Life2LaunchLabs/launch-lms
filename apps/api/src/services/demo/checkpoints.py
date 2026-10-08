@@ -304,6 +304,10 @@ def capture(db: Session, main_org_id: int, user_ids: set[int]) -> dict:
             ),
         ),
     )
+    # Issuer staff never sign in to a demo copy: every captured issuer accepts requests,
+    # which the copy then accepts at once (learning_issuer_links.simulate_issuer_acceptance).
+    for record in rows["badgeissuerauthorization"].values():
+        record["open_to_all"] = True
     # Role IDs are global in legacy authorization; include definitions, not memberships.
     add(
         "role",
@@ -359,7 +363,7 @@ def capture(db: Session, main_org_id: int, user_ids: set[int]) -> dict:
 
 def catalog(add, read, tables) -> None:
     """Mirror the public badge hub listing (learning.list_collections)."""
-    from src.db.learning import LearningBadgeStatus
+    from src.db.learning import BadgeIssuerAuthorizationStatus, LearningBadgeStatus
 
     collection, badge = tables["badgecollection"], tables["learningbadge"]
     add(
@@ -371,17 +375,28 @@ def catalog(add, read, tables) -> None:
             & collection.c.deleted_at.is_(None),
         ),
     )
-    add(
+    badges = read(
         "learningbadge",
-        read(
-            "learningbadge",
-            badge.c.public.is_(True)
-            & badge.c.status.in_(
-                [LearningBadgeStatus.COMING_SOON, LearningBadgeStatus.PUBLISHED]
-            )
-            & badge.c.deleted_at.is_(None),
-        ),
+        badge.c.public.is_(True)
+        & badge.c.status.in_(
+            [LearningBadgeStatus.COMING_SOON, LearningBadgeStatus.PUBLISHED]
+        )
+        & badge.c.deleted_at.is_(None),
     )
+    add("learningbadge", badges)
+    # Approved issuers populate "Choose a cooperating organization"; without them
+    # instructor-graded catalog badges cannot be started. Issuer orgs follow by FK.
+    authorization = tables["badgeissuerauthorization"]
+    badge_ids = [record["id"] for record in badges]
+    if badge_ids:
+        add(
+            "badgeissuerauthorization",
+            read(
+                "badgeissuerauthorization",
+                authorization.c.badge_id.in_(badge_ids)
+                & (authorization.c.status == BadgeIssuerAuthorizationStatus.APPROVED),
+            ),
+        )
 
 
 def scrub_json(value):

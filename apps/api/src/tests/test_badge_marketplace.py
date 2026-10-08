@@ -568,6 +568,35 @@ async def test_open_issuer_can_accept_learner_request_and_connect_user():
         assert membership is not None
 
 
+async def test_demo_learner_request_is_accepted_without_issuer_staff():
+    from src.services.demo.context import DemoContext, current_demo
+
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    _create_tables(engine)
+    with Session(engine) as session:
+        _, _, alice, bob, carol, badge = _setup(session)
+        dave = _create_user(session, user_id=4, username="dave")
+        await _approved_authorization(session, alice, bob, badge, open_to_all=True)
+        request = IssuerLearnerRequestCreate(badge_uuid=badge.badge_uuid, issuer_org_id=2)
+        # Outside a demo the request waits for issuer staff.
+        pending = await request_learner_support(_request(), request, carol, session)
+        assert pending["status"] == BadgeIssuerLearnerLinkStatus.REQUESTED
+
+        token = current_demo.set(DemoContext("session", "namespace", "visitor"))
+        try:
+            accepted = await request_learner_support(_request(), request, dave, session)
+        finally:
+            current_demo.reset(token)
+        assert accepted["status"] == BadgeIssuerLearnerLinkStatus.ACCEPTED
+        assert accepted["active"] is True
+        assert session.exec(
+            select(UserOrganization).where(
+                UserOrganization.user_id == dave.id,
+                UserOrganization.org_id == 2,
+            )
+        ).first() is not None
+
+
 async def test_run_start_with_issuer_selection():
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     _create_tables(engine)

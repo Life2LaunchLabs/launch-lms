@@ -9,6 +9,7 @@ import FormLayout, {
   Textarea,
 } from '@components/Objects/StyledElements/Form/Form'
 import * as Form from '@radix-ui/react-form'
+import { PasswordInput } from '@components/ui/password-input'
 import { AlertTriangle, ArrowLeft } from 'lucide-react'
 import { SiGoogle } from '@icons-pack/react-simple-icons'
 import Link from 'next/link'
@@ -258,12 +259,12 @@ function OpenSignUpComponent({
               {emailError && (
                 <p className="text-left text-sm font-medium text-red-600">{emailError}</p>
               )}
-              <input
+              <PasswordInput
+                component="input"
                 name="password"
                 onChange={formik.handleChange}
                 onBlur={formik.handleBlur}
                 value={formik.values.password}
-                type="password"
                 placeholder={t('auth.password')}
                 autoComplete="new-password"
                 className="h-12 w-full rounded-2xl border border-gray-200 bg-white px-4 text-[16px] text-gray-950 shadow-sm outline-none transition-colors placeholder:text-gray-400 focus:border-gray-300 focus:ring-2 focus:ring-gray-100"
@@ -398,11 +399,11 @@ function OpenSignUpComponent({
               message={formik.touched.password ? formik.errors.password : undefined}
             />
             <Form.Control asChild>
-              <Input
+              <PasswordInput
+                component={Input}
                 onChange={formik.handleChange}
                 onBlur={formik.handleBlur}
                 value={formik.values.password}
-                type="password"
                 autoComplete="new-password"
                 required
               />

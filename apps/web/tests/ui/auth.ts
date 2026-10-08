@@ -5,7 +5,7 @@ export async function loginNormally(page: Page, environment: UiTestEnvironment):
   await page.goto('/login')
   await expect(page.getByRole('heading', { name: /welcome back|sign in/i })).toBeVisible({ timeout: 20_000 })
   await page.getByLabel('Email address').fill(environment.email)
-  await page.getByLabel('Password').fill(environment.password)
+  await page.getByLabel('Password', { exact: true }).fill(environment.password)
   await page.getByRole('button', { name: /log ?in|sign ?in/i }).click()
   await page.waitForURL((url) => !['/login', '/auth/login'].includes(url.pathname), { timeout: 20_000 })
   await expect(page.getByLabel('Email address')).toHaveCount(0)

@@ -6,6 +6,7 @@ import FormLayout, {
     Input,
 } from '@components/Objects/StyledElements/Form/Form'
 import * as Form from '@radix-ui/react-form'
+import { PasswordInput } from '@components/ui/password-input'
 import { AlertTriangle, CheckCircle, X } from 'lucide-react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
@@ -161,10 +162,10 @@ function ResetPasswordClient({ org }: ResetPasswordClientProps) {
                                         message={formik.errors.new_password}
                                     />
                                     <Form.Control asChild>
-                                        <Input
+                                        <PasswordInput
+                                            component={Input}
                                             onChange={formik.handleChange}
                                             value={formik.values.new_password}
-                                            type="password"
                                             autoComplete="new-password"
                                         />
                                     </Form.Control>
@@ -177,10 +178,10 @@ function ResetPasswordClient({ org }: ResetPasswordClientProps) {
                                         message={formik.errors.confirm_password}
                                     />
                                     <Form.Control asChild>
-                                        <Input
+                                        <PasswordInput
+                                            component={Input}
                                             onChange={formik.handleChange}
                                             value={formik.values.confirm_password}
-                                            type="password"
                                             autoComplete="new-password"
                                         />
                                     </Form.Control>
