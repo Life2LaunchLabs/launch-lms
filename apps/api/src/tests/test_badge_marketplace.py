@@ -12,7 +12,6 @@ from src.db.learning import (
     BadgeIssuerLearnerLinkStatus,
     IssuerAuthorizationInvite,
     IssuerAuthorizationRequest,
-    IssuerAuthorizationUpdate,
     IssuerLearnerLinkCreate,
     IssuerLearnerRequestCreate,
     IssuerLearnerRequestDecision,
@@ -48,6 +47,7 @@ from src.services.learning import (
     list_learning_responses,
     start_or_resume_run,
 )
+from src.services.learning_issuers import IssuerAccessUpdate
 from src.services.learning_marketplace import (
     browse_marketplace_badges,
     create_learner_link,
@@ -211,7 +211,7 @@ async def _approved_authorization(session: Session, alice: PublicUser, bob: Publ
     authorization = session.exec(select(BadgeIssuerAuthorization)).first()
     await decide_authorization(_request(), authorization.authorization_uuid, True, alice, session)
     if open_to_all:
-        await update_authorization(_request(), authorization.authorization_uuid, IssuerAuthorizationUpdate(open_to_all=True), bob, session)
+        await update_authorization(_request(), authorization.authorization_uuid, IssuerAccessUpdate(open_to_all=True), bob, session)
     session.refresh(authorization)
     return authorization
 
@@ -525,7 +525,7 @@ async def test_eligible_issuers_open_to_all_and_links():
 
         # Open to all: eligible for everyone
         dave = _create_user(session, user_id=4, username="dave")
-        await update_authorization(_request(), authorization.authorization_uuid, IssuerAuthorizationUpdate(open_to_all=True), bob, session)
+        await update_authorization(_request(), authorization.authorization_uuid, IssuerAccessUpdate(open_to_all=True), bob, session)
         issuers = await list_eligible_issuers(_request(), badge.badge_uuid, dave, session)
         assert [i["org"]["slug"] for i in issuers] == ["creator", "issuer"]
 

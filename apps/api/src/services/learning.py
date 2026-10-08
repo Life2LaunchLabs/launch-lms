@@ -75,6 +75,7 @@ from src.services.badge_openbadges import (
     get_public_base_url,
 )
 from src.services.guest_sessions import LearningActor
+from src.services.learning_issuers import issuer_options, validate_issuer_start
 from src.services.learning_flow import (
     FlowValidationError,
     append_page_to_flow,
@@ -274,53 +275,10 @@ def _validate_issuer_selection(
     badge: LearningBadge,
     issuing_org_id: int,
     user_id: int | None,
-    *,
-    require_accepted_request: bool = False,
 ) -> BadgeIssuerLearnerLink | None:
     """Ensure a learner may run this badge under the selected issuing org."""
-    if issuing_org_id == badge.org_id:
-        if require_accepted_request:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="This badge requires support from a cooperating organization",
-            )
-        return None
-    authorization = _get_approved_issuer_authorization(
-        db_session, badge.id or 0, issuing_org_id
-    )
-    if not authorization:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="This organization is not authorized to issue this badge",
-        )
-    if user_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Sign in to project with this issuing organization",
-        )
-    link = db_session.exec(
-        select(BadgeIssuerLearnerLink).where(
-            BadgeIssuerLearnerLink.authorization_id == authorization.id,
-            BadgeIssuerLearnerLink.user_id == user_id,
-        )
-    ).first()
-    if link and link.status == BadgeIssuerLearnerLinkStatus.ACCEPTED:
-        return link
-    if require_accepted_request:
-        detail = (
-            "Your request is waiting for this organization to accept it"
-            if link and link.status == BadgeIssuerLearnerLinkStatus.REQUESTED
-            else "Request support from this organization before starting this badge"
-        )
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail)
-    if authorization.open_to_all:
-        return link
-    if not link:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="This organization only supports invited learners for this badge",
-        )
-    return link
+    program_org_ids = {item["org_id"] for item in _program_cooperating_orgs(db_session, badge, user_id)}
+    return validate_issuer_start(db_session, badge, issuing_org_id, user_id, program_org_ids)
 
 
 def _badge_requires_manual_grading(
@@ -348,52 +306,14 @@ def _manual_enrollment_state(
     actor: LearningActor | None,
     assignment: ProgramAssignment | None,
 ) -> dict:
-    requires = _badge_requires_manual_grading(db_session, badge, version)
     user_id = actor.user_id if actor else None
-    authorizations = db_session.exec(
-        select(BadgeIssuerAuthorization).where(
-            BadgeIssuerAuthorization.badge_id == badge.id,
-            BadgeIssuerAuthorization.status == BadgeIssuerAuthorizationStatus.APPROVED,
-        )
-    ).all()
-    authorization_ids = [item.id or 0 for item in authorizations]
-    links = (
-        db_session.exec(
-            select(BadgeIssuerLearnerLink).where(
-                BadgeIssuerLearnerLink.user_id == user_id,
-                BadgeIssuerLearnerLink.authorization_id.in_(authorization_ids),  # type: ignore
-            )
-        ).all()
-        if user_id and authorization_ids
-        else []
-    )
-    links_by_authorization = {link.authorization_id: link for link in links}
-    issuers = []
-    accepted_links = []
-    for authorization in authorizations:
-        link = links_by_authorization.get(authorization.id or 0)
-        if link and link.status == BadgeIssuerLearnerLinkStatus.ACCEPTED:
-            accepted_links.append(link)
-        if authorization.issuer_org_id == badge.org_id:
-            continue
-        if not authorization.open_to_all and not link:
-            continue
-        org = db_session.get(Organization, authorization.issuer_org_id)
-        if not org:
-            continue
-        issuers.append({
-            "org": {
-                "id": org.id,
-                "org_uuid": org.org_uuid,
-                "slug": org.slug,
-                "name": org.name,
-                "logo_image": org.logo_image,
-            },
-            "open_to_all": authorization.open_to_all,
-            "request_status": link.status if link else None,
-            "request_uuid": link.link_uuid if link else None,
-        })
     program_orgs = _program_cooperating_orgs(db_session, badge, user_id)
+    options = issuer_options(db_session, badge, user_id, {item["org_id"] for item in program_orgs})
+    accepted_links = db_session.exec(select(BadgeIssuerLearnerLink).where(
+        BadgeIssuerLearnerLink.badge_id == badge.id,
+        BadgeIssuerLearnerLink.user_id == user_id,
+        BadgeIssuerLearnerLink.status == BadgeIssuerLearnerLinkStatus.ACCEPTED,
+    )).all() if user_id else []
     accepted_org_ids = list(dict.fromkeys([
         *[link.issuer_org_id for link in accepted_links],
         *[item["org_id"] for item in program_orgs],
@@ -413,6 +333,7 @@ def _manual_enrollment_state(
             "source": "direct",
         }
         for link in accepted_links
+        if link.issuer_org_id != badge.org_id
     }
     for item in program_orgs:
         collaborations_by_org[item["org_id"]] = {
@@ -421,14 +342,16 @@ def _manual_enrollment_state(
             "source": "program",
             "assignment_uuid": item["assignment_uuid"],
         }
+    startable = assignment.org_id if assignment else options["startable_issuer_org_id"]
     return {
-        "requires_cooperating_org": requires,
-        "satisfied": not requires or bool(accepted_org_ids),
-        "accepted_issuer_org_id": accepted_org_ids[0] if accepted_org_ids else None,
+        "requires_cooperating_org": _badge_requires_manual_grading(db_session, badge, version),
+        "satisfied": startable is not None,
+        "accepted_issuer_org_id": startable,
+        "default_issuer_org_id": options["default_issuer_org_id"],
         "active_cooperating_org_ids": accepted_org_ids,
         "collaborations": list(collaborations_by_org.values()),
         "program_collaborations": program_orgs,
-        "issuers": issuers,
+        "issuers": options["issuers"],
     }
 
 
@@ -5997,8 +5920,12 @@ async def start_or_resume_run(
         if assignment
         else _get_badge_version(db_session, badge, require_published=True)
     )
-    requires_cooperating_org = _badge_requires_manual_grading(db_session, badge, version)
     issuer_link = None
+    if not assignment and not plan_objective:
+        # A learner keeps the issuer their run started with.
+        existing_run = _actor_run_for_badge_major(db_session, badge, actor, _version_major(version))
+        if existing_run:
+            return _serialize_run(db_session, existing_run)
     if assignment:
         if issuing_org_id != badge.org_id and not _get_approved_issuer_authorization(
             db_session, badge.id or 0, issuing_org_id or 0
@@ -6007,22 +5934,15 @@ async def start_or_resume_run(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="The assignment organization is not authorized to issue this badge",
             )
-    elif issuing_org_id is not None:
-        issuer_link = _validate_issuer_selection(
-            db_session,
-            badge,
-            issuing_org_id,
-            actor.user_id,
-            require_accepted_request=requires_cooperating_org,
-        )
-    elif requires_cooperating_org:
-        enrollment = _manual_enrollment_state(db_session, badge, version, actor, None)
-        issuing_org_id = enrollment.get("accepted_issuer_org_id")
+    else:
+        if issuing_org_id is None:
+            issuing_org_id = _manual_enrollment_state(db_session, badge, version, actor, None)["accepted_issuer_org_id"]
         if issuing_org_id is None:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="Choose a cooperating organization and wait for it to accept your request before starting",
+                detail="Choose an organization to issue this badge and join it before starting",
             )
+        issuer_link = _validate_issuer_selection(db_session, badge, issuing_org_id, actor.user_id)
     if issuing_org_id == badge.org_id:
         issuing_org_id = None
     path = _get_path_for_badge(db_session, badge, version, create=False)

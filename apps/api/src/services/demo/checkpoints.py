@@ -304,10 +304,10 @@ def capture(db: Session, main_org_id: int, user_ids: set[int]) -> dict:
             ),
         ),
     )
-    # Issuer staff never sign in to a demo copy: every captured issuer accepts requests,
-    # which the copy then accepts at once (learning_issuer_links.simulate_issuer_acceptance).
+    # Issuer staff never sign in to a demo copy: every captured issuer lets learners start at once.
     for record in rows["badgeissuerauthorization"].values():
         record["open_to_all"] = True
+        record["learner_access"] = "open"
     # Role IDs are global in legacy authorization; include definitions, not memberships.
     add(
         "role",

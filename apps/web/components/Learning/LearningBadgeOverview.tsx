@@ -4,14 +4,16 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import React from 'react'
 import toast from 'react-hot-toast'
-import { Award, Check, CheckCircle2, ChevronDown, ChevronRight, Clock3, Circle, MessageSquareText, RotateCcw, Search, Trophy, X } from 'lucide-react'
+import { Award, Check, CheckCircle2, ChevronDown, ChevronRight, Clock3, Circle, MessageSquareText, RotateCcw, Trophy, X } from 'lucide-react'
 import { SafeImage } from '@components/Objects/SafeImage'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { PageTitleRegistration } from '@components/Contexts/PageTitleContext'
 import { findQuestionBlocks } from '@components/Learning/schema'
 import { getUriWithOrg } from '@services/config/config'
+import { startLearningRun } from '@services/learning/learning'
 import { deleteIssuerLearnerLink, requestIssuerLearnerSupport } from '@services/learning/marketplace'
+import LearningIssuedByCard from '@components/Learning/LearningIssuedByCard'
 
 export default function LearningBadgeOverview({ orgslug, badgePath, programAssignmentUuid, planObjectiveUuid }: { orgslug: string; badgePath: any; programAssignmentUuid?: string; planObjectiveUuid?: string }) {
   const router = useRouter()
@@ -20,11 +22,34 @@ export default function LearningBadgeOverview({ orgslug, badgePath, programAssig
   const activities = badgePath?.activities || []
   const completed = Boolean(badgePath?.run?.award || badgePath?.run?.status === 'completed')
   const enrollment = badgePath?.enrollment || {}
-  const [issuerSearch, setIssuerSearch] = React.useState('')
   const [requesting, setRequesting] = React.useState<number | null>(null)
   const [removing, setRemoving] = React.useState<string | null>(null)
-  const issuers = (enrollment.issuers || []).filter((item: any) => item.org?.name?.toLowerCase().includes(issuerSearch.toLowerCase()))
-  const pathBlocked = Boolean(enrollment.requires_cooperating_org && !enrollment.satisfied)
+  const hasRun = Boolean(badgePath?.run)
+  const issuers: any[] = enrollment.issuers || []
+  const [selectedIssuerId, setSelectedIssuerId] = React.useState<number | null>(enrollment.default_issuer_org_id ?? null)
+  const selectedIssuer = issuers.find((item) => item.org.id === selectedIssuerId) || issuers[0]
+  const pathBlocked = !hasRun && !programAssignmentUuid && !planObjectiveUuid && !selectedIssuer?.can_start
+  const contextQuery = planObjectiveUuid ? `?planObjective=${encodeURIComponent(planObjectiveUuid)}` : programAssignmentUuid ? `?assignment=${encodeURIComponent(programAssignmentUuid)}` : ''
+  const activityHref = (activity: any) => getUriWithOrg(orgslug, `/badges/${badge.badge_uuid}/chapter/${activity.activity_uuid}${contextQuery}`)
+  const firstHref = activities.length ? activityHref(activities[0]) : ''
+
+  // Starts the run with the chosen issuer (joining an open one) before opening the path.
+  const begin = async (href: string, issuerOrgId?: number) => {
+    setRequesting(issuerOrgId ?? 0)
+    try {
+      await startLearningRun(badge.badge_uuid, session.data?.tokens?.access_token, issuerOrgId)
+      if (href) router.push(href)
+      else router.refresh()
+    } catch (error: any) {
+      toast.error(error?.message || 'Could not start this badge.')
+      setRequesting(null)
+    }
+  }
+  const openActivity = (href: string) => (event: React.MouseEvent) => {
+    event.preventDefault()
+    if (!pathBlocked && requesting === null) void begin(href, selectedIssuer?.org?.id)
+  }
+  const linkGuard = hasRun || programAssignmentUuid || planObjectiveUuid ? undefined : openActivity
 
   const requestSupport = async (issuerOrgId: number) => {
     setRequesting(issuerOrgId)
@@ -72,38 +97,28 @@ export default function LearningBadgeOverview({ orgslug, badgePath, programAssig
         </div>
       </section>
       {(enrollment.collaborations || []).length ? <section className="mt-6 rounded-2xl bg-card p-5 shadow-sm"><h2 className="text-sm font-black uppercase tracking-wider text-muted-foreground">Cooperating organizations</h2><div className="mt-3 space-y-2">{enrollment.collaborations.map((item: any) => <div key={item.org.id} className="flex items-center justify-between gap-4 rounded-xl border border-border px-4 py-3"><div><p className="text-sm font-bold text-foreground">{item.org.name}</p><p className="text-xs text-muted-foreground">{item.source === 'program' ? 'Connected through your program' : 'Direct badge collaboration'}</p></div>{item.link_uuid ? <button type="button" disabled={removing === item.link_uuid} onClick={() => void removeCollaboration(item.link_uuid)} className="rounded-lg border border-border px-3 py-2 text-xs font-bold text-muted-foreground hover:bg-muted disabled:opacity-50">{removing === item.link_uuid ? 'Removing…' : 'Remove'}</button> : null}</div>)}</div></section> : null}
-      {enrollment.requires_cooperating_org && !enrollment.satisfied ? (
-        <section className="mt-8 rounded-2xl bg-card p-6 shadow-sm">
-          <h2 className="text-xl font-black text-foreground">Choose a cooperating organization</h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">This badge includes instructor-graded work. Request support from a recognized issuer before starting.</p>
-          <label className="mt-5 flex items-center gap-2 rounded-xl border border-border px-3 py-2">
-            <Search size={17} className="text-muted-foreground" />
-            <input value={issuerSearch} onChange={(event) => setIssuerSearch(event.target.value)} placeholder="Search organizations" className="w-full bg-transparent text-sm outline-none" />
-          </label>
-          <div className="mt-3 space-y-2">
-            {issuers.map((item: any) => (
-              <div key={item.org.id} className="flex items-center justify-between gap-4 rounded-xl border border-border p-4">
-                <div className="min-w-0"><p className="font-bold text-foreground">{item.org.name}</p><p className="text-xs text-muted-foreground">Recognized issuer</p></div>
-                {item.request_status === 'requested' ? <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">Request pending</span> : item.request_status === 'rejected' ? <button type="button" onClick={() => void requestSupport(item.org.id)} disabled={requesting === item.org.id} className="rounded-lg bg-foreground px-4 py-2 text-xs font-bold text-background disabled:opacity-50">Request again</button> : <button type="button" onClick={() => void requestSupport(item.org.id)} disabled={requesting === item.org.id} className="rounded-lg bg-foreground px-4 py-2 text-xs font-bold text-background disabled:opacity-50">{requesting === item.org.id ? 'Sending…' : 'Request to start'}</button>}
-              </div>
-            ))}
-            {!issuers.length ? <div className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">No cooperating organizations are currently open to learner requests.</div> : null}
-          </div>
-        </section>
-      ) : null}
+      <LearningIssuedByCard
+        issuers={enrollment.issuers || []}
+        selectedId={selectedIssuer?.org?.id ?? null}
+        onSelect={setSelectedIssuerId}
+        runIssuerOrgId={badgePath?.run ? badgePath.run.issuing_org_id ?? badge.org_id : null}
+        hasRun={Boolean(badgePath?.run) || Boolean(programAssignmentUuid || planObjectiveUuid)}
+        busy={requesting !== null}
+        onStart={(issuerOrgId) => void begin(firstHref, issuerOrgId)}
+        onRequest={(issuerOrgId) => void requestSupport(issuerOrgId)}
+      />
       <section className="mt-8">
         <h2 className="text-xl font-black text-foreground">Learning path</h2>
-        {pathBlocked ? <p className="mt-2 max-w-2xl text-sm text-muted-foreground">Your learning path and progress remain visible. Activities are read-only until a cooperating organization joins you on this badge.</p> : null}
+        {pathBlocked ? <p className="mt-2 max-w-2xl text-sm text-muted-foreground">You can preview the path now. Activities open once an issuer accepts you.</p> : null}
         <div className="mt-4 space-y-3">
           {activities.map((activity: any, index: number) => {
             const state = getActivityState(badgePath?.run, activity)
             const StateIcon = state.icon
-            const contextQuery = planObjectiveUuid ? `?planObjective=${encodeURIComponent(planObjectiveUuid)}` : programAssignmentUuid ? `?assignment=${encodeURIComponent(programAssignmentUuid)}` : ''
-            const href = getUriWithOrg(orgslug, `/badges/${badge.badge_uuid}/chapter/${activity.activity_uuid}${contextQuery}`)
+            const href = activityHref(activity)
             return <div key={activity.activity_uuid} className={`flex items-start gap-4 rounded-xl bg-card p-4 shadow-sm ${pathBlocked ? 'opacity-55 grayscale' : ''}`}>
-              <Link aria-disabled={pathBlocked} onClick={pathBlocked ? (event) => event.preventDefault() : undefined} href={href} className={pathBlocked ? 'cursor-not-allowed' : 'transition hover:scale-105'}><span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-black ${state.tone}`}><StateIcon size={16} />{state.status === 'not_started' ? <span className="sr-only">{index + 1}</span> : null}</span></Link>
-              <div className="min-w-0 flex-1"><Link aria-disabled={pathBlocked} onClick={pathBlocked ? (event) => event.preventDefault() : undefined} href={href} className={pathBlocked ? 'cursor-not-allowed' : 'group'}><h3 className="font-bold text-foreground group-hover:underline">{activity.title}</h3><p className="mt-0.5 line-clamp-1 text-sm text-muted-foreground">{activity.description || `${activity.pages?.length || 0} pages`}</p></Link>{state.status === 'failed' || state.status === 'pending' ? <ActivityResultsButton run={badgePath?.run} activity={activity} /> : null}</div>
-              <Link aria-label={`Open ${activity.title}`} aria-disabled={pathBlocked} onClick={pathBlocked ? (event) => event.preventDefault() : undefined} href={href} className={`mt-2 shrink-0 text-muted-foreground ${pathBlocked ? 'cursor-not-allowed' : 'transition hover:translate-x-0.5'}`}><ChevronRight size={20} /></Link>
+              <Link aria-disabled={pathBlocked} onClick={linkGuard?.(href)} href={href} className={pathBlocked ? 'cursor-not-allowed' : 'transition hover:scale-105'}><span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-black ${state.tone}`}><StateIcon size={16} />{state.status === 'not_started' ? <span className="sr-only">{index + 1}</span> : null}</span></Link>
+              <div className="min-w-0 flex-1"><Link aria-disabled={pathBlocked} onClick={linkGuard?.(href)} href={href} className={pathBlocked ? 'cursor-not-allowed' : 'group'}><h3 className="font-bold text-foreground group-hover:underline">{activity.title}</h3><p className="mt-0.5 line-clamp-1 text-sm text-muted-foreground">{activity.description || `${activity.pages?.length || 0} pages`}</p></Link>{state.status === 'failed' || state.status === 'pending' ? <ActivityResultsButton run={badgePath?.run} activity={activity} /> : null}</div>
+              <Link aria-label={`Open ${activity.title}`} aria-disabled={pathBlocked} onClick={linkGuard?.(href)} href={href} className={`mt-2 shrink-0 text-muted-foreground ${pathBlocked ? 'cursor-not-allowed' : 'transition hover:translate-x-0.5'}`}><ChevronRight size={20} /></Link>
             </div>
           })}
           {!activities.length ? <div className="rounded-xl border-2 border-dashed border-border p-10 text-center text-sm text-muted-foreground">No learning activities are available yet.</div> : null}
