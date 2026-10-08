@@ -1,8 +1,9 @@
 'use client'
 
 import { FormEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { ArrowRight, ChevronDown, ChevronsUp, Link2, ListChecks, Loader2, Plus, Send, Square } from 'lucide-react'
+import { ArrowRight, ChevronDown, ChevronsUp, Link2, ListChecks, Loader2, Send, Square } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { toast } from 'react-hot-toast'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useHubWorkspace } from '@components/Contexts/HubWorkspaceContext'
@@ -44,15 +45,16 @@ import HubHomeRecents from './HubHomeRecents'
 import HubHomeStack from './HubHomeStack'
 import HubMessageMicroBar from './HubMessageMicroBar'
 import HubMemoryNotice from './HubMemoryNotice'
-import HubResourceContext, { ActiveResourceWorkspace } from './HubResourceContext'
+import HubResourceCarousel, { asAdvisorResource, HubResourceTrayHandle } from './HubResourceContext'
 import HubResourceLibrary from './HubResourceLibrary'
+import HubResourceTray from './HubResourceTray'
+import HubResourcesView from './HubResourcesView'
+import { HubAttachMenu, HubView, HubViewSwitch } from './HubChrome'
 import {
   addHubContextResource,
   addHubContextResources,
-  buildHubResourceTrayEntries,
   hubAdvisorHistory,
   inferHubResponseKind,
-  HubResourceTrayEntry,
   newHubTranscriptResources,
   removeHubContextResource,
   restoreSubmittedDraft,
@@ -70,6 +72,7 @@ type HubFilters = {
   provider?: string
   resource?: string
   conversation?: string
+  view?: string
 }
 
 type HubConversationMessage = HubAdvisorMessage & {
@@ -294,22 +297,6 @@ function HubSuggestedActions({ actions, disabled = false, onActivate }: { action
   </div>
 }
 
-function asAdvisorResource(resource: Resource): HubAdvisorResource {
-  return {
-    resource_uuid: resource.resource_uuid,
-    title: resource.title,
-    description: resource.description,
-    resource_type: resource.resource_type,
-    provider_name: resource.provider_name,
-    external_url: resource.external_url,
-    cover_image_url: resource.cover_image_url,
-    thumbnail_image: resource.thumbnail_image,
-    owner_org_uuid: resource.owner_org_uuid || null,
-    access_mode: resource.access_mode,
-    tags: resource.tags.map((tag) => tag.name),
-  }
-}
-
 export default function HubExperience({ orgslug, filters, companion = false, visible = true, onCompanionCollapse, onCompanionExpand }: { orgslug: string; filters: HubFilters; companion?: boolean; visible?: boolean; onCompanionCollapse?: () => void; onCompanionExpand?: () => void }) {
   const router = useRouter()
   const workspace = useHubWorkspace()
@@ -323,15 +310,14 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
   const [conversationTitle, setConversationTitle] = useState('')
   const [conversations, setConversations] = useState<HubConversationSummary[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
-  const [resourcePanelConversationUuid, setResourcePanelConversationUuid] = useState<string | null>(null)
   const [conversationLoading, setConversationLoading] = useState(false)
   const [draft, setDraft] = useState(initialQuery)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
   const [contextResources, setContextResources] = useState<HubAdvisorResource[]>([])
   const [pendingResources, setPendingResources] = useState<HubAdvisorResource[]>([])
-  const [activeResourceUuid, setActiveResourceUuid] = useState<string | null>(null)
-  const [activeResourceGroupId, setActiveResourceGroupId] = useState<string | null>(null)
+  const [trayUuid, setTrayUuid] = useState<string | null>(null)
+  const [view, setView] = useState<HubView>(filters.view === 'resources' && !companion ? 'resources' : 'ask')
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [composerHeight, setComposerHeight] = useState(COMPOSER_MIN_HEIGHT)
   const [composerFades, setComposerFades] = useState({ top: false, bottom: false })
@@ -344,7 +330,6 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
   const openedResourceRef = useRef('')
   const messageSequenceRef = useRef(0)
   const introducedResourceUuidsRef = useRef(new Set<string>())
-  const resourceOriginRefs = useRef(new Map<string, HTMLDivElement>())
   const stateSaveQueueRef = useRef<Promise<void>>(Promise.resolve())
   const advisorAbortRef = useRef<AbortController | null>(null)
   const pendingSubmissionRef = useRef<{ content: string; preserveDraft: boolean; allowHidden?: boolean } | null>(null)
@@ -358,10 +343,7 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
   const storageKey = `launchlms:hub-thread:${org?.id}:${session?.data?.user?.id}`
   const restoredRef = useRef(false)
   const conversationStarted = Boolean(conversationUuid || messages.length > 0)
-  const trayEntries = useMemo(() => buildHubResourceTrayEntries([
-    ...messages.map((message) => ({ id: message.id, resources: message.resources })),
-    { id: 'pending', resources: pendingResources },
-  ]), [messages, pendingResources])
+  const inChat = useMemo(() => new Set(contextResources.map((resource) => resource.resource_uuid)), [contextResources])
   const editTimelineSlots = useMemo(() => placeHubRunTimeline(buildHubRunTimeline(workspace?.editRun?.events || []), messages), [messages, workspace?.editRun?.events])
   const narratedConclusionMessageId = useMemo(() => {
     if (workspace?.editRun?.status !== 'active' || workspace.editRun.objects.some((item) => item.status === 'editing') || workspace.editRun.events.some((event) => event.kind === 'run.conclusion_proposed')) return ''
@@ -435,7 +417,6 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
   const openConversation = async (uuid: string, openResources = false) => {
     if (!accessToken || !org?.id || sending) return
     const load = ++loadSequence.current
-    setResourcePanelConversationUuid(openResources ? uuid : null)
     setConversationLoading(true)
     setError('')
     try {
@@ -458,8 +439,7 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
       setConversationTitle(conversation.title)
       setContextResources(conversation.context_resources)
       setPendingResources([])
-      setActiveResourceUuid(null)
-      setActiveResourceGroupId(null)
+      setTrayUuid(openResources ? conversation.context_resources.at(-1)?.resource_uuid ?? null : null)
       introducedResourceUuidsRef.current = new Set(restoredMessages.flatMap((message) => (message.resources || []).map((resource) => resource.resource_uuid)))
       setConversationInUrl(conversation.conversation_uuid)
       getActiveHubEditRun(org.id, uuid, accessToken)
@@ -530,8 +510,6 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
         introducedResourceUuidsRef.current.add(resource.resource_uuid)
         setContextResources((current) => addHubContextResource(current, advisorResource))
         setPendingResources((current) => addHubContextResource(current, advisorResource))
-        setActiveResourceUuid(resource.resource_uuid)
-        setActiveResourceGroupId('pending')
       })
       .catch((loadError: any) => setError(loadError?.message || 'This resource is not available.'))
   }, [accessToken, filters.resource])
@@ -540,7 +518,7 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
     const scrollArea = scrollRef.current
     if (!scrollArea) return
     scrollArea.scrollTo({ top: scrollArea.scrollHeight, behavior: 'smooth' })
-  }, [messages, sending, contextResources, pendingResources, activeResourceUuid, activeResourceGroupId, libraryOpen])
+  }, [messages, sending, pendingResources, libraryOpen])
 
   const updateComposerFades = (textarea: HTMLTextAreaElement) => {
     const hasOverflow = textarea.scrollHeight > textarea.clientHeight + 1
@@ -599,13 +577,11 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
     setConversationTitle('')
     setContextResources([])
     setPendingResources([])
-    setActiveResourceUuid(null)
-    setActiveResourceGroupId(null)
+    setTrayUuid(null)
     introducedResourceUuidsRef.current.clear()
     setDraft('')
     setError('')
     setConversationInUrl(null)
-    setResourcePanelConversationUuid(null)
     workspace?.setEditRun(null)
     workspace?.setEditOperations([])
     workspace?.setEditReviewItems([])
@@ -618,15 +594,12 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
     const nextContext = addHubContextResource(contextResources, advisorResource)
     setContextResources(nextContext)
     setPendingResources((current) => addHubContextResource(current, advisorResource))
-    setActiveResourceUuid(resource.resource_uuid)
-    setActiveResourceGroupId('pending')
     setLibraryOpen(false)
     persistState(messages, nextContext)
   }
 
   const inspectSearchResource = (groupId: string, resource: Resource) => {
     const advisorResource = asAdvisorResource(resource)
-    const collapseActive = activeResourceGroupId === groupId && activeResourceUuid === resource.resource_uuid
     introducedResourceUuidsRef.current.add(resource.resource_uuid)
     const nextContext = addHubContextResource(contextResources, advisorResource)
     const nextMessages = messages.map((message) => message.id === groupId
@@ -634,65 +607,44 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
       : message)
     setContextResources(nextContext)
     setMessages(nextMessages)
-    setActiveResourceUuid(collapseActive ? null : resource.resource_uuid)
-    setActiveResourceGroupId(collapseActive ? null : groupId)
+    setTrayUuid(resource.resource_uuid)
     persistState(nextMessages, nextContext)
   }
 
-  const changeActiveResource = (groupId: string, resources: HubAdvisorResource[], resourceUuid: string | null) => {
-    setActiveResourceUuid(resourceUuid)
-    setActiveResourceGroupId(resourceUuid ? groupId : null)
-    if (resourceUuid) {
-      const selected = resources.find((resource) => resource.resource_uuid === resourceUuid)
-      if (selected) {
-        const nextContext = addHubContextResource(contextResources, selected)
-        setContextResources(nextContext)
-        persistState(messages, nextContext)
-      }
+  // Transcript cards open the tray; a card removed from the chat is added back first.
+  const openTrayAt = (resource: HubAdvisorResource) => {
+    if (!inChat.has(resource.resource_uuid)) {
+      const nextContext = addHubContextResource(contextResources, resource)
+      setContextResources(nextContext)
+      persistState(messages, nextContext)
+      toast.success('Added back to this chat')
     }
+    setTrayUuid(resource.resource_uuid)
   }
 
-  const removeContextResource = (groupId: string, resourceUuid: string) => {
-    const next = removeHubContextResource(contextResources, activeResourceUuid, resourceUuid)
-    setContextResources(next.resources)
-    setActiveResourceUuid(next.activeResourceUuid)
-    if (activeResourceUuid === resourceUuid) setActiveResourceGroupId(null)
-    if (groupId === 'pending') {
-      setPendingResources((current) => current.filter((resource) => resource.resource_uuid !== resourceUuid))
-      persistState(messages, next.resources)
-      return
-    }
-    const nextMessages = messages.map((message) => (
-      message.id === groupId
-        ? { ...message, resources: message.resources?.filter((resource) => resource.resource_uuid !== resourceUuid) }
-        : message
-    ))
-    setMessages(nextMessages)
-    persistState(nextMessages, next.resources)
+  const removeFromChat = (resource: HubAdvisorResource) => {
+    const previousContext = contextResources
+    const { resources: nextContext, nextActiveUuid } = removeHubContextResource(previousContext, resource.resource_uuid)
+    setContextResources(nextContext)
+    setPendingResources((current) => current.filter((item) => item.resource_uuid !== resource.resource_uuid))
+    setTrayUuid(nextActiveUuid)
+    persistState(messages, nextContext)
+    toast((item) => <span className="flex items-center gap-3 text-sm">Removed from this chat<button type="button" className="font-semibold underline underline-offset-4" onClick={() => { toast.dismiss(item.id); setContextResources(previousContext); setMessages((current) => { persistState(current, previousContext); return current }) }}>Undo</button></span>, { duration: 5000 })
   }
 
-  const removeResourceEverywhere = (resourceUuid: string) => {
-    const next = removeHubContextResource(contextResources, activeResourceUuid, resourceUuid)
-    setContextResources(next.resources)
-    setActiveResourceUuid(next.activeResourceUuid)
-    if (activeResourceUuid === resourceUuid) setActiveResourceGroupId(null)
-    setPendingResources((current) => current.filter((resource) => resource.resource_uuid !== resourceUuid))
-    const nextMessages = messages.map((message) => ({
-      ...message,
-      resources: message.resources?.filter((resource) => resource.resource_uuid !== resourceUuid),
-    }))
-    setMessages(nextMessages)
-    persistState(nextMessages, next.resources)
+  const changeView = (next: HubView) => {
+    setView(next)
+    const url = new URL(window.location.href)
+    if (next === 'resources') url.searchParams.set('view', 'resources')
+    else url.searchParams.delete('view')
+    window.history.replaceState({}, '', url)
   }
 
-  const returnToResourceOrigin = ({ resource, originGroupId }: HubResourceTrayEntry<HubAdvisorResource>) => {
-    setActiveResourceUuid(resource.resource_uuid)
-    setActiveResourceGroupId(originGroupId)
-    window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
-      const origin = resourceOriginRefs.current.get(originGroupId)
-      origin?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      origin?.focus({ preventScroll: true })
-    }))
+  const askAboutResource = (resource: Resource) => {
+    if (!conversationStarted) resetChat()
+    addResourceToConversation(resource)
+    changeView('ask')
+    window.requestAnimationFrame(() => composerRef.current?.focus())
   }
 
   const submit = async (event: FormEvent) => {
@@ -723,7 +675,6 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
       resourceLabel: submittedResources.length ? 'You added' : undefined,
     }])
     setPendingResources([])
-    if (activeResourceGroupId === 'pending') setActiveResourceGroupId(userMessageId)
     if (!pendingSubmission?.preserveDraft) setDraft('')
     setError('')
     setSending(true)
@@ -806,7 +757,6 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
       if (!alive.current) return
       setMessages(previousMessages)
       setPendingResources(submittedResources)
-      if (submittedResources.length > 0) setActiveResourceGroupId('pending')
       if (!pendingSubmission?.preserveDraft) setDraft((current) => restoreSubmittedDraft(current, content))
       continuationInFlightRef.current = null
       if (requestError?.name !== 'AbortError') setError(advisorErrorMessage(requestError))
@@ -943,15 +893,14 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
     <div className="relative mx-auto min-h-0 w-full max-w-[1056px] flex-1 overflow-hidden" aria-label="Hub conversation">
       {!companion ? <PageTitleRegistration section="Hub" detail={conversationStarted ? conversationTitle : undefined} /> : null}
       <h1 className="sr-only">{conversationTitle || 'Hub'}</h1>
-      {(conversationStarted || companion) && (
+      {!companion && (view === 'resources' || !conversationStarted) ? <HubViewSwitch view={view} onChange={changeView} /> : null}
+      {view === 'resources' ? <HubResourcesView orgId={org?.id} orgslug={orgslug} accessToken={accessToken} askLabel={conversationStarted ? 'Add to this chat' : undefined} onAsk={askAboutResource} /> : null}
+      {view === 'ask' && (conversationStarted || companion) && (
         <HubHeader
-          key={`${conversationUuid}:${resourcePanelConversationUuid === conversationUuid ? 'resources' : 'conversation'}`}
-          orgslug={orgslug}
           conversationUuid={conversationUuid}
           conversationStarted={conversationStarted}
           title={conversationTitle}
           conversations={conversations}
-          entries={trayEntries}
           loading={historyLoading}
           disabled={sending || conversationLoading}
           onHistoryOpen={refreshHistory}
@@ -961,9 +910,6 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
           onOpenResources={(uuid) => void openConversation(uuid, true)}
           onRename={(title) => conversationUuid ? renameConversation(conversationUuid, title) : Promise.resolve()}
           onArchive={archiveConversation}
-          onRemoveResource={removeResourceEverywhere}
-          onReturnToOrigin={returnToResourceOrigin}
-          initialPanel={resourcePanelConversationUuid === conversationUuid ? 'resources' : null}
           companion={companion}
           contextUnavailable={companion && !workspace?.surface}
           editRun={workspace?.editRun}
@@ -974,7 +920,7 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
         />
       )}
 
-      <div ref={scrollRef} className={`scrollbar-subtle absolute inset-x-0 bottom-0 overflow-y-auto overscroll-contain scroll-smooth ${conversationStarted || companion ? (companion && workspace?.editRun?.status === 'active' ? 'top-[4.75rem]' : companion && !workspace?.surface ? 'top-[4.5rem]' : 'top-11') : 'top-0'}`}>
+      <div ref={scrollRef} hidden={view === 'resources'} className={`scrollbar-subtle absolute inset-x-0 bottom-0 overflow-y-auto overscroll-contain scroll-smooth ${conversationStarted || companion ? (companion && workspace?.editRun?.status === 'active' ? 'top-[4.75rem]' : companion && !workspace?.surface ? 'top-[4.5rem]' : 'top-11') : 'top-[3.25rem]'}`}>
         <div
           className={`mx-auto min-h-full w-full max-w-3xl px-4 sm:px-6 ${conversationStarted || companion ? 'pt-5' : 'pt-7 sm:pt-10'}`}
           style={{ paddingBottom: composerHeight + 88 + (memoryNoticeVisible ? 148 : 0) + (libraryOpen ? 290 : 0) + (workspace?.editReviewItems.length ? 58 : 0) }}
@@ -989,18 +935,7 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
                 {(editTimelineSlots.get(messageIndex) || []).map((entry) => entry.kind === 'agent' ? <HubEditActivity key={entry.id} events={entry.events} objects={workspace?.editRun?.objects || []} onPoint={pointToEditObject} onFinish={() => void finishEditing()} pendingReviewCount={workspace?.editReviewItems.length || 0} /> : entry.kind === 'boundary' ? <HubSessionBoundary key={entry.id} event={entry.events[0]} run={workspace?.editRun || null} onRestore={() => void restoreEditing()} /> : <HubLearnerSessionEvent key={entry.id} events={entry.events} onPoint={pointToEditObject} />)}
                 {message.role === 'user' ? sessionEventLabel(message.content) ? null : (
                 <div key={message.id} className="group/message space-y-1.5">
-                  {message.resources && message.resources.length > 0 && (
-                    <div ref={(node) => { if (node) resourceOriginRefs.current.set(message.id, node); else resourceOriginRefs.current.delete(message.id) }} tabIndex={-1} className="rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
-                      <HubResourceContext
-                        resources={message.resources}
-                        activeResourceUuid={activeResourceGroupId === message.id ? activeResourceUuid : null}
-                        onActiveChange={(resourceUuid) => changeActiveResource(message.id, message.resources || [], resourceUuid)}
-                        onRemove={(resourceUuid) => removeContextResource(message.id, resourceUuid)}
-                        orgslug={orgslug}
-                        label={message.resourceLabel}
-                      />
-                    </div>
-                  )}
+                  <HubResourceCarousel resources={message.resources || []} inChat={inChat} label={message.resourceLabel === 'Suggested' ? 'Hub suggested' : message.resourceLabel} onOpen={openTrayAt} />
                   <div className="flex justify-end">
                     <div className="hub-user-message max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm leading-6 text-foreground sm:max-w-[72%]">
                       {message.content}
@@ -1011,7 +946,7 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
               ) : (
                 <div key={message.id} className="group/message space-y-1.5">
                   {message.searchQuery ? (
-                    <div ref={(node) => { if (node) resourceOriginRefs.current.set(message.id, node); else resourceOriginRefs.current.delete(message.id) }} tabIndex={-1} className="space-y-1.5 rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
+                    <div className="space-y-1.5">
                       <HubQuickSearch
                         orgId={org?.id}
                         orgUUID={org?.org_uuid}
@@ -1027,9 +962,6 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
                         selectedResourceUuids={(message.resources || []).map((resource) => resource.resource_uuid)}
                         onSelectResource={(resource) => inspectSearchResource(message.id, resource)}
                       />
-                      {activeResourceGroupId === message.id && (message.resources || [])
-                        .filter((resource) => resource.resource_uuid === activeResourceUuid)
-                        .map((resource) => <div key={resource.resource_uuid} className="mt-2"><ActiveResourceWorkspace resource={resource} orgslug={orgslug} /></div>)}
                       {accessToken && org?.id && <HubMessageMicroBar role="assistant" content={`Resource search results for ${message.searchQuery}`} createdAt={message.createdAt} memories={message.memories} pageContext={message.page_context} orgId={org.id} accessToken={accessToken} />}
                     </div>
                   ) : (
@@ -1039,42 +971,20 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
                       {message.id === narratedConclusionMessageId ? <Button type="button" size="sm" className="mt-2 h-8 text-xs" onClick={() => void finishEditing()}>Finish session</Button> : null}
                       {message.id === restoreOfferMessageId ? <Button type="button" size="sm" className="mt-2 h-8 gap-1.5 text-xs" onClick={() => void restoreEditing()}>Continue focused session<ArrowRight size={13} /></Button> : null}
                       {accessToken && org?.id && <HubMessageMicroBar role="assistant" content={message.content} createdAt={message.createdAt} memories={message.memories} pageContext={message.page_context} orgId={org.id} accessToken={accessToken} />}
-                      {message.resources && message.resources.length > 0 && (
-                        <div ref={(node) => { if (node) resourceOriginRefs.current.set(message.id, node); else resourceOriginRefs.current.delete(message.id) }} tabIndex={-1} className="rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
-                      <HubResourceContext
-                        resources={message.resources}
-                        activeResourceUuid={activeResourceGroupId === message.id ? activeResourceUuid : null}
-                        onActiveChange={(resourceUuid) => changeActiveResource(message.id, message.resources || [], resourceUuid)}
-                        onRemove={(resourceUuid) => removeContextResource(message.id, resourceUuid)}
-                        orgslug={orgslug}
-                        label={message.resourceLabel}
-                      />
-                        </div>
-                      )}
+                      <HubResourceCarousel resources={message.resources || []} inChat={inChat} label={message.resourceLabel === 'Suggested' ? 'Hub suggested' : message.resourceLabel} onOpen={openTrayAt} />
                     </>
                   )}
                 </div>
               )}</div>)}
               {(editTimelineSlots.get(messages.length) || []).map((entry) => entry.kind === 'agent' ? <HubEditActivity key={entry.id} events={entry.events} objects={workspace?.editRun?.objects || []} onPoint={pointToEditObject} onFinish={() => void finishEditing()} pendingReviewCount={workspace?.editReviewItems.length || 0} /> : entry.kind === 'boundary' ? <HubSessionBoundary key={entry.id} event={entry.events[0]} run={workspace?.editRun || null} onRestore={() => void restoreEditing()} /> : <HubLearnerSessionEvent key={entry.id} events={entry.events} onPoint={pointToEditObject} />)}
-              {pendingResources.length > 0 && (
-                <div ref={(node) => { if (node) resourceOriginRefs.current.set('pending', node); else resourceOriginRefs.current.delete('pending') }} tabIndex={-1} className="rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
-                  <HubResourceContext
-                    resources={pendingResources}
-                    activeResourceUuid={activeResourceGroupId === 'pending' ? activeResourceUuid : null}
-                    onActiveChange={(resourceUuid) => changeActiveResource('pending', pendingResources, resourceUuid)}
-                    onRemove={(resourceUuid) => removeContextResource('pending', resourceUuid)}
-                    orgslug={orgslug}
-                    label="You added"
-                  />
-                </div>
-              )}
+              <HubResourceCarousel resources={pendingResources} inChat={inChat} label="You added" onOpen={openTrayAt} />
               {sending && <div className="text-sm text-muted-foreground" role="status">Thinking…</div>}
               {error && <div className="rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">{error}</div>}
           </div>
         </div>
       </div>
 
-      <div className="pointer-events-none absolute inset-x-0 bottom-20 z-[var(--z-sticky-header)] lg:bottom-0">
+      <div hidden={view === 'resources'} className="pointer-events-none absolute inset-x-0 bottom-20 z-[var(--z-sticky-header)] lg:bottom-0">
         <div aria-hidden="true" className="hub-composer-backdrop absolute bottom-0 left-0 right-2 -top-10" />
         <div className="pointer-events-auto relative mx-auto w-full max-w-[50rem] px-4 pb-4 sm:px-5 sm:pb-6">
         {memoryNoticeVisible && (
@@ -1095,6 +1005,7 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
             <Button type="button" size="sm" variant="ghost" className="h-7 shrink-0 gap-1 px-2 text-xs" onClick={() => pointToEditObject(workspace.editReviewItems[0].targetId)}>Review <ArrowRight size={12} /></Button>
           </div>
         ) : null}
+        {conversationStarted ? <HubResourceTrayHandle resources={contextResources} onOpen={() => setTrayUuid(contextResources.at(-1)?.resource_uuid ?? null)} /> : null}
         <form onSubmit={submit} className="flex flex-col justify-end">
           <div className="hub-composer-shell rounded-[1.6rem] p-2 backdrop-blur-md">
             <label htmlFor="hub-composer" className="sr-only">Ask a question or search Launch LMS</label>
@@ -1127,9 +1038,7 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
             </div>
             <div className="flex h-9 items-center justify-between gap-3">
               <div className="flex items-center gap-1">
-                <Button type="button" size="icon" variant={libraryOpen ? 'secondary' : 'ghost'} className="h-8 w-8 text-muted-foreground" onClick={() => setLibraryOpen((current) => !current)} disabled={!accessToken || !org?.id} title="Add resources from your Library" aria-label="Add resource context" aria-expanded={libraryOpen}>
-                  <Plus className="h-4 w-4" />
-                </Button>
+                <HubAttachMenu disabled={!accessToken || !org?.id} onSaved={() => setLibraryOpen(true)} onBrowse={companion ? undefined : () => changeView('resources')} />
               </div>
               <Button
                 type={sending ? 'button' : 'submit'}
@@ -1154,6 +1063,7 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
         />
         </div>
       </div>
+      {trayUuid && view === 'ask' ? <HubResourceTray resources={contextResources} activeUuid={trayUuid} orgslug={orgslug} onActiveChange={setTrayUuid} onRemove={removeFromChat} onClose={() => setTrayUuid(null)} /> : null}
     </div>
   )
 }

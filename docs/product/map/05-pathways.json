@@ -6289,9 +6289,9 @@
           "health": "works",
           "traceability": "complete",
           "priority": "High",
-          "implementation_notes": "Hub keeps a bounded current resource context while presenting selections as transcript events. Search response selections remain attached to the search object with persistent outline state and reuse the authoritative carousel/detail workspace; advisor suggestions and learner Library additions retain their established transcript behavior. A chronological tray preserves first origin.",
+          "implementation_notes": "Hub keeps a bounded current resource context (the chat tray) while presenting additions and suggestions as transcript carousels. Carousel cards only open the tray; removing a resource from the chat drops it from advisor context and dims its transcript card, which can add it back. Search selections attach to the search object and open in the tray. The composer paperclip adds saved resources; browsing lives in the Hub Resources tab.",
           "original_state": null,
-          "updated_at": "2026-09-08T19:26:29.505811+00:00",
+          "updated_at": "2026-10-08T18:30:00+00:00",
           "description": "",
           "goal_title": "Choose a useful next action",
           "group_title": "Plan goals and coordinate support",
@@ -6329,10 +6329,10 @@
               "id": "PATHWAYS-G006-A006-AC02",
               "activity_id": "PATHWAYS-G006-A006",
               "display_order": 2,
-              "criterion": "One resource can be expanded, switched, or collapsed, and removing a resource excludes it from subsequent advisor context.",
+              "criterion": "One chat tray lists every resource in the chat with one shown in detail and previous/next navigation; removing a resource from the chat excludes it from subsequent advisor context and can be undone.",
               "automated_status": "passed",
-              "manual_status": "passed",
-              "notes": "Hub interaction regression verifies switch, collapse, remove, and bounded context state.",
+              "manual_status": "not_tested",
+              "notes": "Hub interaction regression verifies removal selects the neighbouring resource; browser check covered remove and Undo (FEED-16).",
               "source_json": null,
               "created_at": "2026-09-07T22:05:49+00:00"
             },
@@ -6395,10 +6395,10 @@
               "id": "PATHWAYS-G006-A006-AC08",
               "activity_id": "PATHWAYS-G006-A006",
               "display_order": 8,
-              "criterion": "A chronological all-conversation resource tray shows each resource once, reuses the in-chat switcher and detail card, and can return the learner to its original transcript event.",
-              "automated_status": "passed",
-              "manual_status": "passed",
-              "notes": "Hub interaction regression verifies first-seen chronological deduplication and origin retention; TypeScript and production build verify the tray reuses HubResourceContext.",
+              "criterion": "Transcript carousels are entry points: opening a card shows it in the chat tray, and a card for a resource removed from the chat stays dimmed and adds it back when opened.",
+              "automated_status": "not_tested",
+              "manual_status": "not_tested",
+              "notes": "Browser check covered opening, dimming after removal, and persistence across reload (FEED-16).",
               "source_json": null,
               "created_at": "2026-09-08T01:11:59+00:00"
             },
@@ -6406,9 +6406,9 @@
               "id": "PATHWAYS-G006-A006-AC09",
               "activity_id": "PATHWAYS-G006-A006",
               "display_order": 9,
-              "criterion": "The conversation-resource tray vertically stacks resources beside the detail card, aligns both surfaces as one workspace, and opens with the newest resource selected and visible.",
+              "criterion": "A composer handle shows how many resources are in the chat and opens the tray on phones and desktop without scrolling back through the transcript.",
               "automated_status": "not_tested",
-              "manual_status": "passed",
+              "manual_status": "not_tested",
               "notes": null,
               "source_json": null,
               "created_at": "2026-09-08T03:49:32+00:00"
@@ -6417,10 +6417,10 @@
               "id": "PATHWAYS-G006-A006-AC10",
               "activity_id": "PATHWAYS-G006-A006",
               "display_order": 10,
-              "criterion": "Selecting an inline search result marks its card by outline and inspects it through the existing authoritative Hub resource carousel and detail workspace.",
-              "automated_status": "passed",
-              "manual_status": "passed",
-              "notes": "TypeScript and production build verify search result selection is attached to the response and rendered through the existing HubResourceContext and ActiveResourceWorkspace.",
+              "criterion": "Selecting an inline search result marks its card by outline, adds it to the chat, and opens it in the chat tray.",
+              "automated_status": "not_tested",
+              "manual_status": "not_tested",
+              "notes": null,
               "source_json": null,
               "created_at": "2026-09-08T04:39:15+00:00"
             }
@@ -6443,13 +6443,13 @@
               "kind": "code",
               "path": "apps/web/app/orgs/[orgslug]/(withmenu)/hub/HubResourceContext.tsx",
               "symbol": null,
-              "responsibility": "Shared compact rail, expanded resource card, and inline Notes"
+              "responsibility": "Transcript resource carousel, tray handle, and shared resource detail workspace"
             },
             {
               "kind": "code",
               "path": "apps/web/app/orgs/[orgslug]/(withmenu)/hub/HubResourceTray.tsx",
               "symbol": null,
-              "responsibility": "Chronological resource tray using the shared switcher/detail workspace and origin return"
+              "responsibility": "Chat resource tray: strip, detail, previous/next, and remove from chat"
             },
             {
               "kind": "test",
@@ -6461,7 +6461,7 @@
               "kind": "test",
               "path": "apps/web/services/hub/__tests__/interaction.test.ts",
               "symbol": null,
-              "responsibility": "Context rail state transitions and bounds"
+              "responsibility": "Context bounds and tray removal selection"
             }
           ],
           "relationships": []

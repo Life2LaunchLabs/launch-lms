@@ -1,64 +1,71 @@
 'use client'
 
-import { Dispatch, useEffect, useRef, useState } from 'react'
-import { CornerUpLeft } from 'lucide-react'
+import { Dispatch } from 'react'
+import { ChevronLeft, ChevronRight, MinusCircle } from 'lucide-react'
 import { Button } from '@components/ui/button'
+import ResourceTypeVisual from '@components/Resources/ResourceTypeVisual'
 import type { HubAdvisorResource } from '@services/hub/advisor'
-import { ActiveResourceWorkspace, HubResourceSwitchItem } from './HubResourceContext'
-import type { HubResourceTrayEntry } from './hubInteraction'
+import { ActiveResourceWorkspace, resourceImage } from './HubResourceContext'
+import HubSheet from './HubSheet'
 
-export default function HubResourceTray({ entries, orgslug, onRemove, onReturnToOrigin, onClose }: {
-  entries: HubResourceTrayEntry<HubAdvisorResource>[]
+// Every resource Hub suggested or the learner added to this chat, with one open in detail.
+export default function HubResourceTray({ resources, activeUuid, orgslug, onActiveChange, onRemove, onClose }: {
+  resources: HubAdvisorResource[]
+  activeUuid: string | null
   orgslug: string
-  onRemove: Dispatch<string>
-  onReturnToOrigin: Dispatch<HubResourceTrayEntry<HubAdvisorResource>>
+  onActiveChange: Dispatch<string>
+  onRemove: Dispatch<HubAdvisorResource>
   onClose: () => void
 }) {
-  const [activeResourceUuid, setActiveResourceUuid] = useState<string | null>(null)
-  const listRef = useRef<HTMLDivElement>(null)
-  const activeEntry = entries.find((entry) => entry.resource.resource_uuid === activeResourceUuid) || entries.at(-1)
-
-  useEffect(() => {
-    const frame = window.requestAnimationFrame(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight }))
-    return () => window.cancelAnimationFrame(frame)
-  }, [entries])
-
-  if (!activeEntry) return null
-
-  const removeResource = (resourceUuid: string) => {
-    const remaining = entries.filter((entry) => entry.resource.resource_uuid !== resourceUuid)
-    if (activeEntry.resource.resource_uuid === resourceUuid) setActiveResourceUuid(remaining.at(-1)?.resource.resource_uuid || null)
-    onRemove(resourceUuid)
-    if (remaining.length === 0) onClose()
-  }
+  const activeIndex = Math.max(0, resources.findIndex((resource) => resource.resource_uuid === activeUuid))
+  const active = resources[activeIndex]
+  if (!active) return null
+  const step = (delta: number) => onActiveChange(resources[(activeIndex + delta + resources.length) % resources.length].resource_uuid)
 
   return (
-    <div className="h-[min(38rem,calc(100dvh-5rem))] overflow-hidden rounded-b-xl border border-t-0 border-border/70 bg-background shadow-xl shadow-black/10">
-      <div className="grid h-full min-h-0 grid-cols-[9rem_minmax(18rem,1fr)] gap-2 overflow-x-auto p-2.5 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-3 sm:p-3">
-        <div ref={listRef} className="min-h-0 space-y-1.5 overflow-y-auto" aria-label="Conversation resource list">
-          {entries.map((entry) => (
-            <HubResourceSwitchItem
-              key={entry.resource.resource_uuid}
-              resource={entry.resource}
-              active={entry.resource.resource_uuid === activeEntry.resource.resource_uuid}
-              onSelect={setActiveResourceUuid}
-              onRemove={removeResource}
-              orientation="vertical"
-            />
-          ))}
-        </div>
-        <div className="min-h-0 overflow-y-auto">
-          <ActiveResourceWorkspace key={activeEntry.resource.resource_uuid} resource={activeEntry.resource} orgslug={orgslug} />
-          <div className="mt-1 flex justify-end">
-            <Button type="button" variant="ghost" size="sm" className="gap-2 text-muted-foreground" onClick={() => {
-              onClose()
-              onReturnToOrigin(activeEntry)
-            }}>
-              <CornerUpLeft className="h-4 w-4" /> Return to where it was added
+    <HubSheet
+      label="Resources in this chat"
+      title={<>In this chat <span className="font-normal text-muted-foreground">· {resources.length}</span></>}
+      onClose={onClose}
+      footer={
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1">
+            <Button type="button" variant="ghost" size="icon" className="h-10 w-10" onClick={() => step(-1)} disabled={resources.length < 2} aria-label="Previous resource">
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="min-w-12 text-center text-xs tabular-nums text-muted-foreground">{activeIndex + 1} of {resources.length}</span>
+            <Button type="button" variant="ghost" size="icon" className="h-10 w-10" onClick={() => step(1)} disabled={resources.length < 2} aria-label="Next resource">
+              <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
+          <Button type="button" variant="ghost" className="h-10 gap-2 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => onRemove(active)}>
+            <MinusCircle className="h-4 w-4" /> Remove from chat
+          </Button>
         </div>
+      }
+    >
+      <div role="tablist" aria-label="Resources in this chat" className="flex snap-x gap-2 overflow-x-auto border-b border-border/60 px-4 pb-3 pt-1">
+        {resources.map((resource) => {
+          const selected = resource.resource_uuid === active.resource_uuid
+          return (
+            <button
+              key={resource.resource_uuid}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              aria-label={resource.title}
+              title={resource.title}
+              onClick={() => onActiveChange(resource.resource_uuid)}
+              className={`h-14 w-14 shrink-0 snap-start overflow-hidden rounded-xl transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring ${selected ? 'ring-2 ring-[var(--org-primary-color,currentColor)] ring-offset-2 ring-offset-background' : 'opacity-70 hover:opacity-100'}`}
+            >
+              <ResourceTypeVisual type={resource.resource_type} title={resource.title} imageSrc={resourceImage(resource)} iconClassName="h-5 w-5" />
+            </button>
+          )
+        })}
       </div>
-    </div>
+      <div role="tabpanel" aria-label={active.title} className="p-3 sm:p-4">
+        <ActiveResourceWorkspace key={active.resource_uuid} resource={active} orgslug={orgslug} />
+      </div>
+    </HubSheet>
   )
 }
