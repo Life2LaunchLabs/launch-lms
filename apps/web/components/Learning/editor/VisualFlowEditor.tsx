@@ -32,10 +32,9 @@ import {
 import { findQuestionBlocks } from '@components/Learning/schema'
 import { type FlowVariable, flowVariables } from './flowVariables'
 import { VariablePathPicker } from './VariablePathPicker'
+import type { Flow, FlowEdge, FlowNode } from './flowTypes'
 
-export type FlowNode = { id: string; type: 'page' | 'split' | 'join' | 'complete'; page_uuid?: string }
-export type FlowEdge = { from: string; to: string; priority: number; condition?: any; merge?: boolean; order?: number }
-export type Flow = { version: 1; entry: string; nodes: FlowNode[]; edges: FlowEdge[] }
+export type { Flow, FlowEdge, FlowNode } from './flowTypes'
 export type FlowInsertion = { from: string; to?: string | null; priority?: number }
 
 export type FlowIssue = {

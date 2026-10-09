@@ -1,74 +1,19 @@
 export type LearningPageType = 'video' | 'standard'
 
-export type LearningBlockAlign = 'left' | 'center' | 'right'
+import type { Block, BlockDesign, ButtonBlock, DisplayBinding, ImageBlock, PortfolioPreviewBlock, QuestionBlock, TextBlock } from './content.generated'
 
-export interface LearningBlockBase {
-  id: string
-  type: 'text' | 'image' | 'question' | 'button' | 'portfolio_preview'
-  design?: {
-    width?: number
-    align?: LearningBlockAlign
-    height?: number
-    fit?: 'contain' | 'cover'
-    text_color?: string
-    shape?: 'rounded' | 'circle'
-    variant?: 'primary' | 'secondary'
-    group?: string
-  }
-  system?: {
-    locked?: boolean
-    reason?: string
-  }
-}
-
-export interface LearningTextBlock extends LearningBlockBase {
-  type: 'text'
-  content?: {
-    node?: any
-    nodes?: any[]
-  }
-}
-
-export interface LearningImageBlock extends LearningBlockBase {
-  type: 'image'
-  content?: {
-    src?: string
-    alt?: string
-    binding?: LearningDisplayBinding
-  }
-}
-
-export interface LearningDisplayBinding {
-  source: 'answer' | 'variable'
-  path: string
-  fallback?: string
-  fallback_binding?: LearningDisplayBinding
-}
-
+// Block shapes are generated from the API's typed content models
+// (content.generated.ts); these aliases keep the names the app already uses.
+export type LearningBlockAlign = NonNullable<BlockDesign['align']>
+export type LearningDisplayBinding = DisplayBinding
+export type LearningTextBlock = TextBlock
+export type LearningImageBlock = ImageBlock
 // Continue buttons complete the page (the flow can route on `<page>.button`);
 // revisit buttons jump back to an earlier page on the route.
-export interface LearningButtonBlock extends LearningBlockBase {
-  type: 'button'
-  content?: { label?: string; action?: 'continue' | 'revisit'; revisit_page_uuid?: string }
-}
-
-export interface LearningPortfolioPreviewBlock extends LearningBlockBase {
-  type: 'portfolio_preview'
-  content?: {
-    variant?: 'timeline_card' | 'work_card' | 'identity_header' | 'traits_panel' | 'links_strip' | 'portfolio_frame' | 'share_panel'
-    bindings?: Record<string, LearningDisplayBinding>
-  }
-}
-
-export interface LearningQuestionBlock extends LearningBlockBase {
-  type: 'question'
-  kind: 'multiple_choice' | 'categorized_multi_select' | 'text_input' | string
-  content?: any
-  scoring?: any
-  completion?: any
-}
-
-export type LearningBlock = LearningTextBlock | LearningImageBlock | LearningQuestionBlock | LearningButtonBlock | LearningPortfolioPreviewBlock
+export type LearningButtonBlock = ButtonBlock
+export type LearningPortfolioPreviewBlock = PortfolioPreviewBlock
+export type LearningQuestionBlock = QuestionBlock
+export type LearningBlock = Block
 
 export function resolveDisplayBinding(binding: LearningDisplayBinding | undefined, run: any, preview = false): string {
   if (!binding) return ''

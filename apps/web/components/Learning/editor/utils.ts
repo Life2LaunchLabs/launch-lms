@@ -452,7 +452,7 @@ export function getVariantSourceOptions(pages: any[], page: any): VariantSourceO
     questions.forEach((question, questionIndex) => {
       const completion = getBlockCompletion(question)
       if (Math.max(1, Number(completion?.max_selections ?? 1)) > 1) return
-      const options = normalizeQuestionOptions(question.content?.options)
+      const options = normalizeQuestionOptions(question.content?.options || [])
       const questionLabel = String(question.content?.label || '').trim()
       const fallback = `${item.title || 'Untitled page'}${questions.length > 1 ? ` · question ${questionIndex + 1}` : ''}`
       sources.push({

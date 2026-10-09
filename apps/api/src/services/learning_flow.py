@@ -171,8 +171,13 @@ def validate_flow(
 ) -> list[str]:
     if not flow:
         return []
+    from src.services.learning_content.models import Flow, content_error
+
     if flow.get("version") != 1:
         raise FlowValidationError("Flow version must be 1")
+    shape_error = content_error(Flow, flow)
+    if shape_error:
+        raise FlowValidationError(f"Invalid flow: {shape_error}")
     nodes = flow.get("nodes")
     edges = flow.get("edges")
     if not isinstance(nodes, list) or not isinstance(edges, list):

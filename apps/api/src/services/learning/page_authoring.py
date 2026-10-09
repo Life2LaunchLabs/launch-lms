@@ -1,6 +1,5 @@
 """Page authoring, validation and media."""
 
-import re
 from copy import deepcopy
 from uuid import uuid4
 from fastapi import HTTPException, Request, UploadFile, status
@@ -16,8 +15,8 @@ from src.db.learning import (
     LearningPageUpdate,
 )
 from src.db.users import AnonymousUser, PublicUser
+from src.services.learning_content.models import StandardPageContent, content_error
 from src.services.learning_flow import (
-    BUTTON_ACTIONS,
     FlowValidationError,
     validate_flow,
 )
@@ -185,111 +184,18 @@ async def convert_page_variants_to_flow(
 
 
 def _validate_page_payload(page_type: LearningPageType, content: dict | None) -> None:
+    """Shape rules come from the typed content models; this adds what only the
+    page API needs (revisit targets must already be real pages)."""
     if page_type != LearningPageType.STANDARD or not isinstance(content, dict):
         return
-
-    stacks = list(iter_block_stacks(content))
-    question_count = 0
-    seen_ids: set[str] = set()
-
-    def validate_display_binding(binding: dict) -> None:
-        path = str(binding.get("path") or "")
-        if binding.get("source") not in {"answer", "variable"} or (
-            path and not re.fullmatch(r"[A-Za-z0-9_.-]+", path)
-        ):
-            raise HTTPException(
-                status_code=422,
-                detail="Display binding uses an unsupported source or path",
-            )
-        if isinstance(binding.get("fallback_binding"), dict):
-            validate_display_binding(binding["fallback_binding"])
-
-    def validate_nodes(nodes) -> None:
-        for node in nodes or []:
-            if not isinstance(node, dict):
-                continue
-            if node.get("type") == "displayBinding":
-                validate_display_binding(
-                    (node.get("attrs") or {}).get("binding") or {}
-                )
-            validate_nodes(node.get("content"))
-
-    for stack in stacks:
+    error = content_error(StandardPageContent, content)
+    if error:
+        raise HTTPException(status_code=422, detail=error)
+    for stack in iter_block_stacks(content):
         for block in stack:
-            if not isinstance(block, dict):
-                raise HTTPException(
-                    status_code=422, detail="Page blocks must be objects"
-                )
-            block_id = str(block.get("id") or "")
-            if not block_id:
-                raise HTTPException(status_code=422, detail="Every block needs an id")
-            if block_id in seen_ids:
-                raise HTTPException(
-                    status_code=422, detail="Block ids must be unique within a page"
-                )
-            seen_ids.add(block_id)
-            block_type = block.get("type")
-            if block_type not in {
-                "text",
-                "image",
-                "question",
-                "button",
-                "portfolio_preview",
-            }:
-                raise HTTPException(
-                    status_code=422, detail=f"Unsupported block type: {block_type}"
-                )
-            if block_type == "button":
-                button = block.get("content") or {}
-                if "destination_page_uuid" in button:
-                    raise HTTPException(status_code=422, detail="Route buttons with flow edges on '<page>.button'; destination_page_uuid is no longer supported")
-                if button.get("action", "continue") not in BUTTON_ACTIONS or (button.get("action") == "revisit" and not str(button.get("revisit_page_uuid") or "").startswith("learning_page_")):
-                    raise HTTPException(status_code=422, detail="Buttons either continue along the flow or revisit an earlier page")
-            if block_type == "image" and (block.get("content") or {}).get("binding"):
-                binding = (block.get("content") or {}).get("binding") or {}
-                validate_display_binding(binding)
-            if block_type == "text":
-                validate_nodes(
-                    (block.get("content") or {}).get("nodes")
-                    or [(block.get("content") or {}).get("node")]
-                )
-            if block_type == "portfolio_preview":
-                preview = block.get("content") or {}
-                if preview.get("variant") not in {
-                    "timeline_card",
-                    "project_card",
-                    "identity_header",
-                    "traits_panel",
-                    "links_strip",
-                    "portfolio_frame",
-                    "share_panel",
-                }:
-                    raise HTTPException(
-                        status_code=422, detail="Unsupported portfolio preview variant"
-                    )
-                for binding in (preview.get("bindings") or {}).values():
-                    if not isinstance(binding, dict):
-                        raise HTTPException(
-                            status_code=422,
-                            detail="Portfolio preview bindings must be objects",
-                        )
-                    validate_display_binding(binding)
-            if block.get("type") == "question":
-                question_count += 1
-
-    variants = content.get("variants")
-    if isinstance(variants, dict):
-        if question_count:
-            raise HTTPException(
-                status_code=422,
-                detail="Pages with variants cannot contain a question block",
-            )
-        overrides = variants.get("overrides") or {}
-        source_uuid = (variants.get("source") or {}).get("page_uuid")
-        if overrides and not source_uuid:
-            raise HTTPException(
-                status_code=422, detail="Variants need a source question page"
-            )
+            button = block.get("content") or {} if block.get("type") == "button" else {}
+            if button.get("action") == "revisit" and not str(button.get("revisit_page_uuid")).startswith("learning_page_"):
+                raise HTTPException(status_code=422, detail="Buttons either continue along the flow or revisit an earlier page")
 
 
 def _validate_page_button_destinations(

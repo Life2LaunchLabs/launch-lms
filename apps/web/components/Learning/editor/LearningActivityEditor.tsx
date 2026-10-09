@@ -510,7 +510,7 @@ export default function LearningActivityEditor({
     const block = getEditorBlocks(selectedPage, variantKey).find((item) => item.id === blockId)
     if (!block || block.type !== 'question' || (block as LearningQuestionBlock).kind !== 'text_input') return
     const question = block as LearningQuestionBlock
-    const inputs = normalizeQuestionInputs(question.content?.inputs)
+    const inputs = normalizeQuestionInputs(question.content?.inputs || [])
     const completion = { ...(question.completion || {}) }
     const rules = { ...(completion.inputs || {}) }
     const bindings = { ...((completion.variable_bindings || {}).inputs || {}) }

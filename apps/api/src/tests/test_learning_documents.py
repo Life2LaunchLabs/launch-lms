@@ -252,5 +252,5 @@ def test_cloned_drafts_keep_answer_branching_and_lineage():
 
 def test_published_schema_describes_blocks_and_flow():
     schema = activity_document_json_schema()
-    assert schema["$defs"]["ActivityDocumentPage"]["properties"]["content"] == {"$ref": "#/$defs/StandardPageContent"}
+    assert {"$ref": "#/$defs/StandardPageContent"} in schema["$defs"]["ActivityDocumentPage"]["properties"]["content"]["anyOf"]
     assert "QuestionBlock" in schema["$defs"] and "Flow" in schema["$defs"]
