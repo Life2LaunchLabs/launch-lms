@@ -1,10 +1,14 @@
 """The typed content models validate pages and flows and generate the web types."""
 
 import pytest
+from sqlmodel import select
 
+from src.db.learning import LearningPage
 from src.services.learning_content import typescript
+from src.services.learning_content.audit import audit
 from src.services.learning_content.models import Flow, StandardPageContent, content_error
 from src.services.learning_flow import FlowValidationError, linear_flow, validate_flow
+from src.tests.test_learning_documents import _world
 
 
 def _page(*blocks, **extra):
@@ -48,3 +52,13 @@ def test_flow_shape_is_checked_before_graph_rules():
     flow["edges"][0]["condition"] = {"op": "matches", "left": {"source": "answer", "key": "p1.button"}, "right": "x"}
     with pytest.raises(FlowValidationError, match="Invalid flow"):
         validate_flow(flow, {"p1", "p2"}, set())
+
+
+def test_audit_lists_stored_content_the_models_reject():
+    session, _, _ = _world()
+    assert audit(session) == []
+    page = session.exec(select(LearningPage)).first()
+    page.content = {**page.content, "blocks": [{"id": "x", "type": "video"}]}
+    session.add(page)
+    session.commit()
+    assert [uuid for uuid, _ in audit(session)] == [page.page_uuid]

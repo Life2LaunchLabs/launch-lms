@@ -119,11 +119,29 @@ Still to do: add the connector in a real Claude client against life2launch.dev.
   skipping a page on branching activities.
 - Editor preview walked pages linearly and ignored the flow.
 
+## Ecosystem refactors (after the connector)
+
+| # | Change | Commit |
+|---|---|---|
+| R4 | Launch Ready system activities are data (`learning_system/launch_ready.json`, seed vs managed sync policy) | `1bf4cb7` |
+| R5 | `services/learning.py` split into the `services/learning/` package | `f3b6c6f` |
+| R3 | Question settings live only on blocks (migration `k3n4o5r6m7q8`); legacy fallbacks removed; collection zips use Activity Documents | `2a3f99b` |
+| R7 | Buttons are `continue` (routed by flow edges on `<page>.button`) or `revisit` (migration `k4b5u6t7t8n9`) | `996d9cc` |
+| R1/R2 | Runtime is server-authoritative: no run definition snapshot, navigation + result for every activity, player only renders; dead `editable` player mode removed | `13a50c1` |
+| R8 | `LearningActivity.published` is system-only visibility (no-op Publish button removed); Preview works on published versions; `LAUNCHLMS_SSL`/bool env parsing fixed | `13a50c1` |
+| R6 | Typed content models (`services/learning_content`) drive page validation, the published JSON Schema and generated TS types (`content.generated.ts`) | `59a162a` |
+
+Before deploying R6, run the read-only audit against a production copy; it lists stored pages
+and flows the stricter models would reject (admins could not re-save those pages):
+`cd apps/api && uv run python -m src.services.learning_content.audit`.
+
+Verified locally on PostgreSQL: both data migrations upgrade a pre-R3 database (4 legacy buttons
+became revisits), every stored page and flow passes the models, and in Chromium a share-link preview
+routes "Learn more" / "Skip ahead" through flow edges and "Back to start" revisits; the editor shows
+the button action picker and a "Button pressed" branch; published versions open Preview.
+
 ## Follow-ups
 
-- Collection-level zip export/import still uses its own format; move it onto Activity Documents.
-- `LAUNCHLMS_SSL=false` is read as true (`bool("false")`) by the existing config loader, so local
-  absolute URLs come out as https. Harmless in production.
 - Client ID Metadata Documents; a "Connected apps" screen over `/api/v1/oauth/connections`.
 - Allow `video` pages' media and image uploads to be added from Claude (`import_media`).
 
