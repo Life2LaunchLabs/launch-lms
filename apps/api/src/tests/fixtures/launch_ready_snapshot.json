@@ -1,0 +1,2536 @@
+{
+ "activities": [
+  {
+   "activity_uuid": "learning_activity_system_onboarding_badges",
+   "description": "Start a few badge paths that match where you want to grow.",
+   "icon": "sparkles",
+   "order": 7,
+   "published": false,
+   "required": false,
+   "settings": {
+    "capability": "badges",
+    "estimated_minutes": 3,
+    "outcomes": {
+     "actions": [
+      {
+       "badge_uuids": {
+        "$source": "answer",
+        "default": [],
+        "path": "learning_page_system_onboarding_badges_pick.answer.questions.blk_launch_badges_pick.option_ids"
+       },
+       "id": "enroll-starting-badges",
+       "type": "enroll_badges"
+      }
+     ],
+     "version": 1
+    },
+    "retired_from_launch_ready": true,
+    "system_required": true
+   },
+   "thumbnail_image": "/images/launch-ready/traits.png",
+   "title": "Choose badges to project toward"
+  },
+  {
+   "activity_uuid": "learning_activity_system_onboarding_intro",
+   "description": "Tell us a little about yourself.",
+   "icon": "sparkles",
+   "order": 1,
+   "published": true,
+   "required": true,
+   "settings": {
+    "estimated_minutes": 5,
+    "outcomes": {
+     "actions": [
+      {
+       "fields": {
+        "display_name": {
+         "$source": "answer",
+         "path": "learning_page_system_onboarding_profile_details.answer.questions.blk_launch_profile_details.inputs.display_name.text"
+        },
+        "headline": {
+         "$source": "answer",
+         "path": "learning_page_system_onboarding_profile_details.answer.questions.blk_launch_profile_details.inputs.tagline.text"
+        },
+        "location_label": {
+         "$source": "answer",
+         "path": "learning_page_system_onboarding_profile_details.answer.questions.blk_launch_profile_details.inputs.location.text"
+        },
+        "short_bio": {
+         "$source": "answer",
+         "path": "learning_page_system_onboarding_profile_details.answer.questions.blk_launch_profile_details.inputs.bio.text"
+        }
+       },
+       "id": "set-profile-details",
+       "type": "set_portfolio_fields"
+      }
+     ],
+     "version": 1
+    },
+    "system_required": true
+   },
+   "thumbnail_image": "/images/launch-ready/identity.png",
+   "title": "Welcome"
+  },
+  {
+   "activity_uuid": "learning_activity_system_onboarding_launch",
+   "description": "Celebrate finishing Launch Ready, publish your portfolio, and get ready to share it.",
+   "icon": "sparkles",
+   "order": 8,
+   "published": false,
+   "required": false,
+   "settings": {
+    "capability": "launch",
+    "estimated_minutes": 3,
+    "outcomes": {
+     "actions": [
+      {
+       "id": "confirm-public",
+       "type": "confirm_privacy"
+      },
+      {
+       "id": "publish-public-portfolio",
+       "type": "publish_portfolio"
+      }
+     ],
+     "version": 1
+    },
+    "retired_from_launch_ready": true,
+    "system_required": true
+   },
+   "thumbnail_image": "/images/launch-ready/launch.png",
+   "title": "You did it!"
+  },
+  {
+   "activity_uuid": "learning_activity_system_onboarding_links",
+   "description": "Connect a public profile or site—or confidently say not yet.",
+   "icon": "sparkles",
+   "order": 6,
+   "published": false,
+   "required": false,
+   "settings": {
+    "capability": "links",
+    "estimated_minutes": 3,
+    "outcomes": {
+     "actions": [
+      {
+       "id": "set-main-link",
+       "links": [
+        {
+         "label": {
+          "$source": "answer",
+          "default": "My link",
+          "path": "learning_page_system_onboarding_links.answer.questions.blk_launch_links.inputs.label.text"
+         },
+         "link_type": "social",
+         "platform": {
+          "$source": "answer",
+          "default": "other",
+          "path": "learning_page_system_onboarding_links_platform.answer.questions.blk_launch_links_platform.option_ids",
+          "transform": "first"
+         },
+         "url": {
+          "$source": "answer",
+          "path": "learning_page_system_onboarding_links.answer.questions.blk_launch_links.inputs.url.text"
+         }
+        }
+       ],
+       "optional": true,
+       "type": "set_portfolio_links"
+      }
+     ],
+     "version": 1
+    },
+    "retired_from_launch_ready": true,
+    "system_required": true
+   },
+   "thumbnail_image": "/images/launch-ready/links.png",
+   "title": "Connect the places you show up"
+  },
+  {
+   "activity_uuid": "learning_activity_system_onboarding_profile",
+   "description": "Build an introduction that feels like you and preview the real result.",
+   "icon": "sparkles",
+   "order": 2,
+   "published": false,
+   "required": false,
+   "settings": {
+    "capability": "profile",
+    "estimated_minutes": 3,
+    "outcomes": {
+     "actions": [
+      {
+       "fields": {
+        "display_name": {
+         "$source": "answer",
+         "path": "learning_page_system_onboarding_profile_details.answer.questions.blk_launch_profile_details.inputs.display_name.text"
+        },
+        "headline": {
+         "$source": "answer",
+         "path": "learning_page_system_onboarding_profile_details.answer.questions.blk_launch_profile_details.inputs.tagline.text"
+        },
+        "location_label": {
+         "$source": "answer",
+         "path": "learning_page_system_onboarding_profile_details.answer.questions.blk_launch_profile_details.inputs.location.text"
+        },
+        "short_bio": {
+         "$source": "answer",
+         "path": "learning_page_system_onboarding_profile_details.answer.questions.blk_launch_profile_details.inputs.bio.text"
+        }
+       },
+       "id": "set-profile-details",
+       "type": "set_portfolio_fields"
+      }
+     ],
+     "version": 1
+    },
+    "retired_from_launch_ready": true,
+    "system_required": true
+   },
+   "thumbnail_image": "/images/launch-ready/profile.png",
+   "title": "Make it feel like you"
+  },
+  {
+   "activity_uuid": "learning_activity_system_onboarding_project",
+   "description": "Add a project, creation, achievement, or story.",
+   "icon": "sparkles",
+   "order": 4,
+   "published": false,
+   "required": false,
+   "settings": {
+    "capability": "project",
+    "estimated_minutes": 3,
+    "outcomes": {
+     "actions": [
+      {
+       "cover_asset_uuid": {
+        "$source": "answer",
+        "path": "learning_page_system_onboarding_project_photo.answer.questions.blk_launch_project_photo.media_asset_uuid"
+       },
+       "fields": {
+        "end_date": {
+         "$source": "answer",
+         "path": "learning_page_system_onboarding_project_detail.answer.questions.blk_launch_project_detail.inputs.end_date.text"
+        },
+        "featured": true,
+        "start_date": {
+         "$source": "answer",
+         "path": "learning_page_system_onboarding_project_detail.answer.questions.blk_launch_project_detail.inputs.start_date.text"
+        },
+        "story_kind": "made",
+        "subtitle": {
+         "$source": "answer",
+         "path": "learning_page_system_onboarding_project_detail.answer.questions.blk_launch_project_detail.inputs.tagline.text"
+        },
+        "summary": {
+         "$source": "answer",
+         "path": "learning_page_system_onboarding_project_detail.answer.questions.blk_launch_project_detail.inputs.story.text"
+        },
+        "title": {
+         "$source": "answer",
+         "path": "learning_page_system_onboarding_project_detail.answer.questions.blk_launch_project_detail.inputs.title.text"
+        }
+       },
+       "id": "create-first-project",
+       "store_as": "project_item_id",
+       "story": {
+        "$source": "answer",
+        "path": "learning_page_system_onboarding_project_detail.answer.questions.blk_launch_project_detail.inputs.story.text"
+       },
+       "type": "create_project_item"
+      },
+      {
+       "id": "link-project-to-existing-timeline",
+       "label": "Related project",
+       "optional": true,
+       "project": {
+        "$source": "binding",
+        "key": "project_item_id"
+       },
+       "timeline": {
+        "$source": "answer",
+        "path": "learning_page_system_onboarding_project_timeline.answer.questions.blk_launch_project_timeline.inputs.timeline_uuid.text"
+       },
+       "type": "link_project_to_timeline"
+      }
+     ],
+     "version": 1
+    },
+    "retired_from_launch_ready": true,
+    "system_required": true
+   },
+   "thumbnail_image": "/images/launch-ready/project.png",
+   "title": "Show something you've done"
+  },
+  {
+   "activity_uuid": "learning_activity_system_onboarding_timeline",
+   "description": "Show where you're learning, projecting, or growing now.",
+   "icon": "sparkles",
+   "order": 3,
+   "published": false,
+   "required": false,
+   "settings": {
+    "capability": "timeline",
+    "estimated_minutes": 3,
+    "outcomes": {
+     "actions": [
+      {
+       "fields": {
+        "cover_asset_uuid": {
+         "$source": "answer",
+         "path": "learning_page_system_onboarding_timeline_photo.answer.questions.blk_launch_timeline_photo.media_asset_uuid"
+        },
+        "entry_type": {
+         "$source": "answer",
+         "default": "experience",
+         "path": "learning_page_system_onboarding_timeline_kind.answer.questions.blk_launch_timeline_kind.option_ids",
+         "transform": "first"
+        },
+        "is_current": true,
+        "location_label": {
+         "$source": "answer",
+         "path": "learning_page_system_onboarding_timeline.answer.questions.blk_launch_timeline.inputs.location.text"
+        },
+        "organization": {
+         "$source": "answer",
+         "path": "learning_page_system_onboarding_timeline.answer.questions.blk_launch_timeline.inputs.organization.text"
+        },
+        "start_date": {
+         "$source": "answer",
+         "path": "learning_page_system_onboarding_timeline.answer.questions.blk_launch_timeline.inputs.start_date.text"
+        },
+        "summary": {
+         "$source": "answer",
+         "path": "learning_page_system_onboarding_timeline.answer.questions.blk_launch_timeline.inputs.summary.text"
+        },
+        "title": {
+         "$source": "answer",
+         "path": "learning_page_system_onboarding_timeline.answer.questions.blk_launch_timeline.inputs.title.text"
+        }
+       },
+       "id": "create-current-chapter",
+       "store_as": "timeline_entry_id",
+       "type": "create_timeline_entry"
+      }
+     ],
+     "version": 1
+    },
+    "retired_from_launch_ready": true,
+    "system_required": true
+   },
+   "thumbnail_image": "/images/launch-ready/timeline.png",
+   "title": "Add your current experience"
+  },
+  {
+   "activity_uuid": "learning_activity_system_onboarding_traits",
+   "description": "Choose the strengths that feel true now—you can change them as you grow.",
+   "icon": "sparkles",
+   "order": 5,
+   "published": false,
+   "required": false,
+   "settings": {
+    "capability": "traits",
+    "estimated_minutes": 3,
+    "outcomes": {
+     "actions": [
+      {
+       "id": "set-strengths",
+       "trait_type": "strength",
+       "type": "set_traits",
+       "values": {
+        "$source": "answer",
+        "default": [],
+        "path": "learning_page_system_onboarding_traits.answer.questions.blk_launch_traits.option_ids"
+       }
+      },
+      {
+       "id": "set-values",
+       "trait_type": "value",
+       "type": "set_traits",
+       "values": {
+        "$source": "answer",
+        "default": [],
+        "path": "learning_page_system_onboarding_values.answer.questions.blk_launch_values.option_ids"
+       }
+      }
+     ],
+     "version": 1
+    },
+    "retired_from_launch_ready": true,
+    "system_required": true
+   },
+   "thumbnail_image": "/images/launch-ready/traits.png",
+   "title": "What do you bring?"
+  }
+ ],
+ "badge": {
+  "about": "A guided path for introducing yourself, sharing your timeline and project, and preparing your portfolio to publish.",
+  "badge_metadata": {
+   "award_strategy": "portfolio_checklist"
+  },
+  "badge_uuid": "badge_system_onboarding",
+  "criteria": "Complete the seven Launch Ready portfolio checklist items.",
+  "deleted_at": null,
+  "description": "Build and launch your portfolio one useful step at a time.",
+  "direct_conferral_enabled": false,
+  "marketplace_listed": false,
+  "name": "Launch Ready",
+  "protected": true,
+  "public": true,
+  "status": "published",
+  "system_type": "onboarding",
+  "thumbnail_image": ""
+ },
+ "collection": {
+  "collection_uuid": "badge_collection_system_onboarding",
+  "deleted_at": null,
+  "description": "System collection for the editable onboarding badge.",
+  "hidden": false,
+  "name": "Onboarding",
+  "protected": true,
+  "public": true,
+  "system_type": "onboarding",
+  "thumbnail_image": ""
+ },
+ "pages": [
+  {
+   "activity_uuid": "learning_activity_system_onboarding_badges",
+   "completion": {},
+   "content": {
+    "blocks": [
+     {
+      "content": {
+       "node": {
+        "attrs": {
+         "level": 1
+        },
+        "content": [
+         {
+          "text": "Badges make growth visible",
+          "type": "text"
+         }
+        ],
+        "type": "heading"
+       }
+      },
+      "design": {},
+      "id": "blk_launch_badges_intro_heading",
+      "type": "text"
+     },
+     {
+      "content": {
+       "node": {
+        "content": [
+         {
+          "text": "A badge is evidence of something you can do—not just a completion mark. Each path helps you practice, create evidence, and make your progress easier to share.",
+          "type": "text"
+         }
+        ],
+        "type": "paragraph"
+       }
+      },
+      "design": {},
+      "id": "blk_launch_badges_intro_body",
+      "type": "text"
+     },
+     {
+      "content": {
+       "node": {
+        "content": [
+         {
+          "text": "Choose a few that fit what you want to learn next. They’ll appear in your portfolio while you project toward them.",
+          "type": "text"
+         }
+        ],
+        "type": "paragraph"
+       }
+      },
+      "design": {},
+      "id": "blk_launch_badges_intro_value",
+      "type": "text"
+     }
+    ],
+    "version": 2
+   },
+   "design": {},
+   "order": 1,
+   "page_type": "standard",
+   "page_uuid": "learning_page_system_onboarding_badges_intro",
+   "required": true,
+   "scoring": {},
+   "title": "Badges make growth visible"
+  },
+  {
+   "activity_uuid": "learning_activity_system_onboarding_badges",
+   "completion": {},
+   "content": {
+    "action_label": "Start these badges",
+    "blocks": [
+     {
+      "content": {
+       "node": {
+        "attrs": {
+         "level": 1
+        },
+        "content": [
+         {
+          "text": "Pick your starting badges",
+          "type": "text"
+         }
+        ],
+        "type": "heading"
+       }
+      },
+      "design": {},
+      "id": "blk_launch_badges_pick_heading",
+      "type": "text"
+     },
+     {
+      "completion": {
+       "max_selections": 3,
+       "min_selections": 1
+      },
+      "content": {
+       "label": "Choose up to three. You can always start more later.",
+       "options_binding": {
+        "path": "learning.available_badge_options",
+        "source": "variable"
+       }
+      },
+      "design": {},
+      "id": "blk_launch_badges_pick",
+      "kind": "multiple_choice",
+      "scoring": {
+       "mode": "off",
+       "points": 0
+      },
+      "system": {
+       "locked": true,
+       "reason": "This response drives a structured portfolio action and cannot be safely reconfigured as a scalar editor variable."
+      },
+      "type": "question"
+     }
+    ],
+    "version": 2
+   },
+   "design": {},
+   "order": 2,
+   "page_type": "standard",
+   "page_uuid": "learning_page_system_onboarding_badges_pick",
+   "required": true,
+   "scoring": {},
+   "title": "Pick your starting badges"
+  },
+  {
+   "activity_uuid": "learning_activity_system_onboarding_intro",
+   "completion": {},
+   "content": {
+    "blocks": [
+     {
+      "content": {
+       "node": {
+        "attrs": {
+         "level": 1
+        },
+        "content": [
+         {
+          "text": "What are you building toward?",
+          "type": "text"
+         }
+        ],
+        "type": "heading"
+       }
+      },
+      "design": {},
+      "id": "blk_onboarding_goal_heading",
+      "type": "text"
+     },
+     {
+      "content": {
+       "node": {
+        "content": [
+         {
+          "text": "This stays private. We use it to personalize your Launch Ready path and examples.",
+          "type": "text"
+         }
+        ],
+        "type": "paragraph"
+       }
+      },
+      "design": {},
+      "id": "blk_onboarding_goal_private",
+      "type": "text"
+     },
+     {
+      "completion": {
+       "max_selections": 1,
+       "min_selections": 1,
+       "variable_bindings": {
+        "options": {
+         "employment": [
+          {
+           "target": "user.profile.onboarding.next_step",
+           "value": "employment"
+          },
+          {
+           "target": "user.details.onboarding.next_step",
+           "value": "employment"
+          }
+         ],
+         "higher_education": [
+          {
+           "target": "user.profile.onboarding.next_step",
+           "value": "higher_education"
+          },
+          {
+           "target": "user.details.onboarding.next_step",
+           "value": "higher_education"
+          }
+         ],
+         "not_sure": [
+          {
+           "target": "user.profile.onboarding.next_step",
+           "value": "not_sure"
+          },
+          {
+           "target": "user.details.onboarding.next_step",
+           "value": "not_sure"
+          }
+         ],
+         "self_starting": [
+          {
+           "target": "user.profile.onboarding.next_step",
+           "value": "self_starting"
+          },
+          {
+           "target": "user.details.onboarding.next_step",
+           "value": "self_starting"
+          }
+         ],
+         "show_people": [
+          {
+           "target": "user.profile.onboarding.next_step",
+           "value": "show_people"
+          },
+          {
+           "target": "user.details.onboarding.next_step",
+           "value": "show_people"
+          }
+         ]
+        }
+       }
+      },
+      "content": {
+       "options": [
+        {
+         "id": "higher_education",
+         "text": "Get into school or training"
+        },
+        {
+         "id": "employment",
+         "text": "Find project or an internship"
+        },
+        {
+         "id": "self_starting",
+         "text": "Grow something I’m building"
+        },
+        {
+         "id": "show_people",
+         "text": "Show people what I can do"
+        },
+        {
+         "id": "not_sure",
+         "text": "Figure out what comes next"
+        }
+       ]
+      },
+      "design": {},
+      "id": "blk_onboarding_goal_question",
+      "kind": "multiple_choice",
+      "scoring": {
+       "correct_option_ids": [],
+       "mode": "off",
+       "points": 0,
+       "score_policy": "select_all"
+      },
+      "type": "question"
+     }
+    ],
+    "version": 2
+   },
+   "design": {},
+   "order": 2,
+   "page_type": "standard",
+   "page_uuid": "learning_page_system_onboarding_goal",
+   "required": true,
+   "scoring": {},
+   "title": "What are you building toward?"
+  },
+  {
+   "activity_uuid": "learning_activity_system_onboarding_launch",
+   "completion": {},
+   "content": {
+    "action_label": "Publish my portfolio",
+    "blocks": [
+     {
+      "content": {
+       "node": {
+        "attrs": {
+         "level": 1
+        },
+        "content": [
+         {
+          "text": "Set your portfolio public",
+          "type": "text"
+         }
+        ],
+        "type": "heading"
+       }
+      },
+      "design": {},
+      "id": "blk_launch_confirm_heading",
+      "type": "text"
+     },
+     {
+      "completion": {
+       "max_selections": 1,
+       "min_selections": 1
+      },
+      "content": {
+       "label": "Turn on your public portfolio so people with the link can view it.",
+       "options": [
+        {
+         "id": "set_public",
+         "text": "Make my portfolio public"
+        }
+       ]
+      },
+      "design": {},
+      "id": "blk_launch_confirm",
+      "kind": "multiple_choice",
+      "scoring": {
+       "mode": "off",
+       "points": 0
+      },
+      "system": {
+       "locked": true,
+       "reason": "This response drives a structured portfolio action and cannot be safely reconfigured as a scalar editor variable."
+      },
+      "type": "question"
+     }
+    ],
+    "version": 2
+   },
+   "design": {},
+   "order": 2,
+   "page_type": "standard",
+   "page_uuid": "learning_page_system_onboarding_launch",
+   "required": true,
+   "scoring": {},
+   "title": "Set your portfolio public"
+  },
+  {
+   "activity_uuid": "learning_activity_system_onboarding_launch",
+   "completion": {},
+   "content": {
+    "blocks": [
+     {
+      "content": {
+       "node": {
+        "attrs": {
+         "level": 1
+        },
+        "content": [
+         {
+          "text": "You did it!",
+          "type": "text"
+         }
+        ],
+        "type": "heading"
+       }
+      },
+      "design": {},
+      "id": "blk_launch_done_heading",
+      "type": "text"
+     },
+     {
+      "content": {
+       "node": {
+        "content": [
+         {
+          "text": "Your portfolio now has an introduction, a current experience, project you can point to, and the strengths and values that help tell your story.",
+          "type": "text"
+         }
+        ],
+        "type": "paragraph"
+       }
+      },
+      "design": {},
+      "id": "blk_launch_done_body",
+      "type": "text"
+     },
+     {
+      "content": {
+       "node": {
+        "content": [
+         {
+          "text": "Finishing Launch Ready also unlocks your resume view, formatted for printing and sharing with employers.",
+          "type": "text"
+         }
+        ],
+        "type": "paragraph"
+       }
+      },
+      "design": {},
+      "id": "blk_launch_done_resume",
+      "type": "text"
+     }
+    ],
+    "version": 2
+   },
+   "design": {},
+   "order": 1,
+   "page_type": "standard",
+   "page_uuid": "learning_page_system_onboarding_launch_done",
+   "required": true,
+   "scoring": {},
+   "title": "You did it!"
+  },
+  {
+   "activity_uuid": "learning_activity_system_onboarding_launch",
+   "completion": {},
+   "content": {
+    "action_label": "Finish Launch Ready",
+    "blocks": [
+     {
+      "content": {
+       "node": {
+        "attrs": {
+         "level": 1
+        },
+        "content": [
+         {
+          "text": "Share your next step",
+          "type": "text"
+         }
+        ],
+        "type": "heading"
+       }
+      },
+      "design": {},
+      "id": "blk_launch_share_heading",
+      "type": "text"
+     },
+     {
+      "content": {
+       "node": {
+        "content": [
+         {
+          "text": "Your public portfolio and print-friendly resume are ready from your Portfolio page. Copy your link when you want to send it to a mentor, teacher, employer, or someone who should see what you can do.",
+          "type": "text"
+         }
+        ],
+        "type": "paragraph"
+       }
+      },
+      "design": {},
+      "id": "blk_launch_share_body",
+      "type": "text"
+     },
+     {
+      "content": {
+       "bindings": {
+        "username": {
+         "fallback": "",
+         "path": "user.username",
+         "source": "variable"
+        }
+       },
+       "variant": "share_panel"
+      },
+      "design": {
+       "width": 100
+      },
+      "id": "blk_launch_share_panel",
+      "system": {
+       "locked": true,
+       "reason": "This preview is generated from activity answers and rendered by the portfolio system."
+      },
+      "type": "portfolio_preview"
+     },
+     {
+      "content": {
+       "node": {
+        "content": [
+         {
+          "text": "You can keep editing after this. Publishing is a starting line, not a final draft.",
+          "type": "text"
+         }
+        ],
+        "type": "paragraph"
+       }
+      },
+      "design": {},
+      "id": "blk_launch_share_note",
+      "type": "text"
+     }
+    ],
+    "version": 2
+   },
+   "design": {},
+   "order": 3,
+   "page_type": "standard",
+   "page_uuid": "learning_page_system_onboarding_launch_share",
+   "required": true,
+   "scoring": {},
+   "title": "Share your next step"
+  },
+  {
+   "activity_uuid": "learning_activity_system_onboarding_intro",
+   "completion": {},
+   "content": {
+    "blocks": [
+     {
+      "content": {
+       "node": {
+        "content": [
+         {
+          "text": "Tell us your first and last name.",
+          "type": "text"
+         }
+        ],
+        "type": "paragraph"
+       }
+      },
+      "design": {},
+      "id": "blk_onboarding_name_intro",
+      "type": "text"
+     },
+     {
+      "completion": {
+       "inputs": {
+        "first_name": {
+         "max_words": 3,
+         "min_words": 1,
+         "required": true
+        },
+        "last_name": {
+         "max_words": 4,
+         "min_words": 1,
+         "required": true
+        }
+       },
+       "variable_bindings": {
+        "inputs": {
+         "first_name": {
+          "target": "user.first_name"
+         },
+         "last_name": {
+          "target": "user.last_name"
+         }
+        }
+       }
+      },
+      "content": {
+       "inputs": [
+        {
+         "id": "first_name",
+         "label": "First name",
+         "placeholder": "First name",
+         "section_id": "onboarding_name",
+         "variant": "single_line",
+         "width": "half"
+        },
+        {
+         "id": "last_name",
+         "label": "Last name",
+         "placeholder": "Last name",
+         "section_id": "onboarding_name",
+         "variant": "single_line",
+         "width": "half"
+        }
+       ]
+      },
+      "design": {},
+      "id": "blk_onboarding_name_question",
+      "kind": "text_input",
+      "scoring": {
+       "mode": "off",
+       "points": 0
+      },
+      "type": "question"
+     }
+    ],
+    "version": 2
+   },
+   "design": {},
+   "order": 1,
+   "page_type": "standard",
+   "page_uuid": "learning_page_system_onboarding_name",
+   "required": true,
+   "scoring": {},
+   "title": "What should we call you?"
+  },
+  {
+   "activity_uuid": "learning_activity_system_onboarding_intro",
+   "completion": {},
+   "content": {
+    "blocks": [
+     {
+      "content": {
+       "node": {
+        "attrs": {
+         "level": 1
+        },
+        "content": [
+         {
+          "text": "Write your introduction",
+          "type": "text"
+         }
+        ],
+        "type": "heading"
+       }
+      },
+      "design": {},
+      "id": "blk_launch_profile_details_heading",
+      "type": "text"
+     },
+     {
+      "completion": {
+       "inputs": {
+        "bio": {
+         "min_words": 2,
+         "required": true
+        },
+        "display_name": {
+         "min_words": 1,
+         "required": true
+        },
+        "location": {
+         "required": false
+        },
+        "tagline": {
+         "min_words": 1,
+         "required": true
+        }
+       },
+       "question_mode": "variable",
+       "variable_bindings": {
+        "inputs": {
+         "bio": {
+          "target": "user.portfolio.short_bio"
+         },
+         "display_name": {
+          "target": "user.portfolio.display_name"
+         },
+         "location": {
+          "target": "user.portfolio.location_label"
+         },
+         "tagline": {
+          "target": "user.portfolio.headline"
+         }
+        }
+       }
+      },
+      "content": {
+       "inputs": [
+        {
+         "height": 48,
+         "id": "display_name",
+         "label": "Display name",
+         "placeholder": "How you want people to know you",
+         "variant": "single_line"
+        },
+        {
+         "height": 48,
+         "id": "tagline",
+         "label": "Tagline",
+         "placeholder": "Student, maker, and community builder",
+         "variant": "single_line"
+        },
+        {
+         "height": 200,
+         "id": "bio",
+         "label": "Bio",
+         "placeholder": "Share what you’re interested in, what you’re projecting toward, and what you want people to know.",
+         "variant": "short_answer"
+        },
+        {
+         "height": 48,
+         "id": "location",
+         "label": "Location (optional)",
+         "placeholder": "City or region",
+         "variant": "single_line"
+        }
+       ]
+      },
+      "design": {},
+      "id": "blk_launch_profile_details",
+      "kind": "text_input",
+      "scoring": {
+       "mode": "off",
+       "points": 0
+      },
+      "type": "question"
+     }
+    ],
+    "version": 2
+   },
+   "design": {},
+   "order": 4,
+   "page_type": "standard",
+   "page_uuid": "learning_page_system_onboarding_profile_details",
+   "required": true,
+   "scoring": {},
+   "title": "Write your introduction"
+  },
+  {
+   "activity_uuid": "learning_activity_system_onboarding_intro",
+   "completion": {},
+   "content": {
+    "blocks": [
+     {
+      "content": {
+       "node": {
+        "attrs": {
+         "level": 1
+        },
+        "content": [
+         {
+          "text": "Choose how you show up",
+          "type": "text"
+         }
+        ],
+        "type": "heading"
+       }
+      },
+      "design": {},
+      "id": "blk_launch_profile_photo_heading",
+      "type": "text"
+     },
+     {
+      "completion": {
+       "required": false,
+       "variable_bindings": {
+        "image": {
+         "target": "user.avatar_image",
+         "value_type": "image"
+        }
+       }
+      },
+      "content": {
+       "label": "Add a profile photo if you want. You can skip this, and you can change it later."
+      },
+      "design": {},
+      "id": "blk_launch_profile_photo",
+      "kind": "image_upload",
+      "scoring": {
+       "mode": "off",
+       "points": 0
+      },
+      "type": "question"
+     }
+    ],
+    "version": 2
+   },
+   "design": {},
+   "order": 3,
+   "page_type": "standard",
+   "page_uuid": "learning_page_system_onboarding_profile_photo",
+   "required": true,
+   "scoring": {},
+   "title": "Choose how you show up"
+  },
+  {
+   "activity_uuid": "learning_activity_system_onboarding_intro",
+   "completion": {},
+   "content": {
+    "action_label": "Add this to my portfolio",
+    "blocks": [
+     {
+      "content": {
+       "node": {
+        "attrs": {
+         "level": 1
+        },
+        "content": [
+         {
+          "text": "This is how you’ll show up",
+          "type": "text"
+         }
+        ],
+        "type": "heading"
+       }
+      },
+      "design": {},
+      "id": "blk_profile_review_heading",
+      "type": "text"
+     },
+     {
+      "content": {
+       "node": {
+        "content": [
+         {
+          "text": "This preview uses the same identity treatment as your portfolio.",
+          "type": "text"
+         }
+        ],
+        "type": "paragraph"
+       }
+      },
+      "design": {},
+      "id": "blk_profile_review_intro",
+      "type": "text"
+     },
+     {
+      "content": {
+       "bindings": {
+        "avatar_url": {
+         "fallback_binding": {
+          "fallback": "",
+          "path": "user.avatar_image",
+          "source": "variable"
+         },
+         "path": "learning_page_system_onboarding_profile_photo.answer.questions.blk_launch_profile_photo.url",
+         "source": "answer"
+        },
+        "display_name": {
+         "fallback": "Your name",
+         "path": "learning_page_system_onboarding_profile_details.answer.questions.blk_launch_profile_details.inputs.display_name.text",
+         "source": "answer"
+        },
+        "headline": {
+         "fallback": "Your tagline",
+         "path": "learning_page_system_onboarding_profile_details.answer.questions.blk_launch_profile_details.inputs.tagline.text",
+         "source": "answer"
+        },
+        "location_label": {
+         "fallback": "",
+         "path": "learning_page_system_onboarding_profile_details.answer.questions.blk_launch_profile_details.inputs.location.text",
+         "source": "answer"
+        },
+        "short_bio": {
+         "fallback": "Your introduction",
+         "path": "learning_page_system_onboarding_profile_details.answer.questions.blk_launch_profile_details.inputs.bio.text",
+         "source": "answer"
+        }
+       },
+       "variant": "identity_header"
+      },
+      "design": {
+       "width": 100
+      },
+      "id": "blk_profile_review_header",
+      "system": {
+       "locked": true,
+       "reason": "This preview is generated from activity answers and rendered by the portfolio system."
+      },
+      "type": "portfolio_preview"
+     },
+     {
+      "content": {
+       "destination_page_uuid": "learning_page_system_onboarding_profile_details",
+       "label": "Change my introduction"
+      },
+      "design": {
+       "group": "profile_review_actions",
+       "variant": "secondary",
+       "width": 48
+      },
+      "id": "blk_profile_review_details",
+      "type": "button"
+     },
+     {
+      "content": {
+       "destination_page_uuid": "learning_page_system_onboarding_profile_photo",
+       "label": "Choose another photo"
+      },
+      "design": {
+       "group": "profile_review_actions",
+       "variant": "secondary",
+       "width": 48
+      },
+      "id": "blk_profile_review_photo",
+      "type": "button"
+     }
+    ],
+    "version": 2
+   },
+   "design": {},
+   "order": 5,
+   "page_type": "standard",
+   "page_uuid": "learning_page_system_onboarding_profile_review",
+   "required": true,
+   "scoring": {},
+   "title": "This is how you’ll show up"
+  },
+  {
+   "activity_uuid": "learning_activity_system_onboarding_project",
+   "completion": {},
+   "content": {
+    "blocks": [
+     {
+      "content": {
+       "node": {
+        "attrs": {
+         "level": 1
+        },
+        "content": [
+         {
+          "text": "Tell the story of your project",
+          "type": "text"
+         }
+        ],
+        "type": "heading"
+       }
+      },
+      "design": {},
+      "id": "blk_launch_project_detail_heading",
+      "type": "text"
+     },
+     {
+      "completion": {
+       "inputs": {
+        "end_date": {
+         "required": false
+        },
+        "start_date": {
+         "required": false
+        },
+        "story": {
+         "min_words": 3,
+         "required": true
+        },
+        "tagline": {
+         "required": false
+        },
+        "title": {
+         "min_words": 1,
+         "required": true
+        }
+       }
+      },
+      "content": {
+       "inputs": [
+        {
+         "height": 48,
+         "id": "title",
+         "label": "Title",
+         "placeholder": "Name this project",
+         "variant": "single_line"
+        },
+        {
+         "height": 48,
+         "id": "tagline",
+         "label": "Tagline",
+         "placeholder": "A short line about this project",
+         "variant": "single_line"
+        },
+        {
+         "height": 48,
+         "id": "start_date",
+         "input_type": "month",
+         "label": "Start date (optional)",
+         "section_id": "project_dates",
+         "variant": "single_line",
+         "width": "half"
+        },
+        {
+         "height": 48,
+         "id": "end_date",
+         "input_type": "month",
+         "label": "End date (optional)",
+         "section_id": "project_dates",
+         "variant": "single_line",
+         "width": "half"
+        },
+        {
+         "height": 240,
+         "id": "story",
+         "label": "Story",
+         "placeholder": "What did you set out to do? What did you contribute? What changed, or what did you learn?",
+         "variant": "short_answer"
+        }
+       ]
+      },
+      "design": {},
+      "id": "blk_launch_project_detail",
+      "kind": "text_input",
+      "scoring": {
+       "mode": "off",
+       "points": 0
+      },
+      "system": {
+       "locked": true,
+       "reason": "This response drives a structured portfolio action and cannot be safely reconfigured as a scalar editor variable."
+      },
+      "type": "question"
+     }
+    ],
+    "version": 2
+   },
+   "design": {},
+   "order": 1,
+   "page_type": "standard",
+   "page_uuid": "learning_page_system_onboarding_project_detail",
+   "required": true,
+   "scoring": {},
+   "title": "Tell the story of your project"
+  },
+  {
+   "activity_uuid": "learning_activity_system_onboarding_project",
+   "completion": {},
+   "content": {
+    "blocks": [
+     {
+      "content": {
+       "node": {
+        "attrs": {
+         "level": 1
+        },
+        "content": [
+         {
+          "text": "Cover image",
+          "type": "text"
+         }
+        ],
+        "type": "heading"
+       }
+      },
+      "design": {},
+      "id": "blk_launch_project_photo_heading",
+      "type": "text"
+     },
+     {
+      "completion": {
+       "required": false
+      },
+      "content": {
+       "label": "Choose the cover image that will appear on your Project card."
+      },
+      "design": {},
+      "id": "blk_launch_project_photo",
+      "kind": "image_upload",
+      "scoring": {
+       "mode": "off",
+       "points": 0
+      },
+      "system": {
+       "locked": true,
+       "reason": "This response drives a structured portfolio action and cannot be safely reconfigured as a scalar editor variable."
+      },
+      "type": "question"
+     }
+    ],
+    "version": 2
+   },
+   "design": {},
+   "order": 2,
+   "page_type": "standard",
+   "page_uuid": "learning_page_system_onboarding_project_photo",
+   "required": true,
+   "scoring": {},
+   "title": "Cover image"
+  },
+  {
+   "activity_uuid": "learning_activity_system_onboarding_project",
+   "completion": {},
+   "content": {
+    "action_label": "Add this to my Project",
+    "blocks": [
+     {
+      "content": {
+       "node": {
+        "attrs": {
+         "level": 1
+        },
+        "content": [
+         {
+          "text": "Your project is ready to share",
+          "type": "text"
+         }
+        ],
+        "type": "heading"
+       }
+      },
+      "design": {},
+      "id": "blk_project_review_heading",
+      "type": "text"
+     },
+     {
+      "content": {
+       "bindings": {
+        "cover_url": {
+         "fallback": "",
+         "path": "learning_page_system_onboarding_project_photo.answer.questions.blk_launch_project_photo.url",
+         "source": "answer"
+        },
+        "subtitle": {
+         "fallback": "",
+         "path": "learning_page_system_onboarding_project_detail.answer.questions.blk_launch_project_detail.inputs.tagline.text",
+         "source": "answer"
+        },
+        "summary": {
+         "fallback": "Your story",
+         "path": "learning_page_system_onboarding_project_detail.answer.questions.blk_launch_project_detail.inputs.story.text",
+         "source": "answer"
+        },
+        "title": {
+         "fallback": "Your project",
+         "path": "learning_page_system_onboarding_project_detail.answer.questions.blk_launch_project_detail.inputs.title.text",
+         "source": "answer"
+        }
+       },
+       "variant": "project_card"
+      },
+      "design": {
+       "width": 100
+      },
+      "id": "blk_project_review_card",
+      "system": {
+       "locked": true,
+       "reason": "This preview is generated from activity answers and rendered by the portfolio system."
+      },
+      "type": "portfolio_preview"
+     },
+     {
+      "content": {
+       "destination_page_uuid": "learning_page_system_onboarding_project_detail",
+       "label": "Change the story"
+      },
+      "design": {
+       "group": "project_review_actions",
+       "variant": "secondary",
+       "width": 48
+      },
+      "id": "blk_project_review_details",
+      "type": "button"
+     },
+     {
+      "content": {
+       "destination_page_uuid": "learning_page_system_onboarding_project_photo",
+       "label": "Choose another cover"
+      },
+      "design": {
+       "group": "project_review_actions",
+       "variant": "secondary",
+       "width": 48
+      },
+      "id": "blk_project_review_photo",
+      "type": "button"
+     }
+    ],
+    "version": 2
+   },
+   "design": {},
+   "order": 4,
+   "page_type": "standard",
+   "page_uuid": "learning_page_system_onboarding_project_review",
+   "required": true,
+   "scoring": {},
+   "title": "Your project is ready to share"
+  },
+  {
+   "activity_uuid": "learning_activity_system_onboarding_project",
+   "completion": {},
+   "content": {
+    "blocks": [
+     {
+      "content": {
+       "node": {
+        "attrs": {
+         "level": 1
+        },
+        "content": [
+         {
+          "text": "Connect this to your Timeline",
+          "type": "text"
+         }
+        ],
+        "type": "heading"
+       }
+      },
+      "design": {},
+      "id": "blk_launch_project_timeline_heading",
+      "type": "text"
+     },
+     {
+      "completion": {
+       "inputs": {
+        "timeline_uuid": {
+         "required": false
+        }
+       }
+      },
+      "content": {
+       "inputs": [
+        {
+         "height": 48,
+         "id": "timeline_uuid",
+         "input_type": "select",
+         "label": "Timeline entry (optional)",
+         "options_binding": {
+          "path": "portfolio.timeline_options",
+          "source": "variable"
+         },
+         "placeholder": "Don’t connect this yet",
+         "variant": "single_line"
+        }
+       ]
+      },
+      "design": {},
+      "id": "blk_launch_project_timeline",
+      "kind": "text_input",
+      "scoring": {
+       "mode": "off",
+       "points": 0
+      },
+      "system": {
+       "locked": true,
+       "reason": "This response drives a structured portfolio action and cannot be safely reconfigured as a scalar editor variable."
+      },
+      "type": "question"
+     }
+    ],
+    "version": 2
+   },
+   "design": {},
+   "order": 3,
+   "page_type": "standard",
+   "page_uuid": "learning_page_system_onboarding_project_timeline",
+   "required": true,
+   "scoring": {},
+   "title": "Connect this to your Timeline"
+  },
+  {
+   "activity_uuid": "learning_activity_system_onboarding_timeline",
+   "completion": {},
+   "content": {
+    "blocks": [
+     {
+      "content": {
+       "node": {
+        "attrs": {
+         "level": 1
+        },
+        "content": [
+         {
+          "text": "Make this experience yours",
+          "type": "text"
+         }
+        ],
+        "type": "heading"
+       }
+      },
+      "design": {},
+      "id": "blk_launch_timeline_heading",
+      "type": "text"
+     },
+     {
+      "completion": {
+       "inputs": {
+        "location": {
+         "required": false
+        },
+        "organization": {
+         "required": false
+        },
+        "start_date": {
+         "required": false
+        },
+        "summary": {
+         "min_words": 2,
+         "required": true
+        },
+        "title": {
+         "min_words": 1,
+         "required": true
+        }
+       }
+      },
+      "content": {
+       "inputs": [
+        {
+         "adaptive": {
+          "binding": {
+           "path": "learning_page_system_onboarding_timeline_kind.answer.questions.blk_launch_timeline_kind.option_ids.0",
+           "source": "answer"
+          },
+          "values": {
+           "education": {
+            "placeholder": "My high school years"
+           },
+           "employment": {
+            "placeholder": "My first internship"
+           },
+           "experience": {
+            "placeholder": "Building something that matters"
+           },
+           "other": {
+            "placeholder": "Exploring what’s next"
+           },
+           "training": {
+            "placeholder": "Learning a new skill"
+           },
+           "volunteering": {
+            "placeholder": "Showing up for my community"
+           }
+          }
+         },
+         "height": 48,
+         "id": "title",
+         "label": "What should we call this experience?",
+         "placeholder": "My current experience",
+         "section_id": "title",
+         "variant": "single_line"
+        },
+        {
+         "adaptive": {
+          "binding": {
+           "path": "learning_page_system_onboarding_timeline_kind.answer.questions.blk_launch_timeline_kind.option_ids.0",
+           "source": "answer"
+          },
+          "values": {
+           "education": {
+            "label": "School or program",
+            "placeholder": "Lincoln High School"
+           },
+           "employment": {
+            "label": "Company or organization",
+            "placeholder": "Your projectplace"
+           },
+           "experience": {
+            "label": "Project, group, or place",
+            "placeholder": "Where this is happening"
+           },
+           "other": {
+            "label": "Place or community (optional)",
+            "placeholder": "Anywhere that matters"
+           },
+           "training": {
+            "label": "Program or organization",
+            "placeholder": "Your program"
+           },
+           "volunteering": {
+            "label": "Community or organization",
+            "placeholder": "Where you volunteer"
+           }
+          }
+         },
+         "height": 48,
+         "id": "organization",
+         "label": "Organization or place",
+         "placeholder": "Name of the place",
+         "section_id": "place",
+         "variant": "single_line",
+         "width": "half"
+        },
+        {
+         "height": 48,
+         "id": "location",
+         "label": "Location",
+         "placeholder": "Portland, Oregon",
+         "section_id": "place",
+         "variant": "single_line",
+         "width": "half"
+        },
+        {
+         "height": 48,
+         "id": "start_date",
+         "input_type": "month",
+         "label": "When did you start?",
+         "placeholder": "",
+         "section_id": "start_date",
+         "variant": "single_line"
+        },
+        {
+         "height": 150,
+         "id": "summary",
+         "label": "What are you learning, doing, or excited about?",
+         "placeholder": "I’m learning about plants and environmental science.",
+         "section_id": "summary",
+         "variant": "short_answer"
+        }
+       ]
+      },
+      "design": {},
+      "id": "blk_launch_timeline",
+      "kind": "text_input",
+      "scoring": {
+       "mode": "off",
+       "points": 0
+      },
+      "system": {
+       "locked": true,
+       "reason": "This response drives a structured portfolio action and cannot be safely reconfigured as a scalar editor variable."
+      },
+      "type": "question"
+     }
+    ],
+    "version": 2
+   },
+   "design": {},
+   "order": 2,
+   "page_type": "standard",
+   "page_uuid": "learning_page_system_onboarding_timeline",
+   "required": true,
+   "scoring": {},
+   "title": "Make this experience yours"
+  },
+  {
+   "activity_uuid": "learning_activity_system_onboarding_timeline",
+   "completion": {},
+   "content": {
+    "blocks": [
+     {
+      "content": {
+       "node": {
+        "attrs": {
+         "level": 1
+        },
+        "content": [
+         {
+          "text": "Where are you growing right now?",
+          "type": "text"
+         }
+        ],
+        "type": "heading"
+       }
+      },
+      "design": {},
+      "id": "blk_launch_timeline_kind_heading",
+      "type": "text"
+     },
+     {
+      "completion": {
+       "max_selections": 1,
+       "min_selections": 1
+      },
+      "content": {
+       "label": "Choose what fits best — there’s no wrong kind of experience.",
+       "options": [
+        {
+         "id": "education",
+         "text": "School or college"
+        },
+        {
+         "id": "employment",
+         "text": "Job or internship"
+        },
+        {
+         "id": "training",
+         "text": "Program or training"
+        },
+        {
+         "id": "volunteering",
+         "text": "Volunteering or community"
+        },
+        {
+         "id": "experience",
+         "text": "Building something"
+        },
+        {
+         "id": "other",
+         "text": "Exploring what’s next"
+        }
+       ]
+      },
+      "design": {},
+      "id": "blk_launch_timeline_kind",
+      "kind": "multiple_choice",
+      "scoring": {
+       "mode": "off",
+       "points": 0
+      },
+      "system": {
+       "locked": true,
+       "reason": "This response drives a structured portfolio action and cannot be safely reconfigured as a scalar editor variable."
+      },
+      "type": "question"
+     }
+    ],
+    "version": 2
+   },
+   "design": {},
+   "order": 1,
+   "page_type": "standard",
+   "page_uuid": "learning_page_system_onboarding_timeline_kind",
+   "required": true,
+   "scoring": {},
+   "title": "Where are you growing right now?"
+  },
+  {
+   "activity_uuid": "learning_activity_system_onboarding_timeline",
+   "completion": {},
+   "content": {
+    "blocks": [
+     {
+      "content": {
+       "node": {
+        "attrs": {
+         "level": 1
+        },
+        "content": [
+         {
+          "text": "Add a picture to this experience",
+          "type": "text"
+         }
+        ],
+        "type": "heading"
+       }
+      },
+      "design": {},
+      "id": "blk_launch_timeline_photo_heading",
+      "type": "text"
+     },
+     {
+      "completion": {
+       "required": false
+      },
+      "content": {
+       "label": "A school, projectspace, team, event, creation, or anything that represents this moment."
+      },
+      "design": {},
+      "id": "blk_launch_timeline_photo",
+      "kind": "image_upload",
+      "scoring": {
+       "mode": "off",
+       "points": 0
+      },
+      "system": {
+       "locked": true,
+       "reason": "This response drives a structured portfolio action and cannot be safely reconfigured as a scalar editor variable."
+      },
+      "type": "question"
+     }
+    ],
+    "version": 2
+   },
+   "design": {},
+   "order": 3,
+   "page_type": "standard",
+   "page_uuid": "learning_page_system_onboarding_timeline_photo",
+   "required": true,
+   "scoring": {},
+   "title": "Add a picture to this experience"
+  },
+  {
+   "activity_uuid": "learning_activity_system_onboarding_timeline",
+   "completion": {},
+   "content": {
+    "action_label": "Add to my Timeline",
+    "blocks": [
+     {
+      "content": {
+       "node": {
+        "attrs": {
+         "level": 1
+        },
+        "content": [
+         {
+          "text": "Here’s your current experience",
+          "type": "text"
+         }
+        ],
+        "type": "heading"
+       }
+      },
+      "design": {},
+      "id": "blk_timeline_review_heading",
+      "type": "text"
+     },
+     {
+      "content": {
+       "node": {
+        "content": [
+         {
+          "text": "This is how it will appear in your Timeline. You can always change it later.",
+          "type": "text"
+         }
+        ],
+        "type": "paragraph"
+       }
+      },
+      "design": {},
+      "id": "blk_timeline_review_intro",
+      "type": "text"
+     },
+     {
+      "content": {
+       "bindings": {
+        "cover_url": {
+         "fallback_binding": {
+          "fallback": "",
+          "path": "user.avatar_image",
+          "source": "variable"
+         },
+         "path": "learning_page_system_onboarding_timeline_photo.answer.questions.blk_launch_timeline_photo.url",
+         "source": "answer"
+        },
+        "entry_type": {
+         "fallback": "experience",
+         "path": "learning_page_system_onboarding_timeline_kind.answer.questions.blk_launch_timeline_kind.option_ids.0",
+         "source": "answer"
+        },
+        "location_label": {
+         "fallback": "",
+         "path": "learning_page_system_onboarding_timeline.answer.questions.blk_launch_timeline.inputs.location.text",
+         "source": "answer"
+        },
+        "organization": {
+         "fallback": "A place where you’re growing",
+         "path": "learning_page_system_onboarding_timeline.answer.questions.blk_launch_timeline.inputs.organization.text",
+         "source": "answer"
+        },
+        "start_date": {
+         "fallback": "",
+         "path": "learning_page_system_onboarding_timeline.answer.questions.blk_launch_timeline.inputs.start_date.text",
+         "source": "answer"
+        },
+        "summary": {
+         "fallback": "Your story will appear here.",
+         "path": "learning_page_system_onboarding_timeline.answer.questions.blk_launch_timeline.inputs.summary.text",
+         "source": "answer"
+        },
+        "title": {
+         "fallback": "Your current experience",
+         "path": "learning_page_system_onboarding_timeline.answer.questions.blk_launch_timeline.inputs.title.text",
+         "source": "answer"
+        }
+       },
+       "variant": "timeline_card"
+      },
+      "design": {
+       "width": 100
+      },
+      "id": "blk_timeline_review_card",
+      "system": {
+       "locked": true,
+       "reason": "This preview is generated from activity answers and rendered by the portfolio system."
+      },
+      "type": "portfolio_preview"
+     },
+     {
+      "content": {
+       "destination_page_uuid": "learning_page_system_onboarding_timeline",
+       "label": "Change the details"
+      },
+      "design": {
+       "align": "center",
+       "group": "timeline_review_actions",
+       "variant": "secondary",
+       "width": 48
+      },
+      "id": "blk_timeline_review_details_button",
+      "type": "button"
+     },
+     {
+      "content": {
+       "destination_page_uuid": "learning_page_system_onboarding_timeline_photo",
+       "label": "Choose another photo"
+      },
+      "design": {
+       "align": "center",
+       "group": "timeline_review_actions",
+       "variant": "secondary",
+       "width": 48
+      },
+      "id": "blk_timeline_review_photo_button",
+      "type": "button"
+     }
+    ],
+    "version": 2
+   },
+   "design": {},
+   "order": 4,
+   "page_type": "standard",
+   "page_uuid": "learning_page_system_onboarding_timeline_review",
+   "required": true,
+   "scoring": {},
+   "title": "Here’s your current experience"
+  },
+  {
+   "activity_uuid": "learning_activity_system_onboarding_traits",
+   "completion": {},
+   "content": {
+    "blocks": [
+     {
+      "content": {
+       "node": {
+        "attrs": {
+         "level": 1
+        },
+        "content": [
+         {
+          "text": "What feels true about you right now?",
+          "type": "text"
+         }
+        ],
+        "type": "heading"
+       }
+      },
+      "design": {},
+      "id": "blk_launch_traits_heading",
+      "type": "text"
+     },
+     {
+      "completion": {
+       "max_selections": 3,
+       "min_selections": 2
+      },
+      "content": {
+       "label": "Pick two or three qualities you want people to understand about you.",
+       "options": [
+        {
+         "category": "Creating",
+         "id": "creative",
+         "text": "Creative"
+        },
+        {
+         "category": "Thinking",
+         "id": "curious",
+         "text": "Curious"
+        },
+        {
+         "category": "Execution",
+         "id": "reliable",
+         "text": "Reliable"
+        },
+        {
+         "category": "Projecting With Others",
+         "id": "collaborative",
+         "text": "Collaborative"
+        },
+        {
+         "category": "Execution",
+         "id": "determined",
+         "text": "Determined"
+        },
+        {
+         "category": "Projecting With Others",
+         "id": "empathetic",
+         "text": "Empathetic"
+        },
+        {
+         "category": "Thinking",
+         "id": "resourceful",
+         "text": "Resourceful"
+        },
+        {
+         "category": "Projecting With Others",
+         "id": "patient",
+         "text": "Patient"
+        },
+        {
+         "category": "Execution",
+         "id": "bold",
+         "text": "Bold"
+        },
+        {
+         "category": "Thinking",
+         "id": "thoughtful",
+         "text": "Thoughtful"
+        }
+       ]
+      },
+      "design": {},
+      "id": "blk_launch_traits",
+      "kind": "categorized_multi_select",
+      "scoring": {
+       "mode": "off",
+       "points": 0
+      },
+      "system": {
+       "locked": true,
+       "reason": "This response drives a structured portfolio action and cannot be safely reconfigured as a scalar editor variable."
+      },
+      "type": "question"
+     }
+    ],
+    "version": 2
+   },
+   "design": {},
+   "order": 1,
+   "page_type": "standard",
+   "page_uuid": "learning_page_system_onboarding_traits",
+   "required": true,
+   "scoring": {},
+   "title": "What feels true about you right now?"
+  },
+  {
+   "activity_uuid": "learning_activity_system_onboarding_traits",
+   "completion": {},
+   "content": {
+    "action_label": "Add what makes me, me",
+    "blocks": [
+     {
+      "content": {
+       "node": {
+        "attrs": {
+         "level": 1
+        },
+        "content": [
+         {
+          "text": "This is what you bring",
+          "type": "text"
+         }
+        ],
+        "type": "heading"
+       }
+      },
+      "design": {},
+      "id": "blk_traits_review_heading",
+      "type": "text"
+     },
+     {
+      "content": {
+       "node": {
+        "content": [
+         {
+          "text": "Choose what feels true now. This can change as you do.",
+          "type": "text"
+         }
+        ],
+        "type": "paragraph"
+       }
+      },
+      "design": {},
+      "id": "blk_traits_review_intro",
+      "type": "text"
+     },
+     {
+      "content": {
+       "bindings": {
+        "traits": {
+         "fallback": "Curious, Creative",
+         "path": "learning_page_system_onboarding_traits.answer.questions.blk_launch_traits.option_ids",
+         "source": "answer"
+        }
+       },
+       "variant": "traits_panel"
+      },
+      "design": {
+       "width": 100
+      },
+      "id": "blk_traits_review_panel",
+      "system": {
+       "locked": true,
+       "reason": "This preview is generated from activity answers and rendered by the portfolio system."
+      },
+      "type": "portfolio_preview"
+     },
+     {
+      "content": {
+       "destination_page_uuid": "learning_page_system_onboarding_traits",
+       "label": "Change my choices"
+      },
+      "design": {
+       "variant": "secondary",
+       "width": 100
+      },
+      "id": "blk_traits_review_change",
+      "type": "button"
+     }
+    ],
+    "version": 2
+   },
+   "design": {},
+   "order": 3,
+   "page_type": "standard",
+   "page_uuid": "learning_page_system_onboarding_traits_review",
+   "required": true,
+   "scoring": {},
+   "title": "This is what you bring"
+  },
+  {
+   "activity_uuid": "learning_activity_system_onboarding_traits",
+   "completion": {},
+   "content": {
+    "blocks": [
+     {
+      "content": {
+       "node": {
+        "attrs": {
+         "level": 1
+        },
+        "content": [
+         {
+          "text": "What matters most to you?",
+          "type": "text"
+         }
+        ],
+        "type": "heading"
+       }
+      },
+      "design": {},
+      "id": "blk_launch_values_heading",
+      "type": "text"
+     },
+     {
+      "completion": {
+       "max_selections": 5,
+       "min_selections": 2
+      },
+      "content": {
+       "label": "Values are what matter most to you. They guide your decisions, influence your priorities, and help you choose the kind of life you want to build.",
+       "options": [
+        {
+         "category": "Personal Growth",
+         "id": "achievement",
+         "text": "Achievement"
+        },
+        {
+         "category": "Personal Growth",
+         "id": "adventure",
+         "text": "Adventure"
+        },
+        {
+         "category": "Personal Growth",
+         "id": "curiosity",
+         "text": "Curiosity"
+        },
+        {
+         "category": "Personal Growth",
+         "id": "creativity",
+         "text": "Creativity"
+        },
+        {
+         "category": "Personal Growth",
+         "id": "growth",
+         "text": "Growth"
+        },
+        {
+         "category": "Personal Growth",
+         "id": "learning",
+         "text": "Learning"
+        },
+        {
+         "category": "Personal Growth",
+         "id": "excellence",
+         "text": "Excellence"
+        },
+        {
+         "category": "Personal Growth",
+         "id": "independence",
+         "text": "Independence"
+        },
+        {
+         "category": "Relationships",
+         "id": "belonging",
+         "text": "Belonging"
+        },
+        {
+         "category": "Relationships",
+         "id": "compassion",
+         "text": "Compassion"
+        },
+        {
+         "category": "Relationships",
+         "id": "friendship",
+         "text": "Friendship"
+        },
+        {
+         "category": "Relationships",
+         "id": "family",
+         "text": "Family"
+        },
+        {
+         "category": "Relationships",
+         "id": "generosity",
+         "text": "Generosity"
+        },
+        {
+         "category": "Relationships",
+         "id": "kindness",
+         "text": "Kindness"
+        },
+        {
+         "category": "Relationships",
+         "id": "love",
+         "text": "Love"
+        },
+        {
+         "category": "Relationships",
+         "id": "respect",
+         "text": "Respect"
+        },
+        {
+         "category": "Relationships",
+         "id": "trust",
+         "text": "Trust"
+        },
+        {
+         "category": "Character",
+         "id": "authenticity",
+         "text": "Authenticity"
+        },
+        {
+         "category": "Character",
+         "id": "courage",
+         "text": "Courage"
+        },
+        {
+         "category": "Character",
+         "id": "fairness",
+         "text": "Fairness"
+        },
+        {
+         "category": "Character",
+         "id": "gratitude",
+         "text": "Gratitude"
+        },
+        {
+         "category": "Character",
+         "id": "honesty",
+         "text": "Honesty"
+        },
+        {
+         "category": "Character",
+         "id": "integrity",
+         "text": "Integrity"
+        },
+        {
+         "category": "Character",
+         "id": "responsibility",
+         "text": "Responsibility"
+        },
+        {
+         "category": "Character",
+         "id": "perseverance",
+         "text": "Perseverance"
+        },
+        {
+         "category": "Lifestyle",
+         "id": "balance",
+         "text": "Balance"
+        },
+        {
+         "category": "Lifestyle",
+         "id": "freedom",
+         "text": "Freedom"
+        },
+        {
+         "category": "Lifestyle",
+         "id": "fun",
+         "text": "Fun"
+        },
+        {
+         "category": "Lifestyle",
+         "id": "health",
+         "text": "Health"
+        },
+        {
+         "category": "Lifestyle",
+         "id": "joy",
+         "text": "Joy"
+        },
+        {
+         "category": "Lifestyle",
+         "id": "simplicity",
+         "text": "Simplicity"
+        },
+        {
+         "category": "Lifestyle",
+         "id": "stability",
+         "text": "Stability"
+        },
+        {
+         "category": "Lifestyle",
+         "id": "wellbeing",
+         "text": "Wellbeing"
+        },
+        {
+         "category": "Purpose & Impact",
+         "id": "community",
+         "text": "Community"
+        },
+        {
+         "category": "Purpose & Impact",
+         "id": "contribution",
+         "text": "Contribution"
+        },
+        {
+         "category": "Purpose & Impact",
+         "id": "justice",
+         "text": "Justice"
+        },
+        {
+         "category": "Purpose & Impact",
+         "id": "leadership",
+         "text": "Leadership"
+        },
+        {
+         "category": "Purpose & Impact",
+         "id": "nature",
+         "text": "Nature"
+        },
+        {
+         "category": "Purpose & Impact",
+         "id": "service",
+         "text": "Service"
+        },
+        {
+         "category": "Purpose & Impact",
+         "id": "sustainability",
+         "text": "Sustainability"
+        },
+        {
+         "category": "Purpose & Impact",
+         "id": "wisdom",
+         "text": "Wisdom"
+        }
+       ]
+      },
+      "design": {},
+      "id": "blk_launch_values",
+      "kind": "categorized_multi_select",
+      "scoring": {
+       "mode": "off",
+       "points": 0
+      },
+      "system": {
+       "locked": true,
+       "reason": "This response drives a structured portfolio action and cannot be safely reconfigured as a scalar editor variable."
+      },
+      "type": "question"
+     }
+    ],
+    "version": 2
+   },
+   "design": {},
+   "order": 2,
+   "page_type": "standard",
+   "page_uuid": "learning_page_system_onboarding_values",
+   "required": true,
+   "scoring": {},
+   "title": "What matters most to you?"
+  }
+ ],
+ "paths": [
+  {
+   "description": "Build and launch your portfolio one useful step at a time.",
+   "title": "Launch Ready Path"
+  }
+ ],
+ "versions": [
+  {
+   "definition": {
+    "about": "A guided path for introducing yourself, sharing your timeline and project, and preparing your portfolio to publish.",
+    "badge_metadata": {
+     "award_strategy": "portfolio_checklist"
+    },
+    "criteria": "Complete the seven Launch Ready portfolio checklist items.",
+    "description": "Build and launch your portfolio one useful step at a time.",
+    "direct_conferral_enabled": false,
+    "name": "Launch Ready",
+    "protected": true,
+    "system_type": "onboarding",
+    "thumbnail_image": ""
+   },
+   "description": "",
+   "revision": 1,
+   "semantic_version": "1.0.0",
+   "state": "published",
+   "title": "Initial Version"
+  }
+ ]
+}
