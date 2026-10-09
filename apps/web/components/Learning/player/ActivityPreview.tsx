@@ -8,7 +8,7 @@ import type { DeviceMode } from '@components/Learning/editor/types'
 import { ActivityPlayer, type ActivityPlayerEvent, type ActivityRuntime } from './ActivityPlayer'
 
 export type PreviewEvent =
-  | ActivityPlayerEvent
+  | (ActivityPlayerEvent & { answer_summary?: string })
   | { type: 'ready'; activity_title: string; page_count: number }
   | { type: 'restarted' }
   | { type: 'feedback'; page_uuid?: string; page_title?: string; text: string }
@@ -86,6 +86,11 @@ export function ActivityPreview({
 
   const handleEvent = (event: ActivityPlayerEvent) => {
     if (event.type === 'page_viewed') setCurrentPage({ uuid: event.page_uuid, title: event.page_title })
+    if (event.type === 'answer_submitted') {
+      const page = preview?.activity?.pages?.find((item: any) => item.page_uuid === event.page_uuid)
+      emit.current?.({ ...event, run: undefined, answer_summary: describeAnswer(page, event.answer) })
+      return
+    }
     emit.current?.(event)
   }
 
@@ -160,6 +165,19 @@ export function ActivityPreview({
       </div>
     </div>
   )
+}
+
+// A readable version of an answer (option labels, typed text) for chat context.
+function describeAnswer(page: any, answer: any): string {
+  const questions = (page?.content?.blocks || []).filter((block: any) => block?.type === 'question')
+  const parts = questions.map((question: any) => {
+    const sub = answer?.questions?.[question.id] || (questions.length === 1 ? answer : {}) || {}
+    const options = new Map((question.content?.options || []).map((option: any) => [String(option.id), option.text]))
+    const chosen = (sub.option_ids || []).map((id: any) => options.get(String(id)) || id)
+    const typed = Object.values(sub.inputs || {}).map((value: any) => value?.text).filter(Boolean)
+    return [...chosen, ...typed].join(', ')
+  })
+  return parts.filter(Boolean).join(' | ')
 }
 
 function PreviewSummary({ activity, run, onRestart }: { activity: any; run: any; onRestart: () => void }) {

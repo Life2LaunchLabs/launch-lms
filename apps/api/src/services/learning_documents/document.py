@@ -121,11 +121,13 @@ def prepare_document(
     *,
     existing_page_uuids: set[str],
     allow_system_blocks: bool,
+    remap_stored_ids: bool = False,
 ) -> PreparedDocument:
     """Validate ``raw`` and resolve new-page placeholders.
 
     ``existing_page_uuids`` are the stored pages of the activity being saved
-    (empty when creating). Stored uuids from any other activity are rejected.
+    (empty when creating). Stored uuids from any other activity are rejected,
+    unless ``remap_stored_ids`` (creating a copy): then they get fresh uuids.
     """
     result = PreparedDocument()
     try:
@@ -147,7 +149,9 @@ def prepare_document(
         seen.add(page_id)
         if page_id in existing_page_uuids:
             continue
-        if page_id.startswith(STORED_PAGE_PREFIX):
+        if page_id.startswith(STORED_PAGE_PREFIX) and remap_stored_ids:
+            result.new_page_ids[page_id] = f"{STORED_PAGE_PREFIX}{uuid4()}"
+        elif page_id.startswith(STORED_PAGE_PREFIX):
             result.errors.append(
                 DocumentIssue(
                     path=path,

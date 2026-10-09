@@ -243,7 +243,10 @@ async def create_activity_from_document(
     learning._require_org_admin(db_session, current_user, badge.org_id)
     version = resolve_draft_version(db_session, badge, payload.version_uuid)
     prepared = prepare_document(
-        payload.document.model_dump(), existing_page_uuids=set(), allow_system_blocks=learning._is_system_object(badge)
+        payload.document.model_dump(),
+        existing_page_uuids=set(),
+        allow_system_blocks=learning._is_system_object(badge),
+        remap_stored_ids=True,
     )
     if not prepared.ok:
         raise _invalid(prepared)

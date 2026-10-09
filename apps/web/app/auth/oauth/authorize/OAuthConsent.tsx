@@ -76,7 +76,7 @@ export default function OAuthConsent() {
           <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Checking the request…</div>
         ) : (
           <div>
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--org-primary-color)] text-[var(--org-on-primary-color)]">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-foreground text-background">
               <ShieldCheck className="h-5 w-5" />
             </div>
             <h1 className="mt-4 text-2xl font-black leading-tight">Connect {consent.client.name} to Launch LMS</h1>
@@ -89,11 +89,11 @@ export default function OAuthConsent() {
               {consent.orgs.length ? (
                 <div className="mt-2 space-y-2">
                   {consent.orgs.map((org) => (
-                    <label key={org.id} className={`flex cursor-pointer items-center gap-3 rounded-2xl border-2 px-4 py-3 transition ${orgId === org.id ? 'border-[var(--org-primary-color)] bg-card' : 'border-border bg-card hover:bg-muted'}`}>
+                    <label key={org.id} className={`flex cursor-pointer items-center gap-3 rounded-2xl border-2 px-4 py-3 transition ${orgId === org.id ? 'border-foreground bg-card' : 'border-border bg-card hover:bg-muted'}`}>
                       <input type="radio" name="org" className="sr-only" checked={orgId === org.id} onChange={() => setOrgId(org.id)} />
                       <Building2 className="h-4 w-4 text-muted-foreground" />
                       <span className="flex-1 text-sm font-bold">{org.name}</span>
-                      {orgId === org.id ? <Check className="h-4 w-4 text-[var(--org-primary-color)]" /> : null}
+                      {orgId === org.id ? <Check className="h-4 w-4" /> : null}
                     </label>
                   ))}
                 </div>
@@ -119,7 +119,7 @@ export default function OAuthConsent() {
               <Button variant="surface" className="flex-1" disabled={Boolean(submitting)} onClick={() => decide(false)}>
                 {submitting === 'deny' ? <Loader2 className="animate-spin" /> : null} Cancel
               </Button>
-              <Button variant="brand" className="flex-1" disabled={Boolean(submitting) || !orgId} onClick={() => decide(true)}>
+              <Button className="flex-1" disabled={Boolean(submitting) || !orgId} onClick={() => decide(true)}>
                 {submitting === 'approve' ? <Loader2 className="animate-spin" /> : null} Allow access
               </Button>
             </div>

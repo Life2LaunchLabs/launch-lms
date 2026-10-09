@@ -34,6 +34,8 @@ whole. Keep every existing `page_uuid` and block `id` you are not deleting.
 - New pages get a short placeholder id such as `new-reflection`; you may use it
   anywhere a page is referenced (flow nodes, buttons, variant sources, answer
   keys). It is replaced by a real uuid when saved.
+- `create_activity` accepts stored page uuids too (for example a document from
+  `get_activity`) and gives every page a fresh uuid, so it can copy an activity.
 - Block ids must be unique within a page (`blk_` + 8 hex characters is the
   house style, e.g. `blk_3fa9c2d1`). Option and input ids must be unique within
   their question.

@@ -102,7 +102,7 @@ _HTML = """<!doctype html>
     } else if (event.type === "page_viewed") {
       trail.push(`Viewed page "${event.page_title}"`);
     } else if (event.type === "answer_submitted") {
-      trail.push(`Answered "${event.page_title}": ${describeAnswer(event.answer)}`);
+      trail.push(`Answered "${event.page_title}": ${event.answer_summary || describeAnswer(event.answer)}`);
       shareTrail();
     } else if (event.type === "finished") {
       const result = event.run && event.run.result;

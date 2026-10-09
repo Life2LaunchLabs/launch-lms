@@ -56,25 +56,25 @@ Deliberately absent: publish, delete, awards, learner data.
 
 ## Acceptance criteria
 
-- [ ] Activity Document round-trips losslessly (export → apply → export is identical apart from etag-neutral fields), including branching flow, outcomes, variants and button destinations.
-- [ ] Validation reports every problem with a JSON path; save rejects invalid documents and published versions.
-- [ ] Concurrent edit returns 409 with the current document.
-- [ ] Preview engine follows branching flow identically to the live runtime and never writes progress, attempts, variables or portfolio outcomes.
-- [ ] In-app editor preview, preview links, and MCP App preview mount the same player component.
-- [ ] OAuth: DCR, PKCE S256 required, codes single-use and short-lived, refresh rotation, revocation, consent requires org admin.
-- [ ] MCP: initialize/tools/resources over Streamable HTTP; unauthenticated requests get spec-compliant 401 discovery.
-- [ ] Single-activity JSON import/export in the activity editor using the document format.
-- [ ] Nginx/infra exposes `/.well-known/oauth-*` (verify on life2launch.dev).
+- [x] Activity Document round-trips losslessly (export → apply → export is identical apart from etag-neutral fields), including branching flow, outcomes, variants and button destinations.
+- [x] Validation reports every problem with a JSON path; save rejects invalid documents and published versions.
+- [x] Concurrent edit returns 409 with the current document.
+- [x] Preview engine follows branching flow identically to the live runtime and never writes progress, attempts, variables or portfolio outcomes.
+- [x] In-app editor preview, preview links, and MCP App preview mount the same player component.
+- [x] OAuth: DCR, PKCE S256 required, codes single-use and short-lived, refresh rotation, revocation, consent requires org admin.
+- [x] MCP: initialize/tools/resources over Streamable HTTP; unauthenticated requests get spec-compliant 401 discovery.
+- [x] Single-activity JSON import/export in the activity editor using the document format.
+- [ ] Nginx exposes `/.well-known/oauth-*` (config added; verify on life2launch.dev).
 - [ ] Owner test in Claude against life2launch.dev.
 
 ## Phases and progress
 
 1. **Activity Document + schema + document API** — done
-2. **Preview engine + preview sessions + shared player** — done (browser verification pending)
-3. **OAuth 2.1 authorization server + consent UI** — done (browser verification pending)
+2. **Preview engine + preview sessions + shared player** — done
+3. **OAuth 2.1 authorization server + consent UI** — done
 4. **MCP server + tools** — done
-5. **MCP App inline preview** — done (needs verification in a Claude client)
-6. **Editor import/export on the new format** — not started
+5. **MCP App inline preview** — done (verified against a simulated MCP Apps host; needs a real Claude client)
+6. **Single-activity JSON import/export on the new format** — done
 7. **Deploy wiring + live verification in Claude** — pending (needs deploy)
 
 ## Decisions
@@ -93,9 +93,39 @@ Deliberately absent: publish, delete, awards, learner data.
 
 ## Verification
 
-- `TESTING=true uv run pytest src/tests/test_learning_documents.py src/tests/test_learning_preview.py src/tests/test_oauth.py src/tests/test_mcp.py`
-- `./scripts/agent check --changed`
-- Manual: add custom connector in Claude → sign in → "list my badges" → preview → edit → save.
+Automated: `TESTING=true uv run pytest src/tests/test_learning_documents.py src/tests/test_learning_preview.py src/tests/test_oauth.py src/tests/test_mcp.py`
+(plus the full API suite, ruff, web typecheck/lint and the repo policy checks).
+
+Local end-to-end run (PostgreSQL 16 + pgvector, Redis, API, production `next build`/`next start`, Chromium):
+
+- Migrations `k1p2r3v4w5x6` and `k2o3a4u5t6h7` upgrade, downgrade and re-upgrade; `alembic check` reports no drift.
+- Live OAuth + MCP script: metadata, 401 discovery, DCR, consent validate/decide, PKCE code exchange,
+  initialize, tools/list, list_badges, list_activities, get_activity, validate_activity,
+  preview_activity, app resource, save_activity, stale save (409), refresh rotation, revocation.
+- Browser: editor Preview follows both branches and shows the route summary; shared preview link renders
+  logged-out at desktop and 390px; MCP App shell in a simulated host completes `ui/initialize`, frames the
+  preview, sends `ui/update-model-context` (readable answers) and `ui/message` for notes; consent page
+  redirects with `code`, `state` and `iss`; learning-path JSON export then import creates a copy; learner
+  run completes on the published version; a draft cloned from it keeps answer-based branching.
+
+Still to do: add the connector in a real Claude client against life2launch.dev.
+
+## Fixed along the way
+
+- Draft cloning left answer-based branch conditions (`<page_uuid>.result…`) pointing at the published
+  version's pages, so branching silently fell back to the default path in every new draft; page lineage
+  was overwritten with the new page's own uuid, breaking the version diff.
+- Learner player: on a fresh run the first answer resolved the next page against the stale page list,
+  skipping a page on branching activities.
+- Editor preview walked pages linearly and ignored the flow.
+
+## Follow-ups
+
+- Collection-level zip export/import still uses its own format; move it onto Activity Documents.
+- `LAUNCHLMS_SSL=false` is read as true (`bool("false")`) by the existing config loader, so local
+  absolute URLs come out as https. Harmless in production.
+- Client ID Metadata Documents; a "Connected apps" screen over `/api/v1/oauth/connections`.
+- Allow `video` pages' media and image uploads to be added from Claude (`import_media`).
 
 ## Recovery
 

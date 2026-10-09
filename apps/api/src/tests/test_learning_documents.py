@@ -213,6 +213,13 @@ async def test_create_adds_activity_to_newest_draft():
     activity = session.exec(select(LearningActivity).where(LearningActivity.activity_uuid == created["context"]["activity_uuid"])).one()
     assert activity.order == 2 and activity.published is False
 
+    current = await _read(session, alice)
+    copied = await store.create_activity_from_document(_request(), ActivityDocumentCreate(badge_uuid="badge_1", document=current["document"]), alice, session)
+    copy_pages = copied["document"]["pages"]
+    assert {page["page_uuid"] for page in copy_pages}.isdisjoint({P1, P2, P3})
+    flow = copied["document"]["activity"]["settings"]["flow"]
+    assert flow["edges"][0]["condition"]["left"]["key"] == f"{copy_pages[0]['page_uuid']}.result.option_ids"
+
 
 def test_scored_choice_without_correct_options_warns():
     document = {"activity": {"title": "A"}, "pages": [{"page_uuid": "p", "title": "Q", "content": {"version": 2, "blocks": [{"id": "blk_q", "type": "question", "kind": "multiple_choice", "content": {"options": [{"id": "a", "text": "A"}]}, "scoring": {"mode": "points", "points": 1}}]}}]}

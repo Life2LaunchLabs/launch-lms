@@ -126,7 +126,7 @@ TOOLS = [
     Tool(
         "create_activity",
         "Create an activity",
-        "Add a new activity to a badge's draft version from an Activity Document (defaults to the newest draft). New pages use short placeholder ids.",
+        "Add a new activity to a badge's draft version from an Activity Document (defaults to the newest draft). New pages use short placeholder ids; a document read with get_activity can be passed to copy that activity.",
         {"properties": {"badge_uuid": {"type": "string"}, "version_uuid": {"type": "string"}, "document": _DOCUMENT}, "required": ["badge_uuid", "document"]},
         handlers.create_activity,
         scope="activities:write",

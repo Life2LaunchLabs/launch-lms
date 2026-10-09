@@ -48,6 +48,20 @@ export function getSubmittedActivityStatus(run: any, activity: any): 'pending' |
   return max > 0 && (score / max) * 100 < minimum ? 'failed' : 'completed'
 }
 
+// The pages a learner walks through: the run's resolved route when the
+// activity has a current branching flow, otherwise every page in order.
+function visiblePages(activity: any, run: any): any[] {
+  const configuredPages = activity.pages || []
+  const navigation = (run?.navigation?.activities || []).find((item: any) => item.activity_id === activity.id)
+  const navigatedPages = navigation?.path?.length
+    ? navigation.path.map((pageUuid: string) => configuredPages.find((item: any) => item.page_uuid === pageUuid)).filter(Boolean)
+    : []
+  const configuredPageUuids = new Set(configuredPages.map((item: any) => item.page_uuid))
+  const flowPageUuids = (activity.settings?.flow?.nodes || []).filter((node: any) => node.type === 'page').map((node: any) => node.page_uuid)
+  const flowIsCurrent = flowPageUuids.length > 0 && flowPageUuids.every((pageUuid: string) => configuredPageUuids.has(pageUuid))
+  return flowIsCurrent && navigatedPages.length ? navigatedPages : configuredPages
+}
+
 export function ActivityPlayer({
   activity,
   initialRun,
@@ -75,20 +89,12 @@ export function ActivityPlayer({
   contentMediaOwner?: any
   responseMediaOwner?: any
 }) {
-  const configuredPages = activity.pages || []
   const [run, setRun] = React.useState<any>(initialRun)
   const [index, setIndex] = React.useState(0)
   const [unlocked, setUnlocked] = React.useState(false)
   const [answer, setAnswer] = React.useState<any>({})
   const baseline = retakeBaselineAttemptIds
-  const navigation = (run?.navigation?.activities || []).find((item: any) => item.activity_id === activity.id)
-  const navigatedPages = navigation?.path?.length
-    ? navigation.path.map((pageUuid: string) => configuredPages.find((item: any) => item.page_uuid === pageUuid)).filter(Boolean)
-    : []
-  const configuredPageUuids = new Set(configuredPages.map((item: any) => item.page_uuid))
-  const flowPageUuids = (activity.settings?.flow?.nodes || []).filter((node: any) => node.type === 'page').map((node: any) => node.page_uuid)
-  const flowIsCurrent = flowPageUuids.length > 0 && flowPageUuids.every((pageUuid: string) => configuredPageUuids.has(pageUuid))
-  const pages = flowIsCurrent && navigatedPages.length ? navigatedPages : configuredPages
+  const pages = visiblePages(activity, run)
   const page = pages[index]
 
   React.useEffect(() => {
@@ -132,14 +138,15 @@ export function ActivityPlayer({
       if (submitting) onEvent?.({ type: 'answer_submitted', page_uuid: page.page_uuid, page_title: page.title, answer, run: nextRun })
       const nextNavigation = (nextRun?.navigation?.activities || []).find((item: any) => item.activity_id === activity.id)
       const nextPageUuid = nextNavigation?.current_page_uuid
-      const configuredDestination = nextPageUuid ? configuredPages.findIndex((item: any) => item.page_uuid === nextPageUuid) : -1
-      const visibleDestination = nextPageUuid ? pages.findIndex((item: any) => item.page_uuid === nextPageUuid) : -1
-      if (visibleDestination >= 0) {
-        setIndex(visibleDestination)
-      } else if (configuredDestination >= 0) {
-        setIndex(configuredDestination)
-      } else if (index < pages.length - 1) {
-        setIndex((current) => Math.min(current + 1, pages.length - 1))
+      // Index into the list rendered after this update: the route can change
+      // (e.g. a fresh run's first answer picks a branch), so the current list
+      // would point at the wrong page.
+      const nextPages = visiblePages(activity, nextRun)
+      const destination = nextPageUuid ? nextPages.findIndex((item: any) => item.page_uuid === nextPageUuid) : -1
+      if (destination >= 0) {
+        setIndex(destination)
+      } else if (index < nextPages.length - 1) {
+        setIndex(index + 1)
       } else {
         onEvent?.({ type: 'finished', run: nextRun })
         onFinish(nextRun)
