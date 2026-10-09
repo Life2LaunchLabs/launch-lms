@@ -60,14 +60,32 @@ def check() -> None:
     errors.extend(f"remove obsolete baseline entry: {path}" for path in sorted(set(allowed) - set(current)))
     if errors:
         raise SystemExit("Source-size policy failed:\n- " + "\n- ".join(errors))
-    print(f"Source-size policy valid: {len(allowed)} grandfathered files")
+    loose = [path for path, limit in allowed.items() if path in current and current[path] < limit]
+    hint = f"; {len(loose)} can be tightened (run: python3 scripts/source-size.py tighten)" if loose else ""
+    print(f"Source-size policy valid: {len(allowed)} grandfathered files{hint}")
+
+
+def tighten() -> None:
+    """Lock in shrinkage: lower each grandfathered limit to the file's current size."""
+    baseline = json.loads(BASELINE.read_text(encoding="utf-8"))
+    current = line_counts()
+    files = {
+        path: min(limit, current[path])
+        for path, limit in baseline["files"].items()
+        if path in current and current[path] > 500
+    }
+    dropped = len(baseline["files"]) - len(files)
+    lowered = sum(1 for path, limit in files.items() if limit < baseline["files"][path])
+    baseline["files"] = files
+    BASELINE.write_text(json.dumps(baseline, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(f"Tightened {lowered} limits and released {dropped} files now within 500 lines")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("snapshot", "check"))
+    parser.add_argument("command", choices=("snapshot", "check", "tighten"))
     args = parser.parse_args()
-    snapshot() if args.command == "snapshot" else check()
+    {"snapshot": snapshot, "check": check, "tighten": tighten}[args.command]()
 
 
 if __name__ == "__main__":

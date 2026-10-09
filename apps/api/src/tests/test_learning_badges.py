@@ -78,8 +78,8 @@ class _BadgeCreateSession:
 
 @pytest.mark.asyncio
 async def test_create_badge_commits_badge_and_default_path_together(monkeypatch):
-    monkeypatch.setattr(learning_service, "_require_org_admin", lambda *_args: None)
-    monkeypatch.setattr(learning_service, "_require_badge_creation_access", lambda *_args: None)
+    monkeypatch.setattr(learning_service.access_rules, "_require_org_admin", lambda *_args: None)
+    monkeypatch.setattr(learning_service.badge_service, "_require_badge_creation_access", lambda *_args: None)
     session = _BadgeCreateSession()
 
     result = await create_badge(
@@ -98,8 +98,8 @@ async def test_create_badge_commits_badge_and_default_path_together(monkeypatch)
 
 @pytest.mark.asyncio
 async def test_create_badge_rolls_back_when_default_path_cannot_be_committed(monkeypatch):
-    monkeypatch.setattr(learning_service, "_require_org_admin", lambda *_args: None)
-    monkeypatch.setattr(learning_service, "_require_badge_creation_access", lambda *_args: None)
+    monkeypatch.setattr(learning_service.access_rules, "_require_org_admin", lambda *_args: None)
+    monkeypatch.setattr(learning_service.badge_service, "_require_badge_creation_access", lambda *_args: None)
     session = _BadgeCreateSession(fail_commit=True)
 
     with pytest.raises(RuntimeError, match="path insert failed"):
@@ -321,7 +321,7 @@ def test_activity_grading_is_inferred_from_scored_questions(monkeypatch):
         settings={"grading": {"mode": "completion", "minimum_score_percent": 70}},
     )
     monkeypatch.setattr(
-        learning_service,
+        learning_service.grading,
         "_activity_score_summary",
         lambda *_args: {
             "score": 6,
@@ -350,7 +350,7 @@ def test_activity_without_scored_questions_uses_completion(monkeypatch):
         settings={"grading": {"mode": "pass_fail"}},
     )
     monkeypatch.setattr(
-        learning_service,
+        learning_service.grading,
         "_activity_score_summary",
         lambda *_args: {
             "score": 0,
