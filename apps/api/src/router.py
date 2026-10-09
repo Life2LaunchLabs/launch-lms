@@ -31,6 +31,7 @@ from src.routers import (
 )
 from src.routers import learning as learning_router_module
 from src.routers import learning_documents as learning_documents_router_module
+from src.routers import oauth as oauth_router_module
 from src.routers import marketplace as marketplace_router_module
 from src.routers import payments as payments_router_module
 from src.routers import resources as resources_router_module
@@ -197,6 +198,7 @@ v1_router.include_router(learning_router_module.imports_router, prefix="/badge-i
 v1_router.include_router(learning_router_module.variables_router, prefix="/learning-variables", tags=["learning-variables"])
 v1_router.include_router(learning_documents_router_module.router, prefix="/learning-documents", tags=["learning-documents"])
 v1_router.include_router(learning_documents_router_module.previews_router, prefix="/learning-previews", tags=["learning-previews"])
+v1_router.include_router(oauth_router_module.router, prefix="/oauth", tags=["oauth"])
 v1_router.include_router(marketplace_router_module.router, prefix="/badge-marketplace", tags=["learning-badge-marketplace"])
 v1_router.include_router(
     communities_router_module.router,
