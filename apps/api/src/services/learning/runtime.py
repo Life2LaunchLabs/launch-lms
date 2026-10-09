@@ -246,16 +246,7 @@ async def complete_page(
             "last_checked_at": now.isoformat(),
         }
         if can_complete:
-            definition = (activity_run.data or {}).get("definition") or {}
-            outcomes = (
-                definition.get("outcomes")
-                if "outcomes" in definition
-                else (activity.settings or {}).get("outcomes")
-            )
-            if (activity.settings or {}).get("system_required") and (
-                activity.settings or {}
-            ).get("outcomes"):
-                outcomes = (activity.settings or {}).get("outcomes")
+            outcomes = (activity.settings or {}).get("outcomes")
             if outcomes:
                 if run.user_id is None:
                     raise HTTPException(

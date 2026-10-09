@@ -182,6 +182,7 @@ def run_view(document: dict, state: dict) -> dict:
                     "condition_trace": trace,
                     "completed": len([uuid for uuid in path if uuid in state["completed"]]),
                     "total": len(path),
+                    "result": state["result"],
                 }
             ]
         },

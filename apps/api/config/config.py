@@ -119,6 +119,13 @@ class LaunchLMSConfig(BaseModel):
     judge0_config: Judge0Config | None
 
 
+
+def _as_bool(value) -> bool:
+    """Env strings like "false"/"0" are falsy; YAML booleans pass through."""
+    if isinstance(value, str):
+        return value.strip().lower() in ("true", "1", "yes")
+    return bool(value)
+
 def get_launchlms_config() -> LaunchLMSConfig:
 
     load_dotenv()
@@ -391,12 +398,12 @@ def get_launchlms_config() -> LaunchLMSConfig:
     hosting_config = HostingConfig(
         domain=domain,
         frontend_domain=frontend_domain,
-        ssl=bool(ssl),
+        ssl=_as_bool(ssl),
         port=int(port),
-        use_default_org=bool(use_default_org),
+        use_default_org=_as_bool(use_default_org),
         allowed_origins=list(allowed_origins),
         allowed_regexp=allowed_regexp,
-        self_hosted=bool(self_hosted),
+        self_hosted=_as_bool(self_hosted),
         cookie_config=cookie_config,
         content_delivery=content_delivery,
     )

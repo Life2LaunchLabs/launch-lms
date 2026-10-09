@@ -30,36 +30,26 @@ export interface ActivityPlayerEvent {
   message?: string
 }
 
-export function getSubmittedActivityStatus(run: any, activity: any): 'pending' | 'failed' | 'completed' {
-  const pageIds = new Set((activity.pages || []).map((page: any) => page.page_uuid))
-  const latestByPage = new Map<string, any>()
-  for (const attempt of (run?.attempts || []).filter((item: any) => pageIds.has(item.page_uuid))) {
-    const prior = latestByPage.get(attempt.page_uuid)
-    if (!prior || new Date(attempt.submitted_at).getTime() >= new Date(prior.submitted_at).getTime()) {
-      latestByPage.set(attempt.page_uuid, attempt)
-    }
-  }
-  const attempts = Array.from(latestByPage.values())
-  if (attempts.some((attempt: any) => attempt.result?.grading_status === 'pending')) return 'pending'
-  const scored = attempts.filter((attempt: any) => Number(attempt.result?.max_score || 0) > 0)
-  const score = scored.reduce((total: number, attempt: any) => total + Number(attempt.score ?? attempt.result?.score ?? 0), 0)
-  const max = scored.reduce((total: number, attempt: any) => total + Number(attempt.result?.max_score || 0), 0)
-  const minimum = Number(activity.settings?.grading?.minimum_score_percent ?? 70)
-  return max > 0 && (score / max) * 100 < minimum ? 'failed' : 'completed'
+// The server's verdict for an activity once its required pages are done
+// (null before that). Live runs and previews report the same result shape.
+export function getActivityResult(run: any, activity: any): { status: 'pending' | 'failed' | 'completed'; scored: boolean } | null {
+  const result = (run?.navigation?.activities || []).find((item: any) => item.activity_id === activity.id)?.result
+  if (!result) return null
+  const scored = result.grading?.mode === 'pass_fail'
+  if (Number(result.pending_manual_grades || 0) > 0) return { status: 'pending', scored }
+  return { status: result.passed ? 'completed' : 'failed', scored }
 }
 
-// The pages a learner walks through: the run's resolved route when the
-// activity has a current branching flow, otherwise every page in order.
-function visiblePages(activity: any, run: any): any[] {
-  const configuredPages = activity.pages || []
+// The pages a learner walks through, in the order the server routed them. The
+// runtime resolves flows (branching, button routes, variables); the player only
+// renders that route. Before a run exists there is no route yet, so fall back
+// to page order.
+function routedPages(activity: any, run: any): any[] {
+  const pages = activity.pages || []
   const navigation = (run?.navigation?.activities || []).find((item: any) => item.activity_id === activity.id)
-  const navigatedPages = navigation?.path?.length
-    ? navigation.path.map((pageUuid: string) => configuredPages.find((item: any) => item.page_uuid === pageUuid)).filter(Boolean)
-    : []
-  const configuredPageUuids = new Set(configuredPages.map((item: any) => item.page_uuid))
-  const flowPageUuids = (activity.settings?.flow?.nodes || []).filter((node: any) => node.type === 'page').map((node: any) => node.page_uuid)
-  const flowIsCurrent = flowPageUuids.length > 0 && flowPageUuids.every((pageUuid: string) => configuredPageUuids.has(pageUuid))
-  return flowIsCurrent && navigatedPages.length ? navigatedPages : configuredPages
+  if (!navigation) return pages
+  const byUuid = new Map(pages.map((page: any) => [page.page_uuid, page]))
+  return (navigation.path || []).map((pageUuid: string) => byUuid.get(pageUuid)).filter(Boolean)
 }
 
 export function ActivityPlayer({
@@ -92,13 +82,23 @@ export function ActivityPlayer({
   const [unlocked, setUnlocked] = React.useState(false)
   const [answer, setAnswer] = React.useState<any>({})
   const baseline = retakeBaselineAttemptIds
-  const pages = visiblePages(activity, run)
+  const pages = routedPages(activity, run)
   const page = pages[index]
 
   React.useEffect(() => {
     if (!runtime.start) return
     runtime.start().then(setRun).catch(() => null)
   }, [runtime])
+
+  // Resume where the server says the learner is, once, when the run arrives.
+  const resumed = React.useRef(false)
+  React.useEffect(() => {
+    if (resumed.current || !run) return
+    resumed.current = true
+    const current = (run.navigation?.activities || []).find((item: any) => item.activity_id === activity.id)?.current_page_uuid
+    const position = current ? routedPages(activity, run).findIndex((item: any) => item.page_uuid === current) : -1
+    if (position > 0) setIndex(position)
+  }, [run, activity])
 
   React.useEffect(() => {
     setUnlocked(Boolean(page) && !isQuestionResponseRequired(page))
@@ -137,16 +137,14 @@ export function ActivityPlayer({
       setRun(nextRun)
       if (submitting) onEvent?.({ type: 'answer_submitted', page_uuid: page.page_uuid, page_title: page.title, answer, run: nextRun })
       const nextNavigation = (nextRun?.navigation?.activities || []).find((item: any) => item.activity_id === activity.id)
-      const nextPageUuid = nextNavigation?.current_page_uuid
-      // Index into the list rendered after this update: the route can change
-      // (e.g. a fresh run's first answer picks a branch), so the current list
-      // would point at the wrong page.
-      const nextPages = visiblePages(activity, nextRun)
+      // Go to the first page the route still needs; when every page is done
+      // (a retake or review), step to the page after this one on the route.
+      const nextPages = routedPages(activity, nextRun)
+      const position = nextPages.findIndex((item: any) => item.page_uuid === page.page_uuid)
+      const nextPageUuid = nextNavigation?.current_page_uuid || nextPages[position + 1]?.page_uuid
       const destination = nextPageUuid ? nextPages.findIndex((item: any) => item.page_uuid === nextPageUuid) : -1
       if (destination >= 0) {
         setIndex(destination)
-      } else if (index < nextPages.length - 1) {
-        setIndex(index + 1)
       } else {
         onEvent?.({ type: 'finished', run: nextRun })
         onFinish(nextRun)

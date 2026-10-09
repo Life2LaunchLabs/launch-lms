@@ -1,6 +1,5 @@
 """Grading answers, activity scoring and award issuing."""
 
-from copy import deepcopy
 from datetime import datetime
 from uuid import uuid4
 from fastapi import Request
@@ -250,19 +249,14 @@ def _ensure_activity_run(
     ).first()
     if activity_run:
         return activity_run
-    activity = db_session.get(LearningActivity, activity_id)
-    settings = deepcopy(activity.settings or {}) if activity else {}
+    # No definition snapshot: runs are pinned to a badge version whose
+    # activities are immutable once published, so flow and outcomes are read
+    # from the activity itself.
     activity_run = LearningActivityRun(
         run_id=run.id or 0,
         activity_id=activity_id,
         status=LearningRunStatus.IN_PROGRESS,
-        data={
-            "definition": {
-                "version": 1,
-                "flow": settings.get("flow"),
-                "outcomes": settings.get("outcomes"),
-            }
-        },
+        data={},
     )
     db_session.add(activity_run)
     db_session.commit()

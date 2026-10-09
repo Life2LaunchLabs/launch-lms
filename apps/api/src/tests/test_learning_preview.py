@@ -105,3 +105,42 @@ async def test_invalid_documents_cannot_be_previewed():
     with pytest.raises(HTTPException) as exc:
         await sessions.create_preview(_request(), sessions.PreviewCreate(activity_uuid="learning_activity_draft", document=document), alice, session)
     assert exc.value.detail["errors"][0]["path"] == "activity.settings.flow"
+
+
+async def test_live_run_navigation_matches_the_preview_engine():
+    """Live runs route on the pinned version, exactly like the preview."""
+    from src.db.learning import LearningActivityRun, LearningResponseSubmit
+    from src.services.guest_sessions import LearningActor
+    from src.services.learning import runtime
+    from src.services.learning.run_navigation import _run_navigation
+
+    session, alice, _ = _world("published")
+    document = await _document(session, alice)
+    from src.db.learning import LearningBadgeVersion
+
+    session.get(LearningBadgeVersion, 50).semantic_version = "2.0.0"
+    run = LearningRun(run_uuid="learning_run_live", badge_id=1, path_id=50, badge_version_id=50, org_id=1, user_id=alice.id)
+    session.add(run)
+    session.commit()
+    # The route exists before the learner has opened the activity.
+    live = _run_navigation(session, run)["activities"]
+    assert [(item["activity_id"], item["path"], item["current_page_uuid"]) for item in live] == [(50, [P1, P3], P1)]
+
+    submitted = await runtime.submit_response(
+        _request(), LearningResponseSubmit(run_uuid="learning_run_live", page_uuid=P1, answer=_answer("opt_make")), LearningActor(user=alice), session
+    )
+    preview = engine.step(document, engine.start(document)["state"], "submit", P1, _answer("opt_make"))
+    live_nav = submitted.navigation["activities"][0]
+    preview_nav = preview["run"]["navigation"]["activities"][0]
+    for key in ("path", "current_page_uuid", "completed", "total"):
+        assert live_nav[key] == preview_nav[key], key
+    assert session.exec(select(LearningActivityRun)).one().data.get("definition") is None
+
+    from src.db.learning import LearningPageComplete
+
+    finished = await runtime.complete_page(_request(), LearningPageComplete(run_uuid="learning_run_live", page_uuid=P2), LearningActor(user=alice), session)
+    preview_done = engine.step(document, preview["state"], "complete", P2)["run"]["navigation"]["activities"][0]
+    live_done = finished.navigation["activities"][0]
+    assert live_done["current_page_uuid"] is None and preview_done["current_page_uuid"] is None
+    for key in ("passed", "score", "max_score", "score_percent", "pending_manual_grades"):
+        assert live_done["result"][key] == preview_done["result"][key], key

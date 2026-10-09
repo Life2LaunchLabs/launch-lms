@@ -2,12 +2,11 @@
 
 import Link from 'next/link'
 import React from 'react'
-import { createPortal } from 'react-dom'
 import { Extension } from '@tiptap/core'
 import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
-import { ArrowLeft, ArrowRight, Check, ChevronRight, Columns2, Copy, GripVertical, Loader2, Pause, Play, Plus, Trash2, Upload, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, ChevronRight, Copy, Loader2, Pause, Play, Upload, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import YouTube from 'react-youtube'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -25,7 +24,6 @@ import {
 } from '@components/Learning/schema'
 import { EMPTY_PARAGRAPH, getTextBlockNodes } from './editor/utils'
 import toast from 'react-hot-toast'
-import ReorderableList from '@components/Objects/ReorderableList'
 import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 import { TimelineCardView, type TimelineEntry } from '@components/Pages/Portfolio/Timeline'
 import { ProjectCardView, type Project } from '@components/Pages/Portfolio/PortfolioShell'
@@ -120,21 +118,21 @@ export function LearningActivitySurface({
   )
 }
 
-export function LearningPageContent({ page, answer, setAnswer, setUnlocked, pages, run, editable = false, onPagePatch, onNavigatePage, onButton, responseMediaOwner }: any) {
+export function LearningPageContent({ page, answer, setAnswer, setUnlocked, pages, run, onNavigatePage, onButton, responseMediaOwner }: any) {
   if (!page) return null
   if (page.page_type === 'video') {
-    return <VideoPageContent page={page} answer={answer} setAnswer={setAnswer} setUnlocked={setUnlocked} editable={editable} onPagePatch={onPagePatch} />
+    return <VideoPageContent page={page} answer={answer} setAnswer={setAnswer} setUnlocked={setUnlocked} />
   }
   if (page.page_type === 'standard') {
-    return <StandardPageContent page={page} answer={answer} setAnswer={setAnswer} setUnlocked={setUnlocked} editable={editable} onPagePatch={onPagePatch} run={run} pages={pages} onNavigatePage={onNavigatePage} onButton={onButton} responseMediaOwner={responseMediaOwner} />
+    return <StandardPageContent page={page} answer={answer} setAnswer={setAnswer} setUnlocked={setUnlocked} run={run} pages={pages} onNavigatePage={onNavigatePage} onButton={onButton} responseMediaOwner={responseMediaOwner} />
   }
   return null
 }
 
-function StandardPageContent({ page, answer, setAnswer, setUnlocked, editable, onPagePatch, run, pages, onNavigatePage, onButton, responseMediaOwner }: any) {
+function StandardPageContent({ page, answer, setAnswer, setUnlocked, run, pages, onNavigatePage, onButton, responseMediaOwner }: any) {
   const blocks = React.useMemo(
-    () => editable ? (page.content?.blocks || []) : resolveVariantBlocks(page, run),
-    [editable, page, run]
+    () => resolveVariantBlocks(page, run),
+    [page, run]
   )
   const questionIds = React.useMemo(
     () => blocks.filter((block: LearningBlock) => block.type === 'question').map((block: LearningBlock) => block.id),
@@ -156,14 +154,7 @@ function StandardPageContent({ page, answer, setAnswer, setUnlocked, editable, o
     setAnswer?.((current: any) => setQuestionAnswer(current, blockId, value))
   }
 
-  const patchBlock = (blockId: string, patch: any) => {
-    const nextBlocks = (page.content?.blocks || []).map((block: LearningBlock) =>
-      block.id === blockId ? { ...block, ...patch } : block
-    )
-    onPagePatch?.({ content: { ...(page.content || {}), version: page.content?.version || 2, blocks: nextBlocks } })
-  }
-
-  const renderBlock = (block: LearningBlock) => <StandardBlockView key={block.id} block={block} page={page} answer={getQuestionAnswer(answer, block.id)} setAnswer={(value: any) => setBlockAnswer(block.id, value)} setUnlocked={(value: boolean) => setBlockUnlocked(block.id, value)} editable={editable} onPatch={(patch: any) => patchBlock(block.id, patch)} responseMediaOwner={responseMediaOwner} run={run} pages={pages} onNavigatePage={onNavigatePage} onButton={onButton} />
+  const renderBlock = (block: LearningBlock) => <StandardBlockView key={block.id} block={block} page={page} answer={getQuestionAnswer(answer, block.id)} setAnswer={(value: any) => setBlockAnswer(block.id, value)} setUnlocked={(value: boolean) => setBlockUnlocked(block.id, value)} responseMediaOwner={responseMediaOwner} run={run} pages={pages} onNavigatePage={onNavigatePage} onButton={onButton} />
 
   return (
     <div className="learning-info-block-stack">
@@ -190,32 +181,14 @@ export function buildQuestionVirtualPage(page: any, block: any) {
   }
 }
 
-export function mapQuestionPagePatchToBlock(block: any, patch: any) {
-  const next: any = {}
-  if (patch.content) {
-    const content = { ...(block.content || {}), ...patch.content }
-    delete content.hide_prompt
-    next.content = content
-  }
-  if (patch.scoring) next.scoring = patch.scoring
-  if (patch.completion) next.completion = patch.completion
-  return next
-}
-
-function StandardBlockView({ block, page, answer, setAnswer, setUnlocked, editable, onPatch, responseMediaOwner, run, pages, onNavigatePage, onButton }: any) {
+function StandardBlockView({ block, page, answer, setAnswer, setUnlocked, responseMediaOwner, run, pages, onNavigatePage, onButton }: any) {
   const blockStyle = getStandardBlockStyle(block)
 
   if (block.type === 'text') {
-    const nodes = resolveDisplayNodes(getTextBlockNodes(block as LearningTextBlock), run, editable)
+    const nodes = resolveDisplayNodes(getTextBlockNodes(block as LearningTextBlock), run)
     return (
       <section className="learning-info-stack-section" style={blockStyle}>
-        <InfoTextBlock
-          block={nodes}
-          blockId={block.id}
-          editable={false}
-          onActivate={() => null}
-          onUpdate={() => null}
-        />
+        <InfoTextBlock block={nodes} blockId={block.id} />
       </section>
     )
   }
@@ -224,7 +197,7 @@ function StandardBlockView({ block, page, answer, setAnswer, setUnlocked, editab
     const height = Math.max(80, Number(block.design?.height) || 220)
     const circle = block.design?.shape === 'circle'
     const fit = circle || block.design?.fit === 'cover' ? 'object-cover' : 'object-contain'
-    const source = resolveDisplayBinding(block.content?.binding, run, editable) || block.content?.src
+    const source = resolveDisplayBinding(block.content?.binding, run) || block.content?.src
     return (
       <section className="learning-info-stack-section" style={blockStyle}>
         <figure className={`mx-auto max-w-full overflow-hidden ${circle ? 'aspect-square rounded-full' : 'w-full rounded-lg'}`} style={circle ? { width: height, height } : { height }}>
@@ -243,12 +216,12 @@ function StandardBlockView({ block, page, answer, setAnswer, setUnlocked, editab
     const targetIndex = (pages || []).findIndex((item: any) => item.page_uuid === target)
     const available = revisit ? targetIndex >= 0 && targetIndex < currentIndex && Boolean(onNavigatePage) : Boolean(onButton)
     const Direction = revisit ? ArrowLeft : ArrowRight
-    return <section className="learning-info-stack-section !w-full" style={{ ...blockStyle, width: '100%' }}><button type="button" disabled={editable || !available} onClick={() => revisit ? onNavigatePage?.(target) : onButton?.(block.id)} className={`inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full px-6 py-3 text-center text-sm font-bold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${block.design?.variant === 'primary' ? 'bg-[var(--org-primary-color)] text-white shadow-sm' : 'border border-border/80 bg-background text-foreground shadow-sm hover:-translate-y-0.5 hover:border-foreground/30 hover:shadow-md'} disabled:cursor-not-allowed disabled:opacity-50`}>{revisit && <Direction className="h-4 w-4 shrink-0" />}<span className="text-center">{block.content?.label || 'Continue'}</span>{!revisit && <Direction className="h-4 w-4 shrink-0" />}</button></section>
+    return <section className="learning-info-stack-section !w-full" style={{ ...blockStyle, width: '100%' }}><button type="button" disabled={!available} onClick={() => revisit ? onNavigatePage?.(target) : onButton?.(block.id)} className={`inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full px-6 py-3 text-center text-sm font-bold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${block.design?.variant === 'primary' ? 'bg-[var(--org-primary-color)] text-white shadow-sm' : 'border border-border/80 bg-background text-foreground shadow-sm hover:-translate-y-0.5 hover:border-foreground/30 hover:shadow-md'} disabled:cursor-not-allowed disabled:opacity-50`}>{revisit && <Direction className="h-4 w-4 shrink-0" />}<span className="text-center">{block.content?.label || 'Continue'}</span>{!revisit && <Direction className="h-4 w-4 shrink-0" />}</button></section>
   }
 
   if (block.type === 'portfolio_preview') {
     const bindings = block.content?.bindings || {}
-    const value = (key: string, fallback = '') => resolveDisplayBinding(bindings[key], run, editable) || fallback
+    const value = (key: string, fallback = '') => resolveDisplayBinding(bindings[key], run) || fallback
     const variant = block.content?.variant
     if (variant === 'timeline_card') {
       const entry: TimelineEntry = { timeline_uuid: 'preview', slug: 'preview', entry_type: value('entry_type', 'experience'), title: value('title', 'Your current experience'), organization: value('organization'), location_label: value('location_label'), summary: value('summary'), start_date: value('start_date') || undefined, start_precision: 'month', is_current: true, revision: 1, cover_url: value('cover_url') || undefined, blocks: [], projects: [], project: [] }
@@ -278,8 +251,8 @@ function StandardBlockView({ block, page, answer, setAnswer, setUnlocked, editab
           ...contentWithoutLabel,
           inputs: (content.inputs || []).map((input: any, index: number) => {
             const adaptive = input.adaptive || {}
-            const key = !editable ? resolveDisplayBinding(adaptive.binding, run) : ''
-            const values = !editable ? adaptive.values?.[key] || {} : {}
+            const key = resolveDisplayBinding(adaptive.binding, run)
+            const values = adaptive.values?.[key] || {}
             return {
               ...input,
               label: values.label || (index === 0 && legacyLabel ? legacyLabel : input.label),
@@ -298,11 +271,6 @@ function StandardBlockView({ block, page, answer, setAnswer, setUnlocked, editab
           answer={answer}
           setAnswer={setAnswer}
           setUnlocked={setUnlocked}
-          editable={editable}
-          onPagePatch={(patch: any) => onPatch(mapQuestionPagePatchToBlock(block, patch))}
-          onActivate={() => null}
-          showChrome={false}
-          onChromeHoverChange={() => null}
           responseMediaOwner={responseMediaOwner}
           renderVariables={run?.render_context?.variables}
         />
@@ -353,346 +321,11 @@ function SharePortfolioPanel({ username, blockStyle }: { username: string; block
   </section>
 }
 
-function InfoBlockChrome({
-  sectionRef,
-  active,
-  dragging,
-  visible,
-  isImage,
-  locked,
-  actionContent,
-  dragHandleProps,
-  hideDrag,
-  resizeTitle,
-  onActivate,
-  onDuplicate,
-  onDelete,
-  deleteDisabled,
-  onResizeImage,
-  onStartReorder,
-  onHoverChange,
-}: any) {
-  const [frame, setFrame] = React.useState<HTMLElement | null>(null)
-  const [rect, setRect] = React.useState<{ top: number; height: number; width: number } | null>(null)
-
-  React.useLayoutEffect(() => {
-    let animationFrame = 0
-    let stopped = false
-
-    const measure = () => {
-      if (stopped) return
-      const section = sectionRef.current as HTMLElement | null
-      const nextFrame = section?.closest('[data-learning-preview-frame]') as HTMLElement | null
-      if (!section || !nextFrame) {
-        setFrame(null)
-        setRect(null)
-        animationFrame = window.requestAnimationFrame(measure)
-        return
-      }
-
-      const frameRect = nextFrame.getBoundingClientRect()
-      const sectionRect = section.getBoundingClientRect()
-      const scale = nextFrame.offsetWidth ? frameRect.width / nextFrame.offsetWidth : 1
-      setFrame(nextFrame)
-      setRect({
-        top: (sectionRect.top - frameRect.top) / scale,
-        height: sectionRect.height / scale,
-        width: nextFrame.offsetWidth,
-      })
-      animationFrame = window.requestAnimationFrame(measure)
-    }
-
-    measure()
-    window.addEventListener('resize', measure)
-    window.addEventListener('scroll', measure, true)
-    return () => {
-      stopped = true
-      window.cancelAnimationFrame(animationFrame)
-      window.removeEventListener('resize', measure)
-      window.removeEventListener('scroll', measure, true)
-    }
-  }, [sectionRef])
-
-  if (!frame || !rect) return null
-
-  return createPortal(
-    <div
-      className={`learning-info-frame-chrome-row ${visible || active ? 'is-visible' : ''} ${active ? 'is-active' : ''} ${dragging ? 'is-dragging' : ''}`}
-      style={{ top: rect.top, width: rect.width, height: Math.max(1, rect.height) }}
-    >
-      <div
-        className="learning-info-frame-hover-zone learning-info-frame-hover-zone-left"
-        onMouseEnter={() => onHoverChange?.(true)}
-        onMouseLeave={() => onHoverChange?.(false)}
-      />
-      <div
-        className="learning-info-frame-hover-zone learning-info-frame-hover-zone-right"
-        onMouseEnter={() => onHoverChange?.(true)}
-        onMouseLeave={() => onHoverChange?.(false)}
-      />
-      <div className="learning-info-frame-rule" />
-      {!hideDrag && (
-        <button
-          type="button"
-          {...(dragHandleProps || {})}
-          className="learning-info-stack-drag"
-          title="Drag to reorder"
-          aria-label="Drag section"
-          onPointerDown={dragHandleProps ? undefined : (event) => {
-            onHoverChange?.(true)
-            onStartReorder(event)
-          }}
-          onMouseEnter={() => onHoverChange?.(true)}
-          onMouseLeave={() => onHoverChange?.(false)}
-          onClick={(event) => {
-            event.preventDefault()
-            event.stopPropagation()
-            onActivate()
-          }}
-        >
-          <GripVertical size={16} strokeWidth={1.8} />
-        </button>
-      )}
-      <div
-        className="learning-info-stack-actions"
-        onMouseEnter={() => onHoverChange?.(true)}
-        onMouseLeave={() => onHoverChange?.(false)}
-      >
-        {actionContent ?? (!locked && (
-          <>
-            <button type="button" className="learning-info-section-button" aria-label="Duplicate section" data-tooltip="Duplicate" onMouseDown={(event) => { event.preventDefault(); event.stopPropagation(); onDuplicate() }}>
-              <Copy size={14} strokeWidth={1.8} />
-            </button>
-            <button type="button" className="learning-info-section-button" aria-label="Delete section" data-tooltip="Delete" disabled={deleteDisabled} onMouseDown={(event) => { event.preventDefault(); event.stopPropagation(); if (!deleteDisabled) onDelete() }}>
-              <Trash2 size={14} strokeWidth={1.8} />
-            </button>
-          </>
-        ))}
-      </div>
-      {(isImage || resizeTitle) && (
-        <div
-          className="learning-info-frame-image-resize"
-          title={resizeTitle || 'Resize image'}
-          onPointerDown={onResizeImage}
-          onMouseEnter={() => onHoverChange?.(true)}
-          onMouseLeave={() => onHoverChange?.(false)}
-        />
-      )}
-    </div>,
-    frame
-  )
-}
-
-function QuestionTitleSection({ editable, visible, onActivate, onAddOption, onChromeHoverChange, children }: any) {
-  const sectionRef = React.useRef<HTMLElement | null>(null)
-  const [hovered, setHovered] = React.useState(false)
-  const [chromeHovered, setChromeHovered] = React.useState(false)
-
-  return (
-    <section
-      ref={sectionRef}
-      className={`learning-info-stack-section ${editable ? 'is-editable' : ''}`}
-      onMouseEnter={() => {
-        setHovered(true)
-        onChromeHoverChange?.(true)
-      }}
-      onMouseLeave={() => {
-        setHovered(false)
-        onChromeHoverChange?.(false)
-      }}
-      onMouseDown={() => editable && onActivate?.()}
-    >
-      {editable && (
-        <InfoBlockChrome
-          sectionRef={sectionRef}
-          visible={visible || hovered || chromeHovered}
-          active={hovered || chromeHovered}
-          dragging={false}
-          isImage={false}
-          locked={false}
-          hideDrag
-          actionContent={(
-            <button type="button" className="learning-info-section-button" data-tooltip="Add option" aria-label="Add option" onMouseDown={(event) => { event.preventDefault(); event.stopPropagation(); onAddOption() }}>
-              <Plus size={14} strokeWidth={1.8} />
-            </button>
-          )}
-          onActivate={onActivate}
-          onDuplicate={() => null}
-          onDelete={() => null}
-          onResizeImage={() => null}
-          onStartReorder={() => null}
-          onHoverChange={(next: boolean) => {
-            setChromeHovered(next)
-            onChromeHoverChange?.(next)
-          }}
-        />
-      )}
-      {children}
-    </section>
-  )
-}
-
-function QuestionOptionSection({
-  optionId,
-  index,
-  selected,
-  correct,
-  optionsLength,
-  editable,
-  isDragging,
-  dragHandleProps,
-  onActivate,
-  onToggleCorrect,
-  onDelete,
-  visible,
-  onChromeHoverChange,
-  children,
-}: any) {
-  const sectionRef = React.useRef<HTMLElement | null>(null)
-  const [hovered, setHovered] = React.useState(false)
-  const [chromeHovered, setChromeHovered] = React.useState(false)
-
-  return (
-    <section
-      ref={sectionRef}
-      data-learning-question-option-id={optionId}
-      className={`learning-info-stack-section ${editable ? 'is-editable' : ''} ${isDragging ? 'is-reordering' : ''}`}
-      onMouseEnter={() => {
-        setHovered(true)
-        onChromeHoverChange?.(true)
-      }}
-      onMouseLeave={() => {
-        setHovered(false)
-        onChromeHoverChange?.(false)
-      }}
-      onMouseDown={() => editable && onActivate?.()}
-    >
-      {editable && (
-        <InfoBlockChrome
-          sectionRef={sectionRef}
-          visible={visible || hovered || chromeHovered}
-          active={hovered || chromeHovered}
-          dragging={isDragging}
-          isImage={false}
-          locked={false}
-          dragHandleProps={dragHandleProps}
-          actionContent={(
-            <>
-              <button type="button" className={`learning-info-section-button ${correct ? 'is-correct' : ''}`} data-tooltip={correct ? 'Correct' : 'Mark correct'} aria-label="Toggle correct answer" onMouseDown={(event) => { event.preventDefault(); event.stopPropagation(); onToggleCorrect(optionId) }}>
-                <Check size={14} strokeWidth={1.8} />
-              </button>
-              <button type="button" className="learning-info-section-button" data-tooltip="Delete" aria-label="Delete option" disabled={optionsLength <= 2} onMouseDown={(event) => { event.preventDefault(); event.stopPropagation(); onDelete(optionId) }}>
-                <Trash2 size={14} strokeWidth={1.8} />
-              </button>
-            </>
-          )}
-          onActivate={onActivate}
-          onDuplicate={() => null}
-          onDelete={() => onDelete(optionId)}
-          onResizeImage={() => null}
-          onStartReorder={() => null}
-          onHoverChange={(next: boolean) => {
-            setChromeHovered(next)
-            onChromeHoverChange?.(next)
-          }}
-        />
-      )}
-      <div className={`flex w-full items-center gap-4 rounded-xl border bg-card p-4 text-left shadow-sm transition ${selected ? 'border-[var(--org-primary-color)] ring-2 ring-[var(--org-primary-color)]' : 'border-border hover:border-border'}`}>
-        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-sm font-bold ${selected ? 'border-[var(--org-primary-color)] bg-[var(--org-primary-color)] text-white' : 'border-border text-muted-foreground'}`}>{String.fromCharCode(65 + index)}</span>
-        <div className="min-w-0 flex-1" onMouseDown={(event) => event.stopPropagation()}>
-          {children}
-        </div>
-      </div>
-    </section>
-  )
-}
-
-function QuestionTextInputSection({
-  section,
-  sectionCount,
-  editable,
-  isDragging,
-  dragHandleProps,
-  onActivate,
-  onDuplicate,
-  onToggleSideBySide,
-  onDelete,
-  onResize,
-  onActivateSection,
-  visible,
-  onChromeHoverChange,
-  children,
-}: any) {
-  const sectionRef = React.useRef<HTMLElement | null>(null)
-  const [hovered, setHovered] = React.useState(false)
-  const [chromeHovered, setChromeHovered] = React.useState(false)
-  const sideBySide = section.inputs.length > 1
-
-  const activateSection = () => {
-    onActivate?.()
-    onActivateSection?.(section)
-  }
-
-  return (
-    <section
-      ref={sectionRef}
-      data-learning-question-input-section-id={section.id}
-      className={`learning-info-stack-section ${editable ? 'is-editable' : ''} ${isDragging ? 'is-reordering' : ''}`}
-      onMouseEnter={() => {
-        setHovered(true)
-        onChromeHoverChange?.(true)
-      }}
-      onMouseLeave={() => {
-        setHovered(false)
-        onChromeHoverChange?.(false)
-      }}
-      onMouseDown={() => editable && activateSection()}
-    >
-      {editable && (
-        <InfoBlockChrome
-          sectionRef={sectionRef}
-          visible={visible || hovered || chromeHovered}
-          active={hovered || chromeHovered}
-          dragging={isDragging}
-          isImage={false}
-          locked={false}
-          dragHandleProps={dragHandleProps}
-          resizeTitle="Resize input"
-          actionContent={(
-            <>
-              <button type="button" className="learning-info-section-button" data-tooltip="Duplicate" aria-label="Duplicate input section" onMouseDown={(event) => { event.preventDefault(); event.stopPropagation(); onDuplicate(section) }}>
-                <Copy size={14} strokeWidth={1.8} />
-              </button>
-              <button type="button" className={`learning-info-section-button ${sideBySide ? 'is-correct' : ''}`} data-tooltip={sideBySide ? 'Single input' : 'Side by side'} aria-label="Toggle side by side inputs" onMouseDown={(event) => { event.preventDefault(); event.stopPropagation(); onToggleSideBySide(section) }}>
-                <Columns2 size={14} strokeWidth={1.8} />
-              </button>
-              <button type="button" className="learning-info-section-button" data-tooltip="Delete" aria-label="Delete input section" disabled={sectionCount <= 1} onMouseDown={(event) => { event.preventDefault(); event.stopPropagation(); onDelete(section) }}>
-                <Trash2 size={14} strokeWidth={1.8} />
-              </button>
-            </>
-          )}
-          onActivate={activateSection}
-          onDuplicate={() => onDuplicate(section)}
-          onDelete={() => onDelete(section)}
-          onResizeImage={(event: React.PointerEvent<HTMLDivElement>) => onResize(section, event)}
-          onStartReorder={() => null}
-          onHoverChange={(next: boolean) => {
-            setChromeHovered(next)
-            onChromeHoverChange?.(next)
-          }}
-        />
-      )}
-      {children}
-    </section>
-  )
-}
-
-function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, onPagePatch, onActivate, showChrome, onChromeHoverChange, responseMediaOwner, renderVariables }: any) {
+function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, responseMediaOwner, renderVariables }: any) {
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
   const [uploadingInputId, setUploadingInputId] = React.useState<string | null>(null)
   const [imagePickerOpen, setImagePickerOpen] = React.useState(false)
-  const titleRef = React.useRef<HTMLElement | null>(null)
   React.useEffect(() => {
     if (page.page_type !== 'image_upload') return
     const imageUrl = answer?.url || answer?.image_url || ''
@@ -721,9 +354,9 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
     const customOptions = Array.isArray(answer?.custom_options) ? answer.custom_options : []
     const minSelections = Math.max(1, Number(completion.min_selections ?? 1))
     const maxSelections = Math.max(minSelections, Number(completion.max_selections ?? 5))
-    return <div className="learning-question-block" onMouseDown={() => editable && onActivate()}>
+    return <div className="learning-question-block">
       {page.content?.label && <p className="mb-4 text-lg font-bold text-foreground">{page.content.label}</p>}
-      <CategorizedMultiSelect options={options} customOptions={customOptions} value={selectedIds} min={minSelections} max={maxSelections} disabled={editable} onCustomOptionsChange={(nextCustom) => { const configuredIds = new Set(options.map((option: any) => option.id)); const customIds = new Set(nextCustom.map((option: any) => option.id)); const added = nextCustom.find((option: any) => !customOptions.some((current: any) => current.id === option.id)); const nextSelected = selectedIds.filter((id: string) => configuredIds.has(id) || customIds.has(id)); if (added && nextSelected.length < maxSelections && !nextSelected.includes(added.id)) nextSelected.push(added.id); setAnswer({ option_ids: nextSelected, option_id: nextSelected[0], custom_options: nextCustom }); setUnlocked(nextSelected.length >= minSelections && nextSelected.length <= maxSelections) }} onChange={(next) => { setAnswer({ option_ids: next, option_id: next[0], custom_options: customOptions }); setUnlocked(next.length >= minSelections && next.length <= maxSelections) }} />
+      <CategorizedMultiSelect options={options} customOptions={customOptions} value={selectedIds} min={minSelections} max={maxSelections} onCustomOptionsChange={(nextCustom) => { const configuredIds = new Set(options.map((option: any) => option.id)); const customIds = new Set(nextCustom.map((option: any) => option.id)); const added = nextCustom.find((option: any) => !customOptions.some((current: any) => current.id === option.id)); const nextSelected = selectedIds.filter((id: string) => configuredIds.has(id) || customIds.has(id)); if (added && nextSelected.length < maxSelections && !nextSelected.includes(added.id)) nextSelected.push(added.id); setAnswer({ option_ids: nextSelected, option_id: nextSelected[0], custom_options: nextCustom }); setUnlocked(nextSelected.length >= minSelections && nextSelected.length <= maxSelections) }} onChange={(next) => { setAnswer({ option_ids: next, option_id: next[0], custom_options: customOptions }); setUnlocked(next.length >= minSelections && next.length <= maxSelections) }} />
     </div>
   }
 
@@ -737,8 +370,6 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
     }))
     const visibleOptions = options.length ? options : [{ id: 'a', text: '' }, { id: 'b', text: '' }]
     const completion = page.completion || {}
-    const scoring = page.scoring || {}
-    const correctOptionIds = new Set(scoring.correct_option_ids || [])
     const minSelections = Math.max(1, Number(completion.min_selections ?? 1))
     const maxSelections = Math.max(minSelections, Number(completion.max_selections ?? 1))
     const selectedIds = Array.isArray(answer?.option_ids)
@@ -746,51 +377,7 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
       : answer?.option_id
         ? [answer.option_id]
         : []
-    const patchOptions = (nextOptions: any[]) => {
-      const ids = new Set(nextOptions.map((option: any, index: number) => option?.id || String(index)))
-      const variableBindings = completion.variable_bindings || {}
-      const nextOptionBindings = { ...(variableBindings.options || {}) }
-      Object.keys(nextOptionBindings).forEach((id) => {
-        if (!ids.has(id)) nextOptionBindings[id] = null
-      })
-      onPagePatch?.({
-        content: { ...(page.content || {}), options: nextOptions },
-        scoring: {
-          ...scoring,
-          correct_option_ids: (scoring.correct_option_ids || []).filter((id: string) => ids.has(id)),
-        },
-        completion: {
-          ...completion,
-          min_selections: Math.min(minSelections, nextOptions.length),
-          max_selections: Math.min(maxSelections, nextOptions.length),
-          variable_bindings: { ...variableBindings, options: nextOptionBindings },
-        },
-      })
-    }
-    const updateOption = (optionIndex: number, text: string) => {
-      const nextOptions = visibleOptions.map((option: any, index: number) => ({
-        ...(option || { id: String(index) }),
-        id: option?.id || String(index),
-      }))
-      nextOptions[optionIndex] = { ...(nextOptions[optionIndex] || { id: String(optionIndex) }), text }
-      patchOptions(nextOptions)
-    }
-    const addOption = () => {
-      const nextId = createLearningLocalId('option')
-      patchOptions([...visibleOptions, { id: nextId, text: `Option ${visibleOptions.length + 1}` }])
-    }
-    const deleteOption = (id: string) => {
-      if (visibleOptions.length <= 2) return
-      patchOptions(visibleOptions.filter((option: any, index: number) => (option.id || String(index)) !== id))
-    }
-    const toggleCorrect = (id: string) => {
-      const next = new Set(correctOptionIds)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      onPagePatch?.({ scoring: { ...scoring, mode: 'points', score_policy: 'select_all', correct_option_ids: Array.from(next) } })
-    }
     const toggleOption = (id: string) => {
-      if (editable) return
       let next = selectedIds.includes(id)
         ? selectedIds.filter((selectedId: string) => selectedId !== id)
         : maxSelections <= 1
@@ -802,77 +389,24 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
     }
 
     return (
-      <div className="learning-question-block" onMouseDown={() => editable && onActivate()}>
+      <div className="learning-question-block">
         {!page.content?.hide_prompt && (
-          <QuestionTitleSection
-            editable={editable}
-            visible={showChrome}
-            onActivate={onActivate}
-            onAddOption={addOption}
-            onChromeHoverChange={onChromeHoverChange}
-          >
-            <EditableText
-              as="h1"
-              editable={editable}
-              value={page.content?.prompt || ''}
-              placeholder="Question prompt"
-              onChange={(value: string) => onPagePatch?.({ content: { ...(page.content || {}), prompt: value } })}
-              className="text-3xl font-bold text-foreground"
-              elementRef={titleRef}
-            />
-          </QuestionTitleSection>
+          <section className="learning-info-stack-section">
+            <h1 className="text-3xl font-bold text-foreground">{page.content?.prompt || 'Question prompt'}</h1>
+          </section>
         )}
-        {editable ? (
-          <ReorderableList
-            droppableId={`learning-mcq-options-${page.page_uuid}`}
-            items={visibleOptions}
-            getId={(option: any, index: number) => option.id || String(index)}
-            onReorder={(nextOptions: any[]) => patchOptions(nextOptions)}
-            className="mt-6 space-y-3"
-            itemClassName={(_option, _index, isDragging) => isDragging ? 'rounded-xl shadow-2xl shadow-gray-950/20' : 'rounded-xl'}
-            renderItem={({ item: option, index, dragHandleProps }) => {
-              const optionId = option.id || String(index)
-              return (
-                <QuestionOptionSection
-                  key={optionId}
-                  optionId={optionId}
-                  index={index}
-                  selected={selectedIds.includes(optionId)}
-                  correct={correctOptionIds.has(optionId)}
-                  optionsLength={visibleOptions.length}
-                  editable={editable}
-                  dragHandleProps={dragHandleProps}
-                  onActivate={onActivate}
-                  onToggleCorrect={toggleCorrect}
-                  onDelete={deleteOption}
-                  visible={showChrome}
-                  onChromeHoverChange={onChromeHoverChange}
-                >
-                  <EditableText
-                    editable
-                    value={option.text || ''}
-                    placeholder={`Option ${index + 1}`}
-                    onChange={(value: string) => updateOption(index, value)}
-                    className="min-w-0 text-foreground outline-none"
-                  />
-                </QuestionOptionSection>
-              )
-            }}
-          />
-        ) : (
-          <div className="mt-6 space-y-3">
-            {visibleOptions.map((option: any, index: number) => (
-              <button
-                key={option.id || index}
-                onClick={() => toggleOption(option.id || String(index))}
-                className={`flex w-full items-center gap-4 rounded-xl border bg-card p-4 text-left shadow-sm transition ${selectedIds.includes(option.id || String(index)) ? 'border-[var(--org-primary-color)] ring-2 ring-[var(--org-primary-color)]' : 'border-border hover:border-border'}`}
-              >
-                <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-sm font-bold ${selectedIds.includes(option.id || String(index)) ? 'border-[var(--org-primary-color)] bg-[var(--org-primary-color)] text-white' : 'border-border text-muted-foreground'}`}>{String.fromCharCode(65 + index)}</span>
-                <span className="min-w-0 flex-1 text-foreground">{option.text || `Option ${index + 1}`}</span>
-              </button>
-            ))}
-          </div>
-        )}
+        <div className="mt-6 space-y-3">
+          {visibleOptions.map((option: any, index: number) => (
+            <button
+              key={option.id || index}
+              onClick={() => toggleOption(option.id || String(index))}
+              className={`flex w-full items-center gap-4 rounded-xl border bg-card p-4 text-left shadow-sm transition ${selectedIds.includes(option.id || String(index)) ? 'border-[var(--org-primary-color)] ring-2 ring-[var(--org-primary-color)]' : 'border-border hover:border-border'}`}
+            >
+              <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-sm font-bold ${selectedIds.includes(option.id || String(index)) ? 'border-[var(--org-primary-color)] bg-[var(--org-primary-color)] text-white' : 'border-border text-muted-foreground'}`}>{String.fromCharCode(65 + index)}</span>
+              <span className="min-w-0 flex-1 text-foreground">{option.text || `Option ${index + 1}`}</span>
+            </button>
+          ))}
+        </div>
       </div>
     )
   }
@@ -880,7 +414,7 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
   if (page.page_type === 'image_upload') {
     const imageUrl = answer?.url || answer?.image_url || ''
     const updateImageAnswer = async (asset: any) => {
-      if (!asset || editable || !accessToken) return
+      if (!asset || !accessToken) return
       setUploadingInputId('image')
       try {
         setAnswer({
@@ -900,20 +434,14 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
     }
 
     return (
-      <div className="learning-question-block" onMouseDown={() => editable && onActivate()}>
-        {(editable || page.content?.label) ? (
-          <EditableText
-            editable={editable}
-            value={page.content?.label || ''}
-            placeholder="Question label"
-            onChange={(value: string) => onPagePatch?.({ content: { ...(page.content || {}), label: value } })}
-            className="mb-3 min-w-0 text-lg font-bold leading-7 text-gray-900"
-          />
+      <div className="learning-question-block">
+        {page.content?.label ? (
+          <div className="mb-3 min-w-0 text-lg font-bold leading-7 text-gray-900">{page.content.label}</div>
         ) : null}
         <button
           type="button"
-          disabled={editable || uploadingInputId === 'image' || !responseMediaOwner?.id}
-          onClick={() => !editable && setImagePickerOpen(true)}
+          disabled={uploadingInputId === 'image' || !responseMediaOwner?.id}
+          onClick={() => setImagePickerOpen(true)}
           className={`flex min-h-56 w-full cursor-pointer flex-col items-center justify-center gap-3 overflow-hidden rounded-xl border border-dashed bg-white p-4 text-center shadow-sm transition ${imageUrl ? 'border-gray-200' : 'border-gray-300 hover:border-[var(--org-primary-color)]'}`}
         >
           {imageUrl ? (
@@ -924,7 +452,7 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
             <Upload size={24} className="text-gray-400" />
           )}
           <span className="text-sm font-bold text-gray-600">
-            {uploadingInputId === 'image' ? 'Uploading image' : imageUrl ? 'Replace image' : (editable ? 'Image upload' : 'Upload image')}
+            {uploadingInputId === 'image' ? 'Uploading image' : imageUrl ? 'Replace image' : 'Upload image'}
           </span>
         </button>
         <MediaPickerDialog
@@ -945,103 +473,6 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
   const inputSections = getQuestionTextInputSections(inputs)
   const rules = page.completion?.inputs || {}
   const answerInputs = answer?.inputs || {}
-  const completion = page.completion || {}
-  const patchInputs = (nextInputs: any[], nextRules = rules) => {
-    const inputIds = new Set(nextInputs.map((input: any) => input.id))
-    const variableBindings = completion.variable_bindings || {}
-    const nextInputBindings = { ...(variableBindings.inputs || {}) }
-    Object.keys(nextInputBindings).forEach((id) => {
-      if (!inputIds.has(id)) nextInputBindings[id] = null
-    })
-    onPagePatch?.({
-      content: { ...(page.content || {}), inputs: nextInputs },
-      completion: {
-        ...completion,
-        inputs: nextRules,
-        variable_bindings: { ...variableBindings, inputs: nextInputBindings },
-      },
-    })
-  }
-  const updateInputConfig = (inputId: string, patch: any) => {
-    patchInputs(inputs.map((input: any) => input.id === inputId ? { ...input, ...patch } : input))
-  }
-  const duplicateInputSection = (section: any) => {
-    const sectionId = createLearningLocalId('input_section')
-    const nextRules = { ...rules }
-    const clonedInputs = section.inputs.map((input: any, index: number) => {
-      const id = createLearningLocalId('input')
-      nextRules[id] = { ...(rules[input.id] || { min_words: 1, max_words: 0 }) }
-      return {
-        ...input,
-        id,
-        section_id: section.inputs.length > 1 ? sectionId : id,
-        label: `${input.label || `Response ${index + 1}`} copy`,
-      }
-    })
-    const insertAt = inputs.findIndex((input: any) => input.id === section.inputs[section.inputs.length - 1]?.id)
-    const nextInputs = [...inputs]
-    nextInputs.splice(insertAt >= 0 ? insertAt + 1 : nextInputs.length, 0, ...clonedInputs)
-    patchInputs(nextInputs, nextRules)
-  }
-  const removeInputSection = (section: any) => {
-    if (inputSections.length <= 1) return
-    const removeIds = new Set<string>(section.inputs.map((input: any) => input.id))
-    const nextRules = { ...rules }
-    removeIds.forEach((inputId) => delete nextRules[inputId])
-    patchInputs(inputs.filter((input: any) => !removeIds.has(input.id)), nextRules)
-  }
-  const toggleSectionSideBySide = (section: any) => {
-    if (section.inputs.length > 1) {
-      const [keep, ...remove] = section.inputs
-      const removeIds = new Set<string>(remove.map((input: any) => input.id))
-      const nextRules = { ...rules }
-      removeIds.forEach((inputId) => delete nextRules[inputId])
-      patchInputs(inputs
-        .filter((input: any) => !removeIds.has(input.id))
-        .map((input: any) => input.id === keep.id ? { ...input, width: 'full', section_id: input.id } : input),
-        nextRules)
-      activateInputSection({ inputs: [keep] })
-      return
-    }
-
-    const source = section.inputs[0]
-    if (!source) return
-    const sectionId = source.section_id || createLearningLocalId('input_section')
-    const newId = createLearningLocalId('input')
-    const newInput = {
-      id: newId,
-      section_id: sectionId,
-      label: `Response ${inputs.length + 1}`,
-      placeholder: '',
-      variant: source.variant || 'short_answer',
-      width: 'half',
-      height: Number(source.height) || 160,
-    }
-    const sourceIndex = inputs.findIndex((input: any) => input.id === source.id)
-    const nextInputs = inputs.map((input: any) => input.id === source.id ? { ...input, section_id: sectionId, width: 'half' } : input)
-    nextInputs.splice(sourceIndex >= 0 ? sourceIndex + 1 : nextInputs.length, 0, newInput)
-    patchInputs(nextInputs, { ...rules, [newId]: { ...(rules[source.id] || { min_words: 1, max_words: 0 }) } })
-    activateInputSection({ inputs: [{ ...source, section_id: sectionId, width: 'half' }, newInput] })
-  }
-  const resizeTextInput = (section: any, startEvent: React.PointerEvent<HTMLDivElement>) => {
-    startEvent.preventDefault()
-    startEvent.stopPropagation()
-    const startY = startEvent.clientY
-    const sectionInputIds = new Set(section.inputs.map((input: any) => input.id))
-    const startHeight = Number(section.inputs[0]?.height) || 120
-    const onMove = (event: PointerEvent) => {
-      const nextHeight = Math.round(Math.max(48, Math.min(420, startHeight + event.clientY - startY)))
-      patchInputs(inputs.map((input: any) => sectionInputIds.has(input.id) ? { ...input, height: nextHeight, variant: nextHeight <= 56 ? 'single_line' : 'short_answer' } : input))
-    }
-    const onEnd = () => {
-      document.body.style.cursor = ''
-      window.removeEventListener('pointermove', onMove)
-      window.removeEventListener('pointerup', onEnd)
-    }
-    document.body.style.cursor = 'row-resize'
-    window.addEventListener('pointermove', onMove)
-    window.addEventListener('pointerup', onEnd)
-  }
   const updateTextInput = (inputId: string, text: string) => {
     const nextInputs = {
       ...answerInputs,
@@ -1050,40 +481,19 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
     setAnswer({ inputs: nextInputs, text: Object.values(nextInputs).map((item: any) => item?.text || '').join('\n') })
     setUnlocked(areTextInputsComplete(inputs, rules, nextInputs))
   }
-  const activateInputSection = (section: any) => {
-    if (typeof window === 'undefined') return
-    window.dispatchEvent(new CustomEvent('learning-question-input-section-active', {
-      detail: { pageUuid: page.page_uuid, inputIds: section.inputs.map((input: any) => input.id) },
-    }))
-  }
-  const renderInputSection = (section: any, index: number, dragHandleProps?: any, isDragging = false) => {
+  const renderInputSection = (section: any) => {
     const sideBySide = section.inputs.length > 1
 
     return (
-      <QuestionTextInputSection
-        key={section.id}
-        section={section}
-        sectionCount={inputSections.length}
-        editable={editable}
-        isDragging={isDragging}
-        dragHandleProps={dragHandleProps}
-        onActivate={onActivate}
-        onDuplicate={duplicateInputSection}
-        onToggleSideBySide={toggleSectionSideBySide}
-        onDelete={removeInputSection}
-        onResize={resizeTextInput}
-        onActivateSection={activateInputSection}
-        visible={showChrome}
-        onChromeHoverChange={onChromeHoverChange}
-      >
+      <section key={section.id} data-learning-question-input-section-id={section.id} className="learning-info-stack-section">
         <div className={`grid gap-3 ${sideBySide ? 'grid-cols-2' : 'grid-cols-1'}`}>
-          {section.inputs.map((input: any, inputIndex: number) => {
+          {section.inputs.map((input: any) => {
             const height = Math.max(48, Number(input.height) || 120)
             const isSingleLine = height <= 56 || input.variant === 'single_line'
             const value = answerInputs[input.id]?.text || ''
             const rule = rules[input.id] || {}
             const validation = resolveTextInputValidation(input, rule)
-            const validationError = !editable ? getTextInputValidationError(input, rule, value) : ''
+            const validationError = getTextInputValidationError(input, rule, value)
             const htmlInputType = input.input_type === 'month'
               ? 'month'
               : input.input_type === 'number'
@@ -1098,14 +508,8 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
             return (
               <div key={input.id} className="relative min-w-0">
                 <div className="mb-1 flex items-center gap-2">
-                  {(editable || input.label) ? (
-                    <EditableText
-                      editable={editable}
-                      value={input.label || ''}
-                      placeholder={`Input ${index + inputIndex + 1}`}
-                      onChange={(value: string) => updateInputConfig(input.id, { label: value })}
-                      className="min-w-0 flex-1 text-lg font-bold leading-7 text-foreground"
-                    />
+                  {input.label ? (
+                    <div className="min-w-0 flex-1 text-lg font-bold leading-7 text-foreground">{input.label}</div>
                   ) : <span className="min-w-0 flex-1" />}
                 </div>
                 {input.input_type === 'select' ? (
@@ -1118,18 +522,18 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
                     type={htmlInputType}
                     autoComplete={validation === 'name' ? 'name' : validation === 'email' ? 'email' : validation === 'phone' ? 'tel' : validation === 'url' ? 'url' : undefined}
                     aria-invalid={Boolean(validationError)}
-                    value={editable ? input.placeholder || '' : value}
-                    onChange={(event) => editable ? updateInputConfig(input.id, { placeholder: event.target.value }) : updateTextInput(input.id, event.target.value)}
-                    placeholder={editable ? 'Placeholder' : input.placeholder}
+                    value={value}
+                    onChange={(event) => updateTextInput(input.id, event.target.value)}
+                    placeholder={input.placeholder}
                     style={{ height }}
                     className={`w-full rounded-xl border bg-card px-4 text-foreground outline-none shadow-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-[var(--org-primary-color)] ${validationError ? 'border-red-400' : 'border-border focus:border-[var(--org-primary-color)]'}`}
                   />
                 ) : (
                   <textarea
                     readOnly={false}
-                    value={editable ? input.placeholder || '' : value}
-                    onChange={(event) => editable ? updateInputConfig(input.id, { placeholder: event.target.value }) : updateTextInput(input.id, event.target.value)}
-                    placeholder={editable ? 'Placeholder' : input.placeholder}
+                    value={value}
+                    onChange={(event) => updateTextInput(input.id, event.target.value)}
+                    placeholder={input.placeholder}
                     style={{ height }}
                     aria-invalid={Boolean(validationError)}
                     className={`w-full resize-none rounded-xl border bg-card p-4 text-foreground outline-none shadow-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-[var(--org-primary-color)] ${validationError ? 'border-red-400' : 'border-border focus:border-[var(--org-primary-color)]'}`}
@@ -1140,28 +544,16 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
             )
           })}
         </div>
-      </QuestionTextInputSection>
+      </section>
     )
   }
 
   return (
-    <div className="learning-question-block" onMouseDown={() => editable && onActivate()}>
-      {editable ? (
-        <ReorderableList
-          droppableId={`learning-text-inputs-${page.page_uuid}`}
-          items={inputSections}
-          getId={(section: any, index: number) => section.id || String(index)}
-          onReorder={(nextSections: any[]) => patchInputs(nextSections.flatMap((section: any) => section.inputs))}
-          className="mt-6 space-y-3"
-          itemClassName={(_section: any, _index, isDragging) => isDragging ? 'rounded-xl shadow-2xl shadow-gray-950/20' : 'rounded-xl'}
-          renderItem={({ item: section, index, isDragging, dragHandleProps }) => renderInputSection(section, index, dragHandleProps, isDragging)}
-        />
-      ) : (
-        <div className="mt-6 space-y-3">
-          {inputSections.map((section: any, index: number) => renderInputSection(section, index))}
-        </div>
-      )}
-      {page.scoring?.mode === 'manual' && !editable ? (
+    <div className="learning-question-block">
+      <div className="mt-6 space-y-3">
+        {inputSections.map((section: any) => renderInputSection(section))}
+      </div>
+      {page.scoring?.mode === 'manual' ? (
         <p className="mt-3 text-xs font-semibold text-muted-foreground">Your response will be reviewed after you submit.</p>
       ) : null}
     </div>
@@ -1189,40 +581,17 @@ const InfoTextAlign = Extension.create({
   },
 })
 
-function InfoTextBlock({ block, blockId, editable, onActivate, onUpdate, onSplit, shouldFocus, onFocusComplete }: any) {
+function InfoTextBlock({ block, blockId }: any) {
   const content = React.useMemo(() => ({
     type: 'doc',
     content: Array.isArray(block)
       ? (block.length ? block : [EMPTY_PARAGRAPH]).map(stripInfoBlockMeta)
       : [stripInfoBlockMeta(block)],
   }), [block])
-  const onSplitRef = React.useRef(onSplit)
-  const editorRef = React.useRef<any>(null)
-
-  React.useEffect(() => {
-    onSplitRef.current = onSplit
-  }, [onSplit])
 
   const editor = useEditor({
     immediatelyRender: false,
-    editable,
-    editorProps: {
-      handleKeyDown: (_view, event) => {
-        if (event.key !== 'Enter' || event.isComposing || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) return false
-        const currentEditor = editorRef.current
-        if (currentEditor?.isActive('bulletList') || currentEditor?.isActive('orderedList') || currentEditor?.isActive('listItem')) {
-          const split = getInfoListExitBlocks(currentEditor, false)
-          if (!split) return false
-          event.preventDefault()
-          setInfoEditorContent(currentEditor, split.currentBlock)
-          onSplitRef.current?.(split.currentBlock, split.nextBlock)
-          return true
-        }
-        event.preventDefault()
-        onSplitRef.current?.(getInfoEditorOutputBlock(currentEditor?.getJSON().content || []))
-        return true
-      },
-    },
+    editable: false,
     extensions: [
       StarterKit.configure({
         heading: { levels: [1, 2] },
@@ -1237,32 +606,11 @@ function InfoTextBlock({ block, blockId, editable, onActivate, onUpdate, onSplit
       InfoTextAlign,
     ],
     content,
-    onFocus: ({ editor }) => onActivate(editor),
-    onSelectionUpdate: ({ editor }) => onActivate(editor),
     onUpdate: ({ editor }) => {
-      const nodes = editor.getJSON().content || []
-      const escapedList = getInfoEscapedListBlocks(nodes)
-      if (escapedList) {
-        setInfoEditorContent(editor, escapedList.currentBlock)
-        onSplitRef.current?.(escapedList.currentBlock, escapedList.nextBlock)
-        return
-      }
-      onUpdate(getInfoEditorOutputBlock(nodes))
+      const escapedList = getInfoEscapedListBlocks(editor.getJSON().content || [])
+      if (escapedList) setInfoEditorContent(editor, escapedList.currentBlock)
     },
-  }, [editable, blockId])
-
-  React.useEffect(() => {
-    editorRef.current = editor
-  }, [editor])
-
-  React.useEffect(() => {
-    if (!editor || !shouldFocus) return
-    const frame = window.requestAnimationFrame(() => {
-      editor.commands.focus('start')
-      onFocusComplete?.()
-    })
-    return () => window.cancelAnimationFrame(frame)
-  }, [editor, onFocusComplete, shouldFocus])
+  }, [blockId])
 
   React.useEffect(() => {
     if (!editor || editor.isFocused) return
@@ -1274,86 +622,8 @@ function InfoTextBlock({ block, blockId, editable, onActivate, onUpdate, onSplit
   return <EditorContent editor={editor} className="learning-info-text-block" />
 }
 
-function getInfoEditorOutputBlock(nodes: any[]) {
-  const nextNode = (nodes || []).find((node) => !isEmptyInfoParagraph(node)) || nodes?.[0]
-  return sanitizeInfoTextBlock(nextNode || createInfoTextBlock('paragraph'))
-}
-
 function setInfoEditorContent(editor: any, block: any) {
   editor?.commands?.setContent?.({ type: 'doc', content: [stripInfoBlockMeta(block)] }, false)
-}
-
-function isEmptyInfoParagraph(node: any) {
-  return node?.type === 'paragraph' && (!node.content || node.content.length === 0)
-}
-
-function getInfoListExitBlocks(editor: any, allowNonEmpty: boolean) {
-  if (!editor?.isActive?.('listItem')) return null
-  const nodes = editor.getJSON?.().content || []
-  const listNode = nodes.find((node: any) => node?.type === 'bulletList' || node?.type === 'orderedList')
-  if (!listNode) return null
-
-  const listItems = listNode.content || []
-  const selectedItem = getInfoSelectedListItem(editor)
-  const itemIndex = selectedItem ? getInfoMatchingListItemIndex(listItems, selectedItem) : getInfoSelectedListItemIndex(editor)
-  const activeItem = selectedItem || listItems[itemIndex]
-  if (!activeItem) return getInfoEscapedListBlocks(nodes)
-
-  const nextBlock = getInfoListItemAsParagraph(activeItem)
-  const isEmpty = isEmptyInfoParagraph(nextBlock)
-  if (!isEmpty && !allowNonEmpty) return null
-
-  const remainingItems = removeInfoListItem(listItems, activeItem, itemIndex)
-  if (!remainingItems.length && !isEmpty) {
-    return {
-      currentBlock: createInfoTextBlock('paragraph'),
-      nextBlock,
-      replaceCurrent: true,
-    }
-  }
-  const currentBlock = remainingItems.length
-    ? sanitizeInfoTextBlock({ ...listNode, content: remainingItems })
-    : createInfoTextBlock('paragraph')
-
-  return {
-    currentBlock,
-    nextBlock: isEmpty ? createInfoTextBlock('paragraph') : nextBlock,
-  }
-}
-
-function getInfoSelectedListItem(editor: any) {
-  const resolvedPosition = editor.state?.selection?.$from
-  if (!resolvedPosition) return null
-  for (let depth = resolvedPosition.depth; depth > 0; depth -= 1) {
-    const node = resolvedPosition.node(depth)
-    if (node?.type?.name === 'listItem') return node.toJSON?.() || null
-  }
-  return null
-}
-
-function getInfoMatchingListItemIndex(listItems: any[], selectedItem: any) {
-  const selectedJson = JSON.stringify(selectedItem)
-  const exactIndex = listItems.findIndex((item: any) => JSON.stringify(item) === selectedJson)
-  if (exactIndex >= 0) return exactIndex
-
-  const selectedText = getInfoNodeText(selectedItem).trim()
-  if (!selectedText) return listItems.findIndex((item: any) => isEmptyInfoListItem(item))
-  return listItems.findIndex((item: any) => getInfoNodeText(item).trim() === selectedText)
-}
-
-function removeInfoListItem(listItems: any[], activeItem: any, fallbackIndex: number) {
-  let removed = false
-  const activeJson = JSON.stringify(activeItem)
-  const activeText = getInfoNodeText(activeItem).trim()
-  return listItems.filter((item: any, index: number) => {
-    if (removed) return true
-    const isMatch = JSON.stringify(item) === activeJson ||
-      (activeText ? getInfoNodeText(item).trim() === activeText : isEmptyInfoListItem(item)) ||
-      index === fallbackIndex
-    if (!isMatch) return true
-    removed = true
-    return false
-  })
 }
 
 function getInfoEscapedListBlocks(nodes: any[]) {
@@ -1366,22 +636,6 @@ function getInfoEscapedListBlocks(nodes: any[]) {
     currentBlock: sanitizeInfoTextBlock(nodes[listIndex]),
     nextBlock: sanitizeInfoTextBlock(trailingNode),
   }
-}
-
-function getInfoSelectedListItemIndex(editor: any) {
-  const resolvedPosition = editor.state?.selection?.$from
-  if (!resolvedPosition) return -1
-  for (let depth = resolvedPosition.depth; depth > 0; depth -= 1) {
-    if (resolvedPosition.node(depth)?.type?.name === 'listItem') {
-      return resolvedPosition.index(depth - 1)
-    }
-  }
-  return -1
-}
-
-function getInfoListItemAsParagraph(node: any) {
-  const paragraph = (node?.content || []).find((child: any) => child?.type === 'paragraph')
-  return sanitizeInfoTextBlock(paragraph || createInfoTextBlock('paragraph'))
 }
 
 function sanitizeInfoTextBlock(node: any) {
@@ -1534,12 +788,7 @@ function resolveTextInputValidation(input: any, rule: any) {
   return 'none'
 }
 
-function createLearningLocalId(prefix: string) {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return `${prefix}_${crypto.randomUUID()}`
-  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-}
-
-function VideoPageContent({ page, answer, setAnswer, setUnlocked, editable, onPagePatch }: any) {
+function VideoPageContent({ page, answer, setAnswer, setUnlocked }: any) {
   const videoRef = React.useRef<HTMLVideoElement | null>(null)
   const youtubePlayerRef = React.useRef<any>(null)
   const videoUrl = page.content?.video_url || ''
@@ -1550,14 +799,11 @@ function VideoPageContent({ page, answer, setAnswer, setUnlocked, editable, onPa
   const allowScrubbing = page.content?.allow_scrubbing !== false
 
   React.useEffect(() => {
-    if (editable) return
     setUnlocked(false)
     setAnswer?.({ videoStarted: Boolean(videoUrl), videoProgress: 0, videoCurrentTime: 0, videoDuration: 0, videoPlaying: true })
-  }, [editable, page.page_uuid, setAnswer, setUnlocked, videoUrl])
+  }, [page.page_uuid, setAnswer, setUnlocked, videoUrl])
 
   React.useEffect(() => {
-    if (editable) return
-
     const togglePlayback = () => {
       const video = videoRef.current
       if (video) {
@@ -1574,10 +820,10 @@ function VideoPageContent({ page, answer, setAnswer, setUnlocked, editable, onPa
 
     window.addEventListener(toggleEventName, togglePlayback)
     return () => window.removeEventListener(toggleEventName, togglePlayback)
-  }, [editable, toggleEventName])
+  }, [toggleEventName])
 
   React.useEffect(() => {
-    if (editable || !allowScrubbing) return
+    if (!allowScrubbing) return
 
     const seekPlayback = (event: Event) => {
       const detail = (event as CustomEvent).detail || {}
@@ -1598,10 +844,10 @@ function VideoPageContent({ page, answer, setAnswer, setUnlocked, editable, onPa
 
     window.addEventListener(seekEventName, seekPlayback)
     return () => window.removeEventListener(seekEventName, seekPlayback)
-  }, [allowScrubbing, editable, seekEventName])
+  }, [allowScrubbing, seekEventName])
 
   React.useEffect(() => {
-    if (editable || !youtubeId) return
+    if (!youtubeId) return
     const interval = window.setInterval(() => {
       const player = youtubePlayerRef.current
       if (!player) return
@@ -1618,37 +864,7 @@ function VideoPageContent({ page, answer, setAnswer, setUnlocked, editable, onPa
     }, 500)
 
     return () => window.clearInterval(interval)
-  }, [editable, setAnswer, youtubeId])
-
-  if (editable) {
-    return (
-      <div className="relative flex h-full w-full items-center justify-center bg-black">
-        <div className="absolute left-5 right-5 top-5 z-10 mx-auto max-w-2xl">
-          <EditableText
-            as="h1"
-            editable
-            value={videoTitle}
-            placeholder="Optional video title"
-            onChange={(value: string) => onPagePatch?.({ content: { ...(page.content || {}), heading: value } })}
-            className="text-3xl font-bold text-white drop-shadow"
-          />
-        </div>
-        <div className="flex h-full w-full items-center justify-center overflow-hidden bg-black">
-          {videoUrl ? (
-            youtubeId ? (
-              <div className="flex aspect-video max-h-full w-full items-center justify-center bg-zinc-900 text-sm font-medium text-white/70">YouTube video preview</div>
-            ) : (
-              <video src={videoUrl} className="h-full w-full object-contain" muted preload="metadata" />
-            )
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-black text-sm font-medium text-white/60">
-              Add a video URL in the sidebar
-            </div>
-          )}
-        </div>
-      </div>
-    )
-  }
+  }, [setAnswer, youtubeId])
 
   const updateNativeProgress = () => {
     const video = videoRef.current
@@ -1788,46 +1004,4 @@ function formatTime(seconds: number) {
   const minutes = Math.floor(safeSeconds / 60)
   const remaining = Math.floor(safeSeconds % 60)
   return `${minutes}:${String(remaining).padStart(2, '0')}`
-}
-
-function EditableText({ as = 'div', editable, value, placeholder, onChange, className, multiline = false, elementRef }: any) {
-  const Element = as
-  const ref = React.useRef<HTMLElement | null>(null)
-  const valueRef = React.useRef(value || '')
-
-  React.useEffect(() => {
-    valueRef.current = value || ''
-    if (ref.current && document.activeElement !== ref.current && ref.current.innerText !== valueRef.current) {
-      ref.current.innerText = valueRef.current
-    }
-  }, [value])
-
-  const setRefs = (node: HTMLElement | null) => {
-    ref.current = node
-    if (elementRef) elementRef.current = node
-  }
-
-  if (!editable) return <Element ref={elementRef} className={className}>{value || placeholder}</Element>
-
-  return (
-    <Element
-      ref={setRefs}
-      contentEditable
-      suppressContentEditableWarning
-      role="textbox"
-      aria-label={placeholder}
-      data-placeholder={placeholder}
-      onInput={(event: React.FormEvent<HTMLElement>) => {
-        valueRef.current = event.currentTarget.innerText
-      }}
-      onBlur={() => onChange?.(valueRef.current.trim())}
-      onKeyDown={(event: React.KeyboardEvent<HTMLElement>) => {
-        if (!multiline && event.key === 'Enter') {
-          event.preventDefault()
-          event.currentTarget.blur()
-        }
-      }}
-      className={`${className || ''} rounded-md outline-none transition focus:bg-card focus:ring-2 focus:ring-[var(--org-primary-color)] empty:before:text-muted-foreground empty:before:content-[attr(data-placeholder)]`}
-    />
-  )
 }

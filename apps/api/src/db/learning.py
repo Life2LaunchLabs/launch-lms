@@ -372,6 +372,9 @@ class LearningActivityBase(SQLModel):
     icon: str | None = None
     order: int = 1
     required: bool = True
+    # Listed for learners. Only the system onboarding badge hides activities
+    # (set from launch_ready.json); everywhere else the badge version is the
+    # unit of publishing, so this is not editable through the API.
     published: bool = False
     settings: dict = Field(default_factory=dict, sa_column=Column(JSON))
 
@@ -393,7 +396,6 @@ class LearningActivityCreate(SQLModel):
     thumbnail_image: str | None = ""
     icon: str | None = None
     required: bool = True
-    published: bool = False
     settings: dict = Field(default_factory=dict)
 
 
@@ -420,7 +422,6 @@ class LearningActivityUpdate(SQLModel):
     icon: str | None = None
     order: int | None = None
     required: bool | None = None
-    published: bool | None = None
     settings: dict | None = None
 
 

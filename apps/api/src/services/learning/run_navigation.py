@@ -146,14 +146,7 @@ def _resolved_activity_flow(
     db_session: Session, run: LearningRun, activity_run: LearningActivityRun
 ):
     activity = db_session.get(LearningActivity, activity_run.activity_id)
-    definition = (activity_run.data or {}).get("definition") or {}
-    flow = (
-        definition.get("flow")
-        if "flow" in definition
-        else (activity.settings or {}).get("flow")
-        if activity
-        else None
-    )
+    flow = (activity.settings or {}).get("flow") if activity else None
     return (
         resolve_flow(flow, _flow_context(db_session, run, activity_run))
         if flow
@@ -162,58 +155,66 @@ def _resolved_activity_flow(
 
 
 def _run_navigation(db_session: Session, run: LearningRun) -> dict:
-    activities = []
-    for activity_run in db_session.exec(
-        select(LearningActivityRun).where(LearningActivityRun.run_id == run.id)
+    """The server-side route of every activity in the run's version.
+
+    Players render ``path`` and move to ``current_page_uuid``; they never
+    resolve flows themselves. Activities the learner has not opened yet get a
+    route too, so the first page can already depend on learner variables.
+    """
+    activity_runs = {
+        activity_run.activity_id: activity_run
+        for activity_run in db_session.exec(
+            select(LearningActivityRun).where(LearningActivityRun.run_id == run.id)
+        ).all()
+    }
+    activities = db_session.exec(
+        select(LearningActivity).where(
+            LearningActivity.badge_id == run.badge_id,
+            LearningActivity.version_id == run.badge_version_id,
+        )
+    ).all()
+    activity_ids = {activity.id for activity in activities} | set(activity_runs)
+    pages_by_activity: dict[int, list[LearningPage]] = {}
+    for page in db_session.exec(
+        select(LearningPage).where(LearningPage.activity_id.in_(activity_ids))  # type: ignore[union-attr]
     ).all():
-        resolved = _resolved_activity_flow(db_session, run, activity_run)
-        completed = {
-            item.page_id
-            for item in db_session.exec(
-                select(LearningPageProgress).where(
-                    LearningPageProgress.run_id == run.id,
-                    LearningPageProgress.complete == True,
-                )
-            ).all()
-        }
-        pages = db_session.exec(
-            select(LearningPage).where(
-                LearningPage.activity_id == activity_run.activity_id
+        pages_by_activity.setdefault(page.activity_id, []).append(page)
+    completed = {
+        item.page_id
+        for item in db_session.exec(
+            select(LearningPageProgress).where(
+                LearningPageProgress.run_id == run.id,
+                LearningPageProgress.complete == True,  # noqa: E712
             )
         ).all()
-        by_uuid = {page.page_uuid: page for page in pages}
+    }
+    navigation = []
+    for activity_id in sorted(activity_ids):
+        activity_run = activity_runs.get(activity_id) or LearningActivityRun(
+            run_id=run.id or 0, activity_id=activity_id, data={}
+        )
+        resolved = _resolved_activity_flow(db_session, run, activity_run)
+        pages = pages_by_activity.get(activity_id, [])
+        done = {page.page_uuid for page in pages if page.id in completed}
         path = (
-            resolved.page_uuids
+            list(resolved.page_uuids)
             if resolved
             else [page.page_uuid for page in sorted(pages, key=lambda page: page.order)]
         )
-        current = next(
-            (
-                uuid
-                for uuid in path
-                if (by_uuid.get(uuid).id if by_uuid.get(uuid) else None)
-                not in completed
-            ),
-            None,
-        )
-        activities.append(
+        navigation.append(
             {
-                "activity_id": activity_run.activity_id,
+                "activity_id": activity_id,
                 "path": path,
-                "current_page_uuid": current,
+                "current_page_uuid": next((uuid for uuid in path if uuid not in done), None),
                 "terminal_reachable": bool(resolved.terminal) if resolved else True,
                 "condition_trace": resolved.trace if resolved else [],
-                "completed": len(
-                    [
-                        uuid
-                        for uuid in path
-                        if by_uuid.get(uuid) and by_uuid[uuid].id in completed
-                    ]
-                ),
+                "completed": len([uuid for uuid in path if uuid in done]),
                 "total": len(path),
+                # Score/pass result once every required page on the route is done.
+                "result": (activity_run.data or {}).get("completion_result"),
             }
         )
-    return {"activities": activities}
+    return {"activities": navigation}
 
 
 def _block_scoring(page: LearningPage, question: dict) -> dict:

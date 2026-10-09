@@ -30,7 +30,6 @@ import {
   Layers3,
   ListChecks,
   Lock,
-  Loader2,
   Monitor,
   MousePointer2,
   MousePointerClick,
@@ -162,7 +161,6 @@ export default function LearningActivityEditor({
   const [handMode, setHandMode] = React.useState(false)
   const [saveState, setSaveState] = React.useState<SaveState>('saved')
   const [lastSavedAt, setLastSavedAt] = React.useState<Date | null>(null)
-  const [publishing, setPublishing] = React.useState(false)
   const [previewOpen, setPreviewOpen] = React.useState(false)
   const [uploadingBlockId, setUploadingBlockId] = React.useState<string | null>(null)
   const [selectingVideoPageUuid, setSelectingVideoPageUuid] = React.useState<string | null>(null)
@@ -715,25 +713,6 @@ export default function LearningActivityEditor({
     }
   }
 
-  const publishActivity = async () => {
-    if (invalidFlowRef.current) {
-      toast.error('Fix the flow warnings before publishing')
-      return
-    }
-    const nextPublished = !activityState.published
-    setPublishing(true)
-    try {
-      await saveBeforeAction()
-      const saved = await updateLearningActivity(activityState.activity_uuid, { published: nextPublished }, accessToken)
-      setActivityState((current: any) => ({ ...current, ...(saved || {}), published: nextPublished }))
-      toast.success(nextPublished ? 'Activity published' : 'Activity unpublished')
-    } catch (error: any) {
-      toast.error(error?.message || 'Could not update publish status')
-    } finally {
-      setPublishing(false)
-    }
-  }
-
   const handleMediaPicked = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     event.target.value = ''
@@ -887,6 +866,22 @@ export default function LearningActivityEditor({
         <BadgeVersionToolbar badge={badge} saveState={saveState === 'dirty' ? 'unsaved' : saveState} />
       </div>
       {!isDraft ? <div className="shrink-0 border-b border-amber-200 bg-amber-50 px-5 py-2 text-center text-xs font-semibold text-amber-900">Published versions are immutable. Create a draft from this version to edit the activity.</div> : null}
+      <EditorHeader
+        badgeName={badge.name}
+        activity={activityState}
+        device={device}
+        setDevice={setDevice}
+        saveState={saveState}
+        lastSavedAt={lastSavedAt}
+        onBack={goBack}
+        onPreview={() => setPreviewOpen(true)}
+      />
+      <div className="flex h-11 shrink-0 items-center justify-center gap-2 border-b border-gray-200 bg-white px-5">
+        <TopModeButton active={viewMode === 'editor'} onClick={() => setViewMode('editor')} label="Editor" />
+        <TopModeButton active={viewMode === 'flow'} onClick={() => setViewMode('flow')} label="Flow" />
+        <TopModeButton active={viewMode === 'settings'} onClick={() => setViewMode('settings')} label="Settings" />
+      </div>
+
       <fieldset disabled={!isDraft} className={`flex min-h-0 flex-1 flex-col border-0 p-0 ${!isDraft ? '[&_[contenteditable=true]]:pointer-events-none [&_[contenteditable=true]]:select-none' : ''}`}>
       <input ref={mediaInputRef} type="file" accept="image/*" className="hidden" onChange={handleMediaPicked} />
       <MediaPickerDialog
@@ -913,24 +908,6 @@ export default function LearningActivityEditor({
         mediaType="video"
         accessToken={accessToken}
       />
-      <EditorHeader
-        badgeName={badge.name}
-        activity={activityState}
-        device={device}
-        setDevice={setDevice}
-        saveState={saveState}
-        lastSavedAt={lastSavedAt}
-        publishing={publishing}
-        onBack={goBack}
-        onPreview={() => setPreviewOpen(true)}
-        onPublish={publishActivity}
-      />
-      <div className="flex h-11 shrink-0 items-center justify-center gap-2 border-b border-gray-200 bg-white px-5">
-        <TopModeButton active={viewMode === 'editor'} onClick={() => setViewMode('editor')} label="Editor" />
-        <TopModeButton active={viewMode === 'flow'} onClick={() => setViewMode('flow')} label="Flow" />
-        <TopModeButton active={viewMode === 'settings'} onClick={() => setViewMode('settings')} label="Settings" />
-      </div>
-
       {viewMode === 'settings' ? (
         <ActivitySettingsView
           activity={activityState}
@@ -1078,10 +1055,10 @@ export default function LearningActivityEditor({
         </div>
       )}
 
+      </fieldset>
       {previewOpen && (
         <EditorPreviewModal activity={activityState} pages={pages} accessToken={accessToken} onClose={() => setPreviewOpen(false)} />
       )}
-      </fieldset>
     </div>
   )
 }
@@ -1096,7 +1073,7 @@ function ActivityFlowView({ activity, pages, learningVariables, onSelectPage, on
   return <VisualFlowEditor flow={flow} pages={pages} learningVariables={learningVariables} issues={issues} onChange={onPatchFlow} onSelectPage={onSelectPage} onAddPage={onAddPage} onCreateVariableKey={onCreateVariableKey}/>
 }
 
-function EditorHeader({ badgeName, activity, device, setDevice, saveState, lastSavedAt, publishing, onBack, onPreview, onPublish }: any) {
+function EditorHeader({ badgeName, activity, device, setDevice, saveState, lastSavedAt, onBack, onPreview }: any) {
   return (
     <div className="flex h-14 shrink-0 items-center justify-between border-b border-gray-200 bg-white px-4">
       <div className="flex min-w-0 items-center gap-3">
@@ -1117,18 +1094,6 @@ function EditorHeader({ badgeName, activity, device, setDevice, saveState, lastS
         <button onClick={onPreview} className="inline-flex h-9 items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 text-sm font-bold text-gray-700 transition hover:bg-gray-50">
           <Eye size={16} />
           Preview
-        </button>
-        <button
-          onClick={onPublish}
-          disabled={publishing}
-          className={`inline-flex h-9 items-center gap-2 rounded-lg border px-4 text-sm font-bold transition disabled:opacity-70 ${
-            activity.published
-              ? 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
-              : 'border-gray-950 bg-gray-950 text-white hover:bg-black'
-          }`}
-        >
-          {publishing ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
-          {activity.published ? 'Published' : 'Publish'}
         </button>
       </div>
     </div>

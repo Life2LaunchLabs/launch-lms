@@ -42,7 +42,7 @@ def _clone_version_graph(db_session: Session, badge: LearningBadge, source: Lear
             path_id=target_path.id or 0, badge_id=badge.id or 0, version_id=target.id,
             org_id=badge.org_id, title=source_activity.title, description=source_activity.description,
             thumbnail_image=source_activity.thumbnail_image, icon=source_activity.icon,
-            order=source_activity.order, required=source_activity.required, published=True,
+            order=source_activity.order, required=source_activity.required, published=source_activity.published,
             settings=deepcopy(source_activity.settings or {}), activity_uuid=f"learning_activity_{uuid4()}",
             creation_date=now, update_date=now,
         )

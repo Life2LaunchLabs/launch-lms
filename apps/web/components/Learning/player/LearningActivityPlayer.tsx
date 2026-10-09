@@ -6,8 +6,7 @@ import toast from 'react-hot-toast'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { completeLearningPage, startLearningRun, submitLearningResponse } from '@services/learning/learning'
 import { getUriWithOrg } from '@services/config/config'
-import { activityHasScoredQuestions } from '@components/Learning/editor/utils'
-import { ActivityPlayer, type ActivityRuntime, getSubmittedActivityStatus } from './ActivityPlayer'
+import { ActivityPlayer, type ActivityRuntime, getActivityResult } from './ActivityPlayer'
 
 export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgslug: string; badgePath: any; activity: any }) {
   const router = useRouter()
@@ -20,7 +19,7 @@ export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgsl
   const issuingOrgId = badgePath?.enrollment?.accepted_issuer_org_id
   const runUuidRef = React.useRef<string | undefined>(badgePath.run?.run_uuid)
   const [retakeBaselineAttemptIds] = React.useState<Set<string>>(() => {
-    const isRetake = badgePath.run && getSubmittedActivityStatus(badgePath.run, activity) === 'failed'
+    const isRetake = getActivityResult(badgePath.run, activity)?.status === 'failed'
     return new Set(isRetake ? (badgePath.run?.attempts || []).map((attempt: any) => attempt.attempt_uuid) : [])
   })
 
@@ -45,11 +44,11 @@ export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgsl
 
   const finish = (run: any) => {
     const grading = activity.settings?.grading || {}
-    if (activityHasScoredQuestions(activity.pages || [])) {
-      const resultStatus = getSubmittedActivityStatus(run, activity)
-      if (resultStatus === 'pending') {
+    const result = getActivityResult(run, activity)
+    if (result?.scored) {
+      if (result.status === 'pending') {
         toast.success('Activity submitted for review.')
-      } else if (resultStatus === 'failed') {
+      } else if (result.status === 'failed') {
         toast.error(grading.failure_message || 'Activity finished. Review your answers and try again when you are ready.')
       } else {
         toast.success(grading.success_message || 'Activity passed.')

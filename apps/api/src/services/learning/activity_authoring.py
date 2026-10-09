@@ -261,11 +261,6 @@ async def update_activity(
     access_rules._require_org_admin(db_session, current_user, activity.org_id)
     version = lookups._assert_content_editable(db_session, activity.version_id)
     patch = data.model_dump(exclude_unset=True)
-    if access_rules._is_locked_launch_ready_activity(activity) and patch.get("published") is False:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Required Launch Ready activities cannot be unpublished",
-        )
     if "settings" in patch:
         pages = db_session.exec(
             select(LearningPage).where(LearningPage.activity_id == activity.id)
