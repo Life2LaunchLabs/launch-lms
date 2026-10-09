@@ -117,3 +117,18 @@ export async function stepLearningPreview(token: string, step: { action: 'submit
   )
   return errorHandling(result)
 }
+
+// Stored content that predates the current content models. It still works for
+// learners and can still be saved; edits just cannot add new issues.
+export interface ActivityContentIssues { pages: Record<string, string[]>; flow: string[] }
+
+export async function getActivityContentIssues(activityUuid: string, accessToken?: string): Promise<ActivityContentIssues> {
+  const result = await fetch(`${getAPIUrl()}learning-content/activities/${activityUuid}/issues`, RequestBodyWithAuthHeader('GET', null, null, accessToken))
+  return errorHandling(result)
+}
+
+// apply=false lists the mechanical fixes for review; apply=true saves them (drafts only).
+export async function repairActivityContent(activityUuid: string, apply: boolean, accessToken?: string): Promise<{ changes: { pages: Record<string, string[]>; flow: string[] }; remaining: ActivityContentIssues; activity?: any }> {
+  const result = await fetch(`${getAPIUrl()}learning-content/activities/${activityUuid}/repair`, RequestBodyWithAuthHeader('POST', { apply }, null, accessToken))
+  return errorHandling(result)
+}

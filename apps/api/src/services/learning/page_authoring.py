@@ -1,5 +1,6 @@
 """Page authoring, validation and media."""
 
+import logging
 from copy import deepcopy
 from uuid import uuid4
 from fastapi import HTTPException, Request, UploadFile, status
@@ -15,7 +16,8 @@ from src.db.learning import (
     LearningPageUpdate,
 )
 from src.db.users import AnonymousUser, PublicUser
-from src.services.learning_content.models import StandardPageContent, content_error
+from src.services.learning_content.models import StandardPageContent
+from src.services.learning_content.recovery import split_issues
 from src.services.learning_flow import (
     FlowValidationError,
     validate_flow,
@@ -26,6 +28,8 @@ from src.services.learning_page_convert import (
 )
 from src.services.utils.upload_content import upload_file
 from src.services.learning import access_rules, lookups
+
+logger = logging.getLogger(__name__)
 
 
 async def convert_page_variants_to_flow(
@@ -183,19 +187,25 @@ async def convert_page_variants_to_flow(
     return lookups._serialize_activity(activity, all_pages)
 
 
-def _validate_page_payload(page_type: LearningPageType, content: dict | None) -> None:
+def _validate_page_payload(page_type: LearningPageType, content: dict | None, previous: dict | None = None) -> list[str]:
     """Shape rules come from the typed content models; this adds what only the
-    page API needs (revisit targets must already be real pages)."""
+    page API needs (revisit targets must already be real pages).
+
+    With ``previous`` (the stored content) only issues the edit introduces are
+    rejected; issues the page already had are returned so the save goes through
+    and admins are never locked out of content that predates a model change.
+    """
     if page_type != LearningPageType.STANDARD or not isinstance(content, dict):
-        return
-    error = content_error(StandardPageContent, content)
-    if error:
-        raise HTTPException(status_code=422, detail=error)
+        return []
+    introduced, carried = split_issues(StandardPageContent, content, previous)
+    if introduced:
+        raise HTTPException(status_code=422, detail=introduced[0])
     for stack in iter_block_stacks(content):
         for block in stack:
-            button = block.get("content") or {} if block.get("type") == "button" else {}
+            button = (block.get("content") or {}) if isinstance(block, dict) and block.get("type") == "button" else {}
             if button.get("action") == "revisit" and not str(button.get("revisit_page_uuid")).startswith("learning_page_"):
                 raise HTTPException(status_code=422, detail="Buttons either continue along the flow or revisit an earlier page")
+    return carried
 
 
 def _validate_page_button_destinations(
@@ -273,9 +283,12 @@ async def update_page(
     version = lookups._assert_content_editable(db_session, page.version_id)
     patch = data.model_dump(exclude_unset=True)
     if "content" in patch or "page_type" in patch:
-        _validate_page_payload(
-            patch.get("page_type") or page.page_type, patch.get("content", page.content)
+        page_type = patch.get("page_type") or page.page_type
+        carried = _validate_page_payload(
+            page_type, patch.get("content", page.content), page.content if page_type == page.page_type else None
         )
+        if carried:
+            logger.warning("Saved learning page %s with existing content issues: %s", page.page_uuid, carried)
         if any(
             block.get("type") == "portfolio_preview"
             for stack in iter_block_stacks(patch.get("content", page.content) or {})

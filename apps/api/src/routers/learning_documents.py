@@ -2,6 +2,7 @@ from fastapi import APIRouter, Body, Depends, Request
 from fastapi.responses import PlainTextResponse
 from src.core.events.database import get_db_session
 from src.security.auth import get_current_user
+from src.services.learning_content import activity_recovery as recovery
 from src.services.learning_documents import store
 from src.services.learning_preview import sessions as previews
 from src.services.learning_documents.models import (
@@ -90,3 +91,24 @@ async def api_preview_step(
     request: Request, token: str, payload: previews.PreviewStep, db_session=Depends(get_db_session)
 ) -> dict:
     return await previews.step_preview(request, token, payload, db_session)
+
+
+content_router = APIRouter()
+
+
+@content_router.get("/activities/{activity_uuid}/issues")
+async def api_activity_content_issues(
+    request: Request, activity_uuid: str, current_user=Depends(get_current_user), db_session=Depends(get_db_session)
+) -> dict:
+    return await recovery.get_activity_issues(request, activity_uuid, current_user, db_session)
+
+
+@content_router.post("/activities/{activity_uuid}/repair")
+async def api_repair_activity_content(
+    request: Request,
+    activity_uuid: str,
+    apply: bool = Body(default=False, embed=True),
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> dict:
+    return await recovery.repair_activity(request, activity_uuid, apply, current_user, db_session)

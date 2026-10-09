@@ -28,6 +28,8 @@ from src.services.learning_documents.models import (
     DocumentIssue,
 )
 from src.services.learning_documents.references import rewrite_page_references
+from src.services.learning_content.models import Flow
+from src.services.learning_content.recovery import content_issues
 from src.services.learning_flow import (
     FlowValidationError,
     convert_button_destinations,
@@ -115,8 +117,13 @@ def prepare_document(
     existing_page_uuids: set[str],
     allow_system_blocks: bool,
     remap_stored_ids: bool = False,
+    baseline: dict | None = None,
 ) -> PreparedDocument:
     """Validate ``raw`` and resolve new-page placeholders.
+
+    ``baseline`` is the stored activity's own document: content issues it
+    already has are reported as warnings instead of blocking the save, so a
+    model change never locks admins (or Claude) out of older content.
 
     ``existing_page_uuids`` are the stored pages of the activity being saved
     (empty when creating). Stored uuids from any other activity are rejected,
@@ -173,6 +180,9 @@ def prepare_document(
     if converted_flow is not None:
         activity["settings"]["flow"] = converted_flow
 
+    stored_content = {page["page_uuid"]: page.get("content") for page in (baseline or {}).get("pages") or []}
+    stored_flow = (((baseline or {}).get("activity") or {}).get("settings") or {}).get("flow")
+    carried_flow = content_issues(Flow, stored_flow) if stored_flow else []
     for index, page in enumerate(pages):
         content = page["content"] = normalize_question_settings(_public(page.get("content"), HIDDEN_CONTENT_KEYS))
         prefix = f"pages[{index}].content"
@@ -180,14 +190,12 @@ def prepare_document(
         if page_type == LearningPageType.STANDARD and not isinstance(content.get("blocks"), list):
             result.errors.append(DocumentIssue(path=f"{prefix}.blocks", message="Standard pages need a blocks array"))
             continue
-        for check in (
-            lambda: _validate_page_payload(page_type, content),
-            lambda: _validate_page_button_destinations(content, page_ids),
-        ):
-            try:
-                check()
-            except HTTPException as exc:
-                result.errors.append(DocumentIssue(path=prefix, message=_detail(exc)))
+        try:
+            for issue in _validate_page_payload(page_type, content, stored_content.get(page["page_uuid"])):
+                result.warnings.append(DocumentIssue(path=prefix, message=f"Existing issue (save allowed): {issue}"))
+            _validate_page_button_destinations(content, page_ids)
+        except HTTPException as exc:
+            result.errors.append(DocumentIssue(path=prefix, message=_detail(exc)))
         if not allow_system_blocks and any(
             isinstance(block, dict) and block.get("type") == "portfolio_preview"
             for stack in iter_block_stacks(content)
@@ -221,7 +229,11 @@ def prepare_document(
             deepcopy(activity["settings"].get("flow")),
             page_ids,
             {page["page_uuid"] for page in pages if page["required"]},
+            carried=carried_flow,
         )
+        current_flow = activity["settings"].get("flow")
+        for issue in content_issues(Flow, current_flow) if current_flow else []:
+            result.warnings.append(DocumentIssue(path="activity.settings.flow", message=f"Existing issue (save allowed): {issue}"))
     except FlowValidationError as exc:
         result.errors.append(DocumentIssue(path="activity.settings.flow", message=str(exc)))
     result.errors.extend(_button_route_issues(activity["settings"].get("flow"), pages))

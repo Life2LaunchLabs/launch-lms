@@ -15,6 +15,8 @@ from src.db.learning import (
     LearningPageType,
 )
 from src.db.users import AnonymousUser, PublicUser
+from src.services.learning_content.models import Flow
+from src.services.learning_content.recovery import content_issues
 from src.services.learning_flow import (
     FlowValidationError,
     append_page_to_flow,
@@ -267,10 +269,12 @@ async def update_activity(
         ).all()
         badge = db_session.get(LearningBadge, activity.badge_id)
         try:
+            stored_flow = (activity.settings or {}).get("flow")
             validate_flow(
                 (patch["settings"] or {}).get("flow"),
                 {page.page_uuid for page in pages},
                 {page.page_uuid for page in pages if page.required},
+                carried=content_issues(Flow, stored_flow) if stored_flow else (),
             )
             validate_outcomes(
                 (patch["settings"] or {}).get("outcomes"),

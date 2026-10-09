@@ -79,6 +79,7 @@ async def create_preview(
         raw,
         existing_page_uuids={page.page_uuid for page in existing},
         allow_system_blocks=learning._is_system_object(badge),
+        baseline=export_document(activity, existing) if activity else None,
     )
     if not prepared.ok:
         raise HTTPException(

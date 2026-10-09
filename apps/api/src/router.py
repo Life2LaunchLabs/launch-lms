@@ -199,6 +199,7 @@ v1_router.include_router(learning_router_module.imports_router, prefix="/badge-i
 v1_router.include_router(learning_router_module.variables_router, prefix="/learning-variables", tags=["learning-variables"])
 v1_router.include_router(learning_documents_router_module.router, prefix="/learning-documents", tags=["learning-documents"])
 v1_router.include_router(learning_documents_router_module.previews_router, prefix="/learning-previews", tags=["learning-previews"])
+v1_router.include_router(learning_documents_router_module.content_router, prefix="/learning-content", tags=["learning-content"])
 v1_router.include_router(oauth_router_module.router, prefix="/oauth", tags=["oauth"])
 v1_router.include_router(mcp_router_module.router, prefix="/mcp", tags=["mcp"])
 v1_router.include_router(marketplace_router_module.router, prefix="/badge-marketplace", tags=["learning-badge-marketplace"])

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Collection
+
 import json
 from copy import deepcopy
 from dataclasses import dataclass
@@ -167,17 +169,19 @@ def evaluate_condition(
 
 
 def validate_flow(
-    flow: dict | None, page_uuids: set[str], required_page_uuids: set[str]
+    flow: dict | None, page_uuids: set[str], required_page_uuids: set[str], carried: Collection[str] = ()
 ) -> list[str]:
+    """``carried``: shape issues the stored flow already had; they do not block a save."""
     if not flow:
         return []
-    from src.services.learning_content.models import Flow, content_error
+    from src.services.learning_content.models import Flow
+    from src.services.learning_content.recovery import content_issues
 
     if flow.get("version") != 1:
         raise FlowValidationError("Flow version must be 1")
-    shape_error = content_error(Flow, flow)
-    if shape_error:
-        raise FlowValidationError(f"Invalid flow: {shape_error}")
+    introduced = [issue for issue in content_issues(Flow, flow) if issue not in carried]
+    if introduced:
+        raise FlowValidationError(f"Invalid flow: {introduced[0]}")
     nodes = flow.get("nodes")
     edges = flow.get("edges")
     if not isinstance(nodes, list) or not isinstance(edges, list):

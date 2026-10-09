@@ -131,9 +131,13 @@ Still to do: add the connector in a real Claude client against life2launch.dev.
 | R8 | `LearningActivity.published` is system-only visibility (no-op Publish button removed); Preview works on published versions; `LAUNCHLMS_SSL`/bool env parsing fixed | `13a50c1` |
 | R6 | Typed content models (`services/learning_content`) drive page validation, the published JSON Schema and generated TS types (`content.generated.ts`) | `59a162a` |
 
-Before deploying R6, run the read-only audit against a production copy; it lists stored pages
-and flows the stricter models would reject (admins could not re-save those pages):
-`cd apps/api && uv run python cli.py audit-learning-content`.
+Content saved before the models tightened never blocks anyone: learners are unaffected (the
+runtime does not validate), saves only reject issues an edit *introduces* (issues the stored page or
+flow already had are carried and returned as warnings, for the page API, activity settings, document
+saves from Claude and previews), the editor lists them in a banner, and **Repair** applies the
+mechanical fixes after showing them (drafts only); anything needing a decision, such as an unknown
+block type, stays listed. `uv run python cli.py audit-learning-content` reports the same issues
+across a whole database.
 
 Verified locally on PostgreSQL: both data migrations upgrade a pre-R3 database (4 legacy buttons
 became revisits), every stored page and flow passes the models, and in Chromium a share-link preview

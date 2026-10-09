@@ -119,7 +119,10 @@ async def validate_activity_document(
     else:
         raise HTTPException(status_code=422, detail="Pass activity_uuid or badge_uuid to validate against")
     prepared = prepare_document(
-        raw, existing_page_uuids=existing, allow_system_blocks=_is_system_badge(db_session, badge_id)
+        raw,
+        existing_page_uuids=existing,
+        allow_system_blocks=_is_system_badge(db_session, badge_id),
+        baseline=export_document(activity, activity_pages(db_session, activity)) if activity_uuid else None,
     )
     return {
         "valid": prepared.ok,
@@ -200,6 +203,7 @@ async def save_activity_document(
         payload.document.model_dump(),
         existing_page_uuids=set(existing),
         allow_system_blocks=_is_system_badge(db_session, activity.badge_id),
+        baseline=export_document(activity, list(existing.values())),
     )
     if not prepared.ok:
         raise _invalid(prepared)

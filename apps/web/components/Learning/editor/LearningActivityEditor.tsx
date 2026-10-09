@@ -54,7 +54,6 @@ import {
 } from '@components/ui/dropdown-menu'
 import {
   createLearningPage,
-  convertLearningPageVariants,
   createLearningVariable,
   deleteLearningVariable,
   deleteLearningPage,
@@ -74,6 +73,7 @@ import {
   type LearningTextBlock,
 } from '@components/Learning/schema'
 import { LearningActivitySurface } from '@components/Learning/LearningBadgeViews'
+import { ContentIssuesBanner } from './ContentIssuesBanner'
 import type { DeviceMode, EditorViewMode, SaveState, Selection } from './types'
 import {
   EMPTY_PARAGRAPH,
@@ -676,20 +676,7 @@ export default function LearningActivityEditor({
     scheduleActivitySave({ settings })
   }
 
-  const convertVariants = async (page: any) => {
-    if (!accessToken) return
-    try {
-      await saveBeforeAction()
-      const saved = await convertLearningPageVariants(activityState.activity_uuid, page.page_uuid, accessToken)
-      setActivityState((current: any) => ({ ...current, ...(saved || {}) }))
-      setPages(normalizeInitialPages(saved.pages || []))
-      setVariantKey('default')
-      toast.success('Variants converted to editable branches')
-    } catch (error: any) {
-      toast.error(error?.message || 'Could not convert variants')
-    }
-  }
-
+  const applySavedActivity = (saved: any) => { setActivityState((current: any) => ({ ...current, ...(saved || {}) })); setPages(normalizeInitialPages(saved?.pages || [])) }
   const saveBeforeAction = async () => {
     if (saveTimerRef.current) {
       clearTimeout(saveTimerRef.current)
@@ -865,7 +852,7 @@ export default function LearningActivityEditor({
       <div className="flex shrink-0 items-center border-b border-gray-200 bg-white px-4 py-2">
         <BadgeVersionToolbar badge={badge} saveState={saveState === 'dirty' ? 'unsaved' : saveState} />
       </div>
-      {!isDraft ? <div className="shrink-0 border-b border-amber-200 bg-amber-50 px-5 py-2 text-center text-xs font-semibold text-amber-900">Published versions are immutable. Create a draft from this version to edit the activity.</div> : null}
+      <ContentIssuesBanner activityUuid={activityState.activity_uuid} pages={pages} editable={isDraft} accessToken={accessToken} refreshKey={lastSavedAt} beforeRepair={saveBeforeAction} onRepaired={applySavedActivity} />
       <EditorHeader
         badgeName={badge.name}
         activity={activityState}
@@ -927,11 +914,8 @@ export default function LearningActivityEditor({
           activity={activityState}
           pages={pages}
           learningVariables={learningVariables}
-          trusted={badge?.system_type === 'onboarding' || badge?.protected === true}
           onSelectPage={(pageUuid: string) => { setSelection({ pageUuid, blockId: null }); setViewMode('editor') }}
           onPatchFlow={patchFlowSettings}
-          onPatchActivity={patchActivityBasics}
-          onConvertVariants={convertVariants}
           onAddPage={(insertion: FlowInsertion) => addPage('standard', insertion)}
           onCreateVariableKey={createVariableFromKey}
         />
