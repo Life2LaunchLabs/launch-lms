@@ -29,7 +29,7 @@ from src.services.learning_documents.models import (
 )
 from src.services.learning_documents.references import rewrite_page_references
 from src.services.learning_flow import FlowValidationError, validate_flow
-from src.services.learning_page_convert import convert_legacy_page, iter_block_stacks
+from src.services.learning_page_convert import iter_block_stacks, normalize_question_settings
 from src.services.learning_portfolio_actions import PortfolioActionError, validate_outcomes
 
 STORED_PAGE_PREFIX = "learning_page_"
@@ -40,30 +40,17 @@ def _public(value: dict | None, hidden: frozenset[str]) -> dict:
     return {key: deepcopy(item) for key, item in (value or {}).items() if key not in hidden}
 
 
-def _page_type(page: LearningPage) -> tuple[str, dict]:
-    page_type = page.page_type.value if hasattr(page.page_type, "value") else str(page.page_type)
-    content = _public(page.content, HIDDEN_CONTENT_KEYS)
-    if page_type in {LearningPageType.STANDARD.value, LearningPageType.VIDEO.value}:
-        return page_type, content
-    # Legacy page types are upgraded on export so documents only ever carry
-    # the two current types; saving the document completes the migration.
-    return convert_legacy_page(page_type, content)
-
-
 def export_document(activity: LearningActivity, pages: list[LearningPage]) -> dict:
     exported_pages = []
     for page in sorted(pages, key=lambda item: (item.order, item.id or 0)):
-        page_type, content = _page_type(page)
         exported_pages.append(
             {
                 "page_uuid": page.page_uuid,
-                "page_type": page_type,
+                "page_type": page.page_type.value if hasattr(page.page_type, "value") else str(page.page_type),
                 "title": page.title,
                 "required": bool(page.required),
-                "content": content,
+                "content": _public(page.content, HIDDEN_CONTENT_KEYS),
                 "design": deepcopy(page.design or {}),
-                "scoring": deepcopy(page.scoring or {}),
-                "completion": deepcopy(page.completion or {}),
             }
         )
     return {
@@ -178,7 +165,7 @@ def prepare_document(
     page_ids = {page["page_uuid"] for page in pages}
 
     for index, page in enumerate(pages):
-        content = page["content"] = _public(page.get("content"), HIDDEN_CONTENT_KEYS)
+        content = page["content"] = normalize_question_settings(_public(page.get("content"), HIDDEN_CONTENT_KEYS))
         prefix = f"pages[{index}].content"
         page_type = LearningPageType(page["page_type"])
         if page_type == LearningPageType.STANDARD and not isinstance(content.get("blocks"), list):
@@ -250,7 +237,7 @@ def _scored_choice_without_answers(block) -> bool:
     return (
         scoring.get("mode") not in {"off", None}
         and earns_points
-        and not (scoring.get("correct_option_ids") or scoring.get("correctOptionIds"))
+        and not scoring.get("correct_option_ids")
     )
 
 

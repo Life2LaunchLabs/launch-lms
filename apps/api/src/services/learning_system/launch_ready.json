@@ -157,9 +157,7 @@
               ],
               "version": 2
             },
-            "design": {},
-            "scoring": {},
-            "completion": {}
+            "design": {}
           },
           {
             "page_uuid": "learning_page_system_onboarding_goal",
@@ -300,9 +298,7 @@
               ],
               "version": 2
             },
-            "design": {},
-            "scoring": {},
-            "completion": {}
+            "design": {}
           },
           {
             "page_uuid": "learning_page_system_onboarding_profile_photo",
@@ -355,9 +351,7 @@
               ],
               "version": 2
             },
-            "design": {},
-            "scoring": {},
-            "completion": {}
+            "design": {}
           },
           {
             "page_uuid": "learning_page_system_onboarding_profile_details",
@@ -466,9 +460,7 @@
               ],
               "version": 2
             },
-            "design": {},
-            "scoring": {},
-            "completion": {}
+            "design": {}
           },
           {
             "page_uuid": "learning_page_system_onboarding_profile_review",
@@ -587,9 +579,7 @@
               ],
               "version": 2
             },
-            "design": {},
-            "scoring": {},
-            "completion": {}
+            "design": {}
           }
         ]
       }
@@ -796,9 +786,7 @@
               ],
               "version": 2
             },
-            "design": {},
-            "scoring": {},
-            "completion": {}
+            "design": {}
           },
           {
             "page_uuid": "learning_page_system_onboarding_timeline",
@@ -969,9 +957,7 @@
               ],
               "version": 2
             },
-            "design": {},
-            "scoring": {},
-            "completion": {}
+            "design": {}
           },
           {
             "page_uuid": "learning_page_system_onboarding_timeline_photo",
@@ -1022,9 +1008,7 @@
               ],
               "version": 2
             },
-            "design": {},
-            "scoring": {},
-            "completion": {}
+            "design": {}
           },
           {
             "page_uuid": "learning_page_system_onboarding_timeline_review",
@@ -1155,9 +1139,7 @@
               ],
               "version": 2
             },
-            "design": {},
-            "scoring": {},
-            "completion": {}
+            "design": {}
           }
         ]
       }
@@ -1352,9 +1334,7 @@
               ],
               "version": 2
             },
-            "design": {},
-            "scoring": {},
-            "completion": {}
+            "design": {}
           },
           {
             "page_uuid": "learning_page_system_onboarding_project_photo",
@@ -1405,9 +1385,7 @@
               ],
               "version": 2
             },
-            "design": {},
-            "scoring": {},
-            "completion": {}
+            "design": {}
           },
           {
             "page_uuid": "learning_page_system_onboarding_project_timeline",
@@ -1475,9 +1453,7 @@
               ],
               "version": 2
             },
-            "design": {},
-            "scoring": {},
-            "completion": {}
+            "design": {}
           },
           {
             "page_uuid": "learning_page_system_onboarding_project_review",
@@ -1571,9 +1547,7 @@
               ],
               "version": 2
             },
-            "design": {},
-            "scoring": {},
-            "completion": {}
+            "design": {}
           }
         ]
       }
@@ -1732,9 +1706,7 @@
               ],
               "version": 2
             },
-            "design": {},
-            "scoring": {},
-            "completion": {}
+            "design": {}
           },
           {
             "page_uuid": "learning_page_system_onboarding_values",
@@ -1993,9 +1965,7 @@
               ],
               "version": 2
             },
-            "design": {},
-            "scoring": {},
-            "completion": {}
+            "design": {}
           },
           {
             "page_uuid": "learning_page_system_onboarding_traits_review",
@@ -2076,9 +2046,7 @@
               ],
               "version": 2
             },
-            "design": {},
-            "scoring": {},
-            "completion": {}
+            "design": {}
           }
         ]
       }
@@ -2244,9 +2212,7 @@
               ],
               "version": 2
             },
-            "design": {},
-            "scoring": {},
-            "completion": {}
+            "design": {}
           },
           {
             "page_uuid": "learning_page_system_onboarding_badges_pick",
@@ -2303,9 +2269,7 @@
               ],
               "version": 2
             },
-            "design": {},
-            "scoring": {},
-            "completion": {}
+            "design": {}
           }
         ]
       }
@@ -2411,9 +2375,7 @@
               ],
               "version": 2
             },
-            "design": {},
-            "scoring": {},
-            "completion": {}
+            "design": {}
           },
           {
             "page_uuid": "learning_page_system_onboarding_launch",
@@ -2472,9 +2434,7 @@
               ],
               "version": 2
             },
-            "design": {},
-            "scoring": {},
-            "completion": {}
+            "design": {}
           },
           {
             "page_uuid": "learning_page_system_onboarding_launch_share",
@@ -2559,9 +2519,7 @@
               ],
               "version": 2
             },
-            "design": {},
-            "scoring": {},
-            "completion": {}
+            "design": {}
           }
         ]
       }

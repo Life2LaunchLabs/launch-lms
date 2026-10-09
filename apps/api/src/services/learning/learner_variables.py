@@ -24,17 +24,6 @@ def _normalize_bindings(value) -> list[dict]:
     return [item for item in items if isinstance(item, dict) and item.get("target")]
 
 
-def _variable_bindings(page: LearningPage) -> dict:
-    completion = page.completion or {}
-    content = page.content or {}
-    bindings = completion.get("variable_bindings") or completion.get("variableBindings")
-    if not isinstance(bindings, dict):
-        bindings = (
-            content.get("variable_bindings") or content.get("variableBindings") or {}
-        )
-    return bindings if isinstance(bindings, dict) else {}
-
-
 def _extract_learning_variables(page: LearningPage, result: dict) -> list[dict]:
     variables: list[dict] = []
     questions = run_navigation._question_blocks(page)
@@ -151,13 +140,8 @@ def _extract_learning_variables(page: LearningPage, result: dict) -> list[dict]:
 
 def _question_variable_bindings(page: LearningPage, question: dict) -> dict:
     completion = question.get("completion")
-    if isinstance(completion, dict):
-        bindings = completion.get("variable_bindings") or completion.get(
-            "variableBindings"
-        )
-        if isinstance(bindings, dict) and bindings:
-            return bindings
-    return _variable_bindings(page)
+    bindings = completion.get("variable_bindings") if isinstance(completion, dict) else None
+    return bindings if isinstance(bindings, dict) else {}
 
 
 def _target_value_type(db_session: Session, org_id: int | None, target: str) -> str:

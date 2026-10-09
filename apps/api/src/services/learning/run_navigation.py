@@ -206,16 +206,12 @@ def _run_navigation(db_session: Session, run: LearningRun) -> dict:
 
 def _block_scoring(page: LearningPage, question: dict) -> dict:
     scoring = question.get("scoring")
-    if isinstance(scoring, dict) and scoring:
-        return scoring
-    return page.scoring or {}
+    return scoring if isinstance(scoring, dict) else {}
 
 
 def _block_completion(page: LearningPage, question: dict) -> dict:
     completion = question.get("completion")
-    if isinstance(completion, dict) and completion:
-        return completion
-    return page.completion or {}
+    return completion if isinstance(completion, dict) else {}
 
 
 def _serialize_run(db_session: Session, run: LearningRun) -> LearningRunRead:

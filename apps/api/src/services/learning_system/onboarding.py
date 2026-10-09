@@ -67,15 +67,11 @@ def _merge_variable_bindings(page: LearningPage, defaults: dict) -> None:
 
     content = deepcopy(page.content or {})
     block = find_question_block(content)
-    if block and isinstance(block.get("completion"), dict) and block.get("completion"):
-        completion = block.get("completion") or {}
+    if block:
+        completion = block.get("completion") if isinstance(block.get("completion"), dict) else {}
         completion["variable_bindings"] = merged(completion)
         block["completion"] = completion
         page.content = content
-        return
-    completion = deepcopy(page.completion or {})
-    completion["variable_bindings"] = merged(completion)
-    page.completion = completion
 
 
 def _default_bindings(page_data: dict) -> dict:
@@ -246,8 +242,6 @@ def _sync_pages(db_session: Session, entry: dict, *, activity: LearningActivity,
                 title=data["title"],
                 content=deepcopy(data["content"]),
                 design=deepcopy(data["design"]),
-                scoring=deepcopy(data["scoring"]),
-                completion=deepcopy(data["completion"]),
                 activity_id=activity.id or 0,
                 badge_id=badge.id or 0,
                 org_id=org.id or 0,

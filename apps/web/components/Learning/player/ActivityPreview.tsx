@@ -157,7 +157,6 @@ export function ActivityPreview({
               onClose={onClose || restart}
               onFinish={setFinishedRun}
               onEvent={handleEvent}
-              contentMediaOwner={preview.badge ? { type: 'org', id: Number(preview.badge.org_id) } : undefined}
             />
             {finishedRun && <PreviewSummary activity={preview.activity} run={finishedRun} onRestart={restart} />}
           </div>

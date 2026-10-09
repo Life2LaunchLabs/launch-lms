@@ -69,7 +69,6 @@ export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgsl
       retakeBaselineAttemptIds={retakeBaselineAttemptIds}
       onClose={() => { if (!leave()) router.back() }}
       onFinish={finish}
-      contentMediaOwner={{ type: 'org', id: Number(badge?.org_id) }}
       responseMediaOwner={{ type: 'user', id: Number(session?.data?.user?.id) }}
     />
   )

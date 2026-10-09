@@ -24,8 +24,6 @@ export interface ActivityDocument {
     required?: boolean
     content: Record<string, any>
     design?: Record<string, any>
-    scoring?: Record<string, any>
-    completion?: Record<string, any>
   }>
 }
 
@@ -64,8 +62,6 @@ export function buildActivityDocument(activity: any, pages: any[]): ActivityDocu
         required: page.required ?? true,
         content,
         design: page.design || {},
-        scoring: page.scoring || {},
-        completion: page.completion || {},
       }
     }),
   }

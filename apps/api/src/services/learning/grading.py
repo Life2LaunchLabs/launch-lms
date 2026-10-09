@@ -45,9 +45,7 @@ def _grade_mcq_block(page: LearningPage, question: dict, answer: dict) -> dict:
     scoring = run_navigation._block_scoring(page, question)
     correct_options = {
         str(value)
-        for value in scoring.get("correct_option_ids")
-        or scoring.get("correctOptionIds")
-        or []
+        for value in scoring.get("correct_option_ids") or []
     }
     if not correct_options:
         is_correct = None
@@ -336,7 +334,6 @@ def _question_block_points(page: LearningPage, question: dict) -> float:
         scoring.get("mode")
         or scoring.get("points") is not None
         or scoring.get("correct_option_ids")
-        or scoring.get("correctOptionIds")
         or scoring.get("accepted_answers")
     )
     if question.get("kind") == "text_input":

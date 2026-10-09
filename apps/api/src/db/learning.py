@@ -410,8 +410,6 @@ class LearningActivityImportPage(SQLModel):
     required: bool = True
     content: dict = Field(default_factory=dict)
     design: dict = Field(default_factory=dict)
-    scoring: dict = Field(default_factory=dict)
-    completion: dict = Field(default_factory=dict)
 
 
 class LearningActivityImport(SQLModel):
@@ -473,8 +471,6 @@ class LearningPageCreate(SQLModel):
     required: bool = True
     content: dict = Field(default_factory=dict)
     design: dict = Field(default_factory=dict)
-    scoring: dict = Field(default_factory=dict)
-    completion: dict = Field(default_factory=dict)
 
 
 class LearningPageUpdate(SQLModel):
@@ -484,8 +480,6 @@ class LearningPageUpdate(SQLModel):
     required: bool | None = None
     content: dict | None = None
     design: dict | None = None
-    scoring: dict | None = None
-    completion: dict | None = None
 
 
 class LearningPageRead(LearningPageBase):

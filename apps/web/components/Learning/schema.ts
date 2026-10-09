@@ -111,14 +111,12 @@ export function findQuestionBlocks(pageOrContent: LearningPageLike | any): Learn
 
 // Question config lives on the block; legacy pages kept it at page level for
 // their single question, so fall back there when the block carries none.
-export function getBlockScoring(page: any, block: LearningQuestionBlock): any {
-  if (block?.scoring && typeof block.scoring === 'object' && Object.keys(block.scoring).length) return block.scoring
-  return page?.scoring || {}
+export function getBlockScoring(block: LearningQuestionBlock): any {
+  return block?.scoring && typeof block.scoring === 'object' ? block.scoring : {}
 }
 
-export function getBlockCompletion(page: any, block: LearningQuestionBlock): any {
-  if (block?.completion && typeof block.completion === 'object' && Object.keys(block.completion).length) return block.completion
-  return page?.completion || {}
+export function getBlockCompletion(block: LearningQuestionBlock): any {
+  return block?.completion && typeof block.completion === 'object' ? block.completion : {}
 }
 
 export function getQuestionAnswer(answer: any, blockId: string): any {

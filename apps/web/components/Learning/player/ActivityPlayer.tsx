@@ -72,7 +72,6 @@ export function ActivityPlayer({
   retakeBaselineAttemptIds,
   finishLabel = 'Finish',
   className,
-  contentMediaOwner,
   responseMediaOwner,
 }: {
   activity: any
@@ -86,7 +85,6 @@ export function ActivityPlayer({
   retakeBaselineAttemptIds?: Set<string>
   finishLabel?: string
   className?: string
-  contentMediaOwner?: any
   responseMediaOwner?: any
 }) {
   const [run, setRun] = React.useState<any>(initialRun)
@@ -178,7 +176,6 @@ export function ActivityPlayer({
         pages={pages}
         run={run}
         onNavigatePage={navigateToPage}
-        contentMediaOwner={contentMediaOwner}
         responseMediaOwner={responseMediaOwner}
       />
     </LearningActivitySurface>

@@ -596,8 +596,6 @@ export default function LearningActivityEditor({
         title: pageType === 'video' ? 'New video page' : 'New page',
         content,
         design: {},
-        scoring: {},
-        completion: {},
       }, accessToken)
       const nextPages = [...pages, page]
       setPages(nextPages)
@@ -628,8 +626,6 @@ export default function LearningActivityEditor({
         required: page.required ?? true,
         content: cloneJson(page.content || {}),
         design: cloneJson(page.design || {}),
-        scoring: cloneJson(page.scoring || {}),
-        completion: cloneJson(page.completion || {}),
       }, accessToken)
       const sourceIndex = pages.findIndex((item) => item.page_uuid === page.page_uuid)
       const nextPages = [...pages]
@@ -1623,13 +1619,13 @@ function BlockOverlay({ selectedPage, selectedBlock, hoveredBlockId, draggingBlo
 
 // Native WYSIWYG multiple-choice editing: option rows styled exactly like the
 // player, inline-editable text, hover controls inside the row.
-function McqBlockCanvas({ block, page, selected, readOnly, onPatch }: any) {
+function McqBlockCanvas({ block, selected, readOnly, onPatch }: any) {
   const content = block.content || {}
   const options = normalizeQuestionOptions(content.options)
-  const scoring = getBlockScoring(page, block)
-  const completion = getBlockCompletion(page, block)
-  const correctIds = new Set<string>((scoring.correct_option_ids || scoring.correctOptionIds || []).map(String))
-  const variableBindings = completion.variable_bindings || completion.variableBindings || {}
+  const scoring = getBlockScoring(block)
+  const completion = getBlockCompletion(block)
+  const correctIds = new Set<string>((scoring.correct_option_ids || []).map(String))
+  const variableBindings = completion.variable_bindings || {}
   const isVariableMode = (completion.question_mode || (Object.values(variableBindings.options || {}).some(Boolean) ? 'variable' : 'scored')) === 'variable'
 
   const updateOption = (id: string, text: string) => {
@@ -1641,7 +1637,7 @@ function McqBlockCanvas({ block, page, selected, readOnly, onPatch }: any) {
   const removeOption = (id: string) => {
     if (options.length <= 2) return
     const nextOptions = options.filter((option) => option.id !== id)
-    const variableBindings = completion.variable_bindings || completion.variableBindings || {}
+    const variableBindings = completion.variable_bindings || {}
     const nextOptionBindings = { ...(variableBindings.options || {}) }
     delete nextOptionBindings[id]
     onPatch({
@@ -1744,10 +1740,10 @@ function McqBlockCanvas({ block, page, selected, readOnly, onPatch }: any) {
 
 // Native WYSIWYG text-input editing. One block is one row: a single input, or
 // two side by side (toggled from the block toolbar).
-function TextInputBlockCanvas({ block, page, selected: _selected, readOnly, onPatch }: any) {
+function TextInputBlockCanvas({ block, selected: _selected, readOnly, onPatch }: any) {
   const content = block.content || {}
   const inputs = normalizeQuestionInputs(content.inputs)
-  const scoring = getBlockScoring(page, block)
+  const scoring = getBlockScoring(block)
   const sideBySide = inputs.length > 1
 
   const patchInput = (id: string, patch: any) => {
@@ -2533,12 +2529,12 @@ function BlockInspector({ block, page, pages, learningVariables, onCreateVariabl
   )
 }
 
-function QuestionInspector({ block, page, learningVariables = [], onCreateVariableKey, onPatchBlock, onToggleSideBySide }: any) {
+function QuestionInspector({ block, learningVariables = [], onCreateVariableKey, onPatchBlock, onToggleSideBySide }: any) {
   const content = block.content || {}
   // Question config lives on the block (with page-level fallback for old data).
-  const scoring = getBlockScoring(page, block)
-  const completion = getBlockCompletion(page, block)
-  const variableBindings = completion.variable_bindings || completion.variableBindings || {}
+  const scoring = getBlockScoring(block)
+  const completion = getBlockCompletion(block)
+  const variableBindings = completion.variable_bindings || {}
   const hasBindings = Object.values(variableBindings.options || {}).some(Boolean)
     || Object.values(variableBindings.inputs || {}).some(Boolean)
     || Boolean(variableBindings.image)
@@ -2570,7 +2566,7 @@ function QuestionInspector({ block, page, learningVariables = [], onCreateVariab
 
   if (block.kind === 'multiple_choice' || block.kind === 'categorized_multi_select') {
     const options = normalizeQuestionOptions(content.options)
-    const correctIds = new Set<string>((scoring.correct_option_ids || scoring.correctOptionIds || []).map(String))
+    const correctIds = new Set<string>((scoring.correct_option_ids || []).map(String))
     const minSelections = Math.max(1, Number(completion.min_selections ?? 1))
     const maxSelections = Math.max(minSelections, Number(completion.max_selections ?? 1))
     const optionBindings = variableBindings.options || {}

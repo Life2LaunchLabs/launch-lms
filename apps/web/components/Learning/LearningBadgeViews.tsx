@@ -7,7 +7,7 @@ import { Extension } from '@tiptap/core'
 import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
-import { AlignCenter, AlignLeft, AlignRight, ArrowLeft, ArrowRight, Bold, Check, ChevronRight, Columns2, Copy, GripVertical, Heading1, Heading2, Italic, List, ListOrdered, Loader2, Pause, Play, Plus, Quote, Trash2, Upload, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, ChevronRight, Columns2, Copy, GripVertical, Loader2, Pause, Play, Plus, Trash2, Upload, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import YouTube from 'react-youtube'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -120,7 +120,7 @@ export function LearningActivitySurface({
   )
 }
 
-export function LearningPageContent({ page, answer, setAnswer, setUnlocked, pages, run, editable = false, onPagePatch, onNavigatePage, contentMediaOwner, responseMediaOwner }: any) {
+export function LearningPageContent({ page, answer, setAnswer, setUnlocked, pages, run, editable = false, onPagePatch, onNavigatePage, responseMediaOwner }: any) {
   if (!page) return null
   if (page.page_type === 'video') {
     return <VideoPageContent page={page} answer={answer} setAnswer={setAnswer} setUnlocked={setUnlocked} editable={editable} onPagePatch={onPagePatch} />
@@ -128,16 +128,7 @@ export function LearningPageContent({ page, answer, setAnswer, setUnlocked, page
   if (page.page_type === 'standard') {
     return <StandardPageContent page={page} answer={answer} setAnswer={setAnswer} setUnlocked={setUnlocked} editable={editable} onPagePatch={onPagePatch} run={run} pages={pages} onNavigatePage={onNavigatePage} responseMediaOwner={responseMediaOwner} />
   }
-  if (page.page_type === 'multiple_choice' || page.page_type === 'text_input' || page.page_type === 'image_upload') {
-    return <InfoPageContent page={page} answer={answer} setAnswer={setAnswer} setUnlocked={setUnlocked} editable={editable} onPagePatch={onPagePatch} contentMediaOwner={contentMediaOwner} responseMediaOwner={responseMediaOwner} />
-  }
-  if (page.page_type === 'question_response') {
-    const responseKey = editable
-      ? page.content?.response_active_key || 'default'
-      : getRuntimeResponseKey(page, pages || [], run)
-    return <InfoPageContent page={page} editable={editable} onPagePatch={onPagePatch} responseKey={responseKey} contentMediaOwner={contentMediaOwner} responseMediaOwner={responseMediaOwner} />
-  }
-  return <InfoPageContent page={page} editable={editable} onPagePatch={onPagePatch} contentMediaOwner={contentMediaOwner} responseMediaOwner={responseMediaOwner} />
+  return null
 }
 
 function StandardPageContent({ page, answer, setAnswer, setUnlocked, editable, onPagePatch, run, pages, onNavigatePage, responseMediaOwner }: any) {
@@ -152,7 +143,7 @@ function StandardPageContent({ page, answer, setAnswer, setUnlocked, editable, o
   const unlockedByBlockRef = React.useRef<Record<string, boolean>>({})
 
   React.useEffect(() => {
-    unlockedByBlockRef.current = Object.fromEntries(blocks.filter((block: any) => block.type === 'question' && block.kind === 'image_upload' && getBlockCompletion(page, block)?.required === false).map((block: any) => [block.id, true]))
+    unlockedByBlockRef.current = Object.fromEntries(blocks.filter((block: any) => block.type === 'question' && block.kind === 'image_upload' && getBlockCompletion(block)?.required === false).map((block: any) => [block.id, true]))
     setUnlocked?.(questionIds.every((id: string) => unlockedByBlockRef.current[id]))
   }, [blocks, page?.page_uuid, questionIds, setUnlocked])
 
@@ -194,8 +185,8 @@ export function buildQuestionVirtualPage(page: any, block: any) {
     ...page,
     page_type: block.kind,
     content: { ...(block.content || {}), hide_prompt: true },
-    scoring: getBlockScoring(page, block),
-    completion: getBlockCompletion(page, block),
+    scoring: getBlockScoring(block),
+    completion: getBlockCompletion(block),
   }
 }
 
@@ -360,585 +351,6 @@ function SharePortfolioPanel({ username, blockStyle }: { username: string; block
     <p className="mt-3 break-all rounded-xl bg-muted px-3 py-3 text-sm font-semibold">{href || 'Your public portfolio link'}</p>
     <button type="button" disabled={!href} onClick={copy} className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-[var(--org-primary-color)] px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50"><Copy className="h-4 w-4" />{copied ? 'Copied' : 'Copy link'}</button>
   </section>
-}
-
-function InfoPageContent({ page, answer, setAnswer, setUnlocked, editable, onPagePatch, responseKey = 'default', contentMediaOwner, responseMediaOwner }: any) {
-  const session = useLHSession() as any
-  const accessToken = session.data?.tokens?.access_token
-  const hasQuestionBlock = isLearningQuestionPage(page)
-  const activeResponseKey = page.page_type === 'question_response' ? responseKey || 'default' : 'default'
-  const blockContent = React.useMemo(() => getResponseBlockContent(page.content || {}, activeResponseKey), [activeResponseKey, page.content])
-  const richText = React.useMemo(() => getInfoRichTextContent(blockContent, {
-    includeQuestionBlock: hasQuestionBlock,
-    questionPageType: page.page_type,
-    responseTemplate: page.page_type === 'question_response',
-  }), [blockContent, hasQuestionBlock, page.page_type])
-  const externalBlocks = React.useMemo(() => normalizeInfoBlocks(richText.content || []), [richText])
-  const [activeBlockIndex, setActiveBlockIndex] = React.useState(-1)
-  const [activeTextEditor, setActiveTextEditor] = React.useState<any>(null)
-  const [hovered, setHovered] = React.useState(false)
-  const [chromeHovered, setChromeHovered] = React.useState(false)
-  const [draggingBlockId, setDraggingBlockId] = React.useState<string | null>(null)
-  const [imagePickerOpen, setImagePickerOpen] = React.useState(false)
-  const [toolbarPosition, setToolbarPosition] = React.useState<{ top: number; left: number } | null>(null)
-  const [blocks, setBlocks] = React.useState<any[]>(() => externalBlocks)
-  const [blockIds, setBlockIds] = React.useState<string[]>(() => externalBlocks.map((_block, index) => `${page.page_uuid}-info-block-${index + 1}`))
-  const [focusBlockId, setFocusBlockId] = React.useState<string | null>(null)
-  const wrapperRef = React.useRef<HTMLDivElement | null>(null)
-  const latestContentRef = React.useRef(page.content || {})
-  const nextBlockIdRef = React.useRef(externalBlocks.length)
-  const pageUuidRef = React.useRef(`${page.page_uuid}:${activeResponseKey}`)
-  const blocksRef = React.useRef<any[]>(blocks)
-  const blockIdsRef = React.useRef<string[]>(blockIds)
-  const pendingSwapRectsRef = React.useRef<Map<string, DOMRect> | null>(null)
-  const activeBlock = activeBlockIndex >= 0 ? blocks[activeBlockIndex] : null
-  const selectedImage = activeBlock?.type === 'learningImage' ? activeBlock : null
-  const showToolbar = editable && (activeTextEditor || selectedImage)
-  const showChrome = editable && (hovered || chromeHovered || activeBlockIndex >= 0)
-
-  const createBlockId = React.useCallback(() => {
-    nextBlockIdRef.current += 1
-    return `${page.page_uuid}-info-block-${nextBlockIdRef.current}`
-  }, [page.page_uuid])
-
-  React.useEffect(() => {
-    latestContentRef.current = page.content || {}
-  }, [page.content])
-
-  React.useEffect(() => {
-    const pageStateKey = `${page.page_uuid}:${activeResponseKey}`
-    if (pageUuidRef.current === pageStateKey) return
-    pageUuidRef.current = pageStateKey
-    nextBlockIdRef.current = externalBlocks.length
-    blocksRef.current = externalBlocks
-    setBlocks(externalBlocks)
-    const nextIds = externalBlocks.map((_block, index) => `${page.page_uuid}-info-block-${index + 1}`)
-    blockIdsRef.current = nextIds
-    setBlockIds(nextIds)
-    setActiveBlockIndex(-1)
-    setActiveTextEditor(null)
-    setDraggingBlockId(null)
-    setFocusBlockId(null)
-    pendingSwapRectsRef.current = null
-  }, [activeResponseKey, externalBlocks, page.page_uuid])
-
-  React.useEffect(() => {
-    blocksRef.current = blocks
-  }, [blocks])
-
-  React.useEffect(() => {
-    blockIdsRef.current = blockIds
-  }, [blockIds])
-
-  React.useEffect(() => {
-    setBlockIds((current) => {
-      if (current.length === blocks.length) {
-        blockIdsRef.current = current
-        return current
-      }
-      const nextIds = current.length > blocks.length
-        ? current.slice(0, blocks.length)
-        : [...current, ...Array.from({ length: blocks.length - current.length }, createBlockId)]
-      blockIdsRef.current = nextIds
-      return nextIds
-    })
-  }, [blocks.length, createBlockId])
-
-  React.useLayoutEffect(() => {
-    if (!showToolbar) {
-      setToolbarPosition(null)
-      return
-    }
-
-    let frame = 0
-    const updatePosition = () => {
-      const wrapper = wrapperRef.current
-      const surface = wrapper?.closest('[data-learning-activity-surface]') as HTMLElement | null
-      const rect = surface?.getBoundingClientRect()
-      if (!rect) return
-      setToolbarPosition({
-        top: Math.max(8, rect.top - 76),
-        left: rect.left + rect.width / 2,
-      })
-    }
-    const loop = () => {
-      updatePosition()
-      frame = window.requestAnimationFrame(loop)
-    }
-
-    loop()
-    window.addEventListener('resize', updatePosition)
-    window.addEventListener('scroll', updatePosition, true)
-    return () => {
-      window.cancelAnimationFrame(frame)
-      window.removeEventListener('resize', updatePosition)
-      window.removeEventListener('scroll', updatePosition, true)
-    }
-  }, [showToolbar])
-
-  const patchBlocks = React.useCallback((nextBlocks: any[], nextIds?: string[]) => {
-    const normalizedBlocks = hasQuestionBlock ? ensureQuestionBlock(nextBlocks, { questionPageType: page.page_type }) : nextBlocks
-    const content = normalizedBlocks.length ? normalizedBlocks.map(stripInfoBlockMeta) : [{ type: 'paragraph' }]
-    const richTextPatch = { type: 'doc', content }
-    const ids = nextIds
-      ? syncIdsToBlocks(normalizedBlocks, nextBlocks, nextIds, createBlockId)
-      : undefined
-    blocksRef.current = normalizedBlocks
-    setBlocks(normalizedBlocks)
-    if (ids) {
-      blockIdsRef.current = ids
-      setBlockIds(ids)
-    }
-    if (page.page_type === 'question_response' && activeResponseKey !== 'default') {
-      const latestContent = latestContentRef.current || {}
-      const variants = latestContent.response_variants || {}
-      onPagePatch?.({
-        content: {
-          ...latestContent,
-          response_active_key: activeResponseKey,
-          response_variants: {
-            ...variants,
-            [activeResponseKey]: {
-              ...(variants[activeResponseKey] || {}),
-              enabled: true,
-              rich_text: richTextPatch,
-            },
-          },
-        },
-      })
-      return
-    }
-
-    onPagePatch?.({ content: { ...(latestContentRef.current || {}), rich_text: richTextPatch } })
-  }, [activeResponseKey, createBlockId, hasQuestionBlock, onPagePatch, page.page_type])
-
-  React.useEffect(() => {
-    const eventName = `learning-content-add-image-${page.page_uuid}`
-    const addImage = () => {
-      const insertAt = activeBlockIndex >= 0 ? Math.min(blocks.length, activeBlockIndex + 1) : blocks.length
-      const nextBlocks = [...blocks]
-      const nextIds = [...blockIds]
-      nextBlocks.splice(insertAt, 0, createInfoImageBlock())
-      nextIds.splice(insertAt, 0, createBlockId())
-      patchBlocks(nextBlocks, nextIds)
-      setActiveBlockIndex(insertAt)
-      setActiveTextEditor(null)
-    }
-    window.addEventListener(eventName, addImage)
-    return () => window.removeEventListener(eventName, addImage)
-  }, [activeBlockIndex, blockIds, blocks, createBlockId, page.page_uuid, patchBlocks])
-
-  React.useEffect(() => {
-    const eventName = `learning-content-add-text-${page.page_uuid}`
-    const addText = () => {
-      const insertAt = activeBlockIndex >= 0 ? Math.min(blocks.length, activeBlockIndex + 1) : blocks.length
-      const nextBlocks = [...blocks]
-      const nextIds = [...blockIds]
-      nextBlocks.splice(insertAt, 0, createInfoTextBlock('paragraph'))
-      nextIds.splice(insertAt, 0, createBlockId())
-      patchBlocks(nextBlocks, nextIds)
-      setActiveBlockIndex(insertAt)
-      setActiveTextEditor(null)
-      setFocusBlockId(nextIds[insertAt] || null)
-    }
-    window.addEventListener(eventName, addText)
-    return () => window.removeEventListener(eventName, addText)
-  }, [activeBlockIndex, blockIds, blocks, createBlockId, page.page_uuid, patchBlocks])
-
-  const updateBlock = React.useCallback((index: number, nextBlock: any) => {
-    const nextBlocks = [...blocks]
-    const nextIds = [...blockIds]
-    nextBlocks.splice(index, 1, nextBlock)
-    if (!nextIds[index]) nextIds[index] = createBlockId()
-    const normalized = normalizeInfoAdjacentLists(nextBlocks, nextIds, index)
-    patchBlocks(normalized.blocks, normalized.ids)
-    setActiveBlockIndex(normalized.activeIndex)
-    if (normalized.merged) {
-      setActiveTextEditor(null)
-      setFocusBlockId(normalized.ids[normalized.activeIndex] || null)
-    }
-  }, [blockIds, blocks, createBlockId, patchBlocks])
-
-  const insertBlockAfter = React.useCallback((index: number, block: any = createInfoTextBlock('paragraph'), currentBlock?: any) => {
-    const nextBlocks = [...blocksRef.current]
-    const nextIds = [...blockIdsRef.current]
-    const insertAt = Math.min(nextBlocks.length, index + 1)
-    const nextId = createBlockId()
-    if (currentBlock) nextBlocks[index] = currentBlock
-    nextBlocks.splice(insertAt, 0, block)
-    nextIds.splice(insertAt, 0, nextId)
-    const normalized = normalizeInfoAdjacentLists(nextBlocks, nextIds, insertAt)
-    patchBlocks(normalized.blocks, normalized.ids)
-    setActiveBlockIndex(normalized.activeIndex)
-    setActiveTextEditor(null)
-    setFocusBlockId(normalized.ids[normalized.activeIndex] || nextId)
-  }, [createBlockId, patchBlocks])
-
-  const splitActiveListItem = React.useCallback((allowNonEmpty = false) => {
-    if (!activeTextEditor || activeBlockIndex < 0) return false
-    const split = getInfoListExitBlocks(activeTextEditor, allowNonEmpty)
-    if (!split) return false
-    if ('replaceCurrent' in split && split.replaceCurrent) {
-      setInfoEditorContent(activeTextEditor, split.nextBlock)
-      updateBlock(activeBlockIndex, split.nextBlock)
-      setFocusBlockId(blockIdsRef.current[activeBlockIndex] || null)
-      return true
-    }
-    setInfoEditorContent(activeTextEditor, split.currentBlock)
-    insertBlockAfter(activeBlockIndex, split.nextBlock, split.currentBlock)
-    return true
-  }, [activeBlockIndex, activeTextEditor, insertBlockAfter, updateBlock])
-
-  const duplicateBlock = React.useCallback((index: number) => {
-    if (blocks[index]?.type === 'learningQuestion') return
-    const nextBlocks = [...blocks]
-    const nextIds = [...blockIds]
-    nextBlocks.splice(index + 1, 0, cloneInfoBlock(blocks[index]))
-    nextIds.splice(index + 1, 0, createBlockId())
-    patchBlocks(nextBlocks, nextIds)
-  }, [blockIds, blocks, createBlockId, patchBlocks])
-
-  const deleteBlock = React.useCallback((index: number) => {
-    if (blocks[index]?.type === 'learningQuestion') return
-    if (isLearningTextBlock(blocks[index]) && countLearningTextBlocks(blocks) <= 1) return
-    const nextBlocks = blocks.filter((_block, blockIndex) => blockIndex !== index)
-    const nextIds = blockIds.filter((_id, blockIndex) => blockIndex !== index)
-    patchBlocks(nextBlocks.length ? nextBlocks : [createInfoTextBlock('paragraph')], nextIds.length ? nextIds : [createBlockId()])
-    setActiveBlockIndex(Math.max(0, Math.min(index, nextBlocks.length - 1)))
-  }, [blockIds, blocks, createBlockId, patchBlocks])
-
-  const resizeImage = React.useCallback((index: number, startEvent: React.PointerEvent<HTMLDivElement>) => {
-    const block = blocks[index]
-    if (!block || block.type !== 'learningImage') return
-    startEvent.preventDefault()
-    startEvent.stopPropagation()
-    const startY = startEvent.clientY
-    const startHeight = Number(block.attrs?.height) || 220
-
-    const onMove = (event: PointerEvent) => {
-      const nextHeight = Math.round(Math.max(120, Math.min(520, startHeight + event.clientY - startY)))
-      updateBlock(index, { ...block, attrs: { ...(block.attrs || {}), height: nextHeight } })
-    }
-
-    const onUp = () => {
-      document.body.style.cursor = ''
-      window.removeEventListener('pointermove', onMove)
-      window.removeEventListener('pointerup', onUp)
-    }
-
-    document.body.style.cursor = 'row-resize'
-    window.addEventListener('pointermove', onMove)
-    window.addEventListener('pointerup', onUp)
-  }, [blocks, updateBlock])
-
-  const updateSelectedImage = React.useCallback((attrs: Record<string, any>) => {
-    if (!selectedImage) return
-    updateBlock(activeBlockIndex, { ...selectedImage, attrs: { ...(selectedImage.attrs || {}), ...attrs } })
-  }, [activeBlockIndex, selectedImage, updateBlock])
-
-  const handleImageMediaSelect = (asset: any) => {
-    updateSelectedImage({
-      src: asset.url,
-      mode: 'upload',
-      title: asset.title,
-      media_asset_uuid: asset.asset_uuid,
-    })
-  }
-
-  const toolbar = showToolbar && toolbarPosition && typeof document !== 'undefined'
-    ? createPortal(
-        <div
-          data-learning-info-toolbar
-          onMouseDown={(event) => {
-            if ((event.target as HTMLElement).tagName !== 'INPUT') event.preventDefault()
-          }}
-          className="learning-info-format-bar fixed z-[120] flex max-w-[calc(100vw-2rem)] items-center gap-1 rounded-xl border border-border bg-card/95 p-1 shadow-xl shadow-gray-950/10 backdrop-blur"
-          style={{ top: toolbarPosition.top, left: toolbarPosition.left, transform: 'translateX(-50%)' }}
-        >
-          {selectedImage ? (
-            <>
-              <button
-                type="button"
-                onClick={() => setImagePickerOpen(true)}
-                className="inline-flex h-8 items-center gap-1.5 rounded-md bg-card px-2 text-xs font-bold text-foreground shadow-sm"
-              >
-                <Upload size={14} />
-                Choose image
-              </button>
-            </>
-          ) : activeTextEditor ? (
-            <>
-              <InfoFormatButton title="Heading 1" active={activeTextEditor.isActive('heading', { level: 1 })} onClick={() => activeTextEditor.chain().focus().toggleHeading({ level: 1 }).run()}><Heading1 size={16} /></InfoFormatButton>
-              <InfoFormatButton title="Heading 2" active={activeTextEditor.isActive('heading', { level: 2 })} onClick={() => activeTextEditor.chain().focus().toggleHeading({ level: 2 }).run()}><Heading2 size={16} /></InfoFormatButton>
-              <span className="mx-1 h-5 w-px bg-muted" />
-              <InfoFormatButton title="Bold" active={activeTextEditor.isActive('bold')} onClick={() => activeTextEditor.chain().focus().toggleBold().run()}><Bold size={16} /></InfoFormatButton>
-              <InfoFormatButton title="Italic" active={activeTextEditor.isActive('italic')} onClick={() => activeTextEditor.chain().focus().toggleItalic().run()}><Italic size={16} /></InfoFormatButton>
-              <InfoFormatButton title="Quote" active={activeTextEditor.isActive('blockquote')} onClick={() => activeTextEditor.chain().focus().toggleBlockquote().run()}><Quote size={16} /></InfoFormatButton>
-              <span className="mx-1 h-5 w-px bg-muted" />
-              <InfoFormatButton title="Bullet list" active={activeTextEditor.isActive('bulletList')} onClick={() => { if (!splitActiveListItem(true)) activeTextEditor.chain().focus().toggleBulletList().run() }}><List size={16} /></InfoFormatButton>
-              <InfoFormatButton title="Numbered list" active={activeTextEditor.isActive('orderedList')} onClick={() => { if (!splitActiveListItem(true)) activeTextEditor.chain().focus().toggleOrderedList().run() }}><ListOrdered size={16} /></InfoFormatButton>
-              <span className="mx-1 h-5 w-px bg-muted" />
-              <InfoFormatButton title="Align left" active={getActiveTextAlignment(activeTextEditor) === 'left'} onClick={() => setActiveTextAlignment(activeTextEditor, 'left')}><AlignLeft size={16} /></InfoFormatButton>
-              <InfoFormatButton title="Align center" active={getActiveTextAlignment(activeTextEditor) === 'center'} onClick={() => setActiveTextAlignment(activeTextEditor, 'center')}><AlignCenter size={16} /></InfoFormatButton>
-              <InfoFormatButton title="Align right" active={getActiveTextAlignment(activeTextEditor) === 'right'} onClick={() => setActiveTextAlignment(activeTextEditor, 'right')}><AlignRight size={16} /></InfoFormatButton>
-            </>
-          ) : null}
-        </div>,
-        document.body
-      )
-    : null
-
-  const getBlockRects = React.useCallback(() => {
-    const rects = new Map<string, DOMRect>()
-    const rows = Array.from(wrapperRef.current?.querySelectorAll('[data-learning-info-block-id]') || []) as HTMLElement[]
-    rows.forEach((row) => {
-      const id = row.dataset.learningInfoBlockId
-      if (id) rects.set(id, row.getBoundingClientRect())
-    })
-    return rects
-  }, [])
-
-  React.useLayoutEffect(() => {
-    const beforeRects = pendingSwapRectsRef.current
-    if (!beforeRects) return
-    pendingSwapRectsRef.current = null
-
-    window.requestAnimationFrame(() => {
-      const rows = Array.from(wrapperRef.current?.querySelectorAll('[data-learning-info-block-id]') || []) as HTMLElement[]
-      rows.forEach((row) => {
-        const id = row.dataset.learningInfoBlockId
-        const before = id ? beforeRects.get(id) : null
-        if (!before) return
-
-        const after = row.getBoundingClientRect()
-        const deltaY = before.top - after.top
-        if (Math.abs(deltaY) < 1) return
-
-        row.style.transition = 'none'
-        row.style.transform = `translate3d(0, ${deltaY}px, 0)`
-        row.getBoundingClientRect()
-
-        window.requestAnimationFrame(() => {
-          row.style.transition = 'transform 210ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 150ms, opacity 150ms'
-          row.style.transform = ''
-          const clearInlineAnimation = () => {
-            row.style.transition = ''
-            row.removeEventListener('transitionend', clearInlineAnimation)
-          }
-          row.addEventListener('transitionend', clearInlineAnimation)
-        })
-      })
-    })
-  }, [blocks, blockIds])
-
-  const moveBlock = React.useCallback((fromIndex: number, toIndex: number) => {
-    const currentBlocks = blocksRef.current
-    const currentIds = blockIdsRef.current
-    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || fromIndex >= currentBlocks.length || toIndex >= currentBlocks.length) return
-
-    pendingSwapRectsRef.current = getBlockRects()
-    const nextBlocks = [...currentBlocks]
-    const nextIds = [...currentIds]
-    const [block] = nextBlocks.splice(fromIndex, 1)
-    const [id] = nextIds.splice(fromIndex, 1)
-    nextBlocks.splice(toIndex, 0, block)
-    nextIds.splice(toIndex, 0, id)
-    setActiveBlockIndex(toIndex)
-    patchBlocks(nextBlocks, nextIds)
-  }, [getBlockRects, patchBlocks])
-
-  const startBlockReorder = React.useCallback((index: number, startEvent: React.PointerEvent<HTMLButtonElement>) => {
-    const dragId = blockIdsRef.current[index]
-    if (!dragId) return
-
-    startEvent.preventDefault()
-    startEvent.stopPropagation()
-    setActiveBlockIndex(index)
-    setActiveTextEditor(null)
-    setDraggingBlockId(dragId)
-    document.body.style.cursor = 'grabbing'
-
-    const onMove = (event: PointerEvent) => {
-      const ids = blockIdsRef.current
-      const currentIndex = ids.indexOf(dragId)
-      if (currentIndex < 0) return
-
-      const rows = Array.from(wrapperRef.current?.querySelectorAll('[data-learning-info-block-id]') || []) as HTMLElement[]
-      const previous = rows[currentIndex - 1]
-      const next = rows[currentIndex + 1]
-
-      if (previous) {
-        const previousRect = previous.getBoundingClientRect()
-        if (event.clientY < previousRect.top + previousRect.height / 2) {
-          moveBlock(currentIndex, currentIndex - 1)
-          return
-        }
-      }
-
-      if (next) {
-        const nextRect = next.getBoundingClientRect()
-        if (event.clientY > nextRect.top + nextRect.height / 2) {
-          moveBlock(currentIndex, currentIndex + 1)
-        }
-      }
-    }
-
-    const onEnd = () => {
-      document.body.style.cursor = ''
-      setDraggingBlockId(null)
-      window.removeEventListener('pointermove', onMove)
-      window.removeEventListener('pointerup', onEnd)
-      window.removeEventListener('pointercancel', onEnd)
-    }
-
-    window.addEventListener('pointermove', onMove)
-    window.addEventListener('pointerup', onEnd)
-    window.addEventListener('pointercancel', onEnd)
-  }, [moveBlock])
-
-  const renderSection = (block: any, index: number) => (
-    <InfoBlockSection
-      key={blockIds[index] || `${page.page_uuid}-info-block-${index}`}
-      block={block}
-      blockId={blockIds[index] || `${page.page_uuid}-info-block-${index}`}
-      editable={editable}
-      active={editable && activeBlockIndex === index}
-      dragging={Boolean(blockIds[index] && draggingBlockId === blockIds[index])}
-      onActivate={(editorInstance?: any) => {
-        setActiveBlockIndex(index)
-        setActiveTextEditor(editorInstance || null)
-      }}
-      onUpdate={(nextBlock: any) => updateBlock(index, nextBlock)}
-      onSplit={(currentBlock?: any, nextBlock?: any) => insertBlockAfter(index, nextBlock || createInfoTextBlock('paragraph'), currentBlock)}
-      onDuplicate={() => duplicateBlock(index)}
-      onDelete={() => deleteBlock(index)}
-      deleteDisabled={isLearningTextBlock(block) && countLearningTextBlocks(blocks) <= 1}
-      onResizeImage={(event: React.PointerEvent<HTMLDivElement>) => resizeImage(index, event)}
-      onStartReorder={(event: React.PointerEvent<HTMLButtonElement>) => startBlockReorder(index, event)}
-      shouldFocus={Boolean(focusBlockId && blockIds[index] === focusBlockId)}
-      onFocusComplete={() => setFocusBlockId(null)}
-      showChrome={showChrome}
-      onChromeHoverChange={setChromeHovered}
-      page={page}
-      answer={answer}
-      setAnswer={setAnswer}
-      setUnlocked={setUnlocked}
-      onPagePatch={onPagePatch}
-      responseMediaOwner={responseMediaOwner}
-    />
-  )
-
-  return (
-    <div
-      ref={wrapperRef}
-      className={`learning-info-block-stack ${editable ? 'is-editable' : ''} ${showChrome ? 'is-chrome-visible' : ''}`}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      {toolbar}
-      <MediaPickerDialog
-        open={imagePickerOpen}
-        onOpenChange={setImagePickerOpen}
-        title="Choose image"
-        description="Upload, link, or select an image from the media library."
-        owner={contentMediaOwner || responseMediaOwner}
-        mediaType="image"
-        accessToken={accessToken}
-        onSave={handleImageMediaSelect}
-      />
-      <div className="learning-info-reorder-list">
-        {blocks.map((block, index) => renderSection(block, index))}
-      </div>
-    </div>
-  )
-}
-
-function InfoBlockSection({
-  block,
-  blockId,
-  page,
-  answer,
-  setAnswer,
-  setUnlocked,
-  onPagePatch,
-  editable,
-  active,
-  dragging,
-  onActivate,
-  onUpdate,
-  onSplit,
-  onDuplicate,
-  onDelete,
-  deleteDisabled,
-  onResizeImage,
-  onStartReorder,
-  shouldFocus,
-  onFocusComplete,
-  showChrome,
-  onChromeHoverChange,
-  responseMediaOwner,
-}: any) {
-  const isImage = block.type === 'learningImage'
-  const isQuestion = block.type === 'learningQuestion'
-  const sectionRef = React.useRef<HTMLElement | null>(null)
-
-  return (
-    <section
-      ref={sectionRef}
-      data-learning-info-block-id={blockId}
-      className={`learning-info-stack-section ${editable ? 'is-editable' : ''} ${active ? 'is-active' : ''} ${dragging ? 'is-reordering' : ''}`}
-    >
-      {editable && !isQuestion && (
-        <InfoBlockChrome
-          sectionRef={sectionRef}
-          active={active}
-          dragging={dragging}
-          visible={showChrome}
-          isImage={isImage}
-          locked={isQuestion}
-          onActivate={onActivate}
-          onDuplicate={onDuplicate}
-          onDelete={onDelete}
-          deleteDisabled={deleteDisabled}
-          onResizeImage={onResizeImage}
-          onStartReorder={onStartReorder}
-          onHoverChange={onChromeHoverChange}
-        />
-      )}
-      {isImage ? (
-        <InfoImageBlock
-          block={block}
-          editable={editable}
-          active={active}
-          onActivate={() => onActivate()}
-        />
-      ) : isQuestion ? (
-        <QuestionBlockContent
-          page={page}
-          answer={answer}
-          setAnswer={setAnswer}
-          setUnlocked={setUnlocked}
-          editable={editable}
-          onPagePatch={onPagePatch}
-          showChrome={showChrome}
-          onChromeHoverChange={onChromeHoverChange}
-          onActivate={() => onActivate()}
-          responseMediaOwner={responseMediaOwner}
-        />
-      ) : (
-        <InfoTextBlock
-          block={block}
-          blockId={blockId}
-          editable={editable}
-          onActivate={onActivate}
-          onUpdate={onUpdate}
-          onSplit={onSplit}
-          shouldFocus={shouldFocus}
-          onFocusComplete={onFocusComplete}
-        />
-      )}
-    </section>
-  )
 }
 
 function InfoBlockChrome({
@@ -1326,7 +738,7 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
     const visibleOptions = options.length ? options : [{ id: 'a', text: '' }, { id: 'b', text: '' }]
     const completion = page.completion || {}
     const scoring = page.scoring || {}
-    const correctOptionIds = new Set(scoring.correct_option_ids || scoring.correctOptionIds || [])
+    const correctOptionIds = new Set(scoring.correct_option_ids || [])
     const minSelections = Math.max(1, Number(completion.min_selections ?? 1))
     const maxSelections = Math.max(minSelections, Number(completion.max_selections ?? 1))
     const selectedIds = Array.isArray(answer?.option_ids)
@@ -1336,7 +748,7 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
         : []
     const patchOptions = (nextOptions: any[]) => {
       const ids = new Set(nextOptions.map((option: any, index: number) => option?.id || String(index)))
-      const variableBindings = completion.variable_bindings || completion.variableBindings || {}
+      const variableBindings = completion.variable_bindings || {}
       const nextOptionBindings = { ...(variableBindings.options || {}) }
       Object.keys(nextOptionBindings).forEach((id) => {
         if (!ids.has(id)) nextOptionBindings[id] = null
@@ -1466,7 +878,6 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
   }
 
   if (page.page_type === 'image_upload') {
-    const completion = page.completion || {}
     const imageUrl = answer?.url || answer?.image_url || ''
     const updateImageAnswer = async (asset: any) => {
       if (!asset || editable || !accessToken) return
@@ -1537,7 +948,7 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, editable, 
   const completion = page.completion || {}
   const patchInputs = (nextInputs: any[], nextRules = rules) => {
     const inputIds = new Set(nextInputs.map((input: any) => input.id))
-    const variableBindings = completion.variable_bindings || completion.variableBindings || {}
+    const variableBindings = completion.variable_bindings || {}
     const nextInputBindings = { ...(variableBindings.inputs || {}) }
     Object.keys(nextInputBindings).forEach((id) => {
       if (!inputIds.has(id)) nextInputBindings[id] = null
@@ -1863,55 +1274,6 @@ function InfoTextBlock({ block, blockId, editable, onActivate, onUpdate, onSplit
   return <EditorContent editor={editor} className="learning-info-text-block" />
 }
 
-function InfoImageBlock({ block, editable, active, onActivate }: any) {
-  const attrs = block.attrs || {}
-  const height = Number(attrs.height) || 220
-  return (
-    <figure
-      data-learning-image
-      className={`learning-info-image-block ${active ? 'is-active' : ''}`}
-      style={{ height }}
-      onMouseDown={() => editable && onActivate()}
-    >
-      {attrs.src ? <img src={attrs.src} alt={attrs.alt || ''} /> : <div data-learning-image-empty>Add image</div>}
-    </figure>
-  )
-}
-
-function InfoFormatButton({ title, active, onClick, children }: any) {
-  return (
-    <button
-      type="button"
-      title={title}
-      onClick={onClick}
-      className={`flex h-8 w-8 items-center justify-center rounded-lg transition ${active ? 'bg-gray-950 text-white' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
-    >
-      {children}
-    </button>
-  )
-}
-
-function getActiveTextAlignment(editor: any) {
-  const attrs = editor?.isActive?.('heading')
-    ? editor.getAttributes?.('heading')
-    : editor?.getAttributes?.('paragraph')
-  return attrs?.textAlign || 'left'
-}
-
-function setActiveTextAlignment(editor: any, textAlign: 'left' | 'center' | 'right') {
-  if (!editor) return
-  const attrs = textAlign === 'left' ? { textAlign: null } : { textAlign }
-  if (editor.isActive?.('heading')) {
-    editor.chain().focus().updateAttributes('heading', attrs).run()
-    return
-  }
-  editor.chain().focus().updateAttributes('paragraph', attrs).run()
-}
-
-function normalizeInfoBlocks(nodes: any[]) {
-  return nodes?.length ? nodes.map((node) => withInfoBlockMeta(node)) : [createInfoTextBlock('heading'), createInfoTextBlock('paragraph')]
-}
-
 function getInfoEditorOutputBlock(nodes: any[]) {
   const nextNode = (nodes || []).find((node) => !isEmptyInfoParagraph(node)) || nodes?.[0]
   return sanitizeInfoTextBlock(nextNode || createInfoTextBlock('paragraph'))
@@ -1994,47 +1356,6 @@ function removeInfoListItem(listItems: any[], activeItem: any, fallbackIndex: nu
   })
 }
 
-function normalizeInfoAdjacentLists(blocks: any[], ids: string[], activeIndex: number) {
-  const nextBlocks = [...blocks]
-  const nextIds = [...ids]
-  let nextActiveIndex = activeIndex
-  let index = 0
-
-  while (index < nextBlocks.length - 1) {
-    const current = nextBlocks[index]
-    const next = nextBlocks[index + 1]
-    if (!canMergeInfoListBlocks(current, next)) {
-      index += 1
-      continue
-    }
-
-    nextBlocks[index] = {
-      ...current,
-      content: [...(current.content || []), ...(next.content || [])],
-    }
-    nextBlocks.splice(index + 1, 1)
-    nextIds.splice(index + 1, 1)
-    if (nextActiveIndex === index + 1) nextActiveIndex = index
-    else if (nextActiveIndex > index + 1) nextActiveIndex -= 1
-  }
-
-  return {
-    blocks: nextBlocks,
-    ids: nextIds,
-    activeIndex: Math.max(0, Math.min(nextActiveIndex, nextBlocks.length - 1)),
-    merged: nextBlocks.length !== blocks.length,
-  }
-}
-
-function canMergeInfoListBlocks(first: any, second: any) {
-  return Boolean(
-    first &&
-    second &&
-    first.type === second.type &&
-    (first.type === 'bulletList' || first.type === 'orderedList')
-  )
-}
-
 function getInfoEscapedListBlocks(nodes: any[]) {
   if (!nodes?.length) return null
   const listIndex = nodes.findIndex((node: any) => node?.type === 'bulletList' || node?.type === 'orderedList')
@@ -2093,20 +1414,8 @@ function stripInfoBlockMeta(node: any) {
   return JSON.parse(JSON.stringify(node || { type: 'paragraph' }))
 }
 
-function cloneInfoBlock(block: any) {
-  return stripInfoBlockMeta(block)
-}
-
 function createInfoTextBlock(type: 'heading' | 'paragraph') {
   return type === 'heading' ? { type: 'heading', attrs: { level: 1 } } : { type: 'paragraph' }
-}
-
-function createInfoImageBlock() {
-  return { type: 'learningImage', attrs: { src: '', mode: 'url', height: 220 } }
-}
-
-function createQuestionBlock() {
-  return { type: 'learningQuestion', attrs: { locked: true } }
 }
 
 function isLearningQuestionPage(page: any) {
@@ -2117,68 +1426,6 @@ export function isQuestionResponseRequired(page: any) {
   if (!page) return false
   if (page.page_type === 'standard') return Boolean(findQuestionBlock(page))
   return isLearningQuestionPage(page)
-}
-
-function isLearningTextBlock(block: any) {
-  return Boolean(block && block.type !== 'learningImage' && block.type !== 'learningQuestion')
-}
-
-function countLearningTextBlocks(blocks: any[]) {
-  return (blocks || []).filter(isLearningTextBlock).length
-}
-
-function ensureQuestionBlock(blocks: any[], options: { questionPageType?: string } = {}) {
-  const nextBlocks = (blocks || []).filter((block: any) => block?.type !== 'learningQuestion')
-  const firstQuestionIndex = (blocks || []).findIndex((block: any) => block?.type === 'learningQuestion')
-  const hadTextBlocks = countLearningTextBlocks(nextBlocks) > 0
-  if (options.questionPageType === 'text_input' && !hadTextBlocks) {
-    nextBlocks.unshift(createInfoTextBlock('paragraph'))
-  }
-  const insertAt = firstQuestionIndex >= 0
-    ? options.questionPageType === 'text_input' && !hadTextBlocks
-      ? nextBlocks.length
-      : Math.min(firstQuestionIndex, nextBlocks.length)
-    : options.questionPageType === 'text_input'
-      ? nextBlocks.length
-      : 0
-  nextBlocks.splice(insertAt, 0, createQuestionBlock())
-  return nextBlocks
-}
-
-function syncIdsToBlocks(normalizedBlocks: any[], originalBlocks: any[], originalIds: string[], createBlockId: () => string) {
-  const nextIds: string[] = []
-  let sourceIndex = 0
-  normalizedBlocks.forEach((block) => {
-    if (block?.type === originalBlocks[sourceIndex]?.type) {
-      nextIds.push(originalIds[sourceIndex] || createBlockId())
-      sourceIndex += 1
-      return
-    }
-    const matchingIndex = originalBlocks.findIndex((item, index) => index >= sourceIndex && item?.type === block?.type)
-    if (matchingIndex >= 0) {
-      nextIds.push(originalIds[matchingIndex] || createBlockId())
-      sourceIndex = matchingIndex + 1
-      return
-    }
-    nextIds.push(createBlockId())
-  })
-  return nextIds
-}
-
-function getLegacyResponseTextContent(content: any) {
-  const variant = content?.variants?.default || content?.default || {}
-  const title = (variant.title || content?.heading || '').trim()
-  const body = (variant.body || content?.body || '').trim()
-  const nodes: any[] = []
-  if (title) nodes.push({ type: 'text', text: title })
-  if (title && body) nodes.push({ type: 'hardBreak' })
-  if (body) nodes.push({ type: 'text', text: body })
-  return nodes.length ? nodes : undefined
-}
-
-function getResponseBlockContent(content: any, responseKey: string) {
-  if (responseKey === 'default') return content
-  return content?.response_variants?.[responseKey] || {}
 }
 
 function getQuestionTextInputs(page: any) {
@@ -2192,7 +1439,7 @@ function getQuestionTextInputs(page: any) {
       variant: input.variant || 'short_answer',
       width: input.width || 'full',
       height: Number(input.height) || ((input.variant === 'single_line' || input.input_type === 'month' || input.input_type === 'url' || input.input_type === 'select') ? 48 : 160),
-      input_type: input.input_type || input.inputType || 'text',
+      input_type: input.input_type || 'text',
       adaptive: input.adaptive,
       options_binding: input.options_binding || input.optionsBinding,
     }))
@@ -2290,123 +1537,6 @@ function resolveTextInputValidation(input: any, rule: any) {
 function createLearningLocalId(prefix: string) {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return `${prefix}_${crypto.randomUUID()}`
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-}
-
-function getRuntimeResponseKey(page: any, pages: any[], run: any) {
-  const content = page.content || {}
-  const linkedQuestion = findLinkedQuestionForResponse(page, pages)
-  if (!linkedQuestion?.page_uuid) return 'default'
-
-  const attempts = run?.attempts || []
-  const attempt = attempts
-    .filter((item: any) => {
-      const resultPageUuid = item.result?.page_uuid
-      return resultPageUuid === linkedQuestion.page_uuid || item.page_uuid === linkedQuestion.page_uuid
-    })
-    .at(-1)
-  if (!attempt || attempt.result?.grading_status === 'pending') return 'default'
-  const optionKeys = [
-    ...(Array.isArray(attempt?.answer?.option_ids) ? attempt.answer.option_ids : []),
-    ...(Array.isArray(attempt?.result?.option_ids) ? attempt.result.option_ids : []),
-    ...(Array.isArray(attempt?.result?.selected) ? attempt.result.selected : []),
-    attempt?.answer?.option_id,
-    attempt?.result?.answer?.option_id,
-    attempt?.result?.option_id,
-    typeof attempt?.result?.selected === 'string' ? attempt.result.selected : null,
-    attempt?.feedback_key,
-    attempt?.is_correct === true ? 'correct' : attempt?.is_correct === false ? 'incorrect' : null,
-  ].filter(Boolean)
-  const optionKey = optionKeys.find((key: string) => content.response_variants?.[key]?.enabled)
-  return optionKey || 'default'
-}
-
-function findLinkedQuestionForResponse(responsePage: any, pages: any[]) {
-  const linkedUuid = responsePage.content?.linked_page_uuid
-  if (linkedUuid) {
-    const linked = pages.find((page: any) => page.page_uuid === linkedUuid)
-    if (linked) return linked
-  }
-
-  const responseIndex = pages.findIndex((page: any) => page.page_uuid === responsePage.page_uuid)
-  const previousPage = responseIndex > 0 ? pages[responseIndex - 1] : null
-  return isLearningQuestionPage(previousPage) ? previousPage : null
-}
-
-function getInfoRichTextContent(
-  content: any,
-  options: { includeQuestionBlock?: boolean; questionPageType?: string; responseTemplate?: boolean } = {}
-) {
-  if (content?.rich_text?.type === 'doc') {
-    if (options.responseTemplate && !content.rich_text.content?.length) {
-      return createResponseRichTextContent(content)
-    }
-    return {
-      ...content.rich_text,
-      content: options.includeQuestionBlock ? ensureQuestionBlock(content.rich_text.content || [], { questionPageType: options.questionPageType }) : content.rich_text.content,
-    }
-  }
-
-  const nodes: any[] = []
-  if (options.responseTemplate) {
-    return createResponseRichTextContent(content)
-  }
-
-  const heading = (content?.heading || '').trim()
-  const body = (content?.body || '').trim()
-  const imageUrl = content?.image_url || content?.image_data_url || ''
-
-  if (heading) {
-    nodes.push({
-      type: 'heading',
-      attrs: { level: 1 },
-      content: [{ type: 'text', text: heading }],
-    })
-  }
-
-  if (body) {
-    body.split(/\n{2,}/).forEach((paragraph: string) => {
-      nodes.push({
-        type: 'paragraph',
-        content: paragraph
-          ? [{ type: 'text', text: paragraph.replace(/\n/g, ' ') }]
-          : undefined,
-      })
-    })
-  }
-
-  if (imageUrl) {
-    nodes.push({
-      type: 'learningImage',
-      attrs: { src: imageUrl, mode: content?.image_data_url ? 'upload' : 'url', height: content?.image_height || 220 },
-    })
-  }
-
-  if (!nodes.length && (!options.includeQuestionBlock || options.questionPageType === 'text_input')) {
-    nodes.push({ type: 'heading', attrs: { level: 1 } }, { type: 'paragraph' })
-  }
-
-  if (options.includeQuestionBlock) {
-    return {
-      type: 'doc',
-      content: ensureQuestionBlock(nodes, { questionPageType: options.questionPageType }),
-    }
-  }
-
-  return { type: 'doc', content: nodes }
-}
-
-function createResponseRichTextContent(content: any) {
-  return {
-    type: 'doc',
-    content: [
-      createInfoImageBlock(),
-      {
-        type: 'paragraph',
-        attrs: { textAlign: 'center' },
-        content: getLegacyResponseTextContent(content),
-      },
-    ],
-  }
 }
 
 function VideoPageContent({ page, answer, setAnswer, setUnlocked, editable, onPagePatch }: any) {

@@ -40,8 +40,6 @@ class ActivityDocumentPage(BaseModel):
     required: bool = True
     content: dict[str, Any] = Field(default_factory=dict)
     design: dict[str, Any] = Field(default_factory=dict)
-    scoring: dict[str, Any] = Field(default_factory=dict)
-    completion: dict[str, Any] = Field(default_factory=dict)
 
 
 class ActivityDocumentActivity(BaseModel):

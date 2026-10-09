@@ -1,6 +1,6 @@
 {
   "files": {
-    "apps/api/src/db/learning.py": 688,
+    "apps/api/src/db/learning.py": 682,
     "apps/api/src/routers/auth.py": 860,
     "apps/api/src/routers/candidate_feedback.py": 636,
     "apps/api/src/routers/hub.py": 546,
@@ -68,10 +68,9 @@
     "apps/web/components/Learning/AdminBadgeShell.tsx": 1345,
     "apps/web/components/Learning/BadgeCertificatePreview.tsx": 634,
     "apps/web/components/Learning/IssuingAdminShell.tsx": 591,
-    "apps/web/components/Learning/LearningBadgeViews.tsx": 2703,
-    "apps/web/components/Learning/editor/LearningActivityEditor.tsx": 3170,
+    "apps/web/components/Learning/LearningBadgeViews.tsx": 1833,
+    "apps/web/components/Learning/editor/LearningActivityEditor.tsx": 3166,
     "apps/web/components/Learning/editor/VisualFlowEditor.tsx": 1194,
-    "apps/web/components/Learning/editor/utils.ts": 516,
     "apps/web/components/Objects/Media/MediaPickerDialog.tsx": 888,
     "apps/web/components/Objects/Menus/OrgMenu.tsx": 519,
     "apps/web/components/Objects/Modals/Dash/OrgRoles/AddRole.tsx": 618,

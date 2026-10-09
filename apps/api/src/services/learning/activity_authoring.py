@@ -233,8 +233,6 @@ async def import_activity(
             required=page_data.required,
             content=page_data.content,
             design=page_data.design,
-            scoring=page_data.scoring,
-            completion=page_data.completion,
             order=index + 1,
             page_uuid=page_uuid,
             creation_date=now,

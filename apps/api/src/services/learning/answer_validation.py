@@ -79,15 +79,12 @@ def _validate_mcq_answer(
     completion = completion or {}
     min_selections = max(
         0,
-        _as_int(completion.get("min_selections") or completion.get("minSelections"), 1),
+        _as_int(completion.get("min_selections"), 1),
     )
     max_default = len(options) if options else max(1, len(selected))
     max_selections = max(
         1,
-        _as_int(
-            completion.get("max_selections") or completion.get("maxSelections"),
-            max_default,
-        ),
+        _as_int(completion.get("max_selections"), max_default),
     )
     if len(selected) < min_selections:
         raise HTTPException(
@@ -133,15 +130,13 @@ def _validate_text_answer(
 
     for item in configured_inputs:
         input_id = str(item.get("id") or "response")
-        input_type = str(
-            item.get("input_type") or item.get("inputType") or "text"
-        )
+        input_type = str(item.get("input_type") or "text")
         rules = completion_inputs.get(input_id) or {}
         value = inputs.get(input_id) or {}
         text = str(value.get("text") or "").strip()
         words = _word_count(text)
-        min_words = max(0, _as_int(rules.get("min_words") or rules.get("minWords"), 0))
-        max_words = max(0, _as_int(rules.get("max_words") or rules.get("maxWords"), 0))
+        min_words = max(0, _as_int(rules.get("min_words"), 0))
+        max_words = max(0, _as_int(rules.get("max_words"), 0))
         required = rules.get("required", min_words > 0)
         validation = str(rules.get("validation") or "none").lower()
         if validation == "none" and input_type in {"email", "url", "tel"}:

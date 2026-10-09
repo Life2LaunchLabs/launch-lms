@@ -245,7 +245,7 @@ export function ActivityGradeForm({ response, scores, setScores, feedback, setFe
   const autoScore = autoResults.reduce((sum, [, item]: any) => sum + Number(item.score || 0), 0)
   const autoMax = autoResults.reduce((sum, [, item]: any) => sum + Number(item.max_score ?? item.points ?? 0), 0)
   const manualScore = pending.reduce((sum, question) => sum + Number(scores[String(question.id)] || 0), 0)
-  const manualMax = pending.reduce((sum, question) => sum + Number(results[String(question.id)]?.max_score ?? getBlockScoring(response.page, question)?.points ?? 0), 0)
+  const manualMax = pending.reduce((sum, question) => sum + Number(results[String(question.id)]?.max_score ?? getBlockScoring(question)?.points ?? 0), 0)
   const total = autoScore + manualScore
   const max = autoMax + manualMax
   const percent = max ? Math.round((total / max) * 1000) / 10 : 100
@@ -256,7 +256,7 @@ export function ActivityGradeForm({ response, scores, setScores, feedback, setFe
     <div className="space-y-5">{pending.map((question, index) => {
       const id = String(question.id)
       const result = results[id] || {}
-      const scoring = getBlockScoring(response.page, question) || {}
+      const scoring = getBlockScoring(question) || {}
       const maxScore = Number(result.max_score ?? result.points ?? scoring.points ?? 0)
       const answer = result.inputs || response.answer?.questions?.[id]?.inputs || {}
       return <section key={id} className="rounded-xl border border-gray-200 p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wide text-gray-400">Question {index + 1}</p><h3 className="mt-1 text-sm font-black text-gray-900">{question.content?.label || response.page?.title || 'Manual response'}</h3></div><span className="shrink-0 rounded-full bg-gray-100 px-2 py-1 text-xs font-black text-gray-600">{maxScore} pts</span></div><div className="mt-4 space-y-2">{Object.entries(answer).map(([inputId, value]: any) => <div key={inputId} className="rounded-lg bg-gray-50 p-3"><p className="text-[10px] font-black uppercase text-gray-400">{question.content?.inputs?.find((input: any) => input.id === inputId)?.label || inputId}</p><p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-gray-800">{value?.text || value?.url || 'No response'}</p></div>)}</div><div className="mt-4 rounded-lg border border-blue-100 bg-blue-50 p-3"><p className="text-[10px] font-black uppercase text-blue-600">Rubric</p><p className="mt-1 whitespace-pre-wrap text-sm leading-5 text-blue-950">{scoring.rubric || 'No rubric was provided.'}</p></div><label className="mt-4 block text-xs font-black text-gray-600">Points earned <span className="font-medium text-gray-400">(0–{maxScore})</span><input type="number" min={0} max={maxScore} step="any" value={scores[id] ?? ''} onChange={(event) => { const value = event.target.value; setScores((current) => ({ ...current, [id]: value === '' ? '' : String(Math.max(0, Math.min(maxScore, Number(value)))) })) }} className="mt-2 h-11 w-full rounded-lg border border-gray-200 px-3 text-sm outline-none focus:border-blue-400" /></label></section>
@@ -314,12 +314,12 @@ function buildAdminActivityAttempts(review: any) {
       const rows = Object.entries(results).filter(([, result]: any) => ['graded', 'pending'].includes(result?.grading_status)).map(([id, result]: any, index) => {
         const question = blocks.find((block: any) => String(block.id) === String(id))
         const answer = attempt.answer?.questions?.[id] || (blocks.length === 1 ? attempt.answer : {}) || {}
-        const scoring = getBlockScoring(attempt.page, question) || {}
+        const scoring = getBlockScoring(question) || {}
         return adminQuestion(attempt, question, result, answer, `${attempt.attempt_uuid}:${id}`, index, scoring)
       })
       if (rows.length) return rows
       if (!Number(attempt.result?.max_score || 0) || !blocks[0]) return []
-      return [adminQuestion(attempt, blocks[0], attempt.result, attempt.answer || {}, attempt.attempt_uuid, 0, getBlockScoring(attempt.page, blocks[0]) || {})]
+      return [adminQuestion(attempt, blocks[0], attempt.result, attempt.answer || {}, attempt.attempt_uuid, 0, getBlockScoring(blocks[0]) || {})]
     })
     const pending = questions.some((item: any) => item.pending)
     const score = questions.reduce((total: number, item: any) => total + Number(item.score || 0), 0)

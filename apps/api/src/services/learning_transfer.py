@@ -1,4 +1,16 @@
+"""Badge collection packages (zip) built on Activity Documents.
+
+Format 2 stores, per badge, the badge fields of its current version and each
+activity as an Activity Document (`activities/NN.activity.json`). Importing
+creates a new badge with a draft version and adds every activity through the
+document path, so page ids, branching flows and button targets are remapped
+and validated exactly like any other document. Format 1 packages (raw rows,
+`activities/<uuid>/activity.json` + `pages/*.json`) are converted to documents
+on the way in, which is the only place legacy page shapes are still accepted.
+"""
+
 from __future__ import annotations
+
 import io
 import json
 import os
@@ -13,21 +25,23 @@ from src.db.learning import (
     BadgeCollection,
     LearningActivity,
     LearningBadge,
-    LearningBadgeStatus,
-    LearningPage,
-    LearningPath,
+    LearningBadgeCreate,
+    LearningBadgeVersion,
+    LearningBadgeVersionState,
 )
 from src.db.users import AnonymousUser, PublicUser
 from src.services import learning as learning_service
-from src.services.learning_page_convert import (
-    convert_legacy_page,
-    link_variant_sources_to_question_blocks,
-)
+from src.services.learning_documents import store as document_store
+from src.services.learning_documents.document import export_document
+from src.services.learning_documents.models import DOCUMENT_FORMAT, ActivityDocumentCreate
+from src.services.learning_page_convert import convert_legacy_page, normalize_question_settings
 
 LEARNING_EXPORT_FORMAT = "launch-lms-badge-export"
+PACKAGE_VERSION = "2.0.0"
 MAX_PACKAGE_SIZE = 500 * 1024 * 1024
 MAX_COMPRESSION_RATIO = 100
 TEMP_IMPORT_DIR = "content/temp/badge-imports"
+BADGE_FIELDS = ("name", "description", "about", "criteria", "thumbnail_image", "public", "direct_conferral_enabled", "badge_metadata")
 
 
 def sanitize_path(path: str) -> str:
@@ -37,13 +51,9 @@ def sanitize_path(path: str) -> str:
 
 def validate_zip(content: bytes) -> None:
     if len(content) > MAX_PACKAGE_SIZE:
-        raise HTTPException(status_code=413, detail="Import package is too large")
+        raise HTTPException(status_code=413, detail=f"Package too large. Maximum size is {MAX_PACKAGE_SIZE // 1024 // 1024}MB")
     if not zipfile.is_zipfile(io.BytesIO(content)):
-        raise HTTPException(status_code=400, detail="Invalid ZIP package")
-
-
-def _now() -> str:
-    return str(datetime.now())
+        raise HTTPException(status_code=415, detail="Invalid file format. Package must be a ZIP file.")
 
 
 def _normalize_collection_uuid(value: str) -> str:
@@ -51,39 +61,33 @@ def _normalize_collection_uuid(value: str) -> str:
 
 
 def _get_collection(db_session: Session, collection_uuid: str) -> BadgeCollection:
-    collection = db_session.exec(
-        select(BadgeCollection).where(
-            BadgeCollection.collection_uuid == _normalize_collection_uuid(collection_uuid),
-            BadgeCollection.deleted_at.is_(None),
-        )
-    ).first()
-    if not collection:
-        collection = db_session.exec(select(BadgeCollection).where(
-            BadgeCollection.collection_uuid == collection_uuid,
-            BadgeCollection.deleted_at.is_(None),
-        )).first()
-    if not collection:
-        raise HTTPException(status_code=404, detail="Badge collection not found")
-    return collection
-
-
-def _badge_status_from_export(badge_data: dict) -> LearningBadgeStatus:
-    try:
-        return LearningBadgeStatus(str(badge_data.get("status") or ""))
-    except ValueError:
-        pass
-    if badge_data.get("published") is True:
-        return LearningBadgeStatus.PUBLISHED
-    return LearningBadgeStatus.DRAFT
+    for candidate in (_normalize_collection_uuid(collection_uuid), collection_uuid):
+        collection = db_session.exec(
+            select(BadgeCollection).where(BadgeCollection.collection_uuid == candidate, BadgeCollection.deleted_at.is_(None))  # type: ignore[union-attr]
+        ).first()
+        if collection:
+            return collection
+    raise HTTPException(status_code=404, detail="Badge collection not found")
 
 
 def _read_json(path: str) -> dict:
-    with open(path, "r") as handle:
+    with open(path, encoding="utf-8") as handle:
         return json.load(handle)
 
 
 def _write_json(zip_file: zipfile.ZipFile, path: str, payload: dict) -> None:
-    zip_file.writestr(path, json.dumps(payload, indent=2, default=str))
+    zip_file.writestr(path, json.dumps(payload, indent=2, default=str, ensure_ascii=False))
+
+
+def _export_version(db_session: Session, badge: LearningBadge) -> LearningBadgeVersion | None:
+    """The version a package should carry: the active one, else the newest draft."""
+    if badge.active_version_id:
+        version = db_session.get(LearningBadgeVersion, badge.active_version_id)
+        if version:
+            return version
+    return db_session.exec(
+        select(LearningBadgeVersion).where(LearningBadgeVersion.badge_id == badge.id).order_by(LearningBadgeVersion.update_date.desc())  # type: ignore[union-attr]
+    ).first()
 
 
 async def export_badge_collection(
@@ -96,92 +100,119 @@ async def export_badge_collection(
     learning_service._require_org_admin(db_session, current_user, collection.org_id)
     org = learning_service._get_org(db_session, collection.org_id)
     badges = db_session.exec(
-        select(LearningBadge).where(
-            LearningBadge.collection_id == collection.id,
-            LearningBadge.deleted_at.is_(None),
-        ).order_by(LearningBadge.creation_date.asc())  # type: ignore
+        select(LearningBadge)
+        .where(LearningBadge.collection_id == collection.id, LearningBadge.deleted_at.is_(None))  # type: ignore[union-attr]
+        .order_by(LearningBadge.creation_date.asc())  # type: ignore[union-attr]
     ).all()
-
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-        badge_entries = []
-        _write_json(
-            zip_file,
-            "collection/collection.json",
-            {
-                key: value
-                for key, value in collection.model_dump().items()
-                if key not in {"id", "org_id", "creation_date", "update_date"}
-            },
-        )
-
+        _write_json(zip_file, "collection/collection.json", {"name": collection.name, "description": collection.description or ""})
+        entries = []
         for badge in badges:
             badge_path = f"badges/{badge.badge_uuid}"
-            badge_entries.append({"badge_uuid": badge.badge_uuid, "name": badge.name, "path": badge_path})
-            _export_badge(zip_file, badge_path, badge, db_session)
-
-        manifest = {
-            "version": "1.0.0",
-            "format": LEARNING_EXPORT_FORMAT,
-            "created_at": datetime.now().isoformat(),
-            "organization": {"org_uuid": org.org_uuid, "name": org.name},
-            "collection": {"collection_uuid": collection.collection_uuid, "name": collection.name, "path": "collection"},
-            "badges": badge_entries,
-        }
-        _write_json(zip_file, "manifest.json", manifest)
-
+            version = _export_version(db_session, badge)
+            definition = {**{field: getattr(badge, field) for field in BADGE_FIELDS}, **((version.definition or {}) if version else {})}
+            _write_json(zip_file, f"{badge_path}/badge.json", {"badge_uuid": badge.badge_uuid, **{field: definition.get(field) for field in BADGE_FIELDS}})
+            activities = (
+                db_session.exec(
+                    select(LearningActivity).where(LearningActivity.version_id == version.id).order_by(LearningActivity.order.asc())  # type: ignore[union-attr]
+                ).all()
+                if version
+                else []
+            )
+            for index, activity in enumerate(activities, start=1):
+                document = export_document(activity, document_store.activity_pages(db_session, activity))
+                _write_json(zip_file, f"{badge_path}/activities/{index:02d}.activity.json", document)
+            entries.append({"badge_uuid": badge.badge_uuid, "name": badge.name, "path": badge_path, "activities": len(activities)})
+        _write_json(
+            zip_file,
+            "manifest.json",
+            {
+                "format": LEARNING_EXPORT_FORMAT,
+                "version": PACKAGE_VERSION,
+                "created_at": datetime.now().isoformat(),
+                "organization": {"org_uuid": org.org_uuid, "name": org.name},
+                "badges": entries,
+            },
+        )
     buffer.seek(0)
     return buffer.getvalue()
 
 
-def _export_badge(zip_file: zipfile.ZipFile, badge_path: str, badge: LearningBadge, db_session: Session) -> None:
-    _write_json(
-        zip_file,
-        f"{badge_path}/badge.json",
-        {
-            key: value
-            for key, value in badge.model_dump().items()
-            if key not in {"id", "org_id", "collection_id", "creation_date", "update_date"}
+def _legacy_activity_document(activity_dir: str) -> dict:
+    """Convert a format-1 activity directory into an Activity Document."""
+    activity = _read_json(os.path.join(activity_dir, "activity.json"))
+    pages = []
+    pages_dir = os.path.join(activity_dir, "pages")
+    files = sorted(name for name in os.listdir(pages_dir) if name.endswith(".json")) if os.path.isdir(pages_dir) else []
+    for raw in sorted((_read_json(os.path.join(pages_dir, name)) for name in files), key=lambda item: item.get("order") or 0):
+        page_type, content = convert_legacy_page(str(raw.get("page_type") or "info"), raw.get("content") or {})
+        if page_type == "standard":
+            content = normalize_question_settings(content, raw.get("scoring"), raw.get("completion"))
+        pages.append(
+            {
+                "page_uuid": raw.get("page_uuid") or f"imported-{len(pages) + 1}",
+                "page_type": page_type,
+                "title": raw.get("title") or "Untitled page",
+                "required": raw.get("required", True),
+                "content": content,
+                "design": raw.get("design") or {},
+            }
+        )
+    settings = {key: value for key, value in (activity.get("settings") or {}).items() if key not in {"system_required", "version_lineage_uuid"}}
+    return {
+        "format": DOCUMENT_FORMAT,
+        "format_version": 1,
+        "activity": {
+            "title": activity.get("title") or "Untitled activity",
+            "description": activity.get("description") or "",
+            "icon": activity.get("icon"),
+            "thumbnail_image": activity.get("thumbnail_image") or "",
+            "required": activity.get("required", True),
+            "settings": settings,
         },
-    )
-    path = db_session.exec(select(LearningPath).where(LearningPath.badge_id == badge.id)).first()
-    if path:
-        _write_json(
-            zip_file,
-            f"{badge_path}/path.json",
-            {
-                key: value
-                for key, value in path.model_dump().items()
-                if key not in {"id", "badge_id", "org_id", "creation_date", "update_date"}
-            },
-        )
-    activities = db_session.exec(
-        select(LearningActivity).where(LearningActivity.badge_id == badge.id).order_by(LearningActivity.order.asc())  # type: ignore
-    ).all()
-    for activity in activities:
-        activity_path = f"{badge_path}/activities/{activity.activity_uuid}"
-        _write_json(
-            zip_file,
-            f"{activity_path}/activity.json",
-            {
-                key: value
-                for key, value in activity.model_dump().items()
-                if key not in {"id", "path_id", "badge_id", "org_id", "creation_date", "update_date"}
-            },
-        )
-        pages = db_session.exec(
-            select(LearningPage).where(LearningPage.activity_id == activity.id).order_by(LearningPage.order.asc())  # type: ignore
-        ).all()
-        for page in pages:
-            _write_json(
-                zip_file,
-                f"{activity_path}/pages/{page.page_uuid}.json",
-                {
-                    key: value
-                    for key, value in page.model_dump().items()
-                    if key not in {"id", "activity_id", "badge_id", "org_id", "creation_date", "update_date"}
-                },
-            )
+        "pages": pages,
+    }
+
+
+def _package_documents(badge_path: str) -> list[dict]:
+    activities_dir = os.path.join(badge_path, "activities")
+    if not os.path.isdir(activities_dir):
+        return []
+    documents = []
+    for name in sorted(os.listdir(activities_dir)):
+        full = os.path.join(activities_dir, name)
+        if name.endswith(".activity.json"):
+            documents.append(_read_json(full))
+        elif os.path.isdir(full) and os.path.exists(os.path.join(full, "activity.json")):
+            order = _read_json(os.path.join(full, "activity.json")).get("order") or 0
+            documents.append({**_legacy_activity_document(full), "_order": order})
+    if any("_order" in document for document in documents):
+        documents.sort(key=lambda document: document.get("_order", 0))
+    for document in documents:
+        document.pop("_order", None)
+        document.get("activity", {}).pop("activity_uuid", None)
+    return [document for document in documents if document.get("pages")]
+
+
+def _extract_zip(content: bytes, temp_dir: str) -> str:
+    extract_dir = os.path.join(temp_dir, "extracted")
+    os.makedirs(extract_dir, exist_ok=True)
+    with zipfile.ZipFile(io.BytesIO(content), "r") as zip_ref:
+        if sum(info.file_size for info in zip_ref.infolist()) > len(content) * MAX_COMPRESSION_RATIO:
+            raise HTTPException(status_code=400, detail="Invalid package: Suspicious compression ratio")
+        for info in zip_ref.infolist():
+            safe_path = sanitize_path(info.filename)
+            target_path = os.path.join(extract_dir, safe_path)
+            if not safe_path or not os.path.abspath(target_path).startswith(os.path.abspath(extract_dir)):
+                continue
+            if info.is_dir():
+                os.makedirs(target_path, exist_ok=True)
+                continue
+            os.makedirs(os.path.dirname(target_path), exist_ok=True)
+            with zip_ref.open(info) as source, open(target_path, "wb") as target:
+                shutil.copyfileobj(source, target)
+    return extract_dir
 
 
 async def analyze_badge_import_package(
@@ -194,11 +225,7 @@ async def analyze_badge_import_package(
     learning_service._require_org_admin(db_session, current_user, org_id)
     learning_service._require_badge_creation_access(db_session, current_user, org_id)
     content = await zip_file.read()
-    if len(content) > MAX_PACKAGE_SIZE:
-        raise HTTPException(status_code=413, detail=f"Package too large. Maximum size is {MAX_PACKAGE_SIZE / 1024 / 1024:.0f}MB")
-    if not validate_zip(content):
-        raise HTTPException(status_code=415, detail="Invalid file format. Package must be a ZIP file.")
-
+    validate_zip(content)
     temp_id = str(uuid4())
     temp_dir = os.path.join(TEMP_IMPORT_DIR, temp_id)
     try:
@@ -207,65 +234,58 @@ async def analyze_badge_import_package(
         if not os.path.exists(manifest_path):
             raise HTTPException(status_code=400, detail="Invalid package: manifest.json not found")
         manifest = _read_json(manifest_path)
-        package_format = manifest.get("format")
-
-        if package_format == LEARNING_EXPORT_FORMAT:
-            badges = []
-            for badge_entry in manifest.get("badges", []):
-                badge_path = os.path.join(extract_dir, badge_entry.get("path", ""))
-                badge_data = _read_json(os.path.join(badge_path, "badge.json"))
-                badges.append({
-                    "badge_uuid": badge_data.get("badge_uuid") or badge_entry.get("badge_uuid"),
-                    "name": badge_data.get("name") or badge_entry.get("name") or "Untitled Badge",
+        if manifest.get("format") != LEARNING_EXPORT_FORMAT:
+            raise HTTPException(status_code=400, detail="Invalid package: Unsupported import format")
+        badges = []
+        for entry in manifest.get("badges", []):
+            badge_path = os.path.join(extract_dir, sanitize_path(entry.get("path", "")))
+            badge_data = _read_json(os.path.join(badge_path, "badge.json"))
+            documents = _package_documents(badge_path)
+            badges.append(
+                {
+                    "badge_uuid": badge_data.get("badge_uuid") or entry.get("badge_uuid"),
+                    "name": badge_data.get("name") or entry.get("name") or "Untitled Badge",
                     "description": badge_data.get("description") or "",
-                    "activities_count": _count_activity_dirs(badge_path),
-                    "pages_count": _count_page_files(badge_path),
+                    "activities_count": len(documents),
+                    "pages_count": sum(len(document["pages"]) for document in documents),
                     "has_thumbnail": bool(badge_data.get("thumbnail_image")),
-                })
-            if not badges:
-                raise HTTPException(status_code=400, detail="Invalid package: No valid badges found")
-            return {
-                "temp_id": temp_id,
-                "version": manifest.get("version", "1.0.0"),
-                "source_format": LEARNING_EXPORT_FORMAT,
-                "requires_conversion": False,
-                "badges": badges,
-            }
-
-        raise HTTPException(status_code=400, detail="Invalid package: Unsupported import format")
+                }
+            )
+        if not badges:
+            raise HTTPException(status_code=400, detail="Invalid package: No valid badges found")
+        return {"temp_id": temp_id, "version": manifest.get("version", "1.0.0"), "source_format": LEARNING_EXPORT_FORMAT, "requires_conversion": False, "badges": badges}
     except HTTPException:
         shutil.rmtree(temp_dir, ignore_errors=True)
         raise
-    except Exception as exc:
+    except (OSError, ValueError, KeyError) as exc:
         shutil.rmtree(temp_dir, ignore_errors=True)
-        raise HTTPException(status_code=500, detail=f"Error analyzing package: {exc}")
+        raise HTTPException(status_code=400, detail=f"Invalid package: {exc}") from exc
 
 
-def _extract_zip(content: bytes, temp_dir: str) -> str:
-    os.makedirs(temp_dir, exist_ok=True)
-    zip_path = os.path.join(temp_dir, "package.zip")
-    with open(zip_path, "wb") as handle:
-        handle.write(content)
-    extract_dir = os.path.join(temp_dir, "extracted")
-    os.makedirs(extract_dir, exist_ok=True)
-    with zipfile.ZipFile(zip_path, "r") as zip_ref:
-        total_size = sum(info.file_size for info in zip_ref.infolist())
-        if total_size > len(content) * MAX_COMPRESSION_RATIO:
-            raise HTTPException(status_code=400, detail="Invalid package: Suspicious compression ratio")
-        for info in zip_ref.infolist():
-            safe_path = sanitize_path(info.filename)
-            if not safe_path:
-                continue
-            target_path = os.path.join(extract_dir, safe_path)
-            if not os.path.abspath(target_path).startswith(os.path.abspath(extract_dir)):
-                continue
-            if info.is_dir():
-                os.makedirs(target_path, exist_ok=True)
-            else:
-                os.makedirs(os.path.dirname(target_path), exist_ok=True)
-                with zip_ref.open(info) as source, open(target_path, "wb") as target:
-                    shutil.copyfileobj(source, target)
-    return extract_dir
+async def _import_single_badge(
+    request: Request, badge_path: str, org_id: int, collection: BadgeCollection, name_prefix: str | None, current_user, db_session: Session
+) -> LearningBadge:
+    data = _read_json(os.path.join(badge_path, "badge.json"))
+    name = data.get("name") or "Untitled Badge"
+    created = await learning_service.create_badge(
+        request,
+        LearningBadgeCreate(
+            org_id=org_id,
+            collection_id=collection.id,
+            name=f"{name_prefix} {name}" if name_prefix else name,
+            **{field: data[field] for field in BADGE_FIELDS if field != "name" and data.get(field) is not None},
+        ),
+        current_user,
+        db_session,
+    )
+    draft = db_session.exec(
+        select(LearningBadgeVersion).where(LearningBadgeVersion.badge_id == created.id, LearningBadgeVersion.state == LearningBadgeVersionState.DRAFT)
+    ).one()
+    for document in _package_documents(badge_path):
+        await document_store.create_activity_from_document(
+            request, ActivityDocumentCreate(badge_uuid=created.badge_uuid, version_uuid=draft.version_uuid, document=document), current_user, db_session
+        )
+    return db_session.get(LearningBadge, created.id)
 
 
 async def import_badge_package(
@@ -275,195 +295,44 @@ async def import_badge_package(
     current_user: PublicUser | AnonymousUser,
     db_session: Session,
 ) -> dict:
-    temp_id = payload.get("temp_id")
-    if not temp_id:
+    temp_id = str(payload.get("temp_id") or "")
+    if not temp_id or sanitize_path(temp_id) != temp_id or "/" in temp_id:
         raise HTTPException(status_code=400, detail="temp_id is required")
-    temp_dir = os.path.join(TEMP_IMPORT_DIR, temp_id)
-    extract_dir = os.path.join(temp_dir, "extracted")
+    extract_dir = os.path.join(TEMP_IMPORT_DIR, temp_id, "extracted")
     manifest_path = os.path.join(extract_dir, "manifest.json")
     if not os.path.exists(manifest_path):
         raise HTTPException(status_code=404, detail="Package not found. Please upload and analyze again.")
     manifest = _read_json(manifest_path)
-    package_format = manifest.get("format")
-
-    if package_format != LEARNING_EXPORT_FORMAT:
+    if manifest.get("format") != LEARNING_EXPORT_FORMAT:
         raise HTTPException(status_code=400, detail="Unsupported import package")
-
-    target_collection = _get_collection(db_session, payload.get("collection_uuid") or "")
-    if target_collection.org_id != org_id:
+    collection = _get_collection(db_session, payload.get("collection_uuid") or "")
+    if collection.org_id != org_id:
         raise HTTPException(status_code=409, detail="Badge collection does not belong to this organization")
     learning_service._require_org_admin(db_session, current_user, org_id)
-
-    badge_uuids = set(payload.get("badge_uuids") or [])
-    if not badge_uuids:
+    wanted = set(payload.get("badge_uuids") or [])
+    if not wanted:
         raise HTTPException(status_code=400, detail="At least one badge is required")
-
     results = []
-    for badge_entry in manifest.get("badges", []):
-        original_uuid = badge_entry.get("badge_uuid")
-        if original_uuid not in badge_uuids:
+    for entry in manifest.get("badges", []):
+        original_uuid = entry.get("badge_uuid")
+        if original_uuid not in wanted:
             continue
         try:
-            new_badge = _import_single_badge(
-                os.path.join(extract_dir, badge_entry.get("path", "")),
-                org_id,
-                target_collection,
-                payload.get("name_prefix"),
-                db_session,
+            badge = await _import_single_badge(
+                request, os.path.join(extract_dir, sanitize_path(entry.get("path", ""))), org_id, collection, payload.get("name_prefix"), current_user, db_session
             )
-            results.append({"original_uuid": original_uuid, "new_uuid": new_badge.badge_uuid, "name": new_badge.name, "success": True})
-        except Exception as exc:
-            results.append({"original_uuid": original_uuid, "new_uuid": "", "name": badge_entry.get("name", ""), "success": False, "error": str(exc)})
-
-    shutil.rmtree(temp_dir, ignore_errors=True)
-    successful = len([result for result in results if result.get("success")])
-    failed = len(results) - successful
+            results.append({"original_uuid": original_uuid, "new_uuid": badge.badge_uuid, "name": badge.name, "success": True})
+        except HTTPException as exc:
+            db_session.rollback()
+            detail = exc.detail if isinstance(exc.detail, str) else json.dumps(exc.detail, default=str)
+            results.append({"original_uuid": original_uuid, "new_uuid": "", "name": entry.get("name", ""), "success": False, "error": detail})
+    shutil.rmtree(os.path.join(TEMP_IMPORT_DIR, temp_id), ignore_errors=True)
+    successful = len([result for result in results if result["success"]])
     return {
         "source_format": LEARNING_EXPORT_FORMAT,
         "requires_conversion": False,
         "total_badges": len(results),
         "successful": successful,
-        "failed": failed,
+        "failed": len(results) - successful,
         "badges": results,
     }
-
-
-def _import_single_badge(
-    badge_path: str,
-    org_id: int,
-    target_collection: BadgeCollection,
-    name_prefix: str | None,
-    db_session: Session,
-) -> LearningBadge:
-    badge_data = _read_json(os.path.join(badge_path, "badge.json"))
-    now = _now()
-    name = badge_data.get("name") or "Untitled Badge"
-    if name_prefix:
-        name = f"{name_prefix} {name}"
-    badge = LearningBadge(
-        badge_uuid=f"badge_{uuid4()}",
-        org_id=org_id,
-        collection_id=target_collection.id,
-        name=name,
-        description=badge_data.get("description") or "",
-        about=badge_data.get("about") or "",
-        criteria=badge_data.get("criteria") or "",
-        thumbnail_image=badge_data.get("thumbnail_image") or "",
-        public=badge_data.get("public", True),
-        status=_badge_status_from_export(badge_data),
-        protected=False,
-        system_type=None,
-        direct_conferral_enabled=badge_data.get("direct_conferral_enabled", True),
-        badge_metadata=badge_data.get("badge_metadata") or {},
-        creation_date=now,
-        update_date=now,
-    )
-    db_session.add(badge)
-    db_session.commit()
-    db_session.refresh(badge)
-
-    path = learning_service._get_path_for_badge(db_session, badge)
-    path_data_path = os.path.join(badge_path, "path.json")
-    if os.path.exists(path_data_path):
-        path_data = _read_json(path_data_path)
-        path.title = path_data.get("title") or f"{badge.name} Path"
-        path.description = path_data.get("description") or badge.description or ""
-        path.update_date = now
-        db_session.add(path)
-
-    activities_dir = os.path.join(badge_path, "activities")
-    if os.path.exists(activities_dir):
-        for activity_dir_name in os.listdir(activities_dir):
-            activity_dir = os.path.join(activities_dir, activity_dir_name)
-            activity_json_path = os.path.join(activity_dir, "activity.json")
-            if os.path.isdir(activity_dir) and os.path.exists(activity_json_path):
-                _import_activity(activity_dir, _read_json(activity_json_path), org_id, badge, path, db_session)
-
-    db_session.commit()
-    return badge
-
-
-def _import_activity(activity_dir: str, activity_data: dict, org_id: int, badge: LearningBadge, path: LearningPath, db_session: Session) -> LearningActivity:
-    now = _now()
-    activity = LearningActivity(
-        activity_uuid=f"learning_activity_{uuid4()}",
-        path_id=path.id or 0,
-        badge_id=badge.id or 0,
-        org_id=org_id,
-        title=activity_data.get("title") or "Untitled Activity",
-        description=activity_data.get("description") or "",
-        thumbnail_image=activity_data.get("thumbnail_image") or "",
-        icon=activity_data.get("icon"),
-        order=activity_data.get("order") or 1,
-        required=activity_data.get("required", True),
-        published=False,
-        settings=activity_data.get("settings") or {},
-        creation_date=now,
-        update_date=now,
-    )
-    db_session.add(activity)
-    db_session.commit()
-    db_session.refresh(activity)
-
-    pages_dir = os.path.join(activity_dir, "pages")
-    if os.path.exists(pages_dir):
-        page_files = sorted([name for name in os.listdir(pages_dir) if name.endswith(".json")])
-        page_specs: list[dict] = []
-        uuid_map: dict[str, str] = {}
-        for index, page_file in enumerate(page_files, start=1):
-            page_data = _read_json(os.path.join(pages_dir, page_file))
-            new_uuid = f"learning_page_{uuid4()}"
-            old_uuid = str(page_data.get("page_uuid") or "")
-            if old_uuid:
-                uuid_map[old_uuid] = new_uuid
-            page_type, content = convert_legacy_page(str(page_data.get("page_type") or "info"), page_data.get("content") or {})
-            page_specs.append({
-                "page_uuid": new_uuid,
-                "page_type": page_type,
-                "title": page_data.get("title") or "Untitled Page",
-                "order": page_data.get("order") or index,
-                "required": page_data.get("required", True),
-                "content": content,
-                "design": page_data.get("design") or {},
-                "scoring": page_data.get("scoring") or {},
-                "completion": page_data.get("completion") or {},
-            })
-
-        # Remap variant sources from package uuids to the freshly assigned ones,
-        # then resolve source block ids against the converted question pages.
-        for spec in page_specs:
-            source = ((spec["content"].get("variants") or {}).get("source")) or {}
-            if source.get("page_uuid") in uuid_map:
-                source["page_uuid"] = uuid_map[source["page_uuid"]]
-        link_variant_sources_to_question_blocks(page_specs)
-
-        for spec in page_specs:
-            page = LearningPage(
-                **spec,
-                activity_id=activity.id or 0,
-                badge_id=badge.id or 0,
-                org_id=org_id,
-                creation_date=now,
-                update_date=now,
-            )
-            db_session.add(page)
-    return activity
-
-
-def _count_activity_dirs(badge_path: str) -> int:
-    activities_dir = os.path.join(badge_path, "activities")
-    if not os.path.exists(activities_dir):
-        return 0
-    return len([name for name in os.listdir(activities_dir) if os.path.isdir(os.path.join(activities_dir, name))])
-
-
-def _count_page_files(badge_path: str) -> int:
-    count = 0
-    activities_dir = os.path.join(badge_path, "activities")
-    if not os.path.exists(activities_dir):
-        return 0
-    for activity_name in os.listdir(activities_dir):
-        pages_dir = os.path.join(activities_dir, activity_name, "pages")
-        if os.path.exists(pages_dir):
-            count += len([name for name in os.listdir(pages_dir) if name.endswith(".json")])
-    return count

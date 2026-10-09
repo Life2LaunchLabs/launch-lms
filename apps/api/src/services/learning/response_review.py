@@ -248,7 +248,7 @@ async def grade_learning_response(
             grading._question_block_points(page, question)
             for question in run_navigation._question_blocks(page)
         )
-        or answer_validation._as_float((page.scoring or {}).get("points"), 1.0)
+        or 1.0
     )
     result = dict(attempt.result or {})
     question_results = dict(result.get("questions") or {})

@@ -159,8 +159,7 @@ def _write_pages(
         page.order = order
         page.content = {**data["content"], **hidden}
         page.design = data["design"]
-        page.scoring = data["scoring"]
-        page.completion = data["completion"]
+        page.scoring, page.completion = {}, {}
         page.update_date = now
         db_session.add(page)
 

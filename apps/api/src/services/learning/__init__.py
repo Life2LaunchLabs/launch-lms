@@ -39,7 +39,7 @@ from src.services.learning.answer_validation import (  # noqa: F401
     _validate_mcq_answer, _validate_text_answer, _validate_image_answer,
 )
 from src.services.learning.learner_variables import (  # noqa: F401
-    _normalize_bindings, _variable_bindings, _extract_learning_variables,
+    _normalize_bindings, _extract_learning_variables,
     _question_variable_bindings, _target_value_type, _is_variable_value_type_compatible,
     _is_safe_variable_target, _set_nested_value, _apply_learning_variables_to_user,
 )

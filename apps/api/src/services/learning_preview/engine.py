@@ -58,8 +58,8 @@ def _pages(document: dict) -> list[LearningPage]:
             required=page.get("required", True),
             content=page.get("content") or {},
             design=page.get("design") or {},
-            scoring=page.get("scoring") or {},
-            completion=page.get("completion") or {},
+            scoring={},
+            completion={},
         )
         for index, page in enumerate(document["pages"], start=1)
     ]

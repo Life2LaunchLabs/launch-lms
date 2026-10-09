@@ -32,6 +32,7 @@ from src.services.learning import (
     _parse_semver,
 )
 from src.services.learning_page_convert import (
+    normalize_question_settings,
     convert_legacy_page,
     find_question_block,
     link_variant_sources_to_question_blocks,
@@ -276,7 +277,11 @@ def _standard_page(page_uuid: str, question: dict | None = None, **overrides) ->
         page_uuid=page_uuid,
         page_type=LearningPageType.STANDARD,
         title=overrides.pop("title", "Page"),
-        content={"version": 2, "blocks": blocks},
+        # Page-level scoring/completion is shorthand here; stored pages keep
+        # them on the question block, exactly as the data migration leaves them.
+        content=normalize_question_settings(
+            {"version": 2, "blocks": blocks}, overrides.pop("scoring", None), overrides.pop("completion", None)
+        ),
         creation_date="2026-01-01T00:00:00",
         update_date="2026-01-01T00:00:00",
         **overrides,

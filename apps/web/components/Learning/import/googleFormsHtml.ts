@@ -9,8 +9,6 @@ export type GoogleFormsImportPage = {
   required: boolean
   content: Record<string, any>
   design: Record<string, any>
-  scoring: Record<string, any>
-  completion: Record<string, any>
 }
 
 export type GoogleFormsImportPreview = {
@@ -202,8 +200,6 @@ export function parseGoogleFormsEditorHtml(html: string): GoogleFormsImportPrevi
       required,
       content: { version: 2, blocks: [...pendingBlocks, questionBlock] },
       design: {},
-      scoring: {},
-      completion: {},
     })
     pendingBlocks = []
   }
