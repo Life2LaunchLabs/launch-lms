@@ -196,6 +196,7 @@ v1_router.include_router(learning_router_module.awards_router, prefix="/badge-aw
 v1_router.include_router(learning_router_module.imports_router, prefix="/badge-import", tags=["learning-badge-import"])
 v1_router.include_router(learning_router_module.variables_router, prefix="/learning-variables", tags=["learning-variables"])
 v1_router.include_router(learning_documents_router_module.router, prefix="/learning-documents", tags=["learning-documents"])
+v1_router.include_router(learning_documents_router_module.previews_router, prefix="/learning-previews", tags=["learning-previews"])
 v1_router.include_router(marketplace_router_module.router, prefix="/badge-marketplace", tags=["learning-badge-marketplace"])
 v1_router.include_router(
     communities_router_module.router,

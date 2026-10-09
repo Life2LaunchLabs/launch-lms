@@ -198,6 +198,14 @@ def prepare_document(
             )
 
     for index, page in enumerate(pages):
+        for block in (page["content"].get("blocks") or []) if isinstance(page["content"], dict) else []:
+            if _scored_choice_without_answers(block):
+                result.warnings.append(
+                    DocumentIssue(
+                        path=f"pages[{index}].content.blocks[{block.get('id')}]",
+                        message="Scored choice question has no correct options, so learners cannot earn its points. Add correct_option_ids or make it a survey (scoring.mode 'off').",
+                    )
+                )
         dangling = {
             match.group(1)
             for text in _strings(page)
@@ -223,6 +231,23 @@ def prepare_document(
 
     result.activity, result.pages = activity, pages
     return result
+
+
+def _scored_choice_without_answers(block) -> bool:
+    if not isinstance(block, dict) or block.get("type") != "question":
+        return False
+    if block.get("kind") not in {"multiple_choice", "categorized_multi_select"}:
+        return False
+    scoring = block.get("scoring") or {}
+    try:
+        earns_points = float(scoring.get("points", 1) or 0) > 0
+    except (TypeError, ValueError):
+        earns_points = True
+    return (
+        scoring.get("mode") not in {"off", None}
+        and earns_points
+        and not (scoring.get("correct_option_ids") or scoring.get("correctOptionIds"))
+    )
 
 
 def _strings(value):

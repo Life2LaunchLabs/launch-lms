@@ -13,6 +13,7 @@ from src.db.learning import (
     LearningPageType,
     LearningPath,
 )
+from src.db.learning_previews import LearningActivityPreview
 from src.services.learning import _clone_version_graph
 from src.services.learning_documents import store
 from src.services.learning_documents.document import prepare_document
@@ -42,8 +43,8 @@ def _choice_page() -> dict:
                 "type": "question",
                 "kind": "multiple_choice",
                 "content": {"options": [{"id": "opt_make", "text": "Making"}, {"id": "opt_help", "text": "Helping"}]},
-                "scoring": {"mode": "completion", "points": 1},
-                "completion": {"min_selections": 1, "max_selections": 1},
+                "scoring": {"mode": "off", "points": 0, "correct_option_ids": []},
+                "completion": {"min_selections": 1, "max_selections": 1, "question_mode": "variable"},
             },
         ],
     }
@@ -71,6 +72,7 @@ def _flow(made: str = P2, other: str = P3, entry: str = P1) -> dict:
 def _world(state: str = "draft"):
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     _create_tables(engine)
+    LearningActivityPreview.__table__.create(engine)
     session = Session(engine)
     _, _, alice, bob, carol, badge = _setup(session)
     draft = LearningBadgeVersion(
@@ -210,6 +212,12 @@ async def test_create_adds_activity_to_newest_draft():
     assert created["context"]["version_uuid"] == "badge_version_draft"
     activity = session.exec(select(LearningActivity).where(LearningActivity.activity_uuid == created["context"]["activity_uuid"])).one()
     assert activity.order == 2 and activity.published is False
+
+
+def test_scored_choice_without_correct_options_warns():
+    document = {"activity": {"title": "A"}, "pages": [{"page_uuid": "p", "title": "Q", "content": {"version": 2, "blocks": [{"id": "blk_q", "type": "question", "kind": "multiple_choice", "content": {"options": [{"id": "a", "text": "A"}]}, "scoring": {"mode": "points", "points": 1}}]}}]}
+    prepared = prepare_document(document, existing_page_uuids=set(), allow_system_blocks=False)
+    assert prepared.ok and "cannot earn" in prepared.warnings[0].message
 
 
 def test_reference_rewrite_handles_prefixed_and_dotted_forms():

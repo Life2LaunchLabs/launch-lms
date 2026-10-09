@@ -5,6 +5,7 @@ from fastapi.responses import PlainTextResponse
 from src.core.events.database import get_db_session
 from src.security.auth import get_current_user
 from src.services.learning_documents import store
+from src.services.learning_preview import sessions as previews
 from src.services.learning_documents.models import (
     ActivityDocumentCreate,
     ActivityDocumentSave,
@@ -12,6 +13,7 @@ from src.services.learning_documents.models import (
 )
 
 router = APIRouter()
+previews_router = APIRouter()
 GUIDE_PATH = Path(__file__).resolve().parents[1] / "services" / "learning_documents" / "authoring_guide.md"
 
 
@@ -68,3 +70,25 @@ async def api_save_activity_document(
     db_session=Depends(get_db_session),
 ) -> dict:
     return await store.save_activity_document(request, activity_uuid, payload, current_user, db_session)
+
+
+@previews_router.post("/")
+async def api_create_preview(
+    request: Request,
+    payload: previews.PreviewCreate,
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> dict:
+    return await previews.create_preview(request, payload, current_user, db_session)
+
+
+@previews_router.get("/{token}")
+async def api_get_preview(request: Request, token: str, db_session=Depends(get_db_session)) -> dict:
+    return await previews.get_preview(request, token, db_session)
+
+
+@previews_router.post("/{token}/steps")
+async def api_preview_step(
+    request: Request, token: str, payload: previews.PreviewStep, db_session=Depends(get_db_session)
+) -> dict:
+    return await previews.step_preview(request, token, payload, db_session)

@@ -68,8 +68,6 @@ import {
   uploadLearningPageMedia,
 } from '@services/learning/learning'
 import {
-  findQuestionBlock,
-  findQuestionBlocks,
   getBlockCompletion,
   getBlockScoring,
   type LearningBlock,
@@ -78,10 +76,7 @@ import {
   type LearningQuestionBlock,
   type LearningTextBlock,
 } from '@components/Learning/schema'
-import {
-  LearningActivitySurface,
-  LearningPageContent,
-} from '@components/Learning/LearningBadgeViews'
+import { LearningActivitySurface } from '@components/Learning/LearningBadgeViews'
 import type { DeviceMode, EditorViewMode, SaveState, Selection } from './types'
 import {
   EMPTY_PARAGRAPH,
@@ -138,6 +133,7 @@ import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 import type { MediaAsset } from '@services/media/library'
 import { TimelineCardView, type TimelineEntry } from '@components/Pages/Portfolio/Timeline'
 import BadgeVersionToolbar from '@components/Learning/BadgeVersionToolbar'
+import { EditorPreviewModal } from '@components/Learning/player/EditorPreviewModal'
 
 export default function LearningActivityEditor({
   orgslug: _orgslug,
@@ -1102,7 +1098,7 @@ export default function LearningActivityEditor({
       )}
 
       {previewOpen && (
-        <PreviewModal pages={pages} selectedPage={selectedPage} onClose={() => setPreviewOpen(false)} />
+        <EditorPreviewModal activity={activityState} pages={pages} accessToken={accessToken} onClose={() => setPreviewOpen(false)} />
       )}
       </fieldset>
     </div>
@@ -3137,129 +3133,6 @@ function VariableRegistry({ variables = [], onPatchVariable, onDeleteVariable }:
           </div>
         )
       })}
-    </div>
-  )
-}
-
-function PreviewModal({ pages, selectedPage, onClose }: any) {
-  const initialIndex = Math.max(0, pages.findIndex((page: any) => page.page_uuid === selectedPage?.page_uuid))
-  const [index, setIndex] = React.useState(initialIndex)
-  const [answer, setAnswer] = React.useState<any>({})
-  const [unlocked, setUnlocked] = React.useState(false)
-  const [attempts, setAttempts] = React.useState<any[]>([])
-  const page = pages[index]
-
-  React.useEffect(() => {
-    setAnswer({})
-    setUnlocked(Boolean(page) && !findQuestionBlock(page))
-  }, [page?.page_uuid])
-
-  // Grade locally so variant pages resolve the same way they will at runtime.
-  const completeAndNext = () => {
-    if (!page) return
-    const questions = findQuestionBlocks(page)
-    if (questions.length) {
-      const questionResults: Record<string, any> = {}
-      questions.forEach((question: any) => {
-        const sub = answer?.questions?.[question.id] || {}
-        const scoring = getBlockScoring(page, question)
-        const correct = (scoring.correct_option_ids || []).map(String)
-        const selected = (sub.option_ids || []).map(String)
-        const isCorrect = correct.length
-          ? correct.length === selected.length && correct.every((id: string) => selected.includes(id))
-          : null
-        questionResults[question.id] = {
-          option_ids: selected,
-          selected,
-          inputs: sub.inputs || {},
-          is_correct: isCorrect,
-          grading_status: 'graded',
-        }
-      })
-      const correctness = Object.values(questionResults).map((result: any) => result.is_correct).filter((value) => value !== null)
-      setAttempts((current) => [...current, {
-        result: {
-          page_uuid: page.page_uuid,
-          questions: questionResults,
-          grading_status: 'graded',
-          ...(questions.length === 1 ? questionResults[questions[0].id] : {}),
-        },
-        is_correct: correctness.length ? correctness.every(Boolean) : null,
-      }])
-    }
-    if (index < pages.length - 1) setIndex(index + 1)
-    else onClose()
-  }
-
-  const [device, setDevice] = React.useState<DeviceMode>('mobile')
-  const [viewport, setViewport] = React.useState({ width: 0, height: 0 })
-  React.useEffect(() => {
-    const sync = () => setViewport({ width: window.innerWidth, height: window.innerHeight })
-    sync()
-    window.addEventListener('resize', sync)
-    return () => window.removeEventListener('resize', sync)
-  }, [])
-
-  // Identical frame + scaling math to the editor canvas so the preview looks
-  // exactly like what you were just editing.
-  const frame = DEVICE_FRAMES[device]
-  const frameShellHeight = device === 'mobile' ? frame.height + MOBILE_FRAME_CAP * 2 : frame.height
-  const scale = viewport.width && viewport.height
-    ? Math.min(1, (viewport.width - 96) / frame.width, (viewport.height - 112) / frameShellHeight)
-    : 1
-
-  const surface = (
-    <LearningActivitySurface
-      pages={pages}
-      page={page}
-      pageIndex={index}
-      onBack={onClose}
-      actionLabel={index === pages.length - 1 ? 'Finish preview' : 'Continue'}
-      actionDisabled={!unlocked}
-      onAction={completeAndNext}
-      interactionState={answer}
-      className="h-full"
-    >
-      <LearningPageContent
-        page={page}
-        pages={pages}
-        answer={answer}
-        setAnswer={setAnswer}
-        setUnlocked={setUnlocked}
-        run={{ attempts }}
-      />
-    </LearningActivitySurface>
-  )
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/90 p-6">
-      <div className="absolute right-5 top-5 z-20 flex items-center gap-2">
-        <div className="grid w-48 grid-cols-2 rounded-xl border border-white/10 bg-white/10 p-1 backdrop-blur">
-          <DeviceModeButton active={device === 'mobile'} onClick={() => setDevice('mobile')} icon={<Smartphone size={14} />} label="Mobile" />
-          <DeviceModeButton active={device === 'desktop'} onClick={() => setDevice('desktop')} icon={<Monitor size={14} />} label="Desktop" />
-        </div>
-        <button onClick={onClose} className="rounded-xl bg-white/10 p-2.5 text-white transition hover:bg-white/20" title="Close preview">
-          <X size={17} />
-        </button>
-      </div>
-      <div
-        style={{
-          width: frame.width,
-          height: frameShellHeight,
-          minWidth: frame.width,
-          minHeight: frameShellHeight,
-          transform: `scale(${scale})`,
-          transformOrigin: 'center center',
-        }}
-        className={`${device === 'mobile' ? 'rounded-[2rem] bg-black p-[10px]' : 'rounded-xl bg-white'} relative shrink-0 shadow-2xl ring-8 ring-white/10`}
-      >
-        <div
-          className={`${device === 'mobile' ? 'rounded-[1.45rem]' : 'rounded-xl'} overflow-hidden bg-[var(--org-page-background)]`}
-          style={device === 'mobile' ? { height: frame.height, marginTop: MOBILE_FRAME_CAP - 10 } : { height: frame.height }}
-        >
-          {surface}
-        </div>
-      </div>
     </div>
   )
 }

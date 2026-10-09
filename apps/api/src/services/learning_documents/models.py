@@ -172,7 +172,7 @@ _BLOCK_DEFS = {
             "kind": {"enum": ["multiple_choice", "categorized_multi_select", "text_input", "image_upload"]},
             "scoring": {
                 "type": "object",
-                "description": "mode: points|completion|manual|accepted_answers|off; points; correct_option_ids; accepted_answers.",
+                "description": "Choice questions are scored {mode: points, points, score_policy: select_all, correct_option_ids} or a survey {mode: off, points: 0} (with completion.question_mode 'variable'). Text: mode completion|manual|accepted_answers (+ accepted_answers, rubric). Image upload: mode manual.",
             },
             "completion": {
                 "type": "object",

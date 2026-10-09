@@ -53,16 +53,20 @@ Text (Tiptap JSON nodes):
 Insert an earlier answer or a profile variable inline with a `displayBinding`
 node: `{ "type": "displayBinding", "attrs": { "binding": { "source": "answer", "path": "<page>.result.questions.<block>.inputs.<input>.text", "fallback": "your idea" } } }`.
 
-Multiple choice (`categorized_multi_select` adds `label` and `categories`):
+Multiple choice (`categorized_multi_select` adds `label` and `categories`). A
+choice question is either **scored** or a **survey** ("variable" mode):
 
 ```json
 { "id": "blk_q1", "type": "question", "kind": "multiple_choice", "design": { "width": 100, "align": "left" },
   "content": { "options": [ { "id": "opt_make", "text": "Making things" }, { "id": "opt_help", "text": "Helping people" } ] },
-  "scoring": { "mode": "completion", "points": 1 },
-  "completion": { "min_selections": 1, "max_selections": 1 } }
+  "scoring": { "mode": "off", "points": 0, "correct_option_ids": [] },
+  "completion": { "min_selections": 1, "max_selections": 1, "question_mode": "variable" } }
 ```
 
-For a graded question use `"scoring": { "mode": "points", "points": 1, "correct_option_ids": ["opt_make"] }`.
+Scored: `"scoring": { "mode": "points", "points": 1, "score_policy": "select_all", "correct_option_ids": ["opt_make"] }`
+with `"question_mode": "scored"`. A scored question with no correct options can
+never earn its points, so a graded activity containing one can never be passed.
+Allow several answers with `max_selections` > 1.
 
 Text response:
 

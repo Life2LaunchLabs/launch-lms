@@ -70,7 +70,7 @@ Deliberately absent: publish, delete, awards, learner data.
 ## Phases and progress
 
 1. **Activity Document + schema + document API** — done
-2. **Preview engine + preview sessions + shared player** — not started
+2. **Preview engine + preview sessions + shared player** — done (browser verification pending)
 3. **OAuth 2.1 authorization server + consent UI** — not started
 4. **MCP server + tools** — not started
 5. **MCP App inline preview** — not started

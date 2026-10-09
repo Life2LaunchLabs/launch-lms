@@ -5,7 +5,7 @@ import { getOrgOgImageMediaDirectory, normalizeMediaUrl } from '@services/media/
 import { getServerSession } from '@/lib/auth/server'
 import { getCanonicalUrl, getOrgSeoConfig } from '@/lib/seo/utils'
 import { getLearningPath } from '@services/learning/learning'
-import { LearningActivityPlayer } from '@components/Learning/LearningBadgeViews'
+import { LearningActivityPlayer } from '@components/Learning/player/LearningActivityPlayer'
 
 type ChapterPageProps = {
   params: Promise<{ orgslug: string; uuid: string; chapterid: string }>

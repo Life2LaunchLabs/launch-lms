@@ -1,8 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { useSearchParams } from 'next/navigation'
 import React from 'react'
 import { createPortal } from 'react-dom'
 import { Extension } from '@tiptap/core'
@@ -13,11 +11,6 @@ import { AlignCenter, AlignLeft, AlignRight, ArrowLeft, ArrowRight, Bold, Check,
 import { AnimatePresence, motion } from 'motion/react'
 import YouTube from 'react-youtube'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import {
-  completeLearningPage,
-  startLearningRun,
-  submitLearningResponse,
-} from '@services/learning/learning'
 import {
   findQuestionBlock,
   getBlockCompletion,
@@ -30,8 +23,7 @@ import {
   setQuestionAnswer,
   type LearningBlock,
 } from '@components/Learning/schema'
-import { activityHasScoredQuestions, EMPTY_PARAGRAPH, getTextBlockNodes } from './editor/utils'
-import { getUriWithOrg } from '@services/config/config'
+import { EMPTY_PARAGRAPH, getTextBlockNodes } from './editor/utils'
 import toast from 'react-hot-toast'
 import ReorderableList from '@components/Objects/ReorderableList'
 import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
@@ -39,167 +31,6 @@ import { TimelineCardView, type TimelineEntry } from '@components/Pages/Portfoli
 import { ProjectCardView, type Project } from '@components/Pages/Portfolio/PortfolioShell'
 import { normalizeMediaUrl } from '@services/media/media'
 import { CategorizedMultiSelect } from '@components/Portfolio/CategorizedMultiSelect'
-
-function getSubmittedActivityStatus(run: any, activity: any): 'pending' | 'failed' | 'completed' {
-  const pageIds = new Set((activity.pages || []).map((page: any) => page.page_uuid))
-  const latestByPage = new Map<string, any>()
-  for (const attempt of (run?.attempts || []).filter((item: any) => pageIds.has(item.page_uuid))) {
-    const prior = latestByPage.get(attempt.page_uuid)
-    if (!prior || new Date(attempt.submitted_at).getTime() >= new Date(prior.submitted_at).getTime()) {
-      latestByPage.set(attempt.page_uuid, attempt)
-    }
-  }
-  const attempts = Array.from(latestByPage.values())
-  if (attempts.some((attempt: any) => attempt.result?.grading_status === 'pending')) return 'pending'
-  const scored = attempts.filter((attempt: any) => Number(attempt.result?.max_score || 0) > 0)
-  const score = scored.reduce((total: number, attempt: any) => total + Number(attempt.score ?? attempt.result?.score ?? 0), 0)
-  const max = scored.reduce((total: number, attempt: any) => total + Number(attempt.result?.max_score || 0), 0)
-  const minimum = Number(activity.settings?.grading?.minimum_score_percent ?? 70)
-  return max > 0 && (score / max) * 100 < minimum ? 'failed' : 'completed'
-}
-
-export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgslug: string; badgePath: any; activity: any }) {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const session = useLHSession() as any
-  const accessToken = session.data?.tokens?.access_token
-  const programAssignmentUuid = searchParams.get('assignment') || undefined
-  const planObjectiveUuid = searchParams.get('planObjective') || undefined
-  const badge = badgePath.badge
-  const configuredPages = activity.pages || []
-  const [run, setRun] = React.useState<any>(badgePath.run)
-  const [retakeBaselineAttemptIds] = React.useState<Set<string>>(() => {
-    const isRetake = badgePath.run && getSubmittedActivityStatus(badgePath.run, activity) === 'failed'
-    return new Set(
-      isRetake ? (badgePath.run?.attempts || []).map((attempt: any) => attempt.attempt_uuid) : []
-    )
-  })
-  const [index, setIndex] = React.useState(0)
-  const [unlocked, setUnlocked] = React.useState(false)
-  const [answer, setAnswer] = React.useState<any>({})
-  const navigation = (run?.navigation?.activities || []).find((item: any) => item.activity_id === activity.id)
-  const navigatedPages = navigation?.path?.length
-    ? navigation.path.map((pageUuid: string) => configuredPages.find((item: any) => item.page_uuid === pageUuid)).filter(Boolean)
-    : []
-  const configuredPageUuids = new Set(configuredPages.map((item: any) => item.page_uuid))
-  const flowPageUuids = (activity.settings?.flow?.nodes || []).filter((node: any) => node.type === 'page').map((node: any) => node.page_uuid)
-  const flowIsCurrent = flowPageUuids.length > 0 && flowPageUuids.every((pageUuid: string) => configuredPageUuids.has(pageUuid))
-  const pages = flowIsCurrent && navigatedPages.length ? navigatedPages : configuredPages
-  const page = pages[index]
-  const closeActivity = React.useCallback(() => {
-    const returnTo = searchParams.get('returnTo')
-    if (returnTo?.startsWith('/portfolio')) {
-      router.push(getUriWithOrg(orgslug, returnTo))
-    } else {
-      router.back()
-    }
-  }, [orgslug, router, searchParams])
-
-  React.useEffect(() => {
-    startLearningRun(
-      badge.badge_uuid,
-      accessToken,
-      badgePath?.enrollment?.accepted_issuer_org_id,
-      programAssignmentUuid,
-      planObjectiveUuid
-    )
-      .then(setRun)
-      .catch(() => null)
-  }, [badge.badge_uuid, badgePath?.enrollment?.accepted_issuer_org_id, accessToken, programAssignmentUuid, planObjectiveUuid])
-
-  React.useEffect(() => {
-    setUnlocked(Boolean(page) && !isQuestionResponseRequired(page))
-    const prior = (run?.attempts || [])
-      .filter((item: any) => item.page_uuid === page?.page_uuid && !retakeBaselineAttemptIds.has(item.attempt_uuid))
-      .at(-1)
-    setAnswer(prior?.answer || {})
-  }, [page?.content, page?.page_type, page?.page_uuid, retakeBaselineAttemptIds, run?.attempts])
-
-  const navigateToPage = React.useCallback((pageUuid: string) => {
-    const destination = pages.findIndex((item: any) => item.page_uuid === pageUuid)
-    if (destination < 0) return
-    setIndex(destination)
-    window.requestAnimationFrame(() => {
-      const heading = document.querySelector('[data-learning-page-heading]') as HTMLElement | null
-      heading?.focus()
-      heading?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' })
-    })
-  }, [pages])
-
-  const completeAndNext = async () => {
-    if (!run || !page) return
-    try {
-      let nextRun
-      if (isQuestionResponseRequired(page)) {
-        nextRun = await submitLearningResponse(run.run_uuid, page.page_uuid, answer, accessToken)
-      } else {
-        nextRun = await completeLearningPage(run.run_uuid, page.page_uuid, {}, accessToken)
-      }
-      setRun(nextRun)
-      const nextNavigation = (nextRun?.navigation?.activities || []).find((item: any) => item.activity_id === activity.id)
-      const nextPageUuid = nextNavigation?.current_page_uuid
-      const configuredDestination = nextPageUuid
-        ? configuredPages.findIndex((item: any) => item.page_uuid === nextPageUuid)
-        : -1
-      const visibleDestination = nextPageUuid
-        ? pages.findIndex((item: any) => item.page_uuid === nextPageUuid)
-        : -1
-      if (visibleDestination >= 0) {
-        setIndex(visibleDestination)
-      } else if (configuredDestination >= 0) {
-        setIndex(configuredDestination)
-      } else if (index < pages.length - 1) {
-        setIndex((current) => Math.min(current + 1, pages.length - 1))
-      } else {
-        const grading = activity.settings?.grading || {}
-        if (activityHasScoredQuestions(configuredPages)) {
-          const resultStatus = getSubmittedActivityStatus(nextRun, activity)
-          if (resultStatus === 'pending') {
-            toast.success('Activity submitted for review.')
-          } else if (resultStatus === 'failed') {
-            toast.error(grading.failure_message || 'Activity finished. Review your answers and try again when you are ready.')
-          } else {
-            toast.success(grading.success_message || 'Activity passed.')
-          }
-        }
-        const returnTo = searchParams.get('returnTo')
-        if (returnTo?.startsWith('/portfolio')) {
-          router.push(getUriWithOrg(orgslug, returnTo))
-        } else {
-          router.replace(getUriWithOrg(orgslug, `/badges/${badge.badge_uuid}/path${programAssignmentUuid ? `?assignment=${encodeURIComponent(programAssignmentUuid)}` : ''}`))
-          router.refresh()
-        }
-      }
-    } catch (error: any) {
-      toast.error(error?.message || 'Could not complete page')
-    }
-  }
-
-  return (
-    <LearningActivitySurface
-      pages={pages}
-      page={page}
-      pageIndex={index}
-      onBack={closeActivity}
-      actionLabel={page?.content?.action_label || (index === pages.length - 1 ? 'Finish' : 'Continue')}
-      actionDisabled={!unlocked}
-      onAction={completeAndNext}
-      interactionState={answer}
-    >
-      <LearningPageContent
-        page={page}
-        answer={answer}
-        setAnswer={setAnswer}
-        setUnlocked={setUnlocked}
-        pages={pages}
-        run={run}
-        onNavigatePage={navigateToPage}
-        contentMediaOwner={{ type: 'org', id: Number(badge?.org_id) }}
-        responseMediaOwner={{ type: 'user', id: Number(session?.data?.user?.id) }}
-      />
-    </LearningActivitySurface>
-  )
-}
 
 export function LearningActivitySurface({
   pages,
@@ -2282,7 +2113,7 @@ function isLearningQuestionPage(page: any) {
   return page?.page_type === 'multiple_choice' || page?.page_type === 'text_input' || page?.page_type === 'image_upload'
 }
 
-function isQuestionResponseRequired(page: any) {
+export function isQuestionResponseRequired(page: any) {
   if (!page) return false
   if (page.page_type === 'standard') return Boolean(findQuestionBlock(page))
   return isLearningQuestionPage(page)
