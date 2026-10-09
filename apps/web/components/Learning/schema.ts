@@ -45,9 +45,11 @@ export interface LearningDisplayBinding {
   fallback_binding?: LearningDisplayBinding
 }
 
+// Continue buttons complete the page (the flow can route on `<page>.button`);
+// revisit buttons jump back to an earlier page on the route.
 export interface LearningButtonBlock extends LearningBlockBase {
   type: 'button'
-  content?: { label?: string; destination_page_uuid?: string }
+  content?: { label?: string; action?: 'continue' | 'revisit'; revisit_page_uuid?: string }
 }
 
 export interface LearningPortfolioPreviewBlock extends LearningBlockBase {

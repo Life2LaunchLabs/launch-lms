@@ -17,6 +17,7 @@ from src.db.learning import (
 )
 from src.db.users import AnonymousUser, PublicUser
 from src.services.learning_flow import (
+    BUTTON_ACTIONS,
     FlowValidationError,
     validate_flow,
 )
@@ -238,18 +239,12 @@ def _validate_page_payload(page_type: LearningPageType, content: dict | None) ->
                 raise HTTPException(
                     status_code=422, detail=f"Unsupported block type: {block_type}"
                 )
-            destination = str(
-                (block.get("content") or {}).get("destination_page_uuid") or ""
-            )
-            if (
-                block_type == "button"
-                and destination
-                and not destination.startswith("learning_page_")
-            ):
-                raise HTTPException(
-                    status_code=422,
-                    detail="Page buttons need an internal destination page",
-                )
+            if block_type == "button":
+                button = block.get("content") or {}
+                if "destination_page_uuid" in button:
+                    raise HTTPException(status_code=422, detail="Route buttons with flow edges on '<page>.button'; destination_page_uuid is no longer supported")
+                if button.get("action", "continue") not in BUTTON_ACTIONS or (button.get("action") == "revisit" and not str(button.get("revisit_page_uuid") or "").startswith("learning_page_")):
+                    raise HTTPException(status_code=422, detail="Buttons either continue along the flow or revisit an earlier page")
             if block_type == "image" and (block.get("content") or {}).get("binding"):
                 binding = (block.get("content") or {}).get("binding") or {}
                 validate_display_binding(binding)
@@ -303,13 +298,11 @@ def _validate_page_button_destinations(
     for stack in iter_block_stacks(content or {}):
         for block in stack:
             if isinstance(block, dict) and block.get("type") == "button":
-                destination = str(
-                    (block.get("content") or {}).get("destination_page_uuid") or ""
-                )
-                if destination and destination not in page_uuids:
+                target = str((block.get("content") or {}).get("revisit_page_uuid") or "")
+                if target and target not in page_uuids:
                     raise HTTPException(
                         status_code=422,
-                        detail="Page button destination must belong to the same activity",
+                        detail="A button can only revisit a page of the same activity",
                     )
 
 

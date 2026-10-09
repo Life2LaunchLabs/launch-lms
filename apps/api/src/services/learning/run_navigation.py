@@ -56,6 +56,18 @@ def _flow_context(
                 "answer": attempt.answer,
                 "result": attempt.result,
             }
+    # The button a learner pressed to leave a page is part of its answer, so
+    # flows can branch on "<page_uuid>.button".
+    for progress in db_session.exec(
+        select(LearningPageProgress).where(
+            LearningPageProgress.run_id == run.id,
+            LearningPageProgress.page_id.in_(set(page_by_id)),  # type: ignore[union-attr]
+            LearningPageProgress.complete == True,  # noqa: E712
+        )
+    ).all():
+        button = (progress.data or {}).get("button")
+        if button and page_by_id.get(progress.page_id):
+            answers.setdefault(page_by_id[progress.page_id].page_uuid, {})["button"] = button
     facts = {
         "has_project": False,
         "has_timeline": False,

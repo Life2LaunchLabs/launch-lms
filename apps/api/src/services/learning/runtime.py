@@ -25,6 +25,7 @@ from src.services.learning_portfolio_actions import (
     PortfolioActionError,
     apply_portfolio_outcomes,
 )
+from src.services.learning_flow import continue_buttons
 from src.services.learning import access_rules, enrollment, grading, learner_variables, lookups, run_navigation
 
 
@@ -148,6 +149,9 @@ async def complete_page(
     if not activity:
         raise HTTPException(status_code=404, detail="Learning activity not found")
     activity_run = grading._ensure_activity_run(db_session, run, page.activity_id)
+    button = (data.data or {}).get("button")
+    if button is not None and str(button) not in continue_buttons(page.content):
+        raise HTTPException(status_code=422, detail="This page has no such button")
 
     progress = db_session.exec(
         select(LearningPageProgress).where(
@@ -352,7 +356,7 @@ async def submit_response(
         LearningPageComplete(
             run_uuid=run.run_uuid,
             page_uuid=page.page_uuid,
-            data={"attempt_uuid": attempt.attempt_uuid},
+            data={"attempt_uuid": attempt.attempt_uuid, **({"button": data.button} if data.button else {})},
         ),
         actor,
         db_session,

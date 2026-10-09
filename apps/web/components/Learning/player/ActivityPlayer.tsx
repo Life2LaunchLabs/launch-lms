@@ -15,9 +15,9 @@ import {
 export interface ActivityRuntime {
   start?: () => Promise<any>
   // eslint-disable-next-line no-unused-vars
-  submit: (pageUuid: string, answer: any) => Promise<any>
+  submit: (pageUuid: string, answer: any, button?: string) => Promise<any>
   // eslint-disable-next-line no-unused-vars
-  complete: (pageUuid: string) => Promise<any>
+  complete: (pageUuid: string, button?: string) => Promise<any>
 }
 
 export interface ActivityPlayerEvent {
@@ -127,11 +127,13 @@ export function ActivityPlayer({
     })
   }
 
-  const completeAndNext = async () => {
+  // `button` is the continue button the learner pressed, if any; the flow can
+  // route on it via `<page_uuid>.button`.
+  const completeAndNext = async (button?: string) => {
     if (!run || !page) return
     try {
       const submitting = isQuestionResponseRequired(page)
-      const nextRun = submitting ? await runtime.submit(page.page_uuid, answer) : await runtime.complete(page.page_uuid)
+      const nextRun = submitting ? await runtime.submit(page.page_uuid, answer, button) : await runtime.complete(page.page_uuid, button)
       setRun(nextRun)
       if (submitting) onEvent?.({ type: 'answer_submitted', page_uuid: page.page_uuid, page_title: page.title, answer, run: nextRun })
       const nextNavigation = (nextRun?.navigation?.activities || []).find((item: any) => item.activity_id === activity.id)
@@ -164,7 +166,7 @@ export function ActivityPlayer({
       onBack={onClose}
       actionLabel={page?.content?.action_label || (index === pages.length - 1 ? finishLabel : 'Continue')}
       actionDisabled={!unlocked}
-      onAction={completeAndNext}
+      onAction={() => completeAndNext()}
       interactionState={answer}
       className={className}
     >
@@ -176,6 +178,7 @@ export function ActivityPlayer({
         pages={pages}
         run={run}
         onNavigatePage={navigateToPage}
+        onButton={unlocked ? completeAndNext : undefined}
         responseMediaOwner={responseMediaOwner}
       />
     </LearningActivitySurface>

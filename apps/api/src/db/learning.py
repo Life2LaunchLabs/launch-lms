@@ -2,15 +2,7 @@ from datetime import datetime
 from enum import Enum
 
 from pydantic import BaseModel
-from sqlalchemy import (
-    JSON,
-    Column,
-    DateTime,
-    ForeignKey,
-    Integer,
-    String,
-    UniqueConstraint,
-)
+from sqlalchemy import JSON, Column, DateTime, ForeignKey, Integer, String, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 
@@ -662,6 +654,7 @@ class LearningResponseSubmit(SQLModel):
     run_uuid: str
     page_uuid: str
     answer: dict = Field(default_factory=dict)
+    button: str | None = None
 
 
 class LearningResponseGrade(SQLModel):

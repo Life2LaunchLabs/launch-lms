@@ -40,7 +40,7 @@ export function createButtonBlock(): any {
     id: createBlockId(),
     type: 'button',
     design: { width: 100, align: 'center', variant: 'secondary' },
-    content: { label: 'Go to page', destination_page_uuid: '' },
+    content: { label: 'Continue', action: 'continue' },
   }
 }
 

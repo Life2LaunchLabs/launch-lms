@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from fastapi import HTTPException
 from src.db.learning import LearningActivity, LearningPage, LearningPageType
 from src.services import learning
-from src.services.learning_flow import resolve_flow
+from src.services.learning_flow import continue_buttons, resolve_flow
 
 PREVIEW_ACTIVITY_ID = -1
 DEFAULT_PERSONA = {
@@ -69,6 +69,7 @@ def initial_state(persona: dict | None = None) -> dict:
     return {
         "attempts": [],
         "completed": [],
+        "buttons": {},
         "variables": {**DEFAULT_PERSONA, **(persona or {})},
         "facts": {"has_project": False, "has_timeline": False, "project_count": 0, "timeline_count": 0, "readiness_blockers": []},
         "status": "in_progress",
@@ -92,6 +93,9 @@ def _answers(state: dict) -> dict:
     answers: dict[str, dict] = {}
     for attempt in state["attempts"]:
         answers[attempt["page_uuid"]] = {"answer": attempt.get("answer") or {}, "result": attempt.get("result") or {}}
+    for page_uuid, button in state["buttons"].items():
+        if page_uuid in state["completed"]:
+            answers.setdefault(page_uuid, {})["button"] = button
     return answers
 
 
@@ -186,7 +190,7 @@ def run_view(document: dict, state: dict) -> dict:
     }
 
 
-def step(document: dict, state: dict | None, action: str, page_uuid: str, answer: dict | None = None) -> dict:
+def step(document: dict, state: dict | None, action: str, page_uuid: str, answer: dict | None = None, button: str | None = None) -> dict:
     """Apply one learner action and return ``{"run": …, "state": …}``.
 
     Raises ``HTTPException`` (422) for answers the live runtime would reject.
@@ -219,6 +223,11 @@ def step(document: dict, state: dict | None, action: str, page_uuid: str, answer
         ]
     elif action != "complete":
         raise HTTPException(status_code=422, detail="Unknown preview action")
+    if button is not None and button not in continue_buttons(page.content):
+        raise HTTPException(status_code=422, detail="This page has no such button")
+    state["buttons"] = {key: value for key, value in state["buttons"].items() if key != page_uuid}
+    if button is not None:
+        state["buttons"][page_uuid] = button
     state = _complete(document, pages, state, page_uuid)
     return {"run": run_view(document, state), "state": state}
 

@@ -21,7 +21,6 @@ import {
   Copy,
   Eye,
   FileText,
-  GitBranch,
   GripVertical,
   Hand,
   Heading1,
@@ -43,7 +42,6 @@ import {
   Trash2,
   Upload,
   Video,
-  X,
   ZoomIn,
   ZoomOut,
 } from 'lucide-react'
@@ -96,11 +94,7 @@ import {
   getEditorBlocks,
   getPageBlocks,
   getTextBlockNodes,
-  getEnabledVariantKeys,
   getQuestionConfigurationIssue,
-  getVariantKeyList,
-  getVariantSource,
-  getVariantSourceOptions,
   mergePatch,
   normalizeInitialPages,
   normalizeQuestionInputs,
@@ -573,15 +567,6 @@ export default function LearningActivityEditor({
     }
     setVariantKey(key)
     setSelection({ pageUuid: selectedPage.page_uuid, blockId: null })
-  }
-
-  const disableVariant = (key: string) => {
-    if (!selectedPage || key === 'default') return
-    const variants = selectedPage.content?.variants || {}
-    const overrides = { ...(variants.overrides || {}) }
-    delete overrides[key]
-    patchSelectedPage({ content: { ...(selectedPage.content || {}), variants: { ...variants, overrides } } })
-    if (variantKey === key) setVariantKey('default')
   }
 
   const addPage = async (pageType: LearningPageType = 'standard', insertion?: FlowInsertion) => {
@@ -1111,37 +1096,6 @@ function ActivityFlowView({ activity, pages, learningVariables, onSelectPage, on
   return <VisualFlowEditor flow={flow} pages={pages} learningVariables={learningVariables} issues={issues} onChange={onPatchFlow} onSelectPage={onSelectPage} onAddPage={onAddPage} onCreateVariableKey={onCreateVariableKey}/>
 }
 
-function LegacyActivityFlowView({ activity, pages, trusted, onSelectPage, onPatchFlow, onPatchActivity, onConvertVariants }: any) {
-  const flow = activity.settings?.flow
-  const outcomes = activity.settings?.outcomes || { version: 1, actions: [] }
-  const enableLinearFlow = () => {
-    const nodes: any[] = pages.map((page: any) => ({ id: `page:${page.page_uuid}`, type: 'page', page_uuid: page.page_uuid }))
-    nodes.push({ id: 'complete', type: 'complete' })
-    const edges = pages.map((page: any, index: number) => ({ from: `page:${page.page_uuid}`, to: index + 1 < pages.length ? `page:${pages[index + 1].page_uuid}` : 'complete', priority: 0 }))
-    onPatchFlow({ version: 1, entry: nodes[0]?.id, nodes, edges })
-  }
-  const patchEdge = (index: number, patch: any) => onPatchFlow({ ...flow, edges: flow.edges.map((edge: any, edgeIndex: number) => edgeIndex === index ? { ...edge, ...patch } : edge) })
-  const saveOutcomes = (actions: any[]) => onPatchActivity({ settings: { ...(activity.settings || {}), outcomes: { version: 1, actions } } })
-  const patchOutcome = (index: number, patch: any) => saveOutcomes(outcomes.actions.map((action: any, actionIndex: number) => actionIndex === index ? { ...action, ...patch } : action))
-  const addOutcome = (type: string) => {
-    const defaults: Record<string, any> = { set_portfolio_fields: { fields: { headline: '' } }, create_project_item: { store_as: 'project_item_id', fields: { title: '' } }, create_timeline_entry: { store_as: 'timeline_entry_id', fields: { title: '' } }, set_traits: { trait_type: 'strength', values: [] }, set_portfolio_links: { links: [] }, set_theme: { theme_id: 'default' }, set_featured_content: { project: { $source: 'binding', key: 'project_item_id' } } }
-    saveOutcomes([...outcomes.actions, { id: `${type}-${Date.now()}`, type, ...(defaults[type] || {}) }])
-  }
-  return <div className="min-h-0 flex-1 overflow-y-auto bg-gray-50 p-6">
-    <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-      <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-        <div className="flex items-start justify-between gap-4"><div><div className="flex items-center gap-2"><GitBranch size={18}/><h2 className="font-bold">Learner flow</h2></div><p className="mt-1 text-sm text-gray-500">Split into multi-page paths, join them later, or finish a path early.</p></div>{!flow && <button onClick={enableLinearFlow} className="rounded-lg bg-gray-950 px-3 py-2 text-xs font-bold text-white">Enable branching</button>}</div>
-        {!flow ? <div className="mt-8 rounded-xl border border-dashed border-gray-300 p-8 text-center text-sm text-gray-500">This activity follows page order. Enable branching to create an editable acyclic flow.</div> : <>
-          <div className="mt-6 grid gap-3 sm:grid-cols-2">{flow.nodes.map((node: any) => node.type === 'complete' ? <div key={node.id} className="rounded-xl border-2 border-emerald-200 bg-emerald-50 p-4"><p className="text-xs font-bold uppercase text-emerald-700">Completion</p><p className="mt-1 font-bold">Activity complete</p></div> : <button key={node.id} onClick={() => onSelectPage(node.page_uuid)} className="rounded-xl border border-gray-200 p-4 text-left hover:border-gray-400"><p className="text-xs font-bold uppercase text-gray-400">Page node</p><p className="mt-1 truncate font-bold">{pages.find((page: any) => page.page_uuid === node.page_uuid)?.title || node.page_uuid}</p></button>)}</div>
-          <div className="mt-7"><h3 className="text-sm font-bold">Transitions</h3><div className="mt-3 space-y-3">{flow.edges.map((edge: any, index: number) => <div key={`${edge.from}-${edge.to}-${index}`} className="grid gap-3 rounded-lg border border-gray-200 p-3 sm:grid-cols-[1fr_1fr_90px]"><div><p className="text-[10px] font-bold uppercase text-gray-400">From → to</p><p className="mt-1 truncate text-xs font-semibold">{edge.from} → {edge.to}</p></div><label className="text-[10px] font-bold uppercase text-gray-400">Answer option<input value={edge.condition?.right || ''} onChange={(event) => patchEdge(index, { condition: event.target.value ? { op: 'contains', left: edge.condition?.left || { source: 'answer', key: '' }, right: event.target.value } : undefined })} placeholder="Fallback" className="mt-1 h-8 w-full rounded border px-2 text-xs font-normal normal-case"/></label><label className="text-[10px] font-bold uppercase text-gray-400">Priority<input type="number" value={edge.priority || 0} onChange={(event) => patchEdge(index, { priority: Number(event.target.value) })} className="mt-1 h-8 w-full rounded border px-2 text-xs font-normal"/></label></div>)}</div></div>
-        </>}
-        {pages.some((page: any) => page.content?.variants) && <div className="mt-7 border-t pt-5"><h3 className="text-sm font-bold">Page variants</h3><p className="mt-1 text-xs text-gray-500">Convert a single-page variant into separate editable paths.</p><div className="mt-3 flex flex-wrap gap-2">{pages.filter((page: any) => page.content?.variants).map((page: any) => <button key={page.page_uuid} onClick={() => onConvertVariants(page)} className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-900">Convert {page.title}</button>)}</div></div>}
-      </section>
-      <aside className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm"><h2 className="font-bold">Completion outcomes</h2><p className="mt-1 text-sm text-gray-500">These run atomically after the learner finishes.</p>{trusted ? <><div className="mt-4 space-y-2">{outcomes.actions.map((action: any, index: number) => <div key={action.id} className="rounded-lg border border-gray-200 p-3"><div className="flex items-center justify-between gap-2"><p className="text-xs font-bold">{action.type.replaceAll('_', ' ')}</p><button onClick={() => saveOutcomes(outcomes.actions.filter((_: any, actionIndex: number) => actionIndex !== index))} className="text-gray-400 hover:text-red-600" title="Remove outcome"><Trash2 size={13}/></button></div><p className="mt-1 truncate text-[11px] text-gray-400">{action.id}</p>{action.fields && <label className="mt-3 block text-[10px] font-bold uppercase text-gray-400">Title or headline<input value={typeof (action.fields.title ?? action.fields.headline) === 'string' ? (action.fields.title ?? action.fields.headline) : ''} onChange={(event) => patchOutcome(index, { fields: { ...action.fields, [action.fields.title !== undefined ? 'title' : 'headline']: event.target.value } })} placeholder="Constant value" className="mt-1 h-8 w-full rounded border px-2 text-xs font-normal normal-case"/></label>}{action.type === 'set_theme' && <label className="mt-3 block text-[10px] font-bold uppercase text-gray-400">Theme<select value={typeof action.theme_id === 'string' ? action.theme_id : 'default'} onChange={(event) => patchOutcome(index, { theme_id: event.target.value })} className="mt-1 h-8 w-full rounded border px-2 text-xs font-normal normal-case"><option value="default">Default</option><option value="electric">Electric</option><option value="minimal">Minimal</option><option value="creative">Creative</option></select></label>}</div>)}{!outcomes.actions.length && <p className="rounded-lg bg-gray-50 p-3 text-xs text-gray-500">No portfolio changes configured.</p>}</div><select defaultValue="" onChange={(event) => { if (event.target.value) addOutcome(event.target.value); event.target.value = '' }} className="mt-4 h-9 w-full rounded-lg border px-2 text-xs font-semibold"><option value="">Add an outcome…</option>{['set_portfolio_fields','create_project_item','create_timeline_entry','set_traits','set_portfolio_links','set_theme','set_featured_content','confirm_privacy','publish_portfolio'].map((type) => <option key={type} value={type}>{type.replaceAll('_', ' ')}</option>)}</select></> : <p className="mt-4 rounded-lg bg-gray-50 p-3 text-xs text-gray-500">Portfolio outcomes are available only to trusted system badges. Branching remains available to this activity.</p>}</aside>
-    </div>
-  </div>
-}
-
 function EditorHeader({ badgeName, activity, device, setDevice, saveState, lastSavedAt, publishing, onBack, onPreview, onPublish }: any) {
   return (
     <div className="flex h-14 shrink-0 items-center justify-between border-b border-gray-200 bg-white px-4">
@@ -1431,7 +1385,7 @@ function CanvasBlock({ block, page, selected, readOnly, registerBlockEl, onHover
       onRequestImageUpload={onRequestImageUpload}
     />
   ) : block.type === 'button' ? (
-    <button type="button" disabled className={`pointer-events-none min-h-11 rounded-full px-5 py-3 text-sm font-bold ${block.design?.variant === 'primary' ? 'bg-[var(--org-primary-color)] text-white' : 'border border-gray-200 bg-white text-gray-700 shadow-sm'}`}>{block.content?.label || 'Go to page'}</button>
+    <button type="button" disabled className={`pointer-events-none min-h-11 rounded-full px-5 py-3 text-sm font-bold ${block.design?.variant === 'primary' ? 'bg-[var(--org-primary-color)] text-white' : 'border border-gray-200 bg-white text-gray-700 shadow-sm'}`}>{block.content?.label || 'Continue'}</button>
   ) : block.type === 'portfolio_preview' ? (
     <TimelineCardView preview entry={{ timeline_uuid: 'preview', slug: 'preview', entry_type: 'education', title: 'Your current experience', organization: 'Your school or organization', location_label: 'Your location', summary: 'Your story will appear here.', start_date: '2026-01', start_precision: 'month', is_current: true, revision: 1, cover_url: '', blocks: [], projects: [], project: [] } as TimelineEntry} />
   ) : ['multiple_choice', 'categorized_multi_select'].includes((block as LearningQuestionBlock).kind) ? (
@@ -2310,108 +2264,6 @@ function getEditorNodePlainText(node: any): string {
   return getEditorNodePlainText(node.content)
 }
 
-function VariantControls({ page, pages, variantKey, setVariantKey, onSelectVariant, onDisableVariant, onPatchPage }: any) {
-  const variants = page.content?.variants || {}
-  const overrides = variants.overrides || {}
-  const hasVariants = Boolean(page.content?.variants)
-  const availableSources = getVariantSourceOptions(pages, page)
-  const activeSource = getVariantSource(pages, page)
-  const sourceValue = hasVariants && activeSource ? `${activeSource.pageUuid}::${activeSource.blockId}` : ''
-  const enabled = hasVariants ? getEnabledVariantKeys(page, activeSource) : []
-  const enabledKeys = new Set(enabled.map((item) => item.key))
-  const addable = getVariantKeyList(activeSource).filter((item) => !enabledKeys.has(item.key))
-
-  const setSource = (value: string) => {
-    if (!value) {
-      // "None" turns variants off entirely.
-      const { variants: _variants, ...content } = page.content || {}
-      onPatchPage({ content })
-      setVariantKey('default')
-      return
-    }
-    const [pageUuid, blockId] = value.split('::')
-    onPatchPage({
-      content: {
-        ...(page.content || {}),
-        variants: {
-          source: { page_uuid: pageUuid, block_id: blockId },
-          overrides,
-        },
-      },
-    })
-  }
-
-  return (
-    <div className="space-y-3">
-      <div>
-        <FieldLabel>Source question</FieldLabel>
-        <select
-          value={sourceValue}
-          onChange={(event) => setSource(event.target.value)}
-          className="h-10 w-full rounded-lg border border-gray-200 px-3 text-sm outline-none focus:border-[var(--org-primary-color)]"
-        >
-          <option value="">None</option>
-          {availableSources.map((item) => (
-            <option key={`${item.pageUuid}::${item.blockId}`} value={`${item.pageUuid}::${item.blockId}`}>
-              {item.label}{item.isPrior ? '' : ' (after this page)'}
-            </option>
-          ))}
-        </select>
-        {!availableSources.length && (
-          <p className="mt-2 text-xs font-medium text-gray-500">Add a single-select multiple choice question to an earlier page first.</p>
-        )}
-      </div>
-      {hasVariants && activeSource && !activeSource.isPrior && (
-        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
-          Source question is after this page. Move it earlier for learner variants to resolve.
-        </p>
-      )}
-      {hasVariants && (
-        <>
-          <div className="flex flex-wrap items-center gap-1">
-            {enabled.map((item) => (
-              <span
-                key={item.key}
-                className={`flex h-8 items-center overflow-hidden rounded-lg border text-xs font-bold ${variantKey === item.key ? 'border-gray-950 bg-gray-950 text-white' : 'border-gray-200 bg-white text-gray-600'}`}
-              >
-                <button onClick={() => onSelectVariant(item.key)} className="h-full px-2">
-                  {item.label}
-                </button>
-                {item.key !== 'default' && (
-                  <button
-                    title="Disable this variant"
-                    onClick={() => onDisableVariant(item.key)}
-                    className={`flex h-full items-center pr-1.5 ${variantKey === item.key ? 'text-white/60 hover:text-white' : 'text-gray-300 hover:text-red-600'}`}
-                  >
-                    <X size={12} />
-                  </button>
-                )}
-              </span>
-            ))}
-            {addable.length > 0 && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button title="Enable a variant" className="flex h-8 w-8 items-center justify-center rounded-lg border border-dashed border-gray-300 text-gray-500 hover:border-gray-400 hover:text-gray-700">
-                    <Plus size={14} />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start">
-                  {addable.map((item) => (
-                    <DropdownMenuItem key={item.key} onClick={() => onSelectVariant(item.key)}>
-                      {item.label}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-          </div>
-          <p className="text-xs leading-5 text-gray-500">Learners see the variant matching their answer on the source question; unmatched answers fall back to Default.</p>
-        </>
-      )}
-    </div>
-  )
-}
-
 function BlockInspector({ block, page, pages, learningVariables, onCreateVariableKey, onPatchBlock, onPatchPage, onToggleSideBySide, onRequestImageUpload }: any) {
   const design = block.design || {}
   const patchDesign = (patch: any) => onPatchBlock(block.id, { design: { ...design, ...patch } })
@@ -2513,7 +2365,7 @@ function BlockInspector({ block, page, pages, learningVariables, onCreateVariabl
           )}
         </InspectorSection>
       )}
-      {block.type === 'button' && <InspectorSection label="Page button"><TextField label="Label" value={block.content?.label || ''} onChange={(value) => onPatchBlock(block.id, { content: { ...(block.content || {}), label: value } })} /><label className="grid gap-2 text-xs font-bold text-gray-500">Destination page<select value={block.content?.destination_page_uuid || ''} onChange={(event) => onPatchBlock(block.id, { content: { ...(block.content || {}), destination_page_uuid: event.target.value } })} className="h-10 rounded-lg border border-gray-200 px-3 text-sm font-normal text-gray-900"><option value="">Choose a page</option>{(pages || []).map((item: any) => <option key={item.page_uuid} value={item.page_uuid}>{item.title}</option>)}</select></label><SegmentedControl label="Style" value={design.variant === 'primary' ? 'primary' : 'secondary'} options={[{ value: 'primary', label: 'Primary' }, { value: 'secondary', label: 'Secondary' }]} onChange={(value) => patchDesign({ variant: value })} /><SegmentedControl label="Layout" value={design.group ? 'grouped' : 'solo'} options={[{ value: 'solo', label: 'Solo' }, { value: 'grouped', label: 'Side by side' }]} onChange={(value) => patchDesign({ group: value === 'grouped' ? `button_group_${page.page_uuid}` : undefined })} /><p className="text-xs leading-5 text-gray-500">Grouped page buttons share one responsive row. Direction icons are added automatically.</p></InspectorSection>}
+      {block.type === 'button' && <InspectorSection label="Page button"><TextField label="Label" value={block.content?.label || ''} onChange={(value) => onPatchBlock(block.id, { content: { ...(block.content || {}), label: value } })} /><SegmentedControl label="When pressed" value={block.content?.action === 'revisit' ? 'revisit' : 'continue'} options={[{ value: 'continue', label: 'Continue' }, { value: 'revisit', label: 'Go back' }]} onChange={(value) => onPatchBlock(block.id, { content: value === 'revisit' ? { ...(block.content || {}), action: 'revisit' } : { label: block.content?.label, action: 'continue' } })} />{block.content?.action === 'revisit' ? <label className="grid gap-2 text-xs font-bold text-gray-500">Earlier page<select value={block.content?.revisit_page_uuid || ''} onChange={(event) => onPatchBlock(block.id, { content: { ...(block.content || {}), revisit_page_uuid: event.target.value } })} className="h-10 rounded-lg border border-gray-200 px-3 text-sm font-normal text-gray-900"><option value="">Choose a page</option>{(pages || []).slice(0, Math.max(0, (pages || []).findIndex((item: any) => item.page_uuid === page.page_uuid))).map((item: any) => <option key={item.page_uuid} value={item.page_uuid}>{item.title}</option>)}</select></label> : <p className="text-xs leading-5 text-gray-500">Completes the page. To send learners somewhere different per button, add a path on &ldquo;Button pressed&rdquo; in the Flow tab.</p>}<SegmentedControl label="Style" value={design.variant === 'primary' ? 'primary' : 'secondary'} options={[{ value: 'primary', label: 'Primary' }, { value: 'secondary', label: 'Secondary' }]} onChange={(value) => patchDesign({ variant: value })} /><SegmentedControl label="Layout" value={design.group ? 'grouped' : 'solo'} options={[{ value: 'solo', label: 'Solo' }, { value: 'grouped', label: 'Side by side' }]} onChange={(value) => patchDesign({ group: value === 'grouped' ? `button_group_${page.page_uuid}` : undefined })} /><p className="text-xs leading-5 text-gray-500">Grouped page buttons share one responsive row. Direction icons are added automatically.</p></InspectorSection>}
       {block.type === 'question' && (
         <QuestionInspector
           block={block}
@@ -2999,16 +2851,6 @@ function normalizeBinding(value: any) {
   if (Array.isArray(value)) return value[0] || null
   if (value && typeof value === 'object') return value
   return null
-}
-
-function variableTarget(key: string) {
-  return `user.details.variables.${key}`
-}
-
-function formatVariableOptionLabel(key: string) {
-  const parts = String(key || '').split('.').filter(Boolean)
-  if (parts.length <= 1) return key
-  return `${'  '.repeat(parts.length - 1)}${parts.at(-1)} (${key})`
 }
 
 function ActivitySettingsView({

@@ -999,9 +999,20 @@ def test_learning_assertion_payload_hashes_recipient_and_points_to_award():
 def test_standard_page_accepts_bound_image_and_internal_page_button():
     _validate_page_payload(LearningPageType.STANDARD, {"version": 2, "blocks": [
         {"id": "image", "type": "image", "content": {"binding": {"source": "answer", "path": "learning_page_photo.answer.questions.photo.url"}}},
-        {"id": "button", "type": "button", "content": {"label": "Change details", "destination_page_uuid": "learning_page_details"}},
+        {"id": "button", "type": "button", "content": {"label": "Change details", "action": "revisit", "revisit_page_uuid": "learning_page_details"}},
         {"id": "preview", "type": "portfolio_preview", "content": {"variant": "timeline_card", "bindings": {"title": {"source": "answer", "path": "learning_page_details.answer.questions.details.inputs.title.text"}}}},
     ]})
+
+
+def test_buttons_route_through_the_flow_not_destination_fields():
+    with pytest.raises(HTTPException, match="flow edges"):
+        _validate_page_payload(LearningPageType.STANDARD, {"version": 2, "blocks": [
+            {"id": "button", "type": "button", "content": {"label": "Next", "destination_page_uuid": "learning_page_details"}},
+        ]})
+    with pytest.raises(HTTPException, match="continue along the flow or revisit"):
+        _validate_page_payload(LearningPageType.STANDARD, {"version": 2, "blocks": [
+            {"id": "button", "type": "button", "content": {"label": "Back", "action": "revisit"}},
+        ]})
 
 
 def test_standard_page_accepts_display_binding_draft_without_path():

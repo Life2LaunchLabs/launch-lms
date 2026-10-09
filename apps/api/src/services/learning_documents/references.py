@@ -1,7 +1,7 @@
 """Rewrite page references inside activity settings and page payloads.
 
 Pages are referenced in several shapes: a bare uuid (flow ``page_uuid``,
-button ``destination_page_uuid``, variant ``source.page_uuid``), a prefixed node
+button ``revisit_page_uuid``, variant ``source.page_uuid``), a prefixed node
 id (``page:<uuid>``, ``answer:<uuid>.…``) and an answer path whose first segment
 is the page uuid (``<uuid>.result.questions.<block>.option_ids``). A plain
 equality swap misses the last two, so every string is rewritten where a known

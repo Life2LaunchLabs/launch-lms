@@ -131,3 +131,43 @@ async def test_format_one_packages_are_converted_on_import(monkeypatch):
     question = [block for block in page.content["blocks"] if block["type"] == "question"][0]
     assert page.page_type == "standard" and question["scoring"] == {"correct_option_ids": ["x"], "points": 1}
     assert page.scoring == {} and page.version_id is not None
+
+
+BUTTON_MIGRATION = MIGRATION.with_name("k4b5u6t7t8n9_route_buttons_through_flow.py")
+
+
+def _button_page(button_id, destination=None):
+    content = {"label": "Go"}
+    if destination:
+        content["destination_page_uuid"] = destination
+    return {"version": 2, "blocks": [{"id": button_id, "type": "button", "content": content}]}
+
+
+def test_button_migration_turns_destinations_into_edges_and_revisits(tmp_path):
+    engine = create_engine(f"sqlite:///{tmp_path / 'db.sqlite'}")
+    with engine.begin() as connection:
+        connection.execute(text("CREATE TABLE learningactivity (id INTEGER PRIMARY KEY, settings TEXT)"))
+        connection.execute(text('CREATE TABLE learningpage (id INTEGER PRIMARY KEY, activity_id INTEGER, page_uuid TEXT, "order" INTEGER, content TEXT)'))
+        connection.execute(text("INSERT INTO learningactivity VALUES (1, '{}'), (2, '{}')"))
+        pages = [
+            (1, 1, "learning_page_a", 1, _button_page("btn_skip", "learning_page_c")),
+            (2, 1, "learning_page_b", 2, {"version": 2, "blocks": []}),
+            (3, 1, "learning_page_c", 3, _button_page("btn_back", "learning_page_a")),
+            (4, 2, "learning_page_x", 1, _button_page("btn_plain")),
+        ]
+        for row in pages:
+            connection.execute(text("INSERT INTO learningpage VALUES (:i, :a, :u, :o, :c)"), {"i": row[0], "a": row[1], "u": row[2], "o": row[3], "c": json.dumps(row[4])})
+        spec = importlib.util.spec_from_file_location("button_migration", BUTTON_MIGRATION)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with Operations.context(MigrationContext.configure(connection)):
+            module.upgrade()
+        content = {row[0]: json.loads(row[1])["blocks"][0]["content"] for row in connection.execute(text("SELECT id, content FROM learningpage WHERE id != 2"))}
+        settings = {row[0]: json.loads(row[1]) for row in connection.execute(text("SELECT id, settings FROM learningactivity"))}
+    assert content[1] == {"label": "Go", "action": "continue"}
+    assert content[3] == {"label": "Go", "action": "revisit", "revisit_page_uuid": "learning_page_a"}
+    assert content[4] == {"label": "Go", "action": "continue"}
+    edge = [edge for edge in settings[1]["flow"]["edges"] if edge.get("condition")][0]
+    assert (edge["from"], edge["to"]) == ("page:learning_page_a", "page:learning_page_c")
+    assert edge["condition"]["left"]["key"] == "learning_page_a.button" and edge["condition"]["right"] == "btn_skip"
+    assert settings[2] == {}, "activities without forward routes keep page order"

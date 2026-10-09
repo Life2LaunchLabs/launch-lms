@@ -83,7 +83,11 @@ Use `"scoring": { "mode": "manual" }` when a staff member should grade it.
 Image upload: `{ "kind": "image_upload", "content": { "label": "Photo of your project" }, "scoring": { "mode": "manual", "points": 1 }, "completion": { "required": true } }`.
 
 Image: `{ "type": "image", "content": { "src": "https://…", "alt": "…" }, "design": { "height": 220, "fit": "cover" } }`.
-Button that jumps to another page: `{ "type": "button", "content": { "label": "Show me", "destination_page_uuid": "new-examples" } }`.
+Buttons: a `continue` button completes the page like the Continue action, and
+the flow can route on which one was pressed (see below):
+`{ "id": "btn_more", "type": "button", "content": { "label": "Show me more", "action": "continue" } }`.
+A `revisit` button jumps back to a page that comes earlier on the route:
+`{ "type": "button", "content": { "label": "Back to the intro", "action": "revisit", "revisit_page_uuid": "new-intro" } }`.
 
 ## Branching flow
 
@@ -107,6 +111,11 @@ required page in the flow; a node with several outgoing edges needs exactly one
 edge without a condition (the default) and distinct priorities (higher is
 tried first); a condition may only reference questions answered before it.
 `split` and `join` nodes route without showing a page.
+
+To send each button somewhere different, add edges from the button's page
+conditioned on `<page_uuid>.button`, e.g.
+`{ "from": "page:p1", "to": "page:p3", "priority": 1, "condition": { "op": "eq", "left": { "source": "answer", "key": "p1.button" }, "right": "btn_more" } }`,
+plus the default edge for every other button.
 
 Answer keys: single-question page `<page>.result.option_ids`; per question
 `<page>.result.questions.<block>.option_ids` or

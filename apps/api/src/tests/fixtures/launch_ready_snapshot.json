@@ -1228,8 +1228,9 @@
      },
      {
       "content": {
-       "destination_page_uuid": "learning_page_system_onboarding_profile_details",
-       "label": "Change my introduction"
+       "action": "revisit",
+       "label": "Change my introduction",
+       "revisit_page_uuid": "learning_page_system_onboarding_profile_details"
       },
       "design": {
        "group": "profile_review_actions",
@@ -1241,8 +1242,9 @@
      },
      {
       "content": {
-       "destination_page_uuid": "learning_page_system_onboarding_profile_photo",
-       "label": "Choose another photo"
+       "action": "revisit",
+       "label": "Choose another photo",
+       "revisit_page_uuid": "learning_page_system_onboarding_profile_photo"
       },
       "design": {
        "group": "profile_review_actions",
@@ -1494,8 +1496,9 @@
      },
      {
       "content": {
-       "destination_page_uuid": "learning_page_system_onboarding_project_detail",
-       "label": "Change the story"
+       "action": "revisit",
+       "label": "Change the story",
+       "revisit_page_uuid": "learning_page_system_onboarding_project_detail"
       },
       "design": {
        "group": "project_review_actions",
@@ -1507,8 +1510,9 @@
      },
      {
       "content": {
-       "destination_page_uuid": "learning_page_system_onboarding_project_photo",
-       "label": "Choose another cover"
+       "action": "revisit",
+       "label": "Choose another cover",
+       "revisit_page_uuid": "learning_page_system_onboarding_project_photo"
       },
       "design": {
        "group": "project_review_actions",
@@ -2011,8 +2015,9 @@
      },
      {
       "content": {
-       "destination_page_uuid": "learning_page_system_onboarding_timeline",
-       "label": "Change the details"
+       "action": "revisit",
+       "label": "Change the details",
+       "revisit_page_uuid": "learning_page_system_onboarding_timeline"
       },
       "design": {
        "align": "center",
@@ -2025,8 +2030,9 @@
      },
      {
       "content": {
-       "destination_page_uuid": "learning_page_system_onboarding_timeline_photo",
-       "label": "Choose another photo"
+       "action": "revisit",
+       "label": "Choose another photo",
+       "revisit_page_uuid": "learning_page_system_onboarding_timeline_photo"
       },
       "design": {
        "align": "center",
@@ -2220,8 +2226,9 @@
      },
      {
       "content": {
-       "destination_page_uuid": "learning_page_system_onboarding_traits",
-       "label": "Change my choices"
+       "action": "revisit",
+       "label": "Change my choices",
+       "revisit_page_uuid": "learning_page_system_onboarding_traits"
       },
       "design": {
        "variant": "secondary",

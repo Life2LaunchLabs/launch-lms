@@ -30,8 +30,8 @@ export function LearningActivityPlayer({ orgslug, badgePath, activity }: { orgsl
       runUuidRef.current = run?.run_uuid
       return run
     },
-    submit: (pageUuid, answer) => submitLearningResponse(runUuidRef.current || '', pageUuid, answer, accessToken),
-    complete: (pageUuid) => completeLearningPage(runUuidRef.current || '', pageUuid, {}, accessToken),
+    submit: (pageUuid, answer, button) => submitLearningResponse(runUuidRef.current || '', pageUuid, answer, accessToken, button),
+    complete: (pageUuid, button) => completeLearningPage(runUuidRef.current || '', pageUuid, button ? { button } : {}, accessToken),
   }), [badge.badge_uuid, accessToken, issuingOrgId, programAssignmentUuid, planObjectiveUuid])
 
   const leave = React.useCallback(() => {

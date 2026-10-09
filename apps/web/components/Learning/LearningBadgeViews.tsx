@@ -120,18 +120,18 @@ export function LearningActivitySurface({
   )
 }
 
-export function LearningPageContent({ page, answer, setAnswer, setUnlocked, pages, run, editable = false, onPagePatch, onNavigatePage, responseMediaOwner }: any) {
+export function LearningPageContent({ page, answer, setAnswer, setUnlocked, pages, run, editable = false, onPagePatch, onNavigatePage, onButton, responseMediaOwner }: any) {
   if (!page) return null
   if (page.page_type === 'video') {
     return <VideoPageContent page={page} answer={answer} setAnswer={setAnswer} setUnlocked={setUnlocked} editable={editable} onPagePatch={onPagePatch} />
   }
   if (page.page_type === 'standard') {
-    return <StandardPageContent page={page} answer={answer} setAnswer={setAnswer} setUnlocked={setUnlocked} editable={editable} onPagePatch={onPagePatch} run={run} pages={pages} onNavigatePage={onNavigatePage} responseMediaOwner={responseMediaOwner} />
+    return <StandardPageContent page={page} answer={answer} setAnswer={setAnswer} setUnlocked={setUnlocked} editable={editable} onPagePatch={onPagePatch} run={run} pages={pages} onNavigatePage={onNavigatePage} onButton={onButton} responseMediaOwner={responseMediaOwner} />
   }
   return null
 }
 
-function StandardPageContent({ page, answer, setAnswer, setUnlocked, editable, onPagePatch, run, pages, onNavigatePage, responseMediaOwner }: any) {
+function StandardPageContent({ page, answer, setAnswer, setUnlocked, editable, onPagePatch, run, pages, onNavigatePage, onButton, responseMediaOwner }: any) {
   const blocks = React.useMemo(
     () => editable ? (page.content?.blocks || []) : resolveVariantBlocks(page, run),
     [editable, page, run]
@@ -163,7 +163,7 @@ function StandardPageContent({ page, answer, setAnswer, setUnlocked, editable, o
     onPagePatch?.({ content: { ...(page.content || {}), version: page.content?.version || 2, blocks: nextBlocks } })
   }
 
-  const renderBlock = (block: LearningBlock) => <StandardBlockView key={block.id} block={block} page={page} answer={getQuestionAnswer(answer, block.id)} setAnswer={(value: any) => setBlockAnswer(block.id, value)} setUnlocked={(value: boolean) => setBlockUnlocked(block.id, value)} editable={editable} onPatch={(patch: any) => patchBlock(block.id, patch)} responseMediaOwner={responseMediaOwner} run={run} pages={pages} onNavigatePage={onNavigatePage} />
+  const renderBlock = (block: LearningBlock) => <StandardBlockView key={block.id} block={block} page={page} answer={getQuestionAnswer(answer, block.id)} setAnswer={(value: any) => setBlockAnswer(block.id, value)} setUnlocked={(value: boolean) => setBlockUnlocked(block.id, value)} editable={editable} onPatch={(patch: any) => patchBlock(block.id, patch)} responseMediaOwner={responseMediaOwner} run={run} pages={pages} onNavigatePage={onNavigatePage} onButton={onButton} />
 
   return (
     <div className="learning-info-block-stack">
@@ -202,7 +202,7 @@ export function mapQuestionPagePatchToBlock(block: any, patch: any) {
   return next
 }
 
-function StandardBlockView({ block, page, answer, setAnswer, setUnlocked, editable, onPatch, responseMediaOwner, run, pages, onNavigatePage }: any) {
+function StandardBlockView({ block, page, answer, setAnswer, setUnlocked, editable, onPatch, responseMediaOwner, run, pages, onNavigatePage, onButton }: any) {
   const blockStyle = getStandardBlockStyle(block)
 
   if (block.type === 'text') {
@@ -237,13 +237,13 @@ function StandardBlockView({ block, page, answer, setAnswer, setUnlocked, editab
   }
 
   if (block.type === 'button') {
-    const destination = String(block.content?.destination_page_uuid || '')
-    const available = Boolean(destination && (pages || []).some((item: any) => item.page_uuid === destination))
+    const revisit = block.content?.action === 'revisit'
+    const target = String(block.content?.revisit_page_uuid || '')
     const currentIndex = (pages || []).findIndex((item: any) => item.page_uuid === page.page_uuid)
-    const destinationIndex = (pages || []).findIndex((item: any) => item.page_uuid === destination)
-    const backwards = destinationIndex >= 0 && destinationIndex < currentIndex
-    const Direction = backwards ? ArrowLeft : ArrowRight
-    return <section className="learning-info-stack-section !w-full" style={{ ...blockStyle, width: '100%' }}><button type="button" disabled={editable || !available} onClick={() => onNavigatePage?.(destination)} className={`inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full px-6 py-3 text-center text-sm font-bold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${block.design?.variant === 'primary' ? 'bg-[var(--org-primary-color)] text-white shadow-sm' : 'border border-border/80 bg-background text-foreground shadow-sm hover:-translate-y-0.5 hover:border-foreground/30 hover:shadow-md'} disabled:cursor-not-allowed disabled:opacity-50`}>{backwards && <Direction className="h-4 w-4 shrink-0" />}<span className="text-center">{block.content?.label || 'Go to page'}</span>{!backwards && <Direction className="h-4 w-4 shrink-0" />}</button></section>
+    const targetIndex = (pages || []).findIndex((item: any) => item.page_uuid === target)
+    const available = revisit ? targetIndex >= 0 && targetIndex < currentIndex && Boolean(onNavigatePage) : Boolean(onButton)
+    const Direction = revisit ? ArrowLeft : ArrowRight
+    return <section className="learning-info-stack-section !w-full" style={{ ...blockStyle, width: '100%' }}><button type="button" disabled={editable || !available} onClick={() => revisit ? onNavigatePage?.(target) : onButton?.(block.id)} className={`inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full px-6 py-3 text-center text-sm font-bold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${block.design?.variant === 'primary' ? 'bg-[var(--org-primary-color)] text-white shadow-sm' : 'border border-border/80 bg-background text-foreground shadow-sm hover:-translate-y-0.5 hover:border-foreground/30 hover:shadow-md'} disabled:cursor-not-allowed disabled:opacity-50`}>{revisit && <Direction className="h-4 w-4 shrink-0" />}<span className="text-center">{block.content?.label || 'Continue'}</span>{!revisit && <Direction className="h-4 w-4 shrink-0" />}</button></section>
   }
 
   if (block.type === 'portfolio_preview') {

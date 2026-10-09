@@ -66,14 +66,14 @@ export function ActivityPreview({
   }, [preview])
 
   const runtime = React.useMemo<ActivityRuntime>(() => {
-    const step = async (action: 'submit' | 'complete', pageUuid: string, answer?: any) => {
-      const next = await stepLearningPreview(token, { action, page_uuid: pageUuid, answer, state: stateRef.current })
+    const step = async (action: 'submit' | 'complete', pageUuid: string, answer?: any, button?: string) => {
+      const next = await stepLearningPreview(token, { action, page_uuid: pageUuid, answer, button, state: stateRef.current })
       stateRef.current = next.state
       return next.run
     }
     return {
-      submit: (pageUuid, answer) => step('submit', pageUuid, answer),
-      complete: (pageUuid) => step('complete', pageUuid),
+      submit: (pageUuid, answer, button) => step('submit', pageUuid, answer, button),
+      complete: (pageUuid, button) => step('complete', pageUuid, undefined, button),
     }
   }, [token])
 

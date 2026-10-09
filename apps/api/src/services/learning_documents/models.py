@@ -155,9 +155,13 @@ _BLOCK_DEFS = {
             "type": "object",
             "properties": {
                 "label": {"type": "string"},
-                "destination_page_uuid": {
+                "action": {
+                    "enum": ["continue", "revisit"],
+                    "description": "continue completes the page (route on `<page_uuid>.button` in the flow); revisit jumps back to revisit_page_uuid.",
+                },
+                "revisit_page_uuid": {
                     "type": "string",
-                    "description": "A page in this activity (uuid or new-page placeholder).",
+                    "description": "revisit only: an earlier page on the route (uuid or new-page placeholder).",
                 },
             },
         },

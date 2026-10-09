@@ -28,7 +28,13 @@ from src.services.learning_documents.models import (
     DocumentIssue,
 )
 from src.services.learning_documents.references import rewrite_page_references
-from src.services.learning_flow import FlowValidationError, validate_flow
+from src.services.learning_flow import (
+    FlowValidationError,
+    convert_button_destinations,
+    node_reaches,
+    page_node_id,
+    validate_flow,
+)
 from src.services.learning_page_convert import iter_block_stacks, normalize_question_settings
 from src.services.learning_portfolio_actions import PortfolioActionError, validate_outcomes
 
@@ -163,6 +169,9 @@ def prepare_document(
     activity = rewrite_page_references(data["activity"], result.new_page_ids)
     pages = rewrite_page_references(data["pages"], result.new_page_ids)
     page_ids = {page["page_uuid"] for page in pages}
+    pages, converted_flow = convert_button_destinations(pages, activity["settings"].get("flow"))
+    if converted_flow is not None:
+        activity["settings"]["flow"] = converted_flow
 
     for index, page in enumerate(pages):
         content = page["content"] = normalize_question_settings(_public(page.get("content"), HIDDEN_CONTENT_KEYS))
@@ -215,6 +224,7 @@ def prepare_document(
         )
     except FlowValidationError as exc:
         result.errors.append(DocumentIssue(path="activity.settings.flow", message=str(exc)))
+    result.errors.extend(_button_route_issues(activity["settings"].get("flow"), pages))
     try:
         validate_outcomes(activity["settings"].get("outcomes"), allow_system_blocks)
     except PortfolioActionError as exc:
@@ -222,6 +232,33 @@ def prepare_document(
 
     result.activity, result.pages = activity, pages
     return result
+
+
+def _button_route_issues(flow: dict | None, pages: list[dict]) -> list[DocumentIssue]:
+    """Revisits must point back along the route; button edges must name real buttons."""
+    issues: list[DocumentIssue] = []
+    order = {page["page_uuid"]: index for index, page in enumerate(pages)}
+    continue_buttons: dict[str, set[str]] = {}
+    for index, page in enumerate(pages):
+        for stack in iter_block_stacks(page["content"]):
+            for block in stack:
+                if not isinstance(block, dict) or block.get("type") != "button":
+                    continue
+                button = block.get("content") or {}
+                if button.get("action") != "revisit":
+                    continue_buttons.setdefault(page["page_uuid"], set()).add(str(block.get("id")))
+                    continue
+                target = str(button.get("revisit_page_uuid") or "")
+                source_node, target_node = (page_node_id(flow, page["page_uuid"]), page_node_id(flow, target)) if flow else (None, None)
+                earlier = node_reaches(flow, target_node, source_node) if source_node and target_node else order.get(target, len(pages)) < index
+                if not earlier or target == page["page_uuid"]:
+                    issues.append(DocumentIssue(path=f"pages[{index}].content.blocks[{block.get('id')}]", message="A revisit button must point to a page learners pass before this one"))
+    for index, edge in enumerate((flow or {}).get("edges", [])):
+        condition = edge.get("condition") or {}
+        key = str((condition.get("left") or {}).get("key") or "")
+        if key.endswith(".button") and condition.get("right") not in continue_buttons.get(key[: -len(".button")], set()):
+            issues.append(DocumentIssue(path=f"activity.settings.flow.edges[{index}]", message=f"Routes on button {condition.get('right')!r}, which is not a continue button on that page"))
+    return issues
 
 
 def _scored_choice_without_answers(block) -> bool:

@@ -110,7 +110,7 @@ export async function getLearningPreview(token: string) {
   return errorHandling(result)
 }
 
-export async function stepLearningPreview(token: string, step: { action: 'submit' | 'complete'; page_uuid: string; answer?: any; state: any }) {
+export async function stepLearningPreview(token: string, step: { action: 'submit' | 'complete'; page_uuid: string; answer?: any; button?: string; state: any }) {
   const result = await fetch(
     `${getAPIUrl()}learning-previews/${encodeURIComponent(token)}/steps`,
     RequestBodyWithAuthHeader('POST', step, null)

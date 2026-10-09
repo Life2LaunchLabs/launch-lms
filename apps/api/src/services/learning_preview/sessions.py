@@ -41,6 +41,7 @@ class PreviewStep(BaseModel):
     action: str = Field(pattern=r"^(submit|complete)$")
     page_uuid: str
     answer: dict | None = None
+    button: str | None = None
     state: dict | None = None
 
 
@@ -142,4 +143,4 @@ async def get_preview(request: Request, token: str, db_session: Session) -> dict
 async def step_preview(request: Request, token: str, payload: PreviewStep, db_session: Session) -> dict:
     preview = _load(db_session, token)
     state = payload.state if payload.state is not None else engine.initial_state(preview.persona)
-    return engine.step(preview.document, state, payload.action, payload.page_uuid, payload.answer)
+    return engine.step(preview.document, state, payload.action, payload.page_uuid, payload.answer, payload.button)

@@ -87,7 +87,7 @@ def _world(state: str = "draft"):
         creation_date=NOW, update_date=NOW,
     ))
     for order, (page_uuid, content) in enumerate(
-        [(P1, _choice_page()), (P2, {"version": 2, "blocks": [_text("blk_made0001", "Makers make.")]}), (P3, {"version": 2, "blocks": [_text("blk_help0001", "Helpers help."), {"id": "blk_back0001", "type": "button", "content": {"label": "Back", "destination_page_uuid": P1}}]})],
+        [(P1, _choice_page()), (P2, {"version": 2, "blocks": [_text("blk_made0001", "Makers make.")]}), (P3, {"version": 2, "blocks": [_text("blk_help0001", "Helpers help."), {"id": "blk_back0001", "type": "button", "content": {"label": "Back", "action": "revisit", "revisit_page_uuid": P1}}]})],
         start=1,
     ):
         session.add(LearningPage(
@@ -133,7 +133,7 @@ async def test_new_pages_use_placeholders_that_resolve_everywhere():
     flow["nodes"].insert(1, {"id": "page:new-unsure", "type": "page", "page_uuid": "new-unsure"})
     flow["edges"][0]["to"] = "page:new-unsure"
     flow["edges"].insert(1, {"from": "page:new-unsure", "to": f"page:{P2}", "priority": 0})
-    document["pages"][3]["content"]["blocks"][1]["content"]["destination_page_uuid"] = "new-unsure"
+    document["pages"][2]["content"]["blocks"].append({"id": "blk_again001", "type": "button", "content": {"label": "Not sure after all", "action": "revisit", "revisit_page_uuid": "new-unsure"}})
 
     saved = await store.save_activity_document(
         _request(), "learning_activity_draft", ActivityDocumentSave(document=document, base_etag=current["etag"]), alice, session
@@ -144,7 +144,7 @@ async def test_new_pages_use_placeholders_that_resolve_everywhere():
     saved_flow = saved["document"]["activity"]["settings"]["flow"]
     assert {"id": f"page:{new_uuid}", "type": "page", "page_uuid": new_uuid} in saved_flow["nodes"]
     assert saved_flow["edges"][0]["to"] == f"page:{new_uuid}"
-    assert pages[3]["content"]["blocks"][1]["content"]["destination_page_uuid"] == new_uuid
+    assert pages[2]["content"]["blocks"][-1]["content"]["revisit_page_uuid"] == new_uuid
     assert "new-unsure" not in str(saved["document"])
 
 
@@ -169,7 +169,7 @@ async def test_invalid_documents_report_every_problem_with_a_path():
     current = await _read(session, alice)
     document = deepcopy(current["document"])
     document["pages"][1]["content"]["blocks"].append(_text("blk_made0001", "duplicate id"))
-    document["pages"][2]["content"]["blocks"][1]["content"]["destination_page_uuid"] = "nowhere"
+    document["pages"][2]["content"]["blocks"][1]["content"]["revisit_page_uuid"] = "nowhere"
     document["pages"].append({"page_uuid": "new-orphan", "title": "Orphan", "content": {"version": 2, "blocks": []}})
     with pytest.raises(HTTPException) as exc:
         await store.save_activity_document(_request(), "learning_activity_draft", ActivityDocumentSave(document=document, base_etag=current["etag"]), alice, session)
