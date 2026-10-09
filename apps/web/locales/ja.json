@@ -536,8 +536,8 @@
     "usergroup_filter": {
       "all_courses": "All Courses",
       "filter_by_group": "Filter by group",
-      "info_title": "User Group Filter",
-      "info_description": "Filter courses by user group to see only courses assigned to a specific group. Useful for families or teams sharing the same organization."
+      "info_title": "Group Filter",
+      "info_description": "Filter courses by group to see only courses assigned to a specific group. Useful for families or teams sharing the same organization."
     }
   },
   "communities": {
@@ -3100,9 +3100,9 @@
         "description": "Growth vs retention health"
       },
       "cohort_retention": {
-        "title": "Cohort Retention",
+        "title": "Group Retention",
         "description": "% users active after signup week",
-        "cohort": "Cohort",
+        "cohort": "Group",
         "size": "Size"
       },
       "peak_usage": {
@@ -3435,13 +3435,13 @@
       "set_to_public_confirm": "サインイン済みのすべての組織メンバーがこのボードにアクセスできるようになります。",
       "make_board_public": "ボードを公開にする",
       "set_to_private": "非公開に設定",
-      "set_to_private_confirm": "リンクされたUserGroupsのメンバーのみがこのボードにアクセスできます。",
+      "set_to_private_confirm": "リンクされたGroupsのメンバーのみがこのボードにアクセスできます。",
       "make_board_private": "ボードを非公開にする",
       "active": "アクティブ",
       "public_option": "公開",
       "public_description": "サインイン済みのすべての組織メンバーがこのボードにアクセスできます",
       "private_option": "ユーザーのみ",
-      "private_description": "リンクされたUserGroupsのみがこのボードにアクセスできます",
+      "private_description": "リンクされたGroupsのみがこのボードにアクセスできます",
       "board_set_public": "ボードが公開に設定されました",
       "board_set_private": "ボードが非公開に設定されました",
       "access_update_error": "アクセスの更新に失敗しました",
@@ -3454,7 +3454,7 @@
       "no_user_groups": "まだリンクされたユーザーグループがありません",
       "link_to_user_group": "ユーザーグループにリンク",
       "link_to_user_group_description": "ユーザーグループを選択してこのボードへのアクセスを付与する",
-      "link_to_usergroup_btn": "UserGroupにリンク",
+      "link_to_usergroup_btn": "Groupにリンク",
       "user_group": "ユーザーグループ",
       "no_user_groups_available": "利用可能なユーザーグループがありません",
       "create_user_group": "ユーザーグループを作成",

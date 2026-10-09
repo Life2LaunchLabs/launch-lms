@@ -519,8 +519,8 @@
     "usergroup_filter": {
       "all_courses": "All Courses",
       "filter_by_group": "Filter by group",
-      "info_title": "User Group Filter",
-      "info_description": "Filter courses by user group to see only courses assigned to a specific group. Useful for families or teams sharing the same organization."
+      "info_title": "Group Filter",
+      "info_description": "Filter courses by group to see only courses assigned to a specific group. Useful for families or teams sharing the same organization."
     }
   },
   "communities": {
@@ -3029,9 +3029,9 @@
         "description": "Growth vs retention health"
       },
       "cohort_retention": {
-        "title": "Cohort Retention",
+        "title": "Group Retention",
         "description": "% users active after signup week",
-        "cohort": "Cohort",
+        "cohort": "Group",
         "size": "Size"
       },
       "peak_usage": {
@@ -3364,13 +3364,13 @@
       "set_to_public_confirm": "Semua anggota organisasi yang masuk akan dapat mengakses papan ini.",
       "make_board_public": "Jadikan Papan Publik",
       "set_to_private": "Atur ke Privat",
-      "set_to_private_confirm": "Hanya anggota UserGroups yang terhubung yang dapat mengakses papan ini.",
+      "set_to_private_confirm": "Hanya anggota Groups yang terhubung yang dapat mengakses papan ini.",
       "make_board_private": "Jadikan Papan Privat",
       "active": "Aktif",
       "public_option": "Publik",
       "public_description": "Semua anggota organisasi yang masuk dapat mengakses papan ini",
       "private_option": "Hanya Pengguna",
-      "private_description": "Hanya UserGroups yang terhubung yang dapat mengakses papan ini",
+      "private_description": "Hanya Groups yang terhubung yang dapat mengakses papan ini",
       "board_set_public": "Papan diatur ke publik",
       "board_set_private": "Papan diatur ke privat",
       "access_update_error": "Gagal memperbarui akses",
@@ -3383,7 +3383,7 @@
       "no_user_groups": "Belum ada grup pengguna yang terhubung",
       "link_to_user_group": "Hubungkan ke Grup Pengguna",
       "link_to_user_group_description": "Pilih grup pengguna untuk memberi mereka akses ke papan ini",
-      "link_to_usergroup_btn": "Hubungkan ke UserGroup",
+      "link_to_usergroup_btn": "Hubungkan ke Group",
       "user_group": "Grup Pengguna",
       "no_user_groups_available": "Tidak ada grup pengguna tersedia",
       "create_user_group": "Buat Grup Pengguna",

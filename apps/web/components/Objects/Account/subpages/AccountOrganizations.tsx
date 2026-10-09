@@ -6,6 +6,8 @@ import { Building2, Search, Users } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import OrganizationCard from '@components/Organizations/OrganizationCard'
 import { getDiscoverOrganizations } from '@services/organizations/orgs'
+import { getAPIUrl } from '@services/config/config'
+import { swrFetcher } from '@services/utils/ts/requests'
 
 interface AccountOrganizationsProps {
   orgslug: string
@@ -45,8 +47,13 @@ export default function AccountOrganizations({ orgslug }: AccountOrganizationsPr
         token || undefined
       )
   )
-
-  const organizationList = useMemo(() => organizations || [], [organizations])
+  const { data: adminOrganizations } = useSWR(
+    accessToken ? `${getAPIUrl()}orgs/user_admin/page/1/limit/100` : null,
+    (url) => swrFetcher(url, accessToken),
+    { revalidateOnFocus: false }
+  )
+  const adminSlugs = useMemo(() => new Set((adminOrganizations || []).map((organization: any) => organization.slug)), [adminOrganizations])
+  const organizationList = useMemo(() => [...(organizations || [])], [organizations])
   const myOrganizations = useMemo(
     () => organizationList.filter((organization) => organization.is_member),
     [organizationList]
@@ -99,6 +106,7 @@ export default function AccountOrganizations({ orgslug }: AccountOrganizationsPr
                 key={organization.org_uuid}
                 organization={organization}
                 currentOrgslug={orgslug}
+                canAdmin={adminSlugs.has(organization.slug)}
               />
             ))}
 
@@ -131,6 +139,7 @@ export default function AccountOrganizations({ orgslug }: AccountOrganizationsPr
                 key={organization.org_uuid}
                 organization={organization}
                 currentOrgslug={orgslug}
+                canAdmin={adminSlugs.has(organization.slug)}
               />
             ))}
 

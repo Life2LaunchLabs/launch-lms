@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 from sqlalchemy import create_engine, text
-from sqlmodel import SQLModel
+from sqlmodel import Session, SQLModel
 
 API_DIR = Path(__file__).resolve().parents[1]
 if str(API_DIR) not in sys.path:
@@ -12,16 +12,17 @@ if str(API_DIR) not in sys.path:
 
 
 def resolve_database_url() -> str | None:
-    return (
-        os.environ.get("LAUNCHLMS_SQL_CONNECTION_STRING")
-        or os.environ.get("DATABASE_URL")
+    return os.environ.get("LAUNCHLMS_SQL_CONNECTION_STRING") or os.environ.get(
+        "DATABASE_URL"
     )
 
 
 def main() -> int:
     database_url = resolve_database_url()
     if not database_url:
-        print("Missing LAUNCHLMS_SQL_CONNECTION_STRING or DATABASE_URL.", file=sys.stderr)
+        print(
+            "Missing LAUNCHLMS_SQL_CONNECTION_STRING or DATABASE_URL.", file=sys.stderr
+        )
         return 1
 
     # Importing the database module loads all models.
@@ -37,6 +38,12 @@ def main() -> int:
         print(f"Warning: could not enable pgvector extension: {exc}", file=sys.stderr)
 
     SQLModel.metadata.create_all(engine)
+    from src.db.demo import DemoConfiguration
+
+    with Session(engine) as session:
+        if session.get(DemoConfiguration, 1) is None:
+            session.add(DemoConfiguration())
+            session.commit()
     print("Fresh database schema bootstrapped from current models.")
     return 0
 

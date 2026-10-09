@@ -26,6 +26,7 @@ hosting_config:
     - http://localhost:3001
   cookies_config:
     domain: ".127.0.0.1.sslip.io"
+    scope: shared-domain
   allowed_regexp: '\b((?:https?://)[^\s/$.?#].[^\s]*)\b'
   content_delivery:
     type: "filesystem" # "filesystem" or "s3api"

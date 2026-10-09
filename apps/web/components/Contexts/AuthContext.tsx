@@ -12,10 +12,12 @@ import { mutate } from 'swr'
 import {
   getAPIUrl,
   getCoreCapabilities,
-  getLAUNCHLMS_TOP_DOMAIN_VAL,
   getLAUNCHLMS_DOMAIN_VAL,
 } from '@services/config/config'
-import { isSubdomainOf, isSameHost, isLocalhost as isLocalhostCheck } from '@services/utils/ts/hostUtils'
+import {
+  clearOAuthStateCookie, getCookieAttributes, getOAuthStateCookie,
+  oauthCallbackRequiresBounce, setOAuthStateCookie,
+} from '@services/auth/browserCookies'
 
 // Types matching NextAuth's session structure
 export interface Session {
@@ -73,7 +75,6 @@ interface SessionCache {
 const SESSION_CACHE_TTL = 10 * 60 * 1000 // 10 minutes
 const TOKEN_REFRESH_THRESHOLD = 60 * 1000 // 1 minute before expiry
 const AUTH_BROADCAST_CHANNEL = 'launchlms_auth_sync'
-const OAUTH_STATE_COOKIE = 'launchlms_oauth_state'
 const ROUTING_ORG_COOKIES = ['launchlms_orgslug', 'launchlms_current_orgslug', 'launchlms_custom_domain']
 
 // Context
@@ -93,63 +94,6 @@ function generateSecureToken(length: number = 32): string {
   const array = new Uint8Array(length)
   crypto.getRandomValues(array)
   return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('')
-}
-
-// Check if current hostname is a custom domain
-function isCustomDomain(): boolean {
-  if (typeof window === 'undefined') return false
-  const hostname = window.location.hostname
-  const domain = getLAUNCHLMS_DOMAIN_VAL()
-  return !isSubdomainOf(hostname, domain) && !isSameHost(hostname, domain) && !isLocalhostCheck(hostname)
-}
-
-// Get cookie attributes based on current domain context
-function getCookieAttributes(): { secureAttr: string; domainAttr: string; sameSiteAttr: string } {
-  const isSecure = typeof window !== 'undefined' && window.location.protocol === 'https:'
-  const secureAttr = isSecure ? '; Secure' : ''
-  const topDomain = getLAUNCHLMS_TOP_DOMAIN_VAL()
-
-  // For custom domains, don't set domain attribute (host-only cookie)
-  // For localhost, don't set domain attribute
-  // For subdomains of main domain, set domain to allow sharing
-  let domainAttr = ''
-  if (!isCustomDomain() && topDomain !== 'localhost') {
-    domainAttr = `; domain=.${topDomain}`
-  }
-
-  // SameSite=Lax is generally safe and allows top-level navigation
-  const sameSiteAttr = '; SameSite=Lax'
-
-  return { secureAttr, domainAttr, sameSiteAttr }
-}
-
-// Store OAuth CSRF state in a cookie (shared across subdomains, unlike sessionStorage)
-// For custom domains, cookie is host-only so it stays on the same origin.
-// For subdomains, cookie is scoped to top domain so callback on main domain can read it.
-function setOAuthStateCookie(csrf: string): void {
-  const { secureAttr, domainAttr, sameSiteAttr } = getCookieAttributes()
-  // 5 minute expiry matching the state validation window
-  const expires = new Date(Date.now() + 5 * 60 * 1000).toUTCString()
-  const value = JSON.stringify({ csrf, timestamp: Date.now() })
-  document.cookie = `${OAUTH_STATE_COOKIE}=${encodeURIComponent(value)}; path=/${sameSiteAttr}${secureAttr}${domainAttr}; expires=${expires}`
-}
-
-function getOAuthStateCookie(): { csrf: string; timestamp: number } | null {
-  try {
-    const cookies = document.cookie.split(';')
-    for (const cookie of cookies) {
-      const [name, ...rest] = cookie.trim().split('=')
-      if (name === OAUTH_STATE_COOKIE) {
-        return JSON.parse(decodeURIComponent(rest.join('=')))
-      }
-    }
-  } catch {}
-  return null
-}
-
-function clearOAuthStateCookie(): void {
-  const { secureAttr, domainAttr, sameSiteAttr } = getCookieAttributes()
-  document.cookie = `${OAUTH_STATE_COOKIE}=; path=/${sameSiteAttr}${secureAttr}${domainAttr}; expires=Thu, 01 Jan 1970 00:00:00 GMT`
 }
 
 // Session Provider Component
@@ -638,8 +582,9 @@ export function SessionProvider({
             timestamp: Date.now(),
           }
 
-          // For custom domains, embed returnOrigin so the main domain callback can bounce back
-          if (isCustomDomain()) {
+          // Host-only tenant and custom-domain cookies can only be read after the
+          // registered main callback bounces back to the initiating origin.
+          if (oauthCallbackRequiresBounce()) {
             stateData.returnOrigin = window.location.origin
           }
 
@@ -808,8 +753,7 @@ export async function signIn(
       timestamp: Date.now(),
     }
 
-    // For custom domains, embed returnOrigin so the main domain callback can bounce back
-    if (isCustomDomain()) {
+    if (oauthCallbackRequiresBounce()) {
       stateData.returnOrigin = window.location.origin
     }
 

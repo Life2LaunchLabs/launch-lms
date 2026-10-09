@@ -10,7 +10,6 @@ import { getOrgLogoMediaDirectory } from '@services/media/media'
 import { getMenuColorClasses } from '@services/utils/ts/colorUtils'
 import { usePathname } from 'next/navigation'
 import Image from 'next/image'
-import { useTranslation } from 'react-i18next'
 import { getPrimaryOrgMenuItems } from './OrgMenuLinks'
 
 interface OrgMenuSidebarProps {
@@ -20,7 +19,6 @@ interface OrgMenuSidebarProps {
 }
 
 export function OrgMenuSidebar({ orgslug, isOpen, onClose }: OrgMenuSidebarProps) {
-  const { t } = useTranslation()
   const org = useOrg() as any
   const pathname = usePathname()
   const config = org?.config?.config
@@ -37,7 +35,6 @@ export function OrgMenuSidebar({ orgslug, isOpen, onClose }: OrgMenuSidebarProps
   const navItems = getPrimaryOrgMenuItems({
     pathname,
     resolvedFeatures: rf,
-    t,
   })
 
   return (

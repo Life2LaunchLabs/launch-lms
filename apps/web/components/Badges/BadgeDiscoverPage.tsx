@@ -1,17 +1,16 @@
 'use client'
 
-import React, { useMemo } from 'react'
+import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react'
 import Link from 'next/link'
 import useSWR from 'swr'
-import { Award, ChevronDown, Flag, Play } from 'lucide-react'
-import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
+import { Award, ChevronDown, ChevronLeft, ChevronRight, Flag, Play } from 'lucide-react'
 import FeatureDisabledView from '@components/Dashboard/Shared/FeatureDisabled/FeatureDisabledView'
 import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { cn } from '@/lib/utils'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { getLearningPath } from '@services/learning/learning'
-import badgesImage from 'public/landing/badges.png'
+import { LearnerProgramsCarousel } from '@components/Programs/LearnerPrograms'
 
 type BadgeStatus = 'available' | 'in_progress' | 'earned'
 type BadgePublishStatus = 'draft' | 'coming_soon' | 'published'
@@ -58,7 +57,7 @@ function getRunTimestamp(run: any, fallback?: any) {
   return Number.isFinite(timestamp) ? timestamp : 0
 }
 
-function getBadgeThumbnailSrc(badge: any, ownerOrgUuid: string) {
+function getBadgeThumbnailSrc(badge: any) {
   return badge?.thumbnail_image || ''
 }
 
@@ -87,7 +86,20 @@ function getPathActivityProgress(path: any) {
 
   const completedActivities = activities.filter((activity: any) => {
     const requiredPages = (activity.pages || []).filter((page: any) => page.required !== false)
-    return requiredPages.length > 0 && requiredPages.every((page: any) => completePages.has(page.page_uuid))
+    if (!requiredPages.length || !requiredPages.every((page: any) => completePages.has(page.page_uuid))) return false
+    const pageIds = new Set((activity.pages || []).map((page: any) => page.page_uuid))
+    const latestByPage = new Map<string, any>()
+    for (const attempt of (run?.attempts || []).filter((item: any) => pageIds.has(item.page_uuid))) {
+      const prior = latestByPage.get(attempt.page_uuid)
+      if (!prior || new Date(attempt.submitted_at).getTime() >= new Date(prior.submitted_at).getTime()) latestByPage.set(attempt.page_uuid, attempt)
+    }
+    const latestAttempts = Array.from(latestByPage.values())
+    if (latestAttempts.some((attempt: any) => attempt.result?.grading_status === 'pending')) return false
+    const scored = latestAttempts.filter((attempt: any) => attempt.result?.grading_status === 'graded' && Number(attempt.result?.max_score || 0) > 0)
+    const score = scored.reduce((total: number, attempt: any) => total + Number(attempt.score ?? attempt.result?.score ?? 0), 0)
+    const max = scored.reduce((total: number, attempt: any) => total + Number(attempt.result?.max_score || 0), 0)
+    const minimum = Number(activity.settings?.grading?.minimum_score_percent ?? 70)
+    return max <= 0 || (score / max) * 100 >= minimum
   })
   const progressPercent = activities.length
     ? Math.round((completedActivities.length / activities.length) * 100)
@@ -126,7 +138,7 @@ function buildBadgeCatalog(collections: any[], pathsByBadgeUuid: Map<string, any
         badgeUuid,
         name: rawBadge.name || rawBadge.title || 'Untitled badge',
         description: rawBadge.description || rawBadge.about || '',
-        thumbnailSrc: getBadgeThumbnailSrc(rawBadge, ownerOrgUuid),
+        thumbnailSrc: getBadgeThumbnailSrc(rawBadge),
         ownerOrgUuid,
         ownerOrgName: rawBadge.owner_org_name || collection.owner_org_name || collection.org?.name || '',
         activityCount: progress.activityCount || getBadgeActivityCount(rawBadge),
@@ -178,43 +190,6 @@ function BadgeSticker({
         </div>
       )}
     </div>
-  )
-}
-
-function BadgesHero({ featuredBadge, orgslug }: { featuredBadge?: BadgeCatalogItem; orgslug: string }) {
-  return (
-    <section className="relative overflow-hidden bg-[var(--org-page-background)]">
-      <div className="grid min-h-[116px] gap-3 py-2 md:grid-cols-[minmax(0,420px)_180px] md:items-center md:justify-between md:py-3 lg:grid-cols-[minmax(0,460px)_196px]">
-        <div className="relative z-10 max-w-[420px] lg:max-w-[460px]">
-          <h1 className="text-[36px] font-black leading-[0.9] tracking-normal text-foreground sm:text-[44px] lg:text-[50px]">
-            <span className="block">Skills that</span>
-            <span className="relative inline-block">
-              <span className="absolute inset-x-[-0.08em] bottom-[0.08em] top-[0.46em] -z-10 rotate-[-1deg] bg-lime-300" />
-              open
-            </span>{' '}
-            doors.
-          </h1>
-          <p className="mt-1.5 text-base font-medium leading-5 text-muted-foreground">
-            Learn. Earn. Get recognized.
-          </p>
-        </div>
-        <div className="relative hidden min-h-[112px] items-center justify-end overflow-visible md:flex">
-          <img
-            src={badgesImage.src}
-            alt=""
-            className="h-[128px] w-[128px] max-w-none object-contain lg:h-[148px] lg:w-[148px]"
-          />
-          {featuredBadge ? (
-            <Link
-              href={badgeHref(orgslug, featuredBadge.badgeUuid)}
-              className="sr-only"
-            >
-              Explore featured badge
-            </Link>
-          ) : null}
-        </div>
-      </div>
-    </section>
   )
 }
 
@@ -279,12 +254,55 @@ function BadgeCarousel({
   title: string
   children: React.ReactNode
 }) {
+  const scrollerRef = useRef<HTMLDivElement>(null)
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(false)
+
+  const updateScrollState = useCallback(() => {
+    const el = scrollerRef.current
+    if (!el) return
+    setCanScrollLeft(el.scrollLeft > 1)
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1)
+  }, [])
+
+  useEffect(() => {
+    const el = scrollerRef.current
+    if (!el) return
+    updateScrollState()
+    el.addEventListener('scroll', updateScrollState, { passive: true })
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateScrollState) : null
+    observer?.observe(el)
+    return () => {
+      el.removeEventListener('scroll', updateScrollState)
+      observer?.disconnect()
+    }
+  }, [updateScrollState, children])
+
+  const scrollByPage = (direction: -1 | 1) => {
+    const el = scrollerRef.current
+    if (!el) return
+    el.scrollBy({ left: direction * el.clientWidth * 0.8, behavior: 'smooth' })
+  }
+
+  const arrowClass =
+    'flex h-8 w-8 items-center justify-center rounded-full border border-border bg-background text-foreground shadow-sm transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-30'
+
   return (
     <section className="min-w-0">
       <div className="mb-2 flex items-center justify-between gap-4">
         <h2 className="text-base font-black leading-tight text-foreground">{title}</h2>
+        {canScrollLeft || canScrollRight ? (
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => scrollByPage(-1)} disabled={!canScrollLeft} aria-label={`Scroll ${title} left`} className={arrowClass}>
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button type="button" onClick={() => scrollByPage(1)} disabled={!canScrollRight} aria-label={`Scroll ${title} right`} className={arrowClass}>
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        ) : null}
       </div>
-      <div className="flex gap-5 overflow-x-auto pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div ref={scrollerRef} className="flex gap-5 overflow-x-auto pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {children}
       </div>
     </section>
@@ -351,7 +369,10 @@ function BadgeDiscoverContent({ orgslug, collections, choosingBadge }: BadgeDisc
     [badges, progressReady]
   )
   const featuredBadges = useMemo(
-    () => progressReady ? badges.filter((badge) => badge.status === 'available') : [],
+    // Startable badges lead; coming-soon badges trail so learners see what they can begin now.
+    () => progressReady ? badges
+      .filter((badge) => badge.status === 'available')
+      .sort((a, b) => Number(a.publishStatus === 'coming_soon') - Number(b.publishStatus === 'coming_soon')) : [],
     [badges, progressReady]
   )
 
@@ -367,19 +388,15 @@ function BadgeDiscoverContent({ orgslug, collections, choosingBadge }: BadgeDisc
           <ChevronDown className="h-5 w-5 opacity-75" aria-hidden="true" />
         </section>
       ) : null}
-      <BadgesHero featuredBadge={featuredBadges[0]} orgslug={orgslug} />
-
-      <BadgeCarousel title="Pick up where you left off">
-        {activeBadges.length ? (
-          activeBadges.map((badge) => (
+      {activeBadges.length ? (
+        <BadgeCarousel title="Pick up where you left off">
+          {activeBadges.map((badge) => (
             <ActiveBadgeCard key={badge.badgeUuid} badge={badge} orgslug={orgslug} />
-          ))
-        ) : (
-          <EmptyBadgeState>
-            {progressReady ? 'Start a badge and it will appear here.' : 'Loading active badges...'}
-          </EmptyBadgeState>
-        )}
-      </BadgeCarousel>
+          ))}
+        </BadgeCarousel>
+      ) : null}
+
+      <LearnerProgramsCarousel orgslug={orgslug} />
 
       <BadgeCarousel title="Featured">
         {featuredBadges.length ? (
@@ -398,17 +415,13 @@ function BadgeDiscoverContent({ orgslug, collections, choosingBadge }: BadgeDisc
 
 export default function BadgeDiscoverPage(props: BadgeDiscoverPageProps) {
   return (
-    <div className="w-full">
-      <GeneralWrapperStyled>
-        <FeatureDisabledView
-          featureName="collections"
-          orgslug={props.orgslug}
-          icon={Award}
-          context="public"
-        >
-          <BadgeDiscoverContent {...props} />
-        </FeatureDisabledView>
-      </GeneralWrapperStyled>
-    </div>
+    <FeatureDisabledView
+      featureName="collections"
+      orgslug={props.orgslug}
+      icon={Award}
+      context="public"
+    >
+      <BadgeDiscoverContent {...props} />
+    </FeatureDisabledView>
   )
 }

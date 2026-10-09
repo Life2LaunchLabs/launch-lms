@@ -1,0 +1,1 @@
+{"database":"isolated local migration fixture","bootstrap":"passed","downgrade":"t0u1v2w3x4y5","upgrade":"u1v2w3x4y5z6","enabled_default":false,"capacity_default":200,"session_minutes_default":60,"extension_minutes_default":30,"final_columns":"verified"}

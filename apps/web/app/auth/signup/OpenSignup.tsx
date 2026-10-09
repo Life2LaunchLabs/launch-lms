@@ -9,11 +9,12 @@ import FormLayout, {
   Textarea,
 } from '@components/Objects/StyledElements/Form/Form'
 import * as Form from '@radix-ui/react-form'
+import { PasswordInput } from '@components/ui/password-input'
 import { AlertTriangle, ArrowLeft } from 'lucide-react'
 import { SiGoogle } from '@icons-pack/react-simple-icons'
 import Link from 'next/link'
 import { Button } from '@components/ui/button'
-import { signup } from '@services/auth/auth'
+import { signup, signUpWithInvitation, signUpWithInviteCode } from '@services/auth/auth'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useAuth } from '@components/Contexts/AuthContext'
 import { getUriWithOrg } from '@services/config/config'
@@ -74,6 +75,8 @@ function OpenSignUpComponent({
   const [error, setError] = React.useState('')
   const nextUrl = searchParams.get('next')
   const inviteBadge = searchParams.get('inviteBadge')
+  const inviteCode = searchParams.get('inviteCode')
+  const invitationToken = searchParams.get('invitation')
   const createOrgRedirect = getUriWithOrg(org?.slug, '/signup/org')
   const postSignupUrl =
     postSignupUrlOverride || nextUrl || (createOrgMode ? createOrgRedirect : inviteBadge ? `/badges?inviteBadge=${encodeURIComponent(inviteBadge)}` : '/')
@@ -93,7 +96,11 @@ function OpenSignUpComponent({
     onSubmit: async (values) => {
       setError('')
       setIsSubmitting(true)
-      let res = await signup(values)
+      let res = invitationToken
+        ? await signUpWithInvitation(values, invitationToken)
+        : inviteCode
+          ? await signUpWithInviteCode(values, inviteCode)
+          : await signup(values)
       let result = await res.json()
       if (res.status == 200) {
         const callbackUrl = postSignupUrl
@@ -171,7 +178,7 @@ function OpenSignUpComponent({
           setIsSubmitting(false)
           return
         }
-      } catch (_) {
+      } catch {
         setEmailError(t('common.something_went_wrong'))
         setIsSubmitting(false)
         return
@@ -252,12 +259,12 @@ function OpenSignUpComponent({
               {emailError && (
                 <p className="text-left text-sm font-medium text-red-600">{emailError}</p>
               )}
-              <input
+              <PasswordInput
+                component="input"
                 name="password"
                 onChange={formik.handleChange}
                 onBlur={formik.handleBlur}
                 value={formik.values.password}
-                type="password"
                 placeholder={t('auth.password')}
                 autoComplete="new-password"
                 className="h-12 w-full rounded-2xl border border-gray-200 bg-white px-4 text-[16px] text-gray-950 shadow-sm outline-none transition-colors placeholder:text-gray-400 focus:border-gray-300 focus:ring-2 focus:ring-gray-100"
@@ -392,11 +399,11 @@ function OpenSignUpComponent({
               message={formik.touched.password ? formik.errors.password : undefined}
             />
             <Form.Control asChild>
-              <Input
+              <PasswordInput
+                component={Input}
                 onChange={formik.handleChange}
                 onBlur={formik.handleBlur}
                 value={formik.values.password}
-                type="password"
                 autoComplete="new-password"
                 required
               />

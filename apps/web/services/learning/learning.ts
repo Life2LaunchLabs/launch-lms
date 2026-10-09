@@ -129,9 +129,10 @@ export async function getLearningBadges(
   return getResponseMetadata(result)
 }
 
-export async function getLearningBadge(badgeUuid: string, accessToken?: string, next?: any) {
+export async function getLearningBadge(badgeUuid: string, accessToken?: string, next?: any, versionUuid?: string) {
+  const search = versionUuid ? `?version=${encodeURIComponent(versionUuid)}` : ''
   const result = await fetch(
-    `${getAPIUrl()}badges/${badgeUuid}`,
+    `${getAPIUrl()}badges/${badgeUuid}${search}`,
     RequestBodyWithAuthHeader('GET', null, next, accessToken)
   )
   return errorHandling(result)
@@ -171,17 +172,19 @@ export async function restoreLearningBadge(badgeUuid: string, accessToken?: stri
   return errorHandling(result)
 }
 
-export async function updateLearningBadge(badgeUuid: string, data: any, accessToken?: string) {
+export async function updateLearningBadge(badgeUuid: string, data: any, accessToken?: string, versionUuid?: string) {
+  const search = versionUuid ? `?version=${encodeURIComponent(versionUuid)}` : ''
   const result = await fetch(
-    `${getAPIUrl()}badges/${badgeUuid}`,
+    `${getAPIUrl()}badges/${badgeUuid}${search}`,
     RequestBodyWithAuthHeader('PUT', data, null, accessToken)
   )
   return errorHandling(result)
 }
 
-export async function updateLearningBadgeThumbnail(badgeUuid: string, formData: FormData, accessToken: string) {
+export async function updateLearningBadgeThumbnail(badgeUuid: string, formData: FormData, accessToken: string, versionUuid?: string) {
+  const search = versionUuid ? `?version=${encodeURIComponent(versionUuid)}` : ''
   const result = await fetch(
-    `${getAPIUrl()}badges/${badgeUuid}/thumbnail`,
+    `${getAPIUrl()}badges/${badgeUuid}/thumbnail${search}`,
     RequestBodyFormWithAuthHeader('PUT', formData, null, accessToken)
   )
   return errorHandling(result)
@@ -199,13 +202,48 @@ export async function getLearningPath(
   badgeUuid: string,
   accessToken?: string,
   includeRun = false,
-  next?: any
+  next?: any,
+  versionUuid?: string,
+  programAssignmentUuid?: string,
+  planObjectiveUuid?: string
 ) {
+  const search = new URLSearchParams({ include_run: String(includeRun) })
+  if (versionUuid) search.set('version', versionUuid)
+  if (programAssignmentUuid) search.set('program_assignment_uuid', programAssignmentUuid)
+  if (planObjectiveUuid) search.set('plan_objective_uuid', planObjectiveUuid)
   const result = await fetch(
-    `${getAPIUrl()}badges/${badgeUuid}/path?include_run=${includeRun}`,
+    `${getAPIUrl()}badges/${badgeUuid}/path?${search.toString()}`,
     RequestBodyWithAuthHeader('GET', null, next, accessToken)
   )
   return errorHandling(result)
+}
+
+export async function createLearningBadgeVersion(badgeUuid: string, data: any, accessToken?: string) {
+  return errorHandling(await fetch(`${getAPIUrl()}badges/${badgeUuid}/versions`, RequestBodyWithAuthHeader('POST', data, null, accessToken)))
+}
+
+export async function updateLearningBadgeVersion(badgeUuid: string, versionUuid: string, data: any, accessToken?: string) {
+  return errorHandling(await fetch(`${getAPIUrl()}badges/${badgeUuid}/versions/${versionUuid}`, RequestBodyWithAuthHeader('PUT', data, null, accessToken)))
+}
+
+export async function getLearningBadgeVersionDiff(badgeUuid: string, versionUuid: string, accessToken?: string) {
+  return errorHandling(await fetch(`${getAPIUrl()}badges/${badgeUuid}/versions/${versionUuid}/diff`, RequestBodyWithAuthHeader('GET', null, null, accessToken)))
+}
+
+export async function publishLearningBadgeVersion(badgeUuid: string, versionUuid: string, data: any, accessToken?: string) {
+  return errorHandling(await fetch(`${getAPIUrl()}badges/${badgeUuid}/versions/${versionUuid}/publish`, RequestBodyWithAuthHeader('POST', data, null, accessToken)))
+}
+
+export async function activateLearningBadgeVersion(badgeUuid: string, versionUuid: string, accessToken?: string) {
+  return errorHandling(await fetch(`${getAPIUrl()}badges/${badgeUuid}/versions/${versionUuid}/activate`, RequestBodyWithAuthHeader('POST', null, null, accessToken)))
+}
+
+export async function deactivateLearningBadgeVersion(badgeUuid: string, versionUuid: string, accessToken?: string) {
+  return errorHandling(await fetch(`${getAPIUrl()}badges/${badgeUuid}/versions/${versionUuid}/deactivate`, RequestBodyWithAuthHeader('POST', null, null, accessToken)))
+}
+
+export async function deleteLearningBadgeVersion(badgeUuid: string, versionUuid: string, accessToken?: string) {
+  return errorHandling(await fetch(`${getAPIUrl()}badges/${badgeUuid}/versions/${versionUuid}`, RequestBodyWithAuthHeader('DELETE', null, null, accessToken)))
 }
 
 export async function createLearningActivity(data: any, accessToken?: string) {
@@ -328,11 +366,13 @@ export async function deleteLearningVariable(variableUuid: string, accessToken?:
   return errorHandling(result)
 }
 
-export async function startLearningRun(badgeUuid: string, accessToken?: string, issuingOrgId?: string | number) {
+export async function startLearningRun(badgeUuid: string, accessToken?: string, issuingOrgId?: string | number, programAssignmentUuid?: string, planObjectiveUuid?: string) {
   const search = new URLSearchParams()
   if (issuingOrgId !== undefined && issuingOrgId !== null && issuingOrgId !== '') {
     search.set('issuing_org_id', String(issuingOrgId))
   }
+  if (programAssignmentUuid) search.set('program_assignment_uuid', programAssignmentUuid)
+  if (planObjectiveUuid) search.set('plan_objective_uuid', planObjectiveUuid)
   const query = search.toString()
   const result = await fetch(
     `${getAPIUrl()}learning-runs/start/${badgeUuid}${query ? `?${query}` : ''}`,
@@ -349,10 +389,10 @@ export async function completeLearningPage(runUuid: string, pageUuid: string, da
   return errorHandling(result)
 }
 
-export async function submitLearningResponse(runUuid: string, pageUuid: string, answer: any, accessToken?: string) {
+export async function submitLearningResponse(runUuid: string, pageUuid: string, answer: any, accessToken?: string, button?: string) {
   const result = await fetch(
     `${getAPIUrl()}learning-runs/submit-response`,
-    RequestBodyWithAuthHeader('POST', { run_uuid: runUuid, page_uuid: pageUuid, answer }, null, accessToken)
+    RequestBodyWithAuthHeader('POST', { run_uuid: runUuid, page_uuid: pageUuid, answer, ...(button ? { button } : {}) }, null, accessToken)
   )
   return errorHandling(result)
 }
@@ -378,7 +418,7 @@ export async function getLearningResponses(
   return errorHandling(result)
 }
 
-export async function gradeLearningResponse(attemptUuid: string, data: { score: number; feedback?: string }, accessToken?: string) {
+export async function gradeLearningResponse(attemptUuid: string, data: { score: number; feedback?: string; question_scores?: Record<string, number>; question_feedback?: Record<string, string> }, accessToken?: string) {
   const result = await fetch(
     `${getAPIUrl()}learning-responses/${attemptUuid}/grade`,
     RequestBodyWithAuthHeader('POST', data, null, accessToken)

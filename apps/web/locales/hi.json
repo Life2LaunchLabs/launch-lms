@@ -518,8 +518,8 @@
     "usergroup_filter": {
       "all_courses": "All Courses",
       "filter_by_group": "Filter by group",
-      "info_title": "User Group Filter",
-      "info_description": "Filter courses by user group to see only courses assigned to a specific group. Useful for families or teams sharing the same organization."
+      "info_title": "Group Filter",
+      "info_description": "Filter courses by group to see only courses assigned to a specific group. Useful for families or teams sharing the same organization."
     }
   },
   "communities": {
@@ -3028,9 +3028,9 @@
         "description": "Growth vs retention health"
       },
       "cohort_retention": {
-        "title": "Cohort Retention",
+        "title": "Group Retention",
         "description": "% users active after signup week",
-        "cohort": "Cohort",
+        "cohort": "Group",
         "size": "Size"
       },
       "peak_usage": {
@@ -3363,13 +3363,13 @@
       "set_to_public_confirm": "सभी साइन-इन किए हुए संगठन सदस्य इस बोर्ड तक पहुंच सकेंगे।",
       "make_board_public": "बोर्ड को सार्वजनिक बनाएं",
       "set_to_private": "निजी करें",
-      "set_to_private_confirm": "केवल लिंक किए गए UserGroups के सदस्य इस बोर्ड तक पहुंच सकेंगे।",
+      "set_to_private_confirm": "केवल लिंक किए गए Groups के सदस्य इस बोर्ड तक पहुंच सकेंगे।",
       "make_board_private": "बोर्ड को निजी बनाएं",
       "active": "सक्रिय",
       "public_option": "सार्वजनिक",
       "public_description": "सभी साइन-इन किए हुए संगठन सदस्य इस बोर्ड तक पहुंच सकते हैं",
       "private_option": "केवल उपयोगकर्ता",
-      "private_description": "केवल लिंक किए गए UserGroups इस बोर्ड तक पहुंच सकते हैं",
+      "private_description": "केवल लिंक किए गए Groups इस बोर्ड तक पहुंच सकते हैं",
       "board_set_public": "बोर्ड सार्वजनिक किया गया",
       "board_set_private": "बोर्ड निजी किया गया",
       "access_update_error": "पहुंच अपडेट करने में विफल",
@@ -3382,7 +3382,7 @@
       "no_user_groups": "अभी तक कोई उपयोगकर्ता समूह लिंक नहीं किया गया",
       "link_to_user_group": "उपयोगकर्ता समूह से लिंक करें",
       "link_to_user_group_description": "इस बोर्ड तक पहुंच देने के लिए एक उपयोगकर्ता समूह चुनें",
-      "link_to_usergroup_btn": "UserGroup से लिंक करें",
+      "link_to_usergroup_btn": "Group से लिंक करें",
       "user_group": "उपयोगकर्ता समूह",
       "no_user_groups_available": "कोई उपयोगकर्ता समूह उपलब्ध नहीं",
       "create_user_group": "उपयोगकर्ता समूह बनाएं",

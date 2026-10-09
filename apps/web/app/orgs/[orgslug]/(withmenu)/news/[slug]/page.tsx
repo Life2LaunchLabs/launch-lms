@@ -1,13 +1,15 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowUpRight } from 'lucide-react'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getCoreCapabilities, getUriWithOrg, routePaths } from '@services/config/config'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
 import { getPublishedNewsArticle } from '@services/news/news'
+import { PageTitleRegistration } from '@components/Contexts/PageTitleContext'
 
 export default async function NewsArticlePage(props: {
   params: Promise<{ orgslug: string; slug: string }>
 }) {
+  if (!getCoreCapabilities().news) notFound()
   const { orgslug, slug } = await props.params
   const org = await getOrganizationContextInfo(orgslug, {
     revalidate: 180,
@@ -20,6 +22,8 @@ export default async function NewsArticlePage(props: {
   }
 
   return (
+    <>
+    <PageTitleRegistration section="News" detail={article.title} />
     <main className="mx-auto flex w-full max-w-3xl flex-col px-4 py-8 sm:px-6 lg:px-8">
       <Link
         href={getUriWithOrg(orgslug, routePaths.org.news())}
@@ -62,5 +66,6 @@ export default async function NewsArticlePage(props: {
         )}
       </article>
     </main>
+    </>
   )
 }

@@ -1,0 +1,60 @@
+schema_version: 2
+project: launch-lms
+tracker:
+  feedback_project: FEED
+  delivery_project: BOT
+  feedback_issue_type: Task
+  delivery_issue_type: Task
+  delivery_subtask_type: Subtask
+  link_type: Relates
+communication:
+  public_reply_prefix: "[Launch LMS reply]"
+  internal_note_prefix: "[Launch LMS internal note]"
+  preserve_tester_wording: true
+privacy:
+  allowed_identity: [opaque_user_id, opaque_organization_id, role]
+  forbidden: [access_tokens, passwords, private_learner_data, raw_email, raw_user_id, raw_organization_id]
+  route_values: sanitize_dynamic_segments
+attachments:
+  maximum_images: 3
+  stream_directly_to_tracker: true
+  accepted_types: [image/png, image/jpeg, image/webp]
+  partial_failure_status: pending
+triage:
+  grouping_requires_agent_judgment: true
+  impact_requires_agent_judgment: true
+  public_questions_require_agent_judgment: true
+  declines_require_reason: true
+  delivery_links_target_project: BOT
+  decisions: [candidate, planned, evidence, needs-info, declined, duplicate, invalid]
+  service_order: [impact_desc, report_count_desc, oldest_created_asc]
+  public_note_events: [intake_transition, ready_to_test]
+workflow:
+  feedback_status_roles:
+    intake: [To Do]
+    active: [In Progress]
+    ready_to_test: [Done]
+  delivery_status_roles:
+    queued: [Idea, To Do]
+    active: [In Progress, Merge]
+    ready_to_test: [In Review, Done]
+  decision_targets:
+    candidate: active
+    planned: active
+    needs-info: active
+    duplicate: active
+    evidence: ready_to_test
+    declined: ready_to_test
+    invalid: ready_to_test
+automation:
+  reconciliation_interval_minutes: 15
+  event_source: bot_issue_transition
+  missed_event_recovery: scheduled_reconciliation
+  forward_only: true
+  agent_may_transition_linked_feedback: false
+  completion_message: "The related work is ready for you to test. Please let us know whether it solves the problem."
+resolution:
+  tester_confirmation: [looks_good, still_happening]
+  completed_delivery_milestones_propagate_to_feedback: true
+  reopened_label: feedback-reopened
+  confirmed_label: tester-confirmed

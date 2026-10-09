@@ -9,6 +9,7 @@ import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { Switch } from '@components/ui/switch'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
+import { useOrg } from '@components/Contexts/OrgContext'
 import { getUriWithOrg } from '@services/config/config'
 import { SafeImage } from '@components/Objects/SafeImage'
 import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage'
@@ -58,6 +59,7 @@ export default function AdminBadgeCollection({
   subpage?: string
 }) {
   const activeSubpage = subpage === 'settings' ? 'settings' : 'badges'
+  const canEdit = collection.can_edit !== false && Number(collection.org_id) === Number(orgId)
 
   return (
     <div className="min-h-full w-full bg-[#f8f8f8]">
@@ -69,9 +71,9 @@ export default function AdminBadgeCollection({
             { label: collection.name },
           ]} />
         </div>
-        <CollectionHeader collection={collection} orgId={orgId} />
+        <EditableDetailHeader collection={collection} orgId={orgId} canEdit={canEdit} />
         <div className="flex space-x-0.5 text-sm font-black">
-          {tabs.map((tab) => {
+          {tabs.filter((tab) => canEdit || tab.id !== 'settings').map((tab) => {
             const Icon = tab.icon
             const isActive = activeSubpage === tab.id
             return (
@@ -89,14 +91,33 @@ export default function AdminBadgeCollection({
       </div>
       <div className="h-6" />
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.1 }}>
-        {activeSubpage === 'badges' ? <CollectionBadges orgslug={orgslug} orgId={orgId} collection={collection} /> : null}
-        {activeSubpage === 'settings' ? <CollectionSettings orgslug={orgslug} collection={collection} /> : null}
+        {activeSubpage === 'badges' ? <CollectionBadges orgslug={orgslug} orgId={orgId} collection={collection} canEdit={canEdit} /> : null}
+        {activeSubpage === 'settings' && canEdit ? <CollectionSettings orgslug={orgslug} collection={collection} /> : null}
       </motion.div>
     </div>
   )
 }
 
-function CollectionHeader({ collection: initialCollection, orgId }: { collection: any; orgId: number }) {
+export function EditableDetailHeader({
+  collection: initialCollection,
+  orgId,
+  canEdit,
+  entityName = 'Collection',
+  fallbackDescription = 'Manage badges in this collection.',
+  fallbackIcon,
+  metadata,
+  updateItem,
+}: {
+  collection: any
+  orgId: number
+  canEdit: boolean
+  entityName?: string
+  fallbackDescription?: string
+  fallbackIcon?: React.ReactNode
+  metadata?: React.ReactNode
+  // eslint-disable-next-line no-unused-vars
+  updateItem?: (data: Record<string, any>, accessToken?: string) => Promise<any>
+}) {
   const router = useRouter()
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
@@ -105,24 +126,30 @@ function CollectionHeader({ collection: initialCollection, orgId }: { collection
   const [editingName, setEditingName] = React.useState(false)
   const [draftName, setDraftName] = React.useState(initialCollection.name || '')
   const [savingName, setSavingName] = React.useState(false)
+  const [editingDescription, setEditingDescription] = React.useState(false)
+  const [draftDescription, setDraftDescription] = React.useState(initialCollection.description || '')
+  const [savingDescription, setSavingDescription] = React.useState(false)
+  const persist = (data: Record<string, any>) => updateItem
+    ? updateItem(data, accessToken)
+    : updateLearningBadgeCollection(collection.collection_uuid, data, accessToken)
 
   const saveName = async () => {
     const name = draftName.trim()
     if (savingName) return
     if (name.length < 3) {
-      toast.error('Collection title must be at least 3 characters.')
+      toast.error(`${entityName} title must be at least 3 characters.`)
       return
     }
     setSavingName(true)
     try {
-      const nextCollection = await updateLearningBadgeCollection(collection.collection_uuid, { name }, accessToken)
+      const nextCollection = await persist({ name })
       setCollection(nextCollection)
       setDraftName(nextCollection.name)
       setEditingName(false)
-      toast.success('Collection title updated.')
+      toast.success(`${entityName} title updated.`)
       router.refresh()
     } catch (error: any) {
-      toast.error(error?.message || 'Failed to update collection title.')
+      toast.error(error?.message || `Failed to update ${entityName.toLowerCase()} title.`)
     } finally {
       setSavingName(false)
     }
@@ -130,21 +157,38 @@ function CollectionHeader({ collection: initialCollection, orgId }: { collection
 
   const handleMediaSelect = async (url: string) => {
     if (!accessToken) {
-      toast.error('Please sign in to update a collection image.')
+      toast.error(`Please sign in to update a ${entityName.toLowerCase()} image.`)
       return
     }
 
     setIsUploading(true)
 
     try {
-      const nextCollection = await updateLearningBadgeCollection(collection.collection_uuid, { thumbnail_image: url }, accessToken)
+      const nextCollection = await persist({ thumbnail_image: url })
       setCollection(nextCollection)
-      toast.success('Collection cover image updated.')
+      toast.success(`${entityName} cover image updated.`)
       router.refresh()
     } catch (error: any) {
       toast.error(error?.message || 'Failed to update image.')
     } finally {
       setIsUploading(false)
+    }
+  }
+
+  const saveDescription = async () => {
+    if (savingDescription) return
+    setSavingDescription(true)
+    try {
+      const nextCollection = await persist({ description: draftDescription.trim() })
+      setCollection(nextCollection)
+      setDraftDescription(nextCollection.description || '')
+      setEditingDescription(false)
+      toast.success(`${entityName} description updated.`)
+      router.refresh()
+    } catch (error: any) {
+      toast.error(error?.message || `Failed to update ${entityName.toLowerCase()} description.`)
+    } finally {
+      setSavingDescription(false)
     }
   }
 
@@ -154,16 +198,16 @@ function CollectionHeader({ collection: initialCollection, orgId }: { collection
     <div className="my-2 flex flex-col gap-5 py-2 md:flex-row md:items-center">
       <div className="group relative aspect-video w-full max-w-[240px] shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
         {imageUrl ? (
-          <SafeImage src={imageUrl} alt="Collection cover" className={`h-full w-full object-cover ${isUploading ? 'animate-pulse' : ''}`} />
+          <SafeImage src={imageUrl} alt={`${entityName} cover`} className={`h-full w-full object-cover ${isUploading ? 'animate-pulse' : ''}`} />
         ) : (
           <div className="flex h-full w-full flex-col items-center justify-center text-muted-foreground">
-            <BookCopy size={32} strokeWidth={1.5} />
+            {fallbackIcon || <BookCopy size={32} strokeWidth={1.5} />}
           </div>
         )}
-        <div className="absolute right-2 top-2 z-20 opacity-0 transition-opacity group-hover:opacity-100">
+        <div className={`absolute right-2 top-2 z-20 opacity-0 transition-opacity group-hover:opacity-100 ${canEdit ? '' : 'hidden'}`}>
           <ImageMediaPicker
             owner={{ type: 'org', id: Number(orgId) }}
-            title="Choose collection cover image"
+            title={`Choose ${entityName.toLowerCase()} cover image`}
             buttonText=""
             buttonSize="icon"
             buttonVariant="secondary"
@@ -193,23 +237,55 @@ function CollectionHeader({ collection: initialCollection, orgId }: { collection
           ) : (
             <h1 className="min-w-0 break-words text-3xl font-black leading-tight text-foreground">{collection.name}</h1>
           )}
-          <button type="button" disabled={savingName} onClick={editingName ? saveName : () => setEditingName(true)} title={editingName ? 'Save' : 'Edit'} className={`mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${editingName ? 'bg-green-600 text-white hover:bg-green-700' : 'opacity-0 transition-opacity hover:bg-muted group-hover:opacity-100'}`}>
+          {canEdit ? <button type="button" disabled={savingName} onClick={editingName ? saveName : () => setEditingName(true)} title={editingName ? 'Save' : 'Edit'} className={`mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${editingName ? 'bg-green-600 text-white hover:bg-green-700' : 'opacity-0 transition-opacity hover:bg-muted group-hover:opacity-100'}`}>
             {savingName ? <Loader2 size={15} className="animate-spin" /> : editingName ? <Check size={15} /> : <Pencil size={15} />}
-          </button>
+          </button> : null}
         </div>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{collection.description || 'Manage badges in this collection.'}</p>
+        <div className="group mt-2 flex max-w-3xl items-start gap-2">
+          {editingDescription ? (
+            <textarea
+              autoFocus
+              value={draftDescription}
+              onChange={(event) => setDraftDescription(event.target.value)}
+              onKeyDown={(event) => {
+                if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') void saveDescription()
+                if (event.key === 'Escape') {
+                  setDraftDescription(collection.description || '')
+                  setEditingDescription(false)
+                }
+              }}
+              rows={3}
+              className="min-w-0 flex-1 resize-y rounded-md border border-border bg-card px-3 py-2 text-sm leading-6 text-foreground outline-none focus:ring-2 focus:ring-black"
+            />
+          ) : (
+            <p className="min-w-0 flex-1 text-sm leading-6 text-muted-foreground">{collection.description || fallbackDescription}</p>
+          )}
+          {canEdit ? (
+            <button
+              type="button"
+              disabled={savingDescription}
+              onClick={editingDescription ? saveDescription : () => setEditingDescription(true)}
+              title={editingDescription ? 'Save description' : 'Edit description'}
+              className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md ${editingDescription ? 'bg-green-600 text-white hover:bg-green-700' : 'opacity-0 transition-opacity hover:bg-muted group-hover:opacity-100'}`}
+            >
+              {savingDescription ? <Loader2 size={15} className="animate-spin" /> : editingDescription ? <Check size={15} /> : <Pencil size={15} />}
+            </button>
+          ) : null}
+        </div>
         <div className="mt-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
-          <BookCopy size={14} />
-          {(collection.badges || []).length} badges
+          {metadata || <><BookCopy size={14} />{(collection.badges || []).length} badges</>}
+          {!canEdit && entityName === 'Collection' ? <span className="rounded-full bg-blue-50 px-2 py-1 text-[10px] text-blue-700">Authorized issuer · by {collection.creator_org?.name || 'another organization'}</span> : null}
         </div>
       </div>
     </div>
   )
 }
 
-function CollectionBadges({ orgslug, orgId, collection }: { orgslug: string; orgId: number; collection: any }) {
+function CollectionBadges({ orgslug, orgId, collection, canEdit }: { orgslug: string; orgId: number; collection: any; canEdit: boolean }) {
   const session = useLHSession() as any
+  const org = useOrg() as any
   const accessToken = session.data?.tokens?.access_token
+  const canCreateBadges = org?.config?.config?.resolved_features?.marketplace_publishing?.enabled === true
   const [search, setSearch] = React.useState('')
   const [modalOpen, setModalOpen] = React.useState(false)
   const [name, setName] = React.useState('')
@@ -325,7 +401,7 @@ function CollectionBadges({ orgslug, orgId, collection }: { orgslug: string; org
             </button>
           ) : null}
         </div>
-        <div className="flex flex-wrap gap-2">
+        {canEdit ? <div className="flex flex-wrap gap-2">
           <button onClick={exportCollection} disabled={exporting} className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-xs font-bold text-foreground nice-shadow transition-colors hover:bg-muted disabled:opacity-50">
             {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
             Export
@@ -339,7 +415,7 @@ function CollectionBadges({ orgslug, orgId, collection }: { orgslug: string; org
             dialogDescription={`Import badges into ${collection.name}.`}
             dialogContent={<LearningBadgeImport orgId={orgId} collection={collection} accessToken={accessToken} />}
             dialogTrigger={
-              <button className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-xs font-bold text-foreground nice-shadow transition-colors hover:bg-muted">
+              <button disabled={!canCreateBadges} title={canCreateBadges ? undefined : 'Badge Publishing package required'} className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-xs font-bold text-foreground nice-shadow transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50">
                 <Upload className="h-4 w-4" />
                 Import
               </button>
@@ -386,27 +462,27 @@ function CollectionBadges({ orgslug, orgId, collection }: { orgslug: string; org
               </div>
             }
             dialogTrigger={
-              <button className="flex items-center gap-2 rounded-lg bg-black px-5 py-2 text-xs font-bold text-white nice-shadow transition-transform hover:scale-105">
+              <button disabled={!canCreateBadges} title={canCreateBadges ? undefined : 'Badge Publishing package required'} className="flex items-center gap-2 rounded-lg bg-black px-5 py-2 text-xs font-bold text-white nice-shadow transition-transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100">
                 <Plus className="h-4 w-4" />
                 New Badge
               </button>
             }
           />
-        </div>
+        </div> : null}
       </div>
 
       <div className="grid grid-cols-2 gap-x-4 gap-y-7 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
         {filteredBadges.map((badge: any) => (
           <div key={badge.badge_uuid} className="group relative min-w-0">
-            <button
+            {canEdit ? <button
               onClick={(event) => removeBadge(event, badge)}
               disabled={deletingBadge === badge.badge_uuid}
               className="absolute right-1 top-1 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-red-100 bg-card/95 text-red-600 opacity-0 shadow-sm transition-all hover:scale-105 group-hover:opacity-100 focus:opacity-100 disabled:opacity-60"
               title="Delete badge"
             >
               {deletingBadge === badge.badge_uuid ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-            </button>
-            <Link href={getUriWithOrg(orgslug, `/admin/badges/badge/${cleanBadgeId(badge.badge_uuid)}/learning-path`)} className="block rounded-xl p-2 text-center outline-none transition hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-foreground">
+            </button> : null}
+            <Link href={getUriWithOrg(orgslug, `/admin/badges/badge/${cleanBadgeId(badge.badge_uuid)}/analytics`)} className="block rounded-xl p-2 text-center outline-none transition hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-foreground">
               <div className="relative mx-auto flex h-32 w-32 items-center justify-center overflow-visible sm:h-36 sm:w-36">
                 {badge.thumbnail_image ? (
                   <BadgeThumbnailImage src={badge.thumbnail_image} alt={`${badge.name} badge`} hoverScale />

@@ -21,6 +21,14 @@ logger = logging.getLogger(__name__)
 STATE_CHANGING_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
 
 
+CONNECTOR_COOKIELESS_PATHS = frozenset({
+    "/api/v1/mcp",
+    "/api/v1/oauth/token",
+    "/api/v1/oauth/register",
+    "/api/v1/oauth/revoke",
+})
+
+
 class CSRFProtectionMiddleware(BaseHTTPMiddleware):
     """
     Middleware that validates Origin header on state-changing requests.
@@ -113,6 +121,12 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
         auth_header = request.headers.get("authorization", "")
         # Only exempt API tokens (lh_*) — these never fall back to cookies
         if auth_header.lower().startswith("bearer lh_"):
+            return True
+
+        # Connected-app (OAuth) endpoints never read cookies: the MCP endpoint
+        # only accepts OAuth access tokens, and token/register/revoke
+        # authenticate the client from the request itself.
+        if request.url.path in CONNECTOR_COOKIELESS_PATHS:
             return True
 
         # Stripe webhooks use signature-based verification, not cookies

@@ -35,6 +35,6 @@ export const QUICKSTART_FEATURES: Record<
     description: 'Explore resource channels',
     icon: ({ className }) =>
       createElement(FolderOpen, { size: 44, weight: 'fill', className }),
-    href: routePaths.org.resources(),
+    href: routePaths.org.hub(),
   },
 }

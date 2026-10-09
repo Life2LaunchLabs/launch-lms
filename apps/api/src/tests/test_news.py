@@ -12,6 +12,8 @@ from src.services.news import (
     get_public_article,
     list_public_articles,
 )
+from src.routers.news import require_news_enabled
+from src.core.capabilities import CORE_CAPABILITIES
 
 
 @pytest.fixture
@@ -177,3 +179,12 @@ async def test_news_slug_unique_per_org(db_session: Session):
         )
 
     assert exc_info.value.status_code == 409
+
+def test_news_api_is_controlled_by_legacy_feature_flag(monkeypatch):
+    monkeypatch.setitem(CORE_CAPABILITIES, "news", False)
+    with pytest.raises(HTTPException) as unavailable:
+        require_news_enabled()
+    assert unavailable.value.status_code == 404
+
+    monkeypatch.setitem(CORE_CAPABILITIES, "news", True)
+    assert require_news_enabled() is None

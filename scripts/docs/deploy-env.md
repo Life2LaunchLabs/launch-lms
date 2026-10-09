@@ -21,8 +21,11 @@ names. Keep it aligned with `launch-lms-infra/.env.example` and `setup.sh`.
 | `LAUNCHLMS_ALLOWED_ORIGINS` | API | Comma-separated CORS allowlist. |
 | `LAUNCHLMS_ALLOWED_REGEXP` | API | CORS origin regex. |
 | `LAUNCHLMS_COOKIE_DOMAIN` | API | Cookie domain. |
+| `LAUNCHLMS_COOKIE_SCOPE` | API | `shared-domain` (default) or `host-only`. Hosted preview environments nested beneath another environment's base domain must use `host-only`. |
 | `LAUNCHLMS_INTERNAL_API_URL` | web | Server-side internal API URL. In the all-in-one image this should be `http://localhost/api/v1/`. |
 | `NEXT_PUBLIC_LAUNCHLMS_DOMAIN` | web | Browser/runtime public frontend domain. |
+| `NEXT_PUBLIC_LAUNCHLMS_COOKIE_SCOPE` | web | Must match `LAUNCHLMS_COOKIE_SCOPE`; injected at container startup. |
+| `NEXT_PUBLIC_LAUNCHLMS_LEGACY_COOKIE_DOMAIN` | web | Temporary migration-only parent domain whose old shared auth/routing cookies are expired while cookie scope is `host-only`. It must be an actual parent of the environment frontend domain. Keep it set for at least the previous refresh-cookie lifetime (30 days), then remove it. |
 | `NEXT_PUBLIC_LAUNCHLMS_BACKEND_URL` | web | Public backend origin fallback. Same-origin `/api/v1` is preferred for browser calls. |
 | `NEXT_PUBLIC_LAUNCHLMS_API_URL` | web | Leave blank for same-origin production deployments. Set only for split frontend/backend deployments. |
 | `NEXT_PUBLIC_COLLAB_URL` | web | Public WebSocket URL, usually `wss://<domain>/collab`. |
@@ -69,6 +72,10 @@ will start in reload mode.
 | `AWS_SECRET_ACCESS_KEY` | API | S3 credential. |
 | `LAUNCHLMS_IS_AI_ENABLED` | API | Enables AI features when true and configured. |
 | `LAUNCHLMS_GEMINI_API_KEY` | API | Gemini API key. |
+| `LAUNCHLMS_RESOURCE_VECTOR_SEARCH_ENABLED` | API | `true` enables hybrid resource retrieval. Requires pgvector and the local embedding endpoint. Defaults to `false` for safe lexical fallback. |
+| `LAUNCHLMS_RESOURCE_EMBEDDING_URL` | API | Ollama embed endpoint. Managed Compose uses `http://embeddings:11434/api/embed`. |
+| `LAUNCHLMS_RESOURCE_EMBEDDING_MODEL` | API, embeddings | Locally hosted embedding model. The supported default is `all-minilm:33m` (384 dimensions). |
+| `LAUNCHLMS_RESOURCE_SEMANTIC_MAX_DISTANCE` | API | Maximum pgvector cosine distance admitted as a semantic candidate. Defaults to `0.65`; lower is stricter. |
 | `LAUNCHLMS_TINYBIRD_API_URL` | API | Enables analytics when set. |
 | `LAUNCHLMS_TINYBIRD_INGEST_TOKEN` | API | Tinybird ingest token. |
 | `LAUNCHLMS_TINYBIRD_READ_TOKEN` | API | Tinybird read token. |
@@ -76,3 +83,18 @@ will start in reload mode.
 | `LAUNCHLMS_STRIPE_PUBLISHABLE_KEY` | API, web | Stripe publishable key. |
 | `LAUNCHLMS_STRIPE_WEBHOOK_STANDARD_SECRET` | API | Standard webhook secret. |
 | `LAUNCHLMS_STRIPE_WEBHOOK_CONNECT_SECRET` | API | Connect webhook secret. |
+| `LAUNCHLMS_RELEASE_CHANNEL` | API | Set to `unstable` on the testing deployment. A `dev` source build is also recognized as unstable. |
+| `LAUNCHLMS_FEEDBACK_JIRA_BASE_URL` | API | Jira Cloud site URL used by tester feedback. HTTPS is required. |
+| `LAUNCHLMS_FEEDBACK_JIRA_EMAIL` | API | Dedicated least-privilege Jira integration account. Never expose it to the browser. |
+| `LAUNCHLMS_FEEDBACK_JIRA_API_TOKEN` | API | Server-only Jira token able to create/edit/transition feedback issues and add attachments/comments. |
+| `LAUNCHLMS_FEEDBACK_JIRA_PROJECT_KEY` | API | Jira project that owns tester feedback. Prefer a dedicated board/project; falls back to `JIRA_PROJECT_KEY`. |
+| `LAUNCHLMS_FEEDBACK_JIRA_ISSUE_TYPE` | API | Jira issue type for feedback. Defaults to `Task`. |
+| `LAUNCHLMS_FEEDBACK_JIRA_BOARD_ID` | API | Optional Jira Software board ID whose live columns should organize the platform feedback view. When omitted, the first Kanban board for the feedback project is discovered. |
+| `LAUNCHLMS_GITHUB_REPOSITORY` | API | GitHub `owner/repository` used for candidate notes. Defaults to `Life2LaunchLabs/launch-lms`. |
+| `LAUNCHLMS_GITHUB_TOKEN` | API | Server-only read token for commit/PR history; required for private repositories. |
+
+Candidate notes compare `/app/build-info.json` with the signed-in tester’s
+last-viewed commit. Put concise language under `## Release note` in a pull
+request, or add `Release note: ...` to the merge/commit body. The merge or
+squash title is the fallback. Jira feedback and GitHub release notes never
+expose their server credentials to the web client.

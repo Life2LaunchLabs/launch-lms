@@ -15,6 +15,7 @@ from src.db.organizations import (
     OrganizationRead,
     OrganizationUpdate,
 )
+from src.db.organization_invitations import CreateJoinLinkRequest, InvitationResponseRequest, InvitePreviewResponse, InviteUsersRequest, InviteUsersResponse
 from src.db.users import AnonymousUser, PublicUser
 from src.security.auth import get_authenticated_user, get_current_user
 from src.security.features_utils.dependencies import require_org_admin
@@ -63,9 +64,15 @@ from src.services.orgs.orgs import (
     upload_org_og_image_service,
 )
 from src.services.orgs.users import (
+    decline_my_organization_invitation,
+    get_my_organization_invitations,
+    get_my_pending_invitation,
     get_list_of_invited_users,
     get_organization_users,
     invite_batch_users,
+    mark_my_organization_invitations_viewed,
+    preview_batch_users,
+    resend_invited_user,
     leave_current_user_from_org,
     remove_batch_users_from_org,
     remove_invited_user,
@@ -80,6 +87,47 @@ feature_config_router = APIRouter(
     tags=["Feature Configuration"],
     dependencies=[Depends(require_org_admin)],
 )
+
+
+@router.get("/invitations/me")
+async def api_get_my_organization_invitations(
+    current_user: PublicUser = Depends(get_authenticated_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return get_my_organization_invitations(current_user, db_session)
+
+
+@router.post("/invitations/me/viewed")
+async def api_mark_my_organization_invitations_viewed(
+    current_user: PublicUser = Depends(get_authenticated_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return mark_my_organization_invitations_viewed(current_user, db_session)
+
+
+@router.post("/invitations/me/{invitation_uuid}/respond")
+async def api_respond_to_my_organization_invitation(
+    request: Request,
+    invitation_uuid: str,
+    payload: InvitationResponseRequest,
+    current_user: PublicUser = Depends(get_authenticated_user),
+    db_session: Session = Depends(get_db_session),
+):
+    invitation = get_my_pending_invitation(invitation_uuid, current_user, db_session)
+    if not payload.accept:
+        return decline_my_organization_invitation(
+            request, invitation_uuid, current_user, db_session
+        )
+    return await join_org(
+        request,
+        JoinOrg(
+            org_id=invitation.org_id,
+            user_id=current_user.id,
+            invitation_token=invitation.invitation_uuid,
+        ),
+        current_user,
+        db_session,
+    )
 
 
 @router.post("/")
@@ -173,6 +221,8 @@ async def api_get_org_users(
     sort_order: Literal["asc", "desc"] | None = Query(default="desc", description="Sort order for join date"),
     role_id: int | None = Query(default=None, description="Filter by role ID"),
     status: Literal["verified", "unverified"] | None = Query(default=None, description="Filter by verification status"),
+    active: bool | None = Query(default=None, description="Filter by an active program or badge assignment"),
+    assigned_to_me: bool = Query(default=False, description="Only include learners on programs assigned to the current staff user"),
     current_user: PublicUser = Depends(get_authenticated_user),
     db_session: Session = Depends(get_db_session),
 ):
@@ -187,6 +237,7 @@ async def api_get_org_users(
     return await get_organization_users(
         request, org_id, db_session, current_user, page, limit, search,
         usergroup_id, usergroup_filter, sort_order or "desc", role_id, status,
+        active, assigned_to_me,
     )
 
 
@@ -590,6 +641,8 @@ async def api_upload_org_og_image(
 
 
 # Invites related routes
+# Legacy shared invite-code endpoints. No current admin UI calls these; retain
+# temporarily for already-issued inviteCode URLs and remove with that fallback.
 @router.post("/{org_id}/invites")
 async def api_create_invite_code(
     request: Request,
@@ -657,12 +710,11 @@ async def api_delete_invite_code(
     )
 
 
-@router.post("/{org_id}/invites/users/batch")
+@router.post("/{org_id}/invites/users/batch", response_model=InviteUsersResponse)
 async def api_invite_batch_users(
     request: Request,
     org_id: int,
-    emails: str,
-    invite_code_uuid: str,
+    invite_request: InviteUsersRequest,
     current_user: PublicUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
@@ -670,8 +722,69 @@ async def api_invite_batch_users(
     Invite batch users by emails
     """
     return await invite_batch_users(
-        request, org_id, emails, invite_code_uuid, db_session, current_user
+        request, org_id, invite_request, db_session, current_user
     )
+
+
+@router.post("/{org_id}/invites/users/preview", response_model=InvitePreviewResponse)
+async def api_preview_batch_users(
+    request: Request,
+    org_id: int,
+    invite_request: InviteUsersRequest,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return await preview_batch_users(request, org_id, invite_request, db_session, current_user)
+
+
+@router.post("/{org_id}/invites/users/{invitation_uuid}/resend")
+async def api_resend_org_user_invite(
+    request: Request,
+    org_id: int,
+    invitation_uuid: str,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return await resend_invited_user(request, org_id, invitation_uuid, db_session, current_user)
+
+
+@router.post("/{org_id}/join-links")
+async def api_create_join_link(
+    request: Request,
+    org_id: int,
+    payload: CreateJoinLinkRequest,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return await create_invite_code(
+        request, org_id, current_user, db_session,
+        usergroup_id=payload.usergroup_id,
+        display_name=payload.display_name,
+        expires_in_minutes=payload.expires_in_minutes,
+        max_redemptions=payload.max_redemptions,
+        approved_email_domain=payload.approved_email_domain,
+    )
+
+
+@router.get("/{org_id}/join-links")
+async def api_get_join_links(
+    request: Request,
+    org_id: int,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return await get_invite_codes(request, org_id, current_user, db_session)
+
+
+@router.delete("/{org_id}/join-links/{link_uuid}")
+async def api_delete_join_link(
+    request: Request,
+    org_id: int,
+    link_uuid: str,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return await delete_invite_code(request, org_id, link_uuid, current_user, db_session)
 
 
 @router.get("/{org_id}/invites/users")
@@ -687,18 +800,18 @@ async def api_get_org_users_invites(
     return await get_list_of_invited_users(request, org_id, db_session, current_user)
 
 
-@router.delete("/{org_id}/invites/users/{email}")
+@router.delete("/{org_id}/invites/users/{invitation_uuid}")
 async def api_delete_org_users_invites(
     request: Request,
     org_id: int,
-    email: str,
+    invitation_uuid: str,
     current_user: PublicUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
     """
     Delete org users invites
     """
-    return await remove_invited_user(request, org_id, email, db_session, current_user)
+    return await remove_invited_user(request, org_id, invitation_uuid, db_session, current_user)
 
 
 @router.get("/slug/{org_slug}")
@@ -823,7 +936,8 @@ async def api_user_orgs_admin(
     """
     # API tokens cannot access organization endpoints
     return await get_orgs_by_user_admin(
-        request, db_session, str(current_user.id), page, limit
+        request, db_session, str(current_user.id), page, limit,
+        is_superadmin=bool(getattr(current_user, "is_superadmin", False)),
     )
 
 

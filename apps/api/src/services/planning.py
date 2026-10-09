@@ -1,0 +1,2015 @@
+from __future__ import annotations
+
+import re
+from datetime import date, datetime, timedelta, timezone
+from uuid import NAMESPACE_URL, uuid4, uuid5
+
+from fastapi import HTTPException
+from sqlalchemy import inspect
+from sqlmodel import Session, select
+
+from src.db.learning import LearningBadge, LearningBadgeAward, LearningPage, LearningPageProgress, LearningRun
+from src.db.media import MediaAsset, MediaOwnerType
+from src.db.organizations import Organization
+from src.db.planning import (
+    DEFAULT_ROLE_DEFINITIONS,
+    Plan,
+    PlanActivity,
+    PlanAttachment,
+    PlanAttachmentCreate,
+    PlanCollaborator,
+    PlanCollaboratorRequest,
+    PlanCollaboratorRequestCreate,
+    PlanCollaboratorRequestStatus,
+    PlanCollaboratorUpdate,
+    PlanCreate,
+    PlanCommentCreate,
+    PlanInvitation,
+    PlanInvitationCreate,
+    PlanInvitationKind,
+    PlanInvitationStatus,
+    PlanObjective,
+    PlanObjectiveCreate,
+    PlanObjectiveUpdate,
+    PlanObjectiveProgress,
+    PlanObjectiveProgressUpdate,
+    PlanObjectiveStatus,
+    PlanOwnershipTransfer,
+    PlanPhase,
+    PlanPhaseCreate,
+    PlanPhaseUpdate,
+    PlanRole,
+    PlanRoleCreate,
+    PlanRoleUpdate,
+    PlanStatus,
+    PlanUpdate,
+    OrganizationPlanRole,
+    OrganizationPlanRoleCreate,
+    OrganizationPlanRoleUpdate,
+)
+from src.db.users import PublicUser, User
+from src.security.org_auth import is_org_admin, require_org_admin
+from src.services.messages import create_inbox_message, resolve_action_by_dedupe
+
+
+ALL_CAPABILITIES = {
+    "view_plan", "comment", "contribute_fields", "update_progress",
+    "request_collaborators", "contribute_restricted_fields", "complete_restricted_objectives",
+    "review_badge_submissions", "edit_plan_details", "edit_structure",
+    "edit_schedule", "complete_plan", "archive_plan", "manage_collaborators",
+    "manage_roles",
+}
+
+LEGACY_CAPABILITY_ALIASES = {
+    "contribute_reviewer_fields": "contribute_restricted_fields",
+    "review_objectives": "complete_restricted_objectives",
+}
+
+
+def _normalized_capability_list(capabilities: list[str] | set[str] | None) -> list[str]:
+    return list(dict.fromkeys(LEGACY_CAPABILITY_ALIASES.get(capability, capability) for capability in (capabilities or [])))
+
+
+def _normalized_capabilities(capabilities: list[str] | set[str] | None) -> set[str]:
+    return set(_normalized_capability_list(capabilities))
+
+
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _now_string() -> str:
+    return _now().isoformat()
+
+
+def _slug(value: str) -> str:
+    result = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-") or "plan"
+    return result[:72]
+
+
+def _unique_slug(db: Session, name: str) -> str:
+    base = _slug(name)
+    candidate = base
+    suffix = 2
+    while db.exec(select(Plan.id).where(Plan.slug == candidate)).first() is not None:
+        candidate = f"{base}-{suffix}"
+        suffix += 1
+    return candidate
+
+
+def _user_summary(db: Session, user_id: int | None) -> dict | None:
+    user = db.get(User, user_id) if user_id else None
+    if not user:
+        return None
+    return {
+        "id": user.id,
+        "user_uuid": user.user_uuid,
+        "username": user.username,
+        "name": " ".join(filter(None, [user.first_name, user.last_name])) or user.username,
+        "avatar_image": user.avatar_image,
+    }
+
+
+def _create_plan_invitation_message(
+    db: Session,
+    plan: Plan,
+    invitation: PlanInvitation,
+    role_name: str,
+) -> None:
+    if invitation.status != PlanInvitationStatus.PENDING:
+        return
+    organization = db.get(Organization, plan.source_org_id) if plan.source_org_id else None
+    sender_name = organization.name if organization else "A Launch LMS member"
+    create_inbox_message(
+        db,
+        recipient_user_id=invitation.target_user_id,
+        recipient_email=invitation.email,
+        sender_org_id=int(organization.id) if organization and organization.id else None,
+        sender_user_id=invitation.invited_by_user_id,
+        message_type="invitation",
+        subject=f"Invitation to {plan.name}",
+        body=f"{sender_name} invited you to participate in {plan.name} as {role_name}.",
+        action_url=f"/plans/{plan.slug}",
+        action_kind="plan_invitation",
+        action_data={
+            "invitation_uuid": invitation.invitation_uuid,
+            "plan_slug": plan.slug,
+            "plan_name": plan.name,
+            "role_name": role_name,
+        },
+        dedupe_key=f"plan_invitation:{invitation.invitation_uuid}",
+    )
+
+
+def _org_summary(db: Session, org_id: int | None) -> dict | None:
+    org = db.get(Organization, org_id) if org_id else None
+    if not org:
+        return None
+    return {"id": org.id, "org_uuid": org.org_uuid, "name": org.name, "slug": org.slug, "logo_image": org.logo_image}
+
+
+def _plan_or_404(db: Session, plan_uuid_or_slug: str) -> Plan:
+    plan = db.exec(select(Plan).where(
+        (Plan.plan_uuid == plan_uuid_or_slug) | (Plan.slug == plan_uuid_or_slug)
+    )).first()
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan not found")
+    return plan
+
+
+def _collaboration(db: Session, plan_id: int, user_id: int) -> tuple[PlanCollaborator, PlanRole] | None:
+    row = db.exec(
+        select(PlanCollaborator, PlanRole)
+        .join(PlanRole, PlanRole.id == PlanCollaborator.role_id)
+        .where(PlanCollaborator.plan_id == plan_id, PlanCollaborator.user_id == user_id, PlanCollaborator.active == True)  # noqa: E712
+    ).first()
+    return row if row else None
+
+
+def capabilities_for(db: Session, plan: Plan, user_id: int) -> set[str]:
+    if plan.owner_user_id == user_id:
+        return set(ALL_CAPABILITIES) | {"transfer_ownership", "delete_plan"}
+    row = _collaboration(db, int(plan.id), user_id)
+    if row and row[1].key == "plan_admin":
+        return set(ALL_CAPABILITIES)
+    return _normalized_capabilities(row[1].capabilities) if row else set()
+
+
+def _plan_access_people(db: Session, plan: Plan) -> list[dict]:
+    rows = db.exec(
+        select(PlanCollaborator, PlanRole)
+        .join(PlanRole, PlanRole.id == PlanCollaborator.role_id)
+        .where(PlanCollaborator.plan_id == plan.id, PlanCollaborator.active == True)  # noqa: E712
+    ).all()
+    return [{
+        "user": _user_summary(db, collaborator.user_id),
+        "role": {"key": role.key, "name": role.name},
+        "capabilities": sorted(ALL_CAPABILITIES) if collaborator.user_id == plan.owner_user_id or role.key == "plan_admin" else sorted(_normalized_capabilities(role.capabilities)),
+        "is_subject": collaborator.user_id == plan.subject_user_id,
+    } for collaborator, role in rows]
+
+
+def _require(db: Session, plan: Plan, user_id: int, capability: str) -> set[str]:
+    capabilities = capabilities_for(db, plan, user_id)
+    if capability not in capabilities:
+        # Do not reveal private plan existence to non-collaborators.
+        raise HTTPException(status_code=404 if not capabilities else 403, detail="Plan not found" if not capabilities else f"Missing plan permission: {capability}")
+    return capabilities
+
+
+def _activity(db: Session, plan: Plan, actor_user_id: int | None, action: str, payload: dict | None = None) -> None:
+    db.add(PlanActivity(
+        activity_uuid=f"plan_activity_{uuid4()}", plan_id=int(plan.id), actor_user_id=actor_user_id,
+        action=action, payload=payload or {}, creation_date=_now_string(),
+    ))
+
+
+def _seed_roles(db: Session, plan: Plan, definitions: list[dict] | None = None) -> dict[str, PlanRole]:
+    now = _now_string()
+    roles = {}
+    role_definitions = [dict(item) for item in (definitions or DEFAULT_ROLE_DEFINITIONS)]
+    if plan.source_org_id and inspect(db.connection()).has_table("organizationplanrole"):
+        existing_keys = {item["key"] for item in role_definitions}
+        role_definitions.extend({"key": item.key, "name": item.name, "capabilities": item.capabilities} for item in db.exec(select(OrganizationPlanRole).where(OrganizationPlanRole.org_id == plan.source_org_id)).all() if item.key not in existing_keys)
+    role_keys = [definition["key"] for definition in role_definitions]
+    for definition in role_definitions:
+        key = definition["key"]
+        name = "Learner" if key == "subject" else definition["name"]
+        capabilities = sorted(ALL_CAPABILITIES) if key == "plan_admin" else _normalized_capability_list(definition["capabilities"])
+        role = PlanRole(
+            role_uuid=f"plan_role_{uuid4()}", plan_id=int(plan.id), key=key,
+            name=name, capabilities=capabilities,
+            grantable_role_keys=list(role_keys if key == "plan_admin" else (definition.get("grantable_role_keys") or [])),
+            creation_date=now, update_date=now,
+        )
+        db.add(role)
+        db.flush()
+        roles[key] = role
+    return roles
+
+
+def _progress_for(db: Session, objective: PlanObjective) -> PlanObjectiveProgress:
+    progress = db.exec(select(PlanObjectiveProgress).where(PlanObjectiveProgress.plan_objective_id == objective.id)).first()
+    if progress:
+        return progress
+    now = _now_string()
+    progress = PlanObjectiveProgress(
+        progress_uuid=f"plan_progress_{uuid4()}", plan_objective_id=int(objective.id),
+        creation_date=now, update_date=now,
+    )
+    db.add(progress)
+    db.flush()
+    return progress
+
+
+def _badge_state(db: Session, plan: Plan, objective: PlanObjective, progress: PlanObjectiveProgress) -> str:
+    if not objective.badge_id or not plan.subject_user_id:
+        return progress.status.value if hasattr(progress.status, "value") else str(progress.status)
+    award = db.exec(select(LearningBadgeAward).where(
+        LearningBadgeAward.badge_id == objective.badge_id,
+        LearningBadgeAward.user_id == plan.subject_user_id,
+    )).first()
+    if award and (not objective.badge_major_version or award.major_version == objective.badge_major_version):
+        return PlanObjectiveStatus.COMPLETED.value
+    run = db.exec(select(LearningRun).where(
+        LearningRun.plan_objective_id == objective.id,
+        LearningRun.user_id == plan.subject_user_id,
+    )).first()
+    return PlanObjectiveStatus.IN_PROGRESS.value if run else (progress.status.value if hasattr(progress.status, "value") else str(progress.status))
+
+
+def _badge_requirement(db: Session, plan: Plan, objective: PlanObjective, badge: LearningBadge, field: dict) -> dict:
+    award = db.exec(select(LearningBadgeAward).where(
+        LearningBadgeAward.badge_id == badge.id,
+        LearningBadgeAward.user_id == plan.subject_user_id,
+    )).first() if plan.subject_user_id else None
+    run = db.exec(select(LearningRun).where(
+        LearningRun.plan_objective_id == objective.id,
+        LearningRun.user_id == plan.subject_user_id,
+        LearningRun.badge_id == badge.id,
+    )).first() if plan.subject_user_id else None
+    progress_percent = 100 if award else 0
+    if run and not award:
+        pages = db.exec(select(LearningPage).where(
+            LearningPage.badge_id == badge.id,
+            LearningPage.version_id == run.badge_version_id,
+        )).all()
+        page_ids = [int(page.id) for page in pages if page.id]
+        completed = len(db.exec(select(LearningPageProgress).where(
+            LearningPageProgress.run_id == run.id,
+            LearningPageProgress.page_id.in_(page_ids),
+            LearningPageProgress.complete == True,  # noqa: E712
+        )).all()) if page_ids else 0
+        progress_percent = round(completed * 100 / len(page_ids)) if page_ids else 0
+    return {
+        **field,
+        "field_uuid": str(field.get("field_uuid") or f"badge_{objective.objective_uuid}"),
+        "title": str(field.get("title") or badge.name),
+        "type": "badge",
+        "badge_uuid": badge.badge_uuid,
+        "badge": {"badge_uuid": badge.badge_uuid, "name": badge.name, "thumbnail_image": badge.thumbnail_image},
+        "badge_href": f"/plans/{plan.slug}/objectives/{objective.objective_uuid}/badge",
+        "progress_percent": progress_percent,
+    }
+
+
+def _badges_for_requirement_fields(db: Session, fields: list[dict]) -> list[LearningBadge]:
+    badge_fields = [field for field in fields if str(field.get("type") or "") == "badge"]
+    if not badge_fields:
+        return []
+    badges: list[LearningBadge] = []
+    for field in badge_fields:
+        badge_uuid = str(field.get("badge_uuid") or "").strip()
+        if not badge_uuid:
+            raise HTTPException(status_code=422, detail="Badge steps need a badge_uuid")
+        badge = db.exec(select(LearningBadge).where(LearningBadge.badge_uuid == badge_uuid)).first()
+        if not badge:
+            raise HTTPException(status_code=404, detail=f"Badge not found: {badge_uuid}")
+        badges.append(badge)
+    return badges
+
+
+def _validated_plan_steps(db: Session, fields: list[dict] | None) -> list[dict]:
+    normalized: list[dict] = []
+    seen: set[str] = set()
+    for raw in fields or []:
+        field = dict(raw)
+        field_uuid = str(field.get("field_uuid") or f"field_{uuid4()}")
+        if field_uuid in seen:
+            raise HTTPException(status_code=422, detail="Objective steps require unique field_uuid values")
+        seen.add(field_uuid)
+        step_type = str(field.get("type") or "text")
+        if step_type not in {"text", "media", "link", "checkbox", "badge"}:
+            raise HTTPException(status_code=422, detail=f"Unsupported objective step type: {step_type}")
+        title = str(field.get("title") or "").strip()
+        if not title and field.get("field_uuid"):
+            title = str(field["field_uuid"]).replace("_", " ").strip().title()
+        if not title:
+            raise HTTPException(status_code=422, detail="Give every objective step a title")
+        restricted = bool(field.get("restricted", str(field.get("access") or "contributor") in {"reviewer", "staff"}))
+        item = {**field, "field_uuid": field_uuid, "title": title, "type": step_type, "restricted": restricted, "access": "reviewer" if restricted else "contributor"}
+        if step_type == "media":
+            allowed = ["document" if value == "pdf" else str(value) for value in (field.get("allowed_types") or ["image", "document"])]
+            if set(allowed) == {"link"}:
+                item["type"] = "link"
+                item.pop("allowed_types", None)
+            elif not allowed or set(allowed) - {"image", "video", "document"}:
+                raise HTTPException(status_code=422, detail="Media steps accept image, video, or document")
+            else:
+                item["allowed_types"] = list(dict.fromkeys(allowed))
+        normalized.append(item)
+    _badges_for_requirement_fields(db, normalized)
+    return normalized
+
+
+def _materialized_objective_fields(db: Session, snapshot: dict) -> list[dict]:
+    fields = [
+        {
+            **field,
+            "restricted": bool(field.get("restricted", not field.get("allow_student_upload", False))),
+        }
+        for field in snapshot.get("custom_fields") or []
+    ]
+    badge_id = snapshot.get("badge_id")
+    if badge_id and not any(str(field.get("type") or "") == "badge" for field in fields):
+        badge = db.get(LearningBadge, badge_id)
+        if badge:
+            fields.append({
+                "field_uuid": f"badge_requirement_{snapshot.get('objective_uuid') or snapshot.get('id')}",
+                "title": badge.name,
+                "type": "badge",
+                "badge_uuid": badge.badge_uuid,
+                "restricted": False,
+            })
+    return fields
+
+
+def _objective_dict(db: Session, plan: Plan, objective: PlanObjective, capabilities: set[str]) -> dict:
+    progress = _progress_for(db, objective)
+    phase = db.get(PlanPhase, objective.phase_id) if objective.phase_id else None
+    effective_due_date = objective.due_date or (phase.due_date if phase else None) or plan.due_date
+    status = progress.status.value if hasattr(progress.status, "value") else str(progress.status)
+    completion_restricted = objective.completion_restricted
+    fields = list(objective.fields or [])
+    # Published plans retain a snapshot of their objective definition. If a badge
+    # referenced by that snapshot is later removed (or imported under a different
+    # UUID), keep the rest of the plan readable and mark only that step unavailable.
+    requirement_badges: list[LearningBadge] = []
+    missing_badge_uuids: set[str] = set()
+    for field in fields:
+        if str(field.get("type") or "") != "badge":
+            continue
+        badge_uuid = str(field.get("badge_uuid") or "").strip()
+        badge = db.exec(select(LearningBadge).where(LearningBadge.badge_uuid == badge_uuid)).first() if badge_uuid else None
+        if badge:
+            requirement_badges.append(badge)
+        else:
+            missing_badge_uuids.add(badge_uuid)
+    badges_by_uuid = {badge.badge_uuid: badge for badge in requirement_badges}
+    fields = [
+        (
+            _badge_requirement(db, plan, objective, badges_by_uuid[str(field.get("badge_uuid"))], field)
+            if str(field.get("badge_uuid") or "") not in missing_badge_uuids
+            else {
+                **field,
+                "badge": field.get("badge") or {
+                    "badge_uuid": field.get("badge_uuid"),
+                    "name": field.get("title") or "Unavailable badge",
+                    "thumbnail_image": "",
+                },
+                "badge_href": None,
+                "progress_percent": 0,
+                "badge_unavailable": True,
+            }
+        )
+        if str(field.get("type") or "") == "badge" else field
+        for field in fields
+    ]
+    badge = requirement_badges[0] if requirement_badges else None
+    return {
+        "objective_uuid": objective.objective_uuid, "source_objective_id": objective.source_objective_id, "phase_id": objective.phase_id,
+        "phase_uuid": phase.phase_uuid if phase else None, "phase_name": phase.name if phase else None,
+        "title": objective.title, "description": objective.description, "kind": objective.kind,
+        "position": objective.position, "priority": objective.priority, "fields": fields,
+        "start_date": objective.start_date, "due_date": objective.due_date,
+        "effective_due_date": effective_due_date, "has_fixed_due_date": objective.due_date is not None,
+        "allow_late": objective.allow_late, "blocked": objective.blocked,
+        "completion_restricted": completion_restricted,
+        "badge": ({"badge_uuid": badge.badge_uuid, "name": badge.name, "thumbnail_image": badge.thumbnail_image} if badge else None),
+        "progress": {
+            "status": status, "field_values": progress.field_values or {},
+            "subject_note": progress.subject_note, "reviewer_note": progress.reviewer_note,
+            "feedback_history": progress.feedback_history or [], "completed_at": progress.completed_at,
+        },
+        "can_update": "update_progress" in capabilities,
+        "can_edit": "edit_structure" in capabilities,
+        "can_schedule": "edit_schedule" in capabilities,
+        "can_contribute_fields": "contribute_fields" in capabilities,
+        "can_contribute_restricted_fields": "contribute_restricted_fields" in capabilities,
+        "can_review": "complete_restricted_objectives" in capabilities,
+        "can_complete": not completion_restricted or "complete_restricted_objectives" in capabilities,
+        "badge_href": f"/plans/{plan.slug}/objectives/{objective.objective_uuid}/badge" if badge else None,
+    }
+
+
+def _plan_dict(db: Session, plan: Plan, user_id: int, include_detail: bool = False) -> dict:
+    capabilities = capabilities_for(db, plan, user_id)
+    if not capabilities:
+        raise HTTPException(status_code=404, detail="Plan not found")
+    phases = db.exec(select(PlanPhase).where(PlanPhase.plan_id == plan.id).order_by(PlanPhase.position)).all()
+    objectives = db.exec(select(PlanObjective).where(PlanObjective.plan_id == plan.id).order_by(PlanObjective.position)).all()
+    objective_rows = [_objective_dict(db, plan, item, capabilities) for item in objectives]
+    complete_count = sum(item["progress"]["status"] == PlanObjectiveStatus.COMPLETED.value for item in objective_rows)
+    review_count = sum(item["progress"]["status"] == PlanObjectiveStatus.SUBMITTED.value for item in objective_rows)
+    today = date.today()
+    attention_count = sum(
+        item["blocked"]
+        or item["progress"]["status"] == PlanObjectiveStatus.CHANGES_REQUESTED.value
+        or bool(
+            item["effective_due_date"]
+            and (item["effective_due_date"].date() if isinstance(item["effective_due_date"], datetime) else item["effective_due_date"]) < today
+            and item["progress"]["status"] not in {PlanObjectiveStatus.COMPLETED.value, PlanObjectiveStatus.CANCELED.value}
+        )
+        for item in objective_rows
+    )
+    result = {
+        "plan_uuid": plan.plan_uuid, "slug": plan.slug, "name": plan.name,
+        "description": plan.description, "status": plan.status.value if hasattr(plan.status, "value") else plan.status,
+        "priority": plan.priority, "start_date": plan.start_date, "due_date": plan.due_date,
+        "subject": _user_summary(db, plan.subject_user_id), "owner": _user_summary(db, plan.owner_user_id),
+        "source_organization": _org_summary(db, plan.source_org_id),
+        "is_mine": plan.subject_user_id == user_id, "is_owner": plan.owner_user_id == user_id,
+        "capabilities": sorted(capabilities), "objective_count": len(objective_rows),
+        "completed_objective_count": complete_count,
+        "progress_percent": round(complete_count * 100 / len(objective_rows)) if objective_rows else 0,
+        "review_count": review_count, "attention_count": attention_count,
+        "creation_date": plan.creation_date, "update_date": plan.update_date,
+    }
+    if include_detail:
+        from src.db.programs import Program, ProgramAssignment
+        from src.db.usergroups import UserGroup
+
+        assignment = db.get(ProgramAssignment, plan.source_assignment_id) if plan.source_assignment_id else None
+        program = db.get(Program, plan.source_program_id) if plan.source_program_id else None
+        group = db.get(UserGroup, assignment.usergroup_id) if assignment and assignment.usergroup_id else None
+        result["source_assignment"] = ({
+            "assignment_uuid": assignment.assignment_uuid,
+            "type": "group" if assignment.usergroup_id else ("external" if assignment.subject_email and not assignment.user_id else "individual"),
+            "group": ({"id": group.id, "name": group.name} if group else None),
+            "program": ({"program_uuid": program.program_uuid, "name": program.name} if program else None),
+            "welcome_message": assignment.welcome_message,
+        } if assignment else None)
+        result["phases"] = [{
+            "phase_uuid": phase.phase_uuid, "name": phase.name, "description": phase.description,
+            "position": phase.position, "start_date": phase.start_date, "due_date": phase.due_date,
+            "effective_due_date": phase.due_date or plan.due_date,
+            "objectives": [item for item in objective_rows if item["phase_id"] == phase.id],
+        } for phase in phases]
+        result["objectives"] = objective_rows
+        collaborators = db.exec(
+            select(PlanCollaborator, PlanRole).join(PlanRole, PlanRole.id == PlanCollaborator.role_id)
+            .where(PlanCollaborator.plan_id == plan.id, PlanCollaborator.active == True)  # noqa: E712
+        ).all()
+        result["collaborators"] = [{
+            "collaborator_uuid": collaborator.collaborator_uuid,
+            "user": _user_summary(db, collaborator.user_id),
+            "role": {"role_uuid": role.role_uuid, "key": role.key, "name": role.name},
+            "is_owner": collaborator.user_id == plan.owner_user_id,
+            "is_subject": collaborator.user_id == plan.subject_user_id,
+        } for collaborator, role in collaborators]
+        access_people = _plan_access_people(db, plan)
+        viewer_access = next((item for item in access_people if item["user"] and item["user"]["id"] == user_id), None)
+        result["viewer_role"] = viewer_access["role"] if viewer_access else None
+        for objective in objective_rows:
+            objective["access_people"] = access_people
+            objective["viewer_role"] = viewer_access["role"] if viewer_access else None
+        organization_roles = db.exec(select(OrganizationPlanRole).where(OrganizationPlanRole.org_id == plan.source_org_id)).all() if plan.source_org_id and inspect(db.connection()).has_table("organizationplanrole") else []
+        organization_role_by_key = {role.key: role for role in organization_roles}
+        result["roles"] = [{"role_uuid": role.role_uuid, "key": role.key, "name": "Learner" if role.key == "subject" else role.name, "capabilities": sorted(ALL_CAPABILITIES) if role.key == "plan_admin" else sorted(_normalized_capabilities(role.capabilities)), "grantable_role_keys": role.grantable_role_keys, "organization_role_uuid": organization_role_by_key.get(role.key).role_uuid if organization_role_by_key.get(role.key) else None, "locked": role.key == "plan_admin"} for role in db.exec(select(PlanRole).where(PlanRole.plan_id == plan.id)).all()]
+        result["available_capabilities"] = sorted(ALL_CAPABILITIES)
+        result["can_manage_organization_roles"] = bool(plan.source_org_id and "manage_roles" in capabilities and is_org_admin(user_id, int(plan.source_org_id), db))
+        result["invitations"] = []
+        if "manage_collaborators" in capabilities:
+            invitations = db.exec(select(PlanInvitation).where(PlanInvitation.plan_id == plan.id).order_by(PlanInvitation.id.desc())).all()
+            result["invitations"] = [{
+                "invitation_uuid": invitation.invitation_uuid,
+                "email": invitation.email,
+                "kind": invitation.kind.value if hasattr(invitation.kind, "value") else str(invitation.kind),
+                "status": invitation.status.value if hasattr(invitation.status, "value") else str(invitation.status),
+                "role": next(({"key": role.key, "name": role.name} for role in db.exec(select(PlanRole).where(PlanRole.plan_id == plan.id)).all() if role.id == invitation.role_id), None),
+                "creation_date": invitation.creation_date,
+            } for invitation in invitations]
+    return result
+
+
+def list_plans(db: Session, current_user: PublicUser, lifecycle: str | None = None) -> list[dict]:
+    rows = db.exec(
+        select(Plan).join(PlanCollaborator, PlanCollaborator.plan_id == Plan.id)
+        .where(PlanCollaborator.user_id == current_user.id, PlanCollaborator.active == True)  # noqa: E712
+        .order_by(Plan.update_date.desc())
+    ).all()
+    if lifecycle:
+        rows = [plan for plan in rows if str(plan.status.value if hasattr(plan.status, "value") else plan.status) == lifecycle]
+    from src.db.programs import Program, ProgramAssignment
+    from src.db.usergroups import UserGroup
+    result: list[dict] = []
+    grouped: dict[int, list[Plan]] = {}
+    for plan in rows:
+        assignment = db.get(ProgramAssignment, plan.source_assignment_id) if plan.source_assignment_id else None
+        if assignment and assignment.usergroup_id and plan.subject_user_id != current_user.id:
+            grouped.setdefault(int(assignment.id), []).append(plan)
+        else:
+            result.append({**_plan_dict(db, plan, current_user.id), "target_kind": "individual"})
+    for assignment_id, plans in grouped.items():
+        assignment = db.get(ProgramAssignment, assignment_id)
+        if not assignment:
+            continue
+        program = db.get(Program, assignment.program_id)
+        group = db.get(UserGroup, assignment.usergroup_id) if assignment.usergroup_id else None
+        summaries = [_plan_dict(db, plan, current_user.id) for plan in plans]
+        progress = [int(item["progress_percent"]) for item in summaries]
+        result.append({
+            "target_kind": "group", "plan_uuid": f"group:{assignment.assignment_uuid}",
+            "slug": f"group:{assignment.assignment_uuid}", "assignment_uuid": assignment.assignment_uuid,
+            "name": program.name if program else plans[0].name,
+            "target_name": group.name if group else "Group", "group": {"id": group.id, "name": group.name} if group else None,
+            "learner_count": len(plans), "progress_percent": round(sum(progress) / len(progress)) if progress else 0,
+            "min_progress_percent": min(progress) if progress else 0, "max_progress_percent": max(progress) if progress else 0,
+            "review_count": sum(int(item["review_count"]) for item in summaries),
+            "attention_count": sum(int(item["attention_count"]) for item in summaries),
+            "due_date": assignment.due_date, "status": lifecycle or "active", "is_mine": False,
+            "update_date": max((plan.update_date for plan in plans), default=assignment.update_date),
+        })
+    return sorted(result, key=lambda item: str(item.get("update_date") or ""), reverse=True)
+
+
+def create_plan(db: Session, current_user: PublicUser, payload: PlanCreate) -> dict:
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="Plan name is required")
+    if payload.start_date and payload.due_date and payload.start_date > payload.due_date:
+        raise HTTPException(status_code=422, detail="Plan target date must be on or after its start date")
+    now = _now_string()
+    plan = Plan(
+        plan_uuid=f"plan_{uuid4()}", slug=_unique_slug(db, name), name=name,
+        description=payload.description, priority=max(0, min(3, payload.priority)),
+        subject_user_id=current_user.id, owner_user_id=current_user.id,
+        start_date=payload.start_date, due_date=payload.due_date,
+        creation_date=now, update_date=now,
+    )
+    db.add(plan)
+    db.flush()
+    roles = _seed_roles(db, plan)
+    db.add(PlanCollaborator(
+        collaborator_uuid=f"plan_collaborator_{uuid4()}", plan_id=int(plan.id),
+        user_id=current_user.id, role_id=int(roles["plan_admin"].id), creation_date=now, update_date=now,
+    ))
+    phase = PlanPhase(phase_uuid=f"plan_phase_{uuid4()}", plan_id=int(plan.id), name="Getting started", creation_date=now, update_date=now)
+    db.add(phase)
+    _activity(db, plan, current_user.id, "plan.created")
+    db.commit()
+    return _plan_dict(db, plan, current_user.id, True)
+
+
+def materialize_assignment_plans(db: Session, assignment_id: int) -> None:
+    """Create the independent live plans represented by a legacy assignment batch.
+
+    Program tables intentionally remain the template/assignment backing store for this
+    release, so this bridge is also used by the deprecated Program API.
+    """
+    # Some focused compatibility tests construct only legacy tables. Production is
+    # migrated before this bridge can run.
+    if not inspect(db.connection()).has_table("plan"):
+        return
+    from src.db.programs import (  # Local import keeps the compatibility layer acyclic.
+        ObjectiveProgress,
+        ParticipantStatus,
+        Program,
+        ProgramAssignment,
+        ProgramParticipant,
+    )
+
+    assignment = db.get(ProgramAssignment, assignment_id)
+    if not assignment:
+        return
+    program = db.get(Program, assignment.program_id)
+    if not program:
+        return
+    owner_id = assignment.owner_user_id or assignment.created_by_user_id or program.created_by_user_id
+    if not owner_id:
+        from src.db.user_organizations import UserOrganization
+        owner_id = db.exec(
+            select(UserOrganization.user_id)
+            .where(UserOrganization.org_id == assignment.org_id)
+            .order_by(UserOrganization.user_id)
+        ).first()
+    if not owner_id:
+        return
+
+    participants = db.exec(select(ProgramParticipant).where(ProgramParticipant.assignment_id == assignment.id)).all()
+    phase_schedule = {item.get("phase_uuid"): item for item in (assignment.schedule or {}).get("phases", [])}
+    objective_schedule = {item.get("objective_uuid"): item for item in (assignment.schedule or {}).get("objectives", [])}
+    snapshots = assignment.objective_snapshot or []
+    for participant in participants:
+        exists = db.exec(select(Plan.id).where(
+            Plan.source_assignment_id == assignment.id,
+            Plan.subject_user_id == participant.user_id,
+        )).first()
+        if exists:
+            continue
+        status = {
+            ParticipantStatus.INVITED: PlanStatus.PENDING,
+            ParticipantStatus.ACTIVE: PlanStatus.ACTIVE,
+            ParticipantStatus.COMPLETED: PlanStatus.COMPLETED,
+            ParticipantStatus.DECLINED: PlanStatus.ARCHIVED,
+            ParticipantStatus.LEFT: PlanStatus.ARCHIVED,
+        }.get(participant.status, PlanStatus.ARCHIVED)
+        now = participant.update_date or participant.creation_date or _now_string()
+        plan = Plan(
+            plan_uuid=f"plan_{uuid4()}",
+            slug=_unique_slug(db, f"{program.name}-{str(participant.participant_uuid).split('_')[-1][:8]}"),
+            name=program.name, description=program.description, status=status,
+            subject_user_id=participant.user_id, owner_user_id=owner_id,
+            source_org_id=assignment.org_id, source_program_id=program.id,
+            source_assignment_id=assignment.id,
+            start_date=assignment.start_date.date() if assignment.start_date else None,
+            due_date=assignment.due_date.date() if assignment.due_date else None,
+            creation_date=participant.creation_date or now, update_date=now,
+        )
+        db.add(plan)
+        db.flush()
+        roles = _seed_roles(db, plan, program.role_definitions or None)
+        subject_role_key = program.default_subject_role_key or "subject"
+        staff_role_key = program.default_staff_role_key or "reviewer"
+        if subject_role_key not in roles or staff_role_key not in roles:
+            raise HTTPException(status_code=422, detail="Plan template default roles are invalid")
+        collaborator_roles: dict[int, str] = {int(owner_id): "plan_admin"}
+        if participant.status in {ParticipantStatus.ACTIVE, ParticipantStatus.COMPLETED}:
+            collaborator_roles.setdefault(participant.user_id, subject_role_key)
+        collaborator_definitions = assignment.collaborators or [
+            {"user_id": staff_id, "role_key": staff_role_key} for staff_id in (assignment.staff_user_ids or [])
+        ]
+        for collaborator in collaborator_definitions:
+            collaborator_user_id = int(collaborator["user_id"])
+            role_key = str(collaborator.get("role_key") or staff_role_key)
+            if collaborator_user_id == int(owner_id) and role_key == "plan_admin":
+                continue
+            if role_key not in roles or role_key in {"subject", "plan_admin"}:
+                raise HTTPException(status_code=422, detail=f"Invalid assignment collaborator role: {role_key}")
+            collaborator_roles.setdefault(collaborator_user_id, role_key)
+        for user_id, role_key in collaborator_roles.items():
+            db.add(PlanCollaborator(
+                collaborator_uuid=f"plan_collaborator_{uuid4()}", plan_id=int(plan.id),
+                user_id=user_id, role_id=int(roles[role_key].id),
+                creation_date=now, update_date=now,
+            ))
+
+        phase_keys: list[str] = []
+        for snapshot in snapshots:
+            phase_key = snapshot.get("phase_uuid") or "legacy"
+            if phase_key not in phase_keys:
+                phase_keys.append(phase_key)
+        phase_ids: dict[str, int] = {}
+        for position, phase_key in enumerate(phase_keys or ["legacy"]):
+            scheduled = phase_schedule.get(phase_key, {})
+            phase = PlanPhase(
+                phase_uuid=f"plan_phase_{uuid4()}", plan_id=int(plan.id),
+                name=next((item.get("phase_name") for item in snapshots if (item.get("phase_uuid") or "legacy") == phase_key), None) or "Phase 1",
+                position=position, start_date=None, due_date=scheduled.get("end_date"),
+                creation_date=now, update_date=now,
+            )
+            db.add(phase)
+            db.flush()
+            phase_ids[phase_key] = int(phase.id)
+        for position, snapshot in enumerate(snapshots):
+            scheduled = objective_schedule.get(snapshot.get("objective_uuid"), {})
+            fields = _materialized_objective_fields(db, snapshot)
+            objective = PlanObjective(
+                objective_uuid=f"plan_objective_{uuid4()}", plan_id=int(plan.id),
+                phase_id=phase_ids[snapshot.get("phase_uuid") or "legacy"],
+                source_objective_id=snapshot.get("id"), title=snapshot.get("title") or "Objective",
+                description=snapshot.get("description") or "", kind="custom",
+                position=position, badge_id=snapshot.get("badge_id"),
+                badge_major_version=snapshot.get("badge_major_version"), fields=fields,
+                start_date=None,
+                due_date=scheduled.get("due_date") if scheduled.get("due_rule") == "specific_date" else None,
+                allow_late=bool(scheduled.get("allow_late")), creation_date=now, update_date=now,
+                completion_restricted=bool(not snapshot.get("allow_learner_confirmation", False)),
+            )
+            db.add(objective)
+            db.flush()
+            old = db.exec(select(ObjectiveProgress).where(
+                ObjectiveProgress.org_id == assignment.org_id,
+                ObjectiveProgress.objective_id == snapshot.get("id"),
+                ObjectiveProgress.user_id == participant.user_id,
+            )).first()
+            old_status = str(old.status.value if old and hasattr(old.status, "value") else old.status if old else "not_started")
+            progress_status = {"flagged": "changes_requested", "ready_for_review": "submitted"}.get(old_status, old_status)
+            db.add(PlanObjectiveProgress(
+                progress_uuid=f"plan_progress_{uuid4()}", plan_objective_id=int(objective.id),
+                status=progress_status, field_values={"legacy_evidence": old.evidence or []} if old else {},
+                subject_note=old.learner_note if old else "", reviewer_note=old.staff_note if old else "",
+                feedback_history=old.feedback_history or [] if old else [], completed_at=old.completed_at if old else None,
+                updated_by_user_id=old.completed_by_user_id if old else None,
+                creation_date=old.creation_date if old else now, update_date=old.update_date if old else now,
+            ))
+        db.flush()
+        _link_legacy_learning_runs(db, assignment.id, participant.id, participant.user_id, plan)
+        invitation_status = {
+            ParticipantStatus.INVITED: PlanInvitationStatus.PENDING,
+            ParticipantStatus.DECLINED: PlanInvitationStatus.DECLINED,
+            ParticipantStatus.LEFT: PlanInvitationStatus.REVOKED,
+        }.get(participant.status)
+        if invitation_status:
+            target = db.get(User, participant.user_id)
+            if target:
+                email = str(target.email)
+                invitation = PlanInvitation(
+                    invitation_uuid=f"plan_invitation_{uuid4()}", plan_id=int(plan.id),
+                    kind=PlanInvitationKind.SUBJECT, email=email, email_normalized=email.strip().lower(),
+                    target_user_id=participant.user_id, role_id=int(roles[subject_role_key].id),
+                    status=invitation_status, invited_by_user_id=int(owner_id),
+                    viewed_at=participant.viewed_at, responded_at=participant.responded_at,
+                    creation_date=participant.creation_date or now, update_date=now,
+                )
+                db.add(invitation)
+                _create_plan_invitation_message(
+                    db, plan, invitation, roles[subject_role_key].name
+                )
+
+
+def materialize_external_assignment_plan(db: Session, assignment_id: int, subject_email: str) -> None:
+    """Materialize a pending plan for a subject who does not have an account yet."""
+    from src.db.programs import Program, ProgramAssignment
+
+    assignment = db.get(ProgramAssignment, assignment_id)
+    if not assignment or db.exec(select(Plan.id).where(
+        Plan.source_assignment_id == assignment_id,
+        Plan.subject_user_id.is_(None),
+    )).first() is not None:
+        return
+    program = db.get(Program, assignment.program_id)
+    if not program:
+        return
+    owner_id = assignment.owner_user_id or assignment.created_by_user_id or program.created_by_user_id
+    if not owner_id:
+        raise HTTPException(status_code=422, detail="An external subject assignment requires an owner")
+    now = _now_string()
+    plan = Plan(
+        plan_uuid=f"plan_{uuid4()}", slug=_unique_slug(db, f"{program.name}-{uuid4().hex[:8]}"),
+        name=program.name, description=program.description, status=PlanStatus.PENDING,
+        subject_user_id=None, owner_user_id=int(owner_id), source_org_id=assignment.org_id,
+        source_program_id=program.id, source_assignment_id=assignment.id,
+        start_date=assignment.start_date.date() if assignment.start_date else None,
+        due_date=assignment.due_date.date() if assignment.due_date else None,
+        creation_date=now, update_date=now,
+    )
+    db.add(plan)
+    db.flush()
+    roles = _seed_roles(db, plan, program.role_definitions or None)
+    subject_role_key = program.default_subject_role_key or "subject"
+    staff_role_key = program.default_staff_role_key or "reviewer"
+    if subject_role_key not in roles or staff_role_key not in roles or "plan_admin" not in roles:
+        raise HTTPException(status_code=422, detail="Plan template default roles are invalid")
+    collaborator_roles: dict[int, str] = {int(owner_id): "plan_admin"}
+    collaborator_definitions = assignment.collaborators or [
+        {"user_id": staff_id, "role_key": staff_role_key} for staff_id in (assignment.staff_user_ids or [])
+    ]
+    for collaborator in collaborator_definitions:
+        collaborator_user_id = int(collaborator["user_id"])
+        role_key = str(collaborator.get("role_key") or staff_role_key)
+        if collaborator_user_id == int(owner_id) and role_key == "plan_admin":
+            continue
+        if role_key not in roles or role_key in {"subject", "plan_admin"}:
+            raise HTTPException(status_code=422, detail=f"Invalid assignment collaborator role: {role_key}")
+        collaborator_roles.setdefault(collaborator_user_id, role_key)
+    for user_id, role_key in collaborator_roles.items():
+        db.add(PlanCollaborator(
+            collaborator_uuid=f"plan_collaborator_{uuid4()}", plan_id=int(plan.id),
+            user_id=user_id, role_id=int(roles[role_key].id), creation_date=now, update_date=now,
+        ))
+
+    schedule = assignment.schedule or {}
+    phase_schedule = {item.get("phase_uuid"): item for item in schedule.get("phases", [])}
+    objective_schedule = {item.get("objective_uuid"): item for item in schedule.get("objectives", [])}
+    snapshots = assignment.objective_snapshot or []
+    phase_keys = list(dict.fromkeys(item.get("phase_uuid") or "legacy" for item in snapshots)) or ["legacy"]
+    phase_ids: dict[str, int] = {}
+    for position, phase_key in enumerate(phase_keys):
+        scheduled = phase_schedule.get(phase_key, {})
+        phase = PlanPhase(
+            phase_uuid=f"plan_phase_{uuid4()}", plan_id=int(plan.id),
+            name=next((item.get("phase_name") for item in snapshots if (item.get("phase_uuid") or "legacy") == phase_key), None) or "Phase 1",
+            position=position, start_date=None, due_date=scheduled.get("end_date"),
+            creation_date=now, update_date=now,
+        )
+        db.add(phase)
+        db.flush()
+        phase_ids[phase_key] = int(phase.id)
+    for position, snapshot in enumerate(snapshots):
+        scheduled = objective_schedule.get(snapshot.get("objective_uuid"), {})
+        objective = PlanObjective(
+            objective_uuid=f"plan_objective_{uuid4()}", plan_id=int(plan.id),
+            phase_id=phase_ids[snapshot.get("phase_uuid") or "legacy"],
+            source_objective_id=snapshot.get("id"), title=snapshot.get("title") or "Objective",
+            description=snapshot.get("description") or "", kind="custom",
+            position=position, badge_id=snapshot.get("badge_id"),
+            badge_major_version=snapshot.get("badge_major_version"),
+            fields=_materialized_objective_fields(db, snapshot),
+            start_date=None,
+            due_date=scheduled.get("due_date") if scheduled.get("due_rule") == "specific_date" else None,
+            allow_late=bool(scheduled.get("allow_late")), creation_date=now, update_date=now,
+            completion_restricted=bool(not snapshot.get("allow_learner_confirmation", False)),
+        )
+        db.add(objective)
+        db.flush()
+        db.add(PlanObjectiveProgress(
+            progress_uuid=f"plan_progress_{uuid4()}", plan_objective_id=int(objective.id),
+            creation_date=now, update_date=now,
+        ))
+    normalized = subject_email.strip().lower()
+    invitation = PlanInvitation(
+        invitation_uuid=f"plan_invitation_{uuid4()}", plan_id=int(plan.id),
+        kind=PlanInvitationKind.SUBJECT, email=subject_email.strip(), email_normalized=normalized,
+        role_id=int(roles[subject_role_key].id), status=PlanInvitationStatus.PENDING,
+        invited_by_user_id=int(owner_id), creation_date=now, update_date=now,
+    )
+    db.add(invitation)
+    _create_plan_invitation_message(db, plan, invitation, roles[subject_role_key].name)
+
+
+def _link_legacy_learning_runs(
+    db: Session,
+    assignment_id: int,
+    participant_id: int,
+    user_id: int,
+    plan: Plan,
+) -> None:
+    """Attach unambiguous legacy assignment runs to a materialized live plan."""
+    objectives = db.exec(select(PlanObjective).where(
+        PlanObjective.plan_id == plan.id,
+        PlanObjective.badge_id.is_not(None),
+    )).all()
+    objectives_by_badge: dict[int, list[PlanObjective]] = {}
+    for objective in objectives:
+        objectives_by_badge.setdefault(int(objective.badge_id), []).append(objective)
+
+    runs = db.exec(select(LearningRun).where(
+        LearningRun.program_assignment_id == assignment_id,
+        LearningRun.badge_id.in_(list(objectives_by_badge)),
+    )).all() if objectives_by_badge else []
+    for run in runs:
+        belongs_to_participant = (
+            run.program_participant_id == participant_id
+            or (run.program_participant_id is None and run.user_id == user_id)
+        )
+        candidates = objectives_by_badge.get(run.badge_id, [])
+        if not belongs_to_participant or len(candidates) != 1:
+            continue
+        if run.plan_id not in {None, plan.id} or run.plan_objective_id is not None:
+            continue
+        run.plan_id = plan.id
+        run.plan_objective_id = candidates[0].id
+        db.add(run)
+
+
+def get_plan(db: Session, current_user: PublicUser, identifier: str) -> dict:
+    plan = _plan_or_404(db, identifier)
+    _require(db, plan, current_user.id, "view_plan")
+    return _plan_dict(db, plan, current_user.id, True)
+
+
+def _require_individual_definition(db: Session, plan: Plan) -> None:
+    """Group assignment definitions are edited once at the batch boundary."""
+    if not plan.source_assignment_id:
+        return
+    from src.db.programs import ProgramAssignment
+    assignment = db.get(ProgramAssignment, plan.source_assignment_id)
+    if assignment and assignment.usergroup_id:
+        raise HTTPException(status_code=409, detail={
+            "message": "Group plan structure is shared. Edit the group workspace instead.",
+            "assignment_uuid": assignment.assignment_uuid,
+            "group_workspace": f"/plans?group={assignment.assignment_uuid}",
+        })
+
+
+def resolve_legacy_plan(db: Session, current_user: PublicUser, legacy_identifier: str) -> dict:
+    from src.db.programs import Program, ProgramAssignment, ProgramParticipant
+
+    plan = db.exec(select(Plan).where(
+        Plan.subject_user_id == current_user.id,
+        Plan.source_program_id.is_not(None),
+    ).join(Program, Program.id == Plan.source_program_id).where(
+        (Program.slug == legacy_identifier) | (Program.program_uuid == legacy_identifier),
+    ).order_by(Plan.update_date.desc())).first()
+    if not plan:
+        participant = db.exec(select(ProgramParticipant).where(
+            ProgramParticipant.participant_uuid == legacy_identifier,
+            ProgramParticipant.user_id == current_user.id,
+        )).first()
+        if participant:
+            assignment = db.get(ProgramAssignment, participant.assignment_id)
+            plan = db.exec(select(Plan).where(
+                Plan.source_assignment_id == (assignment.id if assignment else -1),
+                Plan.subject_user_id == current_user.id,
+            )).first()
+    if not plan:
+        raise HTTPException(status_code=404, detail="Migrated plan not found")
+    return {"plan_uuid": plan.plan_uuid, "slug": plan.slug}
+
+
+def update_plan(db: Session, current_user: PublicUser, identifier: str, payload: PlanUpdate) -> dict:
+    plan = _plan_or_404(db, identifier)
+    changes = payload.model_dump(exclude_unset=True)
+    if changes:
+        _require_individual_definition(db, plan)
+    if {"name", "description", "priority"} & set(changes):
+        _require(db, plan, current_user.id, "edit_plan_details")
+    if {"start_date", "due_date"} & set(changes):
+        _require(db, plan, current_user.id, "edit_schedule")
+    if "name" in changes:
+        changes["name"] = str(changes["name"] or "").strip()
+        if not changes["name"]:
+            raise HTTPException(status_code=422, detail="Plan name is required")
+    next_due = changes.get("due_date", plan.due_date)
+    next_start = changes.get("start_date", plan.start_date)
+    if next_due is None:
+        raise HTTPException(status_code=422, detail="A target completion date is required")
+    if next_start and next_start > next_due:
+        raise HTTPException(status_code=422, detail="Plan target date must be on or after its start date")
+    phase_dates = [item.due_date for item in db.exec(select(PlanPhase).where(PlanPhase.plan_id == plan.id)).all() if item.due_date]
+    objective_dates = [item.due_date for item in db.exec(select(PlanObjective).where(PlanObjective.plan_id == plan.id)).all() if item.due_date]
+    if any(value > next_due for value in [*phase_dates, *objective_dates]):
+        raise HTTPException(status_code=422, detail="Plan target date cannot be before a phase or objective target date")
+    for key, value in changes.items():
+        setattr(plan, key, value)
+    plan.update_date = _now_string()
+    db.add(plan)
+    _activity(db, plan, current_user.id, "plan.updated", {"fields": list(changes)})
+    db.commit()
+    return _plan_dict(db, plan, current_user.id, True)
+
+
+def change_plan_status(db: Session, current_user: PublicUser, identifier: str, status: PlanStatus) -> dict:
+    plan = _plan_or_404(db, identifier)
+    permission = "complete_plan" if status in {PlanStatus.COMPLETED, PlanStatus.ACTIVE} else "archive_plan"
+    _require(db, plan, current_user.id, permission)
+    plan.status = status
+    plan.completed_at = _now() if status == PlanStatus.COMPLETED else None
+    plan.update_date = _now_string()
+    db.add(plan)
+    _activity(db, plan, current_user.id, f"plan.{status.value}")
+    db.commit()
+    return _plan_dict(db, plan, current_user.id, True)
+
+
+def delete_plan(db: Session, current_user: PublicUser, identifier: str) -> dict:
+    plan = _plan_or_404(db, identifier)
+    if plan.owner_user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the plan owner can delete this plan")
+    uuid = plan.plan_uuid
+    db.delete(plan)
+    db.commit()
+    return {"deleted": True, "plan_uuid": uuid}
+
+
+def _phase_date_bounds(db: Session, plan: Plan, phase: PlanPhase | None) -> tuple[date | None, date | None]:
+    if not phase:
+        return plan.start_date, plan.due_date
+    phases = db.exec(select(PlanPhase).where(PlanPhase.plan_id == plan.id).order_by(PlanPhase.position)).all()
+    index = next((index for index, item in enumerate(phases) if item.id == phase.id), 0)
+    prior_due = next((item.due_date for item in reversed(phases[:index]) if item.due_date), plan.start_date)
+    return prior_due, phase.due_date or plan.due_date
+
+
+def create_phase(db: Session, current_user: PublicUser, identifier: str, payload: PlanPhaseCreate) -> dict:
+    plan = _plan_or_404(db, identifier)
+    _require_individual_definition(db, plan)
+    _require(db, plan, current_user.id, "edit_structure")
+    phase_uuid = (
+        f"plan_phase_{uuid5(NAMESPACE_URL, f'launchlms:{plan.plan_uuid}:{payload.request_key}')}"
+        if payload.request_key else f"plan_phase_{uuid4()}"
+    )
+    existing = db.exec(select(PlanPhase).where(
+        PlanPhase.plan_id == plan.id, PlanPhase.phase_uuid == phase_uuid,
+    )).first()
+    if existing:
+        result = _plan_dict(db, plan, current_user.id, True)
+        result["created_phase_uuid"] = existing.phase_uuid
+        return result
+    if payload.start_date is not None or payload.due_date is not None:
+        _require(db, plan, current_user.id, "edit_schedule")
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="Phase name is required")
+    if payload.due_date and plan.due_date and payload.due_date > plan.due_date:
+        raise HTTPException(status_code=422, detail="Phase target date must be within the plan target date")
+    existing_phases = db.exec(select(PlanPhase).where(PlanPhase.plan_id == plan.id).order_by(PlanPhase.position)).all()
+    position = min(payload.position if payload.position is not None else len(existing_phases), len(existing_phases))
+    prior_due = next((item.due_date for item in reversed(existing_phases[:position]) if item.due_date), plan.start_date)
+    next_due = next((item.due_date for item in existing_phases[position:] if item.due_date), plan.due_date)
+    if payload.due_date and prior_due and payload.due_date < prior_due:
+        raise HTTPException(status_code=422, detail="Phase target date cannot be before the previous phase")
+    if payload.due_date and next_due and payload.due_date > next_due:
+        raise HTTPException(status_code=422, detail="Phase target date cannot be after the next phase")
+    for item in existing_phases[position:]:
+        item.position += 1
+        db.add(item)
+    now = _now_string()
+    db.add(PlanPhase(
+        phase_uuid=phase_uuid, plan_id=int(plan.id), name=name,
+        description=payload.description, position=position, start_date=payload.start_date,
+        due_date=payload.due_date, creation_date=now, update_date=now,
+    ))
+    plan.update_date = now
+    db.add(plan)
+    _activity(db, plan, current_user.id, "phase.created", {"name": name})
+    db.commit()
+    result = _plan_dict(db, plan, current_user.id, True)
+    result["created_phase_uuid"] = phase_uuid
+    return result
+
+
+def update_phase(db: Session, current_user: PublicUser, identifier: str, phase_uuid: str, payload: PlanPhaseUpdate) -> dict:
+    plan = _plan_or_404(db, identifier)
+    _require_individual_definition(db, plan)
+    phase = db.exec(select(PlanPhase).where(PlanPhase.plan_id == plan.id, PlanPhase.phase_uuid == phase_uuid)).first()
+    if not phase:
+        raise HTTPException(status_code=404, detail="Plan phase not found")
+    changes = payload.model_dump(exclude_unset=True)
+    structure_fields = {"name", "description", "position"} & set(changes)
+    schedule_fields = {"start_date", "due_date"} & set(changes)
+    if structure_fields:
+        _require(db, plan, current_user.id, "edit_structure")
+    if schedule_fields:
+        _require(db, plan, current_user.id, "edit_schedule")
+    if not changes:
+        return _plan_dict(db, plan, current_user.id, True)
+    if "name" in changes:
+        changes["name"] = str(changes["name"] or "").strip()
+        if not changes["name"]:
+            raise HTTPException(status_code=422, detail="Phase name is required")
+    if "position" in changes:
+        changes["position"] = max(0, int(changes["position"]))
+    next_due = changes.get("due_date", phase.due_date)
+    if next_due and plan.due_date and next_due > plan.due_date:
+        raise HTTPException(status_code=422, detail="Phase target date must be within the plan target date")
+    objective_dates = [item.due_date for item in db.exec(select(PlanObjective).where(PlanObjective.phase_id == phase.id)).all() if item.due_date]
+    if next_due and any(value > next_due for value in objective_dates):
+        raise HTTPException(status_code=422, detail="Phase target date cannot be before an objective target date")
+    phases = db.exec(select(PlanPhase).where(PlanPhase.plan_id == plan.id).order_by(PlanPhase.position)).all()
+    phase_index = next((index for index, item in enumerate(phases) if item.id == phase.id), 0)
+    prior_due = next((item.due_date for item in reversed(phases[:phase_index]) if item.due_date), plan.start_date)
+    next_phase_due = next((item.due_date for item in phases[phase_index + 1:] if item.due_date), plan.due_date)
+    if next_due and prior_due and next_due < prior_due:
+        raise HTTPException(status_code=422, detail="Phase target date cannot be before the previous phase")
+    if next_due and next_phase_due and next_due > next_phase_due:
+        raise HTTPException(status_code=422, detail="Phase target date cannot be after the next phase")
+    for key, value in changes.items():
+        setattr(phase, key, value)
+    phase.update_date = _now_string()
+    plan.update_date = phase.update_date
+    db.add(phase)
+    db.add(plan)
+    _activity(db, plan, current_user.id, "phase.updated", {"phase_uuid": phase_uuid, "fields": sorted(changes)})
+    db.commit()
+    return _plan_dict(db, plan, current_user.id, True)
+
+
+def delete_phase(db: Session, current_user: PublicUser, identifier: str, phase_uuid: str) -> dict:
+    plan = _plan_or_404(db, identifier)
+    _require_individual_definition(db, plan)
+    _require(db, plan, current_user.id, "edit_structure")
+    phase = db.exec(select(PlanPhase).where(PlanPhase.plan_id == plan.id, PlanPhase.phase_uuid == phase_uuid)).first()
+    if not phase:
+        raise HTTPException(status_code=404, detail="Plan phase not found")
+    if db.exec(select(PlanObjective.id).where(PlanObjective.phase_id == phase.id)).first() is not None:
+        raise HTTPException(status_code=409, detail="Move or remove this phase's objectives first")
+    db.delete(phase)
+    _activity(db, plan, current_user.id, "phase.deleted", {"phase_uuid": phase_uuid})
+    db.commit()
+    return {"deleted": True, "phase_uuid": phase_uuid}
+
+
+def create_objective(db: Session, current_user: PublicUser, identifier: str, payload: PlanObjectiveCreate) -> dict:
+    plan = _plan_or_404(db, identifier)
+    _require_individual_definition(db, plan)
+    _require(db, plan, current_user.id, "edit_structure")
+    objective_uuid = (
+        f"plan_objective_{uuid5(NAMESPACE_URL, f'launchlms:{plan.plan_uuid}:{payload.request_key}')}"
+        if payload.request_key else f"plan_objective_{uuid4()}"
+    )
+    existing = db.exec(select(PlanObjective).where(
+        PlanObjective.plan_id == plan.id,
+        PlanObjective.objective_uuid == objective_uuid,
+    )).first()
+    if existing:
+        result = _plan_dict(db, plan, current_user.id, True)
+        result["created_objective_uuid"] = existing.objective_uuid
+        return result
+    if payload.start_date is not None or payload.due_date is not None or payload.allow_late:
+        _require(db, plan, current_user.id, "edit_schedule")
+    title = payload.title.strip()
+    if not title:
+        raise HTTPException(status_code=422, detail="Objective title is required")
+    if payload.kind == "badge" or payload.badge_uuid:
+        raise HTTPException(status_code=422, detail="Badges must be added as objective steps")
+    phase = db.exec(select(PlanPhase).where(PlanPhase.plan_id == plan.id, PlanPhase.phase_uuid == payload.phase_uuid)).first() if payload.phase_uuid else db.exec(select(PlanPhase).where(PlanPhase.plan_id == plan.id).order_by(PlanPhase.position)).first()
+    target_start, target_limit = _phase_date_bounds(db, plan, phase)
+    if payload.due_date and target_limit and payload.due_date > target_limit:
+        raise HTTPException(status_code=422, detail="Objective target date must be within its phase")
+    if payload.due_date and target_start and payload.due_date < target_start:
+        raise HTTPException(status_code=422, detail="Objective target date must be within its phase")
+    fields = _validated_plan_steps(db, payload.fields)
+    badges = _badges_for_requirement_fields(db, fields)
+    position = len(db.exec(select(PlanObjective).where(PlanObjective.plan_id == plan.id)).all())
+    now = _now_string()
+    objective = PlanObjective(
+        objective_uuid=objective_uuid, plan_id=int(plan.id), phase_id=phase.id if phase else None,
+        title=title, description=payload.description, kind="custom", position=position,
+        priority=max(0, min(3, payload.priority)), badge_id=badges[0].id if badges else None,
+        fields=fields, start_date=payload.start_date, due_date=payload.due_date,
+        allow_late=payload.allow_late, completion_restricted=payload.completion_restricted,
+        creation_date=now, update_date=now,
+    )
+    db.add(objective)
+    db.flush()
+    _progress_for(db, objective)
+    plan.update_date = now
+    db.add(plan)
+    _activity(db, plan, current_user.id, "objective.created", {"objective_uuid": objective.objective_uuid})
+    db.commit()
+    result = _plan_dict(db, plan, current_user.id, True)
+    result["created_objective_uuid"] = objective.objective_uuid
+    return result
+
+
+def update_objective(db: Session, current_user: PublicUser, identifier: str, objective_uuid: str, payload: PlanObjectiveUpdate) -> dict:
+    plan = _plan_or_404(db, identifier)
+    _require_individual_definition(db, plan)
+    objective = db.exec(select(PlanObjective).where(PlanObjective.plan_id == plan.id, PlanObjective.objective_uuid == objective_uuid)).first()
+    if not objective:
+        raise HTTPException(status_code=404, detail="Objective not found")
+    changes = payload.model_dump(exclude_unset=True)
+    structure_fields = {"phase_uuid", "position", "title", "description", "priority", "fields", "blocked", "completion_restricted"} & set(changes)
+    schedule_fields = {"start_date", "due_date", "allow_late"} & set(changes)
+    if structure_fields:
+        _require(db, plan, current_user.id, "edit_structure")
+    if schedule_fields:
+        _require(db, plan, current_user.id, "edit_schedule")
+    if "title" in changes:
+        changes["title"] = str(changes["title"] or "").strip()
+        if not changes["title"]:
+            raise HTTPException(status_code=422, detail="Objective title is required")
+    if "priority" in changes:
+        changes["priority"] = max(0, min(3, int(changes["priority"])))
+    if "position" in changes:
+        changes["position"] = max(0, int(changes["position"]))
+    phase = db.get(PlanPhase, objective.phase_id) if objective.phase_id else None
+    if "phase_uuid" in changes:
+        phase_uuid = changes.pop("phase_uuid")
+        phase = db.exec(select(PlanPhase).where(PlanPhase.plan_id == plan.id, PlanPhase.phase_uuid == phase_uuid)).first() if phase_uuid else None
+        if phase_uuid and not phase:
+            raise HTTPException(status_code=404, detail="Plan phase not found")
+        objective.phase_id = phase.id if phase else None
+    next_due = changes.get("due_date", objective.due_date)
+    target_start, target_limit = _phase_date_bounds(db, plan, phase)
+    if next_due and target_limit and next_due > target_limit:
+        raise HTTPException(status_code=422, detail="Objective target date must be within its phase")
+    if next_due and target_start and next_due < target_start:
+        raise HTTPException(status_code=422, detail="Objective target date must be within its phase")
+    if "fields" in changes:
+        if _progress_for(db, objective).status == PlanObjectiveStatus.COMPLETED:
+            raise HTTPException(status_code=409, detail="Reopen this objective before changing its supporting items")
+        changes["fields"] = _validated_plan_steps(db, changes["fields"])
+        requirement_badges = _badges_for_requirement_fields(db, changes["fields"])
+        objective.badge_id = requirement_badges[0].id if requirement_badges else None
+    for key, value in changes.items():
+        setattr(objective, key, value)
+    objective.kind = "custom"
+    objective.update_date = _now_string()
+    plan.update_date = objective.update_date
+    db.add(objective)
+    db.add(plan)
+    _activity(db, plan, current_user.id, "objective.updated", {"objective_uuid": objective_uuid, "fields": sorted(payload.model_dump(exclude_unset=True))})
+    db.commit()
+    return _plan_dict(db, plan, current_user.id, True)
+
+
+def delete_objective(db: Session, current_user: PublicUser, identifier: str, objective_uuid: str) -> dict:
+    plan = _plan_or_404(db, identifier)
+    _require_individual_definition(db, plan)
+    _require(db, plan, current_user.id, "edit_structure")
+    objective = db.exec(select(PlanObjective).where(PlanObjective.plan_id == plan.id, PlanObjective.objective_uuid == objective_uuid)).first()
+    if not objective:
+        raise HTTPException(status_code=404, detail="Objective not found")
+    db.delete(objective)
+    _activity(db, plan, current_user.id, "objective.deleted", {"objective_uuid": objective_uuid})
+    db.commit()
+    return {"deleted": True, "objective_uuid": objective_uuid}
+
+
+def update_objective_progress(db: Session, current_user: PublicUser, identifier: str, objective_uuid: str, payload: PlanObjectiveProgressUpdate) -> dict:
+    plan = _plan_or_404(db, identifier)
+    capabilities = _require(db, plan, current_user.id, "view_plan")
+    objective = db.exec(select(PlanObjective).where(PlanObjective.plan_id == plan.id, PlanObjective.objective_uuid == objective_uuid)).first()
+    if not objective:
+        raise HTTPException(status_code=404, detail="Objective not found")
+    reviewing = payload.status in {PlanObjectiveStatus.CHANGES_REQUESTED, PlanObjectiveStatus.COMPLETED} and "complete_restricted_objectives" in capabilities
+    if not reviewing and "update_progress" not in capabilities:
+        raise HTTPException(status_code=403, detail="You cannot update this objective")
+    if payload.status == PlanObjectiveStatus.CHANGES_REQUESTED and "complete_restricted_objectives" not in capabilities:
+        raise HTTPException(status_code=403, detail="You cannot request changes on this objective")
+    if payload.status == PlanObjectiveStatus.COMPLETED and objective.completion_restricted and "complete_restricted_objectives" not in capabilities:
+        raise HTTPException(status_code=403, detail="This objective must be completed by someone who can complete restricted objectives")
+    progress = _progress_for(db, objective)
+    progress.status = payload.status
+    if payload.field_values is not None:
+        definitions = {
+            str(field.get("field_uuid") or field.get("key") or ""): field
+            for field in objective.fields or []
+            if field.get("field_uuid") or field.get("key")
+        }
+        unknown = set(payload.field_values) - set(definitions)
+        if unknown:
+            raise HTTPException(status_code=422, detail=f"Unknown objective fields: {', '.join(sorted(unknown))}")
+        for field_key in payload.field_values:
+            definition = definitions[field_key]
+            legacy_lane = str(definition.get("access") or definition.get("lane") or "contributor")
+            restricted = bool(definition.get("restricted", legacy_lane in {"reviewer", "staff"}))
+            required_capability = "contribute_restricted_fields" if restricted else "contribute_fields"
+            allowed = required_capability in capabilities
+            if not allowed:
+                field_type = "restricted " if restricted else ""
+                raise HTTPException(status_code=403, detail=f"You cannot contribute to the {field_type}field '{field_key}'")
+        progress.field_values = {**(progress.field_values or {}), **payload.field_values}
+    if payload.note is not None:
+        if reviewing:
+            progress.reviewer_note = payload.note
+            if payload.status == PlanObjectiveStatus.CHANGES_REQUESTED:
+                progress.feedback_history = [*(progress.feedback_history or []), {"message": payload.note, "user_id": current_user.id, "created_at": _now_string()}]
+        else:
+            progress.subject_note = payload.note
+    progress.completed_at = _now() if payload.status == PlanObjectiveStatus.COMPLETED else None
+    progress.updated_by_user_id = current_user.id
+    progress.update_date = _now_string()
+    db.add(progress)
+    db.flush()
+    if reviewing or payload.status != PlanObjectiveStatus.COMPLETED:
+        from src.services.requirements import sync_live_progress
+        sync_live_progress(db, progress, objective, plan)
+    _activity(db, plan, current_user.id, "objective.progress", {"objective_uuid": objective_uuid, "status": payload.status.value})
+    db.commit()
+    return _objective_dict(db, plan, objective, capabilities)
+
+
+def create_role(db: Session, current_user: PublicUser, identifier: str, payload: PlanRoleCreate) -> dict:
+    plan = _plan_or_404(db, identifier)
+    _require_individual_definition(db, plan)
+    _require(db, plan, current_user.id, "manage_roles")
+    key = _slug(payload.key).replace("-", "_")
+    invalid = set(payload.capabilities) - ALL_CAPABILITIES
+    if invalid:
+        raise HTTPException(status_code=422, detail=f"Unknown capabilities: {', '.join(sorted(invalid))}")
+    existing_keys = set(db.exec(select(PlanRole.key).where(PlanRole.plan_id == plan.id)).all())
+    if key in existing_keys:
+        raise HTTPException(status_code=409, detail="Role key already exists")
+    if set(payload.grantable_role_keys) - existing_keys:
+        raise HTTPException(status_code=422, detail="A grantable role does not exist")
+    _validate_role_authority(db, plan, current_user.id, payload.capabilities, payload.grantable_role_keys)
+    now = _now_string()
+    role = PlanRole(role_uuid=f"plan_role_{uuid4()}", plan_id=int(plan.id), key=key, name=payload.name.strip() or key, capabilities=payload.capabilities, grantable_role_keys=payload.grantable_role_keys, creation_date=now, update_date=now)
+    db.add(role)
+    _activity(db, plan, current_user.id, "role.created", {"key": key})
+    db.commit()
+    db.refresh(role)
+    return {"role_uuid": role.role_uuid, "key": role.key, "name": role.name, "capabilities": role.capabilities, "grantable_role_keys": role.grantable_role_keys}
+
+
+def _validate_role_authority(db: Session, plan: Plan, actor_user_id: int, capabilities: list[str], grantable_role_keys: list[str]) -> None:
+    if plan.owner_user_id == actor_user_id:
+        return
+    actor = _collaboration(db, int(plan.id), actor_user_id)
+    if actor and actor[1].key == "plan_admin":
+        return
+    actor_capabilities = _normalized_capabilities(actor[1].capabilities) if actor else set()
+    actor_grants = set(actor[1].grantable_role_keys or []) if actor else set()
+    if set(capabilities) - actor_capabilities or set(grantable_role_keys) - actor_grants:
+        raise HTTPException(status_code=403, detail="A role cannot grant permissions beyond your own")
+
+
+def update_role(db: Session, current_user: PublicUser, identifier: str, role_uuid: str, payload: PlanRoleUpdate) -> dict:
+    plan = _plan_or_404(db, identifier)
+    _require_individual_definition(db, plan)
+    _require(db, plan, current_user.id, "manage_roles")
+    role = db.exec(select(PlanRole).where(PlanRole.plan_id == plan.id, PlanRole.role_uuid == role_uuid)).first()
+    if not role:
+        raise HTTPException(status_code=404, detail="Plan role not found")
+    if role.key == "plan_admin":
+        raise HTTPException(status_code=422, detail="The plan admin role is locked with all permissions")
+    changes = payload.model_dump(exclude_unset=True)
+    capabilities = changes.get("capabilities", role.capabilities or [])
+    grantable = changes.get("grantable_role_keys", role.grantable_role_keys or [])
+    invalid = set(capabilities) - ALL_CAPABILITIES
+    if invalid:
+        raise HTTPException(status_code=422, detail=f"Unknown capabilities: {', '.join(sorted(invalid))}")
+    existing_keys = set(db.exec(select(PlanRole.key).where(PlanRole.plan_id == plan.id)).all())
+    if set(grantable) - existing_keys:
+        raise HTTPException(status_code=422, detail="A grantable role does not exist")
+    _validate_role_authority(db, plan, current_user.id, capabilities, grantable)
+    if "name" in changes:
+        changes["name"] = str(changes["name"] or "").strip()
+        if not changes["name"]:
+            raise HTTPException(status_code=422, detail="Role name is required")
+    for key, value in changes.items():
+        setattr(role, key, value)
+    role.update_date = _now_string()
+    db.add(role)
+    _activity(db, plan, current_user.id, "role.updated", {"role_uuid": role_uuid, "fields": sorted(changes)})
+    db.commit()
+    return {"role_uuid": role.role_uuid, "key": role.key, "name": role.name, "capabilities": role.capabilities, "grantable_role_keys": role.grantable_role_keys}
+
+
+def delete_role(db: Session, current_user: PublicUser, identifier: str, role_uuid: str) -> dict:
+    plan = _plan_or_404(db, identifier)
+    _require_individual_definition(db, plan)
+    _require(db, plan, current_user.id, "manage_roles")
+    role = db.exec(select(PlanRole).where(PlanRole.plan_id == plan.id, PlanRole.role_uuid == role_uuid)).first()
+    if not role:
+        raise HTTPException(status_code=404, detail="Plan role not found")
+    if role.key in {"subject", "reviewer", "plan_admin", "viewer"}:
+        raise HTTPException(status_code=422, detail="Default plan roles cannot be deleted")
+    if db.exec(select(PlanCollaborator.id).where(PlanCollaborator.role_id == role.id, PlanCollaborator.active == True)).first() is not None:  # noqa: E712
+        raise HTTPException(status_code=409, detail="Reassign collaborators before deleting this role")
+    db.delete(role)
+    _activity(db, plan, current_user.id, "role.deleted", {"role_uuid": role_uuid, "key": role.key})
+    db.commit()
+    return {"deleted": True, "role_uuid": role_uuid}
+
+
+def _organization_role_dict(role: OrganizationPlanRole) -> dict:
+    return {"role_uuid": role.role_uuid, "key": role.key, "name": role.name, "capabilities": role.capabilities or []}
+
+
+def _materialize_organization_role(db: Session, plan: Plan, role: OrganizationPlanRole) -> PlanRole:
+    local = db.exec(select(PlanRole).where(PlanRole.plan_id == plan.id, PlanRole.key == role.key)).first()
+    if local:
+        return local
+    now = _now_string()
+    local = PlanRole(
+        role_uuid=f"plan_role_{uuid4()}", plan_id=int(plan.id), key=role.key,
+        name=role.name, capabilities=list(role.capabilities or []), grantable_role_keys=[],
+        creation_date=now, update_date=now,
+    )
+    db.add(local)
+    plan_admin = db.exec(select(PlanRole).where(PlanRole.plan_id == plan.id, PlanRole.key == "plan_admin")).first()
+    if plan_admin and role.key not in (plan_admin.grantable_role_keys or []):
+        plan_admin.grantable_role_keys = [*(plan_admin.grantable_role_keys or []), role.key]
+        plan_admin.update_date = now
+        db.add(plan_admin)
+    db.flush()
+    return local
+
+
+def create_organization_role(db: Session, current_user: PublicUser, identifier: str, payload: OrganizationPlanRoleCreate) -> dict:
+    plan = _plan_or_404(db, identifier)
+    _require(db, plan, current_user.id, "manage_roles")
+    if not plan.source_org_id:
+        raise HTTPException(status_code=422, detail="Organization roles require an organization-managed plan")
+    require_org_admin(current_user.id, int(plan.source_org_id), db)
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="Role name is required")
+    invalid = set(payload.capabilities) - ALL_CAPABILITIES
+    if invalid:
+        raise HTTPException(status_code=422, detail=f"Unknown capabilities: {', '.join(sorted(invalid))}")
+    base = _slug(name).replace("-", "_") or "custom_role"
+    key = base
+    suffix = 2
+    reserved = {item["key"] for item in DEFAULT_ROLE_DEFINITIONS}
+    existing = set(db.exec(select(OrganizationPlanRole.key).where(OrganizationPlanRole.org_id == plan.source_org_id)).all()) | reserved
+    while key in existing:
+        key = f"{base}_{suffix}"
+        suffix += 1
+    now = _now_string()
+    role = OrganizationPlanRole(
+        role_uuid=f"org_plan_role_{uuid4()}", org_id=int(plan.source_org_id), key=key,
+        name=name, capabilities=sorted(set(payload.capabilities)), creation_date=now, update_date=now,
+    )
+    db.add(role)
+    db.flush()
+    plans = db.exec(select(Plan).where(Plan.source_org_id == plan.source_org_id)).all()
+    for managed_plan in plans:
+        _materialize_organization_role(db, managed_plan, role)
+    _activity(db, plan, current_user.id, "organization_role.created", {"key": key})
+    db.commit()
+    return _organization_role_dict(role)
+
+
+def update_organization_role(db: Session, current_user: PublicUser, identifier: str, role_uuid: str, payload: OrganizationPlanRoleUpdate) -> dict:
+    plan = _plan_or_404(db, identifier)
+    _require(db, plan, current_user.id, "manage_roles")
+    if not plan.source_org_id:
+        raise HTTPException(status_code=404, detail="Organization role not found")
+    require_org_admin(current_user.id, int(plan.source_org_id), db)
+    role = db.exec(select(OrganizationPlanRole).where(OrganizationPlanRole.org_id == plan.source_org_id, OrganizationPlanRole.role_uuid == role_uuid)).first()
+    if not role:
+        raise HTTPException(status_code=404, detail="Organization role not found")
+    changes = payload.model_dump(exclude_unset=True)
+    if "name" in changes:
+        changes["name"] = str(changes["name"] or "").strip()
+        if not changes["name"]:
+            raise HTTPException(status_code=422, detail="Role name is required")
+    if "capabilities" in changes:
+        invalid = set(changes["capabilities"]) - ALL_CAPABILITIES
+        if invalid:
+            raise HTTPException(status_code=422, detail=f"Unknown capabilities: {', '.join(sorted(invalid))}")
+        changes["capabilities"] = sorted(set(changes["capabilities"]))
+    for key, value in changes.items():
+        setattr(role, key, value)
+    role.update_date = _now_string()
+    db.add(role)
+    plans = db.exec(select(Plan).where(Plan.source_org_id == plan.source_org_id)).all()
+    plan_ids = [int(item.id) for item in plans]
+    local_roles = db.exec(select(PlanRole).where(PlanRole.plan_id.in_(plan_ids), PlanRole.key == role.key)).all() if plan_ids else []
+    for local in local_roles:
+        local.name = role.name
+        local.capabilities = list(role.capabilities or [])
+        local.update_date = role.update_date
+        db.add(local)
+    _activity(db, plan, current_user.id, "organization_role.updated", {"key": role.key, "fields": sorted(changes)})
+    db.commit()
+    return _organization_role_dict(role)
+
+
+def delete_organization_role(db: Session, current_user: PublicUser, identifier: str, role_uuid: str) -> dict:
+    plan = _plan_or_404(db, identifier)
+    _require(db, plan, current_user.id, "manage_roles")
+    if not plan.source_org_id:
+        raise HTTPException(status_code=404, detail="Organization role not found")
+    require_org_admin(current_user.id, int(plan.source_org_id), db)
+    role = db.exec(select(OrganizationPlanRole).where(OrganizationPlanRole.org_id == plan.source_org_id, OrganizationPlanRole.role_uuid == role_uuid)).first()
+    if not role:
+        raise HTTPException(status_code=404, detail="Organization role not found")
+    plans = db.exec(select(Plan).where(Plan.source_org_id == plan.source_org_id)).all()
+    plan_ids = [int(item.id) for item in plans]
+    local_roles = db.exec(select(PlanRole).where(PlanRole.plan_id.in_(plan_ids), PlanRole.key == role.key)).all() if plan_ids else []
+    local_ids = [int(item.id) for item in local_roles]
+    if local_ids and db.exec(select(PlanCollaborator.id).where(PlanCollaborator.role_id.in_(local_ids), PlanCollaborator.active == True)).first() is not None:  # noqa: E712
+        raise HTTPException(status_code=409, detail="Reassign collaborators before deleting this organization role")
+    for local in local_roles:
+        db.delete(local)
+    for managed_plan in plans:
+        plan_admin = db.exec(select(PlanRole).where(PlanRole.plan_id == managed_plan.id, PlanRole.key == "plan_admin")).first()
+        if plan_admin and role.key in (plan_admin.grantable_role_keys or []):
+            plan_admin.grantable_role_keys = [key for key in plan_admin.grantable_role_keys if key != role.key]
+            db.add(plan_admin)
+    db.delete(role)
+    _activity(db, plan, current_user.id, "organization_role.deleted", {"key": role.key})
+    db.commit()
+    return {"deleted": True, "role_uuid": role_uuid}
+
+
+def create_invitation(db: Session, current_user: PublicUser, identifier: str, payload: PlanInvitationCreate) -> dict:
+    plan = _plan_or_404(db, identifier)
+    capability = "manage_collaborators" if payload.kind == PlanInvitationKind.COLLABORATOR else "manage_collaborators"
+    _require(db, plan, current_user.id, capability)
+    actor_row = _collaboration(db, int(plan.id), current_user.id)
+    if payload.kind == PlanInvitationKind.SUBJECT and plan.subject_user_id:
+        raise HTTPException(status_code=409, detail="The plan subject cannot be changed once assigned")
+    role = db.exec(select(PlanRole).where(PlanRole.plan_id == plan.id, PlanRole.key == payload.role_key)).first()
+    if not role and plan.source_org_id:
+        organization_role = db.exec(select(OrganizationPlanRole).where(OrganizationPlanRole.org_id == plan.source_org_id, OrganizationPlanRole.key == payload.role_key)).first()
+        role = _materialize_organization_role(db, plan, organization_role) if organization_role else None
+    if not role:
+        raise HTTPException(status_code=404, detail="Plan role not found")
+    if plan.owner_user_id != current_user.id and actor_row and actor_row[1].key != "plan_admin" and role.key not in (actor_row[1].grantable_role_keys or []):
+        raise HTTPException(status_code=403, detail="Your role cannot grant that plan role")
+    email = payload.email.strip()
+    normalized = email.lower()
+    target = db.exec(select(User).where(User.email == email)).first() or db.exec(select(User).where(User.email == normalized)).first()
+    if target and _collaboration(db, int(plan.id), int(target.id)):
+        raise HTTPException(status_code=409, detail="This person is already a collaborator")
+    now = _now_string()
+    invitation = PlanInvitation(
+        invitation_uuid=f"plan_invitation_{uuid4()}", plan_id=int(plan.id), kind=payload.kind,
+        email=email, email_normalized=normalized, target_user_id=target.id if target else None,
+        role_id=int(role.id), invited_by_user_id=current_user.id,
+        expires_at=_now() + timedelta(days=30), creation_date=now, update_date=now,
+    )
+    db.add(invitation)
+    _create_plan_invitation_message(db, plan, invitation, role.name)
+    _activity(db, plan, current_user.id, "invitation.created", {"kind": payload.kind.value, "role_key": role.key})
+    db.commit()
+    db.refresh(invitation)
+    return {"invitation_uuid": invitation.invitation_uuid, "status": "pending", "email": email, "kind": payload.kind.value, "role": role.name}
+
+
+def create_collaborator_request(db: Session, current_user: PublicUser, identifier: str, payload: PlanCollaboratorRequestCreate) -> dict:
+    plan = _plan_or_404(db, identifier)
+    _require(db, plan, current_user.id, "request_collaborators")
+    role = db.exec(select(PlanRole).where(PlanRole.plan_id == plan.id, PlanRole.key == payload.role_key)).first()
+    if not role:
+        raise HTTPException(status_code=404, detail="Plan role not found")
+    email = payload.email.strip()
+    normalized = email.lower()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=422, detail="A valid email is required")
+    existing = db.exec(select(PlanCollaboratorRequest).where(
+        PlanCollaboratorRequest.plan_id == plan.id,
+        PlanCollaboratorRequest.email_normalized == normalized,
+        PlanCollaboratorRequest.status == PlanCollaboratorRequestStatus.PENDING,
+    )).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="A request for this person is already pending")
+    now = _now_string()
+    item = PlanCollaboratorRequest(
+        request_uuid=f"plan_collaborator_request_{uuid4()}", plan_id=int(plan.id),
+        requested_by_user_id=current_user.id, email=email, email_normalized=normalized,
+        role_key=role.key, message=payload.message.strip(), creation_date=now, update_date=now,
+    )
+    db.add(item)
+    _activity(db, plan, current_user.id, "collaborator.requested", {"request_uuid": item.request_uuid, "role_key": role.key})
+    db.commit()
+    return _collaborator_request_dict(db, item)
+
+
+def _collaborator_request_dict(db: Session, item: PlanCollaboratorRequest) -> dict:
+    return {
+        "request_uuid": item.request_uuid,
+        "email": item.email,
+        "role_key": item.role_key,
+        "message": item.message,
+        "status": item.status.value if hasattr(item.status, "value") else item.status,
+        "requested_by": _user_summary(db, item.requested_by_user_id),
+        "resolved_by": _user_summary(db, item.resolved_by_user_id),
+        "creation_date": item.creation_date,
+        "responded_at": item.responded_at,
+    }
+
+
+def list_collaborator_requests(db: Session, current_user: PublicUser, identifier: str) -> list[dict]:
+    plan = _plan_or_404(db, identifier)
+    capabilities = _require(db, plan, current_user.id, "view_plan")
+    statement = select(PlanCollaboratorRequest).where(PlanCollaboratorRequest.plan_id == plan.id)
+    if "manage_collaborators" not in capabilities:
+        statement = statement.where(PlanCollaboratorRequest.requested_by_user_id == current_user.id)
+    rows = db.exec(statement.order_by(PlanCollaboratorRequest.id.desc())).all()
+    return [_collaborator_request_dict(db, item) for item in rows]
+
+
+def respond_to_collaborator_request(db: Session, current_user: PublicUser, identifier: str, request_uuid: str, approve: bool) -> dict:
+    plan = _plan_or_404(db, identifier)
+    _require(db, plan, current_user.id, "manage_collaborators")
+    item = db.exec(select(PlanCollaboratorRequest).where(
+        PlanCollaboratorRequest.plan_id == plan.id,
+        PlanCollaboratorRequest.request_uuid == request_uuid,
+        PlanCollaboratorRequest.status == PlanCollaboratorRequestStatus.PENDING,
+    )).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Pending collaborator request not found")
+    invitation = None
+    if approve:
+        invitation = create_invitation(db, current_user, identifier, PlanInvitationCreate(
+            email=item.email, role_key=item.role_key, kind=PlanInvitationKind.COLLABORATOR,
+        ))
+    item.status = PlanCollaboratorRequestStatus.APPROVED if approve else PlanCollaboratorRequestStatus.DECLINED
+    item.resolved_by_user_id = current_user.id
+    item.responded_at = _now()
+    item.update_date = _now_string()
+    db.add(item)
+    _activity(db, plan, current_user.id, "collaborator.request_resolved", {"request_uuid": request_uuid, "approved": approve})
+    db.commit()
+    result = _collaborator_request_dict(db, item)
+    result["invitation"] = invitation
+    return result
+
+
+def update_collaborator(db: Session, current_user: PublicUser, identifier: str, collaborator_uuid: str, payload: PlanCollaboratorUpdate) -> dict:
+    plan = _plan_or_404(db, identifier)
+    _require_individual_definition(db, plan)
+    _require(db, plan, current_user.id, "manage_collaborators")
+    collaborator = db.exec(select(PlanCollaborator).where(
+        PlanCollaborator.plan_id == plan.id, PlanCollaborator.collaborator_uuid == collaborator_uuid,
+    )).first()
+    if not collaborator:
+        raise HTTPException(status_code=404, detail="Collaborator not found")
+    if collaborator.user_id == plan.owner_user_id:
+        raise HTTPException(status_code=422, detail="Transfer ownership before changing the owner's role")
+    role = db.exec(select(PlanRole).where(PlanRole.plan_id == plan.id, PlanRole.key == payload.role_key)).first()
+    if not role and plan.source_org_id:
+        organization_role = db.exec(select(OrganizationPlanRole).where(OrganizationPlanRole.org_id == plan.source_org_id, OrganizationPlanRole.key == payload.role_key)).first()
+        role = _materialize_organization_role(db, plan, organization_role) if organization_role else None
+    if not role:
+        raise HTTPException(status_code=404, detail="Plan role not found")
+    actor = _collaboration(db, int(plan.id), current_user.id)
+    if plan.owner_user_id != current_user.id and actor and actor[1].key != "plan_admin" and role.key not in (actor[1].grantable_role_keys or []):
+        raise HTTPException(status_code=403, detail="Your role cannot grant that plan role")
+    collaborator.role_id = int(role.id)
+    collaborator.update_date = _now_string()
+    db.add(collaborator)
+    _activity(db, plan, current_user.id, "collaborator.role_changed", {"collaborator_uuid": collaborator_uuid, "role_key": role.key})
+    db.commit()
+    return _plan_dict(db, plan, current_user.id, True)
+
+
+def remove_collaborator(db: Session, current_user: PublicUser, identifier: str, collaborator_uuid: str) -> dict:
+    plan = _plan_or_404(db, identifier)
+    _require_individual_definition(db, plan)
+    _require(db, plan, current_user.id, "manage_collaborators")
+    collaborator = db.exec(select(PlanCollaborator).where(
+        PlanCollaborator.plan_id == plan.id, PlanCollaborator.collaborator_uuid == collaborator_uuid,
+    )).first()
+    if not collaborator:
+        raise HTTPException(status_code=404, detail="Collaborator not found")
+    if collaborator.user_id == plan.owner_user_id:
+        raise HTTPException(status_code=422, detail="Transfer ownership before removing the owner")
+    if collaborator.user_id == plan.subject_user_id:
+        raise HTTPException(status_code=422, detail="The plan subject cannot be removed or changed")
+    collaborator.active = False
+    collaborator.update_date = _now_string()
+    db.add(collaborator)
+    _activity(db, plan, current_user.id, "collaborator.removed", {"collaborator_uuid": collaborator_uuid})
+    db.commit()
+    return {"removed": True, "collaborator_uuid": collaborator_uuid}
+
+
+def leave_plan(db: Session, current_user: PublicUser, identifier: str) -> dict:
+    plan = _plan_or_404(db, identifier)
+    if plan.owner_user_id == current_user.id:
+        raise HTTPException(status_code=422, detail="Transfer ownership before leaving this plan")
+    collaborator = db.exec(select(PlanCollaborator).where(
+        PlanCollaborator.plan_id == plan.id,
+        PlanCollaborator.user_id == current_user.id,
+        PlanCollaborator.active == True,  # noqa: E712
+    )).first()
+    if not collaborator:
+        raise HTTPException(status_code=404, detail="Plan not found")
+    collaborator.active = False
+    collaborator.update_date = _now_string()
+    db.add(collaborator)
+    _activity(db, plan, current_user.id, "collaborator.left", {"collaborator_uuid": collaborator.collaborator_uuid})
+    db.commit()
+    return {"left": True, "plan_uuid": plan.plan_uuid}
+
+
+def list_activity(db: Session, current_user: PublicUser, identifier: str) -> list[dict]:
+    plan = _plan_or_404(db, identifier)
+    _require(db, plan, current_user.id, "view_plan")
+    rows = db.exec(select(PlanActivity).where(
+        PlanActivity.plan_id == plan.id,
+    ).order_by(PlanActivity.id.desc())).all()
+    return [{
+        "activity_uuid": item.activity_uuid,
+        "action": item.action,
+        "actor": _user_summary(db, item.actor_user_id),
+        "payload": item.payload or {},
+        "creation_date": item.creation_date,
+    } for item in rows]
+
+
+def add_comment(db: Session, current_user: PublicUser, identifier: str, payload: PlanCommentCreate) -> dict:
+    plan = _plan_or_404(db, identifier)
+    _require(db, plan, current_user.id, "comment")
+    body = payload.body.strip()
+    if not body:
+        raise HTTPException(status_code=422, detail="Comment is required")
+    _activity(db, plan, current_user.id, "comment.added", {"body": body})
+    db.commit()
+    return list_activity(db, current_user, identifier)[0]
+
+
+def _attachment_dict(asset: MediaAsset, attachment: PlanAttachment) -> dict:
+    return {
+        "asset_uuid": asset.asset_uuid,
+        "title": asset.title,
+        "url": asset.url,
+        "thumbnail_url": asset.thumbnail_url,
+        "filename": asset.filename,
+        "mime_type": asset.mime_type,
+        "size_bytes": asset.size_bytes,
+        "added_by_user_id": attachment.added_by_user_id,
+        "creation_date": attachment.creation_date,
+    }
+
+
+def list_attachments(db: Session, current_user: PublicUser, identifier: str) -> list[dict]:
+    plan = _plan_or_404(db, identifier)
+    _require(db, plan, current_user.id, "view_plan")
+    rows = db.exec(select(PlanAttachment, MediaAsset).join(
+        MediaAsset, MediaAsset.id == PlanAttachment.asset_id,
+    ).where(PlanAttachment.plan_id == plan.id).order_by(PlanAttachment.id.desc())).all()
+    return [_attachment_dict(asset, attachment) for attachment, asset in rows]
+
+
+def add_attachment(db: Session, current_user: PublicUser, identifier: str, payload: PlanAttachmentCreate) -> dict:
+    plan = _plan_or_404(db, identifier)
+    capabilities = capabilities_for(db, plan, current_user.id)
+    if not ({"contribute_fields", "contribute_restricted_fields", "edit_plan_details"} & capabilities):
+        raise HTTPException(status_code=404 if not capabilities else 403, detail="Plan not found" if not capabilities else "You cannot add plan attachments")
+    asset = db.exec(select(MediaAsset).where(MediaAsset.asset_uuid == payload.asset_uuid)).first()
+    if not asset:
+        raise HTTPException(status_code=404, detail="Media asset not found")
+    if plan.source_org_id:
+        valid_owner = asset.owner_type == MediaOwnerType.org and asset.owner_org_id == plan.source_org_id
+    else:
+        valid_owner = asset.owner_type == MediaOwnerType.user and asset.owner_user_id == plan.owner_user_id
+    if not valid_owner:
+        raise HTTPException(status_code=403, detail="Use media owned by this plan's organization or owner")
+    mime_type = (asset.mime_type or "").lower()
+    if not (mime_type.startswith("image/") or mime_type.startswith("video/") or mime_type == "application/pdf"):
+        raise HTTPException(status_code=422, detail="Plan attachments must be an image, video, or PDF")
+    existing = db.exec(select(PlanAttachment).where(
+        PlanAttachment.plan_id == plan.id, PlanAttachment.asset_id == asset.id,
+    )).first()
+    if existing:
+        return _attachment_dict(asset, existing)
+    attachment = PlanAttachment(
+        plan_id=int(plan.id), asset_id=int(asset.id), added_by_user_id=current_user.id,
+        creation_date=_now_string(),
+    )
+    db.add(attachment)
+    db.flush()
+    _activity(db, plan, current_user.id, "attachment.added", {"asset_uuid": asset.asset_uuid})
+    db.commit()
+    return _attachment_dict(asset, attachment)
+
+
+def remove_attachment(db: Session, current_user: PublicUser, identifier: str, asset_uuid: str) -> dict:
+    plan = _plan_or_404(db, identifier)
+    capabilities = _require(db, plan, current_user.id, "view_plan")
+    row = db.exec(select(PlanAttachment, MediaAsset).join(
+        MediaAsset, MediaAsset.id == PlanAttachment.asset_id,
+    ).where(PlanAttachment.plan_id == plan.id, MediaAsset.asset_uuid == asset_uuid)).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Plan attachment not found")
+    attachment, _ = row
+    if attachment.added_by_user_id != current_user.id and not ({"edit_plan_details", "manage_collaborators"} & capabilities):
+        raise HTTPException(status_code=403, detail="You cannot remove this attachment")
+    db.delete(attachment)
+    _activity(db, plan, current_user.id, "attachment.removed", {"asset_uuid": asset_uuid})
+    db.commit()
+    return {"removed": True, "asset_uuid": asset_uuid}
+
+
+def transfer_ownership(db: Session, current_user: PublicUser, identifier: str, payload: PlanOwnershipTransfer) -> dict:
+    plan = _plan_or_404(db, identifier)
+    _require_individual_definition(db, plan)
+    if plan.owner_user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the owner can transfer ownership")
+    target = _collaboration(db, int(plan.id), payload.user_id)
+    if not target:
+        raise HTTPException(status_code=422, detail="The new owner must be an active collaborator")
+    plan.owner_user_id = payload.user_id
+    plan.update_date = _now_string()
+    db.add(plan)
+    _activity(db, plan, current_user.id, "ownership.transferred", {"new_owner_user_id": payload.user_id})
+    db.commit()
+    return _plan_dict(db, plan, current_user.id, True)
+
+
+def list_my_invitations(db: Session, current_user: PublicUser) -> list[dict]:
+    from src.db.programs import ProgramAssignment
+
+    normalized = str(current_user.email).strip().lower()
+    invitations = db.exec(select(PlanInvitation).where(
+        ((PlanInvitation.target_user_id == current_user.id) | (PlanInvitation.email_normalized == normalized)),
+        PlanInvitation.status == PlanInvitationStatus.PENDING,
+    ).order_by(PlanInvitation.creation_date.desc())).all()
+    result = []
+    for invitation in invitations:
+        plan = db.get(Plan, invitation.plan_id)
+        role = db.get(PlanRole, invitation.role_id)
+        if not plan or not role:
+            continue
+        if plan.source_assignment_id:
+            assignment = db.get(ProgramAssignment, plan.source_assignment_id)
+            if assignment and assignment.initiate_date:
+                available_at = assignment.initiate_date
+                if available_at.tzinfo is None:
+                    available_at = available_at.replace(tzinfo=timezone.utc)
+                if available_at > _now():
+                    continue
+        result.append({
+            "invitation_uuid": invitation.invitation_uuid, "kind": invitation.kind,
+            "status": invitation.status, "unread": invitation.viewed_at is None,
+            "plan": {"plan_uuid": plan.plan_uuid, "slug": plan.slug, "name": plan.name, "description": plan.description},
+            "subject": _user_summary(db, plan.subject_user_id), "invited_by": _user_summary(db, invitation.invited_by_user_id),
+            "role": {"key": role.key, "name": role.name}, "expires_at": invitation.expires_at,
+        })
+    return result
+
+
+def respond_to_invitation(db: Session, current_user: PublicUser, invitation_uuid: str, accept: bool) -> dict:
+    from src.db.programs import ProgramAssignment
+
+    normalized = str(current_user.email).strip().lower()
+    invitation = db.exec(select(PlanInvitation).where(
+        PlanInvitation.invitation_uuid == invitation_uuid,
+        ((PlanInvitation.target_user_id == current_user.id) | (PlanInvitation.email_normalized == normalized)),
+        PlanInvitation.status == PlanInvitationStatus.PENDING,
+    )).first()
+    if not invitation:
+        raise HTTPException(status_code=404, detail="Plan invitation not found")
+    if invitation.expires_at:
+        expires_at = invitation.expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if expires_at < _now():
+            raise HTTPException(status_code=410, detail="Plan invitation expired")
+    plan = db.get(Plan, invitation.plan_id)
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan not found")
+    if plan.source_assignment_id:
+        assignment = db.get(ProgramAssignment, plan.source_assignment_id)
+        if assignment and assignment.initiate_date:
+            available_at = assignment.initiate_date
+            if available_at.tzinfo is None:
+                available_at = available_at.replace(tzinfo=timezone.utc)
+            if available_at > _now():
+                raise HTTPException(status_code=409, detail="This plan invitation is not available yet")
+    if accept and invitation.kind == PlanInvitationKind.SUBJECT and plan.subject_user_id not in {None, current_user.id}:
+        raise HTTPException(status_code=409, detail="The plan subject cannot be changed once assigned")
+    invitation.status = PlanInvitationStatus.ACCEPTED if accept else PlanInvitationStatus.DECLINED
+    invitation.target_user_id = current_user.id
+    invitation.viewed_at = invitation.viewed_at or _now()
+    invitation.responded_at = _now()
+    invitation.update_date = _now_string()
+    db.add(invitation)
+    resolve_action_by_dedupe(
+        db,
+        f"plan_invitation:{invitation.invitation_uuid}",
+        accepted=accept,
+    )
+    if accept:
+        existing = _collaboration(db, int(plan.id), current_user.id)
+        if not existing:
+            db.add(PlanCollaborator(
+                collaborator_uuid=f"plan_collaborator_{uuid4()}", plan_id=int(plan.id), user_id=current_user.id,
+                role_id=invitation.role_id, creation_date=_now_string(), update_date=_now_string(),
+            ))
+        if invitation.kind == PlanInvitationKind.SUBJECT:
+            plan.subject_user_id = current_user.id
+            plan.status = PlanStatus.ACTIVE
+            db.add(plan)
+        _activity(db, plan, current_user.id, "invitation.accepted", {"kind": str(invitation.kind.value if hasattr(invitation.kind, "value") else invitation.kind)})
+    db.commit()
+    return {"invitation_uuid": invitation_uuid, "status": invitation.status.value if hasattr(invitation.status, "value") else invitation.status}
+
+
+def feed(db: Session, current_user: PublicUser, scope: str = "all", plan_uuid: str | None = None, explore_all: bool = False) -> dict:
+    accessible_plans = db.exec(
+        select(Plan).join(PlanCollaborator, PlanCollaborator.plan_id == Plan.id)
+        .where(PlanCollaborator.user_id == current_user.id, PlanCollaborator.active == True, Plan.status == PlanStatus.ACTIVE)  # noqa: E712
+    ).all()
+    has_helping = any(plan.subject_user_id != current_user.id for plan in accessible_plans)
+    plans = accessible_plans
+    if plan_uuid:
+        plans = [plan for plan in plans if plan.plan_uuid == plan_uuid]
+    if scope == "mine":
+        plans = [plan for plan in plans if plan.subject_user_id == current_user.id]
+    elif scope == "helping":
+        plans = [plan for plan in plans if plan.subject_user_id != current_user.id]
+    today = date.today()
+    coming_cutoff = today + timedelta(days=7)
+    coming, future = [], []
+    for plan in plans:
+        capabilities = capabilities_for(db, plan, current_user.id)
+        access_people = _plan_access_people(db, plan)
+        viewer_access = next((item for item in access_people if item["user"] and item["user"]["id"] == current_user.id), None)
+        completers = [item["user"] for item in access_people if {"update_progress", "complete_restricted_objectives"} & set(item["capabilities"])]
+        objectives = db.exec(select(PlanObjective).where(PlanObjective.plan_id == plan.id)).all()
+        for objective in objectives:
+            item = _objective_dict(db, plan, objective, capabilities)
+            status = item["progress"]["status"]
+            if status in {PlanObjectiveStatus.COMPLETED.value, PlanObjectiveStatus.CANCELED.value}:
+                continue
+            actionable_review = status == PlanObjectiveStatus.SUBMITTED.value and "complete_restricted_objectives" in capabilities
+            if status == PlanObjectiveStatus.SUBMITTED.value and not actionable_review and plan.subject_user_id != current_user.id:
+                continue
+            card = {
+                **item, "plan": {"plan_uuid": plan.plan_uuid, "slug": plan.slug, "name": plan.name},
+                "subject": _user_summary(db, plan.subject_user_id), "is_mine": plan.subject_user_id == current_user.id,
+                "action_type": "review" if actionable_review else "objective", "completers": completers,
+                "access_people": access_people, "viewer_role": viewer_access["role"] if viewer_access else None,
+            }
+            if plan.source_assignment_id and plan.subject_user_id != current_user.id:
+                from src.db.programs import ProgramAssignment
+                from src.db.usergroups import UserGroup
+                assignment = db.get(ProgramAssignment, plan.source_assignment_id)
+                group = db.get(UserGroup, assignment.usergroup_id) if assignment and assignment.usergroup_id else None
+                if assignment and group:
+                    card["group_target"] = {"assignment_uuid": assignment.assignment_uuid, "name": group.name}
+            effective_due = item.get("effective_due_date")
+            card["display_due_date"] = effective_due
+            if actionable_review or status == PlanObjectiveStatus.CHANGES_REQUESTED.value or (effective_due and effective_due <= coming_cutoff):
+                coming.append(card)
+            elif effective_due and not objective.blocked:
+                future.append(card)
+    def collapse_group_items(items: list[dict]) -> list[dict]:
+        collapsed: list[dict] = []
+        grouped: dict[tuple[str, str], list[dict]] = {}
+        for item in items:
+            target = item.get("group_target")
+            if not target:
+                collapsed.append(item)
+                continue
+            key = (target["assignment_uuid"], str(item.get("source_objective_id") or item["title"]))
+            grouped.setdefault(key, []).append(item)
+        for (assignment_uuid, _), values in grouped.items():
+            first = values[0]
+            collapsed.append({
+                **first, "target_kind": "group", "assignment_uuid": assignment_uuid,
+                "learner_count": len(values), "review_count": sum(item["action_type"] == "review" for item in values),
+                "plan": {"plan_uuid": f"group:{assignment_uuid}", "slug": f"group:{assignment_uuid}", "name": first["group_target"]["name"]},
+                "subject": None, "is_mine": False,
+            })
+        return collapsed
+    coming = collapse_group_items(coming)
+    future = collapse_group_items(future)
+    coming.sort(key=lambda item: (0 if item.get("effective_due_date") and item["effective_due_date"] < today else 1, 0 if item["action_type"] == "review" else 1, item.get("effective_due_date") or date.max, item["position"]))
+    future.sort(key=lambda item: (item["effective_due_date"], item["position"]))
+    groups = _adaptive_future_groups(future, today)
+    return {
+        "scope": scope, "has_helping": has_helping,
+        "coming_up": coming, "explore": [], "explore_total": 0, "future_groups": groups,
+    }
+
+
+def review_queue(db: Session, current_user: PublicUser) -> list[dict]:
+    """Return custom-objective and badge work currently assigned to this reviewer."""
+    result = feed(db, current_user, "helping")
+    return [item for item in result["coming_up"] if item["action_type"] == "review"]
+
+
+def plan_reviews(db: Session, current_user: PublicUser, identifier: str) -> dict:
+    """Return every review currently actionable for one live plan."""
+    plan = _plan_or_404(db, identifier)
+    _require(db, plan, current_user.id, "complete_restricted_objectives")
+    objective_reviews = [item for item in review_queue(db, current_user) if item["plan"]["plan_uuid"] == plan.plan_uuid]
+    activity_reviews: list[dict] = []
+    if plan.source_assignment_id:
+        from src.db.programs import ProgramAssignment
+        from src.services.programs import _assignment_activity_reviews
+
+        assignment = db.get(ProgramAssignment, plan.source_assignment_id)
+        if assignment:
+            subject = db.get(User, plan.subject_user_id) if plan.subject_user_id else None
+            batch_reviews = _assignment_activity_reviews(db, assignment, {int(subject.id): subject} if subject else {})
+            activity_reviews = [item for item in batch_reviews if item.get("plan_uuid") == plan.plan_uuid]
+    return {"plan_uuid": plan.plan_uuid, "objective_reviews": objective_reviews, "activity_reviews": activity_reviews}
+
+
+def _adaptive_future_groups(items: list[dict], today: date) -> list[dict]:
+    buckets: dict[str, list[dict]] = {}
+    labels: dict[str, str] = {}
+    one_year = today + timedelta(days=365)
+    for item in items:
+        due = item.get("effective_due_date") or item["due_date"]
+        if due <= one_year:
+            key = due.strftime("%Y-%m")
+            labels[key] = due.strftime("%B %Y")
+        else:
+            key = str(due.year)
+            labels[key] = str(due.year)
+        buckets.setdefault(key, []).append(item)
+    expanded: list[tuple[str, str, list[dict]]] = []
+    for key in sorted(buckets):
+        values = buckets[key]
+        if len(values) <= 10:
+            expanded.append((key, labels[key], values))
+            continue
+        by_segment: dict[str, list[dict]] = {}
+        for item in values:
+            due = item.get("effective_due_date") or item["due_date"]
+            segment = f"{due.year}-W{due.isocalendar().week:02d}" if len(key) == 7 else f"{due.year}-Q{((due.month - 1) // 3) + 1}"
+            by_segment.setdefault(segment, []).append(item)
+        expanded.extend((segment, segment.split("-", 1)[-1].replace("W", "Week ").replace("Q", "Quarter ") + f" {(values[0].get('effective_due_date') or values[0]['due_date']).year}", group) for segment, group in sorted(by_segment.items()))
+    merged: list[dict] = []
+    for key, label, values in expanded:
+        if merged and len(merged[-1]["items"]) + len(values) <= 6:
+            merged[-1]["label"] = f"{merged[-1]['label']} – {label}"
+            merged[-1]["items"].extend(values)
+        else:
+            merged.append({"key": key, "label": label, "items": list(values)})
+    return merged

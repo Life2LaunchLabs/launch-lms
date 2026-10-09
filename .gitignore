@@ -7,9 +7,13 @@ node_modules
 
 # testing
 coverage
+apps/web/.playwright/
+apps/web/playwright-report/
+apps/web/test-results/
 
 # next.js
 .next/
+apps/web/.next-ui-test/
 out/
 build
 
@@ -62,8 +66,10 @@ apps/web/runtime-config.json
 apps/cli/dist/
 
 # agent files
+.agent/
 CLAUDE.md 
 .codex
 TODO.md
 user-story-map.yaml
+PRODUCT_ACTIVITY_HIERARCHY.md
 portfolio-feature

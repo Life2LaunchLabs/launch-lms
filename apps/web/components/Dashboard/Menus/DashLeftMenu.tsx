@@ -18,15 +18,15 @@ import {
   ChatsCircle,
   Headphones,
   UsersThree,
-  Shield,
   ClipboardText,
   Cube,
   FolderOpen,
   Newspaper,
-  ShoppingBag,
   UserCircle,
   ChartPieSlice,
   Tray,
+  Flag,
+  Flask,
 } from '@phosphor-icons/react'
 import Link from 'next/link'
 import React, { useState } from 'react'
@@ -35,6 +35,8 @@ import UserAvatar from '../../Objects/UserAvatar'
 import AdminAuthorization from '@components/Security/AdminAuthorization'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getUriWithOrg, getAPIUrl, getCoreCapabilities, getDefaultOrg, routePaths } from '@services/config/config'
+import { platformSections, type PlatformSection } from '@components/Admin/Platform/platformSections'
+import { authenticatedOrgHref } from '@services/auth/handoff'
 import { useTranslation } from 'react-i18next'
 import {
   Tooltip,
@@ -60,20 +62,18 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@components/ui/dropdown-menu'
-import { FeedbackModal } from '@components/Objects/Modals/FeedbackModal'
+import { openCandidatePanel } from '@components/Candidate/CandidateExperience'
 import { AVAILABLE_LANGUAGES } from '@/lib/languages'
 import { getOrgLogoMediaDirectory } from '@services/media/media'
 import { cn } from '@/lib/utils'
 import useSWR from 'swr'
 import { swrFetcher } from '@services/utils/ts/requests'
-
 import { usePlan } from '@components/Hooks/usePlan'
 import {
   BADGE_ADMIN_PAGES,
   getOrganizationAdminPages,
   getUserAdminPages,
 } from '@components/Admin/adminFeaturePages'
-import { planMeetsRequirement } from '@services/plans/plans'
 
 function DashLeftMenu() {
   const org = useOrg() as any
@@ -85,7 +85,6 @@ function DashLeftMenu() {
     if (typeof window === 'undefined') return false
     return localStorage.getItem('dash-menu-collapsed') === 'true'
   })
-  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false)
   const access_token = session?.data?.tokens?.access_token
 
   const badgesKey = org?.id ? `${getAPIUrl()}badges/?org_id=${org.id}&admin=true` : null
@@ -135,9 +134,7 @@ function DashLeftMenu() {
   const showPodcasts = isEnabled('podcasts')
   const showPlaygrounds = isEnabled('playgrounds')
   const showPayments = capabilities.payments && isEnabled('payments')
-  const hasUserGroups = planMeetsRequirement(plan, 'full') && (rf?.usergroups?.enabled ?? true)
-  const hasAuditLogs = rf?.audit_logs?.enabled ?? planMeetsRequirement(plan, 'enterprise')
-  const userAdminPages = getUserAdminPages({ t, hasUserGroups, hasAuditLogs })
+  const userAdminPages = getUserAdminPages()
   const organizationAdminPages = getOrganizationAdminPages(t, {
     hasSso: rf?.sso?.enabled === true,
   })
@@ -307,6 +304,12 @@ function DashLeftMenu() {
               </button>
             </HoverMenu>
 
+            <MenuLink
+              href={routePaths.org.dash.programs()}
+              icon={<ClipboardText size={20} weight="fill" />}
+              label="Plans"
+              isCollapsed={isCollapsed}
+            />
             {showCommunities && (
               <MenuLink
                 href={routePaths.org.dash.communities()}
@@ -444,34 +447,7 @@ function DashLeftMenu() {
               Platform
             </p>
           )}
-          {[
-            {
-              href: routePaths.owner.platform.overview(),
-              icon: <ChartPieSlice size={20} weight="fill" />,
-              label: 'Overview',
-              exact: true,
-            },
-            {
-              href: routePaths.owner.platform.organizations(),
-              icon: <Buildings size={20} weight="fill" />,
-              label: 'Organizations',
-            },
-            {
-              href: routePaths.owner.platform.users(),
-              icon: <UsersThree size={20} weight="fill" />,
-              label: 'Users',
-            },
-            {
-              href: routePaths.owner.platform.requests(),
-              icon: <Tray size={20} weight="fill" />,
-              label: 'Requests',
-            },
-            {
-              href: routePaths.owner.platform.news(),
-              icon: <Newspaper size={20} weight="fill" />,
-              label: 'News',
-            },
-          ].map((item: any) => {
+          {platformSections().map((section) => ({ ...section, icon: PLATFORM_ICONS[section.id] })).map((item) => {
             const isActive = item.exact
               ? pathname === `/orgs/${org.slug}${item.href}` ||
                 pathname === item.href
@@ -548,7 +524,7 @@ function DashLeftMenu() {
             </DropdownMenuLabel>
             <DropdownMenuSeparator className="bg-white/[0.08]" />
             <DropdownMenuItem asChild>
-              <Link href={getUriWithOrg(getDefaultOrg(), routePaths.owner.root())} className="flex items-center gap-2 rounded-md px-3 py-2 text-white/70 focus:bg-white/[0.08] focus:text-white">
+              <Link href={authenticatedOrgHref(getUriWithOrg(getDefaultOrg(), routePaths.owner.root()), true)} className="flex items-center gap-2 rounded-md px-3 py-2 text-white/70 focus:bg-white/[0.08] focus:text-white">
                 <House size={16} weight="fill" />
                 <span>Return to User Experience</span>
               </Link>
@@ -577,7 +553,7 @@ function DashLeftMenu() {
               </DropdownMenuSubContent>
             </DropdownMenuSub>
             <DropdownMenuItem
-              onClick={() => setFeedbackModalOpen(true)}
+              onClick={() => openCandidatePanel('feedback')}
               className="flex items-center gap-2 rounded-md px-3 py-2 text-white/70 focus:bg-white/[0.08] focus:text-white"
             >
               <Question size={16} weight="fill" />
@@ -585,22 +561,18 @@ function DashLeftMenu() {
             </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-white/[0.08]" />
             <DropdownMenuItem asChild>
-              <Link href={getUriWithOrg(getDefaultOrg(), routePaths.org.portfolio())} className="flex items-center gap-2 rounded-md px-3 py-2 text-white/70 focus:bg-white/[0.08] focus:text-white">
+              <Link href={authenticatedOrgHref(getUriWithOrg(getDefaultOrg(), routePaths.org.portfolio()), true)} className="flex items-center gap-2 rounded-md px-3 py-2 text-white/70 focus:bg-white/[0.08] focus:text-white">
                 <UserCircle size={16} weight="fill" />
                 <span>Portfolio</span>
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link href={getUriWithOrg(getDefaultOrg(), routePaths.owner.account.security())} className="flex items-center gap-2 rounded-md px-3 py-2 text-white/70 focus:bg-white/[0.08] focus:text-white">
+              <Link href={authenticatedOrgHref(getUriWithOrg(getDefaultOrg(), routePaths.owner.account.root()), true)} className="flex items-center gap-2 rounded-md px-3 py-2 text-white/70 focus:bg-white/[0.08] focus:text-white">
                 <Gear size={16} weight="fill" />
                 <span>{t('common.settings')}</span>
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link href={getUriWithOrg(getDefaultOrg(), routePaths.owner.account.purchases())} className="flex items-center gap-2 rounded-md px-3 py-2 text-white/70 focus:bg-white/[0.08] focus:text-white">
-                <ShoppingBag size={16} weight="fill" />
-                <span>{t('account.purchases')}</span>
-              </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-white/[0.08]" />
             <DropdownMenuItem
@@ -616,13 +588,6 @@ function DashLeftMenu() {
     </nav>
 
       {/* Feedback Modal */}
-      <FeedbackModal
-        open={feedbackModalOpen}
-        onOpenChange={setFeedbackModalOpen}
-        theme="dark"
-        userName={session?.data?.user?.username}
-        userEmail={session?.data?.user?.email}
-      />
     </TooltipProvider>
   )
 }
@@ -674,4 +639,15 @@ const MenuLink = ({ href, icon, label, isCollapsed, isExternal }: {
   return linkElement
 }
 
+
+const PLATFORM_ICONS: Record<PlatformSection, React.ReactNode> = {
+  overview: <ChartPieSlice size={20} weight="fill" />,
+  organizations: <Buildings size={20} weight="fill" />,
+  users: <UsersThree size={20} weight="fill" />,
+  requests: <Tray size={20} weight="fill" />,
+  feedback: <Flag size={20} weight="fill" />,
+  demo: <Flask size={20} weight="fill" />,
+  settings: <Gear size={20} weight="fill" />,
+  news: <Newspaper size={20} weight="fill" />,
+}
 export default DashLeftMenu

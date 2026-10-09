@@ -34,6 +34,7 @@ export function generateEnvFile(config: SetupConfig): string {
     '# =============================================================================',
     '',
     `LAUNCHLMS_DOMAIN=${domainWithPort}`,
+    'LAUNCHLMS_COOKIE_SCOPE=shared-domain',
     `HTTP_PORT=${config.httpPort}`,
     '',
     '# =============================================================================',
@@ -44,6 +45,7 @@ export function generateEnvFile(config: SetupConfig): string {
     `NEXT_PUBLIC_LAUNCHLMS_BACKEND_URL=${baseUrl}/`,
     `NEXT_PUBLIC_LAUNCHLMS_DOMAIN=${domainWithPort}`,
     `NEXT_PUBLIC_LAUNCHLMS_TOP_DOMAIN=${topDomain}`,
+    'NEXT_PUBLIC_LAUNCHLMS_COOKIE_SCOPE=shared-domain',
     'NEXT_PUBLIC_LAUNCHLMS_MULTI_ORG=False',
     'NEXT_PUBLIC_LAUNCHLMS_DEFAULT_ORG=default',
     `NEXT_PUBLIC_LAUNCHLMS_HTTPS=${config.useHttps ? 'True' : 'False'}`,
@@ -110,6 +112,20 @@ export function generateEnvFile(config: SetupConfig): string {
     'LAUNCHLMS_DEVELOPMENT_MODE=False',
     'LAUNCHLMS_LOGFIRE_ENABLED=False',
   )
+
+  if (config.useAiDatabase) {
+    lines.push(
+      '',
+      '# =============================================================================',
+      '# Self-hosted Resource Search',
+      '# =============================================================================',
+      '',
+      'LAUNCHLMS_RESOURCE_VECTOR_SEARCH_ENABLED=True',
+      'LAUNCHLMS_RESOURCE_EMBEDDING_URL=http://embeddings:11434/api/embed',
+      'LAUNCHLMS_RESOURCE_EMBEDDING_MODEL=all-minilm:33m',
+      'LAUNCHLMS_RESOURCE_SEMANTIC_MAX_DISTANCE=0.65',
+    )
+  }
 
   if (config.aiEnabled && config.geminiApiKey) {
     lines.push(

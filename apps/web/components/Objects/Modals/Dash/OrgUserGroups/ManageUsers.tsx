@@ -4,23 +4,21 @@ import { getAPIUrl } from '@services/config/config'
 import { linkUsersToUserGroup, unlinkUsersFromUserGroup } from '@services/usergroups/usergroups'
 import { swrFetcher } from '@services/utils/ts/requests'
 import LaunchLMSSpinner from '@components/Objects/Loaders/LaunchLMSSpinner'
-import { Search, Check, Plus, Minus, ChevronLeft, ChevronRight, Users } from 'lucide-react'
+import { Search, Check, Plus, Minus, ChevronLeft, ChevronRight, Users, ArrowLeft } from 'lucide-react'
 import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import toast from 'react-hot-toast'
 import useSWR, { mutate } from 'swr'
 import { useTranslation } from 'react-i18next'
 import { Checkbox } from '@components/ui/checkbox'
 import { Badge } from '@components/ui/badge'
-import { Tabs, TabsList, TabsTrigger } from '@components/ui/tabs'
 import UserAvatar from '@components/Objects/UserAvatar'
 
 const ITEMS_PER_PAGE = 20
 
 type ManageUsersProps = {
   usergroup_id: any
+  embedded?: boolean
 }
-
-type FilterTab = 'all' | 'in_group' | 'not_in_group'
 
 function ManageUsers(props: ManageUsersProps) {
   const { t } = useTranslation()
@@ -30,7 +28,7 @@ function ManageUsers(props: ManageUsersProps) {
 
   const [searchValue, setSearchValue] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [activeTab, setActiveTab] = useState<FilterTab>('all')
+  const [showAddUsers, setShowAddUsers] = useState(false)
   const [selectedUserIds, setSelectedUserIds] = useState<Set<number>>(new Set())
   const [page, setPage] = useState(1)
 
@@ -55,12 +53,9 @@ function ManageUsers(props: ManageUsersProps) {
     if (props.usergroup_id) {
       params.append('usergroup_id', props.usergroup_id.toString())
     }
-    // Pass filter for in_group / not_in_group tabs
-    if (activeTab !== 'all' && props.usergroup_id) {
-      params.append('usergroup_filter', activeTab)
-    }
+    params.append('usergroup_filter', showAddUsers ? 'not_in_group' : 'in_group')
     return params.toString()
-  }, [page, debouncedSearch, activeTab, props.usergroup_id])
+  }, [page, debouncedSearch, showAddUsers, props.usergroup_id])
 
   const usersUrl = org && access_token ? `${getAPIUrl()}orgs/${org?.id}/users?${buildQuery()}` : null
   const { data: usersData, isValidating } = useSWR(
@@ -69,27 +64,10 @@ function ManageUsers(props: ManageUsersProps) {
     { keepPreviousData: true }
   )
 
-  const orgUsers = usersData?.items || []
+  const orgUsers = useMemo(() => usersData?.items || [], [usersData?.items])
   const total = usersData?.total || 0
-  const inGroupTotal: number | undefined = usersData?.in_group_total
-  const allTotal: number | undefined = usersData?.all_total
   const isInitialLoading = !usersData && isValidating
   const isPageTransitioning = !!usersData && isValidating
-
-  // Compute tab counts from API response.
-  // `all_total` = total org users matching search (always provided when usergroup_id is set)
-  // `in_group_total` = in-group users matching search (always provided when usergroup_id is set)
-  // `total` = count for the currently active filter tab
-  const tabCounts = useMemo(() => {
-    if (allTotal == null || inGroupTotal == null) {
-      return { all: total, in_group: 0, not_in_group: 0 }
-    }
-    return {
-      all: allTotal,
-      in_group: inGroupTotal,
-      not_in_group: allTotal - inGroupTotal,
-    }
-  }, [total, inGroupTotal, allTotal])
 
   // Determine if a user is in the group from the user's usergroups data
   const isUserPartOfGroup = useCallback((user: any) => {
@@ -129,19 +107,7 @@ function ManageUsers(props: ManageUsersProps) {
   }, [orgUsers, selectedUserIds])
 
   // Get selected users that are in/not in group (from currently visible users)
-  const selectedInGroup = useMemo(() => {
-    return Array.from(selectedUserIds).filter((id) => {
-      const user = orgUsers.find((u: any) => u.user.id === id)
-      return user && isUserPartOfGroup(user)
-    })
-  }, [selectedUserIds, orgUsers, isUserPartOfGroup])
-
-  const selectedNotInGroup = useMemo(() => {
-    return Array.from(selectedUserIds).filter((id) => {
-      const user = orgUsers.find((u: any) => u.user.id === id)
-      return user && !isUserPartOfGroup(user)
-    })
-  }, [selectedUserIds, orgUsers, isUserPartOfGroup])
+  const selectedIds = Array.from(selectedUserIds)
 
   // Revalidate all tabs' SWR cache after mutations
   const invalidateCache = () => {
@@ -151,13 +117,13 @@ function ManageUsers(props: ManageUsersProps) {
 
   // Bulk actions
   const handleBulkAdd = async () => {
-    if (selectedNotInGroup.length === 0) return
+    if (selectedIds.length === 0) return
     const toastId = toast.loading(t('dashboard.users.usergroups.modals.manage_users.toasts.bulk_adding'))
     try {
-      const res = await linkUsersToUserGroup(props.usergroup_id, selectedNotInGroup, org.id, access_token)
+      const res = await linkUsersToUserGroup(props.usergroup_id, selectedIds, org.id, access_token)
       if (res.status === 200) {
         toast.success(
-          t('dashboard.users.usergroups.modals.manage_users.toasts.bulk_add_success', { count: selectedNotInGroup.length }),
+          t('dashboard.users.usergroups.modals.manage_users.toasts.bulk_add_success', { count: selectedIds.length }),
           { id: toastId }
         )
         invalidateCache()
@@ -171,13 +137,13 @@ function ManageUsers(props: ManageUsersProps) {
   }
 
   const handleBulkRemove = async () => {
-    if (selectedInGroup.length === 0) return
+    if (selectedIds.length === 0) return
     const toastId = toast.loading(t('dashboard.users.usergroups.modals.manage_users.toasts.bulk_removing'))
     try {
-      const res = await unlinkUsersFromUserGroup(props.usergroup_id, selectedInGroup, org.id, access_token)
+      const res = await unlinkUsersFromUserGroup(props.usergroup_id, selectedIds, org.id, access_token)
       if (res.status === 200) {
         toast.success(
-          t('dashboard.users.usergroups.modals.manage_users.toasts.bulk_remove_success', { count: selectedInGroup.length }),
+          t('dashboard.users.usergroups.modals.manage_users.toasts.bulk_remove_success', { count: selectedIds.length }),
           { id: toastId }
         )
         invalidateCache()
@@ -195,16 +161,23 @@ function ManageUsers(props: ManageUsersProps) {
     setSelectedUserIds(new Set()) // Clear selection on page change
   }
 
-  const handleTabChange = (tab: string) => {
-    setActiveTab(tab as FilterTab)
-    setPage(1) // Reset to first page on tab change
-    setSelectedUserIds(new Set()) // Clear selection on tab change
-  }
-
   const totalPages = Math.ceil(total / ITEMS_PER_PAGE)
 
   return (
-    <div className="py-3 space-y-4">
+    <div className="space-y-4 py-3">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-bold text-foreground">{showAddUsers ? 'Add users' : 'Group users'}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{showAddUsers ? 'Search organization users who are not yet in this group.' : `${total} user${total === 1 ? '' : 's'} in this group.`}</p>
+        </div>
+        <button
+          onClick={() => { setShowAddUsers((current) => !current); setSearchValue(''); setDebouncedSearch(''); setPage(1); clearSelection() }}
+          className="inline-flex items-center gap-2 rounded-lg bg-black px-4 py-2.5 text-xs font-bold text-white"
+        >
+          {showAddUsers ? <ArrowLeft className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+          {showAddUsers ? 'Back to group users' : 'Add users'}
+        </button>
+      </div>
       {/* Search Input */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -215,21 +188,6 @@ function ManageUsers(props: ManageUsersProps) {
           onChange={(e) => setSearchValue(e.target.value)}
         />
       </div>
-
-      {/* Filter Tabs */}
-      <Tabs value={activeTab} onValueChange={handleTabChange}>
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="all" className="text-xs">
-            {t('dashboard.users.usergroups.modals.manage_users.tabs.all')} ({tabCounts.all})
-          </TabsTrigger>
-          <TabsTrigger value="in_group" className="text-xs">
-            {t('dashboard.users.usergroups.modals.manage_users.tabs.in_group')} ({tabCounts.in_group})
-          </TabsTrigger>
-          <TabsTrigger value="not_in_group" className="text-xs">
-            {t('dashboard.users.usergroups.modals.manage_users.tabs.not_in_group')} ({tabCounts.not_in_group})
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
 
       {/* Selection Bar */}
       {selectedUserIds.size > 0 && (
@@ -246,22 +204,22 @@ function ManageUsers(props: ManageUsersProps) {
             </button>
           </div>
           <div className="flex items-center gap-2">
-            {selectedNotInGroup.length > 0 && (
+            {showAddUsers && (
               <button
                 onClick={handleBulkAdd}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 text-white text-sm font-medium rounded-md hover:bg-cyan-700 transition-colors"
               >
                 <Plus className="w-4 h-4" />
-                {t('dashboard.users.usergroups.modals.manage_users.selection.add_selected', { count: selectedNotInGroup.length })}
+                {t('dashboard.users.usergroups.modals.manage_users.selection.add_selected', { count: selectedIds.length })}
               </button>
             )}
-            {selectedInGroup.length > 0 && (
+            {!showAddUsers && (
               <button
                 onClick={handleBulkRemove}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700 transition-colors"
               >
                 <Minus className="w-4 h-4" />
-                {t('dashboard.users.usergroups.modals.manage_users.selection.remove_selected', { count: selectedInGroup.length })}
+                {t('dashboard.users.usergroups.modals.manage_users.selection.remove_selected', { count: selectedIds.length })}
               </button>
             )}
           </div>
@@ -289,7 +247,7 @@ function ManageUsers(props: ManageUsersProps) {
       )}
 
       {/* Users List */}
-      <div className="space-y-1 max-h-[400px] overflow-y-auto relative">
+      <div className={`space-y-1 overflow-y-auto relative ${props.embedded ? '' : 'max-h-[400px]'}`}>
         {isInitialLoading ? (
           <div className="py-16 flex justify-center">
             <LaunchLMSSpinner size={32} />
@@ -303,7 +261,9 @@ function ManageUsers(props: ManageUsersProps) {
               <p className="text-muted-foreground text-sm font-medium">
                 {debouncedSearch
                   ? t('dashboard.users.usergroups.modals.manage_users.no_results')
-                  : t('dashboard.users.usergroups.modals.manage_users.no_users')
+                  : showAddUsers
+                    ? 'Everyone in this organization is already in the group.'
+                    : 'There are no users in this group yet.'
                 }
               </p>
             </div>

@@ -9,6 +9,7 @@ from sqlmodel import Session, func, select
 from src.db.billing_usage import UsageEvent
 from src.db.learning import BadgeCollection, LearningBadge
 from src.db.organization_config import OrganizationConfig
+from src.db.organization_invitations import OrganizationInvitation, OrganizationJoinLink
 from src.db.roles import Role, RoleTypeEnum
 from src.db.user_organizations import UserOrganization
 from src.security.features_utils.plans import (
@@ -42,9 +43,7 @@ REDIS_TRACKED_FEATURES = {"ai", "analytics", "api", "collaboration",
                           "payments", "podcasts", "storage", "usergroups"}
 
 def _get_redis_client():
-    """Get a Redis client instance."""
-    LH_CONFIG = get_launchlms_config()
-    redis_conn_string = LH_CONFIG.redis_config.redis_connection_string
+    redis_conn_string = get_launchlms_config().redis_config.redis_connection_string
 
     if not redis_conn_string:
         raise HTTPException(
@@ -52,7 +51,9 @@ def _get_redis_client():
             detail="Redis connection string not found",
         )
 
-    return redis.Redis.from_url(redis_conn_string)
+    from src.services.demo.context import NamespacedRedis, current_demo
+    client = redis.Redis.from_url(redis_conn_string)
+    return NamespacedRedis(client) if current_demo.get() else client
 
 
 def _get_org_plan(org_config: OrganizationConfig) -> PlanLevel:
@@ -69,9 +70,26 @@ def _get_org_plan(org_config: OrganizationConfig) -> PlanLevel:
 # ============================================================================
 
 def _get_actual_member_count(org_id: int, db_session: Session) -> int:
-    """Get actual member count from database."""
+    """Get active members plus pending, unexpired invitations.
+
+    Invitations reserve seats because every pending recipient may become a member.
+    """
     statement = select(func.count()).where(UserOrganization.org_id == org_id)
-    return db_session.exec(statement).one()
+    member_count = db_session.exec(statement).one()
+    invitation_count = db_session.exec(
+        select(func.count()).where(
+            OrganizationInvitation.org_id == org_id,
+            OrganizationInvitation.status == "pending",
+            OrganizationInvitation.expires_at > datetime.utcnow(),
+        )
+    ).one()
+    links = db_session.exec(select(OrganizationJoinLink).where(
+        OrganizationJoinLink.org_id == org_id,
+        OrganizationJoinLink.status == "active",
+        OrganizationJoinLink.expires_at > datetime.utcnow(),
+    )).all()
+    link_reservations = sum(max(0, link.max_redemptions - link.redemption_count) for link in links)
+    return member_count + invitation_count + link_reservations
 
 
 def _get_actual_badge_count(org_id: int, db_session: Session) -> int:
@@ -113,12 +131,22 @@ def _get_actual_admin_seat_count(org_id: int, db_session: Session) -> int:
     if not admin_role_ids:
         return 0
 
-    # Count users with these roles
+    # Count active users and pending invitations with these roles. Pending
+    # elevated invitations reserve an admin seat until accepted/revoked/expired.
     statement = select(func.count()).where(
         UserOrganization.org_id == org_id,
         UserOrganization.role_id.in_(admin_role_ids)
     )
-    return db_session.exec(statement).one()
+    member_count = db_session.exec(statement).one()
+    invitation_count = db_session.exec(
+        select(func.count()).where(
+            OrganizationInvitation.org_id == org_id,
+            OrganizationInvitation.role_id.in_(admin_role_ids),
+            OrganizationInvitation.status == "pending",
+            OrganizationInvitation.expires_at > datetime.utcnow(),
+        )
+    ).one()
+    return member_count + invitation_count
 
 
 def _get_actual_usage(feature: str, org_id: int, db_session: Session) -> int:

@@ -73,7 +73,7 @@
         },
         "usergroups": {
           "title": "Standard Feature",
-          "description": "User Groups is a premium feature available only to organizations on our Standard plan or higher. Upgrade to organize users into groups for better access management."
+          "description": "Groups is a premium feature available only to organizations on our Standard plan or higher. Upgrade to organize users into groups for better access management."
         },
         "api_access": {
           "title": "Pro Feature",
@@ -593,8 +593,8 @@
     "usergroup_filter": {
       "all_courses": "All Courses",
       "filter_by_group": "Filter by group",
-      "info_title": "User Group Filter",
-      "info_description": "Filter courses by user group to see only courses assigned to a specific group. Useful for families or teams sharing the same organization."
+      "info_title": "Group Filter",
+      "info_description": "Filter courses by group to see only courses assigned to a specific group. Useful for families or teams sharing the same organization."
     }
   },
   "communities": {
@@ -779,35 +779,35 @@
       "set_to_public_confirm": "All signed-in organization members will be able to access this board.",
       "make_board_public": "Make Board Public",
       "set_to_private": "Set to Private",
-      "set_to_private_confirm": "Only members of linked UserGroups will be able to access this board.",
+      "set_to_private_confirm": "Only members of linked Groups will be able to access this board.",
       "make_board_private": "Make Board Private",
       "active": "Active",
       "public_option": "Public",
       "public_description": "All signed-in organization members can access this board",
       "private_option": "Users Only",
-      "private_description": "Only linked UserGroups can access this board",
+      "private_description": "Only linked Groups can access this board",
       "board_set_public": "Board set to public",
       "board_set_private": "Board set to private",
       "access_update_error": "Failed to update access",
-      "user_groups": "User Groups",
-      "user_groups_description": "Manage which user groups have access to this board",
+      "user_groups": "Groups",
+      "user_groups_description": "Manage which groups have access to this board",
       "actions": "Actions",
       "unlink": "Unlink",
-      "unlink_confirm": "This user group will no longer have access to this board.",
-      "unlink_user_group": "Unlink User Group",
-      "no_user_groups": "No user groups linked yet",
-      "link_to_user_group": "Link to User Group",
-      "link_to_user_group_description": "Select a user group to give them access to this board",
-      "link_to_usergroup_btn": "Link to UserGroup",
-      "user_group": "User Group",
-      "no_user_groups_available": "No user groups available",
-      "create_user_group": "Create User Group",
+      "unlink_confirm": "This group will no longer have access to this board.",
+      "unlink_user_group": "Unlink Group",
+      "no_user_groups": "No groups linked yet",
+      "link_to_user_group": "Link to Group",
+      "link_to_user_group_description": "Select a group to give them access to this board",
+      "link_to_usergroup_btn": "Link to Group",
+      "user_group": "Group",
+      "no_user_groups_available": "No groups available",
+      "create_user_group": "Create Group",
       "link": "Link",
       "user_group_linked": "User group linked",
       "user_group_unlinked": "User group unlinked",
       "link_error": "Failed to link: ",
       "unlink_error": "Failed to unlink: ",
-      "unlink_error_generic": "Failed to unlink user group"
+      "unlink_error_generic": "Failed to unlink group"
     },
     "members": {
       "title": "Members",
@@ -1663,40 +1663,40 @@
         },
         "users_only": {
           "title": "Users Only",
-          "description": "The Course is only accessible to signed in users, additionally you can choose which UserGroups can access this course",
+          "description": "The Course is only accessible to signed in users, additionally you can choose which Groups can access this course",
           "active": "Active",
           "confirmation_title": "Change to Users Only?",
           "confirmation_message": "Are you sure you want this course to be only accessible to signed in users?",
           "confirmation_button": "Change to Users Only"
         },
         "usergroups": {
-          "title": "UserGroups",
-          "subtitle": "You can choose to give access to this course to specific groups of users only by linking it to a UserGroup",
+          "title": "Groups",
+          "subtitle": "You can choose to give access to this course to specific groups of users only by linking it to a Group",
           "table": {
             "name": "Name",
             "actions": "Actions"
           },
           "actions": {
             "delete_link": "Delete link",
-            "link_to_usergroup": "Link to a UserGroup"
+            "link_to_usergroup": "Link to a Group"
           },
           "modals": {
-            "link_title": "Link Course to a UserGroup",
-            "link_description": "Choose a UserGroup to link this course to. Users from this UserGroup will have access to this course.",
-            "unlink_title": "Unlink UserGroup?",
-            "unlink_message": "Users from this UserGroup will no longer have access to this course",
+            "link_title": "Link Course to a Group",
+            "link_description": "Choose a Group to link this course to. Users from this Group will have access to this course.",
+            "unlink_title": "Unlink Group?",
+            "unlink_message": "Users from this Group will no longer have access to this course",
             "unlink_button": "Delete Link",
-            "warning": "Users that are not part of the UserGroup will no longer have access to this course",
-            "usergroup_name": "UserGroup Name",
-            "no_usergroups": "No UserGroups available",
-            "create_usergroup": "Create a UserGroup",
+            "warning": "Users that are not part of the Group will no longer have access to this course",
+            "usergroup_name": "Group Name",
+            "no_usergroups": "No Groups available",
+            "create_usergroup": "Create a Group",
             "link_button": "Link"
           },
           "toasts": {
             "link_success": "Successfully linked to usergroup",
             "link_error": "Error {{status}}: {{detail}}",
             "unlink_success": "Successfully unlinked from usergroup",
-            "unlink_error": "An error occurred while unlinking the user group."
+            "unlink_error": "An error occurred while unlinking the group."
           }
         }
       },
@@ -2061,7 +2061,7 @@
         },
         "access": {
           "title": "Access Settings",
-          "subtitle": "Choose if you want your community to be publicly available or only accessible to specific user groups",
+          "subtitle": "Choose if you want your community to be publicly available or only accessible to specific groups",
           "public": {
             "title": "Public",
             "description": "The community is publicly available. Anyone can view and participate in discussions.",
@@ -2072,40 +2072,40 @@
           },
           "restricted": {
             "title": "Restricted",
-            "description": "The community is only accessible to members of selected User Groups. Link User Groups to grant access.",
+            "description": "The community is only accessible to members of selected Groups. Link Groups to grant access.",
             "active": "Active",
             "confirmation_title": "Change to Restricted?",
-            "confirmation_message": "Are you sure you want this community to be restricted? Only members of linked User Groups will have access.",
+            "confirmation_message": "Are you sure you want this community to be restricted? Only members of linked Groups will have access.",
             "confirmation_button": "Change to Restricted"
           },
           "usergroups": {
-            "title": "User Groups",
-            "subtitle": "Grant access to this community by linking it to User Groups. Users in these groups will be able to view and participate.",
+            "title": "Groups",
+            "subtitle": "Grant access to this community by linking it to Groups. Users in these groups will be able to view and participate.",
             "table": {
               "name": "Name",
               "actions": "Actions"
             },
             "actions": {
               "delete_link": "Remove",
-              "link_to_usergroup": "Link to User Group"
+              "link_to_usergroup": "Link to Group"
             },
             "modals": {
-              "link_title": "Link Community to User Group",
-              "link_description": "Choose a User Group to link this community to. Users from this User Group will have access.",
-              "unlink_title": "Remove User Group Access?",
-              "unlink_message": "Users from this User Group will no longer have access to this community.",
+              "link_title": "Link Community to Group",
+              "link_description": "Choose a Group to link this community to. Users from this Group will have access.",
+              "unlink_title": "Remove Group Access?",
+              "unlink_message": "Users from this Group will no longer have access to this community.",
               "unlink_button": "Remove Access",
-              "warning": "Users not in linked User Groups will lose access to this community",
-              "usergroup_name": "User Group Name",
-              "no_usergroups": "No User Groups available",
-              "create_usergroup": "Create a User Group",
+              "warning": "Users not in linked Groups will lose access to this community",
+              "usergroup_name": "Group Name",
+              "no_usergroups": "No Groups available",
+              "create_usergroup": "Create a Group",
               "link_button": "Link"
             },
             "toasts": {
-              "link_success": "Successfully linked User Group",
+              "link_success": "Successfully linked Group",
               "link_error": "Error {{status}}: {{detail}}",
-              "unlink_success": "Successfully removed User Group access",
-              "unlink_error": "An error occurred while removing User Group access"
+              "unlink_success": "Successfully removed Group access",
+              "unlink_error": "An error occurred while removing Group access"
             }
           },
           "toasts": {
@@ -2777,8 +2777,8 @@
     "users": {
       "settings": {
         "tabs": {
-          "users": "Users",
-          "usergroups": "UserGroups",
+          "users": "Overview",
+          "usergroups": "Groups",
           "roles": "Roles",
           "signups": "Signups & Invite Codes",
           "add": "Invite Members",
@@ -2798,8 +2798,8 @@
             "subtitle": "Invite members to join your organization"
           },
           "usergroups": {
-            "title": "UserGroups",
-            "subtitle": "Create and manage user groups"
+            "title": "Groups",
+            "subtitle": "Create and manage groups"
           },
           "roles": {
             "title": "Roles",
@@ -2884,7 +2884,7 @@
             "actions": "Actions"
           },
           "types": {
-            "linked_to_usergroup": "Linked to a UserGroup",
+            "linked_to_usergroup": "Linked to a Group",
             "normal": "Normal"
           },
           "actions": {
@@ -2905,13 +2905,13 @@
           }
         },
         "generate_modal": {
-          "linked_title": "Invite Code linked to a UserGroup",
-          "linked_description": "On Signup, Users will be automatically linked to a UserGroup of your choice",
+          "linked_title": "Invite Code linked to a Group",
+          "linked_description": "On Signup, Users will be automatically linked to a Group of your choice",
           "normal_title": "Normal Invite Code",
-          "normal_description": "On Signup, User will not be linked to any UserGroup",
+          "normal_description": "On Signup, User will not be linked to any Group",
           "generate_button": "Generate",
-          "no_usergroups": "No UserGroups available",
-          "create_usergroup_link": "Create a UserGroup",
+          "no_usergroups": "No Groups available",
+          "create_usergroup_link": "Create a Group",
           "toasts": {
             "error": "Error {{status}}: {{detail}}"
           }
@@ -2948,11 +2948,11 @@
         }
       },
       "usergroups": {
-        "title": "Manage UserGroups & Users",
-        "subtitle": "UserGroups are a way to group users together to manage their access to the resources (Courses) in your organization.",
+        "title": "Manage Groups & Users",
+        "subtitle": "Groups are a way to group users together to manage their access to the resources (Courses) in your organization.",
         "search_placeholder": "Search groups...",
         "no_results": "No groups found matching your search",
-        "no_groups": "No user groups yet",
+        "no_groups": "No groups yet",
         "count": {
           "singular": "group",
           "plural": "groups"
@@ -2962,7 +2962,7 @@
           "plural": "members"
         },
         "table": {
-          "usergroup": "UserGroup",
+          "usergroup": "Group",
           "description": "Description",
           "manage_users": "Manage Users",
           "actions": "Actions"
@@ -2971,12 +2971,12 @@
           "manage_users": "Manage Users",
           "edit": "Edit",
           "delete": "Delete",
-          "create": "Create a UserGroup"
+          "create": "Create a Group"
         },
         "modals": {
           "manage_users": {
-            "title": "Manage UserGroup Users",
-            "description": "Manage the users in this UserGroup",
+            "title": "Manage Group Users",
+            "description": "Manage the users in this Group",
             "search_placeholder": "Search users by name or username...",
             "no_results": "No users found matching your search",
             "no_users": "No users in this organization yet",
@@ -3023,45 +3023,45 @@
             }
           },
           "create": {
-            "title": "Create a UserGroup",
-            "description": "Create a new UserGroup to manage users",
+            "title": "Create a Group",
+            "description": "Create a new Group to manage users",
             "form": {
               "name": "Name",
               "name_required": "Name is Required",
               "description": "Description",
-              "submit": "Create a UserGroup",
+              "submit": "Create a Group",
               "loading": "Loading..."
             },
             "toasts": {
               "creating": "Creating...",
-              "success": "Created new usergroup",
-              "error": "Couldn't create new usergroup"
+              "success": "Created new group",
+              "error": "Couldn't create new group"
             }
           },
           "edit": {
-            "title": "Edit UserGroup",
+            "title": "Edit Group",
             "form": {
               "name": "Name",
               "name_required": "Name is Required",
               "description": "Description",
-              "submit": "Save UserGroup",
+              "submit": "Save Group",
               "loading": "Loading..."
             },
             "toasts": {
-              "success": "UserGroup saved successfully",
-              "error": "Error saving UserGroup, please retry later."
+              "success": "Group saved successfully",
+              "error": "Error saving Group, please retry later."
             }
           },
           "delete": {
-            "title": "Delete UserGroup ?",
-            "message": "Access to all resources will be removed for all users in this UserGroup. Are you sure you want to delete this UserGroup ?",
-            "button": "Delete UserGroup"
+            "title": "Delete Group ?",
+            "message": "Access to all resources will be removed for all users in this Group. Are you sure you want to delete this Group ?",
+            "button": "Delete Group"
           }
         },
         "toasts": {
           "deleting": "Deleting...",
-          "delete_success": "Deleted usergroup",
-          "delete_error": "Error deleting usergroup"
+          "delete_success": "Deleted group",
+          "delete_error": "Error deleting group"
         }
       },
       "roles": {
@@ -3134,7 +3134,7 @@
               },
               "user_manager": {
                 "name": "User Manager",
-                "description": "Can manage users and user groups"
+                "description": "Can manage users and groups"
               },
               "moderator": {
                 "name": "Moderator",
@@ -3154,7 +3154,7 @@
               "sections": {
                 "courses": "Courses",
                 "users": "Users",
-                "usergroups": "User Groups",
+                "usergroups": "Groups",
                 "collections": "Collections",
                 "organizations": "Organizations",
                 "coursechapters": "Course Chapters",
@@ -3217,7 +3217,7 @@
           "resources": {
             "courses": "Courses",
             "users": "Users",
-            "usergroups": "User Groups",
+            "usergroups": "Groups",
             "collections": "Collections",
             "organizations": "Organizations",
             "coursechapters": "Course Chapters",
@@ -3784,10 +3784,10 @@
         "title": "New vs Returning Users",
         "description": "Growth vs retention health"
       },
-      "cohort_retention": {
-        "title": "Cohort Retention",
+      "groups_retention": {
+        "title": "Group Retention",
         "description": "% users active after signup week",
-        "cohort": "Cohort",
+        "groups": "Group",
         "size": "Size"
       },
       "peak_usage": {
@@ -3906,7 +3906,7 @@
         "peak_active": "peak active",
         "conversion": "conversion",
         "retention": "retention",
-        "in_cohort": "in cohort",
+        "in_groups": "in groups",
         "active_learners": "active learners",
         "recent_enrollments": "recent enrollments",
         "transitions": "transitions",
@@ -4019,7 +4019,7 @@
       "learner_retention": {
         "title": "Learner Retention",
         "subtitle": "% of learners returning after first activity",
-        "cohort_size": "Cohort Size",
+        "groups_size": "Group Size",
         "current_retention": "Current Retention",
         "days_since_first": "Days since first activity",
         "day_label": "Day {{day}}"

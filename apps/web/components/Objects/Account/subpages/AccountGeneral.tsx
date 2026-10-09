@@ -1,7 +1,7 @@
 'use client';
 import { updateProfile } from '@services/settings/portfolio'
 import { getUser } from '@services/users/users'
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Formik, Form } from 'formik'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import {
@@ -11,18 +11,6 @@ import {
   Info,
   ImageIcon,
   AlertTriangle,
-  Briefcase,
-  GraduationCap,
-  MapPin,
-  Building2,
-  Globe,
-  Laptop2,
-  Award,
-  BookOpen,
-  Link,
-  Users,
-  Calendar,
-  Lightbulb
 } from 'lucide-react'
 import UserAvatar from '@components/Objects/UserAvatar'
 import * as Yup from 'yup'
@@ -30,49 +18,12 @@ import { Input } from "@components/ui/input"
 import { Textarea } from "@components/ui/textarea"
 import { Button } from "@components/ui/button"
 import { Label } from "@components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@components/ui/select"
 import { toast } from 'react-hot-toast'
 import { signOut } from '@components/Contexts/AuthContext'
 import { getUriWithoutOrg } from '@services/config/config';
-import { useDebounce } from '@/hooks/useDebounce';
 import { useTranslation } from 'react-i18next';
 import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 import { MediaAsset, applyMediaAssetToUserAvatar } from '@services/media/library'
-
-const AVAILABLE_ICONS = [
-  { name: 'briefcase', labelKey: 'user.settings.general.icons.briefcase', component: Briefcase },
-  { name: 'graduation-cap', labelKey: 'user.settings.general.icons.education', component: GraduationCap },
-  { name: 'map-pin', labelKey: 'user.settings.general.icons.location', component: MapPin },
-  { name: 'building-2', labelKey: 'user.settings.general.icons.organization', component: Building2 },
-  { name: 'speciality', labelKey: 'user.settings.general.icons.speciality', component: Lightbulb },
-  { name: 'globe', labelKey: 'user.settings.general.icons.website', component: Globe },
-  { name: 'laptop-2', labelKey: 'user.settings.general.icons.tech', component: Laptop2 },
-  { name: 'award', labelKey: 'user.settings.general.icons.achievement', component: Award },
-  { name: 'book-open', labelKey: 'user.settings.general.icons.book', component: BookOpen },
-  { name: 'link', labelKey: 'user.settings.general.icons.link', component: Link },
-  { name: 'users', labelKey: 'user.settings.general.icons.community', component: Users },
-  { name: 'calendar', labelKey: 'user.settings.general.icons.calendar', component: Calendar },
-] as const;
-
-const IconComponent = ({ iconName }: { iconName: string }) => {
-  const iconConfig = AVAILABLE_ICONS.find(i => i.name === iconName);
-  if (!iconConfig) return null;
-  const IconElement = iconConfig.component;
-  return <IconElement className="w-4 h-4" />;
-};
-
-interface DetailItem {
-  id: string;
-  label: string;
-  icon: string;
-  text: string;
-}
 
 interface FormValues {
   username: string;
@@ -80,32 +31,7 @@ interface FormValues {
   last_name: string;
   email: string;
   bio: string;
-  details: {
-    [key: string]: DetailItem;
-  };
 }
-
-const DETAIL_TEMPLATES = {
-  general: [
-    { id: 'title', label: 'Title', icon: 'briefcase', text: '' },
-    { id: 'affiliation', label: 'Affiliation', icon: 'building-2', text: '' },
-    { id: 'location', label: 'Location', icon: 'map-pin', text: '' },
-    { id: 'website', label: 'Website', icon: 'globe', text: '' },
-    { id: 'linkedin', label: 'LinkedIn', icon: 'link', text: '' }
-  ],
-  academic: [
-    { id: 'institution', label: 'Institution', icon: 'building-2', text: '' },
-    { id: 'department', label: 'Department', icon: 'graduation-cap', text: '' },
-    { id: 'research', label: 'Research Area', icon: 'book-open', text: '' },
-    { id: 'academic-title', label: 'Academic Title', icon: 'award', text: '' }
-  ],
-  professional: [
-    { id: 'company', label: 'Company', icon: 'building-2', text: '' },
-    { id: 'industry', label: 'Industry', icon: 'briefcase', text: '' },
-    { id: 'expertise', label: 'Expertise', icon: 'laptop-2', text: '' },
-    { id: 'community', label: 'Community', icon: 'users', text: '' }
-  ]
-} as const;
 
 const validationSchema = Yup.object().shape({
   email: Yup.string().email('Invalid email').required('Email is required'),
@@ -113,124 +39,10 @@ const validationSchema = Yup.object().shape({
   first_name: Yup.string().required('First name is required'),
   last_name: Yup.string().required('Last name is required'),
   bio: Yup.string().max(400, 'Bio must be 400 characters or less'),
-  details: Yup.object().shape({})
 });
 
-// Memoized detail card component for better performance
-const DetailCard = React.memo(({
-  id,
-  detail,
-  onUpdate,
-  onRemove,
-  onLabelChange
-}: {
-  id: string;
-  detail: DetailItem;
-  onUpdate: (id: string, field: keyof DetailItem, value: string) => void;
-  onRemove: (id: string) => void;
-  onLabelChange: (id: string, newLabel: string) => void;
-}) => {
-  const { t } = useTranslation();
-  const [localLabel, setLocalLabel] = useState(detail.label);
-
-  const debouncedLabelChange = useDebounce((newLabel: string) => {
-    if (newLabel !== detail.label) {
-      onLabelChange(id, newLabel);
-    }
-  }, 500);
-
-  const handleLabelChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const newLabel = e.target.value;
-    setLocalLabel(newLabel);
-    debouncedLabelChange(newLabel);
-  }, [debouncedLabelChange]);
-
-  const handleIconChange = useCallback((value: string) => {
-    onUpdate(id, 'icon', value);
-  }, [id, onUpdate]);
-
-  const handleTextChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    onUpdate(id, 'text', e.target.value);
-  }, [id, onUpdate]);
-
-  const handleRemove = useCallback(() => {
-    onRemove(id);
-  }, [id, onRemove]);
-
-  useEffect(() => {
-    setLocalLabel(detail.label);
-  }, [detail.label]);
-
-  return (
-    <div className="space-y-2 p-4 border rounded-lg bg-card shadow-sm">
-      <div className="flex justify-between items-center mb-3">
-        <Input
-          value={localLabel}
-          onChange={handleLabelChange}
-          placeholder={t('user.settings.general.detail_label_placeholder')}
-          className="max-w-[200px]"
-        />
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="text-red-500 hover:text-red-700"
-          onClick={handleRemove}
-        >
-          {t('user.settings.general.remove')}
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <Label>{t('user.settings.general.icon')}</Label>
-          <Select
-            value={detail.icon}
-            onValueChange={handleIconChange}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder={t('user.settings.general.select_icon')}>
-                {detail.icon && (
-                  <div className="flex items-center gap-2">
-                    <IconComponent iconName={detail.icon} />
-                    <span>
-                      {t(AVAILABLE_ICONS.find(i => i.name === detail.icon)?.labelKey || '')}
-                    </span>
-                  </div>
-                )}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {AVAILABLE_ICONS.map((icon) => (
-                <SelectItem key={icon.name} value={icon.name}>
-                  <div className="flex items-center gap-2">
-                    <icon.component className="w-4 h-4" />
-                    <span>{t(icon.labelKey)}</span>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label>{t('user.settings.general.text')}</Label>
-          <Input
-            value={detail.text}
-            onChange={handleTextChange}
-            placeholder={t('user.settings.general.text_placeholder')}
-          />
-        </div>
-      </div>
-    </div>
-  );
-});
-
-DetailCard.displayName = 'DetailCard';
-
-// Form component to handle the details section
 const UserEditForm = ({
   values,
-  setFieldValue,
   handleChange,
   errors,
   touched,
@@ -238,8 +50,7 @@ const UserEditForm = ({
   profilePicture
 }: {
   values: FormValues;
-  setFieldValue: (field: string, value: any) => void;
-  handleChange: (e: React.ChangeEvent<any>) => void;
+  handleChange: React.ChangeEventHandler<any>;
   errors: any;
   touched: any;
   isSubmitting: boolean;
@@ -351,101 +162,6 @@ const UserEditForm = ({
               )}
             </div>
 
-            <div className="space-y-4">
-              <div className="flex flex-col gap-3">
-                <div className="flex justify-between items-center">
-                  <Label>{t('user.settings.general.additional_details')}</Label>
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                      onClick={() => {
-                        setFieldValue('details', {});
-                      }}
-                    >
-                      {t('user.settings.general.clear_all')}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        const newDetails = { ...values.details };
-                        const id = `detail-${Date.now()}`;
-                        newDetails[id] = {
-                          id,
-                          label: 'New Detail',
-                          icon: '',
-                          text: ''
-                        };
-                        setFieldValue('details', newDetails);
-                      }}
-                    >
-                      {t('user.settings.general.add_detail')}
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  {Object.entries(DETAIL_TEMPLATES).map(([key, template]) => (
-                    <Button
-                      key={key}
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      className="flex items-center gap-2"
-                      onClick={() => {
-                        const currentIds = new Set(Object.keys(values.details));
-                        const newDetails = { ...values.details };
-
-                        template.forEach((item) => {
-                          if (!currentIds.has(item.id)) {
-                            newDetails[item.id] = {
-                              ...item,
-                              label: t(`user.settings.general.labels.${item.id.replace('-', '_')}`, { defaultValue: item.label })
-                            };
-                          }
-                        });
-
-                        setFieldValue('details', newDetails);
-                      }}
-                    >
-                      {key === 'general' && <Briefcase className="w-4 h-4" />}
-                      {key === 'academic' && <GraduationCap className="w-4 h-4" />}
-                      {key === 'professional' && <Building2 className="w-4 h-4" />}
-                      {t(`user.settings.general.add_${key}`)}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                {Object.entries(values.details).map(([id, detail]) => (
-                  <DetailCard
-                    key={id}
-                    id={id}
-                    detail={detail}
-                    onUpdate={(id, field, value) => {
-                      const newDetails = { ...values.details };
-                      newDetails[id] = { ...newDetails[id], [field]: value };
-                      setFieldValue('details', newDetails);
-                    }}
-                    onRemove={(id) => {
-                      const newDetails = { ...values.details };
-                      delete newDetails[id];
-                      setFieldValue('details', newDetails);
-                    }}
-                    onLabelChange={(id, newLabel) => {
-                      const newDetails = { ...values.details };
-                      newDetails[id] = { ...newDetails[id], label: newLabel };
-                      setFieldValue('details', newDetails);
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
           </div>
 
           {/* Portfolio Picture Section */}
@@ -554,7 +270,7 @@ function AccountGeneral() {
   const handleEmailChange = async (newEmail: string) => {
     toast.success(t('user.settings.general.profile_updated'), { duration: 4000 })
 
-    toast((t_toast: any) => (
+    toast(() => (
       <div className="flex items-center gap-2">
         <span>{t('user.settings.general.relogin_message', { email: newEmail })}</span>
       </div>
@@ -587,7 +303,6 @@ function AccountGeneral() {
           last_name: userData.last_name,
           email: userData.email,
           bio: userData.bio || '',
-          details: userData.details || {},
         }}
         validationSchema={validationSchema}
         onSubmit={(values, { setSubmitting }) => {

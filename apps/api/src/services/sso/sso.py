@@ -677,6 +677,10 @@ async def create_sso_user(
         # Don't fail if email sending fails
         pass
 
+    from src.services.messages import create_welcome_message_safely
+
+    create_welcome_message_safely(db_session, int(user.id or 0))
+
     return user
 
 

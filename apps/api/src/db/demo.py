@@ -1,0 +1,88 @@
+"""Primary-database control records; never part of a visitor checkpoint."""
+
+from datetime import datetime
+
+from sqlalchemy import JSON, Column, Text
+from sqlmodel import Field, SQLModel
+
+
+class DemoConfiguration(SQLModel, table=True):
+    id: int = Field(default=1, primary_key=True)
+    enabled: bool = False
+    # Republish the live scenario after a product update outdates the checkpoint.
+    auto_recapture: bool = True
+    recapture_error: str | None = None
+    recapture_error_signature: str | None = None
+    entry_org_id: int | None = None
+    capacity: int = 100
+    session_minutes: int = 60
+    extension_minutes: int = 30
+    ai_requests_per_minute: int = 10
+    ai_tokens_per_visitor: int = 100000
+    ai_tokens_per_day: int = 2000000
+    revision: int = 1
+    checkpoint_id: str | None = None
+    # Guide pages every demo user shows; NULL means the built-in defaults.
+    guide_pages: list | None = Field(default=None, sa_column=Column(JSON, nullable=True))
+
+
+class DemoCheckpoint(SQLModel, table=True):
+    id: str = Field(primary_key=True)
+    schema_signature: str = ""
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_by: int
+    entry_org_slug: str
+    pilots: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    # Published pilot avatars as data URIs, kept out of `pilots` so status polling stays small.
+    portraits: dict = Field(
+        default_factory=dict, sa_column=Column(JSON, nullable=False)
+    )
+    data: dict = Field(sa_column=Column(JSON, nullable=False))
+
+
+class DemoSession(SQLModel, table=True):
+    id: str = Field(primary_key=True)
+    checkpoint_id: str
+    visitor_id: str = Field(index=True)
+    pilot_user_id: int | None = None
+    namespace: str = Field(index=True, unique=True)
+    schema_signature: str = ""
+    duration_minutes: int = 60
+    aliases: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    expires_at: datetime = Field(index=True)
+    ended_at: datetime | None = None
+    cleaned_at: datetime | None = None
+    state: str = Field(default="preparing", index=True)
+    error: str | None = Field(default=None, sa_column=Column(Text))
+    # Operator-only cause of a failed preparation, shown in Demo Studio.
+    failure_detail: str | None = Field(default=None, sa_column=Column(Text))
+    # Optional label from a shared link (e.g. ?tag=oct-fair), attached to feedback.
+    tag: str | None = None
+
+
+class DemoUsage(SQLModel, table=True):
+    id: str = Field(primary_key=True)
+    tokens: int = 0
+    requests: int = 0
+
+
+class DemoMember(SQLModel, table=True):
+    """Explicitly designated fictional accounts; only pilots appear publicly.
+
+    Presentation (card text, guide, start page, link handle) is read live, so
+    editing it never needs a new checkpoint. Account data is published.
+    """
+
+    user_id: int = Field(primary_key=True)
+    pilotable: bool = False
+    description: str = ""
+    role_line: str = ""
+    # Direct-link slug: demo.<host>/<handle>.
+    handle: str | None = Field(default=None, unique=True)
+    # Where the user lands; empty org slug means the main portal.
+    start_path: str = ""
+    start_org_slug: str = ""
+    guide: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    position: int = 0
+    last_setup_at: datetime | None = None

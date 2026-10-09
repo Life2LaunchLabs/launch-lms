@@ -55,8 +55,8 @@ function getAdminMigrationPath(pathname: string): string {
   return '/admin/platform'
 }
 
-function getPortfolioRedirectDestination(requestUrl: string): string {
-  return new URL('/portfolio', requestUrl).toString()
+function getHubRedirectDestination(requestUrl: string): string {
+  return new URL('/hub', requestUrl).toString()
 }
 
 function parseInternalOrgPath(pathname: string): { orgSlug: string; externalPath: string } | null {
@@ -138,10 +138,14 @@ export function resolveRequestRouting(
   }
 
   if (route.kind === 'auth') {
-    if (input.hasSession && isAuthenticatedAuthRedirectPath(pathname)) {
+    if (
+      input.hasSession &&
+      isAuthenticatedAuthRedirectPath(pathname) &&
+      !new URLSearchParams(search).has('next')
+    ) {
       return {
         action: 'redirect',
-        destination: getPortfolioRedirectDestination(input.requestUrl),
+        destination: getHubRedirectDestination(input.requestUrl),
       }
     }
 
@@ -300,7 +304,7 @@ export function resolveRequestRouting(
     if (input.hasSession) {
       return {
         action: 'redirect',
-        destination: getPortfolioRedirectDestination(input.requestUrl),
+        destination: getHubRedirectDestination(input.requestUrl),
       }
     }
 

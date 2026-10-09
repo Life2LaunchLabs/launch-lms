@@ -71,6 +71,19 @@ export async function healthCommand() {
     p.log.message(fail('Redis container not running'))
   }
 
+  // Local embedding service is optional for external databases, but managed
+  // installs include it for semantic resource search.
+  const embeddingsContainer = `launch-lms-embeddings-${id}`
+  if (isContainerRunning(embeddingsContainer)) {
+    p.log.step('Resource Search Embeddings')
+    try {
+      dockerExec(embeddingsContainer, 'ollama show all-minilm:33m')
+      p.log.message(pass('Local all-minilm:33m model ready'))
+    } catch {
+      p.log.message(fail('Local embedding model not ready'))
+    }
+  }
+
   // 4. HTTP endpoint
   p.log.step('HTTP Endpoint')
   const protocol = config.useHttps ? 'https' : 'http'

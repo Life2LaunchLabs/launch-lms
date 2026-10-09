@@ -1,24 +1,17 @@
 'use client'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import React, { useState } from 'react'
-import { AlertTriangle, CheckCircle, Loader2, Mail, Ticket, UserPlus, X } from 'lucide-react'
+import { AlertTriangle, CheckCircle, Loader2, Mail, UserPlus, X } from 'lucide-react'
 import { useOrg, useOrgMembership } from '@components/Contexts/OrgContext'
 import UserAvatar from '@components/Objects/UserAvatar'
 import OpenSignUpComponent from './OpenSignup'
 import InviteOnlySignUpComponent from './InviteOnlySignUp'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { validateInviteCode } from '@services/organizations/invites'
 import { joinOrg } from '@services/organizations/orgs'
 import { getUriWithOrg } from '@services/config/config'
 import { useTranslation } from 'react-i18next'
 import AuthLayout from '@components/Auth/AuthLayout'
 import CreateOrgWizard from './CreateOrgWizard'
-import FormLayout, {
-  FormField,
-  FormLabelAndMessage,
-  Input,
-} from '@components/Objects/StyledElements/Form/Form'
-import * as Form from '@radix-ui/react-form'
 
 interface SignUpClientProps {
   org: any
@@ -29,6 +22,7 @@ function SignUpClient(props: SignUpClientProps) {
   const session = useLHSession() as any
   const searchParams = useSearchParams()
   const inviteCodeParam = searchParams.get('inviteCode')
+  const invitationParam = searchParams.get('invitation')
   const createOrgMode = searchParams.get('mode') === 'create-org'
   const config = props.org?.config?.config
   const isV2 = config?.config_version?.startsWith('2')
@@ -36,6 +30,7 @@ function SignUpClient(props: SignUpClientProps) {
     ? config?.admin_toggles?.members?.signup_mode || 'open'
     : config?.features?.members?.signup_mode || 'open'
   const inviteCode = inviteCodeParam || ''
+  const invitationToken = invitationParam || ''
 
   return (
     <AuthLayout org={props.org} welcomeText={t('auth.invited_to_join')}>
@@ -53,19 +48,19 @@ function SignUpClient(props: SignUpClientProps) {
         <>
           {joinMethod == 'open' &&
             (session.status == 'authenticated' ? (
-              <LoggedInJoinScreen inviteCode={inviteCode} org={props.org} />
+              <LoggedInJoinScreen inviteCode={inviteCode} invitationToken={invitationToken} org={props.org} />
             ) : (
               <div className="flex-1 flex flex-row">
                 <OpenSignUpComponent />
               </div>
             ))}
           {joinMethod == 'inviteOnly' &&
-            (inviteCode ? (
+            (inviteCode || invitationToken ? (
               session.status == 'authenticated' ? (
-                <LoggedInJoinScreen inviteCode={inviteCode} org={props.org} />
+                <LoggedInJoinScreen inviteCode={inviteCode} invitationToken={invitationToken} org={props.org} />
               ) : (
                 <div className="flex-1 flex flex-row">
-                  <InviteOnlySignUpComponent inviteCode={inviteCode} />
+                  <InviteOnlySignUpComponent inviteCode={inviteCode} invitationToken={invitationToken} />
                 </div>
               )
             ) : (
@@ -79,10 +74,11 @@ function SignUpClient(props: SignUpClientProps) {
 
 interface JoinScreenProps {
   inviteCode: string
+  invitationToken: string
   org: any
 }
 
-const LoggedInJoinScreen = ({ inviteCode, org }: JoinScreenProps) => {
+const LoggedInJoinScreen = ({ inviteCode, invitationToken, org }: JoinScreenProps) => {
   const { t } = useTranslation()
   const session = useLHSession() as any
   const contextOrg = useOrg() as any
@@ -101,7 +97,12 @@ const LoggedInJoinScreen = ({ inviteCode, org }: JoinScreenProps) => {
     setShowMessage(false)
 
     const res = await joinOrg(
-      { org_id: activeOrg.id, user_id: session?.data?.user?.user_uuid, invite_code: inviteCode },
+      {
+        org_id: activeOrg.id,
+        user_id: session?.data?.user?.user_uuid,
+        ...(inviteCode ? { invite_code: inviteCode } : {}),
+        ...(invitationToken ? { invitation_token: invitationToken } : {}),
+      },
       null,
       session.data?.tokens?.access_token
     )
@@ -220,29 +221,20 @@ const LoggedInJoinScreen = ({ inviteCode, org }: JoinScreenProps) => {
                 <p className="font-semibold text-gray-900 text-lg">{activeOrg?.name}</p>
               </div>
 
-              {/* Join Button or Verification Warning */}
-              {false ? (
-                <div className="w-full bg-amber-50 border border-amber-200 rounded-lg p-4 text-center">
-                  <Mail size={24} className="mx-auto mb-2 text-amber-600" />
-                  <p className="font-semibold text-amber-800 mb-1">{t('auth.email_verification_required')}</p>
-                  <p className="text-sm text-amber-700">{t('auth.email_verification_required_join')}</p>
-                </div>
-              ) : (
-                <button
-                  onClick={join}
-                  disabled={isSubmitting}
-                  className="w-full bg-black text-white font-semibold text-center py-2.5 rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {isSubmitting ? (
-                    <Loader2 size={18} className="animate-spin" />
-                  ) : (
-                    <>
-                      <UserPlus size={18} />
-                      {t('auth.join_organization')}
-                    </>
-                  )}
-                </button>
-              )}
+              <button
+                onClick={join}
+                disabled={isSubmitting}
+                className="w-full bg-black text-white font-semibold text-center py-2.5 rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isSubmitting ? (
+                  <Loader2 size={18} className="animate-spin" />
+                ) : (
+                  <>
+                    <UserPlus size={18} />
+                    {t('auth.join_organization')}
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>
@@ -257,108 +249,17 @@ interface NoTokenScreenProps {
 
 const NoTokenScreen = ({ org }: NoTokenScreenProps) => {
   const { t } = useTranslation()
-  const session = useLHSession() as any
   const contextOrg = useOrg() as any
   const activeOrg = contextOrg || org
-  const router = useRouter()
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [inviteCode, setInviteCode] = useState('')
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
-  const [showMessage, setShowMessage] = useState(false)
-
-  const validateCode = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSubmitting(true)
-    setError('')
-    setSuccess('')
-    setShowMessage(false)
-
-    const res = await validateInviteCode(activeOrg?.id, inviteCode, session?.data?.tokens?.access_token)
-
-    if (res.success) {
-      setSuccess(t('auth.invite_code_valid'))
-      setShowMessage(true)
-      setTimeout(() => {
-        router.push(`/signup?inviteCode=${inviteCode}`)
-      }, 1500)
-    } else {
-      setError(t('auth.invite_code_invalid'))
-      setShowMessage(true)
-    }
-    setIsSubmitting(false)
-  }
 
   return (
-    <>
-      {/* Message Top Bar */}
-      {showMessage && (error || success) && (
-        <div className={`
-          w-full px-4 py-3 flex items-center justify-between gap-3 animate-in slide-in-from-top duration-200
-          ${error ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}
-        `}>
-          <div className="flex items-center gap-3 flex-1 min-w-0">
-            {error ? <AlertTriangle size={18} className="shrink-0" /> : <CheckCircle size={18} className="shrink-0" />}
-            <span className="text-sm font-medium">{error || success}</span>
-          </div>
-          <button
-            onClick={() => setShowMessage(false)}
-            className="p-1 hover:bg-white/20 rounded transition-colors shrink-0"
-          >
-            <X size={18} />
-          </button>
-        </div>
-      )}
-
-      <div className="flex-1 flex flex-row">
-        <div className="m-auto w-full max-w-sm px-6 py-8 sm:py-0">
-          {/* Header */}
-          <div className="mb-8 text-center">
-            <h1 className="text-2xl font-bold text-gray-900">{t('auth.invite_required')}</h1>
-            <p className="text-gray-500 mt-1">{t('auth.invite_required_desc', { org: activeOrg?.name })}</p>
-          </div>
-
-          {/* Invite Code Card */}
-          <div className="bg-white rounded-xl p-6 nice-shadow">
-            <FormLayout onSubmit={validateCode}>
-              <FormField name="invite_code">
-                <FormLabelAndMessage
-                  label={t('auth.invite_code')}
-                  message={undefined}
-                />
-                <Form.Control asChild>
-                  <Input
-                    onChange={(e) => setInviteCode(e.target.value)}
-                    value={inviteCode}
-                    type="text"
-                    placeholder={t('auth.enter_invite_code')}
-                    required
-                  />
-                </Form.Control>
-              </FormField>
-
-              <div className="pt-2">
-                <Form.Submit asChild>
-                  <button
-                    disabled={isSubmitting || !inviteCode}
-                    className="w-full bg-black text-white font-semibold text-center py-2.5 rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {isSubmitting ? (
-                      <Loader2 size={18} className="animate-spin" />
-                    ) : (
-                      <>
-                        <Ticket size={18} />
-                        {t('auth.validate_invite')}
-                      </>
-                    )}
-                  </button>
-                </Form.Submit>
-              </div>
-            </FormLayout>
-          </div>
-        </div>
+    <div className="flex-1 flex flex-row">
+      <div className="m-auto w-full max-w-sm px-6 py-8 text-center sm:py-0">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-amber-50 text-amber-700"><Mail size={22} /></div>
+        <h1 className="mt-5 text-2xl font-bold text-gray-900">{t('auth.invite_required')}</h1>
+        <p className="mt-2 text-sm leading-6 text-gray-500">Ask an administrator of {activeOrg?.name} to send an invitation to your email address, then use the link in that message.</p>
       </div>
-    </>
+    </div>
   )
 }
 

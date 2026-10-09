@@ -1,7 +1,8 @@
 import Link from 'next/link'
+import { notFound } from 'next/navigation'
 import type React from 'react'
 import { ArrowUpRight, BadgeCheck, User } from 'lucide-react'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getCoreCapabilities, getUriWithOrg, routePaths } from '@services/config/config'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
 import { getPublishedNewsArticles, NewsArticle } from '@services/news/news'
 
@@ -91,6 +92,7 @@ function FeatureCard({
 export default async function NewsPage(props: {
   params: Promise<{ orgslug: string }>
 }) {
+  if (!getCoreCapabilities().news) notFound()
   const { orgslug } = await props.params
   const org = await getOrganizationContextInfo(orgslug, {
     revalidate: 180,

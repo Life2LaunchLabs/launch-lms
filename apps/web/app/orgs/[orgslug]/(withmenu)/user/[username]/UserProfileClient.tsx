@@ -2,21 +2,7 @@
 
 import React from 'react'
 import UserAvatar from '@components/Objects/UserAvatar'
-import { 
-  Briefcase, 
-  Building2, 
-  MapPin, 
-  Globe, 
-  Link as LinkIcon, 
-  GraduationCap,
-  Award,
-  BookOpen,
-  Laptop2,
-  Users,
-  Calendar,
-  Lightbulb,
-  X
-} from 'lucide-react'
+import { Link as LinkIcon, X } from 'lucide-react'
 import { getUserAvatarMediaDirectory } from '@services/media/media'
 import { useTranslation } from 'react-i18next'
 
@@ -24,21 +10,6 @@ interface UserProfileClientProps {
   userData: any;
   profile: any;
 }
-
-const ICON_MAP = {
-  'briefcase': Briefcase,
-  'graduation-cap': GraduationCap,
-  'map-pin': MapPin,
-  'building-2': Building2,
-  'speciality': Lightbulb,
-  'globe': Globe,
-  'laptop-2': Laptop2,
-  'award': Award,
-  'book-open': BookOpen,
-  'link': LinkIcon,
-  'users': Users,
-  'calendar': Calendar,
-} as const
 
 // Add Modal component
 const ImageModal: React.FC<{
@@ -70,12 +41,6 @@ const ImageModal: React.FC<{
 function UserProfileClient({ userData, profile }: UserProfileClientProps) {
   const { t } = useTranslation()
   const [selectedImage, setSelectedImage] = React.useState<{ url: string; caption?: string } | null>(null);
-
-  const IconComponent = ({ iconName }: { iconName: string }) => {
-    const IconElement = ICON_MAP[iconName as keyof typeof ICON_MAP]
-    if (!IconElement) return null
-    return <IconElement className="w-4 h-4 text-muted-foreground" />
-  }
 
   return (
     <div className="container mx-auto py-8">
@@ -128,17 +93,6 @@ function UserProfileClient({ userData, profile }: UserProfileClientProps) {
                 {userData.first_name} {userData.last_name}
               </h1>
 
-              {/* Details */}
-              <div className="flex flex-col space-y-3">
-                {userData.details && Object.values(userData.details).map((detail: any) => (
-                  <div key={detail.id} className="flex items-center gap-4">
-                    <div className="flex-shrink-0">
-                      <IconComponent iconName={detail.icon} />
-                    </div>
-                    <span className="text-muted-foreground text-[15px] font-medium">{detail.text}</span>
-                  </div>
-                ))}
-              </div>
             </div>
 
             {/* Right column with about and related content */}

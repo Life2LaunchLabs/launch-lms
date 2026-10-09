@@ -10,8 +10,9 @@ import Link from 'next/link'
 import AdminDataTable from '@components/Admin/AdminDataTable'
 import { Pagination } from '@components/Admin/Platform/shared'
 import { removeUserFromOrg, removeUsersFromOrg, updateUserRole } from '@services/organizations/orgs'
+import { resendUserInvitation, revokeUserInvitation } from '@services/organizations/invites'
 import { swrFetcher } from '@services/utils/ts/requests'
-import { LogOut, Shield, User, Crown, Users, CheckCircle2, XCircle, Mail, Globe, ArrowUp, ArrowDown, X, UserPlus } from 'lucide-react'
+import { LogOut, Shield, User, Crown, Users, CheckCircle2, XCircle, Mail, Globe, ArrowUp, ArrowDown, RefreshCw, X, UserPlus } from 'lucide-react'
 import React, { useState, useRef } from 'react'
 import toast from 'react-hot-toast'
 import useSWR, { mutate } from 'swr'
@@ -29,6 +30,14 @@ import { planMeetsRequirement } from '@services/plans/plans'
 
 const ITEMS_PER_PAGE = 10
 
+export type OrgUsersOverviewFilters = {
+  search: string
+  roleId: string
+  verified: 'all' | 'verified' | 'unverified'
+  active: 'all' | 'active' | 'inactive'
+  assignedToMe: boolean
+}
+
 function formatShortDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '—'
   try {
@@ -45,7 +54,7 @@ function shouldRevalidate() {
   return Math.random() < 0.5
 }
 
-function OrgUsers() {
+function OrgUsers({ overviewFilters }: { overviewFilters?: OrgUsersOverviewFilters } = {}) {
   const { t } = useTranslation()
   const org = useOrg() as any
   const session = useLHSession() as any
@@ -62,6 +71,13 @@ function OrgUsers() {
   const [filterStatus, setFilterStatus] = useState<string>('')
   const [filterGroupId, setFilterGroupId] = useState<string>('')
   const [showInviteDialog, setShowInviteDialog] = useState(false)
+  const [showInvitationHistory, setShowInvitationHistory] = useState(false)
+
+  React.useEffect(() => {
+    if (!overviewFilters) return
+    setPage(1)
+    setSelectedUserIds(new Set())
+  }, [overviewFilters])
 
   // Track whether revalidation on focus is allowed
   const revalidateRef = useRef(shouldRevalidate)
@@ -71,9 +87,16 @@ function OrgUsers() {
     params.append('page', page.toString())
     params.append('limit', ITEMS_PER_PAGE.toString())
     params.append('sort_order', sortOrder)
-    if (searchValue) params.append('search', searchValue)
-    if (filterRole) params.append('role_id', filterRole)
-    if (filterStatus) params.append('status', filterStatus)
+    const effectiveSearch = overviewFilters?.search ?? searchValue
+    const effectiveRole = overviewFilters?.roleId ?? filterRole
+    const effectiveStatus = overviewFilters?.verified === 'all' ? '' : (overviewFilters?.verified ?? filterStatus)
+    if (effectiveSearch) params.append('search', effectiveSearch)
+    if (effectiveRole) params.append('role_id', effectiveRole)
+    if (effectiveStatus) params.append('status', effectiveStatus)
+    if (overviewFilters?.active !== undefined && overviewFilters.active !== 'all') {
+      params.append('active', String(overviewFilters.active === 'active'))
+    }
+    if (overviewFilters?.assignedToMe) params.append('assigned_to_me', 'true')
     if (filterGroupId) {
       params.append('usergroup_id', filterGroupId)
       params.append('usergroup_filter', 'in_group')
@@ -127,7 +150,19 @@ function OrgUsers() {
   )
 
   const orgUsers = data?.items || []
-  const pendingInvites = invitedUsers?.filter((invite: any) => invite.pending) || []
+  const filteredInvites = (invitedUsers || []).filter((invite: any) => {
+    const effectiveSearch = (overviewFilters?.search ?? searchValue).trim().toLowerCase()
+    const effectiveRole = overviewFilters?.roleId ?? filterRole
+    const effectiveStatus = overviewFilters?.verified === 'all' ? '' : (overviewFilters?.verified ?? filterStatus)
+    if (effectiveSearch && !String(invite.email).toLowerCase().includes(effectiveSearch)) return false
+    if (effectiveRole && String(invite.role?.id) !== effectiveRole) return false
+    if (effectiveStatus) return false
+    if (overviewFilters?.assignedToMe) return false
+    if (filterGroupId && String(invite.usergroup?.id) !== filterGroupId) return false
+    return true
+  })
+  const pendingInvites = filteredInvites.filter((invite: any) => invite.pending)
+  const displayedInvites = showInvitationHistory ? filteredInvites : pendingInvites
   const total = data?.total || 0
   const isInitialLoading = !data && isValidating
   const isPageTransitioning = !!data && isValidating
@@ -135,7 +170,9 @@ function OrgUsers() {
   const visibleUserIds: number[] = orgUsers.map((u: any) => u.user.id)
   const allVisibleSelected = visibleUserIds.length > 0 && visibleUserIds.every((id: number) => selectedUserIds.has(id))
 
-  const hasActiveFilters = filterRole || filterStatus || (hasUserGroups && filterGroupId)
+  const hasActiveFilters = overviewFilters
+    ? Boolean(overviewFilters.search || overviewFilters.roleId || overviewFilters.verified !== 'all' || overviewFilters.active !== 'all' || overviewFilters.assignedToMe)
+    : Boolean(filterRole || filterStatus || (hasUserGroups && filterGroupId))
 
   const toggleSelectAll = () => {
     setSelectedUserIds((prev) => {
@@ -210,6 +247,26 @@ function OrgUsers() {
     }
   }
 
+  const handleRevokeInvitation = async (invitationUuid: string) => {
+    const toastId = toast.loading('Revoking invitation…')
+    const res = await revokeUserInvitation(org.id, invitationUuid, access_token)
+    if (res.status === 200) {
+      await Promise.all([mutateInvitedUsers(), mutate(usersUrl)])
+      toast.success('Invitation revoked and seat released', { id: toastId })
+    } else {
+      toast.error(res.data?.detail || 'Could not revoke invitation', { id: toastId })
+    }
+  }
+
+  const handleResendInvitation = async (invitationUuid: string) => {
+    const toastId = toast.loading('Resending invitation…')
+    const res = await resendUserInvitation(org.id, invitationUuid, access_token)
+    if (res.status === 200) {
+      await mutateInvitedUsers()
+      toast.success('Invitation resent', { id: toastId })
+    } else toast.error(res.data?.detail || 'Could not resend invitation', { id: toastId })
+  }
+
   const handlePageChange = (newPage: number) => {
     setPage(newPage)
     setSelectedUserIds(new Set())
@@ -231,17 +288,18 @@ function OrgUsers() {
     <div>
       <Toast></Toast>
       <AdminDataTable
-        className="mx-8 my-6"
-        search={{ value: searchValue, onChange: handleSearchChange, placeholder: t('dashboard.users.active_users.search_placeholder') || 'Search users...' }}
-        filters={[
+        className={overviewFilters ? '' : 'mx-8 my-6'}
+        search={overviewFilters ? undefined : { value: searchValue, onChange: handleSearchChange, placeholder: t('dashboard.users.active_users.search_placeholder') || 'Search users...' }}
+        filters={overviewFilters ? [] : [
           { id: 'role', label: 'Role', value: filterRole || 'all', options: [{ value: 'all', label: 'All' }, ...(roles || []).map((role: any) => ({ value: String(role.id), label: role.name }))], onChange: handleFilterChange(setFilterRole) },
           { id: 'status', label: 'Status', value: filterStatus || 'all', options: [{ value: 'all', label: 'All' }, { value: 'verified', label: 'Verified' }, { value: 'unverified', label: 'Unverified' }], onChange: handleFilterChange(setFilterStatus) },
           ...(hasUserGroups ? [{ id: 'group', label: 'Groups', value: filterGroupId || 'all', options: [{ value: 'all', label: 'All' }, ...(usergroups || []).map((group: any) => ({ value: String(group.id), label: group.name }))], onChange: handleFilterChange(setFilterGroupId) }] : []),
         ]}
-        resultLabel={`${total + pendingInvites.length} user${total + pendingInvites.length !== 1 ? 's' : ''}`}
-        actions={
+        resultLabel={`${total + displayedInvites.length} record${total + displayedInvites.length !== 1 ? 's' : ''}`}
+        actions={!overviewFilters ? (
           <div className="flex items-center gap-2">
             {hasActiveFilters && <button onClick={resetFilters} className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-black"><X className="h-3 w-3" />Clear</button>}
+            <button onClick={() => setShowInvitationHistory((current) => !current)} className={`rounded-lg border px-3 py-1.5 text-[13px] font-medium ${showInvitationHistory ? 'border-indigo-200 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-600'}`}>{showInvitationHistory ? 'Pending only' : 'Invitation history'}</button>
             <button
               onClick={() => setShowInviteDialog(true)}
               className="inline-flex items-center gap-1.5 rounded-lg bg-gray-900 px-3 py-1.5 text-[13px] font-medium text-white transition-colors hover:bg-gray-700"
@@ -250,7 +308,7 @@ function OrgUsers() {
               Add users
             </button>
           </div>
-        }
+        ) : undefined}
       >
 
             {/* Selection Action Bar */}
@@ -289,14 +347,14 @@ function OrgUsers() {
                 <div className="py-20 flex justify-center">
                   <LaunchLMSSpinner size={36} />
                 </div>
-              ) : orgUsers.length === 0 && pendingInvites.length === 0 ? (
+              ) : orgUsers.length === 0 && displayedInvites.length === 0 ? (
                 <div className="py-16 text-center">
                   <div className="flex flex-col items-center gap-3">
                     <div className="bg-gray-100 p-4 rounded-full">
                       <User className="w-8 h-8 text-gray-400" />
                     </div>
                     <p className="text-gray-400 text-sm font-medium">
-                      {searchValue || hasActiveFilters
+                      {(overviewFilters?.search ?? searchValue) || hasActiveFilters
                         ? t('dashboard.users.active_users.no_results') || 'No users found matching your filters'
                         : t('dashboard.users.active_users.no_users') || 'No users in this organization yet'
                       }
@@ -362,8 +420,8 @@ function OrgUsers() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
-                    {page === 1 && !searchValue && !hasActiveFilters && pendingInvites.map((invite: any) => (
-                      <tr key={`invite-${invite.email}`} className="bg-amber-50/30">
+                    {page === 1 && displayedInvites.map((invite: any) => (
+                      <tr key={invite.invitation_uuid} className={invite.pending ? 'bg-amber-50/30' : 'bg-gray-50/40'}>
                         <td className="w-10 px-6 py-4">
                           <input type="checkbox" disabled className="h-4 w-4 cursor-not-allowed rounded border-gray-200 opacity-40" aria-label={`Invitation for ${invite.email}`} />
                         </td>
@@ -374,20 +432,20 @@ function OrgUsers() {
                             </div>
                             <div className="min-w-0">
                               <div className="truncate text-sm font-semibold text-gray-800">{invite.email}</div>
-                              <div className="text-xs text-gray-400">Invitation pending</div>
+                              <div className="text-xs text-gray-400">{invite.source === 'csv' ? 'CSV invitation' : 'Invitation'} · {String(invite.delivery_status || 'queued').replace('_', ' ')}</div>
                             </div>
                           </div>
                         </td>
-                        {hasUserGroups && <td className="px-6 py-4 text-xs text-gray-400">—</td>}
-                        <td className="px-6 py-4 text-xs text-gray-400">—</td>
+                        {hasUserGroups && <td className="px-6 py-4">{invite.usergroup ? <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-600"><Users className="h-3 w-3" />{invite.usergroup.name}</span> : <span className="text-xs text-gray-400">—</span>}</td>}
+                        <td className="px-6 py-4 text-xs text-gray-500">Invited {formatShortDate(invite.created_at)}</td>
                         <td className="px-6 py-4">
-                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-700">
+                          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${invite.pending ? 'bg-amber-100 text-amber-700' : invite.status === 'accepted' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
                             <Mail className="h-3 w-3" />
-                            Invite sent
+                            {String(invite.status).replace('_', ' ')}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-xs text-gray-400">—</td>
-                        <td className="px-6 py-4 text-right text-xs text-gray-400">Awaiting signup</td>
+                        <td className="px-6 py-4"><span className="inline-flex items-center gap-1.5 rounded-md bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-700">{String(invite.role?.name || 'User').toLowerCase().includes('admin') ? <Crown className="h-3.5 w-3.5 text-indigo-600" /> : String(invite.role?.name || '').toLowerCase().match(/maintainer|instructor|staff/) ? <Shield className="h-3.5 w-3.5 text-emerald-600" /> : <User className="h-3.5 w-3.5 text-gray-500" />}{invite.role?.name || 'User'}</span></td>
+                        <td className="px-6 py-4 text-right">{invite.pending ? <div className="inline-flex gap-2"><button onClick={() => void handleResendInvitation(invite.invitation_uuid)} className="inline-flex h-8 items-center gap-1.5 rounded-md bg-white px-3 text-xs font-medium text-gray-600 nice-shadow transition hover:bg-gray-50" title={`${invite.delivery_attempts || 0} delivery attempts`}><RefreshCw className="h-3.5 w-3.5" />Resend</button><ConfirmationModal confirmationButtonText="Revoke invitation" confirmationMessage={`Revoke the invitation for ${invite.email}? The reserved seat will be released.`} dialogTitle="Revoke invitation" dialogTrigger={<button className="inline-flex h-8 items-center gap-1.5 rounded-md bg-white px-3 text-xs font-medium text-gray-600 nice-shadow transition hover:bg-rose-50 hover:text-rose-600"><X className="h-3.5 w-3.5" />Revoke</button>} functionToExecute={() => handleRevokeInvitation(invite.invitation_uuid)} status="warning" /></div> : <span className="text-xs text-gray-400">No actions</span>}</td>
                       </tr>
                     ))}
                     {orgUsers?.map((user: any) => (
@@ -432,7 +490,7 @@ function OrgUsers() {
                           </Link>
                         </td>
 
-                        {/* User Groups */}
+                        {/* Groups */}
                         {hasUserGroups && <td className="px-6 py-4">
                           {user.usergroups && user.usergroups.length > 0 ? (
                             <div className="flex items-center gap-1.5 flex-wrap">

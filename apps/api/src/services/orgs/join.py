@@ -4,21 +4,25 @@ from fastapi import HTTPException, Request
 from pydantic import BaseModel, field_validator
 from sqlmodel import Session, select
 from src.db.organizations import Organization
+from src.db.organization_invitations import OrganizationInvitation
 from src.db.user_organizations import UserOrganization
 from src.db.users import AnonymousUser, InternalUser, PublicUser, User
 from src.security.features_utils.usage import (
     check_limits_with_usage,
     increase_feature_usage,
 )
-from src.services.orgs.invites import get_invite_code
+from src.services.orgs.invites import get_invite_code, redeem_join_link
 from src.services.orgs.orgs import get_org_join_mechanism
 from src.services.users.usergroups import add_users_to_usergroup
+from src.services.orgs.invitation_security import audit_invitation_acceptance, validate_invitation_acceptance
+from src.services.messages import resolve_action_by_dedupe
 
 
 class JoinOrg(BaseModel):
     org_id: int
     user_id: str | int
     invite_code: str | None = None
+    invitation_token: str | None = None
 
     @field_validator("user_id", mode="before")
     @classmethod
@@ -42,8 +46,6 @@ async def join_org(
             status_code=404,
             detail="Organization not found",
         )
-
-    check_limits_with_usage("members", org.id, db_session)
 
     join_method = await get_org_join_mechanism(
         request, args.org_id, current_user, db_session
@@ -80,46 +82,94 @@ async def join_org(
             status_code=400, detail="User is already part of that organization"
         )
 
-    if join_method == "inviteOnly" and user and org and args.invite_code:
-        if user.id is not None and org.id is not None:
-
-            # Check if invite code exists
-            inviteCode = await get_invite_code(
-                request, org.id, args.invite_code, current_user, db_session
+    inviteCode = None
+    invitation = None
+    if args.invitation_token:
+        invitation = db_session.exec(
+            select(OrganizationInvitation).where(
+                OrganizationInvitation.org_id == org.id,
+                OrganizationInvitation.invitation_uuid == args.invitation_token,
+                OrganizationInvitation.email_normalized == str(user.email).strip().casefold(),
+                OrganizationInvitation.status == "pending",
+                OrganizationInvitation.expires_at > datetime.utcnow(),
             )
+        ).first()
+        if not invitation:
+            raise HTTPException(
+                status_code=400,
+                detail="This invitation is invalid, expired, or belongs to another email address",
+            )
+        validate_invitation_acceptance(invitation, db_session)
+    if args.invite_code:
+        inviteCode = await get_invite_code(
+            request, org.id, args.invite_code, current_user, db_session
+        )
+        if inviteCode:
+            invitation = db_session.exec(
+                select(OrganizationInvitation).where(
+                    OrganizationInvitation.org_id == org.id,
+                    OrganizationInvitation.email_normalized == str(user.email).strip().casefold(),
+                    OrganizationInvitation.invite_code_uuid == inviteCode.get("invite_code_uuid"),
+                    OrganizationInvitation.status == "pending",
+                    OrganizationInvitation.expires_at > datetime.utcnow(),
+                )
+            ).first()
 
-            if not inviteCode:
+    if join_method == "inviteOnly" and user and org and (args.invite_code or args.invitation_token):
+        if user.id is not None and org.id is not None:
+            if args.invite_code and not inviteCode:
                 raise HTTPException(
                     status_code=400,
                     detail="Invite code is incorrect",
                 )
 
-            # Link user and organization
+            if invitation is None:
+                check_limits_with_usage("members", org.id, db_session)
+
+            # Link user and organization, consuming a reserved invitation when present.
             user_organization = UserOrganization(
                 user_id=user.id,
                 org_id=org.id,
-                role_id=4,
+                role_id=invitation.role_id if invitation else 4,
                 creation_date=str(datetime.now()),
                 update_date=str(datetime.now()),
             )
 
+            if invitation:
+                invitation.status = "accepted"
+                invitation.target_user_id = user.id
+                invitation.accepted_at = datetime.utcnow()
+                invitation.updated_at = datetime.utcnow()
+                db_session.add(invitation)
+                resolve_action_by_dedupe(
+                    db_session,
+                    f"organization_invitation:{invitation.invitation_uuid}",
+                    accepted=True,
+                )
+            elif inviteCode:
+                redeem_join_link(db_session, inviteCode["invite_code_uuid"], str(user.email))
             db_session.add(user_organization)
             db_session.commit()
+
+            if invitation:
+                audit_invitation_acceptance(invitation, int(user.id), request, db_session)
 
             from src.routers.users import _invalidate_session_cache
             _invalidate_session_cache(user.id)
 
             # Add user to UserGroup if invite code is linked to one
-            if inviteCode.get("usergroup_id"):
+            usergroup_id = invitation.usergroup_id if invitation else inviteCode.get("usergroup_id")
+            if usergroup_id:
                 await add_users_to_usergroup(
                     request,
                     db_session,
                     InternalUser(id=0),
-                    int(inviteCode.get("usergroup_id")),
+                    int(usergroup_id),
                     str(user.id),
                 )
 
-            increase_feature_usage("members", org.id, db_session)
+            if invitation is None:
+                increase_feature_usage("members", org.id, db_session)
 
             return "Great, You're part of the Organization"
 
@@ -131,22 +181,50 @@ async def join_org(
 
     if join_method == "open" and user and org:
         if user.id is not None and org.id is not None:
+            if invitation is None:
+                check_limits_with_usage("members", org.id, db_session)
             # Link user and organization
             user_organization = UserOrganization(
                 user_id=user.id,
                 org_id=org.id,
-                role_id=4,
+                role_id=invitation.role_id if invitation else 4,
                 creation_date=str(datetime.now()),
                 update_date=str(datetime.now()),
             )
 
+            if invitation:
+                invitation.status = "accepted"
+                invitation.target_user_id = user.id
+                invitation.accepted_at = datetime.utcnow()
+                invitation.updated_at = datetime.utcnow()
+                db_session.add(invitation)
+                resolve_action_by_dedupe(
+                    db_session,
+                    f"organization_invitation:{invitation.invitation_uuid}",
+                    accepted=True,
+                )
+            elif inviteCode:
+                redeem_join_link(db_session, inviteCode["invite_code_uuid"], str(user.email))
             db_session.add(user_organization)
             db_session.commit()
+
+            if invitation:
+                audit_invitation_acceptance(invitation, int(user.id), request, db_session)
 
             from src.routers.users import _invalidate_session_cache
             _invalidate_session_cache(user.id)
 
-            increase_feature_usage("members", org.id, db_session)
+            if invitation and invitation.usergroup_id:
+                await add_users_to_usergroup(
+                    request,
+                    db_session,
+                    InternalUser(id=0),
+                    int(invitation.usergroup_id),
+                    str(user.id),
+                )
+
+            if invitation is None:
+                increase_feature_usage("members", org.id, db_session)
 
             return "Great, You're part of the Organization"
 

@@ -2,12 +2,13 @@
 import React, { useEffect, useMemo } from 'react'
 
 import Link from 'next/link'
-import { Crown, Shield, User, Users, SignOut, CaretDown, Globe, Check, ShoppingBag, Buildings } from '@phosphor-icons/react'
+import { Crown, Shield, User, Users, SignOut, CaretDown, Globe, Check, Buildings } from '@phosphor-icons/react'
 import UserAvatar from '@components/Objects/UserAvatar'
 import useAdminStatus from '@components/Hooks/useAdminStatus'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { getAPIUrl, getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config'
+import { authenticatedOrgHref } from '@services/auth/handoff'
 import Tooltip from '@components/Objects/StyledElements/Tooltip/Tooltip'
 import {
   DropdownMenu,
@@ -242,28 +243,22 @@ export const HeaderProfileBox = ({ primaryColor = '', compact = false }: { prima
                 <DropdownMenuSeparator />
                 {hasAdminOrganizations && (
                   <DropdownMenuItem asChild>
-                    <Link href={getUriWithOrg(ownerOrgSlug, routePaths.owner.account.orgAdmin())} className="flex items-center space-x-2">
+                    <Link href={authenticatedOrgHref(getUriWithOrg(ownerOrgSlug, routePaths.owner.account.organizations()), true)} className="flex items-center space-x-2">
                       <Buildings size={16} weight="fill" />
                       <span>Org Admin</span>
                     </Link>
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem asChild>
-                  <Link href={getUriWithOrg(ownerOrgSlug, routePaths.org.portfolio())} className="flex items-center space-x-2">
+                  <Link href={authenticatedOrgHref(getUriWithOrg(ownerOrgSlug, routePaths.org.portfolio()), true)} className="flex items-center space-x-2">
                     <User size={16} weight="fill" />
                     <span>Portfolio</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href={getUriWithOrg(ownerOrgSlug, routePaths.owner.account.security())} className="flex items-center space-x-2">
+                  <Link href={authenticatedOrgHref(getUriWithOrg(ownerOrgSlug, routePaths.owner.account.root()), true)} className="flex items-center space-x-2">
                     <Shield size={16} weight="fill" />
                     <span>{t('user.user_settings')}</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href={getUriWithOrg(ownerOrgSlug, routePaths.owner.account.purchases())} className="flex items-center space-x-2">
-                    <ShoppingBag size={16} weight="fill" />
-                    <span>{t('account.purchases')}</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />

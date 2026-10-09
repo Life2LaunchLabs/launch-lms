@@ -1,6 +1,7 @@
 from enum import Enum
 
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, Text, UniqueConstraint
+from pgvector.sqlalchemy import Vector
+from sqlalchemy import Boolean, CheckConstraint, Column, ForeignKey, Index, Integer, Text, UniqueConstraint, text
 from sqlmodel import Field, SQLModel
 
 
@@ -132,6 +133,44 @@ class ResourceRead(ResourceBase):
     creation_date: str
     update_date: str
     tags: list[ResourceTagRead] = Field(default_factory=list)
+
+
+class ResourceSearchDocument(SQLModel, table=True):
+    """Versioned searchable projection of a Resource and its tags."""
+
+    __tablename__ = "resourcesearchdocument"
+    __table_args__ = (
+        UniqueConstraint("resource_id", name="uq_resourcesearchdocument_resource_id"),
+        Index(
+            "ix_resourcesearchdocument_embedding_hnsw",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+            postgresql_where=text("embedding IS NOT NULL"),
+        ),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    resource_id: int = Field(
+        sa_column=Column(Integer, ForeignKey("resource.id", ondelete="CASCADE"), index=True)
+    )
+    org_id: int = Field(
+        sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True)
+    )
+    document_version: str = Field(max_length=50)
+    content_hash: str = Field(max_length=64, index=True)
+    title: str
+    description: str = Field(default="", sa_column=Column(Text, nullable=False))
+    provider: str = ""
+    resource_type: str = ""
+    tags_text: str = Field(default="", sa_column=Column(Text, nullable=False))
+    search_text: str = Field(default="", sa_column=Column(Text, nullable=False))
+    embedding: list[float] | None = Field(default=None, sa_column=Column(Vector(384), nullable=True))
+    embedding_model: str | None = Field(default=None, max_length=100)
+    embedding_version: str | None = Field(default=None, max_length=100)
+    embedding_updated_at: str | None = None
+    creation_date: str = ""
+    update_date: str = ""
 
 
 class ResourceChannelBase(SQLModel):
@@ -271,8 +310,8 @@ class UserSavedResourceUpdate(SQLModel):
     outcome_link: str | None = None
     completed_at: str | None = None
     open_count_increment: int | None = None
-    add_to_default_channel: bool = True
-    user_channel_uuids: list[str] = []
+    add_to_default_channel: bool = False
+    user_channel_uuids: list[str] = Field(default_factory=list)
 
 
 class UserSavedResourceRead(UserSavedResourceBase):
@@ -299,8 +338,74 @@ class UserSavedResourceChannel(SQLModel, table=True):
     creation_date: str = ""
 
 
+class ResourceNoteBlockBase(SQLModel):
+    block_type: str
+    media_asset_uuid: str | None = None
+    content: str | None = Field(default=None, sa_column=Column(Text))
+    url: str | None = Field(default=None, sa_column=Column(Text))
+    title: str | None = None
+    description: str | None = Field(default=None, sa_column=Column(Text))
+    preview_image_url: str | None = Field(default=None, sa_column=Column(Text))
+    filename: str | None = None
+    original_filename: str | None = None
+    mime_type: str | None = None
+    storage_directory: str | None = None
+    sort_order: int = 0
+
+
+class ResourceNoteBlock(ResourceNoteBlockBase, table=True):
+    __tablename__ = "resourcenoteblock"
+    __table_args__ = (
+        CheckConstraint(
+            "block_type IN ('text', 'link', 'image', 'file')",
+            name="ck_resource_note_block_type",
+        ),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(
+        sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), index=True)
+    )
+    resource_id: int = Field(
+        sa_column=Column(Integer, ForeignKey("resource.id", ondelete="CASCADE"), index=True)
+    )
+    note_uuid: str = Field(index=True, unique=True)
+    creation_date: str = ""
+    update_date: str = ""
+
+
+class ResourceNoteBlockCreate(SQLModel):
+    block_type: str
+    media_asset_uuid: str | None = None
+    content: str | None = None
+    url: str | None = None
+    title: str | None = None
+    description: str | None = None
+    preview_image_url: str | None = None
+    sort_order: int | None = None
+
+
+class ResourceNoteBlockUpdate(SQLModel):
+    content: str | None = None
+    url: str | None = None
+    title: str | None = None
+    description: str | None = None
+    preview_image_url: str | None = None
+    sort_order: int | None = None
+
+
+class ResourceNoteBlockRead(ResourceNoteBlockBase):
+    id: int
+    user_id: int
+    resource_id: int
+    note_uuid: str
+    creation_date: str
+    update_date: str
+
+
 class ResourceCommentBase(SQLModel):
     content: str = Field(sa_column=Column(Text))
+    rating: int | None = Field(default=None, ge=1, le=5)
 
 
 class ResourceComment(ResourceCommentBase, table=True):
@@ -325,6 +430,12 @@ class ResourceCommentCreate(ResourceCommentBase):
 
 class ResourceCommentUpdate(SQLModel):
     content: str | None = None
+    rating: int | None = Field(default=None, ge=1, le=5)
+
+
+class ResourceReviewCreate(SQLModel):
+    content: str = Field(sa_column=Column(Text))
+    rating: int = Field(ge=1, le=5)
 
 
 class ResourceCommentRead(ResourceCommentBase):

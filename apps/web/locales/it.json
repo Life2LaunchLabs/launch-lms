@@ -527,8 +527,8 @@
     "usergroup_filter": {
       "all_courses": "All Courses",
       "filter_by_group": "Filter by group",
-      "info_title": "User Group Filter",
-      "info_description": "Filter courses by user group to see only courses assigned to a specific group. Useful for families or teams sharing the same organization."
+      "info_title": "Group Filter",
+      "info_description": "Filter courses by group to see only courses assigned to a specific group. Useful for families or teams sharing the same organization."
     }
   },
   "communities": {
@@ -3037,9 +3037,9 @@
         "description": "Growth vs retention health"
       },
       "cohort_retention": {
-        "title": "Cohort Retention",
+        "title": "Group Retention",
         "description": "% users active after signup week",
-        "cohort": "Cohort",
+        "cohort": "Group",
         "size": "Size"
       },
       "peak_usage": {
@@ -3372,13 +3372,13 @@
       "set_to_public_confirm": "Tutti i membri dell'organizzazione che hanno effettuato l'accesso potranno accedere a questa lavagna.",
       "make_board_public": "Rendi Lavagna Pubblica",
       "set_to_private": "Imposta come Privata",
-      "set_to_private_confirm": "Solo i membri dei UserGroups collegati potranno accedere a questa lavagna.",
+      "set_to_private_confirm": "Solo i membri dei Groups collegati potranno accedere a questa lavagna.",
       "make_board_private": "Rendi Lavagna Privata",
       "active": "Attivo",
       "public_option": "Pubblica",
       "public_description": "Tutti i membri dell'organizzazione che hanno effettuato l'accesso possono accedere a questa lavagna",
       "private_option": "Solo Utenti",
-      "private_description": "Solo i UserGroups collegati possono accedere a questa lavagna",
+      "private_description": "Solo i Groups collegati possono accedere a questa lavagna",
       "board_set_public": "Lavagna impostata come pubblica",
       "board_set_private": "Lavagna impostata come privata",
       "access_update_error": "Impossibile aggiornare l'accesso",
@@ -3391,7 +3391,7 @@
       "no_user_groups": "Nessun gruppo utenti collegato ancora",
       "link_to_user_group": "Collega a Gruppo Utenti",
       "link_to_user_group_description": "Seleziona un gruppo utenti per dare loro accesso a questa lavagna",
-      "link_to_usergroup_btn": "Collega a UserGroup",
+      "link_to_usergroup_btn": "Collega a Group",
       "user_group": "Gruppo Utenti",
       "no_user_groups_available": "Nessun gruppo utenti disponibile",
       "create_user_group": "Crea Gruppo Utenti",

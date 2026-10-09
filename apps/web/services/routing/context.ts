@@ -108,6 +108,23 @@ export function replaceHostPreservingPort(targetHostname: string, configuredHost
 }
 
 /**
+ * Return the canonical browser hostname for an organization.
+ *
+ * The default organization always lives on the main host. Cookie scope controls
+ * authentication transfer between hosts; it must not change public URL policy.
+ */
+export function getCanonicalOrgHostname(
+  orgSlug: string,
+  defaultOrgSlug: string,
+  frontendDomain: string
+): string {
+  const bareFrontendDomain = stripPort(frontendDomain)
+  return orgSlug === defaultOrgSlug
+    ? bareFrontendDomain
+    : `${orgSlug}.${bareFrontendDomain}`
+}
+
+/**
  * Reconstruct the browser-facing request URL at the reverse-proxy boundary.
  * Next's request URL can contain the internal upstream scheme and port (for
  * example http://example.com:8000) even when the browser used HTTPS.

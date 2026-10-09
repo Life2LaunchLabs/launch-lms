@@ -1,16 +1,17 @@
 import React from 'react'
 import {
-  House,
   User,
   SealCheck,
-  FolderOpen,
   Newspaper,
-  Question,
+  ClipboardText,
+  House,
 } from '@phosphor-icons/react'
-import type { TFunction } from 'i18next'
+import { getCoreCapabilities } from '@services/config/config'
 
 export const KNOWN_SUBPATHS = [
+  '/hub',
   '/badges',
+  '/plans',
   '/badge',
   '/podcasts',
   '/communities',
@@ -33,8 +34,6 @@ export interface OrgMenuNavItem {
   active: boolean
   show: boolean
   onboardingFeature?: 'badges' | 'resources'
-  kind?: 'link' | 'action'
-  actionKey?: 'help'
 }
 
 function isFeatureEnabled(resolvedFeatures: any, feature: string) {
@@ -44,24 +43,31 @@ function isFeatureEnabled(resolvedFeatures: any, feature: string) {
 export function getPrimaryOrgMenuItems({
   pathname,
   resolvedFeatures,
-  t,
 }: {
   pathname?: string | null
   resolvedFeatures: any
-  t: TFunction
 }): OrgMenuNavItem[] {
+  const capabilities = getCoreCapabilities()
   const isHome = !KNOWN_SUBPATHS.some((subpath) => pathname?.includes(subpath))
+  const isOnHub = pathname?.includes('/hub')
   const isOnPortfolio = pathname?.includes('/portfolio')
   const isOnBadges = !isOnPortfolio && pathname?.includes('/badges')
-  const isOnResources = pathname?.includes('/resources') || pathname?.includes('/resource/')
+  const isOnPlans = pathname?.includes('/plans')
   const isOnNews = pathname?.includes('/news')
 
   return [
     {
+      href: '/hub',
+      label: 'Hub',
+      icon: <House size={18} weight="fill" />,
+      active: Boolean(isOnHub || isHome),
+      show: true,
+    },
+    {
       href: '/portfolio',
       label: 'Portfolio',
       icon: <User size={18} weight="fill" />,
-      active: Boolean(isOnPortfolio || isHome),
+      active: Boolean(isOnPortfolio),
       show: true,
     },
     {
@@ -73,38 +79,18 @@ export function getPrimaryOrgMenuItems({
       onboardingFeature: 'badges',
     },
     {
-      href: '/resources',
-      label: 'Resources',
-      icon: <FolderOpen size={18} weight="fill" />,
-      active: Boolean(isOnResources),
-      show: isFeatureEnabled(resolvedFeatures, 'resources'),
-      onboardingFeature: 'resources',
+      href: '/plans',
+      label: 'Plans',
+      icon: <ClipboardText size={18} weight="fill" />,
+      active: Boolean(isOnPlans),
+      show: true,
     },
     {
       href: '/news',
       label: 'News',
       icon: <Newspaper size={18} weight="fill" />,
       active: Boolean(isOnNews),
-      show: true,
-    },
-  ]
-}
-
-export function getAdministrativeOrgMenuItems({
-  t,
-  isHelpOpen,
-}: {
-  t: TFunction
-  isHelpOpen: boolean
-}): OrgMenuNavItem[] {
-  return [
-    {
-      label: t('common.help'),
-      icon: <Question size={18} weight="fill" />,
-      active: isHelpOpen,
-      show: true,
-      kind: 'action',
-      actionKey: 'help',
+      show: capabilities.news,
     },
   ]
 }

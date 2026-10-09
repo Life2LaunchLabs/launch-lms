@@ -112,16 +112,16 @@ export async function promptDatabase(): Promise<DatabaseConfig> {
   if (dbChoice === 'external') {
     externalDbConnectionString = await promptAndVerifyPostgres()
     useExternalDb = true
-  } else {
-    const dbImageChoice = await p.select({
-      message: 'Which PostgreSQL image?',
-      options: [
-        { value: 'ai', label: 'PostgreSQL with AI capabilities', hint: 'recommended — enables AI course chatbot (RAG)' },
-        { value: 'standard', label: 'Standard PostgreSQL', hint: 'lighter image, no AI search features' },
-      ],
+    const supportsVector = await p.confirm({
+      message: 'Does this PostgreSQL instance allow the pgvector extension?',
+      initialValue: true,
     })
-    if (p.isCancel(dbImageChoice)) { p.cancel(); process.exit(0) }
-    useAiDatabase = dbImageChoice === 'ai'
+    if (p.isCancel(supportsVector)) { p.cancel(); process.exit(0) }
+    useAiDatabase = Boolean(supportsVector)
+  } else {
+    // The managed database always includes pgvector. It is a small PostgreSQL
+    // extension and keeps semantic resource search self-contained.
+    useAiDatabase = true
 
     dbPassword = crypto.randomBytes(24).toString('base64url')
     p.log.message('')

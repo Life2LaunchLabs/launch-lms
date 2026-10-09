@@ -35,7 +35,9 @@ const CATEGORIES: Record<string, { label: string; keys: string[] }> = {
   },
   ai: {
     label: 'AI',
-    keys: ['LAUNCHLMS_GEMINI_API_KEY', 'LAUNCHLMS_IS_AI_ENABLED'],
+    keys: [
+      'LAUNCHLMS_GEMINI_API_KEY', 'LAUNCHLMS_IS_AI_ENABLED',
+    ],
   },
   email: {
     label: 'Email',

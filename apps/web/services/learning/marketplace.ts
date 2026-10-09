@@ -112,9 +112,32 @@ export async function revokeIssuerAuthorization(authorizationUuid: string, acces
   return errorHandling(result)
 }
 
+// open: learners start immediately · request: learners ask and the issuer accepts · invite: issuer adds learners
+export type LearnerAccess = 'open' | 'request' | 'invite'
+
+export async function getBadgeIssuingSettings(badgeUuid: string, accessToken?: string) {
+  const result = await fetch(
+    `${getAPIUrl()}badge-marketplace/badges/${badgeUuid}/issuing`,
+    RequestBodyWithAuthHeader('GET', null, null, accessToken)
+  )
+  return errorHandling(result)
+}
+
+export async function updateBadgeIssuingSettings(
+  badgeUuid: string,
+  data: { creator_access?: LearnerAccess | 'none'; default_issuer_org_id?: number; clear_default_issuer?: boolean },
+  accessToken?: string
+) {
+  const result = await fetch(
+    `${getAPIUrl()}badge-marketplace/badges/${badgeUuid}/issuing`,
+    RequestBodyWithAuthHeader('PUT', data, null, accessToken)
+  )
+  return errorHandling(result)
+}
+
 export async function updateIssuerAuthorization(
   authorizationUuid: string,
-  data: { open_to_all?: boolean },
+  data: { open_to_all?: boolean; learner_access?: LearnerAccess },
   accessToken?: string
 ) {
   const result = await fetch(
@@ -149,6 +172,30 @@ export async function createIssuerLearnerLink(
   return errorHandling(result)
 }
 
+export async function requestIssuerLearnerSupport(
+  data: { badge_uuid: string; issuer_org_id: number; message?: string },
+  accessToken?: string
+) {
+  const result = await fetch(
+    `${getAPIUrl()}badge-marketplace/learner-requests`,
+    RequestBodyWithAuthHeader('POST', data, null, accessToken)
+  )
+  return errorHandling(result)
+}
+
+export async function decideIssuerLearnerRequest(
+  linkUuid: string,
+  decision: 'accept' | 'reject',
+  data: { staff_user_ids?: number[]; note?: string },
+  accessToken?: string
+) {
+  const result = await fetch(
+    `${getAPIUrl()}badge-marketplace/learner-requests/${linkUuid}/${decision}`,
+    RequestBodyWithAuthHeader('POST', data, null, accessToken)
+  )
+  return errorHandling(result)
+}
+
 export async function deleteIssuerLearnerLink(linkUuid: string, accessToken?: string) {
   const result = await fetch(
     `${getAPIUrl()}badge-marketplace/learner-links/${linkUuid}`,
@@ -160,6 +207,19 @@ export async function deleteIssuerLearnerLink(linkUuid: string, accessToken?: st
 export async function getCreatorIssuanceMetrics(orgId: string | number, accessToken?: string) {
   const result = await fetch(
     `${getAPIUrl()}badge-marketplace/metrics/creator?org_id=${orgId}`,
+    RequestBodyWithAuthHeader('GET', null, null, accessToken)
+  )
+  return getResponseMetadata(result)
+}
+
+export async function getIssuerBadgeMetrics(
+  orgId: string | number,
+  badgeUuid: string,
+  accessToken?: string
+) {
+  const search = new URLSearchParams({ org_id: String(orgId), badge_uuid: badgeUuid })
+  const result = await fetch(
+    `${getAPIUrl()}badge-marketplace/metrics/issuer?${search.toString()}`,
     RequestBodyWithAuthHeader('GET', null, null, accessToken)
   )
   return getResponseMetadata(result)

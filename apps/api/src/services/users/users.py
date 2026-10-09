@@ -7,6 +7,7 @@ from config.config import get_launchlms_config
 from fastapi import HTTPException, Request, UploadFile, status
 from sqlmodel import Session, select
 from src.db.organizations import Organization, OrganizationRead
+from src.db.organization_invitations import OrganizationInvitation
 from src.db.roles import Role, RoleRead
 from src.db.user_organizations import UserOrganization
 from src.db.users import (
@@ -34,7 +35,8 @@ from src.security.security import security_hash_password, security_verify_passwo
 from src.services.analytics import events as analytics_events
 from src.services.analytics.analytics import track
 from src.services.dev.dev import isDevModeEnabled
-from src.services.orgs.invites import get_invite_code
+from src.services.orgs.invites import get_invite_code, redeem_join_link
+from src.services.orgs.invitation_security import audit_invitation_acceptance, validate_invitation_acceptance
 from src.services.security.password_validation import validate_password_complexity
 from src.services.users.avatars import (
     upload_avatar,
@@ -58,6 +60,8 @@ async def create_user(
     is_oauth: bool = False,
     signup_provider: str = "email",
     send_verification: bool = True,
+    membership_role_id: int = 4,
+    reserved_invitation_id: int | None = None,
 ):
     # Validate password complexity (skip for OAuth users who have empty passwords)
     if user_object.password and not is_oauth:
@@ -110,7 +114,8 @@ async def create_user(
         )
 
     # Usage check
-    check_limits_with_usage("members", org_id, db_session)
+    if reserved_invitation_id is None:
+        check_limits_with_usage("members", org_id, db_session)
 
     # Username
     statement = select(User).where(User.username == user.username)
@@ -148,10 +153,27 @@ async def create_user(
     user_organization = UserOrganization(
         user_id=user.id if user.id else 0,
         org_id=int(org_id),
-        role_id=4,
+        role_id=membership_role_id,
         creation_date=str(datetime.now()),
         update_date=str(datetime.now()),
     )
+
+    if reserved_invitation_id is not None:
+        invitation = db_session.get(OrganizationInvitation, reserved_invitation_id)
+        if not invitation or invitation.status != "pending":
+            raise HTTPException(status_code=409, detail="Invitation is no longer available")
+        invitation.status = "accepted"
+        invitation.target_user_id = user.id
+        invitation.accepted_at = datetime.utcnow()
+        invitation.updated_at = datetime.utcnow()
+        db_session.add(invitation)
+        from src.services.messages import resolve_action_by_dedupe
+
+        resolve_action_by_dedupe(
+            db_session,
+            f"organization_invitation:{invitation.invitation_uuid}",
+            accepted=True,
+        )
 
     db_session.add(user_organization)
     db_session.commit()
@@ -159,7 +181,8 @@ async def create_user(
 
     user_read = UserRead.model_validate(user)
 
-    increase_feature_usage("members", org_id, db_session)
+    if reserved_invitation_id is None:
+        increase_feature_usage("members", org_id, db_session)
 
     # Track user signup
     await track(
@@ -191,6 +214,10 @@ async def create_user(
                 "Failed to send verification email to %s", user_read.email
             )
 
+    from src.services.messages import create_welcome_message_safely
+
+    create_welcome_message_safely(db_session, int(user.id or 0))
+
     return user_read
 
 
@@ -214,25 +241,95 @@ async def create_user_with_invite(
             detail="Invite code is incorrect",
         )
 
-    # Usage check
-    check_limits_with_usage("members", org_id, db_session)
+    normalized_email = str(user_object.email).strip().casefold()
+    invitation = db_session.exec(
+        select(OrganizationInvitation).where(
+            OrganizationInvitation.org_id == org_id,
+            OrganizationInvitation.email_normalized == normalized_email,
+            OrganizationInvitation.invite_code_uuid == inviteCode.get("invite_code_uuid"),
+            OrganizationInvitation.status == "pending",
+            OrganizationInvitation.expires_at > datetime.utcnow(),
+        )
+    ).first()
 
-    
+    if invitation is None:
+        check_limits_with_usage("members", org_id, db_session)
+        # Reserve one redemption before account/membership creation; create_user's
+        # transaction commits both together and a failed request rolls both back.
+        redeem_join_link(db_session, inviteCode["invite_code_uuid"], str(user_object.email))
 
-    user = await create_user(request, db_session, current_user, user_object, org_id, signup_provider="invite")
+    user = await create_user(
+        request,
+        db_session,
+        current_user,
+        user_object,
+        org_id,
+        signup_provider="invite",
+        membership_role_id=invitation.role_id if invitation else 4,
+        reserved_invitation_id=invitation.id if invitation else None,
+    )
 
     # Check if invite code contains UserGroup
-    if inviteCode.get("usergroup_id"): # type: ignore
+    usergroup_id = invitation.usergroup_id if invitation else inviteCode.get("usergroup_id")
+    if usergroup_id:
         # Add user to UserGroup
         await add_users_to_usergroup(
             request,
             db_session,
             InternalUser(id=0),
-            int(inviteCode.get("usergroup_id")), # type: ignore / Convert to int since usergroup_id is expected to be int
+            int(usergroup_id),
             str(user.id),
         )
 
-    increase_feature_usage("members", org_id, db_session)
+    return user
+
+
+async def create_user_with_organization_invitation(
+    request: Request,
+    db_session: Session,
+    current_user: PublicUser | AnonymousUser,
+    user_object: UserCreate,
+    org_id: int,
+    invitation_token: str,
+):
+    """Create an account by consuming a recipient-specific invitation."""
+    invitation = db_session.exec(
+        select(OrganizationInvitation).where(
+            OrganizationInvitation.org_id == org_id,
+            OrganizationInvitation.invitation_uuid == invitation_token,
+            OrganizationInvitation.email_normalized == str(user_object.email).strip().casefold(),
+            OrganizationInvitation.status == "pending",
+            OrganizationInvitation.expires_at > datetime.utcnow(),
+        )
+    ).first()
+    if not invitation:
+        raise HTTPException(
+            status_code=403,
+            detail="This invitation is invalid, expired, or belongs to another email address",
+        )
+    validate_invitation_acceptance(invitation, db_session)
+
+    user = await create_user(
+        request,
+        db_session,
+        current_user,
+        user_object,
+        org_id,
+        signup_provider="invite",
+        membership_role_id=invitation.role_id,
+        reserved_invitation_id=invitation.id,
+    )
+
+    audit_invitation_acceptance(invitation, int(user.id), request, db_session)
+
+    if invitation.usergroup_id:
+        await add_users_to_usergroup(
+            request,
+            db_session,
+            InternalUser(id=0),
+            int(invitation.usergroup_id),
+            str(user.id),
+        )
 
     return user
 
@@ -339,6 +436,10 @@ async def create_user_without_org(
                 logger.exception(
                     "Failed to send verification email to %s", user_read.email
                 )
+
+    from src.services.messages import create_welcome_message_safely
+
+    create_welcome_message_safely(db_session, int(user.id or 0))
 
     return user_read
 

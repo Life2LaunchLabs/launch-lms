@@ -1,26 +1,23 @@
-import { getOrganizationContextInfo } from '@services/organizations/orgs'
 import { Metadata } from 'next'
-import { getServerSession } from '@/lib/auth/server'
-import { getOrgThumbnailMediaDirectory } from '@services/media/media'
-import AccountClient from '@components/Objects/Account/AccountClient'
+import AccountRoute from '@components/Objects/Account/AccountRoute'
 import { redirect } from 'next/navigation'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import { getOwnerOrgSlugServer } from '@services/org/ownerOrgServer'
+import type { AccountPageTab } from '@components/Objects/Account/AccountPageShell'
 
 type MetadataProps = {
   params: Promise<{ orgslug: string; subpage: string }>
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
-const VALID_SUBPAGES = ['security', 'purchases', 'organizations', 'org-admin', 'preferences']
-const PROFILE_SUBPAGES = ['general', 'profile', 'badges']
+const LEGACY_ACCOUNT_SUBPAGES = ['security', 'purchases', 'general']
+const PROFILE_SUBPAGES = ['profile', 'badges']
+const ACCOUNT_TABS = new Set<AccountPageTab>(['messages', 'organizations', 'memory', 'preferences'])
 
 const getSubpageTitle = (subpage: string): string => {
   const titles: Record<string, string> = {
-    'security': 'Security',
-    'purchases': 'Purchases',
+    'messages': 'Messages',
     'organizations': 'Organizations',
-    'org-admin': 'Org Admin',
+    'memory': 'Memory',
     'preferences': 'Appearance',
   }
   return titles[subpage] || 'Account'
@@ -28,13 +25,8 @@ const getSubpageTitle = (subpage: string): string => {
 
 export async function generateMetadata(props: MetadataProps): Promise<Metadata> {
   const params = await props.params
-  const org = await getOrganizationContextInfo(params.orgslug, {
-    revalidate: 0,
-    tags: ['organizations'],
-  })
-
-  const title = `${getSubpageTitle(params.subpage)} — ${org.name}`
-  const description = `Manage your account settings at ${org.name}`
+  const title = getSubpageTitle(params.subpage)
+  const description = 'Manage your account settings'
 
   return {
     title,
@@ -43,57 +35,28 @@ export async function generateMetadata(props: MetadataProps): Promise<Metadata> 
       index: false,
       follow: false,
     },
-    openGraph: {
-      title,
-      description,
-      type: 'website',
-      images: [
-        {
-          url: getOrgThumbnailMediaDirectory(org?.org_uuid, org?.thumbnail_image),
-          width: 800,
-          height: 600,
-          alt: org.name,
-        },
-      ],
-    },
   }
 }
 
 const AccountSubPage = async (props: { params: Promise<{ orgslug: string; subpage: string }> }) => {
   const params = await props.params
-  const session = await getServerSession()
-  const ownerOrgslug = await getOwnerOrgSlugServer()
-
-  // Redirect to login if not authenticated
-  if (!session) {
-    redirect(getUriWithOrg(params.orgslug, routePaths.org.root()))
-  }
-
-  if (params.subpage === 'org-admin' && params.orgslug !== ownerOrgslug) {
-    redirect(getUriWithOrg(ownerOrgslug, routePaths.owner.account.orgAdmin()))
+  if (ACCOUNT_TABS.has(params.subpage as AccountPageTab)) {
+    return <AccountRoute orgslug={params.orgslug} tab={params.subpage as AccountPageTab} />
   }
 
   if (PROFILE_SUBPAGES.includes(params.subpage)) {
     redirect(getUriWithOrg(params.orgslug, routePaths.org.portfolioEdit()))
   }
 
-  // Redirect to general if invalid subpage
-  if (!VALID_SUBPAGES.includes(params.subpage)) {
-    redirect(getUriWithOrg(params.orgslug, routePaths.owner.account.security()))
+  if (LEGACY_ACCOUNT_SUBPAGES.includes(params.subpage)) {
+    redirect(getUriWithOrg(params.orgslug, routePaths.owner.account.root()))
   }
 
-  const org = await getOrganizationContextInfo(params.orgslug, {
-    revalidate: 1800,
-    tags: ['organizations'],
-  })
+  if (params.subpage === 'org-admin') {
+    redirect(getUriWithOrg(params.orgslug, routePaths.owner.account.organizations()))
+  }
 
-  return (
-    <AccountClient
-      orgslug={params.orgslug}
-      org_id={org.id}
-      subpage={params.subpage}
-    />
-  )
+  redirect(getUriWithOrg(params.orgslug, routePaths.owner.account.root()))
 }
 
 export default AccountSubPage

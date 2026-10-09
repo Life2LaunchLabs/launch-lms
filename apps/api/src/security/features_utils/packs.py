@@ -9,8 +9,8 @@ Available packages:
   - credentials:               Enables Open Badge issuing
   - ai:                        Enables AI features (copilot, magic blocks, course planning)
   - advanced_user_management:  Enables user groups, custom roles, and API tokens
-  - badge_creation:            Enables publishing badges to the cross-org marketplace
-  - badge_issuing:             Enables requesting/holding authorizations to issue other orgs' badges
+  - badge_creation:            Enables creating and publishing badges
+  - badge_issuing:             Legacy add-on; issuing is now included on every plan
 """
 
 # Features each package enables when added to an org
@@ -55,9 +55,10 @@ AVAILABLE_PACKAGES: dict[str, dict] = {
         "features": PACKAGE_FEATURE_MAP["badge_creation"],
         "min_plan": "full",
     },
+    # Kept for existing plan requests/configs. New orgs no longer need or request it.
     "badge_issuing": {
         "label": "Badge Issuing",
-        "description": "Browse the badge marketplace, request authorization to issue badges, and grade your learners' submissions.",
+        "description": "Legacy package; badge issuing is now included with every plan.",
         "features": PACKAGE_FEATURE_MAP["badge_issuing"],
         "min_plan": "full",
     },

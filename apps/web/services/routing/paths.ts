@@ -21,11 +21,35 @@ export function withQuery(
   return query ? `${path}?${query}` : path
 }
 
+export function hubFromLegacyResources(
+  params: Record<string, string | string[] | undefined>
+): string {
+  const search = new URLSearchParams()
+  Object.entries(params).forEach(([key, value]) => {
+    if (Array.isArray(value)) value.forEach((item) => search.append(key, item))
+    else if (value !== undefined) search.set(key, value)
+  })
+  const query = search.toString()
+  return query ? `/hub?${query}` : '/hub'
+}
+
+export function hubFromLegacySearch(
+  params: Record<string, string | string[] | undefined>
+): string {
+  const search = new URLSearchParams()
+  Object.entries(params).forEach(([key, value]) => {
+    if (Array.isArray(value)) value.forEach((item) => search.append(key, item))
+    else if (value !== undefined) search.set(key, value)
+  })
+  const query = search.toString()
+  return query ? `/hub?${query}` : '/hub'
+}
+
 export const routePaths = {
   auth: {
     login: (params?: { next?: string; redirect?: string }) =>
       withQuery('/login', params),
-    signup: (params?: { next?: string; inviteCode?: string; mode?: string; inviteBadge?: string }) =>
+    signup: (params?: { next?: string; inviteCode?: string; invitation?: string; mode?: string; inviteBadge?: string }) =>
       withQuery('/signup', params),
     forgot: () => '/forgot',
     reset: () => '/reset',
@@ -41,12 +65,13 @@ export const routePaths = {
       withQuery('/login', params),
     account: {
       root: () => '/account',
-      general: () => '/account/general',
-      security: () => '/account/security',
-      purchases: () => '/account/purchases',
+      general: () => '/account',
+      security: () => '/account',
+      messages: () => '/account/messages',
       organizations: () => '/account/organizations',
+      memory: () => '/account/memory',
+      preferences: () => '/account/preferences',
       badges: () => '/account/badges',
-      orgAdmin: () => '/account/org-admin',
     },
     platform: {
       overview: () => '/admin/platform',
@@ -54,6 +79,9 @@ export const routePaths = {
       users: () => '/admin/platform/users',
       user: (username: string) => `/admin/platform/users/${encodeURIComponent(username)}`,
       requests: () => '/admin/platform/requests',
+      feedback: () => '/admin/platform/feedback',
+      demo: () => '/admin/platform/demo',
+      settings: () => '/admin/platform/settings',
       news: () => '/admin/news',
       analytics: () => '/admin/platform',
       organization: (orgId: string | number) => `/admin/platform/orgs/${orgId}`,
@@ -61,6 +89,7 @@ export const routePaths = {
   },
   org: {
     root: () => '/',
+    hub: () => '/hub',
     portfolio: () => '/portfolio',
     portfolioProjects: () => '/portfolio/projects',
     portfolioProjectsNew: () => '/portfolio/projects/new',
@@ -78,20 +107,25 @@ export const routePaths = {
     badgesVerify: (uuid: string) => `/badges/${uuid}/verify`,
     organizations: () => '/organizations',
     organization: (orgSlug: string) => `/organization/${orgSlug}`,
-    search: (query?: string) => withQuery('/search', { q: query }),
+    search: (query?: string) => withQuery('/hub', { q: query }),
     boards: () => '/boards',
     communities: () => '/communities',
     resources: () => '/resources',
     podcasts: () => '/podcasts',
     badges: () => '/badges',
-    myBadges: () => '/portfolio/badges',
+    plans: () => '/plans',
+    plan: (planSlug: string) => `/plans/${encodeURIComponent(planSlug)}`,
+    groupPlan: (assignmentUuid: string) => withQuery('/plans', { group: assignmentUuid }),
+    programs: () => '/programs',
+    program: (programSlug: string) => `/programs/${encodeURIComponent(programSlug)}`,
+    myBadges: () => '/badges/my-badges',
     badgeDetail: (badgeUuid: string) => `/badges/${badgeUuid}`,
     badgeStatus: (courseUuid: string) => `/badges/${courseUuid}/badge`,
     badgePath: (courseUuid: string) => `/badges/${courseUuid}/path`,
     badgeChapter: (courseUuid: string, chapterId: string) =>
       `/badges/${courseUuid}/chapter/${chapterId}`,
     badgeInvite: (courseUuid: string) => `/badges/${courseUuid}/invite`,
-    resource: (resourceUuid: string) => `/resource/${resourceUuid}`,
+    resource: (resourceUuid: string) => withQuery('/hub', { resource: resourceUuid }),
     podcast: (podcastUuid: string) => `/podcast/${podcastUuid}`,
     playground: (playgroundUuid: string) => `/playground/${playgroundUuid}`,
     community: (communityUuid: string) => `/community/${communityUuid}`,
@@ -117,7 +151,18 @@ export const routePaths = {
       root: () => '/admin',
       analytics: () => '/admin',
       badges: () => '/admin/badges',
+      programs: () => '/admin/plans',
+      program: (programUuid: string) => `/admin/plans/${encodeURIComponent(programUuid)}`,
+      programPage: (programUuid: string, subpage: string) => `/admin/plans/${encodeURIComponent(programUuid)}/${encodeURIComponent(subpage)}`,
+      programAssignmentNew: (programUuid: string) => `/admin/plans/${encodeURIComponent(programUuid)}/assignments/new`,
+      planAssignments: () => '/admin/plans/assignments',
+      planRequirements: () => '/admin/plans/requirements',
+      planRequirement: (frameworkUuid: string, subpage = 'details') => `/admin/plans/requirements/${encodeURIComponent(frameworkUuid)}/${encodeURIComponent(subpage)}`,
+      planReporting: () => '/admin/plans/reporting',
+      planAssignment: (assignmentUuid: string, subpage = 'overview') => `/admin/plans/assignments/${encodeURIComponent(assignmentUuid)}/${encodeURIComponent(subpage)}`,
+      livePlan: (planUuid: string, subpage = 'overview') => subpage === 'overview' ? `/admin/plans/live/${encodeURIComponent(planUuid)}` : `/admin/plans/live/${encodeURIComponent(planUuid)}/${encodeURIComponent(subpage)}`,
       news: () => '/admin/news',
+      feedback: () => '/admin/feedback',
       newsNewPost: () => '/admin/news/new-post',
       newsPost: (articleUuid: string) => `/admin/news/${articleUuid}`,
       communities: () => '/admin/communities',
@@ -130,9 +175,15 @@ export const routePaths = {
       paymentsOffers: () => '/admin/payments/offers',
       paymentsGroups: () => '/admin/payments/groups',
       paymentsConfiguration: () => '/admin/payments/configuration',
-      boardSettings: (boardUuid: string, subpage: string) =>
-        '/admin',
-      boardRoot: (boardUuid: string) => '/admin',
+      boardSettings: (boardUuid: string, subpage: string) => {
+        void boardUuid
+        void subpage
+        return '/admin'
+      },
+      boardRoot: (boardUuid: string) => {
+        void boardUuid
+        return '/admin'
+      },
       resourceChannelSettings: (channelUuid: string, subpage: string) =>
         `/admin/resources/${channelUuid}/${subpage}`,
       podcastSettings: (podcastUuid: string, subpage: string) =>
@@ -141,12 +192,19 @@ export const routePaths = {
         `/admin/communities/${communityUuid}/${subpage}`,
       users: {
         users: () => '/admin/users',
-        user: (username: string) => `/admin/users/${encodeURIComponent(username)}`,
-        usergroups: () => '/admin/users/groups',
+        grading: () => '/admin/users/grading',
+        user: (username: string) => `/admin/users/user/${encodeURIComponent(username)}`,
+        userPage: (username: string, subpage: string) => `/admin/users/user/${encodeURIComponent(username)}/${encodeURIComponent(subpage)}`,
+        usergroups: () => '/admin/users',
         roles: () => '/admin/users/roles',
         signups: () => '/admin/users/signups',
         add: () => '/admin/users/new',
         auditLogs: () => '/admin/users/audit-logs',
+        group: (groupId: string | number) => `/admin/users/groups/${encodeURIComponent(String(groupId))}`,
+        groupProgram: (groupId: string | number, assignmentUuid: string, subpage = 'progress') => `/admin/users/groups/${encodeURIComponent(String(groupId))}/programs/${encodeURIComponent(assignmentUuid)}/${encodeURIComponent(subpage)}`,
+        // TODO(users-navigation-review): remove these aliases after old links have expired.
+        cohort: (groupId: string | number) => `/admin/users/groups/${encodeURIComponent(String(groupId))}`,
+        cohortProgram: (groupId: string | number, assignmentUuid: string, subpage = 'progress') => `/admin/users/groups/${encodeURIComponent(String(groupId))}/programs/${encodeURIComponent(assignmentUuid)}/${encodeURIComponent(subpage)}`,
       },
       orgSettings: {
         general: () => '/admin/org/settings/general',
@@ -168,6 +226,8 @@ export const routePaths = {
         users: () => '/admin/platform/users',
         user: (username: string) => `/admin/platform/users/${encodeURIComponent(username)}`,
         requests: () => '/admin/platform/requests',
+        feedback: () => '/admin/platform/feedback',
+        settings: () => '/admin/platform/settings',
         news: () => '/admin/news',
         analytics: () => '/admin/platform',
         organization: (orgId: string | number) => `/admin/platform/orgs/${orgId}`,

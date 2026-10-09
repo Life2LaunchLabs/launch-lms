@@ -567,8 +567,8 @@
     "usergroup_filter": {
       "all_courses": "All Courses",
       "filter_by_group": "Filter by group",
-      "info_title": "User Group Filter",
-      "info_description": "Filter courses by user group to see only courses assigned to a specific group. Useful for families or teams sharing the same organization."
+      "info_title": "Group Filter",
+      "info_description": "Filter courses by group to see only courses assigned to a specific group. Useful for families or teams sharing the same organization."
     }
   },
   "communities": {
@@ -3809,13 +3809,13 @@
       "set_to_public_confirm": "Alle angemeldeten Organisationsmitglieder können auf dieses Board zugreifen.",
       "make_board_public": "Board öffentlich machen",
       "set_to_private": "Auf privat setzen",
-      "set_to_private_confirm": "Nur Mitglieder verknüpfter UserGroups können auf dieses Board zugreifen.",
+      "set_to_private_confirm": "Nur Mitglieder verknüpfter Groups können auf dieses Board zugreifen.",
       "make_board_private": "Board privat machen",
       "active": "Aktiv",
       "public_option": "Öffentlich",
       "public_description": "Alle angemeldeten Organisationsmitglieder können auf dieses Board zugreifen",
       "private_option": "Nur Benutzer",
-      "private_description": "Nur verknüpfte UserGroups können auf dieses Board zugreifen",
+      "private_description": "Nur verknüpfte Groups können auf dieses Board zugreifen",
       "board_set_public": "Board auf öffentlich gesetzt",
       "board_set_private": "Board auf privat gesetzt",
       "access_update_error": "Zugriff konnte nicht aktualisiert werden",
@@ -3828,7 +3828,7 @@
       "no_user_groups": "Noch keine Benutzergruppen verknüpft",
       "link_to_user_group": "Mit Benutzergruppe verknüpfen",
       "link_to_user_group_description": "Wählen Sie eine Benutzergruppe aus, um ihr Zugriff auf dieses Board zu geben",
-      "link_to_usergroup_btn": "Mit UserGroup verknüpfen",
+      "link_to_usergroup_btn": "Mit Group verknüpfen",
       "user_group": "Benutzergruppe",
       "no_user_groups_available": "Keine Benutzergruppen verfügbar",
       "create_user_group": "Benutzergruppe erstellen",

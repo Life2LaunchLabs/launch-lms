@@ -577,8 +577,8 @@
     "usergroup_filter": {
       "all_courses": "All Courses",
       "filter_by_group": "Filter by group",
-      "info_title": "User Group Filter",
-      "info_description": "Filter courses by user group to see only courses assigned to a specific group. Useful for families or teams sharing the same organization."
+      "info_title": "Group Filter",
+      "info_description": "Filter courses by group to see only courses assigned to a specific group. Useful for families or teams sharing the same organization."
     }
   },
   "communities": {
@@ -3819,13 +3819,13 @@
       "set_to_public_confirm": "سيتمكن جميع أعضاء المنظمة المسجلين من الوصول إلى هذه اللوحة.",
       "make_board_public": "جعل اللوحة عامة",
       "set_to_private": "تعيين كخاص",
-      "set_to_private_confirm": "فقط أعضاء مجموعات UserGroups المرتبطة سيتمكنون من الوصول إلى هذه اللوحة.",
+      "set_to_private_confirm": "فقط أعضاء مجموعات Groups المرتبطة سيتمكنون من الوصول إلى هذه اللوحة.",
       "make_board_private": "جعل اللوحة خاصة",
       "active": "نشط",
       "public_option": "عام",
       "public_description": "يمكن لجميع أعضاء المنظمة المسجلين الوصول إلى هذه اللوحة",
       "private_option": "المستخدمون فقط",
-      "private_description": "فقط مجموعات UserGroups المرتبطة يمكنها الوصول إلى هذه اللوحة",
+      "private_description": "فقط مجموعات Groups المرتبطة يمكنها الوصول إلى هذه اللوحة",
       "board_set_public": "تم تعيين اللوحة كعامة",
       "board_set_private": "تم تعيين اللوحة كخاصة",
       "access_update_error": "فشل تحديث الوصول",
@@ -3838,7 +3838,7 @@
       "no_user_groups": "لا توجد مجموعات مستخدمين مرتبطة بعد",
       "link_to_user_group": "الربط بمجموعة مستخدمين",
       "link_to_user_group_description": "اختر مجموعة مستخدمين لمنحها الوصول إلى هذه اللوحة",
-      "link_to_usergroup_btn": "الربط بـ UserGroup",
+      "link_to_usergroup_btn": "الربط بـ Group",
       "user_group": "مجموعة المستخدمين",
       "no_user_groups_available": "لا توجد مجموعات مستخدمين متاحة",
       "create_user_group": "إنشاء مجموعة مستخدمين",

@@ -22,6 +22,7 @@ ALL_FEATURES = [
     "badge_collections", "badges", "collaboration", "communities",
     "custom_domains", "marketplace_publishing", "members", "payments", "playgrounds",
     "podcasts", "resources", "roles", "scorm", "sso", "storage", "usergroups", "versioning",
+    "managed_plans",
 ]
 
 RELEASE_DISABLED_FEATURES = {"communities"}

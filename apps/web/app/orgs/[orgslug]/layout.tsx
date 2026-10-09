@@ -7,6 +7,7 @@ import Footer from '@components/Footer/Footer'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
 import { getOrgFaviconMediaDirectory, getOrgLogoMediaDirectory } from '@services/media/media'
 import OrgThemeVariables from './OrgThemeVariables'
+import { PageTitleProvider } from '@components/Contexts/PageTitleContext'
 
 export async function generateMetadata({
   params,
@@ -30,7 +31,9 @@ export async function generateMetadata({
         icons: { icon: getOrgLogoMediaDirectory(org.org_uuid, org.logo_image) },
       }
     }
-  } catch {}
+  } catch {
+    return {}
+  }
   return {}
 }
 
@@ -43,12 +46,12 @@ export default async function RootLayout(props: {
   return (
     <div>
       <OrgProvider orgslug={params.orgslug}>
-        <OrgThemeVariables>
+        <PageTitleProvider><OrgThemeVariables>
           <NextTopLoader color="#2e2e2e" initialPosition={0.3} height={4} easing={'ease'} speed={500} showSpinner={false} />
           <Toast />
           {props.children}
           <Footer />
-        </OrgThemeVariables>
+        </OrgThemeVariables></PageTitleProvider>
       </OrgProvider>
     </div>
   )

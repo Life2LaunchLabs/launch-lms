@@ -1,4 +1,4 @@
-import { APP_IMAGE, POSTGRES_IMAGE, POSTGRES_AI_IMAGE } from '../constants.js'
+import { APP_IMAGE, OLLAMA_IMAGE, POSTGRES_IMAGE, POSTGRES_AI_IMAGE, RESOURCE_EMBEDDING_MODEL } from '../constants.js'
 import type { SetupConfig } from '../types.js'
 
 /**
@@ -14,6 +14,7 @@ export function generateDockerCompose(config: SetupConfig, appImage?: string): s
   const deps: string[] = []
   if (useLocalDb) deps.push('      db:\n        condition: service_healthy')
   if (useLocalRedis) deps.push('      redis:\n        condition: service_healthy')
+  if (config.useAiDatabase) deps.push('      embeddings-init:\n        condition: service_completed_successfully')
 
   const appDependsOn = deps.length > 0
     ? `    depends_on:\n${deps.join('\n')}`
@@ -108,6 +109,55 @@ export function generateDockerCompose(config: SetupConfig, appImage?: string): s
 `
     : ''
 
+  const embeddingService = config.useAiDatabase
+    ? `
+  embeddings:
+    image: ${OLLAMA_IMAGE}
+    container_name: launch-lms-embeddings-${id}
+    restart: unless-stopped
+    volumes:
+      - launch-lms_embedding_models_${id}:/root/.ollama
+    networks:
+      - launch-lms-network-${id}
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  embeddings-init:
+    image: ${OLLAMA_IMAGE}
+    restart: "no"
+    environment:
+      - OLLAMA_HOST=http://embeddings:11434
+    command: ["pull", "${RESOURCE_EMBEDDING_MODEL}"]
+    depends_on:
+      embeddings:
+        condition: service_healthy
+    networks:
+      - launch-lms-network-${id}
+`
+    : ''
+
+  const searchBackfillService = config.useAiDatabase
+    ? `
+  resource-search-backfill:
+    image: ${image}
+    restart: "no"
+    env_file:
+      - .env
+    entrypoint: ["/bin/sh", "-lc"]
+    command: ["cd /app/api && uv run python scripts/backfill_resource_search.py"]
+    depends_on:
+      launch-lms-app:
+        condition: service_healthy
+      embeddings-init:
+        condition: service_completed_successfully
+    networks:
+      - launch-lms-network-${id}
+`
+    : ''
+
   const volumeEntries: string[] = []
   if (config.autoSsl) {
     volumeEntries.push(`  launch-lms_caddy_data_${id}:`)
@@ -115,6 +165,7 @@ export function generateDockerCompose(config: SetupConfig, appImage?: string): s
   }
   if (useLocalDb) volumeEntries.push(`  launch-lms_db_data_${id}:`)
   if (useLocalRedis) volumeEntries.push(`  launch-lms_redis_data_${id}:`)
+  if (config.useAiDatabase) volumeEntries.push(`  launch-lms_embedding_models_${id}:`)
 
   const volumesSection = volumeEntries.length > 0
     ? `volumes:\n${volumeEntries.join('\n')}`
@@ -142,7 +193,7 @@ ${appDependsOn}
       timeout: 10s
       retries: 3
       start_period: 60s
-${proxyService}${dbService}${redisService}
+${proxyService}${dbService}${redisService}${embeddingService}${searchBackfillService}
 networks:
   launch-lms-network-${id}:
     driver: bridge

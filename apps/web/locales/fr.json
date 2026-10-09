@@ -528,8 +528,8 @@
     "usergroup_filter": {
       "all_courses": "All Courses",
       "filter_by_group": "Filter by group",
-      "info_title": "User Group Filter",
-      "info_description": "Filter courses by user group to see only courses assigned to a specific group. Useful for families or teams sharing the same organization."
+      "info_title": "Group Filter",
+      "info_description": "Filter courses by group to see only courses assigned to a specific group. Useful for families or teams sharing the same organization."
     }
   },
   "communities": {
@@ -3094,7 +3094,7 @@
       "cohort_retention": {
         "title": "Rétention par cohorte",
         "description": "% utilisateurs actifs après la semaine d'inscription",
-        "cohort": "Cohorte",
+        "cohort": "Groupe",
         "size": "Taille"
       },
       "peak_usage": {
@@ -3427,13 +3427,13 @@
       "set_to_public_confirm": "Tous les membres connectés de l'organisation pourront accéder à ce tableau.",
       "make_board_public": "Rendre le tableau public",
       "set_to_private": "Définir comme privé",
-      "set_to_private_confirm": "Seuls les membres des UserGroups liés pourront accéder à ce tableau.",
+      "set_to_private_confirm": "Seuls les membres des Groups liés pourront accéder à ce tableau.",
       "make_board_private": "Rendre le tableau privé",
       "active": "Actif",
       "public_option": "Public",
       "public_description": "Tous les membres connectés de l'organisation peuvent accéder à ce tableau",
       "private_option": "Utilisateurs uniquement",
-      "private_description": "Seuls les UserGroups liés peuvent accéder à ce tableau",
+      "private_description": "Seuls les Groups liés peuvent accéder à ce tableau",
       "board_set_public": "Tableau défini comme public",
       "board_set_private": "Tableau défini comme privé",
       "access_update_error": "Échec de la mise à jour de l'accès",
@@ -3446,7 +3446,7 @@
       "no_user_groups": "Aucun groupe d'utilisateurs lié pour le moment",
       "link_to_user_group": "Lier à un groupe d'utilisateurs",
       "link_to_user_group_description": "Sélectionnez un groupe d'utilisateurs pour lui donner accès à ce tableau",
-      "link_to_usergroup_btn": "Lier à un UserGroup",
+      "link_to_usergroup_btn": "Lier à un Group",
       "user_group": "Groupe d'utilisateurs",
       "no_user_groups_available": "Aucun groupe d'utilisateurs disponible",
       "create_user_group": "Créer un groupe d'utilisateurs",

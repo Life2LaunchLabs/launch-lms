@@ -1,5 +1,5 @@
 from datetime import datetime
-from uuid import uuid4
+from src.services.demo.context import isolated_uuid
 
 from fastapi import HTTPException, Request, UploadFile
 from sqlmodel import Session, func, select
@@ -38,7 +38,7 @@ async def create_board(
     board = Board(
         **board_object.model_dump(),
         org_id=org_id,
-        board_uuid=f"board_{uuid4()}",
+        board_uuid=isolated_uuid("board"),
         created_by=current_user.id,
         creation_date=str(datetime.now()),
         update_date=str(datetime.now()),

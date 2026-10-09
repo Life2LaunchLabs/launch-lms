@@ -3,8 +3,8 @@ import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { updatePassword } from '@services/settings/password'
 import { Formik, Form } from 'formik'
 import React from 'react'
-import { AlertTriangle } from 'lucide-react'
-import { Input } from "@components/ui/input"
+import { AlertTriangle, ChevronDown, KeyRound } from 'lucide-react'
+import { PasswordInput } from "@components/ui/password-input"
 import { Button } from "@components/ui/button"
 import { Label } from "@components/ui/label"
 import { toast } from 'react-hot-toast'
@@ -24,6 +24,7 @@ function AccountSecurity() {
   const session = useLHSession() as any
   const access_token = session?.data?.tokens?.access_token;
   const { t } = useTranslation();
+  const [expanded, setExpanded] = React.useState(false)
 
   const updatePasswordUI = async (values: any) => {
     const loadingToast = toast.loading(t('user.settings.password.updating'))
@@ -35,7 +36,7 @@ function AccountSecurity() {
         toast.dismiss(loadingToast)
 
         toast.success(t('user.settings.password.password_updated'), { duration: 4000 })
-        toast((t_toast: any) => (
+        toast(() => (
           <div className="flex items-center gap-2">
             <span>{t('user.settings.password.relogin_message')}</span>
           </div>
@@ -57,18 +58,23 @@ function AccountSecurity() {
   }
 
   return (
-    <div className="bg-card rounded-xl nice-shadow">
-      <div className="flex flex-col gap-0">
-        <div className="flex flex-col bg-muted -space-y-1 px-5 py-3 mx-3 my-3 rounded-md">
-          <h1 className="font-bold text-xl text-foreground">
-            {t('user.settings.password.title')}
-          </h1>
-          <h2 className="text-muted-foreground text-md">
-            {t('user.settings.password.subtitle')}
-          </h2>
+    <section className="overflow-hidden rounded-xl border border-border bg-card nice-shadow">
+      <div className="flex items-center justify-between gap-4 p-5 sm:p-6">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground"><KeyRound size={19} /></span>
+          <div>
+            <h2 className="font-bold text-foreground">{t('user.settings.password.title')}</h2>
+            <p className="text-sm text-muted-foreground">{t('user.settings.password.subtitle')}</p>
+          </div>
         </div>
+        <Button type="button" variant="outline" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded}>
+          {expanded ? 'Cancel' : 'Change password'}
+          {!expanded && <ChevronDown className="ml-2 h-4 w-4" />}
+        </Button>
+      </div>
 
-        <div className="mx-5 mb-5">
+      {expanded && (
+        <div className="border-t border-border px-5 py-6 sm:px-6">
           <Formik
             initialValues={{ old_password: '', new_password: '' }}
             validationSchema={validationSchema}
@@ -83,8 +89,7 @@ function AccountSecurity() {
               <Form className="w-full max-w-2xl mx-auto space-y-6">
                 <div>
                   <Label htmlFor="old_password">{t('user.settings.password.current_password')}</Label>
-                  <Input
-                    type="password"
+                  <PasswordInput
                     autoComplete="current-password"
                     id="old_password"
                     name="old_password"
@@ -98,8 +103,7 @@ function AccountSecurity() {
 
                 <div>
                   <Label htmlFor="new_password">{t('user.settings.password.new_password')}</Label>
-                  <Input
-                    type="password"
+                  <PasswordInput
                     autoComplete="new-password"
                     id="new_password"
                     name="new_password"
@@ -129,8 +133,8 @@ function AccountSecurity() {
             )}
           </Formik>
         </div>
-      </div>
-    </div>
+      )}
+    </section>
   )
 }
 

@@ -1,28 +1,237 @@
-import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from uuid import uuid4
 
-import redis
-from config.config import get_launchlms_config
 from fastapi import HTTPException, Request
+from pydantic import EmailStr, TypeAdapter, ValidationError
+from sqlalchemy import or_
 from sqlalchemy.orm import aliased
 from sqlmodel import Session, func, select
+from src.db.organization_invitations import (
+    InvitePreviewResponse,
+    InviteRecipientResult,
+    InviteUsersRequest,
+    InviteUsersResponse,
+    OrganizationInvitation,
+)
+from src.db.audit_logs import AuditLog
+from src.db.organization_config import OrganizationConfig
 from src.db.organizations import (
     Organization,
     OrganizationRead,
     OrganizationUser,
 )
 from src.db.roles import Role, RoleRead
+from src.db.learning import LearningBadge, LearningBadgeStatus
+from src.db.programs import ProgramAssignment, ProgramParticipant
 from src.db.user_organizations import UserOrganization
+from src.db.usergroup_resources import UserGroupResource
 from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup, UserGroupRead
 from src.db.users import AnonymousUser, PublicUser, User, UserRead
-from src.security.features_utils.usage import decrease_feature_usage
-from src.security.org_auth import is_org_member
+from src.security.features_utils.usage import (
+    check_admin_seat_limit,
+    check_limits_with_usage,
+    decrease_feature_usage,
+    increase_feature_usage,
+    is_role_dashboard_enabled,
+)
+from src.security.features_utils.plans import plan_meets_requirement
+from src.security.org_auth import get_user_org, is_org_member
 from src.security.rbac.constants import ADMIN_ROLE_ID
 from src.services.email.utils import get_base_url_from_request
-from src.services.orgs.invites import send_invite_email
+from src.services.orgs.invites import send_direct_invitation_email
 from src.services.orgs.orgs import rbac_check
+from src.services.messages import create_inbox_message, resolve_action_by_dedupe
+from src.services.users.usergroups import create_usergroup
+
+
+_email_adapter = TypeAdapter(EmailStr)
+
+
+def normalize_email(email: str) -> str:
+    """Normalize for identity matching without provider-specific rewriting."""
+    local, separator, domain = email.strip().rpartition("@")
+    if not separator:
+        return email.strip().casefold()
+    return f"{local.casefold()}@{domain.casefold()}"
+
+
+def is_valid_email(email: str) -> bool:
+    try:
+        _email_adapter.validate_python(email.strip())
+        return True
+    except ValidationError:
+        return False
+
+
+def _my_pending_invitation_statement(current_user: PublicUser):
+    return select(OrganizationInvitation).where(
+        or_(
+            OrganizationInvitation.target_user_id == current_user.id,
+            OrganizationInvitation.email_normalized == normalize_email(str(current_user.email)),
+        ),
+        OrganizationInvitation.status == "pending",
+        OrganizationInvitation.expires_at > datetime.utcnow(),
+    )
+
+
+def get_my_pending_invitation(
+    invitation_uuid: str,
+    current_user: PublicUser,
+    db_session: Session,
+) -> OrganizationInvitation:
+    invitation = db_session.exec(
+        _my_pending_invitation_statement(current_user).where(
+            OrganizationInvitation.invitation_uuid == invitation_uuid
+        )
+    ).first()
+    if not invitation:
+        raise HTTPException(status_code=404, detail="Invitation not found")
+    return invitation
+
+
+def get_my_organization_invitations(
+    current_user: PublicUser,
+    db_session: Session,
+) -> list[dict]:
+    invitations = db_session.exec(
+        _my_pending_invitation_statement(current_user).order_by(
+            OrganizationInvitation.created_at.desc()
+        )
+    ).all()
+    if not invitations:
+        return []
+
+    org_ids = {invitation.org_id for invitation in invitations}
+    role_ids = {invitation.role_id for invitation in invitations}
+    group_ids = {invitation.usergroup_id for invitation in invitations if invitation.usergroup_id}
+    organizations = db_session.exec(select(Organization).where(Organization.id.in_(org_ids))).all()
+    roles = db_session.exec(select(Role).where(Role.id.in_(role_ids))).all()
+    groups = db_session.exec(select(UserGroup).where(UserGroup.id.in_(group_ids))).all() if group_ids else []
+    org_map = {org.id: org for org in organizations}
+    role_map = {role.id: role for role in roles}
+    group_map = {group.id: group for group in groups}
+
+    return [
+        {
+            "invitation_uuid": invitation.invitation_uuid,
+            "org_id": invitation.org_id,
+            "created_at": invitation.created_at.isoformat(),
+            "expires_at": invitation.expires_at.isoformat(),
+            "viewed_at": invitation.viewed_at.isoformat() if invitation.viewed_at else None,
+            "unread": invitation.viewed_at is None,
+            "organization": OrganizationRead.model_validate(org_map[invitation.org_id]).model_dump()
+            if invitation.org_id in org_map else None,
+            "role": RoleRead.model_validate(role_map[invitation.role_id]).model_dump()
+            if invitation.role_id in role_map else None,
+            "usergroup": UserGroupRead.model_validate(group_map[invitation.usergroup_id]).model_dump()
+            if invitation.usergroup_id in group_map else None,
+        }
+        for invitation in invitations
+    ]
+
+
+def mark_my_organization_invitations_viewed(
+    current_user: PublicUser,
+    db_session: Session,
+) -> dict:
+    invitations = db_session.exec(_my_pending_invitation_statement(current_user)).all()
+    now = datetime.utcnow()
+    updated = 0
+    for invitation in invitations:
+        if invitation.viewed_at is None:
+            invitation.viewed_at = now
+            invitation.updated_at = now
+            db_session.add(invitation)
+            updated += 1
+    db_session.commit()
+    return {"detail": "Invitations marked as viewed", "updated": updated}
+
+
+def decline_my_organization_invitation(
+    request: Request,
+    invitation_uuid: str,
+    current_user: PublicUser,
+    db_session: Session,
+) -> dict:
+    invitation = get_my_pending_invitation(invitation_uuid, current_user, db_session)
+    now = datetime.utcnow()
+    invitation.status = "declined"
+    invitation.viewed_at = invitation.viewed_at or now
+    invitation.declined_at = now
+    invitation.updated_at = now
+    db_session.add(invitation)
+    resolve_action_by_dedupe(
+        db_session,
+        f"organization_invitation:{invitation.invitation_uuid}",
+        accepted=False,
+    )
+    db_session.commit()
+
+    decrease_feature_usage("members", invitation.org_id, db_session)
+    role = db_session.exec(select(Role).where(Role.id == invitation.role_id)).first()
+    if role and is_role_dashboard_enabled(role):
+        decrease_feature_usage("admin_seats", invitation.org_id, db_session)
+
+    from src.services.audit_logs import record_audit_log
+    record_audit_log(
+        db_session,
+        action="invitation.decline",
+        resource="organization_invitation",
+        status_code=200,
+        org_id=invitation.org_id,
+        user_id=current_user.id,
+        ip_address=request.client.host if request.client else None,
+        request_metadata={"invitation_uuid": invitation.invitation_uuid},
+    )
+    return {"detail": "Invitation declined"}
+
+
+def _invitation_policy(org_id: int, db_session: Session) -> dict[str, int | bool]:
+    config = db_session.exec(select(OrganizationConfig).where(OrganizationConfig.org_id == org_id)).first()
+    raw = config.config if config and isinstance(config.config, dict) else {}
+    plan = raw.get("plan") if str(raw.get("config_version", "1.0")).startswith("2") else raw.get("cloud", {}).get("plan")
+    paid = plan_meets_requirement(str(plan or "free"), "full")
+    enterprise = plan_meets_requirement(str(plan or "free"), "enterprise")
+    return {
+        "csv": paid,
+        "batch": 500 if enterprise else (100 if paid else 10),
+        "daily": 5000 if enterprise else (500 if paid else 25),
+        "pending": 5000 if enterprise else (500 if paid else 30),
+    }
+
+
+def _recipient_results(org_id: int, emails: list[str], db_session: Session) -> list[InviteRecipientResult]:
+    now = datetime.utcnow()
+    seen: set[str] = set()
+    results: list[InviteRecipientResult] = []
+    for raw_email in emails:
+        entered_email = raw_email.strip()
+        try:
+            validated_email = str(_email_adapter.validate_python(entered_email))
+        except ValidationError:
+            results.append(InviteRecipientResult(email=entered_email, status="invalid", detail="Enter a valid email address"))
+            continue
+        normalized = normalize_email(validated_email)
+        if normalized in seen:
+            results.append(InviteRecipientResult(email=validated_email, status="duplicate", detail="Duplicate in this batch"))
+            continue
+        seen.add(normalized)
+        target_user = db_session.exec(select(User).where(func.lower(User.email) == normalized)).first()
+        if target_user and db_session.exec(select(UserOrganization).where(
+            UserOrganization.org_id == org_id, UserOrganization.user_id == target_user.id,
+        )).first():
+            results.append(InviteRecipientResult(email=validated_email, status="already_member"))
+            continue
+        pending = db_session.exec(select(OrganizationInvitation).where(
+            OrganizationInvitation.org_id == org_id,
+            OrganizationInvitation.email_normalized == normalized,
+            OrganizationInvitation.status == "pending",
+            OrganizationInvitation.expires_at > now,
+        )).first()
+        results.append(InviteRecipientResult(email=validated_email, status="already_invited" if pending else "ready"))
+    return results
 
 
 def _get_owner_org(db_session: Session) -> Organization | None:
@@ -51,6 +260,8 @@ async def get_organization_users(
     sort_order: str = "desc",
     role_id: int | None = None,
     status: str | None = None,
+    active: bool | None = None,
+    assigned_to_me: bool = False,
 ):
     """
     Get paginated list of users in an organization.
@@ -122,6 +333,65 @@ async def get_organization_users(
         base_statement = base_statement.where(User.email_verified == True)
     elif status == "unverified":
         base_statement = base_statement.where(User.email_verified == False)
+
+    # Active means an active program or a published badge is currently assigned.
+    # Staff ownership lives on program assignments, so "assigned to me" narrows
+    # the result to learners on programs owned by the current staff member.
+    if active is not None or assigned_to_me:
+        active_assignments = db_session.exec(
+            select(ProgramAssignment).where(
+                ProgramAssignment.org_id == int(org_id),
+                ProgramAssignment.active == True,  # noqa: E712
+            )
+        ).all()
+        relevant_assignments = [
+            assignment for assignment in active_assignments
+            if not assigned_to_me or current_user.id in (assignment.staff_user_ids or [])
+        ]
+        assignment_ids = [assignment.id for assignment in relevant_assignments if assignment.id is not None]
+        assigned_user_ids: set[int] = {
+            int(assignment.user_id)
+            for assignment in relevant_assignments
+            if assignment.user_id is not None
+        }
+        assigned_group_ids = {
+            int(assignment.usergroup_id)
+            for assignment in relevant_assignments
+            if assignment.usergroup_id is not None
+        }
+        if assignment_ids:
+            assigned_user_ids.update(db_session.exec(
+                select(ProgramParticipant.user_id).where(
+                    ProgramParticipant.assignment_id.in_(assignment_ids)  # type: ignore[union-attr]
+                )
+            ).all())
+        if assigned_group_ids:
+            assigned_user_ids.update(db_session.exec(
+                select(UserGroupUser.user_id).where(
+                    UserGroupUser.usergroup_id.in_(assigned_group_ids)  # type: ignore[union-attr]
+                )
+            ).all())
+
+        if active is not None and not assigned_to_me:
+            badge_group_ids = set(db_session.exec(
+                select(UserGroupResource.usergroup_id)
+                .join(LearningBadge, LearningBadge.badge_uuid == UserGroupResource.resource_uuid)
+                .where(
+                    UserGroupResource.org_id == int(org_id),
+                    LearningBadge.status == LearningBadgeStatus.PUBLISHED,
+                )
+            ).all())
+            if badge_group_ids:
+                assigned_user_ids.update(db_session.exec(
+                    select(UserGroupUser.user_id).where(
+                        UserGroupUser.usergroup_id.in_(badge_group_ids)  # type: ignore[union-attr]
+                    )
+                ).all())
+
+        if active is False:
+            base_statement = base_statement.where(User.id.not_in(assigned_user_ids))
+        else:
+            base_statement = base_statement.where(User.id.in_(assigned_user_ids))
 
     # Compute group membership counts when usergroup_id is provided (before applying filter)
     in_group_total = None
@@ -517,97 +787,324 @@ async def update_user_role(
     return {"detail": "User role updated"}
 
 
+async def preview_batch_users(
+    request: Request,
+    org_id: int,
+    invite_request: InviteUsersRequest,
+    db_session: Session,
+    current_user: PublicUser | AnonymousUser,
+) -> InvitePreviewResponse:
+    org = db_session.exec(select(Organization).where(Organization.id == org_id)).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    await rbac_check(request, org.org_uuid, current_user, "create", db_session)
+    policy = _invitation_policy(org_id, db_session)
+    if invite_request.source == "csv" and not policy["csv"]:
+        raise HTTPException(status_code=403, detail="CSV invitations require a paid plan")
+    if invite_request.source not in {"manual", "csv", "api"}:
+        raise HTTPException(status_code=400, detail="Unsupported invitation source")
+    if len(invite_request.emails) > int(policy["batch"]):
+        raise HTTPException(status_code=400, detail=f"This plan allows {policy['batch']} recipients per batch")
+    role = db_session.exec(select(Role).where(
+        Role.id == invite_request.role_id,
+        or_(Role.org_id == org.id, Role.org_id.is_(None)),
+    )).first()
+    if not role:
+        raise HTTPException(status_code=400, detail="Role is not available in this organization")
+    if is_role_dashboard_enabled(role):
+        inviter_membership = get_user_org(current_user.id, org.id, db_session)
+        from src.security.superadmin import is_user_superadmin
+        if not is_user_superadmin(current_user.id, db_session) and (
+            not inviter_membership or inviter_membership.role_id != ADMIN_ROLE_ID
+        ):
+            raise HTTPException(status_code=403, detail="Only organization administrators can invite staff or administrators")
+    if invite_request.usergroup_id and invite_request.new_usergroup_name:
+        raise HTTPException(status_code=400, detail="Choose an existing group or create a new one, not both")
+    if invite_request.usergroup_id:
+        if is_role_dashboard_enabled(role):
+            raise HTTPException(status_code=400, detail="Groups can only be assigned with learner invitations")
+        if not db_session.exec(select(UserGroup).where(
+            UserGroup.id == invite_request.usergroup_id, UserGroup.org_id == org.id,
+        )).first():
+            raise HTTPException(status_code=400, detail="Group is not available in this organization")
+    if invite_request.new_usergroup_name is not None and not invite_request.new_usergroup_name.strip():
+        raise HTTPException(status_code=400, detail="New group name is required")
+    if invite_request.new_usergroup_name and is_role_dashboard_enabled(role):
+        raise HTTPException(status_code=400, detail="Groups can only be assigned with learner invitations")
+    return InvitePreviewResponse(results=_recipient_results(org_id, invite_request.emails, db_session))
+
+
 async def invite_batch_users(
     request: Request,
     org_id: int,
-    emails: str,
-    invite_code_uuid: str,
+    invite_request: InviteUsersRequest,
     db_session: Session,
     current_user: PublicUser | AnonymousUser,
 ):
-    # Redis init
-    LH_CONFIG = get_launchlms_config()
-    redis_conn_string = LH_CONFIG.redis_config.redis_connection_string
+    org = db_session.exec(select(Organization).where(Organization.id == org_id)).first()
 
-    if not redis_conn_string:
-        raise HTTPException(
-            status_code=500,
-            detail="Redis connection string not found",
-        )
-
-    statement = select(Organization).where(Organization.id == org_id)
-    result = db_session.exec(statement)
-
-    org = result.first()
-
-    if not org:
+    if not org or org.id is None:
         raise HTTPException(
             status_code=404,
             detail="Organization not found",
         )
 
-    # get User sender
-    statement = select(User).where(User.id == current_user.id)
-    user = db_session.exec(statement).first()
+    user = db_session.exec(select(User).where(User.id == current_user.id)).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="Authentication required")
 
-    # RBAC check
     await rbac_check(request, org.org_uuid, current_user, "create", db_session)
 
-    # Connect to Redis
-    r = redis.Redis.from_url(redis_conn_string)
+    policy = _invitation_policy(org.id, db_session)
+    if invite_request.source == "csv" and not policy["csv"]:
+        raise HTTPException(status_code=403, detail="CSV invitations require a paid plan")
+    if invite_request.source not in {"manual", "csv", "api"}:
+        raise HTTPException(status_code=400, detail="Unsupported invitation source")
+    if len(invite_request.emails) > int(policy["batch"]):
+        raise HTTPException(status_code=400, detail=f"This plan allows {policy['batch']} recipients per batch")
 
-    if not r:
-        raise HTTPException(
-            status_code=500,
-            detail="Could not connect to Redis",
+    day_ago = datetime.utcnow() - timedelta(days=1)
+    daily_limit = int(policy["daily"])
+    try:
+        org_created = datetime.fromisoformat(org.creation_date.replace("Z", "+00:00")) if org.creation_date else None
+        if org_created and org_created.tzinfo:
+            org_created = org_created.astimezone(timezone.utc).replace(tzinfo=None)
+        if org_created and org_created > datetime.utcnow() - timedelta(days=7):
+            daily_limit = max(5, daily_limit // 2)
+    except ValueError:
+        pass
+
+    # Reduce throughput for established organizations whose invitations are
+    # overwhelmingly ignored. This is intentionally based on aggregate status,
+    # not recipient identity, to avoid exposing account existence.
+    month_ago = datetime.utcnow() - timedelta(days=30)
+    recent_total = db_session.exec(select(func.count()).where(
+        OrganizationInvitation.org_id == org.id,
+        OrganizationInvitation.created_at > month_ago,
+    )).one()
+    recent_accepted = db_session.exec(select(func.count()).where(
+        OrganizationInvitation.org_id == org.id,
+        OrganizationInvitation.created_at > month_ago,
+        OrganizationInvitation.status == "accepted",
+    )).one()
+    if recent_total >= 50 and recent_accepted / recent_total < 0.05:
+        daily_limit = min(daily_limit, 10)
+
+    sent_today = db_session.exec(select(func.count()).where(
+        OrganizationInvitation.org_id == org.id,
+        OrganizationInvitation.created_at > day_ago,
+    )).one()
+    sent_by_user = db_session.exec(select(func.count()).where(
+        OrganizationInvitation.created_by_user_id == current_user.id,
+        OrganizationInvitation.created_at > day_ago,
+    )).one()
+    platform_sent = db_session.exec(select(func.count()).where(
+        OrganizationInvitation.created_at > day_ago,
+    )).one()
+    active_pending = db_session.exec(select(func.count()).where(
+        OrganizationInvitation.org_id == org.id,
+        OrganizationInvitation.status == "pending",
+        OrganizationInvitation.expires_at > datetime.utcnow(),
+    )).one()
+    preview_results = _recipient_results(org.id, invite_request.emails, db_session)
+    prospective = sum(result.status == "ready" for result in preview_results)
+    if sent_today + prospective > daily_limit:
+        raise HTTPException(status_code=429, detail="Organization invitation limit reached for the last 24 hours")
+    if sent_by_user + prospective > daily_limit:
+        raise HTTPException(status_code=429, detail="Your invitation limit was reached for the last 24 hours")
+    if platform_sent + prospective > 50_000:
+        raise HTTPException(status_code=429, detail="Platform invitation capacity is temporarily limited")
+    if request.client:
+        batches_from_ip = db_session.exec(select(func.count()).where(
+            AuditLog.action == "invitation.create",
+            AuditLog.ip_address == request.client.host,
+            AuditLog.created_at > (datetime.now(timezone.utc) - timedelta(days=1)).isoformat(),
+        )).one()
+        if batches_from_ip >= 100:
+            raise HTTPException(status_code=429, detail="Invitation rate limit reached for this network")
+    if active_pending + prospective > int(policy["pending"]):
+        raise HTTPException(status_code=429, detail="Active pending invitation limit reached")
+
+    role = db_session.exec(
+        select(Role).where(
+            Role.id == invite_request.role_id,
+            or_(Role.org_id == org.id, Role.org_id.is_(None)),
         )
+    ).first()
+    if not role:
+        raise HTTPException(status_code=400, detail="Role is not available in this organization")
 
-    invite_list = emails.split(",")
+    # Only full administrators may grant dashboard-bearing roles. Maintainers can
+    # still invite learners when their normal RBAC permissions allow it.
+    if is_role_dashboard_enabled(role):
+        inviter_membership = get_user_org(current_user.id, org.id, db_session)
+        from src.security.superadmin import is_user_superadmin
+        if not is_user_superadmin(current_user.id, db_session) and (
+            not inviter_membership or inviter_membership.role_id != ADMIN_ROLE_ID
+        ):
+            raise HTTPException(status_code=403, detail="Only organization administrators can invite staff or administrators")
 
-    # invitations expire after 60 days
-    ttl = int(timedelta(days=60).total_seconds())
+    if invite_request.usergroup_id and invite_request.new_usergroup_name:
+        raise HTTPException(status_code=400, detail="Choose an existing group or create a new one, not both")
+    if invite_request.new_usergroup_name is not None and not invite_request.new_usergroup_name.strip():
+        raise HTTPException(status_code=400, detail="New group name is required")
+    if invite_request.new_usergroup_name and len(invite_request.new_usergroup_name.strip()) > 120:
+        raise HTTPException(status_code=400, detail="New group name must be 120 characters or fewer")
+    if not any(is_valid_email(email) for email in invite_request.emails):
+        raise HTTPException(status_code=400, detail="Enter at least one valid email address")
 
-    for email in invite_list:
-        email = email.strip()
+    usergroup_id = invite_request.usergroup_id
+    if invite_request.new_usergroup_name:
+        from src.db.usergroups import UserGroupCreate
+        group = await create_usergroup(
+            request,
+            db_session,
+            current_user,
+            UserGroupCreate(
+                name=invite_request.new_usergroup_name.strip(),
+                description="Created while inviting learners",
+                org_id=org.id,
+            ),
+        )
+        usergroup_id = group.id
 
-        # Check if user is already invited
-        invited_user = r.get(f"invited_user:{email}:org:{org.org_uuid}")
+    if usergroup_id is not None:
+        group = db_session.exec(
+            select(UserGroup).where(UserGroup.id == usergroup_id, UserGroup.org_id == org.id)
+        ).first()
+        if not group:
+            raise HTTPException(status_code=400, detail="Group is not available in this organization")
+        if is_role_dashboard_enabled(role):
+            raise HTTPException(status_code=400, detail="Groups can only be assigned with learner invitations")
 
-        if invited_user:
-            logging.error(f"User {email} already invited")
-            # skip this user
+    now = datetime.utcnow()
+    expires_at = now + timedelta(days=60)
+    results: list[InviteRecipientResult] = []
+    new_invitations: list[OrganizationInvitation] = []
+    seen: set[str] = set()
+
+    for raw_email in invite_request.emails:
+        entered_email = raw_email.strip()
+        try:
+            validated_email = str(_email_adapter.validate_python(entered_email))
+        except ValidationError:
+            results.append(InviteRecipientResult(email=entered_email, status="invalid", detail="Enter a valid email address"))
             continue
 
-        org = OrganizationRead.model_validate(org)
-        user = UserRead.model_validate(user)
+        normalized = normalize_email(validated_email)
+        if normalized in seen:
+            results.append(InviteRecipientResult(email=validated_email, status="duplicate", detail="Duplicate in this batch"))
+            continue
+        seen.add(normalized)
 
-        base_url = get_base_url_from_request(request)
-        isEmailSent = send_invite_email(
-            org,
-            invite_code_uuid,
-            user,
-            email,
-            base_url,
+        target_user = db_session.exec(
+            select(User).where(func.lower(User.email) == normalized)
+        ).first()
+        if target_user and db_session.exec(
+            select(UserOrganization).where(
+                UserOrganization.org_id == org.id,
+                UserOrganization.user_id == target_user.id,
+            )
+        ).first():
+            results.append(InviteRecipientResult(email=validated_email, status="already_member"))
+            continue
+
+        pending = db_session.exec(
+            select(OrganizationInvitation).where(
+                OrganizationInvitation.org_id == org.id,
+                OrganizationInvitation.email_normalized == normalized,
+                OrganizationInvitation.status == "pending",
+            )
+        ).first()
+        if pending and pending.expires_at > now:
+            results.append(InviteRecipientResult(email=validated_email, status="already_invited"))
+            continue
+        if pending:
+            pending.status = "expired"
+            pending.updated_at = now
+            db_session.add(pending)
+            db_session.flush()
+
+        check_limits_with_usage("members", org.id, db_session)
+        if is_role_dashboard_enabled(role):
+            check_admin_seat_limit(org.id, db_session)
+
+        invitation = OrganizationInvitation(
+            invitation_uuid=f"org_invitation_{uuid4()}",
+            org_id=org.id,
+            email=validated_email,
+            email_normalized=normalized,
+            role_id=role.id or invite_request.role_id,
+            usergroup_id=usergroup_id,
+            target_user_id=target_user.id if target_user else None,
+            created_by_user_id=current_user.id,
+            source=invite_request.source,
+            batch_uuid=invite_request.batch_uuid,
+            expires_at=expires_at,
+            created_at=now,
+            updated_at=now,
+        )
+        db_session.add(invitation)
+        db_session.flush()
+        create_inbox_message(
+            db_session,
+            recipient_user_id=int(target_user.id) if target_user and target_user.id else None,
+            recipient_email=validated_email,
+            sender_org_id=int(org.id),
+            sender_user_id=int(current_user.id),
+            message_type="invitation",
+            subject=f"Invitation to join {org.name}",
+            body=f"{org.name} invited you to join as {role.name}.",
+            action_kind="organization_invitation",
+            action_data={"invitation_uuid": invitation.invitation_uuid},
+            dedupe_key=f"organization_invitation:{invitation.invitation_uuid}",
+        )
+        new_invitations.append(invitation)
+        results.append(InviteRecipientResult(email=validated_email, status="invited"))
+
+    db_session.commit()
+
+    org_read = OrganizationRead.model_validate(org)
+    user_read = UserRead.model_validate(user)
+    base_url = get_base_url_from_request(request)
+    for invitation in new_invitations:
+        try:
+            invitation.email_sent = bool(send_direct_invitation_email(
+                org_read,
+                user_read,
+                invitation.email,
+                invitation.invitation_uuid,
+                base_url,
+            ))
+        except Exception:
+            logging.exception("Failed to send organization invitation to %s", invitation.email)
+            invitation.email_sent = False
+        invitation.delivery_status = "delivered" if invitation.email_sent else "delivery_failed"
+        invitation.delivery_attempts = 1
+        invitation.last_sent_at = datetime.utcnow()
+        invitation.updated_at = datetime.utcnow()
+    db_session.commit()
+
+    for _invitation in new_invitations:
+        increase_feature_usage("members", org.id, db_session)
+    if is_role_dashboard_enabled(role):
+        for _invitation in new_invitations:
+            increase_feature_usage("admin_seats", org.id, db_session)
+
+    if new_invitations:
+        from src.services.audit_logs import record_audit_log
+        record_audit_log(
+            db_session,
+            action="invitation.create",
+            resource="organization_invitation",
+            status_code=200,
+            org_id=org.id,
+            user_id=current_user.id,
+            ip_address=request.client.host if request.client else None,
+            request_metadata={"count": len(new_invitations), "source": invite_request.source, "batch_uuid": invite_request.batch_uuid},
         )
 
-        invited_user_object = {
-            "email": email,
-            "org_id": org.id,
-            "invite_code_uuid": invite_code_uuid,
-            "pending": True,
-            "email_sent": isEmailSent,
-            "expires": ttl,
-            "created_at": datetime.now().isoformat(),
-            "created_by": current_user.user_uuid,
-        }
-
-        invited_user = r.set(
-            f"invited_user:{email}:org:{org.org_uuid}",
-            json.dumps(invited_user_object),
-            ex=ttl,
-        )
-
-    return {"detail": "Users invited"}
+    return InviteUsersResponse(created=len(new_invitations), results=results, usergroup_id=usergroup_id)
 
 
 async def get_list_of_invited_users(
@@ -616,20 +1113,7 @@ async def get_list_of_invited_users(
     db_session: Session,
     current_user: PublicUser | AnonymousUser,
 ):
-    # Redis init
-    LH_CONFIG = get_launchlms_config()
-    redis_conn_string = LH_CONFIG.redis_config.redis_connection_string
-
-    if not redis_conn_string:
-        raise HTTPException(
-            status_code=500,
-            detail="Redis connection string not found",
-        )
-
-    statement = select(Organization).where(Organization.id == org_id)
-    result = db_session.exec(statement)
-
-    org = result.first()
+    org = db_session.exec(select(Organization).where(Organization.id == org_id)).first()
 
     if not org:
         raise HTTPException(
@@ -640,50 +1124,50 @@ async def get_list_of_invited_users(
     # RBAC check
     await rbac_check(request, org.org_uuid, current_user, "read", db_session)
 
-    # Connect to Redis
-    r = redis.Redis.from_url(redis_conn_string)
+    now = datetime.utcnow()
+    invitations = db_session.exec(
+        select(OrganizationInvitation).where(OrganizationInvitation.org_id == org_id)
+        .order_by(OrganizationInvitation.created_at.desc())
+    ).all()
+    for invitation in invitations:
+        if invitation.status == "pending" and invitation.expires_at <= now:
+            invitation.status = "expired"
+            invitation.updated_at = now
+            db_session.add(invitation)
+    db_session.commit()
+    role_ids = {invitation.role_id for invitation in invitations}
+    roles = db_session.exec(select(Role).where(Role.id.in_(role_ids))).all() if role_ids else []
+    role_map = {role.id: role for role in roles}
+    group_ids = {invitation.usergroup_id for invitation in invitations if invitation.usergroup_id}
+    groups = db_session.exec(select(UserGroup).where(UserGroup.id.in_(group_ids))).all() if group_ids else []
+    group_map = {group.id: group for group in groups}
 
-    if not r:
-        raise HTTPException(
-            status_code=500,
-            detail="Could not connect to Redis",
-        )
-
-    # Use scan_iter instead of keys() to avoid blocking Redis
-    invited_users = list(r.scan_iter(match=f"invited_user:*:org:{org.org_uuid}", count=100))
-
-    invited_users_list = []
-
-    for user in invited_users:
-        invited_user = r.get(user)
-        if invited_user:
-            invited_user = json.loads(invited_user.decode("utf-8"))
-            invited_users_list.append(invited_user)
-
-    return invited_users_list
+    return [{
+        "invitation_uuid": invitation.invitation_uuid,
+        "email": invitation.email,
+        "pending": invitation.status == "pending" and invitation.expires_at > now,
+        "status": invitation.status,
+        "email_sent": invitation.email_sent,
+        "delivery_status": invitation.delivery_status,
+        "source": invitation.source,
+        "batch_uuid": invitation.batch_uuid,
+        "delivery_attempts": invitation.delivery_attempts,
+        "last_sent_at": invitation.last_sent_at.isoformat() if invitation.last_sent_at else None,
+        "created_at": invitation.created_at.isoformat(),
+        "expires_at": invitation.expires_at.isoformat(),
+        "role": RoleRead.model_validate(role_map[invitation.role_id]).model_dump() if invitation.role_id in role_map else None,
+        "usergroup": UserGroupRead.model_validate(group_map[invitation.usergroup_id]).model_dump() if invitation.usergroup_id in group_map else None,
+    } for invitation in invitations]
 
 
 async def remove_invited_user(
     request: Request,
     org_id: int,
-    email: str,
+    invitation_uuid: str,
     db_session: Session,
     current_user: PublicUser | AnonymousUser,
 ):
-    # Redis init
-    LH_CONFIG = get_launchlms_config()
-    redis_conn_string = LH_CONFIG.redis_config.redis_connection_string
-
-    if not redis_conn_string:
-        raise HTTPException(
-            status_code=500,
-            detail="Redis connection string not found",
-        )
-
-    statement = select(Organization).where(Organization.id == org_id)
-    result = db_session.exec(statement)
-
-    org = result.first()
+    org = db_session.exec(select(Organization).where(Organization.id == org_id)).first()
 
     if not org:
         raise HTTPException(
@@ -694,23 +1178,82 @@ async def remove_invited_user(
     # RBAC check
     await rbac_check(request, org.org_uuid, current_user, "delete", db_session)
 
-    # Connect to Redis
-    r = redis.Redis.from_url(redis_conn_string)
-
-    if not r:
-        raise HTTPException(
-            status_code=500,
-            detail="Could not connect to Redis",
+    invitation = db_session.exec(
+        select(OrganizationInvitation).where(
+            OrganizationInvitation.org_id == org_id,
+            OrganizationInvitation.invitation_uuid == invitation_uuid,
+            OrganizationInvitation.status == "pending",
         )
-
-    invited_user = r.get(f"invited_user:{email}:org:{org.org_uuid}")
-
-    if not invited_user:
+    ).first()
+    if not invitation:
         raise HTTPException(
             status_code=404,
-            detail="User not found",
+            detail="Invitation not found",
         )
 
-    r.delete(f"invited_user:{email}:org:{org.org_uuid}")
+    role = db_session.exec(select(Role).where(Role.id == invitation.role_id)).first()
+    invitation.status = "revoked"
+    invitation.revoked_at = datetime.utcnow()
+    invitation.updated_at = datetime.utcnow()
+    db_session.add(invitation)
+    db_session.commit()
 
-    return {"detail": "User removed"}
+    decrease_feature_usage("members", org_id, db_session)
+    if role and is_role_dashboard_enabled(role):
+        decrease_feature_usage("admin_seats", org_id, db_session)
+
+    from src.services.audit_logs import record_audit_log
+    record_audit_log(
+        db_session, action="invitation.revoke", resource="organization_invitation", status_code=200,
+        org_id=org_id, user_id=current_user.id,
+        ip_address=request.client.host if request.client else None,
+        request_metadata={"invitation_uuid": invitation.invitation_uuid},
+    )
+
+    return {"detail": "Invitation revoked"}
+
+
+async def resend_invited_user(
+    request: Request,
+    org_id: int,
+    invitation_uuid: str,
+    db_session: Session,
+    current_user: PublicUser | AnonymousUser,
+):
+    org = db_session.exec(select(Organization).where(Organization.id == org_id)).first()
+    if not org:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    await rbac_check(request, org.org_uuid, current_user, "update", db_session)
+    invitation = db_session.exec(select(OrganizationInvitation).where(
+        OrganizationInvitation.org_id == org_id,
+        OrganizationInvitation.invitation_uuid == invitation_uuid,
+        OrganizationInvitation.status == "pending",
+        OrganizationInvitation.expires_at > datetime.utcnow(),
+    )).first()
+    if not invitation:
+        raise HTTPException(status_code=404, detail="Active invitation not found")
+    if invitation.delivery_attempts >= 5:
+        raise HTTPException(status_code=429, detail="This invitation has reached its resend limit")
+    if invitation.last_sent_at and invitation.last_sent_at > datetime.utcnow() - timedelta(minutes=10):
+        raise HTTPException(status_code=429, detail="Wait 10 minutes before resending this invitation")
+    inviter = db_session.exec(select(User).where(User.id == current_user.id)).first()
+    if not inviter:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    invitation.email_sent = bool(send_direct_invitation_email(
+        OrganizationRead.model_validate(org), UserRead.model_validate(inviter), invitation.email,
+        invitation.invitation_uuid, get_base_url_from_request(request),
+    ))
+    invitation.delivery_status = "delivered" if invitation.email_sent else "delivery_failed"
+    invitation.delivery_attempts += 1
+    invitation.last_sent_at = datetime.utcnow()
+    invitation.updated_at = datetime.utcnow()
+    db_session.add(invitation)
+    db_session.commit()
+    from src.services.audit_logs import record_audit_log
+    record_audit_log(
+        db_session, action="invitation.resend", resource="organization_invitation", status_code=200,
+        org_id=org_id, user_id=current_user.id,
+        ip_address=request.client.host if request.client else None,
+        request_metadata={"invitation_uuid": invitation.invitation_uuid, "delivery_attempts": invitation.delivery_attempts},
+    )
+    return {"detail": "Invitation resent", "delivery_attempts": invitation.delivery_attempts}

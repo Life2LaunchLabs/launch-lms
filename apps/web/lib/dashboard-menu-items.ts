@@ -4,7 +4,6 @@ import {
   Users,
   CurrencyCircleDollar,
   Buildings,
-  Newspaper,
   Cube,
   FolderOpen,
 } from '@phosphor-icons/react'
@@ -34,18 +33,18 @@ export const DASHBOARD_MENU_ITEMS: DashboardMenuItem[] = [
     labelKey: 'common.badges',
   },
   {
+    id: 'plans',
+    href: '/admin/plans',
+    icon: BookOpen,
+    labelKey: 'common.plans.label',
+  },
+  {
     id: 'resources',
     href: '/admin/resources',
     icon: FolderOpen,
     labelKey: 'common.resources',
     featureKey: 'resources',
     defaultDisabled: true,
-  },
-  {
-    id: 'news',
-    href: '/admin/news',
-    icon: Newspaper,
-    labelKey: 'common.news',
   },
   {
     id: 'playgrounds',

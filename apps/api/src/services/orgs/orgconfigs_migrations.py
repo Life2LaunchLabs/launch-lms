@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 ALL_FEATURES = [
     "ai", "analytics", "api", "boards", "collaboration",
     "badge_collections", "communities", "members", "payments", "playgrounds", "podcasts",
-    "resources",
+    "resources", "managed_plans",
 ]
 
 

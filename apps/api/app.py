@@ -4,9 +4,11 @@ from config.config import LaunchLMSConfig, get_launchlms_config
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from src.core.demo_middleware import DemoMiddleware
 from src.core.audit_middleware import log_request_audit_event
 from src.core.events.events import shutdown_app, startup_app
 from src.router import v1_router
+from src.routers.oauth import well_known_router
 from src.routers.content_files import router as content_files_router
 from src.routers.local_content import router as local_content_router
 
@@ -49,6 +51,8 @@ app.add_middleware(
 # Gzip Middleware (will add brotli later)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
+app.add_middleware(DemoMiddleware)
+
 # Events
 app.add_event_handler("startup", startup_app(app))
 app.add_event_handler("shutdown", shutdown_app(app))
@@ -63,6 +67,7 @@ else:
 
 # Global Routes
 app.include_router(v1_router)
+app.include_router(well_known_router)
 
 
 @app.middleware("http")

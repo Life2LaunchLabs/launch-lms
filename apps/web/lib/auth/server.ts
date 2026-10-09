@@ -1,11 +1,34 @@
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { getServerAPIUrl } from '@services/config/config'
+import { isUnexpiredJwt, SERVER_AUTH_HEADERS, SESSION_COOKIE_NAMES } from '@services/auth/sessionCookies'
 
 const API_URL = getServerAPIUrl().replace(/\/+$/, '')
 
 // Cookie names (must match the API routes)
-const ACCESS_TOKEN_COOKIE = 'access_token_cookie'
-const REFRESH_TOKEN_COOKIE = 'refresh_token_cookie'
+const ACCESS_TOKEN_COOKIE = SESSION_COOKIE_NAMES.accessToken
+const REFRESH_TOKEN_COOKIE = SESSION_COOKIE_NAMES.refreshToken
+
+async function getServerCookieValues(): Promise<{
+  accessToken?: string
+  refreshToken?: string
+}> {
+  const cookieStore = await cookies()
+  const storedAccessToken = cookieStore.get(ACCESS_TOKEN_COOKIE)?.value
+  const storedRefreshToken = cookieStore.get(REFRESH_TOKEN_COOKIE)?.value
+
+  if (storedAccessToken && storedRefreshToken) {
+    return { accessToken: storedAccessToken, refreshToken: storedRefreshToken }
+  }
+
+  // The organization-route proxy owns these bridge headers: it removes any
+  // client values, then repopulates them only from cookies observed at the
+  // public request boundary. The API remains responsible for token validation.
+  const requestHeaders = await headers()
+  return {
+    accessToken: storedAccessToken || requestHeaders.get(SERVER_AUTH_HEADERS.accessToken) || undefined,
+    refreshToken: storedRefreshToken || requestHeaders.get(SERVER_AUTH_HEADERS.refreshToken) || undefined,
+  }
+}
 
 // Types matching the client-side session structure
 export interface Session {
@@ -26,17 +49,15 @@ export interface Session {
  */
 export async function getServerSession(): Promise<Session | null> {
   try {
-    const cookieStore = await cookies()
+    const { accessToken, refreshToken } = await getServerCookieValues()
 
     // Try to get access token directly
-    const accessToken = cookieStore.get(ACCESS_TOKEN_COOKIE)
-
-    if (accessToken?.value) {
+    if (accessToken) {
       // Verify the token is valid by fetching session from backend
       const sessionResponse = await fetch(`${API_URL}/users/session`, {
         method: 'GET',
         headers: {
-          Authorization: `Bearer ${accessToken.value}`,
+          Authorization: `Bearer ${accessToken}`,
         },
         cache: 'no-store',
       })
@@ -47,7 +68,7 @@ export async function getServerSession(): Promise<Session | null> {
           user: sessionData.user,
           roles: sessionData.roles,
           tokens: {
-            access_token: accessToken.value,
+            access_token: accessToken,
           },
         }
       }
@@ -56,9 +77,7 @@ export async function getServerSession(): Promise<Session | null> {
     }
 
     // Try to refresh using refresh token
-    const refreshToken = cookieStore.get(REFRESH_TOKEN_COOKIE)
-
-    if (!refreshToken?.value) {
+    if (!refreshToken) {
       return null
     }
 
@@ -66,7 +85,7 @@ export async function getServerSession(): Promise<Session | null> {
     const refreshResponse = await fetch(`${API_URL}/auth/refresh`, {
       method: 'GET',
       headers: {
-        Cookie: `${REFRESH_TOKEN_COOKIE}=${refreshToken.value}`,
+        Cookie: `${REFRESH_TOKEN_COOKIE}=${refreshToken}`,
       },
       cache: 'no-store',
     })
@@ -116,24 +135,22 @@ export async function getServerSession(): Promise<Session | null> {
  */
 export async function getServerAccessToken(): Promise<string | null> {
   try {
-    const cookieStore = await cookies()
+    const { accessToken, refreshToken } = await getServerCookieValues()
 
     // Try access token first
-    const accessToken = cookieStore.get(ACCESS_TOKEN_COOKIE)
-    if (accessToken?.value) {
-      return accessToken.value
+    if (accessToken && isUnexpiredJwt(accessToken)) {
+      return accessToken
     }
 
     // Try to refresh
-    const refreshToken = cookieStore.get(REFRESH_TOKEN_COOKIE)
-    if (!refreshToken?.value) {
+    if (!refreshToken) {
       return null
     }
 
     const response = await fetch(`${API_URL}/auth/refresh`, {
       method: 'GET',
       headers: {
-        Cookie: `${REFRESH_TOKEN_COOKIE}=${refreshToken.value}`,
+        Cookie: `${REFRESH_TOKEN_COOKIE}=${refreshToken}`,
       },
       cache: 'no-store',
     })

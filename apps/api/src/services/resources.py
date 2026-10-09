@@ -1,6 +1,7 @@
 import csv
 import io
 import re
+from time import perf_counter
 from collections.abc import Iterable
 from datetime import datetime
 from html import unescape
@@ -12,7 +13,9 @@ from uuid import uuid4
 
 from fastapi import HTTPException, Request, UploadFile
 from sqlalchemy import func, or_
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
+from src.db.media import MediaAsset, MediaOwnerType, MediaType
 from src.db.organizations import Organization
 from src.db.resources import (
     Resource,
@@ -26,7 +29,12 @@ from src.db.resources import (
     ResourceCommentReadWithAuthor,
     ResourceCommentUpdate,
     ResourceCreate,
+    ResourceNoteBlock,
+    ResourceNoteBlockCreate,
+    ResourceNoteBlockRead,
+    ResourceNoteBlockUpdate,
     ResourceRead,
+    ResourceReviewCreate,
     ResourceTag,
     ResourceTagCreate,
     ResourceTagLink,
@@ -49,6 +57,19 @@ from src.db.users import AnonymousUser, APITokenUser, PublicUser, User
 from src.security.org_auth import require_org_membership, require_org_role_permission
 from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
 from src.services.shared_content import owner_org_payload
+from src.services.analytics.analytics import track
+from src.services.analytics.events import RESOURCE_OPENED, RESOURCE_SAVED, RESOURCE_SEARCH_QUERY
+from src.services.search.resource_lexical import (
+    RESOURCE_SEARCH_VERSION,
+    lexical_terms,
+)
+from src.services.search.resource_search import (
+    query_fingerprint,
+    rank_resources,
+    refresh_resource_search_document,
+    refresh_search_documents,
+    refresh_search_documents_for_tag,
+)
 from src.services.utils.upload_content import upload_file
 
 
@@ -284,9 +305,11 @@ def _set_saved_resource_channels(saved_resource: UserSavedResource, user_channel
         )
 
 
-def _resource_counts_map(resource_ids: list[int], db_session: Session) -> tuple[dict[int, int], dict[int, int]]:
+def _resource_counts_map(
+    resource_ids: list[int], db_session: Session
+) -> tuple[dict[int, int], dict[int, int], dict[int, float], dict[int, int]]:
     if not resource_ids:
-        return {}, {}
+        return {}, {}, {}, {}
     save_counts_raw = db_session.exec(
         select(UserSavedResource.resource_id, func.count(UserSavedResource.id))
         .where(UserSavedResource.resource_id.in_(resource_ids))
@@ -297,9 +320,23 @@ def _resource_counts_map(resource_ids: list[int], db_session: Session) -> tuple[
         .where(ResourceComment.resource_id.in_(resource_ids))
         .group_by(ResourceComment.resource_id)
     ).all()
+    rating_summaries_raw = db_session.exec(
+        select(
+            ResourceComment.resource_id,
+            func.avg(ResourceComment.rating),
+            func.count(ResourceComment.rating),
+        )
+        .where(
+            ResourceComment.resource_id.in_(resource_ids),
+            ResourceComment.rating.is_not(None),
+        )
+        .group_by(ResourceComment.resource_id)
+    ).all()
     return (
         {resource_id: count for resource_id, count in save_counts_raw},
         {resource_id: count for resource_id, count in comment_counts_raw},
+        {resource_id: float(average) for resource_id, average, _count in rating_summaries_raw},
+        {resource_id: count for resource_id, _average, count in rating_summaries_raw},
     )
 
 
@@ -338,7 +375,7 @@ def _serialize_resource(
     current_user,
     current_org_id: int | None = None,
 ) -> dict:
-    save_counts, comment_counts = _resource_counts_map([resource.id], db_session)
+    save_counts, comment_counts, average_ratings, rating_counts = _resource_counts_map([resource.id], db_session)
     tags_map = _resource_tags_map([resource.id], db_session)
     user_state_map = _resource_user_state_map([resource.id], current_user, db_session)
     user_state = user_state_map.get(resource.id)
@@ -352,7 +389,10 @@ def _serialize_resource(
         user_channel_uuids = list(db_session.exec(
             select(UserResourceChannel.user_channel_uuid)
             .join(UserSavedResourceChannel, UserResourceChannel.id == UserSavedResourceChannel.user_channel_id)
-            .where(UserSavedResourceChannel.saved_resource_id == user_state.id)
+            .where(
+                UserSavedResourceChannel.saved_resource_id == user_state.id,
+                UserResourceChannel.is_default == False,
+            )
         ).all())
     owner_org = _get_org_or_404(resource.org_id, db_session)
     return {
@@ -361,6 +401,8 @@ def _serialize_resource(
         "channels": [ResourceChannelRead.model_validate(channel).model_dump() for channel in channel_rows],
         "save_count": int(save_counts.get(resource.id, 0)),
         "comment_count": int(comment_counts.get(resource.id, 0)),
+        "average_rating": average_ratings.get(resource.id),
+        "rating_count": int(rating_counts.get(resource.id, 0)),
         "tags": tags_map.get(resource.id, []),
         "is_saved": user_state is not None,
         "has_outcome": bool(user_state and (user_state.outcome_text or user_state.outcome_link or user_state.outcome_file)),
@@ -426,7 +468,6 @@ async def list_channels(request: Request, org_id: int, current_user, db_session:
     ]
     user_channels: list[dict] = []
     if not _user_is_anonymous(current_user):
-        _get_or_create_default_user_channel(current_user.id, org_id, db_session)
         rows = db_session.exec(
             select(UserResourceChannel)
             .where(UserResourceChannel.user_id == current_user.id, UserResourceChannel.org_id == org_id)
@@ -498,6 +539,7 @@ async def update_tag(
     db_session.add(tag)
     db_session.commit()
     db_session.refresh(tag)
+    refresh_search_documents_for_tag(tag.id, db_session)
     return ResourceTagRead.model_validate(tag).model_dump()
 
 
@@ -506,9 +548,13 @@ async def delete_tag(request: Request, tag_uuid: str, current_user: PublicUser, 
     if not tag:
         raise HTTPException(status_code=404, detail="Tag not found")
     require_org_role_permission(current_user.id, tag.org_id, db_session, "resources", "action_delete")
+    resource_ids = list(db_session.exec(
+        select(ResourceTagLink.resource_id).where(ResourceTagLink.tag_id == tag.id)
+    ).all())
     db_session.delete(tag)
     db_session.commit()
-    return {"detail": "Tag deleted"}
+    refresh_search_documents(resource_ids, db_session)
+    return {"detail": "Tag deleted", "org_id": tag.org_id}
 
 
 async def create_channel(request: Request, org_id: int, channel_data: ResourceChannelCreate, current_user: PublicUser, db_session: Session) -> dict:
@@ -564,7 +610,10 @@ async def list_resources(
     saved_only: bool = False,
     completed_only: bool = False,
     include_private: bool = False,
+    offset: int = 0,
+    limit: int | None = None,
 ) -> list[dict]:
+    search_started_at = perf_counter()
     _get_org_or_404(org_id, db_session)
     statement = select(Resource)
     requested_types = [
@@ -591,15 +640,6 @@ async def list_resources(
         statement = statement.where(Resource.id.in_(matching_resource_ids))
     if provider:
         statement = statement.where(Resource.provider_name == provider)
-    if query:
-        q = f"%{query.lower()}%"
-        statement = statement.where(
-            or_(
-                func.lower(Resource.title).like(q),
-                func.lower(func.coalesce(Resource.description, "")).like(q),
-                func.lower(func.coalesce(Resource.provider_name, "")).like(q),
-            )
-        )
     if access in {"free", "paid", "restricted"}:
         statement = statement.where(Resource.access_mode == access)
     resources = db_session.exec(statement.order_by(Resource.creation_date.desc())).all()
@@ -663,7 +703,57 @@ async def list_resources(
                 continue
             filtered.append(resource)
         resources = filtered
-    return [_serialize_resource(resource, db_session, current_user, org_id) for resource in resources]
+    ranked_by_resource_id = {}
+    search_version = RESOURCE_SEARCH_VERSION
+    if query:
+        tags_map = _resource_tags_map([resource.id for resource in resources], db_session)
+        ranked, search_version = await rank_resources(
+            resources,
+            {resource_id: [tag["name"] for tag in resource_tags] for resource_id, resource_tags in tags_map.items()},
+            query,
+            db_session,
+        )
+        resources_by_id = {str(resource.id): resource for resource in resources}
+        resources = [resources_by_id[result.document.key] for result in ranked]
+        ranked_by_resource_id = {result.document.key: result for result in ranked}
+    if offset:
+        resources = resources[offset:]
+    if limit is not None:
+        resources = resources[:limit]
+    serialized_resources = []
+    search_query_id = None
+    if query:
+        from config.config import get_launchlms_config
+
+        search_query_id = query_fingerprint(
+            query,
+            get_launchlms_config().security_config.auth_jwt_secret_key,
+        )
+    for resource in resources:
+        serialized = _serialize_resource(resource, db_session, current_user, org_id)
+        ranked_result = ranked_by_resource_id.get(str(resource.id))
+        if ranked_result:
+            serialized["search_version"] = search_version
+            serialized["search_rank"] = offset + len(serialized_resources) + 1
+            serialized["search_score"] = ranked_result.score
+            serialized["search_match_quality"] = ranked_result.match_quality
+            serialized["search_query_id"] = search_query_id
+        serialized_resources.append(serialized)
+    if query:
+        await track(
+            event_name=RESOURCE_SEARCH_QUERY,
+            org_id=org_id,
+            user_id=getattr(current_user, "id", 0),
+            properties={
+                "query_fingerprint": search_query_id,
+                "query_terms": len(lexical_terms(query, remove_stop_words=True)),
+                "results_count": len(serialized_resources),
+                "zero_results": not serialized_resources,
+                "latency_ms": round((perf_counter() - search_started_at) * 1_000, 2),
+                "search_version": search_version,
+            },
+        )
+    return serialized_resources
 
 
 async def create_resource(
@@ -697,6 +787,7 @@ async def create_resource(
     db_session.refresh(resource)
     _set_resource_tags(resource.id, [tag.id for tag in resolved_tags], db_session)
     db_session.commit()
+    refresh_resource_search_document(resource, db_session)
     return _serialize_resource(resource, db_session, current_user, org_id)
 
 
@@ -715,6 +806,7 @@ async def update_resource(request: Request, resource_uuid: str, resource_data: R
         _set_resource_tags(resource.id, [tag.id for tag in resolved_tags], db_session)
         db_session.commit()
     db_session.refresh(resource)
+    refresh_resource_search_document(resource, db_session)
     return _serialize_resource(resource, db_session, current_user, resource.org_id)
 
 
@@ -730,7 +822,14 @@ async def get_resource(request: Request, resource_uuid: str, current_user, db_se
     resource = _get_resource_or_404(resource_uuid, db_session)
     if not include_private and not _resource_in_accessible_channel(resource, db_session, current_user):
         raise HTTPException(status_code=403, detail="You do not have access to this resource")
-    return _serialize_resource(resource, db_session, current_user, resource.org_id)
+    serialized = _serialize_resource(resource, db_session, current_user, resource.org_id)
+    await track(
+        event_name=RESOURCE_OPENED,
+        org_id=resource.org_id,
+        user_id=getattr(current_user, "id", 0),
+        properties={"resource_uuid": resource.resource_uuid},
+    )
+    return serialized
 
 
 async def list_channel_resources(request: Request, channel_uuid: str, current_user, db_session: Session, include_private: bool = False) -> list[dict]:
@@ -839,18 +938,43 @@ async def update_user_channel(request: Request, org_id: int, user_channel_uuid: 
     return _serialize_user_channel(channel, db_session, current_user.id)
 
 
+async def delete_user_channel(
+    request: Request,
+    org_id: int,
+    user_channel_uuid: str,
+    current_user: PublicUser,
+    db_session: Session,
+) -> dict:
+    require_org_membership(current_user.id, org_id, db_session)
+    channel = db_session.exec(
+        select(UserResourceChannel).where(
+            UserResourceChannel.user_channel_uuid == user_channel_uuid,
+            UserResourceChannel.user_id == current_user.id,
+            UserResourceChannel.org_id == org_id,
+            UserResourceChannel.is_default == False,
+        )
+    ).first()
+    if not channel:
+        raise HTTPException(status_code=404, detail="List not found")
+    db_session.delete(channel)
+    db_session.commit()
+    return {"detail": "List deleted; Library resources were kept"}
+
+
 async def save_resource_for_user(request: Request, resource_uuid: str, save_data: UserSavedResourceUpdate, current_user: PublicUser, db_session: Session) -> dict:
     resource = _get_resource_or_404(resource_uuid, db_session)
     if not _resource_in_accessible_channel(resource, db_session, current_user):
         raise HTTPException(status_code=403, detail="You do not have access to this resource")
-    default_channel = _get_or_create_default_user_channel(current_user.id, resource.org_id, db_session)
     saved_resource = _get_or_create_saved_resource(current_user.id, resource.id, db_session)
-    channel_ids: list[int] = [default_channel.id] if save_data.add_to_default_channel else []
-    if save_data.user_channel_uuids:
+    channel_ids: list[int] = []
+    channel_update_requested = "user_channel_uuids" in save_data.model_fields_set
+    if channel_update_requested and save_data.user_channel_uuids:
         rows = db_session.exec(
             select(UserResourceChannel).where(
                 UserResourceChannel.user_channel_uuid.in_(save_data.user_channel_uuids),
                 UserResourceChannel.user_id == current_user.id,
+                UserResourceChannel.org_id == resource.org_id,
+                UserResourceChannel.is_default == False,
             )
         ).all()
         channel_ids.extend(channel.id for channel in rows)
@@ -869,9 +993,215 @@ async def save_resource_for_user(request: Request, resource_uuid: str, save_data
     db_session.add(saved_resource)
     db_session.commit()
     db_session.refresh(saved_resource)
-    _set_saved_resource_channels(saved_resource, channel_ids, db_session)
+    if channel_update_requested:
+        _set_saved_resource_channels(saved_resource, channel_ids, db_session)
+        db_session.commit()
+    serialized = _serialize_resource(resource, db_session, current_user, resource.org_id)
+    await track(
+        event_name=RESOURCE_SAVED,
+        org_id=resource.org_id,
+        user_id=current_user.id,
+        properties={"resource_uuid": resource.resource_uuid},
+    )
+    return serialized
+
+
+def _get_owned_note(note_uuid: str, current_user: PublicUser, db_session: Session) -> ResourceNoteBlock:
+    note = db_session.exec(
+        select(ResourceNoteBlock).where(
+            ResourceNoteBlock.note_uuid == note_uuid,
+            ResourceNoteBlock.user_id == current_user.id,
+        )
+    ).first()
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+    return note
+
+
+def _validate_note_url(url: str | None) -> str:
+    normalized = (url or "").strip()
+    if not normalized.startswith(("http://", "https://")):
+        raise HTTPException(status_code=400, detail="Note links must use http or https")
+    return normalized
+
+
+def _next_note_sort_order(user_id: int, resource_id: int, db_session: Session) -> int:
+    current = db_session.exec(
+        select(func.max(ResourceNoteBlock.sort_order)).where(
+            ResourceNoteBlock.user_id == user_id,
+            ResourceNoteBlock.resource_id == resource_id,
+        )
+    ).one()
+    return int(current if current is not None else -1) + 1
+
+
+async def list_note_blocks(
+    request: Request,
+    resource_uuid: str,
+    current_user: PublicUser,
+    db_session: Session,
+) -> list[dict]:
+    if _user_is_anonymous(current_user):
+        raise HTTPException(status_code=401, detail="Sign in to view private Notes")
+    resource = _get_resource_or_404(resource_uuid, db_session)
+    if not _resource_in_accessible_channel(resource, db_session, current_user):
+        raise HTTPException(status_code=403, detail="You do not have access to this resource")
+    notes = db_session.exec(
+        select(ResourceNoteBlock)
+        .where(
+            ResourceNoteBlock.resource_id == resource.id,
+            ResourceNoteBlock.user_id == current_user.id,
+        )
+        .order_by(ResourceNoteBlock.sort_order.asc(), ResourceNoteBlock.id.asc())
+    ).all()
+    return [ResourceNoteBlockRead.model_validate(note).model_dump() for note in notes]
+
+
+async def create_note_block(
+    request: Request,
+    resource_uuid: str,
+    note_data: ResourceNoteBlockCreate,
+    current_user: PublicUser,
+    db_session: Session,
+) -> dict:
+    if _user_is_anonymous(current_user):
+        raise HTTPException(status_code=401, detail="Sign in to add private Notes")
+    resource = _get_resource_or_404(resource_uuid, db_session)
+    if not _resource_in_accessible_channel(resource, db_session, current_user):
+        raise HTTPException(status_code=403, detail="You do not have access to this resource")
+    if note_data.block_type not in {"text", "link", "image", "file"}:
+        raise HTTPException(status_code=400, detail="Unsupported Note type")
+    payload = note_data.model_dump(exclude={"sort_order"})
+    if note_data.block_type == "text":
+        payload["content"] = (note_data.content or "").strip()
+        if not payload["content"]:
+            raise HTTPException(status_code=400, detail="Note text is required")
+    elif note_data.block_type == "link":
+        payload["url"] = _validate_note_url(note_data.url)
+        enrichment = enrich_resource_metadata(payload["url"])
+        payload["title"] = note_data.title or enrichment.get("title") or enrichment.get("provider_name") or payload["url"]
+        payload["description"] = note_data.description or enrichment.get("description")
+        payload["preview_image_url"] = note_data.preview_image_url or enrichment.get("cover_image_url")
+    else:
+        asset = db_session.exec(
+            select(MediaAsset).where(MediaAsset.asset_uuid == note_data.media_asset_uuid)
+        ).first()
+        if not asset:
+            raise HTTPException(status_code=404, detail="Media asset not found")
+        if asset.owner_type != MediaOwnerType.user or asset.owner_user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="You can only attach media from your own library")
+        if asset.media_type not in {MediaType.image, MediaType.document}:
+            raise HTTPException(status_code=400, detail="Notes support images and documents")
+        payload.update({
+            "block_type": "image" if asset.media_type == MediaType.image else "file",
+            "media_asset_uuid": asset.asset_uuid,
+            "url": asset.url,
+            "title": note_data.title or asset.title or asset.filename,
+            "preview_image_url": note_data.preview_image_url or asset.thumbnail_url,
+            "filename": asset.filename,
+            "original_filename": asset.title or asset.filename,
+            "mime_type": asset.mime_type,
+            "storage_directory": "media-library",
+        })
+    _get_or_create_saved_resource(current_user.id, resource.id, db_session)
+    note = ResourceNoteBlock(
+        **payload,
+        user_id=current_user.id,
+        resource_id=resource.id,
+        note_uuid=f"resourcenote_{uuid4()}",
+        sort_order=(
+            note_data.sort_order
+            if note_data.sort_order is not None
+            else _next_note_sort_order(current_user.id, resource.id, db_session)
+        ),
+        creation_date=_now(),
+        update_date=_now(),
+    )
+    db_session.add(note)
     db_session.commit()
-    return _serialize_resource(resource, db_session, current_user, resource.org_id)
+    db_session.refresh(note)
+    return ResourceNoteBlockRead.model_validate(note).model_dump()
+
+
+async def upload_note_file(
+    request: Request,
+    resource_uuid: str,
+    file: UploadFile,
+    current_user: PublicUser,
+    db_session: Session,
+) -> dict:
+    if _user_is_anonymous(current_user):
+        raise HTTPException(status_code=401, detail="Sign in to add private Notes")
+    resource = _get_resource_or_404(resource_uuid, db_session)
+    if not _resource_in_accessible_channel(resource, db_session, current_user):
+        raise HTTPException(status_code=403, detail="You do not have access to this resource")
+    original_filename = file.filename or "attachment"
+    mime_type = file.content_type or "application/octet-stream"
+    block_type = "image" if mime_type.startswith("image/") else "file"
+    filename = await upload_file(
+        file=file,
+        directory=f"resources/{resource.resource_uuid}/notes",
+        type_of_dir="users",
+        uuid=str(current_user.user_uuid),
+        allowed_types=["image", "document"],
+        filename_prefix="note",
+        max_size=15 * 1024 * 1024,
+    )
+    _get_or_create_saved_resource(current_user.id, resource.id, db_session)
+    note = ResourceNoteBlock(
+        user_id=current_user.id,
+        resource_id=resource.id,
+        note_uuid=f"resourcenote_{uuid4()}",
+        block_type=block_type,
+        filename=filename,
+        original_filename=original_filename,
+        mime_type=mime_type,
+        storage_directory="notes",
+        sort_order=_next_note_sort_order(current_user.id, resource.id, db_session),
+        creation_date=_now(),
+        update_date=_now(),
+    )
+    db_session.add(note)
+    db_session.commit()
+    db_session.refresh(note)
+    return ResourceNoteBlockRead.model_validate(note).model_dump()
+
+
+async def update_note_block(
+    request: Request,
+    note_uuid: str,
+    note_data: ResourceNoteBlockUpdate,
+    current_user: PublicUser,
+    db_session: Session,
+) -> dict:
+    note = _get_owned_note(note_uuid, current_user, db_session)
+    updates = note_data.model_dump(exclude_unset=True)
+    if note.block_type == "text" and "content" in updates:
+        updates["content"] = (updates["content"] or "").strip()
+        if not updates["content"]:
+            raise HTTPException(status_code=400, detail="Note text is required")
+    if "url" in updates:
+        updates["url"] = _validate_note_url(updates["url"])
+    _get_or_create_saved_resource(current_user.id, note.resource_id, db_session)
+    for key, value in updates.items():
+        setattr(note, key, value)
+    note.update_date = _now()
+    db_session.add(note)
+    db_session.commit()
+    db_session.refresh(note)
+    return ResourceNoteBlockRead.model_validate(note).model_dump()
+
+
+async def delete_note_block(
+    request: Request,
+    note_uuid: str,
+    current_user: PublicUser,
+    db_session: Session,
+) -> dict:
+    note = _get_owned_note(note_uuid, current_user, db_session)
+    db_session.delete(note)
+    db_session.commit()
+    return {"detail": "Note deleted"}
 
 
 async def upload_saved_resource_outcome_file(request: Request, resource_uuid: str, file: UploadFile, current_user: PublicUser, db_session: Session) -> dict:
@@ -942,6 +1272,7 @@ async def create_comment(request: Request, resource_uuid: str, comment_data: Res
         author_id=current_user.id,
         comment_uuid=f"resourcecomment_{uuid4()}",
         content=comment_data.content,
+        rating=comment_data.rating,
         creation_date=_now(),
         update_date=_now(),
     )
@@ -961,6 +1292,40 @@ async def create_comment(request: Request, resource_uuid: str, comment_data: Res
     ).model_dump()
 
 
+async def create_review(
+    request: Request,
+    resource_uuid: str,
+    review_data: ResourceReviewCreate,
+    current_user: PublicUser,
+    db_session: Session,
+) -> dict:
+    resource = _get_resource_or_404(resource_uuid, db_session)
+    content = review_data.content.strip()
+    if not content:
+        raise HTTPException(status_code=400, detail="Review text is required")
+    existing = db_session.exec(
+        select(ResourceComment).where(
+            ResourceComment.resource_id == resource.id,
+            ResourceComment.author_id == current_user.id,
+            ResourceComment.rating.is_not(None),
+        )
+    ).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="You have already reviewed this resource")
+    _get_or_create_saved_resource(current_user.id, resource.id, db_session)
+    try:
+        return await create_comment(
+            request,
+            resource_uuid,
+            ResourceCommentCreate(content=content, rating=review_data.rating),
+            current_user,
+            db_session,
+        )
+    except IntegrityError:
+        db_session.rollback()
+        raise HTTPException(status_code=409, detail="You have already reviewed this resource") from None
+
+
 async def update_comment(request: Request, comment_uuid: str, comment_data: ResourceCommentUpdate, current_user: PublicUser, db_session: Session) -> dict:
     comment = db_session.exec(select(ResourceComment).where(ResourceComment.comment_uuid == comment_uuid)).first()
     if not comment:
@@ -977,6 +1342,10 @@ async def update_comment(request: Request, comment_uuid: str, comment_data: Reso
         raise HTTPException(status_code=403, detail="You cannot edit this comment")
     if comment_data.content is not None:
         comment.content = comment_data.content
+    if comment_data.rating is not None:
+        comment.rating = comment_data.rating
+    if comment.author_id == current_user.id and comment.rating is not None:
+        _get_or_create_saved_resource(current_user.id, resource.id, db_session)
     comment.update_date = _now()
     db_session.add(comment)
     db_session.commit()

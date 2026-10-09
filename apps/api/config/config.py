@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 class CookieConfig(BaseModel):
     domain: str
+    scope: Literal["shared-domain", "host-only"] = "shared-domain"
 
 
 class SentryConfig(BaseModel):
@@ -118,6 +119,13 @@ class LaunchLMSConfig(BaseModel):
     judge0_config: Judge0Config | None
 
 
+
+def _as_bool(value) -> bool:
+    """Env strings like "false"/"0" are falsy; YAML booleans pass through."""
+    if isinstance(value, str):
+        return value.strip().lower() in ("true", "1", "yes")
+    return bool(value)
+
 def get_launchlms_config() -> LaunchLMSConfig:
 
     load_dotenv()
@@ -201,6 +209,7 @@ def get_launchlms_config() -> LaunchLMSConfig:
     env_use_default_org = os.environ.get("LAUNCHLMS_USE_DEFAULT_ORG")
     env_allowed_origins = os.environ.get("LAUNCHLMS_ALLOWED_ORIGINS")
     env_cookie_domain = os.environ.get("LAUNCHLMS_COOKIE_DOMAIN")
+    env_cookie_scope = os.environ.get("LAUNCHLMS_COOKIE_SCOPE")
     env_frontend_domain = os.environ.get("LAUNCHLMS_FRONTEND_DOMAIN")
 
     # Allowed origins should be a comma separated string
@@ -236,7 +245,10 @@ def get_launchlms_config() -> LaunchLMSConfig:
     cookies_domain = env_cookie_domain or yaml_config.get("hosting_config", {}).get(
         "cookies_config", {}
     ).get("domain")
-    cookie_config = CookieConfig(domain=cookies_domain)
+    cookie_scope = env_cookie_scope or yaml_config.get("hosting_config", {}).get(
+        "cookies_config", {}
+    ).get("scope", "shared-domain")
+    cookie_config = CookieConfig(domain=cookies_domain, scope=cookie_scope)
 
     frontend_domain = env_frontend_domain or yaml_config.get("hosting_config", {}).get(
         "frontend_domain", "localhost:3000"
@@ -386,12 +398,12 @@ def get_launchlms_config() -> LaunchLMSConfig:
     hosting_config = HostingConfig(
         domain=domain,
         frontend_domain=frontend_domain,
-        ssl=bool(ssl),
+        ssl=_as_bool(ssl),
         port=int(port),
-        use_default_org=bool(use_default_org),
+        use_default_org=_as_bool(use_default_org),
         allowed_origins=list(allowed_origins),
         allowed_regexp=allowed_regexp,
-        self_hosted=bool(self_hosted),
+        self_hosted=_as_bool(self_hosted),
         cookie_config=cookie_config,
         content_delivery=content_delivery,
     )

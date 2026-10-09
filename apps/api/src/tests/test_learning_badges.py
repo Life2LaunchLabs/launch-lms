@@ -7,6 +7,8 @@ from src.db.learning import (
     LearningBadgeAward,
     LearningBadgeCreate,
     LearningBadgeStatus,
+    LearningBadgeVersion,
+    LearningBadgeVersionState,
     LearningPage,
     LearningPageType,
     LearningPath,
@@ -26,8 +28,11 @@ from src.services.learning import (
     build_learning_assertion_payload,
     build_learning_badge_class_payload,
     create_badge,
+    _ensure_draft,
+    _parse_semver,
 )
 from src.services.learning_page_convert import (
+    normalize_question_settings,
     convert_legacy_page,
     find_question_block,
     link_variant_sources_to_question_blocks,
@@ -74,7 +79,8 @@ class _BadgeCreateSession:
 
 @pytest.mark.asyncio
 async def test_create_badge_commits_badge_and_default_path_together(monkeypatch):
-    monkeypatch.setattr(learning_service, "_require_org_admin", lambda *_args: None)
+    monkeypatch.setattr(learning_service.access_rules, "_require_org_admin", lambda *_args: None)
+    monkeypatch.setattr(learning_service.badge_service, "_require_badge_creation_access", lambda *_args: None)
     session = _BadgeCreateSession()
 
     result = await create_badge(
@@ -93,7 +99,8 @@ async def test_create_badge_commits_badge_and_default_path_together(monkeypatch)
 
 @pytest.mark.asyncio
 async def test_create_badge_rolls_back_when_default_path_cannot_be_committed(monkeypatch):
-    monkeypatch.setattr(learning_service, "_require_org_admin", lambda *_args: None)
+    monkeypatch.setattr(learning_service.access_rules, "_require_org_admin", lambda *_args: None)
+    monkeypatch.setattr(learning_service.badge_service, "_require_badge_creation_access", lambda *_args: None)
     session = _BadgeCreateSession(fail_commit=True)
 
     with pytest.raises(RuntimeError, match="path insert failed"):
@@ -106,6 +113,41 @@ async def test_create_badge_rolls_back_when_default_path_cannot_be_committed(mon
 
     assert session.commit_count == 1
     assert session.rollback_count == 1
+
+
+def test_published_badge_versions_are_immutable():
+    version = LearningBadgeVersion(
+        version_uuid="badge_version_release",
+        badge_id=1,
+        org_id=1,
+        state=LearningBadgeVersionState.PUBLISHED,
+        semantic_version="1.0.0",
+        title="First release",
+    )
+    with pytest.raises(HTTPException, match="Published versions are read-only"):
+        _ensure_draft(version)
+
+
+def test_draft_badge_versions_are_editable():
+    version = LearningBadgeVersion(
+        version_uuid="badge_version_draft",
+        badge_id=1,
+        org_id=1,
+        state=LearningBadgeVersionState.DRAFT,
+        title="Next release",
+    )
+    assert _ensure_draft(version) is None
+
+
+@pytest.mark.parametrize("value, expected", [("1.0.0", (1, 0, 0)), ("12.4.19", (12, 4, 19))])
+def test_badge_release_versions_use_semver(value, expected):
+    assert _parse_semver(value) == expected
+
+
+@pytest.mark.parametrize("value", ["1", "1.2", "v1.2.3", "1.2.3-beta", "01.2.3"])
+def test_badge_release_versions_reject_non_semver(value):
+    with pytest.raises(HTTPException, match="major.minor.patch"):
+        _parse_semver(value)
 
 
 def _request() -> Request:
@@ -235,7 +277,11 @@ def _standard_page(page_uuid: str, question: dict | None = None, **overrides) ->
         page_uuid=page_uuid,
         page_type=LearningPageType.STANDARD,
         title=overrides.pop("title", "Page"),
-        content={"version": 2, "blocks": blocks},
+        # Page-level scoring/completion is shorthand here; stored pages keep
+        # them on the question block, exactly as the data migration leaves them.
+        content=normalize_question_settings(
+            {"version": 2, "blocks": blocks}, overrides.pop("scoring", None), overrides.pop("completion", None)
+        ),
         creation_date="2026-01-01T00:00:00",
         update_date="2026-01-01T00:00:00",
         **overrides,
@@ -280,7 +326,7 @@ def test_activity_grading_is_inferred_from_scored_questions(monkeypatch):
         settings={"grading": {"mode": "completion", "minimum_score_percent": 70}},
     )
     monkeypatch.setattr(
-        learning_service,
+        learning_service.grading,
         "_activity_score_summary",
         lambda *_args: {
             "score": 6,
@@ -309,7 +355,7 @@ def test_activity_without_scored_questions_uses_completion(monkeypatch):
         settings={"grading": {"mode": "pass_fail"}},
     )
     monkeypatch.setattr(
-        learning_service,
+        learning_service.grading,
         "_activity_score_summary",
         lambda *_args: {
             "score": 0,
@@ -953,9 +999,20 @@ def test_learning_assertion_payload_hashes_recipient_and_points_to_award():
 def test_standard_page_accepts_bound_image_and_internal_page_button():
     _validate_page_payload(LearningPageType.STANDARD, {"version": 2, "blocks": [
         {"id": "image", "type": "image", "content": {"binding": {"source": "answer", "path": "learning_page_photo.answer.questions.photo.url"}}},
-        {"id": "button", "type": "button", "content": {"label": "Change details", "destination_page_uuid": "learning_page_details"}},
+        {"id": "button", "type": "button", "content": {"label": "Change details", "action": "revisit", "revisit_page_uuid": "learning_page_details"}},
         {"id": "preview", "type": "portfolio_preview", "content": {"variant": "timeline_card", "bindings": {"title": {"source": "answer", "path": "learning_page_details.answer.questions.details.inputs.title.text"}}}},
     ]})
+
+
+def test_buttons_route_through_the_flow_not_destination_fields():
+    with pytest.raises(HTTPException, match="flow edges"):
+        _validate_page_payload(LearningPageType.STANDARD, {"version": 2, "blocks": [
+            {"id": "button", "type": "button", "content": {"label": "Next", "destination_page_uuid": "learning_page_details"}},
+        ]})
+    with pytest.raises(HTTPException, match="continue along the flow or revisit"):
+        _validate_page_payload(LearningPageType.STANDARD, {"version": 2, "blocks": [
+            {"id": "button", "type": "button", "content": {"label": "Back", "action": "revisit"}},
+        ]})
 
 
 def test_standard_page_accepts_display_binding_draft_without_path():

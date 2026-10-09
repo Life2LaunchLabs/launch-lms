@@ -8,6 +8,7 @@ import {
   Edit2,
   FileImage,
   Film,
+  FileText,
   Folder,
   ImageIcon,
   Link as LinkIcon,
@@ -46,6 +47,7 @@ type CustomTab = {
 
 type MediaPickerDialogProps = {
   open: boolean
+  // eslint-disable-next-line no-unused-vars
   onOpenChange: (open: boolean) => void
   title: string
   description?: string
@@ -53,7 +55,9 @@ type MediaPickerDialogProps = {
   mediaType: MediaType
   accessToken?: string
   initialTab?: 'upload' | 'library'
+  // eslint-disable-next-line no-unused-vars
   onSave: (asset: MediaAsset) => Promise<void> | void
+  // eslint-disable-next-line no-unused-vars
   onSelect?: (asset: MediaAsset) => void
   customTabs?: CustomTab[]
 }
@@ -61,13 +65,14 @@ type MediaPickerDialogProps = {
 const MEDIA_ACCEPT: Record<MediaType, string> = {
   image: 'image/jpeg,image/png,image/gif,image/webp',
   video: 'video/mp4,video/webm,video/quicktime',
+  document: 'application/pdf',
 }
 
 function isProbablyUrl(value: string) {
   try {
     const parsed = new URL(value)
     return parsed.protocol === 'http:' || parsed.protocol === 'https:'
-  } catch (_error) {
+  } catch {
     return false
   }
 }
@@ -415,8 +420,8 @@ export default function MediaPickerDialog({
     }
   }
 
-  const mediaNoun = mediaType === 'image' ? 'image' : 'video'
-  const UploadIcon = mediaType === 'image' ? FileImage : Film
+  const mediaNoun = mediaType === 'image' ? 'image' : mediaType === 'video' ? 'video' : 'document'
+  const UploadIcon = mediaType === 'image' ? FileImage : mediaType === 'video' ? Film : FileText
   const canAssignToFolder = Boolean(file || selectedAsset)
   const folderDropdownItems = folders.filter((folder) => folder.name !== openFolderName)
   const currentFolderLabel = file ? pendingFolderName : selectedAsset?.folder
@@ -568,7 +573,7 @@ export default function MediaPickerDialog({
                   <img src={previewUrl} alt="" className="absolute inset-0 size-full object-contain" />
                 ) : previewUrl ? (
                   <div className="flex flex-col items-center gap-3">
-                    <Film className="size-10 text-muted-foreground" />
+                    <UploadIcon className="size-10 text-muted-foreground" />
                     <span className="max-w-sm truncate text-sm font-semibold">{activeName}</span>
                   </div>
                 ) : (
@@ -577,10 +582,10 @@ export default function MediaPickerDialog({
                       <UploadCloud className="size-7" />
                     </span>
                     <span className="text-sm font-semibold">
-                      Drag and drop {mediaType === 'image' ? 'an image' : 'a video'} or choose a file
+                      Drag and drop {mediaType === 'image' ? 'an image' : mediaType === 'video' ? 'a video' : 'a PDF'} or choose a file
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      {mediaType === 'image' ? 'JPG, PNG, GIF, or WebP' : 'MP4, WebM, or MOV'}
+                      {mediaType === 'image' ? 'JPG, PNG, GIF, or WebP' : mediaType === 'video' ? 'MP4, WebM, or MOV' : 'PDF'}
                     </span>
                   </>
                 )}
@@ -635,7 +640,7 @@ export default function MediaPickerDialog({
                         {mediaType === 'image' ? (
                           <img src={assetPreview(asset)} alt="" className="size-full object-cover" />
                         ) : (
-                          <Film className="m-auto mt-5 size-6 text-muted-foreground" />
+                          <UploadIcon className="m-auto mt-5 size-6 text-muted-foreground" />
                         )}
                       </button>
                     ))}
@@ -739,7 +744,7 @@ export default function MediaPickerDialog({
                                         <img src={assetPreview(previewAsset)} alt="" className="size-full object-cover" />
                                       ) : previewAsset ? (
                                         <div className="flex size-full items-center justify-center">
-                                          <Film className="size-4 text-muted-foreground" />
+                                          <UploadIcon className="size-4 text-muted-foreground" />
                                         </div>
                                       ) : (
                                         <div className="size-full" />
@@ -808,7 +813,7 @@ export default function MediaPickerDialog({
                                   <img src={assetPreview(asset)} alt="" className="size-full object-cover" />
                                 ) : (
                                   <div className="flex size-full items-center justify-center">
-                                    <Film className="size-8 text-muted-foreground" />
+                                    <UploadIcon className="size-8 text-muted-foreground" />
                                   </div>
                                 )}
                                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-2 text-xs font-medium text-white">
@@ -857,7 +862,7 @@ export default function MediaPickerDialog({
               {previewUrl && mediaType === 'image' ? (
                 <img src={previewUrl} alt="" className="size-full object-cover" />
               ) : previewUrl ? (
-                <Film className="size-5 text-muted-foreground" />
+                <UploadIcon className="size-5 text-muted-foreground" />
               ) : (
                 <UploadIcon className="size-5 text-muted-foreground" />
               )}

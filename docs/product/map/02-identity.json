@@ -1,0 +1,2314 @@
+{
+  "id": "IDENTITY",
+  "display_order": 2,
+  "title": "Establish identity and access",
+  "intent": "Let people enter securely, recover access, and control the basic identity they present across organizations.",
+  "product_areas": "Signup, login, email verification, password recovery, OAuth/SSO, welcome onboarding, account settings.",
+  "model_distinction": null,
+  "source_json": "{\"baseline\": {\"derived_at\": \"2026-09-02\", \"source\": \"PRODUCT_ACTIVITY_HIERARCHY.md\", \"traceability\": \"partial\", \"verification\": \"unverified\"}, \"display_order\": 2, \"goals\": [{\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"IDENTITY-G001-A001\", \"implementation_notes\": \"The product supports open signup, invitation-only signup, email/password, Google OAuth, and organization SSO depending on configuration.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Choose an available signup method\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"IDENTITY-G001-A002\", \"implementation_notes\": \"Validate errors for existing email/username, password expectations, consent/context, and whether youth understand which information becomes public.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Create account credentials and a username\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"IDENTITY-G001-A003\", \"implementation_notes\": \"Verification has resend and continuation behavior. The welcome flow can poll for verification and continue automatically; test expired links and interrupted sessions.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Verify an email address\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 4, \"health\": \"unknown\", \"id\": \"IDENTITY-G001-A004\", \"implementation_notes\": \"Special onboarding provisions a starter badge/activity and returns the new account into that activity. Treat this as a first-value test, not merely account setup.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Complete the welcome learning experience\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 5, \"health\": \"unknown\", \"id\": \"IDENTITY-G001-A005\", \"implementation_notes\": \"Test deep links into badges, offers, invitations, and public pages across login/signup/verification.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`, with redirect parameters used in several flows\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Resume the originally requested destination\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"prospective_learner\", \"learner_youth\", \"educator\", \"counselor_mentor\", \"employer\", \"nonprofit_community_partner\", \"content_author\", \"organization_administrator\"], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"IDENTITY-G001\", \"lifecycle\": \"live\", \"original_state\": \"`Live`; signup mode is organization-dependent\", \"outcome\": \"A new person can establish a verified identity and reach a meaningful first experience.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Create and activate an account\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"IDENTITY-G002-A001\", \"implementation_notes\": \"Include invalid credentials, locked account, unverified email, and correct post-login destination in testing.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Sign in with email and password\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"IDENTITY-G002-A002\", \"implementation_notes\": \"Authorization, callback, and token exchange routes are present.\", \"lifecycle\": \"live\", \"original_state\": \"`Conditional` on OAuth configuration\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Sign in with Google\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"IDENTITY-G002-A003\", \"implementation_notes\": \"Provider discovery, redirect, callback, and account matching are part of the journey.\", \"lifecycle\": \"live\", \"original_state\": \"`Conditional` on plan, feature flag, provider, and allowed-domain setup\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Sign in with organization SSO\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"learner_youth\", \"educator\", \"counselor_mentor\", \"employer\", \"nonprofit_community_partner\", \"content_author\", \"organization_administrator\", \"platform_administrator\"], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"IDENTITY-G002\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional`\", \"outcome\": \"A returning person can authenticate using the method their organization expects.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Sign in through the appropriate identity provider\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"IDENTITY-G003-A001\", \"implementation_notes\": \"Test unknown accounts, expired links, successful return to login, and clarity of confirmation messages.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Request and complete a password reset\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"IDENTITY-G003-A002\", \"implementation_notes\": \"Available in account security.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Change a password while signed in\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"IDENTITY-G003-A003\", \"implementation_notes\": \"Email changes affect verification state and identity continuity.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` at service level; confirm current self-service UI coverage\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Change an email and re-establish verification\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"learner_youth\", \"educator\", \"counselor_mentor\", \"employer\", \"nonprofit_community_partner\", \"content_author\", \"organization_administrator\", \"platform_administrator\"], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"IDENTITY-G003\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"outcome\": \"A person can regain access and keep credentials current without staff intervention where possible.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Recover or secure an account\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"IDENTITY-G004-A001\", \"implementation_notes\": \"Account settings cover username, first and last name, email, bio, and avatar. Media can be uploaded or selected through the shared media library.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Edit profile details and biography\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"IDENTITY-G004-A002\", \"implementation_notes\": \"Light, dark, and system themes are supported.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Choose an appearance preference\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [{\"criterion\": \"Account navigation links to Messages and shows the canonical inbox unread count.\", \"id\": \"IDENTITY-G004-A003-AC01\", \"status\": \"not_tested\"}], \"availability\": {\"constraints\": [], \"mode\": \"authenticated\", \"notes\": \"This activity covers account navigation only; inbox behavior is owned by COMMUNITY-G001-A004.\"}, \"code_refs\": [{\"path\": \"apps/web/components/Objects/Account/AccountPageShell.tsx\", \"responsibility\": \"Messages account tab and unread badge.\"}, {\"path\": \"apps/web/components/Objects/Menus/OrgMenu.tsx\", \"responsibility\": \"Global account menu link and unread indicator.\"}], \"display_order\": 3, \"health\": \"works\", \"id\": \"IDENTITY-G004-A003\", \"implementation_notes\": \"Kept distinct from the communication activity because this record describes finding the inbox from account navigation, not reading or acting on its content.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`, previously described as invitation-oriented\", \"relationships\": [{\"reason\": \"That activity owns the inbox feed, read behavior, and message presentation.\", \"target\": \"COMMUNITY-G001-A004\", \"type\": \"related_to\"}], \"signoff\": {\"status\": \"pending\"}, \"test_refs\": [], \"title\": \"Open Messages and notice unread items from account navigation\", \"traceability\": \"complete\", \"verification\": {\"status\": \"ready\"}}], \"actors\": [\"learner_youth\", \"educator\", \"counselor_mentor\", \"employer\", \"nonprofit_community_partner\", \"content_author\", \"organization_administrator\"], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 4, \"health\": \"unknown\", \"id\": \"IDENTITY-G004\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"outcome\": \"A person can keep their identity recognizable and make the interface comfortable.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Maintain a personal account profile\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"id\": \"IDENTITY\", \"intent\": \"Let people enter securely, recover access, and control the basic identity they present across organizations.\", \"model_distinction\": null, \"product_areas\": \"Signup, login, email verification, password recovery, OAuth/SSO, welcome onboarding, account settings.\", \"source_refs\": [\"apps/web/app/auth\", \"apps/web/app/welcome\", \"apps/web/components/Objects/Account\", \"apps/api/src/routers/auth.py\", \"apps/api/src/services/auth\", \"apps/api/src/services/users/welcome_claim.py\"], \"title\": \"Establish identity and access\"}",
+  "goals": [
+    {
+      "id": "IDENTITY-G001",
+      "group_id": "IDENTITY",
+      "display_order": 1,
+      "title": "Create and activate an account",
+      "outcome": "A new person can establish a verified identity and reach a meaningful first experience.",
+      "product_state": "live",
+      "health": "unknown",
+      "traceability": "partial",
+      "availability_json": "{\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}",
+      "verification_json": "{\"status\": \"unverified\"}",
+      "signoff_json": "{\"status\": \"not_requested\"}",
+      "original_state": "`Live`; signup mode is organization-dependent",
+      "source_json": "{\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"IDENTITY-G001-A001\", \"implementation_notes\": \"The product supports open signup, invitation-only signup, email/password, Google OAuth, and organization SSO depending on configuration.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Choose an available signup method\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"IDENTITY-G001-A002\", \"implementation_notes\": \"Validate errors for existing email/username, password expectations, consent/context, and whether youth understand which information becomes public.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Create account credentials and a username\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"IDENTITY-G001-A003\", \"implementation_notes\": \"Verification has resend and continuation behavior. The welcome flow can poll for verification and continue automatically; test expired links and interrupted sessions.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Verify an email address\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 4, \"health\": \"unknown\", \"id\": \"IDENTITY-G001-A004\", \"implementation_notes\": \"Special onboarding provisions a starter badge/activity and returns the new account into that activity. Treat this as a first-value test, not merely account setup.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Complete the welcome learning experience\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 5, \"health\": \"unknown\", \"id\": \"IDENTITY-G001-A005\", \"implementation_notes\": \"Test deep links into badges, offers, invitations, and public pages across login/signup/verification.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`, with redirect parameters used in several flows\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Resume the originally requested destination\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"prospective_learner\", \"learner_youth\", \"educator\", \"counselor_mentor\", \"employer\", \"nonprofit_community_partner\", \"content_author\", \"organization_administrator\"], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"IDENTITY-G001\", \"lifecycle\": \"live\", \"original_state\": \"`Live`; signup mode is organization-dependent\", \"outcome\": \"A new person can establish a verified identity and reach a meaningful first experience.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Create and activate an account\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}",
+      "updated_at": "2026-09-02T21:12:02+00:00",
+      "actors": [
+        "content_author",
+        "counselor_mentor",
+        "educator",
+        "employer",
+        "learner_youth",
+        "nonprofit_community_partner",
+        "organization_administrator",
+        "prospective_learner"
+      ],
+      "activities": [
+        {
+          "id": "IDENTITY-G001-A001",
+          "goal_id": "IDENTITY-G001",
+          "display_order": 1,
+          "title": "Choose an available signup method",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "The product supports open signup, invitation-only signup, email/password, Google OAuth, and organization SSO depending on configuration.",
+          "original_state": "`Live` / `Conditional`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Create and activate an account",
+          "group_title": "Establish identity and access",
+          "availability": {
+            "constraints": [],
+            "mode": "conditional",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "conditional",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 1,
+            "health": "unknown",
+            "id": "IDENTITY-G001-A001",
+            "implementation_notes": "The product supports open signup, invitation-only signup, email/password, Google OAuth, and organization SSO depending on configuration.",
+            "lifecycle": "live",
+            "original_state": "`Live` / `Conditional`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Choose an available signup method",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "IDENTITY-G001-A001-S001",
+              "activity_id": "IDENTITY-G001-A001",
+              "display_order": 1,
+              "title": "Sign up with email",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "IDENTITY-G001-A001-S002",
+              "activity_id": "IDENTITY-G001-A001",
+              "display_order": 2,
+              "title": "Sign up with Google",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "IDENTITY-G001-A001-S003",
+              "activity_id": "IDENTITY-G001-A001",
+              "display_order": 3,
+              "title": "Sign up with organization SSO",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "IDENTITY-G001-A001-S004",
+              "activity_id": "IDENTITY-G001-A001",
+              "display_order": 4,
+              "title": "Sign up from an invitation",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "IDENTITY-G001-A002",
+          "goal_id": "IDENTITY-G001",
+          "display_order": 2,
+          "title": "Create account credentials",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Validate errors for existing email/username, password expectations, consent/context, and whether youth understand which information becomes public.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Create and activate an account",
+          "group_title": "Establish identity and access",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 2,
+            "health": "unknown",
+            "id": "IDENTITY-G001-A002",
+            "implementation_notes": "Validate errors for existing email/username, password expectations, consent/context, and whether youth understand which information becomes public.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Create account credentials and a username",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "IDENTITY-G001-A002-S001",
+              "activity_id": "IDENTITY-G001-A002",
+              "display_order": 1,
+              "title": "Choose a public username",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "IDENTITY-G001-A002-S002",
+              "activity_id": "IDENTITY-G001-A002",
+              "display_order": 2,
+              "title": "Enter account credentials",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "IDENTITY-G001-A002-S003",
+              "activity_id": "IDENTITY-G001-A002",
+              "display_order": 3,
+              "title": "Resolve a duplicate email or username",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "IDENTITY-G001-A002-S004",
+              "activity_id": "IDENTITY-G001-A002",
+              "display_order": 4,
+              "title": "Understand consent and public identity context",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "IDENTITY-G001-A003",
+          "goal_id": "IDENTITY-G001",
+          "display_order": 3,
+          "title": "Verify an email address",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Verification has resend and continuation behavior. The welcome flow can poll for verification and continue automatically; test expired links and interrupted sessions.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Create and activate an account",
+          "group_title": "Establish identity and access",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 3,
+            "health": "unknown",
+            "id": "IDENTITY-G001-A003",
+            "implementation_notes": "Verification has resend and continuation behavior. The welcome flow can poll for verification and continue automatically; test expired links and interrupted sessions.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Verify an email address",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "IDENTITY-G001-A003-S001",
+              "activity_id": "IDENTITY-G001-A003",
+              "display_order": 1,
+              "title": "Open an email verification link",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "IDENTITY-G001-A003-S002",
+              "activity_id": "IDENTITY-G001-A003",
+              "display_order": 2,
+              "title": "Resend the verification message",
+              "description": "",
+              "step_kind": "optional",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "IDENTITY-G001-A003-S003",
+              "activity_id": "IDENTITY-G001-A003",
+              "display_order": 3,
+              "title": "Recover from an expired verification link",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "IDENTITY-G001-A003-S004",
+              "activity_id": "IDENTITY-G001-A003",
+              "display_order": 4,
+              "title": "Continue after verification",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "IDENTITY-G001-A004",
+          "goal_id": "IDENTITY-G001",
+          "display_order": 4,
+          "title": "Complete the welcome learning experience",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Special onboarding provisions a starter badge/activity and returns the new account into that activity. Treat this as a first-value test, not merely account setup.",
+          "original_state": "`Live` / `Conditional`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Create and activate an account",
+          "group_title": "Establish identity and access",
+          "availability": {
+            "constraints": [],
+            "mode": "conditional",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "conditional",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 4,
+            "health": "unknown",
+            "id": "IDENTITY-G001-A004",
+            "implementation_notes": "Special onboarding provisions a starter badge/activity and returns the new account into that activity. Treat this as a first-value test, not merely account setup.",
+            "lifecycle": "live",
+            "original_state": "`Live` / `Conditional`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Complete the welcome learning experience",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "IDENTITY-G001-A004-S001",
+              "activity_id": "IDENTITY-G001-A004",
+              "display_order": 1,
+              "title": "Enter the starter learning activity",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "IDENTITY-G001-A004-S002",
+              "activity_id": "IDENTITY-G001-A004",
+              "display_order": 2,
+              "title": "Complete the starter learning activity",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "IDENTITY-G001-A004-S003",
+              "activity_id": "IDENTITY-G001-A004",
+              "display_order": 3,
+              "title": "Return to the first-value destination",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "IDENTITY-G001-A005",
+          "goal_id": "IDENTITY-G001",
+          "display_order": 5,
+          "title": "Resume the originally requested destination",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Test deep links into badges, offers, invitations, and public pages across login/signup/verification.",
+          "original_state": "`Live`, with redirect parameters used in several flows",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Create and activate an account",
+          "group_title": "Establish identity and access",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 5,
+            "health": "unknown",
+            "id": "IDENTITY-G001-A005",
+            "implementation_notes": "Test deep links into badges, offers, invitations, and public pages across login/signup/verification.",
+            "lifecycle": "live",
+            "original_state": "`Live`, with redirect parameters used in several flows",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Resume the originally requested destination",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "IDENTITY-G001-A005-S001",
+              "activity_id": "IDENTITY-G001-A005",
+              "display_order": 1,
+              "title": "Resume a requested badge",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "IDENTITY-G001-A005-S002",
+              "activity_id": "IDENTITY-G001-A005",
+              "display_order": 2,
+              "title": "Resume a requested offer",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "IDENTITY-G001-A005-S003",
+              "activity_id": "IDENTITY-G001-A005",
+              "display_order": 3,
+              "title": "Resume an invitation",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "IDENTITY-G001-A005-S004",
+              "activity_id": "IDENTITY-G001-A005",
+              "display_order": 4,
+              "title": "Resume a requested public page",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        }
+      ]
+    },
+    {
+      "id": "IDENTITY-G002",
+      "group_id": "IDENTITY",
+      "display_order": 2,
+      "title": "Sign in through the appropriate identity provider",
+      "outcome": "A returning person can authenticate using the method their organization expects.",
+      "product_state": "live",
+      "health": "unknown",
+      "traceability": "partial",
+      "availability_json": "{\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}",
+      "verification_json": "{\"status\": \"unverified\"}",
+      "signoff_json": "{\"status\": \"not_requested\"}",
+      "original_state": "`Live` / `Conditional`",
+      "source_json": "{\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"IDENTITY-G002-A001\", \"implementation_notes\": \"Include invalid credentials, locked account, unverified email, and correct post-login destination in testing.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Sign in with email and password\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"IDENTITY-G002-A002\", \"implementation_notes\": \"Authorization, callback, and token exchange routes are present.\", \"lifecycle\": \"live\", \"original_state\": \"`Conditional` on OAuth configuration\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Sign in with Google\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"IDENTITY-G002-A003\", \"implementation_notes\": \"Provider discovery, redirect, callback, and account matching are part of the journey.\", \"lifecycle\": \"live\", \"original_state\": \"`Conditional` on plan, feature flag, provider, and allowed-domain setup\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Sign in with organization SSO\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"learner_youth\", \"educator\", \"counselor_mentor\", \"employer\", \"nonprofit_community_partner\", \"content_author\", \"organization_administrator\", \"platform_administrator\"], \"availability\": {\"constraints\": [], \"mode\": \"conditional\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"IDENTITY-G002\", \"lifecycle\": \"live\", \"original_state\": \"`Live` / `Conditional`\", \"outcome\": \"A returning person can authenticate using the method their organization expects.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Sign in through the appropriate identity provider\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}",
+      "updated_at": "2026-09-02T21:12:02+00:00",
+      "actors": [
+        "content_author",
+        "counselor_mentor",
+        "educator",
+        "employer",
+        "learner_youth",
+        "nonprofit_community_partner",
+        "organization_administrator",
+        "platform_administrator"
+      ],
+      "activities": [
+        {
+          "id": "IDENTITY-G002-A001",
+          "goal_id": "IDENTITY-G002",
+          "display_order": 1,
+          "title": "Sign in with email and password",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Include invalid credentials, locked account, unverified email, and correct post-login destination in testing.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Sign in through the appropriate identity provider",
+          "group_title": "Establish identity and access",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 1,
+            "health": "unknown",
+            "id": "IDENTITY-G002-A001",
+            "implementation_notes": "Include invalid credentials, locked account, unverified email, and correct post-login destination in testing.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Sign in with email and password",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [
+            {
+              "id": "IDENTITY-G002-A001-AC01",
+              "activity_id": "IDENTITY-G002-A001",
+              "display_order": 1,
+              "criterion": "Email and password fields are available together when the credential login screen first opens.",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "notes": null,
+              "source_json": null,
+              "created_at": "2026-09-03T18:41:47+00:00"
+            }
+          ],
+          "steps": [
+            {
+              "id": "IDENTITY-G002-A001-S001",
+              "activity_id": "IDENTITY-G002-A001",
+              "display_order": 1,
+              "title": "Enter email and password credentials",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "partial",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": "Shared LoginClient implementation is mapped; automated interaction coverage is not yet present.",
+              "updated_at": "2026-09-03T18:41:55+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": [
+                {
+                  "kind": "code",
+                  "path": "apps/web/app/auth/login/login.tsx",
+                  "symbol": "LoginClient",
+                  "responsibility": "Presents email and password together and validates credential input."
+                }
+              ]
+            },
+            {
+              "id": "IDENTITY-G002-A001-S002",
+              "activity_id": "IDENTITY-G002-A001",
+              "display_order": 2,
+              "title": "Resolve an authentication error",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "IDENTITY-G002-A001-S003",
+              "activity_id": "IDENTITY-G002-A001",
+              "display_order": 3,
+              "title": "Continue to the post-login destination",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [
+            {
+              "kind": "code",
+              "path": "apps/web/app/auth/login/login.tsx",
+              "symbol": "LoginClient",
+              "responsibility": "Shared standalone and embedded sign-in interface and credential submission flow."
+            }
+          ],
+          "relationships": []
+        },
+        {
+          "id": "IDENTITY-G002-A002",
+          "goal_id": "IDENTITY-G002",
+          "display_order": 2,
+          "title": "Sign in with Google",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Authorization, callback, and token exchange routes are present.",
+          "original_state": "`Conditional` on OAuth configuration",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Sign in through the appropriate identity provider",
+          "group_title": "Establish identity and access",
+          "availability": {
+            "constraints": [],
+            "mode": "conditional",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "conditional",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 2,
+            "health": "unknown",
+            "id": "IDENTITY-G002-A002",
+            "implementation_notes": "Authorization, callback, and token exchange routes are present.",
+            "lifecycle": "live",
+            "original_state": "`Conditional` on OAuth configuration",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Sign in with Google",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "IDENTITY-G002-A002-S001",
+              "activity_id": "IDENTITY-G002-A002",
+              "display_order": 1,
+              "title": "Authorize with Google",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "IDENTITY-G002-A002-S002",
+              "activity_id": "IDENTITY-G002-A002",
+              "display_order": 2,
+              "title": "Return through the Google callback",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "IDENTITY-G002-A002-S003",
+              "activity_id": "IDENTITY-G002-A002",
+              "display_order": 3,
+              "title": "Continue to the post-login destination",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "IDENTITY-G002-A003",
+          "goal_id": "IDENTITY-G002",
+          "display_order": 3,
+          "title": "Sign in with organization SSO",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Provider discovery, redirect, callback, and account matching are part of the journey.",
+          "original_state": "`Conditional` on plan, feature flag, provider, and allowed-domain setup",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Sign in through the appropriate identity provider",
+          "group_title": "Establish identity and access",
+          "availability": {
+            "constraints": [],
+            "mode": "conditional",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "conditional",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 3,
+            "health": "unknown",
+            "id": "IDENTITY-G002-A003",
+            "implementation_notes": "Provider discovery, redirect, callback, and account matching are part of the journey.",
+            "lifecycle": "live",
+            "original_state": "`Conditional` on plan, feature flag, provider, and allowed-domain setup",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Sign in with organization SSO",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "IDENTITY-G002-A003-S001",
+              "activity_id": "IDENTITY-G002-A003",
+              "display_order": 1,
+              "title": "Discover the organization identity provider",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "IDENTITY-G002-A003-S002",
+              "activity_id": "IDENTITY-G002-A003",
+              "display_order": 2,
+              "title": "Authenticate with the organization provider",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "IDENTITY-G002-A003-S003",
+              "activity_id": "IDENTITY-G002-A003",
+              "display_order": 3,
+              "title": "Match or establish the local account",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "IDENTITY-G002-A003-S004",
+              "activity_id": "IDENTITY-G002-A003",
+              "display_order": 4,
+              "title": "Continue to the post-login destination",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        }
+      ]
+    },
+    {
+      "id": "IDENTITY-G003",
+      "group_id": "IDENTITY",
+      "display_order": 3,
+      "title": "Recover or secure an account",
+      "outcome": "A person can regain access and keep credentials current without staff intervention where possible.",
+      "product_state": "live",
+      "health": "unknown",
+      "traceability": "partial",
+      "availability_json": "{\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}",
+      "verification_json": "{\"status\": \"unverified\"}",
+      "signoff_json": "{\"status\": \"not_requested\"}",
+      "original_state": "`Live`",
+      "source_json": "{\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"IDENTITY-G003-A001\", \"implementation_notes\": \"Test unknown accounts, expired links, successful return to login, and clarity of confirmation messages.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Request and complete a password reset\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"IDENTITY-G003-A002\", \"implementation_notes\": \"Available in account security.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Change a password while signed in\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"IDENTITY-G003-A003\", \"implementation_notes\": \"Email changes affect verification state and identity continuity.\", \"lifecycle\": \"live\", \"original_state\": \"`Live` at service level; confirm current self-service UI coverage\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Change an email and re-establish verification\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}], \"actors\": [\"learner_youth\", \"educator\", \"counselor_mentor\", \"employer\", \"nonprofit_community_partner\", \"content_author\", \"organization_administrator\", \"platform_administrator\"], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 3, \"health\": \"unknown\", \"id\": \"IDENTITY-G003\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"outcome\": \"A person can regain access and keep credentials current without staff intervention where possible.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Recover or secure an account\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}",
+      "updated_at": "2026-09-02T21:12:02+00:00",
+      "actors": [
+        "content_author",
+        "counselor_mentor",
+        "educator",
+        "employer",
+        "learner_youth",
+        "nonprofit_community_partner",
+        "organization_administrator",
+        "platform_administrator"
+      ],
+      "activities": [
+        {
+          "id": "IDENTITY-G003-A001",
+          "goal_id": "IDENTITY-G003",
+          "display_order": 1,
+          "title": "Reset a forgotten password",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Test unknown accounts, expired links, successful return to login, and clarity of confirmation messages.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Recover or secure an account",
+          "group_title": "Establish identity and access",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 1,
+            "health": "unknown",
+            "id": "IDENTITY-G003-A001",
+            "implementation_notes": "Test unknown accounts, expired links, successful return to login, and clarity of confirmation messages.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Request and complete a password reset",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "IDENTITY-G003-A001-S001",
+              "activity_id": "IDENTITY-G003-A001",
+              "display_order": 1,
+              "title": "Request a password-reset message",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "IDENTITY-G003-A001-S002",
+              "activity_id": "IDENTITY-G003-A001",
+              "display_order": 2,
+              "title": "Open a valid reset link",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "IDENTITY-G003-A001-S003",
+              "activity_id": "IDENTITY-G003-A001",
+              "display_order": 3,
+              "title": "Choose a replacement password",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "IDENTITY-G003-A001-S004",
+              "activity_id": "IDENTITY-G003-A001",
+              "display_order": 4,
+              "title": "Return to sign in",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "IDENTITY-G003-A001-S005",
+              "activity_id": "IDENTITY-G003-A001",
+              "display_order": 5,
+              "title": "Recover from an expired reset link",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "IDENTITY-G003-A002",
+          "goal_id": "IDENTITY-G003",
+          "display_order": 2,
+          "title": "Change a password while signed in",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Available in account security.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Recover or secure an account",
+          "group_title": "Establish identity and access",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 2,
+            "health": "unknown",
+            "id": "IDENTITY-G003-A002",
+            "implementation_notes": "Available in account security.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Change a password while signed in",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "IDENTITY-G003-A002-S001",
+              "activity_id": "IDENTITY-G003-A002",
+              "display_order": 1,
+              "title": "Enter the current password",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "IDENTITY-G003-A002-S002",
+              "activity_id": "IDENTITY-G003-A002",
+              "display_order": 2,
+              "title": "Choose a replacement password",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "IDENTITY-G003-A002-S003",
+              "activity_id": "IDENTITY-G003-A002",
+              "display_order": 3,
+              "title": "Confirm the updated credential",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "IDENTITY-G003-A003",
+          "goal_id": "IDENTITY-G003",
+          "display_order": 3,
+          "title": "Change the account email",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Email changes affect verification state and identity continuity.",
+          "original_state": "`Live` at service level; confirm current self-service UI coverage",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Recover or secure an account",
+          "group_title": "Establish identity and access",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 3,
+            "health": "unknown",
+            "id": "IDENTITY-G003-A003",
+            "implementation_notes": "Email changes affect verification state and identity continuity.",
+            "lifecycle": "live",
+            "original_state": "`Live` at service level; confirm current self-service UI coverage",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Change an email and re-establish verification",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "IDENTITY-G003-A003-S001",
+              "activity_id": "IDENTITY-G003-A003",
+              "display_order": 1,
+              "title": "Enter a replacement email",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "IDENTITY-G003-A003-S002",
+              "activity_id": "IDENTITY-G003-A003",
+              "display_order": 2,
+              "title": "Reverify the replacement email",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "IDENTITY-G003-A003-S003",
+              "activity_id": "IDENTITY-G003-A003",
+              "display_order": 3,
+              "title": "Continue with the same account identity",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        }
+      ]
+    },
+    {
+      "id": "IDENTITY-G004",
+      "group_id": "IDENTITY",
+      "display_order": 4,
+      "title": "Maintain a personal account profile",
+      "outcome": "A person can keep their identity recognizable and make the interface comfortable.",
+      "product_state": "live",
+      "health": "unknown",
+      "traceability": "partial",
+      "availability_json": "{\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}",
+      "verification_json": "{\"status\": \"unverified\"}",
+      "signoff_json": "{\"status\": \"not_requested\"}",
+      "original_state": "`Live`",
+      "source_json": "{\"activities\": [{\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 1, \"health\": \"unknown\", \"id\": \"IDENTITY-G004-A001\", \"implementation_notes\": \"Account settings cover username, first and last name, email, bio, and avatar. Media can be uploaded or selected through the shared media library.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Edit profile details and biography\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 2, \"health\": \"unknown\", \"id\": \"IDENTITY-G004-A002\", \"implementation_notes\": \"Light, dark, and system themes are supported.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Choose an appearance preference\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}, {\"acceptance\": [{\"criterion\": \"Account navigation links to Messages and shows the canonical inbox unread count.\", \"id\": \"IDENTITY-G004-A003-AC01\", \"status\": \"not_tested\"}], \"availability\": {\"constraints\": [], \"mode\": \"authenticated\", \"notes\": \"This activity covers account navigation only; inbox behavior is owned by COMMUNITY-G001-A004.\"}, \"code_refs\": [{\"path\": \"apps/web/components/Objects/Account/AccountPageShell.tsx\", \"responsibility\": \"Messages account tab and unread badge.\"}, {\"path\": \"apps/web/components/Objects/Menus/OrgMenu.tsx\", \"responsibility\": \"Global account menu link and unread indicator.\"}], \"display_order\": 3, \"health\": \"works\", \"id\": \"IDENTITY-G004-A003\", \"implementation_notes\": \"Kept distinct from the communication activity because this record describes finding the inbox from account navigation, not reading or acting on its content.\", \"lifecycle\": \"live\", \"original_state\": \"`Live`, previously described as invitation-oriented\", \"relationships\": [{\"reason\": \"That activity owns the inbox feed, read behavior, and message presentation.\", \"target\": \"COMMUNITY-G001-A004\", \"type\": \"related_to\"}], \"signoff\": {\"status\": \"pending\"}, \"test_refs\": [], \"title\": \"Open Messages and notice unread items from account navigation\", \"traceability\": \"complete\", \"verification\": {\"status\": \"ready\"}}], \"actors\": [\"learner_youth\", \"educator\", \"counselor_mentor\", \"employer\", \"nonprofit_community_partner\", \"content_author\", \"organization_administrator\"], \"availability\": {\"constraints\": [], \"mode\": \"unknown\", \"notes\": \"Initial source-derived classification; refine when this area is touched.\"}, \"code_refs\": [], \"display_order\": 4, \"health\": \"unknown\", \"id\": \"IDENTITY-G004\", \"lifecycle\": \"live\", \"original_state\": \"`Live`\", \"outcome\": \"A person can keep their identity recognizable and make the interface comfortable.\", \"relationships\": [], \"signoff\": {\"status\": \"not_requested\"}, \"test_refs\": [], \"title\": \"Maintain a personal account profile\", \"traceability\": \"partial\", \"verification\": {\"status\": \"unverified\"}}",
+      "updated_at": "2026-09-02T21:12:02+00:00",
+      "actors": [
+        "content_author",
+        "counselor_mentor",
+        "educator",
+        "employer",
+        "learner_youth",
+        "nonprofit_community_partner",
+        "organization_administrator"
+      ],
+      "activities": [
+        {
+          "id": "IDENTITY-G004-A001",
+          "goal_id": "IDENTITY-G004",
+          "display_order": 1,
+          "title": "Maintain personal profile details",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Account settings cover username, first and last name, email, bio, and avatar. Media can be uploaded or selected through the shared media library.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Maintain a personal account profile",
+          "group_title": "Establish identity and access",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 1,
+            "health": "unknown",
+            "id": "IDENTITY-G004-A001",
+            "implementation_notes": "Account settings cover username, first and last name, email, bio, and avatar. Media can be uploaded or selected through the shared media library.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Edit profile details and biography",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "IDENTITY-G004-A001-S001",
+              "activity_id": "IDENTITY-G004-A001",
+              "display_order": 1,
+              "title": "Edit the public username",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "IDENTITY-G004-A001-S002",
+              "activity_id": "IDENTITY-G004-A001",
+              "display_order": 2,
+              "title": "Edit the person's name",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "IDENTITY-G004-A001-S003",
+              "activity_id": "IDENTITY-G004-A001",
+              "display_order": 3,
+              "title": "Edit the biography",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "IDENTITY-G004-A001-S004",
+              "activity_id": "IDENTITY-G004-A001",
+              "display_order": 4,
+              "title": "Choose or upload an avatar",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "IDENTITY-G004-A002",
+          "goal_id": "IDENTITY-G004",
+          "display_order": 2,
+          "title": "Choose an appearance preference",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Light, dark, and system themes are supported.",
+          "original_state": "`Live`",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Maintain a personal account profile",
+          "group_title": "Establish identity and access",
+          "availability": {
+            "constraints": [],
+            "mode": "unknown",
+            "notes": "Initial source-derived classification; refine when this area is touched."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [],
+            "availability": {
+              "constraints": [],
+              "mode": "unknown",
+              "notes": "Initial source-derived classification; refine when this area is touched."
+            },
+            "code_refs": [],
+            "display_order": 2,
+            "health": "unknown",
+            "id": "IDENTITY-G004-A002",
+            "implementation_notes": "Light, dark, and system themes are supported.",
+            "lifecycle": "live",
+            "original_state": "`Live`",
+            "relationships": [],
+            "signoff": {
+              "status": "not_requested"
+            },
+            "test_refs": [],
+            "title": "Choose an appearance preference",
+            "traceability": "partial",
+            "verification": {
+              "status": "unverified"
+            }
+          },
+          "acceptance": [],
+          "steps": [
+            {
+              "id": "IDENTITY-G004-A002-S001",
+              "activity_id": "IDENTITY-G004-A002",
+              "display_order": 1,
+              "title": "Use the light theme",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "IDENTITY-G004-A002-S002",
+              "activity_id": "IDENTITY-G004-A002",
+              "display_order": 2,
+              "title": "Use the dark theme",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "IDENTITY-G004-A002-S003",
+              "activity_id": "IDENTITY-G004-A002",
+              "display_order": 3,
+              "title": "Follow the system theme",
+              "description": "",
+              "step_kind": "alternative",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [],
+          "relationships": []
+        },
+        {
+          "id": "IDENTITY-G004-A003",
+          "goal_id": "IDENTITY-G004",
+          "display_order": 3,
+          "title": "Find Messages from account navigation",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "complete",
+          "priority": "unset",
+          "implementation_notes": "Kept distinct from the communication activity because this record describes finding the inbox from account navigation, not reading or acting on its content.",
+          "original_state": "`Live`, previously described as invitation-oriented",
+          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "description": "",
+          "goal_title": "Maintain a personal account profile",
+          "group_title": "Establish identity and access",
+          "availability": {
+            "constraints": [],
+            "mode": "authenticated",
+            "notes": "This activity covers account navigation only; inbox behavior is owned by COMMUNITY-G001-A004."
+          },
+          "verification": {
+            "delivery_issue_key": "BOT-48",
+            "effect": "changes",
+            "issue_key": "BOT-48",
+            "issue_status": "Done",
+            "reviewed_at": "2026-09-04T01:09:56.193726+00:00",
+            "reviewed_by": "product_owner_via_jira",
+            "source": "jira",
+            "status": "passed"
+          },
+          "signoff": {
+            "issue_key": "BOT-48",
+            "signed_off_at": "2026-09-04T01:09:56.193726+00:00",
+            "source": "jira",
+            "status": "signed_off"
+          },
+          "source": {
+            "acceptance": [
+              {
+                "criterion": "Account navigation links to Messages and shows the canonical inbox unread count.",
+                "id": "IDENTITY-G004-A003-AC01",
+                "status": "not_tested"
+              }
+            ],
+            "availability": {
+              "constraints": [],
+              "mode": "authenticated",
+              "notes": "This activity covers account navigation only; inbox behavior is owned by COMMUNITY-G001-A004."
+            },
+            "code_refs": [
+              {
+                "path": "apps/web/components/Objects/Account/AccountPageShell.tsx",
+                "responsibility": "Messages account tab and unread badge."
+              },
+              {
+                "path": "apps/web/components/Objects/Menus/OrgMenu.tsx",
+                "responsibility": "Global account menu link and unread indicator."
+              }
+            ],
+            "display_order": 3,
+            "health": "works",
+            "id": "IDENTITY-G004-A003",
+            "implementation_notes": "Kept distinct from the communication activity because this record describes finding the inbox from account navigation, not reading or acting on its content.",
+            "lifecycle": "live",
+            "original_state": "`Live`, previously described as invitation-oriented",
+            "relationships": [
+              {
+                "reason": "That activity owns the inbox feed, read behavior, and message presentation.",
+                "target": "COMMUNITY-G001-A004",
+                "type": "related_to"
+              }
+            ],
+            "signoff": {
+              "status": "pending"
+            },
+            "test_refs": [],
+            "title": "Open Messages and notice unread items from account navigation",
+            "traceability": "complete",
+            "verification": {
+              "status": "ready"
+            }
+          },
+          "acceptance": [
+            {
+              "id": "IDENTITY-G004-A003-AC01",
+              "activity_id": "IDENTITY-G004-A003",
+              "display_order": 1,
+              "criterion": "Account navigation links to Messages and shows the canonical inbox unread count.",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "notes": "Verified by product_owner at 2026-09-02T22:54:35+00:00",
+              "source_json": "{\"criterion\": \"Account navigation links to Messages and shows the canonical inbox unread count.\", \"id\": \"IDENTITY-G004-A003-AC01\", \"status\": \"not_tested\"}",
+              "created_at": "2026-09-02 22:12:16"
+            }
+          ],
+          "steps": [
+            {
+              "id": "IDENTITY-G004-A003-S001",
+              "activity_id": "IDENTITY-G004-A003",
+              "display_order": 1,
+              "title": "Open Messages from account navigation",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "IDENTITY-G004-A003-S002",
+              "activity_id": "IDENTITY-G004-A003",
+              "display_order": 2,
+              "title": "Notice the unread-message indicator",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "not_tested",
+              "manual_status": "passed",
+              "implementation_notes": null,
+              "updated_at": "2026-09-03T18:12:53+00:00",
+              "verification": {
+                "status": "passed",
+                "reviewed_at": "2026-09-03T18:12:53+00:00",
+                "reviewed_by": "product_owner",
+                "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ],
+          "references": [
+            {
+              "kind": "code",
+              "path": "apps/web/components/Objects/Account/AccountPageShell.tsx",
+              "symbol": null,
+              "responsibility": "Messages account tab and unread badge."
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/components/Objects/Menus/OrgMenu.tsx",
+              "symbol": null,
+              "responsibility": "Global account menu link and unread indicator."
+            }
+          ],
+          "relationships": [
+            {
+              "relationship_type": "related_to",
+              "target_id": "COMMUNITY-G001-A004",
+              "reason": "That activity owns the inbox feed, read behavior, and message presentation."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

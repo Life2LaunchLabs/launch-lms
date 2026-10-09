@@ -14,12 +14,24 @@ from src.services.users.usergroups import (
     get_users_linked_to_usergroup,
     read_usergroup_by_id,
     read_usergroups_by_org_id,
+    read_usergroup_overview,
     remove_resources_from_usergroup,
     remove_users_from_usergroup,
     update_usergroup_by_id,
 )
 
 router = APIRouter()
+
+
+@router.get("/org/{org_id}/overview", tags=["usergroups"])
+async def api_get_usergroup_overview(
+    *,
+    request: Request,
+    db_session: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_current_user),
+    org_id: int,
+) -> list[dict]:
+    return await read_usergroup_overview(request, db_session, current_user, org_id)
 
 
 @router.post("/", response_model=UserGroupRead, tags=["usergroups"])

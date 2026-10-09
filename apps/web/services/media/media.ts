@@ -1,6 +1,9 @@
 import { getBackendUrl, getConfig, getUriWithoutOrg } from '@services/config/config'
 
 function getMediaUrl() {
+  if (typeof window !== 'undefined' && window.location.hostname === (getConfig('NEXT_PUBLIC_LAUNCHLMS_DEMO_HOST') || 'demo.life2launch.app')) {
+    return `${window.location.origin}/`
+  }
   const mediaUrl = getConfig('NEXT_PUBLIC_LAUNCHLMS_MEDIA_URL')
   if (mediaUrl) {
     return mediaUrl
@@ -115,6 +118,15 @@ export function getResourceOutcomeMediaDirectory(
   fileId: string
 ) {
   return legacyMediaDirectory(fileId, () => `${getMediaUrl()}content/users/${userUUID}/resources/${resourceUUID}/outcomes/${fileId}`)
+}
+
+export function getResourceNoteMediaDirectory(
+  userUUID: string,
+  resourceUUID: string,
+  fileId: string,
+  storageDirectory = 'notes'
+) {
+  return legacyMediaDirectory(fileId, () => `${getMediaUrl()}content/users/${userUUID}/resources/${resourceUUID}/${storageDirectory}/${fileId}`)
 }
 
 export function getOrgLandingMediaDirectory(orgUUID: string, fileId: string) {

@@ -5,6 +5,11 @@
  */
 export function generateNginxConf(): string {
   return `
+map $http_x_forwarded_proto $launchlms_forwarded_proto {
+    ~*^https?$ $http_x_forwarded_proto;
+    default $scheme;
+}
+
 server {
     listen 80;
     server_name _;
@@ -26,7 +31,7 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Proto $launchlms_forwarded_proto;
 
         # WebSocket support (needed for /collab)
         proxy_http_version 1.1;

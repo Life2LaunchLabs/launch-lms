@@ -228,6 +228,7 @@ version = "1.42.74"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "botocore" },
+    { name = "cryptography" },
     { name = "jmespath" },
     { name = "s3transfer" },
 ]
@@ -822,6 +823,7 @@ requires-dist = [
     { name = "beautifulsoup4", specifier = "==4.14.3" },
     { name = "boto3", specifier = "==1.42.74" },
     { name = "botocore", specifier = "==1.42.74" },
+    { name = "cryptography", specifier = "==46.0.4" },
     { name = "defusedxml", specifier = "==0.7.1" },
     { name = "dnspython", specifier = "==2.8.0" },
     { name = "faker", specifier = "==40.11.1" },

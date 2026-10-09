@@ -3,37 +3,31 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import React from 'react'
-import { ArrowDown, ArrowLeftRight, ArrowUp, Award, Check, ChevronDown, ClipboardCheck, Clock, Eye, GalleryVerticalEnd, Globe, GlobeLock, Handshake, Image as ImageIcon, Info, Loader2, Pencil, Plus, Settings, Trash2, X } from 'lucide-react'
+import { ArrowDown, ArrowLeftRight, ArrowUp, Award, BarChart3, Check, ClipboardCheck, Eye, GalleryVerticalEnd, Handshake, Image as ImageIcon, Loader2, Megaphone, Pencil, Plus, Settings, Trash2, X } from 'lucide-react'
 import { motion } from 'motion/react'
 import toast from 'react-hot-toast'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage'
 import { Button } from '@components/ui/button'
 import { Switch } from '@components/ui/switch'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@components/ui/dropdown-menu'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
-import { getUriWithOrg } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import { deleteLearningBadge, getLearningResponses, gradeLearningResponse, updateLearningBadge } from '@services/learning/learning'
-import { approveIssuerAuthorization, getIssuerAuthorizations, inviteIssuerOrg, rejectIssuerAuthorization, revokeIssuerAuthorization } from '@services/learning/marketplace'
+import { approveIssuerAuthorization, getIssuerAuthorizations, getIssuerBadgeMetrics, inviteIssuerOrg, LearnerAccess, rejectIssuerAuthorization, revokeIssuerAuthorization, updateIssuerAuthorization } from '@services/learning/marketplace'
+import { CreatorIssuingCard, LearnerAccessSelect, learnerAccessLabel } from '@components/Learning/BadgeIssuing'
 import CertificatePreview from '@components/Learning/BadgeCertificatePreview'
 import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
-
-type BadgeStatus = 'draft' | 'coming_soon' | 'published'
+import BadgeVersionToolbar from '@components/Learning/BadgeVersionToolbar'
 
 const tabs = [
+  { key: 'analytics', label: 'Analytics', icon: BarChart3 },
   { key: 'learning-path', label: 'Learning Path', icon: GalleryVerticalEnd },
-  { key: 'grading', label: 'Grading', icon: ClipboardCheck },
+  { key: 'definition', label: 'Definition', icon: Award },
+  { key: 'marketing', label: 'Marketing', icon: Megaphone },
   { key: 'issuers', label: 'Issuers', icon: Handshake },
-  { key: 'about', label: 'About', icon: Info },
   { key: 'settings', label: 'Settings', icon: Settings },
-  { key: 'certification', label: 'Achievement', icon: Award },
 ]
 
 function cleanBadgeId(value: string) {
@@ -55,17 +49,22 @@ export default function AdminBadgeShell({
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
   const org = useOrg() as any
+  const canEdit = Number(org?.id) === Number(initialBadge.org_id)
   const [badge, setBadge] = React.useState(initialBadge)
   const [editingField, setEditingField] = React.useState<'name' | null>(null)
   const [draftName, setDraftName] = React.useState(initialBadge.name || '')
   const [savingField, setSavingField] = React.useState<'name' | null>(null)
   const [isUploading, setIsUploading] = React.useState(false)
-  const [updatingStatus, setUpdatingStatus] = React.useState(false)
-  const [updatingVisibility, setUpdatingVisibility] = React.useState(false)
   const normalizedSubpage = getActiveSubpage(activeSubpage)
 
+  React.useEffect(() => {
+    setBadge(initialBadge)
+    setDraftName(initialBadge.name || '')
+    setEditingField(null)
+  }, [initialBadge])
+
   const patchBadge = async (patch: Record<string, any>, successMessage?: string) => {
-    const nextBadge = await updateLearningBadge(badge.badge_uuid, patch, accessToken)
+    const nextBadge = await updateLearningBadge(badge.badge_uuid, patch, accessToken, badge.selected_version?.version_uuid)
     setBadge(nextBadge)
     if (successMessage) toast.success(successMessage)
     return nextBadge
@@ -89,31 +88,6 @@ export default function AdminBadgeShell({
     }
   }
 
-  const updateStatus = async (status: BadgeStatus) => {
-    if (updatingStatus) return
-    if ((badge.status || 'draft') === status) return
-    setUpdatingStatus(true)
-    try {
-      await patchBadge({ status }, 'Badge status updated.')
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to update status.')
-    } finally {
-      setUpdatingStatus(false)
-    }
-  }
-
-  const updateVisibility = async (isPublic: boolean) => {
-    if (updatingVisibility || badge.public === isPublic) return
-    setUpdatingVisibility(true)
-    try {
-      await patchBadge({ public: isPublic }, 'Access updated.')
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to update visibility.')
-    } finally {
-      setUpdatingVisibility(false)
-    }
-  }
-
   const handleThumbnailSelect = async (url: string) => {
     setIsUploading(true)
     try {
@@ -128,8 +102,11 @@ export default function AdminBadgeShell({
   }
 
   const publicBadgeHref = getUriWithOrg(orgslug, `/badges/${cleanBadgeId(badge.badge_uuid)}`)
-  const currentStatus: BadgeStatus = getBadgeStatus(badge)
   const imageUrl = badge.thumbnail_image
+  const isDraft = badge.selected_version?.state === 'draft'
+  const visibleTabs = canEdit
+    ? tabs
+    : tabs.filter((tab) => ['analytics', 'definition', 'settings'].includes(tab.key))
 
   return (
     <div className="min-h-full w-full bg-[#f8f8f8]">
@@ -159,7 +136,7 @@ export default function AdminBadgeShell({
                 buttonSize="icon"
                 buttonVariant="secondary"
                 className="h-8 w-8 shadow-md"
-                disabled={isUploading}
+                disabled={isUploading || !isDraft || !canEdit}
                 onSelect={handleThumbnailSelect}
               />
             </div>
@@ -171,7 +148,7 @@ export default function AdminBadgeShell({
               isEditing={editingField === 'name'}
               value={draftName}
               onChange={setDraftName}
-              onEdit={() => setEditingField('name')}
+              onEdit={() => isDraft && canEdit && setEditingField('name')}
               onSave={saveName}
               isSaving={savingField === 'name'}
             />
@@ -180,53 +157,7 @@ export default function AdminBadgeShell({
             </p>
 
             <div className="mt-4 flex flex-wrap items-center justify-center gap-2 md:justify-start">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="gap-2 bg-card" disabled={updatingStatus}>
-                    {updatingStatus ? <Loader2 className="animate-spin" /> : <StatusIcon status={currentStatus} />}
-                    <span>{getStatusLabel(currentStatus)}</span>
-                    <ChevronDown className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start">
-                  <DropdownMenuItem onClick={() => updateStatus('draft')}>
-                    <GlobeLock className="h-4 w-4" />
-                    Draft
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => updateStatus('coming_soon')}>
-                    <Clock className="h-4 w-4" />
-                    Coming soon
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => updateStatus('published')}>
-                    <Globe className="h-4 w-4" />
-                    Published
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <div className="inline-flex overflow-hidden rounded-md border border-border bg-card">
-                <Button
-                  type="button"
-                  variant={badge.public === true ? 'default' : 'ghost'}
-                  className={`h-10 rounded-none gap-2 px-3 ${badge.public === true ? '' : 'text-muted-foreground'}`}
-                  disabled={updatingVisibility}
-                  onClick={() => updateVisibility(true)}
-                  title="Public badges appear in learner badge lists."
-                >
-                  {updatingVisibility && badge.public !== true ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
-                  Public
-                </Button>
-                <Button
-                  type="button"
-                  variant={badge.public === false ? 'default' : 'ghost'}
-                  className={`h-10 rounded-none gap-2 px-3 ${badge.public === false ? '' : 'text-muted-foreground'}`}
-                  disabled={updatingVisibility}
-                  onClick={() => updateVisibility(false)}
-                  title="Private badges are visible only within this org."
-                >
-                  {updatingVisibility && badge.public !== false ? <Loader2 className="h-4 w-4 animate-spin" /> : <GlobeLock className="h-4 w-4" />}
-                  Private
-                </Button>
-              </div>
+              {canEdit ? <BadgeVersionToolbar badge={badge} /> : null}
               <Button asChild variant="outline" className="gap-2 bg-card">
                 <Link href={publicBadgeHref} target="_blank">
                   <Eye className="h-4 w-4" />
@@ -238,11 +169,11 @@ export default function AdminBadgeShell({
         </div>
 
         <div className="flex space-x-3 text-sm font-black">
-          {tabs.map((tab) => {
+          {visibleTabs.map((tab) => {
             const Icon = tab.icon
             const isActive = normalizedSubpage === tab.key
             return (
-              <Link key={tab.key} href={getUriWithOrg(orgslug, `/admin/badges/badge/${cleanBadgeId(badge.badge_uuid)}/${tab.key}`)} replace>
+              <Link key={tab.key} href={`${getUriWithOrg(orgslug, `/admin/badges/badge/${cleanBadgeId(badge.badge_uuid)}/${tab.key}`)}?version=${badge.selected_version?.version_uuid || ''}`} replace>
                 <div className={`flex w-fit cursor-pointer space-x-4 border-black py-2 text-center transition-all ease-linear ${isActive ? 'border-b-4' : 'opacity-50 hover:opacity-75'}`}>
                   <div className="mx-2 flex items-center space-x-2.5">
                     <Icon size={16} />
@@ -256,18 +187,120 @@ export default function AdminBadgeShell({
       </div>
 
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.1 }} className="overflow-x-hidden">
-        {normalizedSubpage === 'learning-path' ? children : null}
-        {normalizedSubpage === 'grading' ? <BadgeGradingPanel badge={badge} /> : null}
-        {normalizedSubpage === 'issuers' ? <BadgeIssuersPanel badge={badge} onPatch={patchBadge} /> : null}
-        {normalizedSubpage === 'about' ? <BadgeAboutPanel badge={badge} onPatch={patchBadge} /> : null}
-        {normalizedSubpage === 'settings' ? <BadgeSettingsPanel orgslug={orgslug} badge={badge} onPatch={patchBadge} /> : null}
-        {normalizedSubpage === 'certification' ? <BadgeCertificationPanel badge={badge} onPatch={patchBadge} /> : null}
+        {normalizedSubpage === 'analytics' ? <BadgeAnalyticsPanel badge={badge} canEdit={canEdit} issuerOrgId={Number(org?.id)} orgslug={orgslug} /> : null}
+        {normalizedSubpage === 'learning-path' && canEdit ? children : null}
+        {normalizedSubpage === 'issuers' && canEdit ? <BadgeIssuersPanel badge={badge} onPatch={patchBadge} /> : null}
+        {normalizedSubpage === 'marketing' && canEdit ? <fieldset disabled={!isDraft}><BadgeAboutPanel badge={badge} onPatch={patchBadge} /></fieldset> : null}
+        {normalizedSubpage === 'settings' ? (canEdit
+          ? <BadgeSettingsPanel orgslug={orgslug} badge={badge} onPatch={patchBadge} isDraft={isDraft} />
+          : <IssuerBadgeSettingsPanel orgslug={orgslug} badge={badge} issuerOrgId={Number(org?.id)} />) : null}
+        {normalizedSubpage === 'definition' ? <BadgeCertificationPanel badge={badge} onPatch={patchBadge} readOnly={!isDraft || !canEdit} /> : null}
       </motion.div>
     </div>
   )
 }
 
-function BadgeGradingPanel({ badge }: { badge: any }) {
+function BadgeAnalyticsPanel({ badge, canEdit, issuerOrgId, orgslug }: { badge: any; canEdit: boolean; issuerOrgId: number; orgslug: string }) {
+  if (!canEdit) return <IssuerBadgeAnalyticsPanel badge={badge} issuerOrgId={issuerOrgId} orgslug={orgslug} />
+  const metadata = badge.badge_metadata || {}
+  return (
+    <div className="px-10 pb-10 pt-6">
+      <section className="max-w-4xl rounded-xl bg-card p-6 shadow-xs">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-bold text-foreground">Badge analytics</h2>
+            <p className="mt-1 text-sm text-muted-foreground">A quick view of this badge and how it is available to learners.</p>
+          </div>
+          {!canEdit ? <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">Authorized issuer</span> : null}
+        </div>
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <AnalyticsStat label="Status" value={badge.status === 'published' ? 'Published' : 'Draft'} />
+          <AnalyticsStat label="Visibility" value={badge.public ? 'Public' : 'Restricted'} />
+          <AnalyticsStat label="Direct issuance" value={badge.direct_conferral_enabled ? 'Enabled' : 'Disabled'} />
+          <AnalyticsStat label="Estimated time" value={metadata.estimated_time_label || metadata.estimated_time || 'Not set'} />
+        </div>
+      </section>
+    </div>
+  )
+}
+
+function IssuerBadgeAnalyticsPanel({ badge, issuerOrgId, orgslug }: { badge: any; issuerOrgId: number; orgslug: string }) {
+  const session = useLHSession() as any
+  const accessToken = session.data?.tokens?.access_token
+  const [metrics, setMetrics] = React.useState<any>(null)
+  const [loading, setLoading] = React.useState(true)
+
+  const load = React.useCallback(async () => {
+    setLoading(true)
+    try {
+      const response = await getIssuerBadgeMetrics(issuerOrgId, badge.badge_uuid, accessToken)
+      setMetrics(response?.success ? response.data : response)
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to load badge analytics.')
+    } finally {
+      setLoading(false)
+    }
+  }, [accessToken, badge.badge_uuid, issuerOrgId])
+
+  React.useEffect(() => {
+    void load()
+  }, [load])
+
+  return (
+    <div className="px-10 pb-10 pt-6">
+      <section className="max-w-4xl rounded-xl bg-card p-6 shadow-xs">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-bold text-foreground">Your organization’s activity</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Issuance and program usage for this badge in your organization only.</p>
+          </div>
+          <Button variant="outline" onClick={() => void load()} disabled={loading} className="gap-2 bg-card">
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <BarChart3 className="h-4 w-4" />}
+            Refresh
+          </Button>
+        </div>
+
+        {loading && !metrics ? (
+          <div className="flex items-center justify-center py-16 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /></div>
+        ) : (
+          <>
+            <div className="mt-6 grid gap-4 sm:grid-cols-3">
+              <AnalyticsStat label="Issued by your org" value={String(metrics?.issued_count || 0)} />
+              <AnalyticsStat label="Used in programs" value={String(metrics?.programs?.length || 0)} />
+              <AnalyticsStat label="Learner access" value={learnerAccessLabel(metrics?.authorization?.learner_access)} />
+            </div>
+
+            <div className="mt-8">
+              <h3 className="text-sm font-bold text-foreground">Programs using this badge</h3>
+              <div className="mt-3 space-y-3">
+                {metrics?.programs?.length ? metrics.programs.map((program: any) => (
+                  <Link key={program.program_uuid} href={getUriWithOrg(orgslug, routePaths.org.dash.program(program.program_uuid))} className="flex items-center justify-between gap-4 rounded-lg border border-border p-4 transition hover:border-foreground/30 hover:bg-muted/30">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-bold text-foreground">{program.name}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{program.assignment_count} {program.assignment_count === 1 ? 'assignment' : 'assignments'}</p>
+                    </div>
+                    <span className="rounded-full bg-muted px-3 py-1 text-xs font-bold capitalize text-muted-foreground">{program.status}</span>
+                  </Link>
+                )) : (
+                  <div className="rounded-lg border border-dashed border-border py-10 text-center">
+                    <p className="text-sm font-semibold text-muted-foreground">Not used in any programs</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Add this badge as a program objective when you’re ready to use it.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+      </section>
+    </div>
+  )
+}
+
+function AnalyticsStat({ label, value }: { label: string; value: string }) {
+  return <div className="rounded-lg border border-border bg-muted/30 p-4"><p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{label}</p><p className="mt-2 text-sm font-bold text-foreground">{value}</p></div>
+}
+
+export function BadgeGradingPanel({ badge }: { badge: any }) {
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
   const [responses, setResponses] = React.useState<any[]>([])
@@ -412,6 +445,7 @@ const authorizationStatusStyles: Record<string, string> = {
 }
 
 function BadgeIssuersPanel({ badge, onPatch }: { badge: any; onPatch: (patch: Record<string, any>, successMessage?: string) => Promise<any> }) {
+  const org = useOrg() as any
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
   const [authorizations, setAuthorizations] = React.useState<any[]>([])
@@ -424,7 +458,8 @@ function BadgeIssuersPanel({ badge, onPatch }: { badge: any; onPatch: (patch: Re
   const load = React.useCallback(async () => {
     setLoading(true)
     try {
-      const data = await getIssuerAuthorizations(badge.org_id, 'creator', accessToken, badge.badge_uuid)
+      const response = await getIssuerAuthorizations(badge.org_id, 'creator', accessToken, badge.badge_uuid)
+      const data = response?.success ? response.data : response
       setAuthorizations(Array.isArray(data) ? data : [])
     } catch (error: any) {
       toast.error(error?.message || 'Failed to load issuer authorizations.')
@@ -523,6 +558,7 @@ function BadgeIssuersPanel({ badge, onPatch }: { badge: any; onPatch: (patch: Re
         </div>
 
         <div className="mt-6 space-y-3">
+          <CreatorIssuingCard badge={badge} orgName={org?.name} refreshKey={authorizations.filter((item) => item.status === 'approved').length} />
           {loading ? (
             <div className="flex items-center justify-center py-12 text-muted-foreground">
               <Loader2 className="h-5 w-5 animate-spin" />
@@ -534,7 +570,7 @@ function BadgeIssuersPanel({ badge, onPatch }: { badge: any; onPatch: (patch: Re
                 <p className="mt-1 text-xs text-muted-foreground">
                   {authorization.issuer_org?.slug}
                   {authorization.message ? ` · “${authorization.message}”` : ''}
-                  {authorization.status === 'approved' ? (authorization.open_to_all ? ' · open to all learners' : ' · invited learners only') : ''}
+                  {authorization.status === 'approved' ? ` · ${learnerAccessLabel(authorization.learner_access).toLowerCase()}` : ''}
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
@@ -651,7 +687,7 @@ function BadgeAboutPanel({ badge, onPatch }: { badge: any; onPatch: (patch: Reco
   return (
     <div className="px-10 pb-10 pt-6">
       <section className="max-w-4xl rounded-xl bg-card p-6 shadow-xs">
-        <h2 className="text-lg font-bold text-foreground">About</h2>
+        <h2 className="text-lg font-bold text-foreground">Marketing</h2>
         <div className="mt-5 space-y-5">
           <div className="grid gap-4 md:grid-cols-2">
             <label className="block">
@@ -743,7 +779,7 @@ function BadgeAboutPanel({ badge, onPatch }: { badge: any; onPatch: (patch: Reco
   )
 }
 
-function BadgeSettingsPanel({ orgslug, badge, onPatch }: { orgslug: string; badge: any; onPatch: (patch: Record<string, any>, successMessage?: string) => Promise<any> }) {
+function BadgeSettingsPanel({ orgslug, badge, onPatch, isDraft }: { orgslug: string; badge: any; onPatch: (patch: Record<string, any>, successMessage?: string) => Promise<any>; isDraft: boolean }) {
   const router = useRouter()
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
@@ -782,7 +818,8 @@ function BadgeSettingsPanel({ orgslug, badge, onPatch }: { orgslug: string; badg
       <section className="max-w-4xl rounded-xl bg-card p-6 shadow-xs">
         <h2 className="text-lg font-bold text-foreground">Settings</h2>
         <div className="mt-4 divide-y divide-border">
-          <SettingRow title="Direct issuance" description="Allow authorized admins to create an OpenBadgeCredential without learning-path completion." disabled={savingKey === 'direct_conferral_enabled'} checked={badge.direct_conferral_enabled === true} onChange={(value) => toggle('direct_conferral_enabled', value, 'Direct issuance setting updated.')} />
+          <SettingRow title="Public visibility" description="Show this badge in public badge listings. Private badges remain available only within this organization." disabled={savingKey === 'public'} checked={badge.public === true} onChange={(value) => toggle('public', value, value ? 'Badge is now public.' : 'Badge is now private.')} />
+          <SettingRow title="Direct issuance" description={isDraft ? "Allow authorized admins to create an OpenBadgeCredential without learning-path completion." : "Create a draft version to change direct issuance."} disabled={!isDraft || savingKey === 'direct_conferral_enabled'} checked={badge.direct_conferral_enabled === true} onChange={(value) => toggle('direct_conferral_enabled', value, 'Direct issuance setting updated.')} />
         </div>
       </section>
       <section className="mt-6 max-w-4xl rounded-xl border border-red-100 bg-card p-6 shadow-xs">
@@ -795,6 +832,94 @@ function BadgeSettingsPanel({ orgslug, badge, onPatch }: { orgslug: string; badg
           <button onClick={removeBadge} disabled={deleting} className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-xs font-bold text-red-700 disabled:opacity-50">
             {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
             Delete
+          </button>
+        </div>
+      </section>
+    </div>
+  )
+}
+
+function IssuerBadgeSettingsPanel({ orgslug, badge, issuerOrgId }: { orgslug: string; badge: any; issuerOrgId: number }) {
+  const router = useRouter()
+  const session = useLHSession() as any
+  const accessToken = session.data?.tokens?.access_token
+  const [authorization, setAuthorization] = React.useState<any>(null)
+  const [loading, setLoading] = React.useState(true)
+  const [saving, setSaving] = React.useState(false)
+  const [releasing, setReleasing] = React.useState(false)
+
+  const load = React.useCallback(async () => {
+    setLoading(true)
+    try {
+      const response = await getIssuerAuthorizations(issuerOrgId, 'issuer', accessToken, badge.badge_uuid)
+      const data = response?.success ? response.data : response
+      setAuthorization(Array.isArray(data) ? data.find((item: any) => item.status === 'approved') || null : null)
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to load issuer settings.')
+    } finally {
+      setLoading(false)
+    }
+  }, [accessToken, badge.badge_uuid, issuerOrgId])
+
+  React.useEffect(() => {
+    void load()
+  }, [load])
+
+  const changeAccess = async (value: LearnerAccess) => {
+    if (!authorization || saving) return
+    setSaving(true)
+    try {
+      const updated = await updateIssuerAuthorization(authorization.authorization_uuid, { learner_access: value }, accessToken)
+      setAuthorization(updated)
+      toast.success(`Learner access: ${learnerAccessLabel(value).toLowerCase()}.`)
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to update learner access.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const release = async () => {
+    if (!authorization || releasing) return
+    if (!confirm(`Release “${badge.name}”? It will be removed from your badge library and your organization will no longer be able to issue it.`)) return
+    setReleasing(true)
+    try {
+      await revokeIssuerAuthorization(authorization.authorization_uuid, accessToken)
+      toast.success('Badge authorization released.')
+      router.push(getUriWithOrg(orgslug, routePaths.org.dash.badges()))
+      router.refresh()
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to release badge authorization.')
+      setReleasing(false)
+    }
+  }
+
+  return (
+    <div className="px-10 pb-10 pt-6">
+      <section className="max-w-4xl rounded-xl bg-card p-6 shadow-xs">
+        <h2 className="text-lg font-bold text-foreground">Issuer settings</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Settings that apply only to your organization’s use of this badge.</p>
+        {loading ? (
+          <div className="flex items-center justify-center py-14 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /></div>
+        ) : authorization ? (
+          <div className="mt-5">
+            <LearnerAccessSelect value={authorization.learner_access || 'invite'} disabled={saving} onChange={(value) => void changeAccess(value as LearnerAccess)} />
+          </div>
+        ) : (
+          <p className="mt-5 rounded-lg bg-muted p-4 text-sm text-muted-foreground">No active issuing authorization was found.</p>
+        )}
+      </section>
+
+      <section className="mt-6 max-w-4xl rounded-xl border border-red-100 bg-card p-6 shadow-xs">
+        <h2 className="text-lg font-bold text-red-700">Release authorization</h2>
+        <div className="mt-4 flex items-start justify-between gap-6">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Remove from your library</h3>
+            <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">Your organization will stop appearing as an issuer and will no longer be able to deliver, grade, or issue this badge. Existing credentials remain valid.</p>
+          </div>
+          <button onClick={() => void release()} disabled={!authorization || releasing} className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-xs font-bold text-red-700 disabled:opacity-50">
+            {releasing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+            Release
           </button>
         </div>
       </section>
@@ -827,7 +952,7 @@ const certificatePatterns = [
   { value: 'modern', label: 'Modern' },
 ]
 
-function BadgeCertificationPanel({ badge, onPatch }: { badge: any; onPatch: (patch: Record<string, any>, successMessage?: string) => Promise<any> }) {
+function BadgeCertificationPanel({ badge, onPatch, readOnly = false }: { badge: any; onPatch: (patch: Record<string, any>, successMessage?: string) => Promise<any>; readOnly?: boolean }) {
   const org = useOrg() as any
   const metadata = badge.badge_metadata || {}
   const [values, setValues] = React.useState({
@@ -911,29 +1036,29 @@ function BadgeCertificationPanel({ badge, onPatch }: { badge: any; onPatch: (pat
         <div className="order-2 space-y-6 lg:order-1">
           <section className="rounded-xl bg-card p-6 shadow-xs">
             <div className="flex flex-col gap-1">
-              <h2 className="text-lg font-bold text-foreground">Achievement</h2>
-              <p className="text-sm text-muted-foreground">Define the reusable Open Badges Achievement embedded in every OpenBadgeCredential issued for it.</p>
+              <h2 className="text-lg font-bold text-foreground">Definition</h2>
+              <p className="text-sm text-muted-foreground">{readOnly ? 'Read-only Achievement definition supplied by the badge creator.' : 'Define the reusable Open Badges Achievement embedded in every OpenBadgeCredential issued for it.'}</p>
             </div>
 
             <div className="mt-6 space-y-6">
               <div className="grid gap-5 md:grid-cols-2">
-                <TextInput label="Achievement name" value={values.badge_name} onChange={(value) => updateValue('badge_name', value)} maxLength={100} />
-                <SelectInput label="Achievement type" value={values.achievement_type} onChange={(value) => updateValue('achievement_type', value)} options={achievementTypes} />
+                <TextInput label="Achievement name" value={values.badge_name} onChange={(value) => updateValue('badge_name', value)} maxLength={100} readOnly={readOnly} />
+                <SelectInput label="Achievement type" value={values.achievement_type} onChange={(value) => updateValue('achievement_type', value)} options={achievementTypes} readOnly={readOnly} />
               </div>
 
-              <TextAreaInput label="Achievement description" value={values.badge_description} onChange={(value) => updateValue('badge_description', value)} rows={4} maxLength={500} />
-              <TextAreaInput label="Criteria narrative" value={values.badge_criteria_text} onChange={(value) => updateValue('badge_criteria_text', value)} rows={5} />
+              <TextAreaInput label="Achievement description" value={values.badge_description} onChange={(value) => updateValue('badge_description', value)} rows={4} maxLength={500} readOnly={readOnly} />
+              <TextAreaInput label="Criteria narrative" value={values.badge_criteria_text} onChange={(value) => updateValue('badge_criteria_text', value)} rows={5} readOnly={readOnly} />
 
-              <TextInput label="Criteria ID (URL)" value={values.criteria_url} onChange={(value) => updateValue('criteria_url', value)} placeholder="Optional public criteria page" />
+              <TextInput label="Criteria ID (URL)" value={values.criteria_url} onChange={(value) => updateValue('criteria_url', value)} placeholder="Optional public criteria page" readOnly={readOnly} />
 
               <div className="space-y-2">
-                <TextInput label="Achievement image URL" value={values.badge_image_url} onChange={(value) => updateValue('badge_image_url', value)} placeholder="Image representing the Achievement" />
-                <ImageMediaPicker
+                <TextInput label="Achievement image URL" value={values.badge_image_url} onChange={(value) => updateValue('badge_image_url', value)} placeholder="Image representing the Achievement" readOnly={readOnly} />
+                {!readOnly ? <ImageMediaPicker
                   owner={{ type: 'org', id: Number(org.id) }}
                   title="Choose Achievement image"
                   buttonText="Choose Achievement image"
                   onSelect={(url) => updateValue('badge_image_url', url)}
-                />
+                /> : null}
               </div>
 
               <div className="rounded-lg border border-border bg-muted/40 p-4">
@@ -949,18 +1074,18 @@ function BadgeCertificationPanel({ badge, onPatch }: { badge: any; onPatch: (pat
               <p className="text-sm text-muted-foreground">Customize a Launch LMS presentation of the credential. The certificate is not part of the Achievement definition and does not change issuance.</p>
             </div>
             <div className="mt-6 grid gap-5 md:grid-cols-2">
-              <SelectInput label="Certificate theme" value={values.badge_theme} onChange={(value) => updateValue('badge_theme', value)} options={certificatePatterns} />
+              <SelectInput label="Certificate theme" value={values.badge_theme} onChange={(value) => updateValue('badge_theme', value)} options={certificatePatterns} readOnly={readOnly} />
               <div>
-                <TextInput label="Certificate issuer label" value={values.issuer_name} onChange={(value) => updateValue('issuer_name', value)} placeholder="Defaults to the organization issuer" />
+                <TextInput label="Certificate issuer label" value={values.issuer_name} onChange={(value) => updateValue('issuer_name', value)} placeholder="Defaults to the organization issuer" readOnly={readOnly} />
                 <p className="mt-1.5 text-xs leading-5 text-muted-foreground">Visual override only. The verifiable credential uses the organization that actually issues each award.</p>
               </div>
             </div>
           </section>
 
-          <Button onClick={save} disabled={saving} className="gap-2">
+          {!readOnly ? <Button onClick={save} disabled={saving} className="gap-2">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
             Save Achievement
-          </Button>
+          </Button> : null}
         </div>
 
         <aside className="order-1 space-y-4 lg:order-2 lg:sticky lg:top-6">
@@ -1051,23 +1176,27 @@ function TextInput({
   onChange,
   placeholder,
   maxLength,
+  readOnly = false,
 }: {
   label: string
   value: string
   onChange: (value: string) => void
   placeholder?: string
   maxLength?: number
+  readOnly?: boolean
 }) {
   return (
     <label className="block">
       <span className="text-xs font-bold uppercase text-muted-foreground">{label}</span>
-      <input
+      {readOnly ? (
+        <div className="mt-1 min-h-10 whitespace-pre-wrap py-2 text-sm text-foreground">{value || <span className="text-muted-foreground">Not set</span>}</div>
+      ) : <input
         value={value}
         maxLength={maxLength}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         className="mt-2 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black"
-      />
+      />}
     </label>
   )
 }
@@ -1078,23 +1207,27 @@ function TextAreaInput({
   onChange,
   rows,
   maxLength,
+  readOnly = false,
 }: {
   label: string
   value: string
   onChange: (value: string) => void
   rows: number
   maxLength?: number
+  readOnly?: boolean
 }) {
   return (
     <label className="block">
       <span className="text-xs font-bold uppercase text-muted-foreground">{label}</span>
-      <textarea
+      {readOnly ? (
+        <div className="mt-1 min-h-10 whitespace-pre-wrap py-2 text-sm leading-6 text-foreground">{value || <span className="text-muted-foreground">Not set</span>}</div>
+      ) : <textarea
         value={value}
         rows={rows}
         maxLength={maxLength}
         onChange={(event) => onChange(event.target.value)}
         className="mt-2 w-full resize-none rounded-lg border border-border bg-card px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black"
-      />
+      />}
     </label>
   )
 }
@@ -1104,16 +1237,21 @@ function SelectInput({
   value,
   onChange,
   options,
+  readOnly = false,
 }: {
   label: string
   value: string
   onChange: (value: string) => void
   options: Array<{ value: string; label: string }>
+  readOnly?: boolean
 }) {
+  const selectedLabel = options.find((option) => option.value === value)?.label || value
   return (
     <label className="block">
       <span className="text-xs font-bold uppercase text-muted-foreground">{label}</span>
-      <select
+      {readOnly ? (
+        <div className="mt-1 min-h-10 py-2 text-sm text-foreground">{selectedLabel || <span className="text-muted-foreground">Not set</span>}</div>
+      ) : <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
         className="mt-2 h-10 w-full rounded-lg border border-border bg-card px-3 text-sm outline-none focus:ring-2 focus:ring-black"
@@ -1121,7 +1259,7 @@ function SelectInput({
         {options.map((option) => (
           <option key={option.value} value={option.value}>{option.label}</option>
         ))}
-      </select>
+      </select>}
     </label>
   )
 }
@@ -1178,24 +1316,6 @@ function EditableHeaderField({
   )
 }
 
-function StatusIcon({ status }: { status: BadgeStatus }) {
-  if (status === 'published') return <Globe className="h-4 w-4 text-green-700" />
-  if (status === 'coming_soon') return <Clock className="h-4 w-4 text-orange-700" />
-  return <GlobeLock className="h-4 w-4 text-yellow-700" />
-}
-
-function getBadgeStatus(badge: any): BadgeStatus {
-  const status = badge?.status
-  if (status === 'published' || status === 'coming_soon' || status === 'draft') return status
-  return 'draft'
-}
-
-function getStatusLabel(status: BadgeStatus) {
-  if (status === 'published') return 'Published'
-  if (status === 'coming_soon') return 'Coming soon'
-  return 'Draft'
-}
-
 function formatBadgeDate(value?: string) {
   if (!value) return ''
   const date = new Date(value)
@@ -1214,9 +1334,10 @@ function getBadgeDateLine(badge: any) {
 
 function getActiveSubpage(subpage: string) {
   if (subpage === 'content') return 'learning-path'
-  if (subpage === 'general' || subpage === 'seo') return 'about'
+  if (subpage === 'general' || subpage === 'seo' || subpage === 'about') return 'marketing'
+  if (subpage === 'certification' || subpage === 'achievement') return 'definition'
   if (subpage === 'access' || subpage === 'contributors') return 'settings'
-  return tabs.some((tab) => tab.key === subpage) ? subpage : 'learning-path'
+  return tabs.some((tab) => tab.key === subpage) ? subpage : 'analytics'
 }
 
 function countWords(value: string) {

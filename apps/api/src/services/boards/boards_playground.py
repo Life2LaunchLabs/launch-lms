@@ -5,6 +5,8 @@ from collections.abc import AsyncGenerator
 from uuid import uuid4
 
 import redis
+from src.services.demo.context import isolated_redis
+from src.services.demo.providers import generation_options
 from config.config import get_launchlms_config
 from src.services.ai.base import get_gemini_client
 from src.services.boards.schemas.boards_playground import (
@@ -26,7 +28,7 @@ def get_redis_connection():
     redis_conn_string = LH_CONFIG.redis_config.redis_connection_string
     if redis_conn_string:
         try:
-            return redis.from_url(redis_conn_string)
+            return isolated_redis(redis.from_url(redis_conn_string))
         except Exception as e:
             logger.error("Failed to connect to Redis: %s", e, exc_info=True)
     return None
@@ -180,7 +182,7 @@ Please modify the HTML code above according to the user's request. Output ONLY t
             contents.append({"role": "user", "parts": [{"text": prompt}]})
 
         response = client.models.generate_content_stream(
-            model=gemini_model_name, contents=contents
+            model=gemini_model_name, contents=contents, **generation_options(contents)
         )
 
         full_response = ""

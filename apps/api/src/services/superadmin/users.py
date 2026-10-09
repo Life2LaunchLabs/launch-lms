@@ -353,6 +353,10 @@ def create_global_user(db_session: Session, payload: GlobalUserCreate) -> dict:
         )
         db_session.commit()
 
+    from src.services.messages import create_welcome_message_safely
+
+    create_welcome_message_safely(db_session, int(user.id or 0))
+
     return get_global_user(db_session, int(user.id or 0))
 
 

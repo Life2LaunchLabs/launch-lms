@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { getConfig } from './services/config/config'
 import { getAPIUrl } from './services/config/config'
-import { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from './services/auth/cookies'
+import {
+  ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE, getLegacyParentCookieDomain,
+} from './services/auth/cookies'
 import { ROUTING_COOKIES } from './services/routing/cookies'
 import { isCustomDomainHost, getOrgSlugFromSubdomain } from './services/routing/context'
 import {
@@ -11,6 +14,8 @@ import {
 } from './services/routing/requestPolicy'
 import { stripPort } from './services/utils/ts/hostUtils'
 import { buildPublicRequestUrl } from './services/routing/context'
+import { hasRoutableSession } from './services/auth/sessionCookies'
+import { rewriteWithRequestHeaders } from './services/routing/rewriteResponse'
 
 interface OrgSubdomainAccess {
   user_site_enabled: boolean
@@ -87,6 +92,24 @@ function setInstanceCookies(response: NextResponse, info: RequestInstanceInfo) {
   return response
 }
 
+function expireLegacyParentCookies(response: NextResponse, request: NextRequest) {
+  const domain = getLegacyParentCookieDomain(request)
+  if (!domain) return response
+  const secure = request.nextUrl.protocol === 'https:'
+  for (const name of [ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE]) {
+    response.cookies.set(name, '', {
+      domain, path: '/', maxAge: 0, httpOnly: true, sameSite: 'lax', secure,
+    })
+  }
+  for (const name of [
+    'launchlms_has_session', ROUTING_COOKIES.orgSlug, ROUTING_COOKIES.legacyOrgSlug,
+    ROUTING_COOKIES.customDomain,
+  ]) {
+    response.cookies.set(name, '', { domain, path: '/', maxAge: 0, sameSite: 'lax', secure })
+  }
+  return response
+}
+
 async function resolveCustomDomain(domain: string): Promise<string | null> {
   try {
     const apiUrl = process.env.LAUNCHLMS_INTERNAL_API_URL || getAPIUrl()
@@ -154,7 +177,7 @@ function buildResponse(req: NextRequest, decision: RoutingDecision): NextRespons
       return NextResponse.redirect(new URL(decision.destination || '/', req.url))
     case 'rewrite':
     default:
-      return NextResponse.rewrite(new URL(decision.destination || '/', req.url))
+      return rewriteWithRequestHeaders(req, decision.destination || '/')
   }
 }
 
@@ -172,7 +195,7 @@ function applyDecision(response: NextResponse, decision: RoutingDecision) {
 
 export const config = {
   matcher: [
-    '/((?!api|content|_next|fonts|umami|examples|embed|monitoring|[\\w-]+\\.\\w+).*)',
+    '/((?!api|auth|orgs|content|_next|fonts|umami|examples|embed|monitoring|[\\w-]+\\.\\w+).*)',
     '/sitemap.xml',
     '/robots.txt',
     '/payments/stripe/connect/oauth',
@@ -181,7 +204,25 @@ export const config = {
 }
 
 export default async function proxy(req: NextRequest) {
-  const instanceInfo = await getInstanceInfo()
+  // The picker and direct demo-user links (/demo/<handle>) work without a session.
+  if (req.nextUrl.pathname === '/demo' || /^\/demo\/[a-z0-9-]{1,40}$/.test(req.nextUrl.pathname)) return NextResponse.next()
+  let instanceInfo = await getInstanceInfo()
+  const demoHost = getConfig('NEXT_PUBLIC_LAUNCHLMS_DEMO_HOST', 'demo.life2launch.app')
+  const requestHost = (req.headers.get('host') || '').split(':')[0]
+  const demoEntryUrl = new URL('/demo', buildPublicRequestUrl(req.url, req.headers.get('x-forwarded-host') || req.headers.get('host'), req.headers.get('x-forwarded-proto')))
+  const isDemoHost = requestHost === demoHost || requestHost.endsWith(`.${demoHost}`)
+  if (isDemoHost) {
+    instanceInfo = { ...instanceInfo, frontend_domain: demoHost, top_domain: demoHost }
+    if (!req.cookies.get(ACCESS_TOKEN_COOKIE)?.value) return NextResponse.redirect(demoEntryUrl)
+    // The published checkpoint names the main org, so bare paths behave as on the live site.
+    const status = await fetch(`${process.env.LAUNCHLMS_INTERNAL_API_URL || getAPIUrl()}demo/status`, {
+      headers: { Authorization: `Bearer ${req.cookies.get(ACCESS_TOKEN_COOKIE)?.value}` }, cache: 'no-store',
+    })
+    if (!status.ok) return NextResponse.redirect(demoEntryUrl)
+    const demo = await status.json()
+    if (demo.mode !== 'visitor') return NextResponse.redirect(demoEntryUrl)
+    instanceInfo.default_org_slug = demo.entry_org_slug
+  }
   const pathname = req.nextUrl.pathname
   const search = req.nextUrl.search
   const host = req.headers.get('host')
@@ -190,9 +231,10 @@ export default async function proxy(req: NextRequest) {
     req.headers.get('x-forwarded-host') || host,
     req.headers.get('x-forwarded-proto')
   )
-  const hasSession =
-    !!req.cookies.get(ACCESS_TOKEN_COOKIE)?.value ||
-    !!req.cookies.get(REFRESH_TOKEN_COOKIE)?.value
+  const hasSession = hasRoutableSession({
+    accessToken: req.cookies.get(ACCESS_TOKEN_COOKIE)?.value,
+    refreshToken: req.cookies.get(REFRESH_TOKEN_COOKIE)?.value,
+  })
 
   let resolvedCustomDomainOrgSlug: string | null = null
   if (isCustomDomainHost(host, instanceInfo.frontend_domain) && host) {
@@ -224,5 +266,6 @@ export default async function proxy(req: NextRequest) {
   const response = buildResponse(req, decision)
   setInstanceCookies(response, instanceInfo)
   applyDecision(response, decision)
+  expireLegacyParentCookies(response, req)
   return response
 }

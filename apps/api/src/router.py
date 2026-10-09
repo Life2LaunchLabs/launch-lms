@@ -3,15 +3,26 @@ from src.routers import analytics as analytics_router_module
 from src.routers import (
     api_tokens,
     auth,
+    auth_handoff,
+    candidate_feedback,
     code_execution,
     dev,
+    demo,
+    demo_guide,
     health,
+    hub,
+    hub_launch,
+    hub_next,
     instance,
     media,
+    messages,
     news,
     orgs,
+    operations_surface,
     plans,
+    planning,
     portfolio,
+    programs,
     roles,
     search,
     stream,
@@ -19,6 +30,9 @@ from src.routers import (
     users,
 )
 from src.routers import learning as learning_router_module
+from src.routers import learning_documents as learning_documents_router_module
+from src.routers import oauth as oauth_router_module
+from src.routers import mcp as mcp_router_module
 from src.routers import marketplace as marketplace_router_module
 from src.routers import payments as payments_router_module
 from src.routers import resources as resources_router_module
@@ -38,6 +52,7 @@ from src.routers.playgrounds import (
 from src.routers.podcasts import episodes as episodes_router_module
 from src.routers.podcasts import podcasts as podcasts_router_module
 from src.routers.superadmin import router as superadmin_router
+from src.routers.superadmin_hub_launch import router as superadmin_hub_launch_router
 from src.routers.utils import router as utils_router
 from src.security.api_token_utils import require_non_api_token_user
 from src.security.auth import get_current_user
@@ -52,6 +67,8 @@ from src.security.features_utils.plan_check import (
 from src.services.dev.dev import isDevModeEnabledOrRaise
 
 v1_router = APIRouter(prefix="/api/v1")
+v1_router.include_router(demo.router, prefix="/demo", tags=["demo"])
+v1_router.include_router(demo_guide.router, prefix="/demo", tags=["demo"])
 
 # Helper dependency to reject API token access
 async def get_non_api_token_user(user = Depends(get_current_user)):
@@ -71,7 +88,50 @@ v1_router.include_router(
     tags=["usergroups"],
     dependencies=[Depends(require_plan_for_usergroups("full", "User Groups"))]
 )
+v1_router.include_router(
+    programs.router,
+    prefix="/programs",
+    tags=["programs"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
+v1_router.include_router(
+    planning.router,
+    prefix="/planning",
+    tags=["planning"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
 v1_router.include_router(auth.router, prefix="/auth", tags=["auth"])
+v1_router.include_router(auth_handoff.router, prefix="/auth", tags=["auth"])
+v1_router.include_router(
+    operations_surface.router,
+    prefix="/operations",
+    tags=["operations-surface"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
+v1_router.include_router(
+    candidate_feedback.router,
+    prefix="/candidate",
+    tags=["candidate-feedback"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
+v1_router.include_router(
+    hub.router,
+    prefix="/hub",
+    tags=["hub"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
+v1_router.include_router(
+    hub_launch.router,
+    prefix="/hub",
+    tags=["hub"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
+v1_router.include_router(
+    hub_next.router,
+    prefix="/hub",
+    tags=["hub"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
 v1_router.include_router(
     orgs.router,
     prefix="/orgs",
@@ -137,6 +197,11 @@ v1_router.include_router(learning_router_module.responses_router, prefix="/learn
 v1_router.include_router(learning_router_module.awards_router, prefix="/badge-awards", tags=["learning-badge-awards"])
 v1_router.include_router(learning_router_module.imports_router, prefix="/badge-import", tags=["learning-badge-import"])
 v1_router.include_router(learning_router_module.variables_router, prefix="/learning-variables", tags=["learning-variables"])
+v1_router.include_router(learning_documents_router_module.router, prefix="/learning-documents", tags=["learning-documents"])
+v1_router.include_router(learning_documents_router_module.previews_router, prefix="/learning-previews", tags=["learning-previews"])
+v1_router.include_router(learning_documents_router_module.content_router, prefix="/learning-content", tags=["learning-content"])
+v1_router.include_router(oauth_router_module.router, prefix="/oauth", tags=["oauth"])
+v1_router.include_router(mcp_router_module.router, prefix="/mcp", tags=["mcp"])
 v1_router.include_router(marketplace_router_module.router, prefix="/badge-marketplace", tags=["learning-badge-marketplace"])
 v1_router.include_router(
     communities_router_module.router,
@@ -155,6 +220,12 @@ v1_router.include_router(
     prefix="/media",
     tags=["media"],
     dependencies=[Depends(get_non_api_token_user)]
+)
+v1_router.include_router(
+    messages.router,
+    prefix="/messages",
+    tags=["messages"],
+    dependencies=[Depends(get_non_api_token_user)],
 )
 v1_router.include_router(
     portfolio.router,
@@ -249,6 +320,13 @@ v1_router.include_router(
 
 v1_router.include_router(
     superadmin_router,
+    prefix="/superadmin",
+    tags=["superadmin"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
+
+v1_router.include_router(
+    superadmin_hub_launch_router,
     prefix="/superadmin",
     tags=["superadmin"],
     dependencies=[Depends(get_non_api_token_user)],

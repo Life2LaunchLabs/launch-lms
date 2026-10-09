@@ -5,10 +5,11 @@ import { getOrgOgImageMediaDirectory, normalizeMediaUrl } from '@services/media/
 import { getServerSession } from '@/lib/auth/server'
 import { getCanonicalUrl, getOrgSeoConfig } from '@/lib/seo/utils'
 import { getLearningPath } from '@services/learning/learning'
-import { LearningActivityPlayer } from '@components/Learning/LearningBadgeViews'
+import { LearningActivityPlayer } from '@components/Learning/player/LearningActivityPlayer'
 
 type ChapterPageProps = {
   params: Promise<{ orgslug: string; uuid: string; chapterid: string }>
+  searchParams?: Promise<{ assignment?: string; planObjective?: string }>
 }
 
 export async function generateMetadata(props: ChapterPageProps): Promise<Metadata> {
@@ -64,6 +65,8 @@ export async function generateMetadata(props: ChapterPageProps): Promise<Metadat
 
 const BadgeChapterPage = async (props: ChapterPageProps) => {
   const params = await props.params
+  const assignment = (await props.searchParams)?.assignment
+  const planObjective = (await props.searchParams)?.planObjective
   const session = await getServerSession()
   const accessToken = session?.tokens?.access_token || null
 
@@ -72,7 +75,10 @@ const BadgeChapterPage = async (props: ChapterPageProps) => {
       params.uuid,
       accessToken || undefined,
       true,
-      { revalidate: 0, tags: ['learning-badges'] }
+      { revalidate: 0, tags: ['learning-badges'] },
+      undefined,
+      assignment,
+      planObjective,
     )
     const cleanActivityId = params.chapterid.replace('learning_activity_', '')
     const activity = (badgePath.activities || []).find((item: any) => (

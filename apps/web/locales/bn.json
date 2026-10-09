@@ -519,8 +519,8 @@
     "usergroup_filter": {
       "all_courses": "All Courses",
       "filter_by_group": "Filter by group",
-      "info_title": "User Group Filter",
-      "info_description": "Filter courses by user group to see only courses assigned to a specific group. Useful for families or teams sharing the same organization."
+      "info_title": "Group Filter",
+      "info_description": "Filter courses by group to see only courses assigned to a specific group. Useful for families or teams sharing the same organization."
     }
   },
   "communities": {
@@ -3364,13 +3364,13 @@
       "set_to_public_confirm": "সংস্থার সকল সাইন-ইন করা সদস্য এই বোর্ডে অ্যাক্সেস করতে পারবেন।",
       "make_board_public": "বোর্ড সর্বজনীন করুন",
       "set_to_private": "ব্যক্তিগত করুন",
-      "set_to_private_confirm": "শুধুমাত্র লিঙ্ক করা UserGroups-এর সদস্যরা এই বোর্ডে অ্যাক্সেস করতে পারবেন।",
+      "set_to_private_confirm": "শুধুমাত্র লিঙ্ক করা Groups-এর সদস্যরা এই বোর্ডে অ্যাক্সেস করতে পারবেন।",
       "make_board_private": "বোর্ড ব্যক্তিগত করুন",
       "active": "সক্রিয়",
       "public_option": "সর্বজনীন",
       "public_description": "সংস্থার সকল সাইন-ইন করা সদস্য এই বোর্ডে অ্যাক্সেস করতে পারবেন",
       "private_option": "শুধুমাত্র ব্যবহারকারী",
-      "private_description": "শুধুমাত্র লিঙ্ক করা UserGroups এই বোর্ডে অ্যাক্সেস করতে পারবে",
+      "private_description": "শুধুমাত্র লিঙ্ক করা Groups এই বোর্ডে অ্যাক্সেস করতে পারবে",
       "board_set_public": "বোর্ড সর্বজনীন করা হয়েছে",
       "board_set_private": "বোর্ড ব্যক্তিগত করা হয়েছে",
       "access_update_error": "অ্যাক্সেস আপডেট করতে ব্যর্থ",
@@ -3383,7 +3383,7 @@
       "no_user_groups": "এখনও কোনো ব্যবহারকারী গ্রুপ লিঙ্ক করা হয়নি",
       "link_to_user_group": "ব্যবহারকারী গ্রুপে লিঙ্ক করুন",
       "link_to_user_group_description": "এই বোর্ডে অ্যাক্সেস দিতে একটি ব্যবহারকারী গ্রুপ নির্বাচন করুন",
-      "link_to_usergroup_btn": "UserGroup-এ লিঙ্ক করুন",
+      "link_to_usergroup_btn": "Group-এ লিঙ্ক করুন",
       "user_group": "ব্যবহারকারী গ্রুপ",
       "no_user_groups_available": "কোনো ব্যবহারকারী গ্রুপ উপলব্ধ নেই",
       "create_user_group": "ব্যবহারকারী গ্রুপ তৈরি করুন",

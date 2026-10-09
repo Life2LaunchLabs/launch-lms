@@ -6,7 +6,6 @@ from src.core.events.database import get_db_session
 from src.db.organizations import Organization
 from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
-from src.security.rbac.constants import ADMIN_ROLE_ID
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +21,12 @@ def is_user_superadmin(user_id: int, db_session: Session) -> bool:
 
 def is_user_owner_org_admin(user_id: int, db_session: Session) -> bool:
     """Allow default-org admins to access platform tools until superadmin is fully rolled out."""
+    from src.services.demo.context import current_demo
+
+    if current_demo.get():
+        return False
+    from src.security.rbac.constants import ADMIN_ROLE_ID
+
     owner_org = db_session.exec(
         select(Organization).order_by(Organization.id).limit(1)
     ).first()

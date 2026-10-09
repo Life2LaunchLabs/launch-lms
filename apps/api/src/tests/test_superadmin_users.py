@@ -2,6 +2,7 @@ import pytest
 from fastapi import HTTPException
 from sqlmodel import Session, create_engine, select
 from src.db.audit_logs import AuditLog
+from src.db.messages import InboxMessage, InboxMessageTemplate
 from src.db.organizations import Organization
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
@@ -38,6 +39,8 @@ def db_session():
     UserOrganization.__table__.create(engine)
     Role.__table__.create(engine)
     AuditLog.__table__.create(engine)
+    InboxMessageTemplate.__table__.create(engine)
+    InboxMessage.__table__.create(engine)
     with Session(engine) as session:
         _seed_roles(session)
         yield session
@@ -200,6 +203,9 @@ def test_create_global_user_with_org_membership(db_session: Session):
 
     user = db_session.exec(select(User).where(User.username == "newbie")).one()
     assert user.password != STRONG_PASSWORD  # hashed
+    welcome = db_session.exec(select(InboxMessage).where(InboxMessage.recipient_user_id == user.id)).one()
+    assert welcome.message_type == "welcome"
+    assert welcome.sender_org_id == org.id
 
 
 def test_create_global_user_rejects_duplicates_and_weak_passwords(db_session: Session):

@@ -14,6 +14,7 @@ from fastapi import (
 )
 from pydantic import BaseModel, EmailStr
 from sqlmodel import Session
+from src.services.demo.context import cache_key
 from src.core.events.database import get_db_session
 from src.db.users import (
     AnonymousUser,
@@ -40,6 +41,7 @@ from src.services.users.users import (
     authorize_user_action,
     create_user,
     create_user_with_invite,
+    create_user_with_organization_invitation,
     create_user_without_org,
     delete_user_by_id,
     get_user_session,
@@ -59,7 +61,6 @@ router = APIRouter()
 
 SESSION_CACHE_TTL = 600  # 10 minutes
 
-
 def _get_redis_client() -> redis.Redis | None:
     """Return a Redis client or None if unavailable."""
     try:
@@ -78,7 +79,7 @@ def _get_session_cache(user_id: int) -> dict | None:
     if r is None:
         return None
     try:
-        raw = r.get(f"session:{user_id}")
+        raw = r.get(cache_key(f"session:{user_id}"))
         if raw:
             return json.loads(raw)
     except Exception:
@@ -92,7 +93,7 @@ def _set_session_cache(user_id: int, session_data: dict) -> None:
     if r is None:
         return
     try:
-        r.setex(f"session:{user_id}", SESSION_CACHE_TTL, json.dumps(session_data))
+        r.setex(cache_key(f"session:{user_id}"), SESSION_CACHE_TTL, json.dumps(session_data))
     except Exception:
         logger.debug("Session cache write failed for user %s", user_id, exc_info=True)
 
@@ -103,7 +104,7 @@ def _invalidate_session_cache(user_id: int) -> None:
     if r is None:
         return
     try:
-        r.delete(f"session:{user_id}")
+        r.delete(cache_key(f"session:{user_id}"))
     except Exception:
         logger.debug("Session cache invalidation failed for user %s", user_id, exc_info=True)
 
@@ -196,6 +197,7 @@ async def api_create_user_with_orgid(
         return user
 
 
+# Legacy shared invite-code signup retained for already-issued links.
 @router.post("/{org_id}/invite/{invite_code}", response_model=UserRead, tags=["users"])
 async def api_create_user_with_orgid_and_invite(
     *,
@@ -211,26 +213,45 @@ async def api_create_user_with_orgid_and_invite(
     Create User with Org ID and invite code
     """
 
-    # TODO: This is temporary, logic should be moved to service
-    if (
-        await get_org_join_mechanism(request, org_id, current_user, db_session)
-        == "inviteOnly"
-    ):
-        user = await create_user_with_invite(
-            request, db_session, current_user, user_object, org_id, invite_code
-        )
-        transfer_guest_session_data_to_user(
-            request=request,
-            response=response,
-            db_session=db_session,
-            user=PublicUser.model_validate(user),
-        )
-        return user
-    else:
-        raise HTTPException(
-            status_code=403,
-            detail="This organization does not require an invite code",
-        )
+    # Direct invitations are valid for both open and invite-only organizations.
+    user = await create_user_with_invite(
+        request, db_session, current_user, user_object, org_id, invite_code
+    )
+    transfer_guest_session_data_to_user(
+        request=request,
+        response=response,
+        db_session=db_session,
+        user=PublicUser.model_validate(user),
+    )
+    return user
+
+
+@router.post("/{org_id}/invitation/{invitation_token}", response_model=UserRead, tags=["users"])
+async def api_create_user_with_organization_invitation(
+    *,
+    request: Request,
+    response: Response,
+    db_session: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_current_user),
+    user_object: UserSignupCreate,
+    invitation_token: str,
+    org_id: int,
+) -> UserRead:
+    user = await create_user_with_organization_invitation(
+        request,
+        db_session,
+        current_user,
+        user_object,
+        org_id,
+        invitation_token,
+    )
+    transfer_guest_session_data_to_user(
+        request=request,
+        response=response,
+        db_session=db_session,
+        user=PublicUser.model_validate(user),
+    )
+    return user
 
 
 @router.post("/", response_model=UserRead, tags=["users"])

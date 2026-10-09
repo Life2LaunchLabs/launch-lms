@@ -2,6 +2,7 @@ from io import BytesIO
 
 import pytest
 from fastapi import HTTPException, UploadFile
+from starlette.datastructures import Headers
 from sqlmodel import Session, SQLModel, create_engine, select
 from src.db.media import (
     MediaAsset,
@@ -26,6 +27,7 @@ PNG_BYTES = (
     b"\x08\x02\x00\x00\x00\x90wS\xde"
     b"\x00\x00\x00\x00IEND\xaeB`\x82"
 )
+PDF_BYTES = b"%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\n%%EOF"
 
 
 def _session():
@@ -100,6 +102,46 @@ async def test_user_can_upload_list_and_apply_avatar(monkeypatch):
         assert len(assets) == 1
         assert assets[0].filename == "stored-avatar.png"
         assert updated_user.avatar_image == "/content/users/user-1/media/stored-avatar.png"
+
+
+@pytest.mark.asyncio
+async def test_user_can_upload_and_list_pdf_document(monkeypatch):
+    async def fake_document_upload(**_kwargs):
+        return "stored-plan.pdf"
+
+    monkeypatch.setattr(media_service, "upload_file", fake_document_upload)
+
+    with _session() as db:
+        user = _user(1, "maya")
+        db.add(user)
+        db.commit()
+
+        upload = UploadFile(
+            filename="plan.pdf",
+            file=BytesIO(PDF_BYTES),
+            headers=Headers({"content-type": "application/pdf"}),
+        )
+        asset = await media_service.upload_media_asset(
+            MediaOwnerType.user,
+            user.id,
+            MediaType.document,
+            upload,
+            _public(user),
+            db,
+            title="My plan",
+        )
+        assets = media_service.list_media_assets(
+            MediaOwnerType.user,
+            user.id,
+            _public(user),
+            db,
+            media_type=MediaType.document,
+        )
+
+        assert asset.media_type == MediaType.document
+        assert asset.mime_type == "application/pdf"
+        assert asset.filename == "stored-plan.pdf"
+        assert [item.asset_uuid for item in assets] == [asset.asset_uuid]
 
 
 def test_user_cannot_list_another_users_media():

@@ -1,14 +1,15 @@
 from fastapi import APIRouter, Depends, Query, Request
 from src.core.events.database import get_db_session
 from src.db.learning import (
-    BadgeIssuerAuthorizationRead,
     IssuerAuthorizationInvite,
     IssuerAuthorizationRequest,
-    IssuerAuthorizationUpdate,
     IssuerLearnerLinkCreate,
+    IssuerLearnerRequestCreate,
+    IssuerLearnerRequestDecision,
 )
 from src.security.auth import get_current_user
 from src.services import learning_marketplace as marketplace_service
+from src.services.learning_issuers import BadgeIssuerAuthorizationAccessRead, BadgeIssuingSettingsUpdate, IssuerAccessUpdate
 
 router = APIRouter()
 
@@ -34,6 +35,27 @@ async def api_list_eligible_issuers(
     return await marketplace_service.list_eligible_issuers(request, badge_uuid, current_user, db_session)
 
 
+@router.get("/badges/{badge_uuid}/issuing")
+async def api_get_issuing_settings(
+    request: Request,
+    badge_uuid: str,
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> dict:
+    return await marketplace_service.get_issuing_settings(request, badge_uuid, current_user, db_session)
+
+
+@router.put("/badges/{badge_uuid}/issuing")
+async def api_update_issuing_settings(
+    request: Request,
+    badge_uuid: str,
+    payload: BadgeIssuingSettingsUpdate,
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> dict:
+    return await marketplace_service.update_issuing_settings(request, badge_uuid, payload, current_user, db_session)
+
+
 @router.get("/authorizations")
 async def api_list_authorizations(
     request: Request,
@@ -43,7 +65,7 @@ async def api_list_authorizations(
     status: str | None = Query(None),
     current_user=Depends(get_current_user),
     db_session=Depends(get_db_session),
-) -> list[BadgeIssuerAuthorizationRead]:
+) -> list[BadgeIssuerAuthorizationAccessRead]:
     return await marketplace_service.list_authorizations(
         request, org_id, perspective, current_user, db_session, badge_uuid=badge_uuid, status_filter=status
     )
@@ -55,7 +77,7 @@ async def api_request_authorization(
     payload: IssuerAuthorizationRequest,
     current_user=Depends(get_current_user),
     db_session=Depends(get_db_session),
-) -> BadgeIssuerAuthorizationRead:
+) -> BadgeIssuerAuthorizationAccessRead:
     return await marketplace_service.request_authorization(request, payload, current_user, db_session)
 
 
@@ -65,7 +87,7 @@ async def api_invite_issuer(
     payload: IssuerAuthorizationInvite,
     current_user=Depends(get_current_user),
     db_session=Depends(get_db_session),
-) -> BadgeIssuerAuthorizationRead:
+) -> BadgeIssuerAuthorizationAccessRead:
     return await marketplace_service.invite_issuer(request, payload, current_user, db_session)
 
 
@@ -75,7 +97,7 @@ async def api_approve_authorization(
     authorization_uuid: str,
     current_user=Depends(get_current_user),
     db_session=Depends(get_db_session),
-) -> BadgeIssuerAuthorizationRead:
+) -> BadgeIssuerAuthorizationAccessRead:
     return await marketplace_service.decide_authorization(request, authorization_uuid, True, current_user, db_session)
 
 
@@ -85,7 +107,7 @@ async def api_reject_authorization(
     authorization_uuid: str,
     current_user=Depends(get_current_user),
     db_session=Depends(get_db_session),
-) -> BadgeIssuerAuthorizationRead:
+) -> BadgeIssuerAuthorizationAccessRead:
     return await marketplace_service.decide_authorization(request, authorization_uuid, False, current_user, db_session)
 
 
@@ -95,7 +117,7 @@ async def api_accept_invite(
     authorization_uuid: str,
     current_user=Depends(get_current_user),
     db_session=Depends(get_db_session),
-) -> BadgeIssuerAuthorizationRead:
+) -> BadgeIssuerAuthorizationAccessRead:
     return await marketplace_service.accept_invite(request, authorization_uuid, current_user, db_session)
 
 
@@ -105,7 +127,7 @@ async def api_revoke_authorization(
     authorization_uuid: str,
     current_user=Depends(get_current_user),
     db_session=Depends(get_db_session),
-) -> BadgeIssuerAuthorizationRead:
+) -> BadgeIssuerAuthorizationAccessRead:
     return await marketplace_service.revoke_authorization(request, authorization_uuid, current_user, db_session)
 
 
@@ -113,10 +135,10 @@ async def api_revoke_authorization(
 async def api_update_authorization(
     request: Request,
     authorization_uuid: str,
-    payload: IssuerAuthorizationUpdate,
+    payload: IssuerAccessUpdate,
     current_user=Depends(get_current_user),
     db_session=Depends(get_db_session),
-) -> BadgeIssuerAuthorizationRead:
+) -> BadgeIssuerAuthorizationAccessRead:
     return await marketplace_service.update_authorization(request, authorization_uuid, payload, current_user, db_session)
 
 
@@ -141,6 +163,44 @@ async def api_create_learner_link(
     return await marketplace_service.create_learner_link(request, payload, current_user, db_session)
 
 
+@router.post("/learner-requests")
+async def api_request_learner_support(
+    request: Request,
+    payload: IssuerLearnerRequestCreate,
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> dict:
+    return await marketplace_service.request_learner_support(
+        request, payload, current_user, db_session
+    )
+
+
+@router.post("/learner-requests/{link_uuid}/accept")
+async def api_accept_learner_request(
+    request: Request,
+    link_uuid: str,
+    payload: IssuerLearnerRequestDecision,
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> dict:
+    return await marketplace_service.decide_learner_request(
+        request, link_uuid, True, payload, current_user, db_session
+    )
+
+
+@router.post("/learner-requests/{link_uuid}/reject")
+async def api_reject_learner_request(
+    request: Request,
+    link_uuid: str,
+    payload: IssuerLearnerRequestDecision,
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> dict:
+    return await marketplace_service.decide_learner_request(
+        request, link_uuid, False, payload, current_user, db_session
+    )
+
+
 @router.delete("/learner-links/{link_uuid}")
 async def api_delete_learner_link(
     request: Request,
@@ -159,3 +219,16 @@ async def api_creator_issuance_metrics(
     db_session=Depends(get_db_session),
 ) -> dict:
     return await marketplace_service.creator_issuance_metrics(request, org_id, current_user, db_session)
+
+
+@router.get("/metrics/issuer")
+async def api_issuer_badge_metrics(
+    request: Request,
+    org_id: int = Query(...),
+    badge_uuid: str = Query(...),
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> dict:
+    return await marketplace_service.issuer_badge_metrics(
+        request, org_id, badge_uuid, current_user, db_session
+    )

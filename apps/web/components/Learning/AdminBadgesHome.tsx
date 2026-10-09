@@ -181,7 +181,7 @@ export default function AdminBadgesHome({
               <button
                 onClick={(event) => deleteCollection(event, collection)}
                 disabled={deleting === collection.collection_uuid}
-                className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-md border border-red-100 bg-card text-red-600 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 disabled:opacity-60"
+                className={`absolute right-2 top-2 z-10 h-8 w-8 items-center justify-center rounded-md border border-red-100 bg-card text-red-600 opacity-0 shadow-sm transition-opacity group-hover:opacity-100 disabled:opacity-60 ${collection.can_edit === false ? 'hidden' : 'flex'}`}
                 title="Delete collection"
               >
                 {deleting === collection.collection_uuid ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
@@ -201,7 +201,9 @@ export default function AdminBadgesHome({
                     <BookCopy size={12} />
                     <span className="text-[10px] font-bold uppercase tracking-wider">{collection.badges?.length || 0} badges</span>
                   </div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Edit</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    {collection.can_edit === false ? `Issued by ${collection.creator_org?.name || 'another organization'}` : 'Edit'}
+                  </span>
                 </div>
               </div>
             </Link>

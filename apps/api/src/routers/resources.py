@@ -1,5 +1,5 @@
 
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, Request, Response, UploadFile
 from pydantic import BaseModel
 from sqlmodel import Session
 from src.core.events.database import get_db_session
@@ -9,6 +9,9 @@ from src.db.resources import (
     ResourceCommentCreate,
     ResourceCommentUpdate,
     ResourceCreate,
+    ResourceNoteBlockCreate,
+    ResourceNoteBlockUpdate,
+    ResourceReviewCreate,
     ResourceTagCreate,
     ResourceTagUpdate,
     ResourceUpdate,
@@ -17,22 +20,28 @@ from src.db.resources import (
 )
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
+from src.security.org_auth import require_org_role_permission
 from src.services.resources import (
     add_resource_to_channel,
     create_channel,
     create_comment,
+    create_note_block,
+    create_review,
     create_resource,
     create_tag,
     create_user_channel,
     delete_channel,
     delete_comment,
+    delete_note_block,
     delete_resource,
     delete_tag,
+    delete_user_channel,
     get_resource,
     import_resources_csv,
     list_channel_resources,
     list_channels,
     list_comments,
+    list_note_blocks,
     list_resources,
     list_tags,
     remove_resource_from_channel,
@@ -40,12 +49,20 @@ from src.services.resources import (
     unsave_resource_for_user,
     update_channel,
     update_comment,
+    update_note_block,
     update_resource,
     update_tag,
     update_user_channel,
     upload_channel_thumbnail,
     upload_resource_thumbnail,
+    upload_note_file,
     upload_saved_resource_outcome_file,
+)
+from src.services.search.resource_lexical import RESOURCE_SEARCH_VERSION
+from src.services.search.resource_search import (
+    backfill_resource_search_documents,
+    refresh_resource_search_embedding_task,
+    resource_search_index_status,
 )
 
 router = APIRouter()
@@ -91,22 +108,28 @@ async def api_create_tag(
 @router.put("/tags/{tag_uuid}")
 async def api_update_tag(
     request: Request,
+    background_tasks: BackgroundTasks,
     tag_uuid: str,
     tag_data: ResourceTagUpdate,
     current_user: PublicUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
-    return await update_tag(request, tag_uuid, tag_data, current_user, db_session)
+    tag = await update_tag(request, tag_uuid, tag_data, current_user, db_session)
+    background_tasks.add_task(backfill_resource_search_documents, tag["org_id"])
+    return tag
 
 
 @router.delete("/tags/{tag_uuid}")
 async def api_delete_tag(
     request: Request,
+    background_tasks: BackgroundTasks,
     tag_uuid: str,
     current_user: PublicUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
-    return await delete_tag(request, tag_uuid, current_user, db_session)
+    result = await delete_tag(request, tag_uuid, current_user, db_session)
+    background_tasks.add_task(backfill_resource_search_documents, result["org_id"])
+    return result
 
 
 @router.post("/channels")
@@ -157,6 +180,7 @@ async def api_upload_channel_thumbnail(
 @router.get("/org/{org_id}")
 async def api_list_resources(
     request: Request,
+    response: Response,
     org_id: int,
     channel_uuid: str | None = None,
     user_channel_uuid: str | None = None,
@@ -164,15 +188,18 @@ async def api_list_resources(
     resource_types: str | None = None,
     tags: str | None = None,
     provider: str | None = None,
-    query: str | None = None,
+    query: str | None = Query(default=None, max_length=200),
     access: str | None = None,
     saved_only: bool = False,
     completed_only: bool = False,
     include_private: bool = False,
+    offset: int = Query(default=0, ge=0),
+    limit: int | None = Query(default=None, ge=1, le=50),
     current_user: PublicUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
-    return await list_resources(
+    query = (query.strip() or None) if query is not None else None
+    resources = await list_resources(
         request,
         org_id,
         current_user,
@@ -188,19 +215,52 @@ async def api_list_resources(
         saved_only=saved_only,
         completed_only=completed_only,
         include_private=include_private,
+        offset=offset,
+        limit=limit,
     )
+    if query:
+        response.headers["X-Resource-Search-Version"] = (
+            resources[0].get("search_version", RESOURCE_SEARCH_VERSION)
+            if resources else RESOURCE_SEARCH_VERSION
+        )
+    return resources
+
+
+@router.get("/org/{org_id}/search-index")
+async def api_resource_search_index_status(
+    org_id: int,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    require_org_role_permission(current_user.id, org_id, db_session, "resources", "action_update")
+    return resource_search_index_status(org_id, db_session)
+
+
+@router.post("/org/{org_id}/search-index/backfill", status_code=202)
+async def api_backfill_resource_search_index(
+    org_id: int,
+    background_tasks: BackgroundTasks,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    require_org_role_permission(current_user.id, org_id, db_session, "resources", "action_update")
+    background_tasks.add_task(backfill_resource_search_documents, org_id)
+    return {"detail": "Resource search backfill queued", **resource_search_index_status(org_id, db_session)}
 
 
 @router.post("/")
 async def api_create_resource(
     request: Request,
+    background_tasks: BackgroundTasks,
     org_id: int,
     resource_data: ResourceCreate,
     enrich_metadata: bool = True,
     current_user: PublicUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
-    return await create_resource(request, org_id, resource_data, current_user, db_session, enrich_metadata=enrich_metadata)
+    resource = await create_resource(request, org_id, resource_data, current_user, db_session, enrich_metadata=enrich_metadata)
+    background_tasks.add_task(refresh_resource_search_embedding_task, resource["id"])
+    return resource
 
 
 @router.get("/{resource_uuid}")
@@ -217,12 +277,15 @@ async def api_get_resource(
 @router.put("/{resource_uuid}")
 async def api_update_resource(
     request: Request,
+    background_tasks: BackgroundTasks,
     resource_uuid: str,
     resource_data: ResourceUpdate,
     current_user: PublicUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
-    return await update_resource(request, resource_uuid, resource_data, current_user, db_session)
+    resource = await update_resource(request, resource_uuid, resource_data, current_user, db_session)
+    background_tasks.add_task(refresh_resource_search_embedding_task, resource["id"])
+    return resource
 
 
 @router.delete("/{resource_uuid}")
@@ -311,6 +374,17 @@ async def api_update_user_channel(
     return await update_user_channel(request, org_id, user_channel_uuid, current_user, db_session, channel_data)
 
 
+@router.delete("/org/{org_id}/me/channels/{user_channel_uuid}")
+async def api_delete_user_channel(
+    request: Request,
+    org_id: int,
+    user_channel_uuid: str,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return await delete_user_channel(request, org_id, user_channel_uuid, current_user, db_session)
+
+
 @router.post("/{resource_uuid}/save")
 async def api_save_resource(
     request: Request,
@@ -343,6 +417,101 @@ async def api_upload_outcome_file(
     if not outcome_file:
         raise HTTPException(status_code=400, detail="outcome_file is required")
     return await upload_saved_resource_outcome_file(request, resource_uuid, outcome_file, current_user, db_session)
+
+
+@router.get("/{resource_uuid}/notes")
+async def api_list_note_blocks(
+    request: Request,
+    resource_uuid: str,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return await list_note_blocks(request, resource_uuid, current_user, db_session)
+
+
+@router.post("/{resource_uuid}/notes")
+async def api_create_note_block(
+    request: Request,
+    resource_uuid: str,
+    note_data: ResourceNoteBlockCreate,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return await create_note_block(request, resource_uuid, note_data, current_user, db_session)
+
+
+@router.post("/{resource_uuid}/notes/upload")
+async def api_upload_note_file(
+    request: Request,
+    resource_uuid: str,
+    file: UploadFile = File(...),
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return await upload_note_file(request, resource_uuid, file, current_user, db_session)
+
+
+@router.put("/notes/{note_uuid}")
+async def api_update_note_block(
+    request: Request,
+    note_uuid: str,
+    note_data: ResourceNoteBlockUpdate,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return await update_note_block(request, note_uuid, note_data, current_user, db_session)
+
+
+@router.delete("/notes/{note_uuid}")
+async def api_delete_note_block(
+    request: Request,
+    note_uuid: str,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return await delete_note_block(request, note_uuid, current_user, db_session)
+
+
+@router.get("/{resource_uuid}/reviews")
+async def api_list_reviews(
+    request: Request,
+    resource_uuid: str,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return await list_comments(request, resource_uuid, current_user, db_session)
+
+
+@router.post("/{resource_uuid}/reviews")
+async def api_create_review(
+    request: Request,
+    resource_uuid: str,
+    review_data: ResourceReviewCreate,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return await create_review(request, resource_uuid, review_data, current_user, db_session)
+
+
+@router.put("/reviews/{comment_uuid}")
+async def api_update_review(
+    request: Request,
+    comment_uuid: str,
+    review_data: ResourceCommentUpdate,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return await update_comment(request, comment_uuid, review_data, current_user, db_session)
+
+
+@router.delete("/reviews/{comment_uuid}")
+async def api_delete_review(
+    request: Request,
+    comment_uuid: str,
+    current_user: PublicUser = Depends(get_current_user),
+    db_session: Session = Depends(get_db_session),
+):
+    return await delete_comment(request, comment_uuid, current_user, db_session)
 
 
 @router.get("/{resource_uuid}/comments")
@@ -390,10 +559,13 @@ async def api_delete_comment(
 @router.post("/org/{org_id}/import")
 async def api_import_resources_csv(
     request: Request,
+    background_tasks: BackgroundTasks,
     org_id: int,
     channel_uuid: str | None = None,
     file: UploadFile = File(...),
     current_user: PublicUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
-    return await import_resources_csv(request, org_id, file, current_user, db_session, channel_uuid=channel_uuid)
+    result = await import_resources_csv(request, org_id, file, current_user, db_session, channel_uuid=channel_uuid)
+    background_tasks.add_task(backfill_resource_search_documents, org_id)
+    return result

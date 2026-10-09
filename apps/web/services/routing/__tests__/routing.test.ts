@@ -1,9 +1,87 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { routePaths, withQuery } from '../paths.ts'
+import { hubFromLegacyResources, hubFromLegacySearch, routePaths, withQuery } from '../paths.ts'
 import { resolveRequestRouting, type RequestInstanceInfo } from '../requestPolicy.ts'
 import { classifyRoute } from '../routeAccess.ts'
-import { buildPublicRequestUrl } from '../context.ts'
+import { buildPublicRequestUrl, getCanonicalOrgHostname } from '../context.ts'
+import { hubTimestampDate } from '../../hub/timestamp.ts'
+import { isManagedHost, legacyParentCookieDomain, safeHandoffPath } from '../handoff.ts'
+import { hasRoutableSession, SERVER_AUTH_HEADERS } from '../../auth/sessionCookies.ts'
+import { NextRequest } from 'next/server.js'
+import { rewriteWithRequestHeaders } from '../rewriteResponse.ts'
+
+function unsignedToken(exp: number): string {
+  const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url')
+  return `${encode({ alg: 'none' })}.${encode({ exp })}.unsigned`
+}
+
+test('routing ignores expired access-only cookies but preserves recoverable sessions', () => {
+  const now = 2_000_000_000
+  assert.equal(hasRoutableSession({}, now), false)
+  assert.equal(hasRoutableSession({ accessToken: 'not-a-jwt' }, now), false)
+  assert.equal(hasRoutableSession({ accessToken: unsignedToken(now - 1) }, now), false)
+  assert.equal(hasRoutableSession({ accessToken: unsignedToken(now + 1) }, now), true)
+  assert.equal(hasRoutableSession({ accessToken: unsignedToken(now - 1), refreshToken: 'not-a-jwt' }, now), false)
+  assert.equal(hasRoutableSession({ accessToken: unsignedToken(now - 1), refreshToken: unsignedToken(now - 1) }, now), false)
+  assert.equal(hasRoutableSession({ accessToken: unsignedToken(now - 1), refreshToken: unsignedToken(now + 1) }, now), true)
+})
+
+test('organization rewrites carry a sanitized server auth context', () => {
+  const cookie = 'access_token_cookie=access.jwt; refresh_token_cookie=refresh.jwt'
+  const request = new NextRequest('https://unstable.life2launch.app/portfolio', {
+    headers: {
+      cookie,
+      [SERVER_AUTH_HEADERS.accessToken]: 'client-forged-access',
+      [SERVER_AUTH_HEADERS.refreshToken]: 'client-forged-refresh',
+    },
+  })
+  const response = rewriteWithRequestHeaders(request, '/orgs/default/portfolio')
+
+  assert.match(response.headers.get('x-middleware-override-headers') || '', /(^|,)cookie(,|$)/)
+  assert.equal(response.headers.get('x-middleware-request-cookie'), cookie)
+  assert.equal(response.headers.get(`x-middleware-request-${SERVER_AUTH_HEADERS.accessToken}`), 'access.jwt')
+  assert.equal(response.headers.get(`x-middleware-request-${SERVER_AUTH_HEADERS.refreshToken}`), 'refresh.jwt')
+  assert.equal(response.headers.get('cookie'), null)
+
+  const unauthenticatedRequest = new NextRequest('https://unstable.life2launch.app/portfolio', {
+    headers: { [SERVER_AUTH_HEADERS.accessToken]: 'client-forged-access' },
+  })
+  const unauthenticatedResponse = rewriteWithRequestHeaders(
+    unauthenticatedRequest,
+    '/orgs/default/portfolio'
+  )
+  assert.equal(
+    unauthenticatedResponse.headers.get(`x-middleware-request-${SERVER_AUTH_HEADERS.accessToken}`),
+    null
+  )
+})
+
+test('session handoff only targets the same installation and one organization label', () => {
+  const domain = 'unstable.life2launch.app'
+  assert.equal(isManagedHost(domain, domain), true)
+  assert.equal(isManagedHost(`school.${domain}`, domain), true)
+  for (const host of [
+    'school.life2launch.app', 'life2launch.dev',
+    `nested.school.${domain}`, `school.${domain}.evil.test`,
+    `school.${domain}:9999`, `${domain}@evil.test`,
+  ]) {
+    assert.equal(isManagedHost(host, domain), false, host)
+  }
+})
+
+test('handoff return paths cannot navigate to another origin', () => {
+  assert.equal(safeHandoffPath('/admin?tab=users#roles'), true)
+  for (const path of ['//evil.test', '/\\evil.test', 'https://evil.test', '/home\nX-Test: bad']) {
+    assert.equal(safeHandoffPath(path), false, path)
+  }
+})
+
+test('legacy cookie cleanup only accepts an actual parent of the environment domain', () => {
+  assert.equal(legacyParentCookieDomain('unstable.life2launch.app', 'life2launch.app'), '.life2launch.app')
+  assert.equal(legacyParentCookieDomain('life2launch.app', '.life2launch.app'), '.life2launch.app')
+  assert.equal(legacyParentCookieDomain('unstable.life2launch.app', 'evil.test'), undefined)
+  assert.equal(legacyParentCookieDomain('evil-life2launch.app', 'life2launch.app'), undefined)
+})
 
 const instanceInfo: RequestInstanceInfo = {
   multi_org_enabled: true,
@@ -11,6 +89,32 @@ const instanceInfo: RequestInstanceInfo = {
   frontend_domain: 'launchlms.test',
   top_domain: 'launchlms.test',
 }
+
+test('default organization canonical host is the installation apex regardless of cookie scope', () => {
+  assert.equal(
+    getCanonicalOrgHostname('default', 'default', 'unstable.life2launch.app'),
+    'unstable.life2launch.app'
+  )
+  assert.equal(
+    getCanonicalOrgHostname('school', 'default', 'unstable.life2launch.app'),
+    'school.unstable.life2launch.app'
+  )
+  assert.equal(
+    getCanonicalOrgHostname('default', 'default', 'localhost:3000'),
+    'localhost'
+  )
+})
+
+test('Hub treats timezone-less server timestamps as UTC before local display', () => {
+  assert.equal(
+    hubTimestampDate('2026-09-08T12:00:00').getTime(),
+    new Date('2026-09-08T12:00:00Z').getTime()
+  )
+  assert.equal(
+    hubTimestampDate('2026-09-08T12:00:00-07:00').getTime(),
+    new Date('2026-09-08T12:00:00-07:00').getTime()
+  )
+})
 
 test('withQuery omits empty values and encodes query params', () => {
   assert.equal(
@@ -24,20 +128,51 @@ test('withQuery omits empty values and encodes query params', () => {
   )
 })
 
+test('legacy resource links retain their discovery intent in Hub', () => {
+  assert.equal(
+    hubFromLegacyResources({ channel: 'shared channel', q: 'career planning', tag: ['one', 'two'] }),
+    '/hub?channel=shared+channel&q=career+planning&tag=one&tag=two'
+  )
+  assert.equal(hubFromLegacyResources({}), '/hub')
+})
+
+test('legacy search links retain query and result type in Hub', () => {
+  assert.equal(
+    hubFromLegacySearch({ q: 'career planning', type: 'resources' }),
+    '/hub?q=career+planning&type=resources'
+  )
+  assert.equal(hubFromLegacySearch({}), '/hub')
+})
+
 test('route manifest builds key dashboard and owner routes', () => {
+  assert.equal(routePaths.org.groupPlan('assignment_1'), '/plans?group=assignment_1')
   assert.equal(routePaths.org.dash.badges(), '/admin/badges')
+  assert.equal(routePaths.org.dash.planAssignments(), '/admin/plans/assignments')
+  assert.equal(routePaths.org.dash.planRequirements(), '/admin/plans/requirements')
+  assert.equal(routePaths.org.dash.planRequirement('framework 1', 'levels'), '/admin/plans/requirements/framework%201/levels')
+  assert.equal(routePaths.org.dash.planReporting(), '/admin/plans/reporting')
+  assert.equal(routePaths.org.dash.planAssignment('assignment_1'), '/admin/plans/assignments/assignment_1/overview')
+  assert.equal(routePaths.org.dash.livePlan('plan_1'), '/admin/plans/live/plan_1')
+  assert.equal(routePaths.org.dash.livePlan('plan_1', 'reviews'), '/admin/plans/live/plan_1/reviews')
   assert.equal(routePaths.org.dash.users.roles(), '/admin/users/roles')
+  assert.equal(routePaths.org.dash.users.usergroups(), '/admin/users')
+  assert.equal(routePaths.org.dash.users.group(2), '/admin/users/groups/2')
+  assert.equal(routePaths.org.dash.users.groupProgram(2, 'assignment_1'), '/admin/users/groups/2/programs/assignment_1/progress')
+  assert.equal(routePaths.org.dash.users.user('learner'), '/admin/users/user/learner')
+  assert.equal(routePaths.org.dash.users.userPage('learner', 'review'), '/admin/users/user/learner/review')
   assert.equal(routePaths.owner.platform.organization(42), '/admin/platform/orgs/42')
   assert.equal(routePaths.auth.login({ next: '/' }), '/login?next=%2F')
 })
 
 test('route manifest builds auth, account, and public org paths used by navigation surfaces', () => {
   assert.equal(routePaths.auth.signup({ mode: 'create-org' }), '/signup?mode=create-org')
-  assert.equal(routePaths.owner.account.orgAdmin(), '/account/org-admin')
-  assert.equal(routePaths.owner.account.security(), '/account/security')
-  assert.equal(routePaths.owner.account.purchases(), '/account/purchases')
+  assert.equal(routePaths.owner.account.root(), '/account')
+  assert.equal(routePaths.owner.account.security(), '/account')
+  assert.equal(routePaths.owner.account.messages(), '/account/messages')
   assert.equal(routePaths.owner.account.organizations(), '/account/organizations')
+  assert.equal(routePaths.owner.account.memory(), '/account/memory')
   assert.equal(routePaths.owner.account.badges(), '/account/badges')
+  assert.equal(routePaths.org.hub(), '/hub')
   assert.equal(routePaths.org.portfolio(), '/portfolio')
   assert.equal(routePaths.org.portfolioEdit(), '/portfolio/edit')
   assert.equal(routePaths.org.portfolioResume(), '/portfolio/resume')
@@ -48,9 +183,12 @@ test('route manifest builds auth, account, and public org paths used by navigati
   assert.equal(routePaths.org.user('jane'), '/user/jane')
   assert.equal(routePaths.org.userResume('jane'), '/user/jane/resume')
   assert.equal(routePaths.org.userTimeline('jane'), '/user/jane/timeline')
-  assert.equal(routePaths.org.search('ai prompts'), '/search?q=ai+prompts')
+  assert.equal(routePaths.org.search('ai prompts'), '/hub?q=ai+prompts')
+  assert.equal(routePaths.org.resource('resource-1'), '/hub?resource=resource-1')
   assert.equal(routePaths.org.badges(), '/badges')
-  assert.equal(routePaths.org.myBadges(), '/portfolio/badges')
+  assert.equal(routePaths.org.myBadges(), '/badges/my-badges')
+  assert.equal(routePaths.org.programs(), '/programs')
+  assert.equal(routePaths.org.program('creative-futures'), '/programs/creative-futures')
   assert.equal(routePaths.org.badgeDetail('badge-slug'), '/badges/badge-slug')
   assert.equal(routePaths.org.badgeStatus('badge-slug'), '/badges/badge-slug/badge')
   assert.equal(routePaths.org.badgePath('badge-slug'), '/badges/badge-slug/path')
@@ -62,13 +200,13 @@ test('route manifest builds auth, account, and public org paths used by navigati
 
 test('navigation manifest smoke test keeps representative routes absolute and unique', () => {
   const navigationRoutes = [
+    routePaths.org.hub(),
     routePaths.org.portfolio(),
     routePaths.org.news(),
-    routePaths.owner.account.security(),
-    routePaths.owner.account.orgAdmin(),
+    routePaths.owner.account.root(),
+    routePaths.owner.account.messages(),
     routePaths.org.root(),
     routePaths.org.badges(),
-    routePaths.org.search(),
     routePaths.org.dash.root(),
     routePaths.org.dash.badges(),
     routePaths.org.dash.users.users(),
@@ -90,7 +228,7 @@ test('legacy course and collection route helpers are absent', () => {
   assert.equal('courseSettings' in routePaths.org.dash, false)
 })
 
-test('request policy redirects authenticated org root to portfolio', () => {
+test('request policy redirects authenticated org root to hub', () => {
   const decision = resolveRequestRouting({
     requestUrl: 'https://acme.launchlms.test/',
     pathname: '/',
@@ -103,7 +241,41 @@ test('request policy redirects authenticated org root to portfolio', () => {
   })
 
   assert.equal(decision.action, 'redirect')
-  assert.equal(decision.destination, 'https://acme.launchlms.test/portfolio')
+  assert.equal(decision.destination, 'https://acme.launchlms.test/hub')
+})
+
+test('request policy rewrites nested account tabs to the current organization', () => {
+  for (const pathname of ['/account/messages', '/account/organizations', '/account/memory', '/account/preferences']) {
+    const decision = resolveRequestRouting({
+      requestUrl: `https://launchlms.test${pathname}`,
+      pathname,
+      search: '',
+      host: 'launchlms.test',
+      hasSession: true,
+      instanceInfo,
+      resolvedCustomDomainOrgSlug: null,
+      orgSubdomainAccess: null,
+    })
+    assert.equal(decision.action, 'rewrite')
+    assert.equal(decision.destination, `/orgs/default${pathname}`)
+  }
+})
+
+test('request policy resolves group plan workspaces on the canonical org route', () => {
+  const target = routePaths.org.groupPlan('assignment_1')
+  const [pathname, query = ''] = target.split('?')
+  const decision = resolveRequestRouting({
+    requestUrl: `https://launchlms.test${pathname}`,
+    pathname,
+    search: query ? `?${query}` : '',
+    host: 'launchlms.test',
+    hasSession: true,
+    instanceInfo,
+    resolvedCustomDomainOrgSlug: null,
+    orgSubdomainAccess: null,
+  })
+  assert.equal(decision.action, 'rewrite')
+  assert.equal(decision.destination, '/orgs/default/plans?group=assignment_1')
 })
 
 test('request policy rewrites unauthenticated org root to the landing page', () => {
@@ -219,7 +391,7 @@ test('request policy keeps auth query params when rewriting create-org signup fl
   assert.equal(decision.destination, '/auth/signup?mode=create-org')
 })
 
-test('request policy redirects authenticated login and signup pages to portfolio', () => {
+test('request policy redirects authenticated login and signup pages to hub', () => {
   const loginDecision = resolveRequestRouting({
     requestUrl: 'https://acme.launchlms.test/login',
     pathname: '/login',
@@ -242,9 +414,25 @@ test('request policy redirects authenticated login and signup pages to portfolio
   })
 
   assert.equal(loginDecision.action, 'redirect')
-  assert.equal(loginDecision.destination, 'https://acme.launchlms.test/portfolio')
+  assert.equal(loginDecision.destination, 'https://acme.launchlms.test/hub')
   assert.equal(signupDecision.action, 'redirect')
-  assert.equal(signupDecision.destination, 'https://acme.launchlms.test/portfolio')
+  assert.equal(signupDecision.destination, 'https://acme.launchlms.test/hub')
+})
+
+test('request policy preserves an explicit login recovery target despite a stale session hint', () => {
+  const decision = resolveRequestRouting({
+    requestUrl: 'https://acme.launchlms.test/login?next=%2Fportfolio',
+    pathname: '/login',
+    search: '?next=%2Fportfolio',
+    host: 'acme.launchlms.test',
+    hasSession: true,
+    instanceInfo,
+    resolvedCustomDomainOrgSlug: null,
+    orgSubdomainAccess: null,
+  })
+
+  assert.equal(decision.action, 'rewrite')
+  assert.equal(decision.destination, '/auth/login?next=%2Fportfolio')
 })
 
 test('request policy redirects unauthenticated protected paths to root landing', () => {

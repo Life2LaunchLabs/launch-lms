@@ -3,6 +3,9 @@ import React from 'react'
 import {
   Buildings,
   ChartPie,
+  Gear,
+  Flag,
+  Flask,
   Newspaper,
   Tray,
   UsersThree,
@@ -10,51 +13,20 @@ import {
 import AdminFeatureHeader from '@components/Admin/AdminFeatureHeader'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { getDefaultOrg, getUriWithOrg } from '@services/config/config'
+import { platformSections, type PlatformSection } from './platformSections'
 
-export type PlatformSection =
-  | 'overview'
-  | 'organizations'
-  | 'users'
-  | 'requests'
-  | 'news'
+export type { PlatformSection }
 
-const SECTIONS: {
-  id: PlatformSection
-  label: string
-  icon: React.ReactNode
-  href: string
-}[] = [
-  {
-    id: 'overview',
-    label: 'Overview',
-    icon: <ChartPie size={14} />,
-    href: '/admin/platform',
-  },
-  {
-    id: 'organizations',
-    label: 'Organizations',
-    icon: <Buildings size={14} />,
-    href: '/admin/platform/orgs',
-  },
-  {
-    id: 'users',
-    label: 'Users',
-    icon: <UsersThree size={14} />,
-    href: '/admin/platform/users',
-  },
-  {
-    id: 'requests',
-    label: 'Requests',
-    icon: <Tray size={14} />,
-    href: '/admin/platform/requests',
-  },
-  {
-    id: 'news',
-    label: 'News',
-    icon: <Newspaper size={14} />,
-    href: '/admin/news',
-  },
-]
+const ICONS: Record<PlatformSection, React.ReactNode> = {
+  overview: <ChartPie size={14} />,
+  organizations: <Buildings size={14} />,
+  users: <UsersThree size={14} />,
+  requests: <Tray size={14} />,
+  feedback: <Flag size={14} />,
+  demo: <Flask size={14} />,
+  settings: <Gear size={14} />,
+  news: <Newspaper size={14} />,
+}
 
 export default function PlatformShell({
   activeSection,
@@ -89,8 +61,10 @@ export default function PlatformShell({
         activeTab={activeSection}
         tone="platform"
         actions={actions}
-        tabs={SECTIONS.map((section) => ({
-          ...section,
+        tabs={platformSections().map((section) => ({
+          id: section.id,
+          label: section.label,
+          icon: ICONS[section.id],
           href: org?.slug ? getUriWithOrg(org.slug, section.href) : section.href,
         }))}
       />

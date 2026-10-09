@@ -4,18 +4,23 @@ import { useOrg } from '@components/Contexts/OrgContext'
 import { cn } from '@/lib/utils'
 import { getCoreCapabilities, getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config'
 import { getOrgLogoMediaDirectory } from '@services/media/media'
+import { authenticatedOrgHref } from '@services/auth/handoff'
 import {
   BadgeDollarSign,
   Building2,
-  ClipboardCheck,
+  ChartPie,
+  FlaskConical,
+  Inbox,
+  ClipboardList,
   FolderOpen,
-  Handshake,
   Headphones,
   Home,
   Library,
   Menu,
+  MessageSquareWarning,
   MessagesSquare,
   Newspaper,
+  Settings,
   School,
   Store,
   UserRound,
@@ -23,6 +28,7 @@ import {
   X,
 } from 'lucide-react'
 import Link from 'next/link'
+import { platformSections, type PlatformSection } from '@components/Admin/Platform/platformSections'
 import React, { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -70,14 +76,9 @@ function DashMobileMenu() {
       label: 'Marketplace',
     },
     {
-      href: `${routePaths.org.dash.badges()}?tab=issuing`,
-      icon: Handshake,
-      label: 'Issuing',
-    },
-    {
-      href: `${routePaths.org.dash.badges()}?tab=grading`,
-      icon: ClipboardCheck,
-      label: 'Grading',
+      href: routePaths.org.dash.programs(),
+      icon: ClipboardList,
+      label: 'Plans',
     },
     showCommunities
       ? {
@@ -124,23 +125,7 @@ function DashMobileMenu() {
   }>
 
   const platformItems = isOwnerOrg
-    ? [
-        {
-          href: getUriWithOrg(org.slug, routePaths.owner.platform.organizations()),
-          icon: Building2,
-          label: 'Organizations',
-        },
-        {
-          href: getUriWithOrg(org.slug, routePaths.owner.platform.users()),
-          icon: Users,
-          label: 'Users',
-        },
-        {
-          href: getUriWithOrg(org.slug, routePaths.owner.platform.news()),
-          icon: Newspaper,
-          label: 'News',
-        },
-      ]
+    ? platformSections().map((section) => ({ href: getUriWithOrg(org.slug, section.href), icon: PLATFORM_ICONS[section.id], label: section.label }))
     : []
 
   return (
@@ -256,13 +241,13 @@ function DashMobileMenu() {
 
             <div className="border-t border-white/[0.08] p-3">
               <MobileMenuLink
-                href={getUriWithOrg(getDefaultOrg(), routePaths.org.portfolio())}
+                href={authenticatedOrgHref(getUriWithOrg(getDefaultOrg(), routePaths.org.portfolio()), true)}
                 icon={UserRound}
                 label="Portfolio"
                 onClick={closeMenu}
               />
               <MobileMenuLink
-                href={getUriWithOrg(getDefaultOrg(), routePaths.org.root())}
+                href={authenticatedOrgHref(getUriWithOrg(getDefaultOrg(), routePaths.org.root()), true)}
                 icon={Home}
                 label="Return to User Experience"
                 onClick={closeMenu}
@@ -303,4 +288,15 @@ function MobileMenuLink({
   )
 }
 
+
+const PLATFORM_ICONS: Record<PlatformSection, React.ComponentType<{ className?: string }>> = {
+  overview: ChartPie,
+  organizations: Building2,
+  users: Users,
+  requests: Inbox,
+  feedback: MessageSquareWarning,
+  demo: FlaskConical,
+  settings: Settings,
+  news: Newspaper,
+}
 export default DashMobileMenu
