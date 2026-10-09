@@ -76,6 +76,7 @@ from src.services.badge_openbadges import (
 )
 from src.services.guest_sessions import LearningActor
 from src.services.learning_issuers import issuer_options, validate_issuer_start
+from src.services.learning_documents.references import rewrite_page_references as _replace_uuid_values
 from src.services.learning_flow import (
     FlowValidationError,
     append_page_to_flow,
@@ -4043,16 +4044,6 @@ def _require_badge_creation_access(
         )
 
 
-def _replace_uuid_values(value, replacements: dict[str, str]):
-    if isinstance(value, dict):
-        return {key: _replace_uuid_values(item, replacements) for key, item in value.items()}
-    if isinstance(value, list):
-        return [_replace_uuid_values(item, replacements) for item in value]
-    if isinstance(value, str):
-        return replacements.get(value, value)
-    return value
-
-
 def _clone_version_graph(db_session: Session, badge: LearningBadge, source: LearningBadgeVersion, target: LearningBadgeVersion) -> None:
     source_path = _get_path_for_badge(db_session, badge, source, create=False)
     if not source_path:
@@ -4100,7 +4091,7 @@ def _clone_version_graph(db_session: Session, badge: LearningBadge, source: Lear
         db_session.add(target_activity)
     target_pages = db_session.exec(select(LearningPage).where(LearningPage.version_id == target.id)).all()
     for target_page in target_pages:
-        target_page.content = _replace_uuid_values(target_page.content, page_replacements)
+        target_page.content = {**_replace_uuid_values(target_page.content, page_replacements), "version_lineage_uuid": target_page.content["version_lineage_uuid"]}
         target_page.design = _replace_uuid_values(target_page.design, page_replacements)
         target_page.scoring = _replace_uuid_values(target_page.scoring, page_replacements)
         target_page.completion = _replace_uuid_values(target_page.completion, page_replacements)
