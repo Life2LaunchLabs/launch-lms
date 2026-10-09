@@ -30,6 +30,9 @@ from src.routers import (
     users,
 )
 from src.routers import learning as learning_router_module
+from src.routers import learning_documents as learning_documents_router_module
+from src.routers import oauth as oauth_router_module
+from src.routers import mcp as mcp_router_module
 from src.routers import marketplace as marketplace_router_module
 from src.routers import payments as payments_router_module
 from src.routers import resources as resources_router_module
@@ -194,6 +197,11 @@ v1_router.include_router(learning_router_module.responses_router, prefix="/learn
 v1_router.include_router(learning_router_module.awards_router, prefix="/badge-awards", tags=["learning-badge-awards"])
 v1_router.include_router(learning_router_module.imports_router, prefix="/badge-import", tags=["learning-badge-import"])
 v1_router.include_router(learning_router_module.variables_router, prefix="/learning-variables", tags=["learning-variables"])
+v1_router.include_router(learning_documents_router_module.router, prefix="/learning-documents", tags=["learning-documents"])
+v1_router.include_router(learning_documents_router_module.previews_router, prefix="/learning-previews", tags=["learning-previews"])
+v1_router.include_router(learning_documents_router_module.content_router, prefix="/learning-content", tags=["learning-content"])
+v1_router.include_router(oauth_router_module.router, prefix="/oauth", tags=["oauth"])
+v1_router.include_router(mcp_router_module.router, prefix="/mcp", tags=["mcp"])
 v1_router.include_router(marketplace_router_module.router, prefix="/badge-marketplace", tags=["learning-badge-marketplace"])
 v1_router.include_router(
     communities_router_module.router,

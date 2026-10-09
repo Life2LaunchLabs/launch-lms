@@ -40,7 +40,7 @@ export function createButtonBlock(): any {
     id: createBlockId(),
     type: 'button',
     design: { width: 100, align: 'center', variant: 'secondary' },
-    content: { label: 'Go to page', destination_page_uuid: '' },
+    content: { label: 'Continue', action: 'continue' },
   }
 }
 
@@ -157,7 +157,7 @@ export function normalizeQuestionInputs(inputs: any[]): Array<{
         variant: String(input?.variant || input?.type || 'short_answer'),
         width: String(input?.width || 'full'),
         height: Number(input?.height) || 160,
-        input_type: String(input?.input_type || input?.inputType || 'text'),
+        input_type: String(input?.input_type || 'text'),
         adaptive: input?.adaptive,
       }
     })
@@ -215,22 +215,6 @@ export function normalizeInitialPages(pages: any[]) {
   return pages.map((page) => {
     if (page.page_type !== 'standard') return page
     let blocks: LearningBlock[] = Array.isArray(page.content?.blocks) ? page.content.blocks : []
-
-    // Legacy pages kept the single question's scoring/completion at page level —
-    // relocate into the block so the editor always works block-level.
-    const questions = blocks.filter((block: any) => block?.type === 'question')
-    const pageScoring = page.scoring && Object.keys(page.scoring).length ? page.scoring : null
-    const pageCompletion = page.completion && Object.keys(page.completion).length ? page.completion : null
-    if (questions.length === 1 && (pageScoring || pageCompletion)) {
-      blocks = blocks.map((block: any) => {
-        if (block?.type !== 'question') return block
-        return {
-          ...block,
-          scoring: block.scoring && Object.keys(block.scoring).length ? block.scoring : (pageScoring || {}),
-          completion: block.completion && Object.keys(block.completion).length ? block.completion : (pageCompletion || {}),
-        }
-      })
-    }
 
     blocks = blocks
       .map((block: any) => migrateTextInputBlockLabel(block))
@@ -299,7 +283,7 @@ export function splitTextInputBlock(block: any): any[] {
 
   const completion = block.completion || {}
   const rules = completion.inputs || {}
-  const bindings = (completion.variable_bindings || completion.variableBindings || {}).inputs || {}
+  const bindings = (completion.variable_bindings || {}).inputs || {}
 
   return sections.map((sectionInputs, index) => {
     const ids = sectionInputs.map((input: any) => String(input.id))
@@ -373,12 +357,12 @@ export function blockLabel(block: LearningBlock) {
 
 export function getQuestionConfigurationIssue(page: any, question: any): string {
   if (question?.type !== 'question') return ''
-  const scoring = getBlockScoring(page, question)
-  const completion = getBlockCompletion(page, question)
-  const variableBindings = completion.variable_bindings || completion.variableBindings || {}
+  const scoring = getBlockScoring(question)
+  const completion = getBlockCompletion(question)
+  const variableBindings = completion.variable_bindings || {}
   const hasBindings = Object.values(variableBindings.options || {}).some(Boolean)
   const questionMode = completion.question_mode || (hasBindings ? 'variable' : 'scored')
-  const correctIds = scoring.correct_option_ids || scoring.correctOptionIds || []
+  const correctIds = scoring.correct_option_ids || []
   if (questionMode === 'scored' && scoring.mode === 'manual' && !String(scoring.rubric || '').trim()) {
     return 'Manual review needs a rubric'
   }
@@ -424,8 +408,8 @@ export function getActivityGradingSettings(activity: any) {
 }
 
 export function getConfiguredQuestionPoints(page: any, question: any): number {
-  const scoring = getBlockScoring(page, question)
-  const completion = getBlockCompletion(page, question)
+  const scoring = getBlockScoring(question)
+  const completion = getBlockCompletion(question)
   if (scoring.mode === 'off') return 0
   const inputPoints = question.kind === 'text_input'
     ? Object.values(completion.inputs || {})
@@ -436,7 +420,6 @@ export function getConfiguredQuestionPoints(page: any, question: any): number {
     || scoring.points != null
     || inputPoints.length > 0
     || scoring.correct_option_ids?.length
-    || scoring.correctOptionIds?.length
     || scoring.accepted_answers?.length
   if (!configured) return 0
   if (inputPoints.length) return Math.max(0, inputPoints.reduce((sum, value) => sum + value, 0))
@@ -467,9 +450,9 @@ export function getVariantSourceOptions(pages: any[], page: any): VariantSourceO
     if (item.page_uuid === page.page_uuid) return
     const questions = findQuestionBlocks(item).filter((question) => question.kind === 'multiple_choice' || question.kind === 'categorized_multi_select')
     questions.forEach((question, questionIndex) => {
-      const completion = getBlockCompletion(item, question)
+      const completion = getBlockCompletion(question)
       if (Math.max(1, Number(completion?.max_selections ?? 1)) > 1) return
-      const options = normalizeQuestionOptions(question.content?.options)
+      const options = normalizeQuestionOptions(question.content?.options || [])
       const questionLabel = String(question.content?.label || '').trim()
       const fallback = `${item.title || 'Untitled page'}${questions.length > 1 ? ` · question ${questionIndex + 1}` : ''}`
       sources.push({

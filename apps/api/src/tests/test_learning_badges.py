@@ -32,6 +32,7 @@ from src.services.learning import (
     _parse_semver,
 )
 from src.services.learning_page_convert import (
+    normalize_question_settings,
     convert_legacy_page,
     find_question_block,
     link_variant_sources_to_question_blocks,
@@ -78,8 +79,8 @@ class _BadgeCreateSession:
 
 @pytest.mark.asyncio
 async def test_create_badge_commits_badge_and_default_path_together(monkeypatch):
-    monkeypatch.setattr(learning_service, "_require_org_admin", lambda *_args: None)
-    monkeypatch.setattr(learning_service, "_require_badge_creation_access", lambda *_args: None)
+    monkeypatch.setattr(learning_service.access_rules, "_require_org_admin", lambda *_args: None)
+    monkeypatch.setattr(learning_service.badge_service, "_require_badge_creation_access", lambda *_args: None)
     session = _BadgeCreateSession()
 
     result = await create_badge(
@@ -98,8 +99,8 @@ async def test_create_badge_commits_badge_and_default_path_together(monkeypatch)
 
 @pytest.mark.asyncio
 async def test_create_badge_rolls_back_when_default_path_cannot_be_committed(monkeypatch):
-    monkeypatch.setattr(learning_service, "_require_org_admin", lambda *_args: None)
-    monkeypatch.setattr(learning_service, "_require_badge_creation_access", lambda *_args: None)
+    monkeypatch.setattr(learning_service.access_rules, "_require_org_admin", lambda *_args: None)
+    monkeypatch.setattr(learning_service.badge_service, "_require_badge_creation_access", lambda *_args: None)
     session = _BadgeCreateSession(fail_commit=True)
 
     with pytest.raises(RuntimeError, match="path insert failed"):
@@ -276,7 +277,11 @@ def _standard_page(page_uuid: str, question: dict | None = None, **overrides) ->
         page_uuid=page_uuid,
         page_type=LearningPageType.STANDARD,
         title=overrides.pop("title", "Page"),
-        content={"version": 2, "blocks": blocks},
+        # Page-level scoring/completion is shorthand here; stored pages keep
+        # them on the question block, exactly as the data migration leaves them.
+        content=normalize_question_settings(
+            {"version": 2, "blocks": blocks}, overrides.pop("scoring", None), overrides.pop("completion", None)
+        ),
         creation_date="2026-01-01T00:00:00",
         update_date="2026-01-01T00:00:00",
         **overrides,
@@ -321,7 +326,7 @@ def test_activity_grading_is_inferred_from_scored_questions(monkeypatch):
         settings={"grading": {"mode": "completion", "minimum_score_percent": 70}},
     )
     monkeypatch.setattr(
-        learning_service,
+        learning_service.grading,
         "_activity_score_summary",
         lambda *_args: {
             "score": 6,
@@ -350,7 +355,7 @@ def test_activity_without_scored_questions_uses_completion(monkeypatch):
         settings={"grading": {"mode": "pass_fail"}},
     )
     monkeypatch.setattr(
-        learning_service,
+        learning_service.grading,
         "_activity_score_summary",
         lambda *_args: {
             "score": 0,
@@ -994,9 +999,20 @@ def test_learning_assertion_payload_hashes_recipient_and_points_to_award():
 def test_standard_page_accepts_bound_image_and_internal_page_button():
     _validate_page_payload(LearningPageType.STANDARD, {"version": 2, "blocks": [
         {"id": "image", "type": "image", "content": {"binding": {"source": "answer", "path": "learning_page_photo.answer.questions.photo.url"}}},
-        {"id": "button", "type": "button", "content": {"label": "Change details", "destination_page_uuid": "learning_page_details"}},
+        {"id": "button", "type": "button", "content": {"label": "Change details", "action": "revisit", "revisit_page_uuid": "learning_page_details"}},
         {"id": "preview", "type": "portfolio_preview", "content": {"variant": "timeline_card", "bindings": {"title": {"source": "answer", "path": "learning_page_details.answer.questions.details.inputs.title.text"}}}},
     ]})
+
+
+def test_buttons_route_through_the_flow_not_destination_fields():
+    with pytest.raises(HTTPException, match="flow edges"):
+        _validate_page_payload(LearningPageType.STANDARD, {"version": 2, "blocks": [
+            {"id": "button", "type": "button", "content": {"label": "Next", "destination_page_uuid": "learning_page_details"}},
+        ]})
+    with pytest.raises(HTTPException, match="continue along the flow or revisit"):
+        _validate_page_payload(LearningPageType.STANDARD, {"version": 2, "blocks": [
+            {"id": "button", "type": "button", "content": {"label": "Back", "action": "revisit"}},
+        ]})
 
 
 def test_standard_page_accepts_display_binding_draft_without_path():

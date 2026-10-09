@@ -8,6 +8,7 @@ from src.core.demo_middleware import DemoMiddleware
 from src.core.audit_middleware import log_request_audit_event
 from src.core.events.events import shutdown_app, startup_app
 from src.router import v1_router
+from src.routers.oauth import well_known_router
 from src.routers.content_files import router as content_files_router
 from src.routers.local_content import router as local_content_router
 
@@ -66,6 +67,7 @@ else:
 
 # Global Routes
 app.include_router(v1_router)
+app.include_router(well_known_router)
 
 
 @app.middleware("http")

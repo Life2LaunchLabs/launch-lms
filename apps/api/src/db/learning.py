@@ -2,15 +2,7 @@ from datetime import datetime
 from enum import Enum
 
 from pydantic import BaseModel
-from sqlalchemy import (
-    JSON,
-    Column,
-    DateTime,
-    ForeignKey,
-    Integer,
-    String,
-    UniqueConstraint,
-)
+from sqlalchemy import JSON, Column, DateTime, ForeignKey, Integer, String, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 
@@ -380,6 +372,9 @@ class LearningActivityBase(SQLModel):
     icon: str | None = None
     order: int = 1
     required: bool = True
+    # Listed for learners. Only the system onboarding badge hides activities
+    # (set from launch_ready.json); everywhere else the badge version is the
+    # unit of publishing, so this is not editable through the API.
     published: bool = False
     settings: dict = Field(default_factory=dict, sa_column=Column(JSON))
 
@@ -401,7 +396,6 @@ class LearningActivityCreate(SQLModel):
     thumbnail_image: str | None = ""
     icon: str | None = None
     required: bool = True
-    published: bool = False
     settings: dict = Field(default_factory=dict)
 
 
@@ -410,8 +404,6 @@ class LearningActivityImportPage(SQLModel):
     required: bool = True
     content: dict = Field(default_factory=dict)
     design: dict = Field(default_factory=dict)
-    scoring: dict = Field(default_factory=dict)
-    completion: dict = Field(default_factory=dict)
 
 
 class LearningActivityImport(SQLModel):
@@ -430,7 +422,6 @@ class LearningActivityUpdate(SQLModel):
     icon: str | None = None
     order: int | None = None
     required: bool | None = None
-    published: bool | None = None
     settings: dict | None = None
 
 
@@ -473,8 +464,6 @@ class LearningPageCreate(SQLModel):
     required: bool = True
     content: dict = Field(default_factory=dict)
     design: dict = Field(default_factory=dict)
-    scoring: dict = Field(default_factory=dict)
-    completion: dict = Field(default_factory=dict)
 
 
 class LearningPageUpdate(SQLModel):
@@ -484,8 +473,6 @@ class LearningPageUpdate(SQLModel):
     required: bool | None = None
     content: dict | None = None
     design: dict | None = None
-    scoring: dict | None = None
-    completion: dict | None = None
 
 
 class LearningPageRead(LearningPageBase):
@@ -668,6 +655,7 @@ class LearningResponseSubmit(SQLModel):
     run_uuid: str
     page_uuid: str
     answer: dict = Field(default_factory=dict)
+    button: str | None = None
 
 
 class LearningResponseGrade(SQLModel):

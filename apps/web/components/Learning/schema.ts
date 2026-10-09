@@ -1,72 +1,19 @@
 export type LearningPageType = 'video' | 'standard'
 
-export type LearningBlockAlign = 'left' | 'center' | 'right'
+import type { Block, BlockDesign, ButtonBlock, DisplayBinding, ImageBlock, PortfolioPreviewBlock, QuestionBlock, TextBlock } from './content.generated'
 
-export interface LearningBlockBase {
-  id: string
-  type: 'text' | 'image' | 'question' | 'button' | 'portfolio_preview'
-  design?: {
-    width?: number
-    align?: LearningBlockAlign
-    height?: number
-    fit?: 'contain' | 'cover'
-    text_color?: string
-    shape?: 'rounded' | 'circle'
-    variant?: 'primary' | 'secondary'
-    group?: string
-  }
-  system?: {
-    locked?: boolean
-    reason?: string
-  }
-}
-
-export interface LearningTextBlock extends LearningBlockBase {
-  type: 'text'
-  content?: {
-    node?: any
-    nodes?: any[]
-  }
-}
-
-export interface LearningImageBlock extends LearningBlockBase {
-  type: 'image'
-  content?: {
-    src?: string
-    alt?: string
-    binding?: LearningDisplayBinding
-  }
-}
-
-export interface LearningDisplayBinding {
-  source: 'answer' | 'variable'
-  path: string
-  fallback?: string
-  fallback_binding?: LearningDisplayBinding
-}
-
-export interface LearningButtonBlock extends LearningBlockBase {
-  type: 'button'
-  content?: { label?: string; destination_page_uuid?: string }
-}
-
-export interface LearningPortfolioPreviewBlock extends LearningBlockBase {
-  type: 'portfolio_preview'
-  content?: {
-    variant?: 'timeline_card' | 'work_card' | 'identity_header' | 'traits_panel' | 'links_strip' | 'portfolio_frame' | 'share_panel'
-    bindings?: Record<string, LearningDisplayBinding>
-  }
-}
-
-export interface LearningQuestionBlock extends LearningBlockBase {
-  type: 'question'
-  kind: 'multiple_choice' | 'categorized_multi_select' | 'text_input' | string
-  content?: any
-  scoring?: any
-  completion?: any
-}
-
-export type LearningBlock = LearningTextBlock | LearningImageBlock | LearningQuestionBlock | LearningButtonBlock | LearningPortfolioPreviewBlock
+// Block shapes are generated from the API's typed content models
+// (content.generated.ts); these aliases keep the names the app already uses.
+export type LearningBlockAlign = NonNullable<BlockDesign['align']>
+export type LearningDisplayBinding = DisplayBinding
+export type LearningTextBlock = TextBlock
+export type LearningImageBlock = ImageBlock
+// Continue buttons complete the page (the flow can route on `<page>.button`);
+// revisit buttons jump back to an earlier page on the route.
+export type LearningButtonBlock = ButtonBlock
+export type LearningPortfolioPreviewBlock = PortfolioPreviewBlock
+export type LearningQuestionBlock = QuestionBlock
+export type LearningBlock = Block
 
 export function resolveDisplayBinding(binding: LearningDisplayBinding | undefined, run: any, preview = false): string {
   if (!binding) return ''
@@ -111,14 +58,12 @@ export function findQuestionBlocks(pageOrContent: LearningPageLike | any): Learn
 
 // Question config lives on the block; legacy pages kept it at page level for
 // their single question, so fall back there when the block carries none.
-export function getBlockScoring(page: any, block: LearningQuestionBlock): any {
-  if (block?.scoring && typeof block.scoring === 'object' && Object.keys(block.scoring).length) return block.scoring
-  return page?.scoring || {}
+export function getBlockScoring(block: LearningQuestionBlock): any {
+  return block?.scoring && typeof block.scoring === 'object' ? block.scoring : {}
 }
 
-export function getBlockCompletion(page: any, block: LearningQuestionBlock): any {
-  if (block?.completion && typeof block.completion === 'object' && Object.keys(block.completion).length) return block.completion
-  return page?.completion || {}
+export function getBlockCompletion(block: LearningQuestionBlock): any {
+  return block?.completion && typeof block.completion === 'object' ? block.completion : {}
 }
 
 export function getQuestionAnswer(answer: any, blockId: string): any {

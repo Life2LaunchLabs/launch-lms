@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Collection
+
 import json
 from copy import deepcopy
 from dataclasses import dataclass
@@ -167,12 +169,19 @@ def evaluate_condition(
 
 
 def validate_flow(
-    flow: dict | None, page_uuids: set[str], required_page_uuids: set[str]
+    flow: dict | None, page_uuids: set[str], required_page_uuids: set[str], carried: Collection[str] = ()
 ) -> list[str]:
+    """``carried``: shape issues the stored flow already had; they do not block a save."""
     if not flow:
         return []
+    from src.services.learning_content.models import Flow
+    from src.services.learning_content.recovery import content_issues
+
     if flow.get("version") != 1:
         raise FlowValidationError("Flow version must be 1")
+    introduced = [issue for issue in content_issues(Flow, flow) if issue not in carried]
+    if introduced:
+        raise FlowValidationError(f"Invalid flow: {introduced[0]}")
     nodes = flow.get("nodes")
     edges = flow.get("edges")
     if not isinstance(nodes, list) or not isinstance(edges, list):
@@ -355,3 +364,106 @@ def resolve_flow(flow: dict, context: dict) -> ResolvedFlow:
             return ResolvedFlow(node_ids, pages, False, trace)
         node_id = chosen["to"]
     return ResolvedFlow(node_ids, pages, False, trace)
+
+
+# --- Buttons -----------------------------------------------------------------
+# A page button either continues along the flow (and the flow may branch on
+# which button was pressed: answer key "<page_uuid>.button") or revisits a page
+# the learner already passed. Forward destinations therefore live in the flow
+# graph like every other route; the graph stays acyclic.
+
+BUTTON_ACTIONS = {"continue", "revisit"}
+
+
+def button_answer_key(page_uuid: str) -> str:
+    return f"{page_uuid}.button"
+
+
+def button_condition(page_uuid: str, button_id: str) -> dict:
+    return {"op": "eq", "left": {"source": "answer", "key": button_answer_key(page_uuid)}, "right": button_id}
+
+
+def linear_flow(page_uuids: list[str]) -> dict:
+    nodes = [{"id": f"page:{uuid}", "type": "page", "page_uuid": uuid} for uuid in page_uuids] + [{"id": "complete", "type": "complete"}]
+    edges = [
+        {"from": f"page:{uuid}", "to": f"page:{page_uuids[i + 1]}" if i + 1 < len(page_uuids) else "complete", "priority": 0}
+        for i, uuid in enumerate(page_uuids)
+    ]
+    return {"version": 1, "entry": nodes[0]["id"], "nodes": nodes, "edges": edges}
+
+
+def page_node_id(flow: dict, page_uuid: str) -> str | None:
+    return next((str(node["id"]) for node in flow.get("nodes", []) if node.get("page_uuid") == page_uuid), None)
+
+
+def node_reaches(flow: dict, from_id: str, to_id: str) -> bool:
+    outgoing: dict[str, list[str]] = {}
+    for edge in flow.get("edges", []):
+        outgoing.setdefault(str(edge.get("from")), []).append(str(edge.get("to")))
+    seen, stack = set(), [from_id]
+    while stack:
+        node = stack.pop()
+        if node == to_id:
+            return True
+        if node in seen:
+            continue
+        seen.add(node)
+        stack.extend(outgoing.get(node, []))
+    return False
+
+
+def route_button(flow: dict, page_uuid: str, button_id: str, target_page_uuid: str) -> dict:
+    """Route a button press on a page to another page with a flow edge."""
+    updated = deepcopy(flow)
+    source, target = page_node_id(updated, page_uuid), page_node_id(updated, target_page_uuid)
+    if not source or not target:
+        raise FlowValidationError("Button pages must both be in the flow")
+    condition = button_condition(page_uuid, button_id)
+    updated["edges"] = [edge for edge in updated["edges"] if not (edge.get("from") == source and edge.get("condition") == condition)]
+    priorities = [int(edge.get("priority", 0)) for edge in updated["edges"] if edge.get("from") == source]
+    updated["edges"].append({"from": source, "to": target, "priority": max(priorities, default=0) + 1, "condition": condition})
+    return updated
+
+
+def continue_buttons(content: dict | None) -> set[str]:
+    """Ids of the buttons on a page that continue along the flow."""
+    from src.services.learning_page_convert import iter_block_stacks
+
+    return {
+        str(block.get("id"))
+        for stack in iter_block_stacks(content or {})
+        for block in stack
+        if isinstance(block, dict) and block.get("type") == "button" and (block.get("content") or {}).get("action", "continue") == "continue"
+    }
+
+
+def convert_button_destinations(pages: list[dict], flow: dict | None) -> tuple[list[dict], dict | None]:
+    """Turn legacy ``destination_page_uuid`` buttons into flow edges or revisits.
+
+    ``pages`` are dicts with ``page_uuid`` and ``content`` in display order.
+    A destination the page can already be reached from becomes a revisit (the
+    flow must stay acyclic); any other destination becomes a flow edge.
+    """
+    from src.services.learning_page_convert import iter_block_stacks
+
+    pages = deepcopy(pages)
+    for page in pages:
+        for stack in iter_block_stacks(page.get("content") or {}):
+            for block in stack:
+                if not isinstance(block, dict) or block.get("type") != "button":
+                    continue
+                content = block.setdefault("content", {})
+                destination = str(content.pop("destination_page_uuid", "") or "")
+                content.setdefault("action", "continue")
+                if not destination or content.get("action") == "revisit":
+                    continue
+                graph = flow or linear_flow([item["page_uuid"] for item in pages])
+                source, target = page_node_id(graph, page["page_uuid"]), page_node_id(graph, destination)
+                if not source or not target:
+                    continue
+                if target == source or node_reaches(graph, target, source):
+                    content.update({"action": "revisit", "revisit_page_uuid": destination})
+                else:
+                    # Only a forward route needs a flow; keep page order otherwise.
+                    flow = route_button(graph, page["page_uuid"], str(block.get("id")), destination)
+    return pages, flow

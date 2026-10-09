@@ -389,10 +389,10 @@ export async function completeLearningPage(runUuid: string, pageUuid: string, da
   return errorHandling(result)
 }
 
-export async function submitLearningResponse(runUuid: string, pageUuid: string, answer: any, accessToken?: string) {
+export async function submitLearningResponse(runUuid: string, pageUuid: string, answer: any, accessToken?: string, button?: string) {
   const result = await fetch(
     `${getAPIUrl()}learning-runs/submit-response`,
-    RequestBodyWithAuthHeader('POST', { run_uuid: runUuid, page_uuid: pageUuid, answer }, null, accessToken)
+    RequestBodyWithAuthHeader('POST', { run_uuid: runUuid, page_uuid: pageUuid, answer, ...(button ? { button } : {}) }, null, accessToken)
   )
   return errorHandling(result)
 }

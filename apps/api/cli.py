@@ -179,6 +179,28 @@ def normalize_owner_org_slug():
 
 
 @cli.command()
+def generate_learning_types():
+    """Regenerate the web app's learning content types from the API models."""
+    from src.services.learning_content.typescript import OUTPUT, render
+
+    OUTPUT.write_text(render(), encoding="utf-8")
+    typer.echo(f"wrote {OUTPUT}")
+
+
+@cli.command()
+def audit_learning_content():
+    """List stored pages and flows the typed content models would reject (read-only)."""
+    from src.core.events.database import engine
+    from src.services.learning_content.audit import audit
+
+    with Session(engine) as session:
+        found = audit(session)
+    for identifier, error in found:
+        typer.echo(f"{identifier}: {error}")
+    typer.echo(f"{len(found)} problem(s)")
+
+
+@cli.command()
 def main():
     cli()
 

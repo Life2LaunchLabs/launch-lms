@@ -18,6 +18,7 @@ import toast from 'react-hot-toast'
 import { SafeImage } from '@components/Objects/SafeImage'
 import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
 import { resolveLearningActivityImage } from '@services/learning/launchReadyImages'
+import { ExportActivityJsonButton, ImportActivityJsonButton } from '@components/Learning/ActivityDocumentTransfer'
 import {
   parseGoogleFormsEditorHtml,
   type GoogleFormsImportPreview,
@@ -164,6 +165,7 @@ export default function AdminLearningPath({ orgslug, badgePath }: { orgslug: str
   return (
     <div className="px-10 pb-10 pt-6">
       {isDraft ? <div className="mb-5 flex justify-end gap-2">
+        <ImportActivityJsonButton badgeUuid={badge.badge_uuid} versionUuid={versionUuid} accessToken={accessToken} onImported={() => window.location.reload()} />
         <Modal
           isDialogOpen={importModalOpen}
           onOpenChange={(open) => {
@@ -316,6 +318,7 @@ export default function AdminLearningPath({ orgslug, badgePath }: { orgslug: str
               className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-bold transition hover:bg-muted"
               disabled={!isDraft || uploadingCover === activity.activity_uuid}
             />
+            <ExportActivityJsonButton activityUuid={activity.activity_uuid} accessToken={accessToken} />
             {locked ? <span className="rounded-full border border-border px-3 py-1.5 text-xs font-bold text-muted-foreground">Required</span> : isDraft ? <><button onClick={() => duplicateActivity(activity)} className="rounded-lg border border-border p-2"><Copy size={16} /></button><button onClick={() => removeActivity(activity)} className="rounded-lg border border-red-200 p-2 text-red-600"><Trash2 size={16} /></button></> : <span className="rounded-full border border-border px-3 py-1.5 text-xs font-bold text-muted-foreground">Read only</span>}
           </div>
           )
