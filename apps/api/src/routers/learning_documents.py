@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from fastapi import APIRouter, Body, Depends, Request
 from fastapi.responses import PlainTextResponse
 from src.core.events.database import get_db_session
@@ -10,11 +8,11 @@ from src.services.learning_documents.models import (
     ActivityDocumentCreate,
     ActivityDocumentSave,
     activity_document_json_schema,
+    authoring_guide,
 )
 
 router = APIRouter()
 previews_router = APIRouter()
-GUIDE_PATH = Path(__file__).resolve().parents[1] / "services" / "learning_documents" / "authoring_guide.md"
 
 
 @router.get("/schema")
@@ -24,7 +22,7 @@ async def api_activity_document_schema() -> dict:
 
 @router.get("/guide", response_class=PlainTextResponse)
 async def api_activity_document_guide() -> str:
-    return GUIDE_PATH.read_text(encoding="utf-8")
+    return authoring_guide()
 
 
 @router.post("/validate")

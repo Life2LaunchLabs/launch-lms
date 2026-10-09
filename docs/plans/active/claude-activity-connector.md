@@ -72,8 +72,8 @@ Deliberately absent: publish, delete, awards, learner data.
 1. **Activity Document + schema + document API** — done
 2. **Preview engine + preview sessions + shared player** — done (browser verification pending)
 3. **OAuth 2.1 authorization server + consent UI** — done (browser verification pending)
-4. **MCP server + tools** — not started
-5. **MCP App inline preview** — not started
+4. **MCP server + tools** — done
+5. **MCP App inline preview** — done (needs verification in a Claude client)
 6. **Editor import/export on the new format** — not started
 7. **Deploy wiring + live verification in Claude** — pending (needs deploy)
 

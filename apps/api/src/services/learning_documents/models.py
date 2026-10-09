@@ -6,6 +6,7 @@ the Claude connector, and preview sessions.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -13,6 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field
 DOCUMENT_FORMAT = "launch-lms.activity"
 DOCUMENT_FORMAT_VERSION = 1
 MAX_PAGES = 300
+GUIDE_PATH = Path(__file__).with_name("authoring_guide.md")
 NEW_PAGE_ID_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"
 
 # Settings keys owned by the platform. They are hidden from documents and kept
@@ -287,3 +289,7 @@ def activity_document_json_schema() -> dict:
     schema["$id"] = "https://launch-lms.dev/schemas/activity-document-v1.json"
     schema["title"] = "Launch LMS Activity Document v1"
     return schema
+
+
+def authoring_guide() -> str:
+    return GUIDE_PATH.read_text(encoding="utf-8")
