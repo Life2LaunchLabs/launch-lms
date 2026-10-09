@@ -2,7 +2,7 @@
 
 Run from ``apps/api``::
 
-    uv run python -m src.services.learning_content.typescript
+    uv run python cli.py generate-learning-types
 
 ``test_learning_content_models`` fails when the checked-in file is stale.
 Only the JSON Schema subset the models produce is supported.
@@ -17,7 +17,7 @@ from src.services.learning_content.models import Flow, StandardPageContent, Vide
 
 OUTPUT = Path(__file__).resolve().parents[4] / "web" / "components" / "Learning" / "content.generated.ts"
 HEADER = """// Generated from apps/api/src/services/learning_content/models.py — do not edit.
-// Regenerate: cd apps/api && uv run python -m src.services.learning_content.typescript
+// Regenerate: cd apps/api && uv run python cli.py generate-learning-types
 """
 
 
@@ -88,7 +88,3 @@ def render() -> str:
     )
     return HEADER + "\n" + body + unions
 
-
-if __name__ == "__main__":
-    OUTPUT.write_text(render(), encoding="utf-8")
-    print(f"wrote {OUTPUT}")

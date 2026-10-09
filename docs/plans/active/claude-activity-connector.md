@@ -133,7 +133,7 @@ Still to do: add the connector in a real Claude client against life2launch.dev.
 
 Before deploying R6, run the read-only audit against a production copy; it lists stored pages
 and flows the stricter models would reject (admins could not re-save those pages):
-`cd apps/api && uv run python -m src.services.learning_content.audit`.
+`cd apps/api && uv run python cli.py audit-learning-content`.
 
 Verified locally on PostgreSQL: both data migrations upgrade a pre-R3 database (4 legacy buttons
 became revisits), every stored page and flow passes the models, and in Chromium a share-link preview

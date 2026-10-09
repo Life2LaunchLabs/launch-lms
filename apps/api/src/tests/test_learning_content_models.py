@@ -17,7 +17,7 @@ def _page(*blocks, **extra):
 
 def test_generated_typescript_is_current():
     assert typescript.OUTPUT.read_text(encoding="utf-8") == typescript.render(), (
-        "Regenerate: cd apps/api && uv run python -m src.services.learning_content.typescript"
+        "Regenerate: cd apps/api && uv run python cli.py generate-learning-types"
     )
 
 

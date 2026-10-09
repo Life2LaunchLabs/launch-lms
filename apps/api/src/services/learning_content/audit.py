@@ -2,7 +2,7 @@
 
 Read-only. Run before deploying a model change against a copy of production::
 
-    cd apps/api && uv run python -m src.services.learning_content.audit
+    cd apps/api && uv run python cli.py audit-learning-content
 """
 
 from __future__ import annotations
@@ -26,12 +26,3 @@ def audit(db_session: Session) -> list[tuple[str, str]]:
             problems.append((activity.activity_uuid, f"flow: {error}"))
     return problems
 
-
-if __name__ == "__main__":
-    from src.core.events.database import engine
-
-    with Session(engine) as session:
-        found = audit(session)
-    for identifier, error in found:
-        print(f"{identifier}: {error}")
-    print(f"{len(found)} problem(s)")

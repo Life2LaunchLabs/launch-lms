@@ -1,5 +1,5 @@
 // Generated from apps/api/src/services/learning_content/models.py — do not edit.
-// Regenerate: cd apps/api && uv run python -m src.services.learning_content.typescript
+// Regenerate: cd apps/api && uv run python cli.py generate-learning-types
 
 export interface AllOf {
   op: "and" | "or"
