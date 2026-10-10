@@ -56,7 +56,9 @@ def frontend_base_url() -> str:
 
 
 def preview_url(org: Organization, token: str) -> str:
-    return f"{frontend_base_url()}/orgs/{org.slug}/preview/activity/{token}"
+    # The main frontend host, never an org subdomain: Claude frames this URL and
+    # only allows that origin, so it must not redirect to another host.
+    return f"{frontend_base_url()}/preview/activity/{token}?org={org.slug}"
 
 
 async def create_preview(

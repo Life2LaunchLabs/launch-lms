@@ -3,6 +3,7 @@
 import json
 from copy import deepcopy
 from datetime import datetime, timedelta
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 from fastapi import FastAPI
@@ -15,6 +16,7 @@ from src.db.learning import LearningActivity, LearningBadge, LearningBadgeVersio
 from src.db.learning_previews import LearningActivityPreview
 from src.db.oauth import OAuthAuthorizationCode, OAuthClient, OAuthGrant
 from src.routers import mcp as mcp_router
+from src.services.mcp import app_shell
 from src.services.mcp.app_shell import PREVIEW_APP_URI
 from src.services.oauth import server
 from src.services.oauth.config import ACCESS_PREFIX, hash_secret, mcp_resource
@@ -121,7 +123,10 @@ def test_preview_and_save_round_trip_with_conflict_handling(mcp):
 
     preview = call("preview_activity", {"activity_uuid": "learning_activity_draft", "document": edited, "persona": {"user.first_name": "Sam"}})
     assert preview["structuredContent"]["unsaved"] is True
-    assert preview["structuredContent"]["embed_url"].endswith("?embed=1")
+    embed = urlparse(preview["structuredContent"]["embed_url"])
+    # Framed by Claude: the main frontend origin (the one the MCP App allows), no org subdomain.
+    assert f"{embed.scheme}://{embed.netloc}" == app_shell.preview_origin()
+    assert embed.path.startswith("/preview/activity/lpv_") and parse_qs(embed.query) == {"org": ["creator"], "embed": ["1"]}
     assert "Interactive preview" in preview["content"][0]["text"]
     assert session.exec(select(LearningActivityPreview)).one().source == "connector"
 

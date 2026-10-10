@@ -211,6 +211,17 @@ export function resolveRequestRouting(
     }
   }
 
+  // Activity previews are framed by other apps (Claude's inline preview), and
+  // a frame may only load the origin it was given, so serve them where they
+  // are requested instead of redirecting to the org's canonical host.
+  const previewOrg = pathname.startsWith('/preview/activity/') ? new URLSearchParams(search).get('org') : null
+  if (previewOrg && /^[a-z0-9][a-z0-9-]{0,62}$/i.test(previewOrg)) {
+    return {
+      action: 'rewrite',
+      destination: `/orgs/${previewOrg}${pathname}${search}`,
+    }
+  }
+
   if (
     hostingMode === 'multi' &&
     context.subdomainOrgSlug &&
