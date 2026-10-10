@@ -326,13 +326,6 @@ class ParticipantResponse(SQLModel):
     accept: bool
 
 
-class LearnerObjectiveUpdate(SQLModel):
-    objective_uuid: str
-    status: ObjectiveProgressStatus = ObjectiveProgressStatus.SUBMITTED
-    learner_note: str = ""
-    evidence: list[dict] = Field(default_factory=list)
-
-
 class LearnerProgramEnrollmentView(SQLModel):
     participant_uuid: str
     status: str

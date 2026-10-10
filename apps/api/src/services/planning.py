@@ -342,6 +342,24 @@ def _validated_plan_steps(db: Session, fields: list[dict] | None) -> list[dict]:
     return normalized
 
 
+def _schedule_date(value) -> date | None:
+    """Assignment schedules store ISO dates as strings; live plan columns are dates."""
+    if not value:
+        return None
+    if isinstance(value, date):
+        return value if not isinstance(value, datetime) else value.date()
+    return date.fromisoformat(str(value)[:10])
+
+
+def snapshot_requirement_mappings(snapshot: dict) -> list[dict]:
+    """The requirement links a template objective snapshot hands to the live objectives made from it."""
+    return [
+        {"framework_id": int(item["framework_id"]), "framework_uuid": item.get("framework_uuid"), "node_uuid": item["node_uuid"]}
+        for item in snapshot.get("requirement_mappings") or []
+        if item.get("node_uuid") and item.get("framework_id") is not None
+    ]
+
+
 def _materialized_objective_fields(db: Session, snapshot: dict) -> list[dict]:
     fields = [
         {
@@ -602,7 +620,6 @@ def materialize_assignment_plans(db: Session, assignment_id: int) -> None:
     if not inspect(db.connection()).has_table("plan"):
         return
     from src.db.programs import (  # Local import keeps the compatibility layer acyclic.
-        ObjectiveProgress,
         ParticipantStatus,
         Program,
         ProgramAssignment,
@@ -695,7 +712,7 @@ def materialize_assignment_plans(db: Session, assignment_id: int) -> None:
             phase = PlanPhase(
                 phase_uuid=f"plan_phase_{uuid4()}", plan_id=int(plan.id),
                 name=next((item.get("phase_name") for item in snapshots if (item.get("phase_uuid") or "legacy") == phase_key), None) or "Phase 1",
-                position=position, start_date=None, due_date=scheduled.get("end_date"),
+                position=position, start_date=None, due_date=_schedule_date(scheduled.get("end_date")),
                 creation_date=now, update_date=now,
             )
             db.add(phase)
@@ -712,26 +729,16 @@ def materialize_assignment_plans(db: Session, assignment_id: int) -> None:
                 position=position, badge_id=snapshot.get("badge_id"),
                 badge_major_version=snapshot.get("badge_major_version"), fields=fields,
                 start_date=None,
-                due_date=scheduled.get("due_date") if scheduled.get("due_rule") == "specific_date" else None,
+                due_date=_schedule_date(scheduled.get("due_date")) if scheduled.get("due_rule") == "specific_date" else None,
                 allow_late=bool(scheduled.get("allow_late")), creation_date=now, update_date=now,
                 completion_restricted=bool(not snapshot.get("allow_learner_confirmation", False)),
+                requirement_mappings=snapshot_requirement_mappings(snapshot),
             )
             db.add(objective)
             db.flush()
-            old = db.exec(select(ObjectiveProgress).where(
-                ObjectiveProgress.org_id == assignment.org_id,
-                ObjectiveProgress.objective_id == snapshot.get("id"),
-                ObjectiveProgress.user_id == participant.user_id,
-            )).first()
-            old_status = str(old.status.value if old and hasattr(old.status, "value") else old.status if old else "not_started")
-            progress_status = {"flagged": "changes_requested", "ready_for_review": "submitted"}.get(old_status, old_status)
             db.add(PlanObjectiveProgress(
                 progress_uuid=f"plan_progress_{uuid4()}", plan_objective_id=int(objective.id),
-                status=progress_status, field_values={"legacy_evidence": old.evidence or []} if old else {},
-                subject_note=old.learner_note if old else "", reviewer_note=old.staff_note if old else "",
-                feedback_history=old.feedback_history or [] if old else [], completed_at=old.completed_at if old else None,
-                updated_by_user_id=old.completed_by_user_id if old else None,
-                creation_date=old.creation_date if old else now, update_date=old.update_date if old else now,
+                creation_date=now, update_date=now,
             ))
         db.flush()
         _link_legacy_learning_runs(db, assignment.id, participant.id, participant.user_id, plan)
@@ -820,7 +827,7 @@ def materialize_external_assignment_plan(db: Session, assignment_id: int, subjec
         phase = PlanPhase(
             phase_uuid=f"plan_phase_{uuid4()}", plan_id=int(plan.id),
             name=next((item.get("phase_name") for item in snapshots if (item.get("phase_uuid") or "legacy") == phase_key), None) or "Phase 1",
-            position=position, start_date=None, due_date=scheduled.get("end_date"),
+            position=position, start_date=None, due_date=_schedule_date(scheduled.get("end_date")),
             creation_date=now, update_date=now,
         )
         db.add(phase)
@@ -837,9 +844,10 @@ def materialize_external_assignment_plan(db: Session, assignment_id: int, subjec
             badge_major_version=snapshot.get("badge_major_version"),
             fields=_materialized_objective_fields(db, snapshot),
             start_date=None,
-            due_date=scheduled.get("due_date") if scheduled.get("due_rule") == "specific_date" else None,
+            due_date=_schedule_date(scheduled.get("due_date")) if scheduled.get("due_rule") == "specific_date" else None,
             allow_late=bool(scheduled.get("allow_late")), creation_date=now, update_date=now,
             completion_restricted=bool(not snapshot.get("allow_learner_confirmation", False)),
+            requirement_mappings=snapshot_requirement_mappings(snapshot),
         )
         db.add(objective)
         db.flush()

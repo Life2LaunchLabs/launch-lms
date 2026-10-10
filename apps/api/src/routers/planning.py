@@ -355,11 +355,6 @@ def api_delete_template(template_uuid: str, org_id: int, db: Session = Depends(g
     return template_service.delete_program(db, current_user, org_id, template_uuid)
 
 
-@router.get("/template-objectives")
-def api_list_template_objectives(org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    return template_service.list_objectives(db, current_user, org_id)
-
-
 @router.post("/templates/{template_uuid}/objectives")
 def api_add_template_objective(template_uuid: str, org_id: int, payload: ObjectiveCreate, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
     return template_service.add_program_objective(db, current_user, org_id, template_uuid, payload)
@@ -375,6 +370,11 @@ def api_update_template_objective(template_uuid: str, objective_uuid: str, org_i
     return template_service.update_program_objective(db, current_user, org_id, template_uuid, objective_uuid, payload)
 
 
+@router.delete("/templates/{template_uuid}/objectives/{objective_uuid}")
+def api_remove_template_objective(template_uuid: str, objective_uuid: str, org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
+    return template_service.remove_program_objective(db, current_user, org_id, template_uuid, objective_uuid)
+
+
 @router.post("/templates/{template_uuid}/phases")
 def api_create_template_phase(template_uuid: str, org_id: int, payload: ProgramPhaseCreate, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
     return template_service.create_program_phase(db, current_user, org_id, template_uuid, payload)
@@ -383,6 +383,11 @@ def api_create_template_phase(template_uuid: str, org_id: int, payload: ProgramP
 @router.put("/templates/{template_uuid}/phases/{phase_uuid}")
 def api_update_template_phase(template_uuid: str, phase_uuid: str, org_id: int, payload: ProgramPhaseUpdate, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
     return template_service.update_program_phase(db, current_user, org_id, template_uuid, phase_uuid, payload)
+
+
+@router.delete("/templates/{template_uuid}/phases/{phase_uuid}")
+def api_delete_template_phase(template_uuid: str, phase_uuid: str, org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
+    return template_service.delete_program_phase(db, current_user, org_id, template_uuid, phase_uuid)
 
 
 @router.put("/templates/{template_uuid}/order")

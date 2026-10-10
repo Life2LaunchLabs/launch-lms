@@ -170,6 +170,8 @@ class PlanObjective(SQLModel, table=True):
     allow_late: bool = False
     blocked: bool = False
     completion_restricted: bool = False
+    # Requirement nodes this objective counts toward: [{framework_id, framework_uuid, node_uuid}].
+    requirement_mappings: list[dict] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
     creation_date: str = ""
     update_date: str = ""
 

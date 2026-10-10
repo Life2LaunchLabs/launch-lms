@@ -2,8 +2,9 @@
 
 A save applies the whole document in one transaction: template details, roles,
 phases (order, names, durations) and objectives (content, steps, schedule,
-requirement mappings, placement). Existing phases and objectives are never
-deleted here; live plans and requirement credit still point at them.
+requirement mappings, placement). Phases and objectives left out of the
+document are removed; removed objectives are archived so the live plans made
+from them keep their provenance.
 """
 
 from __future__ import annotations
@@ -245,28 +246,18 @@ def _check(db: Session, org_id: int, raw, program: Program | None) -> tuple[Plan
                 if unknown:
                     errors.append({"path": f"{path}.requirement_node_uuids", "message": f"Unknown requirement nodes: {', '.join(unknown)}"})
 
-            if existing is not None and program:
-                relation, objective = existing
-                changed = (item.title.strip(), item.description, steps) != (objective.title, objective.description, objective.custom_fields or [])
-                if changed:
-                    others = db.exec(
-                        select(func.count(ProgramObjective.id)).where(  # type: ignore[arg-type]
-                            ProgramObjective.objective_id == objective.id, ProgramObjective.program_id != program.id
-                        )
-                    ).one()
-                    if others:
-                        warnings.append({"path": path, "message": f"This objective is also used by {others} other template(s); the edit applies there too"})
             prepared["objectives"][(i, j)] = {"steps": steps, "badge": badge}
     if total > MAX_OBJECTIVES:
         errors.append({"path": "phases", "message": f"A template can have at most {MAX_OBJECTIVES} objectives"})
 
     if program:
-        missing_phases = [phase.name for uuid, phase in phases_by_uuid.items() if uuid not in seen_phases]
-        if missing_phases:
-            errors.append({"path": "phases", "message": f"Phases cannot be removed here; keep: {', '.join(missing_phases)}"})
-        missing = [objective.title for uuid, (_, objective) in relations.items() if uuid not in seen_objectives]
-        if missing:
-            errors.append({"path": "phases", "message": f"Objectives cannot be removed here (move them instead); keep: {', '.join(missing)}"})
+        # Leaving something out of the document removes it. Plans already assigned keep their copy.
+        for phase_uuid, phase in phases_by_uuid.items():
+            if phase_uuid not in seen_phases:
+                warnings.append({"path": "phases", "message": f"Removes phase \"{phase.name}\""})
+        for objective_uuid, (_, objective) in relations.items():
+            if objective_uuid not in seen_objectives:
+                warnings.append({"path": "phases", "message": f"Removes objective \"{objective.title}\"; plans already assigned keep it"})
     return document, report(), prepared
 
 
@@ -330,6 +321,15 @@ def _apply(db: Session, current_user: PublicUser, org_id: int, program: Program,
             current = [mapping["node_uuid"] for mapping in mappings_for_relation(db, relation)] if existing is not None else []
             if requested != current:
                 update_mappings(db, current_user, org_id, relation, requested)
+    kept_objectives = {item.objective_uuid for phase_doc in document.phases for item in phase_doc.objectives if item.objective_uuid}
+    for objective_uuid, (relation, objective) in relations.items():
+        if objective_uuid not in kept_objectives:
+            programs.detach_program_objective(db, relation, objective)
+    db.flush()
+    kept_phases = {phase_doc.phase_uuid for phase_doc in document.phases if phase_doc.phase_uuid}
+    for phase_uuid, phase in phases_by_uuid.items():
+        if phase_uuid not in kept_phases:
+            db.delete(phase)
     program.update_date = now
     db.add(program)
     db.flush()

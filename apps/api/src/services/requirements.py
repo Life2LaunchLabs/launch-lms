@@ -533,20 +533,12 @@ def _upsert_source(
     db.add(source)
 
 
-def _snapshot_mapping(snapshot: dict, source_objective_id: int | None) -> list[dict]:
-    if not source_objective_id:
-        return []
-    item = next((row for row in snapshot.get("objectives", []) if row.get("id") == source_objective_id), None)
-    return list((item or {}).get("requirement_mappings") or [])
-
-
 def sync_live_progress(db: Session, progress: PlanObjectiveProgress, plan_objective: PlanObjective, plan: Plan) -> None:
     if not _available(db):
         return
     if not progress.id:
         db.flush()
-    assignment = db.get(__import__("src.db.programs", fromlist=["ProgramAssignment"]).ProgramAssignment, plan.source_assignment_id) if plan.source_assignment_id else None
-    mappings = _snapshot_mapping({"objectives": assignment.objective_snapshot or []}, plan_objective.source_objective_id) if assignment else []
+    mappings = plan_objective.requirement_mappings or []
     if not mappings:
         return
     active = progress.status == PlanObjectiveStatus.COMPLETED

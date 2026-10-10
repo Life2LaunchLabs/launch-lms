@@ -38,12 +38,12 @@ whole template.
   Move an objective by moving it to another phase's list.
 - Keep `phase_uuid`, `objective_uuid` and `field_uuid` on everything that
   already exists. Omit them for new phases, objectives and steps.
-- Existing phases and objectives cannot be removed through a document (live
-  plans and requirement credit refer to them). Ask the admin to remove them in
-  Launch LMS if needed.
-- An objective may also be used by other templates in the organization. Edits
-  to its title, description and steps apply everywhere it is used; validation
-  warns when that is the case.
+- Leaving a phase or objective out of the document removes it from the
+  template. Plans already assigned keep their copy. Validation lists what a
+  save would remove as warnings; confirm them with the admin before saving.
+- Objectives belong to one template. To say that objectives in different
+  templates achieve the same thing, link them to the same requirement nodes
+  (`requirement_node_uuids`; see `list_requirement_frameworks`).
 
 ## Steps
 

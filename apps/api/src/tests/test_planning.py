@@ -926,7 +926,7 @@ def test_group_sourced_plan_rejects_individual_definition_changes_with_workspace
         assert conflict.value.detail["group_workspace"] == "/plans?group=assignment_group_lock"
 
 
-def test_assignment_materialization_is_idempotent_and_preserves_states_owner_roles_and_progress():
+def test_assignment_materialization_is_idempotent_and_preserves_states_owner_roles_and_requirement_links():
     with _session() as db:
         definitions = [
             {"key": "subject", "name": "Learner", "capabilities": ["view_plan", "update_progress"]},
@@ -945,6 +945,7 @@ def test_assignment_materialization_is_idempotent_and_preserves_states_owner_rol
             objective_snapshot=[{
                 "id": 70, "objective_uuid": "objective_70", "title": "Shared objective",
                 "kind": "custom", "phase_uuid": "phase_batch", "phase_name": "Batch phase",
+                "requirement_mappings": [{"framework_id": 9, "framework_uuid": "requirement_framework_9", "node_uuid": "node_a", "node_code": "1"}],
             }], creation_date=NOW, update_date=NOW,
         )
         participants = [
@@ -970,9 +971,11 @@ def test_assignment_materialization_is_idempotent_and_preserves_states_owner_rol
         roles = db.exec(select(PlanRole).where(PlanRole.plan_id == completed_plan.id)).all()
         assert {role.key: role.name for role in roles} == {"subject": "Learner", "coach": "Coach", "plan_admin": "Lead"}
         copied = db.exec(select(PlanObjectiveProgress).join(PlanObjective, PlanObjective.id == PlanObjectiveProgress.plan_objective_id).where(PlanObjective.plan_id == completed_plan.id)).one()
-        assert copied.status == PlanObjectiveStatus.COMPLETED
-        assert copied.subject_note == "Done"
-        assert copied.field_values == {"legacy_evidence": [{"url": "/proof.pdf"}]}
+        # Live plans start fresh: progress recorded against the template objective
+        # elsewhere does not carry over (requirements express equivalence instead).
+        assert copied.status == PlanObjectiveStatus.NOT_STARTED
+        live_objective = db.get(PlanObjective, copied.plan_objective_id)
+        assert live_objective.requirement_mappings == [{"framework_id": 9, "framework_uuid": "requirement_framework_9", "node_uuid": "node_a"}]
         pending_invites = db.exec(select(PlanInvitation).where(PlanInvitation.plan_id == plans[0].id)).all()
         assert len(pending_invites) == 1
         assert pending_invites[0].status == "pending"

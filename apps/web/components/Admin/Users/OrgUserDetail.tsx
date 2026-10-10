@@ -123,7 +123,7 @@ function UserReviewPanel({ user, orgId, accessToken }: { user: any; orgId: numbe
     if (!active || saving || (action === 'flag' && !message.trim())) return
     setSaving(true)
     try {
-      await programsApi.reviewObjective(orgId, active.assignment.assignment_uuid, { objective_uuid: active.objective.objective_uuid, user_id: user.id, action, message }, accessToken)
+      await programsApi.reviewObjective(orgId, active.assignment.assignment_uuid, { objective_uuid: active.objective.objective_uuid, user_id: user.id, plan_uuid: active.plan_uuid, plan_objective_uuid: active.plan_objective_uuid, action, message }, accessToken)
       if (queueKey) await mutate(queueKey)
       setActive(null); setMessage('')
       toast.success(action === 'confirm' ? 'Objective confirmed.' : 'Feedback sent to learner.')

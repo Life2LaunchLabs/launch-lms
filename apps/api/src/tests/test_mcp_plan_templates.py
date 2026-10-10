@@ -79,8 +79,8 @@ def test_read_edit_and_save_round_trip(templates):
     assert detail["current"]["etag"] == saved["structuredContent"]["etag"]
 
 
-def test_validation_reports_paths_and_save_rejects_removals(templates):
-    _, call, _, uuid = templates
+def test_validation_reports_paths_and_saves_can_remove_objectives_and_phases(templates):
+    session, call, _, uuid = templates
     current = call("get_plan_template", {"template_uuid": uuid})["structuredContent"]
     broken = deepcopy(current["document"])
     objectives = broken["phases"][0]["objectives"]
@@ -99,14 +99,24 @@ def test_validation_reports_paths_and_save_rejects_removals(templates):
         "phases[0].objectives[1].objective_uuid",
         "phases[0].objectives[2].badge_uuid",
         "phases[0].objectives[2].requirement_node_uuids",
-        "phases",  # "Mock interview" went missing
     } <= paths
 
-    dropped = deepcopy(current["document"])
-    dropped["phases"][0]["objectives"].pop()
-    rejected = call("save_plan_template", {"template_uuid": uuid, "document": dropped, "base_etag": current["etag"]})
-    detail = json.loads(rejected["content"][0]["text"])
-    assert rejected["isError"] is True and detail["status"] == 422 and "Mock interview" in detail["errors"][0]["message"]
+    # Leaving things out removes them; validation lists what would go.
+    reshaped = deepcopy(current["document"])
+    interview = reshaped["phases"][0]["objectives"].pop()
+    reshaped["phases"] = [{"name": "Launch", "objectives": reshaped["phases"][0]["objectives"]}]
+    report = call("validate_plan_template", {"template_uuid": uuid, "document": reshaped})["structuredContent"]
+    assert report["valid"] is True
+    assert {item["message"] for item in report["warnings"]} == {
+        'Removes phase "Explore"', 'Removes objective "Mock interview"; plans already assigned keep it',
+    }
+    saved = call("save_plan_template", {"template_uuid": uuid, "document": reshaped, "base_etag": current["etag"]})
+    assert "Warning at phases: Removes objective" in saved["content"][0]["text"]
+    result = saved["structuredContent"]["document"]
+    assert [(phase["name"], [item["title"] for item in phase["objectives"]]) for phase in result["phases"]] == [("Launch", ["Draft a resume"])]
+    removed = session.exec(select(Objective).where(Objective.objective_uuid == interview["objective_uuid"])).one()
+    assert removed.archived is True
+    assert session.exec(select(ProgramPhase).where(ProgramPhase.phase_uuid == current["document"]["phases"][0]["phase_uuid"])).first() is None
 
 
 def test_create_copies_a_template_with_a_badge_objective(templates):

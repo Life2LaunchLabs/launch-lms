@@ -54,7 +54,6 @@ export const programsApi = {
   get: (orgId: number, uuid: string, token?: string) => planningRequest(`/templates/${encodeURIComponent(uuid)}?org_id=${orgId}`, token),
   update: (orgId: number, uuid: string, data: any, token?: string) => planningRequest(`/templates/${encodeURIComponent(uuid)}?org_id=${orgId}`, token, 'PATCH', data),
   delete: (orgId: number, uuid: string, token?: string) => planningRequest(`/templates/${encodeURIComponent(uuid)}?org_id=${orgId}`, token, 'DELETE'),
-  objectives: (orgId: number, token?: string) => planningRequest(`/template-objectives?org_id=${orgId}`, token),
   addObjective: (orgId: number, uuid: string, data: any, token?: string) => planningRequest(`/templates/${encodeURIComponent(uuid)}/objectives?org_id=${orgId}`, token, 'POST', objectiveCreateData(data)),
   updateObjectiveSchedule: (orgId: number, uuid: string, objectiveUuid: string, data: any, token?: string) => planningRequest(`/templates/${encodeURIComponent(uuid)}/objectives/${encodeURIComponent(objectiveUuid)}/schedule?org_id=${orgId}`, token, 'PUT', data),
   updateObjective: (orgId: number, uuid: string, objectiveUuid: string, data: any, token?: string) => planningRequest(`/templates/${encodeURIComponent(uuid)}/objectives/${encodeURIComponent(objectiveUuid)}?org_id=${orgId}`, token, 'PUT', data),
@@ -74,11 +73,6 @@ export const programsApi = {
   reviewObjective: (orgId: number, assignmentUuid: string, data: any, token?: string) => planningRequest(`/assignment-batches/${encodeURIComponent(assignmentUuid)}/reviews/objective?org_id=${orgId}`, token, 'POST', data),
   updateProgress: (orgId: number, data: any, token?: string) => planningRequest(`/assignment-batches/progress?org_id=${orgId}`, token, 'POST', data),
   user: (orgId: number, userId: number, token?: string) => planningRequest(`/managed-users/${userId}?org_id=${orgId}`, token),
-  mine: (orgId: number, token?: string) => request(`/me?org_id=${orgId}`, token),
-  mineAll: (token?: string) => request('/me/all/details', token),
-  mineBySlug: (programSlug: string, token?: string) => request(`/me/programs/${encodeURIComponent(programSlug)}`, token),
-  enrollment: (participantUuid: string, token?: string) => request(`/me/enrollments/${encodeURIComponent(participantUuid)}`, token),
-  updateMine: (orgId: number, data: any, token?: string) => request(`/me/progress?org_id=${orgId}`, token, 'POST', data),
   respond: (orgId: number, participantUuid: string, accept: boolean, token?: string) => request(`/invitations/${encodeURIComponent(participantUuid)}/respond?org_id=${orgId}`, token, 'POST', { accept }),
 }
 
