@@ -244,6 +244,34 @@ test('request policy redirects authenticated org root to hub', () => {
   assert.equal(decision.destination, 'https://acme.launchlms.test/hub')
 })
 
+test('activity previews render on the requested host so they can be framed', () => {
+  for (const [host, hasSession] of [['launchlms.test', false], ['acme.launchlms.test', true]] as const) {
+    const decision = resolveRequestRouting({
+      requestUrl: `https://${host}/preview/activity/lpv_abc?org=acme&embed=1`,
+      pathname: '/preview/activity/lpv_abc',
+      search: '?org=acme&embed=1',
+      host,
+      hasSession,
+      instanceInfo,
+      resolvedCustomDomainOrgSlug: null,
+      orgSubdomainAccess: { user_site_enabled: false },
+    })
+    assert.equal(decision.action, 'rewrite')
+    assert.equal(decision.destination, '/orgs/acme/preview/activity/lpv_abc?org=acme&embed=1')
+  }
+  const unsafe = resolveRequestRouting({
+    requestUrl: 'https://launchlms.test/preview/activity/lpv_abc?org=../x',
+    pathname: '/preview/activity/lpv_abc',
+    search: '?org=../x',
+    host: 'launchlms.test',
+    hasSession: false,
+    instanceInfo,
+    resolvedCustomDomainOrgSlug: null,
+    orgSubdomainAccess: null,
+  })
+  assert.notEqual(unsafe.destination, '/orgs/../x/preview/activity/lpv_abc?org=../x')
+})
+
 test('request policy rewrites nested account tabs to the current organization', () => {
   for (const pathname of ['/account/messages', '/account/organizations', '/account/memory', '/account/preferences']) {
     const decision = resolveRequestRouting({

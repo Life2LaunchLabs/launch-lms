@@ -210,7 +210,7 @@ async def preview_activity(request: Request, db_session: Session, ctx: AccessCon
     )
     return {
         "preview_url": created["url"],
-        "embed_url": f"{created['url']}?embed=1",
+        "embed_url": f"{created['url']}&embed=1",
         "expires_at": created["expires_at"],
         "warnings": created["warnings"],
         "unsaved": args.get("document") is not None,
