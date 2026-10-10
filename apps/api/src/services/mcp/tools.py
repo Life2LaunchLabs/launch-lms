@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Awaitable, Callable
 
 from fastapi import HTTPException, Request
+from fastapi.encoders import jsonable_encoder
 from sqlmodel import Session
 
 from src.services.mcp import handlers
@@ -20,6 +21,8 @@ Handler = Callable[[Request, Session, AccessContext, dict], Awaitable[dict]]
 
 _DOCUMENT = {"type": "object", "description": "An Activity Document (format 'launch-lms.activity', format_version 1). See get_activity_schema."}
 _TEMPLATE_DOCUMENT = {"type": "object", "description": "A Plan Template Document (format 'launch-lms.plan-template', format_version 1). See get_plan_template_schema."}
+_FRAMEWORK_DOCUMENT = {"type": "object", "description": "A Requirement Framework Document (format 'launch-lms.requirement-framework', format_version 1). See get_requirement_framework_schema."}
+_LIBRARY_KIND = {"type": "string", "enum": ["plan_template", "requirement_framework"]}
 _PERSONA = {
     "type": "object",
     "description": "Optional learner variables to preview with, e.g. {\"user.first_name\": \"Sam\", \"user.details.variables.grade\": \"9\"}.",
@@ -139,7 +142,7 @@ TOOLS = [
         "List the plan templates in the connected organization with their size and how often they have been assigned. Start here to find the template an admin is talking about.",
         {"properties": {"query": {"type": "string", "description": "Optional case-insensitive filter on name and description."}}},
         handlers.list_plan_templates,
-        scope="templates:read",
+        scope="plans:read",
     ),
     Tool(
         "get_plan_template",
@@ -147,7 +150,7 @@ TOOLS = [
         "Read one plan template as a Plan Template Document (details, roles, phases, objectives, steps and schedule), plus its etag (needed to save).",
         {"properties": {"template_uuid": {"type": "string"}}, "required": ["template_uuid"]},
         handlers.get_plan_template,
-        scope="templates:read",
+        scope="plans:read",
     ),
     Tool(
         "get_plan_template_schema",
@@ -155,15 +158,7 @@ TOOLS = [
         "Get the authoring guide and JSON Schema for Plan Template Documents: phases, objectives, steps, schedules, badge objectives and roles. Read it before writing or editing a template.",
         {"properties": {}},
         handlers.get_plan_template_schema,
-        scope="templates:read",
-    ),
-    Tool(
-        "list_requirement_nodes",
-        "List requirement nodes",
-        "List the organization's requirement frameworks and their nodes, which objectives can count toward via requirement_node_uuids.",
-        {"properties": {}},
-        handlers.list_requirement_nodes,
-        scope="templates:read",
+        scope="plans:read",
     ),
     Tool(
         "validate_plan_template",
@@ -171,7 +166,7 @@ TOOLS = [
         "Check a Plan Template Document against every server rule without saving. Returns all errors and warnings with JSON paths. Pass template_uuid when editing an existing template; omit it for a new one.",
         {"properties": {"document": _TEMPLATE_DOCUMENT, "template_uuid": {"type": "string"}}, "required": ["document"]},
         handlers.validate_plan_template,
-        scope="templates:read",
+        scope="plans:read",
     ),
     Tool(
         "save_plan_template",
@@ -179,7 +174,7 @@ TOOLS = [
         "Save a Plan Template Document over an existing plan template. Requires the etag from get_plan_template (or the last save). Fails with the current document if someone changed the template since. Plans already assigned are not changed.",
         {"properties": {"template_uuid": {"type": "string"}, "document": _TEMPLATE_DOCUMENT, "base_etag": {"type": "string"}}, "required": ["template_uuid", "document", "base_etag"]},
         handlers.save_plan_template,
-        scope="templates:write",
+        scope="plans:write",
         read_only=False,
     ),
     Tool(
@@ -188,7 +183,117 @@ TOOLS = [
         "Create a new plan template from a Plan Template Document. Omit uuids for new phases and objectives; a document read with get_plan_template can be passed to copy that template.",
         {"properties": {"document": _TEMPLATE_DOCUMENT}, "required": ["document"]},
         handlers.create_plan_template,
-        scope="templates:write",
+        scope="plans:write",
+        read_only=False,
+    ),
+    Tool(
+        "set_objective_requirements",
+        "Link an objective to requirements",
+        "Replace the requirement nodes one plan template objective counts toward. Link leaf requirements (see list_requirement_frameworks). Use it to say that objectives in different templates achieve the same thing.",
+        {
+            "properties": {
+                "template_uuid": {"type": "string"},
+                "objective_uuid": {"type": "string"},
+                "node_uuids": {"type": "array", "items": {"type": "string"}, "description": "The full set; an empty list removes every link."},
+            },
+            "required": ["template_uuid", "objective_uuid", "node_uuids"],
+        },
+        handlers.set_objective_requirements,
+        scope="plans:write",
+        read_only=False,
+    ),
+    Tool(
+        "update_template_badge_versions",
+        "Move badge objectives to the latest badge versions",
+        "Point a template's badge objectives at each badge's newest published major version (get_plan_template lists outdated ones). Future assignments then require the new version.",
+        {"properties": {"template_uuid": {"type": "string"}, "accept_previous_major_versions": {"type": "boolean", "description": "Still accept awards of the earlier version."}}, "required": ["template_uuid"]},
+        handlers.update_template_badge_versions,
+        scope="plans:write",
+        read_only=False,
+    ),
+    Tool(
+        "list_requirement_frameworks",
+        "List requirement frameworks",
+        "List the organization's requirement frameworks with every requirement node (code, title, whether it is a leaf). Objectives link to leaf nodes.",
+        {"properties": {}},
+        handlers.list_requirement_frameworks,
+        scope="plans:read",
+    ),
+    Tool(
+        "get_requirement_framework",
+        "Get a requirement framework",
+        "Read a requirement framework's working version as a Requirement Framework Document, plus its etag (needed to save), version history, the template objectives linked to each node, and leaf requirements nothing links to yet.",
+        {"properties": {"framework_uuid": {"type": "string"}}, "required": ["framework_uuid"]},
+        handlers.get_requirement_framework,
+        scope="plans:read",
+    ),
+    Tool(
+        "get_requirement_framework_schema",
+        "Requirement framework format guide",
+        "Get the authoring guide and JSON Schema for Requirement Framework Documents: nodes, hierarchy levels, codes, versions and publishing.",
+        {"properties": {}},
+        handlers.get_requirement_framework_schema,
+        scope="plans:read",
+    ),
+    Tool(
+        "validate_requirement_framework",
+        "Validate a requirement framework",
+        "Check a Requirement Framework Document against every rule without saving, including which linked objectives an edit would affect. Pass framework_uuid when editing an existing framework.",
+        {"properties": {"document": _FRAMEWORK_DOCUMENT, "framework_uuid": {"type": "string"}}, "required": ["document"]},
+        handlers.validate_requirement_framework,
+        scope="plans:read",
+    ),
+    Tool(
+        "save_requirement_framework",
+        "Save a requirement framework",
+        "Save a Requirement Framework Document as the framework's working draft (a published version is never changed: saving over it starts a new draft). Requires the etag from get_requirement_framework. Does not publish.",
+        {"properties": {"framework_uuid": {"type": "string"}, "document": _FRAMEWORK_DOCUMENT, "base_etag": {"type": "string"}}, "required": ["framework_uuid", "document", "base_etag"]},
+        handlers.save_requirement_framework,
+        scope="plans:write",
+        read_only=False,
+    ),
+    Tool(
+        "create_requirement_framework",
+        "Create a requirement framework",
+        "Create a new requirement framework (as an unpublished draft) from a Requirement Framework Document.",
+        {"properties": {"document": _FRAMEWORK_DOCUMENT}, "required": ["document"]},
+        handlers.create_requirement_framework,
+        scope="plans:write",
+        read_only=False,
+    ),
+    Tool(
+        "publish_requirement_framework",
+        "Publish a requirement framework",
+        "Publish the framework's current draft so new enrollments use it. Learners already enrolled stay on their version. Only call this when the admin asks to publish.",
+        {"properties": {"framework_uuid": {"type": "string"}}, "required": ["framework_uuid"]},
+        handlers.publish_requirement_framework,
+        scope="plans:write",
+        read_only=False,
+    ),
+    Tool(
+        "search_library",
+        "Search the global library",
+        "Search the plan templates or requirement frameworks published to the shared Launch LMS library.",
+        {"properties": {"kind": _LIBRARY_KIND, "query": {"type": "string"}}, "required": ["kind"]},
+        handlers.search_library,
+        scope="plans:read",
+    ),
+    Tool(
+        "copy_from_library",
+        "Copy from the global library",
+        "Copy a library plan template or requirement framework into the connected organization as an independent copy.",
+        {"properties": {"kind": _LIBRARY_KIND, "uuid": {"type": "string", "description": "The library item's uuid from search_library."}}, "required": ["kind", "uuid"]},
+        handlers.copy_from_library,
+        scope="plans:write",
+        read_only=False,
+    ),
+    Tool(
+        "publish_to_library",
+        "Publish to the global library",
+        "Publish (or refresh) a snapshot of one of this organization's plan templates or published requirement frameworks to the shared library. Only the platform's owner organization can do this. Only call it when the admin asks.",
+        {"properties": {"kind": _LIBRARY_KIND, "uuid": {"type": "string"}}, "required": ["kind", "uuid"]},
+        handlers.publish_to_library,
+        scope="plans:write",
         read_only=False,
     ),
 ]
@@ -212,6 +317,14 @@ def _summary(name: str, result: dict) -> str:
         warnings = "".join(f"\nWarning at {item['path']}: {item['message']}" for item in result.get("warnings") or [])
         return (
             f"{verb} plan template \"{document['template']['name']}\" ({len(document['phases'])} phases, {objectives} objectives). "
+            f"New etag: {result['etag']}. Review in Launch LMS: {result['editor_url']}{warnings}"
+        )
+    if name in {"save_requirement_framework", "create_requirement_framework", "publish_requirement_framework"}:
+        document, context = result["document"], result["context"]
+        verb = {"publish_requirement_framework": "Published"}.get(name, "Saved" if result.get("changed") else "No changes to")
+        warnings = "".join(f"\nWarning at {item['path']}: {item['message']}" for item in result.get("warnings") or [])
+        return (
+            f"{verb} requirement framework \"{document['framework']['name']}\" version {context['version']} ({context['status']}, {len(document['nodes'])} requirements). "
             f"New etag: {result['etag']}. Review in Launch LMS: {result['editor_url']}{warnings}"
         )
     return json.dumps(result, ensure_ascii=False, default=str)
@@ -239,4 +352,5 @@ async def call_tool(request: Request, db_session: Session, ctx: AccessContext, n
     except (KeyError, TypeError, ValueError) as exc:
         db_session.rollback()
         return {"content": [{"type": "text", "text": f"Invalid arguments for {name}: {exc}"}], "isError": True}
+    result = jsonable_encoder(result)  # dates and datetimes become ISO strings
     return {"content": [{"type": "text", "text": _summary(name, result)}], "structuredContent": result}

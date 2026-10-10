@@ -718,6 +718,19 @@ def mappable_nodes(db: Session, org_id: int) -> dict[str, RequirementFramework]:
     return valid
 
 
+def parent_node_uuids(db: Session, org_id: int) -> set[str]:
+    """Nodes in the organization's frameworks that have children (and so never earn credit themselves)."""
+    if not _available(db):
+        return set()
+    parents: set[str] = set()
+    frameworks = db.exec(select(RequirementFramework).where(
+        RequirementFramework.org_id == org_id, RequirementFramework.archived == False,  # noqa: E712
+    )).all()
+    for framework in frameworks:
+        parents.update(node.parent_node_uuid for node in _nodes(db, int(_version(db, framework).id)) if node.parent_node_uuid)
+    return parents
+
+
 def update_mappings(db: Session, current_user: PublicUser, org_id: int, relation: ProgramObjective, node_uuids: list[str]) -> list[dict]:
     require_org_admin(current_user.id, org_id, db)
     valid = mappable_nodes(db, org_id)

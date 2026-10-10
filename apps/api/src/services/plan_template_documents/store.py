@@ -23,7 +23,7 @@ from src.db.users import PublicUser
 from src.security.org_auth import require_org_admin
 from src.services import programs
 from src.services.plan_template_documents.models import DOCUMENT_FORMAT, DOCUMENT_FORMAT_VERSION, MAX_OBJECTIVES, PlanTemplateDocument
-from src.services.requirements import mappable_nodes, mappings_for_relation, update_mappings
+from src.services.requirements import mappable_nodes, mappings_for_relation, parent_node_uuids, update_mappings
 
 # Kept on steps for the editor but derived from `restricted`, so it is left out of documents.
 DERIVED_STEP_KEYS = frozenset({"access"})
@@ -195,6 +195,7 @@ def _check(db: Session, org_id: int, raw, program: Program | None) -> tuple[Plan
     seen_phases: set[str] = set()
     seen_objectives: set[str] = set()
     nodes: dict | None = None
+    parents: set[str] | None = None
     total = 0
     for i, phase in enumerate(document.phases):
         base = f"phases[{i}]"
@@ -245,6 +246,10 @@ def _check(db: Session, org_id: int, raw, program: Program | None) -> tuple[Plan
                 unknown = [uuid for uuid in item.requirement_node_uuids if uuid not in nodes]
                 if unknown:
                     errors.append({"path": f"{path}.requirement_node_uuids", "message": f"Unknown requirement nodes: {', '.join(unknown)}"})
+                parents = parent_node_uuids(db, org_id) if parents is None else parents
+                grouping = [uuid for uuid in item.requirement_node_uuids if uuid in parents]
+                if grouping:
+                    warnings.append({"path": f"{path}.requirement_node_uuids", "message": f"Only leaf requirements earn credit; these have children: {', '.join(grouping)}"})
 
             prepared["objectives"][(i, j)] = {"steps": steps, "badge": badge}
     if total > MAX_OBJECTIVES:

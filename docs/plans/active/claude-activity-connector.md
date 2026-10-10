@@ -144,34 +144,26 @@ became revisits), every stored page and flow passes the models, and in Chromium 
 routes "Learn more" / "Skip ahead" through flow edges and "Back to start" revisits; the editor shows
 the button action picker and a "Button pressed" branch; published versions open Preview.
 
-## Plan templates in Claude
+## Plan templates and requirements in Claude
 
-The same connector edits plan templates (`Program`: phases → objectives → steps), using a
-whole-template **Plan Template Document** (`launch-lms.plan-template` v1,
-`src/services/plan_template_documents/`) in the same read → validate → save-with-etag loop.
+The connector also authors plan templates and requirement frameworks
+(`plans:read` / `plans:write`). See `docs/plans/active/plan-ecosystem-refactor.md`
+for the model and the tool list rationale.
 
 | Tool | Scope | Behavior |
 |---|---|---|
-| `list_plan_templates` | `templates:read` | Templates in the connected org with phase/objective/assignment counts and editor link |
-| `get_plan_template` | `templates:read` | Plan Template Document + `etag` + context (version, assignments, outdated badge objectives) |
-| `get_plan_template_schema` | `templates:read` | JSON Schema + authoring guide (also resources) |
-| `list_requirement_nodes` | `templates:read` | Requirement framework nodes objectives can map to |
-| `validate_plan_template` | `templates:read` | Every rule, errors and warnings by JSON path, no writes |
-| `save_plan_template` | `templates:write` | Applies the whole document in one transaction (`base_etag` required, 409 returns current) |
-| `create_plan_template` | `templates:write` | New template from a document (a read document can be passed to copy) |
+| `list_plan_templates` / `get_plan_template` / `get_plan_template_schema` | read | Plan Template Documents (`launch-lms.plan-template` v1) + etag |
+| `validate_plan_template` | read | Every rule by JSON path; warns what a save removes and grouping-node links |
+| `save_plan_template` / `create_plan_template` | write | Whole-document save in one transaction; omitted phases/objectives are removed |
+| `set_objective_requirements` | write | Replace one objective's requirement links |
+| `update_template_badge_versions` | write | Move badge objectives to the newest badge major versions |
+| `list_requirement_frameworks` / `get_requirement_framework` / `get_requirement_framework_schema` | read | Frameworks, nodes (leaf flags), linked objectives, unlinked leaves |
+| `validate_requirement_framework` | read | Hierarchy, levels, required metadata, link impact |
+| `save_requirement_framework` / `create_requirement_framework` | write | Saves the working draft (a published version gets a new draft) |
+| `publish_requirement_framework` | write | Publish the draft (admin asks) |
+| `search_library` / `copy_from_library` / `publish_to_library` | read / write | Global library for templates and frameworks (publish: owner org only) |
 
-- A save can rename, reorder and add phases and objectives, move objectives between phases,
-  edit steps, schedules, roles, instructions and requirement mappings, and add badge objectives.
-- It cannot remove existing phases or objectives (live plans and requirement credit refer to
-  them; the web editor does not remove them either) or change an objective's badge.
-- Objectives shared with other templates are edited everywhere they are used; validation warns.
-- Assigned plans keep their objective snapshot, so template saves only affect future assignments.
-- Connections made before this need to reconnect to grant the `templates:*` scopes.
-
-Verified on PostgreSQL 16 through real OAuth (DCR → consent → PKCE token with the new scopes):
-list, schema, requirement nodes, validate (bad due week reported by path), save (new phase,
-moved objective, requirement mapping, reviewer step), stale save 409, create a copy; the REST
-endpoint the web editor reads reflects every change.
+Deliberately absent: deleting templates or frameworks, assignments, learner data.
 
 ## Follow-ups
 

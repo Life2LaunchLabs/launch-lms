@@ -15,7 +15,7 @@ from src.tests.test_mcp import mcp  # noqa: F401  (fixture)
 @pytest.fixture
 def templates(mcp):  # noqa: F811
     client, session, rpc, base_call, alice = mcp
-    token = _token(session, alice.id, 1, scope="activities:read templates:read templates:write")
+    token = _token(session, alice.id, 1, scope="activities:read plans:read plans:write")
 
     def call(name, arguments=None, auth=token):
         return base_call(name, arguments, auth=auth)
@@ -146,10 +146,10 @@ def test_template_scopes_and_org_are_enforced(templates):
     session, call, alice, uuid = templates
     activities_only = _token(session, alice.id, 1, scope="activities:read")
     blocked = call("get_plan_template", {"template_uuid": uuid}, auth=activities_only)
-    assert blocked["isError"] is True and "templates:read" in blocked["content"][0]["text"]
-    read_only = _token(session, alice.id, 1, scope="templates:read")
-    assert "templates:write" in call("create_plan_template", {"document": {}}, auth=read_only)["content"][0]["text"]
+    assert blocked["isError"] is True and "plans:read" in blocked["content"][0]["text"]
+    read_only = _token(session, alice.id, 1, scope="plans:read")
+    assert "plans:write" in call("create_plan_template", {"document": {}}, auth=read_only)["content"][0]["text"]
 
-    other = _token(session, alice.id, 2, scope="templates:read templates:write")
+    other = _token(session, alice.id, 2, scope="plans:read plans:write")
     denied = call("get_plan_template", {"template_uuid": uuid}, auth=other)
     assert denied["isError"] is True

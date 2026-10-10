@@ -93,7 +93,7 @@ def test_full_authorization_code_flow_with_pkce_and_rotation(world):
     assert issued.status_code == 200, issued.text
     tokens = issued.json()
     assert issued.headers["cache-control"] == "no-store"
-    assert tokens["scope"] == "activities:read activities:write templates:read templates:write"
+    assert tokens["scope"] == "activities:read activities:write plans:read plans:write"
 
     context = server.resolve_access_token(session, tokens["access_token"])
     assert context.user.id == users["alice"].id and context.org_id == 1

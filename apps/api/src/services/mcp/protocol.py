@@ -17,6 +17,8 @@ from src.services.mcp.app_shell import APP_MIME_TYPE, PREVIEW_APP_URI, preview_a
 from src.services.mcp.tools import TOOLS, call_tool
 from src.services.plan_template_documents.models import authoring_guide as template_authoring_guide
 from src.services.plan_template_documents.models import plan_template_json_schema
+from src.services.requirement_documents.models import authoring_guide as requirement_authoring_guide
+from src.services.requirement_documents.models import requirement_framework_json_schema
 from src.services.oauth.server import AccessContext
 
 SUPPORTED_VERSIONS = ("2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05")
@@ -25,7 +27,7 @@ INSTRUCTIONS = """Launch LMS hosts badge learning paths. Each badge has versions
 
 Workflow: find the badge (list_badges) and activity (list_activities), read it (get_activity), and read get_activity_schema before writing pages. Make edits to the whole Activity Document, run validate_activity until it is clean, then show the admin preview_activity with your edited document so they can click through it. Save only when the admin asks, with save_activity and the etag you read; on a stale-document error, merge your change into the returned current document and retry. Point the admin to the editor_url to review and publish.
 
-Launch LMS also holds plan templates: reusable plans of phases and objectives that staff assign to learners or cohorts. Find one with list_plan_templates, read it with get_plan_template, and read get_plan_template_schema before editing. Edit the whole Plan Template Document, run validate_plan_template until it is clean, and show the admin what changes. Save only when the admin asks, with save_plan_template and the etag you read (create_plan_template for a new template); on a stale-document error, merge your change into the returned current document and retry. Template edits apply to future assignments, not to plans already assigned."""
+Launch LMS also holds plan templates: reusable plans of phases and objectives that staff assign to learners or cohorts. Each template owns its objectives. Requirement frameworks (standards, competencies) sit beside them: objectives link to leaf requirement nodes, and that link is how two objectives in different templates are said to achieve the same thing. Find templates with list_plan_templates and frameworks with list_requirement_frameworks; read one with get_plan_template or get_requirement_framework, and read the matching schema tool before editing. Edit the whole document, run the validate tool until it is clean, and tell the admin what will change (validation warnings list removals and affected links). Save only when the admin asks, with the etag you read; on a stale-document error, merge your change into the returned current document and retry. Publishing a framework and publishing to the global library happen only when the admin asks. Template edits apply to future assignments, not to plans already assigned."""
 
 RESOURCES = [
     {
@@ -57,6 +59,20 @@ RESOURCES = [
         "mimeType": "application/schema+json",
     },
     {
+        "uri": "launch-lms://requirement-framework-document/guide",
+        "name": "requirement-framework-authoring-guide",
+        "title": "Requirement framework authoring guide",
+        "description": "How Launch LMS requirement frameworks, levels, codes and versions work.",
+        "mimeType": "text/markdown",
+    },
+    {
+        "uri": "launch-lms://requirement-framework-document/schema",
+        "name": "requirement-framework-document-schema",
+        "title": "Requirement Framework Document JSON Schema",
+        "description": "JSON Schema for Requirement Framework Document v1.",
+        "mimeType": "application/schema+json",
+    },
+    {
         "uri": PREVIEW_APP_URI,
         "name": "activity-preview",
         "title": "Activity preview",
@@ -85,6 +101,10 @@ def _read_resource(uri: str) -> dict:
         return {"uri": uri, "mimeType": "text/markdown", "text": template_authoring_guide()}
     if uri == "launch-lms://plan-template-document/schema":
         return {"uri": uri, "mimeType": "application/schema+json", "text": json.dumps(plan_template_json_schema())}
+    if uri == "launch-lms://requirement-framework-document/guide":
+        return {"uri": uri, "mimeType": "text/markdown", "text": requirement_authoring_guide()}
+    if uri == "launch-lms://requirement-framework-document/schema":
+        return {"uri": uri, "mimeType": "application/schema+json", "text": json.dumps(requirement_framework_json_schema())}
     if uri == PREVIEW_APP_URI:
         return {"uri": uri, "mimeType": APP_MIME_TYPE, "text": preview_app_html(), "_meta": preview_app_meta()}
     raise RpcError(-32002, f"Resource not found: {uri}")

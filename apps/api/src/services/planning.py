@@ -433,6 +433,7 @@ def _objective_dict(db: Session, plan: Plan, objective: PlanObjective, capabilit
         "effective_due_date": effective_due_date, "has_fixed_due_date": objective.due_date is not None,
         "allow_late": objective.allow_late, "blocked": objective.blocked,
         "completion_restricted": completion_restricted,
+        "requirement_mappings": objective.requirement_mappings or [],
         "badge": ({"badge_uuid": badge.badge_uuid, "name": badge.name, "thumbnail_image": badge.thumbnail_image} if badge else None),
         "progress": {
             "status": status, "field_values": progress.field_values or {},

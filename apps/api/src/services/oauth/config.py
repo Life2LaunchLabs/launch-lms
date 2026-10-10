@@ -11,8 +11,8 @@ from config.config import get_launchlms_config
 SCOPES = {
     "activities:read": "See your organization's badges and activities, and preview them",
     "activities:write": "Edit activities in draft badge versions",
-    "templates:read": "See your organization's plan templates",
-    "templates:write": "Create and edit plan templates",
+    "plans:read": "See your organization's plan templates and requirement frameworks",
+    "plans:write": "Create and edit plan templates and requirement frameworks",
 }
 DEFAULT_SCOPE = " ".join(SCOPES)
 CODE_TTL_SECONDS = 600
