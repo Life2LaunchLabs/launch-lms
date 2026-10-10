@@ -7,6 +7,8 @@ as not found, even when the user is also an admin there.
 
 from __future__ import annotations
 
+from urllib.parse import quote
+
 from fastapi import HTTPException, Request
 from sqlmodel import Session, func, select
 
@@ -18,7 +20,10 @@ from src.db.learning import (
     LearningPage,
     LearningVariable,
 )
-from src.services import learning
+from src.db.programs import Program, ProgramAssignment, ProgramObjective, ProgramPhase
+from src.db.requirements import RequirementFramework
+from src.security.org_auth import require_org_admin
+from src.services import learning, requirements
 from src.services.learning_documents import store
 from src.services.learning_documents.models import (
     ActivityDocumentCreate,
@@ -27,6 +32,9 @@ from src.services.learning_documents.models import (
     authoring_guide,
 )
 from src.services.learning_preview import sessions
+from src.services.plan_template_documents import store as template_store
+from src.services.plan_template_documents.models import authoring_guide as template_authoring_guide
+from src.services.plan_template_documents.models import plan_template_json_schema
 from src.services.oauth.config import frontend_url
 from src.services.oauth.server import AccessContext
 
@@ -230,3 +238,90 @@ async def create_activity(request: Request, db_session: Session, ctx: AccessCont
     envelope = await store.create_activity_from_document(request, payload, ctx.user, db_session)
     activity = learning._get_activity(db_session, envelope["context"]["activity_uuid"])
     return {**envelope, "editor_url": _editor_url(db_session, activity)}
+
+
+# Plan templates ---------------------------------------------------------------
+
+
+def _template_editor_url(db_session: Session, ctx: AccessContext, template_uuid: str) -> str:
+    org = learning._get_org(db_session, ctx.org_id)
+    return f"{frontend_url()}/orgs/{org.slug}/admin/plans/{quote(template_uuid)}/objectives"
+
+
+def _with_template_url(db_session: Session, ctx: AccessContext, envelope: dict) -> dict:
+    return {**envelope, "editor_url": _template_editor_url(db_session, ctx, envelope["context"]["template_uuid"])}
+
+
+async def list_plan_templates(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
+    require_org_admin(ctx.user.id, ctx.org_id, db_session)
+    query = str(args.get("query") or "").strip().lower()
+    templates = db_session.exec(
+        select(Program).where(Program.org_id == ctx.org_id).order_by(Program.name.asc())  # type: ignore[union-attr]
+    ).all()
+    items = []
+    for program in templates:
+        if query and query not in f"{program.name} {program.description}".lower():
+            continue
+        phases = db_session.exec(select(func.count(ProgramPhase.id)).where(ProgramPhase.program_id == program.id)).one()  # type: ignore[arg-type]
+        objectives = db_session.exec(select(func.count(ProgramObjective.id)).where(ProgramObjective.program_id == program.id)).one()  # type: ignore[arg-type]
+        assignments = db_session.exec(select(func.count(ProgramAssignment.id)).where(ProgramAssignment.program_id == program.id)).one()  # type: ignore[arg-type]
+        items.append(
+            {
+                "template_uuid": program.program_uuid,
+                "name": program.name,
+                "description": program.description or "",
+                "phase_count": phases,
+                "objective_count": objectives,
+                "assignment_count": assignments,
+                "updated": program.update_date,
+                "editor_url": _template_editor_url(db_session, ctx, program.program_uuid),
+            }
+        )
+    return {"templates": items}
+
+
+async def get_plan_template(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
+    envelope = template_store.get_template_document(db_session, ctx.user, ctx.org_id, args["template_uuid"])
+    return _with_template_url(db_session, ctx, envelope)
+
+
+async def get_plan_template_schema(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
+    return {"guide": template_authoring_guide(), "schema": plan_template_json_schema()}
+
+
+async def list_requirement_nodes(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
+    require_org_admin(ctx.user.id, ctx.org_id, db_session)
+    if not requirements._available(db_session):
+        return {"frameworks": []}
+    frameworks = db_session.exec(
+        select(RequirementFramework).where(
+            RequirementFramework.org_id == ctx.org_id, RequirementFramework.archived == False  # noqa: E712
+        ).order_by(RequirementFramework.name.asc())  # type: ignore[union-attr]
+    ).all()
+    return {
+        "frameworks": [
+            {
+                "framework_uuid": framework.framework_uuid,
+                "name": framework.name,
+                "nodes": [
+                    {"node_uuid": node.node_uuid, "code": node.code, "title": node.title, "parent_node_uuid": node.parent_node_uuid}
+                    for node in requirements._nodes(db_session, int(requirements._version(db_session, framework).id))  # type: ignore[arg-type]
+                ],
+            }
+            for framework in frameworks
+        ]
+    }
+
+
+async def validate_plan_template(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
+    return template_store.validate_template_document(db_session, ctx.user, ctx.org_id, args["document"], args.get("template_uuid"))
+
+
+async def save_plan_template(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
+    envelope = template_store.save_template_document(db_session, ctx.user, ctx.org_id, args["template_uuid"], args["document"], args["base_etag"])
+    return _with_template_url(db_session, ctx, envelope)
+
+
+async def create_plan_template(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
+    envelope = template_store.create_template_from_document(db_session, ctx.user, ctx.org_id, args["document"])
+    return _with_template_url(db_session, ctx, envelope)

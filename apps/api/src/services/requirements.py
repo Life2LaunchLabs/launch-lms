@@ -711,8 +711,10 @@ def migrate_enrollments(db: Session, current_user: PublicUser, org_id: int, fram
     return {"updated": len(enrollments), "version": version.version_number}
 
 
-def update_mappings(db: Session, current_user: PublicUser, org_id: int, relation: ProgramObjective, node_uuids: list[str]) -> list[dict]:
-    require_org_admin(current_user.id, org_id, db)
+def mappable_nodes(db: Session, org_id: int) -> dict[str, RequirementFramework]:
+    """Requirement nodes objectives in this organization can map to, by node uuid."""
+    if not _available(db):
+        return {}
     valid: dict[str, RequirementFramework] = {}
     frameworks = db.exec(select(RequirementFramework).where(
         RequirementFramework.org_id == org_id, RequirementFramework.archived == False,  # noqa: E712
@@ -721,6 +723,12 @@ def update_mappings(db: Session, current_user: PublicUser, org_id: int, relation
         version = _version(db, framework)
         for node in _nodes(db, int(version.id)):
             valid[node.node_uuid] = framework
+    return valid
+
+
+def update_mappings(db: Session, current_user: PublicUser, org_id: int, relation: ProgramObjective, node_uuids: list[str]) -> list[dict]:
+    require_org_admin(current_user.id, org_id, db)
+    valid = mappable_nodes(db, org_id)
     requested = list(dict.fromkeys(node_uuids))
     invalid = set(requested) - set(valid)
     if invalid:

@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 Handler = Callable[[Request, Session, AccessContext, dict], Awaitable[dict]]
 
 _DOCUMENT = {"type": "object", "description": "An Activity Document (format 'launch-lms.activity', format_version 1). See get_activity_schema."}
+_TEMPLATE_DOCUMENT = {"type": "object", "description": "A Plan Template Document (format 'launch-lms.plan-template', format_version 1). See get_plan_template_schema."}
 _PERSONA = {
     "type": "object",
     "description": "Optional learner variables to preview with, e.g. {\"user.first_name\": \"Sam\", \"user.details.variables.grade\": \"9\"}.",
@@ -132,6 +133,64 @@ TOOLS = [
         scope="activities:write",
         read_only=False,
     ),
+    Tool(
+        "list_plan_templates",
+        "List plan templates",
+        "List the plan templates in the connected organization with their size and how often they have been assigned. Start here to find the template an admin is talking about.",
+        {"properties": {"query": {"type": "string", "description": "Optional case-insensitive filter on name and description."}}},
+        handlers.list_plan_templates,
+        scope="templates:read",
+    ),
+    Tool(
+        "get_plan_template",
+        "Get a plan template",
+        "Read one plan template as a Plan Template Document (details, roles, phases, objectives, steps and schedule), plus its etag (needed to save).",
+        {"properties": {"template_uuid": {"type": "string"}}, "required": ["template_uuid"]},
+        handlers.get_plan_template,
+        scope="templates:read",
+    ),
+    Tool(
+        "get_plan_template_schema",
+        "Plan template format guide",
+        "Get the authoring guide and JSON Schema for Plan Template Documents: phases, objectives, steps, schedules, badge objectives and roles. Read it before writing or editing a template.",
+        {"properties": {}},
+        handlers.get_plan_template_schema,
+        scope="templates:read",
+    ),
+    Tool(
+        "list_requirement_nodes",
+        "List requirement nodes",
+        "List the organization's requirement frameworks and their nodes, which objectives can count toward via requirement_node_uuids.",
+        {"properties": {}},
+        handlers.list_requirement_nodes,
+        scope="templates:read",
+    ),
+    Tool(
+        "validate_plan_template",
+        "Validate a plan template",
+        "Check a Plan Template Document against every server rule without saving. Returns all errors and warnings with JSON paths. Pass template_uuid when editing an existing template; omit it for a new one.",
+        {"properties": {"document": _TEMPLATE_DOCUMENT, "template_uuid": {"type": "string"}}, "required": ["document"]},
+        handlers.validate_plan_template,
+        scope="templates:read",
+    ),
+    Tool(
+        "save_plan_template",
+        "Save a plan template",
+        "Save a Plan Template Document over an existing plan template. Requires the etag from get_plan_template (or the last save). Fails with the current document if someone changed the template since. Plans already assigned are not changed.",
+        {"properties": {"template_uuid": {"type": "string"}, "document": _TEMPLATE_DOCUMENT, "base_etag": {"type": "string"}}, "required": ["template_uuid", "document", "base_etag"]},
+        handlers.save_plan_template,
+        scope="templates:write",
+        read_only=False,
+    ),
+    Tool(
+        "create_plan_template",
+        "Create a plan template",
+        "Create a new plan template from a Plan Template Document. Omit uuids for new phases and objectives; a document read with get_plan_template can be passed to copy that template.",
+        {"properties": {"document": _TEMPLATE_DOCUMENT}, "required": ["document"]},
+        handlers.create_plan_template,
+        scope="templates:write",
+        read_only=False,
+    ),
 ]
 TOOLS_BY_NAME = {tool.name: tool for tool in TOOLS}
 
@@ -145,6 +204,15 @@ def _summary(name: str, result: dict) -> str:
         return (
             f"Saved \"{document['activity']['title']}\" ({len(document['pages'])} pages) to draft "
             f"\"{result['context'].get('version_title')}\". New etag: {result['etag']}. Review and publish in Launch LMS: {result['editor_url']}"
+        )
+    if name in {"save_plan_template", "create_plan_template"}:
+        document = result["document"]
+        objectives = sum(len(phase.get("objectives") or []) for phase in document["phases"])
+        verb = "Saved" if result.get("changed") else "No changes to"
+        warnings = "".join(f"\nWarning at {item['path']}: {item['message']}" for item in result.get("warnings") or [])
+        return (
+            f"{verb} plan template \"{document['template']['name']}\" ({len(document['phases'])} phases, {objectives} objectives). "
+            f"New etag: {result['etag']}. Review in Launch LMS: {result['editor_url']}{warnings}"
         )
     return json.dumps(result, ensure_ascii=False, default=str)
 

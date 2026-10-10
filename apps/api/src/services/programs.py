@@ -156,6 +156,16 @@ def _validated_steps(db: Session, fields: list[dict] | None) -> list[dict]:
     return normalized
 
 
+def objective_policies(steps: list[dict], learner_confirms: bool) -> tuple[str, str]:
+    """Completion and evidence policy implied by an objective's steps."""
+    learner_can_add_evidence = any(
+        not bool(field.get("restricted", not field.get("allow_student_upload", False)))
+        for field in steps
+    )
+    evidence_policy = "both" if learner_can_add_evidence else ("staff" if steps else "none")
+    return ("either" if learner_confirms else "staff"), evidence_policy
+
+
 def _program_or_404(db: Session, program_uuid: str, org_id: int) -> Program:
     program = db.exec(
         select(Program).where(Program.program_uuid == program_uuid, Program.org_id == org_id)
@@ -680,21 +690,18 @@ def add_program_objective(
             })
         custom_fields = _validated_steps(db, custom_fields)
         now = _now_string()
-        learner_can_add_evidence = any(
-            not bool(field.get("restricted", not field.get("allow_student_upload", False)))
-            for field in custom_fields
-        )
-        has_evidence_fields = bool(custom_fields)
+        learner_confirms = payload.allow_learner_confirmation or payload.kind == ObjectiveKind.BADGE
+        completion_policy, evidence_policy = objective_policies(custom_fields, learner_confirms)
         objective = Objective(
             objective_uuid=f"objective_{uuid4()}",
             org_id=org_id,
             title=payload.title.strip(),
             description=payload.description,
             kind=ObjectiveKind.CUSTOM,
-            completion_policy=("either" if payload.allow_learner_confirmation or payload.kind == ObjectiveKind.BADGE else "staff"),
-            evidence_policy=("both" if learner_can_add_evidence else ("staff" if has_evidence_fields else "none")),
+            completion_policy=completion_policy,
+            evidence_policy=evidence_policy,
             custom_fields=custom_fields,
-            allow_learner_confirmation=payload.allow_learner_confirmation or payload.kind == ObjectiveKind.BADGE,
+            allow_learner_confirmation=learner_confirms,
             badge_id=badge_id,
             created_by_user_id=current_user.id,
             creation_date=now,
@@ -811,12 +818,7 @@ def update_program_objective(
         steps = _validated_steps(db, payload.custom_fields)
         objective.custom_fields = steps
         objective.allow_learner_confirmation = payload.allow_learner_confirmation
-        learner_can_add_evidence = any(
-            not bool(field.get("restricted", not field.get("allow_student_upload", False)))
-            for field in steps
-        )
-        objective.completion_policy = "either" if payload.allow_learner_confirmation else "staff"
-        objective.evidence_policy = "both" if learner_can_add_evidence else ("staff" if steps else "none")
+        objective.completion_policy, objective.evidence_policy = objective_policies(steps, payload.allow_learner_confirmation)
     relation.default_start_rule = payload.default_start_rule
     relation.default_due_rule = payload.default_due_rule
     relation.default_allow_late = payload.default_allow_late

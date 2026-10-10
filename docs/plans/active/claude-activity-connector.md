@@ -144,6 +144,35 @@ became revisits), every stored page and flow passes the models, and in Chromium 
 routes "Learn more" / "Skip ahead" through flow edges and "Back to start" revisits; the editor shows
 the button action picker and a "Button pressed" branch; published versions open Preview.
 
+## Plan templates in Claude
+
+The same connector edits plan templates (`Program`: phases → objectives → steps), using a
+whole-template **Plan Template Document** (`launch-lms.plan-template` v1,
+`src/services/plan_template_documents/`) in the same read → validate → save-with-etag loop.
+
+| Tool | Scope | Behavior |
+|---|---|---|
+| `list_plan_templates` | `templates:read` | Templates in the connected org with phase/objective/assignment counts and editor link |
+| `get_plan_template` | `templates:read` | Plan Template Document + `etag` + context (version, assignments, outdated badge objectives) |
+| `get_plan_template_schema` | `templates:read` | JSON Schema + authoring guide (also resources) |
+| `list_requirement_nodes` | `templates:read` | Requirement framework nodes objectives can map to |
+| `validate_plan_template` | `templates:read` | Every rule, errors and warnings by JSON path, no writes |
+| `save_plan_template` | `templates:write` | Applies the whole document in one transaction (`base_etag` required, 409 returns current) |
+| `create_plan_template` | `templates:write` | New template from a document (a read document can be passed to copy) |
+
+- A save can rename, reorder and add phases and objectives, move objectives between phases,
+  edit steps, schedules, roles, instructions and requirement mappings, and add badge objectives.
+- It cannot remove existing phases or objectives (live plans and requirement credit refer to
+  them; the web editor does not remove them either) or change an objective's badge.
+- Objectives shared with other templates are edited everywhere they are used; validation warns.
+- Assigned plans keep their objective snapshot, so template saves only affect future assignments.
+- Connections made before this need to reconnect to grant the `templates:*` scopes.
+
+Verified on PostgreSQL 16 through real OAuth (DCR → consent → PKCE token with the new scopes):
+list, schema, requirement nodes, validate (bad due week reported by path), save (new phase,
+moved objective, requirement mapping, reviewer step), stale save 409, create a copy; the REST
+endpoint the web editor reads reflects every change.
+
 ## Follow-ups
 
 - Client ID Metadata Documents; a "Connected apps" screen over `/api/v1/oauth/connections`.
