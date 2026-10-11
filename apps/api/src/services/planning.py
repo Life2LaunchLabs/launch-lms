@@ -49,6 +49,7 @@ from src.db.planning import (
 )
 from src.db.users import PublicUser, User
 from src.security.org_auth import is_org_admin, require_org_admin
+from src.services.badge_routes import award_if_plan_complete, badge_summary as _badge_summary
 from src.services.messages import create_inbox_message, resolve_action_by_dedupe
 from src.services.plan_home import adaptive_future_groups as _adaptive_future_groups
 from src.services.plan_availability import apply_template_order, plan_availability, validated_prerequisites
@@ -482,7 +483,7 @@ def _plan_dict(db: Session, plan: Plan, user_id: int, include_detail: bool = Fal
         "priority": plan.priority, "start_date": plan.start_date, "due_date": plan.due_date,
         "step_order": plan.step_order or "any",
         "subject": _user_summary(db, plan.subject_user_id), "owner": _user_summary(db, plan.owner_user_id),
-        "source_organization": _org_summary(db, plan.source_org_id),
+        "source_organization": _org_summary(db, plan.source_org_id), "source_badge": _badge_summary(db, plan.source_badge_id),
         "is_mine": plan.subject_user_id == user_id, "is_owner": plan.owner_user_id == user_id,
         "capabilities": sorted(capabilities), "objective_count": len(objective_rows),
         "completed_objective_count": complete_count,
@@ -724,10 +725,7 @@ def materialize_assignment_plans(db: Session, assignment_id: int) -> None:
             db.add(objective)
             db.flush()
             created.append((snapshot, objective))
-            db.add(PlanObjectiveProgress(
-                progress_uuid=f"plan_progress_{uuid4()}", plan_objective_id=int(objective.id),
-                creation_date=now, update_date=now,
-            ))
+            db.add(PlanObjectiveProgress(progress_uuid=f"plan_progress_{uuid4()}", plan_objective_id=int(objective.id), creation_date=now, update_date=now))
         apply_template_order(plan, program, created)
         db.flush()
         _link_legacy_learning_runs(db, assignment.id, participant.id, participant.user_id, plan)
@@ -843,10 +841,7 @@ def materialize_external_assignment_plan(db: Session, assignment_id: int, subjec
         db.add(objective)
         db.flush()
         created.append((snapshot, objective))
-        db.add(PlanObjectiveProgress(
-            progress_uuid=f"plan_progress_{uuid4()}", plan_objective_id=int(objective.id),
-            creation_date=now, update_date=now,
-        ))
+        db.add(PlanObjectiveProgress(progress_uuid=f"plan_progress_{uuid4()}", plan_objective_id=int(objective.id), creation_date=now, update_date=now))
     apply_template_order(plan, program, created)
     normalized = subject_email.strip().lower()
     invitation = PlanInvitation(
@@ -901,7 +896,9 @@ def get_plan(db: Session, current_user: PublicUser, identifier: str) -> dict:
 
 
 def _require_individual_definition(db: Session, plan: Plan) -> None:
-    """Group assignment definitions are edited once at the batch boundary."""
+    """Group assignment definitions are edited once at the batch boundary; a badge's steps come from the badge."""
+    if plan.source_badge_id:
+        raise HTTPException(status_code=409, detail="This plan's steps come from the badge it earns, so they can't be edited here.")
     if not plan.source_assignment_id:
         return
     from src.db.programs import ProgramAssignment
@@ -1258,7 +1255,7 @@ def update_objective_progress(db: Session, current_user: PublicUser, identifier:
     if payload.status == PlanObjectiveStatus.COMPLETED and objective.completion_restricted and "complete_restricted_objectives" not in capabilities:
         raise HTTPException(status_code=403, detail="This objective must be completed by someone who can complete restricted objectives")
     starting = payload.status in {PlanObjectiveStatus.IN_PROGRESS, PlanObjectiveStatus.SUBMITTED, PlanObjectiveStatus.COMPLETED}
-    if starting and not reviewing and "edit_structure" not in capabilities:
+    if starting and not reviewing and ("edit_structure" not in capabilities or plan.source_badge_id):
         availability = plan_availability(db, plan).get(int(objective.id), {"state": "open"})
         if availability["state"] == "not_ready":
             raise HTTPException(status_code=409, detail={"message": "This step is not ready yet", "availability": availability})
@@ -1300,6 +1297,7 @@ def update_objective_progress(db: Session, current_user: PublicUser, identifier:
         sync_live_progress(db, progress, objective, plan)
     _activity(db, plan, current_user.id, "objective.progress", {"objective_uuid": objective_uuid, "status": payload.status.value})
     db.commit()
+    award_if_plan_complete(db, plan)
     return _objective_dict(db, plan, objective, capabilities)
 
 

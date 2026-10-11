@@ -174,6 +174,8 @@ def sync_objective_from_run(db: Session, run: LearningRun) -> None:
     from src.services.requirements import sync_live_progress
     sync_live_progress(db, progress, objective, plan)
     db.commit()
+    from src.services.badge_routes import award_if_plan_complete
+    award_if_plan_complete(db, plan)
 
 
 def get_template_activity(db: Session, current_user: PublicUser, org_id: int, template_uuid: str, activity_uuid: str) -> dict:

@@ -109,6 +109,7 @@ class Plan(SQLModel, table=True):
     start_date: date | None = Field(default=None, sa_column=Column(Date, nullable=True))
     due_date: date | None = Field(default=None, sa_column=Column(Date, nullable=True))
     completed_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
+    source_badge_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningbadge.id", ondelete="SET NULL"), nullable=True, index=True))
     # Which steps a learner can start: "any", "in_order" or "by_chapter".
     step_order: str = Field(default="any", sa_column=Column(String, nullable=False, server_default="any"))
     creation_date: str = ""
