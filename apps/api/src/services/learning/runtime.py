@@ -26,7 +26,7 @@ from src.services.learning_portfolio_actions import (
     apply_portfolio_outcomes,
 )
 from src.services.learning_flow import continue_buttons
-from src.services.learning import access_rules, enrollment, grading, learner_variables, lookups, run_navigation
+from src.services.learning import access_rules, enrollment, grading, learner_variables, lookups, run_navigation, scope
 
 
 async def start_or_resume_run(
@@ -143,7 +143,7 @@ async def complete_page(
 ) -> LearningRunRead:
     run = lookups._get_run(db_session, data.run_uuid, actor)
     page = lookups._get_page(db_session, data.page_uuid)
-    if page.version_id != run.badge_version_id:
+    if not scope.page_in_run(run, page):
         raise HTTPException(status_code=409, detail="This page belongs to a different Achievement version")
     activity = db_session.get(LearningActivity, page.activity_id)
     if not activity:
@@ -303,7 +303,7 @@ async def submit_response(
 ) -> LearningRunRead:
     run = lookups._get_run(db_session, data.run_uuid, actor)
     page = lookups._get_page(db_session, data.page_uuid)
-    if page.version_id != run.badge_version_id:
+    if not scope.page_in_run(run, page):
         raise HTTPException(status_code=409, detail="This page belongs to a different Achievement version")
     if run_navigation._question_block(page) is None:
         raise HTTPException(
@@ -361,7 +361,10 @@ def _cooperating_org_ids_for_run(
 ) -> set[int]:
     if not run:
         return set()
-    badge = db_session.get(LearningBadge, run.badge_id)
+    if run.activity_id:
+        # An objective run is supported by the organization its plan came from.
+        return {run.issuing_org_id or run.org_id}
+    badge = db_session.get(LearningBadge, run.badge_id) if run.badge_id else None
     if not badge:
         return set()
     org_ids = {run.issuing_org_id if run.issuing_org_id is not None else badge.org_id}
@@ -384,7 +387,7 @@ def _cooperating_org_ids_for_run(
 def _cooperating_staff_ids_for_run(
     db_session: Session, run: LearningRun | None, org_id: int
 ) -> set[int]:
-    if not run or run.user_id is None:
+    if not run or run.user_id is None or not run.badge_id:
         return set()
     staff_ids: set[int] = set()
     links = db_session.exec(select(BadgeIssuerLearnerLink).where(

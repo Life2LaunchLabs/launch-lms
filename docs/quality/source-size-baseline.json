@@ -29,7 +29,7 @@
     "apps/api/src/services/planning.py": 2002,
     "apps/api/src/services/podcasts/podcasts.py": 874,
     "apps/api/src/services/portfolio.py": 1715,
-    "apps/api/src/services/programs.py": 2487,
+    "apps/api/src/services/programs.py": 2483,
     "apps/api/src/services/requirements.py": 821,
     "apps/api/src/services/resources.py": 1513,
     "apps/api/src/services/roles/roles.py": 573,
