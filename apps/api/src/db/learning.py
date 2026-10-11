@@ -206,6 +206,7 @@ class BadgeCollectionBase(SQLModel):
     protected: bool = False
     system_type: str | None = None
     deleted_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True, index=True))
+    collection_metadata: dict = Field(default_factory=dict, sa_column=Column("metadata", JSON))  # marketing: credibility, endorsers
 
 
 class BadgeCollection(BadgeCollectionBase, table=True):
@@ -236,6 +237,7 @@ class BadgeCollectionUpdate(SQLModel):
     hidden: bool | None = None
     protected: bool | None = None
     system_type: str | None = None
+    collection_metadata: dict | None = None
 
 
 class BadgeCollectionRead(BadgeCollectionBase):
@@ -372,8 +374,7 @@ class LearningActivityBase(SQLModel):
     icon: str | None = None
     order: int = 1
     required: bool = True
-    # Listed for learners. Only the system onboarding badge hides activities (launch_ready.json);
-    # elsewhere the badge version is the unit of publishing, so the API never edits this.
+    # Listed for learners. Only the onboarding badge hides activities; elsewhere the badge version is the unit of publishing.
     published: bool = False
     settings: dict = Field(default_factory=dict, sa_column=Column(JSON))
 
@@ -532,8 +533,7 @@ class LearningRun(SQLModel, table=True):
     activity_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningactivity.id", ondelete="CASCADE"), nullable=True, index=True))
     badge_version_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningbadgeversion.id", ondelete="RESTRICT"), nullable=True, index=True))
     org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
-    # Org the learner is earning the badge under; None means the badge's creator org.
-    issuing_org_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("organization.id", ondelete="SET NULL"), nullable=True, index=True))
+    issuing_org_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("organization.id", ondelete="SET NULL"), nullable=True, index=True))  # None: the creator org
     program_assignment_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("programassignment.id", ondelete="SET NULL"), nullable=True, index=True))
     program_participant_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("programparticipant.id", ondelete="SET NULL"), nullable=True, index=True))
     plan_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("plan.id", ondelete="SET NULL"), nullable=True, index=True))
