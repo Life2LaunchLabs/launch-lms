@@ -1,7 +1,7 @@
 # Badges and plans: one engine (proposal, not started)
 
 Status: proposal for a future session. Nothing here is built. Direction agreed
-in design review; pick up from "Open questions".
+in design review; pick up from "Suggested phases".
 
 ## Problem
 
@@ -126,12 +126,13 @@ earn:
   need an invite.
 - **Credential page**: what it is, creator and issuers, requirements, and the
   ways to earn it you can access, side by side.
+- **Challenges**: the current challenge is featured at the top of Discover.
 - **Inside a plan**: the credential card shows route progress; the coach can
   suggest credentials that fit the plan.
 - **Requirement views**: school requirements can list the credentials and
   plans that satisfy them.
 - **Profile**: earned credentials with portable Open Badges awards (the value
-  of today's badge pages ends up here).
+  of today's badge pages ends up here), recorded certifications and milestones.
 
 "Badge" can stay the learner-facing word for the earned item.
 
@@ -151,14 +152,45 @@ earn:
   document; credential criteria reuse requirement framework tools plus a small
   route-approval tool.
 
-## Open questions
+## Kinds of credential
 
-1. Can requirement nodes express what credential criteria need (e.g. "3 of
-   these 5")? The route-coverage approach doesn't need it; some criteria might.
-2. Push rules in detail: what counts as a "content edit" vs. a replacement, and
-   do learners get notified?
-3. What migration does with in-progress badge runs mid-version.
-4. Does an issuer's sign-off attach per objective or per node?
+All are the same model (requirements + routes + award); they differ in issuer
+and availability.
+
+- **Credential**: issued here by an issuer org, with an Open Badges award.
+- **External certification** (OSHA 10, CPR, …): issued outside the app. We
+  record it rather than issue it. Its route is a Create objective (upload the
+  card/certificate, with expiry date) that a counselor verifies; an optional
+  prep-plan route leads up to it. It can map to school requirements like
+  anything else. No Open Badges award from us.
+- **Challenge**: a credential with an availability window, published on a
+  cadence (e.g. monthly), one short open route, one badge per edition
+  ("October 2026 challenge").
+- **Milestone**: what personal and school plans give for finishing chapters or
+  the plan (the reward moments in the youth prototype). Lightweight, shown in
+  the profile, no issuer, no Open Badges, so credentials stay meaningful. A
+  school that wants something weightier (e.g. a capstone) creates a credential
+  and makes its plan a route.
+
+## Decisions (defaults until something says otherwise)
+
+1. **Sign-off is per objective.** Issuers sign off objectives; the signed-off
+   objective is the evidence attached to the requirement nodes it maps to.
+2. **Push rules**: a content edit is any change that keeps the objective's type;
+   changing the type is a remove + add. Learners get one notification per push
+   ("your plan was updated") listing what changed.
+3. **Migration of in-progress badge runs**: runs stay attached to their
+   activity; the learner's route instance is created from the version they
+   started; credit for already completed activities is written to the mapped
+   nodes.
+4. **Node rules**: build criteria from route coverage only; add "N of M" to
+   requirement nodes only when a real credential needs it.
+5. **Default route**: the creator marks one route as recommended; the
+   credential page shows it first, with "Change how you earn it" listing the
+   other routes the learner can access.
+
+Mockups of the learner side (Discover and credential detail):
+https://claude.ai/artifact/56FkTtx8GsDWgGUtbYMssB
 
 ## Suggested phases
 
@@ -169,7 +201,8 @@ earn:
    objective referencing a shared route instance; route track UI; issuer
    authorization rescoped.
 4. Migrate badges to credential + route templates; retire badge-owned learning
-   paths and badge assignment; catalog and credential pages.
+   paths and badge assignment; catalog and credential pages; certifications,
+   challenges and milestones.
 
 ## Related
 
