@@ -57,7 +57,9 @@ what a plan can earn you.
    opens the route as its own track. One route instance per learner per
    credential, shared by every plan that references it, so it is completed once
    and satisfies all of them. The learner can't edit its steps but can build
-   their own objectives around it.
+   their own objectives around it. Starting a badge creates its route instance
+   as a plan of its own; referencing it from another plan is a deliberate step
+   taken inside that plan.
 6. **Objectives write learner data.** Activities already set learner variables.
    Other objective types (Create, Decide, …) feed the same learner data store,
    e.g. portfolio items, so "what the learner said/made" has one home whatever
@@ -118,23 +120,25 @@ No separate plan-template versioning until this proves insufficient.
 
 ## Learner side and discovery
 
-Badges stop being a primary destination. Credentials show up as what plans
-earn:
+Learners see **badges** (the credential, by its learner-facing name) and
+**challenges** (coming soon). Plans without a badge are not part of discovery;
+they live in My plans.
 
-- **Catalog ("things to work on")**: templates and credentials together; cards
-  show what they earn, rough effort, and whether you can start now / request /
-  need an invite.
-- **Credential page**: what it is, creator and issuers, requirements, and the
-  ways to earn it you can access, side by side.
-- **Challenges**: the current challenge is featured at the top of Discover.
-- **Inside a plan**: the credential card shows route progress; the coach can
-  suggest credentials that fit the plan.
-- **Requirement views**: school requirements can list the credentials and
-  plans that satisfy them.
-- **Profile**: earned credentials with portable Open Badges awards (the value
-  of today's badge pages ends up here), recorded certifications and milestones.
+- **Discover** is a content-discovery surface (Epic Games Store / YouTube
+  patterns): an image-led featured carousel, a "Keep going" row with progress,
+  badge carousels (picked for you, series to collect), and an image-led
+  challenges banner. Cards are mostly badge art plus a name.
+- **Badge page** sells the badge for its own sake: big hero with the badge art,
+  what it proves, how it travels (verified, shareable, Open Badges), how you'll
+  earn it (recommended route, "Earn it another way" for the other routes you
+  can access), and the rest of its series.
+- **Starting is one tap.** Starting a badge starts its route and it appears in
+  My plans; no "add to which plan" choice. Making a badge a step in another plan
+  is a deliberate action taken from inside that plan.
+- **Profile/portfolio**: earned badges with portable Open Badges awards,
+  recorded certifications and milestones.
 
-"Badge" can stay the learner-facing word for the earned item.
+Mockups: https://claude.ai/artifact/56FkTtx8GsDWgGUtbYMssB
 
 ## What it costs
 
@@ -188,9 +192,6 @@ and availability.
 5. **Default route**: the creator marks one route as recommended; the
    credential page shows it first, with "Change how you earn it" listing the
    other routes the learner can access.
-
-Mockups of the learner side (Discover and credential detail):
-https://claude.ai/artifact/56FkTtx8GsDWgGUtbYMssB
 
 ## Suggested phases
 
