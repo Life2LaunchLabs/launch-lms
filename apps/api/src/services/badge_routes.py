@@ -146,8 +146,7 @@ def set_routes(db: Session, current_user: PublicUser, badge_uuid: str, payload: 
 def start_badge_plan(db: Session, current_user: PublicUser, badge_uuid: str, payload: BadgePlanStart) -> dict:
     """Start earning a badge: the learner's own plan from the chosen route, offered by the chosen issuer."""
     from src.services.learning_issuers import validate_issuer_start
-    from src.services.planning import _plan_dict, materialize_assignment_plans
-    from src.services.programs import _snapshot
+    from src.services.planning import _plan_dict
 
     badge = _badge(db, badge_uuid)
     user_id = int(current_user.id)
@@ -167,7 +166,18 @@ def start_badge_plan(db: Session, current_user: PublicUser, badge_uuid: str, pay
     if not _offers(_offered(db, badge), issuer_org_id, route):
         raise HTTPException(status_code=403, detail="This organization doesn't offer that way of earning the badge")
     link = validate_issuer_start(db, badge, issuer_org_id, user_id, set())
-    staff_ids = [int(item) for item in (link.staff_user_ids if link else []) if int(item) != user_id]
+    plan = create_badge_plan(db, badge, program, user_id, issuer_org_id, [int(item) for item in (link.staff_user_ids if link else [])])
+    db.commit()
+    db.refresh(plan)
+    return _plan_dict(db, plan, user_id, True)
+
+
+def create_badge_plan(db: Session, badge: LearningBadge, program: Program, user_id: int, issuer_org_id: int, staff_ids: list[int]) -> Plan:
+    """The learner's own plan from a route, offered by the issuer like an org assignment (not committed)."""
+    from src.services.planning import materialize_assignment_plans
+    from src.services.programs import _snapshot
+
+    staff_ids = [staff_id for staff_id in dict.fromkeys(staff_ids) if staff_id != user_id]
     staff_role = program.default_staff_role_key or "reviewer"
     now = _now_string()
     assignment = ProgramAssignment(
@@ -189,9 +199,8 @@ def start_badge_plan(db: Session, current_user: PublicUser, badge_uuid: str, pay
     plan.source_badge_id = badge.id
     plan.name = badge.name
     db.add(plan)
-    db.commit()
-    db.refresh(plan)
-    return _plan_dict(db, plan, user_id, True)
+    db.flush()
+    return plan
 
 
 def set_offered_routes(db: Session, current_user: PublicUser, badge_uuid: str, issuer_org_id: int, payload: BadgeRouteOffersUpdate) -> dict:
@@ -249,3 +258,15 @@ def award_if_plan_complete(db: Session, plan: Plan) -> LearningBadgeAward | None
     db.commit()
     db.refresh(award)
     return award
+
+
+def convert_path(db: Session, current_user: PublicUser, badge_uuid: str) -> dict:
+    """The creator turns the badge's learning path into its recommended route now."""
+    from src.security.org_auth import require_org_admin
+    from src.services.badge_conversion import convert_badge
+
+    badge = _badge(db, badge_uuid)
+    require_org_admin(current_user.id, badge.org_id, db)
+    if not convert_badge(db, badge):
+        raise HTTPException(status_code=409, detail="This badge already has ways to earn it, or no learning path to convert")
+    return list_routes(db, current_user, badge_uuid)

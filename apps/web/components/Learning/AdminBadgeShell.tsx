@@ -19,11 +19,11 @@ import { CreatorIssuingCard, LearnerAccessSelect, learnerAccessLabel } from '@co
 import CertificatePreview from '@components/Learning/BadgeCertificatePreview'
 import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
-import BadgeVersionToolbar from '@components/Learning/BadgeVersionToolbar'
+import BadgeVersionToolbar from '@components/Learning/BadgeVersionToolbar'; import BadgeRoutesPanel from '@components/Learning/BadgeRoutesPanel'
 
 const tabs = [
   { key: 'analytics', label: 'Analytics', icon: BarChart3 },
-  { key: 'learning-path', label: 'Learning Path', icon: GalleryVerticalEnd },
+  { key: 'learning-path', label: 'Ways to earn', icon: GalleryVerticalEnd },
   { key: 'definition', label: 'Definition', icon: Award },
   { key: 'marketing', label: 'Marketing', icon: Megaphone },
   { key: 'issuers', label: 'Issuers', icon: Handshake },
@@ -188,7 +188,7 @@ export default function AdminBadgeShell({
 
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.1 }} className="overflow-x-hidden">
         {normalizedSubpage === 'analytics' ? <BadgeAnalyticsPanel badge={badge} canEdit={canEdit} issuerOrgId={Number(org?.id)} orgslug={orgslug} /> : null}
-        {normalizedSubpage === 'learning-path' && canEdit ? children : null}
+        {normalizedSubpage === 'learning-path' && canEdit ? <><BadgeRoutesPanel badge={badge} orgslug={orgslug} />{children}</> : null}
         {normalizedSubpage === 'issuers' && canEdit ? <BadgeIssuersPanel badge={badge} onPatch={patchBadge} /> : null}
         {normalizedSubpage === 'marketing' && canEdit ? <fieldset disabled={!isDraft}><BadgeAboutPanel badge={badge} onPatch={patchBadge} /></fieldset> : null}
         {normalizedSubpage === 'settings' ? (canEdit

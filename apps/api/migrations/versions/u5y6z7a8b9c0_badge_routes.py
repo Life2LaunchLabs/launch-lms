@@ -6,7 +6,7 @@ Revises: t4x5y6z7a8b9
 ``badgeroute`` lists the plan templates a badge's creator publishes as ways to
 earn it; ``badgerouteoffer`` records which routes an issuer offers (an issuer
 with none offers every route). Plans started from a badge point back at it
-(``plan.source_badge_id``).
+(``plan.source_badge_id``). Awards for finishing one have source PLAN_COMPLETION.
 """
 
 import sqlalchemy as sa
@@ -19,6 +19,8 @@ depends_on = None
 
 
 def upgrade() -> None:
+    if op.get_bind().dialect.name == "postgresql":
+        op.execute("ALTER TYPE learningawardsource ADD VALUE IF NOT EXISTS 'PLAN_COMPLETION'")
     op.create_table(
         "badgeroute",
         sa.Column("id", sa.Integer(), primary_key=True),
@@ -50,6 +52,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    # The PLAN_COMPLETION enum value stays: PostgreSQL can't drop it while awards may use it.
     op.drop_index("ix_plan_source_badge_id", table_name="plan")
     op.drop_column("plan", "source_badge_id")
     op.drop_index("ix_badgerouteoffer_issuer_org_id", table_name="badgerouteoffer")
