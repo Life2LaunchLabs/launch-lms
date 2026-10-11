@@ -828,3 +828,34 @@ def test_objective_details_fields_and_timing_can_be_edited_together():
         assert objective["default_start_rule"] == "phase_start"
         assert objective["default_due_rule"] == "phase_end"
         assert objective["default_allow_late"] is True
+
+
+def test_template_step_order_and_prerequisites_carry_onto_live_plans():
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    _tables(engine)
+    with Session(engine) as session:
+        admin = _setup(session)
+        learner = PublicUser(id=2, user_uuid="user_2", username="learner", email="learner@example.com", first_name="Lee", last_name="Arner")
+        program = create_program(session, admin, ProgramCreate(org_id=1, name="Work Ready"))
+        program = add_program_objective(session, admin, 1, program["program_uuid"], ObjectiveCreate(title="Practice"))
+        program = add_program_objective(session, admin, 1, program["program_uuid"], ObjectiveCreate(title="Mock interview"))
+        practice, mock = (item["objective_uuid"] for item in program["objectives"])
+        from src.services.programs import update_program
+        from src.db.programs import ProgramUpdate
+        update_program(session, admin, 1, program["program_uuid"], ProgramUpdate(step_order="in_order"))
+        updated = update_program_objective(session, admin, 1, program["program_uuid"], mock, ProgramObjectiveUpdate(
+            title="Mock interview", default_start_rule="any_time", default_due_rule="phase_end", after_objective_uuids=[practice],
+        ))
+        assert next(item for item in updated["objectives"] if item["objective_uuid"] == mock)["after_objective_uuids"] == [practice]
+        with pytest.raises(HTTPException):
+            update_program_objective(session, admin, 1, program["program_uuid"], mock, ProgramObjectiveUpdate(
+                title="Mock interview", default_start_rule="any_time", default_due_rule="phase_end", after_objective_uuids=["nope"],
+            ))
+
+        assign_program(session, admin, 1, program["program_uuid"], ProgramAssignmentCreate(usergroup_id=1, staff_user_ids=[1]))
+        participant = session.exec(select(ProgramParticipant)).one()
+        respond_to_invitation(session, learner, 1, participant.participant_uuid, True)
+        plan = session.exec(select(Plan)).one()
+        live = {item.title: item for item in session.exec(select(PlanObjective)).all()}
+        assert plan.step_order == "in_order"
+        assert live["Mock interview"].after_objective_uuids == [live["Practice"].objective_uuid]

@@ -50,6 +50,8 @@ from src.db.planning import (
 from src.db.users import PublicUser, User
 from src.security.org_auth import is_org_admin, require_org_admin
 from src.services.messages import create_inbox_message, resolve_action_by_dedupe
+from src.services.plan_home import adaptive_future_groups as _adaptive_future_groups
+from src.services.plan_availability import apply_template_order, plan_availability, validated_prerequisites
 
 
 ALL_CAPABILITIES = {
@@ -382,7 +384,7 @@ def _materialized_objective_fields(db: Session, snapshot: dict) -> list[dict]:
     return fields
 
 
-def _objective_dict(db: Session, plan: Plan, objective: PlanObjective, capabilities: set[str]) -> dict:
+def _objective_dict(db: Session, plan: Plan, objective: PlanObjective, capabilities: set[str], availability: dict | None = None) -> dict:
     progress = _progress_for(db, objective)
     phase = db.get(PlanPhase, objective.phase_id) if objective.phase_id else None
     effective_due_date = objective.due_date or (phase.due_date if phase else None) or plan.due_date
@@ -434,6 +436,8 @@ def _objective_dict(db: Session, plan: Plan, objective: PlanObjective, capabilit
         "allow_late": objective.allow_late, "blocked": objective.blocked,
         "completion_restricted": completion_restricted,
         "requirement_mappings": objective.requirement_mappings or [],
+        "after_objective_uuids": objective.after_objective_uuids or [],
+        "availability": availability if availability is not None else plan_availability(db, plan).get(int(objective.id), {"state": "open", "reason": None}),
         "badge": ({"badge_uuid": badge.badge_uuid, "name": badge.name, "thumbnail_image": badge.thumbnail_image} if badge else None),
         "progress": {
             "status": status, "field_values": progress.field_values or {},
@@ -457,7 +461,8 @@ def _plan_dict(db: Session, plan: Plan, user_id: int, include_detail: bool = Fal
         raise HTTPException(status_code=404, detail="Plan not found")
     phases = db.exec(select(PlanPhase).where(PlanPhase.plan_id == plan.id).order_by(PlanPhase.position)).all()
     objectives = db.exec(select(PlanObjective).where(PlanObjective.plan_id == plan.id).order_by(PlanObjective.position)).all()
-    objective_rows = [_objective_dict(db, plan, item, capabilities) for item in objectives]
+    availability = plan_availability(db, plan)
+    objective_rows = [_objective_dict(db, plan, item, capabilities, availability.get(int(item.id))) for item in objectives]
     complete_count = sum(item["progress"]["status"] == PlanObjectiveStatus.COMPLETED.value for item in objective_rows)
     review_count = sum(item["progress"]["status"] == PlanObjectiveStatus.SUBMITTED.value for item in objective_rows)
     today = date.today()
@@ -475,6 +480,7 @@ def _plan_dict(db: Session, plan: Plan, user_id: int, include_detail: bool = Fal
         "plan_uuid": plan.plan_uuid, "slug": plan.slug, "name": plan.name,
         "description": plan.description, "status": plan.status.value if hasattr(plan.status, "value") else plan.status,
         "priority": plan.priority, "start_date": plan.start_date, "due_date": plan.due_date,
+        "step_order": plan.step_order or "any",
         "subject": _user_summary(db, plan.subject_user_id), "owner": _user_summary(db, plan.owner_user_id),
         "source_organization": _org_summary(db, plan.source_org_id),
         "is_mine": plan.subject_user_id == user_id, "is_owner": plan.owner_user_id == user_id,
@@ -697,6 +703,7 @@ def materialize_assignment_plans(db: Session, assignment_id: int) -> None:
             db.add(phase)
             db.flush()
             phase_ids[phase_key] = int(phase.id)
+        created: list[tuple[dict, PlanObjective]] = []
         for position, snapshot in enumerate(snapshots):
             scheduled = objective_schedule.get(snapshot.get("objective_uuid"), {})
             fields = _materialized_objective_fields(db, snapshot)
@@ -716,10 +723,12 @@ def materialize_assignment_plans(db: Session, assignment_id: int) -> None:
             )
             db.add(objective)
             db.flush()
+            created.append((snapshot, objective))
             db.add(PlanObjectiveProgress(
                 progress_uuid=f"plan_progress_{uuid4()}", plan_objective_id=int(objective.id),
                 creation_date=now, update_date=now,
             ))
+        apply_template_order(plan, program, created)
         db.flush()
         _link_legacy_learning_runs(db, assignment.id, participant.id, participant.user_id, plan)
         invitation_status = {
@@ -813,6 +822,7 @@ def materialize_external_assignment_plan(db: Session, assignment_id: int, subjec
         db.add(phase)
         db.flush()
         phase_ids[phase_key] = int(phase.id)
+    created: list[tuple[dict, PlanObjective]] = []
     for position, snapshot in enumerate(snapshots):
         scheduled = objective_schedule.get(snapshot.get("objective_uuid"), {})
         objective = PlanObjective(
@@ -832,10 +842,12 @@ def materialize_external_assignment_plan(db: Session, assignment_id: int, subjec
         )
         db.add(objective)
         db.flush()
+        created.append((snapshot, objective))
         db.add(PlanObjectiveProgress(
             progress_uuid=f"plan_progress_{uuid4()}", plan_objective_id=int(objective.id),
             creation_date=now, update_date=now,
         ))
+    apply_template_order(plan, program, created)
     normalized = subject_email.strip().lower()
     invitation = PlanInvitation(
         invitation_uuid=f"plan_invitation_{uuid4()}", plan_id=int(plan.id),
@@ -936,10 +948,21 @@ def update_plan(db: Session, current_user: PublicUser, identifier: str, payload:
         _require(db, plan, current_user.id, "edit_plan_details")
     if {"start_date", "due_date"} & set(changes):
         _require(db, plan, current_user.id, "edit_schedule")
+    if "step_order" in changes:
+        _require(db, plan, current_user.id, "edit_structure")
+        changes["step_order"] = str(getattr(changes["step_order"], "value", changes["step_order"]))
     if "name" in changes:
         changes["name"] = str(changes["name"] or "").strip()
         if not changes["name"]:
             raise HTTPException(status_code=422, detail="Plan name is required")
+    if set(changes) <= {"step_order"}:
+        for key, value in changes.items():
+            setattr(plan, key, value)
+        plan.update_date = _now_string()
+        db.add(plan)
+        _activity(db, plan, current_user.id, "plan.updated", {"fields": list(changes)})
+        db.commit()
+        return _plan_dict(db, plan, current_user.id, True)
     next_due = changes.get("due_date", plan.due_date)
     next_start = changes.get("start_date", plan.start_date)
     if next_due is None:
@@ -1131,6 +1154,7 @@ def create_objective(db: Session, current_user: PublicUser, identifier: str, pay
         raise HTTPException(status_code=422, detail="Objective target date must be within its phase")
     fields = _validated_plan_steps(db, payload.fields)
     badges = _badges_for_requirement_fields(db, fields)
+    after_uuids = validated_prerequisites(db, plan, payload.after_objective_uuids, objective_uuid)
     position = len(db.exec(select(PlanObjective).where(PlanObjective.plan_id == plan.id)).all())
     now = _now_string()
     objective = PlanObjective(
@@ -1139,7 +1163,7 @@ def create_objective(db: Session, current_user: PublicUser, identifier: str, pay
         priority=max(0, min(3, payload.priority)), badge_id=badges[0].id if badges else None,
         fields=fields, start_date=payload.start_date, due_date=payload.due_date,
         allow_late=payload.allow_late, completion_restricted=payload.completion_restricted,
-        creation_date=now, update_date=now,
+        after_objective_uuids=after_uuids, creation_date=now, update_date=now,
     )
     db.add(objective)
     db.flush()
@@ -1160,7 +1184,7 @@ def update_objective(db: Session, current_user: PublicUser, identifier: str, obj
     if not objective:
         raise HTTPException(status_code=404, detail="Objective not found")
     changes = payload.model_dump(exclude_unset=True)
-    structure_fields = {"phase_uuid", "position", "title", "description", "priority", "fields", "blocked", "completion_restricted"} & set(changes)
+    structure_fields = {"phase_uuid", "position", "title", "description", "priority", "fields", "blocked", "completion_restricted", "after_objective_uuids"} & set(changes)
     schedule_fields = {"start_date", "due_date", "allow_late"} & set(changes)
     if structure_fields:
         _require(db, plan, current_user.id, "edit_structure")
@@ -1172,6 +1196,8 @@ def update_objective(db: Session, current_user: PublicUser, identifier: str, obj
             raise HTTPException(status_code=422, detail="Objective title is required")
     if "priority" in changes:
         changes["priority"] = max(0, min(3, int(changes["priority"])))
+    if "after_objective_uuids" in changes:
+        changes["after_objective_uuids"] = validated_prerequisites(db, plan, changes["after_objective_uuids"], objective_uuid)
     if "position" in changes:
         changes["position"] = max(0, int(changes["position"]))
     phase = db.get(PlanPhase, objective.phase_id) if objective.phase_id else None
@@ -1231,6 +1257,11 @@ def update_objective_progress(db: Session, current_user: PublicUser, identifier:
         raise HTTPException(status_code=403, detail="You cannot request changes on this objective")
     if payload.status == PlanObjectiveStatus.COMPLETED and objective.completion_restricted and "complete_restricted_objectives" not in capabilities:
         raise HTTPException(status_code=403, detail="This objective must be completed by someone who can complete restricted objectives")
+    starting = payload.status in {PlanObjectiveStatus.IN_PROGRESS, PlanObjectiveStatus.SUBMITTED, PlanObjectiveStatus.COMPLETED}
+    if starting and not reviewing and "edit_structure" not in capabilities:
+        availability = plan_availability(db, plan).get(int(objective.id), {"state": "open"})
+        if availability["state"] == "not_ready":
+            raise HTTPException(status_code=409, detail={"message": "This step is not ready yet", "availability": availability})
     progress = _progress_for(db, objective)
     progress.status = payload.status
     if payload.field_values is not None:
@@ -1889,8 +1920,9 @@ def feed(db: Session, current_user: PublicUser, scope: str = "all", plan_uuid: s
         viewer_access = next((item for item in access_people if item["user"] and item["user"]["id"] == current_user.id), None)
         completers = [item["user"] for item in access_people if {"update_progress", "complete_restricted_objectives"} & set(item["capabilities"])]
         objectives = db.exec(select(PlanObjective).where(PlanObjective.plan_id == plan.id)).all()
+        availability = plan_availability(db, plan)
         for objective in objectives:
-            item = _objective_dict(db, plan, objective, capabilities)
+            item = _objective_dict(db, plan, objective, capabilities, availability.get(int(objective.id)))
             status = item["progress"]["status"]
             if status in {PlanObjectiveStatus.COMPLETED.value, PlanObjectiveStatus.CANCELED.value}:
                 continue
@@ -1968,38 +2000,3 @@ def plan_reviews(db: Session, current_user: PublicUser, identifier: str) -> dict
             batch_reviews = _assignment_activity_reviews(db, assignment, {int(subject.id): subject} if subject else {})
             activity_reviews = [item for item in batch_reviews if item.get("plan_uuid") == plan.plan_uuid]
     return {"plan_uuid": plan.plan_uuid, "objective_reviews": objective_reviews, "activity_reviews": activity_reviews}
-
-
-def _adaptive_future_groups(items: list[dict], today: date) -> list[dict]:
-    buckets: dict[str, list[dict]] = {}
-    labels: dict[str, str] = {}
-    one_year = today + timedelta(days=365)
-    for item in items:
-        due = item.get("effective_due_date") or item["due_date"]
-        if due <= one_year:
-            key = due.strftime("%Y-%m")
-            labels[key] = due.strftime("%B %Y")
-        else:
-            key = str(due.year)
-            labels[key] = str(due.year)
-        buckets.setdefault(key, []).append(item)
-    expanded: list[tuple[str, str, list[dict]]] = []
-    for key in sorted(buckets):
-        values = buckets[key]
-        if len(values) <= 10:
-            expanded.append((key, labels[key], values))
-            continue
-        by_segment: dict[str, list[dict]] = {}
-        for item in values:
-            due = item.get("effective_due_date") or item["due_date"]
-            segment = f"{due.year}-W{due.isocalendar().week:02d}" if len(key) == 7 else f"{due.year}-Q{((due.month - 1) // 3) + 1}"
-            by_segment.setdefault(segment, []).append(item)
-        expanded.extend((segment, segment.split("-", 1)[-1].replace("W", "Week ").replace("Q", "Quarter ") + f" {(values[0].get('effective_due_date') or values[0]['due_date']).year}", group) for segment, group in sorted(by_segment.items()))
-    merged: list[dict] = []
-    for key, label, values in expanded:
-        if merged and len(merged[-1]["items"]) + len(values) <= 6:
-            merged[-1]["label"] = f"{merged[-1]['label']} – {label}"
-            merged[-1]["items"].extend(values)
-        else:
-            merged.append({"key": key, "label": label, "items": list(values)})
-    return merged
