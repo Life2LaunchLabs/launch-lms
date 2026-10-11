@@ -20,7 +20,7 @@ from src.db.learning import (
     LearningPage,
     LearningVariable,
 )
-from src.db.programs import Objective, Program, ProgramAssignment, ProgramObjective, ProgramPhase
+from src.db.programs import Program, ProgramAssignment, ProgramObjective, ProgramPhase
 from src.db.requirements import RequirementFramework
 from src.security.org_auth import require_org_admin
 from src.services import learning, programs, requirements
@@ -307,21 +307,8 @@ async def create_plan_template(request: Request, db_session: Session, ctx: Acces
 
 
 async def set_objective_requirements(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
-    require_org_admin(ctx.user.id, ctx.org_id, db_session)
-    program = programs._program_or_404(db_session, args["template_uuid"], ctx.org_id)
-    relation = db_session.exec(
-        select(ProgramObjective)
-        .join(Objective, Objective.id == ProgramObjective.objective_id)  # type: ignore[arg-type]
-        .where(ProgramObjective.program_id == program.id, Objective.objective_uuid == args["objective_uuid"])
-    ).first()
-    if relation is None:
-        raise HTTPException(status_code=404, detail="Objective not found in this template")
-    mappings = requirements.update_mappings(db_session, ctx.user, ctx.org_id, relation, list(args.get("node_uuids") or []))
-    program.version += 1
-    program.update_date = programs._now_string()
-    db_session.add(program)
-    db_session.commit()
-    envelope = template_store.get_template_document(db_session, ctx.user, ctx.org_id, program.program_uuid)
+    mappings = template_store.set_objective_requirements(db_session, ctx.user, ctx.org_id, args["template_uuid"], args["objective_uuid"], list(args.get("node_uuids") or []))
+    envelope = template_store.get_template_document(db_session, ctx.user, ctx.org_id, args["template_uuid"])
     return {"objective_uuid": args["objective_uuid"], "requirement_mappings": mappings, "template_etag": envelope["etag"]}
 
 

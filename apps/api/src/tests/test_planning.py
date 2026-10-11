@@ -876,9 +876,10 @@ def test_external_email_assignment_materializes_pending_recipient_bound_plan():
         planning.materialize_external_assignment_plan(db, assignment.id, assignment.subject_email)
         db.commit()
 
-        owned = planning.list_plans(db, _user(1), "pending")
-        assert len(owned) == 1
-        assert owned[0]["subject"] is None
+        # The assigner manages it from the admin side; it stays out of their own plans list.
+        assert planning.list_plans(db, _user(1), "pending") == []
+        plan = db.exec(select(Plan).where(Plan.source_assignment_id == assignment.id)).one()
+        assert plan.owner_user_id == 1 and plan.subject_user_id is None
         recipient = PublicUser(id=99, user_uuid="future", username="future", email="future@example.com", first_name="Future", last_name="User")
         invitations = planning.list_my_invitations(db, recipient)
         assert len(invitations) == 1
@@ -923,7 +924,7 @@ def test_group_sourced_plan_rejects_individual_definition_changes_with_workspace
             planning.update_plan(db, _user(1), plan.slug, PlanUpdate(name="Private divergence"))
         assert conflict.value.status_code == 409
         assert conflict.value.detail["assignment_uuid"] == assignment.assignment_uuid
-        assert conflict.value.detail["group_workspace"] == "/plans?group=assignment_group_lock"
+        assert conflict.value.detail["group_workspace"].endswith("/plans?assignment=assignment_group_lock")
 
 
 def test_assignment_materialization_is_idempotent_and_preserves_states_owner_roles_and_requirement_links():

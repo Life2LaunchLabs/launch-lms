@@ -68,6 +68,7 @@ def _export_objective(item: dict) -> dict:
             "badge_uuid": item.get("badge_uuid"),
             "badge_major_version": item.get("badge_major_version") if item.get("badge_id") else None,
             "allow_learner_confirmation": bool(item.get("allow_learner_confirmation")),
+            "reviewer_guidance": item.get("reviewer_guidance") or None,
             "steps": [{key: value for key, value in step.items() if key not in DERIVED_STEP_KEYS} for step in item.get("custom_fields") or []],
             "schedule": _without_none(
                 {
@@ -305,6 +306,7 @@ def _apply(db: Session, current_user: PublicUser, org_id: int, program: Program,
                 learner_confirms = item.allow_learner_confirmation or badge is not None
             objective.title = item.title.strip()
             objective.description = item.description
+            objective.reviewer_guidance = item.reviewer_guidance.strip()
             if _value(objective.kind) == ObjectiveKind.CUSTOM.value:
                 objective.custom_fields = ready["steps"]
                 objective.allow_learner_confirmation = learner_confirms
@@ -401,3 +403,22 @@ def create_template_from_document(db: Session, current_user: PublicUser, org_id:
     db.commit()
     db.refresh(program)
     return {**_envelope(db, program), "changed": True, "warnings": report["warnings"]}
+
+
+def set_objective_requirements(db: Session, current_user: PublicUser, org_id: int, template_uuid: str, objective_uuid: str, node_uuids: list[str]) -> list[dict]:
+    """Replace the requirement nodes one template objective counts toward."""
+    require_org_admin(current_user.id, org_id, db)
+    program = programs._program_or_404(db, template_uuid, org_id)
+    relation = db.exec(
+        select(ProgramObjective)
+        .join(Objective, Objective.id == ProgramObjective.objective_id)  # type: ignore[arg-type]
+        .where(ProgramObjective.program_id == program.id, Objective.objective_uuid == objective_uuid)
+    ).first()
+    if relation is None:
+        raise HTTPException(status_code=404, detail="Objective not found in this template")
+    mappings = update_mappings(db, current_user, org_id, relation, list(node_uuids))
+    program.version += 1
+    program.update_date = programs._now_string()
+    db.add(program)
+    db.commit()
+    return mappings

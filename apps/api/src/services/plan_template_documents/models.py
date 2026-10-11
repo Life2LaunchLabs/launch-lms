@@ -54,6 +54,7 @@ class PlanTemplateObjective(BaseModel):
     )
     badge_major_version: int | None = Field(default=None, description="Read-only: the badge major version this objective accepts.")
     allow_learner_confirmation: bool = Field(default=False, description="Learners may mark it complete themselves (new badge objectives always allow it).")
+    reviewer_guidance: str = Field(default="", max_length=4000, description="What a reviewer should look for, one point per line. Staff see it beside submissions; learners never do.")
     steps: list[PlanTemplateStep] = Field(default_factory=list)
     schedule: PlanTemplateSchedule = Field(default_factory=PlanTemplateSchedule)
     requirement_node_uuids: list[str] = Field(default_factory=list, description="Requirement framework nodes this objective counts toward.")

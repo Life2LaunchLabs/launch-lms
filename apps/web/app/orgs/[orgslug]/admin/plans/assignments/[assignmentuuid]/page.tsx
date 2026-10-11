@@ -1,7 +1,6 @@
-import { redirect } from 'next/navigation'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import AssignmentRedirect from '@components/Admin/Plans/AssignmentRedirect'
 
 export default async function PlanAssignmentPage({ params }: { params: Promise<{ orgslug: string; assignmentuuid: string }> }) {
   const { orgslug, assignmentuuid } = await params
-  redirect(getUriWithOrg(orgslug, routePaths.org.dash.planAssignment(decodeURIComponent(assignmentuuid))))
+  return <AssignmentRedirect orgslug={orgslug} assignmentUuid={decodeURIComponent(assignmentuuid)} />
 }

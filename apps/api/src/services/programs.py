@@ -195,6 +195,7 @@ def _objective_dict(objective: Objective, relation: ProgramObjective | None = No
         "custom_fields": objective.custom_fields or [],
         "fields": objective.custom_fields or [],
         "badge_id": objective.badge_id,
+        "reviewer_guidance": objective.reviewer_guidance or "",
     }
     if relation:
         result.update({
@@ -486,7 +487,8 @@ def copy_program_from_library(db: Session, current_user: PublicUser, org_id: int
             description=str(item.get("description") or ""), kind=item.get("kind") or ObjectiveKind.CUSTOM,
             completion_policy=item.get("completion_policy") or "staff", evidence_policy=item.get("evidence_policy") or "none",
             allow_learner_confirmation=bool(item.get("allow_learner_confirmation")), custom_fields=list(item.get("custom_fields") or []),
-            badge_id=item.get("badge_id"), created_by_user_id=current_user.id, creation_date=now, update_date=now,
+            badge_id=item.get("badge_id"), reviewer_guidance=str(item.get("reviewer_guidance") or ""),
+            created_by_user_id=current_user.id, creation_date=now, update_date=now,
         )
         db.add(objective)
         db.flush()
@@ -655,7 +657,8 @@ def add_program_objective(
             objective_uuid=f"objective_{uuid4()}", org_id=org_id, title=source.title, description=source.description,
             kind=source.kind, completion_policy=source.completion_policy, evidence_policy=source.evidence_policy,
             allow_learner_confirmation=source.allow_learner_confirmation, custom_fields=list(source.custom_fields or []),
-            badge_id=source.badge_id, created_by_user_id=current_user.id, creation_date=now, update_date=now,
+            badge_id=source.badge_id, reviewer_guidance=source.reviewer_guidance,
+            created_by_user_id=current_user.id, creation_date=now, update_date=now,
         )
         db.add(objective)
         db.flush()
@@ -696,6 +699,7 @@ def add_program_objective(
             custom_fields=custom_fields,
             allow_learner_confirmation=learner_confirms,
             badge_id=badge_id,
+            reviewer_guidance=payload.reviewer_guidance.strip(),
             created_by_user_id=current_user.id,
             creation_date=now,
             update_date=now,
@@ -799,6 +803,8 @@ def update_program_objective(
         raise HTTPException(status_code=422, detail="Objective title is required")
     objective.title = title
     objective.description = payload.description
+    if payload.reviewer_guidance is not None:
+        objective.reviewer_guidance = payload.reviewer_guidance.strip()
     if objective.kind == ObjectiveKind.CUSTOM:
         steps = _validated_steps(db, payload.custom_fields)
         objective.custom_fields = steps

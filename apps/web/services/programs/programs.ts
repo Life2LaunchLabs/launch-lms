@@ -92,4 +92,27 @@ export const requirementsApi = {
     Object.entries(filters).forEach(([key, value]) => { if (value !== undefined && value !== '') params.set(key, String(value)) })
     return planningRequest(`/requirements/report?${params.toString()}`, token)
   },
+  coverage: (orgId: number, uuid: string, token?: string) => planningRequest(`/requirements/${encodeURIComponent(uuid)}/coverage?org_id=${orgId}`, token),
+}
+
+export type InboxKind = 'review' | 'grade' | 'confirm' | 'nudge'
+
+export const planInboxApi = {
+  inbox: (orgId: number, token?: string) => planningRequest(`/inbox?org_id=${orgId}`, token),
+  queue: (orgId: number, params: { assignment: string; objective?: string | null; step?: string | null }, token?: string) => {
+    const search = new URLSearchParams({ org_id: String(orgId), assignment_uuid: params.assignment })
+    if (params.objective) search.set('objective_uuid', params.objective)
+    if (params.step) search.set('plan_objective_uuid', params.step)
+    return planningRequest(`/inbox/queue?${search.toString()}`, token)
+  },
+  decide: (orgId: number, planObjectiveUuid: string, action: 'confirm' | 'flag', message: string, token?: string) => planningRequest(`/inbox/decide?org_id=${orgId}`, token, 'POST', { plan_objective_uuid: planObjectiveUuid, action, message }),
+  confirm: (orgId: number, planObjectiveUuids: string[], message: string, token?: string) => planningRequest(`/inbox/confirm?org_id=${orgId}`, token, 'POST', { plan_objective_uuids: planObjectiveUuids, message }),
+  addStaffNote: (orgId: number, planObjectiveUuid: string, message: string, token?: string) => planningRequest(`/inbox/staff-notes?org_id=${orgId}`, token, 'POST', { plan_objective_uuid: planObjectiveUuid, message }),
+}
+
+export const learnerAdminApi = {
+  requirements: (orgId: number, userId: number, token?: string) => planningRequest(`/managed-users/${userId}/requirements?org_id=${orgId}`, token),
+  makeupOptions: (orgId: number, userId: number, nodeUuid: string, token?: string) => planningRequest(`/managed-users/${userId}/makeup-options?org_id=${orgId}&node_uuid=${encodeURIComponent(nodeUuid)}`, token),
+  addMakeup: (orgId: number, userId: number, data: { plan_uuid: string; node_uuid: string; objective_uuid?: string | null; title?: string | null; due_date?: string | null }, token?: string) => planningRequest(`/managed-users/${userId}/makeup?org_id=${orgId}`, token, 'POST', data),
+  credit: (orgId: number, userId: number, data: { enrollment_uuid: string; node_uuid: string; note: string }, token?: string) => planningRequest(`/managed-users/${userId}/requirements/credit?org_id=${orgId}`, token, 'POST', data),
 }

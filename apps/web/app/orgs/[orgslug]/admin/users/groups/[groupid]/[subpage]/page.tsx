@@ -1,10 +1,14 @@
-import { notFound } from 'next/navigation'
-import GroupAdminDetail from '@components/Admin/Users/GroupAdminDetail'
+import { Suspense } from 'react'
+import { notFound, redirect } from 'next/navigation'
+import GroupAdminDetail, { type GroupSubpage } from '@components/Admin/Users/GroupAdminDetail'
+import { routePaths } from '@services/config/config'
 
-const SUBPAGES = new Set(['programs', 'users', 'settings', 'reports'])
+const SUBPAGES = new Set<GroupSubpage>(['plans', 'requirements', 'members', 'settings'])
+const RENAMED: Record<string, GroupSubpage> = { programs: 'plans', users: 'members', reports: 'requirements' }
 
 export default async function GroupDetailPage({ params }: { params: Promise<{ orgslug: string; groupid: string; subpage: string }> }) {
   const { orgslug, groupid, subpage } = await params
-  if (!SUBPAGES.has(subpage)) notFound()
-  return <GroupAdminDetail orgslug={orgslug} groupId={Number(groupid)} subpage={subpage} />
+  if (RENAMED[subpage]) redirect(routePaths.org.dash.users.group(groupid, RENAMED[subpage]))
+  if (!SUBPAGES.has(subpage as GroupSubpage)) notFound()
+  return <Suspense><GroupAdminDetail orgslug={orgslug} groupId={Number(groupid)} subpage={subpage as GroupSubpage} /></Suspense>
 }

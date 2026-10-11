@@ -61,6 +61,9 @@ Steps are what the learner (or a reviewer) completes inside an objective.
 Objectives with no steps are confirmed by staff (or by the learner when
 `allow_learner_confirmation` is true).
 
+`reviewer_guidance` (optional) tells staff what to look for when they review a
+submission, one point per line. Learners never see it.
+
 ## Badge objectives
 
 To make an objective that is completed by earning a badge, add it with

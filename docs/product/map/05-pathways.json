@@ -3077,9 +3077,9 @@
                 },
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Admin/Programs/ProgramAssignmentWizard.tsx",
-                  "symbol": "suggestedDueDate,ProgramAssignmentWizard",
-                  "responsibility": "Initializes suggested objective weeks as concrete dates and keeps them aligned with phase schedule edits until overridden."
+                  "path": "apps/web/components/Admin/Programs/ProgramAssignmentModal.tsx",
+                  "symbol": "ScheduleStep,ProgramAssignmentModal",
+                  "responsibility": "The template's Assign dialog: sets phase dates and per-objective due rules for the group or learners it is handed to."
                 }
               ]
             },
@@ -3712,9 +3712,9 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Admin/Programs/CohortProgramAdmin.tsx",
-              "symbol": "GroupProgramMatrix",
-              "responsibility": "Labels the group workspace as an assignment batch and links it within the plan hierarchy."
+              "path": "apps/web/components/Admin/Plans/GroupPlansGrid.tsx",
+              "symbol": "GroupPlansGrid",
+              "responsibility": "The group's Plans tab: learners by steps grouped into chapters, with bulk mark done or excuse and review cells that open the review queue."
             }
           ],
           "relationships": [

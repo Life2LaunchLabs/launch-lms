@@ -31,7 +31,6 @@
     "app/payments/stripe/connect/oauth/page.tsx|react-hooks/exhaustive-deps|warning": 1,
     "components/Admin/Platform/UsersTable.tsx|no-unused-vars|error": 2,
     "components/Admin/Platform/shared.tsx|no-unused-vars|error": 4,
-    "components/Admin/Users/GroupAdminDetail.tsx|no-unused-vars|error": 1,
     "components/Auth/PasswordStrengthIndicator.tsx|no-unused-vars|error": 1,
     "components/Auth/PasswordStrengthIndicator.tsx|no-useless-escape|error": 2,
     "components/Contexts/AuthContext.tsx|no-unused-vars|error": 5,

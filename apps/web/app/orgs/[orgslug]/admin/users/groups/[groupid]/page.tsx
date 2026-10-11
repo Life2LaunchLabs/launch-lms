@@ -1,6 +1,7 @@
-import GroupAdminDetail from '@components/Admin/Users/GroupAdminDetail'
+import { redirect } from 'next/navigation'
+import { routePaths } from '@services/config/config'
 
 export default async function GroupPage({ params }: { params: Promise<{ orgslug: string; groupid: string }> }) {
-  const { orgslug, groupid } = await params
-  return <GroupAdminDetail orgslug={orgslug} groupId={Number(groupid)} subpage="programs" />
+  const { groupid } = await params
+  redirect(routePaths.org.dash.users.group(groupid, 'plans'))
 }

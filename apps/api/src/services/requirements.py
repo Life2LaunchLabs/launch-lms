@@ -703,51 +703,37 @@ def migrate_enrollments(db: Session, current_user: PublicUser, org_id: int, fram
     return {"updated": len(enrollments), "version": version.version_number}
 
 
+def _org_nodes(db: Session, org_id: int) -> list[tuple[RequirementFramework, RequirementNode]]:
+    """Every node in the organization's current framework versions, with its framework."""
+    if not _available(db):
+        return []
+    frameworks = db.exec(select(RequirementFramework).where(RequirementFramework.org_id == org_id, RequirementFramework.archived == False)).all()  # noqa: E712
+    return [(framework, node) for framework in frameworks for node in _nodes(db, int(_version(db, framework).id))]
+
+
 def mappable_nodes(db: Session, org_id: int) -> dict[str, RequirementFramework]:
     """Requirement nodes objectives in this organization can map to, by node uuid."""
-    if not _available(db):
-        return {}
-    valid: dict[str, RequirementFramework] = {}
-    frameworks = db.exec(select(RequirementFramework).where(
-        RequirementFramework.org_id == org_id, RequirementFramework.archived == False,  # noqa: E712
-    )).all()
-    for framework in frameworks:
-        version = _version(db, framework)
-        for node in _nodes(db, int(version.id)):
-            valid[node.node_uuid] = framework
-    return valid
+    return {node.node_uuid: framework for framework, node in _org_nodes(db, org_id)}
 
 
 def parent_node_uuids(db: Session, org_id: int) -> set[str]:
-    """Nodes in the organization's frameworks that have children (and so never earn credit themselves)."""
-    if not _available(db):
-        return set()
-    parents: set[str] = set()
-    frameworks = db.exec(select(RequirementFramework).where(
-        RequirementFramework.org_id == org_id, RequirementFramework.archived == False,  # noqa: E712
-    )).all()
-    for framework in frameworks:
-        parents.update(node.parent_node_uuid for node in _nodes(db, int(_version(db, framework).id)) if node.parent_node_uuid)
-    return parents
+    """Nodes that have children (and so never earn credit themselves)."""
+    return {node.parent_node_uuid for _, node in _org_nodes(db, org_id) if node.parent_node_uuid}
 
 
 def update_mappings(db: Session, current_user: PublicUser, org_id: int, relation: ProgramObjective, node_uuids: list[str]) -> list[dict]:
     require_org_admin(current_user.id, org_id, db)
     valid = mappable_nodes(db, org_id)
     requested = list(dict.fromkeys(node_uuids))
-    invalid = set(requested) - set(valid)
-    if invalid:
+    if set(requested) - set(valid):
         raise HTTPException(status_code=422, detail="One or more requirement nodes are unavailable")
-    for mapping in db.exec(select(ProgramObjectiveRequirement).where(
-        ProgramObjectiveRequirement.program_objective_id == relation.id,
-    )).all():
+    for mapping in db.exec(select(ProgramObjectiveRequirement).where(ProgramObjectiveRequirement.program_objective_id == relation.id)).all():
         db.delete(mapping)
     now = _now_string()
     for node_uuid in requested:
-        framework = valid[node_uuid]
         db.add(ProgramObjectiveRequirement(
             mapping_uuid=f"requirement_mapping_{uuid4()}", program_objective_id=int(relation.id),
-            framework_id=int(framework.id), node_uuid=node_uuid, creation_date=now,
+            framework_id=int(valid[node_uuid].id), node_uuid=node_uuid, creation_date=now,
         ))
     db.flush()
     return mappings_for_relation(db, relation)

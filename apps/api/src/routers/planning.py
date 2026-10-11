@@ -39,7 +39,6 @@ from src.db.programs import (
     ProgramPhaseUpdate,
     ProgramReorder,
 )
-from src.db.programs import Objective, Program, ProgramObjective
 from src.db.requirements import (
     RequirementAssignmentCreate,
     RequirementEnrollmentMigrate,
@@ -54,6 +53,7 @@ from src.security.features_utils.plans import plan_meets_requirement
 from src.services import planning as service
 from src.services import programs as template_service
 from src.services import requirements as requirement_service
+from src.services.plan_template_documents import store as template_documents
 from src.services.email.utils import get_base_url_from_request, send_email
 
 
@@ -539,19 +539,5 @@ def api_migrate_requirement_enrollments(framework_uuid: str, org_id: int, payloa
 
 
 @router.put("/templates/{template_uuid}/objectives/{objective_uuid}/requirements")
-def api_update_objective_requirements(
-    template_uuid: str, objective_uuid: str, org_id: int, payload: RequirementMappingUpdate,
-    db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user),
-):
-    row = db.exec(select(ProgramObjective).join(Objective, Objective.id == ProgramObjective.objective_id).join(
-        Program, Program.id == ProgramObjective.program_id,
-    ).where(
-        Program.program_uuid == template_uuid, Program.org_id == org_id,
-        Objective.objective_uuid == objective_uuid,
-    )).first()
-    if not row:
-        from fastapi import HTTPException
-        raise HTTPException(status_code=404, detail="Template objective not found")
-    mappings = requirement_service.update_mappings(db, current_user, org_id, row, payload.node_uuids)
-    db.commit()
-    return {"requirement_mappings": mappings}
+def api_update_objective_requirements(template_uuid: str, objective_uuid: str, org_id: int, payload: RequirementMappingUpdate, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
+    return {"requirement_mappings": template_documents.set_objective_requirements(db, current_user, org_id, template_uuid, objective_uuid, payload.node_uuids)}

@@ -541,44 +541,23 @@ def _plan_dict(db: Session, plan: Plan, user_id: int, include_detail: bool = Fal
     return result
 
 
+def _learner_side(plan: Plan, user_id: int) -> bool:
+    """Plans that belong in someone's own app: theirs, or ones shared with them.
+
+    Staff work on plans handed out by an organization from the admin side, so those
+    plans stay out of a staff member's own plans list and feed."""
+    return plan.subject_user_id == user_id or not plan.source_assignment_id
+
+
 def list_plans(db: Session, current_user: PublicUser, lifecycle: str | None = None) -> list[dict]:
-    rows = db.exec(
+    rows = [plan for plan in db.exec(
         select(Plan).join(PlanCollaborator, PlanCollaborator.plan_id == Plan.id)
         .where(PlanCollaborator.user_id == current_user.id, PlanCollaborator.active == True)  # noqa: E712
         .order_by(Plan.update_date.desc())
-    ).all()
+    ).all() if _learner_side(plan, int(current_user.id))]
     if lifecycle:
         rows = [plan for plan in rows if str(plan.status.value if hasattr(plan.status, "value") else plan.status) == lifecycle]
-    from src.db.programs import Program, ProgramAssignment
-    from src.db.usergroups import UserGroup
-    result: list[dict] = []
-    grouped: dict[int, list[Plan]] = {}
-    for plan in rows:
-        assignment = db.get(ProgramAssignment, plan.source_assignment_id) if plan.source_assignment_id else None
-        if assignment and assignment.usergroup_id and plan.subject_user_id != current_user.id:
-            grouped.setdefault(int(assignment.id), []).append(plan)
-        else:
-            result.append({**_plan_dict(db, plan, current_user.id), "target_kind": "individual"})
-    for assignment_id, plans in grouped.items():
-        assignment = db.get(ProgramAssignment, assignment_id)
-        if not assignment:
-            continue
-        program = db.get(Program, assignment.program_id)
-        group = db.get(UserGroup, assignment.usergroup_id) if assignment.usergroup_id else None
-        summaries = [_plan_dict(db, plan, current_user.id) for plan in plans]
-        progress = [int(item["progress_percent"]) for item in summaries]
-        result.append({
-            "target_kind": "group", "plan_uuid": f"group:{assignment.assignment_uuid}",
-            "slug": f"group:{assignment.assignment_uuid}", "assignment_uuid": assignment.assignment_uuid,
-            "name": program.name if program else plans[0].name,
-            "target_name": group.name if group else "Group", "group": {"id": group.id, "name": group.name} if group else None,
-            "learner_count": len(plans), "progress_percent": round(sum(progress) / len(progress)) if progress else 0,
-            "min_progress_percent": min(progress) if progress else 0, "max_progress_percent": max(progress) if progress else 0,
-            "review_count": sum(int(item["review_count"]) for item in summaries),
-            "attention_count": sum(int(item["attention_count"]) for item in summaries),
-            "due_date": assignment.due_date, "status": lifecycle or "active", "is_mine": False,
-            "update_date": max((plan.update_date for plan in plans), default=assignment.update_date),
-        })
+    result = [{**_plan_dict(db, plan, current_user.id), "target_kind": "individual"} for plan in rows]
     return sorted(result, key=lambda item: str(item.get("update_date") or ""), reverse=True)
 
 
@@ -734,6 +713,7 @@ def materialize_assignment_plans(db: Session, assignment_id: int) -> None:
                 allow_late=bool(scheduled.get("allow_late")), creation_date=now, update_date=now,
                 completion_restricted=bool(not snapshot.get("allow_learner_confirmation", False)),
                 requirement_mappings=snapshot_requirement_mappings(snapshot),
+                reviewer_guidance=str(snapshot.get("reviewer_guidance") or ""),
             )
             db.add(objective)
             db.flush()
@@ -849,6 +829,7 @@ def materialize_external_assignment_plan(db: Session, assignment_id: int, subjec
             allow_late=bool(scheduled.get("allow_late")), creation_date=now, update_date=now,
             completion_restricted=bool(not snapshot.get("allow_learner_confirmation", False)),
             requirement_mappings=snapshot_requirement_mappings(snapshot),
+            reviewer_guidance=str(snapshot.get("reviewer_guidance") or ""),
         )
         db.add(objective)
         db.flush()
@@ -916,9 +897,9 @@ def _require_individual_definition(db: Session, plan: Plan) -> None:
     assignment = db.get(ProgramAssignment, plan.source_assignment_id)
     if assignment and assignment.usergroup_id:
         raise HTTPException(status_code=409, detail={
-            "message": "Group plan structure is shared. Edit the group workspace instead.",
+            "message": "Group plan structure is shared. Change it for the whole group from the group's Plans tab in admin.",
             "assignment_uuid": assignment.assignment_uuid,
-            "group_workspace": f"/plans?group={assignment.assignment_uuid}",
+            "group_workspace": f"/admin/users/groups/{assignment.usergroup_id}/plans?assignment={assignment.assignment_uuid}",
         })
 
 
@@ -1886,11 +1867,11 @@ def respond_to_invitation(db: Session, current_user: PublicUser, invitation_uuid
     return {"invitation_uuid": invitation_uuid, "status": invitation.status.value if hasattr(invitation.status, "value") else invitation.status}
 
 
-def feed(db: Session, current_user: PublicUser, scope: str = "all", plan_uuid: str | None = None, explore_all: bool = False) -> dict:
-    accessible_plans = db.exec(
+def feed(db: Session, current_user: PublicUser, scope: str = "all", plan_uuid: str | None = None, explore_all: bool = False, include_assigned: bool = False) -> dict:
+    accessible_plans = [plan for plan in db.exec(
         select(Plan).join(PlanCollaborator, PlanCollaborator.plan_id == Plan.id)
         .where(PlanCollaborator.user_id == current_user.id, PlanCollaborator.active == True, Plan.status == PlanStatus.ACTIVE)  # noqa: E712
-    ).all()
+    ).all() if include_assigned or _learner_side(plan, int(current_user.id))]
     has_helping = any(plan.subject_user_id != current_user.id for plan in accessible_plans)
     plans = accessible_plans
     if plan_uuid:
@@ -1967,7 +1948,7 @@ def feed(db: Session, current_user: PublicUser, scope: str = "all", plan_uuid: s
 
 def review_queue(db: Session, current_user: PublicUser) -> list[dict]:
     """Return custom-objective and badge work currently assigned to this reviewer."""
-    result = feed(db, current_user, "helping")
+    result = feed(db, current_user, "helping", include_assigned=True)
     return [item for item in result["coming_up"] if item["action_type"] == "review"]
 
 
