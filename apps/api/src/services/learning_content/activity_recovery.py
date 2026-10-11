@@ -46,7 +46,7 @@ async def repair_activity(request: Request, activity_uuid: str, apply: bool, cur
     changes so the admin can review them first; applying requires a draft."""
     activity = lookups._get_activity(db_session, activity_uuid)
     access_rules._require_org_admin(db_session, current_user, activity.org_id)
-    version = lookups._assert_content_editable(db_session, activity.version_id) if apply else None
+    version = lookups._assert_content_editable(db_session, activity.version_id, activity) if apply else None
     pages = _pages(db_session, activity)
     changes: dict = {"pages": {}, "flow": []}
     for page in pages:
@@ -66,8 +66,7 @@ async def repair_activity(request: Request, activity_uuid: str, apply: bool, cur
             activity.settings = {**(activity.settings or {}), "flow": fixed_flow}
             db_session.add(activity)
     if apply and version and (changes["pages"] or changes["flow"]):
-        lookups._bump_version(version)
-        db_session.add(version)
+        lookups._bump_version(version, db_session)
         db_session.commit()
         logger.info("Repaired learning activity %s content: %s", activity.activity_uuid, changes)
     return {

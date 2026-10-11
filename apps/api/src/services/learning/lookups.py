@@ -80,16 +80,25 @@ def _ensure_draft(version: LearningBadgeVersion) -> None:
         raise HTTPException(status_code=409, detail="Published versions are read-only. Create a draft to make changes.")
 
 
-def _bump_version(version: LearningBadgeVersion) -> None:
+def _bump_version(version: LearningBadgeVersion | None, db_session: Session | None = None) -> None:
+    """Record an edit on a badge version. Plan template activities have no version."""
+    if version is None:
+        return
     version.revision += 1
     version.update_date = access_rules._now()
+    if db_session is not None:
+        db_session.add(version)
 
 
 def _version_for_content(db_session: Session, version_id: int | None) -> LearningBadgeVersion | None:
     return db_session.get(LearningBadgeVersion, version_id) if version_id else None
 
 
-def _assert_content_editable(db_session: Session, version_id: int | None) -> LearningBadgeVersion:
+def _assert_content_editable(db_session: Session, version_id: int | None, owner=None) -> LearningBadgeVersion | None:
+    """Badge content is edited only in a draft version; plan template activities are edited in place."""
+    activity = db_session.get(LearningActivity, owner.activity_id) if isinstance(owner, LearningPage) else owner
+    if isinstance(activity, LearningActivity) and activity.objective_id:
+        return None
     version = _version_for_content(db_session, version_id)
     if not version:
         raise HTTPException(status_code=409, detail="This legacy content is not attached to an editable draft.")
@@ -245,3 +254,15 @@ def _latest_attempts(
         if attempt.page_id not in latest:
             latest[attempt.page_id] = attempt
     return latest
+
+
+def _can_use_template_page(db_session: Session, page: LearningPage, user) -> bool:
+    """A plan template activity's page: its org's admins, and learners playing it."""
+    try:
+        access_rules._require_org_admin(db_session, user, page.org_id)
+        return True
+    except HTTPException:
+        pass
+    return db_session.exec(select(LearningRun.id).where(
+        LearningRun.activity_id == page.activity_id, LearningRun.user_id == user.id,
+    )).first() is not None

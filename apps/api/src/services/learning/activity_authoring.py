@@ -96,8 +96,7 @@ async def create_activity(
         }
         activity.update_date = now
         db_session.add(activity)
-    lookups._bump_version(version)
-    db_session.add(version)
+    lookups._bump_version(version, db_session)
     db_session.commit()
     db_session.refresh(activity)
     db_session.refresh(page)
@@ -243,8 +242,7 @@ async def import_activity(
         db_session.add(page)
         pages.append(page)
 
-    lookups._bump_version(version)
-    db_session.add(version)
+    lookups._bump_version(version, db_session)
     db_session.commit()
     db_session.refresh(activity)
     for page in pages:
@@ -261,13 +259,13 @@ async def update_activity(
 ) -> LearningActivityRead:
     activity = lookups._get_activity(db_session, activity_uuid)
     access_rules._require_org_admin(db_session, current_user, activity.org_id)
-    version = lookups._assert_content_editable(db_session, activity.version_id)
+    version = lookups._assert_content_editable(db_session, activity.version_id, activity)
     patch = data.model_dump(exclude_unset=True)
     if "settings" in patch:
         pages = db_session.exec(
             select(LearningPage).where(LearningPage.activity_id == activity.id)
         ).all()
-        badge = db_session.get(LearningBadge, activity.badge_id)
+        badge = db_session.get(LearningBadge, activity.badge_id) if activity.badge_id else None
         try:
             stored_flow = (activity.settings or {}).get("flow")
             validate_flow(
@@ -285,8 +283,7 @@ async def update_activity(
     for key, value in patch.items():
         setattr(activity, key, value)
     activity.update_date = access_rules._now()
-    lookups._bump_version(version)
-    db_session.add(version)
+    lookups._bump_version(version, db_session)
     db_session.add(activity)
     db_session.commit()
     db_session.refresh(activity)
@@ -306,13 +303,13 @@ async def delete_activity(
 ) -> dict:
     activity = lookups._get_activity(db_session, activity_uuid)
     access_rules._require_org_admin(db_session, current_user, activity.org_id)
-    version = lookups._assert_content_editable(db_session, activity.version_id)
+    version = lookups._assert_content_editable(db_session, activity.version_id, activity)
     if access_rules._is_locked_launch_ready_activity(activity):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Required Launch Ready activities cannot be deleted",
         )
-    badge = db_session.get(LearningBadge, activity.badge_id)
+    badge = db_session.get(LearningBadge, activity.badge_id) if activity.badge_id else None
     if badge and access_rules._is_system_object(badge):
         sibling_count = db_session.exec(
             select(func.count(LearningActivity.id)).where(
@@ -325,8 +322,7 @@ async def delete_activity(
                 detail="Badges must keep at least one activity",
             )
     db_session.delete(activity)
-    lookups._bump_version(version)
-    db_session.add(version)
+    lookups._bump_version(version, db_session)
     db_session.commit()
     return {"detail": "Learning activity deleted"}
 
@@ -339,7 +335,7 @@ async def duplicate_activity(
 ) -> LearningActivityRead:
     activity = lookups._get_activity(db_session, activity_uuid)
     access_rules._require_org_admin(db_session, current_user, activity.org_id)
-    version = lookups._assert_content_editable(db_session, activity.version_id)
+    version = lookups._assert_content_editable(db_session, activity.version_id, activity)
     if access_rules._is_locked_launch_ready_activity(activity):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -396,8 +392,7 @@ async def duplicate_activity(
         )
         db_session.add(cloned_page)
         cloned_pages.append(cloned_page)
-    lookups._bump_version(version)
-    db_session.add(version)
+    lookups._bump_version(version, db_session)
     db_session.commit()
     db_session.refresh(clone)
     for page in cloned_pages:

@@ -137,3 +137,23 @@ def test_activities_that_need_sign_off_go_to_review():
         asyncio.run(runtime.complete_page(None, LearningPageComplete(run_uuid=run["run_uuid"], page_uuid=f"learning_page_{first.activity_id}", data={}), LearningActor(user=LEARNER), session))
         progress = session.exec(select(PlanObjectiveProgress).where(PlanObjectiveProgress.plan_objective_id == first.id)).one()
         assert progress.status == "submitted"
+
+
+def test_template_activity_pages_are_edited_in_place_without_a_draft():
+    from src.db.learning import LearningPageCreate, LearningPageUpdate
+    from src.services.learning import page_authoring
+
+    with _session() as session:
+        admin = _setup(session)
+        program = create_program(session, admin, ProgramCreate(org_id=1, name="Reflect"))
+        program = add_program_objective(session, admin, 1, program["program_uuid"], ObjectiveCreate(title="Look back", kind=ObjectiveKind.ACTIVITY))
+        activity_uuid = program["objectives"][0]["activity"]["activity_uuid"]
+        page = asyncio.run(page_authoring.create_page(None, LearningPageCreate(
+            activity_uuid=activity_uuid, page_type=LearningPageType.STANDARD, title="Start", content={"version": 2, "blocks": []},
+        ), admin, session))
+        updated = asyncio.run(page_authoring.update_page(None, page.page_uuid, LearningPageUpdate(title="Start here"), admin, session))
+        assert updated.title == "Start here" and updated.badge_id is None
+        with pytest.raises(HTTPException):
+            asyncio.run(page_authoring.create_page(None, LearningPageCreate(
+                activity_uuid=activity_uuid, page_type=LearningPageType.STANDARD, title="Nope", content={"version": 2, "blocks": []},
+            ), LEARNER, session))
