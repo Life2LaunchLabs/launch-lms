@@ -29,3 +29,15 @@ def api_start_objective_activity(
 ):
     """Start or resume the learner's run of a step's activity. Pages and responses then use the learning runtime."""
     return service.start_objective_activity(db, current_user, identifier, objective_uuid)
+
+
+@router.get("/templates/{template_uuid}/activities/{activity_uuid}")
+def api_template_activity(
+    template_uuid: str,
+    activity_uuid: str,
+    org_id: int,
+    db: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_current_user),
+):
+    """A template's activity with its pages, for the activity editor."""
+    return service.get_template_activity(db, current_user, org_id, template_uuid, activity_uuid)

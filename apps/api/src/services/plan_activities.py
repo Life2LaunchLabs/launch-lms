@@ -174,3 +174,24 @@ def sync_objective_from_run(db: Session, run: LearningRun) -> None:
     from src.services.requirements import sync_live_progress
     sync_live_progress(db, progress, objective, plan)
     db.commit()
+
+
+def get_template_activity(db: Session, current_user: PublicUser, org_id: int, template_uuid: str, activity_uuid: str) -> dict:
+    """A template objective's activity with its pages, for the activity editor."""
+    from src.db.programs import Program, ProgramObjective
+    from src.services.learning import lookups
+    from src.services.programs import require_org_admin
+
+    require_org_admin(current_user.id, org_id, db)
+    program = db.exec(select(Program).where(Program.program_uuid == template_uuid, Program.org_id == org_id)).first()
+    activity = lookups._get_activity(db, activity_uuid)
+    relation = db.exec(select(ProgramObjective).where(
+        ProgramObjective.program_id == (program.id if program else 0), ProgramObjective.objective_id == activity.objective_id,
+    )).first() if activity.objective_id else None
+    if not program or not relation:
+        raise HTTPException(status_code=404, detail="Activity not found in this template")
+    pages = db.exec(select(LearningPage).where(LearningPage.activity_id == activity.id).order_by(LearningPage.order)).all()
+    return {
+        "template": {"program_uuid": program.program_uuid, "name": program.name, "org_id": program.org_id},
+        "activity": lookups._serialize_activity(activity, list(pages)).model_dump(),
+    }

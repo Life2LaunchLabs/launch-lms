@@ -2,6 +2,7 @@
 
 import React from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import useSWR, { mutate } from 'swr'
 import toast from 'react-hot-toast'
 import { Compass, Loader2, Plus, Sparkles } from 'lucide-react'
@@ -40,6 +41,7 @@ type PlansHomeProps = {
 }
 
 export default function PlansHome({ orgslug, token, getPlanColor, onCreate, renderObjective }: PlansHomeProps) {
+  const router = useRouter()
   const { data, isLoading } = useSWR<any>(token ? homeKey() : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: true })
   const [selected, setSelected] = React.useState('')
   const [open, setOpen] = React.useState<StepItem | null>(null)
@@ -56,7 +58,7 @@ export default function PlansHome({ orgslug, token, getPlanColor, onCreate, rend
     setSelected(objectiveUuid)
     document.getElementById(`step-${objectiveUuid}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }
-  const renderSelected = (item: StepItem, state: 'open' | 'not_ready' | 'done') => <SelectedStepBody item={item} state={state} onStart={() => setOpen(item)} onGoTo={goTo} />
+  const renderSelected = (item: StepItem, state: 'open' | 'not_ready' | 'done') => <SelectedStepBody item={item} state={state} onStart={() => item.activity_id && item.plan ? router.push(getUriWithOrg(orgslug, `/plans/${encodeURIComponent(item.plan.slug)}/objectives/${item.objective_uuid}/activity`)) : setOpen(item)} onGoTo={goTo} />
   const more = async () => {
     setBusy(true)
     try { await mutate(homeKey(), await planningApi.readyForMore(token), false) } catch { toast.error('Could not add more steps') } finally { setBusy(false) }

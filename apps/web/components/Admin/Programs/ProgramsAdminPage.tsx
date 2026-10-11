@@ -23,7 +23,7 @@ import ProgramAssignmentModal from './ProgramAssignmentModal'
 import { RequirementFrameworkDetail } from './RequirementsAdmin'
 import PlansInbox from '@components/Admin/Plans/PlansInbox'
 import RequirementsExplorer from '@components/Admin/Plans/RequirementsExplorer'
-import TemplateOverview from '@components/Admin/Plans/TemplateOverview'; import TemplateStepOrder from '@components/Admin/Plans/TemplateStepOrder'
+import TemplateOverview from '@components/Admin/Plans/TemplateOverview'; import TemplateStepOrder from '@components/Admin/Plans/TemplateStepOrder'; import { NewTemplateActivity } from '@components/Admin/Plans/TemplateActivityObjective'
 import { PlanObjectiveDefinitionCard, PlanPermissionChecklist } from '@components/Plans/PlanEditorShared'
 import { getLearningBadges } from '@services/learning/learning'
 import { cn } from '@/lib/utils'
@@ -273,7 +273,7 @@ function ObjectiveInlineCreator({ orgId, token, program, phase, refresh }: any) 
       toast.success(`Objective added to ${phase.name}.`)
     } catch (error: any) { toast.error(error?.message || 'Could not add this objective.'); return false } finally { setSaving(false) }
   }
-  if (!open) return <button type="button" onClick={() => setOpen(true)} className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border text-xs font-bold text-muted-foreground transition hover:border-foreground hover:bg-muted hover:text-foreground"><Plus size={15} />Add objective</button>
+  if (!open) return <div className="flex flex-wrap gap-2"><button type="button" onClick={() => setOpen(true)} className="flex h-10 flex-1 items-center justify-center gap-2 rounded-lg border border-dashed border-border text-xs font-bold text-muted-foreground transition hover:border-foreground hover:bg-muted hover:text-foreground"><Plus size={15} />Add objective</button><NewTemplateActivity orgId={orgId} token={token} programUuid={program.program_uuid} phaseUuid={phase.phase_uuid} refresh={refresh} /></div>
   return <section className="rounded-xl border border-blue-200 bg-blue-50/30 p-3 shadow-xs"><div className="mb-2 flex items-start justify-between gap-4 px-1"><div><p className="text-xs font-black text-foreground">New objective · {phase.name}</p><p className="mt-1 text-[11px] leading-5 text-muted-foreground">Add notes, media, links, checkboxes, or a badge as steps.</p></div><button type="button" onClick={close} disabled={saving} className="rounded-lg px-3 py-1.5 text-xs font-bold text-muted-foreground hover:bg-card hover:text-foreground disabled:opacity-40">Cancel</button></div><PlanObjectiveDefinitionCard key={editorKey} objective={objective} mode="template" badges={badges} saving={saving} initiallyOpen initiallyEditing onSave={add} /></section>
 }
 
