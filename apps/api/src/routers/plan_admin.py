@@ -64,3 +64,8 @@ def api_learner_credit(user_id: int, org_id: int, payload: RequirementCredit, db
 @router.get("/requirements/{framework_uuid}/coverage")
 def api_requirement_coverage(framework_uuid: str, org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
     return learner_service.coverage(db, current_user, org_id, framework_uuid)
+
+
+@router.get("/groups/{usergroup_id}/requirements")
+def api_group_requirements(usergroup_id: int, org_id: int, framework_uuid: str | None = None, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
+    return learner_service.group_requirements(db, current_user, org_id, usergroup_id, framework_uuid)

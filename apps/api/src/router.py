@@ -21,6 +21,7 @@ from src.routers import (
     operations_surface,
     plans,
     plan_admin,
+    plan_sharing,
     planning,
     portfolio,
     programs,
@@ -103,6 +104,12 @@ v1_router.include_router(
 )
 v1_router.include_router(
     plan_admin.router,
+    prefix="/planning",
+    tags=["planning"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
+v1_router.include_router(
+    plan_sharing.router,
     prefix="/planning",
     tags=["planning"],
     dependencies=[Depends(get_non_api_token_user)],

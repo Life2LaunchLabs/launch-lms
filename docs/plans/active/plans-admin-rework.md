@@ -57,11 +57,12 @@ and `services/plan_learners.py` (learner requirements, make-ups, credit, coverag
 - `GET /planning/managed-users/{user_id}/makeup-options?org_id&node_uuid` and `POST …/makeup` — add a step to one learner's plan that counts toward the gap it fills (a copy of a template step that meets the requirement, or a named one).
 - Group grid "Excuse" uses the existing batch progress endpoint with status `canceled`.
 - Staff no longer see plans handed out by an organization in their own plans list or feed (`planning._learner_side`); the admin Inbox and pages are where that work happens.
+- `GET /planning/groups/{usergroup_id}/requirements?org_id&framework_uuid` — the group Requirements tab: learners by requirement (met, planned, gap) for one framework, columns grouped by top-level category. Staff who are not org admins see only the learners whose plans they review.
+- `DELETE /planning/plans/{plan}/invitations/{invitation}` (`routers/plan_sharing.py`) — take back an unanswered invitation; it also leaves the recipient's inbox. Inviting someone who already has a waiting invitation is a 409.
+- Learner app: the plan panel's "Shared with" section opens a share dialog (`PlanShareDialog.tsx`) to invite by email, change access, take back invitations, remove people, or leave.
 - Migration: `objective.reviewer_guidance`, `planobjective.reviewer_guidance`, `planobjectiveprogress.staff_notes`.
 
 ## Not in this pass
 
-- Records carried over from another school (needs a transfer/attestation import model).
-- A share sheet for personal plans (sharing already works through plan invitations; the UI polish is separate).
-- Group × requirement heatmap beyond per-framework progress bars.
+- Records carried over from another school. Requirement credit is held per school (each school's framework, enrollment and attainment rows), so a new school starts from zero. The learner keeps access to their old school plans and evidence, but the school owns those plans, so sharing one with a new counselor goes through the old school's approval; personal plans they can share freely. Carrying credit across needs a way to match one school's requirements to another's, which is a separate design.
 - The badge/plan unification (see `badge-plan-unification.md`).

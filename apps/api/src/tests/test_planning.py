@@ -116,6 +116,29 @@ def test_recipient_bound_invitation_grants_plan_access_without_org_membership():
         assert helper_plan["subject"]["id"] == 1
 
 
+def test_owner_can_take_back_an_unanswered_invitation():
+    from src.services import plan_sharing
+
+    with _session() as db:
+        created = planning.create_plan(db, _user(1), _plan_create("Personal discovery"))
+        invite = PlanInvitationCreate(email="helper@example.com", role_key="viewer", kind=PlanInvitationKind.COLLABORATOR)
+        invitation = planning.create_invitation(db, _user(1), created["slug"], invite)
+        with pytest.raises(HTTPException) as twice:
+            planning.create_invitation(db, _user(1), created["slug"], invite)
+        assert twice.value.status_code == 409
+        with pytest.raises(HTTPException) as not_owner:
+            plan_sharing.revoke_invitation(db, _user(2), created["slug"], invitation["invitation_uuid"])
+        assert not_owner.value.status_code in {403, 404}
+        plan_sharing.revoke_invitation(db, _user(1), created["slug"], invitation["invitation_uuid"])
+        assert planning.list_my_invitations(db, _user(2)) == []
+        assert db.exec(select(InboxMessage).where(InboxMessage.action_kind == "plan_invitation")).one().action_status == "revoked"
+        with pytest.raises(HTTPException) as accept_late:
+            planning.respond_to_invitation(db, _user(2), invitation["invitation_uuid"], True)
+        assert accept_late.value.status_code in {404, 409}
+        # Once taken back, the same person can be invited again.
+        planning.create_invitation(db, _user(1), created["slug"], invite)
+
+
 def test_plan_review_queue_is_scoped_to_one_live_plan():
     with _session() as db:
         first = planning.create_plan(db, _user(1), _plan_create("Learner requirements"))

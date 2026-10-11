@@ -173,6 +173,17 @@ def test_learner_requirements_show_gaps_and_staff_can_plan_a_makeup_or_credit_it
         plan_learners.learner_requirements(session, _learner(3), 1, 2)
     assert outsider.value.status_code == 403
 
+    grid = plan_learners.group_requirements(session, admin, 1, 1)
+    assert grid["framework_uuid"] == framework["framework_uuid"] and len(grid["leaf_node_uuids"]) == 2
+    cells = {row["user_uuid"]: {title: row["cells"][uuid] for title, uuid in nodes.items() if uuid in row["cells"]} for row in grid["learners"]}
+    assert cells == {
+        "user_2": {"Resume": "planned", "Workplace experience": "met"},
+        "user_3": {"Resume": "planned", "Workplace experience": "gap"},
+    }
+    with pytest.raises(HTTPException) as not_staff:
+        plan_learners.group_requirements(session, _learner(3), 1, 1)
+    assert not_staff.value.status_code == 403
+
 
 def test_staff_work_on_assigned_plans_from_admin_not_their_own_app(world):
     session, admin, _, _, _, _ = world

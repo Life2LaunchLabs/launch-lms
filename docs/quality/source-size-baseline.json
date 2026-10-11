@@ -78,7 +78,7 @@
     "apps/web/components/Objects/Portfolio/ProfileAchievements.tsx": 811,
     "apps/web/components/Objects/Portfolio/ProfilePortfolio.tsx": 938,
     "apps/web/components/Pages/Portfolio/PortfolioShell.tsx": 781,
-    "apps/web/components/Plans/PlansWorkspace.tsx": 1143,
+    "apps/web/components/Plans/PlansWorkspace.tsx": 1109,
     "apps/web/components/Playground/PlaygroundOptionsModal.tsx": 560,
     "apps/web/services/resources/resources.ts": 555
   },

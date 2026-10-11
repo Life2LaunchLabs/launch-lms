@@ -16,7 +16,7 @@ import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
 import { swrFetcher } from '@services/utils/ts/requests'
 import React from 'react'
 import ProgramAssignmentModal from '@components/Admin/Programs/ProgramAssignmentModal'
-import { RequirementsReporting } from '@components/Admin/Programs/RequirementsAdmin'
+import GroupRequirementsGrid from '@components/Admin/Plans/GroupRequirementsGrid'
 import GroupPlansGrid from '@components/Admin/Plans/GroupPlansGrid'
 
 const tabs = [
@@ -84,7 +84,7 @@ export default function GroupAdminDetail({ orgslug, groupId, subpage = 'plans' }
       <div className="h-6" />
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.1 }}>
         {activeSubpage === 'plans' ? <GroupPlans orgslug={orgslug} orgId={Number(org.id)} token={accessToken} groupId={groupId} programs={data.programs || []} completedPrograms={data.completed_programs || []} refresh={mutate} /> : null}
-        {activeSubpage === 'requirements' ? <div className="-mt-6"><RequirementsReporting orgId={Number(org.id)} token={accessToken} fixedGroupId={groupId} /></div> : null}
+        {activeSubpage === 'requirements' ? <div className="px-10 pb-10"><GroupRequirementsGrid orgslug={orgslug} orgId={Number(org.id)} token={accessToken} groupId={groupId} /></div> : null}
         {activeSubpage === 'members' ? <div className="px-10 pb-10"><section className="rounded-xl bg-card p-6 shadow-xs"><ManageUsers usergroup_id={groupId} embedded /></section></div> : null}
         {activeSubpage === 'settings' ? <GroupSettings orgslug={orgslug} group={group} /> : null}
       </motion.div>

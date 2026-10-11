@@ -531,8 +531,7 @@ def _plan_dict(db: Session, plan: Plan, user_id: int, include_detail: bool = Fal
         if "manage_collaborators" in capabilities:
             invitations = db.exec(select(PlanInvitation).where(PlanInvitation.plan_id == plan.id).order_by(PlanInvitation.id.desc())).all()
             result["invitations"] = [{
-                "invitation_uuid": invitation.invitation_uuid,
-                "email": invitation.email,
+                "invitation_uuid": invitation.invitation_uuid, "email": invitation.email,
                 "kind": invitation.kind.value if hasattr(invitation.kind, "value") else str(invitation.kind),
                 "status": invitation.status.value if hasattr(invitation.status, "value") else str(invitation.status),
                 "role": next(({"key": role.key, "name": role.name} for role in db.exec(select(PlanRole).where(PlanRole.plan_id == plan.id)).all() if role.id == invitation.role_id), None),
@@ -1482,8 +1481,7 @@ def delete_organization_role(db: Session, current_user: PublicUser, identifier: 
 
 def create_invitation(db: Session, current_user: PublicUser, identifier: str, payload: PlanInvitationCreate) -> dict:
     plan = _plan_or_404(db, identifier)
-    capability = "manage_collaborators" if payload.kind == PlanInvitationKind.COLLABORATOR else "manage_collaborators"
-    _require(db, plan, current_user.id, capability)
+    _require(db, plan, current_user.id, "manage_collaborators")
     actor_row = _collaboration(db, int(plan.id), current_user.id)
     if payload.kind == PlanInvitationKind.SUBJECT and plan.subject_user_id:
         raise HTTPException(status_code=409, detail="The plan subject cannot be changed once assigned")
@@ -1500,6 +1498,8 @@ def create_invitation(db: Session, current_user: PublicUser, identifier: str, pa
     target = db.exec(select(User).where(User.email == email)).first() or db.exec(select(User).where(User.email == normalized)).first()
     if target and _collaboration(db, int(plan.id), int(target.id)):
         raise HTTPException(status_code=409, detail="This person is already a collaborator")
+    if db.exec(select(PlanInvitation).where(PlanInvitation.plan_id == plan.id, PlanInvitation.email_normalized == normalized, PlanInvitation.status == PlanInvitationStatus.PENDING)).first():
+        raise HTTPException(status_code=409, detail="This person already has an invitation waiting")
     now = _now_string()
     invitation = PlanInvitation(
         invitation_uuid=f"plan_invitation_{uuid4()}", plan_id=int(plan.id), kind=payload.kind,

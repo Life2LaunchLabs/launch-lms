@@ -20,35 +20,32 @@ from src.db.requirements import (
     RequirementEnrollment,
     RequirementEnrollmentStatus,
 )
+from src.db.usergroup_user import UserGroupUser
+from src.db.usergroups import UserGroup
 from src.db.users import PublicUser, User
 from src.security.org_auth import is_org_admin, require_org_admin, require_org_membership
 from src.services.plan_admin import OPEN_STATUSES, REVIEW, _now, _person, _record, _value
 from src.services.planning import capabilities_for
 
 
+def _review_plans(db: Session, current_user: PublicUser, org_id: int, user_ids: list[int]) -> list[Plan]:
+    return [plan for plan in db.exec(select(Plan).where(
+        Plan.source_org_id == org_id, Plan.subject_user_id.in_(user_ids or [-1]), Plan.source_assignment_id.is_not(None),  # type: ignore[union-attr]
+        Plan.status != PlanStatus.ARCHIVED,
+    )).all() if REVIEW in capabilities_for(db, plan, current_user.id)]
+
+
 def _can_manage_learner(db: Session, current_user: PublicUser, org_id: int, user_id: int) -> list[Plan]:
     """The learner's assignment plans this staff member can review. Admins may look even when there are none."""
     require_org_membership(current_user.id, org_id, db)
-    plans = [plan for plan in db.exec(select(Plan).where(
-        Plan.source_org_id == org_id, Plan.subject_user_id == user_id, Plan.source_assignment_id.is_not(None),  # type: ignore[union-attr]
-        Plan.status != PlanStatus.ARCHIVED,
-    )).all() if REVIEW in capabilities_for(db, plan, current_user.id)]
+    plans = _review_plans(db, current_user, org_id, [user_id])
     if not plans and not is_org_admin(current_user.id, org_id, db):
         raise HTTPException(status_code=403, detail="You do not support this learner")
     return plans
 
 
-def learner_requirements(db: Session, current_user: PublicUser, org_id: int, user_id: int) -> dict:
-    from src.services.requirements import sync_group_batches
-
-    plans = _can_manage_learner(db, current_user, org_id, user_id)
-    sync_group_batches(db, org_id)
-    db.commit()
-    enrollments = db.exec(select(RequirementEnrollment).where(
-        RequirementEnrollment.org_id == org_id, RequirementEnrollment.user_id == user_id,
-        RequirementEnrollment.status != RequirementEnrollmentStatus.WITHDRAWN,
-    )).all()
-    # Steps in the learner's plans that count toward each node, with their state.
+def _planned_steps(db: Session, plans: list[Plan]) -> dict[str, list[dict]]:
+    """Steps in these plans that count toward each requirement node, with their state."""
     planned: dict[str, list[dict]] = {}
     for plan in plans:
         for objective in db.exec(select(PlanObjective).where(PlanObjective.plan_id == plan.id)).all():
@@ -63,50 +60,109 @@ def learner_requirements(db: Session, current_user: PublicUser, org_id: int, use
                     "title": objective.title, "status": status, "due_date": due,
                     "overdue": bool(due and due < date.today() and status not in {"completed", "canceled"}),
                 })
-    frameworks = []
-    for enrollment in enrollments:
-        snapshot = enrollment.framework_snapshot or {}
-        leaves = snapshot.get("leaf_node_uuids") or []
-        sources = db.exec(select(RequirementAttainmentSource).where(
-            RequirementAttainmentSource.enrollment_id == enrollment.id,
-            RequirementAttainmentSource.revoked_at.is_(None),  # type: ignore[union-attr]
-        )).all()
-        source_by_node: dict[str, list] = {}
-        for source in sources:
-            source_by_node.setdefault(source.node_uuid, []).append(source)
-        nodes = []
-        for node in snapshot.get("nodes") or []:
-            node_uuid = node["node_uuid"]
-            is_leaf = node_uuid in leaves
-            steps = planned.get(node_uuid, [])
-            met = bool(source_by_node.get(node_uuid))
-            if not is_leaf:
-                state = None
-            elif met:
-                state = "met"
-            elif any(step["status"] not in {"completed", "canceled"} and not step["overdue"] for step in steps):
-                state = "planned"
-            else:
-                state = "gap"
-            nodes.append({
-                **node, "leaf": is_leaf, "state": state, "steps": steps,
-                "sources": [{
-                    "source_uuid": item.source_uuid, "title": item.objective_title,
-                    "note": (item.evidence_snapshot or {}).get("note"), "kind": (item.evidence_snapshot or {}).get("kind") or "step",
-                    "verified_by": _person(db.get(User, item.verified_by_user_id)) if item.verified_by_user_id else None,
-                    "verified_at": item.verified_at,
-                } for item in source_by_node.get(node_uuid, [])],
-            })
-        met_count = sum(1 for node in nodes if node["state"] == "met")
-        frameworks.append({
-            "enrollment_uuid": enrollment.enrollment_uuid, "framework_uuid": snapshot.get("framework_uuid"),
-            "name": snapshot.get("name"), "version": snapshot.get("version"),
-            "status": _value(enrollment.status), "met": met_count, "total": len(leaves),
-            "gaps": sum(1 for node in nodes if node["state"] == "gap"), "nodes": nodes,
+    return planned
+
+
+def _enrollments(db: Session, org_id: int, user_ids: list[int]) -> list[RequirementEnrollment]:
+    from src.services.requirements import sync_group_batches
+
+    sync_group_batches(db, org_id)
+    db.commit()
+    return list(db.exec(select(RequirementEnrollment).where(
+        RequirementEnrollment.org_id == org_id, RequirementEnrollment.user_id.in_(user_ids or [-1]),
+        RequirementEnrollment.status != RequirementEnrollmentStatus.WITHDRAWN,
+    ).order_by(RequirementEnrollment.id)).all())
+
+
+def _framework_status(db: Session, enrollment: RequirementEnrollment, planned: dict[str, list[dict]]) -> dict:
+    snapshot = enrollment.framework_snapshot or {}
+    leaves = snapshot.get("leaf_node_uuids") or []
+    source_by_node: dict[str, list] = {}
+    for source in db.exec(select(RequirementAttainmentSource).where(
+        RequirementAttainmentSource.enrollment_id == enrollment.id,
+        RequirementAttainmentSource.revoked_at.is_(None),  # type: ignore[union-attr]
+    )).all():
+        source_by_node.setdefault(source.node_uuid, []).append(source)
+    nodes = []
+    for node in snapshot.get("nodes") or []:
+        node_uuid = node["node_uuid"]
+        is_leaf = node_uuid in leaves
+        steps = planned.get(node_uuid, [])
+        if not is_leaf:
+            state = None
+        elif source_by_node.get(node_uuid):
+            state = "met"
+        elif any(step["status"] not in {"completed", "canceled"} and not step["overdue"] for step in steps):
+            state = "planned"
+        else:
+            state = "gap"
+        nodes.append({
+            **node, "leaf": is_leaf, "state": state, "steps": steps,
+            "sources": [{
+                "source_uuid": item.source_uuid, "title": item.objective_title,
+                "note": (item.evidence_snapshot or {}).get("note"), "kind": (item.evidence_snapshot or {}).get("kind") or "step",
+                "verified_by": _person(db.get(User, item.verified_by_user_id)) if item.verified_by_user_id else None,
+                "verified_at": item.verified_at,
+            } for item in source_by_node.get(node_uuid, [])],
         })
     return {
-        "user_id": user_id, "frameworks": frameworks,
+        "enrollment_uuid": enrollment.enrollment_uuid, "framework_uuid": snapshot.get("framework_uuid"),
+        "name": snapshot.get("name"), "version": snapshot.get("version"),
+        "status": _value(enrollment.status), "met": sum(1 for node in nodes if node["state"] == "met"), "total": len(leaves),
+        "gaps": sum(1 for node in nodes if node["state"] == "gap"), "nodes": nodes,
+    }
+
+
+def learner_requirements(db: Session, current_user: PublicUser, org_id: int, user_id: int) -> dict:
+    plans = _can_manage_learner(db, current_user, org_id, user_id)
+    planned = _planned_steps(db, plans)
+    return {
+        "user_id": user_id,
+        "frameworks": [_framework_status(db, enrollment, planned) for enrollment in _enrollments(db, org_id, [user_id])],
         "plans": [{"plan_uuid": plan.plan_uuid, "name": plan.name, "status": _value(plan.status)} for plan in plans],
+    }
+
+
+def group_requirements(db: Session, current_user: PublicUser, org_id: int, usergroup_id: int, framework_uuid: str | None = None) -> dict:
+    """Learners by requirement for one group: the same shape as the group plans grid, for one framework at a time."""
+    require_org_membership(current_user.id, org_id, db)
+    group = db.get(UserGroup, usergroup_id)
+    if not group or group.org_id != org_id:
+        raise HTTPException(status_code=404, detail="Group not found")
+    member_ids = list(db.exec(select(UserGroupUser.user_id).where(UserGroupUser.usergroup_id == usergroup_id)).all())
+    plans = _review_plans(db, current_user, org_id, member_ids)
+    if not is_org_admin(current_user.id, org_id, db):
+        member_ids = sorted({int(plan.subject_user_id) for plan in plans if plan.subject_user_id})
+        if not member_ids:
+            raise HTTPException(status_code=403, detail="You do not support anyone in this group")
+    enrollments = _enrollments(db, org_id, member_ids)
+    frameworks: dict[str, dict] = {}
+    for enrollment in enrollments:
+        snapshot = enrollment.framework_snapshot or {}
+        entry = frameworks.setdefault(str(snapshot.get("framework_uuid")), {"framework_uuid": snapshot.get("framework_uuid"), "name": snapshot.get("name"), "learner_count": 0})
+        entry["learner_count"] += 1
+    chosen = framework_uuid if framework_uuid in frameworks else next(iter(frameworks), None)
+    chosen_enrollments = [item for item in enrollments if str((item.framework_snapshot or {}).get("framework_uuid")) == chosen]
+    # Columns come from the newest version any learner is on; older versions just leave unknown cells empty.
+    newest = max(chosen_enrollments, key=lambda item: int((item.framework_snapshot or {}).get("version") or 0), default=None)
+    planned_by_user: dict[int, list[Plan]] = {}
+    for plan in plans:
+        planned_by_user.setdefault(int(plan.subject_user_id or 0), []).append(plan)
+    learners = []
+    for enrollment in chosen_enrollments:
+        status = _framework_status(db, enrollment, _planned_steps(db, planned_by_user.get(enrollment.user_id, [])))
+        learners.append({
+            **_person(db.get(User, enrollment.user_id)), "enrollment_uuid": enrollment.enrollment_uuid,
+            "version": status["version"], "met": status["met"], "total": status["total"], "gaps": status["gaps"],
+            "cells": {node["node_uuid"]: node["state"] for node in status["nodes"] if node["leaf"]},
+        })
+    learners.sort(key=lambda item: f"{item.get('first_name') or ''} {item.get('last_name') or ''} {item.get('username') or ''}".strip().lower())
+    return {
+        "group": {"id": group.id, "name": group.name}, "frameworks": list(frameworks.values()), "framework_uuid": chosen,
+        "nodes": (newest.framework_snapshot or {}).get("nodes") or [] if newest else [],
+        "leaf_node_uuids": (newest.framework_snapshot or {}).get("leaf_node_uuids") or [] if newest else [],
+        "learners": learners,
+        "not_enrolled": len(set(member_ids) - {item.user_id for item in enrollments}),
     }
 
 

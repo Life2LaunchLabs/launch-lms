@@ -114,5 +114,6 @@ export const learnerAdminApi = {
   requirements: (orgId: number, userId: number, token?: string) => planningRequest(`/managed-users/${userId}/requirements?org_id=${orgId}`, token),
   makeupOptions: (orgId: number, userId: number, nodeUuid: string, token?: string) => planningRequest(`/managed-users/${userId}/makeup-options?org_id=${orgId}&node_uuid=${encodeURIComponent(nodeUuid)}`, token),
   addMakeup: (orgId: number, userId: number, data: { plan_uuid: string; node_uuid: string; objective_uuid?: string | null; title?: string | null; due_date?: string | null }, token?: string) => planningRequest(`/managed-users/${userId}/makeup?org_id=${orgId}`, token, 'POST', data),
+  groupRequirements: (orgId: number, groupId: number, frameworkUuid?: string | null, token?: string) => planningRequest(`/groups/${groupId}/requirements?org_id=${orgId}${frameworkUuid ? `&framework_uuid=${encodeURIComponent(frameworkUuid)}` : ''}`, token),
   credit: (orgId: number, userId: number, data: { enrollment_uuid: string; node_uuid: string; note: string }, token?: string) => planningRequest(`/managed-users/${userId}/requirements/credit?org_id=${orgId}`, token, 'POST', data),
 }

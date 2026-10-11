@@ -4,7 +4,7 @@ import React from 'react'
 import { ArrowLeft, Award, Check, ChevronDown, ChevronRight, FileText, Film, Image as ImageIcon, Link2, Loader2, Lock, Menu, MoreVertical, Pencil, Plus, SquareCheck, Trash2, Upload, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
-import { normalizeMediaUrl } from '@services/media/media'
+import { getUserAvatarMediaDirectory, normalizeMediaUrl } from '@services/media/media'
 import type { MediaType } from '@services/media/library'
 
 export type PlanStepType = 'text' | 'media' | 'link' | 'checkbox' | 'badge'
@@ -249,4 +249,10 @@ function threeToneBackground(color: string, min: number, max: number) {
 
 function GroupProgressRing({ min, max, color }: { min: number; max: number; color: string }) {
   return <span role="progressbar" aria-label={`Group progress ranges from ${min} to ${max} percent`} aria-valuemin={0} aria-valuemax={100} className="relative mt-0.5 h-8 w-8 shrink-0 rounded-full" style={{ background: `conic-gradient(${color} 0 ${min}%, color-mix(in srgb, ${color} 50%, transparent) ${min}% ${max}%, color-mix(in srgb, ${color} 14%, transparent) ${max}% 100%)` }}><span className="absolute inset-[4px] rounded-full bg-card" /></span>
+}
+
+export function PersonAvatar({ user, size = 'sm' }: { user: any; size?: 'xs' | 'sm' | 'md' }) {
+  const classes = size === 'md' ? 'h-9 w-9 text-xs' : size === 'xs' ? 'h-5 w-5 text-[8px]' : 'h-7 w-7 text-[9px]'
+  const src = user?.avatar_image ? (String(user.avatar_image).startsWith('http') ? user.avatar_image : getUserAvatarMediaDirectory(user.user_uuid, user.avatar_image)) : ''
+  return src ? <img src={src} alt="" className={cn('shrink-0 rounded-full object-cover', classes)} /> : <span className={cn('flex shrink-0 items-center justify-center rounded-full bg-foreground font-black text-background', classes)}>{String(user?.name || '?').split(/\s+/).slice(0, 2).map((word) => word[0]).join('').toUpperCase()}</span>
 }
