@@ -63,6 +63,7 @@ def test_routes_list_the_ways_to_earn_with_their_issuers():
         listed = badge_routes.list_routes(session, None, "badge_adapt")
         assert [(item["name"], item["recommended"], item["step_count"]) for item in listed["routes"]] == [("On your own", True, 2), ("With your teacher", False, 1)]
         assert [issuer["org"]["name"] for issuer in listed["routes"][0]["issuers"]] == ["Studio", "Partner"]
+        assert [step["title"] for step in listed["routes"][0]["steps"]] == ["Notice change", "Your story"]
         assert listed["plan"] is None
 
 

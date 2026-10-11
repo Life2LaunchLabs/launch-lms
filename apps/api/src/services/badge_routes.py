@@ -32,6 +32,7 @@ from src.db.programs import (
     ProgramAssignment,
     ProgramObjective,
     ProgramParticipant,
+    ProgramPhase,
 )
 from src.db.users import PublicUser
 
@@ -56,14 +57,16 @@ def _routes(db: Session, badge: LearningBadge) -> list[tuple[BadgeRoute, Program
 
 
 def _route_summary(db: Session, program: Program) -> dict:
-    kinds = db.exec(
-        select(Objective.kind).join(ProgramObjective, ProgramObjective.objective_id == Objective.id)
-        .where(ProgramObjective.program_id == program.id)
+    rows = db.exec(
+        select(Objective.title, Objective.kind, ProgramPhase.name).join(ProgramObjective, ProgramObjective.objective_id == Objective.id)
+        .outerjoin(ProgramPhase, ProgramPhase.id == ProgramObjective.phase_id)
+        .where(ProgramObjective.program_id == program.id).order_by(ProgramPhase.position, ProgramObjective.position)
     ).all()
-    values = [getattr(kind, "value", kind) for kind in kinds]
+    steps = [{"title": title, "kind": getattr(kind, "value", kind), "chapter": chapter or ""} for title, kind, chapter in rows]
     return {
         "program_uuid": program.program_uuid, "name": program.name, "description": program.description or "",
-        "step_count": len(values), "activity_count": values.count(ObjectiveKind.ACTIVITY.value),
+        "step_order": program.step_order, "steps": steps, "step_count": len(steps),
+        "activity_count": sum(step["kind"] == ObjectiveKind.ACTIVITY.value for step in steps),
     }
 
 
