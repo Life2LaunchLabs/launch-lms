@@ -70,6 +70,13 @@ existing player, grading, learner variables and Claude connector tools are
 reused, keyed by plan objective instead of path. Completing the activity (with
 grading where set) completes the objective.
 
+**One connector.** The Claude connector stops having separate badge-activity
+and plan-template halves: it edits plans. The plan template document gains the
+`activity` objective type (its Activity Document inline or by reference), and
+the activity tools (schema, validate, preview, save) are scoped to a template
+objective instead of a badge version. Badge tools shrink to badge details and
+which templates earn the badge.
+
 ## 4. Badges earned through plan templates
 
 A badge is the credential and its details. What used to be its journey is one
