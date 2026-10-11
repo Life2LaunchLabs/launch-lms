@@ -305,7 +305,7 @@ function DashLeftMenu() {
             </HoverMenu>
 
             <MenuLink
-              href={routePaths.org.dash.programs()}
+              href={routePaths.org.dash.plans()}
               icon={<ClipboardText size={20} weight="fill" />}
               label="Plans"
               isCollapsed={isCollapsed}

@@ -115,7 +115,6 @@ export const routePaths = {
     badges: () => '/badges',
     plans: () => '/plans',
     plan: (planSlug: string) => `/plans/${encodeURIComponent(planSlug)}`,
-    groupPlan: (assignmentUuid: string) => withQuery('/plans', { group: assignmentUuid }),
     programs: () => '/programs',
     program: (programSlug: string) => `/programs/${encodeURIComponent(programSlug)}`,
     myBadges: () => '/badges/my-badges',
@@ -151,15 +150,17 @@ export const routePaths = {
       root: () => '/admin',
       analytics: () => '/admin',
       badges: () => '/admin/badges',
-      programs: () => '/admin/plans',
+      plans: () => '/admin/plans',
+      planReview: (params: { assignment: string; objective?: string | null; planObjective?: string | null; activity?: string | null; focus?: string | null }) =>
+        withQuery('/admin/plans/review', { assignment: params.assignment, objective: params.objective, step: params.planObjective, activity: params.activity, focus: params.focus }),
+      programs: () => '/admin/plans/templates',
       program: (programUuid: string) => `/admin/plans/${encodeURIComponent(programUuid)}`,
       programPage: (programUuid: string, subpage: string) => `/admin/plans/${encodeURIComponent(programUuid)}/${encodeURIComponent(subpage)}`,
       programAssignmentNew: (programUuid: string) => `/admin/plans/${encodeURIComponent(programUuid)}/assignments/new`,
-      planAssignments: () => '/admin/plans/assignments',
       planRequirements: () => '/admin/plans/requirements',
       planRequirement: (frameworkUuid: string, subpage = 'details') => `/admin/plans/requirements/${encodeURIComponent(frameworkUuid)}/${encodeURIComponent(subpage)}`,
-      planReporting: () => '/admin/plans/reporting',
-      planAssignment: (assignmentUuid: string, subpage = 'overview') => `/admin/plans/assignments/${encodeURIComponent(assignmentUuid)}/${encodeURIComponent(subpage)}`,
+      // Resolves an assignment to the page that now shows it: its group's Plans tab or the learner.
+      planAssignment: (assignmentUuid: string) => `/admin/plans/assignments/${encodeURIComponent(assignmentUuid)}`,
       livePlan: (planUuid: string, subpage = 'overview') => subpage === 'overview' ? `/admin/plans/live/${encodeURIComponent(planUuid)}` : `/admin/plans/live/${encodeURIComponent(planUuid)}/${encodeURIComponent(subpage)}`,
       news: () => '/admin/news',
       feedback: () => '/admin/feedback',
@@ -200,11 +201,11 @@ export const routePaths = {
         signups: () => '/admin/users/signups',
         add: () => '/admin/users/new',
         auditLogs: () => '/admin/users/audit-logs',
-        group: (groupId: string | number) => `/admin/users/groups/${encodeURIComponent(String(groupId))}`,
-        groupProgram: (groupId: string | number, assignmentUuid: string, subpage = 'progress') => `/admin/users/groups/${encodeURIComponent(String(groupId))}/programs/${encodeURIComponent(assignmentUuid)}/${encodeURIComponent(subpage)}`,
-        // TODO(users-navigation-review): remove these aliases after old links have expired.
-        cohort: (groupId: string | number) => `/admin/users/groups/${encodeURIComponent(String(groupId))}`,
-        cohortProgram: (groupId: string | number, assignmentUuid: string, subpage = 'progress') => `/admin/users/groups/${encodeURIComponent(String(groupId))}/programs/${encodeURIComponent(assignmentUuid)}/${encodeURIComponent(subpage)}`,
+        group: (groupId: string | number, subpage?: string) => subpage
+          ? `/admin/users/groups/${encodeURIComponent(String(groupId))}/${encodeURIComponent(subpage)}`
+          : `/admin/users/groups/${encodeURIComponent(String(groupId))}`,
+        groupPlans: (groupId: string | number, assignmentUuid?: string | null) =>
+          withQuery(`/admin/users/groups/${encodeURIComponent(String(groupId))}/plans`, { assignment: assignmentUuid }),
       },
       orgSettings: {
         general: () => '/admin/org/settings/general',

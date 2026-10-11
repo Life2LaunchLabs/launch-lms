@@ -116,6 +116,29 @@ def test_recipient_bound_invitation_grants_plan_access_without_org_membership():
         assert helper_plan["subject"]["id"] == 1
 
 
+def test_owner_can_take_back_an_unanswered_invitation():
+    from src.services import plan_sharing
+
+    with _session() as db:
+        created = planning.create_plan(db, _user(1), _plan_create("Personal discovery"))
+        invite = PlanInvitationCreate(email="helper@example.com", role_key="viewer", kind=PlanInvitationKind.COLLABORATOR)
+        invitation = planning.create_invitation(db, _user(1), created["slug"], invite)
+        with pytest.raises(HTTPException) as twice:
+            planning.create_invitation(db, _user(1), created["slug"], invite)
+        assert twice.value.status_code == 409
+        with pytest.raises(HTTPException) as not_owner:
+            plan_sharing.revoke_invitation(db, _user(2), created["slug"], invitation["invitation_uuid"])
+        assert not_owner.value.status_code in {403, 404}
+        plan_sharing.revoke_invitation(db, _user(1), created["slug"], invitation["invitation_uuid"])
+        assert planning.list_my_invitations(db, _user(2)) == []
+        assert db.exec(select(InboxMessage).where(InboxMessage.action_kind == "plan_invitation")).one().action_status == "revoked"
+        with pytest.raises(HTTPException) as accept_late:
+            planning.respond_to_invitation(db, _user(2), invitation["invitation_uuid"], True)
+        assert accept_late.value.status_code in {404, 409}
+        # Once taken back, the same person can be invited again.
+        planning.create_invitation(db, _user(1), created["slug"], invite)
+
+
 def test_plan_review_queue_is_scoped_to_one_live_plan():
     with _session() as db:
         first = planning.create_plan(db, _user(1), _plan_create("Learner requirements"))
@@ -876,9 +899,10 @@ def test_external_email_assignment_materializes_pending_recipient_bound_plan():
         planning.materialize_external_assignment_plan(db, assignment.id, assignment.subject_email)
         db.commit()
 
-        owned = planning.list_plans(db, _user(1), "pending")
-        assert len(owned) == 1
-        assert owned[0]["subject"] is None
+        # The assigner manages it from the admin side; it stays out of their own plans list.
+        assert planning.list_plans(db, _user(1), "pending") == []
+        plan = db.exec(select(Plan).where(Plan.source_assignment_id == assignment.id)).one()
+        assert plan.owner_user_id == 1 and plan.subject_user_id is None
         recipient = PublicUser(id=99, user_uuid="future", username="future", email="future@example.com", first_name="Future", last_name="User")
         invitations = planning.list_my_invitations(db, recipient)
         assert len(invitations) == 1
@@ -923,10 +947,10 @@ def test_group_sourced_plan_rejects_individual_definition_changes_with_workspace
             planning.update_plan(db, _user(1), plan.slug, PlanUpdate(name="Private divergence"))
         assert conflict.value.status_code == 409
         assert conflict.value.detail["assignment_uuid"] == assignment.assignment_uuid
-        assert conflict.value.detail["group_workspace"] == "/plans?group=assignment_group_lock"
+        assert conflict.value.detail["group_workspace"].endswith("/plans?assignment=assignment_group_lock")
 
 
-def test_assignment_materialization_is_idempotent_and_preserves_states_owner_roles_and_progress():
+def test_assignment_materialization_is_idempotent_and_preserves_states_owner_roles_and_requirement_links():
     with _session() as db:
         definitions = [
             {"key": "subject", "name": "Learner", "capabilities": ["view_plan", "update_progress"]},
@@ -945,6 +969,7 @@ def test_assignment_materialization_is_idempotent_and_preserves_states_owner_rol
             objective_snapshot=[{
                 "id": 70, "objective_uuid": "objective_70", "title": "Shared objective",
                 "kind": "custom", "phase_uuid": "phase_batch", "phase_name": "Batch phase",
+                "requirement_mappings": [{"framework_id": 9, "framework_uuid": "requirement_framework_9", "node_uuid": "node_a", "node_code": "1"}],
             }], creation_date=NOW, update_date=NOW,
         )
         participants = [
@@ -970,9 +995,11 @@ def test_assignment_materialization_is_idempotent_and_preserves_states_owner_rol
         roles = db.exec(select(PlanRole).where(PlanRole.plan_id == completed_plan.id)).all()
         assert {role.key: role.name for role in roles} == {"subject": "Learner", "coach": "Coach", "plan_admin": "Lead"}
         copied = db.exec(select(PlanObjectiveProgress).join(PlanObjective, PlanObjective.id == PlanObjectiveProgress.plan_objective_id).where(PlanObjective.plan_id == completed_plan.id)).one()
-        assert copied.status == PlanObjectiveStatus.COMPLETED
-        assert copied.subject_note == "Done"
-        assert copied.field_values == {"legacy_evidence": [{"url": "/proof.pdf"}]}
+        # Live plans start fresh: progress recorded against the template objective
+        # elsewhere does not carry over (requirements express equivalence instead).
+        assert copied.status == PlanObjectiveStatus.NOT_STARTED
+        live_objective = db.get(PlanObjective, copied.plan_objective_id)
+        assert live_objective.requirement_mappings == [{"framework_id": 9, "framework_uuid": "requirement_framework_9", "node_uuid": "node_a"}]
         pending_invites = db.exec(select(PlanInvitation).where(PlanInvitation.plan_id == plans[0].id)).all()
         assert len(pending_invites) == 1
         assert pending_invites[0].status == "pending"

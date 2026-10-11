@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { BarChart3, CalendarDays, Check, ChevronRight, Layers3, Loader2, Plus, Settings, Trash2, Users } from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { CalendarDays, ClipboardCheck, Layers3, Loader2, Plus, Settings, Trash2, Users } from 'lucide-react'
 import { motion } from 'motion/react'
 import useSWR from 'swr'
 import toast from 'react-hot-toast'
@@ -16,21 +16,23 @@ import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
 import { swrFetcher } from '@services/utils/ts/requests'
 import React from 'react'
 import ProgramAssignmentModal from '@components/Admin/Programs/ProgramAssignmentModal'
+import GroupRequirementsGrid from '@components/Admin/Plans/GroupRequirementsGrid'
+import GroupPlansGrid from '@components/Admin/Plans/GroupPlansGrid'
 
 const tabs = [
-  { id: 'programs', label: 'Plans', icon: Layers3 },
-  { id: 'users', label: 'Users', icon: Users },
+  { id: 'plans', label: 'Plans', icon: Layers3 },
+  { id: 'requirements', label: 'Requirements', icon: ClipboardCheck },
+  { id: 'members', label: 'Members', icon: Users },
   { id: 'settings', label: 'Settings', icon: Settings },
-  { id: 'reports', label: 'Reports', icon: BarChart3 },
 ] as const
 
-type GroupSubpage = typeof tabs[number]['id']
+export type GroupSubpage = typeof tabs[number]['id']
 
-export default function GroupAdminDetail({ orgslug, groupId, subpage = 'programs' }: { orgslug: string; groupId: number; subpage?: string }) {
+export default function GroupAdminDetail({ orgslug, groupId, subpage = 'plans' }: { orgslug: string; groupId: number; subpage?: GroupSubpage }) {
   const org = useOrg() as any
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
-  const activeSubpage: GroupSubpage = tabs.some((tab) => tab.id === subpage) ? subpage as GroupSubpage : 'programs'
+  const activeSubpage: GroupSubpage = tabs.some((tab) => tab.id === subpage) ? subpage : 'plans'
   const key = org?.id && accessToken ? `${getAPIUrl()}planning/cohorts/${groupId}?org_id=${org.id}` : null
   const { data, isLoading, mutate } = useSWR(key, (url) => swrFetcher(url, accessToken), { revalidateOnFocus: false })
 
@@ -51,8 +53,7 @@ export default function GroupAdminDetail({ orgslug, groupId, subpage = 'programs
       <div className="relative z-10 bg-[#fcfbfc] pl-10 pr-10 tracking-tight nice-shadow">
         <div className="pb-4 pt-6">
           <Breadcrumbs items={[
-            { label: 'Users', href: '/admin/users', icon: <Users size={14} /> },
-            { label: 'Groups', href: '/admin/users', icon: <Users size={14} /> },
+            { label: 'Users', href: getUriWithOrg(orgslug, routePaths.org.dash.users.users()), icon: <Users size={14} /> },
             { label: group.name },
           ]} />
         </div>
@@ -61,9 +62,9 @@ export default function GroupAdminDetail({ orgslug, groupId, subpage = 'programs
           orgId={Number(org.id)}
           canEdit
           entityName="Group"
-          fallbackDescription="Manage plans and users in this group."
+          fallbackDescription="Plans, requirements and members for this group."
           fallbackIcon={<Users size={32} strokeWidth={1.5} />}
-          metadata={<><Users size={14} />{data.learner_count} user{data.learner_count === 1 ? '' : 's'}</>}
+          metadata={<><Users size={14} />{data.learner_count} member{data.learner_count === 1 ? '' : 's'}</>}
           updateItem={updateGroup}
         />
         <div className="flex space-x-0.5 text-sm font-black">
@@ -71,7 +72,7 @@ export default function GroupAdminDetail({ orgslug, groupId, subpage = 'programs
             const Icon = tab.icon
             const isActive = activeSubpage === tab.id
             return (
-              <Link key={tab.id} href={getUriWithOrg(orgslug, `/admin/users/groups/${groupId}/${tab.id}`)} replace>
+              <Link key={tab.id} href={getUriWithOrg(orgslug, routePaths.org.dash.users.group(groupId, tab.id))} replace>
                 <div className={`w-fit cursor-pointer border-black py-2 text-center transition-all ease-linear ${isActive ? 'border-b-4' : 'opacity-50'}`}>
                   <div className="mx-2.5 flex items-center space-x-2.5"><Icon size={16} /><div>{tab.label}</div></div>
                 </div>
@@ -82,40 +83,35 @@ export default function GroupAdminDetail({ orgslug, groupId, subpage = 'programs
       </div>
       <div className="h-6" />
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.1 }}>
-        {activeSubpage === 'programs' ? <GroupPrograms orgslug={orgslug} groupId={groupId} programs={data.programs || []} completedPrograms={data.completed_programs || []} refresh={mutate} /> : null}
-        {activeSubpage === 'users' ? <div className="px-10 pb-10"><section className="rounded-xl bg-card p-6 shadow-xs"><ManageUsers usergroup_id={groupId} embedded /></section></div> : null}
+        {activeSubpage === 'plans' ? <GroupPlans orgslug={orgslug} orgId={Number(org.id)} token={accessToken} groupId={groupId} programs={data.programs || []} completedPrograms={data.completed_programs || []} refresh={mutate} /> : null}
+        {activeSubpage === 'requirements' ? <div className="px-10 pb-10"><GroupRequirementsGrid orgslug={orgslug} orgId={Number(org.id)} token={accessToken} groupId={groupId} /></div> : null}
+        {activeSubpage === 'members' ? <div className="px-10 pb-10"><section className="rounded-xl bg-card p-6 shadow-xs"><ManageUsers usergroup_id={groupId} embedded /></section></div> : null}
         {activeSubpage === 'settings' ? <GroupSettings orgslug={orgslug} group={group} /> : null}
-        {activeSubpage === 'reports' ? <div className="min-h-64" /> : null}
       </motion.div>
     </div>
   )
 }
 
-function GroupPrograms({ orgslug, groupId, programs, completedPrograms, refresh }: { orgslug: string; groupId: number; programs: any[]; completedPrograms: any[]; refresh: () => Promise<any> }) {
+function GroupPlans({ orgslug, orgId, token, groupId, programs, completedPrograms, refresh }: { orgslug: string; orgId: number; token?: string; groupId: number; programs: any[]; completedPrograms: any[]; refresh: () => Promise<any> }) {
+  const router = useRouter()
+  const params = useSearchParams()
+  const all = [...programs, ...completedPrograms]
+  const requested = params.get('assignment')
+  const current = all.find((item) => item.assignment_uuid === requested) || programs[0] || completedPrograms[0]
+  const choose = (uuid: string) => router.replace(getUriWithOrg(orgslug, routePaths.org.dash.users.groupPlans(groupId, uuid)))
+  const assign = <ProgramAssignmentModal initialGroupIds={[groupId]} onAssigned={refresh} trigger={<button className="inline-flex h-9 items-center gap-2 rounded-full border border-gray-200 bg-white px-4 text-sm font-medium hover:bg-gray-50"><Plus size={15} />Assign a template</button>} />
+  if (!current) return <div className="px-10 pb-10"><div className="rounded-xl border-2 border-dashed border-border bg-card py-16 text-center"><Layers3 className="mx-auto h-9 w-9 text-gray-300" /><p className="mt-3 text-sm text-muted-foreground">No templates are assigned to this group yet.</p><div className="mt-4 flex justify-center">{assign}</div></div></div>
   return (
-    <div className="space-y-10 px-10 pb-10">
-      <section>
-      <div className="mb-4 flex items-center justify-between">
-        <div><h2 className="text-lg font-bold text-foreground">Active plans</h2><p className="mt-1 text-sm text-muted-foreground">Plan templates currently assigned to this group.</p></div>
-        <ProgramAssignmentModal initialGroupIds={[groupId]} onAssigned={refresh} trigger={<button className="inline-flex items-center gap-2 rounded-lg bg-black px-4 py-2.5 text-xs font-bold text-white nice-shadow"><Plus size={15} />Assign plan templates</button>} />
+    <div className="space-y-4 px-10 pb-10">
+      <div className="flex flex-wrap items-center gap-2">
+        {all.map((program) => <button key={program.assignment_uuid} type="button" onClick={() => choose(program.assignment_uuid)} aria-pressed={program.assignment_uuid === current.assignment_uuid} className={`inline-flex h-9 items-center gap-2 rounded-full border px-4 text-sm font-semibold ${program.assignment_uuid === current.assignment_uuid ? 'border-black bg-black text-white' : 'border-gray-200 bg-white text-gray-800 hover:bg-gray-50'}`}>{program.program_name}{!program.active ? <span className="text-[10px] font-bold uppercase opacity-70">ended</span> : <span className={`text-xs ${program.assignment_uuid === current.assignment_uuid ? 'text-white/70' : 'text-gray-500'}`}>{program.progress_percent}%</span>}</button>)}
+        <span className="flex-1" />
+        <span className="inline-flex items-center gap-1.5 text-xs text-gray-500"><CalendarDays size={13} />{current.due_date ? `${current.active ? 'Ends' : 'Ended'} ${new Date(current.due_date).toLocaleDateString()}` : 'Self paced'}{current.staff?.length ? ` · Staff: ${current.staff.map((person: any) => [person.first_name, person.last_name].filter(Boolean).join(' ') || person.username).join(', ')}` : ''}</span>
+        {assign}
       </div>
-      {programs.length ? <ProgramCards orgslug={orgslug} groupId={groupId} programs={programs} /> : (
-        <div className="rounded-xl border-2 border-dashed border-border bg-card py-16 text-center"><Layers3 className="mx-auto h-9 w-9 text-gray-300" /><p className="mt-3 text-sm text-muted-foreground">No plan templates are assigned to this group yet.</p></div>
-      )}
-      </section>
-      {completedPrograms.length ? <section><div className="mb-4"><h2 className="text-lg font-bold text-foreground">Completed plans</h2><p className="mt-1 text-sm text-muted-foreground">Plans that have concluded for this group.</p></div><ProgramCards orgslug={orgslug} groupId={groupId} programs={completedPrograms} completed /></section> : null}
+      <GroupPlansGrid orgslug={orgslug} orgId={orgId} token={token} assignmentUuid={current.assignment_uuid} />
     </div>
   )
-}
-
-function ProgramCards({ orgslug, groupId, programs, completed = false }: { orgslug: string; groupId: number; programs: any[]; completed?: boolean }) {
-  return <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">{programs.map((program) => (
-    <Link key={program.assignment_uuid} href={getUriWithOrg(orgslug, routePaths.org.dash.planAssignment(program.assignment_uuid))} className="group rounded-xl border border-border bg-card p-5 shadow-xs transition hover:border-blue-300">
-      <div className="flex items-start justify-between gap-4"><div><p className="font-black text-foreground group-hover:text-blue-700">{program.program_name}</p><p className="mt-1 text-xs text-muted-foreground">{program.objective_count} requirements · {program.learner_count} learners</p></div>{completed ? <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-1 text-[10px] font-black uppercase text-green-700"><Check size={11} />Completed</span> : <ChevronRight size={18} className="text-muted-foreground" />}</div>
-      <div className="mt-5 h-2 overflow-hidden rounded-full bg-muted"><div className={`h-full rounded-full ${completed ? 'bg-green-600' : 'bg-blue-600'}`} style={{ width: `${program.progress_percent}%` }} /></div>
-      <div className="mt-3 flex items-center justify-between text-xs font-semibold text-muted-foreground"><span>{program.progress_percent}% complete</span><span className="inline-flex items-center gap-1"><CalendarDays size={13} />{program.due_date ? `${completed ? 'Ended' : 'Due'} ${new Date(program.due_date).toLocaleDateString()}` : 'Self paced'}</span></div>
-    </Link>
-  ))}</div>
 }
 
 function GroupSettings({ orgslug, group }: { orgslug: string; group: any }) {

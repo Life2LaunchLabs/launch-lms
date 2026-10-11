@@ -3,13 +3,30 @@ from fastapi import HTTPException
 from sqlmodel import Session, create_engine, select
 
 from src.db.organizations import Organization
-from src.db.learning import LearningBadgeAward, LearningRun
+from src.db.learning import LearningBadgeAward, LearningPage, LearningPageProgress, LearningRun
+from src.db.guest_sessions import GuestSession
+from src.db.media import MediaAsset
+from src.db.messages import InboxMessage
+from src.db.organization_config import OrganizationConfig
+from src.db.planning import (
+    OrganizationPlanRole,
+    Plan,
+    PlanActivity,
+    PlanAttachment,
+    PlanCollaborator,
+    PlanCollaboratorRequest,
+    PlanInvitation,
+    PlanObjective,
+    PlanObjectiveProgress,
+    PlanPhase,
+    PlanRole,
+)
 from src.db.roles import Role
-from src.db.planning import PlanStatus
+from src.db.planning import PlanObjectiveProgressUpdate, PlanStatus
+from src.services import planning
 from src.db.programs import (
     Objective,
     ObjectiveCreate,
-    ObjectiveKind,
     ObjectiveProgress,
     ObjectiveProgressStatus,
     ObjectiveReviewDecision,
@@ -43,12 +60,13 @@ from src.services.programs import (
     change_assignment_status,
     copy_program_from_library,
     create_program_phase,
+    delete_program_phase,
+    remove_program_objective,
     create_program,
     delete_assignment,
     ensure_group_participants,
     get_program,
     list_program_assignments,
-    list_objectives,
     list_program_library,
     mark_my_program_invitations_viewed,
     my_enrollment_detail,
@@ -59,7 +77,6 @@ from src.services.programs import (
     publish_program_to_library,
     respond_to_invitation,
     review_objective_submission,
-    update_my_progress,
     update_assignment_objective,
     update_progress,
     update_program_objective_schedule,
@@ -131,8 +148,25 @@ def _tables(engine):
         ObjectiveProgress,
         LearningBadgeAward,
         LearningRun,
+        LearningPage,
+        LearningPageProgress,
+        GuestSession,
+        OrganizationConfig,
+        Plan,
+        PlanRole,
+        PlanCollaborator,
+        PlanPhase,
+        OrganizationPlanRole,
+        PlanObjective,
+        PlanObjectiveProgress,
+        PlanInvitation,
+        PlanActivity,
+        MediaAsset,
+        PlanAttachment,
+        PlanCollaboratorRequest,
+        InboxMessage,
     ):
-        model.__table__.create(engine)
+        model.__table__.create(engine, checkfirst=True)
 
 
 def _setup(session: Session):
@@ -149,25 +183,27 @@ def _setup(session: Session):
     return admin
 
 
-def test_objective_progress_is_shared_across_program_rollouts():
+def test_reusing_an_objective_copies_it_so_templates_progress_independently():
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     _tables(engine)
     with Session(engine) as session:
         admin = _setup(session)
         first = create_program(session, admin, ProgramCreate(org_id=1, name="Creative Futures"))
         first = add_program_objective(session, admin, 1, first["program_uuid"], ObjectiveCreate(title="Portfolio PDF", evidence_policy="learner"))
-        shared_uuid = first["objectives"][0]["objective_uuid"]
+        first_uuid = first["objectives"][0]["objective_uuid"]
         second = create_program(session, admin, ProgramCreate(org_id=1, name="Career Ready"))
-        add_program_objective(session, admin, 1, second["program_uuid"], ObjectiveCreate(objective_uuid=shared_uuid))
+        second = add_program_objective(session, admin, 1, second["program_uuid"], ObjectiveCreate(objective_uuid=first_uuid))
+        second_uuid = second["objectives"][0]["objective_uuid"]
+        assert second_uuid != first_uuid and second["objectives"][0]["title"] == "Portfolio PDF"
         first_assignment = assign_program(session, admin, 1, first["program_uuid"], ProgramAssignmentCreate(usergroup_id=1, staff_user_ids=[1]))
         second_assignment = assign_program(session, admin, 1, second["program_uuid"], ProgramAssignmentCreate(usergroup_id=1, staff_user_ids=[1]))
 
-        update_progress(session, admin, 1, shared_uuid, [2], ObjectiveProgressStatus.COMPLETED, "Great work", None, None)
+        update_progress(session, admin, 1, first_uuid, [2], ObjectiveProgressStatus.COMPLETED, "Great work", None, None)
 
         first_matrix = assignment_matrix(session, admin, 1, first_assignment["assignment_uuid"])
         second_matrix = assignment_matrix(session, admin, 1, second_assignment["assignment_uuid"])
-        assert first_matrix["learners"][0]["cells"][shared_uuid]["status"] == "completed"
-        assert second_matrix["learners"][0]["cells"][shared_uuid]["status"] == "completed"
+        assert first_matrix["learners"][0]["cells"][first_uuid]["status"] == "completed"
+        assert second_matrix["learners"][0]["cells"][second_uuid]["status"] == "not_started"
 
 
 def test_badge_objective_can_accept_an_earlier_major_award():
@@ -224,36 +260,40 @@ def test_learner_submission_can_be_flagged_resubmitted_and_confirmed():
             ProgramAssignmentCreate(usergroup_id=1, staff_user_ids=[1]),
         )
         participant = session.exec(select(ProgramParticipant)).one()
-        participant.status = "active"
-        session.add(participant)
-        session.commit()
+        respond_to_invitation(session, learner, 1, participant.participant_uuid, True)
+        plan = session.exec(select(Plan)).one()
+        plan_objective = session.exec(select(PlanObjective)).one()
 
-        submitted = update_my_progress(
-            session, learner, 1, objective_uuid, ObjectiveProgressStatus.COMPLETED,
-            "First draft", [{"type": "link", "url": "https://example.com/one"}],
-        )
-        assert submitted["status"] == "submitted"
+        def submit(note: str) -> None:
+            planning.update_objective_progress(
+                session, learner, plan.plan_uuid, plan_objective.objective_uuid,
+                PlanObjectiveProgressUpdate(status="submitted", note=note, field_values={"work": [{"type": "link", "url": "https://example.com"}]}),
+            )
+
+        submit("First draft")
         queue = assignment_reviews(session, admin, 1, assignment["assignment_uuid"])
-        assert queue["objective_reviews"][0]["learner_note"] == "First draft"
+        review = queue["objective_reviews"][0]
+        assert review["learner_note"] == "First draft" and review["objective"]["objective_uuid"] == objective_uuid
 
+        decision = {"objective_uuid": objective_uuid, "user_id": 2, "plan_uuid": review["plan_uuid"], "plan_objective_uuid": review["plan_objective_uuid"]}
         flagged = review_objective_submission(
             session, admin, 1, assignment["assignment_uuid"],
-            ObjectiveReviewDecision(objective_uuid=objective_uuid, user_id=2, action="flag", message="Add a reflection."),
+            ObjectiveReviewDecision(**decision, action="flag", message="Add a reflection."),
         )
-        assert flagged["status"] == "flagged"
-        assert flagged["feedback_history"][0]["message"] == "Add a reflection."
+        assert flagged["status"] == "changes_requested"
+        with pytest.raises(HTTPException) as missing_plan:
+            review_objective_submission(session, admin, 1, assignment["assignment_uuid"], ObjectiveReviewDecision(objective_uuid=objective_uuid, user_id=2, action="confirm"))
+        assert missing_plan.value.status_code == 422
 
-        update_my_progress(
-            session, learner, 1, objective_uuid, ObjectiveProgressStatus.SUBMITTED,
-            "Second draft", [{"type": "link", "url": "https://example.com/two"}],
-        )
+        submit("Second draft")
         confirmed = review_objective_submission(
             session, admin, 1, assignment["assignment_uuid"],
-            ObjectiveReviewDecision(objective_uuid=objective_uuid, user_id=2, action="confirm"),
+            ObjectiveReviewDecision(**decision, action="confirm"),
         )
         assert confirmed["status"] == "completed"
-        progress = session.exec(select(ObjectiveProgress)).one()
+        progress = session.exec(select(PlanObjectiveProgress)).one()
         assert progress.feedback_history[0]["message"] == "Add a reflection."
+        assert session.exec(select(ObjectiveProgress)).first() is None
 
 
 def test_readding_a_cohort_member_preserves_progress_and_reinvites():
@@ -275,10 +315,10 @@ def test_readding_a_cohort_member_preserves_progress_and_reinvites():
         session.commit()
         session.refresh(participant)
 
-        progress = session.exec(select(ObjectiveProgress)).first()
         matrix = assignment_matrix(session, admin, 1, assignment["assignment_uuid"])
         assert participant.status == "invited"
-        assert progress.status == ObjectiveProgressStatus.COMPLETED
+        assert len(session.exec(select(Plan)).all()) == 1
+        assert session.exec(select(PlanObjectiveProgress)).one().status == "completed"
         assert matrix["learners"][0]["cells"][objective_uuid]["status"] == "completed"
 
 
@@ -485,17 +525,17 @@ def test_program_phases_support_cross_phase_reordering_and_evidence_fields():
         assert moved["allow_learner_confirmation"] is True
         assert moved["custom_fields"][0]["allowed_types"] == ["video"]
 
-        session.add(Objective(
-            objective_uuid="objective_badge_requirement",
-            org_id=1,
-            title="Badge-only requirement",
-            kind=ObjectiveKind.BADGE,
-            creation_date=NOW,
-            update_date=NOW,
-        ))
-        session.commit()
-        reusable = list_objectives(session, admin, 1)
-        assert {item["objective_uuid"] for item in reusable} == {objective_uuid}
+        with pytest.raises(HTTPException) as occupied:
+            delete_program_phase(session, admin, 1, program["program_uuid"], second_phase["phase_uuid"])
+        assert occupied.value.status_code == 409
+        removed = remove_program_objective(session, admin, 1, program["program_uuid"], objective_uuid)
+        assert removed["objectives"] == []
+        assert session.exec(select(Objective).where(Objective.objective_uuid == objective_uuid)).one().archived is True
+        remaining = delete_program_phase(session, admin, 1, program["program_uuid"], second_phase["phase_uuid"])
+        assert [phase["phase_uuid"] for phase in remaining["phases"]] == [first_phase["phase_uuid"]]
+        with pytest.raises(HTTPException) as last:
+            delete_program_phase(session, admin, 1, program["program_uuid"], first_phase["phase_uuid"])
+        assert last.value.status_code == 422
 
 
 def test_assignment_snapshots_phase_dates_and_objective_schedule_rules():
@@ -647,7 +687,7 @@ def test_group_assignment_can_be_completed_reopened_and_deleted_as_one_target():
         assert deleted == {
             "deleted": True,
             "assignment_uuid": assignment["assignment_uuid"],
-            "affected_plan_count": 0,
+            "affected_plan_count": 1,
         }
         assert session.exec(select(ProgramAssignment)).first() is None
         assert session.exec(select(ProgramParticipant)).first() is None

@@ -145,21 +145,22 @@ test('legacy search links retain query and result type in Hub', () => {
 })
 
 test('route manifest builds key dashboard and owner routes', () => {
-  assert.equal(routePaths.org.groupPlan('assignment_1'), '/plans?group=assignment_1')
   assert.equal(routePaths.org.dash.badges(), '/admin/badges')
-  assert.equal(routePaths.org.dash.planAssignments(), '/admin/plans/assignments')
+  assert.equal(routePaths.org.dash.plans(), '/admin/plans')
+  assert.equal(routePaths.org.dash.programs(), '/admin/plans/templates')
+  assert.equal(routePaths.org.dash.planReview({ assignment: 'assignment_1', objective: 'objective_1' }), '/admin/plans/review?assignment=assignment_1&objective=objective_1')
   assert.equal(routePaths.org.dash.planRequirements(), '/admin/plans/requirements')
   assert.equal(routePaths.org.dash.planRequirement('framework 1', 'levels'), '/admin/plans/requirements/framework%201/levels')
-  assert.equal(routePaths.org.dash.planReporting(), '/admin/plans/reporting')
-  assert.equal(routePaths.org.dash.planAssignment('assignment_1'), '/admin/plans/assignments/assignment_1/overview')
+  assert.equal(routePaths.org.dash.planAssignment('assignment_1'), '/admin/plans/assignments/assignment_1')
   assert.equal(routePaths.org.dash.livePlan('plan_1'), '/admin/plans/live/plan_1')
   assert.equal(routePaths.org.dash.livePlan('plan_1', 'reviews'), '/admin/plans/live/plan_1/reviews')
   assert.equal(routePaths.org.dash.users.roles(), '/admin/users/roles')
   assert.equal(routePaths.org.dash.users.usergroups(), '/admin/users')
   assert.equal(routePaths.org.dash.users.group(2), '/admin/users/groups/2')
-  assert.equal(routePaths.org.dash.users.groupProgram(2, 'assignment_1'), '/admin/users/groups/2/programs/assignment_1/progress')
+  assert.equal(routePaths.org.dash.users.groupPlans(2, 'assignment_1'), '/admin/users/groups/2/plans?assignment=assignment_1')
+  assert.equal(routePaths.org.dash.users.group(2, 'members'), '/admin/users/groups/2/members')
   assert.equal(routePaths.org.dash.users.user('learner'), '/admin/users/user/learner')
-  assert.equal(routePaths.org.dash.users.userPage('learner', 'review'), '/admin/users/user/learner/review')
+  assert.equal(routePaths.org.dash.users.userPage('learner', 'plans'), '/admin/users/user/learner/plans')
   assert.equal(routePaths.owner.platform.organization(42), '/admin/platform/orgs/42')
   assert.equal(routePaths.auth.login({ next: '/' }), '/login?next=%2F')
 })
@@ -289,8 +290,8 @@ test('request policy rewrites nested account tabs to the current organization', 
   }
 })
 
-test('request policy resolves group plan workspaces on the canonical org route', () => {
-  const target = routePaths.org.groupPlan('assignment_1')
+test('request policy keeps review queue links on the canonical org route', () => {
+  const target = routePaths.org.dash.planReview({ assignment: 'assignment_1', objective: 'objective_1' })
   const [pathname, query = ''] = target.split('?')
   const decision = resolveRequestRouting({
     requestUrl: `https://launchlms.test${pathname}`,
@@ -303,7 +304,7 @@ test('request policy resolves group plan workspaces on the canonical org route',
     orgSubdomainAccess: null,
   })
   assert.equal(decision.action, 'rewrite')
-  assert.equal(decision.destination, '/orgs/default/plans?group=assignment_1')
+  assert.equal(decision.destination, '/orgs/default/admin/plans/review?assignment=assignment_1&objective=objective_1')
 })
 
 test('request policy rewrites unauthenticated org root to the landing page', () => {

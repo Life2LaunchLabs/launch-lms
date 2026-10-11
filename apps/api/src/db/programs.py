@@ -60,6 +60,8 @@ class ObjectiveProgressStatus(str, Enum):
     READY_FOR_REVIEW = "ready_for_review"
     FLAGGED = "flagged"
     COMPLETED = "completed"
+    # Excused: the learner is not expected to do this step.
+    CANCELED = "canceled"
 
 
 class Program(SQLModel, table=True):
@@ -120,6 +122,8 @@ class Objective(SQLModel, table=True):
     allow_learner_confirmation: bool = False
     custom_fields: list[dict] = Field(default_factory=list, sa_column=Column(JSON))
     badge_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningbadge.id", ondelete="SET NULL"), nullable=True, index=True))
+    # What a reviewer should look for; shown beside submissions, never to learners.
+    reviewer_guidance: str = ""
     archived: bool = False
     created_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
     creation_date: str = ""
@@ -232,6 +236,7 @@ class ObjectiveCreate(SQLModel):
     default_due_rule: ObjectiveDueRule = ObjectiveDueRule.PHASE_END
     default_allow_late: bool = False
     requirement_node_uuids: list[str] = Field(default_factory=list)
+    reviewer_guidance: str = ""
 
 
 class ProgramObjectiveScheduleUpdate(SQLModel):
@@ -247,6 +252,7 @@ class ProgramObjectiveUpdate(ProgramObjectiveScheduleUpdate):
     custom_fields: list[dict] = Field(default_factory=list)
     allow_learner_confirmation: bool = False
     requirement_node_uuids: list[str] | None = None
+    reviewer_guidance: str | None = None
 
 
 class ProgramPhase(SQLModel, table=True):
@@ -324,13 +330,6 @@ class ProgramAssignmentObjectiveUpdate(SQLModel):
 
 class ParticipantResponse(SQLModel):
     accept: bool
-
-
-class LearnerObjectiveUpdate(SQLModel):
-    objective_uuid: str
-    status: ObjectiveProgressStatus = ObjectiveProgressStatus.SUBMITTED
-    learner_note: str = ""
-    evidence: list[dict] = Field(default_factory=list)
 
 
 class LearnerProgramEnrollmentView(SQLModel):

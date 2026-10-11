@@ -33,6 +33,7 @@ export const planningApi = {
   updateOrganizationRole: (identifier: string, roleUuid: string, data: any, token?: string) => request(`/plans/${encodeURIComponent(identifier)}/organization-roles/${encodeURIComponent(roleUuid)}`, token, 'PATCH', data),
   removeOrganizationRole: (identifier: string, roleUuid: string, token?: string) => request(`/plans/${encodeURIComponent(identifier)}/organization-roles/${encodeURIComponent(roleUuid)}`, token, 'DELETE'),
   invite: (identifier: string, data: any, token?: string) => request(`/plans/${encodeURIComponent(identifier)}/invitations`, token, 'POST', data),
+  revokeInvitation: (identifier: string, invitationUuid: string, token?: string) => request(`/plans/${encodeURIComponent(identifier)}/invitations/${encodeURIComponent(invitationUuid)}`, token, 'DELETE'),
   collaboratorRequests: (identifier: string, token?: string) => request(`/plans/${encodeURIComponent(identifier)}/collaborator-requests`, token),
   requestCollaborator: (identifier: string, data: any, token?: string) => request(`/plans/${encodeURIComponent(identifier)}/collaborator-requests`, token, 'POST', data),
   respondCollaboratorRequest: (identifier: string, requestUuid: string, approve: boolean, token?: string) => request(`/plans/${encodeURIComponent(identifier)}/collaborator-requests/${encodeURIComponent(requestUuid)}/respond`, token, 'POST', { approve }),

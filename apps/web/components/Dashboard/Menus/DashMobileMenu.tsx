@@ -76,7 +76,7 @@ function DashMobileMenu() {
       label: 'Marketplace',
     },
     {
-      href: routePaths.org.dash.programs(),
+      href: routePaths.org.dash.plans(),
       icon: ClipboardList,
       label: 'Plans',
     },

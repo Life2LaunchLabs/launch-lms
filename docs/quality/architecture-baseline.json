@@ -14,7 +14,6 @@
     "api-unstructured-print": {},
     "component-direct-fetch": {
       "apps/web/components/Admin/CandidateFeedbackQueue.tsx": 1,
-      "apps/web/components/Admin/Programs/ProgramAssignmentWizard.tsx": 1,
       "apps/web/components/Admin/Programs/ProgramObjectiveEditorRow.tsx": 1,
       "apps/web/components/Contexts/AuthContext.tsx": 7,
       "apps/web/components/Dashboard/Boards/Tabs/BoardThumbnailTab.tsx": 1,

@@ -54,7 +54,6 @@ export const programsApi = {
   get: (orgId: number, uuid: string, token?: string) => planningRequest(`/templates/${encodeURIComponent(uuid)}?org_id=${orgId}`, token),
   update: (orgId: number, uuid: string, data: any, token?: string) => planningRequest(`/templates/${encodeURIComponent(uuid)}?org_id=${orgId}`, token, 'PATCH', data),
   delete: (orgId: number, uuid: string, token?: string) => planningRequest(`/templates/${encodeURIComponent(uuid)}?org_id=${orgId}`, token, 'DELETE'),
-  objectives: (orgId: number, token?: string) => planningRequest(`/template-objectives?org_id=${orgId}`, token),
   addObjective: (orgId: number, uuid: string, data: any, token?: string) => planningRequest(`/templates/${encodeURIComponent(uuid)}/objectives?org_id=${orgId}`, token, 'POST', objectiveCreateData(data)),
   updateObjectiveSchedule: (orgId: number, uuid: string, objectiveUuid: string, data: any, token?: string) => planningRequest(`/templates/${encodeURIComponent(uuid)}/objectives/${encodeURIComponent(objectiveUuid)}/schedule?org_id=${orgId}`, token, 'PUT', data),
   updateObjective: (orgId: number, uuid: string, objectiveUuid: string, data: any, token?: string) => planningRequest(`/templates/${encodeURIComponent(uuid)}/objectives/${encodeURIComponent(objectiveUuid)}?org_id=${orgId}`, token, 'PUT', data),
@@ -74,11 +73,6 @@ export const programsApi = {
   reviewObjective: (orgId: number, assignmentUuid: string, data: any, token?: string) => planningRequest(`/assignment-batches/${encodeURIComponent(assignmentUuid)}/reviews/objective?org_id=${orgId}`, token, 'POST', data),
   updateProgress: (orgId: number, data: any, token?: string) => planningRequest(`/assignment-batches/progress?org_id=${orgId}`, token, 'POST', data),
   user: (orgId: number, userId: number, token?: string) => planningRequest(`/managed-users/${userId}?org_id=${orgId}`, token),
-  mine: (orgId: number, token?: string) => request(`/me?org_id=${orgId}`, token),
-  mineAll: (token?: string) => request('/me/all/details', token),
-  mineBySlug: (programSlug: string, token?: string) => request(`/me/programs/${encodeURIComponent(programSlug)}`, token),
-  enrollment: (participantUuid: string, token?: string) => request(`/me/enrollments/${encodeURIComponent(participantUuid)}`, token),
-  updateMine: (orgId: number, data: any, token?: string) => request(`/me/progress?org_id=${orgId}`, token, 'POST', data),
   respond: (orgId: number, participantUuid: string, accept: boolean, token?: string) => request(`/invitations/${encodeURIComponent(participantUuid)}/respond?org_id=${orgId}`, token, 'POST', { accept }),
 }
 
@@ -98,4 +92,28 @@ export const requirementsApi = {
     Object.entries(filters).forEach(([key, value]) => { if (value !== undefined && value !== '') params.set(key, String(value)) })
     return planningRequest(`/requirements/report?${params.toString()}`, token)
   },
+  coverage: (orgId: number, uuid: string, token?: string) => planningRequest(`/requirements/${encodeURIComponent(uuid)}/coverage?org_id=${orgId}`, token),
+}
+
+export type InboxKind = 'review' | 'grade' | 'confirm' | 'nudge'
+
+export const planInboxApi = {
+  inbox: (orgId: number, token?: string) => planningRequest(`/inbox?org_id=${orgId}`, token),
+  queue: (orgId: number, params: { assignment: string; objective?: string | null; step?: string | null }, token?: string) => {
+    const search = new URLSearchParams({ org_id: String(orgId), assignment_uuid: params.assignment })
+    if (params.objective) search.set('objective_uuid', params.objective)
+    if (params.step) search.set('plan_objective_uuid', params.step)
+    return planningRequest(`/inbox/queue?${search.toString()}`, token)
+  },
+  decide: (orgId: number, planObjectiveUuid: string, action: 'confirm' | 'flag', message: string, token?: string) => planningRequest(`/inbox/decide?org_id=${orgId}`, token, 'POST', { plan_objective_uuid: planObjectiveUuid, action, message }),
+  confirm: (orgId: number, planObjectiveUuids: string[], message: string, token?: string) => planningRequest(`/inbox/confirm?org_id=${orgId}`, token, 'POST', { plan_objective_uuids: planObjectiveUuids, message }),
+  addStaffNote: (orgId: number, planObjectiveUuid: string, message: string, token?: string) => planningRequest(`/inbox/staff-notes?org_id=${orgId}`, token, 'POST', { plan_objective_uuid: planObjectiveUuid, message }),
+}
+
+export const learnerAdminApi = {
+  requirements: (orgId: number, userId: number, token?: string) => planningRequest(`/managed-users/${userId}/requirements?org_id=${orgId}`, token),
+  makeupOptions: (orgId: number, userId: number, nodeUuid: string, token?: string) => planningRequest(`/managed-users/${userId}/makeup-options?org_id=${orgId}&node_uuid=${encodeURIComponent(nodeUuid)}`, token),
+  addMakeup: (orgId: number, userId: number, data: { plan_uuid: string; node_uuid: string; objective_uuid?: string | null; title?: string | null; due_date?: string | null }, token?: string) => planningRequest(`/managed-users/${userId}/makeup?org_id=${orgId}`, token, 'POST', data),
+  groupRequirements: (orgId: number, groupId: number, frameworkUuid?: string | null, token?: string) => planningRequest(`/groups/${groupId}/requirements?org_id=${orgId}${frameworkUuid ? `&framework_uuid=${encodeURIComponent(frameworkUuid)}` : ''}`, token),
+  credit: (orgId: number, userId: number, data: { enrollment_uuid: string; node_uuid: string; note: string }, token?: string) => planningRequest(`/managed-users/${userId}/requirements/credit?org_id=${orgId}`, token, 'POST', data),
 }

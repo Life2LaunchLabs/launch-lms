@@ -21,7 +21,7 @@ export default function ProgramObjectiveEditorRow({ objective, orgId, token, pro
     setSaving(true)
     try {
       await programsApi.updateObjective(orgId, program.program_uuid, objective.objective_uuid, {
-        title: draft.title.trim(), description: draft.description || '', custom_fields: draft.fields,
+        title: draft.title.trim(), description: draft.description || '', custom_fields: draft.fields, reviewer_guidance: draft.reviewer_guidance || '',
         allow_learner_confirmation: !draft.completion_restricted,
         default_start_rule: 'phase_start', default_due_rule: 'phase_end',
         default_allow_late: Boolean(draft.default_allow_late),

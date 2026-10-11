@@ -170,6 +170,9 @@ class PlanObjective(SQLModel, table=True):
     allow_late: bool = False
     blocked: bool = False
     completion_restricted: bool = False
+    # Requirement nodes this objective counts toward: [{framework_id, framework_uuid, node_uuid}].
+    requirement_mappings: list[dict] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
+    reviewer_guidance: str = ""
     creation_date: str = ""
     update_date: str = ""
 
@@ -185,6 +188,9 @@ class PlanObjectiveProgress(SQLModel, table=True):
     subject_note: str = ""
     reviewer_note: str = ""
     feedback_history: list[dict] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
+    # Notes staff keep about this learner's step: [{note_uuid, user_id, message, created_at}].
+    # Never returned to the learner.
+    staff_notes: list[dict] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
     completed_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
     updated_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
     creation_date: str = ""
@@ -376,3 +382,33 @@ class PlanCollaboratorRequestCreate(SQLModel):
 
 class PlanCollaboratorRequestResponse(SQLModel):
     approve: bool
+
+
+class InboxDecision(SQLModel):
+    plan_objective_uuid: str
+    action: str
+    message: str = ""
+
+
+class InboxConfirm(SQLModel):
+    plan_objective_uuids: list[str] = Field(default_factory=list, max_length=500)
+    message: str = ""
+
+
+class StaffNoteCreate(SQLModel):
+    plan_objective_uuid: str
+    message: str
+
+
+class MakeupStepCreate(SQLModel):
+    plan_uuid: str
+    node_uuid: str
+    objective_uuid: str | None = None
+    title: str | None = None
+    due_date: date | None = None
+
+
+class RequirementCredit(SQLModel):
+    enrollment_uuid: str
+    node_uuid: str
+    note: str
