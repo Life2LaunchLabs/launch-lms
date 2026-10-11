@@ -1,6 +1,6 @@
 # Learner plans and badges: build plan
 
-Status: planned. Builds the learner side agreed in design review (mockups:
+Status: built in five stacked PRs (#108–#112). Builds the learner side agreed in design review (mockups:
 https://claude.ai/artifact/56FkTtx8GsDWgGUtbYMssB) on today's models. Direction
 and the longer-term model are in `badge-plan-unification.md`.
 
@@ -174,3 +174,10 @@ Pages:
 4. Badge routes, start, issuer review, award on completion, auto-convert
    migration.
 5. Discover, badge detail, collection page, collection marketing.
+   Learner reads are `GET /badges/discover`, `GET /badges/{badge}/page` and
+   `GET /badges/collections/{collection}` (`services/badge_discover.py`).
+   Collection marketing lives in `badgecollection.metadata`
+   (`credibility`, `endorsers`). Badge paths convert to routes once per boot
+   (`badge_conversion.convert_on_startup`, advisory-locked); badges without
+   routes, and badge paths opened from an assignment or plan step, keep the
+   old overview.

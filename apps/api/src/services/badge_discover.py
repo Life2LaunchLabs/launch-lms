@@ -135,7 +135,7 @@ def _public_collections(db: Session, org_id: int | None) -> list[BadgeCollection
 def discover(db: Session, current_user: PublicUser | AnonymousUser | None, org_id: int | None = None) -> dict:
     """Everything the Discover page shows, in one call."""
     user_id = _user_id(current_user)
-    badges = list(db.exec(lookups._public_badge_query(org_id)).all())
+    badges = list(db.exec(lookups._public_badge_query(org_id).order_by(LearningBadge.id)).all())
     collections = {int(item.id): item for item in _public_collections(db, org_id)}  # type: ignore[arg-type]
     cards = _cards(db, badges, user_id, collections)
     by_collection: dict[int, list[dict]] = {}

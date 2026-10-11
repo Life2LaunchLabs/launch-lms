@@ -3,7 +3,7 @@
 import React from 'react'
 import { Award, Check, ClipboardCheck, Handshake, Loader2, Plus, Search, Trash2 } from 'lucide-react'
 import { motion } from 'motion/react'
-import toast from 'react-hot-toast'
+import toast from 'react-hot-toast'; import IssuerRouteOffers from './IssuerRouteOffers'
 import AdminFeatureHeader from '@components/Admin/AdminFeatureHeader'
 import { ActivityAggregateGradeForm } from '@components/Admin/Programs/ActivityGrading'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
@@ -435,7 +435,7 @@ export function IssuingAuthorizationsPanel({ orgId }: { orgId: number }) {
 
                 {authorization.status === 'approved' ? (
                   <div className="mt-4 rounded-lg bg-muted p-4">
-                    <LearnerAccessSelect value={authorization.learner_access || 'invite'} disabled={actingOn === authorization.authorization_uuid} onChange={(value) => void changeAccess(authorization, value as LearnerAccess)} />
+                    <LearnerAccessSelect value={authorization.learner_access || 'invite'} disabled={actingOn === authorization.authorization_uuid} onChange={(value) => void changeAccess(authorization, value as LearnerAccess)} /><IssuerRouteOffers badgeUuid={authorization.badge?.badge_uuid} issuerOrgId={orgId} />
 
                     <div className="mt-4">
                       <p className="text-xs font-bold uppercase text-muted-foreground">Supported learners ({authorizationLinks.length})</p>

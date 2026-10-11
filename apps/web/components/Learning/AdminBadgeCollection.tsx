@@ -25,7 +25,7 @@ import {
   downloadBlob,
 } from '@services/learning/learning'
 import toast from 'react-hot-toast'
-import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
+import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'; import CollectionMarketing from './CollectionMarketing'
 
 const tabs = [
   { id: 'badges', label: 'Badges', icon: BookCopy },
@@ -92,7 +92,7 @@ export default function AdminBadgeCollection({
       <div className="h-6" />
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.1 }}>
         {activeSubpage === 'badges' ? <CollectionBadges orgslug={orgslug} orgId={orgId} collection={collection} canEdit={canEdit} /> : null}
-        {activeSubpage === 'settings' && canEdit ? <CollectionSettings orgslug={orgslug} collection={collection} /> : null}
+        {activeSubpage === 'settings' && canEdit ? <div className="flex flex-col gap-6"><CollectionMarketing collection={collection} /><CollectionSettings orgslug={orgslug} collection={collection} /></div> : null}
       </motion.div>
     </div>
   )

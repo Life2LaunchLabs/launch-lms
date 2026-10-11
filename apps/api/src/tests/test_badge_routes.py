@@ -74,6 +74,7 @@ def test_starting_a_badge_creates_the_learners_own_locked_plan_and_finishing_it_
         assert plan["name"] == "Adaptability" and plan["is_mine"] and plan["source_badge"]["badge_uuid"] == "badge_adapt"
         assert [item["title"] for item in plan["objectives"]] == ["Notice change", "Your story"]
         assert plan["source_organization"]["name"] == "Studio"
+        assert "edit_structure" not in plan["capabilities"] and "complete_plan" not in plan["capabilities"]
         # Starting again returns the same plan.
         assert badge_routes.start_badge_plan(session, LEARNER, "badge_adapt", BadgePlanStart(program_uuid=routes[1]))["plan_uuid"] == plan["plan_uuid"]
         assert badge_routes.list_routes(session, LEARNER, "badge_adapt")["plan"]["slug"] == plan["slug"]
@@ -97,6 +98,7 @@ def test_issuers_offer_routes_and_their_access_is_respected():
         teacher_route = listed["routes"][1]["route_uuid"]
         badge_routes.set_offered_routes(session, admin, "badge_adapt", 2, BadgeRouteOffersUpdate(route_uuids=[teacher_route]))
         listed = badge_routes.list_routes(session, None, "badge_adapt")
+        assert listed["offers"] == {"2": [teacher_route]}
         assert [issuer["org"]["name"] for issuer in listed["routes"][0]["issuers"]] == ["Studio"]
         assert [issuer["org"]["name"] for issuer in listed["routes"][1]["issuers"]] == ["Studio", "Partner"]
         with pytest.raises(HTTPException) as not_offered:

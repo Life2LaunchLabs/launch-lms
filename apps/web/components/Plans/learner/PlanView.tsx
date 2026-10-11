@@ -4,7 +4,6 @@ import React from 'react'
 import { Award, ChevronLeft, ChevronRight, Flag, Pencil, Target } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { getUriWithOrg } from '@services/config/config'
-import { SafeImage } from '@components/Objects/SafeImage'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { cn } from '@/lib/utils'
 import { SelectedStepBody, StepStack, type StepItem } from './StepStack'
@@ -91,7 +90,7 @@ export default function PlanView({ orgslug, detail, plans, getPlanColor, choose,
           <div className="relative flex flex-col gap-4 p-5 sm:p-7">
             <div className="flex flex-wrap items-center gap-5 sm:gap-7">
               {badge ? <a href={getUriWithOrg(orgslug, `/badges/${String(badge.badge_uuid).replace(/^badge_/, '')}`)} aria-label={`${badge.name} badge`} className="flex h-24 w-24 shrink-0 -rotate-6 items-center justify-center overflow-hidden rounded-full border-[3px] border-white/70 bg-white/15 shadow-lg sm:h-28 sm:w-28">
-                {badge.thumbnail_image ? <SafeImage src={badge.thumbnail_image} alt="" className="h-full w-full object-cover" /> : <Award size={52} strokeWidth={1.8} />}</a>
+                {badge.thumbnail_image ? <img src={badge.thumbnail_image} alt="" className="badge-sticker-image h-full w-full object-contain p-2" /> : <Award size={52} strokeWidth={1.8} />}</a>
                 : <span className="flex h-24 w-24 shrink-0 -rotate-6 items-center justify-center rounded-[28px] border-[3px] border-white/50 bg-white/15 sm:h-28 sm:w-28" aria-hidden="true"><Target size={52} strokeWidth={1.8} /></span>}
               <div className="flex min-w-[14rem] flex-1 flex-col gap-2">
                 <span className="text-sm font-bold text-white/90">{source}</span>
