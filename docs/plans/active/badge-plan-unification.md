@@ -143,16 +143,30 @@ they live in My plans.
 - **Starting is one tap.** Starting a badge starts its route and it appears in
   My plans; no "add to which plan" choice. Making a badge a step in another plan
   is a deliberate action taken from inside that plan.
-- **My plans** is one space for every plan (badge, accepted from an org, made
-  yourself): a switcher of plan avatars with progress rings, an "Up next" card,
-  and a feed of this week's and upcoming steps across plans. Each plan has a
-  color, and its step cards use that color everywhere.
+- **Steps are one card stack everywhere.** My plans and plan detail use the
+  same step cards (tinted in the plan's color) on a dotted timeline. Selecting
+  a card expands it in place with its description and Start; any open step can
+  be picked, not just the next one. Plans follow a step-order rule (steps in
+  order, chapters open on schedule, or any order), so a step can be not ready.
+  A not-ready step is quietly muted (grey, flat, no 3D edge), never shown as an
+  error, and states its reason: "Opens Dec 17" or "After [linked step]", with a
+  "Go to [linked step]" button when selected.
+- **My plans** opens on **This week**: progress made this week (a bar
+  segmented by plan) and the stack of this week's steps across plans with the
+  next one selected. Scroll down for the future, grouped as Next week, then by
+  month, marking the year when it rolls over. No completed history beyond this
+  week. A sidebar lists your plans and, below them, the one "New plan" entry
+  (create your own with Hub, or find one in Discover).
 - **Plan detail** looks the same for every kind of plan and continues the badge
   page: a header with the plan's art, source ("from Discover", "from
-  [school]", "your plan"), goal and progress, details behind "About this plan";
-  then the next step, then chapters as a vertical step flow ending in the badge
-  or a completion milestone. A badge inside another plan shows as one card
-  with its progress that opens the badge's own plan.
+  [school]", "your plan"), goal, progress and step-order rule, with details
+  behind "About this plan". Below it, the full stack of chapters and steps,
+  including done ones, opened scrolled to and selecting the next step, ending
+  in the badge or a completion milestone. A badge inside another plan shows as
+  one card with its progress that opens the badge's own plan.
+- **Moving between plans** feels like swiping: the header is a carousel with
+  the neighbouring plans peeking at the edges and dots below. On mobile it is a
+  swipe; on desktop the peeks and dots are clickable.
 - **Profile/portfolio**: earned badges with portable Open Badges awards,
   recorded certifications and milestones.
 
