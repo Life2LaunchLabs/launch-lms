@@ -53,6 +53,12 @@ class PlanTemplateObjective(BaseModel):
         description="Badge objectives: the badge the learner earns to complete it. Set only when adding an objective; it cannot change later.",
     )
     badge_major_version: int | None = Field(default=None, description="Read-only: the badge major version this objective accepts.")
+    type: Literal["standard", "activity"] = Field(
+        default="standard",
+        description="activity: the step is an interactive activity the learner plays in the app. Set only when adding an objective; edit its pages with the activity tools (get_activity/save_activity on activity_uuid).",
+    )
+    activity_uuid: str | None = Field(default=None, description="Read-only: the activity an activity objective plays.")
+    after_objective_uuids: list[str] = Field(default_factory=list, description="Existing objectives (by objective_uuid) that must be finished before this one opens.")
     allow_learner_confirmation: bool = Field(default=False, description="Learners may mark it complete themselves (new badge objectives always allow it).")
     reviewer_guidance: str = Field(default="", max_length=4000, description="What a reviewer should look for, one point per line. Staff see it beside submissions; learners never do.")
     steps: list[PlanTemplateStep] = Field(default_factory=list)
@@ -93,6 +99,10 @@ class PlanTemplateMeta(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     description: str = ""
     instructions: str = Field(default="", description="Default instructions shown to staff when they assign the template.")
+    step_order: Literal["any", "in_order", "by_chapter"] = Field(
+        default="any",
+        description="When learners can start steps: any time, each after the previous one, or each phase after the previous phase. Copied onto assigned plans.",
+    )
 
 
 class PlanTemplateDocument(BaseModel):

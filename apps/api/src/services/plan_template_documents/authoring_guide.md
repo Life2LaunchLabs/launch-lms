@@ -71,6 +71,36 @@ To make an objective that is completed by earning a badge, add it with
 The badge of an existing objective cannot change; add a new objective instead.
 `badge_major_version` is read-only.
 
+## Activity objectives
+
+An objective with `"type": "activity"` is an interactive activity the learner
+plays in the app: phone-sized pages of blocks and questions, optionally routed
+by a branching flow, with grading and learner variables. Add one by giving a
+new objective `"type": "activity"` (no `steps`, no `badge_uuid`) and saving;
+the saved document shows its `activity_uuid`. Then write its pages with the
+activity tools: `get_activity`, `get_activity_schema`, `validate_activity`,
+`preview_activity`, `save_activity`. Activity pages save in place (no draft),
+and apply to everyone playing that activity, including learners part-way
+through. An objective's type cannot change; add a new objective instead.
+
+Finishing the activity completes the step. Leave `allow_learner_confirmation`
+true (the default for activities) to complete it straight away; set it false
+when a reviewer should sign it off, and the step waits for review.
+
+## When steps open
+
+`template.step_order` decides when learners can start steps, and is copied
+onto every plan assigned from the template:
+
+- `any`: every step can be started any time.
+- `in_order`: each step opens when the one before it is finished.
+- `by_chapter`: each phase opens when the phase before it is finished.
+
+An objective's `after_objective_uuids` adds explicit prerequisites: existing
+objectives of this template that must be finished first. A step waiting on
+review counts as finished for opening what follows. Learners see why a step
+isn't open yet ("After See it coming"), never an error.
+
 ## Schedule
 
 - `start_rule`: `any_time`, `phase_start`, `specific_date`
