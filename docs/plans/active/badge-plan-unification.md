@@ -132,9 +132,27 @@ they live in My plans.
   what it proves, how it travels (verified, shareable, Open Badges), how you'll
   earn it (recommended route, "Earn it another way" for the other routes you
   can access), and the rest of its series.
+- **Collection page** per series: progress through the set, your next badge,
+  every badge with its state, and the creator's endorsements.
+- **Marketing content** on badge and collection pages ("what it proves", the
+  creator's credibility statement, "endorsed by" logos) comes from the
+  Marketing tab in the creator's admin panel.
+- **"How you'll earn it"** leads with the recommended route as a header
+  ("Earn with [issuer org]", effort, Start) with "N other ways" beside it, and
+  the steps underneath.
 - **Starting is one tap.** Starting a badge starts its route and it appears in
   My plans; no "add to which plan" choice. Making a badge a step in another plan
   is a deliberate action taken from inside that plan.
+- **My plans** is one space for every plan (badge, accepted from an org, made
+  yourself): a switcher of plan avatars with progress rings, an "Up next" card,
+  and a feed of this week's and upcoming steps across plans. Each plan has a
+  color, and its step cards use that color everywhere.
+- **Plan detail** looks the same for every kind of plan and continues the badge
+  page: a header with the plan's art, source ("from Discover", "from
+  [school]", "your plan"), goal and progress, details behind "About this plan";
+  then the next step, then chapters as a vertical step flow ending in the badge
+  or a completion milestone. A badge inside another plan shows as one card
+  with its progress that opens the badge's own plan.
 - **Profile/portfolio**: earned badges with portable Open Badges awards,
   recorded certifications and milestones.
 
