@@ -154,3 +154,24 @@ def convert_badge_paths(db: Session) -> list[str]:
         if convert_badge(db, badge):
             converted.append(badge.badge_uuid)
     return converted
+
+
+def convert_on_startup(engine) -> None:
+    """Run the conversion once per boot. A Postgres advisory lock, held on its own connection, keeps parallel workers from converting the same badge twice."""
+    from sqlalchemy import text
+
+    try:
+        with engine.connect() as lock:
+            postgres = engine.dialect.name == "postgresql"
+            if postgres and not lock.execute(text("SELECT pg_try_advisory_lock(724051)")).scalar():
+                return
+            try:
+                with Session(engine) as db:
+                    converted = convert_badge_paths(db)
+                if converted:
+                    logger.info("Converted %d badge learning path(s) into plan templates", len(converted))
+            finally:
+                if postgres:
+                    lock.execute(text("SELECT pg_advisory_unlock(724051)"))
+    except Exception as error:  # noqa: BLE001 - never block startup on this
+        logger.warning("Badge path conversion skipped (non-fatal): %s", error)

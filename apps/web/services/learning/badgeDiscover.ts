@@ -1,0 +1,72 @@
+import { getAPIUrl } from '@services/config/config'
+import { RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/requests'
+
+async function request(path: string, token?: string, next?: any) {
+  const response = await fetch(`${getAPIUrl()}badges/${path}`, RequestBodyWithAuthHeader('GET', null, next ?? null, token))
+  return errorHandling(response)
+}
+
+export type BadgeCard = {
+  badge_uuid: string
+  name: string
+  description: string
+  thumbnail_image: string
+  status: 'draft' | 'coming_soon' | 'published'
+  subtitle: string
+  time_label: string
+  creator: { id: number; name: string; slug: string; logo_image: string; org_uuid: string } | null
+  route_count: number
+  collection: { collection_uuid: string; name: string } | null
+  earned: boolean
+  plan: { plan_uuid: string; slug: string; done: number; total: number } | null
+}
+
+export type BadgeCollectionPage = {
+  collection_uuid: string
+  name: string
+  description: string
+  thumbnail_image: string
+  creator: BadgeCard['creator']
+  credibility: string
+  endorsers: { name: string; logo_url?: string; url?: string }[]
+  badges: BadgeCard[]
+}
+
+export type BadgeRoute = {
+  route_uuid: string
+  program_uuid: string
+  name: string
+  description: string
+  recommended: boolean
+  step_order: string
+  step_count: number
+  activity_count: number
+  steps: { title: string; kind: string; chapter: string }[]
+  issuers: { org: { id: number; name: string; org_uuid?: string; logo_image?: string }; access: string; can_start: boolean; is_creator: boolean; request_status: string | null }[]
+}
+
+export type BadgePage = BadgeCard & {
+  about: string
+  criteria: string
+  trust_line: string
+  proves: { title: string; body?: string; media_url?: string }[]
+  collection: BadgeCollectionPage | null
+  ways: { badge_uuid: string; routes: BadgeRoute[]; plan: { plan_uuid: string; slug: string; status: string } | null }
+}
+
+export type DiscoverFeed = {
+  featured: BadgeCard[]
+  keep_going: BadgeCard[]
+  collections: BadgeCollectionPage[]
+  badges: BadgeCard[]
+  earned_count: number
+}
+
+const clean = (value: string) => encodeURIComponent(value)
+
+/** Learner-facing badge reads: the Discover feed, a badge's page and a collection's page. */
+export const badgeDiscoverApi = {
+  discover: (token?: string, orgId?: number): Promise<DiscoverFeed> => request(`discover${orgId ? `?org_id=${orgId}` : ''}`, token),
+  badge: (badgeUuid: string, token?: string, next?: any): Promise<BadgePage> => request(`${clean(badgeUuid)}/page`, token, next),
+  collection: (collectionUuid: string, token?: string, next?: any): Promise<BadgeCollectionPage> => request(`collections/${clean(collectionUuid)}`, token, next),
+}

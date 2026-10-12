@@ -389,6 +389,7 @@
   "thumbnail_image": ""
  },
  "collection": {
+  "collection_metadata": {},
   "collection_uuid": "badge_collection_system_onboarding",
   "deleted_at": null,
   "description": "System collection for the editable onboarding badge.",

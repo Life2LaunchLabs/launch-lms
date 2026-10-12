@@ -11,7 +11,8 @@ import { programsApi } from '@services/programs/programs'
 import { getUriWithOrg } from '@services/config/config'
 
 /** The badge creator chooses which plan templates earn the badge and which one learners see first. */
-export default function BadgeRoutesPanel({ badge, orgslug }: { badge: any; orgslug: string }) {
+/** The badge's ways to earn it. Its old learning path (children) shows only until it has routes. */
+export default function BadgeRoutesPanel({ badge, orgslug, children }: { badge: any; orgslug: string; children?: React.ReactNode }) {
   const session = useLHSession() as any
   const token = session?.data?.tokens?.access_token
   const { data, mutate, isLoading } = useSWR(token ? ['badge-routes', badge.badge_uuid, token] : null, () => badgeRoutesApi.list(badge.badge_uuid, token))
@@ -29,7 +30,7 @@ export default function BadgeRoutesPanel({ badge, orgslug }: { badge: any; orgsl
   }
   const available = (Array.isArray(templates) ? templates : templates?.items || []).filter((template: any) => !routes.some((route) => route.program_uuid === template.program_uuid))
 
-  return <section className="mb-8 rounded-xl border border-border bg-card p-6 shadow-xs">
+  return <><section className="mb-8 rounded-xl border border-border bg-card p-6 shadow-xs">
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div>
         <h2 className="text-lg font-bold">Ways to earn</h2>
@@ -60,4 +61,5 @@ export default function BadgeRoutesPanel({ badge, orgslug }: { badge: any; orgsl
       </label> : null}
     </div>}
   </section>
+  {isLoading || routes.length ? null : children}</>
 }

@@ -188,7 +188,7 @@ export default function AdminBadgeShell({
 
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.1 }} className="overflow-x-hidden">
         {normalizedSubpage === 'analytics' ? <BadgeAnalyticsPanel badge={badge} canEdit={canEdit} issuerOrgId={Number(org?.id)} orgslug={orgslug} /> : null}
-        {normalizedSubpage === 'learning-path' && canEdit ? <><BadgeRoutesPanel badge={badge} orgslug={orgslug} />{children}</> : null}
+        {normalizedSubpage === 'learning-path' && canEdit ? <BadgeRoutesPanel badge={badge} orgslug={orgslug}>{children}</BadgeRoutesPanel> : null}
         {normalizedSubpage === 'issuers' && canEdit ? <BadgeIssuersPanel badge={badge} onPatch={patchBadge} /> : null}
         {normalizedSubpage === 'marketing' && canEdit ? <fieldset disabled={!isDraft}><BadgeAboutPanel badge={badge} onPatch={patchBadge} /></fieldset> : null}
         {normalizedSubpage === 'settings' ? (canEdit

@@ -6,6 +6,8 @@ import { getServerSession } from '@/lib/auth/server'
 import { buildPageTitle, getCanonicalUrl, getOrgSeoConfig } from '@/lib/seo/utils'
 import { notFound, redirect } from 'next/navigation'
 import LearningBadgeOverview from '@components/Learning/LearningBadgeOverview'
+import BadgeDetail from '@components/Badges/detail/BadgeDetail'
+import { badgeDiscoverApi } from '@services/learning/badgeDiscover'
 import { getLearningPath } from '@services/learning/learning'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 
@@ -64,6 +66,13 @@ const BadgePage = async (props: MetadataProps) => {
   const assignment = (await props.searchParams)?.assignment
   const planObjective = (await props.searchParams)?.planObjective
   const session = await getServerSession()
+  const token = session?.tokens?.access_token ?? undefined
+
+  // Badges earned through plan templates get their own page; badge paths opened from an assignment or plan step keep the path view.
+  if (!assignment && !planObjective) {
+    const page = await badgeDiscoverApi.badge(uuid, token, { revalidate: 0, tags: ['learning-badges'] }).catch(() => null)
+    if (page?.ways?.routes?.length) return <BadgeDetail orgslug={orgslug} initialPage={page} />
+  }
 
   try {
     const badgePath = await getLearningPath(

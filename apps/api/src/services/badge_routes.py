@@ -32,6 +32,7 @@ from src.db.programs import (
     ProgramAssignment,
     ProgramObjective,
     ProgramParticipant,
+    ProgramPhase,
 )
 from src.db.users import PublicUser
 
@@ -56,14 +57,16 @@ def _routes(db: Session, badge: LearningBadge) -> list[tuple[BadgeRoute, Program
 
 
 def _route_summary(db: Session, program: Program) -> dict:
-    kinds = db.exec(
-        select(Objective.kind).join(ProgramObjective, ProgramObjective.objective_id == Objective.id)
-        .where(ProgramObjective.program_id == program.id)
+    rows = db.exec(
+        select(Objective.title, Objective.kind, ProgramPhase.name).join(ProgramObjective, ProgramObjective.objective_id == Objective.id)
+        .outerjoin(ProgramPhase, ProgramPhase.id == ProgramObjective.phase_id)
+        .where(ProgramObjective.program_id == program.id).order_by(ProgramPhase.position, ProgramObjective.position)
     ).all()
-    values = [getattr(kind, "value", kind) for kind in kinds]
+    steps = [{"title": title, "kind": getattr(kind, "value", kind), "chapter": chapter or ""} for title, kind, chapter in rows]
     return {
         "program_uuid": program.program_uuid, "name": program.name, "description": program.description or "",
-        "step_count": len(values), "activity_count": values.count(ObjectiveKind.ACTIVITY.value),
+        "step_order": program.step_order, "steps": steps, "step_count": len(steps),
+        "activity_count": sum(step["kind"] == ObjectiveKind.ACTIVITY.value for step in steps),
     }
 
 
@@ -99,14 +102,16 @@ def list_routes(db: Session, current_user: PublicUser | None, badge_uuid: str) -
     user_id = int(current_user.id) if current_user and getattr(current_user, "id", None) else None
     visible = {option["org"]["id"]: option for option in issuer_options(db, badge, user_id, set())["issuers"]}
     offered = _offered(db, badge)
-    routes = []
+    routes, uuids = [], {}
     for route, program in _routes(db, badge):
+        uuids[route.id] = route.route_uuid
         issuers = [{**visible[org_id], "is_creator": org_id == badge.org_id} for org_id in visible if _offers(offered, org_id, route)]
         routes.append({**_route_summary(db, program), "route_uuid": route.route_uuid, "recommended": route.recommended, "issuers": issuers})
     routes.sort(key=lambda item: not item["recommended"])
     plan = active_badge_plan(db, badge, user_id) if user_id else None
     return {
         "badge_uuid": badge.badge_uuid, "routes": routes,
+        "offers": {str(org_id): sorted(uuids[route_id] for route_id in route_ids if route_id in uuids) for org_id, route_ids in offered.items()},
         "plan": {"plan_uuid": plan.plan_uuid, "slug": plan.slug, "status": getattr(plan.status, "value", plan.status)} if plan else None,
     }
 

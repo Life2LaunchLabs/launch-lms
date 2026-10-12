@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { ChevronLeft, ChevronRight, Flag, Pencil, Target } from 'lucide-react'
+import { Award, ChevronLeft, ChevronRight, Flag, Pencil, Target } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { getUriWithOrg } from '@services/config/config'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
@@ -64,7 +64,8 @@ export default function PlanView({ orgslug, detail, plans, getPlanColor, choose,
   const following = plans.length > 1 ? plans[(index + 1) % plans.length] : null
   const done = steps.filter((item) => item.progress?.status === 'completed').length
   const percent = steps.length ? Math.round((done * 100) / steps.length) : 0
-  const source = detail.source_organization?.name ? `From ${detail.source_organization.name}` : detail.is_mine ? 'Your plan' : `${detail.subject?.name || 'Their'}’s plan`
+  const badge = detail.source_badge
+  const source = badge ? `Earning with ${detail.source_organization?.name || 'your issuer'}` : detail.source_organization?.name ? `From ${detail.source_organization.name}` : detail.is_mine ? 'Your plan' : `${detail.subject?.name || 'Their'}’s plan`
   const helpers = (detail.collaborators || []).filter((item: any) => !item.is_subject)
   const goTo = (objectiveUuid: string) => {
     setSelected(objectiveUuid)
@@ -88,7 +89,9 @@ export default function PlanView({ orgslug, detail, plans, getPlanColor, choose,
           <div className="pointer-events-none absolute inset-0 bg-[url('/landing/cta.png')] bg-cover bg-center opacity-20 mix-blend-screen" aria-hidden="true" />
           <div className="relative flex flex-col gap-4 p-5 sm:p-7">
             <div className="flex flex-wrap items-center gap-5 sm:gap-7">
-              <span className="flex h-24 w-24 shrink-0 -rotate-6 items-center justify-center rounded-[28px] border-[3px] border-white/50 bg-white/15 sm:h-28 sm:w-28" aria-hidden="true"><Target size={52} strokeWidth={1.8} /></span>
+              {badge ? <a href={getUriWithOrg(orgslug, `/badges/${String(badge.badge_uuid).replace(/^badge_/, '')}`)} aria-label={`${badge.name} badge`} className="flex h-24 w-24 shrink-0 -rotate-6 items-center justify-center overflow-hidden rounded-full border-[3px] border-white/70 bg-white/15 shadow-lg sm:h-28 sm:w-28">
+                {badge.thumbnail_image ? <img src={badge.thumbnail_image} alt="" className="badge-sticker-image h-full w-full object-contain p-2" /> : <Award size={52} strokeWidth={1.8} />}</a>
+                : <span className="flex h-24 w-24 shrink-0 -rotate-6 items-center justify-center rounded-[28px] border-[3px] border-white/50 bg-white/15 sm:h-28 sm:w-28" aria-hidden="true"><Target size={52} strokeWidth={1.8} /></span>}
               <div className="flex min-w-[14rem] flex-1 flex-col gap-2">
                 <span className="text-sm font-bold text-white/90">{source}</span>
                 <h1 className="text-4xl font-black leading-none tracking-tight sm:text-5xl">{detail.name}</h1>
@@ -105,7 +108,7 @@ export default function PlanView({ orgslug, detail, plans, getPlanColor, choose,
               </div>
             </div>
             {aboutOpen ? <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <About label="What you’re working toward">{detail.description || detail.name}</About>
+              <About label="What you’re working toward">{badge ? `The ${badge.name} badge. Finish every step and it’s yours.` : detail.description || detail.name}</About>
               {detail.source_assignment?.welcome_message ? <About label={`From ${detail.source_organization?.name || 'your organization'}`}>{detail.source_assignment.welcome_message}</About> : null}
               <About label="In your corner">{helpers.length ? helpers.map((item: any) => `${item.user?.name || 'Someone'} (${item.role?.name})`).join(', ') : 'Just you for now. Invite someone from the plan menu.'}</About>
             </div> : null}

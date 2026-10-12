@@ -485,7 +485,7 @@ def _plan_dict(db: Session, plan: Plan, user_id: int, include_detail: bool = Fal
         "subject": _user_summary(db, plan.subject_user_id), "owner": _user_summary(db, plan.owner_user_id),
         "source_organization": _org_summary(db, plan.source_org_id), "source_badge": _badge_summary(db, plan.source_badge_id),
         "is_mine": plan.subject_user_id == user_id, "is_owner": plan.owner_user_id == user_id,
-        "capabilities": sorted(capabilities), "objective_count": len(objective_rows),
+        "capabilities": sorted(capabilities - ({"edit_structure", "complete_plan"} if plan.source_badge_id else set())), "objective_count": len(objective_rows),  # badge steps come from the badge
         "completed_objective_count": complete_count,
         "progress_percent": round(complete_count * 100 / len(objective_rows)) if objective_rows else 0,
         "review_count": review_count, "attention_count": attention_count,

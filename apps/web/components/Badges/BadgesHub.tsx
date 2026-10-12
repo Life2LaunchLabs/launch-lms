@@ -15,13 +15,11 @@ function tabForPath(pathname: string): BadgesPageTab {
 export default function BadgesHub({
   orgslug,
   initialTab,
-  collections,
   choosingBadge = false,
   initialPortfolio,
 }: {
   orgslug: string
   initialTab: BadgesPageTab
-  collections: any[]
   choosingBadge?: boolean
   initialPortfolio?: Shell | null
 }) {
@@ -70,7 +68,7 @@ export default function BadgesHub({
     <BadgesPageShell orgslug={orgslug} activeTab={activeTab} onTabChange={changeTab}>
       <AnimatePresence mode="wait" initial={false}>
         {activeTab === 'discover' ? (
-          <motion.div key="discover"><BadgeDiscoverPage orgslug={orgslug} collections={collections} choosingBadge={choosing} /></motion.div>
+          <motion.div key="discover"><BadgeDiscoverPage orgslug={orgslug} choosingBadge={choosing} /></motion.div>
         ) : activeTab === 'my-badges' && initialPortfolio ? (
           <motion.div key="my-badges"><PortfolioBadgesView initialShell={initialPortfolio} orgslug={orgslug} onChooseBadge={chooseBadge} /></motion.div>
         ) : null}
