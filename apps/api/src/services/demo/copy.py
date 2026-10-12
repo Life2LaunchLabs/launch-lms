@@ -40,7 +40,7 @@ CONVERSATIONS = {
 }
 CHILD_TABLES = frozenset(
     """
-learningactivityrun learningpageprogress usersavedresourcechannel portfoliosection
+learningpageprogress usersavedresourcechannel portfoliosection
 projectitem projectitemblock timelineentry timelineentryblock timelineprojectlink
 portfoliolink profiletrait planrole planphase planobjective planobjectiveprogress
 planattachment planactivity requirementattainmentsource

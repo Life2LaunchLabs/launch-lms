@@ -56,8 +56,8 @@ def startup_app(app: FastAPI) -> Callable:
 
         import asyncio
         from src.core.events.database import engine
-        from src.services.badge_conversion import convert_on_startup
-        convert_on_startup(engine)  # badge learning paths -> plan template routes (idempotent)
+        from src.services.starter_plan import sync_starter_template_on_startup
+        sync_starter_template_on_startup(engine)
         from src.services.demo.worker import run_cleanup, run_preparation, run_recapture
         app.state.demo_cleanup = asyncio.create_task(run_cleanup(engine))
         app.state.demo_preparation = asyncio.create_task(run_preparation(engine))

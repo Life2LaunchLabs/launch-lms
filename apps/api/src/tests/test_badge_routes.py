@@ -120,40 +120,32 @@ def test_request_only_issuers_need_an_accepted_request():
         assert waiting.value.status_code == 409
 
 
-def test_converting_a_badge_path_makes_a_route_and_moves_learners_onto_plans():
-    from src.db.learning import LearningActivity, LearningActivityRun, LearningPage, LearningPageType, LearningPath, LearningRun, LearningResponseAttempt, LearningPageProgress
-    from src.services.badge_conversion import convert_badge_paths
+
+def test_start_badge_plans_outcome_starts_picked_badges_on_their_recommended_route():
+    from src.db.portfolio import Portfolio, PortfolioSection
+    from src.db.users import User
+    from src.services.learning_portfolio_actions import apply_portfolio_outcomes
 
     with _session() as session:
-        _setup(session)
-        for model in (LearningBadge, LearningBadgeVersion, LearningPath, LearningActivity, LearningPage, LearningRun, LearningActivityRun, LearningResponseAttempt, LearningPageProgress, BadgeIssuerAuthorization, BadgeIssuerLearnerLink, BadgeRoute, BadgeRouteOffer):
+        _, badge, routes = _world(session)
+        for model in (Portfolio, PortfolioSection):
             model.__table__.create(session.get_bind(), checkfirst=True)
-        session.add(LearningBadge(id=1, badge_uuid="badge_comm", org_id=1, name="Communication", status=LearningBadgeStatus.PUBLISHED, creation_date=NOW, update_date=NOW))
-        session.add(LearningBadgeVersion(id=1, version_uuid="v1", badge_id=1, org_id=1, state="published", semantic_version="1.0.0", creation_date=NOW, update_date=NOW))
-        session.flush()
-        session.get(LearningBadge, 1).active_version_id = 1
-        session.add(LearningPath(id=1, path_uuid="path_1", badge_id=1, version_id=1, org_id=1))
-        for activity_id, title in ((1, "Listen"), (2, "Speak up")):
-            session.add(LearningActivity(id=activity_id, activity_uuid=f"learning_activity_{activity_id}", path_id=1, badge_id=1, version_id=1, org_id=1, title=title, order=activity_id,
-                                         settings={"flow": {"start": f"learning_page_{activity_id}a"}} if activity_id == 1 else {}))
-            for suffix in ("a", "b"):
-                session.add(LearningPage(activity_id=activity_id, badge_id=1, version_id=1, org_id=1, page_uuid=f"learning_page_{activity_id}{suffix}", page_type=LearningPageType.STANDARD, title=f"{title} {suffix}", order=1 if suffix == "a" else 2, content={"blocks": []}))
-        session.add(LearningRun(id=1, run_uuid="learning_run_1", badge_id=1, path_id=1, badge_version_id=1, org_id=1, user_id=2, status="in_progress"))
-        session.add(LearningActivityRun(run_id=1, activity_id=1, status="completed"))
+        session.add(LearningBadge(badge_uuid="badge_draft", org_id=1, name="Draft", status=LearningBadgeStatus.DRAFT, creation_date=NOW, update_date=NOW))
+        badge.public = True
+        session.add(badge)
         session.commit()
+        outcomes = {"version": 1, "actions": [{"id": "start", "type": "start_badge_plans", "badge_uuids": {"$source": "binding", "key": "picked"}}]}
+        learner = session.get(User, 2)
 
-        assert convert_badge_paths(session) == ["badge_comm"]
-        listed = badge_routes.list_routes(session, LEARNER, "badge_comm")
-        assert [(route["name"], route["recommended"], route["activity_count"]) for route in listed["routes"]] == [("Communication", True, 2)]
-        copies = session.exec(select(LearningActivity).where(LearningActivity.objective_id.is_not(None))).all()
-        assert [item.title for item in copies] == ["Listen", "Speak up"]
-        first_pages = session.exec(select(LearningPage).where(LearningPage.activity_id == copies[0].id).order_by(LearningPage.order)).all()
-        assert first_pages[0].page_uuid != "learning_page_1a" and copies[0].settings["flow"]["start"] == first_pages[0].page_uuid
-        assert session.get(LearningActivity, 1).objective_id is None  # the published badge version is untouched
+        receipts, _ = apply_portfolio_outcomes(session, learner, 1, outcomes, {"answers": {}, "bindings": {"picked": ["badge_adapt", "badge_draft", "badge_missing"]}})
+        session.commit()
+        assert receipts["start"] == {"type": "start_badge_plans", "badge_uuids": ["badge_adapt"]}
+        plans = session.exec(select(Plan).where(Plan.subject_user_id == 2, Plan.source_badge_id == badge.id)).all()
+        assert len(plans) == 1
+        assert badge_routes.list_routes(session, LEARNER, "badge_adapt")["plan"]["slug"] == plans[0].slug
+        assert [item.title for item in session.exec(select(PlanObjective).where(PlanObjective.plan_id == plans[0].id).order_by(PlanObjective.position)).all()] == ["Notice change", "Your story"]
 
-        plan = planning.get_plan(session, LEARNER, listed["plan"]["slug"])
-        assert plan["step_order"] == "in_order" and plan["source_badge"]["badge_uuid"] == "badge_comm"
-        steps = {item["title"]: item for item in plan["objectives"]}
-        assert steps["Listen"]["progress"]["status"] == "completed"
-        assert steps["Speak up"]["availability"]["state"] == "open" and steps["Speak up"]["kind"] == "activity"
-        assert convert_badge_paths(session) == []
+        # Picking it again keeps the one plan.
+        apply_portfolio_outcomes(session, learner, 2, outcomes, {"answers": {}, "bindings": {"picked": ["badge_adapt"]}})
+        session.commit()
+        assert len(session.exec(select(Plan).where(Plan.subject_user_id == 2, Plan.source_badge_id == badge.id)).all()) == 1

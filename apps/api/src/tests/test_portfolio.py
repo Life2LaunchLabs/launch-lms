@@ -1,18 +1,10 @@
 import pytest
 from fastapi import HTTPException
-from sqlmodel import Session, SQLModel, create_engine, select
-from src.db.learning import (
-    LearningActivity,
-    LearningActivityRun,
-    LearningBadge,
-    LearningBadgeAward,
-    LearningPage,
-    LearningPageProgress,
-    LearningPath,
-    LearningRun,
-)
+from sqlmodel import Session, create_engine, select
+from src.db.learning import LearningBadgeAward
 from src.db.media import MediaAsset
 from src.db.organizations import Organization
+from src.db.planning import Plan, PlanObjective, PlanObjectiveProgress, PlanObjectiveStatus, PlanStatus
 from src.db.portfolio import (
     Portfolio,
     PortfolioFeaturedProjectUpdate,
@@ -41,40 +33,39 @@ from src.services.learning_portfolio_actions import (
     PortfolioActionError,
     apply_portfolio_outcomes,
 )
+from src.tests.test_badge_marketplace import _create_badge, _create_tables
 
 
 def _session():
+    """Portfolio tables plus the planning tables the starter plan checklist needs, with org 1."""
     engine = create_engine(
         "sqlite:///:memory:", connect_args={"check_same_thread": False}
     )
-    SQLModel.metadata.create_all(
-        engine,
-        tables=[
-            User.__table__,
-            Organization.__table__,
-            Role.__table__,
-            UserOrganization.__table__,
-            MediaAsset.__table__,
-            Portfolio.__table__,
-            PortfolioSection.__table__,
-            PortfolioLink.__table__,
-            ProfileTrait.__table__,
-            ProjectItem.__table__,
-            ProjectItemBlock.__table__,
-            TimelineEntry.__table__,
-            TimelineEntryBlock.__table__,
-            TimelineProjectLink.__table__,
-            LearningBadge.__table__,
-            LearningPath.__table__,
-            LearningActivity.__table__,
-            LearningPage.__table__,
-            LearningRun.__table__,
-            LearningActivityRun.__table__,
-            LearningPageProgress.__table__,
-            LearningBadgeAward.__table__,
-        ],
+    _create_tables(engine)
+    for model in (
+        MediaAsset,
+        PortfolioSection,
+        PortfolioLink,
+        ProfileTrait,
+        ProjectItem,
+        ProjectItemBlock,
+        TimelineEntry,
+        TimelineEntryBlock,
+        TimelineProjectLink,
+    ):
+        model.__table__.create(engine)
+    session = Session(engine)
+    session.add(
+        Organization(
+            id=1,
+            org_uuid="org_1",
+            name="Youth Lab",
+            slug="youth",
+            email="org@example.com",
+        )
     )
-    return Session(engine)
+    session.commit()
+    return session
 
 
 def _user(user_id=1, username="maya"):
@@ -95,110 +86,64 @@ def _public(user):
     return PublicUser.model_validate(user)
 
 
-def test_launch_ready_checklist_is_content_derived():
+def test_checklist_is_the_learners_starter_plan():
     with _session() as db:
         user = _user()
         db.add(user)
-        badge = LearningBadge(
-            id=1,
-            badge_uuid="badge_system_onboarding",
-            org_id=1,
-            collection_id=1,
-            name="Launch Ready",
-            system_type="onboarding",
-        )
-        path = LearningPath(
-            id=1, path_uuid="learning_path_system_onboarding", badge_id=1, org_id=1
-        )
-        db.add(badge)
-        db.add(path)
-        activity = LearningActivity(id=1, activity_uuid="learning_activity_system_onboarding_intro", badge_id=1, path_id=1, org_id=1, title="Introduce yourself", order=1)
-        db.add(activity)
-        run = LearningRun(
-            id=1, run_uuid="run_1", badge_id=1, path_id=1, org_id=1, user_id=1
-        )
-        db.add(run)
-        db.add(LearningActivityRun(id=1, run_id=1, activity_id=1, status="completed"))
         db.commit()
+        actor = _public(user)
 
-        state = service._launch_ready_state(1, db)
+        checklist = service.get_owner_shell(actor, db)["checklist"]
 
-        assert state["completed"] == 1
-        assert state["total"] == 7
-        assert state["items"][0]["complete"] is True
-        assert state["nextIncomplete"]["key"] == "current_experience"
+        plans = db.exec(select(Plan).where(Plan.subject_user_id == 1)).all()
+        assert len(plans) == 1
+        assert checklist["plan"]["plan_uuid"] == plans[0].plan_uuid
+        assert checklist["total"] == 6
+        # A learner who already has a name has done the Welcome step.
+        assert checklist["completed"] == 1
+        assert checklist["nextIncomplete"] == checklist["items"][1]
+        assert checklist["items"][0]["href"].startswith(f"/plans/{plans[0].slug}/objectives/")
 
-        portfolio = Portfolio(
-            portfolio_uuid="por_timeline_checklist",
-            user_id=1,
-            creation_date="",
-            update_date="",
-        )
-        db.add(portfolio)
-        db.flush()
-        db.add(TimelineEntry(
-            timeline_uuid="tml_past",
-            portfolio_id=portfolio.id,
-            title="A previous experience",
-            slug="previous-experience",
-            is_current=False,
-            creation_date="",
-            update_date="",
-        ))
-        db.commit()
+        service.create_timeline(TimelineEntryCreate(title="A previous experience"), actor, db)
+        checklist = service.get_owner_shell(actor, db)["checklist"]
 
-        state = service._launch_ready_state(1, db, timeline_count=1)
-        assert state["items"][1]["complete"] is True
+        assert len(db.exec(select(Plan).where(Plan.subject_user_id == 1)).all()) == 1
+        assert [item["complete"] for item in checklist["items"]] == [True, True, False, False, False, False]
+        assert checklist["completed"] == 2
+        # Finishing the checklist awards nothing: Launch Ready is a plan, not a badge.
+        assert db.exec(select(LearningBadgeAward)).all() == []
 
 
-def test_existing_launch_ready_award_is_permanent_when_content_is_removed():
+def test_badges_in_progress_come_from_active_badge_plans():
     with _session() as db:
         user = _user()
-        org = Organization(
-            id=1,
-            org_uuid="org_1",
-            name="Youth Lab",
-            slug="youth",
-            email="org@example.com",
-        )
-        badge = LearningBadge(
-            id=1,
-            badge_uuid="badge_system_onboarding",
-            org_id=1,
-            collection_id=1,
-            name="Launch Ready",
-        )
-        path = LearningPath(
-            id=1, path_uuid="learning_path_system_onboarding", badge_id=1, org_id=1
-        )
-        db.add_all([user, org, badge, path])
-        db.add(
-            LearningBadgeAward(
-                award_uuid="award_launch_ready", badge_id=1, org_id=1, user_id=1
-            )
-        )
+        db.add(user)
+        db.commit()
+        started = _create_badge(db, badge_id=5, org_id=1)
+        earned = _create_badge(db, badge_id=6, org_id=1)
+        abandoned = _create_badge(db, badge_id=7, org_id=1)
+        for plan_id, badge, status in ((10, started, PlanStatus.ACTIVE), (11, earned, PlanStatus.ACTIVE), (12, abandoned, PlanStatus.ARCHIVED)):
+            db.add(Plan(id=plan_id, plan_uuid=f"plan_{plan_id}", slug=f"plan-{plan_id}", name=badge.name, status=status, subject_user_id=1, source_badge_id=badge.id, creation_date="", update_date=""))
+        db.flush()
+        for objective_id, (plan_id, done) in enumerate(((10, True), (10, False), (10, False), (11, False)), start=1):
+            db.add(PlanObjective(id=objective_id, objective_uuid=f"plan_objective_{objective_id}", plan_id=plan_id, title=f"Step {objective_id}", creation_date="", update_date=""))
+            if done:
+                db.add(PlanObjectiveProgress(progress_uuid=f"progress_{objective_id}", plan_objective_id=objective_id, status=PlanObjectiveStatus.COMPLETED, creation_date="", update_date=""))
+        db.add(LearningBadgeAward(award_uuid="award_6", badge_id=earned.id, org_id=1, user_id=1))
         db.commit()
 
-        state = service._launch_ready_state(1, db)
+        badges = service.get_owner_shell(_public(user), db)["badges"]
 
-        assert state["earned"] is True
-        assert state["completed"] == 0
+        assert [(item["badge_uuid"], item["status"], item["progress"]) for item in badges["inProgress"]] == [
+            ("badge_5", "in_progress", {"completed": 1, "total": 3, "percent": 33}),
+        ]
+        assert [(item["badge_uuid"], item["status"]) for item in badges["earned"]] == [("badge_6", "earned")]
 
 
 def test_private_by_default_and_created_project_is_public_after_portfolio_publish():
     with _session() as db:
         user = _user()
-        org = Organization(
-            id=1,
-            org_uuid="org_1",
-            name="Youth Lab",
-            slug="youth",
-            email="org@example.com",
-        )
-        role = Role(id=1, name="member")
-        db.add(user)
-        db.add(org)
-        db.add(role)
+        db.add_all([user, Role(id=1, name="member")])
         db.commit()
         db.add(
             UserOrganization(
@@ -329,15 +274,7 @@ def test_project_current_date_mode_clears_end_date():
 def test_public_shell_uses_allowlisted_dtos_without_internal_fields():
     with _session() as db:
         user = _user()
-        org = Organization(
-            id=1,
-            org_uuid="org_1",
-            name="Youth Lab",
-            slug="youth",
-            email="org@example.com",
-        )
-        role = Role(id=1, name="member")
-        db.add_all([user, org, role])
+        db.add_all([user, Role(id=1, name="member")])
         db.commit()
         db.add(
             UserOrganization(

@@ -8,7 +8,7 @@ from fastapi import HTTPException
 from sqlalchemy import inspect
 from sqlmodel import Session, select
 
-from src.db.learning import LearningBadge, LearningBadgeAward, LearningPage, LearningPageProgress, LearningRun
+from src.db.learning import LearningBadge, LearningBadgeAward
 from src.db.media import MediaAsset, MediaOwnerType
 from src.db.organizations import Organization
 from src.db.planning import (
@@ -245,45 +245,37 @@ def _progress_for(db: Session, objective: PlanObjective) -> PlanObjectiveProgres
     return progress
 
 
+def _badge_plan(db: Session, plan: Plan, badge_id: int | None) -> Plan | None:
+    """The subject's own plan for earning this badge, if they started it."""
+    if not badge_id or not plan.subject_user_id:
+        return None
+    return db.exec(select(Plan).where(
+        Plan.subject_user_id == plan.subject_user_id, Plan.source_badge_id == badge_id, Plan.status == PlanStatus.ACTIVE,
+    )).first()
+
+
 def _badge_state(db: Session, plan: Plan, objective: PlanObjective, progress: PlanObjectiveProgress) -> str:
+    stored = progress.status.value if hasattr(progress.status, "value") else str(progress.status)
     if not objective.badge_id or not plan.subject_user_id:
-        return progress.status.value if hasattr(progress.status, "value") else str(progress.status)
+        return stored
     award = db.exec(select(LearningBadgeAward).where(
         LearningBadgeAward.badge_id == objective.badge_id,
         LearningBadgeAward.user_id == plan.subject_user_id,
     )).first()
     if award and (not objective.badge_major_version or award.major_version == objective.badge_major_version):
         return PlanObjectiveStatus.COMPLETED.value
-    run = db.exec(select(LearningRun).where(
-        LearningRun.plan_objective_id == objective.id,
-        LearningRun.user_id == plan.subject_user_id,
-    )).first()
-    return PlanObjectiveStatus.IN_PROGRESS.value if run else (progress.status.value if hasattr(progress.status, "value") else str(progress.status))
+    return PlanObjectiveStatus.IN_PROGRESS.value if _badge_plan(db, plan, objective.badge_id) else stored
 
 
 def _badge_requirement(db: Session, plan: Plan, objective: PlanObjective, badge: LearningBadge, field: dict) -> dict:
+    from src.services.badge_discover import _plan_progress
+
     award = db.exec(select(LearningBadgeAward).where(
         LearningBadgeAward.badge_id == badge.id,
         LearningBadgeAward.user_id == plan.subject_user_id,
     )).first() if plan.subject_user_id else None
-    run = db.exec(select(LearningRun).where(
-        LearningRun.plan_objective_id == objective.id,
-        LearningRun.user_id == plan.subject_user_id,
-        LearningRun.badge_id == badge.id,
-    )).first() if plan.subject_user_id else None
-    progress_percent = 100 if award else 0
-    if run and not award:
-        pages = db.exec(select(LearningPage).where(
-            LearningPage.badge_id == badge.id,
-            LearningPage.version_id == run.badge_version_id,
-        )).all()
-        page_ids = [int(page.id) for page in pages if page.id]
-        completed = len(db.exec(select(LearningPageProgress).where(
-            LearningPageProgress.run_id == run.id,
-            LearningPageProgress.page_id.in_(page_ids),
-            LearningPageProgress.complete == True,  # noqa: E712
-        )).all()) if page_ids else 0
-        progress_percent = round(completed * 100 / len(page_ids)) if page_ids else 0
+    badge_plan = None if award else _badge_plan(db, plan, badge.id)
+    done, total = _plan_progress(db, [badge_plan]).get(int(badge_plan.id), (0, 0)) if badge_plan else (0, 0)  # type: ignore[arg-type]
     return {
         **field,
         "field_uuid": str(field.get("field_uuid") or f"badge_{objective.objective_uuid}"),
@@ -291,8 +283,8 @@ def _badge_requirement(db: Session, plan: Plan, objective: PlanObjective, badge:
         "type": "badge",
         "badge_uuid": badge.badge_uuid,
         "badge": {"badge_uuid": badge.badge_uuid, "name": badge.name, "thumbnail_image": badge.thumbnail_image},
-        "badge_href": f"/plans/{plan.slug}/objectives/{objective.objective_uuid}/badge",
-        "progress_percent": progress_percent,
+        "badge_href": f"/badges/{badge.badge_uuid.removeprefix('badge_')}",
+        "progress_percent": 100 if award else round(done * 100 / total) if total else 0,
     }
 
 
@@ -728,7 +720,6 @@ def materialize_assignment_plans(db: Session, assignment_id: int) -> None:
             db.add(PlanObjectiveProgress(progress_uuid=f"plan_progress_{uuid4()}", plan_objective_id=int(objective.id), creation_date=now, update_date=now))
         apply_template_order(plan, program, created)
         db.flush()
-        _link_legacy_learning_runs(db, assignment.id, participant.id, participant.user_id, plan)
         invitation_status = {
             ParticipantStatus.INVITED: PlanInvitationStatus.PENDING,
             ParticipantStatus.DECLINED: PlanInvitationStatus.DECLINED,
@@ -852,41 +843,6 @@ def materialize_external_assignment_plan(db: Session, assignment_id: int, subjec
     )
     db.add(invitation)
     _create_plan_invitation_message(db, plan, invitation, roles[subject_role_key].name)
-
-
-def _link_legacy_learning_runs(
-    db: Session,
-    assignment_id: int,
-    participant_id: int,
-    user_id: int,
-    plan: Plan,
-) -> None:
-    """Attach unambiguous legacy assignment runs to a materialized live plan."""
-    objectives = db.exec(select(PlanObjective).where(
-        PlanObjective.plan_id == plan.id,
-        PlanObjective.badge_id.is_not(None),
-    )).all()
-    objectives_by_badge: dict[int, list[PlanObjective]] = {}
-    for objective in objectives:
-        objectives_by_badge.setdefault(int(objective.badge_id), []).append(objective)
-
-    runs = db.exec(select(LearningRun).where(
-        LearningRun.program_assignment_id == assignment_id,
-        LearningRun.badge_id.in_(list(objectives_by_badge)),
-    )).all() if objectives_by_badge else []
-    for run in runs:
-        belongs_to_participant = (
-            run.program_participant_id == participant_id
-            or (run.program_participant_id is None and run.user_id == user_id)
-        )
-        candidates = objectives_by_badge.get(run.badge_id, [])
-        if not belongs_to_participant or len(candidates) != 1:
-            continue
-        if run.plan_id not in {None, plan.id} or run.plan_objective_id is not None:
-            continue
-        run.plan_id = plan.id
-        run.plan_objective_id = candidates[0].id
-        db.add(run)
 
 
 def get_plan(db: Session, current_user: PublicUser, identifier: str) -> dict:

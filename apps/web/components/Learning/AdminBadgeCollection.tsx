@@ -312,7 +312,7 @@ function CollectionBadges({ orgslug, orgId, collection, canEdit }: { orgslug: st
         collection_id: collection.id,
         name: name.trim(),
         description: description.trim(),
-        criteria: 'Complete the required learning path.',
+        criteria: 'Complete a plan that earns this badge.',
         public: true,
         status: 'draft',
       }, accessToken)

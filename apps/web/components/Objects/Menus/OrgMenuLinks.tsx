@@ -12,7 +12,6 @@ export const KNOWN_SUBPATHS = [
   '/hub',
   '/badges',
   '/plans',
-  '/badge',
   '/podcasts',
   '/communities',
   '/community/',

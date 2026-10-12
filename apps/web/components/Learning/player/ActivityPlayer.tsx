@@ -32,8 +32,8 @@ export interface ActivityPlayerEvent {
 
 // The server's verdict for an activity once its required pages are done
 // (null before that). Live runs and previews report the same result shape.
-export function getActivityResult(run: any, activity: any): { status: 'pending' | 'failed' | 'completed'; scored: boolean } | null {
-  const result = (run?.navigation?.activities || []).find((item: any) => item.activity_id === activity.id)?.result
+export function getActivityResult(run: any): { status: 'pending' | 'failed' | 'completed'; scored: boolean } | null {
+  const result = run?.navigation?.result
   if (!result) return null
   const scored = result.grading?.mode === 'pass_fail'
   if (Number(result.pending_manual_grades || 0) > 0) return { status: 'pending', scored }
@@ -46,7 +46,7 @@ export function getActivityResult(run: any, activity: any): { status: 'pending' 
 // to page order.
 function routedPages(activity: any, run: any): any[] {
   const pages = activity.pages || []
-  const navigation = (run?.navigation?.activities || []).find((item: any) => item.activity_id === activity.id)
+  const navigation = run?.navigation
   if (!navigation) return pages
   const byUuid = new Map(pages.map((page: any) => [page.page_uuid, page]))
   return (navigation.path || []).map((pageUuid: string) => byUuid.get(pageUuid)).filter(Boolean)
@@ -95,7 +95,7 @@ export function ActivityPlayer({
   React.useEffect(() => {
     if (resumed.current || !run) return
     resumed.current = true
-    const current = (run.navigation?.activities || []).find((item: any) => item.activity_id === activity.id)?.current_page_uuid
+    const current = run.navigation?.current_page_uuid
     const position = current ? routedPages(activity, run).findIndex((item: any) => item.page_uuid === current) : -1
     if (position > 0) setIndex(position)
   }, [run, activity])
@@ -136,7 +136,7 @@ export function ActivityPlayer({
       const nextRun = submitting ? await runtime.submit(page.page_uuid, answer, button) : await runtime.complete(page.page_uuid, button)
       setRun(nextRun)
       if (submitting) onEvent?.({ type: 'answer_submitted', page_uuid: page.page_uuid, page_title: page.title, answer, run: nextRun })
-      const nextNavigation = (nextRun?.navigation?.activities || []).find((item: any) => item.activity_id === activity.id)
+      const nextNavigation = nextRun?.navigation
       // Go to the first page the route still needs; when every page is done
       // (a retake or review), step to the page after this one on the route.
       const nextPages = routedPages(activity, nextRun)

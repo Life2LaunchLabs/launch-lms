@@ -4,16 +4,12 @@ import pytest
 from fastapi import HTTPException
 from sqlmodel import Session, create_engine, select
 
-from src.db.guest_sessions import GuestSession  # noqa: F401
 from src.db.learning import (
     LearningActivity,
-    LearningActivityRun,
     LearningBadge,
-    LearningBadgeVersion,
     LearningPage,
     LearningPageComplete,
     LearningPageType,
-    LearningPath,
     LearningResponseAttempt,
     LearningRun,
 )
@@ -22,7 +18,6 @@ from src.db.portfolio import Portfolio, TimelineEntry
 from src.db.programs import ObjectiveCreate, ObjectiveKind, ProgramAssignmentCreate, ProgramCreate, ProgramParticipant, ProgramUpdate
 from src.db.users import PublicUser, User
 from src.services import plan_activities, planning
-from src.services.guest_sessions import LearningActor
 from src.services.learning import runtime
 from src.services.learning_documents import store
 from src.services.programs import add_program_objective, assign_program, create_program, respond_to_invitation, update_program
@@ -34,7 +29,7 @@ LEARNER = PublicUser(id=2, user_uuid="user_2", username="learner", email="learne
 def _session() -> Session:
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     _tables(engine)
-    for model in (LearningBadge, LearningBadgeVersion, LearningPath, LearningActivity, LearningActivityRun, LearningResponseAttempt, Portfolio, TimelineEntry):
+    for model in (LearningBadge, LearningActivity, LearningResponseAttempt, Portfolio, TimelineEntry):
         model.__table__.create(engine, checkfirst=True)
     return Session(engine)
 
@@ -69,12 +64,12 @@ def test_activity_objectives_own_their_activity_and_carry_onto_live_plans():
         assert first["kind"] == "activity"
         assert first["activity"]["title"] == "What just changed?"
         activity = session.exec(select(LearningActivity).where(LearningActivity.activity_uuid == first["activity"]["activity_uuid"])).one()
-        assert activity.badge_id is None and activity.path_id is None and activity.objective_id == first["id"]
+        assert activity.objective_id == first["id"]
 
         # The Activity Document API edits template activities in place.
         user_row = session.get(User, 1)
         envelope = asyncio.run(store.get_activity_document(None, activity.activity_uuid, user_row, session))
-        assert envelope["context"]["editable"] is True and envelope["context"]["badge_uuid"] is None
+        assert envelope["context"]["template_uuid"] == program["program_uuid"] and envelope["context"]["template_name"] == "Adaptability"
 
         plan = _assigned_plan(session, admin, program)
         live = session.exec(select(PlanObjective).where(PlanObjective.plan_id == plan.id).order_by(PlanObjective.position)).all()
@@ -99,16 +94,15 @@ def test_playing_an_activity_completes_its_step_and_opens_the_next():
 
         started = plan_activities.start_objective_activity(session, LEARNER, plan.slug, first.objective_uuid)
         run = started["run"]
-        assert run["activity_id"] == first.activity_id and run["badge_id"] is None
+        assert run["activity_id"] == first.activity_id and run["plan_objective_id"] == first.id
         assert [item["page_uuid"] for item in started["activity"]["pages"]] == [f"learning_page_{first.activity_id}"]
-        assert started["run"]["navigation"]["activities"][0]["total"] == 1
+        assert started["run"]["navigation"]["total"] == 1
         progress = session.exec(select(PlanObjectiveProgress).where(PlanObjectiveProgress.plan_objective_id == first.id)).one()
         assert progress.status == "in_progress"
         # Resuming returns the same run.
         assert plan_activities.start_objective_activity(session, LEARNER, plan.slug, first.objective_uuid)["run"]["run_uuid"] == run["run_uuid"]
 
-        actor = LearningActor(user=LEARNER)
-        asyncio.run(runtime.complete_page(None, LearningPageComplete(run_uuid=run["run_uuid"], page_uuid=f"learning_page_{first.activity_id}", data={}), actor, session))
+        asyncio.run(runtime.complete_page(None, LearningPageComplete(run_uuid=run["run_uuid"], page_uuid=f"learning_page_{first.activity_id}", data={}), LEARNER, session))
         session.refresh(progress)
         assert progress.status == "completed" and progress.completed_at is not None
         assert session.exec(select(LearningRun).where(LearningRun.run_uuid == run["run_uuid"])).one().status == "completed"
@@ -120,7 +114,7 @@ def test_playing_an_activity_completes_its_step_and_opens_the_next():
 
         # A page from another step's activity is not part of this run.
         with pytest.raises(HTTPException) as foreign:
-            asyncio.run(runtime.complete_page(None, LearningPageComplete(run_uuid=run["run_uuid"], page_uuid=f"learning_page_{second.activity_id}", data={}), actor, session))
+            asyncio.run(runtime.complete_page(None, LearningPageComplete(run_uuid=run["run_uuid"], page_uuid=f"learning_page_{second.activity_id}", data={}), LEARNER, session))
         assert foreign.value.status_code == 409
 
 
@@ -134,7 +128,7 @@ def test_activities_that_need_sign_off_go_to_review():
         session.add(first)
         session.commit()
         run = plan_activities.start_objective_activity(session, LEARNER, plan.slug, first.objective_uuid)["run"]
-        asyncio.run(runtime.complete_page(None, LearningPageComplete(run_uuid=run["run_uuid"], page_uuid=f"learning_page_{first.activity_id}", data={}), LearningActor(user=LEARNER), session))
+        asyncio.run(runtime.complete_page(None, LearningPageComplete(run_uuid=run["run_uuid"], page_uuid=f"learning_page_{first.activity_id}", data={}), LEARNER, session))
         progress = session.exec(select(PlanObjectiveProgress).where(PlanObjectiveProgress.plan_objective_id == first.id)).one()
         assert progress.status == "submitted"
 
@@ -152,7 +146,7 @@ def test_template_activity_pages_are_edited_in_place_without_a_draft():
             activity_uuid=activity_uuid, page_type=LearningPageType.STANDARD, title="Start", content={"version": 2, "blocks": []},
         ), admin, session))
         updated = asyncio.run(page_authoring.update_page(None, page.page_uuid, LearningPageUpdate(title="Start here"), admin, session))
-        assert updated.title == "Start here" and updated.badge_id is None
+        assert updated.title == "Start here" and updated.activity_id == page.activity_id
         with pytest.raises(HTTPException):
             asyncio.run(page_authoring.create_page(None, LearningPageCreate(
                 activity_uuid=activity_uuid, page_type=LearningPageType.STANDARD, title="Nope", content={"version": 2, "blocks": []},

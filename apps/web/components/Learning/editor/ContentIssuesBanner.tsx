@@ -5,14 +5,12 @@ import toast from 'react-hot-toast'
 import { Wrench } from 'lucide-react'
 import { type ActivityContentIssues, getActivityContentIssues, repairActivityContent } from '@services/learning/activityDocuments'
 
-// Version notices for the editor: published versions are read-only, and
-// content saved before the current content models is listed (it keeps working for
+// Content saved before the current content models is listed (it keeps working for
 // learners and stays editable) and offers a reviewed one-click repair of the
 // mechanical problems. Whatever needs a decision stays listed.
-export function ContentIssuesBanner({ activityUuid, pages, editable, accessToken, refreshKey, beforeRepair, onRepaired }: {
+export function ContentIssuesBanner({ activityUuid, pages, accessToken, refreshKey, beforeRepair, onRepaired }: {
   activityUuid: string
   pages: any[]
-  editable: boolean
   accessToken?: string
   refreshKey: unknown
   beforeRepair: () => Promise<void>
@@ -33,8 +31,7 @@ export function ContentIssuesBanner({ activityUuid, pages, editable, accessToken
     ...Object.entries(issues?.pages || {}).map(([pageUuid, list]) => ({ where: pages.find((page) => page.page_uuid === pageUuid)?.title || 'A page', list })),
     ...(issues?.flow?.length ? [{ where: 'Flow', list: issues.flow }] : []),
   ]
-  const immutable = !editable ? <div className="shrink-0 border-b border-amber-200 bg-amber-50 px-5 py-2 text-center text-xs font-semibold text-amber-900">Published versions are immutable. Create a draft from this version to edit the activity.</div> : null
-  if (!entries.length) return immutable
+  if (!entries.length) return null
 
   const runRepair = async () => {
     setBusy(true)
@@ -59,8 +56,6 @@ export function ContentIssuesBanner({ activityUuid, pages, editable, accessToken
   }
 
   return (
-    <>
-    {immutable}
     <div className="shrink-0 border-b border-amber-200 bg-amber-50 px-5 py-2 text-xs text-amber-900">
       <div className="flex items-start justify-between gap-4">
         <details>
@@ -71,13 +66,10 @@ export function ContentIssuesBanner({ activityUuid, pages, editable, accessToken
             {entries.flatMap((entry) => entry.list.map((issue) => <li key={`${entry.where}:${issue}`}><span className="font-semibold">{entry.where}:</span> {issue}</li>))}
           </ul>
         </details>
-        {editable && (
-          <button type="button" disabled={busy} onClick={runRepair} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-3 py-1.5 font-bold text-amber-900 hover:bg-amber-100 disabled:opacity-60">
-            <Wrench size={14} /> Repair
-          </button>
-        )}
+        <button type="button" disabled={busy} onClick={runRepair} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-3 py-1.5 font-bold text-amber-900 hover:bg-amber-100 disabled:opacity-60">
+          <Wrench size={14} /> Repair
+        </button>
       </div>
     </div>
-    </>
   )
 }

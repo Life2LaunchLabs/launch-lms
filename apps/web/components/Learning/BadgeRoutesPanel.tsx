@@ -4,15 +4,14 @@ import React from 'react'
 import Link from 'next/link'
 import useSWR from 'swr'
 import toast from 'react-hot-toast'
-import { ArrowRightLeft, Loader2, Plus, Star, Trash2 } from 'lucide-react'
+import { Loader2, Plus, Star, Trash2 } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { badgeRoutesApi } from '@services/learning/badgeRoutes'
 import { programsApi } from '@services/programs/programs'
 import { getUriWithOrg } from '@services/config/config'
 
 /** The badge creator chooses which plan templates earn the badge and which one learners see first. */
-/** The badge's ways to earn it. Its old learning path (children) shows only until it has routes. */
-export default function BadgeRoutesPanel({ badge, orgslug, children }: { badge: any; orgslug: string; children?: React.ReactNode }) {
+export default function BadgeRoutesPanel({ badge, orgslug }: { badge: any; orgslug: string }) {
   const session = useLHSession() as any
   const token = session?.data?.tokens?.access_token
   const { data, mutate, isLoading } = useSWR(token ? ['badge-routes', badge.badge_uuid, token] : null, () => badgeRoutesApi.list(badge.badge_uuid, token))
@@ -24,13 +23,9 @@ export default function BadgeRoutesPanel({ badge, orgslug, children }: { badge: 
     try { await mutate(await badgeRoutesApi.set(badge.badge_uuid, next, token), false) } catch (error: any) { toast.error(error?.message || 'Could not save the ways to earn this badge.') } finally { setSaving(false) }
   }
   const current = routes.map((route) => ({ program_uuid: route.program_uuid, recommended: route.recommended }))
-  const convert = async () => {
-    setSaving(true)
-    try { await mutate(await badgeRoutesApi.convertPath(badge.badge_uuid, token), false); toast.success('The learning path is now a plan template and the recommended way to earn this badge.') } catch (error: any) { toast.error(error?.message || 'Could not convert the learning path.') } finally { setSaving(false) }
-  }
   const available = (Array.isArray(templates) ? templates : templates?.items || []).filter((template: any) => !routes.some((route) => route.program_uuid === template.program_uuid))
 
-  return <><section className="mb-8 rounded-xl border border-border bg-card p-6 shadow-xs">
+  return <section className="mb-8 rounded-xl border border-border bg-card p-6 shadow-xs">
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div>
         <h2 className="text-lg font-bold">Ways to earn</h2>
@@ -49,8 +44,7 @@ export default function BadgeRoutesPanel({ badge, orgslug, children }: { badge: 
         <button type="button" disabled={saving} onClick={() => save(current.filter((_, i) => i !== index))} aria-label={`Remove ${route.name}`} className="rounded-lg p-2 text-muted-foreground hover:bg-red-50 hover:text-red-700"><Trash2 size={15} /></button>
       </div>)}
       {!routes.length ? <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
-        No ways to earn this badge yet. Add a plan template, or turn its learning path into one.
-        <button type="button" disabled={saving} onClick={convert} className="ml-3 inline-flex items-center gap-1.5 rounded-lg bg-black px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"><ArrowRightLeft size={13} />Convert learning path</button>
+        No ways to earn this badge yet. Add a plan template learners can follow to earn it.
       </div> : null}
       {available.length ? <label className="flex items-center gap-2 pt-2 text-xs font-bold">
         <Plus size={14} className="text-muted-foreground" />
@@ -61,5 +55,4 @@ export default function BadgeRoutesPanel({ badge, orgslug, children }: { badge: 
       </label> : null}
     </div>}
   </section>
-  {isLoading || routes.length ? null : children}</>
 }

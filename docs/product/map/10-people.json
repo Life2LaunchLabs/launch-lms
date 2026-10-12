@@ -2365,7 +2365,7 @@
               "id": "PEOPLE-G003-A004-S001",
               "activity_id": "PEOPLE-G003-A004",
               "display_order": 1,
-              "title": "Grade a badge response",
+              "title": "Grade an activity response",
               "description": "",
               "step_kind": "alternative",
               "product_state": "live",
@@ -2374,7 +2374,7 @@
               "automated_status": "not_tested",
               "manual_status": "passed",
               "implementation_notes": null,
-              "updated_at": "2026-09-03T18:12:54+00:00",
+              "updated_at": "2026-10-12T16:00:00+00:00",
               "verification": {
                 "status": "passed",
                 "reviewed_at": "2026-09-03T18:12:54+00:00",

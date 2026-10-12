@@ -25,12 +25,13 @@ def world(tmp_path, monkeypatch):
     from src.db.learning import (
         LearningBadge,
         LearningBadgeAward,
+        LearningActivity,
         LearningBadgeVersion,
-        LearningPath,
         LearningRun,
     )
     from src.db.organizations import Organization
-    from src.db.planning import Plan, PlanPhase
+    from src.db.planning import Plan, PlanObjective, PlanPhase
+    from src.db.programs import Objective
     from src.db.portfolio import Portfolio, ProjectItem
     from src.db.roles import Role
     from src.db.user_organizations import UserOrganization
@@ -47,8 +48,8 @@ def world(tmp_path, monkeypatch):
     with engine.begin() as conn:
         for table in (
             "demomember democonfiguration demosession democheckpoint learningbadgeaward "
-            "learningrun learningpath learningbadgeversion learningbadge projectitem "
-            "portfolio planphase plancollaborator plan userorganization role "
+            "learningrun learningactivity objective learningbadgeversion learningbadge projectitem "
+            "portfolio planobjective planphase plancollaborator plan userorganization role "
             '"user" organization'
         ).split():
             conn.execute(text(f"TRUNCATE {table} RESTART IDENTITY CASCADE"))
@@ -132,28 +133,15 @@ def world(tmp_path, monkeypatch):
     db.flush()
     db.add(LearningBadgeVersion(id=1, badge_id=1, state="published", org_id=1))
     db.flush()
-    db.add(LearningPath(id=1, badge_id=1, version_id=1))
+    db.add(Objective(id=1, objective_uuid="objective_first_aid", org_id=1, title="First aid basics", kind="activity"))
     db.flush()
-    db.add(
-        LearningRun(
-            id=1,
-            run_uuid="run_source",
-            badge_id=1,
-            path_id=1,
-            badge_version_id=1,
-            org_id=1,
-            user_id=11,
-            started_at=datetime.utcnow(),
-            data={"step": 3},
-        )
-    )
+    db.add(LearningActivity(id=1, activity_uuid="learning_activity_first_aid", objective_id=1, org_id=1, title="First aid basics"))
     db.flush()
     db.add(
         LearningBadgeAward(
             award_uuid="award_source",
             badge_id=1,
             badge_version_id=1,
-            run_id=1,
             org_id=1,
             user_id=11,
             issued_at=datetime.utcnow(),
@@ -197,6 +185,21 @@ def world(tmp_path, monkeypatch):
     )
     db.flush()
     db.add(PlanPhase(phase_uuid="phase_source", plan_id=1, name="Junior year"))
+    db.add(PlanObjective(id=1, objective_uuid="plan_objective_source", plan_id=1, title="First aid basics", kind="activity", activity_id=1))
+    db.flush()
+    db.add(
+        LearningRun(
+            id=1,
+            run_uuid="run_source",
+            activity_id=1,
+            org_id=1,
+            plan_id=1,
+            plan_objective_id=1,
+            user_id=11,
+            started_at=datetime.utcnow(),
+            data={"step": 3},
+        )
+    )
     db.add(DemoConfiguration(id=1))
     db.commit()
     with engine.begin() as conn:
@@ -205,8 +208,10 @@ def world(tmp_path, monkeypatch):
             "user",
             "learningbadge",
             "learningbadgeversion",
-            "learningpath",
+            "objective",
+            "learningactivity",
             "learningrun",
+            "planobjective",
             "portfolio",
             "plan",
             "role",
@@ -265,8 +270,9 @@ def test_copy_brings_the_whole_account_and_leaves_the_source_alone(world):
     plan = db.exec(select(M["Plan"]).where(M["Plan"].subject_user_id == copy_id)).one()
     phase = db.exec(select(M["Phase"]).where(M["Phase"].plan_id == plan.id)).one()
     # Shared catalog stays linked; personal rows are new and point at each other.
-    assert run.badge_id == 1 and run.id != 1 and run.data == {"step": 3}
-    assert award.run_id == run.id and award.award_uuid != "award_source"
+    assert run.activity_id == 1 and run.id != 1 and run.data == {"step": 3}
+    assert run.plan_id == plan.id and run.plan_objective_id != 1
+    assert award.badge_id == 1 and award.award_uuid != "award_source"
     assert (
         portfolio.portfolio_uuid != "portfolio_source"
         and portfolio.short_bio == "Real bio"
@@ -315,7 +321,7 @@ def test_preflight_and_publish_include_main_org_and_outside_files(world):
     [person] = report["users"]
     assert (
         person["badges"],
-        person["badge_runs"],
+        person["activity_runs"],
         person["projects"],
         person["plans"],
     ) == (1, 1, 1, 1)

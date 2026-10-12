@@ -173,9 +173,9 @@ def collection_page(db: Session, current_user: PublicUser | AnonymousUser | None
 
 def badge_page(db: Session, current_user: PublicUser | AnonymousUser | None, badge_uuid: str) -> dict:
     """A badge's page: the card, its Marketing story, the ways to earn it and the rest of its set."""
-    from src.services.badge_routes import _badge, list_routes
+    from src.services.badge_routes import list_routes
 
-    badge = _badge(db, badge_uuid)
+    badge = lookups._get_badge(db, badge_uuid)
     if not lookups._can_read_badge(db, badge, current_user or AnonymousUser()):
         raise HTTPException(status_code=404, detail="Badge not found")
     user_id = _user_id(current_user)

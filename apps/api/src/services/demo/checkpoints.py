@@ -15,7 +15,7 @@ from sqlmodel import Session, SQLModel
 CONTENT = frozenset(
     """
 organization organizationconfig role badgecollection learningbadge
-learningbadgeversion learningpath learningactivity learningpage learningvariable
+learningbadgeversion badgeroute badgerouteoffer learningactivity learningpage learningvariable
 badgeissuerauthorization program programobjective programphase objective
 organizationplanrole requirementframework requirementframeworkversion requirementnode
 programobjectiverequirement resourcetag resourcetaglink resource resourcesearchdocument
@@ -37,7 +37,7 @@ boardmember playgroundreaction inboxmessage mediaasset mediafolder
 CATALOG_PERSONAL = frozenset("learningrun learningbadgeaward".split())
 CHILDREN = frozenset(
     """
-learningactivityrun learningpageprogress usersavedresourcechannel portfoliosection
+learningpageprogress usersavedresourcechannel portfoliosection
 projectitem projectitemblock timelineentry timelineentryblock timelineprojectlink
 portfoliolink profiletrait planrole planphase planobjective planobjectiveprogress
 planattachment planactivity hubconversationmessage hubconversationmessageresource
@@ -48,11 +48,11 @@ hubeditobjectstate requirementattainmentsource
 # Private peer work is deliberately excluded even when it belongs to an included org.
 ANCHORS = {
     "learningbadgeversion": "badge_id",
-    "learningpath": "version_id",
-    "learningactivity": "path_id",
+    "badgeroute": "badge_id",
+    "badgerouteoffer": "route_id",
+    "learningactivity": "objective_id",
     "learningpage": "activity_id",
     "learningvariable": "org_id",
-    "learningactivityrun": "run_id",
     "learningpageprogress": "run_id",
     "usersavedresourcechannel": "saved_resource_id",
     "portfoliosection": "portfolio_id",
@@ -89,13 +89,12 @@ ANCHORS = {
 }
 FORBIDDEN = frozenset(
     """
-apitoken ssoconnection customdomain auditlog orgpack usageevent guestsession
+apitoken ssoconnection customdomain auditlog orgpack usageevent
 paymentsconfig paymentsenrollment paymentsoffer paymentsofferresource paymentsgroup
 paymentsgroupresource paymentsgroupsync organizationinvitation organizationjoinlink
 planinvitation plancollaboratorrequest discussion discussioncomment discussionvote
 discussioncommentvote discussionreaction resourcecomment
 hubadvisorconfiguration hubadvisorproviderconfiguration inboxmessagetemplate
-learningbadgenotificationsignup
 """.split()
 )
 
@@ -281,17 +280,6 @@ def capture(db: Session, main_org_id: int, user_ids: set[int]) -> dict:
                                     table.c.state == "published",
                                 )
                             add(name, read(name, condition))
-        # Legacy unversioned paths have no version FK to anchor from.
-        badge_ids = {record["id"] for record in rows["learningbadge"].values()}
-        if badge_ids:
-            path = tables["learningpath"]
-            add(
-                "learningpath",
-                read(
-                    "learningpath",
-                    path.c.badge_id.in_(badge_ids) & path.c.version_id.is_(None),
-                ),
-            )
         if before == sum(map(len, rows.values())):
             break
     # Catalog issuers show their branding; their other content stays out.

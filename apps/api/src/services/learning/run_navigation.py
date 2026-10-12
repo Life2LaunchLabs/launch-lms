@@ -3,7 +3,6 @@
 from sqlmodel import Session, select
 from src.db.learning import (
     LearningActivity,
-    LearningActivityRun,
     LearningBadge,
     LearningBadgeAward,
     LearningBadgeStatus,
@@ -13,9 +12,9 @@ from src.db.learning import (
     LearningRun,
     LearningRunRead,
 )
+from src.db.planning import Plan
 from src.db.portfolio import Portfolio, TimelineEntry
 from src.db.users import User
-from src.services.learning import scope
 from src.services.learning_flow import (
     resolve_flow,
 )
@@ -33,13 +32,11 @@ def _question_blocks(page: LearningPage) -> list[dict]:
     return find_question_blocks(page.content)
 
 
-def _flow_context(
-    db_session: Session, run: LearningRun, activity_run: LearningActivityRun
-) -> dict:
+def _flow_context(db_session: Session, run: LearningRun) -> dict:
     from src.db.portfolio import Portfolio, ProjectItem, TimelineEntry
 
     pages = db_session.exec(
-        select(LearningPage).where(LearningPage.activity_id == activity_run.activity_id)
+        select(LearningPage).where(LearningPage.activity_id == run.activity_id)
     ).all()
     page_by_id = {page.id: page for page in pages}
     answers: dict = {}
@@ -76,6 +73,7 @@ def _flow_context(
         "timeline_count": 0,
         "readiness_blockers": [],
     }
+    portfolio = None
     if run.user_id:
         portfolio = db_session.exec(
             select(Portfolio).where(Portfolio.user_id == run.user_id)
@@ -101,7 +99,7 @@ def _flow_context(
                 facts["project_count"] > 0,
                 facts["timeline_count"] > 0,
             )
-    data = activity_run.data or {}
+    data = run.data or {}
     variables = dict(data.get("variables") or {})
     if run.user_id:
         user = db_session.get(User, run.user_id)
@@ -143,38 +141,28 @@ def _flow_context(
     }
 
 
-def _resolved_activity_flow(
-    db_session: Session, run: LearningRun, activity_run: LearningActivityRun
-):
-    activity = db_session.get(LearningActivity, activity_run.activity_id)
+def _resolved_activity_flow(db_session: Session, run: LearningRun):
+    activity = db_session.get(LearningActivity, run.activity_id)
     flow = (activity.settings or {}).get("flow") if activity else None
     return (
-        resolve_flow(flow, _flow_context(db_session, run, activity_run))
+        resolve_flow(flow, _flow_context(db_session, run))
         if flow
         else None
     )
 
 
+def _run_pages(db_session: Session, run: LearningRun) -> list[LearningPage]:
+    return list(db_session.exec(select(LearningPage).where(LearningPage.activity_id == run.activity_id)).all())
+
+
 def _run_navigation(db_session: Session, run: LearningRun) -> dict:
-    """The server-side route of every activity in the run's version.
+    """The server-side route through the run's activity.
 
     Players render ``path`` and move to ``current_page_uuid``; they never
-    resolve flows themselves. Activities the learner has not opened yet get a
-    route too, so the first page can already depend on learner variables.
+    resolve flows themselves. A route exists before the learner opens the
+    activity, so the first page can already depend on learner variables.
     """
-    activity_runs = {
-        activity_run.activity_id: activity_run
-        for activity_run in db_session.exec(
-            select(LearningActivityRun).where(LearningActivityRun.run_id == run.id)
-        ).all()
-    }
-    activities = scope.run_activities(db_session, run)
-    activity_ids = {activity.id for activity in activities} | set(activity_runs)
-    pages_by_activity: dict[int, list[LearningPage]] = {}
-    for page in db_session.exec(
-        select(LearningPage).where(LearningPage.activity_id.in_(activity_ids))  # type: ignore[union-attr]
-    ).all():
-        pages_by_activity.setdefault(page.activity_id, []).append(page)
+    pages = _run_pages(db_session, run)
     completed = {
         item.page_id
         for item in db_session.exec(
@@ -184,33 +172,20 @@ def _run_navigation(db_session: Session, run: LearningRun) -> dict:
             )
         ).all()
     }
-    navigation = []
-    for activity_id in sorted(activity_ids):
-        activity_run = activity_runs.get(activity_id) or LearningActivityRun(
-            run_id=run.id or 0, activity_id=activity_id, data={}
-        )
-        resolved = _resolved_activity_flow(db_session, run, activity_run)
-        pages = pages_by_activity.get(activity_id, [])
-        done = {page.page_uuid for page in pages if page.id in completed}
-        path = (
-            list(resolved.page_uuids)
-            if resolved
-            else [page.page_uuid for page in sorted(pages, key=lambda page: page.order)]
-        )
-        navigation.append(
-            {
-                "activity_id": activity_id,
-                "path": path,
-                "current_page_uuid": next((uuid for uuid in path if uuid not in done), None),
-                "terminal_reachable": bool(resolved.terminal) if resolved else True,
-                "condition_trace": resolved.trace if resolved else [],
-                "completed": len([uuid for uuid in path if uuid in done]),
-                "total": len(path),
-                # Score/pass result once every required page on the route is done.
-                "result": (activity_run.data or {}).get("completion_result"),
-            }
-        )
-    return {"activities": navigation}
+    resolved = _resolved_activity_flow(db_session, run)
+    done = {page.page_uuid for page in pages if page.id in completed}
+    path = list(resolved.page_uuids) if resolved else [page.page_uuid for page in sorted(pages, key=lambda page: page.order)]
+    return {
+        "activity_id": run.activity_id,
+        "path": path,
+        "current_page_uuid": next((uuid for uuid in path if uuid not in done), None),
+        "terminal_reachable": bool(resolved.terminal) if resolved else True,
+        "condition_trace": resolved.trace if resolved else [],
+        "completed": len([uuid for uuid in path if uuid in done]),
+        "total": len(path),
+        # Score/pass result once every required page on the route is done.
+        "result": (run.data or {}).get("completion_result"),
+    }
 
 
 def _block_scoring(page: LearningPage, question: dict) -> dict:
@@ -224,7 +199,7 @@ def _block_completion(page: LearningPage, question: dict) -> dict:
 
 
 def _serialize_run(db_session: Session, run: LearningRun) -> LearningRunRead:
-    progress = scope.run_pages(db_session, run)
+    progress = _run_pages(db_session, run)
     progress_by_page = {
         item.page_id: item
         for item in db_session.exec(
@@ -234,9 +209,6 @@ def _serialize_run(db_session: Session, run: LearningRun) -> LearningRunRead:
     attempts = db_session.exec(
         select(LearningResponseAttempt).where(LearningResponseAttempt.run_id == run.id)
     ).all()
-    award = db_session.exec(
-        select(LearningBadgeAward).where(LearningBadgeAward.run_id == run.id)
-    ).first()
     navigation = _run_navigation(db_session, run)
     render_context = {"answers": {}, "variables": {}}
     page_by_id = {page.id: page for page in progress}
@@ -281,12 +253,9 @@ def _serialize_run(db_session: Session, run: LearningRun) -> LearningRunRead:
             # Dynamic option collections use the same {value,label,...} contract as
             # timeline_options, so standard question blocks can consume new domain
             # lists without adding one-off response shapes.
-            started_badge_ids = {
-                item.badge_id
-                for item in db_session.exec(
-                    select(LearningRun).where(LearningRun.user_id == user.id)
-                ).all()
-            }
+            started_badge_ids = set(db_session.exec(
+                select(Plan.source_badge_id).where(Plan.subject_user_id == user.id, Plan.source_badge_id.is_not(None))  # type: ignore[union-attr]
+            ).all())
             earned_badge_ids = {
                 item.badge_id
                 for item in db_session.exec(
@@ -299,8 +268,8 @@ def _serialize_run(db_session: Session, run: LearningRun) -> LearningRunRead:
                 select(LearningBadge)
                 .where(
                     LearningBadge.status == LearningBadgeStatus.PUBLISHED,
-                    LearningBadge.public == True,  # type: ignore
-                    LearningBadge.system_type.is_(None),  # type: ignore
+                    LearningBadge.public == True,  # noqa: E712
+                    LearningBadge.deleted_at.is_(None),  # type: ignore[union-attr]
                 )
                 .order_by(LearningBadge.creation_date.desc())  # type: ignore
             ).all()
@@ -318,18 +287,12 @@ def _serialize_run(db_session: Session, run: LearningRun) -> LearningRunRead:
     return LearningRunRead(
         id=run.id or 0,
         run_uuid=run.run_uuid,
-        badge_id=run.badge_id,
-        path_id=run.path_id,
         activity_id=run.activity_id,
         org_id=run.org_id,
         issuing_org_id=run.issuing_org_id,
-        program_assignment_id=run.program_assignment_id,
-        program_participant_id=run.program_participant_id,
         plan_id=run.plan_id,
         plan_objective_id=run.plan_objective_id,
-        issuer_learner_link_id=run.issuer_learner_link_id,
         user_id=run.user_id,
-        guest_session_id=run.guest_session_id,
         status=run.status,
         started_at=run.started_at,
         completed_at=run.completed_at,
@@ -355,7 +318,6 @@ def _serialize_run(db_session: Session, run: LearningRun) -> LearningRunRead:
             }
             for attempt in attempts
         ],
-        award=award.model_dump() if award else None,
         navigation=navigation,
         render_context=render_context,
     )

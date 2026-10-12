@@ -52,13 +52,3 @@ def api_start_badge_plan(
 ):
     """Start earning a badge: creates the learner's own plan from the route, offered by the issuer."""
     return service.start_badge_plan(db, current_user, badge_uuid, payload)
-
-
-@router.post("/{badge_uuid}/routes/convert-path")
-def api_convert_badge_path(
-    badge_uuid: str,
-    db: Session = Depends(get_db_session),
-    current_user: PublicUser = Depends(get_current_user),
-):
-    """Turn the badge's learning path into a plan template and make it the recommended route."""
-    return service.convert_path(db, current_user, badge_uuid)

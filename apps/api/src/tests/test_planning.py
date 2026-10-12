@@ -5,7 +5,6 @@ from fastapi import HTTPException
 from sqlmodel import SQLModel, Session, create_engine, select
 
 from src.db.learning import LearningBadge, LearningBadgeAward, LearningPage, LearningPageProgress, LearningRun
-from src.db.guest_sessions import GuestSession
 from src.db.media import MediaAsset, MediaOwnerType, MediaSourceType, MediaType
 from src.db.messages import InboxMessage
 from src.db.organizations import Organization
@@ -60,7 +59,7 @@ def _session() -> Session:
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     SQLModel.metadata.create_all(engine, tables=[
         Organization.__table__, OrganizationConfig.__table__, User.__table__, Program.__table__, ProgramAssignment.__table__, ProgramParticipant.__table__,
-        Objective.__table__, ObjectiveProgress.__table__, GuestSession.__table__, LearningBadge.__table__, LearningBadgeAward.__table__, LearningRun.__table__, LearningPage.__table__, LearningPageProgress.__table__,
+        Objective.__table__, ObjectiveProgress.__table__, LearningBadge.__table__, LearningBadgeAward.__table__, LearningRun.__table__, LearningPage.__table__, LearningPageProgress.__table__,
         Plan.__table__, PlanRole.__table__, PlanCollaborator.__table__, PlanPhase.__table__,
         OrganizationPlanRole.__table__,
         PlanObjective.__table__, PlanObjectiveProgress.__table__, PlanInvitation.__table__, PlanActivity.__table__,
@@ -429,67 +428,6 @@ def test_materialized_badge_snapshots_become_badge_requirements():
             "title": "Clinical practice", "type": "badge",
             "badge_uuid": "badge_1", "restricted": False,
         }]
-
-
-def test_legacy_learning_runs_link_only_to_unambiguous_badge_requirements():
-    with _session() as db:
-        badge = LearningBadge(
-            id=1, badge_uuid="badge_1", org_id=1, name="Clinical practice",
-            creation_date=NOW, update_date=NOW,
-        )
-        linked_plan = Plan(
-            plan_uuid="plan_linked", slug="linked", name="Linked plan",
-            owner_user_id=1, subject_user_id=2, creation_date=NOW, update_date=NOW,
-        )
-        ambiguous_plan = Plan(
-            plan_uuid="plan_ambiguous", slug="ambiguous", name="Ambiguous plan",
-            owner_user_id=1, subject_user_id=2, creation_date=NOW, update_date=NOW,
-        )
-        db.add_all([badge, linked_plan, ambiguous_plan])
-        db.flush()
-        linked_objective = PlanObjective(
-            objective_uuid="objective_linked", plan_id=linked_plan.id,
-            title="Complete placement", kind="custom", badge_id=badge.id,
-            fields=[{"field_uuid": "badge_1", "type": "badge", "badge_uuid": badge.badge_uuid}],
-            creation_date=NOW, update_date=NOW,
-        )
-        db.add_all([
-            linked_objective,
-            PlanObjective(
-                objective_uuid="objective_ambiguous_1", plan_id=ambiguous_plan.id,
-                title="First placement", kind="custom", badge_id=badge.id,
-                fields=[{"field_uuid": "badge_1a", "type": "badge", "badge_uuid": badge.badge_uuid}],
-                creation_date=NOW, update_date=NOW,
-            ),
-            PlanObjective(
-                objective_uuid="objective_ambiguous_2", plan_id=ambiguous_plan.id,
-                title="Second placement", kind="custom", badge_id=badge.id,
-                fields=[{"field_uuid": "badge_1b", "type": "badge", "badge_uuid": badge.badge_uuid}],
-                creation_date=NOW, update_date=NOW,
-            ),
-        ])
-        db.flush()
-        linked_run = LearningRun(
-            run_uuid="run_linked", badge_id=badge.id, path_id=1, org_id=1,
-            program_assignment_id=10, program_participant_id=20, user_id=2,
-            creation_date=NOW, update_date=NOW,
-        )
-        ambiguous_run = LearningRun(
-            run_uuid="run_ambiguous", badge_id=badge.id, path_id=1, org_id=1,
-            program_assignment_id=11, program_participant_id=20, user_id=2,
-            creation_date=NOW, update_date=NOW,
-        )
-        db.add_all([linked_run, ambiguous_run])
-        db.flush()
-
-        planning._link_legacy_learning_runs(db, 10, 20, 2, linked_plan)
-        planning._link_legacy_learning_runs(db, 11, 20, 2, ambiguous_plan)
-        db.flush()
-
-        assert linked_run.plan_id == linked_plan.id
-        assert linked_run.plan_objective_id == linked_objective.id
-        assert ambiguous_run.plan_id is None
-        assert ambiguous_run.plan_objective_id is None
 
 
 def test_structure_schedule_role_and_leave_permissions_are_independent():

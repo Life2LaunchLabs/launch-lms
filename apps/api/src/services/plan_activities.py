@@ -14,7 +14,7 @@ from uuid import uuid4
 from fastapi import HTTPException
 from sqlmodel import Session, select
 
-from src.db.learning import LearningActivity, LearningActivityRun, LearningPage, LearningRun, LearningRunStatus
+from src.db.learning import LearningActivity, LearningPage, LearningRun, LearningRunStatus
 from src.db.planning import Plan, PlanObjective, PlanObjectiveStatus
 from src.db.programs import Objective
 from src.db.users import PublicUser
@@ -29,8 +29,7 @@ def create_objective_activity(db: Session, objective: Objective) -> LearningActi
     now = _now_string()
     activity = LearningActivity(
         activity_uuid=f"learning_activity_{uuid4()}", objective_id=objective.id, org_id=objective.org_id,
-        title=objective.title, description=objective.description or "", order=1, required=True,
-        published=True, settings={}, creation_date=now, update_date=now,
+        title=objective.title, description=objective.description or "", settings={}, creation_date=now, update_date=now,
     )
     db.add(activity)
     db.flush()
@@ -142,12 +141,9 @@ def sync_objective_from_run(db: Session, run: LearningRun) -> None:
     plan = db.get(Plan, objective.plan_id) if objective else None
     if not objective or not plan:
         return
-    activity_run = db.exec(select(LearningActivityRun).where(
-        LearningActivityRun.run_id == run.id, LearningActivityRun.activity_id == run.activity_id,
-    )).first()
-    finished = bool(activity_run and activity_run.status == LearningRunStatus.COMPLETED)
-    waiting = grading._has_pending_required_manual_grades(db, run) or bool(
-        activity_run and (activity_run.data or {}).get("completion_result", {}).get("reason") == "pending_manual_grades"
+    finished = run.status == LearningRunStatus.COMPLETED
+    waiting = grading._has_pending_required_manual_grades(db, run) or (
+        (run.data or {}).get("completion_result", {}).get("reason") == "pending_manual_grades"
     )
     progress = _progress_for(db, objective)
     current = progress.status.value if hasattr(progress.status, "value") else str(progress.status)
@@ -166,10 +162,6 @@ def sync_objective_from_run(db: Session, run: LearningRun) -> None:
     progress.updated_by_user_id = run.user_id
     progress.update_date = _now_string()
     db.add(progress)
-    if target == PlanObjectiveStatus.COMPLETED:
-        run.status = LearningRunStatus.COMPLETED
-        run.completed_at = datetime.utcnow()
-        db.add(run)
     db.flush()
     from src.services.requirements import sync_live_progress
     sync_live_progress(db, progress, objective, plan)

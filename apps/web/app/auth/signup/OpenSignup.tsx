@@ -74,12 +74,11 @@ function OpenSignUpComponent({
   const searchParams = useSearchParams()
   const [error, setError] = React.useState('')
   const nextUrl = searchParams.get('next')
-  const inviteBadge = searchParams.get('inviteBadge')
   const inviteCode = searchParams.get('inviteCode')
   const invitationToken = searchParams.get('invitation')
   const createOrgRedirect = getUriWithOrg(org?.slug, '/signup/org')
   const postSignupUrl =
-    postSignupUrlOverride || nextUrl || (createOrgMode ? createOrgRedirect : inviteBadge ? `/badges?inviteBadge=${encodeURIComponent(inviteBadge)}` : '/')
+    postSignupUrlOverride || nextUrl || (createOrgMode ? createOrgRedirect : '/')
   const formik = useFormik({
     initialValues: {
       org_slug: org?.slug,

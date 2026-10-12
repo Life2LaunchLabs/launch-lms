@@ -32,8 +32,8 @@ def templates(mcp):  # noqa: F811
 
 
 def test_tools_are_listed_with_their_scopes(templates):
-    _, call, *_ = templates
-    listed = call("list_plan_templates", {"query": "career"})["structuredContent"]["templates"]
+    _, call, _, uuid = templates
+    listed = [item for item in call("list_plan_templates", {"query": "career"})["structuredContent"]["templates"] if item["template_uuid"] == uuid]
     assert [(item["name"], item["phase_count"], item["objective_count"]) for item in listed] == [("Career Ready", 1, 2)]
     assert listed[0]["editor_url"].endswith(f"/admin/plans/{listed[0]['template_uuid']}/objectives")
     schema = call("get_plan_template_schema")["structuredContent"]
@@ -132,8 +132,11 @@ def test_create_copies_a_template_with_a_badge_objective(templates):
     assert badge["badge_uuid"] == "badge_1" and badge["allow_learner_confirmation"] is True
     assert badge["steps"][0]["type"] == "badge" and badge["steps"][0]["badge_uuid"] == "badge_1"
     # Copies own their objectives: editing one never edits the source template.
-    source_ids = {row.objective_id for row in session.exec(select(ProgramObjective).where(ProgramObjective.program_id == 1)).all()}
-    copy_ids = {row.objective_id for row in session.exec(select(ProgramObjective).where(ProgramObjective.program_id == 2)).all()}
+    def objective_ids(template_uuid):
+        program = session.exec(select(Program).where(Program.program_uuid == template_uuid)).one()
+        return {row.objective_id for row in session.exec(select(ProgramObjective).where(ProgramObjective.program_id == program.id)).all()}
+
+    source_ids, copy_ids = objective_ids(uuid), objective_ids(created["context"]["template_uuid"])
     assert source_ids and not source_ids & copy_ids
 
     edited = deepcopy(created["document"])
@@ -180,7 +183,7 @@ def test_activity_objectives_are_added_in_the_template_and_edited_with_activity_
     assert [(item["title"], item["page_count"]) for item in listed] == [("Spot the change", 0)]
     assert "/admin/plans/" in listed[0]["editor_url"]
     activity = call("get_activity", {"activity_uuid": listed[0]["activity_uuid"]})["structuredContent"]
-    assert activity["context"]["editable"] is True
+    assert activity["context"]["template_uuid"] == uuid
     document = deepcopy(activity["document"])
     document["pages"] = [{"page_uuid": "start", "title": "What changed?", "content": {"version": 2, "blocks": []}}]
     result = call("save_activity", {"activity_uuid": listed[0]["activity_uuid"], "document": document, "base_etag": activity["etag"]}, auth=token)

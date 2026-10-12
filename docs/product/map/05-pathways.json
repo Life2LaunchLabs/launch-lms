@@ -35,9 +35,9 @@
           "health": "works",
           "traceability": "partial",
           "priority": "unset",
-          "implementation_notes": "Plan lists support active/completed/archived contexts and can include independent or assigned plans.",
+          "implementation_notes": "My plans groups steps into This week (the week's picks, with progress by plan), Next week, months for dated steps, and Later, beside the list of plans and a single New plan entry. Badge plans and the Launch Ready starter plan are ordinary plans here. Plan lists support active/completed/archived contexts and include independent and assigned plans.",
           "original_state": "`Live`",
-          "updated_at": "2026-09-04T01:47:50.540149+00:00",
+          "updated_at": "2026-10-12T16:00:00+00:00",
           "description": "",
           "goal_title": "Understand my plans",
           "group_title": "Plan goals and coordinate support",
@@ -188,7 +188,16 @@
               "references": []
             }
           ],
-          "references": [],
+          "references": [
+            {
+              "kind": "code",
+              "path": "apps/web/components/Plans/learner/PlansHome.tsx"
+            },
+            {
+              "kind": "code",
+              "path": "apps/api/src/services/plan_home.py"
+            }
+          ],
           "relationships": []
         },
         {
@@ -200,9 +209,9 @@
           "health": "works",
           "traceability": "partial",
           "priority": "unset",
-          "implementation_notes": "A plan identifies subject, owner, source assignment, group, collaborators, start/due dates, and objective progress.",
+          "implementation_notes": "The plan page shows a carousel header with neighbouring plans, About this plan, and the full step stack opened at the next step. A plan identifies subject, owner, source assignment or badge, group, collaborators, start/due dates, and step progress.",
           "original_state": "`Live`",
-          "updated_at": "2026-09-04T01:47:50.540149+00:00",
+          "updated_at": "2026-10-12T16:00:00+00:00",
           "description": "",
           "goal_title": "Understand my plans",
           "group_title": "Plan goals and coordinate support",
@@ -353,7 +362,16 @@
               "references": []
             }
           ],
-          "references": [],
+          "references": [
+            {
+              "kind": "code",
+              "path": "apps/web/components/Plans/learner/PlanView.tsx"
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/components/Plans/learner/StepStack.tsx"
+            }
+          ],
           "relationships": []
         },
         {
@@ -695,9 +713,9 @@
           "health": "works",
           "traceability": "partial",
           "priority": "unset",
-          "implementation_notes": "Phases sequence objectives; schedules, priority, blocked, and late states help communicate attention.",
+          "implementation_notes": "Phases sequence objectives; schedules, priority, blocked, and late states help communicate attention. Each step is open, not ready (with its reason: opens on a date, or after another step), or done. In-order and by-chapter plans and explicit prerequisites gate steps, and the API refuses progress on a step that isn't ready.",
           "original_state": "`Live`",
-          "updated_at": "2026-09-04T01:47:50.540149+00:00",
+          "updated_at": "2026-10-12T16:00:00+00:00",
           "description": "",
           "goal_title": "Work through objectives and evidence",
           "group_title": "Plan goals and coordinate support",
@@ -874,9 +892,44 @@
               "signoff": {},
               "source": {},
               "references": []
+            },
+            {
+              "id": "PATHWAYS-G002-A001-S005",
+              "activity_id": "PATHWAYS-G002-A001",
+              "display_order": 5,
+              "title": "Understand why a step isn't ready yet",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "passed",
+              "manual_status": "not_tested",
+              "implementation_notes": null,
+              "updated_at": "2026-10-12T16:00:00+00:00",
+              "verification": {
+                "status": "unverified"
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
             }
           ],
-          "references": [],
+          "references": [
+            {
+              "kind": "code",
+              "path": "apps/web/components/Plans/PlansWorkspace.tsx"
+            },
+            {
+              "kind": "code",
+              "path": "apps/api/src/services/plan_availability.py",
+              "symbol": "plan_availability"
+            },
+            {
+              "kind": "test",
+              "path": "apps/api/src/tests/test_planning.py"
+            }
+          ],
           "relationships": []
         },
         {
@@ -888,9 +941,9 @@
           "health": "works",
           "traceability": "partial",
           "priority": "unset",
-          "implementation_notes": "A plan objective can link directly to a specific badge/version and synchronize learning progress.",
+          "implementation_notes": "A badge step opens the learner's badge plan for that badge, or the badge page to start one; the step completes when the badge is earned.",
           "original_state": "`Live`",
-          "updated_at": "2026-09-04T01:47:50.540149+00:00",
+          "updated_at": "2026-10-12T16:00:00+00:00",
           "description": "",
           "goal_title": "Work through objectives and evidence",
           "group_title": "Plan goals and coordinate support",
@@ -949,7 +1002,7 @@
               "id": "PATHWAYS-G002-A002-S001",
               "activity_id": "PATHWAYS-G002-A002",
               "display_order": 1,
-              "title": "Open the linked badge version",
+              "title": "Open the linked badge plan",
               "description": "",
               "step_kind": "core",
               "product_state": "live",
@@ -958,7 +1011,7 @@
               "automated_status": "not_tested",
               "manual_status": "passed",
               "implementation_notes": null,
-              "updated_at": "2026-09-03T18:12:53+00:00",
+              "updated_at": "2026-10-12T16:00:00+00:00",
               "verification": {
                 "status": "passed",
                 "reviewed_at": "2026-09-03T18:12:53+00:00",
@@ -973,7 +1026,7 @@
               "id": "PATHWAYS-G002-A002-S002",
               "activity_id": "PATHWAYS-G002-A002",
               "display_order": 2,
-              "title": "Complete the badge learning path",
+              "title": "Finish the badge plan",
               "description": "",
               "step_kind": "core",
               "product_state": "live",
@@ -982,7 +1035,7 @@
               "automated_status": "not_tested",
               "manual_status": "passed",
               "implementation_notes": null,
-              "updated_at": "2026-09-03T18:12:53+00:00",
+              "updated_at": "2026-10-12T16:00:00+00:00",
               "verification": {
                 "status": "passed",
                 "reviewed_at": "2026-09-03T18:12:53+00:00",
@@ -1196,9 +1249,9 @@
           "health": "works",
           "traceability": "partial",
           "priority": "unset",
-          "implementation_notes": "Steps can include notes/text, media, links, checkboxes, and badges. Some fields/actions may be restricted to particular roles.",
+          "implementation_notes": "Steps can include notes/text, media, links, checkboxes, badges, and activities. An activity step plays an interactive activity in the plan. Some fields/actions may be restricted to particular roles.",
           "original_state": "`Live`",
-          "updated_at": "2026-09-04T01:47:50.540149+00:00",
+          "updated_at": "2026-10-12T16:00:00+00:00",
           "description": "",
           "goal_title": "Work through objectives and evidence",
           "group_title": "Plan goals and coordinate support",
@@ -1343,6 +1396,27 @@
                 "reviewed_at": "2026-09-03T18:12:53+00:00",
                 "reviewed_by": "product_owner",
                 "evidence": "Verified during activity review."
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "PATHWAYS-G002-A004-S005",
+              "activity_id": "PATHWAYS-G002-A004",
+              "display_order": 5,
+              "title": "Play a step's activity",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "passed",
+              "manual_status": "not_tested",
+              "implementation_notes": null,
+              "updated_at": "2026-10-12T16:00:00+00:00",
+              "verification": {
+                "status": "unverified"
               },
               "signoff": {},
               "source": {},
@@ -1657,6 +1731,133 @@
           ],
           "references": [],
           "relationships": []
+        },
+        {
+          "id": "PATHWAYS-G002-A007",
+          "goal_id": "PATHWAYS-G002",
+          "display_order": 7,
+          "title": "Pace undated steps with a weekly focus",
+          "product_state": "live",
+          "health": "works",
+          "traceability": "partial",
+          "priority": "unset",
+          "implementation_notes": "Undated steps are paced: each learner has a weekly target (default 5). On the first My plans load of a week the server picks the week's steps (dated this week or overdue, carried-over picks, then open undated steps round-robin across plans) and keeps them for the week. Ready for more adds up to three open steps; Next week previews the next batch; other undated steps wait in Later. Plan pages ignore pacing and show every step.",
+          "original_state": null,
+          "updated_at": "2026-10-12T16:00:00+00:00",
+          "description": "",
+          "goal_title": "Work through objectives and evidence",
+          "group_title": "Plan goals and coordinate support",
+          "availability": {},
+          "verification": {
+            "status": "unverified"
+          },
+          "signoff": {
+            "status": "not_requested"
+          },
+          "source": {},
+          "acceptance": [],
+          "references": [
+            {
+              "kind": "code",
+              "path": "apps/api/src/services/plan_home.py",
+              "responsibility": "Weekly picks, Ready for more, and the My plans timeline"
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/components/Plans/learner/PlansHome.tsx"
+            },
+            {
+              "kind": "test",
+              "path": "apps/api/src/tests/test_plan_home.py"
+            }
+          ],
+          "relationships": [],
+          "steps": [
+            {
+              "id": "PATHWAYS-G002-A007-S001",
+              "activity_id": "PATHWAYS-G002-A007",
+              "display_order": 1,
+              "title": "Review this week's steps",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "passed",
+              "manual_status": "not_tested",
+              "implementation_notes": null,
+              "updated_at": "2026-10-12T16:00:00+00:00",
+              "verification": {
+                "status": "unverified"
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "PATHWAYS-G002-A007-S002",
+              "activity_id": "PATHWAYS-G002-A007",
+              "display_order": 2,
+              "title": "Change the weekly target",
+              "description": "",
+              "step_kind": "optional",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "passed",
+              "manual_status": "not_tested",
+              "implementation_notes": null,
+              "updated_at": "2026-10-12T16:00:00+00:00",
+              "verification": {
+                "status": "unverified"
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "PATHWAYS-G002-A007-S003",
+              "activity_id": "PATHWAYS-G002-A007",
+              "display_order": 3,
+              "title": "Ask for more steps",
+              "description": "",
+              "step_kind": "optional",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "passed",
+              "manual_status": "not_tested",
+              "implementation_notes": null,
+              "updated_at": "2026-10-12T16:00:00+00:00",
+              "verification": {
+                "status": "unverified"
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "PATHWAYS-G002-A007-S004",
+              "activity_id": "PATHWAYS-G002-A007",
+              "display_order": 4,
+              "title": "Preview next week and later",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "passed",
+              "manual_status": "not_tested",
+              "implementation_notes": null,
+              "updated_at": "2026-10-12T16:00:00+00:00",
+              "verification": {
+                "status": "unverified"
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            }
+          ]
         }
       ]
     },
@@ -2777,9 +2978,9 @@
           "health": "works",
           "traceability": "partial",
           "priority": "unset",
-          "implementation_notes": "Define the template's identity, roles, phases, custom objectives, badge steps, evidence and completion policies, scheduling rules, and late-work behavior for future assignments.",
+          "implementation_notes": "Define the template's identity, roles, phases, custom objectives, badge steps, activity steps (an interactive activity owned by the step), step order (any order, in order, or by chapter) with prerequisites, evidence and completion policies, scheduling rules, and late-work behavior for future assignments. Templates are also the ways to earn badges.",
           "original_state": "`Live`",
-          "updated_at": "2026-09-09T20:11:55.779491+00:00",
+          "updated_at": "2026-10-12T16:00:00+00:00",
           "description": "",
           "goal_title": "Design, deliver, and oversee managed plans",
           "group_title": "Plan goals and coordinate support",
@@ -3141,6 +3342,48 @@
                   "responsibility": "Offers searchable library and blank paths from the new-template action."
                 }
               ]
+            },
+            {
+              "id": "PATHWAYS-G004-A001-S008",
+              "activity_id": "PATHWAYS-G004-A001",
+              "display_order": 8,
+              "title": "Add an activity step and edit its activity",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "passed",
+              "manual_status": "not_tested",
+              "implementation_notes": null,
+              "updated_at": "2026-10-12T16:00:00+00:00",
+              "verification": {
+                "status": "unverified"
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
+            },
+            {
+              "id": "PATHWAYS-G004-A001-S009",
+              "activity_id": "PATHWAYS-G004-A001",
+              "display_order": 9,
+              "title": "Set the step order",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "none",
+              "automated_status": "passed",
+              "manual_status": "not_tested",
+              "implementation_notes": null,
+              "updated_at": "2026-10-12T16:00:00+00:00",
+              "verification": {
+                "status": "unverified"
+              },
+              "signoff": {},
+              "source": {},
+              "references": []
             }
           ],
           "references": [
@@ -3734,9 +3977,9 @@
           "health": "works",
           "traceability": "partial",
           "priority": "unset",
-          "implementation_notes": "Review queues combine custom-objective decisions and badge-response grading across assigned live plans.",
+          "implementation_notes": "Review queues combine custom-objective decisions and activity-response grading across assigned live plans.",
           "original_state": "`Live`",
-          "updated_at": "2026-09-04T01:47:50.540149+00:00",
+          "updated_at": "2026-10-12T16:00:00+00:00",
           "description": "",
           "goal_title": "Design, deliver, and oversee managed plans",
           "group_title": "Plan goals and coordinate support",
@@ -3825,7 +4068,7 @@
               "id": "PATHWAYS-G004-A005-S002",
               "activity_id": "PATHWAYS-G004-A005",
               "display_order": 2,
-              "title": "Grade a badge response",
+              "title": "Grade an activity response",
               "description": "",
               "step_kind": "alternative",
               "product_state": "live",
@@ -3834,7 +4077,7 @@
               "automated_status": "not_tested",
               "manual_status": "not_tested",
               "implementation_notes": null,
-              "updated_at": "2026-09-04T01:47:50.540149+00:00",
+              "updated_at": "2026-10-12T16:00:00+00:00",
               "verification": {},
               "signoff": {},
               "source": {},

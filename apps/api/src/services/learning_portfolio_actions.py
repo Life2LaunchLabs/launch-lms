@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 from uuid import uuid4
 
 from sqlmodel import Session, select
-from src.db.learning import LearningBadge, LearningPath, LearningRun, LearningRunStatus
+from src.db.learning import LearningBadge, LearningBadgeStatus
 from src.db.media import MediaAsset
 from src.db.portfolio import (
     Portfolio,
@@ -43,7 +43,7 @@ ACTION_TYPES = {
     "confirm_privacy",
     "publish_portfolio",
     "emit_event",
-    "enroll_badges",
+    "start_badge_plans",
 }
 PORTFOLIO_FIELDS = {"display_name", "headline", "short_bio", "location_label"}
 WORK_FIELDS = {
@@ -189,10 +189,32 @@ def _portfolio(db: Session, user: User, now: str) -> Portfolio:
     return portfolio
 
 
+def _start_badge_plans(db: Session, user: User, badge_uuids: list) -> list[str]:
+    """Start up to three picked badges the learner can start now, each on its recommended route."""
+    from src.services.badge_routes import _routes, active_badge_plan, create_badge_plan
+    from src.services.learning_issuers import issuer_options
+
+    started: list[str] = []
+    for badge_uuid in list(dict.fromkeys(str(item) for item in badge_uuids))[:3]:
+        badge = db.exec(select(LearningBadge).where(
+            LearningBadge.badge_uuid == badge_uuid, LearningBadge.status == LearningBadgeStatus.PUBLISHED,
+            LearningBadge.public == True, LearningBadge.deleted_at.is_(None),  # type: ignore[union-attr]  # noqa: E712
+        )).first()
+        routes = _routes(db, badge) if badge else []
+        issuer_org_id = issuer_options(db, badge, int(user.id), set())["startable_issuer_org_id"] if badge else None  # type: ignore[arg-type]
+        if not badge or not routes or issuer_org_id is None:
+            continue
+        if not active_badge_plan(db, badge, int(user.id)):  # type: ignore[arg-type]
+            route, program = next(((route, program) for route, program in routes if route.recommended), routes[0])
+            create_badge_plan(db, badge, program, int(user.id), issuer_org_id, [])  # type: ignore[arg-type]
+        started.append(badge.badge_uuid)
+    return started
+
+
 def apply_portfolio_outcomes(
     db: Session,
     user: User,
-    activity_run_id: int,
+    run_id: int,
     outcomes: dict,
     context: dict,
     prior_receipts: dict | None = None,
@@ -200,7 +222,7 @@ def apply_portfolio_outcomes(
     """Apply without committing; the caller owns the transaction."""
     receipts, bindings = dict(prior_receipts or {}), dict(context.get("bindings") or {})
     now, portfolio = str(datetime.now()), _portfolio(db, user, str(datetime.now()))
-    run_ref = f"learning_activity_run:{activity_run_id}"
+    run_ref = f"learning_run:{run_id}"
     for action in outcomes.get("actions", []):
         action_id, kind = action["id"], action["type"]
         if action_id in receipts:
@@ -209,47 +231,8 @@ def apply_portfolio_outcomes(
         if kind == "set_portfolio_fields":
             for key, value in _mapped(action, local, PORTFOLIO_FIELDS).items():
                 setattr(portfolio, key, str(value or "").strip())
-        elif kind == "enroll_badges":
-            badge_uuids = list(
-                dict.fromkeys(_resolve(action.get("badge_uuids"), local) or [])
-            )[:3]
-            enrolled: list[str] = []
-            for badge_uuid in badge_uuids:
-                badge = db.exec(
-                    select(LearningBadge).where(
-                        LearningBadge.badge_uuid == str(badge_uuid),
-                        LearningBadge.status == "published",
-                        LearningBadge.public == True,  # type: ignore
-                        LearningBadge.system_type.is_(None),  # type: ignore
-                    )
-                ).first()
-                if not badge:
-                    continue
-                existing = db.exec(
-                    select(LearningRun).where(
-                        LearningRun.user_id == user.id, LearningRun.badge_id == badge.id
-                    )
-                ).first()
-                if not existing:
-                    path = db.exec(
-                        select(LearningPath).where(LearningPath.badge_id == badge.id)
-                    ).first()
-                    if not path:
-                        continue
-                    db.add(
-                        LearningRun(
-                            run_uuid=f"learning_run_{uuid4()}",
-                            badge_id=badge.id or 0,
-                            path_id=path.id or 0,
-                            org_id=badge.org_id,
-                            user_id=user.id,
-                            status=LearningRunStatus.IN_PROGRESS,
-                            creation_date=now,
-                            update_date=now,
-                        )
-                    )
-                enrolled.append(badge.badge_uuid)
-            receipts[action_id] = {"type": kind, "badge_uuids": enrolled}
+        elif kind == "start_badge_plans":
+            receipts[action_id] = {"type": kind, "badge_uuids": _start_badge_plans(db, user, _resolve(action.get("badge_uuids"), local) or [])}
         elif kind == "create_project_item":
             values = _mapped(action, local, WORK_FIELDS)
             title = str(values.pop("title", "") or "").strip()

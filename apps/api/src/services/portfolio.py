@@ -5,19 +5,9 @@ from uuid import uuid4
 
 from fastapi import HTTPException, status
 from sqlalchemy import inspect
-from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
-from src.db.learning import (
-    LearningActivity,
-    LearningActivityRun,
-    LearningAwardSource,
-    LearningBadge,
-    LearningBadgeAward,
-    LearningPage,
-    LearningPageProgress,
-    LearningRun,
-    LearningRunStatus,
-)
+from src.db.learning import LearningBadge, LearningBadgeAward
+from src.db.planning import Plan, PlanStatus
 from src.db.media import MediaAsset
 from src.db.portfolio import (
     Portfolio,
@@ -47,7 +37,6 @@ from src.db.portfolio import (
 )
 from src.db.user_organizations import UserOrganization
 from src.db.users import AnonymousUser, PublicUser, User
-from src.services.learning import ONBOARDING_ACTIVITY_UUID, ONBOARDING_BADGE_UUID
 
 DEFAULT_SECTIONS = (
     "about",
@@ -125,67 +114,11 @@ def _get_portfolio(db_session: Session, user_id: int) -> Portfolio | None:
     ).first()
 
 
-def _launch_ready_state(
-    user_id: int, db_session: Session, project_count: int = 0, timeline_count: int = 0
-) -> dict:
-    bind = db_session.get_bind()
-    if not inspect(bind).has_table("learningactivity"):
-        return {"items": [], "completed": 0, "total": 0, "percent": 0, "nextIncomplete": None, "earned": False}
-    badge = db_session.exec(
-        select(LearningBadge).where(LearningBadge.badge_uuid == ONBOARDING_BADGE_UUID)
-    ).first()
-    onboarding = db_session.exec(select(LearningActivity).where(LearningActivity.activity_uuid == ONBOARDING_ACTIVITY_UUID)).first()
-    award = (
-        db_session.exec(
-            select(LearningBadgeAward).where(
-                LearningBadgeAward.user_id == user_id,
-                LearningBadgeAward.badge_id == badge.id,
-            )
-        ).first()
-        if badge
-        else None
-    )
-    onboarding_complete = False
-    if onboarding:
-        onboarding_complete = bool(db_session.exec(select(LearningActivityRun).join(LearningRun, LearningActivityRun.run_id == LearningRun.id).where(LearningRun.user_id == user_id, LearningActivityRun.activity_id == onboarding.id, LearningActivityRun.status == LearningRunStatus.COMPLETED)).first())
-    portfolio = _get_portfolio(db_session, user_id)
-    traits = list(db_session.exec(select(ProfileTrait).where(ProfileTrait.portfolio_id == portfolio.id)).all()) if portfolio else []
-    has_timeline = bool(portfolio and db_session.exec(select(TimelineEntry).where(TimelineEntry.portfolio_id == portfolio.id, TimelineEntry.status != PortfolioContentStatus.ARCHIVED)).first())
-    started_other_badge = bool(db_session.exec(select(LearningRun).join(LearningBadge, LearningRun.badge_id == LearningBadge.id).where(LearningRun.user_id == user_id, LearningBadge.system_type.is_(None))).first())  # type: ignore
-    facts = {
-        "onboarding": onboarding_complete,
-        "current_experience": has_timeline,
-        "projects": project_count > 0,
-        "strength": any(item.trait_type == "strength" for item in traits),
-        "value": any(item.trait_type == "value" for item in traits),
-        "badge_started": started_other_badge,
-        "preview": bool(portfolio and portfolio.previewed_at),
-    }
-    definitions = [
-        ("onboarding", "Complete your profile", "Add your name, introduction, and the basics that make this portfolio yours.", "/badges/badge_system_onboarding/chapter/learning_activity_system_onboarding_intro?returnTo=/portfolio"),
-        ("current_experience", "Add a Timeline experience", "Share a current, recent, or formative part of your story.", "/portfolio/timeline?experience=work_career"),
-        ("projects", "Add your first project", "Show a project, performance, volunteer effort, hobby, or anything you made.", "/portfolio/projects/new"),
-        ("strength", "Add your strengths", "Name what you are good at or actively developing.", "/portfolio?edit=strengths"),
-        ("value", "Add your values", "Share what matters to you and guides your choices.", "/portfolio?edit=values"),
-        ("badge_started", "Find a badge to start", "Choose something you want to learn or prove, then start its badge path.", "/badges?choose=1"),
-        ("preview", "Preview your portfolio", "See exactly what visitors will see before you share it.", "/portfolio/preview"),
-    ]
-    items = [{"key": key, "label": label, "supportingText": supporting, "href": href, "complete": facts[key]} for key, label, supporting, href in definitions]
-    completed_count = sum(1 for item in items if item["complete"])
-    if badge and completed_count == len(items) and not award:
-        now = datetime.utcnow()
-        award = LearningBadgeAward(award_uuid=f"award_{uuid4()}", badge_id=badge.id or 0, org_id=badge.org_id, user_id=user_id, source=LearningAwardSource.CHECKLIST_COMPLETION, issued_at=now, evidence={"type": "portfolio_launch_ready_checklist", "items": [item["key"] for item in items]}, creation_date=str(now), update_date=str(now))
-        try:
-            with db_session.begin_nested():
-                db_session.add(award)
-                db_session.flush()
-            db_session.commit()
-            db_session.refresh(award)
-        except IntegrityError:
-            db_session.rollback()
-            award = db_session.exec(select(LearningBadgeAward).where(LearningBadgeAward.badge_id == badge.id, LearningBadgeAward.user_id == user_id)).first()
-    next_incomplete = next((item for item in items if not item["complete"]), None)
-    return {"items": items, "completed": completed_count, "total": len(items), "percent": round(completed_count / len(items) * 100), "nextIncomplete": next_incomplete, "earned": bool(award)}
+def _launch_ready_state(user_id: int, db_session: Session) -> dict:
+    """The portfolio checklist: the learner's Launch Ready starter plan."""
+    from src.services.starter_plan import ensure_starter_plan, starter_checklist
+
+    return starter_checklist(db_session, ensure_starter_plan(db_session, user_id))
 
 
 def get_or_create_portfolio(current_user: PublicUser, db_session: Session) -> Portfolio:
@@ -494,114 +427,39 @@ def portfolio_shell(
             and _enum_value(section.visibility) != PortfolioVisibility.PRIVATE.value
         ]
     launch_ready = (
-        _launch_ready_state(portfolio.user_id, db_session, len(project), len(timeline))
+        _launch_ready_state(portfolio.user_id, db_session)
         if not public_only
         else None
     )
     learning_tables = (
         set(inspect(bind).get_table_names()) if bind is not None else set()
     )
-    awards = (
-        list(
-            db_session.exec(
-                select(LearningBadgeAward).where(
-                    LearningBadgeAward.user_id == portfolio.user_id
-                )
-            ).all()
-        )
-        if "learningbadgeaward" in learning_tables
-        else []
-    )
+    awards = list(db_session.exec(select(LearningBadgeAward).where(LearningBadgeAward.user_id == portfolio.user_id)).all()) if "learningbadgeaward" in learning_tables else []
     earned_ids = {item.badge_id for item in awards}
-    runs = (
-        list(
-            db_session.exec(
-                select(LearningRun).where(LearningRun.user_id == portfolio.user_id)
-            ).all()
-        )
-        if "learningrun" in learning_tables
-        else []
-    )
-    in_progress_ids = {
-        item.badge_id
-        for item in runs
-        if item.status != "completed" and item.badge_id not in earned_ids
-    }
-    run_ids = {item.id for item in runs if item.id}
-    badge_page_totals: dict[int, int] = {}
-    completed_pages_by_run: dict[int, int] = {}
-    if badge_ids := (earned_ids | in_progress_ids):
-        if "learningpage" in learning_tables:
-            for page in db_session.exec(
-                select(LearningPage).where(LearningPage.badge_id.in_(badge_ids))
-            ).all():  # type: ignore
-                badge_page_totals[page.badge_id] = (
-                    badge_page_totals.get(page.badge_id, 0) + 1
-                )
-        if run_ids and "learningpageprogress" in learning_tables:
-            for progress in db_session.exec(
-                select(LearningPageProgress).where(
-                    LearningPageProgress.run_id.in_(run_ids),
-                    LearningPageProgress.complete == True,  # type: ignore
-                )
-            ).all():
-                completed_pages_by_run[progress.run_id] = (
-                    completed_pages_by_run.get(progress.run_id, 0) + 1
-                )
-    badge_ids = earned_ids | (set() if public_only else in_progress_ids)
-    badge_records = (
-        list(
-            db_session.exec(
-                select(LearningBadge).where(LearningBadge.id.in_(badge_ids))
-            ).all()
-        )
-        if badge_ids and "learningbadge" in learning_tables
-        else []
-    )  # type: ignore
-    badges_by_id = {item.id: item for item in badge_records}
-    run_by_badge_id = {
-        item.badge_id: item for item in runs if item.badge_id in in_progress_ids
-    }
+    badge_plans = [] if public_only or "plan" not in learning_tables else [
+        plan for plan in db_session.exec(select(Plan).where(
+            Plan.subject_user_id == portfolio.user_id, Plan.source_badge_id.is_not(None), Plan.status == PlanStatus.ACTIVE,  # type: ignore[union-attr]
+        )).all() if plan.source_badge_id not in earned_ids
+    ]
+    from src.services.badge_discover import _plan_progress
+
+    progress_by_badge = {plan.source_badge_id: progress for plan, progress in zip(badge_plans, (_plan_progress(db_session, badge_plans).get(int(plan.id), (0, 0)) for plan in badge_plans))}  # type: ignore[arg-type]
+    badge_ids = earned_ids | set(progress_by_badge)
+    badges_by_id = {item.id: item for item in db_session.exec(select(LearningBadge).where(LearningBadge.id.in_(badge_ids))).all()} if badge_ids else {}  # type: ignore[union-attr]
 
     def badge_dto(item: LearningBadge, badge_status: str) -> dict:
-        run = run_by_badge_id.get(item.id or 0)
-        total = badge_page_totals.get(item.id or 0, 0)
-        completed = (
-            total
-            if badge_status == "earned"
-            else completed_pages_by_run.get(run.id or 0, 0)
-            if run
-            else 0
-        )
+        completed, total = (1, 1) if badge_status == "earned" else progress_by_badge.get(item.id, (0, 0))
         return {
             "badge_uuid": item.badge_uuid,
             "name": item.name,
             "description": item.description or "",
             "thumbnail_image": item.thumbnail_image or "",
             "status": badge_status,
-            "progress": {
-                "completed": completed,
-                "total": total,
-                "percent": 100
-                if badge_status == "earned"
-                else round((completed / total) * 100)
-                if total
-                else 0,
-            },
+            "progress": {"completed": completed, "total": total, "percent": round((completed / total) * 100) if total else 0},
         }
 
-    earned_badges = [
-        badge_dto(badges_by_id[item.badge_id], "earned")
-        for item in awards
-        if item.badge_id in badges_by_id
-    ]
-    in_progress_badges = [
-        badge_dto(badges_by_id[item.badge_id], "in_progress")
-        for item in runs
-        if item.badge_id in in_progress_ids
-        and item.badge_id in badges_by_id
-        and badges_by_id[item.badge_id].badge_uuid != ONBOARDING_BADGE_UUID
-    ]
+    earned_badges = [badge_dto(badges_by_id[item.badge_id], "earned") for item in awards if item.badge_id in badges_by_id]
+    in_progress_badges = [badge_dto(badges_by_id[badge_id], "in_progress") for badge_id in progress_by_badge if badge_id in badges_by_id]
     earned_badges = list({item["badge_uuid"]: item for item in earned_badges}.values())
     in_progress_badges = list(
         {item["badge_uuid"]: item for item in in_progress_badges}.values()

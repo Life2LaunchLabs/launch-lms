@@ -1,6 +1,6 @@
 # Learner plans and badges: build plan
 
-Status: built in five stacked PRs (#108–#112). Builds the learner side agreed in design review (mockups:
+Status: built in six stacked PRs (#108–#113). Builds the learner side agreed in design review (mockups:
 https://claude.ai/artifact/56FkTtx8GsDWgGUtbYMssB) on today's models. Direction
 and the longer-term model are in `badge-plan-unification.md`.
 
@@ -11,8 +11,8 @@ those need (step availability, weekly focus for undated steps, badge plans,
 collection marketing).
 
 Out (later unification phases): credentials on requirement frameworks, route
-templates, issuer rescoping, migrating learning paths into templates, the admin
-plan editor, challenges (Discover shows a "coming soon" banner only).
+templates, issuer rescoping, the admin plan editor, challenges (Discover shows a
+"coming soon" banner only).
 
 ## 1. Step availability (step-order rules)
 
@@ -68,27 +68,25 @@ more: a plan template is the ordered stack of objectives, and an objective of
 kind `activity` owns exactly one activity (its pages, flow, grading and
 outcomes, edited as an Activity Document).
 
-- **Ownership**: `LearningActivity.objective_id` points at the template
-  objective. `badge_id`, `path_id` and `version_id` become optional on
-  activities, pages and runs; badge-path activities keep working until the
-  phase 4 migration converts them.
+- **Ownership**: `LearningActivity.objective_id` (required) points at the
+  template objective. Activities, pages and runs carry no badge, path or
+  version.
 - **Live plans**: materialization copies the activity reference onto the live
   objective (`PlanObjective.activity_id`, kind `activity`). Template edits
   apply to new and in-progress learners (no activity versioning yet).
-- **Runs**: starting an activity objective creates one run scoped to that
-  activity on that learner's plan objective (`LearningRun.activity_id` +
-  `plan_objective_id`, no badge/path). The runtime (navigation, flow, page
-  completion, responses, grading, learner variables, portfolio outcomes) reads
-  its activities and pages through one scope helper, so badge runs and
-  objective runs share every code path.
+- **Runs**: starting an activity objective creates one run of that activity on
+  that learner's plan objective (`LearningRun.activity_id`, `plan_id`,
+  `plan_objective_id`, all required). The run holds its own route, result and
+  outcome receipts; there is no per-activity sub-run.
 - **Completion**: when the activity completes, its plan objective completes
   (or goes to review if it needs sign-off or has manual grading pending);
   reviewers grade responses through the existing review flow, which already
   accepts plan reviewers. Starting an objective that isn't open is refused.
 - **Editing**: template admins create and edit the activity from the template
-  objective; the editor and connector use the same Activity Document API,
-  with "editable" meaning org admin of the template's org instead of a draft
-  badge version.
+  objective; the editor and connector use the same Activity Document API.
+  Editing needs org admin of the template's org; activities are not versioned.
+  System templates (`Program.system_type`, e.g. the starter plan) may use
+  trusted outcomes and system blocks.
 
 **One connector.** The Claude connector stops having separate badge-activity
 and plan-template halves: it edits plans. The plan template document gains the
@@ -113,11 +111,10 @@ recommended).
 - **Award**: issuer sign-off happens on the reviewed steps inside the plan.
   When every step is complete, the issuer org awards the badge automatically
   (new award source `plan_completion`).
-- **Migration (auto-convert)**: each badge's active path becomes a published
-  template with Activity steps (same content, chapters as phases, recommended
-  route, `step_order` in order). Learners with an in-progress run get a plan
-  from it with finished activities marked done; existing awards stay. The old
-  path player is retired afterwards.
+- **Migration**: each badge's active path became an in-order template with one
+  activity step per path activity, its recommended route. Runs not on a plan
+  step were dropped; existing awards stay. Badge versions now cover only the
+  credential definition.
 - A badge used as a step in another plan keeps working (badge objective); its
   card opens the learner's badge plan.
 
@@ -177,7 +174,13 @@ Pages:
    Learner reads are `GET /badges/discover`, `GET /badges/{badge}/page` and
    `GET /badges/collections/{collection}` (`services/badge_discover.py`).
    Collection marketing lives in `badgecollection.metadata`
-   (`credibility`, `endorsers`). Badge paths convert to routes once per boot
-   (`badge_conversion.convert_on_startup`, advisory-locked); badges without
-   routes, and badge paths opened from an assignment or plan step, keep the
-   old overview.
+   (`credibility`, `endorsers`).
+6. Retire badge learning paths. One migration (`w7x8y9z0a1b2`) converts the
+   remaining paths into routes and drops paths, guest sessions, notification
+   sign-ups, per-activity runs, and badge/collection system flags. The old
+   badge pages, path player, invite page and path editor are gone; every badge
+   link opens `/badges/{badge}`. Onboarding is the Launch Ready starter plan
+   (`services/starter_plan`): a system template every learner gets, with steps
+   already done in their portfolio checked off. It is no longer a badge, and
+   signup requires an account before onboarding (no guest pre-signup flow).
+   Badge packages carry badge definitions only.

@@ -269,7 +269,7 @@ function DashLeftMenu() {
                       {recentBadges.map((badge: any) => (
                         <HoverMenuItem key={badge.badge_uuid} asChild>
                           <Link
-                            href={`${routePaths.org.dash.badges()}/badge/${String(badge.badge_uuid || '').replace(/^badge_/, '')}/learning-path`}
+                            href={`${routePaths.org.dash.badges()}/badge/${String(badge.badge_uuid || '').replace(/^badge_/, '')}/routes`}
                             className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors"
                           >
                             <PencilSimple size={14} className="text-white/40" />

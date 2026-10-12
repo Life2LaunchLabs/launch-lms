@@ -1,7 +1,11 @@
-# Badges and plans: one engine (proposal, not started)
+# Badges and plans: one engine (partly built)
 
-Status: proposal for a future session. Nothing here is built. Direction agreed
-in design review; pick up from "Suggested phases".
+Status: the first half is built (see `learner-plans-build.md`, PRs #108–#113).
+Activities are plan objectives, badges are earned through plan templates
+(routes), badge learning paths are gone, and onboarding is a starter plan. Not
+yet built: credentials on requirement frameworks, plan composition, push-to-
+active-plans and issuer rescoping to credential + route. "Problem" below
+describes the model before that work.
 
 ## Problem
 

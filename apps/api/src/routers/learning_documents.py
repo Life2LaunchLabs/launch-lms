@@ -6,7 +6,6 @@ from src.services.learning_content import activity_recovery as recovery
 from src.services.learning_documents import store
 from src.services.learning_preview import sessions as previews
 from src.services.learning_documents.models import (
-    ActivityDocumentCreate,
     ActivityDocumentSave,
     activity_document_json_schema,
     authoring_guide,
@@ -31,23 +30,10 @@ async def api_validate_activity_document(
     request: Request,
     document: dict = Body(..., embed=True),
     activity_uuid: str | None = Body(default=None, embed=True),
-    badge_uuid: str | None = Body(default=None, embed=True),
     current_user=Depends(get_current_user),
     db_session=Depends(get_db_session),
 ) -> dict:
-    return await store.validate_activity_document(
-        request, document, current_user, db_session, activity_uuid=activity_uuid, badge_uuid=badge_uuid
-    )
-
-
-@router.post("/")
-async def api_create_activity_from_document(
-    request: Request,
-    payload: ActivityDocumentCreate,
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> dict:
-    return await store.create_activity_from_document(request, payload, current_user, db_session)
+    return await store.validate_activity_document(request, document, current_user, db_session, activity_uuid=activity_uuid)
 
 
 @router.get("/{activity_uuid}")

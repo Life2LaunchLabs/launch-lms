@@ -180,7 +180,7 @@ function describeAnswer(page: any, answer: any): string {
 }
 
 function PreviewSummary({ activity, run, onRestart }: { activity: any; run: any; onRestart: () => void }) {
-  const navigation = (run?.navigation?.activities || [])[0]
+  const navigation = run?.navigation
   const titles = (navigation?.path || []).map((uuid: string) => activity.pages.find((page: any) => page.page_uuid === uuid)?.title).filter(Boolean)
   const result = run?.result
   const graded = result && Number(result.max_score) > 0

@@ -77,7 +77,9 @@ test('plans.create-editor: plans surface uses native object editing', async ({ p
   await page.goto(environment.plansPath)
   await assertActualApp(page)
   await expect(page.getByRole('heading', { name: 'Plans', exact: true, level: 1 })).toBeVisible()
-  const create = page.getByRole('button', { name: /create your own|create a plan|new plan/i }).first()
+  // Below the lg breakpoint plan creation lives in the Plans panel (every learner has at least the starter plan).
+  if ((page.viewportSize()?.width ?? 1280) < 1024) await page.getByRole('button', { name: 'Plans', exact: true }).click()
+  const create = page.getByRole('button', { name: /create your own|create a plan|new plan/i }).filter({ visible: true }).first()
   await create.click()
   await expect(page.getByRole('heading', { name: 'What are you working toward?' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Save plan' })).toBeVisible()

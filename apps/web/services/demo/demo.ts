@@ -83,7 +83,7 @@ export type DemoWarning = { kind: string; message: string; path?: string; table?
 export type DemoPreflight = {
   ok: boolean
   error: string | null
-  users: { user_id: number; name: string; badges: number; badge_runs: number; projects: number; plans: number; conversations: number }[]
+  users: { user_id: number; name: string; badges: number; activity_runs: number; projects: number; plans: number; conversations: number }[]
   warnings: DemoWarning[]
   records?: number
   files?: number

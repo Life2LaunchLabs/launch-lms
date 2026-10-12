@@ -1,34 +1,21 @@
-"""Badge creation, CRUD and the system onboarding badge."""
+"""Badge creation."""
 
 from uuid import uuid4
 from fastapi import HTTPException, Request, status
 from sqlmodel import Session, select
 from src.db.learning import (
-    BadgeCollection,
-    LearningActivity,
     LearningBadge,
     LearningBadgeCreate,
     LearningBadgeRead,
     LearningBadgeStatus,
     LearningBadgeVersion,
     LearningBadgeVersionState,
-    LearningPath,
 )
 from src.db.organization_config import OrganizationConfig
-from src.db.organizations import Organization
 from src.db.users import AnonymousUser, PublicUser
 from src.security.features_utils.resolve import resolve_feature
 from src.security.superadmin import is_user_superadmin
 from src.services.learning import access_rules, lookups
-
-
-def ensure_onboarding_learning_badge(
-    db_session: Session,
-) -> tuple[Organization, BadgeCollection, LearningBadge, LearningActivity]:
-    """Sync the system Launch Ready badge from its data file (learning_system/launch_ready.json)."""
-    from src.services.learning_system.onboarding import sync_launch_ready_badge
-
-    return sync_launch_ready_badge(db_session)
 
 
 async def create_badge(
@@ -41,7 +28,7 @@ async def create_badge(
     _require_badge_creation_access(db_session, current_user, data.org_id)
     now = access_rules._now()
     badge = LearningBadge(
-        **access_rules._strip_system_fields(data.model_dump(exclude={"status"})),
+        **data.model_dump(exclude={"status"}),
         status=LearningBadgeStatus.DRAFT,
         badge_uuid=f"badge_{uuid4()}",
         creation_date=now,
@@ -57,18 +44,6 @@ async def create_badge(
             created_by_user_id=getattr(current_user, "id", None), creation_date=now, update_date=now,
         )
         db_session.add(version)
-        db_session.flush()
-        path = LearningPath(
-            path_uuid=f"path_{uuid4()}",
-            badge_id=badge.id or 0,
-            version_id=version.id,
-            org_id=badge.org_id,
-            title=f"{badge.name} Path",
-            description=badge.description or "",
-            creation_date=now,
-            update_date=now,
-        )
-        db_session.add(path)
         db_session.commit()
         db_session.refresh(badge)
     except Exception:
