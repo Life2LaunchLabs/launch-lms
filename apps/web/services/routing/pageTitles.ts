@@ -9,12 +9,15 @@ export const PAGE_TITLE_FORMAT = {
 const labels: Record<string, string> = {
   account: 'Account', achievements: 'Achievements', analytics: 'Analytics', badge: 'Badges', badges: 'Badges',
   boards: 'Boards', communities: 'Communities', community: 'Communities', edit: 'Edit', hub: 'Hub',
-  journal: 'Journal', marketplace: 'Marketplace', mybadges: 'My badges', news: 'News', organization: 'Organizations',
+  journal: 'Journal', marketplace: 'Marketplace', news: 'News', organization: 'Organizations',
   organizations: 'Organizations', payments: 'Payments', plans: 'Plans', platform: 'Platform', playground: 'Playgrounds',
   playgrounds: 'Playgrounds', podcast: 'Podcasts', podcasts: 'Podcasts', portfolio: 'Portfolio', programs: 'Programs',
   projects: 'Projects', reporting: 'Reporting', requirements: 'Requirements', resource: 'Resources', resources: 'Resources',
   notifications: 'Notifications', profile: 'Profile', resume: 'Résumé', search: 'Search', settings: 'Settings', store: 'Store', tags: 'Tags', timeline: 'Timeline', users: 'Users',
 }
+
+// Learner sections named as the nav names them; admin keeps the plain labels above.
+const learnerSections: Record<string, string> = { badges: 'Discover', plans: 'My plans' }
 
 function humanize(segment: string) {
   const decoded = decodeURIComponent(segment).replace(/[-_]+/g, ' ').trim()
@@ -48,7 +51,7 @@ export function resolveAppPageTitle(pathname: string): AppPageTitle {
     return { section: 'Admin', detail: staticDetail ? `${feature} · ${label(staticDetail)}` : feature }
   }
 
-  const section = label(route[0]) || humanize(route[0])
+  const section = learnerSections[route[0]] || label(route[0]) || humanize(route[0])
   if (route[0] === 'portfolio') return { section, detail: label(route[1]) }
   if (route[0] === 'user') return { section: 'Profile', detail: label(route[2]) }
   if (route[0] === 'account') return { section, detail: label(route[1]) }

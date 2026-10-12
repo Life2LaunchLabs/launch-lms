@@ -28,7 +28,7 @@
     "apps/api/src/services/payments/payments_stripe.py": 834,
     "apps/api/src/services/planning.py": 1956,
     "apps/api/src/services/podcasts/podcasts.py": 874,
-    "apps/api/src/services/portfolio.py": 1573,
+    "apps/api/src/services/portfolio.py": 1553,
     "apps/api/src/services/programs.py": 2472,
     "apps/api/src/services/requirements.py": 821,
     "apps/api/src/services/resources.py": 1513,
@@ -77,7 +77,7 @@
     "apps/web/components/Objects/Modals/Dash/OrgRoles/EditRole.tsx": 573,
     "apps/web/components/Objects/Portfolio/ProfileAchievements.tsx": 811,
     "apps/web/components/Objects/Portfolio/ProfilePortfolio.tsx": 938,
-    "apps/web/components/Pages/Portfolio/PortfolioShell.tsx": 781,
+    "apps/web/components/Pages/Portfolio/PortfolioShell.tsx": 765,
     "apps/web/components/Plans/PlansWorkspace.tsx": 1109,
     "apps/web/components/Playground/PlaygroundOptionsModal.tsx": 560,
     "apps/web/services/resources/resources.ts": 555

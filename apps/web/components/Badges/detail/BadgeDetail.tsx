@@ -116,7 +116,7 @@ export default function BadgeDetail({ orgslug, initialPage }: { orgslug: string;
 
   const here = getUriWithOrg(orgslug, routePaths.org.badgeDetail(page.badge_uuid.replace(/^badge_/, '')))
   const action: EarnAction = page.ways.plan ? { label: page.ways.plan.status === 'completed' ? 'See your plan' : 'Keep going', href: getUriWithOrg(orgslug, routePaths.org.plan(page.ways.plan.slug)) }
-    : page.earned ? { label: 'You earned this', href: getUriWithOrg(orgslug, routePaths.org.myBadges()) }
+    : page.earned ? { label: 'You earned this', href: getUriWithOrg(orgslug, routePaths.org.portfolioBadges()) }
     : page.status === 'coming_soon' ? { label: 'Coming soon', disabled: true }
     : !selected ? { label: 'Not open yet', disabled: true }
     : !token ? { label: 'Sign in to start', href: `/login?next=${encodeURIComponent(here)}` }
