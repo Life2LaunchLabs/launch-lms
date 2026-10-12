@@ -153,3 +153,37 @@ def test_template_scopes_and_org_are_enforced(templates):
     other = _token(session, alice.id, 2, scope="plans:read plans:write")
     denied = call("get_plan_template", {"template_uuid": uuid}, auth=other)
     assert denied["isError"] is True
+
+
+def test_activity_objectives_are_added_in_the_template_and_edited_with_activity_tools(templates):
+    session, call, alice, uuid = templates
+    from src.db.learning import LearningActivity, LearningPage
+
+    token = _token(session, alice.id, 1, scope="activities:read activities:write plans:read plans:write")
+    current = call("get_plan_template", {"template_uuid": uuid})["structuredContent"]
+    edited = deepcopy(current["document"])
+    edited["template"]["step_order"] = "in_order"
+    resume = edited["phases"][0]["objectives"][0]
+    edited["phases"][0]["objectives"].append({"title": "Spot the change", "type": "activity", "after_objective_uuids": [resume["objective_uuid"]]})
+    saved = call("save_plan_template", {"template_uuid": uuid, "document": edited, "base_etag": current["etag"]})["structuredContent"]["document"]
+    assert saved["template"]["step_order"] == "in_order"
+    activity_objective = saved["phases"][0]["objectives"][-1]
+    assert activity_objective["type"] == "activity" and activity_objective["activity_uuid"].startswith("learning_activity_")
+    assert activity_objective["after_objective_uuids"] == [resume["objective_uuid"]]
+
+    changing = deepcopy(saved)
+    changing["phases"][0]["objectives"][0]["type"] = "activity"
+    report = call("validate_plan_template", {"template_uuid": uuid, "document": changing})["structuredContent"]
+    assert report["valid"] is False and report["errors"][0]["path"].endswith(".type")
+
+    listed = call("list_activities", {"template_uuid": uuid})["structuredContent"]["activities"]
+    assert [(item["title"], item["page_count"]) for item in listed] == [("Spot the change", 0)]
+    assert "/admin/plans/" in listed[0]["editor_url"]
+    activity = call("get_activity", {"activity_uuid": listed[0]["activity_uuid"]})["structuredContent"]
+    assert activity["context"]["editable"] is True
+    document = deepcopy(activity["document"])
+    document["pages"] = [{"page_uuid": "start", "title": "What changed?", "content": {"version": 2, "blocks": []}}]
+    result = call("save_activity", {"activity_uuid": listed[0]["activity_uuid"], "document": document, "base_etag": activity["etag"]}, auth=token)
+    assert "isError" not in result
+    stored = session.exec(select(LearningActivity).where(LearningActivity.activity_uuid == listed[0]["activity_uuid"])).one()
+    assert [page.title for page in session.exec(select(LearningPage).where(LearningPage.activity_id == stored.id)).all()] == ["What changed?"]

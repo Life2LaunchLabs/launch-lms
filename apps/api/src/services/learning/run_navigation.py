@@ -15,6 +15,7 @@ from src.db.learning import (
 )
 from src.db.portfolio import Portfolio, TimelineEntry
 from src.db.users import User
+from src.services.learning import scope
 from src.services.learning_flow import (
     resolve_flow,
 )
@@ -167,12 +168,7 @@ def _run_navigation(db_session: Session, run: LearningRun) -> dict:
             select(LearningActivityRun).where(LearningActivityRun.run_id == run.id)
         ).all()
     }
-    activities = db_session.exec(
-        select(LearningActivity).where(
-            LearningActivity.badge_id == run.badge_id,
-            LearningActivity.version_id == run.badge_version_id,
-        )
-    ).all()
+    activities = scope.run_activities(db_session, run)
     activity_ids = {activity.id for activity in activities} | set(activity_runs)
     pages_by_activity: dict[int, list[LearningPage]] = {}
     for page in db_session.exec(
@@ -228,12 +224,7 @@ def _block_completion(page: LearningPage, question: dict) -> dict:
 
 
 def _serialize_run(db_session: Session, run: LearningRun) -> LearningRunRead:
-    progress = db_session.exec(
-        select(LearningPage).where(
-            LearningPage.badge_id == run.badge_id,
-            LearningPage.version_id == run.badge_version_id,
-        )
-    ).all()
+    progress = scope.run_pages(db_session, run)
     progress_by_page = {
         item.page_id: item
         for item in db_session.exec(
@@ -329,6 +320,7 @@ def _serialize_run(db_session: Session, run: LearningRun) -> LearningRunRead:
         run_uuid=run.run_uuid,
         badge_id=run.badge_id,
         path_id=run.path_id,
+        activity_id=run.activity_id,
         org_id=run.org_id,
         issuing_org_id=run.issuing_org_id,
         program_assignment_id=run.program_assignment_id,

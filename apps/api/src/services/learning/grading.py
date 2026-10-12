@@ -17,7 +17,7 @@ from src.db.learning import (
     LearningRun,
     LearningRunStatus,
 )
-from src.services.learning import answer_validation, lookups, run_navigation
+from src.services.learning import answer_validation, lookups, run_navigation, scope
 
 
 def _normalize_question_answers(questions: list[dict], answer: dict) -> dict[str, dict]:
@@ -367,13 +367,7 @@ def _activity_meets_completion_rules(
 
 
 def _has_pending_required_manual_grades(db_session: Session, run: LearningRun) -> bool:
-    required_pages = db_session.exec(
-        select(LearningPage).where(
-            LearningPage.badge_id == run.badge_id,
-            LearningPage.version_id == run.badge_version_id,
-            LearningPage.required == True,
-        )
-    ).all()
+    required_pages = scope.run_pages(db_session, run, required_only=True)
     manual_pages = [
         page
         for page in required_pages
@@ -407,6 +401,11 @@ def _issue_award_if_complete(
     request: Request, db_session: Session, run: LearningRun
 ) -> LearningBadgeAward | None:
     if run.user_id is None:
+        return None
+    if run.activity_id:
+        # Objective runs complete their plan objective; badges are never awarded from them.
+        from src.services.plan_activities import sync_objective_from_run
+        sync_objective_from_run(db_session, run)
         return None
     badge = db_session.get(LearningBadge, run.badge_id)
     if badge and (badge.badge_metadata or {}).get("award_strategy") == "portfolio_checklist":

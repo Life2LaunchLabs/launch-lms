@@ -20,7 +20,7 @@ from src.db.learning import (
     LearningPage,
     LearningVariable,
 )
-from src.db.programs import Program, ProgramAssignment, ProgramObjective, ProgramPhase
+from src.db.programs import Objective, Program, ProgramAssignment, ProgramObjective, ProgramPhase
 from src.db.requirements import RequirementFramework
 from src.security.org_auth import require_org_admin
 from src.services import learning, programs, requirements
@@ -83,6 +83,11 @@ def _version_info(version: LearningBadgeVersion, active_id: int | None) -> dict:
 
 def _editor_url(db_session: Session, activity: LearningActivity) -> str:
     org = learning._get_org(db_session, activity.org_id)
+    activity_uuid = activity.activity_uuid.removeprefix("learning_activity_")
+    if activity.objective_id:
+        relation = db_session.exec(select(ProgramObjective).where(ProgramObjective.objective_id == activity.objective_id)).first()
+        program = db_session.get(Program, relation.program_id) if relation else None
+        return f"{frontend_url()}/orgs/{org.slug}/admin/plans/{program.program_uuid if program else ''}/activity/{activity_uuid}"
     badge = db_session.get(LearningBadge, activity.badge_id)
     badge_uuid = (badge.badge_uuid if badge else "").removeprefix("badge_")
     activity_uuid = activity.activity_uuid.removeprefix("learning_activity_")
@@ -119,6 +124,10 @@ async def list_badges(request: Request, db_session: Session, ctx: AccessContext,
 
 
 async def list_activities(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
+    if args.get("template_uuid"):
+        return _template_activities(db_session, ctx, args["template_uuid"])
+    if not args.get("badge_uuid"):
+        raise HTTPException(status_code=422, detail="Pass template_uuid (plan template activities) or badge_uuid")
     badge = _badge(db_session, ctx, args["badge_uuid"])
     learning._require_org_admin(db_session, ctx.user, badge.org_id)
     versions = _versions(db_session, badge)
@@ -155,6 +164,34 @@ async def list_activities(request: Request, db_session: Session, ctx: AccessCont
                 "branching": bool((activity.settings or {}).get("flow")),
             }
             for activity in activities
+        ],
+    }
+
+
+def _template_activities(db_session: Session, ctx: AccessContext, template_uuid: str) -> dict:
+    learning._require_org_admin(db_session, ctx.user, ctx.org_id)
+    program = db_session.exec(select(Program).where(Program.program_uuid == template_uuid, Program.org_id == ctx.org_id)).first()
+    if not program:
+        raise HTTPException(status_code=404, detail="Plan template not found in the connected organization")
+    rows = db_session.exec(
+        select(LearningActivity, Objective)
+        .join(Objective, Objective.id == LearningActivity.objective_id)
+        .join(ProgramObjective, ProgramObjective.objective_id == Objective.id)
+        .where(ProgramObjective.program_id == program.id)
+        .order_by(ProgramObjective.position)
+    ).all()
+    counts = dict(db_session.exec(
+        select(LearningPage.activity_id, func.count(LearningPage.id))  # type: ignore[arg-type]
+        .where(LearningPage.activity_id.in_([activity.id for activity, _ in rows] or [0]))  # type: ignore[union-attr]
+        .group_by(LearningPage.activity_id)
+    ).all())
+    return {
+        "template": {"template_uuid": program.program_uuid, "name": program.name},
+        "activities": [
+            {"activity_uuid": activity.activity_uuid, "objective_uuid": objective.objective_uuid, "title": activity.title,
+             "page_count": counts.get(activity.id, 0), "branching": bool((activity.settings or {}).get("flow")),
+             "editor_url": _editor_url(db_session, activity)}
+            for activity, objective in rows
         ],
     }
 

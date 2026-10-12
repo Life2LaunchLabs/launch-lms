@@ -2,6 +2,8 @@
 
 import React from 'react'
 import { ChevronLeft, ChevronRight, Flag, Pencil, Target } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { getUriWithOrg } from '@services/config/config'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { cn } from '@/lib/utils'
 import { SelectedStepBody, StepStack, type StepItem } from './StepStack'
@@ -16,6 +18,7 @@ const RULES: Record<string, string> = {
 type PlanSummary = { plan_uuid: string; slug: string; name: string }
 
 type PlanViewProps = {
+  orgslug: string
   detail: any
   plans: PlanSummary[]
   // eslint-disable-next-line no-unused-vars
@@ -36,7 +39,8 @@ function chaptersOf(detail: any) {
   return chapters.filter((chapter: any) => chapter.items.length)
 }
 
-export default function PlanView({ detail, plans, getPlanColor, choose, onEdit, renderObjective }: PlanViewProps) {
+export default function PlanView({ orgslug, detail, plans, getPlanColor, choose, onEdit, renderObjective }: PlanViewProps) {
+  const router = useRouter()
   const chapters = React.useMemo(() => chaptersOf(detail), [detail])
   const steps: StepItem[] = chapters.flatMap((chapter: any) => chapter.items)
   const next = steps.find((item) => item.availability?.state === 'open' && item.progress?.status !== 'completed') || steps.find((item) => item.progress?.status !== 'completed')
@@ -125,7 +129,7 @@ export default function PlanView({ detail, plans, getPlanColor, choose, onEdit, 
           <span className="text-sm font-semibold text-muted-foreground">{chapterDone} of {chapter.items.length} done</span>
         </div>
         <StepStack items={chapter.items} colorFor={() => getPlanColor(detail.plan_uuid)} selectedUuid={selectedUuid} onSelect={(item) => setSelected(item.objective_uuid)}
-          renderSelected={(item, state) => <SelectedStepBody item={item} state={state} onStart={() => setOpen(item)} onGoTo={goTo} />} />
+          renderSelected={(item, state) => <SelectedStepBody item={item} state={state} onStart={() => item.activity_id ? router.push(getUriWithOrg(orgslug, `/plans/${encodeURIComponent(detail.slug)}/objectives/${item.objective_uuid}/activity`)) : setOpen(item)} onGoTo={goTo} />} />
       </section>
     }) : <p className="rounded-2xl border border-dashed border-border py-12 text-center text-sm font-semibold text-muted-foreground">No steps yet.</p>}
 

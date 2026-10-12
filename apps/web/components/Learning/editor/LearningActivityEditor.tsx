@@ -849,9 +849,9 @@ export default function LearningActivityEditor({
 
   return (
     <div className="flex h-screen w-full min-w-0 flex-col overflow-hidden bg-gray-50 text-gray-950">
-      <div className="flex shrink-0 items-center border-b border-gray-200 bg-white px-4 py-2">
+      {badge.badge_uuid ? <div className="flex shrink-0 items-center border-b border-gray-200 bg-white px-4 py-2">
         <BadgeVersionToolbar badge={badge} saveState={saveState === 'dirty' ? 'unsaved' : saveState} />
-      </div>
+      </div> : null}
       <ContentIssuesBanner activityUuid={activityState.activity_uuid} pages={pages} editable={isDraft} accessToken={accessToken} refreshKey={lastSavedAt} beforeRepair={saveBeforeAction} onRepaired={applySavedActivity} />
       <EditorHeader
         badgeName={badge.name}

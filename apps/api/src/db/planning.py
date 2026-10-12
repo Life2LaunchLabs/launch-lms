@@ -181,6 +181,8 @@ class PlanObjective(SQLModel, table=True):
     # Requirement nodes this objective counts toward: [{framework_id, framework_uuid, node_uuid}].
     requirement_mappings: list[dict] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
     reviewer_guidance: str = ""
+    # The interactive activity this step plays (kind "activity").
+    activity_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningactivity.id", ondelete="SET NULL"), nullable=True, index=True))
     # Steps in this plan that must be finished before this one opens.
     after_objective_uuids: list[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False, server_default="[]"))
     creation_date: str = ""

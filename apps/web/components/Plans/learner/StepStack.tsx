@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Award, CalendarClock, Check, Clock3, Link2, PauseCircle, Target } from 'lucide-react'
+import { Award, CalendarClock, Check, Clock3, Link2, PauseCircle, Play, Target } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { planTone } from './planColors'
 
@@ -15,6 +15,7 @@ export type StepItem = {
   title: string
   description?: string
   kind?: string
+  activity_id?: number | null
   phase_name?: string | null
   display_due_date?: string | null
   due_date?: string | null
@@ -56,6 +57,7 @@ export function stepMeta(item: StepItem) {
   // A step's own date (or its chapter's); never the whole plan's target date.
   const due = item.display_due_date !== undefined ? item.display_due_date : item.due_date
   if (due) return { icon: CalendarClock, text: `Due ${shortDate(due)}` }
+  if (item.activity_id) return { icon: Play, text: 'Activity' }
   return { icon: item.badge ? Award : Target, text: item.badge ? 'Badge' : item.phase_name || 'Step' }
 }
 
@@ -121,6 +123,7 @@ export function StepStack({ items, colorFor, selectedUuid, onSelect, showPlanNam
               {item.badge?.thumbnail_image
                 ? <img src={item.badge.thumbnail_image} alt="" className={cn('badge-sticker-image h-14 w-14 object-contain', notReady && 'opacity-50 grayscale')} />
                 : item.badge ? <Award size={34} className={notReady ? 'text-muted-foreground' : ''} style={notReady ? undefined : { color: tone.ring }} />
+                : item.activity_id ? <Play size={32} fill="currentColor" className={notReady ? 'text-muted-foreground' : 'text-white'} />
                 : <Target size={32} className={notReady ? 'text-muted-foreground' : 'text-white'} />}
             </span>
           </button>

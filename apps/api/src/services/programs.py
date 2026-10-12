@@ -212,7 +212,9 @@ def _objective_dict(objective: Objective, relation: ProgramObjective | None = No
         })
         if db:
             from src.services.requirements import mappings_for_relation
+            from src.services.plan_activities import activity_summary
             result["requirement_mappings"] = mappings_for_relation(db, relation)
+            result.update(activity_summary(db, objective) if objective.kind == ObjectiveKind.ACTIVITY else {})
     return result
 
 
@@ -688,26 +690,20 @@ def add_program_objective(
             })
         custom_fields = _validated_steps(db, custom_fields)
         now = _now_string()
-        learner_confirms = payload.allow_learner_confirmation or payload.kind == ObjectiveKind.BADGE
+        learner_confirms = payload.allow_learner_confirmation or payload.kind in (ObjectiveKind.BADGE, ObjectiveKind.ACTIVITY)
         completion_policy, evidence_policy = objective_policies(custom_fields, learner_confirms)
         objective = Objective(
-            objective_uuid=f"objective_{uuid4()}",
-            org_id=org_id,
-            title=payload.title.strip(),
-            description=payload.description,
-            kind=ObjectiveKind.CUSTOM,
-            completion_policy=completion_policy,
-            evidence_policy=evidence_policy,
-            custom_fields=custom_fields,
-            allow_learner_confirmation=learner_confirms,
-            badge_id=badge_id,
-            reviewer_guidance=payload.reviewer_guidance.strip(),
-            created_by_user_id=current_user.id,
-            creation_date=now,
-            update_date=now,
+            objective_uuid=f"objective_{uuid4()}", org_id=org_id, title=payload.title.strip(), description=payload.description,
+            kind=ObjectiveKind.ACTIVITY if payload.kind == ObjectiveKind.ACTIVITY else ObjectiveKind.CUSTOM,
+            completion_policy=completion_policy, evidence_policy=evidence_policy, custom_fields=custom_fields,
+            allow_learner_confirmation=learner_confirms, badge_id=badge_id, reviewer_guidance=payload.reviewer_guidance.strip(),
+            created_by_user_id=current_user.id, creation_date=now, update_date=now,
         )
         db.add(objective)
         db.flush()
+        if objective.kind == ObjectiveKind.ACTIVITY:
+            from src.services.plan_activities import create_objective_activity
+            create_objective_activity(db, objective)
     position = len(db.exec(select(ProgramObjective).where(
         ProgramObjective.program_id == program.id,
         ProgramObjective.phase_id == phase.id,

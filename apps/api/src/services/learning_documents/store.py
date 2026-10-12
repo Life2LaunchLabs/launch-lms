@@ -49,7 +49,7 @@ def activity_pages(db_session: Session, activity: LearningActivity) -> list[Lear
 
 
 def _context(db_session: Session, activity: LearningActivity) -> dict:
-    badge = db_session.get(LearningBadge, activity.badge_id)
+    badge = db_session.get(LearningBadge, activity.badge_id) if activity.badge_id else None
     version = db_session.get(LearningBadgeVersion, activity.version_id) if activity.version_id else None
     state = version.state.value if version and hasattr(version.state, "value") else (version.state if version else None)
     return {
@@ -60,7 +60,9 @@ def _context(db_session: Session, activity: LearningActivity) -> dict:
         "version_uuid": version.version_uuid if version else None,
         "version_title": version.title if version else None,
         "version_state": state,
-        "editable": state == LearningBadgeVersionState.DRAFT.value,
+        # Plan template activities are edited in place; badge activities only in a draft version.
+        "editable": bool(activity.objective_id) or state == LearningBadgeVersionState.DRAFT.value,
+        "objective_id": activity.objective_id,
     }
 
 
@@ -86,8 +88,8 @@ def _invalid(prepared: PreparedDocument) -> HTTPException:
     )
 
 
-def _is_system_badge(db_session: Session, badge_id: int) -> bool:
-    badge = db_session.get(LearningBadge, badge_id)
+def _is_system_badge(db_session: Session, badge_id: int | None) -> bool:
+    badge = db_session.get(LearningBadge, badge_id) if badge_id else None
     return bool(badge and learning._is_system_object(badge))
 
 
@@ -184,7 +186,7 @@ async def save_activity_document(
 ) -> dict:
     activity = learning._get_activity(db_session, activity_uuid)
     learning._require_org_admin(db_session, current_user, activity.org_id)
-    version = learning._assert_content_editable(db_session, activity.version_id)
+    version = None if activity.objective_id else learning._assert_content_editable(db_session, activity.version_id)
     current = envelope(db_session, activity)
     if payload.base_etag != current["etag"]:
         raise HTTPException(
@@ -211,8 +213,9 @@ async def save_activity_document(
     _write_activity(activity, prepared, now)
     db_session.add(activity)
     _write_pages(db_session, activity, prepared, existing, now)
-    learning._bump_version(version)
-    db_session.add(version)
+    if version:
+        learning._bump_version(version)
+        db_session.add(version)
     db_session.commit()
     db_session.refresh(activity)
     return envelope(db_session, activity, prepared.warnings)

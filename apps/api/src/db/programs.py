@@ -16,6 +16,7 @@ class ProgramStatus(str, Enum):
 class ObjectiveKind(str, Enum):
     CUSTOM = "custom"
     BADGE = "badge"
+    ACTIVITY = "activity"
 
 
 class CompletionPolicy(str, Enum):

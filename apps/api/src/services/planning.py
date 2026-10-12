@@ -436,7 +436,7 @@ def _objective_dict(db: Session, plan: Plan, objective: PlanObjective, capabilit
         "allow_late": objective.allow_late, "blocked": objective.blocked,
         "completion_restricted": completion_restricted,
         "requirement_mappings": objective.requirement_mappings or [],
-        "after_objective_uuids": objective.after_objective_uuids or [],
+        "after_objective_uuids": objective.after_objective_uuids or [], "activity_id": objective.activity_id,
         "availability": availability if availability is not None else plan_availability(db, plan).get(int(objective.id), {"state": "open", "reason": None}),
         "badge": ({"badge_uuid": badge.badge_uuid, "name": badge.name, "thumbnail_image": badge.thumbnail_image} if badge else None),
         "progress": {
@@ -711,7 +711,7 @@ def materialize_assignment_plans(db: Session, assignment_id: int) -> None:
                 objective_uuid=f"plan_objective_{uuid4()}", plan_id=int(plan.id),
                 phase_id=phase_ids[snapshot.get("phase_uuid") or "legacy"],
                 source_objective_id=snapshot.get("id"), title=snapshot.get("title") or "Objective",
-                description=snapshot.get("description") or "", kind="custom",
+                description=snapshot.get("description") or "", kind="activity" if snapshot.get("activity_id") else "custom", activity_id=snapshot.get("activity_id"),
                 position=position, badge_id=snapshot.get("badge_id"),
                 badge_major_version=snapshot.get("badge_major_version"), fields=fields,
                 start_date=None,
@@ -829,7 +829,7 @@ def materialize_external_assignment_plan(db: Session, assignment_id: int, subjec
             objective_uuid=f"plan_objective_{uuid4()}", plan_id=int(plan.id),
             phase_id=phase_ids[snapshot.get("phase_uuid") or "legacy"],
             source_objective_id=snapshot.get("id"), title=snapshot.get("title") or "Objective",
-            description=snapshot.get("description") or "", kind="custom",
+            description=snapshot.get("description") or "", kind="activity" if snapshot.get("activity_id") else "custom", activity_id=snapshot.get("activity_id"),
             position=position, badge_id=snapshot.get("badge_id"),
             badge_major_version=snapshot.get("badge_major_version"),
             fields=_materialized_objective_fields(db, snapshot),
@@ -1221,7 +1221,7 @@ def update_objective(db: Session, current_user: PublicUser, identifier: str, obj
         objective.badge_id = requirement_badges[0].id if requirement_badges else None
     for key, value in changes.items():
         setattr(objective, key, value)
-    objective.kind = "custom"
+    objective.kind = "activity" if objective.activity_id else "custom"
     objective.update_date = _now_string()
     plan.update_date = objective.update_date
     db.add(objective)

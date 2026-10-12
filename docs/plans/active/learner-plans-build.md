@@ -63,12 +63,32 @@ Dated steps keep landing in the week or month they're due. Undated steps
 
 ## 3. Activity objectives
 
-Interactive activities stop living under badge paths. A new objective kind
-`activity` carries an Activity Document (pages, blocks, flow, grading) on the
-template objective; live plans reference it from their objective snapshot. The
-existing player, grading, learner variables and Claude connector tools are
-reused, keyed by plan objective instead of path. Completing the activity (with
-grading where set) completes the objective.
+Interactive activities stop living under badge paths. There is no path any
+more: a plan template is the ordered stack of objectives, and an objective of
+kind `activity` owns exactly one activity (its pages, flow, grading and
+outcomes, edited as an Activity Document).
+
+- **Ownership**: `LearningActivity.objective_id` points at the template
+  objective. `badge_id`, `path_id` and `version_id` become optional on
+  activities, pages and runs; badge-path activities keep working until the
+  phase 4 migration converts them.
+- **Live plans**: materialization copies the activity reference onto the live
+  objective (`PlanObjective.activity_id`, kind `activity`). Template edits
+  apply to new and in-progress learners (no activity versioning yet).
+- **Runs**: starting an activity objective creates one run scoped to that
+  activity on that learner's plan objective (`LearningRun.activity_id` +
+  `plan_objective_id`, no badge/path). The runtime (navigation, flow, page
+  completion, responses, grading, learner variables, portfolio outcomes) reads
+  its activities and pages through one scope helper, so badge runs and
+  objective runs share every code path.
+- **Completion**: when the activity completes, its plan objective completes
+  (or goes to review if it needs sign-off or has manual grading pending);
+  reviewers grade responses through the existing review flow, which already
+  accepts plan reviewers. Starting an objective that isn't open is refused.
+- **Editing**: template admins create and edit the activity from the template
+  objective; the editor and connector use the same Activity Document API,
+  with "editable" meaning org admin of the template's org instead of a draft
+  badge version.
 
 **One connector.** The Claude connector stops having separate badge-activity
 and plan-template halves: it edits plans. The plan template document gains the

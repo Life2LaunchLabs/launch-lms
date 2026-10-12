@@ -78,7 +78,6 @@ class LearningBadgeBase(SQLModel):
     deleted_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True, index=True))
 
 
-
 class LearningBadge(LearningBadgeBase, table=True):
     __table_args__ = (UniqueConstraint("badge_uuid"),)
 
@@ -206,7 +205,6 @@ class BadgeCollectionBase(SQLModel):
     protected: bool = False
     system_type: str | None = None
     deleted_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True, index=True))
-
 
 
 class BadgeCollection(BadgeCollectionBase, table=True):
@@ -362,8 +360,9 @@ class LearningPath(SQLModel, table=True):
 
 
 class LearningActivityBase(SQLModel):
-    path_id: int = Field(sa_column=Column(Integer, ForeignKey("learningpath.id", ondelete="CASCADE"), index=True))
-    badge_id: int = Field(sa_column=Column(Integer, ForeignKey("learningbadge.id", ondelete="CASCADE"), index=True))
+    path_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningpath.id", ondelete="CASCADE"), nullable=True, index=True))
+    badge_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningbadge.id", ondelete="CASCADE"), nullable=True, index=True))
+    objective_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("objective.id", ondelete="CASCADE"), nullable=True, index=True))
     version_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningbadgeversion.id", ondelete="CASCADE"), nullable=True, index=True))
     org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
     title: str
@@ -372,9 +371,8 @@ class LearningActivityBase(SQLModel):
     icon: str | None = None
     order: int = 1
     required: bool = True
-    # Listed for learners. Only the system onboarding badge hides activities
-    # (set from launch_ready.json); everywhere else the badge version is the
-    # unit of publishing, so this is not editable through the API.
+    # Listed for learners. Only the system onboarding badge hides activities (launch_ready.json);
+    # elsewhere the badge version is the unit of publishing, so the API never edits this.
     published: bool = False
     settings: dict = Field(default_factory=dict, sa_column=Column(JSON))
 
@@ -435,7 +433,7 @@ class LearningActivityRead(LearningActivityBase):
 
 class LearningPageBase(SQLModel):
     activity_id: int = Field(sa_column=Column(Integer, ForeignKey("learningactivity.id", ondelete="CASCADE"), index=True))
-    badge_id: int = Field(sa_column=Column(Integer, ForeignKey("learningbadge.id", ondelete="CASCADE"), index=True))
+    badge_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningbadge.id", ondelete="CASCADE"), nullable=True, index=True))
     version_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningbadgeversion.id", ondelete="CASCADE"), nullable=True, index=True))
     org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
     page_type: LearningPageType = Field(sa_column=Column(String, nullable=False))
@@ -528,8 +526,9 @@ class LearningRun(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     run_uuid: str = Field(default="", index=True)
-    badge_id: int = Field(sa_column=Column(Integer, ForeignKey("learningbadge.id", ondelete="CASCADE"), index=True))
-    path_id: int = Field(sa_column=Column(Integer, ForeignKey("learningpath.id", ondelete="CASCADE"), index=True))
+    badge_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningbadge.id", ondelete="CASCADE"), nullable=True, index=True))
+    path_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningpath.id", ondelete="CASCADE"), nullable=True, index=True))
+    activity_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningactivity.id", ondelete="CASCADE"), nullable=True, index=True))
     badge_version_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningbadgeversion.id", ondelete="RESTRICT"), nullable=True, index=True))
     org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
     # Org the learner is earning the badge under; None means the badge's creator org.
@@ -615,8 +614,9 @@ class LearningBadgeAward(SQLModel, table=True):
 class LearningRunRead(BaseModel):
     id: int
     run_uuid: str
-    badge_id: int
-    path_id: int
+    badge_id: int | None = None
+    path_id: int | None = None
+    activity_id: int | None = None
     badge_version_id: int | None = None
     org_id: int
     issuing_org_id: int | None = None

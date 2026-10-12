@@ -70,9 +70,9 @@ TOOLS = [
     ),
     Tool(
         "list_activities",
-        "List activities in a badge",
-        "List the activities of a badge version (default: the newest draft, else the active published version).",
-        {"properties": {"badge_uuid": {"type": "string"}, "version_uuid": {"type": "string"}}, "required": ["badge_uuid"]},
+        "List activities",
+        "List the interactive activities of a plan template (template_uuid: one per activity objective, edited in place) or of a badge version (badge_uuid; default: the newest draft, else the active published version).",
+        {"properties": {"template_uuid": {"type": "string"}, "badge_uuid": {"type": "string"}, "version_uuid": {"type": "string"}}},
         handlers.list_activities,
     ),
     Tool(
@@ -121,7 +121,7 @@ TOOLS = [
     Tool(
         "save_activity",
         "Save an activity",
-        "Save an Activity Document over an existing activity in a draft badge version. Requires the etag from get_activity (or the last save). Fails with the current document if someone changed the activity since. Publishing the draft stays with the admin in Launch LMS.",
+        "Save an Activity Document over an existing activity: a plan template's activity objective (saved in place) or an activity in a draft badge version. Requires the etag from get_activity (or the last save). Fails with the current document if someone changed the activity since. Publishing the draft stays with the admin in Launch LMS.",
         {"properties": {"activity_uuid": {"type": "string"}, "document": _DOCUMENT, "base_etag": {"type": "string"}}, "required": ["activity_uuid", "document", "base_etag"]},
         handlers.save_activity,
         scope="activities:write",

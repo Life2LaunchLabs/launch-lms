@@ -67,6 +67,9 @@ def _export_objective(item: dict) -> dict:
             "description": item.get("description") or "",
             "badge_uuid": item.get("badge_uuid"),
             "badge_major_version": item.get("badge_major_version") if item.get("badge_id") else None,
+            "type": "activity" if item.get("kind") == ObjectiveKind.ACTIVITY.value else "standard",
+            "activity_uuid": (item.get("activity") or {}).get("activity_uuid"),
+            "after_objective_uuids": list(item.get("after_objective_uuids") or []),
             "allow_learner_confirmation": bool(item.get("allow_learner_confirmation")),
             "reviewer_guidance": item.get("reviewer_guidance") or None,
             "steps": [{key: value for key, value in step.items() if key not in DERIVED_STEP_KEYS} for step in item.get("custom_fields") or []],
@@ -89,7 +92,7 @@ def export_document(db: Session, program: Program) -> dict:
     return {
         "format": DOCUMENT_FORMAT,
         "format_version": DOCUMENT_FORMAT_VERSION,
-        "template": {"name": program.name, "description": program.description or "", "instructions": program.instructions or ""},
+        "template": {"name": program.name, "description": program.description or "", "instructions": program.instructions or "", "step_order": program.step_order or "any"},
         "roles": {
             "definitions": [
                 {
@@ -214,6 +217,13 @@ def _check(db: Session, org_id: int, raw, program: Program | None) -> tuple[Plan
             if not item.title.strip():
                 errors.append({"path": f"{path}.title", "message": "Give the objective a title"})
             existing = relations.get(item.objective_uuid) if program and item.objective_uuid else None
+            if existing is not None and (item.type == "activity") != (_value(existing[1].kind) == ObjectiveKind.ACTIVITY.value):
+                errors.append({"path": f"{path}.type", "message": "An objective's type cannot change; add a new objective instead"})
+            if item.type == "activity" and (item.badge_uuid or item.steps):
+                errors.append({"path": f"{path}.type", "message": "Activity objectives have no badge or steps; the learner plays the activity"})
+            unknown_after = [uuid for uuid in item.after_objective_uuids if uuid == item.objective_uuid or uuid not in relations]
+            if unknown_after:
+                errors.append({"path": f"{path}.after_objective_uuids", "message": f"Wait only on other existing objectives of this template: {', '.join(unknown_after)}"})
             if program and item.objective_uuid:
                 if existing is None:
                     errors.append({"path": f"{path}.objective_uuid", "message": "Unknown objective for this template; omit objective_uuid to add a new objective"})
@@ -272,6 +282,7 @@ def _apply(db: Session, current_user: PublicUser, org_id: int, program: Program,
     program.name = document.template.name.strip()
     program.description = document.template.description
     program.instructions = document.template.instructions
+    program.step_order = document.template.step_order
     if prepared["roles"] is not None:
         program.role_definitions, program.default_subject_role_key, program.default_staff_role_key = prepared["roles"]
     phases_by_uuid = {} if creating else {phase.phase_uuid: phase for phase in _phases(db, program)}
@@ -296,14 +307,14 @@ def _apply(db: Session, current_user: PublicUser, org_id: int, program: Program,
             else:
                 badge = ready["badge"]
                 objective = Objective(
-                    objective_uuid=f"objective_{uuid4()}", org_id=org_id, title="", kind=ObjectiveKind.CUSTOM,
+                    objective_uuid=f"objective_{uuid4()}", org_id=org_id, title="", kind=ObjectiveKind.ACTIVITY if item.type == "activity" else ObjectiveKind.CUSTOM,
                     badge_id=badge.id if badge else None, created_by_user_id=current_user.id, creation_date=now,
                 )
                 relation = ProgramObjective(
                     program_id=int(program.id), objective_id=0, creation_date=now,  # type: ignore[arg-type]
                     badge_major_version=programs._latest_badge_major(db, int(badge.id)) if badge else None,
                 )
-                learner_confirms = item.allow_learner_confirmation or badge is not None
+                learner_confirms = item.allow_learner_confirmation or badge is not None or item.type == "activity"
             objective.title = item.title.strip()
             objective.description = item.description
             objective.reviewer_guidance = item.reviewer_guidance.strip()
@@ -314,7 +325,11 @@ def _apply(db: Session, current_user: PublicUser, org_id: int, program: Program,
             objective.update_date = now
             db.add(objective)
             db.flush()
+            if existing is None and item.type == "activity":
+                from src.services.plan_activities import create_objective_activity
+                create_objective_activity(db, objective)
             relation.objective_id = int(objective.id)  # type: ignore[arg-type]
+            relation.after_objective_uuids = list(dict.fromkeys(item.after_objective_uuids))
             relation.phase_id = phase.id
             relation.position = j
             relation.default_start_rule = item.schedule.start_rule

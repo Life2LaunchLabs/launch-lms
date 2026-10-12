@@ -41,7 +41,7 @@ async def convert_page_variants_to_flow(
 ) -> LearningActivityRead:
     activity = lookups._get_activity(db_session, activity_uuid)
     access_rules._require_org_admin(db_session, current_user, activity.org_id)
-    lookups._assert_content_editable(db_session, activity.version_id)
+    lookups._assert_content_editable(db_session, activity.version_id, activity)
     pages = list(
         db_session.exec(
             select(LearningPage)
@@ -230,7 +230,7 @@ async def create_page(
 ) -> LearningPageRead:
     activity = lookups._get_activity(db_session, data.activity_uuid)
     access_rules._require_org_admin(db_session, current_user, activity.org_id)
-    version = lookups._assert_content_editable(db_session, activity.version_id)
+    version = lookups._assert_content_editable(db_session, activity.version_id, activity)
     _validate_page_payload(data.page_type, data.content)
     if any(
         block.get("type") == "portfolio_preview"
@@ -238,7 +238,7 @@ async def create_page(
         for block in stack
         if isinstance(block, dict)
     ):
-        badge = db_session.get(LearningBadge, activity.badge_id)
+        badge = db_session.get(LearningBadge, activity.badge_id) if activity.badge_id else None
         if not badge or not access_rules._is_system_object(badge):
             raise HTTPException(
                 status_code=403,
@@ -264,8 +264,7 @@ async def create_page(
         update_date=now,
     )
     db_session.add(page)
-    lookups._bump_version(version)
-    db_session.add(version)
+    lookups._bump_version(version, db_session)
     db_session.commit()
     db_session.refresh(page)
     return lookups._serialize_page(page)
@@ -280,7 +279,7 @@ async def update_page(
 ) -> LearningPageRead:
     page = lookups._get_page(db_session, page_uuid)
     access_rules._require_org_admin(db_session, current_user, page.org_id)
-    version = lookups._assert_content_editable(db_session, page.version_id)
+    version = lookups._assert_content_editable(db_session, page.version_id, page)
     patch = data.model_dump(exclude_unset=True)
     if "content" in patch or "page_type" in patch:
         page_type = patch.get("page_type") or page.page_type
@@ -295,7 +294,7 @@ async def update_page(
             for block in stack
             if isinstance(block, dict)
         ):
-            badge = db_session.get(LearningBadge, page.badge_id)
+            badge = db_session.get(LearningBadge, page.badge_id) if page.badge_id else None
             if not badge or not access_rules._is_system_object(badge):
                 raise HTTPException(
                     status_code=403,
@@ -310,8 +309,7 @@ async def update_page(
     for key, value in data.model_dump(exclude_unset=True).items():
         setattr(page, key, value)
     page.update_date = access_rules._now()
-    lookups._bump_version(version)
-    db_session.add(version)
+    lookups._bump_version(version, db_session)
     db_session.add(page)
     db_session.commit()
     db_session.refresh(page)
@@ -326,8 +324,8 @@ async def delete_page(
 ) -> dict:
     page = lookups._get_page(db_session, page_uuid)
     access_rules._require_org_admin(db_session, current_user, page.org_id)
-    version = lookups._assert_content_editable(db_session, page.version_id)
-    badge = db_session.get(LearningBadge, page.badge_id)
+    version = lookups._assert_content_editable(db_session, page.version_id, page)
+    badge = db_session.get(LearningBadge, page.badge_id) if page.badge_id else None
     if badge and access_rules._is_system_object(badge):
         sibling_count = db_session.exec(
             select(func.count(LearningPage.id)).where(
@@ -340,8 +338,7 @@ async def delete_page(
                 detail="Activities must keep at least one page",
             )
     db_session.delete(page)
-    lookups._bump_version(version)
-    db_session.add(version)
+    lookups._bump_version(version, db_session)
     db_session.commit()
     return {"detail": "Learning page deleted"}
 
@@ -355,7 +352,7 @@ async def upload_page_media(
 ) -> dict:
     page = lookups._get_page(db_session, page_uuid)
     access_rules._require_org_admin(db_session, current_user, page.org_id)
-    lookups._assert_content_editable(db_session, page.version_id)
+    lookups._assert_content_editable(db_session, page.version_id, page)
     org = access_rules._get_org(db_session, page.org_id)
 
     if not media_file or not media_file.filename:
@@ -383,10 +380,11 @@ async def upload_response_media(
 ) -> dict:
     user = access_rules._require_user(current_user)
     page = lookups._get_page(db_session, page_uuid)
-    badge = db_session.get(LearningBadge, page.badge_id)
-    if not badge:
-        raise HTTPException(status_code=404, detail="Badge not found")
-    lookups._ensure_read_badge(db_session, badge, current_user)
+    badge = db_session.get(LearningBadge, page.badge_id) if page.badge_id else None
+    if badge:
+        lookups._ensure_read_badge(db_session, badge, current_user)
+    elif not lookups._can_use_template_page(db_session, page, user):
+        raise HTTPException(status_code=404, detail="Learning page not found")
     org = access_rules._get_org(db_session, page.org_id)
 
     if not media_file or not media_file.filename:
