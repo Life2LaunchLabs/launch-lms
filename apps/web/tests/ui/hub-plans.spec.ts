@@ -77,7 +77,7 @@ test('plans.create-editor: plans surface uses native object editing', async ({ p
   await page.goto(environment.plansPath)
   await assertActualApp(page)
   await expect(page.getByRole('heading', { name: 'Plans', exact: true, level: 1 })).toBeVisible()
-  const create = page.getByRole('button', { name: /create a plan|new plan/i }).first()
+  const create = page.getByRole('button', { name: /create your own|create a plan|new plan/i }).first()
   await create.click()
   await expect(page.getByRole('heading', { name: 'What are you working toward?' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Save plan' })).toBeVisible()
