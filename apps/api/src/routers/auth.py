@@ -6,10 +6,8 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response, 
 from pydantic import BaseModel, EmailStr
 from sqlmodel import Session, select
 from src.core.events.database import get_db_session
-from src.db.learning import LearningBadge
-from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
-from src.db.users import AnonymousUser, User, UserCreate, UserRead
+from src.db.users import AnonymousUser, PublicUser, User, UserCreate, UserRead
 from src.security.auth import (
     JWT_ACCESS_TOKEN_EXPIRES,
     JWT_COOKIE_NAME,
@@ -24,8 +22,6 @@ from src.security.auth import (
 from src.security.cookies import get_cookie_domain_for_request, is_request_secure
 from src.services.auth.utils import signWithGoogle
 from src.services.dev.dev import isDevModeEnabled
-from src.services.guest_sessions import transfer_guest_session_data_to_user
-from src.services.learning import ensure_onboarding_learning_badge
 from src.services.security.account_lockout import (
     check_account_locked,
     format_lockout_message,
@@ -39,13 +35,11 @@ from src.services.security.rate_limiting import (
     check_refresh_rate_limit,
     get_client_ip,
 )
-from src.services.shared_content import owner_org_payload
 from src.services.users.email_verification import (
     invalidate_verification_tokens,
     resend_verification_email,
     verify_email_token,
 )
-from src.services.users.welcome_claim import resolve_welcome_claim
 
 
 def get_token_expiry_ms() -> int | None:
@@ -58,14 +52,9 @@ def get_token_expiry_ms() -> int | None:
 
 router = APIRouter()
 
-ONBOARDING_SYSTEM_TYPE = "onboarding"
-ONBOARDING_GOALS = {"higher_education", "employment", "self_starting", "not_sure"}
-
-
 class WelcomeSignupRequest(BaseModel):
     email: EmailStr
     password: str
-    quiz_result: dict | None = None
 
 
 class WelcomeSignupEmailCheckRequest(BaseModel):
@@ -79,233 +68,14 @@ def _get_owner_org(db_session: Session) -> Organization:
     return owner_org
 
 
-def _learning_onboarding_redirect_url(owner_org: Organization, badge_uuid: str, activity_uuid: str) -> str:
-    badge_id = badge_uuid.replace("badge_", "")
-    activity_id = activity_uuid.replace("learning_activity_", "")
-    return f"/orgs/{owner_org.slug}/badges/{badge_id}/chapter/{activity_id}?returnTo=/portfolio"
+def _starter_plan_redirect_url(owner_org: Organization, user_id: int, db_session: Session) -> str:
+    """The next step of the learner's Launch Ready starter plan (the Welcome step at first)."""
+    from src.services.starter_plan import ensure_starter_plan, starter_checklist
 
-
-def _onboarding_quiz_content() -> dict:
-    return {
-        "type": "doc",
-        "content": [
-            {
-                "type": "quizTextBlock",
-                "attrs": {
-                    "question_uuid": "onboarding_name",
-                    "question_text": "What should we call you?",
-                    "description": "Tell us your first and last name so we can personalize your profile.",
-                    "input_size": "single_line",
-                    "fields": [
-                        {
-                            "key": "first_name",
-                            "label": "First name",
-                            "placeholder": "First name",
-                            "required": True,
-                        },
-                        {
-                            "key": "last_name",
-                            "label": "Last name",
-                            "placeholder": "Last name",
-                            "required": True,
-                        },
-                    ],
-                    "background_gradient_seed": "onboarding-name",
-                },
-            },
-            {
-                "type": "quizSelectBlock",
-                "attrs": {
-                    "question_uuid": "onboarding_next_step",
-                    "question_text": "What next step are you working towards?",
-                    "display_style": "text",
-                    "show_responses": True,
-                    "option_count": 4,
-                    "background_gradient_seed": "onboarding-next-step",
-                    "options": [
-                        {
-                            "option_uuid": "higher_education",
-                            "label": "Higher education",
-                            "image_block_object": None,
-                            "gradient_seed": "higher-education",
-                            "info_message": "Great. We will help you organize the work that gets you ready for your next academic step.",
-                            "info_image_block_object": None,
-                        },
-                        {
-                            "option_uuid": "employment",
-                            "label": "Employment",
-                            "image_block_object": None,
-                            "gradient_seed": "employment",
-                            "info_message": "Great. We will help you build the profile, skills, and evidence that support your job goals.",
-                            "info_image_block_object": None,
-                        },
-                        {
-                            "option_uuid": "self_starting",
-                            "label": "Self Starting",
-                            "image_block_object": None,
-                            "gradient_seed": "self-starting",
-                            "info_message": "Great. We will help you shape a path for building, launching, and learning as you go.",
-                            "info_image_block_object": None,
-                        },
-                        {
-                            "option_uuid": "not_sure",
-                            "label": "Not sure",
-                            "image_block_object": None,
-                            "gradient_seed": "not-sure",
-                            "info_message": "That is fine. We will help you explore options and set up a profile that can grow with you.",
-                            "info_image_block_object": None,
-                        },
-                    ],
-                },
-            },
-        ],
-    }
-
-
-def _extract_onboarding_answers(quiz_result: dict | None) -> dict:
-    answers = quiz_result or {}
-    result_json = answers.get("result_json", answers) if isinstance(answers, dict) else {}
-    raw_answers = result_json.get("answers", []) if isinstance(result_json, dict) else []
-    parsed = {
-        "first_name": "",
-        "last_name": "",
-        "next_step": "",
-    }
-
-    for item in raw_answers if isinstance(raw_answers, list) else []:
-        question_uuid = item.get("question_uuid")
-        answer_json = item.get("answer_json") or {}
-        if question_uuid == "onboarding_name" and answer_json.get("type") == "text_fields":
-            fields = answer_json.get("fields") or {}
-            parsed["first_name"] = str(fields.get("first_name") or "").strip()
-            parsed["last_name"] = str(fields.get("last_name") or "").strip()
-        if question_uuid == "onboarding_next_step" and answer_json.get("type") == "select":
-            parsed["next_step"] = str(answer_json.get("option_uuid") or "").strip()
-
-    return parsed
-
-
-def _profile_grid(x: int, y: int, w: int, h: int) -> dict:
-    return {"x": x, "y": y, "w": w, "h": h}
-
-
-def _profile_layout_item(item_id: str, item_type: str, x: int, y: int, w: int, h: int) -> dict:
-    return {
-        "id": item_id,
-        "type": item_type,
-        "grid": _profile_grid(x, y, w, h),
-        "mobileGrid": _profile_grid(0 if x == 0 else 1, y, min(2, w), h),
-    }
-
-
-def _custom_profile_section(item_id: str, item_type: str, title: str = "") -> dict:
-    return {
-        "id": item_id,
-        "type": item_type,
-        "title": title,
-        "body": "",
-        "url": "",
-        "mediaUrl": "",
-    }
-
-
-def _build_onboarding_profile_preset(next_step: str, recommended_badges: list[str]) -> dict:
-    goal = next_step if next_step in ONBOARDING_GOALS else "not_sure"
-
-    if goal == "employment":
-        layout = [
-            _profile_layout_item("timeline", "timeline", 0, 0, 2, 3),
-            _profile_layout_item("portfolio", "portfolio", 2, 0, 1, 3),
-            _profile_layout_item("achievements", "achievements", 0, 3, 1, 2),
-            _profile_layout_item("employment-links", "link", 1, 3, 2, 1),
-        ]
-        sections = [_custom_profile_section("employment-links", "link", "Resume or work sample")]
-        timeline_enabled = True
-    elif goal == "higher_education":
-        layout = [
-            _profile_layout_item("achievements", "achievements", 0, 0, 1, 3),
-            _profile_layout_item("application-notes", "text", 1, 0, 2, 2),
-            _profile_layout_item("portfolio", "portfolio", 0, 3, 2, 3),
-            _profile_layout_item("timeline", "timeline", 2, 2, 1, 3),
-        ]
-        sections = [_custom_profile_section("application-notes", "text", "Application notes")]
-        timeline_enabled = True
-    elif goal == "self_starting":
-        layout = [
-            _profile_layout_item("portfolio", "portfolio", 0, 0, 2, 3),
-            _profile_layout_item("social-link", "link", 2, 0, 1, 1),
-            _profile_layout_item("instagramPreview", "instagramPreview", 0, 3, 1, 3),
-            _profile_layout_item("youtubePreview", "youtubePreview", 1, 3, 1, 3),
-            _profile_layout_item("achievements", "achievements", 2, 1, 1, 3),
-        ]
-        sections = [_custom_profile_section("social-link", "link", "Primary link")]
-        timeline_enabled = False
-    else:
-        layout = [
-            _profile_layout_item("portfolio", "portfolio", 0, 0, 2, 3),
-            _profile_layout_item("achievements", "achievements", 2, 0, 1, 3),
-            _profile_layout_item("timeline", "timeline", 0, 3, 2, 3),
-        ]
-        sections = []
-        timeline_enabled = True
-
-    return {
-        "header": {"socials": []},
-        "featured": {"cards": [], "publicVisible": True},
-        "achievements": {"featuredIds": [], "publicVisible": True},
-        "timelineEnabled": timeline_enabled,
-        "timelinePublicVisible": True,
-        "timeline": [],
-        "layout": layout,
-        "sections": sections,
-        "onboarding": {
-            "next_step": goal,
-            "recommended_badges": recommended_badges[:3],
-            "completed_at": datetime.now(timezone.utc).isoformat(),
-        },
-    }
-
-
-def _get_onboarding_recommended_badges(owner_org: Organization, next_step: str, db_session: Session) -> list[str]:
-    org_config = db_session.exec(
-        select(OrganizationConfig).where(OrganizationConfig.org_id == owner_org.id)
-    ).first()
-    config = org_config.config if org_config else {}
-    customization = config.get("customization", {}) if isinstance(config, dict) else {}
-    onboarding_config = {}
-    if isinstance(config, dict):
-        onboarding_config = customization.get("onboarding") or config.get("onboarding", {})
-    recommended = onboarding_config.get("recommended_badges", {}) if isinstance(onboarding_config, dict) else {}
-    goal = next_step if next_step in ONBOARDING_GOALS else "not_sure"
-    badge_uuids = recommended.get(goal, []) if isinstance(recommended, dict) else []
-    configured_badges = [
-        value if str(value).startswith("badge_") else f"badge_{value}"
-        for value in badge_uuids
-        if isinstance(value, str) and value.strip()
-    ][:3]
-    if len(configured_badges) >= 3:
-        return configured_badges
-
-    configured_set = set(configured_badges)
-    fallback_badges = db_session.exec(
-        select(LearningBadge).where(
-            LearningBadge.org_id == owner_org.id,
-            LearningBadge.public == True,
-            LearningBadge.system_type.is_(None),
-            LearningBadge.deleted_at.is_(None),
-        )
-    ).all()
-    fallback_badge_uuids = [
-        badge.badge_uuid
-        for badge in sorted(
-            fallback_badges,
-            key=lambda badge: badge.creation_date or badge.update_date or "",
-            reverse=True,
-        )
-        if badge.badge_uuid and badge.badge_uuid not in configured_set
-    ]
-
-    return (configured_badges + fallback_badge_uuids)[:3]
+    checklist = starter_checklist(db_session, ensure_starter_plan(db_session, user_id))
+    step = checklist["nextIncomplete"] or (checklist["items"][0] if checklist["items"] else None)
+    target = step["href"] if step else f"/plans/{checklist['plan']['slug']}"
+    return f"/orgs/{owner_org.slug}{target}"
 
 
 def _generate_onboarding_username(email: str, db_session: Session) -> str:
@@ -355,21 +125,13 @@ def unset_auth_cookies(response: Response, request: Request = None):
 @router.get("/onboarding/welcome")
 async def get_welcome_onboarding(
     request: Request,
+    current_user: PublicUser | AnonymousUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
-    owner_org, collection, badge, activity = ensure_onboarding_learning_badge(db_session)
-    org_payload = owner_org.model_dump()
-    org_payload.update(owner_org_payload(owner_org, owner_org.id))
-
-    return {
-        "org": org_payload,
-        "collection": collection.model_dump(),
-        "badge": badge.model_dump(),
-        "activity": activity.model_dump(),
-        "activity_id": activity.activity_uuid.replace("learning_activity_", ""),
-        "badge_uuid": badge.badge_uuid.replace("badge_", ""),
-        "redirect_url": _learning_onboarding_redirect_url(owner_org, badge.badge_uuid, activity.activity_uuid),
-    }
+    """Where onboarding continues: the starter plan for a signed-in learner, otherwise signup."""
+    if isinstance(current_user, AnonymousUser):
+        return {"redirect_url": "/signup"}
+    return {"redirect_url": _starter_plan_redirect_url(_get_owner_org(db_session), int(current_user.id), db_session)}
 
 
 @router.post("/signup/welcome/check-email")
@@ -390,7 +152,7 @@ async def complete_welcome_signup(
     body: WelcomeSignupRequest,
     db_session: Session = Depends(get_db_session),
 ):
-    owner_org, _, badge, activity = ensure_onboarding_learning_badge(db_session)
+    owner_org = _get_owner_org(db_session)
 
     existing = db_session.exec(select(User).where(User.email == body.email)).first()
     if existing:
@@ -406,10 +168,7 @@ async def complete_welcome_signup(
         "timeline": [],
         "layout": [],
         "sections": [],
-        "onboarding": {
-            "started_at": started_at,
-            "badge_uuid": badge.badge_uuid,
-        },
+        "onboarding": {"started_at": started_at},
     }
     user_create = UserCreate(
         username=_generate_onboarding_username(body.email, db_session),
@@ -418,7 +177,7 @@ async def complete_welcome_signup(
         first_name="",
         last_name="",
         bio="",
-        details={"onboarding": {"started_at": started_at, "badge_uuid": badge.badge_uuid}},
+        details={"onboarding": {"started_at": started_at}},
         profile=profile_preset,
     )
 
@@ -448,10 +207,8 @@ async def complete_welcome_signup(
     db_session.refresh(user)
 
     onboarding_payload = {
-        "badge_uuid": badge.badge_uuid,
-        "activity_uuid": activity.activity_uuid,
         "org_slug": owner_org.slug,
-        "redirect_url": _learning_onboarding_redirect_url(owner_org, badge.badge_uuid, activity.activity_uuid),
+        "redirect_url": _starter_plan_redirect_url(owner_org, int(user.id), db_session),  # type: ignore[arg-type]
     }
 
     access_token = create_access_token(
@@ -460,12 +217,6 @@ async def complete_welcome_signup(
     )
     refresh_token = create_refresh_token(data={"sub": user.email})
     set_auth_cookies(response, access_token, refresh_token, request)
-    transfer_guest_session_data_to_user(
-        request=request,
-        response=response,
-        db_session=db_session,
-        user=UserRead.model_validate(user),
-    )
 
     return {
         "user": UserRead.model_validate(user),
@@ -475,53 +226,6 @@ async def complete_welcome_signup(
             "expiry": get_token_expiry_ms(),
         },
         "onboarding": onboarding_payload,
-    }
-
-
-class WelcomeClaimRequest(BaseModel):
-    claim_token: str
-
-
-@router.post("/signup/welcome/claim")
-async def claim_welcome_session(
-    request: Request,
-    response: Response,
-    body: WelcomeClaimRequest,
-    db_session: Session = Depends(get_db_session),
-):
-    """
-    Polled by the signup tab while it waits for email verification.
-    Issues the withheld session once the email is verified.
-    """
-    claim_status, user, redirect_url = resolve_welcome_claim(
-        db_session, body.claim_token
-    )
-
-    if claim_status == "invalid":
-        raise HTTPException(
-            status_code=410,
-            detail="Invalid or expired claim token",
-        )
-
-    if claim_status == "pending":
-        return {"status": "pending"}
-
-    access_token = create_access_token(
-        data={"sub": user.email},
-        expires_delta=JWT_ACCESS_TOKEN_EXPIRES,
-    )
-    refresh_token = create_refresh_token(data={"sub": user.email})
-    set_auth_cookies(response, access_token, refresh_token, request)
-
-    return {
-        "status": "ready",
-        "user": UserRead.model_validate(user),
-        "tokens": {
-            "access_token": access_token,
-            "refresh_token": refresh_token,
-            "expiry": get_token_expiry_ms(),
-        },
-        "redirect_url": redirect_url,
     }
 
 
@@ -660,12 +364,6 @@ async def login(
     refresh_token = create_refresh_token(data={"sub": username})
 
     set_auth_cookies(response, access_token, refresh_token, request)
-    transfer_guest_session_data_to_user(
-        request=request,
-        response=response,
-        db_session=db_session,
-        user=UserRead.model_validate(user),
-    )
 
     user = UserRead.model_validate(user)
 
@@ -722,12 +420,6 @@ async def third_party_login(
     refresh_token = create_refresh_token(data={"sub": user.email})
 
     set_auth_cookies(response, access_token, refresh_token, request)
-    transfer_guest_session_data_to_user(
-        request=request,
-        response=response,
-        db_session=db_session,
-        user=UserRead.model_validate(user),
-    )
 
     user = UserRead.model_validate(user)
 

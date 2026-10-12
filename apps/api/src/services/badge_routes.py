@@ -18,35 +18,21 @@ from sqlmodel import Session, select
 
 from src.db.badge_routes import BadgePlanStart, BadgeRoute, BadgeRouteOffer, BadgeRouteOffersUpdate, BadgeRoutesUpdate
 from src.db.learning import (
+    BadgeIssuerLearnerLink,
+    BadgeIssuerLearnerLinkStatus,
     LearningAwardSource,
     LearningBadge,
     LearningBadgeAward,
     LearningBadgeVersion,
 )
 from src.db.planning import Plan, PlanObjective, PlanObjectiveProgress, PlanStatus
-from src.db.programs import (
-    Objective,
-    ObjectiveKind,
-    ParticipantStatus,
-    Program,
-    ProgramAssignment,
-    ProgramObjective,
-    ProgramParticipant,
-    ProgramPhase,
-)
+from src.db.programs import Objective, ObjectiveKind, Program, ProgramObjective, ProgramPhase
 from src.db.users import PublicUser
+from src.services.learning.lookups import _get_badge
 
 
 def _now_string() -> str:
     return datetime.now().isoformat()
-
-
-def _badge(db: Session, badge_uuid: str) -> LearningBadge:
-    clean = badge_uuid.removeprefix("badge_")
-    badge = db.exec(select(LearningBadge).where(LearningBadge.badge_uuid.in_([badge_uuid, f"badge_{clean}"]))).first()  # type: ignore[union-attr]
-    if not badge or badge.deleted_at:
-        raise HTTPException(status_code=404, detail="Badge not found")
-    return badge
 
 
 def _routes(db: Session, badge: LearningBadge) -> list[tuple[BadgeRoute, Program]]:
@@ -98,7 +84,7 @@ def list_routes(db: Session, current_user: PublicUser | None, badge_uuid: str) -
     """The ways to earn a badge, each with the issuers that offer it and whether this learner can start."""
     from src.services.learning_issuers import issuer_options
 
-    badge = _badge(db, badge_uuid)
+    badge = _get_badge(db, badge_uuid)
     user_id = int(current_user.id) if current_user and getattr(current_user, "id", None) else None
     visible = {option["org"]["id"]: option for option in issuer_options(db, badge, user_id, set())["issuers"]}
     offered = _offered(db, badge)
@@ -120,7 +106,7 @@ def set_routes(db: Session, current_user: PublicUser, badge_uuid: str, payload: 
     """The creator chooses which of its plan templates earn the badge, and which one is recommended."""
     from src.security.org_auth import require_org_admin
 
-    badge = _badge(db, badge_uuid)
+    badge = _get_badge(db, badge_uuid)
     require_org_admin(current_user.id, badge.org_id, db)
     programs = []
     for item in payload.routes:
@@ -153,7 +139,7 @@ def start_badge_plan(db: Session, current_user: PublicUser, badge_uuid: str, pay
     from src.services.learning_issuers import validate_issuer_start
     from src.services.planning import _plan_dict
 
-    badge = _badge(db, badge_uuid)
+    badge = _get_badge(db, badge_uuid)
     user_id = int(current_user.id)
     existing = active_badge_plan(db, badge, user_id)
     if existing:
@@ -178,29 +164,10 @@ def start_badge_plan(db: Session, current_user: PublicUser, badge_uuid: str, pay
 
 
 def create_badge_plan(db: Session, badge: LearningBadge, program: Program, user_id: int, issuer_org_id: int, staff_ids: list[int]) -> Plan:
-    """The learner's own plan from a route, offered by the issuer like an org assignment (not committed)."""
-    from src.services.planning import materialize_assignment_plans
-    from src.services.programs import _snapshot
+    """The learner's own plan from a route, offered by the issuer (not committed)."""
+    from src.services.own_plans import create_own_plan
 
-    staff_ids = [staff_id for staff_id in dict.fromkeys(staff_ids) if staff_id != user_id]
-    staff_role = program.default_staff_role_key or "reviewer"
-    now = _now_string()
-    assignment = ProgramAssignment(
-        assignment_uuid=f"assignment_{uuid4()}", org_id=issuer_org_id, program_id=program.id, user_id=user_id,
-        program_version=program.version, definition_version=1, objective_snapshot=_snapshot(db, program),
-        initiate_date=datetime.now(), staff_user_ids=[user_id, *staff_ids],
-        collaborators=[{"user_id": user_id, "role_key": "plan_admin"}, *({"user_id": staff_id, "role_key": staff_role} for staff_id in staff_ids)],
-        schedule={}, created_by_user_id=user_id, owner_user_id=user_id, creation_date=now, update_date=now,
-    )
-    db.add(assignment)
-    db.flush()
-    db.add(ProgramParticipant(
-        participant_uuid=f"participant_{uuid4()}", assignment_id=assignment.id, org_id=issuer_org_id,
-        user_id=user_id, status=ParticipantStatus.ACTIVE, creation_date=now, update_date=now,
-    ))
-    db.flush()
-    materialize_assignment_plans(db, int(assignment.id))  # type: ignore[arg-type]
-    plan = db.exec(select(Plan).where(Plan.source_assignment_id == assignment.id, Plan.subject_user_id == user_id)).one()
+    plan = create_own_plan(db, program, user_id, issuer_org_id, staff_ids)
     plan.source_badge_id = badge.id
     plan.name = badge.name
     db.add(plan)
@@ -213,7 +180,7 @@ def set_offered_routes(db: Session, current_user: PublicUser, badge_uuid: str, i
     from src.security.org_auth import require_org_admin
     from src.services.learning_issuers import active_issuers
 
-    badge = _badge(db, badge_uuid)
+    badge = _get_badge(db, badge_uuid)
     require_org_admin(current_user.id, issuer_org_id, db)
     if issuer_org_id not in {org_id for org_id, _, _ in active_issuers(db, badge)}:
         raise HTTPException(status_code=403, detail="This organization is not issuing this badge")
@@ -257,21 +224,15 @@ def award_if_plan_complete(db: Session, plan: Plan) -> LearningBadgeAward | None
             evidence={"plan_uuid": plan.plan_uuid}, creation_date=str(now), update_date=str(now),
         )
         db.add(award)
+        for link in db.exec(select(BadgeIssuerLearnerLink).where(
+            BadgeIssuerLearnerLink.badge_id == badge.id, BadgeIssuerLearnerLink.user_id == plan.subject_user_id,
+            BadgeIssuerLearnerLink.status == BadgeIssuerLearnerLinkStatus.ACCEPTED,
+        )).all():
+            link.status, link.end_reason, link.ended_at, link.update_date = BadgeIssuerLearnerLinkStatus.COMPLETED, "badge_completed", now, str(now)
+            db.add(link)
     plan.status = PlanStatus.COMPLETED
     plan.completed_at = datetime.utcnow()
     db.add(plan)
     db.commit()
     db.refresh(award)
     return award
-
-
-def convert_path(db: Session, current_user: PublicUser, badge_uuid: str) -> dict:
-    """The creator turns the badge's learning path into its recommended route now."""
-    from src.security.org_auth import require_org_admin
-    from src.services.badge_conversion import convert_badge
-
-    badge = _badge(db, badge_uuid)
-    require_org_admin(current_user.id, badge.org_id, db)
-    if not convert_badge(db, badge):
-        raise HTTPException(status_code=409, detail="This badge already has ways to earn it, or no learning path to convert")
-    return list_routes(db, current_user, badge_uuid)

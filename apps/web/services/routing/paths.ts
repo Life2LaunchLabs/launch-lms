@@ -49,7 +49,7 @@ export const routePaths = {
   auth: {
     login: (params?: { next?: string; redirect?: string }) =>
       withQuery('/login', params),
-    signup: (params?: { next?: string; inviteCode?: string; invitation?: string; mode?: string; inviteBadge?: string }) =>
+    signup: (params?: { next?: string; inviteCode?: string; invitation?: string; mode?: string }) =>
       withQuery('/signup', params),
     forgot: () => '/forgot',
     reset: () => '/reset',
@@ -103,7 +103,6 @@ export const routePaths = {
     portfolioAchievementDetail: (achievementId: string) => `/portfolio/achievements/${achievementId}`,
     news: () => '/news',
     newsArticle: (slug: string) => `/news/${slug}`,
-    badge: () => '/badge',
     badgesVerify: (uuid: string) => `/badges/${uuid}/verify`,
     organizations: () => '/organizations',
     organization: (orgSlug: string) => `/organization/${orgSlug}`,
@@ -115,15 +114,8 @@ export const routePaths = {
     badges: () => '/badges',
     plans: () => '/plans',
     plan: (planSlug: string) => `/plans/${encodeURIComponent(planSlug)}`,
-    programs: () => '/programs',
-    program: (programSlug: string) => `/programs/${encodeURIComponent(programSlug)}`,
     myBadges: () => '/badges/my-badges',
     badgeDetail: (badgeUuid: string) => `/badges/${badgeUuid}`,
-    badgeStatus: (courseUuid: string) => `/badges/${courseUuid}/badge`,
-    badgePath: (courseUuid: string) => `/badges/${courseUuid}/path`,
-    badgeChapter: (courseUuid: string, chapterId: string) =>
-      `/badges/${courseUuid}/chapter/${chapterId}`,
-    badgeInvite: (courseUuid: string) => `/badges/${courseUuid}/invite`,
     resource: (resourceUuid: string) => withQuery('/hub', { resource: resourceUuid }),
     podcast: (podcastUuid: string) => `/podcast/${podcastUuid}`,
     playground: (playgroundUuid: string) => `/playground/${playgroundUuid}`,

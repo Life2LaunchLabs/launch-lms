@@ -62,23 +62,16 @@ class Tool:
 
 TOOLS = [
     Tool(
-        "list_badges",
-        "List badges",
-        "List the badges in the connected organization with their draft and active versions. Start here to find the badge an admin is talking about.",
-        {"properties": {"query": {"type": "string", "description": "Optional case-insensitive name filter."}}},
-        handlers.list_badges,
-    ),
-    Tool(
         "list_activities",
         "List activities",
-        "List the interactive activities of a plan template (template_uuid: one per activity objective, edited in place) or of a badge version (badge_uuid; default: the newest draft, else the active published version).",
-        {"properties": {"template_uuid": {"type": "string"}, "badge_uuid": {"type": "string"}, "version_uuid": {"type": "string"}}},
+        "List the interactive activities of a plan template: one per activity objective, edited in place.",
+        {"properties": {"template_uuid": {"type": "string"}}, "required": ["template_uuid"]},
         handlers.list_activities,
     ),
     Tool(
         "get_activity",
         "Get an activity",
-        "Read one activity as an Activity Document, plus its etag (needed to save) and whether its version is an editable draft.",
+        "Read one activity as an Activity Document, plus its etag (needed to save) and the template it belongs to.",
         {"properties": {"activity_uuid": {"type": "string"}}, "required": ["activity_uuid"]},
         handlers.get_activity,
     ),
@@ -99,8 +92,8 @@ TOOLS = [
     Tool(
         "validate_activity",
         "Validate an activity",
-        "Check an Activity Document against every server rule without saving. Returns all errors and warnings with JSON paths. Pass activity_uuid when editing an existing activity, badge_uuid when drafting a new one.",
-        {"properties": {"document": _DOCUMENT, "activity_uuid": {"type": "string"}, "badge_uuid": {"type": "string"}}, "required": ["document"]},
+        "Check an Activity Document against every server rule without saving. Returns all errors and warnings with JSON paths. Pass activity_uuid when editing an existing activity.",
+        {"properties": {"document": _DOCUMENT, "activity_uuid": {"type": "string"}}, "required": ["document"]},
         handlers.validate_activity,
     ),
     Tool(
@@ -110,7 +103,7 @@ TOOLS = [
         {
             "properties": {
                 "activity_uuid": {"type": "string"},
-                "badge_uuid": {"type": "string", "description": "Use with `document` when previewing an activity that does not exist yet."},
+                "template_uuid": {"type": "string", "description": "Use with `document` when previewing an activity that is not saved yet."},
                 "document": _DOCUMENT,
                 "persona": _PERSONA,
             },
@@ -121,18 +114,9 @@ TOOLS = [
     Tool(
         "save_activity",
         "Save an activity",
-        "Save an Activity Document over an existing activity: a plan template's activity objective (saved in place) or an activity in a draft badge version. Requires the etag from get_activity (or the last save). Fails with the current document if someone changed the activity since. Publishing the draft stays with the admin in Launch LMS.",
+        "Save an Activity Document over a plan template's activity, in place; everyone playing it sees the change. Requires the etag from get_activity (or the last save). Fails with the current document if someone changed the activity since.",
         {"properties": {"activity_uuid": {"type": "string"}, "document": _DOCUMENT, "base_etag": {"type": "string"}}, "required": ["activity_uuid", "document", "base_etag"]},
         handlers.save_activity,
-        scope="activities:write",
-        read_only=False,
-    ),
-    Tool(
-        "create_activity",
-        "Create an activity",
-        "Add a new activity to a badge's draft version from an Activity Document (defaults to the newest draft). New pages use short placeholder ids; a document read with get_activity can be passed to copy that activity.",
-        {"properties": {"badge_uuid": {"type": "string"}, "version_uuid": {"type": "string"}, "document": _DOCUMENT}, "required": ["badge_uuid", "document"]},
-        handlers.create_activity,
         scope="activities:write",
         read_only=False,
     ),
@@ -304,11 +288,11 @@ def _summary(name: str, result: dict) -> str:
     if name == "preview_activity":
         state = "unsaved draft" if result.get("unsaved") else "saved version"
         return f"Interactive preview of the {state} is ready: {result['preview_url']} (link valid until {result['expires_at']})."
-    if name in {"save_activity", "create_activity"}:
+    if name == "save_activity":
         document = result["document"]
         return (
-            f"Saved \"{document['activity']['title']}\" ({len(document['pages'])} pages) to draft "
-            f"\"{result['context'].get('version_title')}\". New etag: {result['etag']}. Review and publish in Launch LMS: {result['editor_url']}"
+            f"Saved \"{document['activity']['title']}\" ({len(document['pages'])} pages) in \"{result['context'].get('template_name')}\". "
+            f"New etag: {result['etag']}. Review in Launch LMS: {result['editor_url']}"
         )
     if name in {"save_plan_template", "create_plan_template"}:
         document = result["document"]

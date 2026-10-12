@@ -1,10 +1,10 @@
 import { notFound } from 'next/navigation'
-import LearningActivityEditor from '@components/Learning/LearningActivityEditor'
+import LearningActivityEditor from '@components/Learning/editor/LearningActivityEditor'
 import { getServerSession } from '@/lib/auth/server'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
 import { planningApi } from '@services/planning/planning'
 
-/** Edits the activity a plan template objective plays. Template activities save in place. */
+/** Edits the activity a plan template objective plays. Activities save in place. */
 export default async function TemplateActivityEditorPage({ params }: { params: Promise<{ orgslug: string; programuuid: string; activityuuid: string }> }) {
   const { orgslug, programuuid, activityuuid } = await params
   const session = await getServerSession()
@@ -17,7 +17,5 @@ export default async function TemplateActivityEditorPage({ params }: { params: P
   } catch {
     notFound()
   }
-  // The editor reads its owner's name, org and whether it is editable; a template activity is always editable.
-  const owner = { badge: { badge_uuid: null, name: data.template.name, org_id: data.template.org_id, selected_version: { state: 'draft' } } }
-  return <LearningActivityEditor orgslug={orgslug} badgePath={owner} activity={data.activity} />
+  return <LearningActivityEditor ownerName={data.template.name} orgId={Number(data.template.org_id)} activity={data.activity} />
 }

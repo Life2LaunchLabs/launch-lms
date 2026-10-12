@@ -13,6 +13,5 @@ export const badgeRoutesApi = {
   list: (badgeUuid: string, token?: string) => request(`${clean(badgeUuid)}/routes`, token),
   set: (badgeUuid: string, routes: { program_uuid: string; recommended: boolean }[], token?: string) => request(`${clean(badgeUuid)}/routes`, token, 'PUT', { routes }),
   setOffers: (badgeUuid: string, issuerOrgId: number, routeUuids: string[], token?: string) => request(`${clean(badgeUuid)}/routes/offers?issuer_org_id=${issuerOrgId}`, token, 'PUT', { route_uuids: routeUuids }),
-  convertPath: (badgeUuid: string, token?: string) => request(`${clean(badgeUuid)}/routes/convert-path`, token, 'POST'),
   start: (badgeUuid: string, data: { program_uuid?: string; issuer_org_id?: number }, token?: string) => request(`${clean(badgeUuid)}/start-plan`, token, 'POST', data),
 }

@@ -27,9 +27,8 @@ import {
   updateLearningBadgeVersion,
 } from '@services/learning/learning'
 
-type SaveState = 'saved' | 'saving' | 'unsaved' | 'error'
-
-export default function BadgeVersionToolbar({ badge, saveState = 'saved' }: { badge: any; saveState?: SaveState }) {
+/** The badge credential's versions: draft, publish, activate. */
+export default function BadgeVersionToolbar({ badge }: { badge: any }) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -48,7 +47,6 @@ export default function BadgeVersionToolbar({ badge, saveState = 'saved' }: { ba
   const [diff, setDiff] = React.useState<any>(null)
 
   const navigateTo = (versionUuid: string) => {
-    if (saveState === 'unsaved' && !window.confirm('Discard unsaved changes and view another version?')) return
     const next = new URLSearchParams(searchParams.toString())
     next.set('version', versionUuid)
     router.replace(`${pathname}?${next.toString()}`)
@@ -176,7 +174,7 @@ export default function BadgeVersionToolbar({ badge, saveState = 'saved' }: { ba
 
   if (!selected) return null
   const isDraft = selected.state === 'draft'
-  const status = getDisplayStatus(selected, saveState)
+  const status = getDisplayStatus(selected)
 
   return (
     <>
@@ -230,7 +228,7 @@ export default function BadgeVersionToolbar({ badge, saveState = 'saved' }: { ba
             {isDraft ? (
               <>
                 <DropdownMenuItem onSelect={openDetails}><Pencil />Edit details</DropdownMenuItem>
-                <DropdownMenuItem onSelect={openPublish} disabled={saveState !== 'saved'}><Rocket />Publish version</DropdownMenuItem>
+                <DropdownMenuItem onSelect={openPublish}><Rocket />Publish version</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={removeDraft} className="text-destructive focus:text-destructive"><Trash2 />Delete draft</DropdownMenuItem>
               </>
@@ -267,7 +265,7 @@ function SemverIncrementPicker({ value, previous, onChange }: { value: string; p
   const active = (Object.keys(choices) as SemverPart[]).find((part) => choices[part].every((number, index) => number === current[index])) || 'patch'
   const guidance = {
     major: 'Marks earlier credentials as an older Achievement model and may prompt learners to re-earn it.',
-    minor: 'Adds backward-compatible activities, criteria, or capabilities to the same Achievement model.',
+    minor: 'Adds backward-compatible criteria or capabilities to the same Achievement model.',
     patch: 'For backward-compatible fixes, clarifications, and small presentation changes.',
   }[active]
 
@@ -338,8 +336,6 @@ function DiffSummary({ diff }: { diff: any }) {
   if (!diff) return null
   const sections = [
     ['Achievement definition', diff.change_sections?.achievement_definition],
-    ['Activities added', diff.change_sections?.activities_added],
-    ['Activities modified', diff.change_sections?.activities_modified],
     ['Settings changed', diff.change_sections?.settings_changed],
   ].filter(([, items]) => Array.isArray(items) && items.length) as [string, string[]][]
   return (
@@ -393,10 +389,7 @@ function displayVersionTitle(version: any) {
   return ['Initial draft', 'Initial release'].includes(version?.title) ? 'Initial Version' : version?.title
 }
 
-function getDisplayStatus(selected: any, saveState: SaveState) {
-  if (saveState === 'unsaved') return { label: 'Unsaved', className: 'bg-orange-100 text-orange-900 hover:bg-orange-200' }
-  if (saveState === 'saving') return { label: 'Saving', className: 'bg-blue-100 text-blue-900 hover:bg-blue-200' }
-  if (saveState === 'error') return { label: 'Save failed', className: 'bg-red-100 text-red-900 hover:bg-red-200' }
+function getDisplayStatus(selected: any) {
   if (selected.state === 'draft') return { label: 'Draft', className: 'bg-amber-100 text-amber-900 hover:bg-amber-200' }
   if (selected.is_active) return { label: 'Active', className: 'bg-emerald-100 text-emerald-900 hover:bg-emerald-200' }
   return { label: 'Inactive', className: 'bg-muted text-muted-foreground hover:bg-muted/80' }

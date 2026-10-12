@@ -30,7 +30,7 @@ async def create_collection(
     access_rules._require_org_admin(db_session, current_user, data.org_id)
     now = access_rules._now()
     collection = BadgeCollection(
-        **access_rules._strip_system_fields(data.model_dump()),
+        **data.model_dump(),
         collection_uuid=f"badge_collection_{uuid4()}",
         creation_date=now,
         update_date=now,
@@ -57,7 +57,7 @@ async def update_collection(
     if not collection:
         raise HTTPException(status_code=404, detail="Badge collection not found")
     access_rules._require_org_admin(db_session, current_user, collection.org_id)
-    for key, value in access_rules._strip_system_fields(data.model_dump(exclude_unset=True)).items():
+    for key, value in data.model_dump(exclude_unset=True).items():
         setattr(collection, key, value)
     collection.update_date = access_rules._now()
     db_session.add(collection)
@@ -131,11 +131,6 @@ async def delete_collection(
     if not collection:
         raise HTTPException(status_code=404, detail="Badge collection not found")
     access_rules._require_org_admin(db_session, current_user, collection.org_id)
-    if access_rules._is_system_object(collection):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="System badge collections cannot be deleted",
-        )
     badges = db_session.exec(
         select(LearningBadge).where(LearningBadge.collection_id == collection.id)
     ).all()
@@ -197,8 +192,6 @@ async def list_collections(
     db_session: Session,
     admin: bool = False,
 ) -> list[BadgeCollectionRead]:
-    if org_id is not None:
-        access_rules._ensure_onboarding_for_owner_org(db_session, org_id)
     if admin:
         if org_id is None:
             raise HTTPException(

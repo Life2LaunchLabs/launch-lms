@@ -21,8 +21,6 @@ from src.services.learning import _validate_page_button_destinations, _validate_
 from src.services.learning_documents.models import (
     DOCUMENT_FORMAT,
     DOCUMENT_FORMAT_VERSION,
-    HIDDEN_CONTENT_KEYS,
-    HIDDEN_SETTINGS_KEYS,
     NEW_PAGE_ID_PATTERN,
     ActivityDocument,
     DocumentIssue,
@@ -44,10 +42,6 @@ STORED_PAGE_PREFIX = "learning_page_"
 _STORED_PAGE_REF = re.compile(r"(?<![^:])(learning_page_[0-9a-f-]{36})(?=$|\.)")
 
 
-def _public(value: dict | None, hidden: frozenset[str]) -> dict:
-    return {key: deepcopy(item) for key, item in (value or {}).items() if key not in hidden}
-
-
 def export_document(activity: LearningActivity, pages: list[LearningPage]) -> dict:
     exported_pages = []
     for page in sorted(pages, key=lambda item: (item.order, item.id or 0)):
@@ -57,7 +51,7 @@ def export_document(activity: LearningActivity, pages: list[LearningPage]) -> di
                 "page_type": page.page_type.value if hasattr(page.page_type, "value") else str(page.page_type),
                 "title": page.title,
                 "required": bool(page.required),
-                "content": _public(page.content, HIDDEN_CONTENT_KEYS),
+                "content": deepcopy(page.content or {}),
                 "design": deepcopy(page.design or {}),
             }
         )
@@ -70,8 +64,7 @@ def export_document(activity: LearningActivity, pages: list[LearningPage]) -> di
             "description": activity.description or "",
             "icon": activity.icon,
             "thumbnail_image": activity.thumbnail_image or "",
-            "required": bool(activity.required),
-            "settings": _public(activity.settings, HIDDEN_SETTINGS_KEYS),
+            "settings": deepcopy(activity.settings or {}),
         },
         "pages": exported_pages,
     }
@@ -167,12 +160,6 @@ def prepare_document(
     if result.errors:
         return result
 
-    settings = data["activity"].get("settings") or {}
-    for key in sorted(HIDDEN_SETTINGS_KEYS & set(settings)):
-        result.warnings.append(
-            DocumentIssue(path=f"activity.settings.{key}", message="Platform-managed setting ignored")
-        )
-        settings.pop(key)
     activity = rewrite_page_references(data["activity"], result.new_page_ids)
     pages = rewrite_page_references(data["pages"], result.new_page_ids)
     page_ids = {page["page_uuid"] for page in pages}
@@ -184,7 +171,7 @@ def prepare_document(
     stored_flow = (((baseline or {}).get("activity") or {}).get("settings") or {}).get("flow")
     carried_flow = content_issues(Flow, stored_flow) if stored_flow else []
     for index, page in enumerate(pages):
-        content = page["content"] = normalize_question_settings(_public(page.get("content"), HIDDEN_CONTENT_KEYS))
+        content = page["content"] = normalize_question_settings(deepcopy(page.get("content") or {}))
         prefix = f"pages[{index}].content"
         page_type = LearningPageType(page["page_type"])
         if page_type == LearningPageType.STANDARD and not isinstance(content.get("blocks"), list):

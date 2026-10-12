@@ -87,6 +87,8 @@ class Program(SQLModel, table=True):
     library_published_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True, index=True))
     # Copied onto live plans: "any", "in_order" or "by_chapter".
     step_order: str = Field(default="any", sa_column=Column(String, nullable=False, server_default="any"))
+    # "starter" for the Launch Ready starter plan, kept in sync from data; its activities may change the learner's portfolio.
+    system_type: str | None = Field(default=None, sa_column=Column(String, nullable=True, index=True))
     created_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
     creation_date: str = ""
     update_date: str = ""

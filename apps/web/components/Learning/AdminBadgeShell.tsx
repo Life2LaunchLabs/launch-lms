@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import React from 'react'
-import { ArrowDown, ArrowLeftRight, ArrowUp, Award, BarChart3, Check, ClipboardCheck, Eye, GalleryVerticalEnd, Handshake, Image as ImageIcon, Loader2, Megaphone, Pencil, Plus, Settings, Trash2, X } from 'lucide-react'
+import { ArrowDown, ArrowLeftRight, ArrowUp, Award, BarChart3, Check, Eye, GalleryVerticalEnd, Handshake, Image as ImageIcon, Loader2, Megaphone, Pencil, Plus, Settings, Trash2, X } from 'lucide-react'
 import { motion } from 'motion/react'
 import toast from 'react-hot-toast'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
@@ -13,7 +13,7 @@ import { Switch } from '@components/ui/switch'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import { deleteLearningBadge, getLearningResponses, gradeLearningResponse, updateLearningBadge } from '@services/learning/learning'
+import { deleteLearningBadge, updateLearningBadge } from '@services/learning/learning'
 import { approveIssuerAuthorization, getIssuerAuthorizations, getIssuerBadgeMetrics, inviteIssuerOrg, LearnerAccess, rejectIssuerAuthorization, revokeIssuerAuthorization, updateIssuerAuthorization } from '@services/learning/marketplace'
 import { CreatorIssuingCard, LearnerAccessSelect, learnerAccessLabel } from '@components/Learning/BadgeIssuing'
 import CertificatePreview from '@components/Learning/BadgeCertificatePreview'
@@ -23,7 +23,7 @@ import BadgeVersionToolbar from '@components/Learning/BadgeVersionToolbar'; impo
 
 const tabs = [
   { key: 'analytics', label: 'Analytics', icon: BarChart3 },
-  { key: 'learning-path', label: 'Ways to earn', icon: GalleryVerticalEnd },
+  { key: 'routes', label: 'Ways to earn', icon: GalleryVerticalEnd },
   { key: 'definition', label: 'Definition', icon: Award },
   { key: 'marketing', label: 'Marketing', icon: Megaphone },
   { key: 'issuers', label: 'Issuers', icon: Handshake },
@@ -38,12 +38,10 @@ export default function AdminBadgeShell({
   orgslug,
   badge: initialBadge,
   activeSubpage,
-  children,
 }: {
   orgslug: string
   badge: any
   activeSubpage: string
-  children?: React.ReactNode
 }) {
   const router = useRouter()
   const session = useLHSession() as any
@@ -188,7 +186,7 @@ export default function AdminBadgeShell({
 
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.1 }} className="overflow-x-hidden">
         {normalizedSubpage === 'analytics' ? <BadgeAnalyticsPanel badge={badge} canEdit={canEdit} issuerOrgId={Number(org?.id)} orgslug={orgslug} /> : null}
-        {normalizedSubpage === 'learning-path' && canEdit ? <BadgeRoutesPanel badge={badge} orgslug={orgslug}>{children}</BadgeRoutesPanel> : null}
+        {normalizedSubpage === 'routes' && canEdit ? <BadgeRoutesPanel badge={badge} orgslug={orgslug} /> : null}
         {normalizedSubpage === 'issuers' && canEdit ? <BadgeIssuersPanel badge={badge} onPatch={patchBadge} /> : null}
         {normalizedSubpage === 'marketing' && canEdit ? <fieldset disabled={!isDraft}><BadgeAboutPanel badge={badge} onPatch={patchBadge} /></fieldset> : null}
         {normalizedSubpage === 'settings' ? (canEdit
@@ -298,142 +296,6 @@ function IssuerBadgeAnalyticsPanel({ badge, issuerOrgId, orgslug }: { badge: any
 
 function AnalyticsStat({ label, value }: { label: string; value: string }) {
   return <div className="rounded-lg border border-border bg-muted/30 p-4"><p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{label}</p><p className="mt-2 text-sm font-bold text-foreground">{value}</p></div>
-}
-
-export function BadgeGradingPanel({ badge }: { badge: any }) {
-  const session = useLHSession() as any
-  const accessToken = session.data?.tokens?.access_token
-  const [responses, setResponses] = React.useState<any[]>([])
-  const [loading, setLoading] = React.useState(true)
-  const [saving, setSaving] = React.useState('')
-  const [drafts, setDrafts] = React.useState<Record<string, { score: string; feedback: string }>>({})
-
-  const load = React.useCallback(async () => {
-    setLoading(true)
-    try {
-      const data = await getLearningResponses({
-        org_id: badge.org_id,
-        badge_uuid: badge.badge_uuid,
-        grading_status: 'pending',
-      }, accessToken)
-      setResponses(Array.isArray(data) ? data : [])
-      setDrafts((current) => {
-        const next = { ...current }
-        ;(Array.isArray(data) ? data : []).forEach((item: any) => {
-          if (!next[item.attempt_uuid]) next[item.attempt_uuid] = { score: '', feedback: '' }
-        })
-        return next
-      })
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to load responses.')
-    } finally {
-      setLoading(false)
-    }
-  }, [accessToken, badge.badge_uuid, badge.org_id])
-
-  React.useEffect(() => {
-    void load()
-  }, [load])
-
-  const saveGrade = async (response: any) => {
-    const draft = drafts[response.attempt_uuid] || { score: '', feedback: '' }
-    const maxScore = Number(response.result?.max_score ?? response.page?.scoring?.points ?? 1)
-    const score = Math.max(0, Math.min(maxScore, Number(draft.score || 0)))
-    setSaving(response.attempt_uuid)
-    try {
-      await gradeLearningResponse(response.attempt_uuid, { score, feedback: draft.feedback }, accessToken)
-      toast.success('Response graded.')
-      await load()
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to save grade.')
-    } finally {
-      setSaving('')
-    }
-  }
-
-  return (
-    <div className="px-10 pb-10 pt-6">
-      <section className="rounded-xl bg-card p-6 shadow-xs">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-bold text-foreground">Manual grading</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Pending text responses that block final badge award.</p>
-          </div>
-          <Button variant="outline" onClick={() => void load()} disabled={loading} className="gap-2 bg-card">
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardCheck className="h-4 w-4" />}
-            Refresh
-          </Button>
-        </div>
-
-        <div className="mt-6 space-y-4">
-          {loading ? (
-            <div className="flex items-center justify-center py-16 text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin" />
-            </div>
-          ) : responses.length ? responses.map((response) => {
-            const draft = drafts[response.attempt_uuid] || { score: '', feedback: '' }
-            const inputs = response.result?.inputs || response.answer?.inputs || {}
-            const maxScore = Number(response.result?.max_score ?? response.page?.scoring?.points ?? 1)
-            const learner = response.user
-              ? [response.user.first_name, response.user.last_name].filter(Boolean).join(' ') || response.user.username || response.user.email
-              : 'Guest learner'
-
-            return (
-              <article key={response.attempt_uuid} className="rounded-xl border border-border p-4">
-                <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-                  <div>
-                    <p className="text-sm font-bold text-foreground">{response.page?.title || 'Text response'}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">{learner} · {new Date(response.submitted_at).toLocaleString()}</p>
-                  </div>
-                  <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">Pending</span>
-                </div>
-
-                <div className="mt-4 space-y-3">
-                  {Object.entries(inputs).map(([inputId, value]: any) => (
-                    <div key={inputId} className="rounded-lg bg-muted p-3">
-                      <p className="text-xs font-bold uppercase text-muted-foreground">{inputId} · {value?.word_count ?? countWords(value?.text)} words</p>
-                      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-foreground">{value?.text || 'No response text.'}</p>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-4 grid gap-3 md:grid-cols-[160px_1fr_auto] md:items-end">
-                  <label className="block text-xs font-bold uppercase text-muted-foreground">
-                    Score / {maxScore}
-                    <input
-                      type="number"
-                      min={0}
-                      max={maxScore}
-                      value={draft.score}
-                      onChange={(event) => setDrafts((current) => ({ ...current, [response.attempt_uuid]: { ...draft, score: event.target.value } }))}
-                      className="mt-2 h-10 w-full rounded-lg border border-border px-3 text-sm normal-case text-foreground outline-none focus:ring-2 focus:ring-black"
-                    />
-                  </label>
-                  <label className="block text-xs font-bold uppercase text-muted-foreground">
-                    Feedback
-                    <input
-                      value={draft.feedback}
-                      onChange={(event) => setDrafts((current) => ({ ...current, [response.attempt_uuid]: { ...draft, feedback: event.target.value } }))}
-                      className="mt-2 h-10 w-full rounded-lg border border-border px-3 text-sm normal-case text-foreground outline-none focus:ring-2 focus:ring-black"
-                    />
-                  </label>
-                  <Button onClick={() => saveGrade(response)} disabled={saving === response.attempt_uuid || draft.score === ''} className="gap-2">
-                    {saving === response.attempt_uuid ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                    Save grade
-                  </Button>
-                </div>
-              </article>
-            )
-          }) : (
-            <div className="rounded-xl border border-dashed border-border py-16 text-center">
-              <p className="text-sm font-semibold text-muted-foreground">No pending responses</p>
-              <p className="mt-1 text-xs text-muted-foreground">Manual text submissions will appear here.</p>
-            </div>
-          )}
-        </div>
-      </section>
-    </div>
-  )
 }
 
 const authorizationStatusStyles: Record<string, string> = {
@@ -608,8 +470,6 @@ function BadgeIssuersPanel({ badge, onPatch }: { badge: any; onPatch: (patch: Re
 
 function BadgeAboutPanel({ badge, onPatch }: { badge: any; onPatch: (patch: Record<string, any>, successMessage?: string) => Promise<any> }) {
   const org = useOrg() as any
-  const session = useLHSession() as any
-  const accessToken = session.data?.tokens?.access_token
   const metadata = badge.badge_metadata || {}
   const [about, setAbout] = React.useState(badge.about || '')
   const [criteria, setCriteria] = React.useState(badge.criteria || '')
@@ -819,7 +679,7 @@ function BadgeSettingsPanel({ orgslug, badge, onPatch, isDraft }: { orgslug: str
         <h2 className="text-lg font-bold text-foreground">Settings</h2>
         <div className="mt-4 divide-y divide-border">
           <SettingRow title="Public visibility" description="Show this badge in public badge listings. Private badges remain available only within this organization." disabled={savingKey === 'public'} checked={badge.public === true} onChange={(value) => toggle('public', value, value ? 'Badge is now public.' : 'Badge is now private.')} />
-          <SettingRow title="Direct issuance" description={isDraft ? "Allow authorized admins to create an OpenBadgeCredential without learning-path completion." : "Create a draft version to change direct issuance."} disabled={!isDraft || savingKey === 'direct_conferral_enabled'} checked={badge.direct_conferral_enabled === true} onChange={(value) => toggle('direct_conferral_enabled', value, 'Direct issuance setting updated.')} />
+          <SettingRow title="Direct issuance" description={isDraft ? "Allow authorized admins to create an OpenBadgeCredential without the learner finishing a plan." : "Create a draft version to change direct issuance."} disabled={!isDraft || savingKey === 'direct_conferral_enabled'} checked={badge.direct_conferral_enabled === true} onChange={(value) => toggle('direct_conferral_enabled', value, 'Direct issuance setting updated.')} />
         </div>
       </section>
       <section className="mt-6 max-w-4xl rounded-xl border border-red-100 bg-card p-6 shadow-xs">
@@ -827,7 +687,7 @@ function BadgeSettingsPanel({ orgslug, badge, onPatch, isDraft }: { orgslug: str
         <div className="mt-4 flex items-start justify-between gap-6">
           <div>
             <h3 className="text-sm font-semibold text-foreground">Delete badge</h3>
-            <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">This permanently deletes the badge, learning path, activities, pages, learner runs, and awards for this badge.</p>
+            <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">Moves the badge to the trash, where it can be restored for 14 days. The plan templates that earn it are kept.</p>
           </div>
           <button onClick={removeBadge} disabled={deleting} className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-xs font-bold text-red-700 disabled:opacity-50">
             {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
@@ -1063,7 +923,7 @@ function BadgeCertificationPanel({ badge, onPatch, readOnly = false }: { badge: 
 
               <div className="rounded-lg border border-border bg-muted/40 p-4">
                 <h3 className="text-sm font-bold text-foreground">Issuance routes in Launch LMS</h3>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">Learning-path completion and direct issuance both create an OpenBadgeCredential for this same Achievement. Evidence is attached to the individual credential at issuance.</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">Plan completion and direct issuance both create an OpenBadgeCredential for this same Achievement. Evidence is attached to the individual credential at issuance.</p>
               </div>
             </div>
           </section>
@@ -1333,13 +1193,8 @@ function getBadgeDateLine(badge: any) {
 }
 
 function getActiveSubpage(subpage: string) {
-  if (subpage === 'content') return 'learning-path'
   if (subpage === 'general' || subpage === 'seo' || subpage === 'about') return 'marketing'
   if (subpage === 'certification' || subpage === 'achievement') return 'definition'
   if (subpage === 'access' || subpage === 'contributors') return 'settings'
   return tabs.some((tab) => tab.key === subpage) ? subpage : 'analytics'
-}
-
-function countWords(value: string) {
-  return String(value || '').trim().split(/\s+/).filter(Boolean).length
 }

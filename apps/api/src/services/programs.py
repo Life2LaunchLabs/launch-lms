@@ -1828,15 +1828,10 @@ def _assignment_activity_reviews(
     users: dict[int, User],
 ) -> list[dict]:
     participant_ids = set(users)
-    badge_ids = {
-        int(item["badge_id"])
-        for item in (assignment.objective_snapshot or [])
-        if item.get("badge_id")
-    }
-    runs = db.exec(select(LearningRun).where(
-        LearningRun.user_id.in_(participant_ids),  # type: ignore
-        LearningRun.badge_id.in_(badge_ids),  # type: ignore
-    )).all() if participant_ids and badge_ids else []
+    plans = {plan.id: plan for plan in db.exec(select(Plan).where(
+        Plan.source_assignment_id == assignment.id, Plan.subject_user_id.in_(participant_ids),  # type: ignore[union-attr]
+    )).all()} if participant_ids else {}
+    runs = db.exec(select(LearningRun).where(LearningRun.plan_id.in_(list(plans)))).all() if plans else []  # type: ignore[union-attr]
     if not runs:
         return []
     run_ids = [run.id for run in runs if run.id]
@@ -1860,14 +1855,8 @@ def _assignment_activity_reviews(
             select(LearningActivity).where(LearningActivity.id.in_(activity_ids))
         ).all()
     } if activity_ids else {}
-    badges = {
-        badge.id: badge
-        for badge in db.exec(
-            select(LearningBadge).where(
-                LearningBadge.id.in_({run.badge_id for run in runs})
-            )
-        ).all()
-    }
+    badge_ids = {plan.source_badge_id for plan in plans.values() if plan.source_badge_id}
+    badges = {badge.id: badge for badge in db.exec(select(LearningBadge).where(LearningBadge.id.in_(badge_ids))).all()} if badge_ids else {}  # type: ignore[union-attr]
     grouped: dict[tuple[int, int], list[tuple[LearningPage, LearningResponseAttempt]]] = {}
     for (run_id, page_id), attempt in latest_by_run_page.items():
         page = pages.get(page_id)
@@ -1886,7 +1875,7 @@ def _assignment_activity_reviews(
         run = run_by_id.get(run_id)
         activity = activities.get(activity_id)
         user = users.get(run.user_id) if run else None
-        badge = badges.get(run.badge_id) if run else None
+        badge = badges.get(plans[run.plan_id].source_badge_id) if run and run.plan_id in plans else None
         if not run or not activity or not user:
             continue
         history_rows = [
@@ -1914,7 +1903,7 @@ def _assignment_activity_reviews(
             "review_type": "activity",
             "review_id": f"{run.run_uuid}:{activity.activity_uuid}",
             "run_uuid": run.run_uuid,
-            "plan_uuid": db.get(Plan, run.plan_id).plan_uuid if run.plan_id and db.get(Plan, run.plan_id) else None,
+            "plan_uuid": plans[run.plan_id].plan_uuid,
             "user": {
                 "id": user.id,
                 "username": user.username,

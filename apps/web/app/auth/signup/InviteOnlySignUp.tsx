@@ -60,9 +60,8 @@ function InviteOnlySignUpComponent(props: InviteOnlySignUpProps) {
   const [error, setError] = React.useState('')
   const searchParams = useSearchParams()
   const nextUrl = searchParams.get('next')
-  const inviteBadge = searchParams.get('inviteBadge')
   const postSignupUrl =
-    nextUrl || (inviteBadge ? `/badges?inviteBadge=${encodeURIComponent(inviteBadge)}` : '/')
+    nextUrl || '/'
   const formik = useFormik({
     initialValues: {
       org_slug: org?.slug,

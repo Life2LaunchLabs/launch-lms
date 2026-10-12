@@ -188,13 +188,7 @@ test('route manifest builds auth, account, and public org paths used by navigati
   assert.equal(routePaths.org.resource('resource-1'), '/hub?resource=resource-1')
   assert.equal(routePaths.org.badges(), '/badges')
   assert.equal(routePaths.org.myBadges(), '/badges/my-badges')
-  assert.equal(routePaths.org.programs(), '/programs')
-  assert.equal(routePaths.org.program('creative-futures'), '/programs/creative-futures')
   assert.equal(routePaths.org.badgeDetail('badge-slug'), '/badges/badge-slug')
-  assert.equal(routePaths.org.badgeStatus('badge-slug'), '/badges/badge-slug/badge')
-  assert.equal(routePaths.org.badgePath('badge-slug'), '/badges/badge-slug/path')
-  assert.equal(routePaths.org.badgeChapter('badge-slug', 'chapter-1'), '/badges/badge-slug/chapter/chapter-1')
-  assert.equal(routePaths.org.badgeInvite('badge-slug'), '/badges/badge-slug/invite')
   assert.equal('profile' in routePaths.org, false)
   assert.equal('welcome' in routePaths.org, false)
 })
@@ -518,21 +512,8 @@ test('request policy allows unauthenticated badge entry pages', () => {
     resolvedCustomDomainOrgSlug: null,
     orgSubdomainAccess: null,
   })
-  const decision = resolveRequestRouting({
-    requestUrl: 'https://acme.launchlms.test/badges/badge-slug/invite',
-    pathname: '/badges/badge-slug/invite',
-    search: '',
-    host: 'acme.launchlms.test',
-    hasSession: false,
-    instanceInfo,
-    resolvedCustomDomainOrgSlug: null,
-    orgSubdomainAccess: null,
-  })
-
   assert.equal(canonicalDecision.action, 'rewrite')
   assert.equal(canonicalDecision.destination, '/orgs/acme/badges/badge-slug')
-  assert.equal(decision.action, 'rewrite')
-  assert.equal(decision.destination, '/orgs/acme/badges/badge-slug/invite')
 })
 
 test('request policy allows unauthenticated news pages', () => {
@@ -593,13 +574,13 @@ test('request policy redirects direct internal org paths to canonical org URLs',
 
 test('canonical redirects do not expose a reverse proxy internal scheme or port', () => {
   const publicRequestUrl = buildPublicRequestUrl(
-    'http://life2launch-core.com:8000/orgs/default/badges/system_onboarding',
+    'http://life2launch-core.com:8000/orgs/default/badges/teamwork',
     'life2launch-core.com',
     'https'
   )
   const decision = resolveRequestRouting({
     requestUrl: publicRequestUrl,
-    pathname: '/orgs/default/badges/system_onboarding',
+    pathname: '/orgs/default/badges/teamwork',
     search: '?returnTo=%2Fportfolio',
     host: 'life2launch-core.com',
     hasSession: true,
@@ -615,7 +596,7 @@ test('canonical redirects do not expose a reverse proxy internal scheme or port'
   assert.equal(decision.action, 'redirect')
   assert.equal(
     decision.destination,
-    'https://life2launch-core.com/badges/system_onboarding?returnTo=%2Fportfolio'
+    'https://life2launch-core.com/badges/teamwork?returnTo=%2Fportfolio'
   )
 })
 

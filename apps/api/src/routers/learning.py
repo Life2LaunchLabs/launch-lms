@@ -1,15 +1,13 @@
 import io
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, File, Query, Request, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Query, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from src.core.events.database import get_db_session
 from src.db.learning import (
     BadgeCollectionCreate,
     BadgeCollectionRead,
     BadgeCollectionUpdate,
-    LearningActivityCreate,
-    LearningActivityImport,
     LearningActivityRead,
     LearningActivityUpdate,
     LearningAwardCreate,
@@ -23,7 +21,6 @@ from src.db.learning import (
     LearningPageCreate,
     LearningPageRead,
     LearningPageUpdate,
-    LearningPathRead,
     LearningResponseGrade,
     LearningResponseSubmit,
     LearningRunRead,
@@ -32,10 +29,10 @@ from src.db.learning import (
     LearningVariableUpdate,
     OpenBadgeImport,
 )
-from src.security.auth import get_current_user
+from src.db.users import PublicUser
+from src.security.auth import get_authenticated_user, get_current_user
 from src.services import learning as learning_service
 from src.services import learning_transfer as learning_transfer_service
-from src.services.guest_sessions import resolve_learning_actor
 
 badges_router = APIRouter()
 collections_router = APIRouter()
@@ -114,18 +111,6 @@ async def api_update_badge(
     return await learning_service.update_badge(request, badge_uuid, badge, current_user, db_session, version_uuid=version)
 
 
-@badges_router.put("/{badge_uuid}/thumbnail")
-async def api_update_badge_thumbnail(
-    request: Request,
-    badge_uuid: str,
-    version: str | None = Query(None),
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-    thumbnail: UploadFile = File(...),
-) -> LearningBadgeRead:
-    return await learning_service.update_badge_thumbnail(request, badge_uuid, current_user, db_session, thumbnail, version_uuid=version)
-
-
 @badges_router.get("/{badge_uuid}/versions")
 async def api_list_badge_versions(request: Request, badge_uuid: str, current_user=Depends(get_current_user), db_session=Depends(get_db_session)) -> list[dict]:
     return await learning_service.list_badge_versions(request, badge_uuid, current_user, db_session)
@@ -166,16 +151,6 @@ async def api_delete_badge_version(request: Request, badge_uuid: str, version_uu
     return await learning_service.delete_badge_version_draft(request, badge_uuid, version_uuid, current_user, db_session)
 
 
-@badges_router.post("/{badge_uuid}/notification-signups")
-async def api_create_badge_notification_signup(
-    request: Request,
-    badge_uuid: str,
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> dict:
-    return await learning_service.create_badge_notification_signup(request, badge_uuid, current_user, db_session)
-
-
 @badges_router.delete("/{badge_uuid}")
 async def api_delete_badge(
     request: Request,
@@ -194,22 +169,6 @@ async def api_restore_badge(
     db_session=Depends(get_db_session),
 ) -> LearningBadgeRead:
     return await learning_service.restore_badge(request, badge_uuid, current_user, db_session)
-
-
-@badges_router.get("/{badge_uuid}/path")
-async def api_get_badge_path(
-    request: Request,
-    response: Response,
-    badge_uuid: str,
-    include_run: bool = Query(False),
-    version: str | None = Query(None),
-    program_assignment_uuid: str | None = Query(None),
-    plan_objective_uuid: str | None = Query(None),
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> LearningPathRead:
-    actor = resolve_learning_actor(request, response, current_user, db_session) if include_run else None
-    return await learning_service.get_path(request, badge_uuid, current_user, db_session, actor=actor, version_uuid=version, program_assignment_uuid=program_assignment_uuid, plan_objective_uuid=plan_objective_uuid)
 
 
 @collections_router.post("/")
@@ -302,26 +261,6 @@ async def api_export_collection(
     )
 
 
-@activities_router.post("/")
-async def api_create_activity(
-    request: Request,
-    activity: LearningActivityCreate,
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> LearningActivityRead:
-    return await learning_service.create_activity(request, activity, current_user, db_session)
-
-
-@activities_router.post("/import")
-async def api_import_activity(
-    request: Request,
-    activity: LearningActivityImport,
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> LearningActivityRead:
-    return await learning_service.import_activity(request, activity, current_user, db_session)
-
-
 @activities_router.put("/{activity_uuid}")
 async def api_update_activity(
     request: Request,
@@ -331,37 +270,6 @@ async def api_update_activity(
     db_session=Depends(get_db_session),
 ) -> LearningActivityRead:
     return await learning_service.update_activity(request, activity_uuid, activity, current_user, db_session)
-
-
-@activities_router.post("/{activity_uuid}/duplicate")
-async def api_duplicate_activity(
-    request: Request,
-    activity_uuid: str,
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> LearningActivityRead:
-    return await learning_service.duplicate_activity(request, activity_uuid, current_user, db_session)
-
-
-@activities_router.post("/{activity_uuid}/pages/{page_uuid}/convert-variants")
-async def api_convert_page_variants_to_flow(
-    request: Request,
-    activity_uuid: str,
-    page_uuid: str,
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> LearningActivityRead:
-    return await learning_service.convert_page_variants_to_flow(request, activity_uuid, page_uuid, current_user, db_session)
-
-
-@activities_router.delete("/{activity_uuid}")
-async def api_delete_activity(
-    request: Request,
-    activity_uuid: str,
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> dict:
-    return await learning_service.delete_activity(request, activity_uuid, current_user, db_session)
 
 
 @pages_router.post("/")
@@ -406,17 +314,6 @@ async def api_upload_page_media(
     return await learning_service.upload_page_media(request, page_uuid, current_user, db_session, media)
 
 
-@pages_router.post("/{page_uuid}/response-media")
-async def api_upload_response_media(
-    request: Request,
-    page_uuid: str,
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-    media: UploadFile = File(...),
-) -> dict:
-    return await learning_service.upload_response_media(request, page_uuid, current_user, db_session, media)
-
-
 @variables_router.get("/")
 async def api_list_learning_variables(
     request: Request,
@@ -458,43 +355,24 @@ async def api_delete_learning_variable(
     return await learning_service.delete_learning_variable(request, variable_uuid, current_user, db_session)
 
 
-@runs_router.post("/start/{badge_uuid}")
-async def api_start_run(
-    request: Request,
-    response: Response,
-    badge_uuid: str,
-    issuing_org_id: int | None = Query(None),
-    program_assignment_uuid: str | None = Query(None),
-    plan_objective_uuid: str | None = Query(None),
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> LearningRunRead:
-    actor = resolve_learning_actor(request, response, current_user, db_session)
-    return await learning_service.start_or_resume_run(request, badge_uuid, actor, db_session, issuing_org_id=issuing_org_id, program_assignment_uuid=program_assignment_uuid, plan_objective_uuid=plan_objective_uuid)
-
-
 @runs_router.post("/complete-page")
 async def api_complete_page(
     request: Request,
-    response: Response,
     payload: LearningPageComplete,
-    current_user=Depends(get_current_user),
+    current_user: PublicUser = Depends(get_authenticated_user),
     db_session=Depends(get_db_session),
 ) -> LearningRunRead:
-    actor = resolve_learning_actor(request, response, current_user, db_session)
-    return await learning_service.complete_page(request, payload, actor, db_session)
+    return await learning_service.complete_page(request, payload, current_user, db_session)
 
 
 @runs_router.post("/submit-response")
 async def api_submit_response(
     request: Request,
-    response: Response,
     payload: LearningResponseSubmit,
-    current_user=Depends(get_current_user),
+    current_user: PublicUser = Depends(get_authenticated_user),
     db_session=Depends(get_db_session),
 ) -> LearningRunRead:
-    actor = resolve_learning_actor(request, response, current_user, db_session)
-    return await learning_service.submit_response(request, payload, actor, db_session)
+    return await learning_service.submit_response(request, payload, current_user, db_session)
 
 
 @responses_router.get("/")

@@ -4,7 +4,6 @@ from datetime import datetime
 from fastapi import HTTPException, Request, status
 from sqlmodel import Session, select
 from src.db.learning import (
-    BadgeIssuerLearnerLink,
     LearningActivity,
     LearningBadge,
     LearningPage,
@@ -15,12 +14,29 @@ from src.db.learning import (
     LearningRunStatus,
 )
 from src.db.planning import Plan
-from src.db.programs import ProgramAssignment
-from src.db.user_organizations import UserOrganization
 from src.db.users import AnonymousUser, PublicUser, User
-from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
 from src.security.superadmin import is_user_superadmin
-from src.services.learning import access_rules, answer_validation, enrollment, grading, lookups, run_navigation, runtime
+from src.services.learning import access_rules, answer_validation, grading, lookups, run_navigation
+
+
+def _grading_org_id(db_session: Session, plan: Plan, user: PublicUser) -> int | None:
+    """The organization a person grades for on this plan, or None if they can't grade it.
+
+    Reviewers on the learner's plan grade for the organization the plan came
+    from; so do that organization's admins.
+    """
+    from src.services.planning import capabilities_for
+
+    org_id = plan.source_org_id
+    if org_id is None:
+        return None
+    if "review_badge_submissions" in capabilities_for(db_session, plan, user.id) or is_user_superadmin(user.id, db_session):
+        return org_id
+    try:
+        access_rules._require_org_admin(db_session, user, org_id)
+        return org_id
+    except HTTPException:
+        return None
 
 
 async def list_learning_responses(
@@ -34,17 +50,17 @@ async def list_learning_responses(
     grading_status: str | None = "pending",
 ) -> list[dict]:
     access_rules._require_org_admin(db_session, current_user, org_id)
-    # Progress is learner-owned. Every active cooperating organization sees the
-    # same attempts, irrespective of the route or program that started the run.
+    # Answers on plans that came from this organization.
     statement = (
         select(LearningResponseAttempt)
         .join(LearningPage, LearningResponseAttempt.page_id == LearningPage.id)  # type: ignore
         .join(LearningRun, LearningResponseAttempt.run_id == LearningRun.id)  # type: ignore
+        .join(Plan, Plan.id == LearningRun.plan_id)  # type: ignore
+        .where(Plan.source_org_id == org_id)
         .order_by(LearningResponseAttempt.submitted_at.desc())  # type: ignore
     )
     if badge_uuid:
-        badge = enrollment._get_badge(db_session, badge_uuid)
-        statement = statement.where(LearningPage.badge_id == badge.id)
+        statement = statement.where(Plan.source_badge_id == lookups._get_badge(db_session, badge_uuid).id)
     if activity_uuid:
         activity = lookups._get_activity(db_session, activity_uuid)
         statement = statement.where(LearningPage.activity_id == activity.id)
@@ -54,17 +70,6 @@ async def list_learning_responses(
         )
 
     attempts = db_session.exec(statement).all()
-    run_ids_for_access = {attempt.run_id for attempt in attempts}
-    access_runs = {
-        item.id or 0: item
-        for item in db_session.exec(
-            select(LearningRun).where(LearningRun.id.in_(run_ids_for_access))  # type: ignore
-        ).all()
-    } if run_ids_for_access else {}
-    attempts = [
-        attempt for attempt in attempts
-        if org_id in runtime._cooperating_org_ids_for_run(db_session, access_runs.get(attempt.run_id))
-    ]
     if grading_status and grading_status != "all":
         attempts = [
             attempt
@@ -81,17 +86,6 @@ async def list_learning_responses(
             ).all()  # type: ignore
         }
         if page_ids
-        else {}
-    )
-    badge_ids = {page.badge_id for page in page_by_id.values()}
-    badge_by_id = (
-        {
-            item.id or 0: item
-            for item in db_session.exec(
-                select(LearningBadge).where(LearningBadge.id.in_(badge_ids))
-            ).all()  # type: ignore
-        }
-        if badge_ids
         else {}
     )
     run_ids = {attempt.run_id for attempt in attempts}
@@ -117,6 +111,9 @@ async def list_learning_responses(
         if run_ids
         else {}
     )
+    plans = {plan.id: plan for plan in db_session.exec(select(Plan).where(Plan.id.in_({run.plan_id for run in runs.values()}))).all()} if runs else {}  # type: ignore[union-attr]
+    badge_ids = {plan.source_badge_id for plan in plans.values() if plan.source_badge_id}
+    badge_by_id = {item.id: item for item in db_session.exec(select(LearningBadge).where(LearningBadge.id.in_(badge_ids))).all()} if badge_ids else {}  # type: ignore[union-attr]
     users = (
         {
             user.id or 0: user
@@ -126,8 +123,9 @@ async def list_learning_responses(
         else {}
     )
 
-    def badge_summary(page: LearningPage | None) -> dict | None:
-        badge = badge_by_id.get(page.badge_id) if page else None
+    def badge_summary(run: LearningRun | None) -> dict | None:
+        plan = plans.get(run.plan_id) if run else None
+        badge = badge_by_id.get(plan.source_badge_id) if plan else None
         if not badge:
             return None
         return {
@@ -143,7 +141,9 @@ async def list_learning_responses(
             "page": page_by_id.get(attempt.page_id).model_dump()
             if page_by_id.get(attempt.page_id)
             else None,
-            "badge": badge_summary(page_by_id.get(attempt.page_id)),
+            "badge": badge_summary(runs.get(attempt.run_id)),
+            "plan": {"plan_uuid": plans[runs[attempt.run_id].plan_id].plan_uuid, "slug": plans[runs[attempt.run_id].plan_id].slug, "name": plans[runs[attempt.run_id].plan_id].name}
+            if runs.get(attempt.run_id) and plans.get(runs[attempt.run_id].plan_id) else None,
             "activity": activities.get(page_by_id[attempt.page_id].activity_id).model_dump()
             if page_by_id.get(attempt.page_id) and activities.get(page_by_id[attempt.page_id].activity_id)
             else None,
@@ -188,59 +188,11 @@ async def grade_learning_response(
             status_code=status.HTTP_409_CONFLICT,
             detail="This response has already received its authoritative grade",
         )
-    assignment = (
-        db_session.get(ProgramAssignment, grading_run.program_assignment_id)
-        if grading_run and grading_run.program_assignment_id
-        else None
-    )
-    issuer_link = (
-        db_session.get(BadgeIssuerLearnerLink, grading_run.issuer_learner_link_id)
-        if grading_run and grading_run.issuer_learner_link_id
-        else None
-    )
-    user = access_rules._require_user(current_user)
-    grading_org_id = None
-    plan_context = db_session.get(Plan, grading_run.plan_id) if grading_run and grading_run.plan_id else None
-    if plan_context:
-        from src.services.planning import capabilities_for
-
-        if "review_badge_submissions" in capabilities_for(db_session, plan_context, user.id) or is_user_superadmin(user.id, db_session):
-            admin = user
-            grading_org_id = plan_context.source_org_id or grading_run.org_id
-        else:
-            admin = None
-    elif assignment and (
-        user.id in (assignment.staff_user_ids or []) or is_user_superadmin(user.id, db_session)
-    ):
-        admin = user
-        grading_org_id = assignment.org_id
-    elif issuer_link and (
-        user.id in (issuer_link.staff_user_ids or [])
-        or is_user_superadmin(user.id, db_session)
-    ):
-        admin = user
-        grading_org_id = issuer_link.issuer_org_id
-    else:
-        admin = None
-        for candidate_org_id in runtime._cooperating_org_ids_for_run(db_session, grading_run):
-            assigned_staff = runtime._cooperating_staff_ids_for_run(
-                db_session, grading_run, candidate_org_id
-            )
-            if user.id in assigned_staff or is_user_superadmin(user.id, db_session):
-                admin = user
-                grading_org_id = candidate_org_id
-                break
-            membership = db_session.exec(select(UserOrganization).where(
-                UserOrganization.user_id == user.id,
-                UserOrganization.org_id == candidate_org_id,
-                UserOrganization.role_id.in_(ADMIN_OR_MAINTAINER_ROLE_IDS),  # type: ignore
-            )).first()
-            if membership:
-                admin = user
-                grading_org_id = candidate_org_id
-                break
-    if admin is None:
-        raise HTTPException(status_code=403, detail="You are not assigned to grade this learner's badge")
+    admin = access_rules._require_user(current_user)
+    plan = db_session.get(Plan, grading_run.plan_id) if grading_run else None
+    grading_org_id = _grading_org_id(db_session, plan, admin) if plan else None
+    if grading_org_id is None:
+        raise HTTPException(status_code=403, detail="You are not a reviewer on this learner's plan")
 
     max_score = (
         answer_validation._as_float((attempt.result or {}).get("max_score"), 0.0)
@@ -309,7 +261,6 @@ async def grade_learning_response(
     run = db_session.get(LearningRun, attempt.run_id)
     activity = db_session.get(LearningActivity, page.activity_id)
     if run and activity:
-        activity_run = grading._ensure_activity_run(db_session, run, page.activity_id)
         required_pages = db_session.exec(
             select(LearningPage).where(
                 LearningPage.activity_id == page.activity_id,
@@ -332,25 +283,22 @@ async def grade_learning_response(
             can_complete, completion_result = grading._activity_meets_completion_rules(
                 db_session, run, activity
             )
-            activity_run.data = {
-                **(activity_run.data or {}),
+            run.data = {
+                **(run.data or {}),
                 "completion_result": completion_result,
                 "last_checked_at": now.isoformat(),
             }
             if can_complete:
-                activity_run.status = LearningRunStatus.COMPLETED
-                activity_run.completed_at = now
+                run.status = LearningRunStatus.COMPLETED
+                run.completed_at = now
             else:
-                activity_run.status = LearningRunStatus.IN_PROGRESS
-                activity_run.completed_at = None
-            db_session.add(activity_run)
+                run.status = LearningRunStatus.IN_PROGRESS
+                run.completed_at = None
+            db_session.add(run)
             db_session.commit()
-            if run:
-                db_session.refresh(run)
-    award = grading._issue_award_if_complete(request, db_session, run) if run else None
-    # Later commits (activity run updates, award issuance) expire the attempt instance
+            db_session.refresh(run)
+        from src.services.plan_activities import sync_objective_from_run
+        sync_objective_from_run(db_session, run)
+    # Later commits (activity run and plan step updates) expire the attempt instance
     db_session.refresh(attempt)
-    return {
-        **attempt.model_dump(),
-        "award": award.model_dump() if award else None,
-    }
+    return attempt.model_dump()

@@ -4,7 +4,6 @@ from sqlmodel import Session, create_engine, select
 
 from src.db.organizations import Organization
 from src.db.learning import LearningBadgeAward, LearningPage, LearningPageProgress, LearningRun
-from src.db.guest_sessions import GuestSession
 from src.db.media import MediaAsset
 from src.db.messages import InboxMessage
 from src.db.organization_config import OrganizationConfig
@@ -150,7 +149,6 @@ def _tables(engine):
         LearningRun,
         LearningPage,
         LearningPageProgress,
-        GuestSession,
         OrganizationConfig,
         Plan,
         PlanRole,

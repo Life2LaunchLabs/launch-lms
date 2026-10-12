@@ -16,7 +16,7 @@ export default function PlanActivityPlayer({ orgslug, planSlug, objectiveUuid, a
   const accessToken = session.data?.tokens?.access_token
   const runUuidRef = React.useRef<string | undefined>(initialRun?.run_uuid)
   const [retakeBaselineAttemptIds] = React.useState<Set<string>>(() => {
-    const isRetake = getActivityResult(initialRun, activity)?.status === 'failed'
+    const isRetake = getActivityResult(initialRun)?.status === 'failed'
     return new Set(isRetake ? (initialRun?.attempts || []).map((attempt: any) => attempt.attempt_uuid) : [])
   })
   const planHref = getUriWithOrg(orgslug, `/plans/${encodeURIComponent(planSlug)}`)
@@ -33,7 +33,7 @@ export default function PlanActivityPlayer({ orgslug, planSlug, objectiveUuid, a
 
   const finish = (run: any) => {
     const grading = activity.settings?.grading || {}
-    const result = getActivityResult(run, activity)
+    const result = getActivityResult(run)
     if (result?.status === 'pending') toast.success('Activity submitted for review.')
     else if (result?.status === 'failed') toast.error(grading.failure_message || 'Activity finished. Review your answers and try again when you are ready.')
     else toast.success(grading.success_message || 'Step done. Nice work.')
