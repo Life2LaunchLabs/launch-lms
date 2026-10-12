@@ -368,9 +368,9 @@
           "health": "works",
           "traceability": "partial",
           "priority": "unset",
-          "implementation_notes": "Verification has resend and continuation behavior. The welcome flow can poll for verification and continue automatically; test expired links and interrupted sessions.",
+          "implementation_notes": "Verification has resend and continuation behavior where the installation requires a verified email. The welcome signup creates the account and signs the learner in at once, without waiting on a verification link. Test expired links and interrupted sessions on the verified-email paths.",
           "original_state": "`Live`",
-          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "updated_at": "2026-10-12T16:00:00+00:00",
           "description": "",
           "goal_title": "Create and activate an account",
           "group_title": "Establish identity and access",
@@ -526,14 +526,14 @@
           "id": "IDENTITY-G001-A004",
           "goal_id": "IDENTITY-G001",
           "display_order": 4,
-          "title": "Complete the welcome learning experience",
+          "title": "Start the Launch Ready starter plan",
           "product_state": "live",
           "health": "works",
           "traceability": "partial",
           "priority": "unset",
-          "implementation_notes": "Special onboarding provisions a starter badge/activity and returns the new account into that activity. Treat this as a first-value test, not merely account setup.",
+          "implementation_notes": "Signup lands on the first open step of the learner's Launch Ready starter plan, a system plan template every learner gets. Each step plays a plan activity, and steps already done in the portfolio are checked off. There is no onboarding badge and no guest pre-signup flow: the account comes first, and an anonymous /welcome goes to /signup. Treat this as a first-value test, not merely account setup.",
           "original_state": "`Live` / `Conditional`",
-          "updated_at": "2026-09-04T01:09:56.193726+00:00",
+          "updated_at": "2026-10-12T16:00:00+00:00",
           "description": "",
           "goal_title": "Create and activate an account",
           "group_title": "Establish identity and access",
@@ -589,7 +589,7 @@
               "id": "IDENTITY-G001-A004-S001",
               "activity_id": "IDENTITY-G001-A004",
               "display_order": 1,
-              "title": "Enter the starter learning activity",
+              "title": "Enter the first starter-plan step",
               "description": "",
               "step_kind": "core",
               "product_state": "live",
@@ -598,7 +598,7 @@
               "automated_status": "not_tested",
               "manual_status": "passed",
               "implementation_notes": null,
-              "updated_at": "2026-09-03T18:12:53+00:00",
+              "updated_at": "2026-10-12T16:00:00+00:00",
               "verification": {
                 "status": "passed",
                 "reviewed_at": "2026-09-03T18:12:53+00:00",
@@ -613,7 +613,7 @@
               "id": "IDENTITY-G001-A004-S002",
               "activity_id": "IDENTITY-G001-A004",
               "display_order": 2,
-              "title": "Complete the starter learning activity",
+              "title": "Complete a starter-plan step",
               "description": "",
               "step_kind": "core",
               "product_state": "live",
@@ -622,7 +622,7 @@
               "automated_status": "not_tested",
               "manual_status": "passed",
               "implementation_notes": null,
-              "updated_at": "2026-09-03T18:12:53+00:00",
+              "updated_at": "2026-10-12T16:00:00+00:00",
               "verification": {
                 "status": "passed",
                 "reviewed_at": "2026-09-03T18:12:53+00:00",
@@ -637,7 +637,7 @@
               "id": "IDENTITY-G001-A004-S003",
               "activity_id": "IDENTITY-G001-A004",
               "display_order": 3,
-              "title": "Return to the first-value destination",
+              "title": "Return to the starter plan",
               "description": "",
               "step_kind": "core",
               "product_state": "live",
@@ -646,7 +646,7 @@
               "automated_status": "not_tested",
               "manual_status": "passed",
               "implementation_notes": null,
-              "updated_at": "2026-09-03T18:12:53+00:00",
+              "updated_at": "2026-10-12T16:00:00+00:00",
               "verification": {
                 "status": "passed",
                 "reviewed_at": "2026-09-03T18:12:53+00:00",
@@ -658,7 +658,28 @@
               "references": []
             }
           ],
-          "references": [],
+          "references": [
+            {
+              "kind": "code",
+              "path": "apps/api/src/services/starter_plan/__init__.py",
+              "symbol": "ensure_starter_plan",
+              "responsibility": "Create the starter plan and check off done steps"
+            },
+            {
+              "kind": "code",
+              "path": "apps/api/src/routers/auth.py",
+              "symbol": "complete_welcome_signup",
+              "responsibility": "Welcome signup lands on the next starter step"
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/app/welcome/WelcomeClient.tsx"
+            },
+            {
+              "kind": "test",
+              "path": "apps/api/src/tests/test_starter_plan.py"
+            }
+          ],
           "relationships": []
         },
         {
