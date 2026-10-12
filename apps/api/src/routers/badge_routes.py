@@ -1,0 +1,64 @@
+from fastapi import APIRouter, Depends
+from sqlmodel import Session
+
+from src.core.events.database import get_db_session
+from src.db.badge_routes import BadgePlanStart, BadgeRouteOffersUpdate, BadgeRoutesUpdate
+from src.db.users import AnonymousUser, PublicUser
+from src.security.auth import get_current_user
+from src.services import badge_routes as service
+
+router = APIRouter()
+
+
+@router.get("/{badge_uuid}/routes")
+def api_badge_routes(
+    badge_uuid: str,
+    db: Session = Depends(get_db_session),
+    current_user: PublicUser | AnonymousUser = Depends(get_current_user),
+):
+    """The ways to earn a badge (plan templates), the issuers offering each, and the learner's plan if started."""
+    return service.list_routes(db, current_user if isinstance(current_user, PublicUser) else None, badge_uuid)
+
+
+@router.put("/{badge_uuid}/routes")
+def api_set_badge_routes(
+    badge_uuid: str,
+    payload: BadgeRoutesUpdate,
+    db: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_current_user),
+):
+    """The badge's creator chooses which of its plan templates earn it and which is recommended."""
+    return service.set_routes(db, current_user, badge_uuid, payload)
+
+
+@router.put("/{badge_uuid}/routes/offers")
+def api_set_offered_routes(
+    badge_uuid: str,
+    issuer_org_id: int,
+    payload: BadgeRouteOffersUpdate,
+    db: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_current_user),
+):
+    """An issuer chooses which routes it offers (none: every route)."""
+    return service.set_offered_routes(db, current_user, badge_uuid, issuer_org_id, payload)
+
+
+@router.post("/{badge_uuid}/start-plan")
+def api_start_badge_plan(
+    badge_uuid: str,
+    payload: BadgePlanStart,
+    db: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_current_user),
+):
+    """Start earning a badge: creates the learner's own plan from the route, offered by the issuer."""
+    return service.start_badge_plan(db, current_user, badge_uuid, payload)
+
+
+@router.post("/{badge_uuid}/routes/convert-path")
+def api_convert_badge_path(
+    badge_uuid: str,
+    db: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_current_user),
+):
+    """Turn the badge's learning path into a plan template and make it the recommended route."""
+    return service.convert_path(db, current_user, badge_uuid)

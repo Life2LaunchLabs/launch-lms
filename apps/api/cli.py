@@ -179,6 +179,17 @@ def normalize_owner_org_slug():
 
 
 @cli.command()
+def convert_badge_paths():
+    """Turn badge learning paths into plan templates (routes) and move learners part-way through onto plans. Safe to re-run."""
+    from src.core.events.database import engine
+    from src.services.badge_conversion import convert_badge_paths as convert
+
+    with Session(engine) as db_session:
+        converted = convert(db_session)
+    print(f"Converted {len(converted)} badge(s): {', '.join(converted) or 'none'}")
+
+
+@cli.command()
 def generate_learning_types():
     """Regenerate the web app's learning content types from the API models."""
     from src.services.learning_content.typescript import OUTPUT, render

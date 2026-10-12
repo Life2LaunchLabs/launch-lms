@@ -40,6 +40,7 @@ class LearningAwardSource(str, Enum):
     PATH_COMPLETION = "path_completion"
     DIRECT_CONFERRAL = "direct_conferral"
     CHECKLIST_COMPLETION = "checklist_completion"
+    PLAN_COMPLETION = "plan_completion"
 
 
 class BadgeIssuerAuthorizationStatus(str, Enum):
@@ -600,8 +601,7 @@ class LearningBadgeAward(SQLModel, table=True):
     major_version: int = 1
     run_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningrun.id", ondelete="SET NULL"), nullable=True, index=True))
     org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
-    # Org that issued the award; None means the badge's creator org issued it.
-    issuing_org_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("organization.id", ondelete="SET NULL"), nullable=True, index=True))
+    issuing_org_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("organization.id", ondelete="SET NULL"), nullable=True, index=True))  # None: the creator org issued it
     user_id: int = Field(sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), index=True))
     source: LearningAwardSource = LearningAwardSource.PATH_COMPLETION
     conferred_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
