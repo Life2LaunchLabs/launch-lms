@@ -35,6 +35,12 @@ class PlanInvitationStatus(str, Enum):
     REVOKED = "revoked"
 
 
+class StepOrder(str, Enum):
+    ANY = "any"
+    IN_ORDER = "in_order"
+    BY_CHAPTER = "by_chapter"
+
+
 class PlanCollaboratorRequestStatus(str, Enum):
     PENDING = "pending"
     APPROVED = "approved"
@@ -103,6 +109,8 @@ class Plan(SQLModel, table=True):
     start_date: date | None = Field(default=None, sa_column=Column(Date, nullable=True))
     due_date: date | None = Field(default=None, sa_column=Column(Date, nullable=True))
     completed_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
+    # Which steps a learner can start: "any", "in_order" or "by_chapter".
+    step_order: str = Field(default="any", sa_column=Column(String, nullable=False, server_default="any"))
     creation_date: str = ""
     update_date: str = ""
 
@@ -173,6 +181,8 @@ class PlanObjective(SQLModel, table=True):
     # Requirement nodes this objective counts toward: [{framework_id, framework_uuid, node_uuid}].
     requirement_mappings: list[dict] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
     reviewer_guidance: str = ""
+    # Steps in this plan that must be finished before this one opens.
+    after_objective_uuids: list[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False, server_default="[]"))
     creation_date: str = ""
     update_date: str = ""
 
@@ -271,6 +281,7 @@ class PlanUpdate(SQLModel):
     priority: int | None = None
     start_date: date | None = None
     due_date: date | None = None
+    step_order: StepOrder | None = None
 
 
 class PlanPhaseCreate(SQLModel):
@@ -303,6 +314,7 @@ class PlanObjectiveCreate(SQLModel):
     due_date: date | None = None
     allow_late: bool = False
     completion_restricted: bool = False
+    after_objective_uuids: list[str] = Field(default_factory=list)
 
 
 class PlanObjectiveUpdate(SQLModel):
@@ -317,6 +329,7 @@ class PlanObjectiveUpdate(SQLModel):
     allow_late: bool | None = None
     blocked: bool | None = None
     completion_restricted: bool | None = None
+    after_objective_uuids: list[str] | None = None
 
 
 class PlanObjectiveProgressUpdate(SQLModel):
@@ -412,3 +425,22 @@ class RequirementCredit(SQLModel):
     enrollment_uuid: str
     node_uuid: str
     note: str
+
+
+class PlanWeeklyFocus(SQLModel, table=True):
+    """The undated steps picked into one learner's week, so the week stays stable."""
+
+    __table_args__ = (UniqueConstraint("user_id", "week_start"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), index=True))
+    week_start: date = Field(sa_column=Column(Date, nullable=False, index=True))
+    objective_uuids: list[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
+    target: int = 5
+    boosts: int = 0
+    creation_date: str = ""
+    update_date: str = ""
+
+
+class PlanHomePace(SQLModel):
+    target: int = Field(ge=1, le=20)

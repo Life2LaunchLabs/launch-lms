@@ -208,6 +208,7 @@ def _objective_dict(objective: Objective, relation: ProgramObjective | None = No
             "default_start_rule": relation.default_start_rule.value if hasattr(relation.default_start_rule, "value") else relation.default_start_rule,
             "default_due_rule": relation.default_due_rule.value if hasattr(relation.default_due_rule, "value") else relation.default_due_rule,
             "default_allow_late": relation.default_allow_late,
+            "after_objective_uuids": relation.after_objective_uuids or [],
         })
         if db:
             from src.services.requirements import mappings_for_relation
@@ -297,6 +298,7 @@ def _program_dict(
         "description": program.description,
         "thumbnail_image": program.thumbnail_image,
         "instructions": program.instructions,
+        "step_order": getattr(program, "step_order", None) or "any",
         "role_definitions": program.role_definitions or list(DEFAULT_ROLE_DEFINITIONS),
         "available_capabilities": sorted({capability for role in DEFAULT_ROLE_DEFINITIONS for capability in role["capabilities"]}),
         "default_subject_role_key": program.default_subject_role_key,
@@ -818,14 +820,12 @@ def update_program_objective(
     if payload.requirement_node_uuids is not None:
         from src.services.requirements import update_mappings
         update_mappings(db, current_user, org_id, relation, payload.requirement_node_uuids)
-    now = _now_string()
-    objective.update_date = now
-    relation.update_date = now
+    if payload.after_objective_uuids is not None:
+        from src.services.plan_availability import validated_template_prerequisites
+        relation.after_objective_uuids = validated_template_prerequisites(db, program, payload.after_objective_uuids, objective_uuid)
+    objective.update_date = relation.update_date = program.update_date = _now_string()
     program.version += 1
-    program.update_date = now
-    db.add(objective)
-    db.add(relation)
-    db.add(program)
+    db.add_all([objective, relation, program])
     db.commit()
     return _program_dict(db, program)
 

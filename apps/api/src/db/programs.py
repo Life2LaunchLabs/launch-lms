@@ -84,6 +84,8 @@ class Program(SQLModel, table=True):
     source_version: int | None = None
     library_snapshot: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
     library_published_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True, index=True))
+    # Copied onto live plans: "any", "in_order" or "by_chapter".
+    step_order: str = Field(default="any", sa_column=Column(String, nullable=False, server_default="any"))
     created_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
     creation_date: str = ""
     update_date: str = ""
@@ -104,6 +106,8 @@ class ProgramObjective(SQLModel, table=True):
     default_start_rule: ObjectiveStartRule = Field(default=ObjectiveStartRule.ANY_TIME, sa_column=Column(String, nullable=False))
     default_due_rule: ObjectiveDueRule = Field(default=ObjectiveDueRule.PHASE_END, sa_column=Column(String, nullable=False))
     default_allow_late: bool = False
+    # Template objective uuids that must be finished before this step opens.
+    after_objective_uuids: list[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False, server_default="[]"))
     creation_date: str = ""
     update_date: str = ""
 
@@ -217,6 +221,7 @@ class ProgramUpdate(SQLModel):
     role_definitions: list[dict] | None = None
     default_subject_role_key: str | None = None
     default_staff_role_key: str | None = None
+    step_order: str | None = Field(default=None, regex="^(any|in_order|by_chapter)$")
 
 
 class ObjectiveCreate(SQLModel):
@@ -253,6 +258,7 @@ class ProgramObjectiveUpdate(ProgramObjectiveScheduleUpdate):
     allow_learner_confirmation: bool = False
     requirement_node_uuids: list[str] | None = None
     reviewer_guidance: str | None = None
+    after_objective_uuids: list[str] | None = None
 
 
 class ProgramPhase(SQLModel, table=True):
