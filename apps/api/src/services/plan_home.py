@@ -28,6 +28,7 @@ from src.db.planning import (
     PlanWeeklyFocus,
 )
 from src.db.users import PublicUser
+from src.services.plan_celebration import pending_celebrations
 from src.services.plan_availability import compute_availability, ordered_steps
 
 DEFAULT_TARGET = 5
@@ -354,6 +355,7 @@ def home(db: Session, current_user: PublicUser, today: date | None = None, extra
         "months": [{"key": group["key"], "label": group["label"], "items": cards(group["items"], "month")} for group in months.values()],
         "later": [{"plan": group["plan"], "items": cards(group["items"], "later")} for group in later],
         "plans": [_plan_summary(db, plan, entries_by_plan[int(plan.id)]) for plan in plans],
+        "celebrations": pending_celebrations(db, user_id),
     }
 
 

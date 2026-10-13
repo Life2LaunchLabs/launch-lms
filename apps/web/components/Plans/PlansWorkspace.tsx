@@ -22,7 +22,7 @@ import ObjectiveCard from './objective/ObjectiveCard'
 import CreatePlanEditor from './edit/CreatePlanEditor'
 import PlanEditMode from './edit/PlanEditMode'
 import PlanStepsEditor from './edit/PlanStepsEditor'
-import PlansHome from './learner/PlansHome'
+import PlansHome, { homeKey } from './learner/PlansHome'
 import PlanView from './learner/PlanView'
 import PlanComplete from './learner/PlanComplete'
 import PlanHeaderActions from './learner/PlanHeaderActions'
@@ -68,6 +68,8 @@ export default function PlansWorkspace({ orgslug, initialPlanSlug }: { orgslug: 
   const { data: plans = EMPTY_PLANS, error: plansError, isLoading, mutate: retryPlans } = useSWR<PlanTarget[]>(token ? plansKey('active') : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: true })
   const { data: completedPlans = EMPTY_PLANS, error: completedError, mutate: retryCompleted } = useSWR<PlanTarget[]>(token ? plansKey('completed') : null, (url: string) => swrFetcher(url, token))
   const { data: detail, error: detailError, mutate: retryDetail } = useSWR<any>(token && selectedSlug ? detailKey(selectedSlug) : null, (url: string) => swrFetcher(url, token))
+  // Finished plans that have not greeted their learner yet (shared with the Plans home's data).
+  const { data: home } = useSWR<any>(token ? homeKey() : null, (url: string) => swrFetcher(url, token))
   const { data: invitations = [] } = useSWR<any[]>(token ? invitesKey() : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: true })
   const colorPlans = React.useMemo(() => [...plans, ...completedPlans], [plans, completedPlans])
   const { getPlanColor, setPlanColor } = usePlanColors(colorPlans, viewerUserId)
@@ -154,7 +156,7 @@ export default function PlansWorkspace({ orgslug, initialPlanSlug }: { orgslug: 
   else if (detailError) content = failed('This plan could not load. It may no longer be available to you.', () => void retryDetail())
   else if (!detail || detail.slug !== selectedSlug || detail.source_assignment?.type === 'group') content = loading
   else if (editing) content = <PlanEditMode detail={detail} orgslug={orgslug} token={token} viewerUserId={viewerUserId} refresh={refresh} color={getPlanColor(detail.plan_uuid)} setPlanColor={detail.is_mine ? setPlanColor : undefined} focusGoal={editDetails} onDone={finishEditing} selectedObjectiveUuid={selectedObjectiveUuid} setSelectedObjectiveUuid={setSelectedObjectiveUuid} />
-  else if (detail.is_mine && detail.celebration_pending) content = <PlanComplete detail={detail} color={getPlanColor(detail.plan_uuid)} token={token} onDone={() => { clear(); void refresh() }} onView={() => void refresh()} />
+  else if (detail.is_mine && home?.celebrations?.includes(detail.plan_uuid)) content = <PlanComplete detail={detail} color={getPlanColor(detail.plan_uuid)} token={token} onDone={() => { clear(); void refresh() }} onView={() => void refresh()} />
   else if (detail.is_mine) content = <PlanView orgslug={orgslug} detail={detail} token={token} refresh={refresh} onBack={clear} plans={ownPlans} getPlanColor={getPlanColor} choose={choose} onEdit={canEdit(detail) ? () => setEditingPlan(true) : undefined} renderObjective={(item) => renderObjective(item, getPlanColor(detail.plan_uuid))} />
   else content = <HelpingView detail={detail} orgslug={orgslug} token={token} viewerUserId={viewerUserId} refresh={refresh} color={getPlanColor(detail.plan_uuid)} onBack={clear} onEdit={canEdit(detail) ? () => setEditingPlan(true) : undefined} selectedObjectiveUuid={selectedObjectiveUuid} setSelectedObjectiveUuid={setSelectedObjectiveUuid} />
 

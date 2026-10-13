@@ -14,7 +14,7 @@ from src.db.planning import (
     PlanWeeklyFocus,
     StepOrder,
 )
-from src.services import plan_home, planning
+from src.services import plan_celebration, plan_home, planning
 from src.tests.test_planning import _plan_create, _session, _user
 
 
@@ -226,11 +226,12 @@ def test_resaving_a_finished_step_keeps_when_it_was_finished():
 def test_finished_plan_greets_its_learner_once():
     with _home_session() as db:
         plan = _plan_with_steps(db, "Summer job", ["Step 1"])
-        assert plan["celebration_pending"] is False
+        assert plan_home.home(db, _user(1))["celebrations"] == []
         planning.change_plan_status(db, _user(1), plan["slug"], planning.PlanStatus.COMPLETED)
-        assert planning.get_plan(db, _user(1), plan["slug"])["celebration_pending"] is True
-        planning.mark_plan_celebrated(db, _user(1), plan["slug"])
-        assert planning.get_plan(db, _user(1), plan["slug"])["celebration_pending"] is False
+        assert plan_home.home(db, _user(1))["celebrations"] == [plan["plan_uuid"]]
+        plan_celebration.mark_plan_celebrated(db, _user(1), plan["slug"])
+        assert plan_home.home(db, _user(1))["celebrations"] == []
+
 
 
 def test_open_steps_due_later_can_start_this_week():
