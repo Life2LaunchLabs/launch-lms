@@ -68,13 +68,13 @@ const OrgHomePage = async ({ params }: PageProps) => {
           <div className="mt-5 flex w-full max-w-[420px] flex-col gap-3 sm:mt-7 sm:gap-4">
             <Link
               href={signupHref}
-              className={buttonVariants({ variant: 'cta', size: 'cta', className: 'w-full text-[15px]' })}
+              className={buttonVariants({ variant: 'brand', size: 'cta', className: 'w-full text-[15px]' })}
             >
               Get Started
             </Link>
             <Link
               href={loginHref}
-              className={buttonVariants({ variant: 'ctaSecondary', size: 'cta', className: 'w-full px-6 text-[15px] sm:px-8' })}
+              className={buttonVariants({ variant: 'surface', size: 'cta', className: 'w-full px-6 text-[15px] sm:px-8' })}
             >
               I Already Have an Account
             </Link>
@@ -125,13 +125,13 @@ const OrgHomePage = async ({ params }: PageProps) => {
             <div className="mt-8 flex w-full max-w-[420px] flex-col gap-4 sm:flex-row sm:justify-center">
               <Link
                 href={signupHref}
-                className={buttonVariants({ variant: 'cta', size: 'cta' })}
+                className={buttonVariants({ variant: 'brand', size: 'cta' })}
               >
                 sign up
               </Link>
               <Link
                 href={loginHref}
-                className={buttonVariants({ variant: 'ctaSecondary', size: 'cta', className: 'border-border text-foreground/80 shadow-[0_4px_0_hsl(var(--border))]' })}
+                className={buttonVariants({ variant: 'surface', size: 'cta', className: 'border-border text-foreground/80 shadow-[0_4px_0_hsl(var(--border))]' })}
               >
                 login
               </Link>

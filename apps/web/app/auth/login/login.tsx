@@ -282,7 +282,7 @@ const LoginClient = (props: LoginClientProps) => {
               type="button"
               onClick={handleGoogleLogin}
               disabled={isGoogleLoading}
-              variant="ctaSecondary"
+              variant="surface"
               size="cta"
               className="w-full text-[16px]"
             >

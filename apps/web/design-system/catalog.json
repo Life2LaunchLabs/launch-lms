@@ -5,17 +5,21 @@
   "preview_path": "/design-system",
   "scope": "Current product foundations and shared UI; classification is descriptive, not a claim that every surface conforms.",
   "foundations": [
-    { "name": "Background", "token": "--background", "tailwind": "bg-background", "role": "Page canvas; default dark charcoal #191a1a" },
+    { "name": "Background", "token": "--background", "tailwind": "bg-background", "role": "Page canvas; default dark blue-slate #131F24, light #F5F8F9" },
     { "name": "Foreground", "token": "--foreground", "tailwind": "text-foreground", "role": "Primary content" },
     { "name": "Card", "token": "--card", "tailwind": "bg-card", "role": "Raised and grouped surfaces" },
     { "name": "Muted", "token": "--muted", "tailwind": "bg-muted", "role": "Quiet surfaces and secondary controls" },
     { "name": "Border", "token": "--border", "tailwind": "border-border", "role": "Structural separation" },
+    { "name": "Shell", "token": "--shell", "tailwind": "bg-shell", "role": "Outside surface the page card, navigation and coach sit on" },
+    { "name": "Raised", "token": "--raised", "tailwind": "bg-raised", "role": "Lifted controls and hover fill on cards" },
+    { "name": "Edge", "token": "--edge", "tailwind": "bg-edge", "role": "Darker underside that makes pressable surfaces read as pressable" },
+    { "name": "Plan color", "token": "--plan-face", "tailwind": "bg-[var(--plan-face)]", "role": "A plan's color, set by planVars() on [data-plan]; with --plan-edge, --plan-deep and --plan-accent" },
     { "name": "Destructive", "token": "--destructive", "tailwind": "bg-destructive", "role": "Destructive actions and errors" },
     { "name": "Organization accent", "token": "--org-primary-color", "tailwind": "bg-[var(--org-primary-color)]", "role": "Tenant-controlled brand emphasis" },
     { "name": "On organization accent", "token": "--org-on-primary-color", "tailwind": "text-[var(--org-on-primary-color)]", "role": "Contrast-aware content on tenant accent" }
   ],
   "components": [
-    { "name": "Button", "source": "apps/web/components/ui/button.tsx", "status": "adopted", "usage": 49, "category": "action", "notes": "Includes product-specific brand, surface, and CTA variants." },
+    { "name": "Button", "source": "apps/web/components/ui/button.tsx", "status": "adopted", "usage": 49, "category": "action", "notes": "Pressable brand (org accent), plan (plan color via --plan-* variables) and surface variants share one shape: 16px radius, caps label, a 4px edge that collapses on press. Former cta/ctaSecondary are brand/surface with size cta." },
     { "name": "Input", "source": "apps/web/components/ui/input.tsx", "status": "adopted", "usage": 29, "category": "form" },
     { "name": "Label", "source": "apps/web/components/ui/label.tsx", "status": "adopted", "usage": 22, "category": "form" },
     { "name": "Dropdown menu", "source": "apps/web/components/ui/dropdown-menu.tsx", "status": "adopted", "usage": 22, "category": "overlay" },
