@@ -75,7 +75,6 @@
     "apps/web/components/Objects/Modals/Dash/OrgRoles/EditRole.tsx": 573,
     "apps/web/components/Objects/Portfolio/ProfileAchievements.tsx": 811,
     "apps/web/components/Objects/Portfolio/ProfilePortfolio.tsx": 938,
-    "apps/web/components/Pages/Portfolio/PortfolioShell.tsx": 765,
     "apps/web/components/Playground/PlaygroundOptionsModal.tsx": 560,
     "apps/web/services/resources/resources.ts": 555
   },

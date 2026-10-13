@@ -218,7 +218,7 @@ export const OrgMenu = (props: { orgslug: string; compact?: boolean }) => {
         </div>
       </aside>
 
-      <OrgMenuMobile items={primaryNavItems} orgslug={orgslug} hidden={Boolean(isActivityPage)} onHelp={openFeedback} unreadCount={unreadCount} />
+      <OrgMenuMobile items={primaryNavItems} orgslug={orgslug} hidden={Boolean(isActivityPage)} unreadCount={unreadCount} />
 
     </>
   )
