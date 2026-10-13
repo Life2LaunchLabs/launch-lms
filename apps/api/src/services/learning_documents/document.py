@@ -222,7 +222,7 @@ def prepare_document(
         for issue in content_issues(Flow, current_flow) if current_flow else []:
             result.warnings.append(DocumentIssue(path="activity.settings.flow", message=f"Existing issue (save allowed): {issue}"))
     except FlowValidationError as exc:
-        result.errors.append(DocumentIssue(path="activity.settings.flow", message=str(exc)))
+        result.errors.extend(DocumentIssue(path="activity.settings.flow", message=problem) for problem in exc.problems)
     result.errors.extend(_button_route_issues(activity["settings"].get("flow"), pages))
     try:
         validate_outcomes(activity["settings"].get("outcomes"), allow_system_blocks)
@@ -230,6 +230,12 @@ def prepare_document(
         result.errors.append(DocumentIssue(path="activity.settings.outcomes", message=str(exc)))
 
     result.activity, result.pages = activity, pages
+    # Name new pages by the placeholder ids the author wrote, not the uuids they will get.
+    placeholders = {uuid: page_id for page_id, uuid in result.new_page_ids.items()}
+    if placeholders:
+        pattern = re.compile("|".join(re.escape(uuid) for uuid in placeholders))
+        for issue in [*result.errors, *result.warnings]:
+            issue.message = pattern.sub(lambda match: placeholders[match.group(0)], issue.message)
     return result
 
 

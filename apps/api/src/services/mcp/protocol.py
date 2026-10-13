@@ -19,17 +19,25 @@ from src.services.plan_template_documents.models import authoring_guide as templ
 from src.services.plan_template_documents.models import plan_template_json_schema
 from src.services.requirement_documents.models import authoring_guide as requirement_authoring_guide
 from src.services.requirement_documents.models import requirement_framework_json_schema
+from src.services.badge_documents.models import authoring_guide as badge_authoring_guide
+from src.services.badge_documents.models import badge_json_schema
 from src.services.oauth.server import AccessContext
 
 SUPPORTED_VERSIONS = ("2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05")
-SERVER_INFO = {"name": "launch-lms", "title": "Launch LMS", "version": "1.0.0"}
-INSTRUCTIONS = """Launch LMS holds plans. Plan templates are reusable plans: an ordered stack of phases and objectives that learners get as their own plan, from an organization or by starting a badge. An objective is either a standard step (fields, checkboxes, uploads, a badge to earn) or an interactive activity the learner plays in the app: phone-sized pages made of blocks and questions, optionally routed by a branching flow, edited as an Activity Document. A template's step_order and each objective's after_objective_uuids decide when learners can start steps.
+SERVER_INFO = {"name": "launch-lms", "title": "Launch LMS", "version": "1.1.0"}
+INSTRUCTIONS = """Launch LMS holds plans, the requirements they count toward, and the badges they earn. Everything belongs to an organization: tools act in the organization chosen when connecting; list_organizations shows every organization this admin manages, and any tool takes `org` (a slug) to act in another one. Say which organization you are working in when it is not the default.
 
-Templates: find them with list_plan_templates, read one with get_plan_template and get_plan_template_schema before editing. Add an activity by giving a new objective type "activity" in the template document and saving; then edit its pages with the activity tools. Edit the whole document, run validate_plan_template until it is clean, and tell the admin what will change (validation warnings list removals). Template edits apply to future assignments; activity edits apply to everyone playing that activity.
+Requirement frameworks (standards, competencies, state mandates) are hierarchies of requirement nodes. Turn a requirements write-up into one with get_requirement_framework_schema, validate_requirement_framework and create_requirement_framework (or edit an existing one from list_requirement_frameworks / get_requirement_framework). Frameworks are versioned: saves edit a draft; publish_requirement_framework only when the admin asks.
 
-Activities: find them with list_activities (a template's activities), read one with get_activity, and read get_activity_schema before writing pages. Edit the whole Activity Document, run validate_activity until it is clean, then show the admin preview_activity with your edited document so they can click through it.
+Plan templates are reusable plans: an ordered stack of phases and objectives that learners get as their own plan, assigned by an organization or by starting a badge. An objective is a standard step (fields, checkboxes, uploads, a badge to earn) or an interactive activity the learner plays in the app. Objectives link to leaf requirement nodes (requirement_node_uuids in the document, or set_objective_requirements). Read get_plan_template_schema first; build the whole document, run validate_plan_template until it is clean, then create_plan_template or save_plan_template. Template edits apply to future assignments; there is no separate publish step for templates.
 
-Save only when the admin asks, with the etag you read; on a stale-document error, merge your change into the returned current document and retry. Point the admin to the editor_url to review. Requirement frameworks (standards, competencies) sit beside templates: objectives link to leaf requirement nodes; find them with list_requirement_frameworks. Publishing a framework and publishing to the global library happen only when the admin asks."""
+Activities: add one by giving a new objective type "activity" in a template document and saving; list_activities then shows its activity_uuid. Read get_activity_schema, write the whole Activity Document, validate_activity until clean, show preview_activity so the admin can click through, then save_activity. Activity edits reach everyone playing it.
+
+Badges are credentials: a definition (name, criteria, image, achievement type), Marketing (subtitle, time, highlights) and a listing (collection, public). Read get_badge_schema. create_badge makes a draft; save_badge edits the draft (saving over a live badge starts a new draft). Learners earn a badge through the plan templates linked with set_badge_routes; a badge needs at least one before learners can start it. publish_badge makes the draft live, only when the admin asks.
+
+Typical flows: requirements write-up -> framework -> template whose objectives link to it. Badge -> create_badge -> create_plan_template for how to earn it (with activities) -> set_badge_routes -> publish_badge.
+
+Save only when the admin asks, with the etag you read; on a stale-document error, merge your change into the returned current document and retry. Tell the admin what will change (validation warnings list removals) and point them to the editor_url to review. Publishing to the global library happens only when the admin asks."""
 
 RESOURCES = [
     {
@@ -75,6 +83,20 @@ RESOURCES = [
         "mimeType": "application/schema+json",
     },
     {
+        "uri": "launch-lms://badge-document/guide",
+        "name": "badge-authoring-guide",
+        "title": "Badge authoring guide",
+        "description": "How Launch LMS badges, their Marketing, versions and ways to earn work.",
+        "mimeType": "text/markdown",
+    },
+    {
+        "uri": "launch-lms://badge-document/schema",
+        "name": "badge-document-schema",
+        "title": "Badge Document JSON Schema",
+        "description": "JSON Schema for Badge Document v1.",
+        "mimeType": "application/schema+json",
+    },
+    {
         "uri": PREVIEW_APP_URI,
         "name": "activity-preview",
         "title": "Activity preview",
@@ -107,6 +129,10 @@ def _read_resource(uri: str) -> dict:
         return {"uri": uri, "mimeType": "text/markdown", "text": requirement_authoring_guide()}
     if uri == "launch-lms://requirement-framework-document/schema":
         return {"uri": uri, "mimeType": "application/schema+json", "text": json.dumps(requirement_framework_json_schema())}
+    if uri == "launch-lms://badge-document/guide":
+        return {"uri": uri, "mimeType": "text/markdown", "text": badge_authoring_guide()}
+    if uri == "launch-lms://badge-document/schema":
+        return {"uri": uri, "mimeType": "application/schema+json", "text": json.dumps(badge_json_schema())}
     if uri == PREVIEW_APP_URI:
         return {"uri": uri, "mimeType": APP_MIME_TYPE, "text": preview_app_html(), "_meta": preview_app_meta()}
     raise RpcError(-32002, f"Resource not found: {uri}")

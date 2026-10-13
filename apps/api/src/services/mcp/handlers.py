@@ -12,7 +12,7 @@ from urllib.parse import quote
 from fastapi import HTTPException, Request
 from sqlmodel import Session, func, select
 
-from src.db.learning import LearningActivity, LearningPage, LearningVariable
+from src.db.learning import LearningActivity, LearningPage, LearningPageProgress, LearningResponseAttempt, LearningVariable
 from src.db.programs import Objective, Program, ProgramAssignment, ProgramObjective, ProgramPhase
 from src.db.requirements import RequirementFramework
 from src.security.org_auth import require_org_admin
@@ -30,8 +30,12 @@ from src.services.plan_template_documents.models import plan_template_json_schem
 from src.services.requirement_documents import store as requirement_store
 from src.services.requirement_documents.models import authoring_guide as requirement_authoring_guide
 from src.services.requirement_documents.models import requirement_framework_json_schema
+from src.services.badge_documents import collections as badge_collections
+from src.services.badge_documents import store as badge_store
+from src.services.badge_documents.models import authoring_guide as badge_authoring_guide
+from src.services.badge_documents.models import badge_json_schema
 from src.services.oauth.config import frontend_url
-from src.services.oauth.server import AccessContext
+from src.services.oauth.server import AccessContext, admin_orgs
 
 
 def _activity(db_session: Session, ctx: AccessContext, activity_uuid: str) -> LearningActivity:
@@ -149,8 +153,28 @@ async def preview_activity(request: Request, db_session: Session, ctx: AccessCon
     }
 
 
+def _refuse_removing_learner_work(db_session: Session, activity: LearningActivity, document) -> None:
+    """The connector never deletes learner records: removing a page would delete its learners' progress and answers."""
+    kept = {str(page.get("page_uuid") or "") for page in (document or {}).get("pages") or [] if isinstance(page, dict)} if isinstance(document, dict) else set()
+    removed = [page for page in db_session.exec(select(LearningPage).where(LearningPage.activity_id == activity.id)).all() if page.page_uuid not in kept]
+    if not removed:
+        return
+    ids = [page.id for page in removed]
+    touched = set(db_session.exec(select(LearningPageProgress.page_id).where(LearningPageProgress.page_id.in_(ids))).all())  # type: ignore[union-attr]
+    touched |= set(db_session.exec(select(LearningResponseAttempt.page_id).where(LearningResponseAttempt.page_id.in_(ids))).all())  # type: ignore[union-attr]
+    blocked = [page for page in removed if page.id in touched]
+    if blocked:
+        titles = ", ".join(f"\"{page.title}\" ({page.page_uuid})" for page in blocked)
+        raise HTTPException(status_code=409, detail={
+            "message": f"Learners have progress or answers on {titles}, and removing a page deletes them. The connector never deletes learner work: "
+                       "keep the page (set required: false and route the flow around it to retire it), or remove it in the Launch LMS editor.",
+            "page_uuids": [page.page_uuid for page in blocked],
+        })
+
+
 async def save_activity(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
     activity = _activity(db_session, ctx, args["activity_uuid"])
+    _refuse_removing_learner_work(db_session, activity, args.get("document"))
     payload = ActivityDocumentSave(document=args["document"], base_etag=args["base_etag"])
     envelope = await store.save_activity_document(request, activity.activity_uuid, payload, ctx.user, db_session)
     return {**envelope, "editor_url": _editor_url(db_session, activity)}
@@ -165,7 +189,10 @@ def _template_editor_url(db_session: Session, ctx: AccessContext, template_uuid:
 
 
 def _with_template_url(db_session: Session, ctx: AccessContext, envelope: dict) -> dict:
-    return {**envelope, "editor_url": _template_editor_url(db_session, ctx, envelope["context"]["template_uuid"])}
+    template_uuid = envelope["context"]["template_uuid"]
+    program = db_session.exec(select(Program).where(Program.program_uuid == template_uuid)).first()
+    context = {**envelope["context"], "earns_badges": badge_store.badge_routes_for_template(db_session, program) if program else []}
+    return {**envelope, "context": context, "editor_url": _template_editor_url(db_session, ctx, template_uuid)}
 
 
 async def list_plan_templates(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
@@ -341,3 +368,75 @@ async def publish_to_library(request: Request, db_session: Session, ctx: AccessC
     else:
         requirements.publish_framework_to_library(db_session, ctx.user, ctx.org_id, args["uuid"])
     return {"kind": kind, "uuid": args["uuid"], "published_to_library": True}
+
+
+# Organizations ----------------------------------------------------------------
+
+
+async def list_organizations(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
+    return {
+        "default_org": learning._get_org(db_session, ctx.default_org_id or ctx.org_id).slug,
+        "current_org": learning._get_org(db_session, ctx.org_id).slug,
+        "organizations": [{"slug": org.slug, "name": org.name} for org in sorted(admin_orgs(db_session, ctx.user), key=lambda item: item.name.lower())],
+    }
+
+
+# Badges -----------------------------------------------------------------------
+
+
+def _badge_editor_url(db_session: Session, ctx: AccessContext, badge_uuid: str, tab: str = "definition") -> str:
+    org = learning._get_org(db_session, ctx.org_id)
+    return f"{frontend_url()}/orgs/{org.slug}/admin/badges/badge/{quote(badge_uuid.removeprefix('badge_'))}/{tab}"
+
+
+def _with_badge_url(db_session: Session, ctx: AccessContext, envelope: dict) -> dict:
+    badge_uuid = envelope["context"]["badge_uuid"]
+    return {**envelope, "editor_url": _badge_editor_url(db_session, ctx, badge_uuid), "routes_url": _badge_editor_url(db_session, ctx, badge_uuid, "routes")}
+
+
+async def list_badges(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
+    items = badge_store.list_badges(db_session, ctx.user, ctx.org_id, str(args.get("query") or ""))
+    return {"badges": [{**item, "editor_url": _badge_editor_url(db_session, ctx, item["badge_uuid"])} for item in items]}
+
+
+async def get_badge(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
+    return _with_badge_url(db_session, ctx, badge_store.get_badge_document(db_session, ctx.user, ctx.org_id, args["badge_uuid"]))
+
+
+async def get_badge_schema(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
+    return {"guide": badge_authoring_guide(), "schema": badge_json_schema()}
+
+
+async def validate_badge(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
+    return badge_store.validate_badge_document(db_session, ctx.user, ctx.org_id, args["document"])
+
+
+async def create_badge(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
+    return _with_badge_url(db_session, ctx, await badge_store.create_badge_from_document(db_session, ctx.user, ctx.org_id, args["document"]))
+
+
+async def save_badge(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
+    envelope = badge_store.save_badge_document(db_session, ctx.user, ctx.org_id, args["badge_uuid"], args["document"], args["base_etag"])
+    return _with_badge_url(db_session, ctx, envelope)
+
+
+async def publish_badge(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
+    envelope = await badge_store.publish_badge(
+        db_session, ctx.user, ctx.org_id, args["badge_uuid"], args.get("semantic_version"), args.get("release_title"), args.get("release_notes"),
+    )
+    return _with_badge_url(db_session, ctx, envelope)
+
+
+async def set_badge_routes(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
+    routes = args.get("routes")
+    if not isinstance(routes, list):
+        raise HTTPException(status_code=422, detail="routes must be a list of {template_uuid, recommended}")
+    return _with_badge_url(db_session, ctx, badge_store.set_badge_routes(db_session, ctx.user, ctx.org_id, args["badge_uuid"], routes))
+
+
+async def list_badge_collections(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
+    return {"collections": badge_collections.list_collections(db_session, ctx.user, ctx.org_id)}
+
+
+async def save_badge_collection(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
+    return {"collection": badge_collections.save_collection(db_session, ctx.user, ctx.org_id, args)}
