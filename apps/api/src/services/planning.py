@@ -1787,7 +1787,7 @@ def list_my_invitations(db: Session, current_user: PublicUser) -> list[dict]:
             "invitation_uuid": invitation.invitation_uuid, "kind": invitation.kind,
             "status": invitation.status, "unread": invitation.viewed_at is None,
             "plan": {"plan_uuid": plan.plan_uuid, "slug": plan.slug, "name": plan.name, "description": plan.description},
-            "subject": _user_summary(db, plan.subject_user_id), "invited_by": _user_summary(db, invitation.invited_by_user_id),
+            "source_organization": _org_summary(db, plan.source_org_id), "subject": _user_summary(db, plan.subject_user_id), "invited_by": _user_summary(db, invitation.invited_by_user_id),
             "role": {"key": role.key, "name": role.name}, "expires_at": invitation.expires_at,
         })
     return result

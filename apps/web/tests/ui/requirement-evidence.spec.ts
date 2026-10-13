@@ -79,7 +79,15 @@ test('requirements.long-codes: explorer and learner tree preserve readable code 
   ]) {
     await page.goto(path)
     await assertActualApp(page)
-    if (prefix === 'explorer' && await page.getByRole('combobox', { name: 'Framework', exact: true }).count()) await page.getByRole('combobox', { name: 'Framework', exact: true }).selectOption(fixture.framework_uuid)
+    if (prefix === 'explorer') {
+      // The inventory is asynchronous; choose our fixture after its header renders.
+      await expect(page.getByRole('link', { name: 'Edit framework', exact: true })).toBeVisible()
+      const selector = page.getByRole('combobox', { name: 'Framework', exact: true })
+      if (await selector.count()) {
+        await selector.selectOption(fixture.framework_uuid)
+        await expect(selector).toHaveValue(fixture.framework_uuid)
+      }
+    }
     const code = page.getByText('HS.HECPS', { exact: true }).first()
     const title = page.getByText('Higher Education and Career Path Skills', { exact: true }).first()
     await expect(code).toBeVisible()

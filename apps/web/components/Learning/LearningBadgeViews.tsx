@@ -62,9 +62,9 @@ export function LearningActivitySurface({
     ? 'mx-auto flex w-full max-w-3xl justify-center'
     : 'mx-auto flex w-full max-w-2xl justify-center'
   const backControl = backHref ? (
-    <Link href={backHref} className={`rounded-full p-2 transition ${isVideoPage ? 'text-white hover:bg-white/10' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}><X size={20} /></Link>
+    <Link href={backHref} aria-label="Close activity" className={`rounded-full p-2 transition ${isVideoPage ? 'text-white hover:bg-white/10' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}><X size={20} /></Link>
   ) : (
-    <button onClick={onBack} className={`rounded-full p-2 transition ${isVideoPage ? 'text-white hover:bg-white/10' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}><X size={20} /></button>
+    <button onClick={onBack} aria-label="Close activity" className={`rounded-full p-2 transition ${isVideoPage ? 'text-white hover:bg-white/10' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}><X size={20} /></button>
   )
 
   return (
