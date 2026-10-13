@@ -37,16 +37,19 @@ are also attached as `synthetic-review:*` in browser CI manifests.
   during concurrent cold Next development compilation. Its budget is 60 seconds;
   geometry, visibility and interaction assertions are unchanged. Final run passed.
 
+- Final keyboard review connected the export button to the adopted DialogTrigger.
+  New assertions confirm focus returns to the button after download and cancellation.
+
 ## Evidence and limits
 
-Final browser run: **6 passed**, finished 13 October 2026 at 13:28 PDT. Inspected
+Final browser run: **6 passed**, finished 13 October 2026 at 13:45 PDT. Inspected
 all ten synthetic captures. The phone dialog now has both edges inside the viewport;
 root/domain/standard code and title regions remain separate at both sizes.
 
 Implementation base: `09bfd69be6533b28d2d56bfdbb5d4af2c6191ae4`, with delivery
 changes on `feat/sb3-requirement-evidence-export`. Browser run worktree fingerprint:
-`c300fbfe1eafe26448b1f0abb63668283954574252ccc4567b0f0132bbeb42f1`.
-The subsequent export audit and leading-column order were separately verified
+`587cd2b7359298c302741d4b73af0ea88ce1883fca75c4f5adaf6a85f0cd97e9`.
+Export audit and leading-column order were separately verified
 through a real authenticated local API download. No UI source changed afterward.
 
 - [Browser result manifest](requirement-evidence-export/browser-results.json)

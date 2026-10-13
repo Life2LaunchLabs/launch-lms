@@ -1,10 +1,10 @@
 {
   "schema_version": 2,
-  "started_at": "2026-10-13T20:27:28.068Z",
-  "finished_at": "2026-10-13T20:28:36.133Z",
+  "started_at": "2026-10-13T20:43:07.075Z",
+  "finished_at": "2026-10-13T20:44:12.745Z",
   "status": "passed",
-  "revision": "09bfd69be6533b28d2d56bfdbb5d4af2c6191ae4",
-  "worktree_fingerprint": "c300fbfe1eafe26448b1f0abb63668283954574252ccc4567b0f0132bbeb42f1",
+  "revision": "2d001dbb3e287e515be2362abe2ce8cd98d2fbd8",
+  "worktree_fingerprint": "587cd2b7359298c302741d4b73af0ea88ce1883fca75c4f5adaf6a85f0cd97e9",
   "base_origin": "http://127.0.0.1.sslip.io:13100",
   "browser_projects": [
     "chromium-desktop",
@@ -53,19 +53,19 @@
       "filename": "group-requirement-export.png",
       "project": "chromium-desktop",
       "retry": 0,
-      "sha256": "a4aafc6391bbd321ace5628f10a22d2dc44b3a11a624863c6c0f19a295c6d877"
+      "sha256": "4e56b4971111f08a808d86dc58d50ab7e3cbdf72a115ffd64e2e754260a7c123"
     },
     {
       "filename": "explorer-long-codes.png",
       "project": "chromium-desktop",
       "retry": 0,
-      "sha256": "9a5bc01047320afb89c86d28cb6b1db4d1d5d172b48355eca3e639b2fc81e5a4"
+      "sha256": "a879bcc8192e57d2a5343c325898400800958c3af848c667dcf9d94d8f7e5e25"
     },
     {
       "filename": "learner-long-codes.png",
       "project": "chromium-desktop",
       "retry": 0,
-      "sha256": "c20b38cfcffa9cd54226009748b0fe2675963cabdab68f589fbf118aea0c3c6f"
+      "sha256": "5952983702e8f541b9484dc6e178f756cdeebdd977f9e60edb7ad7b355f9fdee"
     },
     {
       "filename": "export-course-context.png",
@@ -89,13 +89,13 @@
       "filename": "explorer-long-codes.png",
       "project": "chromium-phone",
       "retry": 0,
-      "sha256": "cb0dd8b6e65bf874ea10d0fcd8046e9a4120dd5850e5d4c9dc71eabccc367497"
+      "sha256": "03da3cb09b7f1dfb9f6d391aca1c0fc14df5f9cbd3a408e9ffcba785c583a441"
     },
     {
       "filename": "learner-long-codes.png",
       "project": "chromium-phone",
       "retry": 0,
-      "sha256": "6fa2b8ca1afb7291b2fac1b4541cf4d464296d723974228719bbe50cbbda1cf3"
+      "sha256": "4f22ef6e78e1b112174dc1b47549b7275767035e87d93e0d6a9aeb4f6f9e3d03"
     }
   ]
 }

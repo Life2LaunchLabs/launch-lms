@@ -44,6 +44,7 @@ test('requirements.export: assignment filters learners and downloads real review
   expect(csv).toContain('Fall 2026')
   expect(csv).toContain('No mapped work in export scope')
   await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(action).toBeFocused()
   await capture(page, testInfo, 'assignment-export-filtered.png')
   await page.getByRole('textbox', { name: 'Search learners' }).fill('no-such-learner')
   await expect(page.getByRole('button', { name: 'Export evidence CSV for 0 filtered learners' })).toBeDisabled()
@@ -66,6 +67,7 @@ test('requirements.export: group report keeps pending evidence and shows server 
   await expect(page.getByText('You cannot export this learner’s assignment', { exact: true })).toBeVisible()
   await expect(page.getByRole('dialog')).toBeVisible()
   await page.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Export evidence CSV for 2 filtered learners' })).toBeFocused()
 })
 
 test('requirements.long-codes: explorer and learner tree preserve readable code and title', async ({ page }, testInfo) => {
