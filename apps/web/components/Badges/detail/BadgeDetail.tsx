@@ -126,7 +126,7 @@ export default function BadgeDetail({ orgslug, initialPage }: { orgslug: string;
     : { label: 'Invite only', disabled: true }
 
   return <div className="min-h-screen bg-background text-[15px] leading-[1.45] text-foreground">
-    <div className="mx-auto max-w-[1056px] px-6"><ContentPageHeader orgslug={orgslug} backLabel="Discover" onBack={() => router.push(getUriWithOrg(orgslug, routePaths.org.badges()))} noBottomMargin noHorizontalBleed /></div>
+    <div className="mx-auto max-w-[1056px] px-6"><ContentPageHeader orgslug={orgslug} backLabel="Discover" onBack={() => router.push(getUriWithOrg(orgslug, routePaths.org.discover()))} noBottomMargin noHorizontalBleed /></div>
     <Hero page={page} orgslug={orgslug} action={action} steps={selected?.route.step_count || 0} />
     <main className="mx-auto flex max-w-[1056px] flex-col gap-8 px-4 pb-24 pt-6 sm:px-6">
       <Proves page={page} />

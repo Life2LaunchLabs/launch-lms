@@ -1,7 +1,7 @@
 'use client'
 
 import { FormEvent, useEffect, useRef, useState } from 'react'
-import { Archive, ArrowLeft, Check, ChevronDown, CircleHelp, Loader2, Maximize2, MoreHorizontal, PanelLeft, Pencil, Plus, Radio } from 'lucide-react'
+import { Archive, Check, ChevronDown, ChevronRight, CircleHelp, Loader2, MoreHorizontal, Pencil, Plus, Radio, X } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import {
   DropdownMenu,
@@ -25,19 +25,17 @@ export default function HubHeader({
   loading,
   disabled,
   onHistoryOpen,
-  onBack,
   onNew,
   onSelect,
   onOpenResources,
   onRename,
   onArchive,
-  companion = false,
   contextUnavailable = false,
   editRun,
   onStopEditing,
   onUpdateEditGoal,
-  onCompanionCollapse,
-  onCompanionExpand,
+  onTuck,
+  onEnd,
 }: {
   conversationUuid: string | null
   conversationStarted?: boolean
@@ -46,7 +44,6 @@ export default function HubHeader({
   loading: boolean
   disabled: boolean
   onHistoryOpen: () => void
-  onBack: () => void
   onNew: () => void
   // ESLint's base rule treats TypeScript callback parameter names as runtime bindings.
   // eslint-disable-next-line no-unused-vars
@@ -56,13 +53,15 @@ export default function HubHeader({
   // eslint-disable-next-line no-unused-vars
   onRename: (_title: string) => Promise<void>
   onArchive: () => Promise<void>
-  companion?: boolean
   contextUnavailable?: boolean
   editRun?: HubEditRun | null
   onStopEditing?: () => void
+  // eslint-disable-next-line no-unused-vars
   onUpdateEditGoal?: (goal: string) => Promise<void>
-  onCompanionCollapse?: () => void
-  onCompanionExpand?: () => void
+  /** Puts the page back, keeping the conversation at the edge. */
+  onTuck: () => void
+  /** Ends the conversation and closes Hub. */
+  onEnd: () => void
 }) {
   const hasConversation = conversationStarted || Boolean(conversationUuid)
   const sessionModeLabel = editRun?.scope.kind === 'new_plan' || /\b(create|start|build)\b.*\bplan\b/i.test(editRun?.goal || '') ? 'Creating a plan' : 'Editing a plan'
@@ -114,17 +113,11 @@ export default function HubHeader({
 
   return (
     <div className="pointer-events-none absolute inset-x-0 top-0 z-[var(--z-sticky-header)]">
-      <div ref={rootRef} className={`pointer-events-auto mx-auto w-full max-w-[50rem] px-4 sm:px-5 ${companion ? 'bg-transparent' : 'bg-background'}`}>
-        <header className="flex h-11 items-center gap-0.5" aria-label="Hub conversation navigation">
-          {companion ? (
-            <Button type="button" size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={onCompanionCollapse} aria-label="Collapse Hub companion">
-              <PanelLeft className="h-4 w-4" />
-            </Button>
-          ) : hasConversation && (
-            <Button type="button" size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={onBack} disabled={disabled} aria-label="Back to Hub home">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          )}
+      <div ref={rootRef} className={`pointer-events-auto mx-auto w-full max-w-[50rem] px-3 sm:px-4`}>
+        <header className="flex h-14 items-center gap-0.5" aria-label="Hub conversation navigation">
+          <Button type="button" size="icon" variant="ghost" className="h-9 w-9 shrink-0" onClick={onTuck} aria-label="Show the page">
+            <ChevronRight className="h-4 w-4" />
+          </Button>
           {renaming && conversationUuid ? (
             <form className="flex min-w-0 flex-1 items-center gap-1.5" onSubmit={submitRename}>
               <Input value={renameValue} onChange={(event) => setRenameValue(event.target.value)} maxLength={120} autoFocus aria-label="Conversation title" className="h-8 min-w-0 border-0 bg-muted/70 shadow-none focus-visible:ring-1" />
@@ -138,11 +131,6 @@ export default function HubHeader({
             </button>
           )}
           <div className="flex-1" />
-          {companion && !renaming && (
-            <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={onCompanionExpand} aria-label="Open full Hub">
-              <Maximize2 className="h-4 w-4" />
-            </Button>
-          )}
           {!renaming && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -166,15 +154,18 @@ export default function HubHeader({
               </DropdownMenuContent>
             </DropdownMenu>
           )}
+          <Button type="button" variant="ghost" size="icon" className="h-9 w-9" onClick={onEnd} aria-label={hasConversation ? 'End conversation' : 'Close Hub'}>
+            <X className="h-4 w-4" />
+          </Button>
         </header>
-        {companion && editRun?.status === 'active' ? <div className="flex h-8 items-center gap-2 border-l-2 border-violet-400 pl-2 text-xs">
+        {editRun?.status === 'active' ? <div className="flex h-8 items-center gap-2 border-l-2 border-violet-400 pl-2 text-xs">
           <Radio className="h-3 w-3 shrink-0 text-violet-500" aria-hidden="true" />
           <button type="button" onClick={() => setPanel((current) => current === 'session' ? null : 'session')} className="group/session flex min-w-0 flex-1 items-center gap-1 text-left" aria-expanded={panel === 'session'}>
             <span className="min-w-0 flex-1 truncate"><span className="mr-1.5 font-semibold text-violet-700 dark:text-violet-300">{sessionModeLabel}:</span><span className="text-muted-foreground">{editRun.goal}</span></span>
             <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${panel === 'session' ? 'rotate-180' : ''}`} />
           </button>
           <button type="button" onClick={onStopEditing} className="shrink-0 rounded-full border border-border px-2 py-1 text-[10px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring" aria-label={`End focused session for ${editRun.scope.label}`}>End</button>
-        </div> : companion && contextUnavailable ? <div className="flex h-7 items-start gap-1.5 pl-1 text-xs text-muted-foreground">
+        </div> : contextUnavailable ? <div className="flex h-7 items-start gap-1.5 pl-1 text-xs text-muted-foreground">
           <span>I can&apos;t read this page yet.</span>
           <TooltipProvider delayDuration={200}>
             <Tooltip>

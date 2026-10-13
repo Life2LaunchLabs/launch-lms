@@ -125,7 +125,7 @@ export async function waitForDemo(signal: AbortSignal): Promise<DemoTokens> {
 
 /** Where a demo user lands: their start page, on the main portal unless an org is named. */
 export function demoStartPath(tokens: Pick<DemoTokens, 'start_path' | 'start_org_slug'>): string {
-  const path = tokens.start_path || '/hub'
+  const path = tokens.start_path || '/plans'
   return tokens.start_org_slug ? `/orgs/${encodeURIComponent(tokens.start_org_slug)}${path}` : path
 }
 

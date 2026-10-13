@@ -45,15 +45,13 @@ class NavigationDestination:
 
 NAVIGATION_DESTINATIONS = {
     item.key: item for item in (
-        NavigationDestination("hub", "Open Hub", "/hub", "Return to the full Hub conversation workspace."),
         NavigationDestination("plans", "View plans", "/plans", "Review, continue, or organize personal and assigned plans."),
         NavigationDestination("create_plan", "Start a plan", "/plans?hub_action=create-plan", "Begin a new personal plan when the learner wants to turn a goal into a structured path."),
         NavigationDestination("portfolio", "Open portfolio", "/portfolio", "Review the learner's portfolio and its readiness."),
         NavigationDestination("add_timeline", "Add to Timeline", "/portfolio/timeline?experience=work_career", "Record a meaningful job, learning, volunteer, or life experience in the portfolio Timeline."),
         NavigationDestination("add_project", "Add a project", "/portfolio/projects?newProject=1", "Add a concrete project or body of work to the portfolio."),
-        NavigationDestination("badges", "Explore badges", "/badges", "Find or continue badge learning and review earned badges.", "badges"),
+        NavigationDestination("badges", "Explore Discover", "/discover", "Find badges to earn and resources to use.", "badges"),
         NavigationDestination("communities", "Open communities", "/communities", "Find learner communities and ongoing discussions."),
-        NavigationDestination("programs", "Explore programs", "/programs", "Review available structured programs."),
         NavigationDestination("organizations", "Explore organizations", "/organizations", "Review organizations the learner can discover or join."),
         NavigationDestination("account", "Open account settings", "/account", "Manage the learner's account, preferences, messages, or Hub memory."),
     )

@@ -12,8 +12,7 @@ export interface RouteAccessClassification {
 
 const AUTH_PATHS = new Set(['/login', '/signup', '/signup/org', '/reset', '/forgot', '/verify-email'])
 const AUTH_CALLBACK_PREFIXES = ['/auth/sso/', '/auth/callback/', '/auth/token-exchange']
-const PUBLIC_EXACT_PATHS = new Set(['/', '/news', '/welcome'])
-const PUBLIC_PREFIXES = ['/news/']
+const PUBLIC_EXACT_PATHS = new Set(['/', '/welcome'])
 const PUBLIC_BADGE_ENTRY_PATH_RE = /^\/badges\/[^/]+$/
 const PUBLIC_PORTFOLIO_PATH_RE = /^\/user\/[^/]+(?:\/work(?:\/[^/]+)?)?$/
 const SPECIAL_PREFIXES = ['/board/', '/editor/playground/', '/payments/stripe/connect/oauth', '/health']
@@ -51,7 +50,6 @@ export function classifyRoute(pathname: string): RouteAccessClassification {
 
   if (
     PUBLIC_EXACT_PATHS.has(pathname) ||
-    PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix)) ||
     PUBLIC_BADGE_ENTRY_PATH_RE.test(pathname) ||
     PUBLIC_PORTFOLIO_PATH_RE.test(pathname)
   ) {

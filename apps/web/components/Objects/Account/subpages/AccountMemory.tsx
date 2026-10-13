@@ -18,7 +18,7 @@ import {
 import { Input } from '@components/ui/input'
 import { Switch } from '@components/ui/switch'
 import { clearHubMemory, getHubMemory, HubMemory, setHubMemoryEnabled } from '@services/hub/advisor'
-import HubMemoryItems from '@/app/orgs/[orgslug]/(withmenu)/hub/HubMemoryItems'
+import HubMemoryItems from '@components/Hub/conversation/HubMemoryItems'
 
 export default function AccountMemory() {
   const org = useOrg() as any

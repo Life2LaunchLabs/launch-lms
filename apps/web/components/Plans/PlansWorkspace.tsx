@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
-import { useHubWorkspace } from '@components/Contexts/HubWorkspaceContext'
+import { useHub } from '@components/Hub/HubContext'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import useSWR, { mutate } from 'swr'
@@ -47,7 +47,7 @@ export default function PlansWorkspace({ orgslug, initialPlanSlug }: { orgslug: 
   const org = useOrg() as any
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const workspace = useHubWorkspace()
+  const workspace = useHub()
   const setSurface = workspace?.setSurface
   const token = session?.data?.tokens?.access_token
   const [scope, setScope] = React.useState<PlanScope>('all')
@@ -176,7 +176,7 @@ function byDueDate(left: any, right: any) {
 }
 
 function PlanEditor({ detail, orgslug, token, viewerUserId, refresh, color, selectedObjectiveUuid, setSelectedObjectiveUuid }: any) {
-  const workspace = useHubWorkspace()
+  const workspace = useHub()
   const canEdit = detail.capabilities.includes('edit_structure')
   const canSchedule = detail.capabilities.includes('edit_schedule')
   const [addingPhaseUuid, setAddingPhaseUuid] = React.useState<string | null>(null)
@@ -348,7 +348,7 @@ function PlanEditor({ detail, orgslug, token, viewerUserId, refresh, color, sele
 }
 
 function ProposedPhaseEditor({ operationId, position, phase, recovered, detail, token, refresh, onSettled }: any) {
-  const workspace = useHubWorkspace()
+  const workspace = useHub()
   const org = useOrg() as any
   const emptyFields = React.useMemo(() => ({ name: '', description: '', due_date: '' }), [])
   const [fields, setFields] = React.useState<ObjectEditState>(() => {
@@ -440,7 +440,7 @@ function ProposedPhaseEditor({ operationId, position, phase, recovered, detail, 
 }
 
 function ProposedObjectiveEditor({ operationId, objective, recovered, detail, phases, color, token, refresh, onPhaseChange, onSettled }: any) {
-  const workspace = useHubWorkspace()
+  const workspace = useHub()
   const org = useOrg() as any
   const suggestedPhaseUuid = phases.find((item: any) => item.name === objective.phase_name)?.phase_uuid || phases[0]?.phase_uuid || ''
   const emptyFields = React.useMemo(() => ({ title: '', description: '', due_date: '', phase_uuid: '' }), [])
@@ -674,7 +674,7 @@ function ObjectiveCard({ item, orgslug, token, viewerUserId, refresh, color, edi
     if (!open || editing) return
     const closeOutside = (event: PointerEvent) => {
       const target = event.target as HTMLElement | null
-      if (cardRef.current?.contains(target) || target?.closest(`[data-objective-shell="${item.objective_uuid}"]`) || target?.closest('[role="menu"], [role="dialog"], .hub-conversation-frame, .hub-companion-launcher')) return
+      if (cardRef.current?.contains(target) || target?.closest(`[data-objective-shell="${item.objective_uuid}"]`) || target?.closest('[role="menu"], [role="dialog"], .hub-panel, .hub-edge')) return
       setOpen(false)
     }
     document.addEventListener('pointerdown', closeOutside)
@@ -824,7 +824,7 @@ function PlanStructure({ detail, token, refresh }: any) {
 }
 
 function CreatePlanEditor({ token, refresh, onCreated, onCancel }: any) {
-  const workspace = useHubWorkspace()
+  const workspace = useHub()
   const org = useOrg() as any
   const emptyFields = React.useMemo(() => ({ name: '', description: '', due_date: '' }), [])
   const recovered = workspace?.editRun?.objects.find((item) => item.object_key === 'new-plan' && item.status === 'editing')

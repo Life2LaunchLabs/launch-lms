@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { Check, CircleHelp, Copy, Lightbulb } from 'lucide-react'
 import { Button } from '@components/ui/button'
-import { useHubWorkspace } from '@components/Contexts/HubWorkspaceContext'
+import { useHub } from '@components/Hub/HubContext'
 import { Popover, PopoverContent, PopoverTrigger } from '@components/ui/popover'
 import type { HubMemory, HubPageReceipt } from '@services/hub/advisor'
 import { hubTimestampDate } from '@services/hub/timestamp'
@@ -24,7 +24,7 @@ type Props = {
 export default function HubMessageMicroBar({ role, content, createdAt, memories = [], pageContext, orgId, accessToken }: Props) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const workspace = useHubWorkspace()
+  const workspace = useHub()
   const [items, setItems] = useState(memories)
   const [copied, setCopied] = useState(false)
   const source = pageContext?.status === 'ready' ? pageContext.sources[0] : undefined
@@ -66,7 +66,7 @@ export default function HubMessageMicroBar({ role, content, createdAt, memories 
         </Popover>
       )}
       {(sourceTitle || createdAt) && <span className="ml-1 flex min-w-0 items-center gap-1 text-[11px] text-muted-foreground">
-        {sourceTitle ? <>{sourceIsElsewhere && sourcePath ? <Link href={sourcePath} onClick={workspace?.open} className="max-w-48 truncate underline decoration-border underline-offset-2 hover:text-foreground">in {sourceTitle}</Link> : <span className="max-w-48 truncate">in {sourceTitle}</span>}</> : null}
+        {sourceTitle ? <>{sourceIsElsewhere && sourcePath ? <Link href={sourcePath} onClick={() => workspace?.open()} className="max-w-48 truncate underline decoration-border underline-offset-2 hover:text-foreground">in {sourceTitle}</Link> : <span className="max-w-48 truncate">in {sourceTitle}</span>}</> : null}
         {sourceTitle && createdAt ? <span aria-hidden="true">·</span> : null}
         {createdAt ? <time dateTime={createdAt}>{hubTimestampDate(createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</time> : null}
       </span>}

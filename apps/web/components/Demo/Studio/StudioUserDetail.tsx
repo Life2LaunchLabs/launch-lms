@@ -41,7 +41,7 @@ export default function StudioUserDetail({ userId }: { userId: number }) {
     try {
       const result = await demoRequest<{ tokens: DemoTokens }>('admin/enter', 'POST', { user_id: userId })
       const org = result.tokens.start_org_slug || data?.main_org_slug || ''
-      window.location.assign(getUriWithOrg(org, result.tokens.start_path || '/hub'))
+      window.location.assign(getUriWithOrg(org, result.tokens.start_path || '/plans'))
     } catch (failure) { setError((failure as Error).message); setBusy(false) }
   }
   async function remove() {
@@ -74,7 +74,7 @@ export default function StudioUserDetail({ userId }: { userId: number }) {
 }
 
 function ProfileTab({ member, busy, onSave }: { member: DemoMember; busy: boolean; onSave: React.Dispatch<SaveRequest> }) {
-  const [draft, setDraft] = useState({ first_name: member.first_name, last_name: member.last_name, role_line: member.role_line || '', description: member.description, start_path: member.start_path || '/hub', start_org_slug: member.start_org_slug, pilotable: member.pilotable })
+  const [draft, setDraft] = useState({ first_name: member.first_name, last_name: member.last_name, role_line: member.role_line || '', description: member.description, start_path: member.start_path || '/plans', start_org_slug: member.start_org_slug, pilotable: member.pilotable })
   const set = (patch: Partial<typeof draft>) => setDraft((current) => ({ ...current, ...patch }))
   return <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
     <form onSubmit={(event) => { event.preventDefault(); onSave({ patch: { ...draft, start_org_slug: draft.start_path === '/admin' ? draft.start_org_slug : '' } }) }} className="space-y-4">
