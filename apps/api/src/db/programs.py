@@ -89,6 +89,8 @@ class Program(SQLModel, table=True):
     step_order: str = Field(default="any", sa_column=Column(String, nullable=False, server_default="any"))
     # "starter" for the Launch Ready starter plan, kept in sync from data; its activities may change the learner's portfolio.
     system_type: str | None = Field(default=None, sa_column=Column(String, nullable=True, index=True))
+    # The published version new plans are issued from. The template's own rows are the working draft.
+    published_version_id: int | None = Field(default=None, sa_column=Column(Integer, nullable=True))  # ProgramTemplateVersion.id
     created_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
     creation_date: str = ""
     update_date: str = ""
@@ -148,6 +150,8 @@ class ProgramAssignment(SQLModel, table=True):
     user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=True, index=True))
     subject_email: str | None = Field(default=None, nullable=True, index=True)
     program_version: int = 1
+    # The published template version this assignment's plans are made from (pinned for its lifetime).
+    template_version_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("programtemplateversion.id", ondelete="SET NULL"), nullable=True, index=True))
     definition_version: int = 1
     objective_snapshot: list[dict] = Field(default_factory=list, sa_column=Column(JSON))
     definition_audit: list[dict] = Field(default_factory=list, sa_column=Column(JSON))
@@ -368,3 +372,43 @@ class ObjectiveReviewDecision(SQLModel):
     plan_objective_uuid: str | None = None
     action: str
     message: str = ""
+
+
+class ProgramTemplateVersion(SQLModel, table=True):
+    """An immutable published version of a plan template.
+
+    ``snapshot`` holds what plans are issued from: the template's settings and
+    roles, and every objective as an assignment snapshot whose activity is a
+    frozen copy. Rolling back publishes an earlier snapshot again as a new
+    version; versions are never edited or deleted.
+    """
+
+    __table_args__ = (UniqueConstraint("version_uuid"), UniqueConstraint("program_id", "number"))
+
+    id: int | None = Field(default=None, primary_key=True)
+    version_uuid: str = Field(default="", index=True)
+    program_id: int = Field(sa_column=Column(Integer, ForeignKey("program.id", ondelete="CASCADE"), index=True))
+    org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
+    number: int = 1
+    snapshot: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    # Fingerprint of the draft it was published from, to tell whether the draft has changed since.
+    content_hash: str = ""
+    note: str = ""
+    restored_from_number: int | None = None
+    published_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
+    published_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
+    creation_date: str = ""
+
+
+class FrozenActivity(SQLModel, table=True):
+    """Marks an activity as a frozen copy published in a plan template version.
+
+    Plans issued from that version play it, so learners' runs and answers stay
+    with the version they were issued. Frozen copies are never edited.
+    """
+
+    activity_id: int = Field(sa_column=Column(Integer, ForeignKey("learningactivity.id", ondelete="CASCADE"), primary_key=True))
+    # The editable activity it was copied from, and that activity's content hash at the time.
+    source_activity_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningactivity.id", ondelete="SET NULL"), nullable=True, index=True))
+    source_hash: str = Field(default="", index=True)
+    creation_date: str = ""

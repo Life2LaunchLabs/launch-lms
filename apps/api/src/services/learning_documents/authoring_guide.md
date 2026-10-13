@@ -33,8 +33,13 @@ whole. Keep every existing `page_uuid` and block `id` you are not deleting.
 - New pages get a short placeholder id such as `new-reflection`; you may use it
   anywhere a page is referenced (flow nodes, buttons, variant sources, answer
   keys). It is replaced by a real uuid when saved.
-- `create_activity` accepts stored page uuids too (for example a document from
-  `get_activity`) and gives every page a fresh uuid, so it can copy an activity.
+- To add an activity, add an objective with `"type": "activity"` to its plan
+  template and save the template; `list_activities` then shows the new
+  activity's uuid. To copy an activity, read the source with `get_activity`
+  and save its pages over the new one, giving each page a placeholder id.
+- Removing a page that learners have answered is refused (it would delete
+  their work). Retire it instead: set `"required": false` and route the flow
+  around it.
 - Block ids must be unique within a page (`blk_` + 8 hex characters is the
   house style, e.g. `blk_3fa9c2d1`). Option and input ids must be unique within
   their question.

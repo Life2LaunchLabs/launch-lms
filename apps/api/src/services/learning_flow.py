@@ -11,7 +11,11 @@ from typing import Any
 
 
 class FlowValidationError(ValueError):
-    pass
+    """``problems``: every independent issue found; the message is the first one."""
+
+    def __init__(self, message: str, problems: list[str] | None = None):
+        super().__init__(message)
+        self.problems = list(problems or [message])
 
 
 ALLOWED_FACTS = {
@@ -252,12 +256,14 @@ def validate_flow(
         seen.add(node_id)
 
     visit(entry)
+    # The graph is sound from here on: report every remaining issue at once.
+    problems: list[str] = []
     for node_id, node_edges in outgoing.items():
         if len(node_edges) < 2:
             continue
         defaults = [edge for edge in node_edges if not edge.get("condition")]
         if len(defaults) != 1:
-            raise FlowValidationError(f"Flow split {node_id} needs one default path")
+            problems.append(f"Flow split {node_id} needs one default path")
         signatures: set[str] = set()
         for edge in node_edges:
             condition = edge.get("condition")
@@ -265,25 +271,18 @@ def validate_flow(
                 continue
             signature = json.dumps(condition, sort_keys=True, separators=(",", ":"))
             if signature in signatures:
-                raise FlowValidationError(f"Flow split {node_id} has duplicate rules")
+                problems.append(f"Flow split {node_id} has duplicate rules")
+                continue
             signatures.add(signature)
             left = condition.get("left") or {}
-            key = str(left.get("key") or "")
-            if not key:
-                raise FlowValidationError(f"Flow split {node_id} has an incomplete rule")
-            if condition.get("op") != "exists" and condition.get("right") in (
-                None,
-                "",
-            ):
-                raise FlowValidationError(f"Flow split {node_id} has an incomplete rule")
+            if not str(left.get("key") or "") or (condition.get("op") != "exists" and condition.get("right") in (None, "")):
+                problems.append(f"Flow split {node_id} has an incomplete rule")
     unreachable = sorted(set(by_id) - seen)
     if unreachable:
-        raise FlowValidationError(f"Unreachable flow nodes: {', '.join(unreachable)}")
+        problems.append(f"Unreachable flow nodes: {', '.join(unreachable)}")
     if not required_page_uuids.issubset(page_nodes):
         missing = sorted(required_page_uuids - page_nodes)
-        raise FlowValidationError(
-            f"Required pages missing from flow: {', '.join(missing)}"
-        )
+        problems.append(f"Required pages missing from flow: {', '.join(missing)}")
 
     def reaches(from_id: str, target_id: str, checked: set[str] | None = None) -> bool:
         if from_id == target_id:
@@ -312,17 +311,17 @@ def validate_flow(
                 and source_node_id != node_id
                 and reaches(node_id, source_node_id)
             ):
-                raise FlowValidationError(
-                    f"Flow split {node_id} references a question answered after the split"
-                )
-    for node_id in seen - terminals:
+                problems.append(f"Flow split {node_id} references a question answered after the split")
+                break
+    for node_id in sorted(seen - terminals):
         if not outgoing[node_id]:
-            raise FlowValidationError(f"Flow node {node_id} cannot reach completion")
+            problems.append(f"Flow node {node_id} cannot reach completion")
+            continue
         priorities = [edge["priority"] for edge in outgoing[node_id]]
         if len(priorities) != len(set(priorities)):
-            raise FlowValidationError(
-                f"Flow node {node_id} has ambiguous edge priorities"
-            )
+            problems.append(f"Flow node {node_id} has ambiguous edge priorities")
+    if problems:
+        raise FlowValidationError(problems[0], problems)
     return unreachable
 
 

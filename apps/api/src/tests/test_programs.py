@@ -23,6 +23,7 @@ from src.db.planning import (
 from src.db.roles import Role
 from src.db.planning import PlanObjectiveProgressUpdate, PlanStatus
 from src.services import planning
+from src.services import template_versions
 from src.db.programs import (
     Objective,
     ObjectiveCreate,
@@ -37,6 +38,8 @@ from src.db.programs import (
     ProgramCreate,
     ProgramObjective,
     ProgramPhase,
+    ProgramTemplateVersion,
+    FrozenActivity,
     ProgramPhaseCreate,
     ProgramPhaseUpdate,
     ProgramPhaseOrder,
@@ -143,6 +146,8 @@ def _tables(engine):
         ProgramPhase,
         ProgramObjective,
         ProgramAssignment,
+        ProgramTemplateVersion,
+        FrozenActivity,
         ProgramParticipant,
         ObjectiveProgress,
         LearningBadgeAward,
@@ -329,6 +334,10 @@ def test_active_rollout_keeps_its_objective_snapshot():
         program = add_program_objective(session, admin, 1, program["program_uuid"], ObjectiveCreate(title="Orientation"))
         first = assign_program(session, admin, 1, program["program_uuid"], ProgramAssignmentCreate(usergroup_id=1, staff_user_ids=[1]))
         add_program_objective(session, admin, 1, program["program_uuid"], ObjectiveCreate(title="Final reflection"))
+        # Draft edits reach new plans once published.
+        row = session.exec(select(Program).where(Program.program_uuid == program["program_uuid"])).one()
+        assert template_versions.version_status(session, row)["has_unpublished_changes"]
+        template_versions.publish(session, admin, 1, program["program_uuid"], "Add a reflection")
         second = assign_program(session, admin, 1, program["program_uuid"], ProgramAssignmentCreate(user_id=2, staff_user_ids=[1]))
 
         first_row = session.exec(select(ProgramAssignment).where(ProgramAssignment.assignment_uuid == first["assignment_uuid"])).first()

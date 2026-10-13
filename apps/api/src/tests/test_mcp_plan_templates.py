@@ -6,7 +6,7 @@ from copy import deepcopy
 import pytest
 from sqlmodel import select
 
-from src.db.programs import Objective, ObjectiveCreate, Program, ProgramAssignment, ProgramCreate, ProgramObjective, ProgramPhase, ProgramPhaseUpdate
+from src.db.programs import Objective, ObjectiveCreate, Program, ProgramAssignment, ProgramCreate, ProgramObjective, ProgramPhase, ProgramPhaseUpdate, ProgramTemplateVersion, FrozenActivity
 from src.services.programs import add_program_objective, create_program, update_program_phase
 from src.tests.test_mcp import _token
 from src.tests.test_mcp import mcp  # noqa: F401  (fixture)
@@ -20,7 +20,7 @@ def templates(mcp):  # noqa: F811
     def call(name, arguments=None, auth=token):
         return base_call(name, arguments, auth=auth)
 
-    for model in (Program, ProgramPhase, Objective, ProgramObjective, ProgramAssignment):
+    for model in (Program, ProgramPhase, Objective, ProgramObjective, ProgramAssignment, ProgramTemplateVersion, FrozenActivity):
         model.__table__.create(session.get_bind(), checkfirst=True)
     template = create_program(session, alice, ProgramCreate(org_id=1, name="Career Ready", description="Get ready"))
     uuid = template["program_uuid"]
@@ -190,3 +190,27 @@ def test_activity_objectives_are_added_in_the_template_and_edited_with_activity_
     assert "isError" not in result
     stored = session.exec(select(LearningActivity).where(LearningActivity.activity_uuid == listed[0]["activity_uuid"])).one()
     assert [page.title for page in session.exec(select(LearningPage).where(LearningPage.activity_id == stored.id)).all()] == ["What changed?"]
+
+
+def test_publish_list_and_roll_back_template_versions(templates):
+    _, call, _, uuid = templates
+    read = call("get_plan_template", {"template_uuid": uuid})["structuredContent"]
+    assert read["context"]["versioning"]["published_version"] is None and read["context"]["versioning"]["has_unpublished_changes"]
+
+    first = call("publish_plan_template", {"template_uuid": uuid, "note": "Launch"})["structuredContent"]
+    assert first["published"]["number"] == 1 and not first["has_unpublished_changes"]
+    assert call("publish_plan_template", {"template_uuid": uuid})["isError"]  # nothing changed
+
+    document = deepcopy(read["document"])
+    document["phases"][0]["objectives"].append({"title": "Reflect"})
+    current = call("get_plan_template", {"template_uuid": uuid})["structuredContent"]
+    saved = call("save_plan_template", {"template_uuid": uuid, "document": document, "base_etag": current["etag"]})["structuredContent"]
+    assert saved["context"]["versioning"]["has_unpublished_changes"]
+    second = call("publish_plan_template", {"template_uuid": uuid, "note": "Add reflection"})["structuredContent"]
+    assert [(item["number"], item["objective_count"], item["is_published"]) for item in second["versions"]] == [(2, 3, True), (1, 2, False)]
+
+    rolled = call("restore_plan_template_version", {"template_uuid": uuid, "number": 1})["structuredContent"]
+    assert rolled["published"] == {**rolled["published"], "number": 3, "restored_from_number": 1, "objective_count": 2}
+    assert rolled["has_unpublished_changes"]  # the draft still has the reflection
+    listed = call("list_plan_template_versions", {"template_uuid": uuid})["structuredContent"]
+    assert [item["number"] for item in listed["versions"]] == [3, 2, 1]

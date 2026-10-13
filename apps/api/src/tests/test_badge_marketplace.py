@@ -34,7 +34,7 @@ from src.db.plan_requests import PlanRequest
 from src.db.portfolio import Portfolio
 from src.db.badge_routes import BadgePlanStart, BadgeRoute, BadgeRouteInput, BadgeRouteOffer, BadgeRoutesUpdate
 from src.db.planning import Plan, PlanActivity, PlanCollaborator, PlanInvitation, PlanObjective, PlanObjectiveProgress, PlanPhase, PlanRole
-from src.db.programs import Objective, ObjectiveCreate, ObjectiveKind, Program, ProgramAssignment, ProgramObjective, ProgramCreate, ProgramParticipant, ProgramPhase
+from src.db.programs import Objective, ObjectiveCreate, ObjectiveKind, Program, ProgramAssignment, ProgramObjective, ProgramCreate, ProgramParticipant, ProgramPhase, ProgramTemplateVersion, FrozenActivity
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
@@ -105,6 +105,8 @@ def _create_tables(engine) -> None:
         ProgramPhase,
         ProgramObjective,
         ProgramAssignment,
+        ProgramTemplateVersion,
+        FrozenActivity,
         ProgramParticipant,
         Plan,
         PlanRole,
@@ -663,10 +665,13 @@ def _add_activity_route(session: Session, admin: PublicUser, badge: LearningBadg
 
 async def _submit_essay(session: Session, learner: PublicUser, plan: dict) -> LearningResponseAttempt:
     """The learner plays the plan's activity step and submits an essay that waits for a grade."""
-    run = start_objective_activity(session, learner, plan["slug"], plan["objectives"][0]["objective_uuid"])["run"]
+    started = start_objective_activity(session, learner, plan["slug"], plan["objectives"][0]["objective_uuid"])
+    run = started["run"]
+    # The plan plays the published version's frozen copy of the essay page.
+    page_uuid = next(page["page_uuid"] for page in started["activity"]["pages"] if page["title"] == "Question")
     await runtime.submit_response(
         None,
-        LearningResponseSubmit(run_uuid=run["run_uuid"], page_uuid=ESSAY_PAGE_UUID, answer={"inputs": {"reflection": {"text": "my essay"}}}),
+        LearningResponseSubmit(run_uuid=run["run_uuid"], page_uuid=page_uuid, answer={"inputs": {"reflection": {"text": "my essay"}}}),
         learner,
         session,
     )

@@ -339,6 +339,8 @@ class AccessContext:
     scopes: set[str]
     client_id: str
     client_name: str
+    # The organization chosen at consent; tools may act in any other organization the user administers.
+    default_org_id: int | None = None
 
 
 def resolve_access_token(db_session: Session, token: str) -> AccessContext | None:
@@ -362,6 +364,7 @@ def resolve_access_token(db_session: Session, token: str) -> AccessContext | Non
         scopes=set(grant.scope.split()),
         client_id=grant.client_id,
         client_name=client.client_name if client else "Connected app",
+        default_org_id=grant.org_id,
     )
 
 

@@ -54,6 +54,7 @@ from src.services.messages import create_inbox_message, resolve_action_by_dedupe
 from src.services.plan_permissions import effective_plan_capabilities
 from src.services.plan_home import adaptive_future_groups as _adaptive_future_groups
 from src.services.plan_availability import apply_template_order, plan_availability, validated_prerequisites
+from src.services.template_versions import issued_program
 
 ALL_CAPABILITIES = {
     "view_plan", "comment", "contribute_fields", "update_progress",
@@ -599,7 +600,6 @@ def materialize_assignment_plans(db: Session, assignment_id: int) -> None:
         return
     from src.db.programs import (  # Local import keeps the compatibility layer acyclic.
         ParticipantStatus,
-        Program,
         ProgramAssignment,
         ProgramParticipant,
     )
@@ -607,7 +607,7 @@ def materialize_assignment_plans(db: Session, assignment_id: int) -> None:
     assignment = db.get(ProgramAssignment, assignment_id)
     if not assignment:
         return
-    program = db.get(Program, assignment.program_id)
+    program = issued_program(db, assignment)
     if not program:
         return
     owner_id = assignment.owner_user_id or assignment.created_by_user_id or program.created_by_user_id
@@ -745,7 +745,7 @@ def materialize_assignment_plans(db: Session, assignment_id: int) -> None:
 
 def materialize_external_assignment_plan(db: Session, assignment_id: int, subject_email: str) -> None:
     """Materialize a pending plan for a subject who does not have an account yet."""
-    from src.db.programs import Program, ProgramAssignment
+    from src.db.programs import ProgramAssignment
 
     assignment = db.get(ProgramAssignment, assignment_id)
     if not assignment or db.exec(select(Plan.id).where(
@@ -753,7 +753,7 @@ def materialize_external_assignment_plan(db: Session, assignment_id: int, subjec
         Plan.subject_user_id.is_(None),
     )).first() is not None:
         return
-    program = db.get(Program, assignment.program_id)
+    program = issued_program(db, assignment)
     if not program:
         return
     owner_id = assignment.owner_user_id or assignment.created_by_user_id or program.created_by_user_id

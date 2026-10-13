@@ -19,14 +19,15 @@ from src.db.programs import ParticipantStatus, Program, ProgramAssignment, Progr
 def create_own_plan(db: Session, program: Program, user_id: int, org_id: int, staff_ids: list[int] | None = None) -> Plan:
     """Materialize the learner's plan from ``program``, offered by ``org_id`` (flushed, not committed)."""
     from src.services.planning import materialize_assignment_plans
-    from src.services.programs import _snapshot
+    from src.services.template_versions import issuance
 
     staff_ids = [staff_id for staff_id in dict.fromkeys(staff_ids or []) if staff_id != user_id]
     staff_role = program.default_staff_role_key or "reviewer"
     now = datetime.now().isoformat()
+    objectives, version = issuance(db, program, user_id)
     assignment = ProgramAssignment(
         assignment_uuid=f"assignment_{uuid4()}", org_id=org_id, program_id=program.id, user_id=user_id,
-        program_version=program.version, definition_version=1, objective_snapshot=_snapshot(db, program),
+        program_version=program.version, template_version_id=version.id if version else None, definition_version=1, objective_snapshot=objectives,
         initiate_date=datetime.now(), staff_user_ids=[user_id, *staff_ids],
         collaborators=[{"user_id": user_id, "role_key": "plan_admin"}, *({"user_id": staff_id, "role_key": staff_role} for staff_id in staff_ids)],
         schedule={}, created_by_user_id=user_id, owner_user_id=user_id, creation_date=now, update_date=now,

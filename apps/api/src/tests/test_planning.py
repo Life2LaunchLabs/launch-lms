@@ -42,7 +42,7 @@ from src.db.planning import (
     PlanUpdate,
 )
 # Register compatibility backing tables referenced by Plan foreign keys.
-from src.db.programs import Objective, ObjectiveProgress, ObjectiveProgressStatus, ParticipantStatus, Program, ProgramAssignment, ProgramAssignmentCreate, ProgramCreate, ProgramParticipant
+from src.db.programs import Objective, ObjectiveProgress, ObjectiveProgressStatus, ParticipantStatus, Program, ProgramAssignment, ProgramAssignmentCreate, ProgramCreate, ProgramParticipant, ProgramTemplateVersion, FrozenActivity
 from src.db.users import PublicUser, User
 from src.services import planning, programs
 from src.routers import planning as planning_router, programs as programs_router
@@ -58,7 +58,7 @@ NOW = "2026-08-27T12:00:00+00:00"
 def _session() -> Session:
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     SQLModel.metadata.create_all(engine, tables=[
-        Organization.__table__, OrganizationConfig.__table__, User.__table__, Program.__table__, ProgramAssignment.__table__, ProgramParticipant.__table__,
+        Organization.__table__, OrganizationConfig.__table__, User.__table__, Program.__table__, ProgramAssignment.__table__, ProgramTemplateVersion.__table__, FrozenActivity.__table__, ProgramParticipant.__table__,
         Objective.__table__, ObjectiveProgress.__table__, LearningBadge.__table__, LearningBadgeAward.__table__, LearningRun.__table__, LearningPage.__table__, LearningPageProgress.__table__,
         Plan.__table__, PlanRole.__table__, PlanCollaborator.__table__, PlanPhase.__table__,
         OrganizationPlanRole.__table__,

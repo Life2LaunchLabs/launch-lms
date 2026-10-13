@@ -66,6 +66,7 @@ async def create_page(
 ) -> LearningPageRead:
     activity = lookups._get_activity(db_session, data.activity_uuid)
     lookups._require_activity_editor(db_session, current_user, activity)
+    lookups._ensure_editable(db_session, activity)
     _validate_page_payload(data.page_type, data.content)
     if any(
         block.get("type") == "portfolio_preview"
@@ -106,6 +107,7 @@ def _page_activity(db_session: Session, current_user, page: LearningPage) -> Lea
     if not activity:
         raise HTTPException(status_code=404, detail="Learning activity not found")
     lookups._require_activity_editor(db_session, current_user, activity)
+    lookups._ensure_editable(db_session, activity)
     return activity
 
 

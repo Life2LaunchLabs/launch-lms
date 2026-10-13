@@ -147,6 +147,7 @@ async def save_activity_document(
 ) -> dict:
     activity = learning._get_activity(db_session, activity_uuid)
     learning._require_activity_editor(db_session, current_user, activity)
+    learning._ensure_editable(db_session, activity)
     current = envelope(db_session, activity)
     if payload.base_etag != current["etag"]:
         raise HTTPException(
