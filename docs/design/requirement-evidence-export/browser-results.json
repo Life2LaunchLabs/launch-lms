@@ -1,0 +1,101 @@
+{
+  "schema_version": 2,
+  "started_at": "2026-10-13T20:43:07.075Z",
+  "finished_at": "2026-10-13T20:44:12.745Z",
+  "status": "passed",
+  "revision": "2d001dbb3e287e515be2362abe2ce8cd98d2fbd8",
+  "worktree_fingerprint": "587cd2b7359298c302741d4b73af0ea88ce1883fca75c4f5adaf6a85f0cd97e9",
+  "base_origin": "http://127.0.0.1.sslip.io:13100",
+  "browser_projects": [
+    "chromium-desktop",
+    "chromium-phone"
+  ],
+  "scenarios": [
+    {
+      "id": "chromium-desktop / requirement-evidence.spec.ts / requirements.export: assignment filters learners and downloads real reviewed evidence",
+      "outcome": "expected"
+    },
+    {
+      "id": "chromium-desktop / requirement-evidence.spec.ts / requirements.export: group report keeps pending evidence and shows server failures",
+      "outcome": "expected"
+    },
+    {
+      "id": "chromium-desktop / requirement-evidence.spec.ts / requirements.long-codes: explorer and learner tree preserve readable code and title",
+      "outcome": "expected"
+    },
+    {
+      "id": "chromium-phone / requirement-evidence.spec.ts / requirements.export: assignment filters learners and downloads real reviewed evidence",
+      "outcome": "expected"
+    },
+    {
+      "id": "chromium-phone / requirement-evidence.spec.ts / requirements.export: group report keeps pending evidence and shows server failures",
+      "outcome": "expected"
+    },
+    {
+      "id": "chromium-phone / requirement-evidence.spec.ts / requirements.long-codes: explorer and learner tree preserve readable code and title",
+      "outcome": "expected"
+    }
+  ],
+  "captures": [
+    {
+      "filename": "export-course-context.png",
+      "project": "chromium-desktop",
+      "retry": 0,
+      "sha256": "410b3b94f2898a2bbd42fd7b780f3844b8889740ab0dd21becf9d4e53a8848c0"
+    },
+    {
+      "filename": "assignment-export-filtered.png",
+      "project": "chromium-desktop",
+      "retry": 0,
+      "sha256": "ca1c68e2ec8336414485d5669093f064bd0c86b84235cafdd54c8b479ae810ca"
+    },
+    {
+      "filename": "group-requirement-export.png",
+      "project": "chromium-desktop",
+      "retry": 0,
+      "sha256": "4e56b4971111f08a808d86dc58d50ab7e3cbdf72a115ffd64e2e754260a7c123"
+    },
+    {
+      "filename": "explorer-long-codes.png",
+      "project": "chromium-desktop",
+      "retry": 0,
+      "sha256": "a879bcc8192e57d2a5343c325898400800958c3af848c667dcf9d94d8f7e5e25"
+    },
+    {
+      "filename": "learner-long-codes.png",
+      "project": "chromium-desktop",
+      "retry": 0,
+      "sha256": "5952983702e8f541b9484dc6e178f756cdeebdd977f9e60edb7ad7b355f9fdee"
+    },
+    {
+      "filename": "export-course-context.png",
+      "project": "chromium-phone",
+      "retry": 0,
+      "sha256": "0d6495edf9e158c6f678d0aa83abe8afe9619eda96203e2b7c0f80461bf4a7f0"
+    },
+    {
+      "filename": "assignment-export-filtered.png",
+      "project": "chromium-phone",
+      "retry": 0,
+      "sha256": "9ecd049afcc0318921ab1fbd62b155df3f902ad668b21df89bb86c1256d0b1bf"
+    },
+    {
+      "filename": "group-requirement-export.png",
+      "project": "chromium-phone",
+      "retry": 0,
+      "sha256": "4bdda578c08878d1f42502c1f4793997f0b5d44a2c961d4e28cdb04e8d3d411d"
+    },
+    {
+      "filename": "explorer-long-codes.png",
+      "project": "chromium-phone",
+      "retry": 0,
+      "sha256": "03da3cb09b7f1dfb9f6d391aca1c0fc14df5f9cbd3a408e9ffcba785c583a441"
+    },
+    {
+      "filename": "learner-long-codes.png",
+      "project": "chromium-phone",
+      "retry": 0,
+      "sha256": "4f22ef6e78e1b112174dc1b47549b7275767035e87d93e0d6a9aeb4f6f9e3d03"
+    }
+  ]
+}

@@ -9,6 +9,7 @@ import { getUriWithOrg, routePaths } from '@services/config/config'
 import { programsApi } from '@services/programs/programs'
 import { cn } from '@/lib/utils'
 import { EmptyState, PageLoader, personName, StepTypeIcon } from './shared'
+import RequirementEvidenceExport from './RequirementEvidenceExport'
 
 type CellKey = string // `${plan_uuid}|${objective_uuid}`
 
@@ -71,6 +72,7 @@ export default function GroupPlansGrid({ orgslug, orgId, token, assignmentUuid }
     <div className="flex flex-wrap items-center gap-3">
       <label className="relative flex items-center"><span className="sr-only">Search learners</span><Search size={14} className="absolute left-2.5 text-gray-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${total} learners`} className="h-9 w-56 rounded-lg border border-gray-200 bg-white pl-8 pr-3 text-[13px]" /></label>
       <span className="flex-1" />
+      <RequirementEvidenceExport orgId={orgId} token={token} scope={{ assignment_uuid: assignmentUuid, user_ids: learners.filter((learner) => learner.id > 0).map((learner) => learner.id) }} />
       <span className="flex flex-wrap gap-3 text-xs text-gray-600">
         <Legend cls="bg-green-100" label="Done" /><Legend cls="bg-blue-100" label="To review" /><Legend cls="bg-amber-100" label="Sent back" /><Legend cls="bg-gray-100" label="Excused" />
       </span>

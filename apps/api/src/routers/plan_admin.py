@@ -1,16 +1,28 @@
 """Staff-side plan routes: the review inbox, and a learner's requirement status."""
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import Response
 from sqlmodel import Session
 
 from src.core.events.database import get_db_session
 from src.db.planning import InboxConfirm, InboxDecision, MakeupStepCreate, RequirementCredit, StaffNoteCreate
 from src.db.users import PublicUser
+from src.db.requirement_exports import RequirementEvidenceExport
 from src.security.auth import get_current_user
 from src.services import plan_admin as admin_service
 from src.services import plan_learners as learner_service
+from src.services import requirement_evidence
 
 router = APIRouter()
+
+
+@router.post("/requirements/evidence-export")
+def api_requirement_evidence_export(org_id: int, payload: RequirementEvidenceExport, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
+    content = requirement_evidence.evidence_csv(db, current_user, org_id, payload)
+    return Response(content, media_type="text/csv", headers={
+        "Content-Disposition": 'attachment; filename="requirement-evidence.csv"',
+        "Cache-Control": "no-store",
+    })
 
 
 @router.get("/inbox")

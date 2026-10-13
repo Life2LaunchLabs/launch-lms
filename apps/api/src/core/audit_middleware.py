@@ -18,6 +18,7 @@ AUDITED_PREFIXES = (
     "/api/v1/demo/admin",
     "/api/v1/demo/settings",
     "/api/v1/demo/checkpoints",
+    "/api/v1/planning/requirements/evidence-export",
 )
 
 
