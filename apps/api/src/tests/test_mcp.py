@@ -199,3 +199,28 @@ def test_preview_app_resource_frames_the_preview_origin(mcp):
     assert "ui/initialize" in content["text"] and json.dumps(origin) in content["text"]
     assert "ui/notifications/tool-result" in content["text"]
     assert rpc("resources/read", {"uri": "ui://nope"}).json()["error"]["code"] == -32002
+
+
+def test_validate_activity_reports_every_flow_issue_with_placeholder_ids(mcp):
+    *_, call, _ = mcp
+    question = {"id": "q", "type": "question", "kind": "multiple_choice", "content": {"options": [{"id": "o1", "text": "a"}]},
+                "scoring": {"mode": "off", "points": 0}, "completion": {"min_selections": 1, "max_selections": 1, "question_mode": "variable"}}
+    document = {
+        "activity": {"title": "Broken", "settings": {"flow": {"version": 1, "entry": "page:p1", "nodes": [
+            {"id": "page:p1", "type": "page", "page_uuid": "p1"}, {"id": "page:p2", "type": "page", "page_uuid": "p2"}, {"id": "complete", "type": "complete"},
+        ], "edges": [
+            {"from": "page:p1", "to": "page:p2", "priority": 1, "condition": {"op": "eq", "left": {"source": "answer", "key": "p2.result.option_ids"}, "right": "o1"}},
+            {"from": "page:p1", "to": "complete"},
+            {"from": "page:p2", "to": "complete"},
+        ]}}},
+        "pages": [
+            {"page_uuid": "p1", "title": "A", "content": {"version": 2, "blocks": []}},
+            {"page_uuid": "p2", "title": "B", "content": {"version": 2, "blocks": [question]}},
+            {"page_uuid": "p3", "title": "Orphan", "content": {"version": 2, "blocks": []}},
+        ],
+    }
+    errors = call("validate_activity", {"document": document})["structuredContent"]["errors"]
+    assert [item["message"] for item in errors] == [
+        "Required pages missing from flow: p3",
+        "Flow split page:p1 references a question answered after the split",
+    ]
