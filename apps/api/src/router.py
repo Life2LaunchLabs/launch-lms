@@ -20,6 +20,10 @@ from src.routers import (
     orgs,
     operations_surface,
     plans,
+    plan_activities,
+    plan_admin,
+    plan_home,
+    plan_sharing,
     planning,
     portfolio,
     programs,
@@ -30,6 +34,8 @@ from src.routers import (
     users,
 )
 from src.routers import learning as learning_router_module
+from src.routers import badge_discover as badge_discover_router_module
+from src.routers import badge_routes as badge_routes_router_module
 from src.routers import learning_documents as learning_documents_router_module
 from src.routers import oauth as oauth_router_module
 from src.routers import mcp as mcp_router_module
@@ -96,6 +102,30 @@ v1_router.include_router(
 )
 v1_router.include_router(
     planning.router,
+    prefix="/planning",
+    tags=["planning"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
+v1_router.include_router(
+    plan_admin.router,
+    prefix="/planning",
+    tags=["planning"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
+v1_router.include_router(
+    plan_activities.router,
+    prefix="/planning",
+    tags=["planning"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
+v1_router.include_router(
+    plan_home.router,
+    prefix="/planning",
+    tags=["planning"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
+v1_router.include_router(
+    plan_sharing.router,
     prefix="/planning",
     tags=["planning"],
     dependencies=[Depends(get_non_api_token_user)],
@@ -188,6 +218,8 @@ v1_router.include_router(
     dependencies=[Depends(get_non_api_token_user)],
 )
 v1_router.include_router(search.router, prefix="/search", tags=["search"])
+v1_router.include_router(badge_discover_router_module.router, prefix="/badges", tags=["learning-badges"])
+v1_router.include_router(badge_routes_router_module.router, prefix="/badges", tags=["learning-badges"])
 v1_router.include_router(learning_router_module.badges_router, prefix="/badges", tags=["learning-badges"])
 v1_router.include_router(learning_router_module.collections_router, prefix="/badge-collections", tags=["learning-badge-collections"])
 v1_router.include_router(learning_router_module.activities_router, prefix="/learning-activities", tags=["learning-activities"])

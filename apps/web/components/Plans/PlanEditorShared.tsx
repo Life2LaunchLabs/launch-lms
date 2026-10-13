@@ -1,10 +1,11 @@
 'use client'
 
 import React from 'react'
-import { ArrowLeft, Award, Check, ChevronDown, ChevronRight, FileText, Film, Image as ImageIcon, Link2, Loader2, Lock, Menu, MoreVertical, Pencil, Plus, SquareCheck, Trash2, Upload, X } from 'lucide-react'
+import { ArrowLeft, Award, Check, ChevronDown, ChevronRight, FileText, Film, Image as ImageIcon, Link2, Loader2, Lock, MoreVertical, Pencil, Plus, SquareCheck, Trash2, Upload, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { targetDateLabel } from './planDates'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
-import { normalizeMediaUrl } from '@services/media/media'
+import { getUserAvatarMediaDirectory, normalizeMediaUrl } from '@services/media/media'
 import type { MediaType } from '@services/media/library'
 
 export type PlanStepType = 'text' | 'media' | 'link' | 'checkbox' | 'badge'
@@ -54,10 +55,6 @@ export type GroupPlanTarget = PlanTargetBase & {
 
 export type PlanTarget = IndividualPlanTarget | GroupPlanTarget
 
-export function PlanWorkspaceHeader({ title, color, onClose, onOpenPanel }: { title: string; color: string; onClose(): void; onOpenPanel(): void }) {
-  return <div className="h-16 overflow-hidden rounded-2xl"><div className="flex h-16 items-center overflow-hidden rounded-2xl px-5 text-white shadow-sm" style={{ backgroundColor: color }}><span className="min-w-0 flex-1 truncate text-xl font-black tracking-tight sm:text-2xl">{title}</span><button onClick={onOpenPanel} className="plan-panel-trigger mr-2 flex h-8 items-center gap-1.5 rounded-full bg-black/15 px-3 text-[10px] font-black lg:hidden"><Menu size={14} />Details</button><button onClick={onClose} aria-label="Close plan editor and return to all plans" className="ml-3 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-black/15 transition hover:bg-black/25"><X size={16} /></button></div></div>
-}
-
 type ObjectiveHeaderProgress = {
   total: number
   completed: number
@@ -78,18 +75,6 @@ export function PlanObjectiveHeader({ title, titleEditor, details, supplemental,
     {progress ? <PlanObjectiveProgressRing progress={progress} color={color} /> : null}
     <div className="flex self-stretch flex-col items-center justify-between">{actions || <span />}{!editing ? <button type="button" onClick={onToggle} aria-label={open ? 'Collapse objective' : 'Expand objective'} className="rounded p-1 text-muted-foreground"><ChevronDown size={16} className={cn('transition-transform', open && 'rotate-180')} /></button> : <span />}</div>
   </div>
-}
-
-export function planTargetDateLabel(value?: string) {
-  if (!value) return ''
-  const target = new Date(`${String(value).slice(0, 10)}T12:00:00`)
-  const today = new Date()
-  today.setHours(12, 0, 0, 0)
-  const days = Math.round((target.getTime() - today.getTime()) / 86400000)
-  if (days === 0) return 'today'
-  if (days > 0 && days <= 30) return `in ${days} day${days === 1 ? '' : 's'}`
-  if (days < 0) return `${Math.abs(days)} day${days === -1 ? '' : 's'} ago`
-  return target.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
 function PlanObjectiveProgressRing({ progress, color }: { progress: ObjectiveHeaderProgress; color: string }) {
@@ -181,26 +166,6 @@ type CardProps = {
   children?: React.ReactNode
 }
 
-export function PlanObjectiveDefinitionCardLegacy({ objective, mode, canEdit = true, badges = [], saving = false, color = '#2563eb', onSave, onDelete, children }: CardProps) {
-  const [open, setOpen] = React.useState(false)
-  const [editing, setEditing] = React.useState(false)
-  const [draft, setDraft] = React.useState<any>({ ...objective, fields: normalizePlanSteps(objective.fields || objective.custom_fields || []) })
-  React.useEffect(() => setDraft({ ...objective, fields: normalizePlanSteps(objective.fields || objective.custom_fields || []) }), [objective])
-  const updateStep = (index: number, patch: any) => setDraft({ ...draft, fields: draft.fields.map((field: any, fieldIndex: number) => fieldIndex === index ? { ...field, ...patch } : field) })
-  const addStep = () => setDraft({ ...draft, fields: [...draft.fields, { field_uuid: `field_${crypto.randomUUID()}`, title: '', type: 'text', restricted: false, access: 'contributor', allowed_types: [] }] })
-  const save = async () => {
-    await onSave?.({ ...draft, custom_fields: draft.fields, fields: draft.fields })
-    setEditing(false)
-  }
-  const complete = objective.progress?.status === 'completed'
-  const completedSteps = (objective.fields || []).filter((field: any) => field.type === 'badge' ? Number(field.progress_percent || 0) >= 100 : Boolean(objective.progress?.field_values?.[field.field_uuid])).length
-  const groupRange = objective.aggregate ? { min: Number(objective.aggregate.min_progress_percent || 0), max: Number(objective.aggregate.max_progress_percent || 0) } : null
-  return <article className={cn('rounded-xl border border-border bg-card transition', open && 'shadow-lg ring-1 ring-black/5', complete && !open && 'bg-emerald-50/50')}>
-    <div className="flex items-start gap-3 p-4"><button type="button" onClick={() => setOpen(!open)} className="min-w-0 flex-1 text-left"><span className="block truncate text-sm font-black">{objective.title}</span><span className="mt-1 flex flex-wrap items-center gap-2 text-[10px] font-bold text-muted-foreground">{mode === 'template' ? <>{draft.fields.length} step{draft.fields.length === 1 ? '' : 's'}{objective.default_allow_late ? ' · late completion allowed' : ''}</> : mode === 'group-live' ? <>{objective.effective_due_date ? String(objective.effective_due_date).slice(0, 10) : null}</> : <>{complete ? 'Completed' : `${completedSteps}/${(objective.fields || []).length} steps`}{objective.effective_due_date ? ` · ${String(objective.effective_due_date).slice(0, 10)}` : ''}</>}{objective.completion_restricted || !objective.allow_learner_confirmation ? <span className="inline-flex items-center gap-1"><Lock size={9} />Restricted completion</span> : null}</span></button>{mode === 'group-live' && groupRange ? <GroupProgressRing min={groupRange.min} max={groupRange.max} color={color} /> : null}{canEdit ? editing ? <button type="button" onClick={() => void save()} disabled={saving || !draft.title?.trim()} aria-label="Save objective" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground text-background disabled:opacity-40">{saving ? <Loader2 size={13} className="animate-spin" /> : <Check size={14} />}</button> : <DropdownMenu><DropdownMenuTrigger asChild><button type="button" aria-label="Objective options" className="rounded-lg p-2 text-muted-foreground hover:bg-muted"><MoreVertical size={16} /></button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={() => { setOpen(true); setEditing(true) }}><Pencil size={14} className="mr-2" />Edit</DropdownMenuItem>{onDelete ? <DropdownMenuItem onClick={() => void onDelete()} className="text-red-600"><Trash2 size={14} className="mr-2" />Delete</DropdownMenuItem> : null}</DropdownMenuContent></DropdownMenu> : null}{!editing ? <button type="button" onClick={() => setOpen(!open)} aria-label={open ? 'Collapse objective' : 'Expand objective'} className="rounded p-2 text-muted-foreground"><ChevronDown size={15} className={cn('transition', open && 'rotate-180')} /></button> : null}</div>
-    {open ? <div className="border-t border-border/60 px-4 pb-5 pt-4">{editing ? <div className="space-y-4"><input value={draft.title || ''} onChange={(event) => setDraft({ ...draft, title: event.target.value })} className="w-full border-b border-dashed border-foreground/35 bg-transparent text-sm font-black outline-none" /><textarea value={draft.description || ''} onChange={(event) => setDraft({ ...draft, description: event.target.value })} placeholder="Add a description" className="min-h-16 w-full resize-y border-b border-dashed border-foreground/35 bg-transparent text-xs leading-5 text-muted-foreground outline-none" /><div className="grid grid-cols-2 gap-3">{draft.fields.map((field: PlanStepDefinition, index: number) => <div key={field.field_uuid}><div className="flex h-11 items-center gap-2 rounded-xl bg-muted px-2"><select aria-label="Step type" value={field.type} onChange={(event) => updateStep(index, { type: event.target.value, ...(event.target.value === 'media' ? { allowed_types: ['image', 'document'] } : {}) })} className="h-8 w-20 rounded-lg border border-border bg-card px-1 text-[10px]"><option value="text">Note</option><option value="media">Media</option><option value="link">Links</option><option value="checkbox">Check</option><option value="badge">Badge</option></select><input value={field.title} onChange={(event) => updateStep(index, { title: event.target.value })} placeholder="Step name" className="min-w-0 flex-1 border-b border-dashed border-foreground/35 bg-transparent text-[11px] font-black outline-none" /><button type="button" onClick={() => setDraft({ ...draft, fields: draft.fields.filter((_: any, itemIndex: number) => itemIndex !== index) })} aria-label={`Remove ${field.title || 'step'}`} className="rounded p-1 text-muted-foreground hover:text-red-600"><Trash2 size={12} /></button></div>{field.type === 'badge' ? <select value={field.badge_uuid || ''} onChange={(event) => { const badge = badges.find((item) => item.badge_uuid === event.target.value); updateStep(index, { badge_uuid: event.target.value, title: field.title || badge?.name || '' }) }} className="mt-2 h-8 w-full rounded-lg border border-border bg-card px-2 text-[10px]"><option value="">Choose badge…</option>{badges.map((badge) => <option key={badge.badge_uuid} value={badge.badge_uuid}>{badge.name}</option>)}</select> : null}<label className="mt-1.5 inline-flex items-center gap-1 text-[9px] font-bold text-muted-foreground"><input type="checkbox" checked={field.restricted} onChange={(event) => updateStep(index, { restricted: event.target.checked, access: event.target.checked ? 'reviewer' : 'contributor' })} />Restricted</label></div>)}<button type="button" onClick={addStep} disabled={complete} className="flex h-11 items-center justify-center gap-1 rounded-xl border border-dashed border-border text-[10px] font-black text-muted-foreground disabled:opacity-40"><Plus size={12} />New step</button></div><label className="inline-flex items-center gap-2 text-xs font-bold"><input type="checkbox" checked={Boolean(draft.completion_restricted ?? !draft.allow_learner_confirmation)} onChange={(event) => setDraft({ ...draft, completion_restricted: event.target.checked, allow_learner_confirmation: !event.target.checked })} />Restricted completion</label></div> : <><p className="text-xs leading-5 text-muted-foreground">{objective.description || 'No description yet.'}</p><div className="mt-4 grid grid-cols-2 gap-3">{normalizePlanSteps(objective.fields || objective.custom_fields || []).map((field) => { const range = objective.aggregate?.steps?.[field.field_uuid]; const background = mode === 'group-live' && range ? threeToneBackground(color, range.min_progress_percent, range.max_progress_percent) : undefined; return <div key={field.field_uuid} className="flex min-h-12 items-center gap-2 overflow-hidden rounded-xl bg-muted px-3" style={{ background }}><StepTypeIcon type={field.type} /><span className="min-w-0 flex-1 truncate text-[11px] font-black">{field.title}</span>{field.restricted ? <Lock size={11} /> : null}</div> })}</div>{children}</>}</div> : null}
-  </article>
-}
-
 export function PlanObjectiveDefinitionCard({ objective, mode, canEdit = true, badges = [], saving = false, color = '#2563eb', initiallyOpen = false, initiallyEditing = false, onSave, onDelete, children }: CardProps) {
   const [open, setOpen] = React.useState(initiallyOpen || initiallyEditing)
   const [editing, setEditing] = React.useState(initiallyEditing)
@@ -216,7 +181,7 @@ export function PlanObjectiveDefinitionCard({ objective, mode, canEdit = true, b
   const groupRange = objective.aggregate ? { min: Number(objective.aggregate.min_progress_percent || 0), max: Number(objective.aggregate.max_progress_percent || 0) } : null
   const steps = normalized()
   const individualCompletedSteps = steps.filter((field) => field.type === 'badge' ? Number(field.progress_percent || 0) >= 100 : Boolean(objective.progress?.field_values?.[field.field_uuid])).length
-  const targetLabel = objective.target_label || (objective.effective_due_date ? `${planTargetDateLabel(objective.effective_due_date)}${objective.has_fixed_due_date === false ? ' · phase' : ''}` : '')
+  const targetLabel = objective.target_label || (objective.effective_due_date ? `${targetDateLabel(objective.effective_due_date)}${objective.has_fixed_due_date === false ? ' · phase' : ''}` : '')
   return <article className={cn('bg-card transition-[box-shadow,border-radius,background-color]', open && 'relative z-10 my-2 rounded-2xl shadow-lg ring-1 ring-black/5')}>
     <PlanObjectiveHeader
       title={objective.title}
@@ -229,7 +194,7 @@ export function PlanObjectiveDefinitionCard({ objective, mode, canEdit = true, b
       actions={canEdit ? editing ? <button type="button" onClick={() => void save()} disabled={saving || !draft.title?.trim()} aria-label="Save objective" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground text-background disabled:opacity-40">{saving ? <Loader2 size={13} className="animate-spin" /> : <Check size={14} />}</button> : <DropdownMenu><DropdownMenuTrigger asChild><button type="button" aria-label="Objective options" className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted"><MoreVertical size={16} /></button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={() => { setOpen(true); setEditing(true) }}><Pencil size={14} className="mr-2" />Edit</DropdownMenuItem>{onDelete ? <DropdownMenuItem onClick={() => void onDelete()} className="text-red-600"><Trash2 size={14} className="mr-2" />Delete</DropdownMenuItem> : null}</DropdownMenuContent></DropdownMenu> : null}
       onToggle={() => setOpen(!open)}
     />
-    {open ? <div className="px-3 pb-5 sm:px-4"><div className="border-t border-border/60 pt-4">{editing ? <textarea value={draft.description || ''} onChange={(event) => setDraft({ ...draft, description: event.target.value })} placeholder="Add a description" className="min-h-16 w-full resize-y border-b border-dashed border-foreground/35 bg-transparent text-xs leading-5 text-muted-foreground outline-none" /> : <p className="text-xs leading-5 text-muted-foreground">{objective.description || 'No description yet.'}</p>}</div>
+    {open ? <div className="px-3 pb-5 sm:px-4"><div className="border-t border-border/60 pt-4">{editing ? <textarea value={draft.description || ''} onChange={(event) => setDraft({ ...draft, description: event.target.value })} placeholder="Add a description" className="min-h-16 w-full resize-y border-b border-dashed border-foreground/35 bg-transparent text-xs leading-5 text-muted-foreground outline-none" /> : <p className="text-xs leading-5 text-muted-foreground">{objective.description || 'No description yet.'}</p>}{mode === 'template' ? editing ? <label className="mt-3 block text-[10px] font-black uppercase tracking-wide text-muted-foreground">What reviewers look for · staff only<textarea value={draft.reviewer_guidance || ''} onChange={(event) => setDraft({ ...draft, reviewer_guidance: event.target.value })} placeholder={'One point per line, e.g.\nOne page, easy to scan\nContact details filled in'} className="mt-1 min-h-16 w-full resize-y rounded-lg border border-dashed border-foreground/25 bg-transparent p-2 text-xs font-normal normal-case leading-5 tracking-normal text-foreground outline-none" /></label> : objective.reviewer_guidance ? <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2"><p className="text-[10px] font-black uppercase tracking-wide text-amber-900">What reviewers look for</p><p className="mt-1 whitespace-pre-wrap text-xs leading-5 text-amber-950">{objective.reviewer_guidance}</p></div> : null : null}</div>
       <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-4">{(editing ? draft.fields : steps).map((field: PlanStepDefinition, index: number) => {
         if (editing) return <div key={field.field_uuid}><div className="flex h-11 items-center gap-2 rounded-xl bg-muted px-2"><PlanStepPicker badges={badges} onAdd={(type, options) => changeStep(index, type, options)} trigger={<button type="button" aria-label="Change step type" className="flex h-8 w-11 shrink-0 items-center justify-between rounded-lg border border-border bg-card px-2 text-muted-foreground"><StepTypeIcon type={field.type} size={14} /><ChevronDown size={10} /></button>} /><input value={field.title || ''} onChange={(event) => setDraft((current: any) => ({ ...current, fields: current.fields.map((candidate: any, candidateIndex: number) => candidateIndex === index ? { ...candidate, title: event.target.value } : candidate) }))} placeholder="Step name" className="min-w-0 flex-1 border-b border-dashed border-foreground/35 bg-transparent text-[11px] font-black outline-none" /><button type="button" onClick={() => setDraft((current: any) => ({ ...current, fields: current.fields.filter((_: any, candidateIndex: number) => candidateIndex !== index) }))} aria-label={`Remove ${field.title || 'step'}`} className="rounded p-1 text-muted-foreground hover:text-red-600"><X size={12} /></button></div><button type="button" onClick={() => setDraft((current: any) => ({ ...current, fields: current.fields.map((candidate: any, candidateIndex: number) => candidateIndex === index ? { ...candidate, restricted: !candidate.restricted, access: !candidate.restricted ? 'reviewer' : 'contributor' } : candidate) }))} className="mt-1.5 flex items-center gap-1 text-[9px] font-bold text-muted-foreground">{field.restricted ? <Check size={10} /> : <span className="h-2.5 w-2.5 rounded-sm border border-muted-foreground/50" />}Restricted</button></div>
         const range = objective.aggregate?.steps?.[field.field_uuid]
@@ -247,6 +212,8 @@ function threeToneBackground(color: string, min: number, max: number) {
   return `linear-gradient(to right, color-mix(in srgb, ${color} 68%, transparent) 0 ${floor}%, color-mix(in srgb, ${color} 34%, transparent) ${floor}% ${ceiling}%, color-mix(in srgb, ${color} 10%, transparent) ${ceiling}% 100%)`
 }
 
-function GroupProgressRing({ min, max, color }: { min: number; max: number; color: string }) {
-  return <span role="progressbar" aria-label={`Group progress ranges from ${min} to ${max} percent`} aria-valuemin={0} aria-valuemax={100} className="relative mt-0.5 h-8 w-8 shrink-0 rounded-full" style={{ background: `conic-gradient(${color} 0 ${min}%, color-mix(in srgb, ${color} 50%, transparent) ${min}% ${max}%, color-mix(in srgb, ${color} 14%, transparent) ${max}% 100%)` }}><span className="absolute inset-[4px] rounded-full bg-card" /></span>
+export function PersonAvatar({ user, size = 'sm' }: { user: any; size?: 'xs' | 'sm' | 'md' }) {
+  const classes = size === 'md' ? 'h-9 w-9 text-xs' : size === 'xs' ? 'h-5 w-5 text-[8px]' : 'h-7 w-7 text-[9px]'
+  const src = user?.avatar_image ? (String(user.avatar_image).startsWith('http') ? user.avatar_image : getUserAvatarMediaDirectory(user.user_uuid, user.avatar_image)) : ''
+  return src ? <img src={src} alt="" className={cn('shrink-0 rounded-full object-cover', classes)} /> : <span className={cn('flex shrink-0 items-center justify-center rounded-full bg-foreground font-black text-background', classes)}>{String(user?.name || '?').split(/\s+/).slice(0, 2).map((word) => word[0]).join('').toUpperCase()}</span>
 }

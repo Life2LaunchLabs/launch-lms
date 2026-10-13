@@ -1,5 +1,5 @@
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
-import { getLearningBadgeCollections, getLearningBadges, getLearningPath } from '@services/learning/learning'
+import { getLearningBadgeCollections, getLearningBadges } from '@services/learning/learning'
 import { getOrgPodcasts } from '@services/podcasts/podcasts'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -57,28 +57,6 @@ export async function GET(request: NextRequest) {
       }
       break
     }
-    case 'activities': {
-      const response = await getLearningBadges(orgInfo.id).catch(() => ({ data: [] }))
-      const badges = Array.isArray(response) ? response : response?.data || []
-      for (const badge of badges) {
-        try {
-          const path = await getLearningPath(badge.badge_uuid, undefined, true)
-          for (const activity of path?.activities || []) {
-            if (activity.activity_uuid) {
-              sitemapUrls.push({
-                loc: `${baseUrl}badges/${badge.badge_uuid.replace('badge_', '')}/chapter/${activity.activity_uuid.replace('learning_activity_', '')}`,
-                priority: 0.6,
-                changefreq: 'weekly',
-                lastmod: activity.update_date,
-              })
-            }
-          }
-        } catch {
-          // Skip activities for this badge if metadata fetch fails.
-        }
-      }
-      break
-    }
     case 'badge-collections': {
       const response = await getLearningBadgeCollections(orgInfo.id).catch(() => ({ data: [] }))
       const collections = Array.isArray(response) ? response : response?.data || []
@@ -122,7 +100,7 @@ interface SitemapUrl {
   lastmod?: string
 }
 
-const SITEMAP_TYPES = ['pages', 'badges', 'activities', 'badge-collections', 'podcasts']
+const SITEMAP_TYPES = ['pages', 'badges', 'badge-collections', 'podcasts']
 
 function generateSitemapIndex(baseUrl: string): string {
   const sitemaps = SITEMAP_TYPES.map(type => `

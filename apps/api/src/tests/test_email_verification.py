@@ -6,16 +6,13 @@ import pytest
 from fastapi import HTTPException
 from sqlmodel import Session, create_engine, select
 from src.db.organizations import Organization
+from src.db.planning import Plan
 from src.db.users import User
 from src.services.users.email_verification import (
     NO_ORG_UUID,
     resend_verification_email,
     send_verification_email,
     verify_email_token,
-)
-from src.services.users.welcome_claim import (
-    create_welcome_claim,
-    resolve_welcome_claim,
 )
 
 
@@ -351,73 +348,6 @@ async def test_resend_verification_email_verifies_immediately_in_dev_mode(
     mock_send.assert_not_called()
 
 
-@pytest.fixture
-def fake_claim_redis():
-    redis = FakeRedis()
-    with patch(
-        "src.services.users.welcome_claim.get_redis_connection",
-        return_value=redis,
-    ):
-        yield redis
-
-
-def test_welcome_claim_pending_until_verified(
-    db_session: Session, fake_claim_redis: FakeRedis
-):
-    user = _create_user(db_session)
-
-    token = create_welcome_claim(user.user_uuid, "/onboarding/activity")
-
-    status, claimed_user, redirect_url = resolve_welcome_claim(db_session, token)
-    assert status == "pending"
-    assert claimed_user is None
-    assert redirect_url is None
-    # Token survives a pending poll
-    assert len(fake_claim_redis.store) == 1
-
-    user.email_verified = True
-    db_session.add(user)
-    db_session.commit()
-
-    status, claimed_user, redirect_url = resolve_welcome_claim(db_session, token)
-    assert status == "ready"
-    assert claimed_user is not None
-    assert claimed_user.user_uuid == user.user_uuid
-    assert redirect_url == "/onboarding/activity"
-    # Token is single-use
-    assert fake_claim_redis.store == {}
-
-    status, claimed_user, redirect_url = resolve_welcome_claim(db_session, token)
-    assert status == "invalid"
-
-
-def test_welcome_claim_unknown_token(
-    db_session: Session, fake_claim_redis: FakeRedis
-):
-    status, claimed_user, redirect_url = resolve_welcome_claim(
-        db_session, "not-a-real-token"
-    )
-    assert status == "invalid"
-    assert claimed_user is None
-    assert redirect_url is None
-
-
-def test_welcome_claim_deleted_user(
-    db_session: Session, fake_claim_redis: FakeRedis
-):
-    user = _create_user(db_session)
-    token = create_welcome_claim(user.user_uuid, "/onboarding/activity")
-
-    db_session.delete(user)
-    db_session.commit()
-
-    status, claimed_user, _ = resolve_welcome_claim(db_session, token)
-    assert status == "invalid"
-    assert claimed_user is None
-    # Orphaned token is cleaned up
-    assert fake_claim_redis.store == {}
-
-
 @pytest.mark.parametrize(
     ("development_mode", "effective_requirement"),
     [("true", False), ("false", True)],
@@ -443,3 +373,23 @@ def test_require_email_verification_env_var(
         monkeypatch.delenv("LAUNCHLMS_DEVELOPMENT_MODE")
         if hasattr(get_launchlms_config, "cache_clear"):
             get_launchlms_config.cache_clear()
+
+
+@pytest.mark.asyncio
+async def test_welcome_onboarding_sends_guests_to_signup_and_learners_to_their_starter_plan():
+    from src.db.users import AnonymousUser, PublicUser
+    from src.routers.auth import get_welcome_onboarding
+    from src.services.starter_plan import ensure_starter_plan, starter_checklist
+    from src.tests.test_badge_marketplace import _create_user as create_user
+    from src.tests.test_starter_plan import _session
+
+    db = _session()
+    assert await get_welcome_onboarding(None, AnonymousUser(), db) == {"redirect_url": "/signup"}
+
+    create_user(db, user_id=10, username="maya")
+    learner = PublicUser.model_validate(db.get(User, 10))
+    result = await get_welcome_onboarding(None, learner, db)
+
+    checklist = starter_checklist(db, ensure_starter_plan(db, 10))
+    assert result == {"redirect_url": f"/orgs/owner{checklist['items'][0]['href']}"}
+    assert len(db.exec(select(Plan).where(Plan.subject_user_id == 10)).all()) == 1

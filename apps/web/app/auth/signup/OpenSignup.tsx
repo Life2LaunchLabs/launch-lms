@@ -73,13 +73,12 @@ function OpenSignUpComponent({
   const router = useRouter()
   const searchParams = useSearchParams()
   const [error, setError] = React.useState('')
-  const nextUrl = searchParams.get('next')
-  const inviteBadge = searchParams.get('inviteBadge')
+  const nextUrl = searchParams.get('next') || searchParams.get('redirect')
   const inviteCode = searchParams.get('inviteCode')
   const invitationToken = searchParams.get('invitation')
   const createOrgRedirect = getUriWithOrg(org?.slug, '/signup/org')
   const postSignupUrl =
-    postSignupUrlOverride || nextUrl || (createOrgMode ? createOrgRedirect : inviteBadge ? `/badges?inviteBadge=${encodeURIComponent(inviteBadge)}` : '/')
+    postSignupUrlOverride || nextUrl || (createOrgMode ? createOrgRedirect : '/')
   const formik = useFormik({
     initialValues: {
       org_slug: org?.slug,
@@ -227,7 +226,7 @@ function OpenSignUpComponent({
               type="button"
               onClick={handleGoogleSignup}
               disabled={isGoogleLoading}
-              variant="ctaSecondary"
+              variant="surface"
               size="cta"
               className="w-full text-[16px]"
             >

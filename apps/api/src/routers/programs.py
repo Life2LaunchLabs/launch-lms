@@ -4,7 +4,6 @@ from sqlmodel import Session, select
 from src.core.events.database import get_db_session
 from src.db.programs import (
     ObjectiveCreate,
-    LearnerObjectiveUpdate,
     LearnerProgramDetailView,
     LearnerProgramEnrollmentView,
     ObjectiveProgressUpdate,
@@ -64,15 +63,6 @@ def api_create_program(
     current_user: PublicUser = Depends(get_current_user),
 ):
     return service.create_program(db_session, current_user, payload)
-
-
-@router.get("/objectives")
-def api_list_objectives(
-    org_id: int,
-    db_session: Session = Depends(get_db_session),
-    current_user: PublicUser = Depends(get_current_user),
-):
-    return service.list_objectives(db_session, current_user, org_id)
 
 
 @router.get("/cohorts/{usergroup_id}")
@@ -201,19 +191,6 @@ def api_mark_my_program_invitations_viewed(
     current_user: PublicUser = Depends(get_current_user),
 ):
     return service.mark_my_program_invitations_viewed(db_session, current_user)
-
-
-@router.post("/me/progress")
-def api_update_my_progress(
-    payload: LearnerObjectiveUpdate,
-    org_id: int,
-    db_session: Session = Depends(get_db_session),
-    current_user: PublicUser = Depends(get_current_user),
-):
-    return service.update_my_progress(
-        db_session, current_user, org_id, payload.objective_uuid,
-        payload.status, payload.learner_note, payload.evidence,
-    )
 
 
 @router.post("/invitations/{participant_uuid}/respond")

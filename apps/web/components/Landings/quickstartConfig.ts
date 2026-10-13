@@ -28,13 +28,13 @@ export const QUICKSTART_FEATURES: Record<
     description: 'Discover badges to earn',
     icon: ({ className }) =>
       createElement(Books, { size: 44, weight: 'fill', className }),
-    href: routePaths.org.badges(),
+    href: routePaths.org.discover(),
   },
   resources: {
     label: 'Resources',
     description: 'Explore resource channels',
     icon: ({ className }) =>
       createElement(FolderOpen, { size: 44, weight: 'fill', className }),
-    href: routePaths.org.hub(),
+    href: routePaths.org.discover({ type: 'resources' }),
   },
 }

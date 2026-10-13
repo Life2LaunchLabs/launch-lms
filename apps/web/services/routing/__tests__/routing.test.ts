@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { hubFromLegacyResources, hubFromLegacySearch, routePaths, withQuery } from '../paths.ts'
+import { discoverFromLegacy, hubFromLegacy, routePaths, withQuery } from '../paths.ts'
 import { resolveRequestRouting, type RequestInstanceInfo } from '../requestPolicy.ts'
 import { classifyRoute } from '../routeAccess.ts'
 import { buildPublicRequestUrl, getCanonicalOrgHostname } from '../context.ts'
@@ -128,38 +128,41 @@ test('withQuery omits empty values and encodes query params', () => {
   )
 })
 
-test('legacy resource links retain their discovery intent in Hub', () => {
+test('legacy resource and search links land in Discover with their query', () => {
   assert.equal(
-    hubFromLegacyResources({ channel: 'shared channel', q: 'career planning', tag: ['one', 'two'] }),
-    '/hub?channel=shared+channel&q=career+planning&tag=one&tag=two'
+    discoverFromLegacy({ channel: 'shared channel', q: 'career planning', tag: ['one', 'two'] }),
+    '/discover?q=career+planning&type=resources&channel=shared+channel'
   )
-  assert.equal(hubFromLegacyResources({}), '/hub')
+  assert.equal(discoverFromLegacy({ q: 'career planning', type: 'resources' }), '/discover?q=career+planning&type=resources')
+  assert.equal(discoverFromLegacy({ query: ['interviews', 'other'] }), '/discover?q=interviews')
+  assert.equal(discoverFromLegacy({}), '/discover')
 })
 
-test('legacy search links retain query and result type in Hub', () => {
-  assert.equal(
-    hubFromLegacySearch({ q: 'career planning', type: 'resources' }),
-    '/hub?q=career+planning&type=resources'
-  )
-  assert.equal(hubFromLegacySearch({}), '/hub')
+test('legacy Hub links open Hub beside Plans, or the resource or search they named', () => {
+  assert.equal(hubFromLegacy({}), '/plans?hub=open')
+  assert.equal(hubFromLegacy({ conversation: 'hub_conversation_1' }), '/plans?hub=open&hub_conversation=hub_conversation_1')
+  assert.equal(hubFromLegacy({ resource: 'resource_abc' }), '/discover/resources/abc')
+  assert.equal(hubFromLegacy({ q: 'resume help' }), '/discover?q=resume+help')
+  assert.equal(hubFromLegacy({ view: 'resources' }), '/discover?type=resources')
 })
 
 test('route manifest builds key dashboard and owner routes', () => {
-  assert.equal(routePaths.org.groupPlan('assignment_1'), '/plans?group=assignment_1')
   assert.equal(routePaths.org.dash.badges(), '/admin/badges')
-  assert.equal(routePaths.org.dash.planAssignments(), '/admin/plans/assignments')
+  assert.equal(routePaths.org.dash.plans(), '/admin/plans')
+  assert.equal(routePaths.org.dash.programs(), '/admin/plans/templates')
+  assert.equal(routePaths.org.dash.planReview({ assignment: 'assignment_1', objective: 'objective_1' }), '/admin/plans/review?assignment=assignment_1&objective=objective_1')
   assert.equal(routePaths.org.dash.planRequirements(), '/admin/plans/requirements')
   assert.equal(routePaths.org.dash.planRequirement('framework 1', 'levels'), '/admin/plans/requirements/framework%201/levels')
-  assert.equal(routePaths.org.dash.planReporting(), '/admin/plans/reporting')
-  assert.equal(routePaths.org.dash.planAssignment('assignment_1'), '/admin/plans/assignments/assignment_1/overview')
+  assert.equal(routePaths.org.dash.planAssignment('assignment_1'), '/admin/plans/assignments/assignment_1')
   assert.equal(routePaths.org.dash.livePlan('plan_1'), '/admin/plans/live/plan_1')
   assert.equal(routePaths.org.dash.livePlan('plan_1', 'reviews'), '/admin/plans/live/plan_1/reviews')
   assert.equal(routePaths.org.dash.users.roles(), '/admin/users/roles')
   assert.equal(routePaths.org.dash.users.usergroups(), '/admin/users')
   assert.equal(routePaths.org.dash.users.group(2), '/admin/users/groups/2')
-  assert.equal(routePaths.org.dash.users.groupProgram(2, 'assignment_1'), '/admin/users/groups/2/programs/assignment_1/progress')
+  assert.equal(routePaths.org.dash.users.groupPlans(2, 'assignment_1'), '/admin/users/groups/2/plans?assignment=assignment_1')
+  assert.equal(routePaths.org.dash.users.group(2, 'members'), '/admin/users/groups/2/members')
   assert.equal(routePaths.org.dash.users.user('learner'), '/admin/users/user/learner')
-  assert.equal(routePaths.org.dash.users.userPage('learner', 'review'), '/admin/users/user/learner/review')
+  assert.equal(routePaths.org.dash.users.userPage('learner', 'plans'), '/admin/users/user/learner/plans')
   assert.equal(routePaths.owner.platform.organization(42), '/admin/platform/orgs/42')
   assert.equal(routePaths.auth.login({ next: '/' }), '/login?next=%2F')
 })
@@ -172,41 +175,35 @@ test('route manifest builds auth, account, and public org paths used by navigati
   assert.equal(routePaths.owner.account.organizations(), '/account/organizations')
   assert.equal(routePaths.owner.account.memory(), '/account/memory')
   assert.equal(routePaths.owner.account.badges(), '/account/badges')
-  assert.equal(routePaths.org.hub(), '/hub')
+  assert.equal(routePaths.org.home(), '/plans')
+  assert.equal(routePaths.org.hubOpen({ prompt: 'Help me plan' }), '/plans?hub=open&hub_prompt=Help+me+plan')
   assert.equal(routePaths.org.portfolio(), '/portfolio')
   assert.equal(routePaths.org.portfolioEdit(), '/portfolio/edit')
   assert.equal(routePaths.org.portfolioResume(), '/portfolio/resume')
   assert.equal(routePaths.org.portfolioTimeline(), '/portfolio/timeline')
-  assert.equal(routePaths.org.news(), '/news')
-  assert.equal(routePaths.org.newsArticle('release-notes'), '/news/release-notes')
   assert.equal(routePaths.org.organization('acme'), '/organization/acme')
   assert.equal(routePaths.org.user('jane'), '/user/jane')
   assert.equal(routePaths.org.userResume('jane'), '/user/jane/resume')
   assert.equal(routePaths.org.userTimeline('jane'), '/user/jane/timeline')
-  assert.equal(routePaths.org.search('ai prompts'), '/hub?q=ai+prompts')
-  assert.equal(routePaths.org.resource('resource-1'), '/hub?resource=resource-1')
-  assert.equal(routePaths.org.badges(), '/badges')
-  assert.equal(routePaths.org.myBadges(), '/badges/my-badges')
-  assert.equal(routePaths.org.programs(), '/programs')
-  assert.equal(routePaths.org.program('creative-futures'), '/programs/creative-futures')
+  assert.equal(routePaths.org.search('ai prompts'), '/discover?q=ai+prompts')
+  assert.equal(routePaths.org.resource('resource_1'), '/discover/resources/1')
+
+  assert.equal(routePaths.org.portfolioBadges(), '/portfolio/badges')
+  assert.equal(routePaths.org.discover(), '/discover')
   assert.equal(routePaths.org.badgeDetail('badge-slug'), '/badges/badge-slug')
-  assert.equal(routePaths.org.badgeStatus('badge-slug'), '/badges/badge-slug/badge')
-  assert.equal(routePaths.org.badgePath('badge-slug'), '/badges/badge-slug/path')
-  assert.equal(routePaths.org.badgeChapter('badge-slug', 'chapter-1'), '/badges/badge-slug/chapter/chapter-1')
-  assert.equal(routePaths.org.badgeInvite('badge-slug'), '/badges/badge-slug/invite')
   assert.equal('profile' in routePaths.org, false)
   assert.equal('welcome' in routePaths.org, false)
 })
 
 test('navigation manifest smoke test keeps representative routes absolute and unique', () => {
   const navigationRoutes = [
-    routePaths.org.hub(),
+    routePaths.org.home(),
     routePaths.org.portfolio(),
-    routePaths.org.news(),
+    routePaths.org.discover(),
     routePaths.owner.account.root(),
     routePaths.owner.account.messages(),
     routePaths.org.root(),
-    routePaths.org.badges(),
+    routePaths.org.portfolioTimeline(),
     routePaths.org.dash.root(),
     routePaths.org.dash.badges(),
     routePaths.org.dash.users.users(),
@@ -228,7 +225,7 @@ test('legacy course and collection route helpers are absent', () => {
   assert.equal('courseSettings' in routePaths.org.dash, false)
 })
 
-test('request policy redirects authenticated org root to hub', () => {
+test('request policy redirects authenticated org root to plans', () => {
   const decision = resolveRequestRouting({
     requestUrl: 'https://acme.launchlms.test/',
     pathname: '/',
@@ -241,7 +238,7 @@ test('request policy redirects authenticated org root to hub', () => {
   })
 
   assert.equal(decision.action, 'redirect')
-  assert.equal(decision.destination, 'https://acme.launchlms.test/hub')
+  assert.equal(decision.destination, 'https://acme.launchlms.test/plans')
 })
 
 test('activity previews render on the requested host so they can be framed', () => {
@@ -289,8 +286,8 @@ test('request policy rewrites nested account tabs to the current organization', 
   }
 })
 
-test('request policy resolves group plan workspaces on the canonical org route', () => {
-  const target = routePaths.org.groupPlan('assignment_1')
+test('request policy keeps review queue links on the canonical org route', () => {
+  const target = routePaths.org.dash.planReview({ assignment: 'assignment_1', objective: 'objective_1' })
   const [pathname, query = ''] = target.split('?')
   const decision = resolveRequestRouting({
     requestUrl: `https://launchlms.test${pathname}`,
@@ -303,7 +300,7 @@ test('request policy resolves group plan workspaces on the canonical org route',
     orgSubdomainAccess: null,
   })
   assert.equal(decision.action, 'rewrite')
-  assert.equal(decision.destination, '/orgs/default/plans?group=assignment_1')
+  assert.equal(decision.destination, '/orgs/default/admin/plans/review?assignment=assignment_1&objective=objective_1')
 })
 
 test('request policy rewrites unauthenticated org root to the landing page', () => {
@@ -419,7 +416,7 @@ test('request policy keeps auth query params when rewriting create-org signup fl
   assert.equal(decision.destination, '/auth/signup?mode=create-org')
 })
 
-test('request policy redirects authenticated login and signup pages to hub', () => {
+test('request policy redirects authenticated login and signup pages to plans', () => {
   const loginDecision = resolveRequestRouting({
     requestUrl: 'https://acme.launchlms.test/login',
     pathname: '/login',
@@ -442,9 +439,9 @@ test('request policy redirects authenticated login and signup pages to hub', () 
   })
 
   assert.equal(loginDecision.action, 'redirect')
-  assert.equal(loginDecision.destination, 'https://acme.launchlms.test/hub')
+  assert.equal(loginDecision.destination, 'https://acme.launchlms.test/plans')
   assert.equal(signupDecision.action, 'redirect')
-  assert.equal(signupDecision.destination, 'https://acme.launchlms.test/hub')
+  assert.equal(signupDecision.destination, 'https://acme.launchlms.test/plans')
 })
 
 test('request policy preserves an explicit login recovery target despite a stale session hint', () => {
@@ -517,49 +514,8 @@ test('request policy allows unauthenticated badge entry pages', () => {
     resolvedCustomDomainOrgSlug: null,
     orgSubdomainAccess: null,
   })
-  const decision = resolveRequestRouting({
-    requestUrl: 'https://acme.launchlms.test/badges/badge-slug/invite',
-    pathname: '/badges/badge-slug/invite',
-    search: '',
-    host: 'acme.launchlms.test',
-    hasSession: false,
-    instanceInfo,
-    resolvedCustomDomainOrgSlug: null,
-    orgSubdomainAccess: null,
-  })
-
   assert.equal(canonicalDecision.action, 'rewrite')
   assert.equal(canonicalDecision.destination, '/orgs/acme/badges/badge-slug')
-  assert.equal(decision.action, 'rewrite')
-  assert.equal(decision.destination, '/orgs/acme/badges/badge-slug/invite')
-})
-
-test('request policy allows unauthenticated news pages', () => {
-  const listDecision = resolveRequestRouting({
-    requestUrl: 'https://acme.launchlms.test/news',
-    pathname: '/news',
-    search: '',
-    host: 'acme.launchlms.test',
-    hasSession: false,
-    instanceInfo,
-    resolvedCustomDomainOrgSlug: null,
-    orgSubdomainAccess: null,
-  })
-  const articleDecision = resolveRequestRouting({
-    requestUrl: 'https://acme.launchlms.test/news/release-notes',
-    pathname: '/news/release-notes',
-    search: '',
-    host: 'acme.launchlms.test',
-    hasSession: false,
-    instanceInfo,
-    resolvedCustomDomainOrgSlug: null,
-    orgSubdomainAccess: null,
-  })
-
-  assert.equal(listDecision.action, 'rewrite')
-  assert.equal(listDecision.destination, '/orgs/acme/news')
-  assert.equal(articleDecision.action, 'rewrite')
-  assert.equal(articleDecision.destination, '/orgs/acme/news/release-notes')
 })
 
 test('request policy redirects direct internal org paths to canonical org URLs', () => {
@@ -592,13 +548,13 @@ test('request policy redirects direct internal org paths to canonical org URLs',
 
 test('canonical redirects do not expose a reverse proxy internal scheme or port', () => {
   const publicRequestUrl = buildPublicRequestUrl(
-    'http://life2launch-core.com:8000/orgs/default/badges/system_onboarding',
+    'http://life2launch-core.com:8000/orgs/default/badges/teamwork',
     'life2launch-core.com',
     'https'
   )
   const decision = resolveRequestRouting({
     requestUrl: publicRequestUrl,
-    pathname: '/orgs/default/badges/system_onboarding',
+    pathname: '/orgs/default/badges/teamwork',
     search: '?returnTo=%2Fportfolio',
     host: 'life2launch-core.com',
     hasSession: true,
@@ -614,7 +570,7 @@ test('canonical redirects do not expose a reverse proxy internal scheme or port'
   assert.equal(decision.action, 'redirect')
   assert.equal(
     decision.destination,
-    'https://life2launch-core.com/badges/system_onboarding?returnTo=%2Fportfolio'
+    'https://life2launch-core.com/badges/teamwork?returnTo=%2Fportfolio'
   )
 })
 

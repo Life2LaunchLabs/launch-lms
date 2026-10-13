@@ -35,7 +35,6 @@ def activity_view(document: dict) -> dict:
         "description": meta.get("description") or "",
         "icon": meta.get("icon"),
         "thumbnail_image": meta.get("thumbnail_image") or "",
-        "required": meta.get("required", True),
         "settings": meta.get("settings") or {},
         "pages": [
             {**page, "order": index, "id": -index}
@@ -49,7 +48,6 @@ def _pages(document: dict) -> list[LearningPage]:
         LearningPage(
             id=-index,
             activity_id=PREVIEW_ACTIVITY_ID,
-            badge_id=0,
             org_id=0,
             page_uuid=page["page_uuid"],
             page_type=LearningPageType(page.get("page_type") or "standard"),
@@ -156,7 +154,7 @@ def _complete(document: dict, pages: list[LearningPage], state: dict, page_uuid:
     required = [page.page_uuid for page in pages if page.required and page.page_uuid in reachable]
     if terminal and required and all(uuid in state["completed"] for uuid in required):
         meta = document["activity"]
-        activity = LearningActivity(title=meta["title"], path_id=0, badge_id=0, org_id=0, settings=meta.get("settings") or {})
+        activity = LearningActivity(title=meta["title"], objective_id=0, org_id=0, settings=meta.get("settings") or {})
         state["result"] = _score(pages, state, activity)
         state["status"] = "completed" if state["result"]["passed"] else "in_progress"
     return state
@@ -173,18 +171,14 @@ def run_view(document: dict, state: dict) -> dict:
         "attempts": state["attempts"],
         "page_progress": [{"page_uuid": uuid, "complete": True, "data": {}} for uuid in state["completed"]],
         "navigation": {
-            "activities": [
-                {
-                    "activity_id": PREVIEW_ACTIVITY_ID,
-                    "path": path,
-                    "current_page_uuid": current,
-                    "terminal_reachable": terminal,
-                    "condition_trace": trace,
-                    "completed": len([uuid for uuid in path if uuid in state["completed"]]),
-                    "total": len(path),
-                    "result": state["result"],
-                }
-            ]
+            "activity_id": PREVIEW_ACTIVITY_ID,
+            "path": path,
+            "current_page_uuid": current,
+            "terminal_reachable": terminal,
+            "condition_trace": trace,
+            "completed": len([uuid for uuid in path if uuid in state["completed"]]),
+            "total": len(path),
+            "result": state["result"],
         },
         "render_context": {"answers": _answers(state), "variables": state["variables"]},
         "result": state["result"],

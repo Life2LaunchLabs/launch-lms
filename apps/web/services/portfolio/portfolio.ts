@@ -47,3 +47,26 @@ export const publishMyPortfolio = (payload: unknown, token: string) => mutate('m
 export const unpublishMyPortfolio = (revision: number, token: string) => mutate(`me/unpublish?revision=${encodeURIComponent(revision)}`, 'POST', null, token)
 export const importLegacyPortfolio = (token: string) => mutate('me/legacy-import', 'POST', null, token)
 export const dismissLegacyPortfolioImport = (token: string) => mutate('me/legacy-import/dismiss', 'POST', null, token)
+
+const sameOriginJson = (path: string, body: unknown) => fetch(path, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+
+/** Asks for another verification email; the reply says if the address is already verified. */
+export async function resendVerificationEmail(email: string): Promise<{ verified?: boolean } | null> {
+  const response = await sameOriginJson('/api/auth/resend-verification', { email })
+  if (!response.ok) throw new Error('Could not resend verification email')
+  return response.json().catch(() => null)
+}
+
+/** Changes the signed-in learner's email, then sends a verification email to the new address. */
+export async function changeEmailAndVerify(email: string) {
+  const changed = await sameOriginJson('/api/auth/change-email', { email })
+  const data = await changed.json().catch(() => null)
+  if (!changed.ok) throw new Error(data?.detail || 'Could not change email')
+  await sameOriginJson('/api/auth/resend-verification', { email })
+}
+
+/** Recent posts and profile details for a social account shown on a portfolio. */
+export async function getSocialPreviews(site: 'instagram' | 'youtube', handle: string): Promise<{ items?: any[]; profile?: any }> {
+  const response = await fetch(`/api/portfolio/social-previews?site=${site}&handle=${encodeURIComponent(handle)}`)
+  return response.ok ? response.json() : { items: [] }
+}

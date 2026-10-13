@@ -1,12 +1,11 @@
-"""Badge collection packages (zip) built on Activity Documents.
+"""Badge collection packages (zip): a collection and the definitions of its badges.
 
-Format 2 stores, per badge, the badge fields of its current version and each
-activity as an Activity Document (`activities/NN.activity.json`). Importing
-creates a new badge with a draft version and adds every activity through the
-document path, so page ids, branching flows and button targets are remapped
-and validated exactly like any other document. Format 1 packages (raw rows,
-`activities/<uuid>/activity.json` + `pages/*.json`) are converted to documents
-on the way in, which is the only place legacy page shapes are still accepted.
+A badge is the credential, so a package carries each badge's definition from
+its current version (name, criteria, image, Marketing and certificate
+settings). The ways to earn a badge are plan templates, shared through the
+plan library. Importing creates each badge with a draft version in the
+chosen collection. Activities in packages from before badges were earned
+through plans are not imported.
 """
 
 from __future__ import annotations
@@ -21,23 +20,12 @@ from uuid import uuid4
 
 from fastapi import HTTPException, Request, UploadFile
 from sqlmodel import Session, select
-from src.db.learning import (
-    BadgeCollection,
-    LearningActivity,
-    LearningBadge,
-    LearningBadgeCreate,
-    LearningBadgeVersion,
-    LearningBadgeVersionState,
-)
+from src.db.learning import BadgeCollection, LearningBadge, LearningBadgeCreate, LearningBadgeVersion
 from src.db.users import AnonymousUser, PublicUser
 from src.services import learning as learning_service
-from src.services.learning_documents import store as document_store
-from src.services.learning_documents.document import export_document
-from src.services.learning_documents.models import DOCUMENT_FORMAT, ActivityDocumentCreate
-from src.services.learning_page_convert import convert_legacy_page, normalize_question_settings
 
 LEARNING_EXPORT_FORMAT = "launch-lms-badge-export"
-PACKAGE_VERSION = "2.0.0"
+PACKAGE_VERSION = "3.0.0"
 MAX_PACKAGE_SIZE = 500 * 1024 * 1024
 MAX_COMPRESSION_RATIO = 100
 TEMP_IMPORT_DIR = "content/temp/badge-imports"
@@ -113,17 +101,7 @@ async def export_badge_collection(
             version = _export_version(db_session, badge)
             definition = {**{field: getattr(badge, field) for field in BADGE_FIELDS}, **((version.definition or {}) if version else {})}
             _write_json(zip_file, f"{badge_path}/badge.json", {"badge_uuid": badge.badge_uuid, **{field: definition.get(field) for field in BADGE_FIELDS}})
-            activities = (
-                db_session.exec(
-                    select(LearningActivity).where(LearningActivity.version_id == version.id).order_by(LearningActivity.order.asc())  # type: ignore[union-attr]
-                ).all()
-                if version
-                else []
-            )
-            for index, activity in enumerate(activities, start=1):
-                document = export_document(activity, document_store.activity_pages(db_session, activity))
-                _write_json(zip_file, f"{badge_path}/activities/{index:02d}.activity.json", document)
-            entries.append({"badge_uuid": badge.badge_uuid, "name": badge.name, "path": badge_path, "activities": len(activities)})
+            entries.append({"badge_uuid": badge.badge_uuid, "name": badge.name, "path": badge_path})
         _write_json(
             zip_file,
             "manifest.json",
@@ -137,62 +115,6 @@ async def export_badge_collection(
         )
     buffer.seek(0)
     return buffer.getvalue()
-
-
-def _legacy_activity_document(activity_dir: str) -> dict:
-    """Convert a format-1 activity directory into an Activity Document."""
-    activity = _read_json(os.path.join(activity_dir, "activity.json"))
-    pages = []
-    pages_dir = os.path.join(activity_dir, "pages")
-    files = sorted(name for name in os.listdir(pages_dir) if name.endswith(".json")) if os.path.isdir(pages_dir) else []
-    for raw in sorted((_read_json(os.path.join(pages_dir, name)) for name in files), key=lambda item: item.get("order") or 0):
-        page_type, content = convert_legacy_page(str(raw.get("page_type") or "info"), raw.get("content") or {})
-        if page_type == "standard":
-            content = normalize_question_settings(content, raw.get("scoring"), raw.get("completion"))
-        pages.append(
-            {
-                "page_uuid": raw.get("page_uuid") or f"imported-{len(pages) + 1}",
-                "page_type": page_type,
-                "title": raw.get("title") or "Untitled page",
-                "required": raw.get("required", True),
-                "content": content,
-                "design": raw.get("design") or {},
-            }
-        )
-    settings = {key: value for key, value in (activity.get("settings") or {}).items() if key not in {"system_required", "version_lineage_uuid"}}
-    return {
-        "format": DOCUMENT_FORMAT,
-        "format_version": 1,
-        "activity": {
-            "title": activity.get("title") or "Untitled activity",
-            "description": activity.get("description") or "",
-            "icon": activity.get("icon"),
-            "thumbnail_image": activity.get("thumbnail_image") or "",
-            "required": activity.get("required", True),
-            "settings": settings,
-        },
-        "pages": pages,
-    }
-
-
-def _package_documents(badge_path: str) -> list[dict]:
-    activities_dir = os.path.join(badge_path, "activities")
-    if not os.path.isdir(activities_dir):
-        return []
-    documents = []
-    for name in sorted(os.listdir(activities_dir)):
-        full = os.path.join(activities_dir, name)
-        if name.endswith(".activity.json"):
-            documents.append(_read_json(full))
-        elif os.path.isdir(full) and os.path.exists(os.path.join(full, "activity.json")):
-            order = _read_json(os.path.join(full, "activity.json")).get("order") or 0
-            documents.append({**_legacy_activity_document(full), "_order": order})
-    if any("_order" in document for document in documents):
-        documents.sort(key=lambda document: document.get("_order", 0))
-    for document in documents:
-        document.pop("_order", None)
-        document.get("activity", {}).pop("activity_uuid", None)
-    return [document for document in documents if document.get("pages")]
 
 
 def _extract_zip(content: bytes, temp_dir: str) -> str:
@@ -240,20 +162,17 @@ async def analyze_badge_import_package(
         for entry in manifest.get("badges", []):
             badge_path = os.path.join(extract_dir, sanitize_path(entry.get("path", "")))
             badge_data = _read_json(os.path.join(badge_path, "badge.json"))
-            documents = _package_documents(badge_path)
             badges.append(
                 {
                     "badge_uuid": badge_data.get("badge_uuid") or entry.get("badge_uuid"),
                     "name": badge_data.get("name") or entry.get("name") or "Untitled Badge",
                     "description": badge_data.get("description") or "",
-                    "activities_count": len(documents),
-                    "pages_count": sum(len(document["pages"]) for document in documents),
                     "has_thumbnail": bool(badge_data.get("thumbnail_image")),
                 }
             )
         if not badges:
             raise HTTPException(status_code=400, detail="Invalid package: No valid badges found")
-        return {"temp_id": temp_id, "version": manifest.get("version", "1.0.0"), "source_format": LEARNING_EXPORT_FORMAT, "requires_conversion": False, "badges": badges}
+        return {"temp_id": temp_id, "version": manifest.get("version", "1.0.0"), "badges": badges}
     except HTTPException:
         shutil.rmtree(temp_dir, ignore_errors=True)
         raise
@@ -278,13 +197,6 @@ async def _import_single_badge(
         current_user,
         db_session,
     )
-    draft = db_session.exec(
-        select(LearningBadgeVersion).where(LearningBadgeVersion.badge_id == created.id, LearningBadgeVersion.state == LearningBadgeVersionState.DRAFT)
-    ).one()
-    for document in _package_documents(badge_path):
-        await document_store.create_activity_from_document(
-            request, ActivityDocumentCreate(badge_uuid=created.badge_uuid, version_uuid=draft.version_uuid, document=document), current_user, db_session
-        )
     return db_session.get(LearningBadge, created.id)
 
 
@@ -329,8 +241,6 @@ async def import_badge_package(
     shutil.rmtree(os.path.join(TEMP_IMPORT_DIR, temp_id), ignore_errors=True)
     successful = len([result for result in results if result["success"]])
     return {
-        "source_format": LEARNING_EXPORT_FORMAT,
-        "requires_conversion": False,
         "total_badges": len(results),
         "successful": successful,
         "failed": len(results) - successful,

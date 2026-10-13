@@ -1,9 +1,7 @@
 """Badge versions, lookups, serializers and read access."""
 
 from copy import deepcopy
-from uuid import uuid4
 from fastapi import HTTPException, status
-from sqlalchemy import or_
 from sqlmodel import Session, select
 from src.db.learning import (
     BadgeIssuerAuthorization,
@@ -17,23 +15,29 @@ from src.db.learning import (
     LearningBadgeVersionState,
     LearningPage,
     LearningPageRead,
-    LearningPath,
     LearningResponseAttempt,
     LearningRun,
 )
 from src.db.users import AnonymousUser, PublicUser
-from src.services.guest_sessions import LearningActor
-from src.services.learning import access_rules, constants
+from src.services.learning import access_rules
 
 
 VERSIONED_BADGE_FIELDS = (
-    "name", "description", "about", "criteria", "thumbnail_image", "protected",
-    "system_type", "direct_conferral_enabled", "badge_metadata",
+    "name", "description", "about", "criteria", "thumbnail_image", "direct_conferral_enabled", "badge_metadata",
 )
 
 
 def _badge_definition(badge: LearningBadge) -> dict:
     return {key: deepcopy(getattr(badge, key)) for key in VERSIONED_BADGE_FIELDS}
+
+
+def _get_badge(db_session: Session, badge_uuid: str) -> LearningBadge:
+    badge = db_session.exec(select(LearningBadge).where(
+        LearningBadge.badge_uuid == access_rules._clean_uuid(badge_uuid, "badge_"), LearningBadge.deleted_at.is_(None),  # type: ignore[union-attr]
+    )).first()
+    if not badge:
+        raise HTTPException(status_code=404, detail="Badge not found")
+    return badge
 
 
 def _get_badge_version(db_session: Session, badge: LearningBadge, version_uuid: str | None = None, *, require_published: bool = False) -> LearningBadgeVersion:
@@ -80,43 +84,27 @@ def _ensure_draft(version: LearningBadgeVersion) -> None:
         raise HTTPException(status_code=409, detail="Published versions are read-only. Create a draft to make changes.")
 
 
-def _bump_version(version: LearningBadgeVersion) -> None:
+def _bump_version(version: LearningBadgeVersion, db_session: Session | None = None) -> None:
+    """Record an edit on a badge version's definition."""
     version.revision += 1
     version.update_date = access_rules._now()
+    if db_session is not None:
+        db_session.add(version)
 
 
-def _version_for_content(db_session: Session, version_id: int | None) -> LearningBadgeVersion | None:
-    return db_session.get(LearningBadgeVersion, version_id) if version_id else None
+def _require_activity_editor(db_session: Session, user, activity: LearningActivity) -> None:
+    """Activities belong to plan templates; their organization's admins edit them."""
+    access_rules._require_org_admin(db_session, user, activity.org_id)
 
 
-def _assert_content_editable(db_session: Session, version_id: int | None) -> LearningBadgeVersion:
-    version = _version_for_content(db_session, version_id)
-    if not version:
-        raise HTTPException(status_code=409, detail="This legacy content is not attached to an editable draft.")
-    _ensure_draft(version)
-    return version
+def _is_system_activity(db_session: Session, activity: LearningActivity) -> bool:
+    """Activities of a system template (the starter plan) may use trusted portfolio outcomes and system blocks."""
+    from src.db.programs import Program, ProgramObjective
 
-
-def _get_path_for_badge(db_session: Session, badge: LearningBadge, version: LearningBadgeVersion | None = None, *, create: bool = True) -> LearningPath | None:
-    version_id = version.id if version else badge.active_version_id
-    path = db_session.exec(select(LearningPath).where(LearningPath.badge_id == badge.id, LearningPath.version_id == version_id)).first()
-    if not path:
-        if not create:
-            return None
-        path = LearningPath(
-            path_uuid=f"path_{uuid4()}",
-            badge_id=badge.id or 0,
-            version_id=version_id,
-            org_id=badge.org_id,
-            title=f"{badge.name} Path",
-            description=badge.description or "",
-            creation_date=access_rules._now(),
-            update_date=access_rules._now(),
-        )
-        db_session.add(path)
-        db_session.commit()
-        db_session.refresh(path)
-    return path
+    return db_session.exec(
+        select(Program.id).join(ProgramObjective, ProgramObjective.program_id == Program.id)
+        .where(ProgramObjective.objective_id == activity.objective_id, Program.system_type.is_not(None))  # type: ignore[union-attr]
+    ).first() is not None
 
 
 def _serialize_page(page: LearningPage) -> LearningPageRead:
@@ -155,16 +143,11 @@ def _get_page(db_session: Session, page_uuid: str) -> LearningPage:
     return page
 
 
-def _get_run(
-    db_session: Session, run_uuid: str, actor: LearningActor | None = None
-) -> LearningRun:
-    statement = select(LearningRun).where(
-        LearningRun.run_uuid == access_rules._clean_uuid(run_uuid, "learning_run_")
-    )
-    if actor:
-        for owner_filter in access_rules._actor_filters(LearningRun, actor):
-            statement = statement.where(owner_filter)
-    run = db_session.exec(statement).first()
+def _get_run(db_session: Session, run_uuid: str, user_id: int) -> LearningRun:
+    """The learner's own run."""
+    run = db_session.exec(select(LearningRun).where(
+        LearningRun.run_uuid == access_rules._clean_uuid(run_uuid, "learning_run_"), LearningRun.user_id == user_id,
+    )).first()
     if not run:
         raise HTTPException(status_code=404, detail="Learning run not found")
     return run
@@ -177,19 +160,11 @@ def _is_publicly_visible_badge(badge: LearningBadge) -> bool:
     return bool(badge.public and badge.status in PUBLIC_BADGE_STATUSES)
 
 
-def _is_startable_badge(badge: LearningBadge) -> bool:
-    return bool(badge.public and badge.status == LearningBadgeStatus.PUBLISHED)
-
-
 def _public_badge_query(org_id: int | None = None):
     statement = select(LearningBadge).where(
         LearningBadge.public == True,
         LearningBadge.status.in_(PUBLIC_BADGE_STATUSES),
         LearningBadge.deleted_at.is_(None),
-        or_(
-            LearningBadge.system_type.is_(None),  # type: ignore
-            LearningBadge.system_type != constants.LEARNING_SYSTEM_TYPE_ONBOARDING,
-        ),
     )
     if org_id is not None:
         statement = statement.where(LearningBadge.org_id == org_id)

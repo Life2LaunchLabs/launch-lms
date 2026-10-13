@@ -1,0 +1,48 @@
+'use client'
+
+import Link from 'next/link'
+import { ArrowRight, Check, ChevronDown, Circle, FolderOpen, Globe2, Sparkles, Star, WandSparkles } from 'lucide-react'
+
+import { Button } from '@components/ui/button'
+import { Popover, PopoverContent, PopoverTrigger } from '@components/ui/popover'
+import { getUriWithOrg } from '@services/config/config'
+import type { Shell } from './portfolioTypes'
+
+// The Launch Ready checklist and the empty states that point at what to add next.
+
+function ChecklistMenu({ checklist, orgslug, children, align = 'end' }: { checklist?: Shell['checklist']; orgslug: string; children: React.ReactNode; align?: 'start' | 'center' | 'end' }) {
+  if (!checklist?.total) return null
+  return <Popover><PopoverTrigger asChild>{children}</PopoverTrigger><PopoverContent align={align} sideOffset={8} collisionPadding={16} className="z-[10001] w-[min(22rem,calc(100vw-2rem))] rounded-2xl border-border bg-popover p-4 shadow-2xl"><div className="flex items-end justify-between"><div><p className="text-lg font-black">Launch Ready</p><p className="mt-0.5 text-xs text-muted-foreground">Let’s build your portfolio</p></div><span className="text-sm font-black tabular-nums text-muted-foreground">{checklist.completed}/{checklist.total}</span></div><div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-[var(--org-primary-color)] transition-[width]" style={{ width: `${checklist.percent}%` }} /></div><div className="mt-3 space-y-0.5">{checklist.items.map((item) => item.complete ? <div key={item.key} className="flex items-center gap-3 rounded-lg px-2 py-2.5 text-foreground"><span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--org-primary-color)] text-[var(--org-on-primary-color)] shadow-sm"><Check className="h-3 w-3" /></span><span className="text-sm font-semibold">{item.label}</span></div> : <Link key={item.key} href={getUriWithOrg(orgslug, item.href)} className="group flex items-center gap-3 rounded-lg px-2 py-2.5 transition hover:bg-muted"><Circle className="h-5 w-5 shrink-0 text-muted-foreground" /><span className="min-w-0 flex-1 text-sm font-semibold">{item.label}</span><ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 transition group-hover:translate-x-0.5 group-hover:opacity-100" /></Link>)}</div></PopoverContent></Popover>
+}
+
+function ProgressRing({ checklist, size = 'compact', inverse = false }: { checklist: NonNullable<Shell['checklist']>; size?: 'compact' | 'expanded'; inverse?: boolean }) {
+  const dimensions = size === 'compact' ? 'h-6 w-6' : 'h-7 w-7'
+  const progressColor = inverse ? 'var(--org-on-primary-color)' : 'var(--org-primary-color)'
+  const trackColor = inverse ? 'color-mix(in srgb, var(--org-on-primary-color) 24%, transparent)' : 'hsl(var(--muted))'
+  const centerColor = inverse ? 'var(--org-primary-color)' : 'hsl(var(--background))'
+  return <span role="progressbar" aria-label={`${checklist.completed} of ${checklist.total} Launch Ready items complete`} aria-valuemin={0} aria-valuemax={checklist.total} aria-valuenow={checklist.completed} className={`${dimensions} relative shrink-0 rounded-full`} style={{ background: `conic-gradient(${progressColor} ${checklist.percent}%, ${trackColor} 0)` }}><span className="absolute inset-[3px] rounded-full" style={{ backgroundColor: centerColor }} /></span>
+}
+
+function CompletionStar({ size = 'compact' }: { size?: 'compact' | 'expanded' }) {
+  const dimensions = size === 'compact' ? 'h-6 w-6' : 'h-8 w-8'
+  return <span className={`${dimensions} flex shrink-0 items-center justify-center rounded-full bg-[var(--org-primary-color)] text-[var(--org-on-primary-color)]`}><Star className={size === 'compact' ? 'h-3.5 w-3.5' : 'h-4 w-4'} fill="currentColor" /></span>
+}
+
+export function ChecklistGauge({ checklist, orgslug, onPublish, busy }: { checklist?: Shell['checklist']; orgslug: string; onPublish: () => void; busy: boolean }) {
+  if (!checklist?.total) return null
+  if (checklist.completed === checklist.total) return <Popover><PopoverTrigger asChild><button type="button" className="inline-flex h-9 shrink-0 items-center gap-2 rounded-full border border-border bg-background px-2.5 text-xs font-black shadow-sm transition hover:bg-muted" aria-label="Your portfolio is ready to publish"><CompletionStar /><ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /></button></PopoverTrigger><PopoverContent align="end" sideOffset={8} collisionPadding={16} className="z-[10001] w-[min(20rem,calc(100vw-2rem))] rounded-2xl border-border bg-popover p-4 shadow-2xl"><div className="flex items-start gap-3"><CompletionStar size="expanded" /><div><p className="font-black">Your portfolio is ready to share</p><p className="mt-1 text-sm leading-relaxed text-muted-foreground">Publish it so others can see what you’ve built.</p></div></div><Button variant="brand" className="mt-4 w-full" onClick={onPublish} disabled={busy}><Globe2 className="mr-2 h-4 w-4" />{busy ? 'Publishing…' : 'Publish portfolio'}</Button></PopoverContent></Popover>
+  return <ChecklistMenu checklist={checklist} orgslug={orgslug}><button type="button" className="inline-flex h-9 shrink-0 items-center gap-2 rounded-full border border-border bg-background px-3 text-xs font-black shadow-sm transition hover:bg-muted" aria-label={`Open Launch Ready checklist, ${checklist.completed} of ${checklist.total} complete`}><span className="tabular-nums">{checklist.completed}/{checklist.total}</span><ProgressRing checklist={checklist} /><ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /></button></ChecklistMenu>
+}
+
+export function ChecklistBanner({ checklist, orgslug, onPublish, busy }: { checklist?: Shell['checklist']; orgslug: string; onPublish: () => void; busy: boolean }) {
+  if (!checklist?.total) return null
+  const next = checklist.nextIncomplete
+  if (!next) return <div className="mb-2 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-border bg-card px-3 py-2.5 shadow-sm"><CompletionStar size="expanded" /><div className="min-w-0"><p className="text-sm font-black">Your portfolio is ready to share</p><p className="text-xs text-muted-foreground">Publish it so others can see what you’ve built.</p></div><Button variant="brand" size="sm" onClick={onPublish} disabled={busy}><Globe2 className="mr-1.5 h-4 w-4" />{busy ? 'Publishing…' : 'Publish'}</Button></div>
+  return <div className="mb-2 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 rounded-xl bg-[var(--org-primary-color)] px-4 py-3 text-[var(--org-on-primary-color)] shadow-sm"><div className="flex flex-col items-center gap-0.5"><ProgressRing checklist={checklist} size="expanded" inverse /><span className="text-[10px] font-black tabular-nums opacity-75">{checklist.completed}/{checklist.total}</span></div><div className="min-w-0"><p className="truncate text-sm font-black">{next.label}</p><p className="mt-0.5 truncate text-xs opacity-80">{next.supportingText}</p><Button asChild size="sm" className="mt-2 h-8 bg-[var(--org-on-primary-color)] px-3 text-xs font-black text-[var(--org-primary-color)] shadow-sm hover:bg-[var(--org-on-primary-color)] hover:opacity-90"><Link href={getUriWithOrg(orgslug, next.href)}>Continue<ArrowRight className="ml-1.5 h-3.5 w-3.5" /></Link></Button></div><ChecklistMenu checklist={checklist} orgslug={orgslug}><button type="button" aria-label="View all Launch Ready checklist items" className="flex h-10 w-10 items-center justify-center rounded-full text-[var(--org-on-primary-color)] transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--org-on-primary-color)]"><ChevronDown className="h-5 w-5" /></button></ChecklistMenu></div>
+}
+
+export function EmptyTab({ icon: Icon, eyebrow, title, description, examples, action, href, orgslug }: { icon: React.ComponentType<{ className?: string }>; eyebrow: string; title: string; description: string; examples: string[]; action: string; href: string; orgslug: string }) {
+  return <section className="mx-auto flex max-w-xl flex-col items-center px-4 py-3 text-center sm:py-5"><div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-muted text-muted-foreground"><Icon className="h-8 w-8" /><Sparkles className="absolute -right-2 top-1 h-4 w-4" /><WandSparkles className="absolute -left-2 bottom-2 h-3.5 w-3.5" /></div><p className="mt-4 text-[11px] font-black uppercase tracking-[0.18em] text-muted-foreground">{eyebrow}</p><h2 className="mt-1.5 text-2xl font-black tracking-tight sm:text-3xl">{title}</h2><p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">{description}</p><ul className="mt-4 grid w-full max-w-md grid-cols-1 gap-x-5 gap-y-1.5 text-left sm:grid-cols-2">{examples.map((example) => <li key={example} className="flex items-center gap-2 text-sm"><span className="flex h-5 w-5 items-center justify-center rounded-full bg-muted text-muted-foreground"><Check className="h-3 w-3" /></span>{example}</li>)}</ul><Button asChild variant="brand" className="mt-5 w-full max-w-sm"><Link href={getUriWithOrg(orgslug, href)}>{action}<ArrowRight className="ml-auto h-4 w-4" /></Link></Button></section>
+}
+
+export function EmptyProject({ orgslug }: { orgslug: string }) { return <EmptyTab icon={FolderOpen} eyebrow="Your projects" title="Let’s add your first project" description="Projects can be anything you’re proud of—not just formal project." examples={['School project', 'Personal projects', 'Clubs and activities', 'Volunteering', 'Anything you’ve built']} action="Add project" href="/portfolio/projects/new" orgslug={orgslug} /> }

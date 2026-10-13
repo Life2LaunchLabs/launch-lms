@@ -28,7 +28,6 @@ from src.db.users import (
     UserUpdatePassword,
 )
 from src.security.auth import get_authenticated_user, get_current_user
-from src.services.guest_sessions import transfer_guest_session_data_to_user
 from src.services.orgs.orgs import get_org_join_mechanism
 from src.services.security.rate_limiting import check_password_reset_rate_limit
 from src.services.users.password_reset import (
@@ -188,12 +187,6 @@ async def api_create_user_with_orgid(
             user_object,
             org_id,
         )
-        transfer_guest_session_data_to_user(
-            request=request,
-            response=response,
-            db_session=db_session,
-            user=PublicUser.model_validate(user),
-        )
         return user
 
 
@@ -217,12 +210,6 @@ async def api_create_user_with_orgid_and_invite(
     user = await create_user_with_invite(
         request, db_session, current_user, user_object, org_id, invite_code
     )
-    transfer_guest_session_data_to_user(
-        request=request,
-        response=response,
-        db_session=db_session,
-        user=PublicUser.model_validate(user),
-    )
     return user
 
 
@@ -245,12 +232,6 @@ async def api_create_user_with_organization_invitation(
         org_id,
         invitation_token,
     )
-    transfer_guest_session_data_to_user(
-        request=request,
-        response=response,
-        db_session=db_session,
-        user=PublicUser.model_validate(user),
-    )
     return user
 
 
@@ -267,12 +248,6 @@ async def api_create_user_without_org(
     Create User
     """
     user = await create_user_without_org(request, db_session, current_user, user_object)
-    transfer_guest_session_data_to_user(
-        request=request,
-        response=response,
-        db_session=db_session,
-        user=PublicUser.model_validate(user),
-    )
     return user
 
 

@@ -1,6 +1,6 @@
-import ProgramsAdminPage from '@components/Admin/Programs/ProgramsAdminPage'
+import { redirect } from 'next/navigation'
+import { routePaths } from '@services/config/config'
 
-export default async function PlanReportingPage({ params }: { params: Promise<{ orgslug: string }> }) {
-  const { orgslug } = await params
-  return <ProgramsAdminPage orgslug={orgslug} rootTab="reporting" />
+export default async function PlanReportingRedirect() {
+  redirect(routePaths.org.dash.planRequirements())
 }

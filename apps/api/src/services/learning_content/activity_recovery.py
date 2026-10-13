@@ -10,7 +10,7 @@ from sqlmodel import Session, select
 
 from src.db.learning import LearningActivity, LearningPage, LearningPageType
 from src.db.users import AnonymousUser, PublicUser
-from src.services.learning import access_rules, lookups
+from src.services.learning import lookups
 from src.services.learning_content.models import Flow, StandardPageContent
 from src.services.learning_content.recovery import content_issues, repair
 
@@ -37,16 +37,15 @@ async def get_activity_issues(request: Request, activity_uuid: str, current_user
     """Content issues per page and in the flow. Pages with issues still work for
     learners and can still be saved; edits just cannot add new issues."""
     activity = lookups._get_activity(db_session, activity_uuid)
-    access_rules._require_org_admin(db_session, current_user, activity.org_id)
+    lookups._require_activity_editor(db_session, current_user, activity)
     return _issues(activity, _pages(db_session, activity))
 
 
 async def repair_activity(request: Request, activity_uuid: str, apply: bool, current_user: PublicUser | AnonymousUser, db_session: Session) -> dict:
     """Fix what can be fixed mechanically. ``apply=False`` only reports the
-    changes so the admin can review them first; applying requires a draft."""
+    changes so the admin can review them first."""
     activity = lookups._get_activity(db_session, activity_uuid)
-    access_rules._require_org_admin(db_session, current_user, activity.org_id)
-    version = lookups._assert_content_editable(db_session, activity.version_id) if apply else None
+    lookups._require_activity_editor(db_session, current_user, activity)
     pages = _pages(db_session, activity)
     changes: dict = {"pages": {}, "flow": []}
     for page in pages:
@@ -65,9 +64,7 @@ async def repair_activity(request: Request, activity_uuid: str, apply: bool, cur
         if apply and changes["flow"]:
             activity.settings = {**(activity.settings or {}), "flow": fixed_flow}
             db_session.add(activity)
-    if apply and version and (changes["pages"] or changes["flow"]):
-        lookups._bump_version(version)
-        db_session.add(version)
+    if apply and (changes["pages"] or changes["flow"]):
         db_session.commit()
         logger.info("Repaired learning activity %s content: %s", activity.activity_uuid, changes)
     return {

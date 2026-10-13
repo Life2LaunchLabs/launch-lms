@@ -1,9 +1,9 @@
 # Launch LMS activity authoring guide
 
-An **activity** is one step of a badge's learning path. It is a sequence of
-**pages** a learner works through on a phone-sized card, optionally routed by a
-branching **flow**. Activities live inside a badge **version**: only draft
-versions can be edited; publishing a draft is done by an admin in Launch LMS.
+An **activity** is the content of a plan template's activity step. It is a
+sequence of **pages** a learner works through on a phone-sized card, optionally
+routed by a branching **flow**. It is edited in place: a save reaches every
+learner playing it.
 
 ## Document shape
 
@@ -17,7 +17,6 @@ versions can be edited; publishing a draft is done by an admin in Launch LMS.
     "description": "",
     "icon": null,
     "thumbnail_image": "",
-    "required": true,
     "settings": { "grading": { "minimum_score_percent": 70 }, "flow": { … } }
   },
   "pages": [ { "page_uuid": "learning_page_…", "page_type": "standard", "title": "Welcome", "required": true,

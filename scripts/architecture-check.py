@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 import re
 
@@ -20,19 +21,22 @@ RULES = {
     "component-direct-fetch": ("apps/web/components", (".ts", ".tsx"), re.compile(r"\bfetch\s*\(")),
     "component-direct-mui": ("apps/web/components", (".ts", ".tsx"), re.compile(r"from\s+['\"]@mui/")),
 }
-EXCLUDED = {"node_modules", ".next", "tests", "test", "fixtures", "generated", "__pycache__"}
+EXCLUDED = {"node_modules", ".next", ".next-ui-test", "tests", "test", "fixtures", "generated", "__pycache__"}
 
 
 def findings() -> dict[str, dict[str, int]]:
     result: dict[str, dict[str, int]] = {}
     for name, (root, suffixes, pattern) in RULES.items():
         matches = {}
-        for path in (ROOT / root).rglob("*"):
-            if not path.is_file() or path.suffix not in suffixes or set(path.relative_to(ROOT).parts) & EXCLUDED:
-                continue
-            count = len(pattern.findall(path.read_text(encoding="utf-8")))
-            if count:
-                matches[str(path.relative_to(ROOT))] = count
+        for directory, directories, filenames in os.walk(ROOT / root):
+            directories[:] = [entry for entry in directories if entry not in EXCLUDED]
+            for filename in filenames:
+                path = Path(directory) / filename
+                if path.suffix not in suffixes:
+                    continue
+                count = len(pattern.findall(path.read_text(encoding="utf-8")))
+                if count:
+                    matches[str(path.relative_to(ROOT))] = count
         result[name] = matches
     return result
 

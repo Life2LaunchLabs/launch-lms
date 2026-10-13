@@ -11,9 +11,8 @@ const PodcastPlayer = dynamic(() => import('@components/Objects/Podcasts/Podcast
 import { PageViewTracker } from '@components/Analytics/PageViewTracker'
 import { usePathname } from 'next/navigation'
 import { GuestHeader } from '@components/Objects/Menus/GuestHeader'
-import HubWorkspace from '@components/Hub/HubWorkspace'
-import '@components/Hub/workspace.css'
-import { useHubWorkspace } from '@components/Contexts/HubWorkspaceContext'
+import HubShell from '@components/Hub/HubShell'
+import { useHub } from '@components/Hub/HubContext'
 import ExperiencePreferenceTracker from '@components/Auth/ExperiencePreferenceTracker'
 import CandidateExperience from '@components/Candidate/CandidateExperience'
 import OperationsSurface from '@components/Operations/OperationsSurface'
@@ -36,13 +35,13 @@ function OrgFooter() {
 function LayoutContent({ children, orgslug }: { children: React.ReactNode; orgslug: string }) {
   const session = useLHSession() as any
   const pathname = usePathname()
-  const workspace = useHubWorkspace()
+  const hub = useHub()
   const isLandingPage = session?.status === 'unauthenticated' && pathname === '/'
 
   const pathParts = pathname?.split('/').filter(Boolean) || []
 
   // Pages that use a full-bleed layout (no footer)
-  const noFooterPaths = ['copilot', 'hub']
+  const noFooterPaths = ['copilot']
   const isFullBleedPage = noFooterPaths.some((p) => pathParts.includes(p))
   const isActivityPage = pathname?.includes('/activity/') || /^\/badges\/[^/]+\/chapter\/[^/]+/.test(pathname || '')
   const isCoursePage = /^\/course\/[^/]+$/.test(pathname || '')
@@ -79,20 +78,16 @@ function LayoutContent({ children, orgslug }: { children: React.ReactNode; orgsl
           <GuestHeader orgslug={orgslug} />
         </div>
       )}
-      <div className="flex-1 relative print:flex-none" style={{ zIndex: 'var(--z-content)' }}>
-        <div className={`mx-auto w-full md:flex md:max-w-full md:items-start print:block print:px-0 ${isActivityPage ? 'md:w-full md:px-0' : 'md:w-fit md:gap-4 md:px-4 lg:px-5 xl:px-6 2xl:px-8'}`}>
+      <div className="org-page-body scrollbar-subtle scrollbar-subtle-rounded flex-1 min-h-0 relative print:flex-none" style={{ zIndex: 'var(--z-content)' }}>
+        <div className={`org-page-layout mx-auto w-full md:flex md:items-start print:block print:px-0 ${isActivityPage ? 'md:w-full md:px-0' : 'md:px-6'}`}>
           {showOrgMenu && (
             <div className="print:hidden md:contents">
-              <OrgMenu orgslug={orgslug} compact={workspace?.compact} />
+              <OrgMenu orgslug={orgslug} compact={hub?.state === 'open'} />
             </div>
           )}
-          <div className={`min-w-0 w-full pb-[calc(5rem+env(safe-area-inset-bottom))] md:max-w-full md:shrink md:pb-0 print:pb-0 ${isActivityPage ? 'md:w-full' : 'md:w-[66rem]'}`}>
-            {children}
+          <div className={`org-page-content learner-page min-w-0 w-full pb-[calc(5rem+env(safe-area-inset-bottom))] md:max-w-full md:shrink md:pb-0 print:pb-0 ${isActivityPage ? 'md:w-full' : 'md:w-[66rem]'}`}>
+            <div className="learner-page-inner">{children}</div>
           </div>
-          <div
-            id="org-layout-right-sidebar"
-            className="hidden w-[280px] shrink-0 self-stretch pt-6 empty:hidden lg:block print:hidden"
-          />
         </div>
       </div>
       {!isFullBleedPage && <OrgFooter />}
@@ -120,9 +115,9 @@ export default function RootLayout(
         <PodcastPlayerProvider>
           <OperationsSurface />
           <CandidateExperience />
-          {session?.status === 'authenticated' ? <HubWorkspace key={`${org?.id}:${session?.data?.user?.id}`} orgslug={params?.orgslug}>
+          {session?.status === 'authenticated' ? <HubShell key={`${org?.id}:${session?.data?.user?.id}`} orgslug={params?.orgslug} orgId={org?.id}>
             <LayoutContent orgslug={params?.orgslug}>{children}</LayoutContent>
-          </HubWorkspace> : <LayoutContent orgslug={params?.orgslug}>{children}</LayoutContent>}
+          </HubShell> : <LayoutContent orgslug={params?.orgslug}>{children}</LayoutContent>}
           <PodcastPlayer />
         </PodcastPlayerProvider>
       </OrgJoinBannerProvider>

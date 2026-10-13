@@ -11,26 +11,23 @@ from src.db.learning import (
     LearningBadgeVersionState,
     LearningPage,
     LearningPageType,
-    LearningPath,
 )
 from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
 from src.db.users import User
 from src.services import learning as learning_service
 from src.services.learning import (
-    LAUNCH_READY_ACTIVITY_UUIDS,
-    LAUNCH_READY_DEFAULT_IMAGES,
     _apply_learning_variables_to_user,
     _extract_learning_variables,
     _grade_answer,
     _validate_page_payload,
-    _validate_variable_key,
     build_learning_assertion_payload,
     build_learning_badge_class_payload,
     create_badge,
     _ensure_draft,
-    _parse_semver,
 )
+from src.services.learning.variable_definitions import _validate_variable_key
+from src.services.learning.version_drafts import _parse_semver
 from src.services.learning_page_convert import (
     normalize_question_settings,
     convert_legacy_page,
@@ -68,7 +65,7 @@ class _BadgeCreateSession:
     def commit(self):
         self.commit_count += 1
         if self.fail_commit:
-            raise RuntimeError("path insert failed")
+            raise RuntimeError("version insert failed")
 
     def refresh(self, item):
         return None
@@ -78,7 +75,7 @@ class _BadgeCreateSession:
 
 
 @pytest.mark.asyncio
-async def test_create_badge_commits_badge_and_default_path_together(monkeypatch):
+async def test_create_badge_commits_badge_and_initial_draft_together(monkeypatch):
     monkeypatch.setattr(learning_service.access_rules, "_require_org_admin", lambda *_args: None)
     monkeypatch.setattr(learning_service.badge_service, "_require_badge_creation_access", lambda *_args: None)
     session = _BadgeCreateSession()
@@ -91,19 +88,22 @@ async def test_create_badge_commits_badge_and_default_path_together(monkeypatch)
     )
 
     badge = next(item for item in session.added if isinstance(item, LearningBadge))
-    path = next(item for item in session.added if isinstance(item, LearningPath))
+    version = next(item for item in session.added if isinstance(item, LearningBadgeVersion))
     assert session.commit_count == 1
-    assert path.badge_id == badge.id == 42
+    assert version.badge_id == badge.id == 42
+    assert version.state == LearningBadgeVersionState.DRAFT
+    assert badge.status == LearningBadgeStatus.DRAFT
     assert result.id == 42
+    assert result.selected_version["version_uuid"] == version.version_uuid
 
 
 @pytest.mark.asyncio
-async def test_create_badge_rolls_back_when_default_path_cannot_be_committed(monkeypatch):
+async def test_create_badge_rolls_back_when_initial_draft_cannot_be_committed(monkeypatch):
     monkeypatch.setattr(learning_service.access_rules, "_require_org_admin", lambda *_args: None)
     monkeypatch.setattr(learning_service.badge_service, "_require_badge_creation_access", lambda *_args: None)
     session = _BadgeCreateSession(fail_commit=True)
 
-    with pytest.raises(RuntimeError, match="path insert failed"):
+    with pytest.raises(RuntimeError, match="version insert failed"):
         await create_badge(
             _request(),
             LearningBadgeCreate(org_id=1, collection_id=7, name="Demo badge"),
@@ -243,26 +243,11 @@ def _award() -> LearningBadgeAward:
         badge_id=10,
         org_id=1,
         user_id=20,
-        source=LearningAwardSource.PATH_COMPLETION,
+        source=LearningAwardSource.PLAN_COMPLETION,
         evidence={"narrative": "Completed every required activity."},
         creation_date="2026-01-01T00:00:00",
         update_date="2026-01-01T00:00:00",
     )
-
-
-def test_launch_ready_activity_set_excludes_theme_customization():
-    assert "theme" not in LAUNCH_READY_ACTIVITY_UUIDS
-    assert "/images/launch-ready/theme.png" not in LAUNCH_READY_DEFAULT_IMAGES.values()
-    assert list(LAUNCH_READY_ACTIVITY_UUIDS) == [
-        "identity",
-        "profile",
-        "timeline",
-        "project",
-        "traits",
-        "links",
-        "badges",
-        "launch",
-    ]
 
 
 def _standard_page(page_uuid: str, question: dict | None = None, **overrides) -> LearningPage:
@@ -272,7 +257,6 @@ def _standard_page(page_uuid: str, question: dict | None = None, **overrides) ->
     return LearningPage(
         id=overrides.pop("id", 1),
         activity_id=1,
-        badge_id=10,
         org_id=1,
         page_uuid=page_uuid,
         page_type=LearningPageType.STANDARD,
@@ -318,8 +302,7 @@ def test_multiple_choice_grading_uses_correct_option_ids():
 def test_activity_grading_is_inferred_from_scored_questions(monkeypatch):
     activity = LearningActivity(
         id=1,
-        path_id=1,
-        badge_id=10,
+        objective_id=1,
         org_id=1,
         activity_uuid="learning_activity_inferred_grading",
         title="Quiz",
@@ -347,8 +330,7 @@ def test_activity_grading_is_inferred_from_scored_questions(monkeypatch):
 def test_activity_without_scored_questions_uses_completion(monkeypatch):
     activity = LearningActivity(
         id=1,
-        path_id=1,
-        badge_id=10,
+        objective_id=1,
         org_id=1,
         activity_uuid="learning_activity_inferred_completion",
         title="Reading",

@@ -125,23 +125,21 @@ import VisualFlowEditor, {
 import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 import type { MediaAsset } from '@services/media/library'
 import { TimelineCardView, type TimelineEntry } from '@components/Pages/Portfolio/Timeline'
-import BadgeVersionToolbar from '@components/Learning/BadgeVersionToolbar'
 import { EditorPreviewModal } from '@components/Learning/player/EditorPreviewModal'
 
+/** Edits one activity in place. `ownerName` is the plan template it belongs to; `orgId` owns its variables and media. */
 export default function LearningActivityEditor({
-  orgslug: _orgslug,
-  badgePath,
+  ownerName,
+  orgId,
   activity,
 }: {
-  orgslug: string
-  badgePath: any
+  ownerName: string
+  orgId: number
   activity: any
 }) {
   const router = useRouter()
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
-  const badge = badgePath.badge
-  const isDraft = badge.selected_version?.state === 'draft'
   const [activityState, setActivityState] = React.useState(activity)
   const [viewMode, setViewMode] = React.useState<EditorViewMode>('editor')
   const [pages, setPages] = React.useState<any[]>(() => normalizeInitialPages(activity.pages || []))
@@ -212,11 +210,11 @@ export default function LearningActivityEditor({
   }, [selection.pageUuid])
 
   React.useEffect(() => {
-    if (!badge?.org_id || !accessToken) return
-    getLearningVariables(badge.org_id, accessToken)
+    if (!orgId || !accessToken) return
+    getLearningVariables(orgId, accessToken)
       .then((items) => setLearningVariables(Array.isArray(items) ? items : []))
       .catch(() => setLearningVariables([]))
-  }, [accessToken, badge?.org_id])
+  }, [accessToken, orgId])
 
   React.useEffect(() => {
     const canvas = canvasRef.current
@@ -756,14 +754,14 @@ export default function LearningActivityEditor({
 
   const createVariableFromKey = async (rawKey: string, valueType = 'text') => {
     const key = String(rawKey || '').trim()
-    if (!key || !badge?.org_id || !accessToken) return null
+    if (!key || !orgId || !accessToken) return null
     if (learningVariables.some((variable) => String(variable.key) === key)) {
       toast.error('Variable key already exists')
       return null
     }
     try {
       const variable = await createLearningVariable({
-        org_id: badge.org_id,
+        org_id: orgId,
         key,
         label: key.split('.').at(-1) || key,
         value_type: valueType,
@@ -849,12 +847,9 @@ export default function LearningActivityEditor({
 
   return (
     <div className="flex h-screen w-full min-w-0 flex-col overflow-hidden bg-gray-50 text-gray-950">
-      <div className="flex shrink-0 items-center border-b border-gray-200 bg-white px-4 py-2">
-        <BadgeVersionToolbar badge={badge} saveState={saveState === 'dirty' ? 'unsaved' : saveState} />
-      </div>
-      <ContentIssuesBanner activityUuid={activityState.activity_uuid} pages={pages} editable={isDraft} accessToken={accessToken} refreshKey={lastSavedAt} beforeRepair={saveBeforeAction} onRepaired={applySavedActivity} />
+      <ContentIssuesBanner activityUuid={activityState.activity_uuid} pages={pages} accessToken={accessToken} refreshKey={lastSavedAt} beforeRepair={saveBeforeAction} onRepaired={applySavedActivity} />
       <EditorHeader
-        badgeName={badge.name}
+        ownerName={ownerName}
         activity={activityState}
         device={device}
         setDevice={setDevice}
@@ -869,7 +864,7 @@ export default function LearningActivityEditor({
         <TopModeButton active={viewMode === 'settings'} onClick={() => setViewMode('settings')} label="Settings" />
       </div>
 
-      <fieldset disabled={!isDraft} className={`flex min-h-0 flex-1 flex-col border-0 p-0 ${!isDraft ? '[&_[contenteditable=true]]:pointer-events-none [&_[contenteditable=true]]:select-none' : ''}`}>
+      <div className="flex min-h-0 flex-1 flex-col">
       <input ref={mediaInputRef} type="file" accept="image/*" className="hidden" onChange={handleMediaPicked} />
       <MediaPickerDialog
         open={Boolean(uploadingBlockId)}
@@ -879,7 +874,7 @@ export default function LearningActivityEditor({
         title="Choose image"
         description="Upload, link, or select an image from the media library."
         onSave={handleMediaAssetPicked}
-        owner={{ type: 'org', id: Number(badge?.org_id) }}
+        owner={{ type: 'org', id: orgId }}
         mediaType="image"
         accessToken={accessToken}
       />
@@ -891,7 +886,7 @@ export default function LearningActivityEditor({
         title="Choose video"
         description="Upload a video, add an external link, or choose one from the media library."
         onSave={handleVideoAssetPicked}
-        owner={{ type: 'org', id: Number(badge?.org_id) }}
+        owner={{ type: 'org', id: orgId }}
         mediaType="video"
         accessToken={accessToken}
       />
@@ -1039,7 +1034,7 @@ export default function LearningActivityEditor({
         </div>
       )}
 
-      </fieldset>
+      </div>
       {previewOpen && (
         <EditorPreviewModal activity={activityState} pages={pages} accessToken={accessToken} onClose={() => setPreviewOpen(false)} />
       )}
@@ -1057,7 +1052,7 @@ function ActivityFlowView({ activity, pages, learningVariables, onSelectPage, on
   return <VisualFlowEditor flow={flow} pages={pages} learningVariables={learningVariables} issues={issues} onChange={onPatchFlow} onSelectPage={onSelectPage} onAddPage={onAddPage} onCreateVariableKey={onCreateVariableKey}/>
 }
 
-function EditorHeader({ badgeName, activity, device, setDevice, saveState, lastSavedAt, onBack, onPreview }: any) {
+function EditorHeader({ ownerName, activity, device, setDevice, saveState, lastSavedAt, onBack, onPreview }: any) {
   return (
     <div className="flex h-14 shrink-0 items-center justify-between border-b border-gray-200 bg-white px-4">
       <div className="flex min-w-0 items-center gap-3">
@@ -1066,7 +1061,7 @@ function EditorHeader({ badgeName, activity, device, setDevice, saveState, lastS
         </button>
         <div className="min-w-0">
           <p className="truncate text-sm font-bold">{activity.title || 'Untitled activity'}</p>
-          <p className="truncate text-xs text-gray-500">{badgeName}</p>
+          <p className="truncate text-xs text-gray-500">{ownerName}</p>
         </div>
       </div>
       <div className="flex items-center gap-3">
@@ -2830,13 +2825,6 @@ function ActivitySettingsView({
                 className="min-h-28 w-full resize-y rounded-lg border border-gray-200 p-3 text-sm outline-none focus:border-[var(--org-primary-color)]"
               />
             </div>
-            <label className="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3">
-              <span>
-                <span className="block text-sm font-bold text-gray-800">Required activity</span>
-                <span className="block text-xs text-gray-500">Learners must complete it to finish the badge path.</span>
-              </span>
-              <input type="checkbox" checked={activity.required !== false} onChange={(event) => onPatchActivity({ required: event.target.checked })} />
-            </label>
           </div>
         </section>
         {hasScoredQuestions ? (

@@ -8,7 +8,7 @@ from fastapi import HTTPException
 from sqlalchemy import inspect
 from sqlmodel import Session, select
 
-from src.db.learning import LearningBadge, LearningBadgeAward, LearningPage, LearningPageProgress, LearningRun
+from src.db.learning import LearningBadge, LearningBadgeAward
 from src.db.media import MediaAsset, MediaOwnerType
 from src.db.organizations import Organization
 from src.db.planning import (
@@ -49,8 +49,11 @@ from src.db.planning import (
 )
 from src.db.users import PublicUser, User
 from src.security.org_auth import is_org_admin, require_org_admin
+from src.services.badge_routes import award_if_plan_complete, badge_summary as _badge_summary
 from src.services.messages import create_inbox_message, resolve_action_by_dedupe
-
+from src.services.plan_permissions import effective_plan_capabilities
+from src.services.plan_home import adaptive_future_groups as _adaptive_future_groups
+from src.services.plan_availability import apply_template_order, plan_availability, validated_prerequisites
 
 ALL_CAPABILITIES = {
     "view_plan", "comment", "contribute_fields", "update_progress",
@@ -168,11 +171,11 @@ def _collaboration(db: Session, plan_id: int, user_id: int) -> tuple[PlanCollabo
 
 def capabilities_for(db: Session, plan: Plan, user_id: int) -> set[str]:
     if plan.owner_user_id == user_id:
-        return set(ALL_CAPABILITIES) | {"transfer_ownership", "delete_plan"}
+        return effective_plan_capabilities(db, plan, user_id, set(ALL_CAPABILITIES) | {"transfer_ownership", "delete_plan"})
     row = _collaboration(db, int(plan.id), user_id)
     if row and row[1].key == "plan_admin":
-        return set(ALL_CAPABILITIES)
-    return _normalized_capabilities(row[1].capabilities) if row else set()
+        return effective_plan_capabilities(db, plan, user_id, set(ALL_CAPABILITIES))
+    return effective_plan_capabilities(db, plan, user_id, _normalized_capabilities(row[1].capabilities) if row else set())
 
 
 def _plan_access_people(db: Session, plan: Plan) -> list[dict]:
@@ -184,7 +187,7 @@ def _plan_access_people(db: Session, plan: Plan) -> list[dict]:
     return [{
         "user": _user_summary(db, collaborator.user_id),
         "role": {"key": role.key, "name": role.name},
-        "capabilities": sorted(ALL_CAPABILITIES) if collaborator.user_id == plan.owner_user_id or role.key == "plan_admin" else sorted(_normalized_capabilities(role.capabilities)),
+        "capabilities": sorted(capabilities_for(db, plan, collaborator.user_id)),
         "is_subject": collaborator.user_id == plan.subject_user_id,
     } for collaborator, role in rows]
 
@@ -242,45 +245,37 @@ def _progress_for(db: Session, objective: PlanObjective) -> PlanObjectiveProgres
     return progress
 
 
+def _badge_plan(db: Session, plan: Plan, badge_id: int | None) -> Plan | None:
+    """The subject's own plan for earning this badge, if they started it."""
+    if not badge_id or not plan.subject_user_id:
+        return None
+    return db.exec(select(Plan).where(
+        Plan.subject_user_id == plan.subject_user_id, Plan.source_badge_id == badge_id, Plan.status == PlanStatus.ACTIVE,
+    )).first()
+
+
 def _badge_state(db: Session, plan: Plan, objective: PlanObjective, progress: PlanObjectiveProgress) -> str:
+    stored = progress.status.value if hasattr(progress.status, "value") else str(progress.status)
     if not objective.badge_id or not plan.subject_user_id:
-        return progress.status.value if hasattr(progress.status, "value") else str(progress.status)
+        return stored
     award = db.exec(select(LearningBadgeAward).where(
         LearningBadgeAward.badge_id == objective.badge_id,
         LearningBadgeAward.user_id == plan.subject_user_id,
     )).first()
     if award and (not objective.badge_major_version or award.major_version == objective.badge_major_version):
         return PlanObjectiveStatus.COMPLETED.value
-    run = db.exec(select(LearningRun).where(
-        LearningRun.plan_objective_id == objective.id,
-        LearningRun.user_id == plan.subject_user_id,
-    )).first()
-    return PlanObjectiveStatus.IN_PROGRESS.value if run else (progress.status.value if hasattr(progress.status, "value") else str(progress.status))
+    return PlanObjectiveStatus.IN_PROGRESS.value if _badge_plan(db, plan, objective.badge_id) else stored
 
 
 def _badge_requirement(db: Session, plan: Plan, objective: PlanObjective, badge: LearningBadge, field: dict) -> dict:
+    from src.services.badge_discover import _plan_progress
+
     award = db.exec(select(LearningBadgeAward).where(
         LearningBadgeAward.badge_id == badge.id,
         LearningBadgeAward.user_id == plan.subject_user_id,
     )).first() if plan.subject_user_id else None
-    run = db.exec(select(LearningRun).where(
-        LearningRun.plan_objective_id == objective.id,
-        LearningRun.user_id == plan.subject_user_id,
-        LearningRun.badge_id == badge.id,
-    )).first() if plan.subject_user_id else None
-    progress_percent = 100 if award else 0
-    if run and not award:
-        pages = db.exec(select(LearningPage).where(
-            LearningPage.badge_id == badge.id,
-            LearningPage.version_id == run.badge_version_id,
-        )).all()
-        page_ids = [int(page.id) for page in pages if page.id]
-        completed = len(db.exec(select(LearningPageProgress).where(
-            LearningPageProgress.run_id == run.id,
-            LearningPageProgress.page_id.in_(page_ids),
-            LearningPageProgress.complete == True,  # noqa: E712
-        )).all()) if page_ids else 0
-        progress_percent = round(completed * 100 / len(page_ids)) if page_ids else 0
+    badge_plan = None if award else _badge_plan(db, plan, badge.id)
+    done, total = _plan_progress(db, [badge_plan]).get(int(badge_plan.id), (0, 0)) if badge_plan else (0, 0)  # type: ignore[arg-type]
     return {
         **field,
         "field_uuid": str(field.get("field_uuid") or f"badge_{objective.objective_uuid}"),
@@ -288,8 +283,8 @@ def _badge_requirement(db: Session, plan: Plan, objective: PlanObjective, badge:
         "type": "badge",
         "badge_uuid": badge.badge_uuid,
         "badge": {"badge_uuid": badge.badge_uuid, "name": badge.name, "thumbnail_image": badge.thumbnail_image},
-        "badge_href": f"/plans/{plan.slug}/objectives/{objective.objective_uuid}/badge",
-        "progress_percent": progress_percent,
+        "badge_href": f"/badges/{badge.badge_uuid.removeprefix('badge_')}",
+        "progress_percent": 100 if award else round(done * 100 / total) if total else 0,
     }
 
 
@@ -342,6 +337,24 @@ def _validated_plan_steps(db: Session, fields: list[dict] | None) -> list[dict]:
     return normalized
 
 
+def _schedule_date(value) -> date | None:
+    """Assignment schedules store ISO dates as strings; live plan columns are dates."""
+    if not value:
+        return None
+    if isinstance(value, date):
+        return value if not isinstance(value, datetime) else value.date()
+    return date.fromisoformat(str(value)[:10])
+
+
+def snapshot_requirement_mappings(snapshot: dict) -> list[dict]:
+    """The requirement links a template objective snapshot hands to the live objectives made from it."""
+    return [
+        {"framework_id": int(item["framework_id"]), "framework_uuid": item.get("framework_uuid"), "node_uuid": item["node_uuid"]}
+        for item in snapshot.get("requirement_mappings") or []
+        if item.get("node_uuid") and item.get("framework_id") is not None
+    ]
+
+
 def _materialized_objective_fields(db: Session, snapshot: dict) -> list[dict]:
     fields = [
         {
@@ -364,7 +377,7 @@ def _materialized_objective_fields(db: Session, snapshot: dict) -> list[dict]:
     return fields
 
 
-def _objective_dict(db: Session, plan: Plan, objective: PlanObjective, capabilities: set[str]) -> dict:
+def _objective_dict(db: Session, plan: Plan, objective: PlanObjective, capabilities: set[str], availability: dict | None = None) -> dict:
     progress = _progress_for(db, objective)
     phase = db.get(PlanPhase, objective.phase_id) if objective.phase_id else None
     effective_due_date = objective.due_date or (phase.due_date if phase else None) or plan.due_date
@@ -415,6 +428,9 @@ def _objective_dict(db: Session, plan: Plan, objective: PlanObjective, capabilit
         "effective_due_date": effective_due_date, "has_fixed_due_date": objective.due_date is not None,
         "allow_late": objective.allow_late, "blocked": objective.blocked,
         "completion_restricted": completion_restricted,
+        "requirement_mappings": objective.requirement_mappings or [],
+        "after_objective_uuids": objective.after_objective_uuids or [], "activity_id": objective.activity_id,
+        "availability": availability if availability is not None else plan_availability(db, plan).get(int(objective.id), {"state": "open", "reason": None}),
         "badge": ({"badge_uuid": badge.badge_uuid, "name": badge.name, "thumbnail_image": badge.thumbnail_image} if badge else None),
         "progress": {
             "status": status, "field_values": progress.field_values or {},
@@ -438,7 +454,8 @@ def _plan_dict(db: Session, plan: Plan, user_id: int, include_detail: bool = Fal
         raise HTTPException(status_code=404, detail="Plan not found")
     phases = db.exec(select(PlanPhase).where(PlanPhase.plan_id == plan.id).order_by(PlanPhase.position)).all()
     objectives = db.exec(select(PlanObjective).where(PlanObjective.plan_id == plan.id).order_by(PlanObjective.position)).all()
-    objective_rows = [_objective_dict(db, plan, item, capabilities) for item in objectives]
+    availability = plan_availability(db, plan)
+    objective_rows = [_objective_dict(db, plan, item, capabilities, availability.get(int(item.id))) for item in objectives]
     complete_count = sum(item["progress"]["status"] == PlanObjectiveStatus.COMPLETED.value for item in objective_rows)
     review_count = sum(item["progress"]["status"] == PlanObjectiveStatus.SUBMITTED.value for item in objective_rows)
     today = date.today()
@@ -456,8 +473,9 @@ def _plan_dict(db: Session, plan: Plan, user_id: int, include_detail: bool = Fal
         "plan_uuid": plan.plan_uuid, "slug": plan.slug, "name": plan.name,
         "description": plan.description, "status": plan.status.value if hasattr(plan.status, "value") else plan.status,
         "priority": plan.priority, "start_date": plan.start_date, "due_date": plan.due_date,
+        "step_order": plan.step_order or "any",
         "subject": _user_summary(db, plan.subject_user_id), "owner": _user_summary(db, plan.owner_user_id),
-        "source_organization": _org_summary(db, plan.source_org_id),
+        "source_organization": _org_summary(db, plan.source_org_id), "source_badge": _badge_summary(db, plan.source_badge_id),
         "is_mine": plan.subject_user_id == user_id, "is_owner": plan.owner_user_id == user_id,
         "capabilities": sorted(capabilities), "objective_count": len(objective_rows),
         "completed_objective_count": complete_count,
@@ -505,15 +523,14 @@ def _plan_dict(db: Session, plan: Plan, user_id: int, include_detail: bool = Fal
             objective["viewer_role"] = viewer_access["role"] if viewer_access else None
         organization_roles = db.exec(select(OrganizationPlanRole).where(OrganizationPlanRole.org_id == plan.source_org_id)).all() if plan.source_org_id and inspect(db.connection()).has_table("organizationplanrole") else []
         organization_role_by_key = {role.key: role for role in organization_roles}
-        result["roles"] = [{"role_uuid": role.role_uuid, "key": role.key, "name": "Learner" if role.key == "subject" else role.name, "capabilities": sorted(ALL_CAPABILITIES) if role.key == "plan_admin" else sorted(_normalized_capabilities(role.capabilities)), "grantable_role_keys": role.grantable_role_keys, "organization_role_uuid": organization_role_by_key.get(role.key).role_uuid if organization_role_by_key.get(role.key) else None, "locked": role.key == "plan_admin"} for role in db.exec(select(PlanRole).where(PlanRole.plan_id == plan.id)).all()]
-        result["available_capabilities"] = sorted(ALL_CAPABILITIES)
+        result["roles"] = [{"role_uuid": role.role_uuid, "key": role.key, "name": "Learner" if role.key == "subject" else role.name, "capabilities": sorted(effective_plan_capabilities(db, plan, user_id, set(ALL_CAPABILITIES) if role.key == "plan_admin" else _normalized_capabilities(role.capabilities))), "grantable_role_keys": role.grantable_role_keys, "organization_role_uuid": organization_role_by_key.get(role.key).role_uuid if organization_role_by_key.get(role.key) else None, "locked": role.key == "plan_admin"} for role in db.exec(select(PlanRole).where(PlanRole.plan_id == plan.id)).all()]
+        result["available_capabilities"] = sorted(effective_plan_capabilities(db, plan, user_id, set(ALL_CAPABILITIES)))
         result["can_manage_organization_roles"] = bool(plan.source_org_id and "manage_roles" in capabilities and is_org_admin(user_id, int(plan.source_org_id), db))
         result["invitations"] = []
         if "manage_collaborators" in capabilities:
             invitations = db.exec(select(PlanInvitation).where(PlanInvitation.plan_id == plan.id).order_by(PlanInvitation.id.desc())).all()
             result["invitations"] = [{
-                "invitation_uuid": invitation.invitation_uuid,
-                "email": invitation.email,
+                "invitation_uuid": invitation.invitation_uuid, "email": invitation.email,
                 "kind": invitation.kind.value if hasattr(invitation.kind, "value") else str(invitation.kind),
                 "status": invitation.status.value if hasattr(invitation.status, "value") else str(invitation.status),
                 "role": next(({"key": role.key, "name": role.name} for role in db.exec(select(PlanRole).where(PlanRole.plan_id == plan.id)).all() if role.id == invitation.role_id), None),
@@ -522,44 +539,23 @@ def _plan_dict(db: Session, plan: Plan, user_id: int, include_detail: bool = Fal
     return result
 
 
+def _learner_side(plan: Plan, user_id: int) -> bool:
+    """Plans that belong in someone's own app: theirs, or ones shared with them.
+
+    Staff work on plans handed out by an organization from the admin side, so those
+    plans stay out of a staff member's own plans list and feed."""
+    return plan.subject_user_id == user_id or not plan.source_assignment_id
+
+
 def list_plans(db: Session, current_user: PublicUser, lifecycle: str | None = None) -> list[dict]:
-    rows = db.exec(
+    rows = [plan for plan in db.exec(
         select(Plan).join(PlanCollaborator, PlanCollaborator.plan_id == Plan.id)
         .where(PlanCollaborator.user_id == current_user.id, PlanCollaborator.active == True)  # noqa: E712
         .order_by(Plan.update_date.desc())
-    ).all()
+    ).all() if _learner_side(plan, int(current_user.id))]
     if lifecycle:
         rows = [plan for plan in rows if str(plan.status.value if hasattr(plan.status, "value") else plan.status) == lifecycle]
-    from src.db.programs import Program, ProgramAssignment
-    from src.db.usergroups import UserGroup
-    result: list[dict] = []
-    grouped: dict[int, list[Plan]] = {}
-    for plan in rows:
-        assignment = db.get(ProgramAssignment, plan.source_assignment_id) if plan.source_assignment_id else None
-        if assignment and assignment.usergroup_id and plan.subject_user_id != current_user.id:
-            grouped.setdefault(int(assignment.id), []).append(plan)
-        else:
-            result.append({**_plan_dict(db, plan, current_user.id), "target_kind": "individual"})
-    for assignment_id, plans in grouped.items():
-        assignment = db.get(ProgramAssignment, assignment_id)
-        if not assignment:
-            continue
-        program = db.get(Program, assignment.program_id)
-        group = db.get(UserGroup, assignment.usergroup_id) if assignment.usergroup_id else None
-        summaries = [_plan_dict(db, plan, current_user.id) for plan in plans]
-        progress = [int(item["progress_percent"]) for item in summaries]
-        result.append({
-            "target_kind": "group", "plan_uuid": f"group:{assignment.assignment_uuid}",
-            "slug": f"group:{assignment.assignment_uuid}", "assignment_uuid": assignment.assignment_uuid,
-            "name": program.name if program else plans[0].name,
-            "target_name": group.name if group else "Group", "group": {"id": group.id, "name": group.name} if group else None,
-            "learner_count": len(plans), "progress_percent": round(sum(progress) / len(progress)) if progress else 0,
-            "min_progress_percent": min(progress) if progress else 0, "max_progress_percent": max(progress) if progress else 0,
-            "review_count": sum(int(item["review_count"]) for item in summaries),
-            "attention_count": sum(int(item["attention_count"]) for item in summaries),
-            "due_date": assignment.due_date, "status": lifecycle or "active", "is_mine": False,
-            "update_date": max((plan.update_date for plan in plans), default=assignment.update_date),
-        })
+    result = [{**_plan_dict(db, plan, current_user.id), "target_kind": "individual"} for plan in rows]
     return sorted(result, key=lambda item: str(item.get("update_date") or ""), reverse=True)
 
 
@@ -602,7 +598,6 @@ def materialize_assignment_plans(db: Session, assignment_id: int) -> None:
     if not inspect(db.connection()).has_table("plan"):
         return
     from src.db.programs import (  # Local import keeps the compatibility layer acyclic.
-        ObjectiveProgress,
         ParticipantStatus,
         Program,
         ProgramAssignment,
@@ -695,12 +690,13 @@ def materialize_assignment_plans(db: Session, assignment_id: int) -> None:
             phase = PlanPhase(
                 phase_uuid=f"plan_phase_{uuid4()}", plan_id=int(plan.id),
                 name=next((item.get("phase_name") for item in snapshots if (item.get("phase_uuid") or "legacy") == phase_key), None) or "Phase 1",
-                position=position, start_date=None, due_date=scheduled.get("end_date"),
+                position=position, start_date=None, due_date=_schedule_date(scheduled.get("end_date")),
                 creation_date=now, update_date=now,
             )
             db.add(phase)
             db.flush()
             phase_ids[phase_key] = int(phase.id)
+        created: list[tuple[dict, PlanObjective]] = []
         for position, snapshot in enumerate(snapshots):
             scheduled = objective_schedule.get(snapshot.get("objective_uuid"), {})
             fields = _materialized_objective_fields(db, snapshot)
@@ -708,33 +704,22 @@ def materialize_assignment_plans(db: Session, assignment_id: int) -> None:
                 objective_uuid=f"plan_objective_{uuid4()}", plan_id=int(plan.id),
                 phase_id=phase_ids[snapshot.get("phase_uuid") or "legacy"],
                 source_objective_id=snapshot.get("id"), title=snapshot.get("title") or "Objective",
-                description=snapshot.get("description") or "", kind="custom",
+                description=snapshot.get("description") or "", kind="activity" if snapshot.get("activity_id") else "custom", activity_id=snapshot.get("activity_id"),
                 position=position, badge_id=snapshot.get("badge_id"),
                 badge_major_version=snapshot.get("badge_major_version"), fields=fields,
                 start_date=None,
-                due_date=scheduled.get("due_date") if scheduled.get("due_rule") == "specific_date" else None,
+                due_date=_schedule_date(scheduled.get("due_date")) if scheduled.get("due_rule") == "specific_date" else None,
                 allow_late=bool(scheduled.get("allow_late")), creation_date=now, update_date=now,
                 completion_restricted=bool(not snapshot.get("allow_learner_confirmation", False)),
+                requirement_mappings=snapshot_requirement_mappings(snapshot),
+                reviewer_guidance=str(snapshot.get("reviewer_guidance") or ""),
             )
             db.add(objective)
             db.flush()
-            old = db.exec(select(ObjectiveProgress).where(
-                ObjectiveProgress.org_id == assignment.org_id,
-                ObjectiveProgress.objective_id == snapshot.get("id"),
-                ObjectiveProgress.user_id == participant.user_id,
-            )).first()
-            old_status = str(old.status.value if old and hasattr(old.status, "value") else old.status if old else "not_started")
-            progress_status = {"flagged": "changes_requested", "ready_for_review": "submitted"}.get(old_status, old_status)
-            db.add(PlanObjectiveProgress(
-                progress_uuid=f"plan_progress_{uuid4()}", plan_objective_id=int(objective.id),
-                status=progress_status, field_values={"legacy_evidence": old.evidence or []} if old else {},
-                subject_note=old.learner_note if old else "", reviewer_note=old.staff_note if old else "",
-                feedback_history=old.feedback_history or [] if old else [], completed_at=old.completed_at if old else None,
-                updated_by_user_id=old.completed_by_user_id if old else None,
-                creation_date=old.creation_date if old else now, update_date=old.update_date if old else now,
-            ))
+            created.append((snapshot, objective))
+            db.add(PlanObjectiveProgress(progress_uuid=f"plan_progress_{uuid4()}", plan_objective_id=int(objective.id), creation_date=now, update_date=now))
+        apply_template_order(plan, program, created)
         db.flush()
-        _link_legacy_learning_runs(db, assignment.id, participant.id, participant.user_id, plan)
         invitation_status = {
             ParticipantStatus.INVITED: PlanInvitationStatus.PENDING,
             ParticipantStatus.DECLINED: PlanInvitationStatus.DECLINED,
@@ -820,33 +805,35 @@ def materialize_external_assignment_plan(db: Session, assignment_id: int, subjec
         phase = PlanPhase(
             phase_uuid=f"plan_phase_{uuid4()}", plan_id=int(plan.id),
             name=next((item.get("phase_name") for item in snapshots if (item.get("phase_uuid") or "legacy") == phase_key), None) or "Phase 1",
-            position=position, start_date=None, due_date=scheduled.get("end_date"),
+            position=position, start_date=None, due_date=_schedule_date(scheduled.get("end_date")),
             creation_date=now, update_date=now,
         )
         db.add(phase)
         db.flush()
         phase_ids[phase_key] = int(phase.id)
+    created: list[tuple[dict, PlanObjective]] = []
     for position, snapshot in enumerate(snapshots):
         scheduled = objective_schedule.get(snapshot.get("objective_uuid"), {})
         objective = PlanObjective(
             objective_uuid=f"plan_objective_{uuid4()}", plan_id=int(plan.id),
             phase_id=phase_ids[snapshot.get("phase_uuid") or "legacy"],
             source_objective_id=snapshot.get("id"), title=snapshot.get("title") or "Objective",
-            description=snapshot.get("description") or "", kind="custom",
+            description=snapshot.get("description") or "", kind="activity" if snapshot.get("activity_id") else "custom", activity_id=snapshot.get("activity_id"),
             position=position, badge_id=snapshot.get("badge_id"),
             badge_major_version=snapshot.get("badge_major_version"),
             fields=_materialized_objective_fields(db, snapshot),
             start_date=None,
-            due_date=scheduled.get("due_date") if scheduled.get("due_rule") == "specific_date" else None,
+            due_date=_schedule_date(scheduled.get("due_date")) if scheduled.get("due_rule") == "specific_date" else None,
             allow_late=bool(scheduled.get("allow_late")), creation_date=now, update_date=now,
             completion_restricted=bool(not snapshot.get("allow_learner_confirmation", False)),
+            requirement_mappings=snapshot_requirement_mappings(snapshot),
+            reviewer_guidance=str(snapshot.get("reviewer_guidance") or ""),
         )
         db.add(objective)
         db.flush()
-        db.add(PlanObjectiveProgress(
-            progress_uuid=f"plan_progress_{uuid4()}", plan_objective_id=int(objective.id),
-            creation_date=now, update_date=now,
-        ))
+        created.append((snapshot, objective))
+        db.add(PlanObjectiveProgress(progress_uuid=f"plan_progress_{uuid4()}", plan_objective_id=int(objective.id), creation_date=now, update_date=now))
+    apply_template_order(plan, program, created)
     normalized = subject_email.strip().lower()
     invitation = PlanInvitation(
         invitation_uuid=f"plan_invitation_{uuid4()}", plan_id=int(plan.id),
@@ -858,41 +845,6 @@ def materialize_external_assignment_plan(db: Session, assignment_id: int, subjec
     _create_plan_invitation_message(db, plan, invitation, roles[subject_role_key].name)
 
 
-def _link_legacy_learning_runs(
-    db: Session,
-    assignment_id: int,
-    participant_id: int,
-    user_id: int,
-    plan: Plan,
-) -> None:
-    """Attach unambiguous legacy assignment runs to a materialized live plan."""
-    objectives = db.exec(select(PlanObjective).where(
-        PlanObjective.plan_id == plan.id,
-        PlanObjective.badge_id.is_not(None),
-    )).all()
-    objectives_by_badge: dict[int, list[PlanObjective]] = {}
-    for objective in objectives:
-        objectives_by_badge.setdefault(int(objective.badge_id), []).append(objective)
-
-    runs = db.exec(select(LearningRun).where(
-        LearningRun.program_assignment_id == assignment_id,
-        LearningRun.badge_id.in_(list(objectives_by_badge)),
-    )).all() if objectives_by_badge else []
-    for run in runs:
-        belongs_to_participant = (
-            run.program_participant_id == participant_id
-            or (run.program_participant_id is None and run.user_id == user_id)
-        )
-        candidates = objectives_by_badge.get(run.badge_id, [])
-        if not belongs_to_participant or len(candidates) != 1:
-            continue
-        if run.plan_id not in {None, plan.id} or run.plan_objective_id is not None:
-            continue
-        run.plan_id = plan.id
-        run.plan_objective_id = candidates[0].id
-        db.add(run)
-
-
 def get_plan(db: Session, current_user: PublicUser, identifier: str) -> dict:
     plan = _plan_or_404(db, identifier)
     _require(db, plan, current_user.id, "view_plan")
@@ -900,16 +852,18 @@ def get_plan(db: Session, current_user: PublicUser, identifier: str) -> dict:
 
 
 def _require_individual_definition(db: Session, plan: Plan) -> None:
-    """Group assignment definitions are edited once at the batch boundary."""
+    """Group assignment definitions are edited once at the batch boundary; a badge's steps come from the badge."""
+    if plan.source_badge_id:
+        raise HTTPException(status_code=409, detail="This plan's steps come from the badge it earns, so they can't be edited here.")
     if not plan.source_assignment_id:
         return
     from src.db.programs import ProgramAssignment
     assignment = db.get(ProgramAssignment, plan.source_assignment_id)
     if assignment and assignment.usergroup_id:
         raise HTTPException(status_code=409, detail={
-            "message": "Group plan structure is shared. Edit the group workspace instead.",
+            "message": "Group plan structure is shared. Change it for the whole group from the group's Plans tab in admin.",
             "assignment_uuid": assignment.assignment_uuid,
-            "group_workspace": f"/plans?group={assignment.assignment_uuid}",
+            "group_workspace": f"/admin/users/groups/{assignment.usergroup_id}/plans?assignment={assignment.assignment_uuid}",
         })
 
 
@@ -947,19 +901,28 @@ def update_plan(db: Session, current_user: PublicUser, identifier: str, payload:
         _require(db, plan, current_user.id, "edit_plan_details")
     if {"start_date", "due_date"} & set(changes):
         _require(db, plan, current_user.id, "edit_schedule")
+    if "step_order" in changes:
+        _require(db, plan, current_user.id, "edit_structure")
+        changes["step_order"] = str(getattr(changes["step_order"], "value", changes["step_order"]))
     if "name" in changes:
         changes["name"] = str(changes["name"] or "").strip()
         if not changes["name"]:
             raise HTTPException(status_code=422, detail="Plan name is required")
+    if set(changes) <= {"step_order"}:
+        for key, value in changes.items():
+            setattr(plan, key, value)
+        plan.update_date = _now_string()
+        db.add(plan)
+        _activity(db, plan, current_user.id, "plan.updated", {"fields": list(changes)})
+        db.commit()
+        return _plan_dict(db, plan, current_user.id, True)
     next_due = changes.get("due_date", plan.due_date)
     next_start = changes.get("start_date", plan.start_date)
-    if next_due is None:
-        raise HTTPException(status_code=422, detail="A target completion date is required")
-    if next_start and next_start > next_due:
+    if next_start and next_due and next_start > next_due:
         raise HTTPException(status_code=422, detail="Plan target date must be on or after its start date")
     phase_dates = [item.due_date for item in db.exec(select(PlanPhase).where(PlanPhase.plan_id == plan.id)).all() if item.due_date]
     objective_dates = [item.due_date for item in db.exec(select(PlanObjective).where(PlanObjective.plan_id == plan.id)).all() if item.due_date]
-    if any(value > next_due for value in [*phase_dates, *objective_dates]):
+    if next_due and any(value > next_due for value in [*phase_dates, *objective_dates]):
         raise HTTPException(status_code=422, detail="Plan target date cannot be before a phase or objective target date")
     for key, value in changes.items():
         setattr(plan, key, value)
@@ -1142,6 +1105,7 @@ def create_objective(db: Session, current_user: PublicUser, identifier: str, pay
         raise HTTPException(status_code=422, detail="Objective target date must be within its phase")
     fields = _validated_plan_steps(db, payload.fields)
     badges = _badges_for_requirement_fields(db, fields)
+    after_uuids = validated_prerequisites(db, plan, payload.after_objective_uuids, objective_uuid)
     position = len(db.exec(select(PlanObjective).where(PlanObjective.plan_id == plan.id)).all())
     now = _now_string()
     objective = PlanObjective(
@@ -1150,7 +1114,7 @@ def create_objective(db: Session, current_user: PublicUser, identifier: str, pay
         priority=max(0, min(3, payload.priority)), badge_id=badges[0].id if badges else None,
         fields=fields, start_date=payload.start_date, due_date=payload.due_date,
         allow_late=payload.allow_late, completion_restricted=payload.completion_restricted,
-        creation_date=now, update_date=now,
+        after_objective_uuids=after_uuids, creation_date=now, update_date=now,
     )
     db.add(objective)
     db.flush()
@@ -1171,7 +1135,7 @@ def update_objective(db: Session, current_user: PublicUser, identifier: str, obj
     if not objective:
         raise HTTPException(status_code=404, detail="Objective not found")
     changes = payload.model_dump(exclude_unset=True)
-    structure_fields = {"phase_uuid", "position", "title", "description", "priority", "fields", "blocked", "completion_restricted"} & set(changes)
+    structure_fields = {"phase_uuid", "position", "title", "description", "priority", "fields", "blocked", "completion_restricted", "after_objective_uuids"} & set(changes)
     schedule_fields = {"start_date", "due_date", "allow_late"} & set(changes)
     if structure_fields:
         _require(db, plan, current_user.id, "edit_structure")
@@ -1183,6 +1147,8 @@ def update_objective(db: Session, current_user: PublicUser, identifier: str, obj
             raise HTTPException(status_code=422, detail="Objective title is required")
     if "priority" in changes:
         changes["priority"] = max(0, min(3, int(changes["priority"])))
+    if "after_objective_uuids" in changes:
+        changes["after_objective_uuids"] = validated_prerequisites(db, plan, changes["after_objective_uuids"], objective_uuid)
     if "position" in changes:
         changes["position"] = max(0, int(changes["position"]))
     phase = db.get(PlanPhase, objective.phase_id) if objective.phase_id else None
@@ -1206,7 +1172,7 @@ def update_objective(db: Session, current_user: PublicUser, identifier: str, obj
         objective.badge_id = requirement_badges[0].id if requirement_badges else None
     for key, value in changes.items():
         setattr(objective, key, value)
-    objective.kind = "custom"
+    objective.kind = "activity" if objective.activity_id else "custom"
     objective.update_date = _now_string()
     plan.update_date = objective.update_date
     db.add(objective)
@@ -1242,6 +1208,11 @@ def update_objective_progress(db: Session, current_user: PublicUser, identifier:
         raise HTTPException(status_code=403, detail="You cannot request changes on this objective")
     if payload.status == PlanObjectiveStatus.COMPLETED and objective.completion_restricted and "complete_restricted_objectives" not in capabilities:
         raise HTTPException(status_code=403, detail="This objective must be completed by someone who can complete restricted objectives")
+    starting = payload.status in {PlanObjectiveStatus.IN_PROGRESS, PlanObjectiveStatus.SUBMITTED, PlanObjectiveStatus.COMPLETED}
+    if starting and not reviewing and ("edit_structure" not in capabilities or plan.source_badge_id):
+        availability = plan_availability(db, plan).get(int(objective.id), {"state": "open"})
+        if availability["state"] == "not_ready":
+            raise HTTPException(status_code=409, detail={"message": "This step is not ready yet", "availability": availability})
     progress = _progress_for(db, objective)
     progress.status = payload.status
     if payload.field_values is not None:
@@ -1280,6 +1251,7 @@ def update_objective_progress(db: Session, current_user: PublicUser, identifier:
         sync_live_progress(db, progress, objective, plan)
     _activity(db, plan, current_user.id, "objective.progress", {"objective_uuid": objective_uuid, "status": payload.status.value})
     db.commit()
+    award_if_plan_complete(db, plan)
     return _objective_dict(db, plan, objective, capabilities)
 
 
@@ -1492,8 +1464,7 @@ def delete_organization_role(db: Session, current_user: PublicUser, identifier: 
 
 def create_invitation(db: Session, current_user: PublicUser, identifier: str, payload: PlanInvitationCreate) -> dict:
     plan = _plan_or_404(db, identifier)
-    capability = "manage_collaborators" if payload.kind == PlanInvitationKind.COLLABORATOR else "manage_collaborators"
-    _require(db, plan, current_user.id, capability)
+    _require(db, plan, current_user.id, "manage_collaborators")
     actor_row = _collaboration(db, int(plan.id), current_user.id)
     if payload.kind == PlanInvitationKind.SUBJECT and plan.subject_user_id:
         raise HTTPException(status_code=409, detail="The plan subject cannot be changed once assigned")
@@ -1510,6 +1481,8 @@ def create_invitation(db: Session, current_user: PublicUser, identifier: str, pa
     target = db.exec(select(User).where(User.email == email)).first() or db.exec(select(User).where(User.email == normalized)).first()
     if target and _collaboration(db, int(plan.id), int(target.id)):
         raise HTTPException(status_code=409, detail="This person is already a collaborator")
+    if db.exec(select(PlanInvitation).where(PlanInvitation.plan_id == plan.id, PlanInvitation.email_normalized == normalized, PlanInvitation.status == PlanInvitationStatus.PENDING)).first():
+        raise HTTPException(status_code=409, detail="This person already has an invitation waiting")
     now = _now_string()
     invitation = PlanInvitation(
         invitation_uuid=f"plan_invitation_{uuid4()}", plan_id=int(plan.id), kind=payload.kind,
@@ -1877,11 +1850,11 @@ def respond_to_invitation(db: Session, current_user: PublicUser, invitation_uuid
     return {"invitation_uuid": invitation_uuid, "status": invitation.status.value if hasattr(invitation.status, "value") else invitation.status}
 
 
-def feed(db: Session, current_user: PublicUser, scope: str = "all", plan_uuid: str | None = None, explore_all: bool = False) -> dict:
-    accessible_plans = db.exec(
+def feed(db: Session, current_user: PublicUser, scope: str = "all", plan_uuid: str | None = None, explore_all: bool = False, include_assigned: bool = False) -> dict:
+    accessible_plans = [plan for plan in db.exec(
         select(Plan).join(PlanCollaborator, PlanCollaborator.plan_id == Plan.id)
         .where(PlanCollaborator.user_id == current_user.id, PlanCollaborator.active == True, Plan.status == PlanStatus.ACTIVE)  # noqa: E712
-    ).all()
+    ).all() if include_assigned or _learner_side(plan, int(current_user.id))]
     has_helping = any(plan.subject_user_id != current_user.id for plan in accessible_plans)
     plans = accessible_plans
     if plan_uuid:
@@ -1899,8 +1872,9 @@ def feed(db: Session, current_user: PublicUser, scope: str = "all", plan_uuid: s
         viewer_access = next((item for item in access_people if item["user"] and item["user"]["id"] == current_user.id), None)
         completers = [item["user"] for item in access_people if {"update_progress", "complete_restricted_objectives"} & set(item["capabilities"])]
         objectives = db.exec(select(PlanObjective).where(PlanObjective.plan_id == plan.id)).all()
+        availability = plan_availability(db, plan)
         for objective in objectives:
-            item = _objective_dict(db, plan, objective, capabilities)
+            item = _objective_dict(db, plan, objective, capabilities, availability.get(int(objective.id)))
             status = item["progress"]["status"]
             if status in {PlanObjectiveStatus.COMPLETED.value, PlanObjectiveStatus.CANCELED.value}:
                 continue
@@ -1958,7 +1932,7 @@ def feed(db: Session, current_user: PublicUser, scope: str = "all", plan_uuid: s
 
 def review_queue(db: Session, current_user: PublicUser) -> list[dict]:
     """Return custom-objective and badge work currently assigned to this reviewer."""
-    result = feed(db, current_user, "helping")
+    result = feed(db, current_user, "helping", include_assigned=True)
     return [item for item in result["coming_up"] if item["action_type"] == "review"]
 
 
@@ -1978,38 +1952,3 @@ def plan_reviews(db: Session, current_user: PublicUser, identifier: str) -> dict
             batch_reviews = _assignment_activity_reviews(db, assignment, {int(subject.id): subject} if subject else {})
             activity_reviews = [item for item in batch_reviews if item.get("plan_uuid") == plan.plan_uuid]
     return {"plan_uuid": plan.plan_uuid, "objective_reviews": objective_reviews, "activity_reviews": activity_reviews}
-
-
-def _adaptive_future_groups(items: list[dict], today: date) -> list[dict]:
-    buckets: dict[str, list[dict]] = {}
-    labels: dict[str, str] = {}
-    one_year = today + timedelta(days=365)
-    for item in items:
-        due = item.get("effective_due_date") or item["due_date"]
-        if due <= one_year:
-            key = due.strftime("%Y-%m")
-            labels[key] = due.strftime("%B %Y")
-        else:
-            key = str(due.year)
-            labels[key] = str(due.year)
-        buckets.setdefault(key, []).append(item)
-    expanded: list[tuple[str, str, list[dict]]] = []
-    for key in sorted(buckets):
-        values = buckets[key]
-        if len(values) <= 10:
-            expanded.append((key, labels[key], values))
-            continue
-        by_segment: dict[str, list[dict]] = {}
-        for item in values:
-            due = item.get("effective_due_date") or item["due_date"]
-            segment = f"{due.year}-W{due.isocalendar().week:02d}" if len(key) == 7 else f"{due.year}-Q{((due.month - 1) // 3) + 1}"
-            by_segment.setdefault(segment, []).append(item)
-        expanded.extend((segment, segment.split("-", 1)[-1].replace("W", "Week ").replace("Q", "Quarter ") + f" {(values[0].get('effective_due_date') or values[0]['due_date']).year}", group) for segment, group in sorted(by_segment.items()))
-    merged: list[dict] = []
-    for key, label, values in expanded:
-        if merged and len(merged[-1]["items"]) + len(values) <= 6:
-            merged[-1]["label"] = f"{merged[-1]['label']} – {label}"
-            merged[-1]["items"].extend(values)
-        else:
-            merged.append({"key": key, "label": label, "items": list(values)})
-    return merged

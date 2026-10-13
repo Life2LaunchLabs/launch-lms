@@ -12,16 +12,17 @@ from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, create_engine, select
 
 from src.core.events.database import get_db_session
-from src.db.learning import LearningActivity, LearningBadge, LearningBadgeVersion, LearningPage
+from src.db.learning import LearningActivity, LearningPage
 from src.db.learning_previews import LearningActivityPreview
 from src.db.oauth import OAuthAuthorizationCode, OAuthClient, OAuthGrant
+from src.db.programs import Objective, ObjectiveKind, Program, ProgramObjective
 from src.routers import mcp as mcp_router
 from src.services.mcp import app_shell
 from src.services.mcp.app_shell import PREVIEW_APP_URI
 from src.services.oauth import server
-from src.services.oauth.config import ACCESS_PREFIX, hash_secret, mcp_resource
+from src.services.oauth.config import ACCESS_PREFIX, frontend_url, hash_secret, mcp_resource
 from src.tests import test_learning_documents as documents_world
-from src.tests.test_badge_marketplace import _create_badge
+from src.tests.test_badge_marketplace import _create_org
 
 
 def _token(session: Session, user_id: int, org_id: int, scope: str = "activities:read activities:write") -> str:
@@ -85,7 +86,7 @@ def test_initialize_lists_tools_with_preview_app_metadata(mcp):
     client, _, rpc, _, alice = mcp
     initialized = rpc("initialize", {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "claude"}}).json()["result"]
     assert initialized["protocolVersion"] == "2025-06-18"
-    assert "draft" in initialized["instructions"]
+    assert "Plan templates" in initialized["instructions"] and "list_activities" in initialized["instructions"]
     notification = client.post(
         "/api/v1/mcp",
         json={"jsonrpc": "2.0", "method": "notifications/initialized"},
@@ -93,24 +94,27 @@ def test_initialize_lists_tools_with_preview_app_metadata(mcp):
     )
     assert notification.status_code == 202
     tools = {tool["name"]: tool for tool in rpc("tools/list").json()["result"]["tools"]}
-    assert {"list_badges", "get_activity", "preview_activity", "save_activity", "create_activity"} <= set(tools)
+    assert {"list_activities", "get_activity", "validate_activity", "preview_activity", "save_activity"} <= set(tools)
+    assert not {"list_badges", "create_activity"} & set(tools)
+    assert tools["list_activities"]["inputSchema"]["required"] == ["template_uuid"]
     assert tools["preview_activity"]["_meta"]["ui"]["resourceUri"] == PREVIEW_APP_URI
     assert tools["save_activity"]["annotations"]["readOnlyHint"] is False
     assert rpc("nope").json()["error"]["code"] == -32601
 
 
-def test_read_tools_walk_badge_to_activity(mcp):
+def test_read_tools_walk_template_to_activity(mcp):
     _, _, _, call, _ = mcp
-    badges = call("list_badges")["structuredContent"]["badges"]
-    assert badges[0]["badge_uuid"] == "badge_1" and badges[0]["draft_version"]["version_uuid"] == "badge_version_draft"
-    activities = call("list_activities", {"badge_uuid": "badge_1"})["structuredContent"]
-    assert activities["version"]["editable"] is True
-    assert activities["activities"][0] == {
-        "activity_uuid": "learning_activity_draft", "title": "Career interests", "description": "", "order": 1,
-        "required": True, "page_count": 3, "branching": True,
-    }
+    editor_url = f"{frontend_url()}/orgs/creator/admin/plans/program_template/activity/draft"
+    listed = call("list_activities", {"template_uuid": "program_template"})["structuredContent"]
+    assert listed["template"] == {"template_uuid": "program_template", "name": "Career Ready"}
+    assert listed["activities"] == [{
+        "activity_uuid": "learning_activity_draft", "objective_uuid": "objective_activity", "title": "Career interests",
+        "page_count": 3, "branching": True, "editor_url": editor_url,
+    }]
+    assert call("list_activities")["isError"] is True
     activity = call("get_activity", {"activity_uuid": "learning_activity_draft"})["structuredContent"]
-    assert activity["etag"] and "/editor?version=badge_version_draft" in activity["editor_url"]
+    assert activity["etag"] and activity["editor_url"] == editor_url
+    assert activity["context"]["template_name"] == "Career Ready"
     schema = call("get_activity_schema")["structuredContent"]
     assert "Branching flow" in schema["guide"] and "QuestionBlock" in schema["schema"]["$defs"]
 
@@ -131,7 +135,7 @@ def test_preview_and_save_round_trip_with_conflict_handling(mcp):
     assert session.exec(select(LearningActivityPreview)).one().source == "connector"
 
     saved = call("save_activity", {"activity_uuid": "learning_activity_draft", "document": edited, "base_etag": current["etag"]})
-    assert "isError" not in saved
+    assert "isError" not in saved and 'in "Career Ready"' in saved["content"][0]["text"]
     assert session.exec(select(LearningPage).where(LearningPage.title == "Makers")).first() is not None
 
     stale = call("save_activity", {"activity_uuid": "learning_activity_draft", "document": edited, "base_etag": current["etag"]})
@@ -145,21 +149,30 @@ def test_preview_and_save_round_trip_with_conflict_handling(mcp):
     assert report["valid"] is False and report["errors"][0]["path"] == "activity.settings.flow"
 
 
-def test_create_activity_in_draft(mcp):
+def test_unsaved_activities_validate_and_preview_against_a_template(mcp):
     _, session, _, call, _ = mcp
-    created = call("create_activity", {"badge_uuid": "badge_1", "document": {"activity": {"title": "Reflect"}, "pages": [{"page_uuid": "start", "title": "Start", "content": {"version": 2, "blocks": []}}]}})
-    assert "Saved \"Reflect\"" in created["content"][0]["text"]
-    assert session.exec(select(LearningActivity).where(LearningActivity.title == "Reflect")).one().version_id == 50
+    document = {"activity": {"title": "Reflect"}, "pages": [{"page_uuid": "start", "title": "Start", "content": {"version": 2, "blocks": []}}]}
+    assert call("validate_activity", {"document": document})["structuredContent"]["valid"] is True
+    preview = call("preview_activity", {"template_uuid": "program_template", "document": document})
+    assert preview["structuredContent"]["unsaved"] is True and "unsaved draft" in preview["content"][0]["text"]
+    assert session.exec(select(LearningActivityPreview)).one().activity_id is None
+    missing = call("preview_activity", {"template_uuid": "program_nope", "document": document})
+    assert missing["isError"] is True and "connected organization" in missing["content"][0]["text"]
 
 
 def test_tokens_are_confined_to_their_org_and_scopes(mcp):
     _, session, _, call, alice = mcp
-    other = _create_badge(session, badge_id=2, org_id=2)
-    session.add(LearningActivity(id=60, activity_uuid="learning_activity_other", path_id=50, badge_id=other.id, version_id=other.active_version_id, org_id=2, title="Other org", creation_date="", update_date=""))
+    if not session.get(Program, 1):
+        _create_org(session, org_id=3, slug="other")
+    session.add(Program(id=60, program_uuid="program_other", slug="other-template", org_id=2, name="Other"))
+    session.add(Objective(id=60, objective_uuid="objective_other", org_id=2, title="Other org", kind=ObjectiveKind.ACTIVITY))
+    session.add(ProgramObjective(program_id=60, objective_id=60))
+    session.add(LearningActivity(id=60, activity_uuid="learning_activity_other", objective_id=60, org_id=2, title="Other org", creation_date="", update_date=""))
     session.commit()
     denied = call("get_activity", {"activity_uuid": "learning_activity_other"})
     assert denied["isError"] is True and "connected organization" in denied["content"][0]["text"]
-    assert call("list_activities", {"badge_uuid": "badge_2"})["isError"] is True
+    assert call("list_activities", {"template_uuid": "program_other"})["isError"] is True
+    assert call("preview_activity", {"template_uuid": "program_other", "document": {}})["isError"] is True
 
     read_only = _token(session, alice.id, 1, scope="activities:read")
     blocked = call("save_activity", {"activity_uuid": "learning_activity_draft", "document": {}, "base_etag": "x"}, auth=read_only)
@@ -183,17 +196,3 @@ def test_preview_app_resource_frames_the_preview_origin(mcp):
     assert "ui/initialize" in content["text"] and json.dumps(origin) in content["text"]
     assert "ui/notifications/tool-result" in content["text"]
     assert rpc("resources/read", {"uri": "ui://nope"}).json()["error"]["code"] == -32002
-
-
-def test_badge_versions_published_are_reported_read_only(mcp):
-    _, session, _, call, _ = mcp
-    version = session.get(LearningBadgeVersion, 50)
-    version.state = "published"
-    session.add(version)
-    badge = session.get(LearningBadge, 1)
-    session.add(badge)
-    session.commit()
-    current = call("get_activity", {"activity_uuid": "learning_activity_draft"})["structuredContent"]
-    assert current["context"]["editable"] is False
-    locked = call("save_activity", {"activity_uuid": "learning_activity_draft", "document": current["document"], "base_etag": current["etag"]})
-    assert locked["isError"] is True and "read-only" in locked["content"][0]["text"]

@@ -15,13 +15,21 @@ from sqlmodel import Session
 from src.services.learning_documents.models import activity_document_json_schema, authoring_guide
 from src.services.mcp.app_shell import APP_MIME_TYPE, PREVIEW_APP_URI, preview_app_html, preview_app_meta
 from src.services.mcp.tools import TOOLS, call_tool
+from src.services.plan_template_documents.models import authoring_guide as template_authoring_guide
+from src.services.plan_template_documents.models import plan_template_json_schema
+from src.services.requirement_documents.models import authoring_guide as requirement_authoring_guide
+from src.services.requirement_documents.models import requirement_framework_json_schema
 from src.services.oauth.server import AccessContext
 
 SUPPORTED_VERSIONS = ("2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05")
 SERVER_INFO = {"name": "launch-lms", "title": "Launch LMS", "version": "1.0.0"}
-INSTRUCTIONS = """Launch LMS hosts badge learning paths. Each badge has versions; only draft versions can be edited, and an admin publishes drafts inside Launch LMS. Activities are sequences of phone-sized pages made of blocks, optionally routed by a branching flow.
+INSTRUCTIONS = """Launch LMS holds plans. Plan templates are reusable plans: an ordered stack of phases and objectives that learners get as their own plan, from an organization or by starting a badge. An objective is either a standard step (fields, checkboxes, uploads, a badge to earn) or an interactive activity the learner plays in the app: phone-sized pages made of blocks and questions, optionally routed by a branching flow, edited as an Activity Document. A template's step_order and each objective's after_objective_uuids decide when learners can start steps.
 
-Workflow: find the badge (list_badges) and activity (list_activities), read it (get_activity), and read get_activity_schema before writing pages. Make edits to the whole Activity Document, run validate_activity until it is clean, then show the admin preview_activity with your edited document so they can click through it. Save only when the admin asks, with save_activity and the etag you read; on a stale-document error, merge your change into the returned current document and retry. Point the admin to the editor_url to review and publish."""
+Templates: find them with list_plan_templates, read one with get_plan_template and get_plan_template_schema before editing. Add an activity by giving a new objective type "activity" in the template document and saving; then edit its pages with the activity tools. Edit the whole document, run validate_plan_template until it is clean, and tell the admin what will change (validation warnings list removals). Template edits apply to future assignments; activity edits apply to everyone playing that activity.
+
+Activities: find them with list_activities (a template's activities), read one with get_activity, and read get_activity_schema before writing pages. Edit the whole Activity Document, run validate_activity until it is clean, then show the admin preview_activity with your edited document so they can click through it.
+
+Save only when the admin asks, with the etag you read; on a stale-document error, merge your change into the returned current document and retry. Point the admin to the editor_url to review. Requirement frameworks (standards, competencies) sit beside templates: objectives link to leaf requirement nodes; find them with list_requirement_frameworks. Publishing a framework and publishing to the global library happen only when the admin asks."""
 
 RESOURCES = [
     {
@@ -36,6 +44,34 @@ RESOURCES = [
         "name": "activity-document-schema",
         "title": "Activity Document JSON Schema",
         "description": "JSON Schema for Activity Document v1.",
+        "mimeType": "application/schema+json",
+    },
+    {
+        "uri": "launch-lms://plan-template-document/guide",
+        "name": "plan-template-authoring-guide",
+        "title": "Plan template authoring guide",
+        "description": "How Launch LMS plan templates, phases, objectives and steps are written.",
+        "mimeType": "text/markdown",
+    },
+    {
+        "uri": "launch-lms://plan-template-document/schema",
+        "name": "plan-template-document-schema",
+        "title": "Plan Template Document JSON Schema",
+        "description": "JSON Schema for Plan Template Document v1.",
+        "mimeType": "application/schema+json",
+    },
+    {
+        "uri": "launch-lms://requirement-framework-document/guide",
+        "name": "requirement-framework-authoring-guide",
+        "title": "Requirement framework authoring guide",
+        "description": "How Launch LMS requirement frameworks, levels, codes and versions work.",
+        "mimeType": "text/markdown",
+    },
+    {
+        "uri": "launch-lms://requirement-framework-document/schema",
+        "name": "requirement-framework-document-schema",
+        "title": "Requirement Framework Document JSON Schema",
+        "description": "JSON Schema for Requirement Framework Document v1.",
         "mimeType": "application/schema+json",
     },
     {
@@ -63,6 +99,14 @@ def _read_resource(uri: str) -> dict:
         return {"uri": uri, "mimeType": "text/markdown", "text": authoring_guide()}
     if uri == "launch-lms://activity-document/schema":
         return {"uri": uri, "mimeType": "application/schema+json", "text": json.dumps(activity_document_json_schema())}
+    if uri == "launch-lms://plan-template-document/guide":
+        return {"uri": uri, "mimeType": "text/markdown", "text": template_authoring_guide()}
+    if uri == "launch-lms://plan-template-document/schema":
+        return {"uri": uri, "mimeType": "application/schema+json", "text": json.dumps(plan_template_json_schema())}
+    if uri == "launch-lms://requirement-framework-document/guide":
+        return {"uri": uri, "mimeType": "text/markdown", "text": requirement_authoring_guide()}
+    if uri == "launch-lms://requirement-framework-document/schema":
+        return {"uri": uri, "mimeType": "application/schema+json", "text": json.dumps(requirement_framework_json_schema())}
     if uri == PREVIEW_APP_URI:
         return {"uri": uri, "mimeType": APP_MIME_TYPE, "text": preview_app_html(), "_meta": preview_app_meta()}
     raise RpcError(-32002, f"Resource not found: {uri}")

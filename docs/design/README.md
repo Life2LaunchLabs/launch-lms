@@ -9,6 +9,8 @@ Every UI-affecting task starts here. This is the repository-owned reference inde
 | Hub companion layouts, awareness and future plan co-creation | BOT-82; PATHWAYS-G006-A001/A002/A004; PATHWAYS-G001-A003 | [Commission and concept drop folder](../../scripts/docs/BOT-82-companion/concepts/README.md), [build plan](../../scripts/docs/BOT-82-companion/build-plan.md) | Brief; no owner-selected concept files registered yet |
 | Disposable demo checkpoints | Owner conversation 2026-10-06; PLATFORM-G007-A004 | [Design brief](../plans/active/demo-checkpoints/README.md), [rendered verification](../plans/active/demo-checkpoints/verification.md) | Owner authorized agent-designed UI; shared-scenario reference v4; [cohort verification](../plans/active/demo-checkpoints/cohort-verification.md); owner signoff pending |
 | Shared Launch components and tokens | BOT-27; applies across product surfaces | [Catalog](../../apps/web/design-system/catalog.json), [contribution guide](../../apps/web/design-system/README.md) | Adopted component standards; not a page mockup |
+| Learner UI polish across Discover, Plans, Hub and Portfolio | Owner conversation 2026-10-12 | [Source-backed proposal](learner-polish-proposal-2026-10-12.md) | Owner approved implementation 2026-10-12; supplied Plans screenshot is current-state context; [rendered verification](learner-polish-verification-2026-10-12.md) recorded; owner review pending |
+| Learner UI refresh: coach shell, Plans landing, Discover with resources, Portfolio profile | Owner conversation 2026-10-13 | [Prototype canvas](https://claude.ai/artifact/Rt2QXHSELUQcAQ1gATs6jc) (private to owner), [implementation plan](../plans/completed/learner-ui-refresh.md) | Owner approved prototype direction 2026-10-13 with amendments A1–A7 recorded in the plan; supersedes the 2026-10-12 charcoal canvas and full Hub page; implemented 2026-10-13 |
 | Hub resource carousel and Notes/Reviews | BOT-77/BOT-108 area | [Existing QA record](../../design-qa.md) | Historical evidence index; attachment references are not durable image files. Current rendered comparison remains unverified in that record. |
 | Candidate feedback surface | BOT-168/BOT-210 | [Feedback verification](../../scripts/docs/BOT-168-candidate-feedback-verification.md), [interaction verification](../../scripts/docs/BOT-210-feedback-verification.md) | Historical implementation evidence; external-surface replacement must establish new references |
 
@@ -63,3 +65,9 @@ Report the reference version, implementation revision, scenario/role, viewport/t
 commands/results, visual findings, fixes, remaining limitations and explicit owner-accepted deviations. Never overwrite
 the root `design-qa.md` as a shared scratchpad. Missing access or data is a concrete blocker, not a pass. Automated
 checks do not replace owner signoff.
+
+Implementation evidence: [Learner polish verification, 2026-10-12](learner-polish-verification-2026-10-12.md). Owner review remains pending.
+
+Follow-up direction and evidence: [stable layout/editorial Discover brief](learner-polish-followup-2026-10-12.md), [follow-up verification](learner-polish-followup-verification-2026-10-12.md). Owner review remains pending.
+
+Owner amendment: [Hub pane and portfolio tweaks, 2026-10-13](hub-pane-portfolio-tweaks-2026-10-13.md); real-application browser verification pending.

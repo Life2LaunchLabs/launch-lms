@@ -28,7 +28,7 @@ def test_full_cohort_capture_preserves_stages_and_drops_real_attribution():
     )
     from src.services.demo.checkpoints import capture
     from src.services.demo.namespaces import materialize, remap, drop_namespace
-    from src.db.planning import Plan, PlanRole, PlanInvitation
+    from src.db.planning import Plan, PlanObjective, PlanRole, PlanInvitation
     from src.db.resources import Resource
     from src.db.usergroups import UserGroup
     from src.db.usergroup_resources import UserGroupResource
@@ -68,14 +68,37 @@ def test_full_cohort_capture_preserves_stages_and_drops_real_attribution():
                 )
             db.flush()
             db.add(
+                Plan(
+                    id=90002,
+                    plan_uuid="plan_cohort_test",
+                    slug="cohort-test",
+                    name="Prepared plan",
+                    subject_user_id=90201,
+                    owner_user_id=90200,
+                    source_org_id=org_id,
+                )
+            )
+            db.flush()
+            db.add(
+                PlanObjective(
+                    id=90002,
+                    objective_uuid="plan_objective_cohort_test",
+                    plan_id=90002,
+                    title="Prepared activity",
+                    kind="activity",
+                    activity_id=1,
+                )
+            )
+            db.flush()
+            db.add(
                 LearningRun(
                     id=90002,
                     run_uuid="run_cohort_test",
-                    badge_id=1,
-                    path_id=1,
-                    badge_version_id=1,
+                    activity_id=1,
                     org_id=1,
                     issuing_org_id=org_id,
+                    plan_id=90002,
+                    plan_objective_id=90002,
                     user_id=90201,
                     data={"prepared": True},
                 )
@@ -87,22 +110,10 @@ def test_full_cohort_capture_preserves_stages_and_drops_real_attribution():
                     award_uuid="award_cohort_test",
                     badge_id=1,
                     badge_version_id=1,
-                    run_id=90002,
                     org_id=1,
                     issuing_org_id=org_id,
                     user_id=90201,
                     conferred_by_user_id=1,
-                )
-            )
-            db.add(
-                Plan(
-                    id=90002,
-                    plan_uuid="plan_cohort_test",
-                    slug="cohort-test",
-                    name="Prepared plan",
-                    subject_user_id=90201,
-                    owner_user_id=90200,
-                    source_org_id=org_id,
                 )
             )
             db.add(
@@ -275,7 +286,6 @@ def test_full_cohort_capture_preserves_stages_and_drops_real_attribution():
             assert any(row["id"] == 1 for row in snapshot["learningbadge"])
             for name in (
                 "learningbadgeversion",
-                "learningpath",
                 "learningactivity",
                 "learningpage",
             ):

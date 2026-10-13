@@ -1,11 +1,12 @@
 'use client'
 
 import React from 'react'
+import Link from 'next/link'; import { getUriWithOrg } from '@services/config/config'
 import { Award, Check, ClipboardCheck, Handshake, Loader2, Plus, Search, Trash2 } from 'lucide-react'
 import { motion } from 'motion/react'
-import toast from 'react-hot-toast'
+import toast from 'react-hot-toast'; import IssuerRouteOffers from './IssuerRouteOffers'
 import AdminFeatureHeader from '@components/Admin/AdminFeatureHeader'
-import { ActivityAggregateGradeForm } from '@components/Admin/Programs/CohortProgramAdmin'
+import { ActivityAggregateGradeForm } from '@components/Admin/Programs/ActivityGrading'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { SafeImage } from '@components/Objects/SafeImage'
 import { Button } from '@components/ui/button'
@@ -27,7 +28,6 @@ import {
 } from '@services/learning/marketplace'
 import AdminBadgesHome from '@components/Learning/AdminBadgesHome'
 import { BADGE_ADMIN_PAGES } from '@components/Admin/adminFeaturePages'
-
 const statusStyles: Record<string, string> = {
   queued: 'bg-violet-100 text-violet-800',
   requested: 'bg-amber-100 text-amber-800',
@@ -37,7 +37,6 @@ const statusStyles: Record<string, string> = {
   revoked: 'bg-gray-200 text-gray-600',
   package_denied: 'bg-red-100 text-red-700',
 }
-
 const statusLabels: Record<string, string> = {
   queued: 'Waiting for package approval',
   package_denied: 'Package request denied',
@@ -68,6 +67,7 @@ export default function IssuingAdminShell({
     <div className="min-h-full w-full bg-[#f8f8f8]">
       <AdminFeatureHeader
         feature="Badges"
+        actions={<Button asChild variant="outline" size="sm"><Link href={getUriWithOrg(orgslug, '/admin/badges/discover')}>Discover carousel</Link></Button>}
         activeTab={activeTab}
         tabs={BADGE_ADMIN_PAGES.map((tab) => {
           const Icon = tab.icon
@@ -435,7 +435,7 @@ export function IssuingAuthorizationsPanel({ orgId }: { orgId: number }) {
 
                 {authorization.status === 'approved' ? (
                   <div className="mt-4 rounded-lg bg-muted p-4">
-                    <LearnerAccessSelect value={authorization.learner_access || 'invite'} disabled={actingOn === authorization.authorization_uuid} onChange={(value) => void changeAccess(authorization, value as LearnerAccess)} />
+                    <LearnerAccessSelect value={authorization.learner_access || 'invite'} disabled={actingOn === authorization.authorization_uuid} onChange={(value) => void changeAccess(authorization, value as LearnerAccess)} /><IssuerRouteOffers badgeUuid={authorization.badge?.badge_uuid} issuerOrgId={orgId} />
 
                     <div className="mt-4">
                       <p className="text-xs font-bold uppercase text-muted-foreground">Supported learners ({authorizationLinks.length})</p>

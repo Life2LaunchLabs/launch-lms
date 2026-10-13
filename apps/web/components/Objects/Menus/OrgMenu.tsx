@@ -28,6 +28,8 @@ import {
 import { signOut } from '@components/Contexts/AuthContext'
 import UserAvatar from '@components/Objects/UserAvatar'
 import { getPrimaryOrgMenuItems, OrgMenuNavItem } from './OrgMenuLinks'
+import OrgMenuMobile, { NavItemControl, NAV_ACTIVE_CLASS } from './OrgMenuMobile'
+import { useHub } from '@components/Hub/HubContext'
 import { cn } from '@/lib/utils'
 import { Z_INDEX } from '@/lib/z-index'
 import useInboxMessages from '@components/Hooks/useInboxMessages'
@@ -41,6 +43,7 @@ export const OrgMenu = (props: { orgslug: string; compact?: boolean }) => {
   const session = useLHSession() as any
   const org = useOrg() as any
   const pathname = usePathname()
+  const hub = useHub()
   const [isDesktopExpanded, setIsDesktopExpanded] = useState(() => {
     if (typeof window === 'undefined') return true
     return window.localStorage.getItem(DESKTOP_NAV_STORAGE_KEY) !== 'true'
@@ -64,6 +67,7 @@ export const OrgMenu = (props: { orgslug: string; compact?: boolean }) => {
   const primaryNavItems = getPrimaryOrgMenuItems({
     pathname,
     resolvedFeatures,
+    hubOpen: hub?.state === 'open',
   }).filter((item) => item.show)
 
   const isDesktopNavExpanded = isDesktopExpanded && !props.compact
@@ -214,31 +218,7 @@ export const OrgMenu = (props: { orgslug: string; compact?: boolean }) => {
         </div>
       </aside>
 
-      <nav
-        aria-label="Mobile navigation"
-        className={cn(
-          'fixed inset-x-0 bottom-0 z-[var(--z-nav)] flex justify-center border-t border-border bg-card px-2 transition-[opacity,transform] duration-300 ease-out md:hidden',
-          isActivityPage
-            ? 'pointer-events-none translate-y-full opacity-0'
-            : 'translate-y-0 opacity-100'
-        )}
-        style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 0px)' }}
-      >
-        <div className="pointer-events-auto flex h-16 w-full max-w-screen-sm items-center justify-around gap-1">
-          {primaryNavItems.map((item) => (
-            <MobileNavItem
-              key={item.href || item.label}
-              item={item}
-              orgslug={orgslug}
-            />
-          ))}
-          <MobileMoreMenu
-            orgslug={orgslug}
-            onHelp={openFeedback}
-            unreadCount={unreadCount}
-          />
-        </div>
-      </nav>
+      <OrgMenuMobile items={primaryNavItems} orgslug={orgslug} hidden={Boolean(isActivityPage)} unreadCount={unreadCount} />
 
     </>
   )
@@ -251,7 +231,7 @@ function SidebarItem({
   isExpanded = false,
 }: SidebarItemProps) {
   const baseClass = item.active
-    ? 'bg-foreground/[0.07] text-foreground shadow-[inset_0_0_0_1px_rgba(15,23,42,0.04)]'
+    ? NAV_ACTIVE_CLASS
     : muted
       ? 'text-muted-foreground hover:bg-foreground/[0.05] hover:text-muted-foreground'
       : 'text-muted-foreground hover:bg-foreground/[0.05] hover:text-foreground'
@@ -279,15 +259,7 @@ function SidebarItem({
     </>
   )
 
-  const element = (
-    <Link
-      href={getUriWithOrg(orgslug, item.href || '/')}
-      aria-label={item.label}
-      className={sharedClass}
-    >
-      {content}
-    </Link>
-  )
+  const element = <NavItemControl item={item} orgslug={orgslug} className={sharedClass}>{content}</NavItemControl>
 
   if (isExpanded) {
     return element
@@ -414,79 +386,6 @@ function DesktopAccountLink({
           className="flex items-center gap-2 text-red-600 focus:text-red-600"
         >
           <SignOut size={16} weight="fill" />
-          <span>Sign out</span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
-function MobileNavItem({
-  item,
-  orgslug,
-}: {
-  item: OrgMenuNavItem
-  orgslug: string
-}) {
-  return (
-    <Link
-      href={getUriWithOrg(orgslug, item.href || '/')}
-      aria-label={item.label}
-      className={`relative flex h-12 flex-1 items-center justify-center rounded-xl transition-colors ${
-        item.active
-          ? 'text-foreground [&>svg]:scale-110 [&>svg]:stroke-[2.6]'
-          : 'text-muted-foreground hover:bg-foreground/[0.08] hover:text-foreground'
-      }`}
-    >
-      {item.icon}
-    </Link>
-  )
-}
-
-function MobileMoreMenu({
-  orgslug,
-  onHelp,
-  unreadCount,
-}: {
-  orgslug: string
-  onHelp: () => void
-  unreadCount: number
-}) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          aria-label="More"
-          className="flex h-12 flex-1 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-foreground/[0.08] hover:text-foreground"
-        >
-          <span className="relative"><User size={20} weight="bold" />{unreadCount > 0 ? <span className="absolute -right-2 -top-2 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 px-1 text-[9px] font-black text-white">{unreadCount > 9 ? '9+' : unreadCount}</span> : null}</span>
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" side="top" className="mb-3 w-48 rounded-2xl p-2">
-        <DropdownMenuItem asChild>
-          <Link href={getUriWithOrg(orgslug, routePaths.owner.account.root())} className="flex items-center gap-3 rounded-xl px-3 py-2">
-            <User size={18} weight="fill" /><span>Account</span>
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href={getUriWithOrg(orgslug, routePaths.owner.account.messages())} className="flex items-center gap-3 rounded-xl px-3 py-2">
-            <Envelope size={18} weight="fill" /><span className="flex-1">Messages</span>{unreadCount > 0 ? <span className="flex min-w-5 items-center justify-center rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] font-black text-white">{unreadCount}</span> : null}
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href={getUriWithOrg(orgslug, routePaths.owner.account.organizations())} className="flex items-center gap-3 rounded-xl px-3 py-2"><Buildings size={18} weight="fill" /><span>Organizations</span></Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href={getUriWithOrg(orgslug, routePaths.owner.account.preferences())} className="flex items-center gap-3 rounded-xl px-3 py-2"><Sun size={18} weight="fill" /><span>Appearance</span></Link>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={onHelp} className="flex items-center gap-3 rounded-xl px-3 py-2"><Question size={18} weight="fill" /><span>Help &amp; feedback</span></DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => signOut({ callbackUrl: '/' })}
-          className="flex items-center gap-3 rounded-xl px-3 py-2 text-red-600 focus:text-red-600"
-        >
-          <SignOut size={18} weight="fill" />
           <span>Sign out</span>
         </DropdownMenuItem>
       </DropdownMenuContent>

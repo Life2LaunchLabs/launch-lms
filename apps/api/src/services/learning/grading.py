@@ -1,21 +1,11 @@
-"""Grading answers, activity scoring and award issuing."""
+"""Grading answers and activity scoring."""
 
-from datetime import datetime
-from uuid import uuid4
-from fastapi import Request
 from sqlmodel import Session, select
 from src.db.learning import (
-    BadgeIssuerLearnerLink,
-    BadgeIssuerLearnerLinkStatus,
     LearningActivity,
-    LearningActivityRun,
-    LearningAwardSource,
-    LearningBadge,
-    LearningBadgeAward,
     LearningPage,
     LearningPageProgress,
     LearningRun,
-    LearningRunStatus,
 )
 from src.services.learning import answer_validation, lookups, run_navigation
 
@@ -238,32 +228,6 @@ def _grade_answer(
     return is_correct, score, feedback_key, result
 
 
-def _ensure_activity_run(
-    db_session: Session, run: LearningRun, activity_id: int
-) -> LearningActivityRun:
-    activity_run = db_session.exec(
-        select(LearningActivityRun).where(
-            LearningActivityRun.run_id == run.id,
-            LearningActivityRun.activity_id == activity_id,
-        )
-    ).first()
-    if activity_run:
-        return activity_run
-    # No definition snapshot: runs are pinned to a badge version whose
-    # activities are immutable once published, so flow and outcomes are read
-    # from the activity itself.
-    activity_run = LearningActivityRun(
-        run_id=run.id or 0,
-        activity_id=activity_id,
-        status=LearningRunStatus.IN_PROGRESS,
-        data={},
-    )
-    db_session.add(activity_run)
-    db_session.commit()
-    db_session.refresh(activity_run)
-    return activity_run
-
-
 def _activity_grading_settings(activity: LearningActivity) -> dict:
     settings = activity.settings or {}
     grading = settings.get("grading") or {}
@@ -367,13 +331,9 @@ def _activity_meets_completion_rules(
 
 
 def _has_pending_required_manual_grades(db_session: Session, run: LearningRun) -> bool:
-    required_pages = db_session.exec(
-        select(LearningPage).where(
-            LearningPage.badge_id == run.badge_id,
-            LearningPage.version_id == run.badge_version_id,
-            LearningPage.required == True,
-        )
-    ).all()
+    required_pages = db_session.exec(select(LearningPage).where(
+        LearningPage.activity_id == run.activity_id, LearningPage.required == True,  # noqa: E712
+    )).all()
     manual_pages = [
         page
         for page in required_pages
@@ -401,84 +361,3 @@ def _has_pending_required_manual_grades(db_session: Session, run: LearningRun) -
         if not attempt or (attempt.result or {}).get("grading_status") != "graded":
             return True
     return False
-
-
-def _issue_award_if_complete(
-    request: Request, db_session: Session, run: LearningRun
-) -> LearningBadgeAward | None:
-    if run.user_id is None:
-        return None
-    badge = db_session.get(LearningBadge, run.badge_id)
-    if badge and (badge.badge_metadata or {}).get("award_strategy") == "portfolio_checklist":
-        return None
-    required_activities = db_session.exec(
-        select(LearningActivity).where(
-            LearningActivity.path_id == run.path_id,
-            LearningActivity.required == True,
-        )
-    ).all()
-    if not required_activities:
-        return None
-    completed_activity_ids = {
-        item.activity_id
-        for item in db_session.exec(
-            select(LearningActivityRun).where(
-                LearningActivityRun.run_id == run.id,
-                LearningActivityRun.status == LearningRunStatus.COMPLETED,
-            )
-        ).all()
-    }
-    if not all(
-        (activity.id or 0) in completed_activity_ids for activity in required_activities
-    ):
-        return None
-    if _has_pending_required_manual_grades(db_session, run):
-        return None
-
-    version = lookups._version_for_content(db_session, run.badge_version_id)
-    major_version = int((version.semantic_version if version else "1.0.0").split(".")[0])
-    award = db_session.exec(
-        select(LearningBadgeAward).where(
-            LearningBadgeAward.badge_id == run.badge_id,
-            LearningBadgeAward.user_id == run.user_id,
-            LearningBadgeAward.major_version == major_version,
-        )
-    ).first()
-    if award:
-        return award
-
-    now = datetime.utcnow()
-    award = LearningBadgeAward(
-        award_uuid=f"award_{uuid4()}",
-        badge_id=run.badge_id,
-        badge_version_id=run.badge_version_id,
-        major_version=major_version,
-        run_id=run.id,
-        org_id=run.org_id,
-        issuing_org_id=run.issuing_org_id,
-        user_id=run.user_id,
-        source=LearningAwardSource.PATH_COMPLETION,
-        issued_at=now,
-        evidence={"run_uuid": run.run_uuid},
-        creation_date=str(now),
-        update_date=str(now),
-    )
-    run.status = LearningRunStatus.COMPLETED
-    run.completed_at = now
-    run.update_date = str(now)
-    links = db_session.exec(select(BadgeIssuerLearnerLink).where(
-        BadgeIssuerLearnerLink.badge_id == run.badge_id,
-        BadgeIssuerLearnerLink.user_id == run.user_id,
-        BadgeIssuerLearnerLink.status == BadgeIssuerLearnerLinkStatus.ACCEPTED,
-    )).all()
-    for link in links:
-        link.status = BadgeIssuerLearnerLinkStatus.COMPLETED
-        link.end_reason = "badge_completed"
-        link.ended_at = now
-        link.update_date = str(now)
-        db_session.add(link)
-    db_session.add(run)
-    db_session.add(award)
-    db_session.commit()
-    db_session.refresh(award)
-    return award

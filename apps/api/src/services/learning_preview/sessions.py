@@ -16,7 +16,6 @@ from pydantic import BaseModel, Field
 from sqlmodel import Session, delete, select
 
 from config.config import get_launchlms_config
-from src.db.learning import LearningBadge
 from src.db.learning_previews import LearningActivityPreview
 from src.db.organizations import Organization
 from src.db.users import AnonymousUser, PublicUser
@@ -31,7 +30,7 @@ TOKEN_PREFIX = "lpv_"
 
 class PreviewCreate(BaseModel):
     activity_uuid: str | None = Field(default=None, description="Preview this stored activity (or use it as the base for `document`).")
-    badge_uuid: str | None = Field(default=None, description="Badge the document belongs to when previewing a not-yet-saved activity.")
+    template_uuid: str | None = Field(default=None, description="Plan template the document belongs to when previewing a not-yet-saved activity.")
     document: dict | None = Field(default=None, description="An Activity Document to preview without saving it.")
     persona: dict = Field(default_factory=dict, description="Learner variables to start with, e.g. {'user.first_name': 'Sam'}.")
     source: str = Field(default="editor", pattern=r"^(editor|link|connector)$")
@@ -64,15 +63,15 @@ def preview_url(org: Organization, token: str) -> str:
 async def create_preview(
     request: Request, payload: PreviewCreate, current_user: PublicUser | AnonymousUser, db_session: Session
 ) -> dict:
+    from src.db.programs import Program
+
     activity = learning._get_activity(db_session, payload.activity_uuid) if payload.activity_uuid else None
-    badge = (
-        db_session.get(LearningBadge, activity.badge_id)
-        if activity
-        else learning._get_badge(db_session, payload.badge_uuid) if payload.badge_uuid else None
-    )
-    if badge is None:
-        raise HTTPException(status_code=422, detail="Pass activity_uuid or badge_uuid")
-    user = learning._require_org_admin(db_session, current_user, badge.org_id)
+    template = None if activity or not payload.template_uuid else db_session.exec(select(Program).where(Program.program_uuid == payload.template_uuid)).first()
+    if activity is None and template is None:
+        raise HTTPException(status_code=422, detail="Pass activity_uuid or template_uuid")
+    org_id = activity.org_id if activity else template.org_id  # type: ignore[union-attr]
+    user = learning._require_org_admin(db_session, current_user, org_id)
+    system = learning._is_system_activity(db_session, activity) if activity else template.system_type is not None  # type: ignore[union-attr]
     existing = activity_pages(db_session, activity) if activity else []
     raw = payload.document if payload.document is not None else export_document(activity, existing) if activity else None
     if raw is None:
@@ -80,7 +79,7 @@ async def create_preview(
     prepared = prepare_document(
         raw,
         existing_page_uuids={page.page_uuid for page in existing},
-        allow_system_blocks=learning._is_system_object(badge),
+        allow_system_blocks=system,
         baseline=export_document(activity, existing) if activity else None,
     )
     if not prepared.ok:
@@ -98,8 +97,7 @@ async def create_preview(
     db_session.add(
         LearningActivityPreview(
             token_hash=_hash(token),
-            org_id=badge.org_id,
-            badge_id=badge.id,
+            org_id=org_id,
             activity_id=activity.id if activity else None,
             created_by_user_id=user.id,
             source=payload.source,
@@ -110,7 +108,7 @@ async def create_preview(
         )
     )
     db_session.commit()
-    org = learning._get_org(db_session, badge.org_id)
+    org = learning._get_org(db_session, org_id)
     return {
         "token": token,
         "url": preview_url(org, token),
@@ -132,11 +130,9 @@ def _load(db_session: Session, token: str) -> LearningActivityPreview:
 
 async def get_preview(request: Request, token: str, db_session: Session) -> dict:
     preview = _load(db_session, token)
-    badge = db_session.get(LearningBadge, preview.badge_id) if preview.badge_id else None
     org = learning._get_org(db_session, preview.org_id)
     return {
         **engine.start(preview.document, preview.persona),
-        "badge": {"badge_uuid": badge.badge_uuid, "name": badge.name, "org_id": badge.org_id} if badge else None,
         "org": {"id": org.id, "slug": org.slug, "name": org.name},
         "source": preview.source,
         "expires_at": preview.expires_at.isoformat() + "Z",

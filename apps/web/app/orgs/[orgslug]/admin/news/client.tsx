@@ -5,7 +5,6 @@ import useSWR from 'swr'
 import toast from 'react-hot-toast'
 import {
   Edit3,
-  ExternalLink,
   Plus,
   Star,
   Trash2,
@@ -166,18 +165,6 @@ export default function NewsDashClient({
                         Edit
                       </Link>
                     </Button>
-                    {isPublished && (
-                      <Button asChild type="button" variant="outline" className="h-9 gap-2 rounded-[6px]">
-                        <a
-                          href={getUriWithOrg(orgslug, routePaths.org.newsArticle(article.slug))}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          <ExternalLink size={14} />
-                          View
-                        </a>
-                      </Button>
-                    )}
                     <Button
                       type="button"
                       variant="outline"

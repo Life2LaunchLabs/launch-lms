@@ -5,7 +5,6 @@ from fastapi import HTTPException
 from sqlmodel import SQLModel, Session, create_engine, select
 
 from src.db.learning import LearningBadge, LearningBadgeAward, LearningPage, LearningPageProgress, LearningRun
-from src.db.guest_sessions import GuestSession
 from src.db.media import MediaAsset, MediaOwnerType, MediaSourceType, MediaType
 from src.db.messages import InboxMessage
 from src.db.organizations import Organization
@@ -60,7 +59,7 @@ def _session() -> Session:
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     SQLModel.metadata.create_all(engine, tables=[
         Organization.__table__, OrganizationConfig.__table__, User.__table__, Program.__table__, ProgramAssignment.__table__, ProgramParticipant.__table__,
-        Objective.__table__, ObjectiveProgress.__table__, GuestSession.__table__, LearningBadge.__table__, LearningBadgeAward.__table__, LearningRun.__table__, LearningPage.__table__, LearningPageProgress.__table__,
+        Objective.__table__, ObjectiveProgress.__table__, LearningBadge.__table__, LearningBadgeAward.__table__, LearningRun.__table__, LearningPage.__table__, LearningPageProgress.__table__,
         Plan.__table__, PlanRole.__table__, PlanCollaborator.__table__, PlanPhase.__table__,
         OrganizationPlanRole.__table__,
         PlanObjective.__table__, PlanObjectiveProgress.__table__, PlanInvitation.__table__, PlanActivity.__table__,
@@ -114,6 +113,29 @@ def test_recipient_bound_invitation_grants_plan_access_without_org_membership():
         helper_plan = planning.get_plan(db, _user(2), created["slug"])
         assert "complete_restricted_objectives" in helper_plan["capabilities"]
         assert helper_plan["subject"]["id"] == 1
+
+
+def test_owner_can_take_back_an_unanswered_invitation():
+    from src.services import plan_sharing
+
+    with _session() as db:
+        created = planning.create_plan(db, _user(1), _plan_create("Personal discovery"))
+        invite = PlanInvitationCreate(email="helper@example.com", role_key="viewer", kind=PlanInvitationKind.COLLABORATOR)
+        invitation = planning.create_invitation(db, _user(1), created["slug"], invite)
+        with pytest.raises(HTTPException) as twice:
+            planning.create_invitation(db, _user(1), created["slug"], invite)
+        assert twice.value.status_code == 409
+        with pytest.raises(HTTPException) as not_owner:
+            plan_sharing.revoke_invitation(db, _user(2), created["slug"], invitation["invitation_uuid"])
+        assert not_owner.value.status_code in {403, 404}
+        plan_sharing.revoke_invitation(db, _user(1), created["slug"], invitation["invitation_uuid"])
+        assert planning.list_my_invitations(db, _user(2)) == []
+        assert db.exec(select(InboxMessage).where(InboxMessage.action_kind == "plan_invitation")).one().action_status == "revoked"
+        with pytest.raises(HTTPException) as accept_late:
+            planning.respond_to_invitation(db, _user(2), invitation["invitation_uuid"], True)
+        assert accept_late.value.status_code in {404, 409}
+        # Once taken back, the same person can be invited again.
+        planning.create_invitation(db, _user(1), created["slug"], invite)
 
 
 def test_plan_review_queue_is_scoped_to_one_live_plan():
@@ -249,6 +271,12 @@ def test_plan_target_date_is_optional_and_dates_are_bounded():
         undated = planning.create_plan(db, _user(1), PlanCreate(name="No target"))
         assert undated["due_date"] is None and undated["status"] == "active"
         assert [phase["name"] for phase in undated["phases"]] == ["Getting started"]
+        edited = planning.update_plan(db, _user(1), undated["slug"], PlanUpdate(name="Still open", step_order="in_order"))
+        assert edited["name"] == "Still open" and edited["due_date"] is None
+        assert edited["step_order"] == "in_order"
+        planning.update_plan(db, _user(1), undated["slug"], PlanUpdate(due_date=date(2027, 12, 31)))
+        cleared = planning.update_plan(db, _user(1), undated["slug"], PlanUpdate(due_date=None))
+        assert cleared["due_date"] is None
         with pytest.raises(HTTPException) as inverted:
             planning.create_plan(db, _user(1), PlanCreate(name="Backwards", start_date=date(2027, 1, 2), due_date=date(2027, 1, 1)))
         assert inverted.value.status_code == 422
@@ -406,67 +434,6 @@ def test_materialized_badge_snapshots_become_badge_requirements():
             "title": "Clinical practice", "type": "badge",
             "badge_uuid": "badge_1", "restricted": False,
         }]
-
-
-def test_legacy_learning_runs_link_only_to_unambiguous_badge_requirements():
-    with _session() as db:
-        badge = LearningBadge(
-            id=1, badge_uuid="badge_1", org_id=1, name="Clinical practice",
-            creation_date=NOW, update_date=NOW,
-        )
-        linked_plan = Plan(
-            plan_uuid="plan_linked", slug="linked", name="Linked plan",
-            owner_user_id=1, subject_user_id=2, creation_date=NOW, update_date=NOW,
-        )
-        ambiguous_plan = Plan(
-            plan_uuid="plan_ambiguous", slug="ambiguous", name="Ambiguous plan",
-            owner_user_id=1, subject_user_id=2, creation_date=NOW, update_date=NOW,
-        )
-        db.add_all([badge, linked_plan, ambiguous_plan])
-        db.flush()
-        linked_objective = PlanObjective(
-            objective_uuid="objective_linked", plan_id=linked_plan.id,
-            title="Complete placement", kind="custom", badge_id=badge.id,
-            fields=[{"field_uuid": "badge_1", "type": "badge", "badge_uuid": badge.badge_uuid}],
-            creation_date=NOW, update_date=NOW,
-        )
-        db.add_all([
-            linked_objective,
-            PlanObjective(
-                objective_uuid="objective_ambiguous_1", plan_id=ambiguous_plan.id,
-                title="First placement", kind="custom", badge_id=badge.id,
-                fields=[{"field_uuid": "badge_1a", "type": "badge", "badge_uuid": badge.badge_uuid}],
-                creation_date=NOW, update_date=NOW,
-            ),
-            PlanObjective(
-                objective_uuid="objective_ambiguous_2", plan_id=ambiguous_plan.id,
-                title="Second placement", kind="custom", badge_id=badge.id,
-                fields=[{"field_uuid": "badge_1b", "type": "badge", "badge_uuid": badge.badge_uuid}],
-                creation_date=NOW, update_date=NOW,
-            ),
-        ])
-        db.flush()
-        linked_run = LearningRun(
-            run_uuid="run_linked", badge_id=badge.id, path_id=1, org_id=1,
-            program_assignment_id=10, program_participant_id=20, user_id=2,
-            creation_date=NOW, update_date=NOW,
-        )
-        ambiguous_run = LearningRun(
-            run_uuid="run_ambiguous", badge_id=badge.id, path_id=1, org_id=1,
-            program_assignment_id=11, program_participant_id=20, user_id=2,
-            creation_date=NOW, update_date=NOW,
-        )
-        db.add_all([linked_run, ambiguous_run])
-        db.flush()
-
-        planning._link_legacy_learning_runs(db, 10, 20, 2, linked_plan)
-        planning._link_legacy_learning_runs(db, 11, 20, 2, ambiguous_plan)
-        db.flush()
-
-        assert linked_run.plan_id == linked_plan.id
-        assert linked_run.plan_objective_id == linked_objective.id
-        assert ambiguous_run.plan_id is None
-        assert ambiguous_run.plan_objective_id is None
 
 
 def test_structure_schedule_role_and_leave_permissions_are_independent():
@@ -876,9 +843,10 @@ def test_external_email_assignment_materializes_pending_recipient_bound_plan():
         planning.materialize_external_assignment_plan(db, assignment.id, assignment.subject_email)
         db.commit()
 
-        owned = planning.list_plans(db, _user(1), "pending")
-        assert len(owned) == 1
-        assert owned[0]["subject"] is None
+        # The assigner manages it from the admin side; it stays out of their own plans list.
+        assert planning.list_plans(db, _user(1), "pending") == []
+        plan = db.exec(select(Plan).where(Plan.source_assignment_id == assignment.id)).one()
+        assert plan.owner_user_id == 1 and plan.subject_user_id is None
         recipient = PublicUser(id=99, user_uuid="future", username="future", email="future@example.com", first_name="Future", last_name="User")
         invitations = planning.list_my_invitations(db, recipient)
         assert len(invitations) == 1
@@ -923,10 +891,10 @@ def test_group_sourced_plan_rejects_individual_definition_changes_with_workspace
             planning.update_plan(db, _user(1), plan.slug, PlanUpdate(name="Private divergence"))
         assert conflict.value.status_code == 409
         assert conflict.value.detail["assignment_uuid"] == assignment.assignment_uuid
-        assert conflict.value.detail["group_workspace"] == "/plans?group=assignment_group_lock"
+        assert conflict.value.detail["group_workspace"].endswith("/plans?assignment=assignment_group_lock")
 
 
-def test_assignment_materialization_is_idempotent_and_preserves_states_owner_roles_and_progress():
+def test_assignment_materialization_is_idempotent_and_preserves_states_owner_roles_and_requirement_links():
     with _session() as db:
         definitions = [
             {"key": "subject", "name": "Learner", "capabilities": ["view_plan", "update_progress"]},
@@ -945,6 +913,7 @@ def test_assignment_materialization_is_idempotent_and_preserves_states_owner_rol
             objective_snapshot=[{
                 "id": 70, "objective_uuid": "objective_70", "title": "Shared objective",
                 "kind": "custom", "phase_uuid": "phase_batch", "phase_name": "Batch phase",
+                "requirement_mappings": [{"framework_id": 9, "framework_uuid": "requirement_framework_9", "node_uuid": "node_a", "node_code": "1"}],
             }], creation_date=NOW, update_date=NOW,
         )
         participants = [
@@ -970,9 +939,11 @@ def test_assignment_materialization_is_idempotent_and_preserves_states_owner_rol
         roles = db.exec(select(PlanRole).where(PlanRole.plan_id == completed_plan.id)).all()
         assert {role.key: role.name for role in roles} == {"subject": "Learner", "coach": "Coach", "plan_admin": "Lead"}
         copied = db.exec(select(PlanObjectiveProgress).join(PlanObjective, PlanObjective.id == PlanObjectiveProgress.plan_objective_id).where(PlanObjective.plan_id == completed_plan.id)).one()
-        assert copied.status == PlanObjectiveStatus.COMPLETED
-        assert copied.subject_note == "Done"
-        assert copied.field_values == {"legacy_evidence": [{"url": "/proof.pdf"}]}
+        # Live plans start fresh: progress recorded against the template objective
+        # elsewhere does not carry over (requirements express equivalence instead).
+        assert copied.status == PlanObjectiveStatus.NOT_STARTED
+        live_objective = db.get(PlanObjective, copied.plan_objective_id)
+        assert live_objective.requirement_mappings == [{"framework_id": 9, "framework_uuid": "requirement_framework_9", "node_uuid": "node_a"}]
         pending_invites = db.exec(select(PlanInvitation).where(PlanInvitation.plan_id == plans[0].id)).all()
         assert len(pending_invites) == 1
         assert pending_invites[0].status == "pending"

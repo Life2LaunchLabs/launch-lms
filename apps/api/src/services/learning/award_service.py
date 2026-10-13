@@ -11,6 +11,7 @@ from src.db.learning import (
     LearningAwardSource,
     LearningBadge,
     LearningBadgeAward,
+    LearningBadgeVersion,
 )
 from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
@@ -22,7 +23,7 @@ from src.services.badge_openbadges import (
     get_public_api_base_url,
     get_public_base_url,
 )
-from src.services.learning import access_rules, enrollment, lookups
+from src.services.learning import access_rules, lookups
 
 
 async def confer_award(
@@ -31,7 +32,7 @@ async def confer_award(
     current_user: PublicUser | AnonymousUser,
     db_session: Session,
 ) -> dict:
-    badge = enrollment._get_badge(db_session, data.badge_uuid)
+    badge = lookups._get_badge(db_session, data.badge_uuid)
     version = lookups._get_badge_version(db_session, badge, require_published=True)
     major_version = int((version.semantic_version or "1.0.0").split(".")[0])
     issuing_org_id = (
@@ -39,9 +40,9 @@ async def confer_award(
     )
     if issuing_org_id is not None:
         admin = access_rules._require_org_admin(db_session, current_user, issuing_org_id)
-        if not enrollment._get_approved_issuer_authorization(
-            db_session, badge.id or 0, issuing_org_id
-        ):
+        from src.services.learning_issuers import active_issuers
+
+        if issuing_org_id not in {org_id for org_id, _access, _authorization in active_issuers(db_session, badge)}:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Your organization is not authorized to issue this badge",
@@ -301,7 +302,7 @@ def build_award_response(
     user = db_session.exec(select(User).where(User.id == award.user_id)).first()
     if not badge or not user:
         raise HTTPException(status_code=404, detail="Badge award data not found")
-    version = lookups._version_for_content(db_session, award.badge_version_id)
+    version = db_session.get(LearningBadgeVersion, award.badge_version_id) if award.badge_version_id else None
     if version:
         definition = deepcopy(version.definition or {})
         definition["badge_metadata"] = {

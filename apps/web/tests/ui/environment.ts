@@ -41,7 +41,8 @@ export function loadUiTestEnvironment(options: { requireCredentials?: boolean } 
     email: options.requireCredentials === false ? (process.env.UI_TEST_EMAIL || '') : required('UI_TEST_EMAIL'),
     password: options.requireCredentials === false ? (process.env.UI_TEST_PASSWORD || '') : required('UI_TEST_PASSWORD'),
     orgSlug,
-    hubPath: process.env.UI_TEST_HUB_PATH || `/orgs/${encodeURIComponent(orgSlug)}/hub`,
+    // Hub has no page of its own; it opens beside Plans, the landing page.
+    hubPath: process.env.UI_TEST_HUB_PATH || `/orgs/${encodeURIComponent(orgSlug)}/plans?hub=open`,
     plansPath: process.env.UI_TEST_PLANS_PATH || `/orgs/${encodeURIComponent(orgSlug)}/plans`,
     outputDir,
   }

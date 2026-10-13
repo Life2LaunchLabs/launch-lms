@@ -1,7 +1,8 @@
-import ProgramAssignmentWizard from '@components/Admin/Programs/ProgramAssignmentWizard'
+import { redirect } from 'next/navigation'
+import { routePaths } from '@services/config/config'
 
-export default async function NewPlanAssignmentPage({ params, searchParams }: { params: Promise<{ orgslug: string; programuuid: string }>; searchParams: Promise<{ groupId?: string }> }) {
-  const { orgslug, programuuid } = await params
-  const { groupId } = await searchParams
-  return <ProgramAssignmentWizard orgslug={orgslug} programUuid={decodeURIComponent(programuuid)} initialGroupId={groupId} />
+// Assigning is a dialog on the template overview now.
+export default async function NewAssignmentRedirect({ params }: { params: Promise<{ orgslug: string; programuuid: string }> }) {
+  const { programuuid } = await params
+  redirect(routePaths.org.dash.programPage(decodeURIComponent(programuuid), 'overview'))
 }

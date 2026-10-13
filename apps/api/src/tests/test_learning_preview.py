@@ -26,19 +26,19 @@ async def test_engine_follows_the_branch_the_live_flow_would_take():
     session, alice, _ = _world()
     document = await _document(session, alice)
     started = engine.start(document)
-    assert started["run"]["navigation"]["activities"][0]["path"] == [P1, P3]
-    assert started["run"]["navigation"]["activities"][0]["current_page_uuid"] == P1
+    assert started["run"]["navigation"]["path"] == [P1, P3]
+    assert started["run"]["navigation"]["current_page_uuid"] == P1
     assert started["activity"]["pages"][0]["page_uuid"] == P1
 
     made = engine.step(document, started["state"], "submit", P1, _answer("opt_make"))
-    navigation = made["run"]["navigation"]["activities"][0]
+    navigation = made["run"]["navigation"]
     assert navigation["path"] == [P1, P2] and navigation["current_page_uuid"] == P2
     assert made["run"]["render_context"]["answers"][P1]["result"]["option_ids"] == ["opt_make"]
 
     finished = engine.step(document, made["state"], "complete", P2)
     assert finished["run"]["status"] == "completed"
     assert finished["run"]["result"]["passed"] is True
-    assert finished["run"]["navigation"]["activities"][0]["current_page_uuid"] is None
+    assert finished["run"]["navigation"]["current_page_uuid"] is None
 
 
 async def test_changing_an_answer_reroutes_and_drops_progress_off_the_new_route():
@@ -48,7 +48,7 @@ async def test_changing_an_answer_reroutes_and_drops_progress_off_the_new_route(
     state = engine.step(document, state, "complete", P2)["state"]
     rerouted = engine.step(document, state, "submit", P1, _answer("opt_help"))
     assert rerouted["state"]["completed"] == [P1]
-    assert rerouted["run"]["navigation"]["activities"][0]["current_page_uuid"] == P3
+    assert rerouted["run"]["navigation"]["current_page_uuid"] == P3
     assert len(rerouted["state"]["attempts"]) == 1
 
 
@@ -83,10 +83,11 @@ async def test_sessions_preview_unsaved_documents_without_touching_learner_table
     assert stored.token_hash != created["token"]
 
     opened = await sessions.get_preview(_request(), created["token"], session)
+    assert "badge" not in opened and opened["org"]["slug"] == "creator"
     assert opened["state"]["variables"]["user.first_name"] == "Sam"
     assert opened["activity"]["pages"][-1]["page_uuid"].startswith("learning_page_")
     stepped = await sessions.step_preview(_request(), created["token"], sessions.PreviewStep(action="submit", page_uuid=P1, answer=_answer("opt_make")), session)
-    assert stepped["run"]["navigation"]["activities"][0]["current_page_uuid"] == P2
+    assert stepped["run"]["navigation"]["current_page_uuid"] == P2
     for model in (LearningRun, LearningResponseAttempt, LearningPageProgress):
         assert session.exec(select(model)).all() == []
 
@@ -107,40 +108,54 @@ async def test_invalid_documents_cannot_be_previewed():
     assert exc.value.detail["errors"][0]["path"] == "activity.settings.flow"
 
 
+async def test_unsaved_activities_preview_against_their_template():
+    session, alice, carol = _world()
+    document = {"activity": {"title": "Reflect"}, "pages": [{"page_uuid": "start", "title": "Start", "content": {"version": 2, "blocks": []}}]}
+    created = await sessions.create_preview(_request(), sessions.PreviewCreate(template_uuid="program_template", document=document), alice, session)
+    stored = session.exec(select(LearningActivityPreview)).one()
+    assert stored.activity_id is None and stored.org_id == 1
+    opened = await sessions.get_preview(_request(), created["token"], session)
+    assert opened["activity"]["pages"][0]["title"] == "Start"
+
+    with pytest.raises(HTTPException) as forbidden:
+        await sessions.create_preview(_request(), sessions.PreviewCreate(template_uuid="program_template", document=document), carol, session)
+    assert forbidden.value.status_code in {401, 403}
+    with pytest.raises(HTTPException) as nothing:
+        await sessions.create_preview(_request(), sessions.PreviewCreate(document=document), alice, session)
+    assert nothing.value.status_code == 422
+
+
 async def test_live_run_navigation_matches_the_preview_engine():
-    """Live runs route on the pinned version, exactly like the preview."""
-    from src.db.learning import LearningActivityRun, LearningResponseSubmit
-    from src.services.guest_sessions import LearningActor
+    """Live plan-step runs route exactly like the preview."""
+    from src.db.learning import LearningPageComplete, LearningResponseSubmit
+    from src.db.planning import Plan, PlanObjective
     from src.services.learning import runtime
     from src.services.learning.run_navigation import _run_navigation
 
-    session, alice, _ = _world("published")
+    session, alice, _ = _world()
     document = await _document(session, alice)
-    from src.db.learning import LearningBadgeVersion
-
-    session.get(LearningBadgeVersion, 50).semantic_version = "2.0.0"
-    run = LearningRun(run_uuid="learning_run_live", badge_id=1, path_id=50, badge_version_id=50, org_id=1, user_id=alice.id)
+    session.add(Plan(id=1, plan_uuid="plan_1", slug="alice-career", name="Career Ready", owner_user_id=alice.id, subject_user_id=alice.id))
+    session.add(PlanObjective(id=1, objective_uuid="plan_objective_1", plan_id=1, title="Career interests", kind="activity", activity_id=50))
+    run = LearningRun(run_uuid="learning_run_live", activity_id=50, org_id=1, plan_id=1, plan_objective_id=1, user_id=alice.id)
     session.add(run)
     session.commit()
     # The route exists before the learner has opened the activity.
-    live = _run_navigation(session, run)["activities"]
-    assert [(item["activity_id"], item["path"], item["current_page_uuid"]) for item in live] == [(50, [P1, P3], P1)]
+    live = _run_navigation(session, run)
+    assert (live["activity_id"], live["path"], live["current_page_uuid"]) == (50, [P1, P3], P1)
 
     submitted = await runtime.submit_response(
-        _request(), LearningResponseSubmit(run_uuid="learning_run_live", page_uuid=P1, answer=_answer("opt_make")), LearningActor(user=alice), session
+        _request(), LearningResponseSubmit(run_uuid="learning_run_live", page_uuid=P1, answer=_answer("opt_make")), alice, session
     )
     preview = engine.step(document, engine.start(document)["state"], "submit", P1, _answer("opt_make"))
-    live_nav = submitted.navigation["activities"][0]
-    preview_nav = preview["run"]["navigation"]["activities"][0]
+    live_nav = submitted.navigation
+    preview_nav = preview["run"]["navigation"]
     for key in ("path", "current_page_uuid", "completed", "total"):
         assert live_nav[key] == preview_nav[key], key
-    assert session.exec(select(LearningActivityRun)).one().data.get("definition") is None
+    assert set(session.get(LearningRun, run.id).data) == {"route"}
 
-    from src.db.learning import LearningPageComplete
-
-    finished = await runtime.complete_page(_request(), LearningPageComplete(run_uuid="learning_run_live", page_uuid=P2), LearningActor(user=alice), session)
-    preview_done = engine.step(document, preview["state"], "complete", P2)["run"]["navigation"]["activities"][0]
-    live_done = finished.navigation["activities"][0]
+    finished = await runtime.complete_page(_request(), LearningPageComplete(run_uuid="learning_run_live", page_uuid=P2), alice, session)
+    preview_done = engine.step(document, preview["state"], "complete", P2)["run"]["navigation"]
+    live_done = finished.navigation
     assert live_done["current_page_uuid"] is None and preview_done["current_page_uuid"] is None
     for key in ("passed", "score", "max_score", "score_percent", "pending_manual_grades"):
         assert live_done["result"][key] == preview_done["result"][key], key

@@ -1,96 +1,36 @@
 import React from 'react'
-import {
-  User,
-  SealCheck,
-  Newspaper,
-  ClipboardText,
-  House,
-} from '@phosphor-icons/react'
-import { getCoreCapabilities } from '@services/config/config'
-
-export const KNOWN_SUBPATHS = [
-  '/hub',
-  '/badges',
-  '/plans',
-  '/badge',
-  '/podcasts',
-  '/communities',
-  '/community/',
-  '/organizations',
-  '/organization/',
-  '/resources',
-  '/resource/',
-  '/news',
-  '/editor',
-  '/portfolio',
-  '/account',
-  '/payments',
-]
+import { ClipboardText, Compass, Sparkle, User } from '@phosphor-icons/react'
 
 export interface OrgMenuNavItem {
+  /** A destination, or ``hub`` for the item that brings Hub out beside the page. */
   href?: string
+  action?: 'hub'
   label: string
   icon: React.ReactNode
   active: boolean
   show: boolean
-  onboardingFeature?: 'badges' | 'resources'
 }
 
 function isFeatureEnabled(resolvedFeatures: any, feature: string) {
   return resolvedFeatures?.[feature]?.enabled === true
 }
 
+/** The learner app's primary destinations, in nav order. Plans is home. */
 export function getPrimaryOrgMenuItems({
   pathname,
   resolvedFeatures,
+  hubOpen = false,
 }: {
   pathname?: string | null
   resolvedFeatures: any
+  hubOpen?: boolean
 }): OrgMenuNavItem[] {
-  const capabilities = getCoreCapabilities()
-  const isHome = !KNOWN_SUBPATHS.some((subpath) => pathname?.includes(subpath))
-  const isOnHub = pathname?.includes('/hub')
-  const isOnPortfolio = pathname?.includes('/portfolio')
-  const isOnBadges = !isOnPortfolio && pathname?.includes('/badges')
-  const isOnPlans = pathname?.includes('/plans')
-  const isOnNews = pathname?.includes('/news')
-
+  const isOnPortfolio = Boolean(pathname?.includes('/portfolio'))
+  const isOnDiscover = !isOnPortfolio && Boolean(pathname?.includes('/discover') || pathname?.includes('/badges'))
   return [
-    {
-      href: '/hub',
-      label: 'Hub',
-      icon: <House size={18} weight="fill" />,
-      active: Boolean(isOnHub || isHome),
-      show: true,
-    },
-    {
-      href: '/portfolio',
-      label: 'Portfolio',
-      icon: <User size={18} weight="fill" />,
-      active: Boolean(isOnPortfolio),
-      show: true,
-    },
-    {
-      href: '/badges',
-      label: 'Badges',
-      icon: <SealCheck size={18} weight="fill" />,
-      active: Boolean(isOnBadges),
-      show: isFeatureEnabled(resolvedFeatures, 'badges'),
-      onboardingFeature: 'badges',
-    },
-    {
-      href: '/plans',
-      label: 'Plans',
-      icon: <ClipboardText size={18} weight="fill" />,
-      active: Boolean(isOnPlans),
-      show: true,
-    },
-    {
-      href: '/news',
-      label: 'News',
-      icon: <Newspaper size={18} weight="fill" />,
-      active: Boolean(isOnNews),
-      show: capabilities.news,
-    },
+    { href: '/plans', label: 'Plans', icon: <ClipboardText size={22} weight="fill" />, active: Boolean(pathname?.includes('/plans')) && !hubOpen, show: true },
+    { href: '/discover', label: 'Discover', icon: <Compass size={22} weight="fill" />, active: isOnDiscover && !hubOpen, show: isFeatureEnabled(resolvedFeatures, 'badges') || isFeatureEnabled(resolvedFeatures, 'resources') },
+    { href: '/portfolio', label: 'Portfolio', icon: <User size={22} weight="fill" />, active: isOnPortfolio && !hubOpen, show: true },
+    { action: 'hub', label: 'Hub', icon: <Sparkle size={22} weight="fill" />, active: hubOpen, show: true },
   ]
 }

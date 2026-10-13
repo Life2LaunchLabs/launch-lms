@@ -18,14 +18,14 @@ const START: { id: StartFrom; title: string; detail: string }[] = [
   { id: 'copy', title: 'A copy of a real account', detail: 'Someone agreed to share their account as a starting point.' },
   { id: 'duplicate', title: 'Another demo user', detail: 'Same account and guide, new person.' },
 ]
-export const START_PAGES = [['/hub', 'Hub'], ['/portfolio', 'Portfolio'], ['/badges', 'Badges'], ['/plans', 'Plans'], ['/admin', 'Organization admin']] as const
+export const START_PAGES = [['/plans', 'Plans'], ['/discover', 'Discover'], ['/portfolio', 'Portfolio'], ['/admin', 'Organization admin']] as const
 
 export default function StudioNewUser() {
   const { data } = useDemoStudio()
   const href = useStudioHref()
   const router = useRouter()
   const [from, setFrom] = useState<StartFrom>('blank')
-  const [form, setForm] = useState({ first_name: '', last_name: '', role_line: '', description: '', start_path: '/hub', start_org_slug: '', pilotable: true, source_email: '', password: '', source_user_id: '', include_conversations: false })
+  const [form, setForm] = useState({ first_name: '', last_name: '', role_line: '', description: '', start_path: '/plans', start_org_slug: '', pilotable: true, source_email: '', password: '', source_user_id: '', include_conversations: false })
   const [orgs, setOrgs] = useState<OrgRow[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -60,7 +60,7 @@ export default function StudioNewUser() {
       {from === 'duplicate' ? <div className="space-y-1.5"><Label htmlFor="dup-source">Demo user to duplicate</Label><select id="dup-source" required value={form.source_user_id} onChange={(event) => set({ source_user_id: event.target.value })} className="h-9 w-full rounded-md border bg-background px-3 text-sm"><option value="">Choose…</option>{(data?.members || []).map((member) => <option key={member.user_id} value={member.user_id}>{demoAccountName(member)}</option>)}</select></div> : null}
       <div className="grid gap-3 sm:grid-cols-2"><div className="space-y-1.5"><Label htmlFor="nu-first">First name</Label><Input id="nu-first" required value={form.first_name} onChange={(event) => set({ first_name: event.target.value })} /></div><div className="space-y-1.5"><Label htmlFor="nu-last">Last name</Label><Input id="nu-last" value={form.last_name} onChange={(event) => set({ last_name: event.target.value })} /></div></div>
       <div className="space-y-1.5"><Label htmlFor="nu-role">Role line</Label><Input id="nu-role" placeholder="Junior · Oregon High School" value={form.role_line} onChange={(event) => set({ role_line: event.target.value })} /></div>
-      <div className="space-y-1.5"><Label htmlFor="nu-description">Who they are</Label><Textarea id="nu-description" maxLength={1000} placeholder="16, curious about healthcare. Halfway through her first badge pathway." value={form.description} onChange={(event) => set({ description: event.target.value })} /><p className="text-xs text-muted-foreground">One or two sentences for the picker card. Add a photo in setup mode, from their profile.</p></div>
+      <div className="space-y-1.5"><Label htmlFor="nu-description">Who they are</Label><Textarea id="nu-description" maxLength={1000} placeholder="16, curious about healthcare. Halfway through her first badge plan." value={form.description} onChange={(event) => set({ description: event.target.value })} /><p className="text-xs text-muted-foreground">One or two sentences for the picker card. Add a photo in setup mode, from their profile.</p></div>
       <fieldset className="space-y-2"><legend className="mb-1 text-sm font-semibold">Where they belong</legend>
         <p className="text-sm text-muted-foreground">Every demo user is a member of the main organization, like real learners. Add a school or issuer only if their story needs one.</p>
         {orgs.map((org, index) => <div key={index} className="flex gap-2"><Input aria-label="Organization slug" placeholder="organization-slug" value={org.slug} onChange={(event) => setOrgs((rows) => rows.map((row, position) => position === index ? { ...row, slug: event.target.value } : row))} /><select aria-label="Role" value={org.role} onChange={(event) => setOrgs((rows) => rows.map((row, position) => position === index ? { ...row, role: event.target.value as OrgRow['role'] } : row))} className="h-9 rounded-md border bg-background px-2 text-sm"><option value="student">Student</option><option value="staff">Staff</option><option value="admin">Admin</option></select><Button type="button" variant="ghost" size="icon" aria-label="Remove organization" onClick={() => setOrgs((rows) => rows.filter((_, position) => position !== index))}><X className="h-4 w-4" /></Button></div>)}

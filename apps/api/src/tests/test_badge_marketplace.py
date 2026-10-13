@@ -3,7 +3,6 @@ from datetime import datetime
 import pytest
 from fastapi import HTTPException
 from sqlmodel import Session, create_engine, select
-from src.db.guest_sessions import GuestSession
 from src.db.learning import (
     BadgeCollection,
     BadgeIssuerAuthorization,
@@ -16,7 +15,6 @@ from src.db.learning import (
     IssuerLearnerRequestCreate,
     IssuerLearnerRequestDecision,
     LearningActivity,
-    LearningActivityRun,
     LearningAwardCreate,
     LearningBadge,
     LearningBadgeCreate,
@@ -24,20 +22,23 @@ from src.db.learning import (
     LearningBadgeVersion,
     LearningPage,
     LearningPageProgress,
-    LearningPath,
+    LearningPageType,
     LearningResponseAttempt,
     LearningResponseGrade,
+    LearningResponseSubmit,
     LearningRun,
 )
 from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
 from src.db.plan_requests import PlanRequest
 from src.db.portfolio import Portfolio
-from src.db.programs import Objective, ObjectiveKind, ParticipantStatus, Program, ProgramAssignment, ProgramObjective, ProgramParticipant
+from src.db.badge_routes import BadgePlanStart, BadgeRoute, BadgeRouteInput, BadgeRouteOffer, BadgeRoutesUpdate
+from src.db.planning import Plan, PlanActivity, PlanCollaborator, PlanInvitation, PlanObjective, PlanObjectiveProgress, PlanPhase, PlanRole
+from src.db.programs import Objective, ObjectiveCreate, ObjectiveKind, Program, ProgramAssignment, ProgramObjective, ProgramCreate, ProgramParticipant, ProgramPhase
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
-from src.services.guest_sessions import LearningActor
+from src.services.badge_routes import set_routes, start_badge_plan
 from src.services.learning import (
     build_ob3_credential,
     confer_award,
@@ -45,8 +46,9 @@ from src.services.learning import (
     grade_learning_response,
     list_collections,
     list_learning_responses,
-    start_or_resume_run,
+    runtime,
 )
+from src.services.learning_page_convert import normalize_question_settings, question_block
 from src.services.learning_issuers import IssuerAccessUpdate
 from src.services.learning_marketplace import (
     browse_marketplace_badges,
@@ -60,6 +62,8 @@ from src.services.learning_marketplace import (
     request_learner_support,
     update_authorization,
 )
+from src.services.plan_activities import start_objective_activity
+from src.services.programs import add_program_objective, create_program
 from starlette.requests import Request
 
 
@@ -82,16 +86,15 @@ def _create_tables(engine) -> None:
         User,
         UserOrganization,
         Role,
-        GuestSession,
         Portfolio,
         BadgeCollection,
         LearningBadge,
         LearningBadgeVersion,
-        LearningPath,
+        BadgeRoute,
+        BadgeRouteOffer,
         LearningActivity,
         LearningPage,
         LearningRun,
-        LearningActivityRun,
         LearningPageProgress,
         LearningResponseAttempt,
         LearningBadgeAward,
@@ -99,9 +102,18 @@ def _create_tables(engine) -> None:
         BadgeIssuerLearnerLink,
         Program,
         Objective,
+        ProgramPhase,
         ProgramObjective,
         ProgramAssignment,
         ProgramParticipant,
+        Plan,
+        PlanRole,
+        PlanCollaborator,
+        PlanPhase,
+        PlanObjective,
+        PlanObjectiveProgress,
+        PlanInvitation,
+        PlanActivity,
     ):
         model.__table__.create(engine)
 
@@ -597,84 +609,78 @@ async def test_demo_learner_request_is_accepted_without_issuer_staff():
         ).first() is not None
 
 
-async def test_run_start_with_issuer_selection():
+async def test_badge_plan_start_with_issuer_selection():
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     _create_tables(engine)
     with Session(engine) as session:
         _, _, alice, bob, carol, badge = _setup(session)
-        path = LearningPath(
-            id=1,
-            path_uuid="path_issuer_start",
-            badge_id=badge.id,
-            version_id=badge.active_version_id,
-            org_id=badge.org_id,
-            title="Issuer path",
-            creation_date=NOW,
-            update_date=NOW,
-        )
-        activity = LearningActivity(
-            id=1,
-            activity_uuid="learning_activity_issuer_start",
-            path_id=1,
-            badge_id=badge.id,
-            version_id=badge.active_version_id,
-            org_id=badge.org_id,
-            title="Activity",
-            published=True,
-            creation_date=NOW,
-            update_date=NOW,
-        )
-        session.add(path)
-        session.add(activity)
-        session.commit()
+        _add_activity_route(session, alice, badge)
 
         # Unauthorized issuer org rejected
         with pytest.raises(HTTPException) as exc:
-            await start_or_resume_run(_request(), badge.badge_uuid, LearningActor(user=carol), session, issuing_org_id=2)
+            start_badge_plan(session, carol, badge.badge_uuid, BadgePlanStart(issuer_org_id=2))
         assert exc.value.status_code == 403
 
         await _approved_authorization(session, alice, bob, badge)
 
-        # Approved but not open, no link → still rejected
+        # Approved but invite-only, no link: still rejected
         with pytest.raises(HTTPException) as exc:
-            await start_or_resume_run(_request(), badge.badge_uuid, LearningActor(user=carol), session, issuing_org_id=2)
+            start_badge_plan(session, carol, badge.badge_uuid, BadgePlanStart(issuer_org_id=2))
         assert exc.value.status_code == 403
 
         await create_learner_link(_request(), IssuerLearnerLinkCreate(badge_uuid=badge.badge_uuid, issuer_org_id=2, user_id=carol.id), bob, session)
-        run = await start_or_resume_run(_request(), badge.badge_uuid, LearningActor(user=carol), session, issuing_org_id=2)
-        assert run.issuing_org_id == 2
+        plan = start_badge_plan(session, carol, badge.badge_uuid, BadgePlanStart(issuer_org_id=2))
+        assert plan["source_organization"]["name"] == "Issuer"
+        assert plan["source_badge"]["badge_uuid"] == badge.badge_uuid
 
-        # Selecting the creator org is equivalent to no issuer
+        # Selecting the creator org (or none) starts with the creator
         dave = _create_user(session, user_id=4, username="dave")
-        run = await start_or_resume_run(_request(), badge.badge_uuid, LearningActor(user=dave), session, issuing_org_id=1)
-        assert run.issuing_org_id is None
+        plan = start_badge_plan(session, dave, badge.badge_uuid, BadgePlanStart(issuer_org_id=1))
+        assert plan["source_organization"]["name"] == "Creator"
 
 
-def _create_gradable_attempt(session: Session, *, badge: LearningBadge, user: PublicUser, issuing_org_id: int | None) -> LearningResponseAttempt:
-    path = LearningPath(id=1, path_uuid="path_1", badge_id=badge.id, org_id=badge.org_id, creation_date=NOW, update_date=NOW)
-    activity = LearningActivity(
-        id=1, activity_uuid="learning_activity_1", path_id=1, badge_id=badge.id, org_id=badge.org_id,
-        title="Activity", order=1, required=True, published=True, settings={}, creation_date=NOW, update_date=NOW,
+ESSAY_PAGE_UUID = "learning_page_essay"
+
+
+def _add_activity_route(session: Session, admin: PublicUser, badge: LearningBadge) -> dict:
+    """A plan template with one activity step (a manually graded essay) as the badge's only route."""
+    program = create_program(session, admin, ProgramCreate(org_id=badge.org_id, name="Write it up"))
+    program = add_program_objective(session, admin, badge.org_id, program["program_uuid"], ObjectiveCreate(title="Reflect", kind=ObjectiveKind.ACTIVITY))
+    activity = session.exec(select(LearningActivity).where(LearningActivity.activity_uuid == program["objectives"][0]["activity"]["activity_uuid"])).one()
+    content = normalize_question_settings(
+        {"version": 2, "blocks": [question_block("text_input", {"inputs": [{"id": "reflection", "label": "Reflection"}]}, block_id="reflection")]},
+        {"mode": "manual", "points": 5},
+        {"inputs": {"reflection": {"required": True, "min_words": 1}}},
     )
-    page = LearningPage(
-        id=1, page_uuid="learning_page_1", activity_id=1, badge_id=badge.id, org_id=badge.org_id,
-        page_type="standard", title="Question", order=1, required=True,
-        content={}, design={}, scoring={"points": 5}, completion={}, creation_date=NOW, update_date=NOW,
-    )
-    run = LearningRun(
-        id=1, run_uuid="learning_run_1", badge_id=badge.id, path_id=1, org_id=badge.org_id,
-        issuing_org_id=issuing_org_id, user_id=user.id, started_at=datetime.utcnow(),
-        creation_date=NOW, update_date=NOW,
-    )
-    attempt = LearningResponseAttempt(
-        id=1, attempt_uuid="learning_attempt_1", run_id=1, page_id=1, user_id=user.id,
-        answer={"text": "my essay"}, submitted_at=datetime.utcnow(),
-        result={"grading_status": "pending", "max_score": 5},
-    )
-    for item in (path, activity, page, run, attempt):
-        session.add(item)
+    session.add(LearningPage(
+        page_uuid=ESSAY_PAGE_UUID, activity_id=activity.id, org_id=badge.org_id, page_type=LearningPageType.STANDARD,
+        title="Question", order=1, required=True, content=content, creation_date=NOW, update_date=NOW,
+    ))
     session.commit()
+    set_routes(session, admin, badge.badge_uuid, BadgeRoutesUpdate(routes=[BadgeRouteInput(program_uuid=program["program_uuid"])]))
+    return program
+
+
+async def _submit_essay(session: Session, learner: PublicUser, plan: dict) -> LearningResponseAttempt:
+    """The learner plays the plan's activity step and submits an essay that waits for a grade."""
+    run = start_objective_activity(session, learner, plan["slug"], plan["objectives"][0]["objective_uuid"])["run"]
+    await runtime.submit_response(
+        None,
+        LearningResponseSubmit(run_uuid=run["run_uuid"], page_uuid=ESSAY_PAGE_UUID, answer={"inputs": {"reflection": {"text": "my essay"}}}),
+        learner,
+        session,
+    )
+    attempt = session.exec(select(LearningResponseAttempt).where(LearningResponseAttempt.user_id == learner.id)).one()
+    assert attempt.result["grading_status"] == "pending"
     return attempt
+
+
+def _step_status(session: Session, plan: dict) -> str:
+    plan_id = session.exec(select(Plan.id).where(Plan.plan_uuid == plan["plan_uuid"])).one()
+    progress = session.exec(
+        select(PlanObjectiveProgress).join(PlanObjective, PlanObjective.id == PlanObjectiveProgress.plan_objective_id).where(PlanObjective.plan_id == plan_id)
+    ).one()
+    return getattr(progress.status, "value", progress.status)
 
 
 async def test_grading_routed_to_issuing_org():
@@ -682,10 +688,14 @@ async def test_grading_routed_to_issuing_org():
     _create_tables(engine)
     with Session(engine) as session:
         _, _, alice, bob, carol, badge = _setup(session)
-        await _approved_authorization(session, alice, bob, badge, open_to_all=True)
-        attempt = _create_gradable_attempt(session, badge=badge, user=carol, issuing_org_id=2)
+        _add_activity_route(session, alice, badge)
+        authorization = await _approved_authorization(session, alice, bob, badge)
+        await update_authorization(_request(), authorization.authorization_uuid, IssuerAccessUpdate(learner_access="open"), bob, session)
+        plan = start_badge_plan(session, carol, badge.badge_uuid, BadgePlanStart(issuer_org_id=2))
+        attempt = await _submit_essay(session, carol, plan)
+        assert _step_status(session, plan) == "submitted"
 
-        # Creator org admin can no longer grade a run issued under the issuer org
+        # Creator org admin cannot grade a plan offered by the issuer org
         with pytest.raises(HTTPException) as exc:
             await grade_learning_response(_request(), attempt.attempt_uuid, LearningResponseGrade(score=4, feedback="ok"), alice, session)
         assert exc.value.status_code == 403
@@ -694,9 +704,39 @@ async def test_grading_routed_to_issuing_org():
         assert graded["result"]["grading_status"] == "graded"
         assert graded["result"]["graded_by_user_id"] == bob.id
         assert graded["result"]["graded_by"]["org_name"] == "Issuer"
+        assert "award" not in graded
         with pytest.raises(HTTPException) as exc:
             await grade_learning_response(_request(), attempt.attempt_uuid, LearningResponseGrade(score=1), bob, session)
         assert exc.value.status_code == 409
+
+        # Grading finishes the step, which finishes the plan and awards the badge under the issuer
+        assert _step_status(session, plan) == "completed"
+        award = session.exec(select(LearningBadgeAward).where(LearningBadgeAward.user_id == carol.id)).one()
+        assert award.issuing_org_id == 2 and award.source == "plan_completion"
+
+
+async def test_plan_reviewer_can_grade_without_being_an_org_admin():
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    _create_tables(engine)
+    with Session(engine) as session:
+        _, _, alice, bob, carol, badge = _setup(session)
+        dave = _create_user(session, user_id=4, username="dave", org_id=2, role_id=4)
+        erin = _create_user(session, user_id=5, username="erin", org_id=2, role_id=4)
+        _add_activity_route(session, alice, badge)
+        authorization = await _approved_authorization(session, alice, bob, badge)
+        await update_authorization(_request(), authorization.authorization_uuid, IssuerAccessUpdate(learner_access="request"), bob, session)
+        requested = await request_learner_support(_request(), IssuerLearnerRequestCreate(badge_uuid=badge.badge_uuid, issuer_org_id=2), carol, session)
+        await decide_learner_request(_request(), requested["link_uuid"], True, IssuerLearnerRequestDecision(staff_user_ids=[dave.id]), bob, session)
+        plan = start_badge_plan(session, carol, badge.badge_uuid, BadgePlanStart(issuer_org_id=2))
+        attempt = await _submit_essay(session, carol, plan)
+
+        # Staff of the issuer org who are not reviewers on this plan cannot grade it
+        with pytest.raises(HTTPException) as exc:
+            await grade_learning_response(_request(), attempt.attempt_uuid, LearningResponseGrade(score=5), erin, session)
+        assert exc.value.status_code == 403
+
+        graded = await grade_learning_response(_request(), attempt.attempt_uuid, LearningResponseGrade(score=5), dave, session)
+        assert graded["result"]["graded_by"] == {"user_id": dave.id, "staff_name": "Dave Test", "org_id": 2, "org_name": "Issuer"}
 
 
 async def test_grading_preserves_activity_and_question_feedback():
@@ -704,20 +744,10 @@ async def test_grading_preserves_activity_and_question_feedback():
     _create_tables(engine)
     with Session(engine) as session:
         _, _, alice, _, carol, badge = _setup(session)
-        attempt = _create_gradable_attempt(session, badge=badge, user=carol, issuing_org_id=None)
-        attempt.result = {
-            "grading_status": "pending",
-            "max_score": 5,
-            "questions": {
-                "reflection": {
-                    "grading_status": "pending",
-                    "max_score": 5,
-                    "kind": "text_input",
-                },
-            },
-        }
-        session.add(attempt)
-        session.commit()
+        _add_activity_route(session, alice, badge)
+        plan = start_badge_plan(session, carol, badge.badge_uuid, BadgePlanStart())
+        attempt = await _submit_essay(session, carol, plan)
+        assert attempt.result["questions"]["reflection"]["grading_status"] == "pending"
 
         graded = await grade_learning_response(
             _request(),
@@ -732,54 +762,10 @@ async def test_grading_preserves_activity_and_question_feedback():
             session,
         )
 
+        assert graded["score"] == 4
         assert graded["result"]["feedback"] == "Strong activity overall."
+        assert graded["result"]["questions"]["reflection"]["score"] == 4
         assert graded["result"]["questions"]["reflection"]["feedback"] == "Add one concrete example."
-
-
-async def test_program_and_direct_routes_resume_one_shared_badge_run():
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    _create_tables(engine)
-    with Session(engine) as session:
-        _, _, alice, bob, carol, badge = _setup(session)
-        await _approved_authorization(session, alice, bob, badge)
-        path = LearningPath(
-            id=1, path_uuid="path_shared", badge_id=badge.id,
-            version_id=badge.active_version_id, org_id=badge.org_id,
-            title="Shared path", creation_date=NOW, update_date=NOW,
-        )
-        activity = LearningActivity(
-            id=1, activity_uuid="learning_activity_shared", path_id=1,
-            badge_id=badge.id, version_id=badge.active_version_id,
-            org_id=badge.org_id, title="Activity", published=True,
-            creation_date=NOW, update_date=NOW,
-        )
-        program = Program(
-            id=1, program_uuid="program_1", slug="program-1", org_id=2,
-            name="Program", creation_date=NOW, update_date=NOW,
-        )
-        assignment = ProgramAssignment(
-            id=1, assignment_uuid="assignment_1", org_id=2, program_id=1,
-            objective_snapshot=[{"id": 1, "badge_id": badge.id, "badge_major_version": 1}],
-            staff_user_ids=[bob.id], creation_date=NOW, update_date=NOW,
-        )
-        participant = ProgramParticipant(
-            id=1, participant_uuid="participant_1", assignment_id=1, org_id=2,
-            user_id=carol.id, status=ParticipantStatus.ACTIVE,
-            creation_date=NOW, update_date=NOW,
-        )
-        session.add_all([path, activity, program, assignment, participant])
-        session.commit()
-
-        program_run = await start_or_resume_run(
-            _request(), badge.badge_uuid, LearningActor(user=carol), session,
-            program_assignment_uuid=assignment.assignment_uuid,
-        )
-        direct_run = await start_or_resume_run(
-            _request(), badge.badge_uuid, LearningActor(user=carol), session,
-        )
-
-        assert direct_run.run_uuid == program_run.run_uuid
-        assert len(session.exec(select(LearningRun)).all()) == 1
 
 
 async def test_grading_defaults_to_creator_org():
@@ -787,7 +773,9 @@ async def test_grading_defaults_to_creator_org():
     _create_tables(engine)
     with Session(engine) as session:
         _, _, alice, bob, carol, badge = _setup(session)
-        attempt = _create_gradable_attempt(session, badge=badge, user=carol, issuing_org_id=None)
+        _add_activity_route(session, alice, badge)
+        plan = start_badge_plan(session, carol, badge.badge_uuid, BadgePlanStart())
+        attempt = await _submit_essay(session, carol, plan)
 
         with pytest.raises(HTTPException) as exc:
             await grade_learning_response(_request(), attempt.attempt_uuid, LearningResponseGrade(score=4), bob, session)
@@ -795,6 +783,9 @@ async def test_grading_defaults_to_creator_org():
 
         graded = await grade_learning_response(_request(), attempt.attempt_uuid, LearningResponseGrade(score=5), alice, session)
         assert graded["result"]["grading_status"] == "graded"
+        assert graded["result"]["graded_by_org_id"] == 1
+        award = session.exec(select(LearningBadgeAward).where(LearningBadgeAward.user_id == carol.id)).one()
+        assert award.issuing_org_id is None
 
 
 async def test_response_listing_scoped_by_issuing_org():
@@ -802,13 +793,27 @@ async def test_response_listing_scoped_by_issuing_org():
     _create_tables(engine)
     with Session(engine) as session:
         _, _, alice, bob, carol, badge = _setup(session)
-        await _approved_authorization(session, alice, bob, badge, open_to_all=True)
-        _create_gradable_attempt(session, badge=badge, user=carol, issuing_org_id=2)
+        _add_activity_route(session, alice, badge)
+        authorization = await _approved_authorization(session, alice, bob, badge)
+        await update_authorization(_request(), authorization.authorization_uuid, IssuerAccessUpdate(learner_access="open"), bob, session)
+        plan = start_badge_plan(session, carol, badge.badge_uuid, BadgePlanStart(issuer_org_id=2))
+        attempt = await _submit_essay(session, carol, plan)
 
         issuer_view = await list_learning_responses(_request(), bob, session, org_id=2)
-        assert len(issuer_view) == 1
+        assert [item["attempt_uuid"] for item in issuer_view] == [attempt.attempt_uuid]
+        assert issuer_view[0]["badge"]["badge_uuid"] == badge.badge_uuid
+        assert issuer_view[0]["plan"]["plan_uuid"] == plan["plan_uuid"]
+        assert issuer_view[0]["user"]["username"] == "carol"
+        assert len(await list_learning_responses(_request(), bob, session, org_id=2, badge_uuid=badge.badge_uuid)) == 1
         creator_view = await list_learning_responses(_request(), alice, session, org_id=1)
-        assert len(creator_view) == 0
+        assert creator_view == []
+        with pytest.raises(HTTPException) as exc:
+            await list_learning_responses(_request(), alice, session, org_id=2)
+        assert exc.value.status_code == 403
+
+        await grade_learning_response(_request(), attempt.attempt_uuid, LearningResponseGrade(score=5), bob, session)
+        assert await list_learning_responses(_request(), bob, session, org_id=2) == []
+        assert len(await list_learning_responses(_request(), bob, session, org_id=2, grading_status="graded")) == 1
 
 
 async def test_confer_award_as_issuer():

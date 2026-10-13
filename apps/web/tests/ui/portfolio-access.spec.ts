@@ -6,7 +6,7 @@ const environment = loadUiTestEnvironment({ requireCredentials: false })
 
 async function expectPortfolio(page: import('@playwright/test').Page) {
   await expect(page).toHaveURL((url) => url.pathname === '/portfolio')
-  await expect(page.getByRole('navigation', { name: 'Portfolio views' })).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'More of this portfolio' })).toBeVisible()
   await assertActualApp(page)
 }
 

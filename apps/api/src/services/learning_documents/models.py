@@ -21,8 +21,6 @@ NEW_PAGE_ID_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$"
 
 # Settings keys owned by the platform. They are hidden from documents and kept
 # from the stored activity on save, so a document can never forge them.
-HIDDEN_SETTINGS_KEYS = frozenset({"version_lineage_uuid", "system_required"})
-HIDDEN_CONTENT_KEYS = frozenset({"version_lineage_uuid"})
 
 
 class ActivityDocumentPage(BaseModel):
@@ -55,7 +53,6 @@ class ActivityDocumentActivity(BaseModel):
     description: str = ""
     icon: str | None = None
     thumbnail_image: str = ""
-    required: bool = True
     settings: dict[str, Any] = Field(
         default_factory=dict,
         description="Activity settings: `flow` (branching graph), `grading`, `outcomes`, …",
@@ -82,14 +79,6 @@ class ActivityDocumentSave(BaseModel):
         min_length=1,
         description="The etag returned when the document was read. Saves against a stale etag fail with 409.",
     )
-
-
-class ActivityDocumentCreate(BaseModel):
-    badge_uuid: str
-    version_uuid: str | None = Field(
-        default=None, description="Draft version to add to; defaults to the badge's newest draft."
-    )
-    document: ActivityDocument
 
 
 def _inline(model: type[BaseModel], defs: dict) -> dict:
