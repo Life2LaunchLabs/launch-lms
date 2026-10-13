@@ -114,10 +114,25 @@ def _merge_activity_runs(bind) -> None:
         ))
 
 
+def _replace_run_plan_foreign_keys(bind, ondelete: str) -> None:
+    """Point the run's plan and step keys at their rows with ``ondelete``.
+
+    Migrated databases named these keys fk_learningrun_plan(_objective); schemas
+    built from the models use PostgreSQL's learningrun_<column>_fkey. Drop
+    whatever is there by looking it up.
+    """
+    existing = sa.inspect(bind).get_foreign_keys("learningrun")
+    for column, target in (("plan_id", "plan"), ("plan_objective_id", "planobjective")):
+        for key in existing:
+            if key["constrained_columns"] == [column] and key.get("name"):
+                op.drop_constraint(key["name"], "learningrun", type_="foreignkey")
+        op.create_foreign_key(f"learningrun_{column}_fkey", "learningrun", target, [column], ["id"], ondelete=ondelete)
+
+
 def upgrade() -> None:
     bind = op.get_bind()
     _convert_paths(bind)
-    bind.execute(sa.text("DELETE FROM learningrun WHERE plan_objective_id IS NULL OR activity_id IS NULL OR user_id IS NULL"))
+    bind.execute(sa.text("DELETE FROM learningrun WHERE plan_id IS NULL OR plan_objective_id IS NULL OR activity_id IS NULL OR user_id IS NULL"))
     bind.execute(sa.text("DELETE FROM learningresponseattempt WHERE user_id IS NULL"))
     bind.execute(sa.text("DELETE FROM learningactivity WHERE objective_id IS NULL"))
     bind.execute(sa.text("DELETE FROM learningbadge WHERE badge_uuid = 'badge_system_onboarding'"))
@@ -154,9 +169,7 @@ def upgrade() -> None:
         op.alter_column("learningrun", column, nullable=False)
     op.alter_column("learningresponseattempt", "user_id", nullable=False)
     # A run belongs to its plan step: it goes when the plan or step goes.
-    for column, target in (("plan_id", "plan"), ("plan_objective_id", "planobjective")):
-        op.drop_constraint(f"learningrun_{column}_fkey", "learningrun", type_="foreignkey")
-        op.create_foreign_key(f"learningrun_{column}_fkey", "learningrun", target, [column], ["id"], ondelete="CASCADE")
+    _replace_run_plan_foreign_keys(bind, "CASCADE")
 
 
 def downgrade() -> None:
@@ -165,9 +178,7 @@ def downgrade() -> None:
     for table in ("learningbadge", "badgecollection"):
         op.add_column(table, sa.Column("protected", sa.Boolean(), nullable=False, server_default=sa.false()))
         op.add_column(table, sa.Column("system_type", sa.String(), nullable=True))
-    for column, target in (("plan_id", "plan"), ("plan_objective_id", "planobjective")):
-        op.drop_constraint(f"learningrun_{column}_fkey", "learningrun", type_="foreignkey")
-        op.create_foreign_key(f"learningrun_{column}_fkey", "learningrun", target, [column], ["id"], ondelete="SET NULL")
+    _replace_run_plan_foreign_keys(op.get_bind(), "SET NULL")
     op.alter_column("learningresponseattempt", "user_id", nullable=True)
     for column in ("activity_id", "plan_id", "plan_objective_id", "user_id"):
         op.alter_column("learningrun", column, nullable=True)
