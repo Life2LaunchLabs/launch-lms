@@ -1,4 +1,4 @@
-"""Ranked "what should I do next?" suggestions for the Hub home.
+"""Ranked "what should I do next?" suggestions for Coach home.
 
 Reads the learner's own active plans directly (a fixed handful of queries) rather than
 the planning feed, which only returns dated objectives. Routes are built here from known

@@ -13,7 +13,7 @@ export const HUB_LAUNCH_CARDS_PATH = 'hub/launch-cards'
 export const MAX_LAUNCH_CARDS = 6
 export const LAUNCH_CARD_LIMITS = { label: 80, hint: 120, first_message: 300 } as const
 
-// Shown if the platform cards cannot be loaded, so the Hub home is never empty.
+// Shown if the platform cards cannot be loaded, so Coach home is never empty.
 export const FALLBACK_LAUNCH_CARDS: HubLaunchCard[] = [
   { label: 'Not sure what comes next', hint: 'Figure out a first step together', first_message: "I'm not sure what to do after high school. Can you help me find one small thing to try first?" },
   { label: 'I have a career in mind', hint: 'See what it would take to get there', first_message: 'I have a career in mind and want to know what a good first step would be.' },

@@ -10,7 +10,7 @@ import HubLaunchCards from './HubLaunchCards'
 
 const CHECK_IN = 'Can you check in with me on my plans? Help me pick the next small thing to do.'
 
-// Top of the full Hub: ranked next steps for learners with plan work, launch cards for everyone else.
+// Top of the full Coach: ranked next steps for learners with plan work, launch cards for everyone else.
 // It always renders something, including while loading and when next actions cannot be fetched.
 export default function HubHomeStack({
   orgslug,

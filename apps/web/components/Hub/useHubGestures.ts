@@ -8,9 +8,9 @@ const COMMIT = 64
 const LOCK = 10
 
 /**
- * Phone swipes between the page and Hub. Swipe left from the right edge (or on the edge
- * strip) to bring Hub out; swipe right on the page strip to put the page back. Drags
- * update CSS variables on the shell so the page and Hub follow the finger without
+ * Phone swipes between the page and Coach. Swipe left from the right edge (or on the edge
+ * strip) to bring Coach out; swipe right on the page strip to put the page back. Drags
+ * update CSS variables on the shell so the page and Coach follow the finger without
  * re-rendering; only the release changes state. Vertical scrolling and carousels are
  * untouched because a drag must start in one of those two zones and move sideways first.
  */

@@ -1,4 +1,4 @@
-"""Code-owned Hub capability catalog and learner-controlled action resolution."""
+"""Code-owned Coach capability catalog and learner-controlled action resolution."""
 
 from __future__ import annotations
 
@@ -53,7 +53,7 @@ NAVIGATION_DESTINATIONS = {
         NavigationDestination("badges", "Explore Discover", "/discover", "Find badges to earn and resources to use.", "badges"),
         NavigationDestination("communities", "Open communities", "/communities", "Find learner communities and ongoing discussions."),
         NavigationDestination("organizations", "Explore organizations", "/organizations", "Review organizations the learner can discover or join."),
-        NavigationDestination("account", "Open account settings", "/account", "Manage the learner's account, preferences, messages, or Hub memory."),
+        NavigationDestination("account", "Open account settings", "/account", "Manage the learner's account, preferences, messages, or Coach memory."),
     )
 }
 

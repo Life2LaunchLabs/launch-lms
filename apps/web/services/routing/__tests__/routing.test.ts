@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { discoverFromLegacy, hubFromLegacy, routePaths, withQuery } from '../paths.ts'
+import { discoverFromLegacy, coachFromLegacy, routePaths, withQuery } from '../paths.ts'
 import { resolveRequestRouting, type RequestInstanceInfo } from '../requestPolicy.ts'
 import { classifyRoute } from '../routeAccess.ts'
 import { buildPublicRequestUrl, getCanonicalOrgHostname } from '../context.ts'
@@ -105,7 +105,7 @@ test('default organization canonical host is the installation apex regardless of
   )
 })
 
-test('Hub treats timezone-less server timestamps as UTC before local display', () => {
+test('Coach treats timezone-less server timestamps as UTC before local display', () => {
   assert.equal(
     hubTimestampDate('2026-09-08T12:00:00').getTime(),
     new Date('2026-09-08T12:00:00Z').getTime()
@@ -138,12 +138,12 @@ test('legacy resource and search links land in Discover with their query', () =>
   assert.equal(discoverFromLegacy({}), '/discover')
 })
 
-test('legacy Hub links open Hub beside Plans, or the resource or search they named', () => {
-  assert.equal(hubFromLegacy({}), '/plans?hub=open')
-  assert.equal(hubFromLegacy({ conversation: 'hub_conversation_1' }), '/plans?hub=open&hub_conversation=hub_conversation_1')
-  assert.equal(hubFromLegacy({ resource: 'resource_abc' }), '/discover/resources/abc')
-  assert.equal(hubFromLegacy({ q: 'resume help' }), '/discover?q=resume+help')
-  assert.equal(hubFromLegacy({ view: 'resources' }), '/discover?type=resources')
+test('legacy Coach links open Coach beside Plans, or the resource or search they named', () => {
+  assert.equal(coachFromLegacy({}), '/plans?coach=open')
+  assert.equal(coachFromLegacy({ conversation: 'hub_conversation_1' }), '/plans?coach=open&coach_conversation=hub_conversation_1')
+  assert.equal(coachFromLegacy({ resource: 'resource_abc' }), '/discover/resources/abc')
+  assert.equal(coachFromLegacy({ q: 'resume help' }), '/discover?q=resume+help')
+  assert.equal(coachFromLegacy({ view: 'resources' }), '/discover?type=resources')
 })
 
 test('route manifest builds key dashboard and owner routes', () => {
@@ -176,7 +176,7 @@ test('route manifest builds auth, account, and public org paths used by navigati
   assert.equal(routePaths.owner.account.memory(), '/account/memory')
   assert.equal(routePaths.owner.account.badges(), '/account/badges')
   assert.equal(routePaths.org.home(), '/plans')
-  assert.equal(routePaths.org.hubOpen({ prompt: 'Help me plan' }), '/plans?hub=open&hub_prompt=Help+me+plan')
+  assert.equal(routePaths.org.coachOpen({ prompt: 'Help me plan' }), '/plans?coach=open&coach_prompt=Help+me+plan')
   assert.equal(routePaths.org.portfolio(), '/portfolio')
   assert.equal(routePaths.org.portfolioEdit(), '/portfolio/edit')
   assert.equal(routePaths.org.portfolioResume(), '/portfolio/resume')

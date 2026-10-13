@@ -17,7 +17,7 @@ type AgentObjective = { operationId: string; targetPhaseUuid: string; objective:
 
 /**
  * A plan's steps while editing: chapters in order, each a reorderable list. Steps drag
- * between chapters; Hub's proposed chapters and steps appear in place for review.
+ * between chapters; Coach's proposed chapters and steps appear in place for review.
  */
 export default function PlanStepsEditor({ detail, orgslug, token, viewerUserId, refresh, color, selectedObjectiveUuid, setSelectedObjectiveUuid }: any) {
   const hub = useHub()
@@ -40,7 +40,7 @@ export default function PlanStepsEditor({ detail, orgslug, token, viewerUserId, 
     setAgentPhases([]); setAgentObjectives([]); handled.current.clear()
   }, [detail.plan_uuid, editingThisPlan])
 
-  // Hub's proposals arrive as operations; show each once until the learner saves or cancels it.
+  // Coach's proposals arrive as operations; show each once until the learner saves or cancels it.
   React.useEffect(() => {
     if (!editingThisPlan) return
     const pending = hub?.editOperations || []
@@ -139,7 +139,7 @@ export default function PlanStepsEditor({ detail, orgslug, token, viewerUserId, 
       {canEdit ? <ChapterAdder detail={detail} token={token} refresh={refresh} /> : null}
       {canEdit && hub ? <div className="flex items-center gap-3 rounded-2xl bg-card p-4">
         <Sparkles size={20} className="shrink-0 text-[#7cc4ff]" aria-hidden="true" />
-        <p className="flex-1 text-sm text-muted-foreground">Ask Hub to suggest steps for this plan.</p>
+        <p className="flex-1 text-sm text-muted-foreground">Ask Coach to suggest steps for this plan.</p>
         <Button type="button" variant="surface" size="sm" onClick={() => hub.open({ prompt: `Suggest a few steps for my plan “${detail.name}”.` })}>Suggest</Button>
       </div> : null}
     </div>

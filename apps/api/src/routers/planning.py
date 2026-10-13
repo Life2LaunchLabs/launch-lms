@@ -141,6 +141,12 @@ def api_complete_plan(identifier: str, db: Session = Depends(get_db_session), cu
     return service.change_plan_status(db, current_user, identifier, PlanStatus.COMPLETED)
 
 
+@router.post("/plans/{identifier}/celebrated")
+def api_plan_celebrated(identifier: str, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
+    """The learner has seen their finished plan's reward; it will not greet them again."""
+    return service.mark_plan_celebrated(db, current_user, identifier)
+
+
 @router.post("/plans/{identifier}/reopen")
 def api_reopen_plan(identifier: str, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
     return service.change_plan_status(db, current_user, identifier, PlanStatus.ACTIVE)

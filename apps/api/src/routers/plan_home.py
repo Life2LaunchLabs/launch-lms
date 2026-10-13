@@ -36,3 +36,13 @@ def api_home_pace(
 ):
     """Change how many steps a week My plans aims for."""
     return service.set_pace(db, current_user, payload.target)
+
+
+@router.post("/home/plans/{plan_uuid}/pull")
+def api_home_pull_plan(
+    plan_uuid: str,
+    db: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_current_user),
+):
+    """Bring a plan started mid-week into this week."""
+    return service.pull_in_plan(db, current_user, plan_uuid)

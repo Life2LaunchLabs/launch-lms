@@ -15,7 +15,7 @@ import {
   updateUserField,
 } from '../objectEditing.ts'
 
-test('a cancelled new-plan editor stays closed until Hub makes a later proposal', () => {
+test('a cancelled new-plan editor stays closed until Coach makes a later proposal', () => {
   const run = {
     status: 'active', scope: { kind: 'new_plan' }, objects: [{ object_key: 'new-plan', status: 'cancelled' }],
     events: [
@@ -53,10 +53,10 @@ test('only the matching reservation can release a complete proposal', () => {
 test('learner customization can return to the proposal or cancel the object', () => {
   const initial = createObjectEditState({ title: 'Original' })
   const reserved = reserveAgentField(initial, 'title', 'agent-1').state
-  const proposed = applyAgentFieldProposal(reserved, 'title', 'agent-1', 'Hub proposal')
+  const proposed = applyAgentFieldProposal(reserved, 'title', 'agent-1', 'Coach proposal')
   const customized = updateUserField(proposed, 'title', 'My version')
   assert.equal(customized.title.presentation, 'customized')
-  assert.equal(restoreAgentProposal(customized, 'title').title.current, 'Hub proposal')
+  assert.equal(restoreAgentProposal(customized, 'title').title.current, 'Coach proposal')
   assert.deepEqual(cancelObjectEdits(customized), createObjectEditState({ title: 'Original' }))
 })
 

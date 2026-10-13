@@ -478,6 +478,7 @@ def _plan_dict(db: Session, plan: Plan, user_id: int, include_detail: bool = Fal
         "subject": _user_summary(db, plan.subject_user_id), "owner": _user_summary(db, plan.owner_user_id),
         "source_organization": _org_summary(db, plan.source_org_id), "source_badge": _badge_summary(db, plan.source_badge_id),
         "is_mine": plan.subject_user_id == user_id, "is_owner": plan.owner_user_id == user_id,
+        "celebration_pending": _celebration_pending(db, plan, user_id),
         "capabilities": sorted(capabilities), "objective_count": len(objective_rows),
         "completed_objective_count": complete_count,
         "progress_percent": round(complete_count * 100 / len(objective_rows)) if objective_rows else 0,
@@ -538,6 +539,32 @@ def _plan_dict(db: Session, plan: Plan, user_id: int, include_detail: bool = Fal
                 "creation_date": invitation.creation_date,
             } for invitation in invitations]
     return result
+
+
+CELEBRATED_PLANS_KEY = "celebrated_plans"
+
+
+def _celebration_pending(db: Session, plan: Plan, user_id: int) -> bool:
+    """A finished plan greets its learner once, the next time they open it."""
+    status = plan.status.value if hasattr(plan.status, "value") else plan.status
+    if status != PlanStatus.COMPLETED.value or plan.subject_user_id != user_id:
+        return False
+    user = db.get(User, user_id)
+    return plan.plan_uuid not in ((user.details or {}).get(CELEBRATED_PLANS_KEY) or []) if user else False
+
+
+def mark_plan_celebrated(db: Session, current_user: PublicUser, identifier: str) -> dict:
+    plan = _plan_or_404(db, identifier)
+    _require(db, plan, current_user.id, "view_plan")
+    user = db.get(User, current_user.id)
+    if user and plan.subject_user_id == current_user.id:
+        details = dict(user.details or {})
+        seen = [uuid for uuid in details.get(CELEBRATED_PLANS_KEY) or [] if uuid != plan.plan_uuid]
+        details[CELEBRATED_PLANS_KEY] = [*seen, plan.plan_uuid][-200:]
+        user.details = details
+        db.add(user)
+        db.commit()
+    return {"plan_uuid": plan.plan_uuid, "celebration_pending": False}
 
 
 def _learner_side(plan: Plan, user_id: int) -> bool:
@@ -1214,6 +1241,8 @@ def update_objective_progress(db: Session, current_user: PublicUser, identifier:
         if availability["state"] == "not_ready":
             raise HTTPException(status_code=409, detail={"message": "This step is not ready yet", "availability": availability})
     progress = _progress_for(db, objective)
+    previous_status = progress.status.value if hasattr(progress.status, "value") else str(progress.status)
+    was_completed = previous_status == PlanObjectiveStatus.COMPLETED.value
     progress.status = payload.status
     if payload.field_values is not None:
         definitions = {
@@ -1241,7 +1270,11 @@ def update_objective_progress(db: Session, current_user: PublicUser, identifier:
                 progress.feedback_history = [*(progress.feedback_history or []), {"message": payload.note, "user_id": current_user.id, "created_at": _now_string()}]
         else:
             progress.subject_note = payload.note
-    progress.completed_at = _now() if payload.status == PlanObjectiveStatus.COMPLETED else None
+    if payload.status != PlanObjectiveStatus.COMPLETED:
+        progress.completed_at = None
+    elif not (was_completed and progress.completed_at):
+        # Re-saving a finished step (a note, a field) keeps when it was finished.
+        progress.completed_at = _now()
     progress.updated_by_user_id = current_user.id
     progress.update_date = _now_string()
     db.add(progress)

@@ -133,7 +133,7 @@ export function StepStack({ items, colorFor, selectedUuid, currentUuid, onSelect
   </ol>
 }
 
-/** The selected card's body: description, then Start (and Ask Hub) or the reason it isn't ready yet. */
+/** The selected card's body: description, then Start (and Ask Coach) or the reason it isn't ready yet. */
 // eslint-disable-next-line no-unused-vars
 export function SelectedStepBody({ item, state, onStart, onGoTo, onAsk }: { item: StepItem; state: StepState; onStart: () => void; onGoTo: (objectiveUuid: string) => void; onAsk?: () => void }) {
   const reason = item.availability?.reason
@@ -149,7 +149,7 @@ export function SelectedStepBody({ item, state, onStart, onGoTo, onAsk }: { item
           {state === 'done' ? 'Review' : item.progress?.status && item.progress.status !== 'not_started' ? 'Continue' : 'Start'}
         </Button>
         : null}
-      {onAsk && state !== 'done' ? <Button type="button" variant="surface" onClick={onAsk}><Sparkles size={15} aria-hidden="true" />Ask Hub</Button> : null}
+      {onAsk && state !== 'done' ? <Button type="button" variant="surface" onClick={onAsk}><Sparkles size={15} aria-hidden="true" />Ask Coach</Button> : null}
     </div>
   </div>
 }

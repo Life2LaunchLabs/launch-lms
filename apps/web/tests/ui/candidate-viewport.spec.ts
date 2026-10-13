@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 
 const longText = 'ViewportRegression'.repeat(18)
 
-test('BOT-217 populated Hub and candidate viewport', async ({ page }, testInfo) => {
+test('BOT-217 populated Coach and candidate viewport', async ({ page }, testInfo) => {
   test.setTimeout(180_000)
   await page.route('**/api/v1/candidate/**', async route => {
     const path = new URL(route.request().url()).pathname
@@ -15,7 +15,7 @@ test('BOT-217 populated Hub and candidate viewport', async ({ page }, testInfo) 
     await page.addInitScript(value => localStorage.setItem('theme', value), theme)
     for (const viewport of [{ width: 1280, height: 551 }, { width: 1280, height: 720 }, { width: 390, height: 844 }]) {
       await page.setViewportSize(viewport)
-      await page.goto('/plans?hub=open')
+      await page.goto('/plans?coach=open')
       await expect(page.getByText('Unstable', { exact: true })).toBeVisible()
       await expect(page.getByText(/Synthetic recent conversation 1:/)).toBeVisible()
       const prefix = `${theme}-${viewport.width}x${viewport.height}`

@@ -241,7 +241,7 @@ export function ActiveResourceWorkspace({ resource, orgslug }: { resource: HubAd
   )
 }
 
-// A transcript entry point: compact cards for what Hub suggested or the learner added.
+// A transcript entry point: compact cards for what Coach suggested or the learner added.
 // Opening a card shows it in the chat tray; cards removed from the chat stay, dimmed.
 export default function HubResourceCarousel({ resources, inChat, label, onOpen }: {
   resources: HubAdvisorResource[]

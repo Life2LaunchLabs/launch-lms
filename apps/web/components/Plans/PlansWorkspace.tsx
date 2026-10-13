@@ -24,6 +24,7 @@ import PlanEditMode from './edit/PlanEditMode'
 import PlanStepsEditor from './edit/PlanStepsEditor'
 import PlansHome from './learner/PlansHome'
 import PlanView from './learner/PlanView'
+import PlanComplete from './learner/PlanComplete'
 import PlanHeaderActions from './learner/PlanHeaderActions'
 import { PlanHeaderCard } from './learner/PlanHeader'
 import { planVars } from './learner/planColors'
@@ -79,7 +80,7 @@ export default function PlansWorkspace({ orgslug, initialPlanSlug }: { orgslug: 
     setSelectedObjectiveUuid('')
   }, [pathname])
 
-  // Tell Hub what the learner is looking at: their plans, or one plan and the steps in view.
+  // Tell Coach what the learner is looking at: their plans, or one plan and the steps in view.
   React.useEffect(() => {
     if (!setSurface) return
     if (!selectedSlug) {
@@ -134,7 +135,7 @@ export default function PlansWorkspace({ orgslug, initialPlanSlug }: { orgslug: 
     setCreating(false)
     let continued = null
     if (hub?.editRun?.scope.kind === 'new_plan' && org?.id) {
-      try { continued = await bindHubEditRunPlan(org.id, hub.editRun.run_uuid, plan.plan_uuid, token); hub.setEditRun(continued) } catch { toast.error('The plan was saved, but Hub lost its editing scope.') }
+      try { continued = await bindHubEditRunPlan(org.id, hub.editRun.run_uuid, plan.plan_uuid, token); hub.setEditRun(continued) } catch { toast.error('The plan was saved, but Coach lost its editing scope.') }
     }
     choose(plan)
     if (continued && content) continueRun(`[[hub-session-event]] You saved the plan\n${content}`, continued)
@@ -153,6 +154,7 @@ export default function PlansWorkspace({ orgslug, initialPlanSlug }: { orgslug: 
   else if (detailError) content = failed('This plan could not load. It may no longer be available to you.', () => void retryDetail())
   else if (!detail || detail.slug !== selectedSlug || detail.source_assignment?.type === 'group') content = loading
   else if (editing) content = <PlanEditMode detail={detail} orgslug={orgslug} token={token} viewerUserId={viewerUserId} refresh={refresh} color={getPlanColor(detail.plan_uuid)} setPlanColor={detail.is_mine ? setPlanColor : undefined} focusGoal={editDetails} onDone={finishEditing} selectedObjectiveUuid={selectedObjectiveUuid} setSelectedObjectiveUuid={setSelectedObjectiveUuid} />
+  else if (detail.is_mine && detail.celebration_pending) content = <PlanComplete detail={detail} color={getPlanColor(detail.plan_uuid)} token={token} onDone={() => { clear(); void refresh() }} onView={() => void refresh()} />
   else if (detail.is_mine) content = <PlanView orgslug={orgslug} detail={detail} token={token} refresh={refresh} onBack={clear} plans={ownPlans} getPlanColor={getPlanColor} choose={choose} onEdit={canEdit(detail) ? () => setEditingPlan(true) : undefined} renderObjective={(item) => renderObjective(item, getPlanColor(detail.plan_uuid))} />
   else content = <HelpingView detail={detail} orgslug={orgslug} token={token} viewerUserId={viewerUserId} refresh={refresh} color={getPlanColor(detail.plan_uuid)} onBack={clear} onEdit={canEdit(detail) ? () => setEditingPlan(true) : undefined} selectedObjectiveUuid={selectedObjectiveUuid} setSelectedObjectiveUuid={setSelectedObjectiveUuid} />
 

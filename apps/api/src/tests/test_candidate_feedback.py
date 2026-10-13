@@ -222,7 +222,9 @@ def test_tester_can_reopen_completed_feedback(monkeypatch):
             ]
 
         def board_columns(self):
-            raise AssertionError("resolution must not depend on board column names or order")
+            raise AssertionError(
+                "resolution must not depend on board column names or order"
+            )
 
         def transition(self, key, status_id):
             self.actions.append(("transition", status_id))
@@ -404,3 +406,85 @@ def test_release_feed_groups_only_unseen_commits_above_divider(monkeypatch):
     assert result["has_unread"] is True
     assert [release["revision"] for release in result["unseen"]] == [new_sha]
     assert [release["revision"] for release in result["previous"]] == [old_sha]
+
+
+def _connection_db():
+    from sqlalchemy.pool import StaticPool
+    from sqlmodel import Session, SQLModel, create_engine
+
+    from src.db.feedback import FeedbackJiraConfiguration
+
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    SQLModel.metadata.create_all(engine, tables=[FeedbackJiraConfiguration.__table__])
+    return engine, Session(engine)
+
+
+def test_saved_jira_connection_overrides_environment(monkeypatch):
+    from src.core.events import database
+    from src.services import feedback_configuration as connection
+
+    monkeypatch.setenv("LAUNCHLMS_FEEDBACK_JIRA_BASE_URL", "https://env.example.com")
+    monkeypatch.setenv("LAUNCHLMS_FEEDBACK_JIRA_EMAIL", "env@example.com")
+    monkeypatch.setenv("LAUNCHLMS_FEEDBACK_JIRA_API_TOKEN", "env-token")
+    monkeypatch.setenv("LAUNCHLMS_FEEDBACK_JIRA_PROJECT_KEY", "ENV")
+    engine, db = _connection_db()
+    monkeypatch.setattr(database, "engine", engine)
+
+    assert connection.serialize(db)["source"] == "environment"
+    assert CandidateJira().project == "ENV"
+
+    # First save without a token keeps the environment token, now encrypted.
+    saved = connection.save(
+        db,
+        connection.FeedbackJiraConfigurationUpdate(
+            base_url="https://team.atlassian.net/",
+            email="ops@example.com",
+            project_key="feed",
+        ),
+        user_id=None,
+    )
+    assert saved["source"] == "platform"
+    assert saved["has_api_token"] is True
+    assert "token" not in saved and "api_token" not in saved
+    record = connection.get_record(db)
+    assert "env-token" not in (record.api_token_ciphertext or "")
+
+    client = CandidateJira()
+    assert client.base_url == "https://team.atlassian.net"
+    assert client.project == "FEED"
+    assert client.token == "env-token"
+    assert client.configured
+
+    connection.save(
+        db,
+        connection.FeedbackJiraConfigurationUpdate(
+            enabled=False,
+            base_url="https://team.atlassian.net",
+            email="ops@example.com",
+            api_token="new-token",
+            project_key="FEED",
+        ),
+        user_id=None,
+    )
+    disabled = CandidateJira()
+    assert disabled.token == "new-token"
+    assert not disabled.configured
+
+
+def test_saved_jira_connection_requires_https():
+    import pytest
+    from fastapi import HTTPException
+
+    from src.services import feedback_configuration as connection
+
+    _, db = _connection_db()
+    with pytest.raises(HTTPException):
+        connection.save(
+            db,
+            connection.FeedbackJiraConfigurationUpdate(base_url="http://jira.local"),
+            user_id=None,
+        )

@@ -1,4 +1,4 @@
-"""Learner-granted Hub editing runs and their durable activity."""
+"""Learner-granted Coach editing runs and their durable activity."""
 
 from datetime import datetime, timedelta
 import json

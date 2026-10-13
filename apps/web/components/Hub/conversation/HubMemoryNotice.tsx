@@ -29,7 +29,7 @@ export default function HubMemoryNotice({
   const save = async () => { setError(''); if (!await onSave(draft)) setError('Your choice could not be saved. Please try again.') }
   const learnMoreHref = getUriWithOrg(orgslug, routePaths.owner.account.memory())
   return (
-    <aside className="relative mb-2 rounded-2xl border border-border/80 bg-background/95 px-4 py-3 pr-11 shadow-sm backdrop-blur-md" aria-label="Hub memory notice">
+    <aside className="relative mb-2 rounded-2xl border border-border/80 bg-background/95 px-4 py-3 pr-11 shadow-sm backdrop-blur-md" aria-label="Coach memory notice">
       <Button type="button" size="icon" variant="ghost" className="absolute right-2 top-2 h-7 w-7 text-muted-foreground" onClick={onDismiss} disabled={saving} aria-label="Dismiss memory notice">
         <X className="h-3.5 w-3.5" />
       </Button>
@@ -42,7 +42,7 @@ export default function HubMemoryNotice({
           <p className="mt-1 text-xs leading-5 text-muted-foreground">Your memories are private to your account. You control what it remembers and can turn memory off at any time.</p>
           <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
             <label className="flex items-center gap-2 text-xs font-medium text-foreground">
-              <Switch checked={draft} onCheckedChange={setDraft} disabled={saving} aria-label="Use Hub memory" />
+              <Switch checked={draft} onCheckedChange={setDraft} disabled={saving} aria-label="Use Coach memory" />
               <span>Memory {draft ? 'on' : 'off'}</span>
             </label>
             <div className="ml-auto flex items-center gap-3">

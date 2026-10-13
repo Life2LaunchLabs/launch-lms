@@ -21,7 +21,7 @@ function matches(card: BadgeCard, terms: string[]) {
   return terms.every((term) => text.includes(term))
 }
 
-/** Search and filter results: matching badges and resources in their own groups, and a way to ask Hub instead. */
+/** Search and filter results: matching badges and resources in their own groups, and a way to ask Coach instead. */
 export default function DiscoverResults({ orgslug, query, filters, showBadges, showResources }: { orgslug: string; query: string; filters: DiscoverFilters; showBadges: boolean; showResources: boolean }) {
   const org = useOrg() as any
   const session = useLHSession() as any
@@ -45,12 +45,12 @@ export default function DiscoverResults({ orgslug, query, filters, showBadges, s
     {empty ? <div className="flex flex-col items-center gap-3 rounded-3xl border-2 border-dashed border-border px-6 py-14 text-center">
       <SearchX size={36} className="text-muted-foreground" aria-hidden="true" />
       <p className="text-lg font-extrabold">{query ? `Nothing matches “${query}”` : 'Nothing matches these filters'}</p>
-      <p className="max-w-sm text-sm text-muted-foreground">Try fewer words or another filter{askHub ? ', or ask Hub to look with you' : ''}.</p>
-      {askHub ? <Button type="button" variant="brand" onClick={askHub}><Sparkles size={16} />Ask Hub</Button> : null}
+      <p className="max-w-sm text-sm text-muted-foreground">Try fewer words or another filter{askHub ? ', or ask Coach to look with you' : ''}.</p>
+      {askHub ? <Button type="button" variant="brand" onClick={askHub}><Sparkles size={16} />Ask Coach</Button> : null}
     </div> : null}
     {!empty && askHub ? <button type="button" onClick={askHub} className="flex items-center gap-3 rounded-2xl bg-card px-4 py-3 text-left hover:bg-raised">
       <Sparkles size={20} className="shrink-0 text-[#7cc4ff]" aria-hidden="true" />
-      <span className="min-w-0 flex-1 truncate text-sm font-bold">Ask Hub about “{query}”</span>
+      <span className="min-w-0 flex-1 truncate text-sm font-bold">Ask Coach about “{query}”</span>
     </button> : null}
     {badges.length ? <section aria-label="Badges" className="flex flex-col gap-4">
       <h2 className="text-xl font-extrabold tracking-tight">Badges <span className="text-muted-foreground">· {badges.length}</span></h2>

@@ -60,7 +60,7 @@ export default function HubHeader({
   onUpdateEditGoal?: (goal: string) => Promise<void>
   /** Puts the page back, keeping the conversation at the edge. */
   onTuck: () => void
-  /** Ends the conversation and closes Hub. */
+  /** Ends the conversation and closes Coach. */
   onEnd: () => void
 }) {
   const hasConversation = conversationStarted || Boolean(conversationUuid)
@@ -114,7 +114,7 @@ export default function HubHeader({
   return (
     <div className="pointer-events-none absolute inset-x-0 top-0 z-[var(--z-sticky-header)]">
       <div ref={rootRef} className={`pointer-events-auto mx-auto w-full max-w-[50rem] px-3 sm:px-4`}>
-        <header className="flex h-14 items-center gap-0.5" aria-label="Hub conversation navigation">
+        <header className="flex h-14 items-center gap-0.5" aria-label="Coach conversation navigation">
           <Button type="button" size="icon" variant="ghost" className="h-9 w-9 shrink-0" onClick={onTuck} aria-label="Show the page">
             <ChevronRight className="h-4 w-4" />
           </Button>
@@ -126,7 +126,7 @@ export default function HubHeader({
             </form>
           ) : (
             <button type="button" className="flex min-w-0 items-center gap-1 rounded-md px-1.5 py-1 text-left text-sm font-medium hover:bg-muted/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring" onClick={toggleHistory} aria-expanded={panel === 'history'}>
-              <span className="truncate">{hasConversation ? title : 'Hub'}</span>
+              <span className="truncate">{hasConversation ? title : 'Coach'}</span>
               <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${panel === 'history' ? 'rotate-180' : ''}`} />
             </button>
           )}
@@ -154,7 +154,7 @@ export default function HubHeader({
               </DropdownMenuContent>
             </DropdownMenu>
           )}
-          <Button type="button" variant="ghost" size="icon" className="h-9 w-9" onClick={onEnd} aria-label={hasConversation ? 'End conversation' : 'Close Hub'}>
+          <Button type="button" variant="ghost" size="icon" className="h-9 w-9" onClick={onEnd} aria-label={hasConversation ? 'End conversation' : 'Close Coach'}>
             <X className="h-4 w-4" />
           </Button>
         </header>
@@ -169,8 +169,8 @@ export default function HubHeader({
           <span>I can&apos;t read this page yet.</span>
           <TooltipProvider delayDuration={200}>
             <Tooltip>
-              <TooltipTrigger asChild><button type="button" aria-label="About Hub page awareness" className="rounded-full focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"><CircleHelp className="h-3.5 w-3.5" /></button></TooltipTrigger>
-              <TooltipContent side="bottom" className="max-w-72 text-xs leading-5">Hub can use saved details from supported learner pages when you send a message. It cannot see unsaved text or the visual screen.</TooltipContent>
+              <TooltipTrigger asChild><button type="button" aria-label="About Coach page awareness" className="rounded-full focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"><CircleHelp className="h-3.5 w-3.5" /></button></TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-72 text-xs leading-5">Coach can use saved details from supported learner pages when you send a message. It cannot see unsaved text or the visual screen.</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div> : null}

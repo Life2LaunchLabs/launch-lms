@@ -44,7 +44,7 @@ type HubConversationProps = {
   onReply: () => void
 }
 
-/** One conversation with Hub, next to whatever page the learner is on. */
+/** One conversation with Coach, next to whatever page the learner is on. */
 export default function HubConversation({ orgslug, active, intent, onIntentConsumed, endSignal, onStartedChange, onReply }: HubConversationProps) {
   const router = useRouter()
   const hub = useHub()
@@ -318,7 +318,7 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
     }
   }
 
-  // Events from the page (saving or cancelling Hub's proposals) continue the editing session.
+  // Events from the page (saving or cancelling Coach's proposals) continue the editing session.
   useEffect(() => {
     const continuation = hub?.editContinuations.find((item) => item.conversationUuid === conversationUuid && item.runUuid === hub.editRun?.run_uuid)
     if (!continuation || !accessToken || !org?.id || !conversationUuid || sending || conversationLoading || attemptedContinuationsRef.current.has(continuation.id)) return
@@ -371,8 +371,8 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
   }
 
   const busy = sending || conversationLoading
-  return <div className="relative h-full min-h-0 w-full overflow-hidden" aria-label="Hub conversation">
-    <h1 className="sr-only">{conversationTitle || 'Hub'}</h1>
+  return <div className="relative h-full min-h-0 w-full overflow-hidden" aria-label="Coach conversation">
+    <h1 className="sr-only">{conversationTitle || 'Coach'}</h1>
     <HubHeader
       conversationUuid={conversationUuid} conversationStarted={conversationStarted} title={conversationTitle} conversations={conversations}
       loading={historyLoading} disabled={busy} onHistoryOpen={refreshHistory} onNew={resetChat} onSelect={openConversation}

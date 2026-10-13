@@ -1,8 +1,8 @@
-"""Conversation-starter cards on the Hub home.
+"""Conversation-starter cards on Coach home.
 
 Platform-wide and admin-editable. A card is only words: the learner sees the label and hint,
 and clicking it sends first_message as their opening message. How the coach responds is
-governed by the normal Hub instructions, not by anything attached to a card.
+governed by the normal Coach instructions, not by anything attached to a card.
 """
 
 from datetime import datetime

@@ -71,7 +71,7 @@ export default function AccountMemory() {
       await clearHubMemory(org.id, accessToken)
       setMemories([])
     } catch (requestError: any) {
-      setError(requestError?.message || 'Hub memories could not be cleared.')
+      setError(requestError?.message || 'Coach memories could not be cleared.')
     } finally {
       setSaving(false)
     }
@@ -86,17 +86,17 @@ export default function AccountMemory() {
               <BrainCircuit className="h-4 w-4" />
             </div>
             <div>
-              <h1 className="text-lg font-semibold text-foreground">Hub memory</h1>
+              <h1 className="text-lg font-semibold text-foreground">Coach memory</h1>
               <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-                Let Hub carry useful goals, preferences, constraints, and background into future conversations in this organization.
+                Let Coach carry useful goals, preferences, constraints, and background into future conversations in this organization.
               </p>
             </div>
           </div>
-          <Switch checked={enabled} onCheckedChange={(checked) => void toggle(checked)} disabled={loading || saving} aria-label="Enable Hub memory" />
+          <Switch checked={enabled} onCheckedChange={(checked) => void toggle(checked)} disabled={loading || saving} aria-label="Enable Coach memory" />
         </div>
         {!enabled && memories.length > 0 && (
           <p className="mt-4 rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
-            Memory is off. Your saved memories are retained, but Hub will not use or update them.
+            Memory is off. Your saved memories are retained, but Coach will not use or update them.
           </p>
         )}
         {error && <p className="mt-4 text-sm text-destructive" role="alert">{error}</p>}
@@ -105,7 +105,7 @@ export default function AccountMemory() {
       <section className="rounded-xl border border-border bg-card p-5 shadow-xs sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="font-semibold text-foreground">What Hub remembers</h2>
+            <h2 className="font-semibold text-foreground">What Coach remembers</h2>
             <p className="mt-1 text-sm text-muted-foreground">You can edit or delete any memory at any time.</p>
           </div>
           {memories.length > 0 && (
@@ -115,7 +115,7 @@ export default function AccountMemory() {
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Clear all Hub memories?</DialogTitle>
+                  <DialogTitle>Clear all Coach memories?</DialogTitle>
                   <DialogDescription>This removes every saved memory for this organization. Conversation history is not deleted.</DialogDescription>
                 </DialogHeader>
                 <DialogFooter>
@@ -141,7 +141,7 @@ export default function AccountMemory() {
                 .map((memory) => visible.get(memory.memory_uuid) || memory))
             }} />
           ) : (
-            <p className="py-8 text-center text-sm text-muted-foreground">{query ? 'No memories match your search.' : 'Hub has not saved any memories yet.'}</p>
+            <p className="py-8 text-center text-sm text-muted-foreground">{query ? 'No memories match your search.' : 'Coach has not saved any memories yet.'}</p>
           )}
         </div>
       </section>

@@ -40,7 +40,7 @@ test('portfolio.access: unauthenticated navigation uses the safe organization fa
   await context.close()
 })
 
-test('portfolio.access: an expired access-only cookie does not bounce back to Hub', async ({ browser }) => {
+test('portfolio.access: an expired access-only cookie does not bounce back to Coach', async ({ browser }) => {
   const target = new URL(environment.baseUrl)
   const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url')
   const expiredAccessToken = `${encode({ alg: 'none' })}.${encode({ exp: 1 })}.unsigned`
@@ -68,7 +68,7 @@ test('portfolio.access: an expired access-only cookie does not bounce back to Hu
   await context.close()
 })
 
-test('portfolio.access: a rejected refresh hint reaches sign-in instead of bouncing to Hub', async ({ browser }) => {
+test('portfolio.access: a rejected refresh hint reaches sign-in instead of bouncing to Coach', async ({ browser }) => {
   const target = new URL(environment.baseUrl)
   const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url')
   const rejectedRefreshToken = `${encode({ alg: 'none' })}.${encode({ exp: Math.floor(Date.now() / 1000) + 3600 })}.unsigned`

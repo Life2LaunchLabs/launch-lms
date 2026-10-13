@@ -7,7 +7,7 @@ from sqlmodel import Field, SQLModel
 
 
 class HubAdvisorConfiguration(SQLModel, table=True):
-    """Singleton platform configuration for the learner Hub advisor."""
+    """Singleton platform configuration for the learner Coach advisor."""
 
     __tablename__ = "hubadvisorconfiguration"
 
@@ -15,7 +15,7 @@ class HubAdvisorConfiguration(SQLModel, table=True):
     provider: str = Field(default="openai", max_length=50)
     enabled: bool = False
     instructions: str = Field(sa_column=Column(Text, nullable=False))
-    # Conversation-starter cards shown on the Hub home; NULL means the code defaults.
+    # Conversation-starter cards shown on Coach home; NULL means the code defaults.
     launch_cards: list | None = Field(default=None, sa_column=Column(JSON, nullable=True))
     updated_by_user_id: int | None = Field(
         default=None,
@@ -41,7 +41,7 @@ class HubAdvisorProviderConfiguration(SQLModel, table=True):
 
 
 class HubConversation(SQLModel, table=True):
-    """A private Hub thread owned by one learner inside one organization."""
+    """A private Coach thread owned by one learner inside one organization."""
 
     __tablename__ = "hubconversation"
     __table_args__ = (Index("ix_hubconversation_owner_recent", "org_id", "user_id", "updated_at"),)
@@ -139,7 +139,7 @@ class HubMemory(SQLModel, table=True):
 
 
 class HubMemorySource(SQLModel, table=True):
-    """Provenance from a learner-authored Hub message to a memory."""
+    """Provenance from a learner-authored Coach message to a memory."""
 
     __tablename__ = "hubmemorysource"
     __table_args__ = (UniqueConstraint("memory_id", "message_uuid", name="uq_hubmemorysource_message"),)
@@ -152,7 +152,7 @@ class HubMemorySource(SQLModel, table=True):
 
 
 class HubConversationMessageMemory(SQLModel, table=True):
-    """Immutable receipt of memory created by or used for a Hub message."""
+    """Immutable receipt of memory created by or used for a Coach message."""
 
     __tablename__ = "hubconversationmessagememory"
     __table_args__ = (
