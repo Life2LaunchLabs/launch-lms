@@ -91,9 +91,8 @@ function Explorer({ coverage, orgslug }: { coverage: any; orgslug: string }) {
     const kind = classify(node)
     if (gapsOnly === 'gaps' && selected.length && kind !== 'none') return null
     return <button key={node.node_uuid} type="button" role="treeitem" aria-selected={active === node.node_uuid} onClick={() => setActive(node.node_uuid)} className={cn('flex min-h-10 w-full items-center gap-3 border-b border-gray-50 pr-4 text-left', active === node.node_uuid ? 'bg-blue-50 shadow-[inset_3px_0_0_#1d4ed8]' : 'bg-white hover:bg-gray-50')} style={{ paddingLeft: 16 + depth * 20 + 20 }}>
-      <span className="w-14 shrink-0 text-xs font-bold text-gray-500">{node.code}</span>
-      <span className="min-w-0 flex-1 truncate text-[13px] text-gray-900">{node.title}</span>
-      <span className="flex w-[260px] shrink-0 gap-1">{selected.length ? kind === 'none' ? <StatusPill tone="amber">Not covered</StatusPill> : selected.filter((uuid) => covers(node, uuid)).map((uuid) => <span key={uuid} className="max-w-[125px] truncate rounded-full px-2 py-0.5 text-[10px] font-bold text-white" style={{ background: COLORS[selected.indexOf(uuid)] }}>{nameOf(uuid)}</span>) : <span className="text-xs text-gray-400">{(node.covered_by || []).length} step{(node.covered_by || []).length === 1 ? '' : 's'}</span>}</span>
+      <span className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:gap-3"><span className="shrink-0 break-all text-xs font-bold text-gray-500">{node.code}</span><span className="min-w-0 break-words text-[13px] text-gray-900">{node.title}</span></span>
+      <span className="flex max-w-24 shrink-0 flex-wrap gap-1 sm:w-[260px] sm:max-w-none">{selected.length ? kind === 'none' ? <StatusPill tone="amber">Not covered</StatusPill> : selected.filter((uuid) => covers(node, uuid)).map((uuid) => <span key={uuid} className="max-w-full truncate rounded-full px-2 py-0.5 text-[10px] font-bold text-white sm:max-w-[125px]" style={{ background: COLORS[selected.indexOf(uuid)] }}>{nameOf(uuid)}</span>) : <span className="text-xs text-gray-400">{(node.covered_by || []).length} step{(node.covered_by || []).length === 1 ? '' : 's'}</span>}</span>
     </button>
   }
   const renderNode = (node: any, depth: number): React.ReactNode => {
@@ -106,8 +105,7 @@ function Explorer({ coverage, orgslug }: { coverage: any; orgslug: string }) {
       <div className={cn('flex min-h-11 items-center gap-3 border-b border-gray-50 pr-4', depth ? 'bg-white' : 'bg-gray-50/70')} style={{ paddingLeft: 16 + depth * 20 }}>
         <button type="button" role="treeitem" aria-selected={false} aria-expanded={isOpen} onClick={() => setOpen({ ...open, [node.node_uuid]: !isOpen })} className="flex min-w-0 flex-1 items-center gap-3 text-left">
           <ChevronRight size={13} className={cn('shrink-0 text-gray-400 transition', isOpen && 'rotate-90')} />
-          <span className="w-12 shrink-0 text-xs font-black text-gray-500">{node.code}</span>
-          <span className={cn('min-w-0 flex-1 truncate text-sm', depth ? 'font-semibold' : 'font-black')}>{node.title}</span>
+          <span className="flex min-w-0 flex-1 flex-col gap-1 py-2 sm:flex-row sm:items-center sm:gap-3"><span className="shrink-0 break-all text-xs font-black text-gray-500">{node.code}</span><span className={cn('min-w-0 break-words text-sm', depth ? 'font-semibold' : 'font-black')}>{node.title}</span></span>
         </button>
         <button type="button" onClick={() => setActive(node.node_uuid)} className="hidden w-[260px] shrink-0 items-center gap-3 sm:flex" aria-label={`Details for ${node.title}`}>
           {selected.length ? <><CoverageBar tally={t} /><span className="w-14 text-right text-xs text-gray-700">{t.total - t.none} / {t.total}</span><span className="w-16 text-right text-xs font-bold text-amber-700">{t.none ? `${t.none} gap${t.none === 1 ? '' : 's'}` : ''}</span></> : <span className="text-xs text-gray-500">{t.total} requirements</span>}

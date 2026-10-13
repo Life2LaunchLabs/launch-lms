@@ -8,6 +8,12 @@ screenshots, videos, traces and manifests only in ignored directories.
 1. Start a disposable/local API and web application with current migrations. Set
    `LAUNCHLMS_UI_TEST_FIXTURES=true` and `LAUNCHLMS_DEVELOPMENT_MODE=true` on the API to use deterministic Coach advice;
    this fixture provider cannot run when development mode is off.
+   For teacher requirement-export scenarios, run
+   `apps/api/scripts/seed_requirement_evidence.py apps/web/.playwright/requirement-evidence.json`
+   from the repository root using the API Python environment and the same test
+   database/configuration. This script requires development mode, UI fixtures,
+   the synthetic initial-admin email and a database whose name contains `test`.
+   CI seeds it after the normal installation. Fixtures contain no real learners.
 2. Create synthetic test users through the normal supported setup flow. Never use a personal account or shared database.
 3. Export the variables in `.env.example` from a protected shell or CI secret store. For organization-subdomain routing,
    make `UI_TEST_BASE_URL` that organization origin and override the Coach/Plans paths to `/plans?coach=open` and `/plans` (Coach opens beside Plans; it has no page of its own).

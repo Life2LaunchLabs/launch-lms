@@ -5312,6 +5312,55 @@
               "signoff": {},
               "source": {},
               "references": []
+            },
+            {
+              "id": "PATHWAYS-G005-A004-S005",
+              "activity_id": "PATHWAYS-G005-A004",
+              "display_order": 5,
+              "title": "Export requirement evidence for selected learners",
+              "description": "Teachers export evidence, approval records, gaps and course context from assignment, group and learner views.",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "full",
+              "automated_status": "passed",
+              "manual_status": "passed",
+              "implementation_notes": "CSV uses assigned framework snapshots and current plan review permissions. It reports evidence and recorded objective approval; schools determine academic credit. Optional course context is supplied at export. Confidential staff notes are excluded.",
+              "updated_at": "2026-10-13T00:00:00+00:00",
+              "verification": {
+                "status": "verified",
+                "automated": "9 focused API tests; six real browser scenarios across desktop and phone",
+                "manual": "Inspected ten synthetic captures; checked real CSV download and actor audit",
+                "report": "docs/design/requirement-evidence-export-verification.md"
+              },
+              "signoff": {},
+              "source": {},
+              "references": [
+                {
+                  "kind": "code",
+                  "path": "apps/api/src/services/requirement_evidence.py"
+                },
+                {
+                  "kind": "code",
+                  "path": "apps/web/components/Admin/Plans/RequirementEvidenceExport.tsx"
+                },
+                {
+                  "kind": "test",
+                  "path": "apps/api/src/tests/test_requirement_evidence.py"
+                },
+                {
+                  "kind": "test",
+                  "path": "apps/web/tests/ui/requirement-evidence.spec.ts"
+                },
+                {
+                  "kind": "doc",
+                  "path": "docs/plans/active/requirement-evidence-export.md"
+                },
+                {
+                  "kind": "doc",
+                  "path": "docs/design/requirement-evidence-export-verification.md"
+                }
+              ]
             }
           ],
           "references": [

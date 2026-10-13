@@ -1,0 +1,94 @@
+import { expect, test, type Page, type TestInfo } from '@playwright/test'
+import { readFileSync } from 'node:fs'
+import { assertActualApp } from './auth'
+
+const fixture = JSON.parse(readFileSync('.playwright/requirement-evidence.json', 'utf8'))
+const groupPath = `/orgs/${fixture.org_slug}/admin/users/groups/${fixture.group_id}`
+
+async function capture(page: Page, info: TestInfo, name: string, fullPage = true) {
+  const screenshot = await page.screenshot({ path: info.outputPath(name), fullPage })
+  await info.attach(`synthetic-review:${name}`, { body: screenshot, contentType: 'image/png' })
+}
+
+test('requirements.export: assignment filters learners and downloads real reviewed evidence', async ({ page }, testInfo) => {
+  await page.goto(`${groupPath}/plans?assignment=${fixture.assignment_uuid}`)
+  await assertActualApp(page)
+  await page.getByRole('textbox', { name: 'Search learners' }).fill('Alex')
+  const action = page.getByRole('button', { name: 'Export evidence CSV for 1 filtered learner', exact: true })
+  await expect(action).toBeVisible()
+  await action.focus()
+  await action.press('Enter')
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await expect.poll(async () => {
+    const box = await page.getByRole('dialog').boundingBox()
+    return Boolean(box && box.x >= 0 && box.x + box.width <= page.viewportSize()!.width)
+  }).toBe(true)
+  await page.getByLabel('Course name (optional)').fill('Higher Education and Career Path Skills')
+  await page.getByLabel('Course code (optional)').fill('22900')
+  await page.getByLabel('Section (optional)').fill('Senior advisory A')
+  await page.getByLabel('Term (optional)').fill('Fall 2026')
+  await capture(page, testInfo, 'export-course-context.png', false)
+  const downloadPromise = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Download CSV', exact: true }).click()
+  const download = await downloadPromise
+  expect(download.suggestedFilename()).toBe('requirement-evidence.csv')
+  const csv = readFileSync((await download.path())!, 'utf8')
+  expect(csv).toContain('Alex Approved')
+  expect(csv).not.toContain('Parker Pending')
+  expect(csv).toContain('HS.HECPS.D.2')
+  expect(csv).toContain('HS.HECPS.D.3')
+  expect(csv).toContain('Staff-approved objective')
+  expect(csv).toContain('Resume reflection')
+  expect(csv).toContain('https://example.org/synthetic-resume')
+  expect(csv).toContain('22900')
+  expect(csv).toContain('Fall 2026')
+  expect(csv).toContain('No mapped work in export scope')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await capture(page, testInfo, 'assignment-export-filtered.png')
+  await page.getByRole('textbox', { name: 'Search learners' }).fill('no-such-learner')
+  await expect(page.getByRole('button', { name: 'Export evidence CSV for 0 filtered learners' })).toBeDisabled()
+})
+
+test('requirements.export: group report keeps pending evidence and shows server failures', async ({ page }, testInfo) => {
+  await page.goto(`${groupPath}/requirements`)
+  await assertActualApp(page)
+  await page.getByRole('button', { name: 'Export evidence CSV for 2 filtered learners' }).click()
+  const downloadPromise = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Download CSV', exact: true }).click()
+  const csv = readFileSync((await (await downloadPromise).path())!, 'utf8')
+  expect(csv).toContain('Parker Pending')
+  expect(csv).toContain('Awaiting staff review')
+  expect(csv).toContain('Staff-approved objective')
+  await capture(page, testInfo, 'group-requirement-export.png')
+  await page.route('**/planning/requirements/evidence-export?*', (route) => route.fulfill({ status: 403, contentType: 'application/json', body: JSON.stringify({ detail: 'You cannot export this learner’s assignment' }) }))
+  await page.getByRole('button', { name: 'Export evidence CSV for 2 filtered learners' }).click()
+  await page.getByRole('button', { name: 'Download CSV', exact: true }).click()
+  await expect(page.getByText('You cannot export this learner’s assignment', { exact: true })).toBeVisible()
+  await expect(page.getByRole('dialog')).toBeVisible()
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click()
+})
+
+test('requirements.long-codes: explorer and learner tree preserve readable code and title', async ({ page }, testInfo) => {
+  // This scenario visits two routes; local Next dev can compile both from cold.
+  test.setTimeout(60_000)
+  for (const [path, prefix] of [
+    [`/orgs/${fixture.org_slug}/admin/plans/requirements`, 'explorer'],
+    [`/orgs/${fixture.org_slug}/admin/users/user/${fixture.approved_username}/requirements`, 'learner'],
+  ]) {
+    await page.goto(path)
+    await assertActualApp(page)
+    if (prefix === 'explorer' && await page.getByRole('combobox', { name: 'Framework', exact: true }).count()) await page.getByRole('combobox', { name: 'Framework', exact: true }).selectOption(fixture.framework_uuid)
+    const code = page.getByText('HS.HECPS', { exact: true }).first()
+    const title = page.getByText('Higher Education and Career Path Skills', { exact: true }).first()
+    await expect(code).toBeVisible()
+    await expect(title).toBeVisible()
+    const codeBox = (await code.boundingBox())!, titleBox = (await title.boundingBox())!
+    expect(codeBox.x + codeBox.width <= titleBox.x + 1 || codeBox.y + codeBox.height <= titleBox.y + 1).toBe(true)
+    const domain = prefix === 'explorer'
+      ? page.getByRole('treeitem', { name: /HS.HECPS.D Workforce Readiness/ })
+      : page.getByRole('button', { name: /HS.HECPS.D Workforce Readiness/ })
+    await domain.click()
+    await expect(page.getByText('HS.HECPS.D.2', { exact: true }).first()).toBeVisible()
+    await capture(page, testInfo, `${prefix}-long-codes.png`)
+  }
+})

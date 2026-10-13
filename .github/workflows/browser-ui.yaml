@@ -111,6 +111,7 @@ jobs:
         run: |
           ./scripts/run_alembic_migrations.sh
           uv run python cli.py install --short
+          uv run python scripts/seed_requirement_evidence.py ../../apps/web/.playwright/requirement-evidence.json
 
       - name: Build the test application
         run: bun run build
