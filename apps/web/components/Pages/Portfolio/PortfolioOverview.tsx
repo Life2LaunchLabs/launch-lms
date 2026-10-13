@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { ArrowRight, Award, BookOpen, Eye, EyeOff, FolderOpen, Grid3X3, GripVertical, Instagram, Pencil, Plus, UserPlus, Users, Youtube, Zap } from 'lucide-react'
+import { ArrowRight, Eye, EyeOff, Grid3X3, GripVertical, Instagram, Pencil, UserPlus, Users, Youtube } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd'
 
@@ -157,7 +157,7 @@ function SocialPreviewCarousel({ type, url }: { type: 'instagram' | 'youtube'; u
   return <section><div className="mb-5 flex items-end justify-between gap-3"><div className="flex items-center gap-2"><Icon className="h-4 w-4 text-muted-foreground" /><h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">{label}</h2></div><a href={profileHref} target="_blank" rel="noreferrer" className="text-sm font-semibold transition hover:text-foreground">View profile</a></div>{loading ? <div className="flex gap-3 overflow-hidden">{Array.from({ length: 3 }).map((_, index) => <div key={index} className={`${type === 'instagram' ? 'aspect-[9/16] w-40' : 'aspect-video w-64'} shrink-0 animate-pulse rounded-xl bg-muted`} />)}</div> : items.length ? <div className="flex snap-x gap-3 overflow-x-auto pb-3">{items.map((item) => <a key={item.id} href={item.url} target="_blank" rel="noreferrer" className={`${type === 'instagram' ? 'aspect-[9/16] w-40 sm:w-48' : 'aspect-video w-64 sm:w-72'} group relative shrink-0 snap-start overflow-hidden rounded-xl bg-muted`}>{item.thumbnailUrl ? <img src={item.thumbnailUrl} alt={item.title || ''} loading="lazy" className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]" /> : null}{type === 'youtube' && <span className="absolute inset-0 flex items-center justify-center"><span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/70 text-white"><Youtube className="h-5 w-5" /></span></span>}</a>)}</div> : <a href={profileHref} target="_blank" rel="noreferrer" className="group flex max-w-2xl items-center gap-4 rounded-xl bg-muted/55 p-3 transition hover:bg-muted"><span className="h-14 w-14 shrink-0 overflow-hidden rounded-full bg-background">{profile?.imageUrl ? <img src={profile.imageUrl} alt="" className="h-full w-full object-cover" /> : <span className="flex h-full w-full items-center justify-center"><Icon className="h-6 w-6 text-muted-foreground" /></span>}</span><span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold">{profileName}</span><span className="mt-0.5 block truncate text-xs text-muted-foreground">@{profile?.handle || handle}</span>{profileDescription && <span className="mt-1 block line-clamp-1 text-xs text-muted-foreground">{profileDescription}</span>}{profileStats && <span className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] font-medium text-muted-foreground">{profileStats.posts && <span className="flex items-center gap-1.5"><Grid3X3 className="h-3 w-3" />{profileStats.posts} posts</span>}{profileStats.followers && <span className="flex items-center gap-1.5"><Users className="h-3 w-3" />{profileStats.followers} followers</span>}{profileStats.following && <span className="flex items-center gap-1.5"><UserPlus className="h-3 w-3" />{profileStats.following} following</span>}</span>}</span><ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5" /></a>}</section>
 }
 
-export default function Overview({ shell, setShell, owner, orgslug, username, importLegacy, busy, token }: any) {
+export default function Overview({ shell, setShell, owner, orgslug, username, importLegacy, busy, token, navigation }: any) {
   const searchParams = useSearchParams()
   const featured = shell.projects.filter((project: Project) => project.featured)
   const featuredTimeline = (shell.timeline || []).filter((entry: TimelineEntry) => entry.featured)
@@ -200,18 +200,14 @@ export default function Overview({ shell, setShell, owner, orgslug, username, im
     : type === 'current_timeline' ? <section><div className="mb-5 flex items-end justify-between"><h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Timeline</h2><button className="text-sm font-semibold" onClick={() => { window.history.pushState({}, '', getUriWithOrg(orgslug, owner ? '/portfolio/timeline' : `/user/${username}/timeline`)); window.dispatchEvent(new PopStateEvent('popstate')) }}>View all</button></div>{featuredTimeline.length ? <TimelineView entries={featuredTimeline} owner={owner} orgslug={orgslug} username={username} variant="overview" /> : owner ? <button type="button" onClick={() => { window.history.pushState({}, '', getUriWithOrg(orgslug, '/portfolio/timeline')); window.dispatchEvent(new PopStateEvent('popstate')) }} className="w-full rounded-xl border border-dashed border-border px-5 py-10 text-center text-sm font-semibold text-muted-foreground transition hover:border-foreground hover:text-foreground">Star Timeline experiences to feature them here.</button> : null}</section>
     : type === 'featured_projects' ? <section><div className="mb-5 flex items-end justify-between"><h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Featured project{featured.length > 1 ? 's' : ''}</h2><button className="text-sm font-semibold transition-colors hover:text-foreground" onClick={() => { window.history.pushState({}, '', getUriWithOrg(orgslug, owner ? '/portfolio/projects' : `/user/${username}/projects`)); window.dispatchEvent(new PopStateEvent('popstate')) }}>View all</button></div>{featured.length ? <FeaturedProjectCards project={featured} owner={owner} orgslug={orgslug} username={username} /> : owner ? <button type="button" onClick={() => { window.history.pushState({}, '', getUriWithOrg(orgslug, '/portfolio/projects')); window.dispatchEvent(new PopStateEvent('popstate')) }} className="w-full rounded-xl border border-dashed border-border px-5 py-10 text-center text-sm font-semibold text-muted-foreground transition hover:border-foreground hover:text-foreground">Star one of your projects to feature it here.</button> : null}</section>
     : type === 'instagram' || type === 'youtube' ? (() => { const social = (shell.portfolio.socials || []).find((item: { type: string; url: string }) => item.type === type && item.url); return social ? <SocialPreviewCarousel type={type} url={social.url} /> : null })() : null
-  const actionConfig: Record<string, { title: string; prompt: string; href: string; icon: React.ComponentType<{ className?: string }> }> = {
-    about: { title: 'About', prompt: 'Introduce yourself', href: '/portfolio?edit=about', icon: BookOpen },
-    featured_badges: { title: 'Badges', prompt: 'Find one you’d like to start', href: routePaths.org.discover(), icon: Award },
-    traits: { title: 'Strengths & values', prompt: 'Highlight what makes you, you', href: '/portfolio?edit=strengths', icon: Zap },
-    current_timeline: { title: 'Timeline', prompt: 'Add an experience', href: '/portfolio/timeline?experience=work_career', icon: BookOpen },
-    featured_projects: { title: 'Projects', prompt: 'Showcase your project', href: '/portfolio/projects/new', icon: FolderOpen },
-    instagram: { title: 'Instagram', prompt: 'Connect your Instagram', href: '/portfolio?edit=profile', icon: Instagram },
-    youtube: { title: 'YouTube', prompt: 'Connect your YouTube channel', href: '/portfolio?edit=profile', icon: Youtube },
+  const actionConfig: Record<string, { title: string; prompt: string; href: string }> = {
+    traits: { title: 'Strengths & values', prompt: 'Highlight what makes you, you', href: '/portfolio?edit=strengths' },
+    instagram: { title: 'Instagram', prompt: 'Connect your Instagram', href: '/portfolio?edit=profile' },
+    youtube: { title: 'YouTube', prompt: 'Connect your YouTube channel', href: '/portfolio?edit=profile' },
   }
   const editingTraits = editTarget === 'strengths' || editTarget === 'values'
   const sidebarSectionTypes = ['traits', 'featured_badges', 'about']
-  const completedSections = sections.filter((section) => !sidebarSectionTypes.includes(section.section_type) && (hasContent(section.section_type) || (owner && section.section_type === 'about')))
+  const completedSections = sections.filter((section) => !sidebarSectionTypes.includes(section.section_type) && (section.section_type === 'current_timeline' ? featuredTimeline.length > 0 : section.section_type === 'featured_projects' ? featured.length > 0 : hasContent(section.section_type)))
   const traitsSection = sections.find((section) => section.section_type === 'traits')
   const badgesSection = sections.find((section) => section.section_type === 'featured_badges')
   const showTraits = Boolean(traitsSection && (hasContent('traits') || editingTraits))
@@ -234,7 +230,7 @@ export default function Overview({ shell, setShell, owner, orgslug, username, im
   return <div className="space-y-14">
     <AboutSection shell={shell} setShell={setShell} owner={owner} token={token} />
     {showBadges ? <div className={badgesSection?.enabled ? '' : 'opacity-40 grayscale'}>{renderSection('featured_badges')}</div> : null}
-    <div className={`grid items-start gap-14 ${showSidebar ? 'lg:grid-cols-[minmax(0,1fr)_15rem] lg:gap-12 xl:grid-cols-[minmax(0,1fr)_17rem] xl:gap-16' : ''}`}>
+    {completedSections.length > 0 || showSidebar ? <div className={`grid items-start gap-14 ${showSidebar ? 'lg:grid-cols-[minmax(0,1fr)_15rem] lg:gap-12 xl:grid-cols-[minmax(0,1fr)_17rem] xl:gap-16' : ''}`}>
     <DragDropContext onDragEnd={onDragEnd} autoScrollerOptions={{ disabled: false }}>
       <Droppable droppableId="portfolio-overview-sections">
         {(dropProvided, dropSnapshot) => <div ref={dropProvided.innerRef} {...dropProvided.droppableProps} className={`space-y-14 ${dropSnapshot.isDraggingOver ? 'portfolio-sections-dragging' : ''}`}>
@@ -254,8 +250,14 @@ export default function Overview({ shell, setShell, owner, orgslug, username, im
     {showSidebar && <aside aria-label="Portfolio highlights" className="grid gap-10 border-t border-border/70 pt-8 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0 xl:pl-10">
       {showTraits && <div className={traitsSection?.enabled ? '' : 'opacity-40 grayscale'}>{renderSection('traits')}</div>}
     </aside>}
-    </div>
-    {emptySections.length > 0 && <section className="max-w-xl space-y-2"><div className="mb-4"><h2 className="text-xl font-extrabold tracking-tight">Keep building</h2><p className="mt-1 text-sm text-muted-foreground">Choose what you want to add next.</p></div>{emptySections.map((section) => { const action = actionConfig[section.section_type]; const Icon = action.icon; return <Link key={section.section_uuid} href={getUriWithOrg(orgslug, action.href)} className="group flex items-center gap-3 rounded-xl border border-border bg-card p-3 shadow-sm transition hover:-translate-y-0.5 hover:border-foreground/30 hover:shadow-md"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"><Icon className="h-5 w-5" /></span><span className="min-w-0 flex-1"><span className="block text-sm font-black">{action.title}</span><span className="block truncate text-xs text-muted-foreground">{action.prompt}</span></span><span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--org-primary-color)] text-[var(--org-on-primary-color)] transition group-hover:scale-105"><Plus className="h-4 w-4" /></span></Link>})}</section>}
+    </div> : null}
+    <nav aria-label="More of this portfolio" className="grid gap-3">
+      {navigation}
+      {emptySections.map((section) => { const action = actionConfig[section.section_type]; return <Link key={section.section_uuid} href={getUriWithOrg(orgslug, action.href)} className="group flex items-center gap-4 rounded-2xl border-2 border-border bg-card p-4 shadow-[0_4px_0_hsl(var(--edge))] transition hover:bg-raised">
+        <span className="min-w-0 flex-1"><span className="block text-lg font-extrabold">{action.title}</span><span className="block text-sm text-muted-foreground">{action.prompt}</span></span>
+        <ArrowRight className="h-5 w-5 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-foreground" />
+      </Link> })}
+    </nav>
     {owner && shell.portfolio.has_legacy_portfolio && <section className="rounded-2xl border border-dashed border-border p-6"><h2 className="font-bold">Have an older Launch LMS portfolio?</h2><p className="mt-1 text-sm text-muted-foreground">Import its project and timeline experiences into the new builder. Your original profile data stays untouched.</p><div className="mt-4 flex flex-wrap gap-2"><Button variant="outline" disabled={busy} onClick={importLegacy}>{busy ? 'Importing…' : 'Import legacy project'}</Button><Button variant="ghost" disabled={busy} onClick={dismissLegacyImport}>Skip import</Button></div></section>}
   </div>
 }

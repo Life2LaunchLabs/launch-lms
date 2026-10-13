@@ -78,7 +78,7 @@ function LayoutContent({ children, orgslug }: { children: React.ReactNode; orgsl
           <GuestHeader orgslug={orgslug} />
         </div>
       )}
-      <div className="flex-1 relative print:flex-none" style={{ zIndex: 'var(--z-content)' }}>
+      <div className="org-page-body scrollbar-subtle scrollbar-subtle-rounded flex-1 min-h-0 relative print:flex-none" style={{ zIndex: 'var(--z-content)' }}>
         <div className={`org-page-layout mx-auto w-full md:flex md:items-start print:block print:px-0 ${isActivityPage ? 'md:w-full md:px-0' : 'md:px-6'}`}>
           {showOrgMenu && (
             <div className="print:hidden md:contents">
