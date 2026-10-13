@@ -38,7 +38,7 @@ function shortDate(value?: string | null) {
 
 export function stepState(item: StepItem): 'open' | 'not_ready' | 'done' {
   const status = item.progress?.status || 'not_started'
-  if (status === 'completed' || status === 'canceled' || item.availability?.state === 'done') return 'done'
+  if (status === 'completed' || status === 'submitted' || status === 'canceled' || item.availability?.state === 'done') return 'done'
   if (item.availability?.state === 'not_ready') return 'not_ready'
   return 'open'
 }
@@ -137,7 +137,7 @@ export function StepStack({ items, colorFor, selectedUuid, currentUuid, onSelect
 // eslint-disable-next-line no-unused-vars
 export function SelectedStepBody({ item, state, onStart, onGoTo, onAsk }: { item: StepItem; state: StepState; onStart: () => void; onGoTo: (objectiveUuid: string) => void; onAsk?: () => void }) {
   const reason = item.availability?.reason
-  const text = `${state === 'not_ready' ? `${notReadySentence(item)} ` : ''}${item.description || (state === 'done' ? 'You finished this step.' : '')}`.trim()
+  const text = `${state === 'not_ready' ? `${notReadySentence(item)} ` : ''}${item.description || (item.progress?.status === 'submitted' ? 'Your work is submitted and waiting on review.' : state === 'done' ? 'You finished this step.' : '')}`.trim()
   return <div className="flex flex-col gap-3">
     {text ? <p className="text-sm leading-6 text-foreground/80">{text}</p> : null}
     <div className="flex flex-wrap gap-2">

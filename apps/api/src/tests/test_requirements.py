@@ -73,6 +73,28 @@ def _framework(db: Session, admin: PublicUser) -> dict:
     return requirements.publish_framework(db, admin, 1, created["framework_uuid"])
 
 
+def test_free_form_framework_edit_and_publish_preserve_supplied_hierarchy():
+    db, admin = _session()
+    with db:
+        source = {"source_url": "https://example.org/standards", "requirement_levels": []}
+        nodes = [
+            RequirementNodeInput(node_uuid="official-root", code="HS.HECPS", title="Career skills"),
+            RequirementNodeInput(node_uuid="official-domain", parent_node_uuid="official-root", code="HS.HECPS.D", title="Workforce"),
+            RequirementNodeInput(node_uuid="official-leaf", parent_node_uuid="official-domain", code="HS.HECPS.D.2", title="Resume", metadata={"source_page": 4}),
+        ]
+        draft = requirements.create_framework(db, admin, RequirementFrameworkCreate(org_id=1, name="Official standards", source_metadata=source, nodes=nodes))
+        details = requirements.update_framework(db, admin, 1, draft["framework_uuid"], RequirementFrameworkUpdate(description="Teacher evidence guidance"))
+        assert len(details["nodes"]) == 3
+        nodes[2].description = "Updated evidence guidance"
+        edited = requirements.update_framework(db, admin, 1, draft["framework_uuid"], RequirementFrameworkUpdate(nodes=nodes))
+        published = requirements.publish_framework(db, admin, 1, draft["framework_uuid"])
+        assert published["status"] == "published"
+        assert published["source_metadata"] == source
+        assert published["nodes"] == edited["nodes"]
+        assert [(node["node_uuid"], node["parent_node_uuid"], node["code"]) for node in published["nodes"]] == [(node.node_uuid, node.parent_node_uuid, node.code) for node in nodes]
+        assert published["nodes"][2]["metadata"] == {"source_page": 4}
+
+
 def test_library_framework_copy_uses_published_version_and_is_tenant_owned():
     db, admin = _session()
     with db:

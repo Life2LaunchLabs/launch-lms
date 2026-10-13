@@ -12,7 +12,7 @@ import { getAPIUrl, getUriWithOrg } from '@services/config/config'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { Button } from '@components/ui/button'
 import { useHub } from '@components/Hub/HubContext'
-import { SelectedStepBody, StepStack, type StepItem } from './StepStack'
+import { SelectedStepBody, StepStack, stepState, type StepItem } from './StepStack'
 import { planVars } from './planColors'
 import { PlanMark, PlanProgress } from './PlanHeader'
 
@@ -26,9 +26,8 @@ function range(start?: string, end?: string) {
 }
 
 function firstUp(items: StepItem[]) {
-  return items.find((item) => item.availability?.state === 'open' && item.progress?.status !== 'completed')
-    || items.find((item) => item.progress?.status !== 'completed')
-    || items[0]
+  return items.find((item) => stepState(item) === 'open')
+    || items.find((item) => stepState(item) === 'not_ready')
 }
 
 type PlansHomeProps = {
@@ -60,8 +59,8 @@ export default function PlansHome({ orgslug, token, plans, completed, invitation
   const [open, setOpen] = React.useState<StepItem | null>(null)
   const [busy, setBusy] = React.useState(false)
   const weekItems: StepItem[] = data?.week?.items || []
-  const openItems = weekItems.filter((item) => item.progress?.status !== 'completed')
-  const doneItems = weekItems.filter((item) => item.progress?.status === 'completed')
+  const openItems = weekItems.filter((item) => stepState(item) !== 'done')
+  const doneItems = weekItems.filter((item) => stepState(item) === 'done')
   const selectedUuid = selected || firstUp(openItems)?.objective_uuid || ''
 
   if (error) return <div className="mt-6 rounded-xl border border-border bg-card p-5" role="alert"><p className="text-sm">Your weekly steps could not load.</p><button type="button" onClick={() => void retry()} className="mt-3 min-h-11 text-sm font-semibold underline">Try again</button></div>
@@ -124,7 +123,7 @@ export default function PlansHome({ orgslug, token, plans, completed, invitation
         : <p className="rounded-2xl bg-card px-4 py-8 text-center text-sm font-bold text-muted-foreground">Nothing planned for this week yet.</p>}
       {doneItems.length ? <details className="group/done-week">
         <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 rounded-xl py-2 text-sm font-bold text-muted-foreground">
-          Done this week · {doneItems.length}
+          {doneItems.some((item) => item.progress?.status === 'submitted') ? 'Submitted and done this week' : 'Done this week'} · {doneItems.length}
           <ChevronDown size={16} className="transition-transform group-open/done-week:rotate-180" aria-hidden="true" />
         </summary>
         <StepStack items={doneItems} colorFor={colorFor} selectedUuid={selectedUuid} onSelect={select} showPlanName renderSelected={renderSelected} />
@@ -203,7 +202,7 @@ function Invitations({ invitations, token, refresh }: { invitations: any[]; toke
   return <section aria-label="Plan invitations" className="flex flex-col gap-3">
     <h2 className="text-xl font-extrabold tracking-tight">Invitations</h2>
     {invitations.map((invite) => <div key={invite.invitation_uuid} className="flex flex-wrap items-center gap-3 rounded-2xl border-2 border-border bg-card p-4">
-      <div className="min-w-0 flex-1"><p className="font-bold">{invite.plan.name}</p><p className="text-sm text-muted-foreground">{invite.kind === 'subject' ? 'A plan for you' : `Help as ${invite.role.name}`}</p></div>
+      <div className="min-w-0 flex-1"><p className="font-bold">{invite.plan.name}</p><p className="text-sm text-muted-foreground">{invite.source_organization?.name || invite.invited_by?.name || invite.invited_by?.username || 'Launch LMS'}{invite.kind !== 'subject' ? ` · Help as ${invite.role.name}` : ''}</p></div>
       <Button size="sm" variant="ghost" onClick={() => void respond(invite.invitation_uuid, false)}>Decline</Button>
       <Button size="sm" variant="brand" onClick={() => void respond(invite.invitation_uuid, true)}>Accept</Button>
     </div>)}

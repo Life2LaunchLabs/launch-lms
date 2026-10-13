@@ -34,7 +34,7 @@ const LEGACY_INTENT_PARAMS = { open: 'hub', conversation: 'hub_conversation', pr
  * still showing because a conversation exists), or closed. The conversation is one
  * stable instance beside the routed page, so navigating never interrupts it.
  */
-export default function HubShell({ children, orgslug, orgId }: { children: ReactNode; orgslug: string; orgId?: number }) {
+export default function HubShell({ children, orgslug, orgId, focused = false }: { children: ReactNode; orgslug: string; orgId?: number; focused?: boolean }) {
   const pathname = usePathname()
   const search = useSearchParams()
   const pageTitle = usePageTitle()
@@ -113,18 +113,18 @@ export default function HubShell({ children, orgslug, orgId }: { children: React
     return () => window.clearTimeout(timer)
   }, [state, frozenY])
 
-  useHubGestures({ enabled: phone, state, shellRef, onOpen: open, onTuck: tuck })
+  useHubGestures({ enabled: phone && !focused, state, shellRef, onOpen: open, onTuck: tuck })
 
   // The page slid aside on a phone is out of reach; keep it out of the focus order too.
   useEffect(() => {
     const page = shellRef.current?.querySelector<HTMLElement>('.learner-page')
-    if (!page || !phone || state !== 'open') return
+    if (!page || !phone || focused || state !== 'open') return
     page.inert = true
     return () => { page.inert = false }
-  }, [phone, state])
+  }, [phone, state, focused])
 
   useEffect(() => {
-    if (state !== 'open') return
+    if (focused || state !== 'open') return
     panelRef.current?.focus({ preventScroll: true })
     const keys = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return
@@ -132,7 +132,7 @@ export default function HubShell({ children, orgslug, orgId }: { children: React
     }
     document.addEventListener('keydown', keys)
     return () => document.removeEventListener('keydown', keys)
-  }, [state, tuck])
+  }, [state, tuck, focused])
 
   useEffect(() => {
     const shortcut = (event: KeyboardEvent) => {
@@ -203,17 +203,17 @@ export default function HubShell({ children, orgslug, orgId }: { children: React
   const showEdge = state === 'edge' && started
   const style = { '--hub-width': `${width}px`, '--hub-frozen-y': `${-(frozenY || 0)}px` } as CSSProperties
   return <HubContext.Provider value={value}>
-    <div ref={shellRef} className="hub-shell" data-hub-state={state} data-hub-edge={showEdge || undefined} data-hub-frozen={frozenY !== null || undefined} style={style}>
+    <div ref={shellRef} className={focused ? 'min-h-dvh w-full' : 'hub-shell'} data-hub-state={state} data-hub-edge={showEdge || undefined} data-hub-frozen={frozenY !== null || undefined} style={style}>
       {children}
-      {state === 'open' && phone ? <button type="button" data-hub-page-strip className="hub-page-strip" aria-label="Back to the page" onClick={tuck} /> : null}
-      {showEdge ? <button type="button" data-hub-edge className="hub-edge" aria-label={unread ? 'Open Coach, new reply' : 'Open Coach'} onClick={() => open()}>
+      {!focused && state === 'open' && phone ? <button type="button" data-hub-page-strip className="hub-page-strip" aria-label="Back to the page" onClick={tuck} /> : null}
+      {!focused && showEdge ? <button type="button" data-hub-edge className="hub-edge" aria-label={unread ? 'Open Coach, new reply' : 'Open Coach'} onClick={() => open()}>
         <span className={`hub-edge-dot ${unread ? 'hub-edge-dot--unread' : ''}`} aria-hidden="true" />
         <Sparkle size={18} weight="fill" className="hub-edge-mark" aria-hidden="true" />
         <span className="hub-edge-grip" aria-hidden="true" />
       </button> : null}
-      {state === 'open' && !phone ? <div role="separator" aria-label="Resize Coach" aria-orientation="vertical" tabIndex={0} className="hub-resizer" onPointerDown={beginResize} onKeyDown={(event) => { const delta = event.key === 'ArrowLeft' ? 24 : event.key === 'ArrowRight' ? -24 : 0; if (!delta) return; event.preventDefault(); setWidth((current) => Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, current + delta))) }}><span /></div> : null}
-      <section ref={panelRef} tabIndex={-1} className="hub-panel" aria-label="Coach" aria-hidden={state !== 'open' || undefined} inert={state !== 'open' || undefined}>
-        <HubConversation orgslug={orgslug} active={state === 'open'} intent={intent} onIntentConsumed={() => setIntent(null)} endSignal={endSignal} onStartedChange={setStarted} onReply={onReply} />
+      {!focused && state === 'open' && !phone ? <div role="separator" aria-label="Resize Coach" aria-orientation="vertical" tabIndex={0} className="hub-resizer" onPointerDown={beginResize} onKeyDown={(event) => { const delta = event.key === 'ArrowLeft' ? 24 : event.key === 'ArrowRight' ? -24 : 0; if (!delta) return; event.preventDefault(); setWidth((current) => Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, current + delta))) }}><span /></div> : null}
+      <section ref={panelRef} tabIndex={-1} className="hub-panel" style={focused ? { display: 'none' } : undefined} aria-label="Coach" aria-hidden={focused || state !== 'open' || undefined} inert={focused || state !== 'open' || undefined}>
+        <HubConversation orgslug={orgslug} active={!focused && state === 'open'} intent={intent} onIntentConsumed={() => setIntent(null)} endSignal={endSignal} onStartedChange={setStarted} onReply={onReply} />
       </section>
     </div>
   </HubContext.Provider>
