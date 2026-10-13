@@ -30,6 +30,7 @@ from src.services.plan_template_documents.models import plan_template_json_schem
 from src.services.requirement_documents import store as requirement_store
 from src.services.requirement_documents.models import authoring_guide as requirement_authoring_guide
 from src.services.requirement_documents.models import requirement_framework_json_schema
+from src.services.badge_documents import collections as badge_collections
 from src.services.badge_documents import store as badge_store
 from src.services.badge_documents.models import authoring_guide as badge_authoring_guide
 from src.services.badge_documents.models import badge_json_schema
@@ -434,8 +435,8 @@ async def set_badge_routes(request: Request, db_session: Session, ctx: AccessCon
 
 
 async def list_badge_collections(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
-    return {"collections": badge_store.list_collections(db_session, ctx.user, ctx.org_id)}
+    return {"collections": badge_collections.list_collections(db_session, ctx.user, ctx.org_id)}
 
 
 async def save_badge_collection(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
-    return {"collection": badge_store.save_collection(db_session, ctx.user, ctx.org_id, args)}
+    return {"collection": badge_collections.save_collection(db_session, ctx.user, ctx.org_id, args)}
