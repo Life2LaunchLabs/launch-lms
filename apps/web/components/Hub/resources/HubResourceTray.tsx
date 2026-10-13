@@ -8,7 +8,7 @@ import type { HubAdvisorResource } from '@services/hub/advisor'
 import { ActiveResourceWorkspace, resourceImage } from './HubResourceContext'
 import HubSheet from './HubSheet'
 
-// Every resource Hub suggested or the learner added to this chat, with one open in detail.
+// Every resource Coach suggested or the learner added to this chat, with one open in detail.
 export default function HubResourceTray({ resources, activeUuid, orgslug, onActiveChange, onRemove, onClose }: {
   resources: HubAdvisorResource[]
   activeUuid: string | null

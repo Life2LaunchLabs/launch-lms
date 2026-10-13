@@ -13,7 +13,7 @@ from src.services.demo.guide import try_titles, user_pages
 HANDLE = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$")
 # Top-level paths on the demo host that a handle must never shadow.
 RESERVED_HANDLES = frozenset(
-    "admin api auth demo hub login logout orgs portfolio plans badges signup settings account".split()
+    "admin api auth demo hub coach login logout orgs portfolio plans badges signup settings account".split()
 )
 
 

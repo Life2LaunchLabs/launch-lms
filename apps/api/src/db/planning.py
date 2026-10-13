@@ -439,6 +439,9 @@ class PlanWeeklyFocus(SQLModel, table=True):
     user_id: int = Field(sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), index=True))
     week_start: date = Field(sa_column=Column(Date, nullable=False, index=True))
     objective_uuids: list[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
+    # Plans the week was planned from. Plans started later wait for the learner to
+    # pull them in instead of growing a week they may already have finished.
+    plan_uuids: list[str] | None = Field(default=None, sa_column=Column(JSON, nullable=True))
     target: int = 5
     boosts: int = 0
     creation_date: str = ""

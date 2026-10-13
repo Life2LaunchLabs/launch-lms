@@ -26,7 +26,7 @@ function flatten(params: Record<string, string | string[] | undefined>, key: str
   return Array.isArray(value) ? value[0] : value
 }
 
-/** Where old Hub, resources and search URLs land: Discover keeps the query and resource filters. */
+/** Where old Hub/Coach, resources and search URLs land: Discover keeps the query and resource filters. */
 export function discoverFromLegacy(params: Record<string, string | string[] | undefined>): string {
   const query = flatten(params, 'q') || flatten(params, 'query')
   const resourceFilter = ['channel', 'user_channel', 'resource_types', 'tags', 'access', 'provider'].some((key) => flatten(params, key))
@@ -35,14 +35,14 @@ export function discoverFromLegacy(params: Record<string, string | string[] | un
 }
 
 /**
- * The old full-page Hub URL. Hub now lives beside every page, so a conversation link opens
- * Hub over Plans; a resource opens its page in Discover; a search becomes a Discover search.
+ * The old full-page Hub/Coach URLs. Coach lives beside every page, so a conversation link opens
+ * Coach over Plans; a resource opens its page in Discover; a search becomes a Discover search.
  */
-export function hubFromLegacy(params: Record<string, string | string[] | undefined>): string {
+export function coachFromLegacy(params: Record<string, string | string[] | undefined>): string {
   const resource = flatten(params, 'resource')
   if (resource) return routePaths.org.resource(resource)
   if (flatten(params, 'q') || flatten(params, 'query') || flatten(params, 'view') === 'resources' || flatten(params, 'channel')) return discoverFromLegacy(params)
-  return routePaths.org.hubOpen({ conversation: flatten(params, 'conversation') })
+  return routePaths.org.coachOpen({ conversation: flatten(params, 'conversation') })
 }
 
 export const routePaths = {
@@ -91,8 +91,8 @@ export const routePaths = {
     root: () => '/',
     /** Plans is where the learner app opens. */
     home: () => '/plans',
-    /** Opens Hub beside Plans, optionally resuming a conversation or starting with a prompt. */
-    hubOpen: (params?: { conversation?: string; prompt?: string }) => withQuery('/plans', { hub: 'open', hub_conversation: params?.conversation, hub_prompt: params?.prompt }),
+    /** Opens Coach beside Plans, optionally resuming a conversation or starting with a prompt. */
+    coachOpen: (params?: { conversation?: string; prompt?: string }) => withQuery('/plans', { coach: 'open', coach_conversation: params?.conversation, coach_prompt: params?.prompt }),
     portfolio: () => '/portfolio',
     portfolioProjects: () => '/portfolio/projects',
     portfolioProjectsNew: () => '/portfolio/projects/new',

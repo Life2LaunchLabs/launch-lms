@@ -4,7 +4,7 @@ import { ReactNode, useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
 import { Button } from '@components/ui/button'
 
-// A sheet over the Hub surface: full width from the bottom on phones, centered
+// A sheet over Coach surface: full width from the bottom on phones, centered
 // at the composer's width on larger screens. Click-away and Escape close it.
 export default function HubSheet({ label, title, onClose, children, footer }: {
   label: string

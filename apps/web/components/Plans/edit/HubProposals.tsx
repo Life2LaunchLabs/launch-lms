@@ -70,7 +70,7 @@ export function ProposedPhaseEditor({ operationId, position, phase, recovered, d
       const saved = await saveHubEditObjectState(org.id, run.run_uuid, objectKey, { object_type: 'phase', object_uuid: objectUuid, ...snapshot(state), status, expected_revision: revision.current }, token)
       revision.current = saved.revision
       workspace.setEditRun((current) => current?.run_uuid === run.run_uuid ? updateRunObjectState(current, saved, status, String(state.name?.current || phase.name)) : current)
-    }).catch((error: any) => { toast.error(error?.status === 409 ? 'This phase changed in another tab. Reload to recover the latest version.' : 'Hub could not preserve this unsaved phase yet.') })
+    }).catch((error: any) => { toast.error(error?.status === 409 ? 'This phase changed in another tab. Reload to recover the latest version.' : 'Coach could not preserve this unsaved phase yet.') })
     return persistQueue.current
   }
   React.useEffect(() => {
@@ -85,11 +85,11 @@ export function ProposedPhaseEditor({ operationId, position, phase, recovered, d
   const focus = (field: string) => setFields((current) => beginUserFieldInteraction(current, field))
   const blur = (field: string) => setFields((current) => endUserFieldInteraction(current, field))
   const fieldClass = (field: string, base: string) => cn(base, fields[field]?.presentation === 'proposed' && 'border-violet-300 bg-violet-50/40 ring-2 ring-violet-200/50 dark:bg-violet-950/15', fields[field]?.presentation === 'customized' && 'border-sky-300 bg-sky-50/40 ring-2 ring-sky-200/50 dark:bg-sky-950/15')
-  const fieldStatus = (field: string) => fields[field]?.presentation === 'customized' ? <span className="mt-1 flex items-center justify-end gap-1.5 text-[10px] font-semibold text-sky-700"><span>Customized</span><button type="button" onClick={() => setFields((current) => restoreAgentProposal(current, field))} className="rounded p-1 hover:bg-sky-100" aria-label={`Restore Hub proposal for ${field}`}><RotateCcw size={11} /></button></span> : fields[field]?.presentation === 'proposed' ? <span className="mt-1 block text-right text-[10px] font-semibold text-violet-700">Suggested by Hub</span> : null
-  const skeleton = (height: string) => <div className={cn('w-full animate-pulse rounded-lg bg-muted motion-reduce:animate-none', height)} role="status"><span className="sr-only">Hub is preparing this field</span></div>
+  const fieldStatus = (field: string) => fields[field]?.presentation === 'customized' ? <span className="mt-1 flex items-center justify-end gap-1.5 text-[10px] font-semibold text-sky-700"><span>Customized</span><button type="button" onClick={() => setFields((current) => restoreAgentProposal(current, field))} className="rounded p-1 hover:bg-sky-100" aria-label={`Restore Coach proposal for ${field}`}><RotateCcw size={11} /></button></span> : fields[field]?.presentation === 'proposed' ? <span className="mt-1 block text-right text-[10px] font-semibold text-violet-700">Suggested by Coach</span> : null
+  const skeleton = (height: string) => <div className={cn('w-full animate-pulse rounded-lg bg-muted motion-reduce:animate-none', height)} role="status"><span className="sr-only">Coach is preparing this field</span></div>
   const name = value('name'), description = value('description'), dueDate = value('due_date')
   const reviewText = () => {
-    const labels = { accepted: 'accepted Hub suggestion', customized: 'customized by me', rejected: 'rejected Hub suggestion', entered: 'entered by me' }
+    const labels = { accepted: 'accepted Coach suggestion', customized: 'customized by me', rejected: 'rejected Coach suggestion', entered: 'entered by me' }
     return Object.entries(summarizeObjectReview(fields)).map(([field, outcome]) => `${field}: ${labels[outcome]}`).join('; ')
   }
   const clearReview = () => setEditReviewItems?.((current) => current.filter((item) => item.key !== objectKey))
@@ -173,7 +173,7 @@ export function ProposedObjectiveEditor({ operationId, objective, recovered, det
     }).catch((error: any) => {
       if (!conflictShown.current) {
         conflictShown.current = true
-        toast.error(error?.status === 409 ? 'This objective changed in another tab. Reload to recover the latest version.' : 'Hub could not preserve this unsaved objective yet.')
+        toast.error(error?.status === 409 ? 'This objective changed in another tab. Reload to recover the latest version.' : 'Coach could not preserve this unsaved objective yet.')
       }
     })
     return persistQueue.current
@@ -190,12 +190,12 @@ export function ProposedObjectiveEditor({ operationId, objective, recovered, det
   const focus = (field: string) => setFields((current) => beginUserFieldInteraction(current, field))
   const blur = (field: string) => setFields((current) => endUserFieldInteraction(current, field))
   const fieldClass = (field: string, base: string) => cn(base, fields[field]?.presentation === 'proposed' && 'border-violet-300 bg-violet-50/40 ring-2 ring-violet-200/50 dark:bg-violet-950/15', fields[field]?.presentation === 'customized' && 'border-sky-300 bg-sky-50/40 ring-2 ring-sky-200/50 dark:bg-sky-950/15')
-  const fieldStatus = (field: string) => fields[field]?.presentation === 'customized' ? <span className="mt-1 flex items-center justify-end gap-1.5 text-[10px] font-semibold text-sky-700"><span>Customized</span><button type="button" onClick={() => setFields((current) => restoreAgentProposal(current, field))} className="rounded p-1 hover:bg-sky-100" aria-label={`Restore Hub proposal for ${field}`}><RotateCcw size={11} /></button></span> : fields[field]?.presentation === 'proposed' ? <span className="mt-1 block text-right text-[10px] font-semibold text-violet-700">Suggested by Hub</span> : null
-  const skeleton = (height: string) => <div className={cn('w-full animate-pulse rounded-lg bg-muted motion-reduce:animate-none', height)} role="status"><span className="sr-only">Hub is preparing this field</span></div>
+  const fieldStatus = (field: string) => fields[field]?.presentation === 'customized' ? <span className="mt-1 flex items-center justify-end gap-1.5 text-[10px] font-semibold text-sky-700"><span>Customized</span><button type="button" onClick={() => setFields((current) => restoreAgentProposal(current, field))} className="rounded p-1 hover:bg-sky-100" aria-label={`Restore Coach proposal for ${field}`}><RotateCcw size={11} /></button></span> : fields[field]?.presentation === 'proposed' ? <span className="mt-1 block text-right text-[10px] font-semibold text-violet-700">Suggested by Coach</span> : null
+  const skeleton = (height: string) => <div className={cn('w-full animate-pulse rounded-lg bg-muted motion-reduce:animate-none', height)} role="status"><span className="sr-only">Coach is preparing this field</span></div>
   const title = value('title'), description = value('description'), dueDate = value('due_date'), phaseUuid = value('phase_uuid')
   const clearReview = () => setEditReviewItems?.((current) => current.filter((item) => item.key !== objectKey))
   const reviewText = () => {
-    const labels = { accepted: 'accepted Hub suggestion', customized: 'customized by me', rejected: 'rejected Hub suggestion', entered: 'entered by me' }
+    const labels = { accepted: 'accepted Coach suggestion', customized: 'customized by me', rejected: 'rejected Coach suggestion', entered: 'entered by me' }
     return Object.entries(summarizeObjectReview(fields)).map(([field, outcome]) => `${field}: ${labels[outcome]}`).join('; ')
   }
   const cancel = async () => {

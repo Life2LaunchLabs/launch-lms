@@ -1,0 +1,23 @@
+{
+  "schema_version": 2,
+  "started_at": "2026-10-13T21:30:31.126Z",
+  "finished_at": "2026-10-13T21:31:04.102Z",
+  "status": "passed",
+  "revision": "8ef53654100ac67013d08e3d892b046e283eb434",
+  "worktree_fingerprint": "4efda579162e1813b65a4533a3a9967722406335c8cb56430315307dfbced724",
+  "base_origin": "http://127.0.0.1.sslip.io:13100",
+  "browser_projects": [
+    "chromium-desktop",
+    "chromium-phone"
+  ],
+  "scenarios": [
+    {
+      "id": "chromium-desktop / learner-flow.spec.ts / framework.manual: existing hierarchy is editable and publish preserves supplied codes",
+      "outcome": "expected"
+    },
+    {
+      "id": "chromium-phone / learner-flow.spec.ts / framework.manual: existing hierarchy is editable and publish preserves supplied codes",
+      "outcome": "expected"
+    }
+  ]
+}

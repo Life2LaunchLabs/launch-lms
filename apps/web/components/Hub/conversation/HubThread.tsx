@@ -43,7 +43,7 @@ type HubThreadProps = {
   onRestore: () => void
 }
 
-/** The conversation itself: messages, Hub's suggestions and resources, and the editing session woven in. */
+/** The conversation itself: messages, Coach's suggestions and resources, and the editing session woven in. */
 export default function HubThread({ messages, timelineSlots, editRun, editObjects, pendingReviewCount, pendingResources, inChat, orgId, orgUuid, accessToken, sending, narratedConclusionMessageId, restoreOfferMessageId, onOpenResource, onInspectSearchResource, onActivateAction, onPoint, onFinish, onRestore }: HubThreadProps) {
   const timeline = (slot: number) => (timelineSlots.get(slot) || []).map((entry) => entry.kind === 'agent'
     ? <HubEditActivity key={entry.id} events={entry.events} objects={editObjects} onPoint={onPoint} onFinish={onFinish} pendingReviewCount={pendingReviewCount} />
@@ -53,7 +53,7 @@ export default function HubThread({ messages, timelineSlots, editRun, editObject
   const microBar = (message: HubConversationMessage, content = message.content) => accessToken && orgId
     ? <HubMessageMicroBar role={message.role === 'user' ? 'user' : 'assistant'} content={content} createdAt={message.createdAt} memories={message.memories} pageContext={message.page_context} orgId={orgId} accessToken={accessToken} />
     : null
-  const carousel = (message: HubConversationMessage) => <HubResourceCarousel resources={message.resources || []} inChat={inChat} label={message.resourceLabel === 'Suggested' ? 'Hub suggested' : message.resourceLabel} onOpen={onOpenResource} />
+  const carousel = (message: HubConversationMessage) => <HubResourceCarousel resources={message.resources || []} inChat={inChat} label={message.resourceLabel === 'Suggested' ? 'Coach suggested' : message.resourceLabel} onOpen={onOpenResource} />
 
   return <>
     {messages.map((message, index) => <div key={`timeline:${message.id}`} className="contents">

@@ -1,0 +1,47 @@
+{
+  "schema_version": 2,
+  "started_at": "2026-10-13T21:25:56.566Z",
+  "finished_at": "2026-10-13T21:27:52.437Z",
+  "status": "passed",
+  "revision": "8ef53654100ac67013d08e3d892b046e283eb434",
+  "worktree_fingerprint": "75a11da44c802486bc6f65640aa48a730f0f684c5c07a42ba3cd1735eb3fb070",
+  "base_origin": "http://127.0.0.1.sslip.io:13100",
+  "browser_projects": [
+    "chromium-desktop",
+    "chromium-phone"
+  ],
+  "scenarios": [
+    {
+      "id": "chromium-desktop / learner-flow.spec.ts / framework.manual: existing hierarchy is editable and publish preserves supplied codes",
+      "outcome": "expected"
+    },
+    {
+      "id": "chromium-desktop / learner-flow.spec.ts / framework.generated: deliberate level conversion can be canceled and generated codes still work",
+      "outcome": "expected"
+    },
+    {
+      "id": "chromium-desktop / learner-flow.spec.ts / plans.invitation: organization and personal inviter are visible with the role",
+      "outcome": "expected"
+    },
+    {
+      "id": "chromium-desktop / learner-flow.spec.ts / plans.path: pending work looks finished and activity plays without navigation or Coach",
+      "outcome": "expected"
+    },
+    {
+      "id": "chromium-phone / learner-flow.spec.ts / framework.manual: existing hierarchy is editable and publish preserves supplied codes",
+      "outcome": "expected"
+    },
+    {
+      "id": "chromium-phone / learner-flow.spec.ts / framework.generated: deliberate level conversion can be canceled and generated codes still work",
+      "outcome": "expected"
+    },
+    {
+      "id": "chromium-phone / learner-flow.spec.ts / plans.invitation: organization and personal inviter are visible with the role",
+      "outcome": "expected"
+    },
+    {
+      "id": "chromium-phone / learner-flow.spec.ts / plans.path: pending work looks finished and activity plays without navigation or Coach",
+      "outcome": "expected"
+    }
+  ]
+}

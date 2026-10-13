@@ -116,7 +116,7 @@ def _feedback_issue(
 
 _STATIC_ROUTE_SEGMENTS = {
     "orgs",
-    "hub",
+    "coach",
     "portfolio",
     "projects",
     "preview",

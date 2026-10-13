@@ -189,8 +189,10 @@ export function PortfolioShell({ initialShell, orgslug, username, owner = false,
           </div>
           <div className="-mt-14 flex flex-col gap-4 px-2 sm:-mt-16 sm:flex-row sm:items-end sm:px-6">
             <div className="relative z-10 w-fit rounded-full bg-background ring-[6px] ring-background"><Avatar url={avatarUrl} name={displayName} compact={false} /></div>
-            <div className="min-w-0 flex-1 sm:pb-2">
-              <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">{displayName}</h1>
+            {/* Only the avatar overlaps the banner; the text starts below it so a tall
+                name, tagline and location stack never slides under the colored bar. */}
+            <div className="relative z-10 min-w-0 flex-1 sm:pb-2 sm:pt-[4.5rem]">
+              <h1 className="break-words text-3xl font-extrabold tracking-tight sm:text-4xl">{displayName}</h1>
               {shell.portfolio.headline && <p className="mt-1 max-w-xl text-base text-muted-foreground sm:text-lg">{shell.portfolio.headline}</p>}
               {shell.portfolio.location_label && <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground"><MapPin className="h-3.5 w-3.5" />{shell.portfolio.location_label}</p>}
             </div>

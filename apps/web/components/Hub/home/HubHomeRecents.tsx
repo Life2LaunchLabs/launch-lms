@@ -36,7 +36,7 @@ export default function HubHomeRecents({
   }
 
   return (
-    <section className="border-t border-border pt-5 pb-2" aria-label="Recent Hub conversations">
+    <section className="border-t border-border pt-5 pb-2" aria-label="Recent Coach conversations">
       <p className="px-2 pb-1.5 text-xs font-medium text-muted-foreground">Recent conversations</p>
       <div aria-busy={loading}>
         {loading && recent.length === 0 ? (

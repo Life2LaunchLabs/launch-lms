@@ -8,6 +8,7 @@ import { getUriWithOrg, routePaths } from '@services/config/config'
 import { learnerAdminApi } from '@services/programs/programs'
 import { cn } from '@/lib/utils'
 import { EmptyState, PageLoader, personName, Segmented } from './shared'
+import RequirementEvidenceExport from './RequirementEvidenceExport'
 
 const LOOK: Record<string, { cls: string; label: string }> = {
   met: { cls: 'bg-green-100 text-green-700', label: '' },
@@ -56,6 +57,7 @@ export default function GroupRequirementsGrid({ orgslug, orgId, token, groupId }
       <label className="relative flex items-center"><span className="sr-only">Search learners</span><Search size={14} className="absolute left-2.5 text-gray-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${all.length} learners`} className="h-9 w-56 rounded-lg border border-gray-200 bg-white pl-8 pr-3 text-[13px]" /></label>
       <label className="inline-flex items-center gap-2 text-[13px] font-semibold text-gray-700"><input type="checkbox" checked={gapsOnly} onChange={(event) => setGapsOnly(event.target.checked)} />Only learners with gaps</label>
       <span className="flex-1" />
+      <RequirementEvidenceExport orgId={orgId} token={token} scope={{ usergroup_id: groupId, framework_uuid: data.framework_uuid, user_ids: learners.map((learner) => learner.id) }} />
       <span className="flex flex-wrap gap-3 text-xs text-gray-600"><Legend cls="bg-green-100" label="Met" /><Legend cls="bg-blue-50 ring-1 ring-blue-100" label="Planned" /><Legend cls="bg-amber-100" label="Gap" /></span>
     </div>
     <p className="text-xs text-gray-500">Planned means a step that counts is still open in the learner’s plan. Click a gap to add a make-up step or credit it on the learner’s page.{data.not_enrolled ? ` ${data.not_enrolled} member${data.not_enrolled === 1 ? ' isn’t' : 's aren’t'} on any framework yet.` : ''}</p>

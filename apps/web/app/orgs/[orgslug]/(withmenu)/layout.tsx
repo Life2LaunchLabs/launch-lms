@@ -16,6 +16,7 @@ import { useHub } from '@components/Hub/HubContext'
 import ExperiencePreferenceTracker from '@components/Auth/ExperiencePreferenceTracker'
 import CandidateExperience from '@components/Candidate/CandidateExperience'
 import OperationsSurface from '@components/Operations/OperationsSurface'
+import { isFocusedActivityPath } from '@services/routing/learnerExperience'
 
 function OrgFooter() {
   const org = useOrg() as any
@@ -43,11 +44,13 @@ function LayoutContent({ children, orgslug }: { children: React.ReactNode; orgsl
   // Pages that use a full-bleed layout (no footer)
   const noFooterPaths = ['copilot']
   const isFullBleedPage = noFooterPaths.some((p) => pathParts.includes(p))
-  const isActivityPage = pathname?.includes('/activity/') || /^\/badges\/[^/]+\/chapter\/[^/]+/.test(pathname || '')
+  const isActivityPage = isFocusedActivityPath(pathname)
   const isCoursePage = /^\/course\/[^/]+$/.test(pathname || '')
   const isPublicCourseExperience = isCoursePage || isActivityPage
   const showGuestHeader = session?.status === 'unauthenticated' && !isPublicCourseExperience
   const showOrgMenu = session?.status !== 'unauthenticated' && !isActivityPage
+
+  if (isActivityPage) return <div className="min-h-dvh w-full" data-focused-activity><PageViewTracker />{children}</div>
 
   if (isLandingPage) {
     return (
@@ -104,6 +107,7 @@ export default function RootLayout(
   const params = use(props.params);
   const session = useLHSession() as any
   const org = useOrg() as any
+  const focused = isFocusedActivityPath(usePathname())
 
   const {
     children
@@ -113,12 +117,11 @@ export default function RootLayout(
     <>
       <OrgJoinBannerProvider>
         <PodcastPlayerProvider>
-          <OperationsSurface />
-          <CandidateExperience />
-          {session?.status === 'authenticated' ? <HubShell key={`${org?.id}:${session?.data?.user?.id}`} orgslug={params?.orgslug} orgId={org?.id}>
+          {!focused ? <><OperationsSurface /><CandidateExperience /></> : null}
+          {session?.status === 'authenticated' ? <HubShell key={`${org?.id}:${session?.data?.user?.id}`} orgslug={params?.orgslug} orgId={org?.id} focused={focused}>
             <LayoutContent orgslug={params?.orgslug}>{children}</LayoutContent>
           </HubShell> : <LayoutContent orgslug={params?.orgslug}>{children}</LayoutContent>}
-          <PodcastPlayer />
+          {!focused ? <PodcastPlayer /> : null}
         </PodcastPlayerProvider>
       </OrgJoinBannerProvider>
     </>

@@ -197,15 +197,27 @@ def set_offered_routes(db: Session, current_user: PublicUser, badge_uuid: str, i
 
 
 def award_if_plan_complete(db: Session, plan: Plan) -> LearningBadgeAward | None:
-    """Every step of a badge plan finished: the issuer awards the badge."""
-    if not plan.source_badge_id or not plan.subject_user_id:
+    """Every step of a badge plan finished: the issuer awards the badge.
+
+    Plans issued by an organization or template finish the same way, without a
+    badge; plans learners write themselves stay open until they mark them done.
+    """
+    if not plan.subject_user_id or not (plan.source_badge_id or plan.source_org_id or plan.source_program_id):
         return None
+    objective_count = len(db.exec(select(PlanObjective.id).where(PlanObjective.plan_id == plan.id)).all())
     rows = db.exec(
         select(PlanObjectiveProgress.status).join(PlanObjective, PlanObjective.id == PlanObjectiveProgress.plan_objective_id)
         .where(PlanObjective.plan_id == plan.id)
     ).all()
     statuses = [getattr(status, "value", status) for status in rows]
-    if not statuses or any(status not in {"completed", "canceled"} for status in statuses) or "completed" not in statuses:
+    if not statuses or len(statuses) < objective_count or any(status not in {"completed", "canceled"} for status in statuses) or "completed" not in statuses:
+        return None
+    if not plan.source_badge_id:
+        if getattr(plan.status, "value", plan.status) == PlanStatus.ACTIVE.value:
+            plan.status = PlanStatus.COMPLETED
+            plan.completed_at = datetime.utcnow()
+            db.add(plan)
+            db.commit()
         return None
     badge = db.get(LearningBadge, plan.source_badge_id)
     if not badge:

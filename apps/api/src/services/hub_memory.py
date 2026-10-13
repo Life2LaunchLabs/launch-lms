@@ -1,4 +1,4 @@
-"""Private learner-controlled memory for the Hub advisor."""
+"""Private learner-controlled memory for Coach advisor."""
 
 from __future__ import annotations
 
@@ -136,7 +136,7 @@ def update_memory(
     if normalized_category not in MEMORY_CATEGORIES:
         raise HTTPException(status_code=422, detail="Unsupported memory category")
     if memory_is_sensitive(normalized_content):
-        raise HTTPException(status_code=422, detail="This information is too sensitive to save as Hub memory")
+        raise HTTPException(status_code=422, detail="This information is too sensitive to save as Coach memory")
     memory.content = normalized_content
     memory.category = normalized_category
     memory.normalized_key = _normalize(normalized_content)

@@ -8,6 +8,7 @@ import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { learnerAdminApi } from '@services/programs/programs'
 import { cn } from '@/lib/utils'
 import { PageLoader, SectionCard, StatusPill, StepTypeIcon } from './shared'
+import RequirementEvidenceExport from './RequirementEvidenceExport'
 
 export const learnerRequirementsKey = (orgId: number, userId: number) => ['learner-requirements', orgId, userId]
 
@@ -128,8 +129,7 @@ export function LearnerRequirementTree({ orgId, userId, token }: { orgId: number
       if (!kids.length) {
         const state = STATE[node.state] || STATE.gap
         return <div key={node.node_uuid} className="flex min-h-11 items-center gap-3 border-b border-gray-50 py-1.5 pr-4" style={{ paddingLeft: 16 + depth * 20 + 20 }}>
-          <span className="w-14 shrink-0 text-xs font-bold text-gray-500">{node.code}</span>
-          <span className="min-w-0 flex-1"><span className="block truncate text-[13px] text-gray-900">{node.title}</span><span className="block truncate text-xs text-gray-500">{stepSummary(node)}</span></span>
+          <span className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-start sm:gap-3"><span className="shrink-0 break-all text-xs font-bold text-gray-500">{node.code}</span><span className="min-w-0 flex-1"><span className="block break-words text-[13px] text-gray-900">{node.title}</span><span className="block break-words text-xs text-gray-500">{stepSummary(node)}</span></span></span>
           <StatusPill tone={state.tone}>{state.label}</StatusPill>
         </div>
       }
@@ -140,16 +140,15 @@ export function LearnerRequirementTree({ orgId, userId, token }: { orgId: number
       return <React.Fragment key={node.node_uuid}>
         <button type="button" aria-expanded={isOpen} onClick={() => setOpen({ ...open, [node.node_uuid]: !isOpen })} className={cn('flex min-h-11 w-full items-center gap-3 border-b border-gray-50 pr-4 text-left', depth ? 'bg-white' : 'bg-gray-50/70')} style={{ paddingLeft: 16 + depth * 20 }}>
           <ChevronRight size={13} className={cn('shrink-0 text-gray-400 transition', isOpen && 'rotate-90')} />
-          <span className="w-12 shrink-0 text-xs font-black text-gray-500">{node.code}</span>
-          <span className={cn('min-w-0 flex-1 truncate text-sm', depth ? 'font-semibold' : 'font-black')}>{node.title}</span>
+          <span className="flex min-w-0 flex-1 flex-col gap-1 py-2 sm:flex-row sm:items-center sm:gap-3"><span className="shrink-0 break-all text-xs font-black text-gray-500">{node.code}</span><span className={cn('min-w-0 break-words text-sm', depth ? 'font-semibold' : 'font-black')}>{node.title}</span></span>
           <span className="text-xs text-gray-600">{met} / {leaves.length}</span>
-          <span className="w-16 text-right text-xs font-bold text-amber-700">{gaps ? `${gaps} gap${gaps === 1 ? '' : 's'}` : ''}</span>
+          <span className="hidden w-16 text-right text-xs font-bold text-amber-700 sm:block">{gaps ? `${gaps} gap${gaps === 1 ? '' : 's'}` : ''}</span>
         </button>
         {isOpen ? kids.map((kid) => render(kid, depth + 1)) : null}
       </React.Fragment>
     }
     return <section key={framework.enrollment_uuid} className="overflow-hidden rounded-xl border border-gray-100 bg-white nice-shadow">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-5 py-3"><h2 className="text-sm font-black">{framework.name} <span className="font-normal text-gray-500">· version {framework.version}</span></h2><span className="text-xs text-gray-600">{framework.met} of {framework.total} met{framework.gaps ? ` · ${framework.gaps} gaps` : ''}</span></div>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-5 py-3"><h2 className="text-sm font-black">{framework.name} <span className="font-normal text-gray-500">· version {framework.version}</span></h2><span className="text-xs text-gray-600">{framework.met} of {framework.total} met{framework.gaps ? ` · ${framework.gaps} gaps` : ''}</span><RequirementEvidenceExport orgId={orgId} token={token} scope={{ user_ids: [userId], framework_uuid: framework.framework_uuid }} /></div>
       {(byParent.get(null) || []).map((node) => render(node, 0))}
     </section>
   })}</div>

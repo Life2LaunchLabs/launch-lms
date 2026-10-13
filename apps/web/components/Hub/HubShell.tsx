@@ -23,16 +23,18 @@ const MIN_WIDTH = 320
 const MAX_WIDTH = 720
 const PAGE_MIN = 560
 
-/** The query parameters other pages (and the old /hub URL) use to hand something to Hub. */
-export const HUB_INTENT_PARAMS = { open: 'hub', conversation: 'hub_conversation', prompt: 'hub_prompt', resource: 'hub_resource' } as const
+/** The query parameters other pages (and the old /hub and /coach URLs) use to hand something to Coach. */
+export const HUB_INTENT_PARAMS = { open: 'coach', conversation: 'coach_conversation', prompt: 'coach_prompt', resource: 'coach_resource' } as const
+/** Links shared before the rename to Coach still use the ``hub`` names. */
+const LEGACY_INTENT_PARAMS = { open: 'hub', conversation: 'hub_conversation', prompt: 'hub_prompt', resource: 'hub_resource' } as const
 
 /**
- * The learner app's frame: navigation and Hub sit on an outside surface, the page is a
- * card on it. Hub is open (page aside or narrowed), at the edge (page back, Hub's edge
+ * The learner app's frame: navigation and Coach sit on an outside surface, the page is a
+ * card on it. Coach is open (page aside or narrowed), at the edge (page back, Coach's edge
  * still showing because a conversation exists), or closed. The conversation is one
  * stable instance beside the routed page, so navigating never interrupts it.
  */
-export default function HubShell({ children, orgslug, orgId }: { children: ReactNode; orgslug: string; orgId?: number }) {
+export default function HubShell({ children, orgslug, orgId, focused = false }: { children: ReactNode; orgslug: string; orgId?: number; focused?: boolean }) {
   const pathname = usePathname()
   const search = useSearchParams()
   const pageTitle = usePageTitle()
@@ -58,14 +60,14 @@ export default function HubShell({ children, orgslug, orgId }: { children: React
   const [editContinuations, setEditContinuations] = useState<HubEditContinuation[]>([])
   const currentSurface = surface?.path === pathname ? surface : null
 
-  // Restore where Hub was for this session and this learner.
+  // Restore where Coach was for this session and this learner.
   useEffect(() => {
     try {
       const stored = window.sessionStorage.getItem(storageKey) as HubCoachState | null
       // Browser storage is only readable after hydration.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       if (stored === 'open' || stored === 'edge') setState(stored === 'open' && window.matchMedia(PHONE).matches ? 'edge' : stored)
-    } catch { /* Hub starts closed without storage */ }
+    } catch { /* Coach starts closed without storage */ }
   }, [storageKey])
   useEffect(() => { try { window.sessionStorage.setItem(storageKey, state) } catch { /* optional */ } }, [state, storageKey])
 
@@ -79,7 +81,7 @@ export default function HubShell({ children, orgslug, orgId }: { children: React
   }, [])
 
   const open = useCallback((next?: HubCoachIntent) => {
-    // On phones the page freezes in place as a card while Hub is out; remember where it was scrolled.
+    // On phones the page freezes in place as a card while Coach is out; remember where it was scrolled.
     if (window.matchMedia(PHONE).matches) setFrozenY((current) => current ?? window.scrollY)
     setState('open')
     setUnread(false)
@@ -91,14 +93,15 @@ export default function HubShell({ children, orgslug, orgId }: { children: React
   const attach = useCallback((resource: Resource) => open({ resource: resource.resource_uuid }), [open])
   const onReply = useCallback(() => setUnread((current) => current || state !== 'open'), [state])
 
-  // Other pages and old links hand work to Hub through the URL; take it once and tidy the URL.
+  // Other pages and old links hand work to Coach through the URL; take it once and tidy the URL.
   useEffect(() => {
-    if (search.get(HUB_INTENT_PARAMS.open) !== 'open') return
-    // The URL is the external source here: a link asked for Hub, so bring it out once.
+    const names = search.get(HUB_INTENT_PARAMS.open) === 'open' ? HUB_INTENT_PARAMS : search.get(LEGACY_INTENT_PARAMS.open) === 'open' ? LEGACY_INTENT_PARAMS : null
+    if (!names) return
+    // The URL is the external source here: a link asked for Coach, so bring it out once.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    open({ conversation: search.get(HUB_INTENT_PARAMS.conversation) || undefined, prompt: search.get(HUB_INTENT_PARAMS.prompt) || undefined, resource: search.get(HUB_INTENT_PARAMS.resource) || undefined })
+    open({ conversation: search.get(names.conversation) || undefined, prompt: search.get(names.prompt) || undefined, resource: search.get(names.resource) || undefined })
     const next = new URLSearchParams(search.toString())
-    Object.values(HUB_INTENT_PARAMS).forEach((key) => next.delete(key))
+    ;[...Object.values(HUB_INTENT_PARAMS), ...Object.values(LEGACY_INTENT_PARAMS)].forEach((key) => next.delete(key))
     window.history.replaceState({}, '', `${pathname}${next.size ? `?${next}` : ''}`)
   }, [open, pathname, search])
 
@@ -110,18 +113,18 @@ export default function HubShell({ children, orgslug, orgId }: { children: React
     return () => window.clearTimeout(timer)
   }, [state, frozenY])
 
-  useHubGestures({ enabled: phone, state, shellRef, onOpen: open, onTuck: tuck })
+  useHubGestures({ enabled: phone && !focused, state, shellRef, onOpen: open, onTuck: tuck })
 
   // The page slid aside on a phone is out of reach; keep it out of the focus order too.
   useEffect(() => {
     const page = shellRef.current?.querySelector<HTMLElement>('.learner-page')
-    if (!page || !phone || state !== 'open') return
+    if (!page || !phone || focused || state !== 'open') return
     page.inert = true
     return () => { page.inert = false }
-  }, [phone, state])
+  }, [phone, state, focused])
 
   useEffect(() => {
-    if (state !== 'open') return
+    if (focused || state !== 'open') return
     panelRef.current?.focus({ preventScroll: true })
     const keys = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return
@@ -129,7 +132,7 @@ export default function HubShell({ children, orgslug, orgId }: { children: React
     }
     document.addEventListener('keydown', keys)
     return () => document.removeEventListener('keydown', keys)
-  }, [state, tuck])
+  }, [state, tuck, focused])
 
   useEffect(() => {
     const shortcut = (event: KeyboardEvent) => {
@@ -200,17 +203,17 @@ export default function HubShell({ children, orgslug, orgId }: { children: React
   const showEdge = state === 'edge' && started
   const style = { '--hub-width': `${width}px`, '--hub-frozen-y': `${-(frozenY || 0)}px` } as CSSProperties
   return <HubContext.Provider value={value}>
-    <div ref={shellRef} className="hub-shell" data-hub-state={state} data-hub-edge={showEdge || undefined} data-hub-frozen={frozenY !== null || undefined} style={style}>
+    <div ref={shellRef} className={focused ? 'min-h-dvh w-full' : 'hub-shell'} data-hub-state={state} data-hub-edge={showEdge || undefined} data-hub-frozen={frozenY !== null || undefined} style={style}>
       {children}
-      {state === 'open' && phone ? <button type="button" data-hub-page-strip className="hub-page-strip" aria-label="Back to the page" onClick={tuck} /> : null}
-      {showEdge ? <button type="button" data-hub-edge className="hub-edge" aria-label={unread ? 'Open Hub, new reply' : 'Open Hub'} onClick={() => open()}>
+      {!focused && state === 'open' && phone ? <button type="button" data-hub-page-strip className="hub-page-strip" aria-label="Back to the page" onClick={tuck} /> : null}
+      {!focused && showEdge ? <button type="button" data-hub-edge className="hub-edge" aria-label={unread ? 'Open Coach, new reply' : 'Open Coach'} onClick={() => open()}>
         <span className={`hub-edge-dot ${unread ? 'hub-edge-dot--unread' : ''}`} aria-hidden="true" />
         <Sparkle size={18} weight="fill" className="hub-edge-mark" aria-hidden="true" />
         <span className="hub-edge-grip" aria-hidden="true" />
       </button> : null}
-      {state === 'open' && !phone ? <div role="separator" aria-label="Resize Hub" aria-orientation="vertical" tabIndex={0} className="hub-resizer" onPointerDown={beginResize} onKeyDown={(event) => { const delta = event.key === 'ArrowLeft' ? 24 : event.key === 'ArrowRight' ? -24 : 0; if (!delta) return; event.preventDefault(); setWidth((current) => Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, current + delta))) }}><span /></div> : null}
-      <section ref={panelRef} tabIndex={-1} className="hub-panel" aria-label="Hub" aria-hidden={state !== 'open' || undefined} inert={state !== 'open' || undefined}>
-        <HubConversation orgslug={orgslug} active={state === 'open'} intent={intent} onIntentConsumed={() => setIntent(null)} endSignal={endSignal} onStartedChange={setStarted} onReply={onReply} />
+      {!focused && state === 'open' && !phone ? <div role="separator" aria-label="Resize Coach" aria-orientation="vertical" tabIndex={0} className="hub-resizer" onPointerDown={beginResize} onKeyDown={(event) => { const delta = event.key === 'ArrowLeft' ? 24 : event.key === 'ArrowRight' ? -24 : 0; if (!delta) return; event.preventDefault(); setWidth((current) => Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, current + delta))) }}><span /></div> : null}
+      <section ref={panelRef} tabIndex={-1} className="hub-panel" style={focused ? { display: 'none' } : undefined} aria-label="Coach" aria-hidden={focused || state !== 'open' || undefined} inert={focused || state !== 'open' || undefined}>
+        <HubConversation orgslug={orgslug} active={!focused && state === 'open'} intent={intent} onIntentConsumed={() => setIntent(null)} endSignal={endSignal} onStartedChange={setStarted} onReply={onReply} />
       </section>
     </div>
   </HubContext.Provider>

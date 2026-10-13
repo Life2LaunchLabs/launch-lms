@@ -650,19 +650,33 @@
               "product_state": "live",
               "health": "not_applicable",
               "traceability": "none",
-              "automated_status": "not_tested",
+              "automated_status": "passed",
               "manual_status": "passed",
-              "implementation_notes": null,
-              "updated_at": "2026-09-03T18:12:53+00:00",
+              "implementation_notes": "Invitation cards name the source organization, or the inviter for a personal plan; collaborator role and recipient-bound accept/decline remain available.",
+              "updated_at": "2026-10-13T21:00:00+00:00",
               "verification": {
                 "status": "passed",
                 "reviewed_at": "2026-09-03T18:12:53+00:00",
                 "reviewed_by": "product_owner",
-                "evidence": "Verified during activity review."
+                "evidence": "Verified during activity review.",
+                "latest_change_report": "docs/design/framework-editor-and-learner-flow-verification.md"
               },
               "signoff": {},
               "source": {},
-              "references": []
+              "references": [
+                {
+                  "kind": "code",
+                  "path": "apps/web/components/Plans/learner/PlansHome.tsx"
+                },
+                {
+                  "kind": "test",
+                  "path": "apps/web/tests/ui/learner-flow.spec.ts"
+                },
+                {
+                  "kind": "doc",
+                  "path": "docs/design/framework-editor-and-learner-flow-verification.md"
+                }
+              ]
             },
             {
               "id": "PATHWAYS-G001-A004-S003",
@@ -1210,19 +1224,33 @@
               "product_state": "live",
               "health": "not_applicable",
               "traceability": "none",
-              "automated_status": "not_tested",
+              "automated_status": "passed",
               "manual_status": "passed",
-              "implementation_notes": null,
-              "updated_at": "2026-09-03T18:12:53+00:00",
+              "implementation_notes": "Submitted work uses the finished path appearance with Waiting on review. The next available step becomes current; submission does not imply staff approval or increase approved completion totals.",
+              "updated_at": "2026-10-13T21:00:00+00:00",
               "verification": {
                 "status": "passed",
                 "reviewed_at": "2026-09-03T18:12:53+00:00",
                 "reviewed_by": "product_owner",
-                "evidence": "Verified during activity review."
+                "evidence": "Verified during activity review.",
+                "latest_change_report": "docs/design/framework-editor-and-learner-flow-verification.md"
               },
               "signoff": {},
               "source": {},
-              "references": []
+              "references": [
+                {
+                  "kind": "code",
+                  "path": "apps/web/components/Plans/learner/StepStack.tsx"
+                },
+                {
+                  "kind": "test",
+                  "path": "apps/web/tests/ui/learner-flow.spec.ts"
+                },
+                {
+                  "kind": "doc",
+                  "path": "docs/design/framework-editor-and-learner-flow-verification.md"
+                }
+              ]
             },
             {
               "id": "PATHWAYS-G002-A003-S004",
@@ -1424,15 +1452,29 @@
               "health": "not_applicable",
               "traceability": "none",
               "automated_status": "passed",
-              "manual_status": "not_tested",
-              "implementation_notes": null,
-              "updated_at": "2026-10-12T16:00:00+00:00",
+              "manual_status": "passed",
+              "implementation_notes": "Learner activities fill the viewport without navigation, page chrome or Coach. Close returns to the plan and restores the existing Coach session.",
+              "updated_at": "2026-10-13T21:00:00+00:00",
               "verification": {
-                "status": "unverified"
+                "status": "unverified",
+                "latest_change_report": "docs/design/framework-editor-and-learner-flow-verification.md"
               },
               "signoff": {},
               "source": {},
-              "references": []
+              "references": [
+                {
+                  "kind": "code",
+                  "path": "apps/web/services/routing/learnerExperience.ts"
+                },
+                {
+                  "kind": "test",
+                  "path": "apps/web/tests/ui/learner-flow.spec.ts"
+                },
+                {
+                  "kind": "doc",
+                  "path": "docs/design/framework-editor-and-learner-flow-verification.md"
+                }
+              ]
             }
           ],
           "references": [],
@@ -4558,11 +4600,13 @@
               "product_state": "live",
               "health": "not_applicable",
               "traceability": "none",
-              "automated_status": "not_tested",
-              "manual_status": "not_tested",
-              "implementation_notes": null,
-              "updated_at": "2026-09-04T01:47:50.540149+00:00",
-              "verification": {},
+              "automated_status": "passed",
+              "manual_status": "passed",
+              "implementation_notes": "Levels explains imported free-form hierarchies. Adding generated levels to an existing manual-coded framework requires confirmation that codes will be replaced.",
+              "updated_at": "2026-10-13T21:00:00+00:00",
+              "verification": {
+                "latest_change_report": "docs/design/framework-editor-and-learner-flow-verification.md"
+              },
               "signoff": {},
               "source": {},
               "references": [
@@ -4577,6 +4621,14 @@
                   "path": "apps/web/components/Admin/Programs/RequirementsAdmin.tsx",
                   "symbol": "FrameworkSpec",
                   "responsibility": "Adds root and child nodes from the tree and edits the selected node in a detail panel."
+                },
+                {
+                  "kind": "test",
+                  "path": "apps/web/tests/ui/learner-flow.spec.ts"
+                },
+                {
+                  "kind": "doc",
+                  "path": "docs/design/framework-editor-and-learner-flow-verification.md"
                 }
               ]
             },
@@ -4609,11 +4661,13 @@
               "product_state": "live",
               "health": "not_applicable",
               "traceability": "none",
-              "automated_status": "not_tested",
-              "manual_status": "not_tested",
-              "implementation_notes": null,
-              "updated_at": "2026-09-04T01:47:50.540149+00:00",
-              "verification": {},
+              "automated_status": "passed",
+              "manual_status": "passed",
+              "implementation_notes": "Spec supports imported free-form hierarchies and supplied codes without predefined levels. Saving preserves node identifiers, parents, codes, metadata and source references.",
+              "updated_at": "2026-10-13T21:00:00+00:00",
+              "verification": {
+                "latest_change_report": "docs/design/framework-editor-and-learner-flow-verification.md"
+              },
               "signoff": {},
               "source": {},
               "references": [
@@ -4622,6 +4676,14 @@
                   "path": "apps/web/components/Admin/Programs/RequirementsAdmin.tsx",
                   "symbol": "FrameworkSpec",
                   "responsibility": "Shows connected tree branches, terminal add rows, generated codes, and node details."
+                },
+                {
+                  "kind": "test",
+                  "path": "apps/web/tests/ui/learner-flow.spec.ts"
+                },
+                {
+                  "kind": "doc",
+                  "path": "docs/design/framework-editor-and-learner-flow-verification.md"
                 }
               ]
             },
@@ -5312,6 +5374,55 @@
               "signoff": {},
               "source": {},
               "references": []
+            },
+            {
+              "id": "PATHWAYS-G005-A004-S005",
+              "activity_id": "PATHWAYS-G005-A004",
+              "display_order": 5,
+              "title": "Export requirement evidence for selected learners",
+              "description": "Teachers export evidence, approval records, gaps and course context from assignment, group and learner views.",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "full",
+              "automated_status": "passed",
+              "manual_status": "passed",
+              "implementation_notes": "CSV uses assigned framework snapshots and current plan review permissions. It reports evidence and recorded objective approval; schools determine academic credit. Optional course context is supplied at export. Confidential staff notes are excluded.",
+              "updated_at": "2026-10-13T00:00:00+00:00",
+              "verification": {
+                "status": "verified",
+                "automated": "9 focused API tests; six real browser scenarios across desktop and phone",
+                "manual": "Inspected ten synthetic captures; checked real CSV download and actor audit",
+                "report": "docs/design/requirement-evidence-export-verification.md"
+              },
+              "signoff": {},
+              "source": {},
+              "references": [
+                {
+                  "kind": "code",
+                  "path": "apps/api/src/services/requirement_evidence.py"
+                },
+                {
+                  "kind": "code",
+                  "path": "apps/web/components/Admin/Plans/RequirementEvidenceExport.tsx"
+                },
+                {
+                  "kind": "test",
+                  "path": "apps/api/src/tests/test_requirement_evidence.py"
+                },
+                {
+                  "kind": "test",
+                  "path": "apps/web/tests/ui/requirement-evidence.spec.ts"
+                },
+                {
+                  "kind": "doc",
+                  "path": "docs/plans/active/requirement-evidence-export.md"
+                },
+                {
+                  "kind": "doc",
+                  "path": "docs/design/requirement-evidence-export-verification.md"
+                }
+              ]
             }
           ],
           "references": [

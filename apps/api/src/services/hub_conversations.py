@@ -1,4 +1,4 @@
-"""Private, organization-scoped persistence for learner Hub conversations."""
+"""Private, organization-scoped persistence for learner Coach conversations."""
 
 from datetime import datetime
 from uuid import uuid4

@@ -83,7 +83,7 @@ test.beforeEach(async ({ page }) => mockCandidateApi(page))
 
 test('candidate panels stay in the visual viewport and dismiss back to their trigger', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1280, height: 551 })
-  await page.goto('/plans?hub=open')
+  await page.goto('/plans?coach=open')
   await page.getByRole('button', { name: 'Done', exact: true }).click({ force: true })
   const feedbackTrigger = page.getByRole('button', { name: /^Feedback/ })
   await feedbackTrigger.click()
@@ -115,7 +115,7 @@ test('candidate panels stay in the visual viewport and dismiss back to their tri
 })
 
 test('tester sees announcements and can paste a screenshot into quick feedback', async ({ page }, testInfo) => {
-  await page.goto('/plans?hub=open')
+  await page.goto('/plans?coach=open')
   await expect(page.getByText('Unstable', { exact: true })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Unread tester announcement' })).toContainText('Test data refresh Friday')
   await expect(page.getByRole('button', { name: /announcements.*1 unread/i })).toHaveCount(0)

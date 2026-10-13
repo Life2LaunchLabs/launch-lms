@@ -128,3 +128,39 @@ export const markCandidateReleasesViewed = (token: string) =>
 
 export const candidateAttachmentUrl = (orgId: number | undefined, key: string, attachmentId: string) =>
   `${getAPIUrl()}candidate/feedback/${key}/attachments/${attachmentId}${orgId ? `?org_id=${orgId}` : ''}`
+
+export interface FeedbackJiraConnection {
+  source: 'platform' | 'environment' | 'none'
+  enabled: boolean
+  base_url: string
+  email: string
+  has_api_token: boolean
+  project_key: string
+  issue_type: string
+  board_id: string
+  environment_configured: boolean
+  updated_at?: string | null
+}
+
+export interface FeedbackJiraConnectionUpdate {
+  enabled: boolean
+  base_url: string
+  email: string
+  api_token?: string | null
+  project_key: string
+  issue_type: string
+  board_id: string
+}
+
+export const getFeedbackJiraConnection = (token: string) =>
+  result<FeedbackJiraConnection>(fetch(`${getAPIUrl()}candidate/feedback/connection`, { headers: auth(token) }))
+
+export const saveFeedbackJiraConnection = (update: FeedbackJiraConnectionUpdate, token: string) =>
+  result<FeedbackJiraConnection>(fetch(`${getAPIUrl()}candidate/feedback/connection`, {
+    method: 'PUT', headers: { ...auth(token), 'Content-Type': 'application/json' }, body: JSON.stringify(update),
+  }))
+
+export const testFeedbackJiraConnection = (update: FeedbackJiraConnectionUpdate, token: string) =>
+  result<{ ok: boolean; project_name: string; columns: string[] }>(fetch(`${getAPIUrl()}candidate/feedback/connection/test`, {
+    method: 'POST', headers: { ...auth(token), 'Content-Type': 'application/json' }, body: JSON.stringify(update),
+  }))
