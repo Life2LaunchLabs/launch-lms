@@ -15,7 +15,7 @@ from src.db.learning import (
 )
 from src.db.planning import Plan, PlanObjective, PlanObjectiveProgress
 from src.db.portfolio import Portfolio, TimelineEntry
-from src.db.programs import ObjectiveCreate, ObjectiveKind, ProgramAssignmentCreate, ProgramCreate, ProgramParticipant, ProgramUpdate
+from src.db.programs import FrozenActivity, ObjectiveCreate, ObjectiveKind, ProgramAssignmentCreate, ProgramCreate, ProgramParticipant, ProgramUpdate
 from src.db.users import PublicUser, User
 from src.services import plan_activities, planning
 from src.services.learning import runtime
@@ -56,6 +56,11 @@ def _assigned_plan(session: Session, admin: PublicUser, program: dict) -> Plan:
     return session.exec(select(Plan)).one()
 
 
+def _page_uuid(session, activity_id: int) -> str:
+    """The page of the activity a plan plays (a frozen copy, so its uuids differ from the template's)."""
+    return session.exec(select(LearningPage).where(LearningPage.activity_id == activity_id)).one().page_uuid
+
+
 def test_activity_objectives_own_their_activity_and_carry_onto_live_plans():
     with _session() as session:
         admin = _setup(session)
@@ -74,7 +79,10 @@ def test_activity_objectives_own_their_activity_and_carry_onto_live_plans():
         plan = _assigned_plan(session, admin, program)
         live = session.exec(select(PlanObjective).where(PlanObjective.plan_id == plan.id).order_by(PlanObjective.position)).all()
         assert [item.kind for item in live] == ["activity", "activity"]
-        assert live[0].activity_id == activity.id
+        # Plans play the published version's frozen copy, never the editable template activity.
+        frozen = session.get(FrozenActivity, live[0].activity_id)
+        assert frozen and frozen.source_activity_id == activity.id and session.get(LearningActivity, live[0].activity_id).title == activity.title
+        assert session.get(FrozenActivity, activity.id) is None
         assert plan.step_order == "in_order"
 
 
@@ -95,14 +103,14 @@ def test_playing_an_activity_completes_its_step_and_opens_the_next():
         started = plan_activities.start_objective_activity(session, LEARNER, plan.slug, first.objective_uuid)
         run = started["run"]
         assert run["activity_id"] == first.activity_id and run["plan_objective_id"] == first.id
-        assert [item["page_uuid"] for item in started["activity"]["pages"]] == [f"learning_page_{first.activity_id}"]
+        assert [item["page_uuid"] for item in started["activity"]["pages"]] == [_page_uuid(session, first.activity_id)]
         assert started["run"]["navigation"]["total"] == 1
         progress = session.exec(select(PlanObjectiveProgress).where(PlanObjectiveProgress.plan_objective_id == first.id)).one()
         assert progress.status == "in_progress"
         # Resuming returns the same run.
         assert plan_activities.start_objective_activity(session, LEARNER, plan.slug, first.objective_uuid)["run"]["run_uuid"] == run["run_uuid"]
 
-        asyncio.run(runtime.complete_page(None, LearningPageComplete(run_uuid=run["run_uuid"], page_uuid=f"learning_page_{first.activity_id}", data={}), LEARNER, session))
+        asyncio.run(runtime.complete_page(None, LearningPageComplete(run_uuid=run["run_uuid"], page_uuid=_page_uuid(session, first.activity_id), data={}), LEARNER, session))
         session.refresh(progress)
         assert progress.status == "completed" and progress.completed_at is not None
         assert session.exec(select(LearningRun).where(LearningRun.run_uuid == run["run_uuid"])).one().status == "completed"
@@ -114,7 +122,7 @@ def test_playing_an_activity_completes_its_step_and_opens_the_next():
 
         # A page from another step's activity is not part of this run.
         with pytest.raises(HTTPException) as foreign:
-            asyncio.run(runtime.complete_page(None, LearningPageComplete(run_uuid=run["run_uuid"], page_uuid=f"learning_page_{second.activity_id}", data={}), LEARNER, session))
+            asyncio.run(runtime.complete_page(None, LearningPageComplete(run_uuid=run["run_uuid"], page_uuid=_page_uuid(session, second.activity_id), data={}), LEARNER, session))
         assert foreign.value.status_code == 409
 
 
@@ -128,7 +136,7 @@ def test_activities_that_need_sign_off_go_to_review():
         session.add(first)
         session.commit()
         run = plan_activities.start_objective_activity(session, LEARNER, plan.slug, first.objective_uuid)["run"]
-        asyncio.run(runtime.complete_page(None, LearningPageComplete(run_uuid=run["run_uuid"], page_uuid=f"learning_page_{first.activity_id}", data={}), LEARNER, session))
+        asyncio.run(runtime.complete_page(None, LearningPageComplete(run_uuid=run["run_uuid"], page_uuid=_page_uuid(session, first.activity_id), data={}), LEARNER, session))
         progress = session.exec(select(PlanObjectiveProgress).where(PlanObjectiveProgress.plan_objective_id == first.id)).one()
         assert progress.status == "submitted"
 

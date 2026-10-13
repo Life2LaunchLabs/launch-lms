@@ -38,7 +38,9 @@ def create_objective_activity(db: Session, objective: Objective) -> LearningActi
 
 def activity_summary(db: Session, objective: Objective) -> dict:
     """What a template objective dict says about its activity."""
-    activity = db.exec(select(LearningActivity).where(LearningActivity.objective_id == objective.id)).first()
+    from src.services.template_versions import working_activity
+
+    activity = working_activity(db, int(objective.id))  # type: ignore[arg-type]
     if not activity:
         return {}
     pages = db.exec(select(LearningPage.id).where(LearningPage.activity_id == activity.id)).all()

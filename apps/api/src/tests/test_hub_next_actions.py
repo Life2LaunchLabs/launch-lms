@@ -6,7 +6,7 @@ from src.db.learning import LearningBadge
 from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
 from src.db.planning import Plan, PlanCollaborator, PlanObjective, PlanObjectiveProgress, PlanPhase, PlanRole
-from src.db.programs import Objective, ObjectiveProgress, Program, ProgramAssignment, ProgramParticipant
+from src.db.programs import Objective, ObjectiveProgress, Program, ProgramAssignment, ProgramParticipant, ProgramTemplateVersion, FrozenActivity
 from src.db.users import User
 from src.services.hub_next_actions import next_actions
 
@@ -17,7 +17,7 @@ NOW = "2026-10-07T12:00:00+00:00"
 def _db() -> Session:
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     SQLModel.metadata.create_all(engine, tables=[
-        Organization.__table__, OrganizationConfig.__table__, User.__table__, Program.__table__, ProgramAssignment.__table__, ProgramParticipant.__table__,
+        Organization.__table__, OrganizationConfig.__table__, User.__table__, Program.__table__, ProgramAssignment.__table__, ProgramTemplateVersion.__table__, FrozenActivity.__table__, ProgramParticipant.__table__,
         Objective.__table__, ObjectiveProgress.__table__, LearningBadge.__table__,
         Plan.__table__, PlanRole.__table__, PlanCollaborator.__table__, PlanPhase.__table__, PlanObjective.__table__, PlanObjectiveProgress.__table__,
     ])

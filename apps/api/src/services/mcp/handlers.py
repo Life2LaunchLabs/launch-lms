@@ -13,10 +13,10 @@ from fastapi import HTTPException, Request
 from sqlmodel import Session, func, select
 
 from src.db.learning import LearningActivity, LearningPage, LearningPageProgress, LearningResponseAttempt, LearningVariable
-from src.db.programs import Objective, Program, ProgramAssignment, ProgramObjective, ProgramPhase
+from src.db.programs import FrozenActivity, Objective, Program, ProgramAssignment, ProgramObjective, ProgramPhase
 from src.db.requirements import RequirementFramework
 from src.security.org_auth import require_org_admin
-from src.services import learning, programs, requirements
+from src.services import learning, programs, requirements, template_versions
 from src.services.learning_documents import store
 from src.services.learning_documents.models import (
     ActivityDocumentSave,
@@ -66,7 +66,7 @@ def _template_activities(db_session: Session, ctx: AccessContext, template_uuid:
         select(LearningActivity, Objective)
         .join(Objective, Objective.id == LearningActivity.objective_id)
         .join(ProgramObjective, ProgramObjective.objective_id == Objective.id)
-        .where(ProgramObjective.program_id == program.id)
+        .where(ProgramObjective.program_id == program.id, LearningActivity.id.not_in(select(FrozenActivity.activity_id)))  # type: ignore[union-attr]  (published copies are not edited)
         .order_by(ProgramObjective.position)
     ).all()
     counts = dict(db_session.exec(
@@ -191,7 +191,11 @@ def _template_editor_url(db_session: Session, ctx: AccessContext, template_uuid:
 def _with_template_url(db_session: Session, ctx: AccessContext, envelope: dict) -> dict:
     template_uuid = envelope["context"]["template_uuid"]
     program = db_session.exec(select(Program).where(Program.program_uuid == template_uuid)).first()
-    context = {**envelope["context"], "earns_badges": badge_store.badge_routes_for_template(db_session, program) if program else []}
+    context = {
+        **envelope["context"],
+        "earns_badges": badge_store.badge_routes_for_template(db_session, program) if program else [],
+        "versioning": template_versions.version_status(db_session, program) if program else None,
+    }
     return {**envelope, "context": context, "editor_url": _template_editor_url(db_session, ctx, template_uuid)}
 
 
@@ -440,3 +444,20 @@ async def list_badge_collections(request: Request, db_session: Session, ctx: Acc
 
 async def save_badge_collection(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
     return {"collection": badge_collections.save_collection(db_session, ctx.user, ctx.org_id, args)}
+
+
+# Template versions --------------------------------------------------------------
+
+
+async def list_plan_template_versions(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
+    return template_versions.list_versions(db_session, ctx.user, ctx.org_id, args["template_uuid"])
+
+
+async def publish_plan_template(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
+    result = template_versions.publish(db_session, ctx.user, ctx.org_id, args["template_uuid"], str(args.get("note") or ""))
+    return {**result, "editor_url": _template_editor_url(db_session, ctx, result["template_uuid"])}
+
+
+async def restore_plan_template_version(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
+    result = template_versions.restore(db_session, ctx.user, ctx.org_id, args["template_uuid"], int(args["number"]), str(args.get("note") or ""))
+    return {**result, "editor_url": _template_editor_url(db_session, ctx, result["template_uuid"])}

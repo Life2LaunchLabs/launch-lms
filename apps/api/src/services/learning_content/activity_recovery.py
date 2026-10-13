@@ -46,6 +46,8 @@ async def repair_activity(request: Request, activity_uuid: str, apply: bool, cur
     changes so the admin can review them first."""
     activity = lookups._get_activity(db_session, activity_uuid)
     lookups._require_activity_editor(db_session, current_user, activity)
+    if apply:
+        lookups._ensure_editable(db_session, activity)
     pages = _pages(db_session, activity)
     changes: dict = {"pages": {}, "flow": []}
     for page in pages:

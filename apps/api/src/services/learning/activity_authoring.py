@@ -20,6 +20,7 @@ async def update_activity(
 ) -> LearningActivityRead:
     activity = lookups._get_activity(db_session, activity_uuid)
     lookups._require_activity_editor(db_session, current_user, activity)
+    lookups._ensure_editable(db_session, activity)
     patch = data.model_dump(exclude_unset=True)
     pages = db_session.exec(select(LearningPage).where(LearningPage.activity_id == activity.id).order_by(LearningPage.order.asc())).all()  # type: ignore[union-attr]
     if "settings" in patch:
