@@ -1,0 +1,39 @@
+{
+  "schema_version": 2,
+  "started_at": "2026-10-13T21:45:59.355Z",
+  "finished_at": "2026-10-13T21:47:19.806Z",
+  "status": "passed",
+  "revision": "746767b2f7e0cbad0ddb6c2aebc02df8718f5c5c",
+  "worktree_fingerprint": "f6539f346aed0602667a42f925319f0f80d05417cc0d55896f5a8383a11d4024",
+  "base_origin": "http://127.0.0.1.sslip.io:13100",
+  "browser_projects": [
+    "chromium-desktop",
+    "chromium-phone"
+  ],
+  "scenarios": [
+    {
+      "id": "chromium-desktop / requirement-evidence.spec.ts / requirements.export: assignment filters learners and downloads real reviewed evidence",
+      "outcome": "expected"
+    },
+    {
+      "id": "chromium-desktop / requirement-evidence.spec.ts / requirements.export: group report keeps pending evidence and shows server failures",
+      "outcome": "expected"
+    },
+    {
+      "id": "chromium-desktop / requirement-evidence.spec.ts / requirements.long-codes: explorer and learner tree preserve readable code and title",
+      "outcome": "expected"
+    },
+    {
+      "id": "chromium-phone / requirement-evidence.spec.ts / requirements.export: assignment filters learners and downloads real reviewed evidence",
+      "outcome": "expected"
+    },
+    {
+      "id": "chromium-phone / requirement-evidence.spec.ts / requirements.export: group report keeps pending evidence and shows server failures",
+      "outcome": "expected"
+    },
+    {
+      "id": "chromium-phone / requirement-evidence.spec.ts / requirements.long-codes: explorer and learner tree preserve readable code and title",
+      "outcome": "expected"
+    }
+  ]
+}
