@@ -31,6 +31,7 @@ from src.db.planning import (
     PlanStatus,
 )
 from src.services.planning import _normalized_capability_list, capabilities_for as plan_capabilities_for
+from src.services import template_versions
 from src.db.organizations import Organization
 from src.db.programs import (
     Objective,
@@ -1107,7 +1108,7 @@ def _validated_schedule(program: Program, phases: list[dict], payload: ProgramAs
         }
     phase_by_uuid = {item.get("phase_uuid"): item for item in supplied_phases}
     expected = {phase["phase_uuid"] for phase in phases}
-    if set(phase_by_uuid) != expected:
+    if not expected <= set(phase_by_uuid):  # draft-only phases are ignored: plans come from the published version
         raise HTTPException(status_code=422, detail="Set a target date for every phase")
     for phase in phases:
         scheduled_phase = phase_by_uuid[phase["phase_uuid"]]
@@ -1121,10 +1122,8 @@ def _validated_schedule(program: Program, phases: list[dict], payload: ProgramAs
         for phase in phases
     ]
     supplied_objectives = schedule.get("objectives") or []
-    objective_by_uuid = {item.get("objective_uuid"): dict(item) for item in supplied_objectives}
     expected_objectives = {objective["objective_uuid"] for phase in phases for objective in phase["objectives"]}
-    if objective_by_uuid and set(objective_by_uuid) != expected_objectives:
-        raise HTTPException(status_code=422, detail="Set scheduling rules for every objective")
+    objective_by_uuid = {item.get("objective_uuid"): dict(item) for item in supplied_objectives if item.get("objective_uuid") in expected_objectives}
     for phase in phases:
         for objective in phase["objectives"]:
             suggested_due_date = None
@@ -1225,7 +1224,7 @@ def assign_program(
         email = str(payload.subject_email or "").strip().lower()
         if "@" not in email:
             raise HTTPException(status_code=422, detail="A valid subject email is required")
-    phases = _program_phases(db, program)
+    objectives, version, phases, template = template_versions.issue(db, program, current_user.id)
     schedule = _validated_schedule(program, phases, payload)
     # The new assignment flow always supplies a target. Keep older API clients and
     # saved automation working by deriving a target from the phase schedule (or the
@@ -1259,11 +1258,11 @@ def assign_program(
     )).first()
     if not owner_membership:
         raise HTTPException(status_code=422, detail="The plan owner must belong to this organization")
-    supplied_roles = {int(item["user_id"]): str(item.get("role_key") or program.default_staff_role_key or "reviewer") for item in supplied_collaborators if item.get("user_id")}
-    role_keys = {str(item.get("key")) for item in (program.role_definitions or DEFAULT_ROLE_DEFINITIONS)}
+    supplied_roles = {int(item["user_id"]): str(item.get("role_key") or template["default_staff_role_key"] or "reviewer") for item in supplied_collaborators if item.get("user_id")}
+    role_keys = {str(item.get("key")) for item in (template["role_definitions"] or DEFAULT_ROLE_DEFINITIONS)}
     collaborators = []
     for user_id in staff_ids:
-        role_key = "plan_admin" if user_id == owner_user_id else supplied_roles.get(user_id, program.default_staff_role_key or "reviewer")
+        role_key = "plan_admin" if user_id == owner_user_id else supplied_roles.get(user_id, template["default_staff_role_key"] or "reviewer")
         if role_key not in role_keys or (role_key in {"subject", "plan_admin"} and user_id != owner_user_id):
             raise HTTPException(status_code=422, detail=f"Invalid assignment collaborator role: {role_key}")
         collaborators.append({"user_id": user_id, "role_key": role_key})
@@ -1276,8 +1275,9 @@ def assign_program(
         user_id=payload.user_id,
         subject_email=str(payload.subject_email or "").strip().lower() or None,
         program_version=program.version,
+        template_version_id=version.id if version else None,
         definition_version=1,
-        objective_snapshot=_snapshot(db, program),
+        objective_snapshot=objectives,
         welcome_message=payload.welcome_message,
         initiate_date=payload.initiate_date or _now(),
         staff_user_ids=staff_ids,

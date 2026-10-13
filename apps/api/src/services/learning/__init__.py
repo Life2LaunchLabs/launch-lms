@@ -10,7 +10,7 @@ from src.services.learning.access_rules import (  # noqa: F401
 )
 from src.services.learning.lookups import (  # noqa: F401
     VERSIONED_BADGE_FIELDS, _badge_definition, _get_badge, _get_badge_version, _version_summary,
-    _versioned_badge_read, _ensure_draft, _bump_version, _require_activity_editor, _is_system_activity,
+    _versioned_badge_read, _ensure_draft, _bump_version, _require_activity_editor, _ensure_editable, _is_system_activity,
     _serialize_page, _serialize_activity, _get_activity, _get_page, _get_run, PUBLIC_BADGE_STATUSES,
     _is_publicly_visible_badge, _public_badge_query, _can_read_badge, _ensure_read_badge, _latest_attempts,
 )

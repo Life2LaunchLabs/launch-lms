@@ -25,6 +25,7 @@ from src.routers import (
     plan_home,
     plan_sharing,
     planning,
+    template_versions,
     portfolio,
     programs,
     roles,
@@ -102,6 +103,12 @@ v1_router.include_router(
 )
 v1_router.include_router(
     planning.router,
+    prefix="/planning",
+    tags=["planning"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
+v1_router.include_router(
+    template_versions.router,
     prefix="/planning",
     tags=["planning"],
     dependencies=[Depends(get_non_api_token_user)],

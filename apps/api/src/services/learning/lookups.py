@@ -97,6 +97,14 @@ def _require_activity_editor(db_session: Session, user, activity: LearningActivi
     access_rules._require_org_admin(db_session, user, activity.org_id)
 
 
+def _ensure_editable(db_session: Session, activity: LearningActivity) -> None:
+    """Frozen copies belong to a published plan template version and never change."""
+    from src.services.template_versions import is_frozen
+
+    if is_frozen(db_session, activity.id):
+        raise HTTPException(status_code=409, detail="This activity is part of a published plan template version and cannot be edited. Edit the template's draft instead.")
+
+
 def _is_system_activity(db_session: Session, activity: LearningActivity) -> bool:
     """Activities of a system template (the starter plan) may use trusted portfolio outcomes and system blocks."""
     from src.db.programs import Program, ProgramObjective
