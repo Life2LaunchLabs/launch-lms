@@ -95,6 +95,7 @@ paymentsgroupresource paymentsgroupsync organizationinvitation organizationjoinl
 planinvitation plancollaboratorrequest discussion discussioncomment discussionvote
 discussioncommentvote discussionreaction resourcecomment
 hubadvisorconfiguration hubadvisorproviderconfiguration inboxmessagetemplate
+feedbackjiraconfiguration
 """.split()
 )
 

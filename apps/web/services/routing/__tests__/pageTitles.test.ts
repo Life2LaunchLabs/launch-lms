@@ -4,7 +4,7 @@ import { formatAppPageTitle, resolveAppPageTitle } from '../pageTitles.ts'
 
 test('formats feature and entity titles from one convention', () => {
   assert.equal(formatAppPageTitle({ section: 'Plans', detail: 'SB3 Journey' }), 'Plans | SB3 Journey')
-  assert.equal(formatAppPageTitle({ section: 'Hub', detail: 'Hub' }), 'Hub')
+  assert.equal(formatAppPageTitle({ section: 'Coach', detail: 'Coach' }), 'Coach')
   assert.equal(formatAppPageTitle({ section: 'Plans', detail: 'x'.repeat(100) }).length, 80)
 })
 

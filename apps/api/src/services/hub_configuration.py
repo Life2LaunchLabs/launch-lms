@@ -1,4 +1,4 @@
-"""Secure persisted configuration for platform Hub agents."""
+"""Secure persisted configuration for platform Coach agents."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ from src.db.users import PublicUser
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_HUB_ADVISOR_INSTRUCTIONS = """You are the Launch LMS Hub advisor. Help a learner clarify goals, consider realistic next steps, and reflect on tradeoffs. Be warm, concise, and practical. Ask at most one useful follow-up question at a time. When a Launch LMS surface would materially help the learner continue, suggest one relevant learner-controlled action after giving useful advice. Do not claim to have searched Launch LMS resources, accessed private data, remembered earlier sessions, navigated, or changed anything unless the application-provided context establishes it. Do not present medical, legal, financial, or crisis guidance as professional advice; encourage appropriate qualified or emergency help when needed."""
+DEFAULT_HUB_ADVISOR_INSTRUCTIONS = """You are Coach, the Launch LMS learning coach. Help a learner clarify goals, consider realistic next steps, and reflect on tradeoffs. Be warm, concise, and practical. Ask at most one useful follow-up question at a time. When a Launch LMS surface would materially help the learner continue, suggest one relevant learner-controlled action after giving useful advice. Do not claim to have searched Launch LMS resources, accessed private data, remembered earlier sessions, navigated, or changed anything unless the application-provided context establishes it. Do not present medical, legal, financial, or crisis guidance as professional advice; encourage appropriate qualified or emergency help when needed."""
 CONFIGURATION_ID = 1
 SUPPORTED_PROVIDERS = ("openai", "anthropic")
 DEFAULT_MODELS = {"openai": "gpt-5.6-luna", "anthropic": "claude-haiku-4-5-20251001"}
@@ -35,12 +35,12 @@ CURATED_MODELS = {
         {"id": "gpt-6-astra", "name": "GPT-6 Astra", "description": "Highest capability for difficult end-to-end work."},
         {"id": "gpt-5.6-sol", "name": "GPT-5.6 Sol", "description": "High-quality choice for complex professional work."},
         {"id": "gpt-5.6-terra", "name": "GPT-5.6 Terra", "description": "Balanced intelligence, latency, and cost."},
-        {"id": "gpt-5.6-luna", "name": "GPT-5.6 Luna", "description": "Recommended for the Hub: fast and cost-conscious."},
+        {"id": "gpt-5.6-luna", "name": "GPT-5.6 Luna", "description": "Recommended for Coach: fast and cost-conscious."},
     ],
     "anthropic": [
         {"id": "claude-opus-5", "name": "Claude Opus 5", "description": "Highest capability for complex enterprise work."},
         {"id": "claude-sonnet-5", "name": "Claude Sonnet 5", "description": "Balanced speed and intelligence."},
-        {"id": "claude-haiku-4-5-20251001", "name": "Claude Haiku 4.5", "description": "Recommended for the Hub: fast and cost-effective."},
+        {"id": "claude-haiku-4-5-20251001", "name": "Claude Haiku 4.5", "description": "Recommended for Coach: fast and cost-effective."},
     ],
 }
 
@@ -61,8 +61,8 @@ def decrypt_api_key(ciphertext: str) -> str:
     try:
         return _cipher().decrypt(ciphertext.encode()).decode()
     except InvalidToken as error:
-        logger.error("Hub advisor credential could not be decrypted")
-        raise RuntimeError("Hub advisor credential is unreadable; replace it in Superadmin settings.") from error
+        logger.error("Coach advisor credential could not be decrypted")
+        raise RuntimeError("Coach advisor credential is unreadable; replace it in Superadmin settings.") from error
 
 
 def get_configuration_record(db_session: Session) -> HubAdvisorConfiguration | None:
@@ -134,7 +134,7 @@ def update_hub_advisor_configuration(
             raise HTTPException(status_code=422, detail=f"Enter a valid {PROVIDER_NAMES[provider]} API key.")
         existing_ciphertext = encrypt_api_key(normalized_api_key)
     if payload.enabled and not existing_ciphertext:
-        raise HTTPException(status_code=422, detail=f"Add an {PROVIDER_NAMES[provider]} API key before enabling Hub Ask.")
+        raise HTTPException(status_code=422, detail=f"Add an {PROVIDER_NAMES[provider]} API key before enabling Coach.")
 
     now = datetime.utcnow()
     if provider_record is None:
@@ -175,10 +175,10 @@ def get_enabled_hub_advisor_credentials(
 ) -> tuple[str, str, str, str, dict]:
     configuration = get_configuration_record(db_session)
     if not configuration or not configuration.enabled:
-        raise RuntimeError("Hub Ask is not configured or enabled.")
+        raise RuntimeError("Coach is not configured or enabled.")
     provider_record = get_provider_record(db_session, configuration.provider)
     if not provider_record or not provider_record.api_key_ciphertext:
-        raise RuntimeError("Hub Ask is not configured or enabled.")
+        raise RuntimeError("Coach is not configured or enabled.")
     return (
         configuration.provider,
         decrypt_api_key(provider_record.api_key_ciphertext),
@@ -209,7 +209,7 @@ async def list_hub_advisor_models(db_session: Session, provider: str) -> dict:
         response.raise_for_status()
         data = response.json().get("data", [])
     except (httpx.HTTPError, ValueError):
-        logger.warning("Could not refresh Hub advisor model catalog for provider=%s", provider)
+        logger.warning("Could not refresh Coach advisor model catalog for provider=%s", provider)
         return {"provider": provider, "source": "curated", "models": list(curated.values())}
 
     live = {str(item.get("id")): item for item in data if item.get("id")}

@@ -97,7 +97,7 @@ const HubComposer = forwardRef<HubComposerHandle, HubComposerProps>(function Hub
               onScroll={(event) => updateFades(event.currentTarget)}
               maxLength={2000}
               rows={1}
-              placeholder="Message Hub"
+              placeholder="Message Coach"
               disabled={loading}
               className="min-h-11 resize-none border-0 bg-transparent px-3 py-2.5 text-base leading-6 shadow-none focus-visible:ring-0"
               onKeyDown={(event) => {

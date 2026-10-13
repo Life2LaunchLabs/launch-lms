@@ -116,7 +116,7 @@ export default function PlatformSettings() {
 
   async function saveAdvisor(clearApiKey = false) {
     if (!token || !advisorModel.trim() || !advisorInstructions.trim()) return
-    if (clearApiKey && !window.confirm(`Remove the stored ${providerNames[advisorProvider]} key and disable Hub Ask?`)) return
+    if (clearApiKey && !window.confirm(`Remove the stored ${providerNames[advisorProvider]} key and disable Coach?`)) return
     setAdvisorBusy(true)
     try {
       const updated = await hubAdvisorConfigurationApi.update({
@@ -131,9 +131,9 @@ export default function PlatformSettings() {
       await advisor.mutate(updated, { revalidate: false })
       setAdvisorApiKey('')
       await catalog.mutate()
-      toast.success(clearApiKey ? `${providerNames[advisorProvider]} credential removed.` : 'Hub advisor configuration updated.')
+      toast.success(clearApiKey ? `${providerNames[advisorProvider]} credential removed.` : 'Coach advisor configuration updated.')
     } catch (saveError: any) {
-      toast.error(saveError?.message || 'Could not update the Hub advisor.')
+      toast.error(saveError?.message || 'Could not update Coach advisor.')
     } finally {
       setAdvisorBusy(false)
     }
@@ -155,24 +155,24 @@ export default function PlatformSettings() {
           <div className="flex items-start gap-3">
             <span className="rounded-xl bg-violet-100 p-2 text-violet-700" aria-hidden="true"><Bot size={20} /></span>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Hub agent</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Coach agent</p>
               <h1 id="hub-advisor-title" className="mt-1 text-2xl font-black text-gray-950">Learner advisor</h1>
-              <p className="mt-2 text-sm leading-6 text-gray-600">Platform-wide settings used by Hub Ask. Provider keys stay encrypted on the server and are never shown again after saving.</p>
+              <p className="mt-2 text-sm leading-6 text-gray-600">Platform-wide settings used by Coach. Provider keys stay encrypted on the server and are never shown again after saving.</p>
             </div>
           </div>
 
           <div className="mt-7 space-y-5">
             <div className="flex items-center justify-between gap-4 rounded-xl border border-black/10 p-4">
               <div>
-                <label htmlFor="hub-advisor-enabled" className="text-sm font-bold text-gray-900">Enable Hub Ask</label>
+                <label htmlFor="hub-advisor-enabled" className="text-sm font-bold text-gray-900">Enable Coach</label>
                 <p className="mt-1 text-xs leading-5 text-gray-500">Learners can use the advisor only when the selected provider has a key.</p>
               </div>
-              <Switch id="hub-advisor-enabled" checked={advisorEnabled} onCheckedChange={setAdvisorEnabled} aria-label="Enable Hub Ask" />
+              <Switch id="hub-advisor-enabled" checked={advisorEnabled} onCheckedChange={setAdvisorEnabled} aria-label="Enable Coach" />
             </div>
 
             <div className="grid gap-5 sm:grid-cols-2">
               <label className="block">
-                <span className="flex items-center gap-2 text-sm font-bold text-gray-900">Provider <Help>Choose the company that will process Hub Ask messages. Each provider keeps its own API key and model settings.</Help></span>
+                <span className="flex items-center gap-2 text-sm font-bold text-gray-900">Provider <Help>Choose the company that will process Coach messages. Each provider keeps its own API key and model settings.</Help></span>
                 <Select value={advisorProvider} onValueChange={(value) => setAdvisorProvider(value as HubAdvisorProvider)}>
                   <SelectTrigger className="mt-2 h-11 rounded-xl"><SelectValue /></SelectTrigger>
                   <SelectContent><SelectItem value="openai">OpenAI</SelectItem><SelectItem value="anthropic">Anthropic</SelectItem></SelectContent>
@@ -223,13 +223,13 @@ export default function PlatformSettings() {
               <label className="mt-3 block">
                 <span className="text-sm font-bold text-gray-900">Platform guidance</span>
                 <Textarea value={advisorInstructions} onChange={(event) => setAdvisorInstructions(event.target.value)} maxLength={20000} rows={9} className="mt-2 resize-y rounded-xl leading-6" />
-                <span className="mt-2 block text-xs leading-5 text-gray-500">Applies whichever provider is selected. Tune voice, priorities, and when Hub should suggest a useful next action. Launch LMS separately owns capability schemas, permissions, and the rule that learners must click before navigation or changes.</span>
+                <span className="mt-2 block text-xs leading-5 text-gray-500">Applies whichever provider is selected. Tune voice, priorities, and when Coach should suggest a useful next action. Launch LMS separately owns capability schemas, permissions, and the rule that learners must click before navigation or changes.</span>
               </label>
             </div>
           </div>
 
           <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-black/10 pt-5">
-            <div className="text-xs text-gray-500" aria-live="polite">{advisor.data?.enabled ? `Hub Ask is enabled with ${providerNames[advisor.data.provider]}.` : 'Hub Ask is disabled.'}</div>
+            <div className="text-xs text-gray-500" aria-live="polite">{advisor.data?.enabled ? `Coach is enabled with ${providerNames[advisor.data.provider]}.` : 'Coach is disabled.'}</div>
             <div className="flex flex-wrap gap-2">
               {activeProviderConfiguration?.api_key_configured ? <Button type="button" variant="outline" onClick={() => void saveAdvisor(true)} disabled={advisorBusy}><Trash2 size={15} />Remove {providerNames[advisorProvider]} key</Button> : null}
               <Button type="button" onClick={() => void saveAdvisor()} disabled={advisorBusy || !canSaveAdvisor}>{advisorBusy ? <Loader2 className="animate-spin" size={15} /> : <Save size={15} />}Save advisor</Button>

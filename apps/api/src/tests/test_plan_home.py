@@ -14,7 +14,7 @@ from src.db.planning import (
     PlanWeeklyFocus,
     StepOrder,
 )
-from src.services import plan_home, planning
+from src.services import plan_celebration, plan_home, planning
 from src.tests.test_planning import _plan_create, _session, _user
 
 
@@ -134,7 +134,8 @@ def test_ready_for_more_and_pace():
 def test_unfinished_steps_carry_into_next_week_and_dates_group_by_month():
     with _home_session() as db:
         today = date.today()
-        plan = _plan_with_steps(db, "Summer job", [f"Step {n}" for n in range(1, 8)])
+        # Enough undated steps that the dated one is not needed to fill this week or next.
+        plan = _plan_with_steps(db, "Summer job", [f"Step {n}" for n in range(1, 12)])
         due = today + timedelta(days=60)
         plan = planning.create_objective(db, _user(1), plan["slug"], PlanObjectiveCreate(title="Apply by the deadline", due_date=due))
         week = plan_home.home(db, _user(1), today)
@@ -166,3 +167,84 @@ def test_people_without_edit_rights_cannot_start_a_step_that_is_not_ready():
         assert early.value.status_code == 409
         assert early.value.detail["availability"]["reason"]["title"] == "Notice"
         planning.update_objective_progress(db, _user(2), plan["slug"], steps["Notice"]["objective_uuid"], PlanObjectiveProgressUpdate(status=PlanObjectiveStatus.IN_PROGRESS))
+
+
+def test_plan_started_mid_week_waits_instead_of_growing_the_week():
+    with _home_session() as db:
+        today = date.today()
+        plan = _plan_with_steps(db, "Summer job", [f"Step {n}" for n in range(1, 6)])
+        week = plan_home.home(db, _user(1), today)["week"]
+        planned = [item["title"] for item in week["items"]]
+        for item in week["items"][:4]:
+            _complete(db, plan, item["objective_uuid"])
+
+        new = planning.create_plan(db, _user(1), _plan_create("Interview prep"))
+        for title in ["Research", "Practice"]:
+            new = planning.create_objective(db, _user(1), new["slug"], PlanObjectiveCreate(title=title))
+        planning.create_objective(db, _user(1), new["slug"], PlanObjectiveCreate(title="Mock interview", due_date=today))
+
+        home = plan_home.home(db, _user(1), today)
+        assert sorted(item["title"] for item in home["week"]["items"]) == sorted(planned)
+        assert home["week"]["new_plans"] == [{"plan": {"plan_uuid": new["plan_uuid"], "slug": new["slug"], "name": "Interview prep"}, "steps": 1}]
+        # Its step due now is not lost: it leads Next week until pulled in.
+        assert home["next_week"]["items"][0]["title"] == "Mock interview"
+
+        pulled = plan_home.pull_in_plan(db, _user(1), new["plan_uuid"], today)
+        titles = [item["title"] for item in pulled["week"]["items"]]
+        assert "Mock interview" in titles and "Research" in titles
+        assert pulled["week"]["new_plans"] == []
+
+
+def test_open_steps_come_before_finished_ones_this_week():
+    with _home_session() as db:
+        today = date.today()
+        plan = _plan_with_steps(db, "Summer job", [f"Step {n}" for n in range(1, 6)])
+        week = plan_home.home(db, _user(1), today)["week"]
+        _complete(db, plan, week["items"][0]["objective_uuid"])
+        statuses = [item["progress"]["status"] for item in plan_home.home(db, _user(1), today)["week"]["items"]]
+        assert statuses[-1] == "completed" and "completed" not in statuses[:-1]
+
+
+def test_resaving_a_finished_step_keeps_when_it_was_finished():
+    from src.db.planning import PlanObjectiveProgress
+    from sqlmodel import select
+
+    with _home_session() as db:
+        plan = _plan_with_steps(db, "Summer job", ["Step 1"])
+        step = plan["objectives"][0]["objective_uuid"]
+        _complete(db, plan, step)
+        row = db.exec(select(PlanObjectiveProgress)).first()
+        finished = row.completed_at - timedelta(days=30)
+        row.completed_at = finished
+        db.add(row)
+        db.commit()
+        planning.update_objective_progress(db, _user(1), plan["slug"], step, PlanObjectiveProgressUpdate(status=PlanObjectiveStatus.COMPLETED, note="Added a note"))
+        db.refresh(row)
+        assert row.completed_at == finished
+
+
+def test_finished_plan_greets_its_learner_once():
+    with _home_session() as db:
+        plan = _plan_with_steps(db, "Summer job", ["Step 1"])
+        assert plan_home.home(db, _user(1))["celebrations"] == []
+        planning.change_plan_status(db, _user(1), plan["slug"], planning.PlanStatus.COMPLETED)
+        assert plan_home.home(db, _user(1))["celebrations"] == [plan["plan_uuid"]]
+        plan_celebration.mark_plan_celebrated(db, _user(1), plan["slug"])
+        assert plan_home.home(db, _user(1))["celebrations"] == []
+
+
+
+def test_open_steps_due_later_can_start_this_week():
+    with _home_session() as db:
+        today = date.today()
+        later = today + timedelta(days=90)
+        plan = planning.create_plan(db, _user(1), _plan_create("College apps"))
+        for title in ["Essay draft", "Recommendation letters"]:
+            plan = planning.create_objective(db, _user(1), plan["slug"], PlanObjectiveCreate(title=title, due_date=later))
+        plan = planning.create_objective(db, _user(1), plan["slug"], PlanObjectiveCreate(title="Submit", due_date=later))
+        plan = planning.update_plan(db, _user(1), plan["slug"], PlanUpdate(step_order=StepOrder.IN_ORDER))
+        home = plan_home.home(db, _user(1), today)
+        # Nothing is more pressing, so the open step starts now; blocked ones wait.
+        assert [item["title"] for item in home["week"]["items"]] == ["Essay draft"]
+        month = next(group for group in home["months"] if group["key"] == later.strftime("%Y-%m"))
+        assert "Essay draft" not in [item["title"] for item in month["items"]]

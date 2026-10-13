@@ -4,7 +4,7 @@ import { loadUiTestEnvironment } from './environment'
 
 const environment = loadUiTestEnvironment({ requireCredentials: false })
 
-test('mobile.hub-composer: authenticated Hub remains usable at phone width', async ({ page }) => {
+test('mobile.hub-composer: authenticated Coach remains usable at phone width', async ({ page }) => {
   await page.goto(environment.hubPath)
   await assertActualApp(page)
   await expect(page.getByLabel('Ask a question or search Launch LMS')).toBeVisible()

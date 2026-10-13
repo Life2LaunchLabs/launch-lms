@@ -50,9 +50,9 @@ export default function HubLaunchCardsEditor() {
 
   return (
     <section className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm sm:p-8" aria-labelledby="hub-launch-cards-heading">
-      <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Hub home</p>
+      <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Coach home</p>
       <h2 id="hub-launch-cards-heading" className="mt-1 text-2xl font-black text-gray-950">Starter cards</h2>
-      <p className="mt-2 text-sm leading-6 text-gray-600">Shown to learners who have no plan work yet. Clicking a card sends its opening message to the Hub coach, which replies using the platform guidance above. Up to {MAX_LAUNCH_CARDS} cards.</p>
+      <p className="mt-2 text-sm leading-6 text-gray-600">Shown to learners who have no plan work yet. Clicking a card sends its opening message to Coach, which replies using the platform guidance above. Up to {MAX_LAUNCH_CARDS} cards.</p>
 
       {error ? <p className="mt-5 text-sm text-red-700" role="alert">Could not load the cards. Learners still see the default set.</p> : null}
       {isLoading ? <p className="mt-5 text-sm text-gray-500" role="status">Loading cards…</p> : null}

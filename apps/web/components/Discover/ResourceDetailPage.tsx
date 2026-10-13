@@ -14,7 +14,7 @@ import { routePaths } from '@services/config/config'
 import { getResource, saveResource } from '@services/resources/resources'
 import { resourceImage } from './ResourceShelves'
 
-/** A resource's own page in Discover: its cover, opening it, asking Hub about it, notes and reviews. */
+/** A resource's own page in Discover: its cover, opening it, asking Coach about it, notes and reviews. */
 export default function ResourceDetailPage({ orgslug, resourceUuid }: { orgslug: string; resourceUuid: string }) {
   const session = useLHSession() as any
   const hub = useHub()
@@ -40,7 +40,7 @@ export default function ResourceDetailPage({ orgslug, resourceUuid }: { orgslug:
           </div>
           <div className="flex flex-wrap gap-3">
             <Button type="button" variant="brand" size="tall" onClick={() => void open()}><ExternalLink size={16} />Open resource</Button>
-            {hub ? <Button type="button" variant="surface" size="tall" onClick={() => hub.attach(resource)}><Sparkles size={16} />Ask Hub about this</Button> : null}
+            {hub ? <Button type="button" variant="surface" size="tall" onClick={() => hub.attach(resource)}><Sparkles size={16} />Ask Coach about this</Button> : null}
           </div>
           <ActiveResourceWorkspace resource={asAdvisorResource(resource)} orgslug={orgslug} />
         </>}

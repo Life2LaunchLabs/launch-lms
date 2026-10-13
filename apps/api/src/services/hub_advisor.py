@@ -1,4 +1,4 @@
-"""Stateless provider boundary for the learner Hub advisor."""
+"""Stateless provider boundary for the learner Coach advisor."""
 
 from __future__ import annotations
 
@@ -344,7 +344,7 @@ class OpenAIResponsesProvider:
         edit_scope: str | None = None,
     ):
         if not api_key.strip():
-            raise AdvisorUnavailable("Hub Ask is not configured yet.")
+            raise AdvisorUnavailable("Coach is not configured yet.")
         self.api_key = api_key.strip()
         self.model = model.strip() or DEFAULT_MODEL
         from src.services.hub_actions import CAPABILITY_POLICY_INSTRUCTIONS
@@ -383,7 +383,7 @@ class OpenAIResponsesProvider:
             )
             if response.status_code >= 400:
                 logger.warning(
-                    "Hub advisor provider failure provider=openai status=%s code=%s request_id=%s",
+                    "Coach advisor provider failure provider=openai status=%s code=%s request_id=%s",
                     response.status_code,
                     _provider_error_code(response) or "unavailable",
                     response.headers.get("x-request-id", "unavailable"),
@@ -412,7 +412,7 @@ class OpenAIResponsesProvider:
         except AdvisorError:
             raise
         except (httpx.HTTPError, ValueError):
-            logger.exception("Hub advisor provider request failed")
+            logger.exception("Coach advisor provider request failed")
             raise AdvisorUnavailable("The advisor is temporarily unavailable.") from None
         finally:
             if owned_client:
@@ -465,7 +465,7 @@ class AnthropicMessagesProvider:
         edit_scope: str | None = None,
     ):
         if not api_key.strip():
-            raise AdvisorUnavailable("Hub Ask is not configured yet.")
+            raise AdvisorUnavailable("Coach is not configured yet.")
         self.api_key = api_key.strip()
         self.model = model.strip()
         from src.services.hub_actions import CAPABILITY_POLICY_INSTRUCTIONS
@@ -505,7 +505,7 @@ class AnthropicMessagesProvider:
             )
             if response.status_code >= 400:
                 logger.warning(
-                    "Hub advisor provider failure provider=anthropic status=%s code=%s request_id=%s",
+                    "Coach advisor provider failure provider=anthropic status=%s code=%s request_id=%s",
                     response.status_code,
                     _provider_error_code(response) or "unavailable",
                     response.headers.get("request-id", "unavailable"),
@@ -529,7 +529,7 @@ class AnthropicMessagesProvider:
         except AdvisorError:
             raise
         except (httpx.HTTPError, ValueError):
-            logger.exception("Hub advisor provider request failed")
+            logger.exception("Coach advisor provider request failed")
             raise AdvisorUnavailable("The advisor is temporarily unavailable.") from None
         finally:
             if owned_client:

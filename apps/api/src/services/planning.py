@@ -1241,7 +1241,7 @@ def update_objective_progress(db: Session, current_user: PublicUser, identifier:
                 progress.feedback_history = [*(progress.feedback_history or []), {"message": payload.note, "user_id": current_user.id, "created_at": _now_string()}]
         else:
             progress.subject_note = payload.note
-    progress.completed_at = _now() if payload.status == PlanObjectiveStatus.COMPLETED else None
+    progress.completed_at = (progress.completed_at or _now()) if payload.status == PlanObjectiveStatus.COMPLETED else None
     progress.updated_by_user_id = current_user.id
     progress.update_date = _now_string()
     db.add(progress)

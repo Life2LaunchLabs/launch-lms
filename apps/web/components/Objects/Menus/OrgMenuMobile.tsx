@@ -8,11 +8,11 @@ import type { OrgMenuNavItem } from './OrgMenuLinks'
 
 export const NAV_ACTIVE_CLASS = 'bg-[color-mix(in_srgb,var(--org-primary-color)_16%,transparent)] text-foreground ring-2 ring-[var(--org-primary-color)]'
 
-/** A primary destination, or the Hub toggle, in the phone bar or the desktop sidebar. */
+/** A primary destination, or Coach toggle, in the phone bar or the desktop sidebar. */
 export function NavItemControl({ item, orgslug, className, children, dot = false }: { item: OrgMenuNavItem; orgslug: string; className: string; children: React.ReactNode; dot?: boolean }) {
   const hub = useHub()
   if (item.action === 'hub') {
-    return <button type="button" onClick={() => hub?.toggle()} aria-label={hub?.unread ? 'Hub, new reply' : 'Hub'} aria-pressed={item.active} className={cn('relative', className)}>
+    return <button type="button" onClick={() => hub?.toggle()} aria-label={hub?.unread ? 'Coach, new reply' : 'Coach'} aria-pressed={item.active} className={cn('relative', className)}>
       {children}
       {hub?.unread && !item.active ? <span className="absolute right-2.5 top-2 h-2.5 w-2.5 rounded-full bg-[#7cc4ff] ring-2 ring-shell" aria-hidden="true" /> : null}
     </button>

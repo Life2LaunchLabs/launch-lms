@@ -5,6 +5,7 @@ from src.routers import (
     auth,
     auth_handoff,
     candidate_feedback,
+    feedback_connection,
     code_execution,
     dev,
     demo,
@@ -147,6 +148,12 @@ v1_router.include_router(
 )
 v1_router.include_router(
     candidate_feedback.router,
+    prefix="/candidate",
+    tags=["candidate-feedback"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
+v1_router.include_router(
+    feedback_connection.router,
     prefix="/candidate",
     tags=["candidate-feedback"],
     dependencies=[Depends(get_non_api_token_user)],

@@ -25,7 +25,7 @@ export function inferHubResponseKind(content: string): HubResponseKind {
   if (!normalized) return 'chat'
   if (normalized.includes('?') || QUESTION_OPENERS.test(normalized) || ADVICE_WORDS.test(normalized)) return 'chat'
   if (SEARCH_OPENERS.test(normalized) || RESOURCE_WORDS.test(normalized)) return 'search'
-  // A short noun phrase is often an answer to Hub (a duration, date, choice or
+  // A short noun phrase is often an answer to Coach (a duration, date, choice or
   // confirmation). Prefer conversation unless the learner actually signals
   // search intent; the advisor can still offer a resource action afterward.
   return 'chat'

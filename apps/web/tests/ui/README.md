@@ -6,11 +6,11 @@ screenshots, videos, traces and manifests only in ignored directories.
 ## Local setup
 
 1. Start a disposable/local API and web application with current migrations. Set
-   `LAUNCHLMS_UI_TEST_FIXTURES=true` and `LAUNCHLMS_DEVELOPMENT_MODE=true` on the API to use deterministic Hub advice;
+   `LAUNCHLMS_UI_TEST_FIXTURES=true` and `LAUNCHLMS_DEVELOPMENT_MODE=true` on the API to use deterministic Coach advice;
    this fixture provider cannot run when development mode is off.
 2. Create synthetic test users through the normal supported setup flow. Never use a personal account or shared database.
 3. Export the variables in `.env.example` from a protected shell or CI secret store. For organization-subdomain routing,
-   make `UI_TEST_BASE_URL` that organization origin and override the Hub/Plans paths to `/plans?hub=open` and `/plans` (Hub opens beside Plans; it has no page of its own).
+   make `UI_TEST_BASE_URL` that organization origin and override the Coach/Plans paths to `/plans?coach=open` and `/plans` (Coach opens beside Plans; it has no page of its own).
 4. Run `bun run test:ui:install`, `bun run test:ui:doctor`, then `bun run test:ui:capture`.
 
 `scripts/ui/run-local.sh` uses `.next-ui-test` so it can run beside a normal developer server without replacing that

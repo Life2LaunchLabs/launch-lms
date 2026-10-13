@@ -82,11 +82,11 @@ export default function useHubEditRun({ hub, orgslug, orgId, accessToken, messag
     }
   }
 
-  /** Brings an object Hub changed into view on the page, with a brief highlight. */
+  /** Brings an object Coach changed into view on the page, with a brief highlight. */
   const pointTo = (targetId: string) => {
     const target = document.getElementById(targetId)
     if (!target) return
-    // On phones the page is pulled aside while Hub is open; bring it back to show the change.
+    // On phones the page is pulled aside while Coach is open; bring it back to show the change.
     if (window.matchMedia('(max-width: 767px)').matches) hub?.tuck()
     target.scrollIntoView({ behavior: 'smooth', block: 'center' })
     target.focus({ preventScroll: true })

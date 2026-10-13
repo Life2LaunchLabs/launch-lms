@@ -19,6 +19,7 @@ from uuid import uuid4
 
 from fastapi import HTTPException, UploadFile
 from src.security.file_validation import validate_image_content
+from src.services.feedback_configuration import environment_settings, stored_settings
 
 FEEDBACK_PROPERTY = "launchlms.feedback"
 PUBLIC_REPLY_PREFIX = "[Launch LMS reply]"
@@ -59,25 +60,22 @@ def current_revision() -> str:
 
 
 class CandidateJira:
-    def __init__(self, environment=None):
-        env = environment or os.environ
-        self.base_url = str(
-            env.get("LAUNCHLMS_FEEDBACK_JIRA_BASE_URL", env.get("JIRA_BASE_URL", ""))
-        ).rstrip("/")
-        self.email = str(
-            env.get("LAUNCHLMS_FEEDBACK_JIRA_EMAIL", env.get("JIRA_EMAIL", ""))
+    def __init__(self, environment=None, settings: dict | None = None):
+        # The connection saved in Platform → Feedback wins; environment
+        # variables are the fallback. An explicit environment skips the database.
+        if settings is None and environment is None:
+            settings = stored_settings()
+        if settings is None:
+            settings = environment_settings(environment)
+        self.base_url = str(settings.get("base_url", "")).strip().rstrip("/")
+        self.email = str(settings.get("email", "")).strip()
+        self.token = str(settings.get("token", "")).strip()
+        self.project = str(settings.get("project", "")).strip()
+        self.issue_type = str(settings.get("issue_type") or "Task")
+        self.board_id = str(settings.get("board_id", "")).strip()
+        self.configured = bool(settings.get("enabled", True)) and all(
+            (self.base_url, self.email, self.token, self.project)
         )
-        self.token = str(
-            env.get("LAUNCHLMS_FEEDBACK_JIRA_API_TOKEN", env.get("JIRA_API_TOKEN", ""))
-        )
-        self.project = str(
-            env.get(
-                "LAUNCHLMS_FEEDBACK_JIRA_PROJECT_KEY", env.get("JIRA_PROJECT_KEY", "")
-            )
-        )
-        self.issue_type = str(env.get("LAUNCHLMS_FEEDBACK_JIRA_ISSUE_TYPE", "Task"))
-        self.board_id = str(env.get("LAUNCHLMS_FEEDBACK_JIRA_BOARD_ID", "")).strip()
-        self.configured = all((self.base_url, self.email, self.token, self.project))
         parsed = urlparse(self.base_url)
         if (
             self.configured

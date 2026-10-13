@@ -1,8 +1,8 @@
 import { redirect } from 'next/navigation'
-import { hubFromLegacy } from '@services/routing/paths'
+import { coachFromLegacy } from '@services/routing/paths'
 
-/** Hub has no page of its own anymore; it opens beside the page you're on. */
+/** The pre-rename /hub URL; Coach opens beside the page you're on. */
 export default async function HubPage(props: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
-  // Host-relative: an absolute org URL can move the learner to another origin and drop Hub's session.
-  redirect(hubFromLegacy(await props.searchParams))
+  // Host-relative: an absolute org URL can move the learner to another origin and drop Coach's session.
+  redirect(coachFromLegacy(await props.searchParams))
 }

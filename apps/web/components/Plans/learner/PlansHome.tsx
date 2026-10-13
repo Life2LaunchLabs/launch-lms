@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import useSWR, { mutate } from 'swr'
 import toast from 'react-hot-toast'
-import { ChevronDown, Compass, Loader2, Plus, Sparkles } from 'lucide-react'
+import { ChevronDown, Compass, Loader2, PartyPopper, Plus, Sparkles } from 'lucide-react'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { planningApi } from '@services/planning/planning'
 import { getAPIUrl, getUriWithOrg } from '@services/config/config'
@@ -60,7 +60,9 @@ export default function PlansHome({ orgslug, token, plans, completed, invitation
   const [open, setOpen] = React.useState<StepItem | null>(null)
   const [busy, setBusy] = React.useState(false)
   const weekItems: StepItem[] = data?.week?.items || []
-  const selectedUuid = selected || firstUp(weekItems)?.objective_uuid || ''
+  const openItems = weekItems.filter((item) => item.progress?.status !== 'completed')
+  const doneItems = weekItems.filter((item) => item.progress?.status === 'completed')
+  const selectedUuid = selected || firstUp(openItems)?.objective_uuid || ''
 
   if (error) return <div className="mt-6 rounded-xl border border-border bg-card p-5" role="alert"><p className="text-sm">Your weekly steps could not load.</p><button type="button" onClick={() => void retry()} className="mt-3 min-h-11 text-sm font-semibold underline">Try again</button></div>
   if (isLoading || !data) return <div className="flex min-h-[45vh] items-center justify-center"><Loader2 className="animate-spin text-muted-foreground" /></div>
@@ -76,6 +78,10 @@ export default function PlansHome({ orgslug, token, plans, completed, invitation
   const more = async () => {
     setBusy(true)
     try { await mutate(homeKey(), await planningApi.readyForMore(token), false) } catch { toast.error('Could not add more steps') } finally { setBusy(false) }
+  }
+  const pullIn = async (planUuid: string) => {
+    setBusy(true)
+    try { await mutate(homeKey(), await planningApi.pullInPlan(planUuid, token), false) } catch { toast.error('Could not add that plan to this week') } finally { setBusy(false) }
   }
   const pace = async (target: number) => {
     try { await mutate(homeKey(), await planningApi.setPace(target, token), false) } catch { toast.error('Could not change your weekly goal') }
@@ -113,12 +119,19 @@ export default function PlansHome({ orgslug, token, plans, completed, invitation
         </label>
       </div>
       {week.total > week.target ? <p className="text-xs text-muted-foreground">Dated and overdue steps are included alongside your weekly goal.</p> : null}
-      {weekItems.length
-        ? <StepStack items={weekItems} colorFor={colorFor} selectedUuid={selectedUuid} currentUuid={firstUp(weekItems)?.objective_uuid} onSelect={select} showPlanName renderSelected={renderSelected} />
+      {week.complete ? <WeekComplete week={week} busy={busy} onMore={more} onPullIn={pullIn} />
+        : openItems.length ? <StepStack items={openItems} colorFor={colorFor} selectedUuid={selectedUuid} currentUuid={firstUp(openItems)?.objective_uuid} onSelect={select} showPlanName renderSelected={renderSelected} />
         : <p className="rounded-2xl bg-card px-4 py-8 text-center text-sm font-bold text-muted-foreground">Nothing planned for this week yet.</p>}
-      {week.can_boost ? <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-card px-4 py-4">
+      {doneItems.length ? <details className="group/done-week">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 rounded-xl py-2 text-sm font-bold text-muted-foreground">
+          Done this week · {doneItems.length}
+          <ChevronDown size={16} className="transition-transform group-open/done-week:rotate-180" aria-hidden="true" />
+        </summary>
+        <StepStack items={doneItems} colorFor={colorFor} selectedUuid={selectedUuid} onSelect={select} showPlanName renderSelected={renderSelected} />
+      </details> : null}
+      {!week.complete && week.can_boost ? <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-card px-4 py-4">
         <Sparkles size={20} className="text-muted-foreground" aria-hidden="true" />
-        <span className="flex-1 text-sm font-bold">{week.complete ? 'Week done. Want to keep going?' : 'Moving fast? Pull a few more steps into this week.'}</span>
+        <span className="flex-1 text-sm font-bold">Moving fast? Pull a few more steps into this week.</span>
         <Button type="button" variant="surface" disabled={busy} onClick={more}>{busy ? 'Adding…' : 'Ready for more'}</Button>
       </div> : null}
     </section>
@@ -136,6 +149,25 @@ export default function PlansHome({ orgslug, token, plans, completed, invitation
 
     <CompletedPlans plans={completed} getPlanColor={getPlanColor} choose={choose} error={completedError} retry={retryCompleted} />
     <Modal isDialogOpen={Boolean(open)} onOpenChange={(value) => { if (!value) setOpen(null) }} minWidth="lg" minHeight="no-min" dialogTitle={open?.title || ''} dialogContent={open ? renderObjective(open, () => setOpen(null)) : null} />
+  </div>
+}
+
+/** Everything planned this week is done: celebrate, then offer more only if the learner wants it. */
+// eslint-disable-next-line no-unused-vars
+function WeekComplete({ week, busy, onMore, onPullIn }: { week: any; busy: boolean; onMore: () => void; onPullIn: (planUuid: string) => void }) {
+  const offers: { plan: { plan_uuid: string; name: string }; steps: number }[] = week.new_plans || []
+  return <div className="flex flex-col items-center gap-4 rounded-3xl bg-card px-5 py-8 text-center" role="status">
+    <PartyPopper size={36} className="text-[var(--org-primary-color,currentColor)]" aria-hidden="true" />
+    <div>
+      <p className="text-xl font-extrabold tracking-tight">Week complete!</p>
+      <p className="mt-1 text-sm text-muted-foreground">You finished all {week.done_count} {week.done_count === 1 ? 'step' : 'steps'} you planned. Enjoy it — or keep going.</p>
+    </div>
+    {offers.length || week.can_boost ? <div className="flex w-full max-w-md flex-col gap-2">
+      {offers.map((offer) => <Button key={offer.plan.plan_uuid} type="button" variant="brand" disabled={busy} onClick={() => onPullIn(offer.plan.plan_uuid)}>
+        Add {offer.steps} {offer.steps === 1 ? 'step' : 'steps'} from {offer.plan.name}
+      </Button>)}
+      {week.can_boost ? <Button type="button" variant="surface" disabled={busy} onClick={onMore}>{busy ? 'Adding…' : 'Pull 3 more steps'}</Button> : null}
+    </div> : null}
   </div>
 }
 
