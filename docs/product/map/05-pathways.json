@@ -650,7 +650,7 @@
               "product_state": "live",
               "health": "not_applicable",
               "traceability": "none",
-              "automated_status": "not_tested",
+              "automated_status": "passed",
               "manual_status": "passed",
               "implementation_notes": "Invitation cards name the source organization, or the inviter for a personal plan; collaborator role and recipient-bound accept/decline remain available.",
               "updated_at": "2026-10-13T21:00:00+00:00",
@@ -658,7 +658,8 @@
                 "status": "passed",
                 "reviewed_at": "2026-09-03T18:12:53+00:00",
                 "reviewed_by": "product_owner",
-                "evidence": "Verified during activity review."
+                "evidence": "Verified during activity review.",
+                "latest_change_report": "docs/design/framework-editor-and-learner-flow-verification.md"
               },
               "signoff": {},
               "source": {},
@@ -1223,7 +1224,7 @@
               "product_state": "live",
               "health": "not_applicable",
               "traceability": "none",
-              "automated_status": "not_tested",
+              "automated_status": "passed",
               "manual_status": "passed",
               "implementation_notes": "Submitted work uses the finished path appearance with Waiting on review. The next available step becomes current; submission does not imply staff approval or increase approved completion totals.",
               "updated_at": "2026-10-13T21:00:00+00:00",
@@ -1231,7 +1232,8 @@
                 "status": "passed",
                 "reviewed_at": "2026-09-03T18:12:53+00:00",
                 "reviewed_by": "product_owner",
-                "evidence": "Verified during activity review."
+                "evidence": "Verified during activity review.",
+                "latest_change_report": "docs/design/framework-editor-and-learner-flow-verification.md"
               },
               "signoff": {},
               "source": {},
@@ -1450,11 +1452,12 @@
               "health": "not_applicable",
               "traceability": "none",
               "automated_status": "passed",
-              "manual_status": "not_tested",
+              "manual_status": "passed",
               "implementation_notes": "Learner activities fill the viewport without navigation, page chrome or Coach. Close returns to the plan and restores the existing Coach session.",
               "updated_at": "2026-10-13T21:00:00+00:00",
               "verification": {
-                "status": "unverified"
+                "status": "unverified",
+                "latest_change_report": "docs/design/framework-editor-and-learner-flow-verification.md"
               },
               "signoff": {},
               "source": {},
@@ -4597,11 +4600,13 @@
               "product_state": "live",
               "health": "not_applicable",
               "traceability": "none",
-              "automated_status": "not_tested",
-              "manual_status": "not_tested",
+              "automated_status": "passed",
+              "manual_status": "passed",
               "implementation_notes": "Levels explains imported free-form hierarchies. Adding generated levels to an existing manual-coded framework requires confirmation that codes will be replaced.",
               "updated_at": "2026-10-13T21:00:00+00:00",
-              "verification": {},
+              "verification": {
+                "latest_change_report": "docs/design/framework-editor-and-learner-flow-verification.md"
+              },
               "signoff": {},
               "source": {},
               "references": [
@@ -4656,11 +4661,13 @@
               "product_state": "live",
               "health": "not_applicable",
               "traceability": "none",
-              "automated_status": "not_tested",
-              "manual_status": "not_tested",
+              "automated_status": "passed",
+              "manual_status": "passed",
               "implementation_notes": "Spec supports imported free-form hierarchies and supplied codes without predefined levels. Saving preserves node identifiers, parents, codes, metadata and source references.",
               "updated_at": "2026-10-13T21:00:00+00:00",
-              "verification": {},
+              "verification": {
+                "latest_change_report": "docs/design/framework-editor-and-learner-flow-verification.md"
+              },
               "signoff": {},
               "source": {},
               "references": [

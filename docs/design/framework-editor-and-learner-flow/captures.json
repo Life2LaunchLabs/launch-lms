@@ -1,0 +1,42 @@
+[
+  {
+    "path": "chromium-desktop/focused-activity.png",
+    "sha256": "5ac6189cd75d265834fa8f8eab447fbe34325a73303c86cccd2ed459fc829fdc"
+  },
+  {
+    "path": "chromium-desktop/manual-framework-levels.png",
+    "sha256": "e80c021272c439f32b829f5aeb9c97d90d38e6be544160dd6a6bc8006c7a2409"
+  },
+  {
+    "path": "chromium-desktop/manual-framework-spec.png",
+    "sha256": "952f2308f233c1d74cd0915d8f96253f73bf373b024bc88ac24292c5466b626d"
+  },
+  {
+    "path": "chromium-desktop/objective-waiting-review.png",
+    "sha256": "850bbaae1f3a9930f428f4ccac451b23f61c545ac592391b5303317116996522"
+  },
+  {
+    "path": "chromium-desktop/plan-inviting-organization.png",
+    "sha256": "106bce37c5e634c7873e3f6f71a1d6458d059c8e41d904df857423ebf5b51c4b"
+  },
+  {
+    "path": "chromium-phone/focused-activity.png",
+    "sha256": "877efa8a277aa9b483d61ac2b7cfbd8d32406df66e5cd359dc717a02b8dec558"
+  },
+  {
+    "path": "chromium-phone/manual-framework-levels.png",
+    "sha256": "73185d8b5524fa61fb5cb19c1b5b137143a905ecf9b69e6db2397166f9a0d39c"
+  },
+  {
+    "path": "chromium-phone/manual-framework-spec.png",
+    "sha256": "1ab233087e62073d872253e0b85091f92e526756870ac2da1868bc413879b82e"
+  },
+  {
+    "path": "chromium-phone/objective-waiting-review.png",
+    "sha256": "fa495f3d7879e1952c8733a494a5f489f5530c69f1f432c2b9707739dc1ce687"
+  },
+  {
+    "path": "chromium-phone/plan-inviting-organization.png",
+    "sha256": "7a9b481d1db0e34d65317810e05846ce9eaaf38ee0570ef00709d4a74ffdf84e"
+  }
+]

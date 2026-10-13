@@ -31,4 +31,4 @@ actual rendered states; record commands, revision and captures in a task report.
 
 No Jira task/session is configured for this interactive request. This plan and
 the delivery PR retain scope, decisions and evidence. Checks and visual evidence
-are pending.
+passed: 683 API tests, 63 frontend unit tests and eight browser scenarios across desktop/phone. Ten synthetic captures were inspected; the [verification report](../../design/framework-editor-and-learner-flow-verification.md) records the exact revision and findings. PR #124 targets dev; latest-head CI, protected merge and deployment observation remain underway.

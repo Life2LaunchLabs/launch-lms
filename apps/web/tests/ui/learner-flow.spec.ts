@@ -8,7 +8,7 @@ const orgPath = `/orgs/${fixture.org_slug}`
 const frameworkPath = (uuid: string, tab: string) => `${orgPath}/admin/plans/requirements/${uuid}/${tab}`
 
 async function capture(page: Page, info: TestInfo, name: string) {
-  const screenshot = await page.screenshot({ path: info.outputPath(name), fullPage: true })
+  const screenshot = await page.screenshot({ path: info.outputPath(name), fullPage: true, animations: 'disabled' })
   await info.attach(`synthetic-review:${name}`, { body: screenshot, contentType: 'image/png' })
 }
 
