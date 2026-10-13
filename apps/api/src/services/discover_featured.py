@@ -49,12 +49,16 @@ def _news(db: Session, org_id: int) -> list[NewsArticle]:
     return list(db.exec(select(NewsArticle).where(NewsArticle.org_id == org_id, NewsArticle.status == NewsArticleStatus.published).order_by(NewsArticle.published_at.desc(), NewsArticle.creation_date.desc())).all())
 
 
-def _sources(db: Session, org_id: int, user_id: int | None = None) -> dict:
+def _sources(db: Session, org_id: int, user_id: int | None = None, catalog: tuple[list, list, list] | None = None) -> dict:
+    """Publishable hero sources. ``catalog`` (badges, cards, collections) reuses the cards Discover already built."""
     from src.services.badge_discover import _cards, _collection_dict, _public_collections
 
-    badges = list(db.exec(lookups._public_badge_query().order_by(LearningBadge.id)).all())
-    cards = _cards(db, badges, user_id)
-    collections = _public_collections(db, None)
+    if catalog:
+        badges, cards, collections = catalog
+    else:
+        badges = list(db.exec(lookups._public_badge_query().order_by(LearningBadge.id)).all())
+        cards = _cards(db, badges, user_id)
+        collections = _public_collections(db, None)
     groups = {int(collection.id): [] for collection in collections}
     for badge, card in zip(badges, cards):
         if badge.collection_id in groups:
@@ -83,14 +87,14 @@ def _resolve(slide: DiscoverSlide, sources: dict) -> dict | None:
     return {**defaults, "key": f"{slide.kind}:{slide.target}", "kind": slide.kind, "theme": slide.theme, "image_url": slide.image_url, **{field: getattr(slide, field) for field in ("title", "description", "eyebrow", "action_label", "thumbnail_url") if getattr(slide, field)}}
 
 
-def hero_slides(db: Session, org_id: int | None, featured: list[dict], user_id: int | None = None) -> list[dict]:
+def hero_slides(db: Session, org_id: int | None, featured: list[dict], user_id: int | None = None, catalog: tuple[list, list, list] | None = None) -> list[dict]:
     site = _site(db, org_id)
     if not site:
         return []
     settings = _settings(_config(db, int(site.id)))
     if not settings.enabled:
         return []
-    sources = _sources(db, int(site.id), user_id)
+    sources = _sources(db, int(site.id), user_id, catalog)
     if settings.mode == "curated":
         chosen = settings.slides
     else:

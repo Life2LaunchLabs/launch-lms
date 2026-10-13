@@ -173,8 +173,8 @@ they live in My plans.
   swipe; on desktop the peeks and dots are clickable.
 - **Profile/portfolio**: earned badges with portable Open Badges awards,
   recorded certifications and milestones. There is no "My badges": a badge
-  being earned is a plan in My plans, and earned badges are the portfolio's
-  Badges tab. The learner nav is Hub, My plans, Discover, Portfolio.
+  being earned is a plan in Plans, and earned badges are the portfolio's
+  Badges tab. The learner nav is Hub, Plans, Discover, Portfolio.
 
 Mockups: https://claude.ai/artifact/56FkTtx8GsDWgGUtbYMssB
 

@@ -149,7 +149,8 @@ def discover(db: Session, current_user: PublicUser | AnonymousUser | None, org_i
     from src.services.discover_featured import hero_slides
 
     return {
-        "hero_slides": hero_slides(db, site_org_id or org_id, featured, user_id),
+        # The hero draws on the whole public catalog; reuse this feed's cards when it is that catalog.
+        "hero_slides": hero_slides(db, site_org_id or org_id, featured, user_id, (badges, cards, list(collections.values())) if org_id is None else None),
         "featured": featured,
         "keep_going": [card for card in cards if card["plan"]],
         "collections": [_collection_dict(collections[collection_id], items) for collection_id, items in by_collection.items()],

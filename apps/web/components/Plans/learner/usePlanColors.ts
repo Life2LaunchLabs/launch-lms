@@ -5,6 +5,11 @@ import type { PlanTarget } from '../PlanEditorShared'
 
 const PLAN_COLORS = ['#7c3aed', '#0f9f9a', '#d97706', '#2563eb', '#db2777', '#65a30d', '#dc2626', '#0891b2']
 
+// Colors are a per-browser preference; storage can be unavailable (private windows), so never let it throw.
+function remember(key: string, colors: Record<string, string>) {
+  try { window.localStorage.setItem(key, JSON.stringify(colors)) } catch { /* keep this session's colors only */ }
+}
+
 function fallbackPlanColor(planUuid = '') {
   const hash = Array.from(planUuid).reduce((total, char) => ((total * 31) + char.charCodeAt(0)) >>> 0, 0)
   return PLAN_COLORS[hash % PLAN_COLORS.length]
@@ -30,14 +35,14 @@ export default function usePlanColors(plans: PlanTarget[], viewerId: string | nu
         used.add(next[plan.plan_uuid])
         changed = true
       }
-      if (changed) window.localStorage.setItem(storageKey, JSON.stringify(next))
+      if (changed) remember(storageKey, next)
       return changed ? next : current
     })
   }, [plans, storageKey])
 
   const setPlanColor = (planUuid: string, color: string) => setColors((current) => {
     const next = { ...current, [planUuid]: color }
-    window.localStorage.setItem(storageKey, JSON.stringify(next))
+    remember(storageKey, next)
     return next
   })
   return { getPlanColor: (planUuid?: string) => colors[planUuid || ''] || fallbackPlanColor(planUuid), setPlanColor }

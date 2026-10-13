@@ -22,7 +22,6 @@ export const collectionHref = (orgslug: string, collectionUuid: string) => getUr
 
 /** Shared action styles for discovery and badge details. */
 export const CHUNKY = buttonVariants({ variant: 'brand', size: 'lg' })
-export const CHUNKY_DARK = buttonVariants({ variant: 'default', size: 'lg' })
 
 /** Badge artwork as a die-cut sticker; badges without art get a medal. */
 export function BadgeSticker({ src, name, size = 136, className }: { src?: string; name: string; size?: number; className?: string }) {
