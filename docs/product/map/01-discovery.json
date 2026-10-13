@@ -1146,7 +1146,7 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/app/orgs/[orgslug]/(withmenu)/hub/HubQuickSearch.tsx",
+              "path": "apps/web/components/Hub/conversation/HubQuickSearch.tsx",
               "symbol": null,
               "responsibility": "Content-type browsing, result loading, and quiet result presentation"
             }

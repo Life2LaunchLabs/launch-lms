@@ -11,14 +11,13 @@ const buttonVariants = cva(
       variant: {
         default:
           "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90",
+        // Pressable variants: a solid face over a darker edge that collapses on press.
         brand:
-          "bg-[var(--org-primary-color)] font-semibold text-[var(--org-on-primary-color)] shadow-[0_4px_0_rgba(0,0,0,0.22)] transition-transform hover:-translate-y-0.5 hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--org-primary-color)] focus-visible:ring-0 active:translate-y-0.5 active:shadow-[0_2px_0_rgba(0,0,0,0.22)]",
+          "rounded-2xl bg-[var(--org-primary-color)] font-extrabold uppercase tracking-wide text-[var(--org-on-primary-color)] shadow-[0_4px_0_color-mix(in_srgb,var(--org-primary-color)_68%,#000)] transition-[transform,box-shadow] hover:brightness-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--org-primary-color)] focus-visible:ring-0 active:translate-y-[3px] active:shadow-[0_1px_0_color-mix(in_srgb,var(--org-primary-color)_68%,#000)]",
+        plan:
+          "rounded-2xl bg-[var(--plan-face)] font-extrabold uppercase tracking-wide text-[var(--plan-face-ink)] shadow-[0_4px_0_var(--plan-edge)] transition-[transform,box-shadow] hover:brightness-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--plan-face)] focus-visible:ring-0 active:translate-y-[3px] active:shadow-[0_1px_0_var(--plan-edge)]",
         surface:
-          "border-2 border-border bg-card font-semibold text-foreground shadow-[0_4px_0_hsl(var(--border))] transition-transform hover:-translate-y-0.5 hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--org-primary-color)] focus-visible:ring-0 active:translate-y-0.5 active:shadow-[0_2px_0_hsl(var(--border))]",
-        cta:
-          "rounded-full bg-[var(--org-primary-color)] font-black uppercase tracking-normal text-[var(--org-on-primary-color)] shadow-[0_6px_0_rgba(0,0,0,0.18)] transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--org-primary-color)] focus-visible:ring-0",
-        ctaSecondary:
-          "rounded-full border-2 border-border bg-card font-black uppercase tracking-normal text-[var(--org-primary-color)] shadow-[0_4px_0_hsl(var(--border))] hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--org-primary-color)] focus-visible:ring-0",
+          "rounded-2xl border-2 border-border bg-card font-bold text-foreground shadow-[0_4px_0_hsl(var(--border))] transition-[transform,box-shadow] hover:bg-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--org-primary-color)] focus-visible:ring-0 active:translate-y-[3px] active:shadow-[0_1px_0_hsl(var(--border))]",
         destructive:
           "bg-destructive text-destructive-foreground shadow-xs hover:bg-destructive/90",
         outline:
@@ -33,6 +32,7 @@ const buttonVariants = cva(
         sm: "h-8 px-3 text-xs",
         lg: "h-10 px-8",
         cta: "h-14 px-8 text-sm",
+        tall: "h-12 px-6 text-sm",
         icon: "h-9 w-9",
       },
     },

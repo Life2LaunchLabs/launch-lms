@@ -36,7 +36,7 @@ export default function RootLayout({
                                 src="/umami/script.js"
                             />
         }
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
           <SessionProvider refetchInterval={600000}>
             <LHSessionProvider>
               <I18nProvider>

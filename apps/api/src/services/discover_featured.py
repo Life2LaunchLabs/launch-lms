@@ -7,10 +7,8 @@ from pydantic import ValidationError
 from sqlalchemy import inspect
 from sqlmodel import Session, select
 
-from src.core.capabilities import CORE_CAPABILITIES
 from src.db.discover import DiscoverSettings, DiscoverSlide
 from src.db.learning import LearningBadge
-from src.db.news import NewsArticle, NewsArticleStatus
 from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
 from src.db.users import PublicUser
@@ -37,19 +35,16 @@ def _settings(config: OrganizationConfig | None) -> DiscoverSettings:
     try:
         customization = (config.config or {}).get("customization") if config else None
         raw = customization.get("discover", {}) if isinstance(customization, dict) else {}
+        if isinstance(raw, dict) and isinstance(raw.get("slides"), list):
+            # News slides were retired from Discover; drop them rather than the whole curation.
+            raw = {**raw, "slides": [slide for slide in raw["slides"] if not (isinstance(slide, dict) and slide.get("kind") == "news")]}
         return DiscoverSettings.model_validate(raw)
     except ValidationError:
         # Older malformed editorial settings cannot break the learner's catalog.
         return DiscoverSettings()
 
 
-def _news(db: Session, org_id: int) -> list[NewsArticle]:
-    if not CORE_CAPABILITIES["news"] or not inspect(db.connection()).has_table("newsarticle"):
-        return []
-    return list(db.exec(select(NewsArticle).where(NewsArticle.org_id == org_id, NewsArticle.status == NewsArticleStatus.published).order_by(NewsArticle.published_at.desc(), NewsArticle.creation_date.desc())).all())
-
-
-def _sources(db: Session, org_id: int, user_id: int | None = None, catalog: tuple[list, list, list] | None = None) -> dict:
+def _sources(db: Session, user_id: int | None = None, catalog: tuple[list, list, list] | None = None) -> dict:
     """Publishable hero sources. ``catalog`` (badges, cards, collections) reuses the cards Discover already built."""
     from src.services.badge_discover import _cards, _collection_dict, _public_collections
 
@@ -66,7 +61,6 @@ def _sources(db: Session, org_id: int, user_id: int | None = None, catalog: tupl
     return {
         "badge": {card["badge_uuid"]: card for card in cards},
         "collection": {collection.collection_uuid: _collection_dict(collection, groups[int(collection.id)]) for collection in collections if groups[int(collection.id)]},
-        "news": {article.article_uuid: article for article in _news(db, org_id)},
     }
 
 
@@ -78,8 +72,6 @@ def _resolve(slide: DiscoverSlide, sources: dict) -> dict | None:
         defaults = {"title": item["name"], "description": item["subtitle"] or item["description"], "eyebrow": "Featured badge", "action_label": "View badge", "href": f'/badges/{item["badge_uuid"].removeprefix("badge_")}', "thumbnail_url": item["thumbnail_image"], "badge": item}
     elif slide.kind == "collection":
         defaults = {"title": item["name"], "description": item["description"], "eyebrow": "Badge series", "action_label": "Explore series", "href": f'/badges/collections/{item["collection_uuid"].removeprefix("badge_collection_")}', "thumbnail_url": item["thumbnail_image"], "collection": item}
-    elif slide.kind == "news":
-        defaults = {"title": item.title, "description": item.summary or "", "eyebrow": "News", "action_label": "Read story", "href": f"/news/{item.slug}", "thumbnail_url": ""}
     elif slide.kind == "challenges":
         defaults = {"title": "Monthly challenges", "description": "A new way to stretch your skills. Fresh challenges are coming soon.", "eyebrow": "Coming soon", "action_label": "", "href": "", "thumbnail_url": "/jungle_landscape.jpg"}
     else:
@@ -94,14 +86,13 @@ def hero_slides(db: Session, org_id: int | None, featured: list[dict], user_id: 
     settings = _settings(_config(db, int(site.id)))
     if not settings.enabled:
         return []
-    sources = _sources(db, int(site.id), user_id, catalog)
+    sources = _sources(db, user_id, catalog)
     if settings.mode == "curated":
         chosen = settings.slides
     else:
-        news = [DiscoverSlide(kind="news", target=article.article_uuid) for article in sources["news"].values() if article.featured][:2]
         badges = [DiscoverSlide(kind="badge", target=card["badge_uuid"], theme="blue") for card in featured]
         series = [DiscoverSlide(kind="collection", target=uuid, theme="light") for uuid, collection in sources["collection"].items() if len(collection["badges"]) > 1][:1]
-        chosen = (news + badges + series)[:5]
+        chosen = (badges + series)[:5]
         if not chosen:
             chosen = [DiscoverSlide(kind="link", target="/plans", title="Find your next chapter", description="Explore badges and put your next step into a plan.", eyebrow="Discover", action_label="Explore your plans", image_url="/jungle_landscape.jpg")]
         chosen.append(DiscoverSlide(kind="challenges", target="challenges", image_url="/jungle_landscape.jpg"))
@@ -110,14 +101,13 @@ def hero_slides(db: Session, org_id: int | None, featured: list[dict], user_id: 
 
 def read_settings(db: Session, user: PublicUser, org_id: int) -> dict:
     require_org_admin(user.id, org_id, db)
-    site = _site(db, org_id)
-    sources = _sources(db, int(site.id))
+    _site(db, org_id)
+    sources = _sources(db)
     return {
         "settings": _settings(_config(db, org_id)).model_dump(),
         "options": {
             "badges": [{"id": card["badge_uuid"], "name": card["name"]} for card in sources["badge"].values()],
             "collections": [{"id": collection["collection_uuid"], "name": collection["name"]} for collection in sources["collection"].values()],
-            "news": [{"id": article.article_uuid, "name": article.title} for article in sources["news"].values()],
         },
     }
 
@@ -125,7 +115,7 @@ def read_settings(db: Session, user: PublicUser, org_id: int) -> dict:
 def save_settings(db: Session, user: PublicUser, org_id: int, settings: DiscoverSettings) -> dict:
     require_org_admin(user.id, org_id, db)
     _site(db, org_id)
-    sources = _sources(db, org_id)
+    sources = _sources(db)
     for slide in settings.slides if settings.enabled and settings.mode == "curated" else []:
         if slide.kind not in {"link", "challenges"} and slide.target not in sources[slide.kind]:
             raise HTTPException(422, "A featured source is no longer published or available. Choose another source.")

@@ -8,8 +8,8 @@ export const PAGE_TITLE_FORMAT = {
 
 const labels: Record<string, string> = {
   account: 'Account', achievements: 'Achievements', analytics: 'Analytics', badge: 'Badges', badges: 'Badges',
-  boards: 'Boards', communities: 'Communities', community: 'Communities', edit: 'Edit', hub: 'Hub',
-  journal: 'Journal', marketplace: 'Marketplace', news: 'News', organization: 'Organizations',
+  boards: 'Boards', communities: 'Communities', community: 'Communities', discover: 'Discover', edit: 'Edit',
+  journal: 'Journal', marketplace: 'Marketplace', organization: 'Organizations',
   organizations: 'Organizations', payments: 'Payments', plans: 'Plans', platform: 'Platform', playground: 'Playgrounds',
   playgrounds: 'Playgrounds', podcast: 'Podcasts', podcasts: 'Podcasts', portfolio: 'Portfolio', programs: 'Programs',
   projects: 'Projects', reporting: 'Reporting', requirements: 'Requirements', resource: 'Resources', resources: 'Resources',
@@ -17,7 +17,7 @@ const labels: Record<string, string> = {
 }
 
 // Learner sections named as the nav names them; admin keeps the plain labels above.
-const learnerSections: Record<string, string> = { badges: 'Discover', plans: 'Plans' }
+const learnerSections: Record<string, string> = { badges: 'Discover', discover: 'Discover', plans: 'Plans' }
 
 function humanize(segment: string) {
   const decoded = decodeURIComponent(segment).replace(/[-_]+/g, ' ').trim()

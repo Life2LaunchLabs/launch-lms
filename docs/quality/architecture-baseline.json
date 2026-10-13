@@ -26,8 +26,7 @@
       "apps/web/components/Hooks/useProgramInvitations.ts": 1,
       "apps/web/components/Objects/Modals/FeedbackModal.tsx": 2,
       "apps/web/components/Objects/Modals/Podcast/Create/CreatePodcast.tsx": 1,
-      "apps/web/components/Pages/Portfolio/PortfolioShareDialog.tsx": 1,
-      "apps/web/components/Pages/Portfolio/PortfolioShell.tsx": 4
+      "apps/web/components/Pages/Portfolio/PortfolioShareDialog.tsx": 1
     },
     "component-direct-mui": {
       "apps/web/components/Admin/Programs/RequirementsAdmin.tsx": 2

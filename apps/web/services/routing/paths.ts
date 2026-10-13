@@ -21,28 +21,28 @@ export function withQuery(
   return query ? `${path}?${query}` : path
 }
 
-export function hubFromLegacyResources(
-  params: Record<string, string | string[] | undefined>
-): string {
-  const search = new URLSearchParams()
-  Object.entries(params).forEach(([key, value]) => {
-    if (Array.isArray(value)) value.forEach((item) => search.append(key, item))
-    else if (value !== undefined) search.set(key, value)
-  })
-  const query = search.toString()
-  return query ? `/hub?${query}` : '/hub'
+function flatten(params: Record<string, string | string[] | undefined>, key: string): string | undefined {
+  const value = params[key]
+  return Array.isArray(value) ? value[0] : value
 }
 
-export function hubFromLegacySearch(
-  params: Record<string, string | string[] | undefined>
-): string {
-  const search = new URLSearchParams()
-  Object.entries(params).forEach(([key, value]) => {
-    if (Array.isArray(value)) value.forEach((item) => search.append(key, item))
-    else if (value !== undefined) search.set(key, value)
-  })
-  const query = search.toString()
-  return query ? `/hub?${query}` : '/hub'
+/** Where old Hub, resources and search URLs land: Discover keeps the query and resource filters. */
+export function discoverFromLegacy(params: Record<string, string | string[] | undefined>): string {
+  const query = flatten(params, 'q') || flatten(params, 'query')
+  const resourceFilter = ['channel', 'user_channel', 'resource_types', 'tags', 'access', 'provider'].some((key) => flatten(params, key))
+  const type = flatten(params, 'type') === 'resources' || flatten(params, 'view') === 'resources' || resourceFilter ? 'resources' : undefined
+  return withQuery('/discover', { q: query, type, channel: flatten(params, 'channel'), resource_types: flatten(params, 'resource_types') })
+}
+
+/**
+ * The old full-page Hub URL. Hub now lives beside every page, so a conversation link opens
+ * Hub over Plans; a resource opens its page in Discover; a search becomes a Discover search.
+ */
+export function hubFromLegacy(params: Record<string, string | string[] | undefined>): string {
+  const resource = flatten(params, 'resource')
+  if (resource) return routePaths.org.resource(resource)
+  if (flatten(params, 'q') || flatten(params, 'query') || flatten(params, 'view') === 'resources' || flatten(params, 'channel')) return discoverFromLegacy(params)
+  return routePaths.org.hubOpen({ conversation: flatten(params, 'conversation') })
 }
 
 export const routePaths = {
@@ -89,7 +89,10 @@ export const routePaths = {
   },
   org: {
     root: () => '/',
-    hub: () => '/hub',
+    /** Plans is where the learner app opens. */
+    home: () => '/plans',
+    /** Opens Hub beside Plans, optionally resuming a conversation or starting with a prompt. */
+    hubOpen: (params?: { conversation?: string; prompt?: string }) => withQuery('/plans', { hub: 'open', hub_conversation: params?.conversation, hub_prompt: params?.prompt }),
     portfolio: () => '/portfolio',
     portfolioProjects: () => '/portfolio/projects',
     portfolioProjectsNew: () => '/portfolio/projects/new',
@@ -102,21 +105,19 @@ export const routePaths = {
     portfolioBadges: () => '/portfolio/badges',
     portfolioAchievements: () => '/portfolio/achievements',
     portfolioAchievementDetail: (achievementId: string) => `/portfolio/achievements/${achievementId}`,
-    news: () => '/news',
-    newsArticle: (slug: string) => `/news/${slug}`,
     badgesVerify: (uuid: string) => `/badges/${uuid}/verify`,
     organizations: () => '/organizations',
     organization: (orgSlug: string) => `/organization/${orgSlug}`,
-    search: (query?: string) => withQuery('/hub', { q: query }),
+    search: (query?: string) => withQuery('/discover', { q: query }),
+    discover: (params?: { q?: string; type?: string; resource_types?: string; saved?: string }) => withQuery('/discover', params),
     boards: () => '/boards',
     communities: () => '/communities',
     resources: () => '/resources',
     podcasts: () => '/podcasts',
-    badges: () => '/badges',
     plans: () => '/plans',
     plan: (planSlug: string) => `/plans/${encodeURIComponent(planSlug)}`,
     badgeDetail: (badgeUuid: string) => `/badges/${badgeUuid}`,
-    resource: (resourceUuid: string) => withQuery('/hub', { resource: resourceUuid }),
+    resource: (resourceUuid: string) => `/discover/resources/${encodeURIComponent(resourceUuid.replace(/^resource_/, ''))}`,
     podcast: (podcastUuid: string) => `/podcast/${podcastUuid}`,
     playground: (playgroundUuid: string) => `/playground/${playgroundUuid}`,
     community: (communityUuid: string) => `/community/${communityUuid}`,

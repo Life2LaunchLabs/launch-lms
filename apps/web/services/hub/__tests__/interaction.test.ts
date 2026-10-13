@@ -9,7 +9,7 @@ import {
   newHubTranscriptResources,
   removeHubContextResource,
   restoreSubmittedDraft,
-} from '../../../app/orgs/[orgslug]/(withmenu)/hub/hubInteraction.ts'
+} from '../interaction.ts'
 
 test('stopping preserves a new message typed while the previous response was running', () => {
   assert.equal(restoreSubmittedDraft('My next message', 'Stopped message'), 'My next message')

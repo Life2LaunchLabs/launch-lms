@@ -18,14 +18,14 @@ const START: { id: StartFrom; title: string; detail: string }[] = [
   { id: 'copy', title: 'A copy of a real account', detail: 'Someone agreed to share their account as a starting point.' },
   { id: 'duplicate', title: 'Another demo user', detail: 'Same account and guide, new person.' },
 ]
-export const START_PAGES = [['/hub', 'Hub'], ['/portfolio', 'Portfolio'], ['/plans', 'Plans'], ['/badges', 'Discover'], ['/admin', 'Organization admin']] as const
+export const START_PAGES = [['/plans', 'Plans'], ['/discover', 'Discover'], ['/portfolio', 'Portfolio'], ['/admin', 'Organization admin']] as const
 
 export default function StudioNewUser() {
   const { data } = useDemoStudio()
   const href = useStudioHref()
   const router = useRouter()
   const [from, setFrom] = useState<StartFrom>('blank')
-  const [form, setForm] = useState({ first_name: '', last_name: '', role_line: '', description: '', start_path: '/hub', start_org_slug: '', pilotable: true, source_email: '', password: '', source_user_id: '', include_conversations: false })
+  const [form, setForm] = useState({ first_name: '', last_name: '', role_line: '', description: '', start_path: '/plans', start_org_slug: '', pilotable: true, source_email: '', password: '', source_user_id: '', include_conversations: false })
   const [orgs, setOrgs] = useState<OrgRow[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')

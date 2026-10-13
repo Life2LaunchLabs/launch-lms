@@ -55,8 +55,8 @@ function getAdminMigrationPath(pathname: string): string {
   return '/admin/platform'
 }
 
-function getHubRedirectDestination(requestUrl: string): string {
-  return new URL('/hub', requestUrl).toString()
+function getHomeRedirectDestination(requestUrl: string): string {
+  return new URL('/plans', requestUrl).toString()
 }
 
 function parseInternalOrgPath(pathname: string): { orgSlug: string; externalPath: string } | null {
@@ -145,7 +145,7 @@ export function resolveRequestRouting(
     ) {
       return {
         action: 'redirect',
-        destination: getHubRedirectDestination(input.requestUrl),
+        destination: getHomeRedirectDestination(input.requestUrl),
       }
     }
 
@@ -315,7 +315,7 @@ export function resolveRequestRouting(
     if (input.hasSession) {
       return {
         action: 'redirect',
-        destination: getHubRedirectDestination(input.requestUrl),
+        destination: getHomeRedirectDestination(input.requestUrl),
       }
     }
 

@@ -1,9 +1,9 @@
 'use client'
 
 import React from 'react'
-import { Award, CalendarClock, Check, Clock3, Link2, PauseCircle, Play, Target } from 'lucide-react'
+import { Award, CalendarClock, Check, Clock3, Link2, Lock, PauseCircle, Play, Sparkles, Star, Target } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { planTone } from './planColors'
+import { planVars } from './planColors'
 import { Button } from '@components/ui/button'
 
 export type StepAvailability = {
@@ -36,7 +36,7 @@ function shortDate(value?: string | null) {
   return (date.getFullYear() === new Date().getFullYear() ? DAY : DAY_YEAR).format(date)
 }
 
-function stepState(item: StepItem) {
+export function stepState(item: StepItem): 'open' | 'not_ready' | 'done' {
   const status = item.progress?.status || 'not_started'
   if (status === 'completed' || status === 'canceled' || item.availability?.state === 'done') return 'done'
   if (item.availability?.state === 'not_ready') return 'not_ready'
@@ -71,78 +71,85 @@ export function notReadySentence(item: StepItem) {
   return 'Someone helping with this plan has put this step on hold.'
 }
 
+type StepState = 'open' | 'not_ready' | 'done'
+
 type StepStackProps = {
   items: StepItem[]
   // eslint-disable-next-line no-unused-vars
   colorFor: (item: StepItem) => string
   selectedUuid?: string
+  /** The step the learner should do next; its node breathes. */
+  currentUuid?: string
   // eslint-disable-next-line no-unused-vars
   onSelect: (item: StepItem) => void
   showPlanName?: boolean
-  /** What a selected card shows under its header: description, Start, or the not-ready reason. */
+  /** What the selected step's card shows: description, Start, or the not-ready reason. */
   // eslint-disable-next-line no-unused-vars
-  renderSelected: (item: StepItem, state: 'open' | 'not_ready' | 'done') => React.ReactNode
+  renderSelected: (item: StepItem, state: StepState) => React.ReactNode
 }
 
-export function StepStack({ items, colorFor, selectedUuid, onSelect, showPlanName = false, renderSelected }: StepStackProps) {
+/** A step on the path: filled when done, bright when open, grey and locked when not ready. */
+export function PathNode({ state, current, selected }: { state: StepState; current?: boolean; selected?: boolean }) {
+  const open = state === 'open'
+  return <span
+    aria-hidden="true"
+    className={cn(
+      'relative z-10 flex shrink-0 items-center justify-center rounded-full transition-transform',
+      current ? 'path-node-current h-14 w-14' : 'h-11 w-11',
+      state === 'done' && 'bg-[var(--plan-face)] text-[var(--plan-face-ink)] shadow-[0_4px_0_var(--plan-edge)]',
+      open && !current && 'border-[3px] border-[var(--plan-face)] bg-card text-[var(--plan-accent)] shadow-[0_4px_0_var(--plan-edge)]',
+      open && current && 'bg-[var(--plan-face)] text-[var(--plan-face-ink)]',
+      state === 'not_ready' && 'bg-muted text-muted-foreground shadow-[0_4px_0_hsl(var(--edge))]',
+      selected && !current && 'scale-110',
+    )}
+  >
+    {state === 'done' ? <Check size={20} strokeWidth={3.5} /> : state === 'not_ready' ? <Lock size={16} strokeWidth={2.5} /> : current ? <Star size={24} strokeWidth={2.5} fill="currentColor" /> : <Play size={16} strokeWidth={3} fill="currentColor" />}
+  </span>
+}
+
+export function StepStack({ items, colorFor, selectedUuid, currentUuid, onSelect, showPlanName = false, renderSelected }: StepStackProps) {
   return <ol className="flex flex-col">
     {items.map((item, index) => {
       const state = stepState(item)
       const selected = item.objective_uuid === selectedUuid
-      const tone = planTone(colorFor(item))
       const meta = stepMeta(item)
       const MetaIcon = meta.icon
-      const notReady = state === 'not_ready'
-      const done = state === 'done'
-      return <li key={item.objective_uuid} id={`step-${item.objective_uuid}`} className="flex items-stretch gap-3 sm:gap-4">
-        <div className="flex w-8 shrink-0 flex-col items-center" aria-hidden="true">
-          <span className={cn('min-h-3 flex-1 border-l-[3px] border-dashed', index === 0 ? 'border-transparent' : 'border-border')} />
-          <span
-            className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-[3px] bg-card', notReady && 'scale-75 border-muted bg-muted', done && 'border-emerald-100 bg-emerald-600')}
-            style={!done && !notReady ? { borderColor: tone.ring, ...(selected ? { backgroundColor: tone.ring, boxShadow: `0 0 0 3px var(--background), 0 0 0 6px ${tone.ring}` } : {}) } : undefined}
-          >{done ? <Check size={15} strokeWidth={3.5} className="text-white" /> : null}</span>
-          <span className={cn('min-h-3 flex-1 border-l-[3px] border-dashed', index === items.length - 1 ? 'border-transparent' : 'border-border')} />
-        </div>
-        <div
-          className={cn('my-1 min-w-0 flex-1 rounded-xl border p-3', notReady ? 'border-border bg-muted text-muted-foreground' : 'text-foreground', done && 'bg-card')}
-          style={{
-            ...(!notReady && !done ? { backgroundColor: `color-mix(in srgb, ${tone.ring} 7%, hsl(var(--card)))` } : {}),
-            borderColor: selected && !notReady ? tone.ring : 'hsl(var(--border))',
-          }}
-        >
-          <button type="button" onClick={() => onSelect(item)} aria-expanded={selected} className="flex w-full items-center gap-4 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2 rounded-xl">
-            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-              {showPlanName && item.plan ? <span className="inline-flex items-center gap-1.5 text-xs font-black" >
-                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: notReady ? 'currentColor' : tone.ring }} />{item.plan.name}
-              </span> : null}
-              <span className={cn('text-base font-semibold leading-snug', done && 'text-muted-foreground')}>{item.title}</span>
-              <span className={cn('flex items-center gap-2 text-xs font-medium', notReady ? 'text-muted-foreground' : 'text-foreground/75')}>
-                <MetaIcon size={14} aria-hidden="true" />{meta.text}
-              </span>
-            </span>
+      const last = index === items.length - 1
+      return <li key={item.objective_uuid} id={`step-${item.objective_uuid}`} data-objective-shell={item.objective_uuid} data-plan="" style={planVars(colorFor(item))} className="relative flex items-start gap-4 pb-4 scroll-mt-24">
+        {!last ? <span aria-hidden="true" className={cn('absolute left-[27px] top-12 bottom-0 w-[3px] -translate-x-1/2 rounded-full', state === 'done' ? 'bg-[var(--plan-face)]/60' : 'bg-border')} /> : null}
+        <button type="button" onClick={() => onSelect(item)} aria-label={`${item.title}, ${meta.text}`} aria-expanded={selected} className="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
+          <PathNode state={state} current={item.objective_uuid === currentUuid} selected={selected} />
+        </button>
+        <div className={cn('min-w-0 flex-1', selected ? 'rounded-2xl border-2 bg-card p-4 shadow-[0_4px_0_hsl(var(--edge))]' : 'pt-2', selected && (state === 'not_ready' ? 'border-border' : 'border-[var(--plan-face)]'))}>
+          <button type="button" onClick={() => onSelect(item)} tabIndex={-1} className="flex w-full min-w-0 flex-col items-start gap-0.5 text-left">
+            {showPlanName && item.plan ? <span className="inline-flex max-w-full items-center gap-1.5 truncate text-xs font-extrabold text-[var(--plan-accent)]">{item.plan.name}</span> : null}
+            <span className={cn('max-w-full font-bold leading-snug', selected ? 'text-lg' : 'truncate text-base', state === 'done' && !selected && 'text-muted-foreground', state === 'not_ready' && 'text-muted-foreground')}>{item.title}</span>
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground"><MetaIcon size={13} aria-hidden="true" />{meta.text}</span>
           </button>
-          {selected ? <div className="mt-3 border-t border-border pt-3">{renderSelected(item, state)}</div> : null}
+          {selected ? <div className="mt-3">{renderSelected(item, state)}</div> : null}
         </div>
       </li>
     })}
   </ol>
 }
 
-/** The selected card's body: description, then Start or the reason it isn't ready yet. */
+/** The selected card's body: description, then Start (and Ask Hub) or the reason it isn't ready yet. */
 // eslint-disable-next-line no-unused-vars
-export function SelectedStepBody({ item, state, onStart, onGoTo }: { item: StepItem; state: 'open' | 'not_ready' | 'done'; onStart: () => void; onGoTo: (objectiveUuid: string) => void }) {
+export function SelectedStepBody({ item, state, onStart, onGoTo, onAsk }: { item: StepItem; state: StepState; onStart: () => void; onGoTo: (objectiveUuid: string) => void; onAsk?: () => void }) {
   const reason = item.availability?.reason
-  return <div className="flex flex-wrap items-center gap-3">
-    <p className="min-w-[14rem] flex-1 text-sm leading-6 text-foreground/80">
-      {state === 'not_ready' ? `${notReadySentence(item)} ` : null}{item.description || (state === 'done' ? 'You finished this step.' : '')}
-    </p>
-    {state === 'not_ready' && reason?.kind === 'after'
-      ? <button type="button" onClick={() => onGoTo(reason.objective_uuid)} className="min-h-11 rounded-full border-2 border-border bg-card px-4 text-sm font-black hover:bg-muted">Go to {reason.title}</button>
-      : null}
-    {state !== 'not_ready'
-      ? <Button type="button" onClick={onStart} variant={state === 'done' ? 'outline' : 'brand'} className="min-h-11 shrink-0">
-        {state === 'done' ? 'Review' : item.progress?.status && item.progress.status !== 'not_started' ? 'Continue' : 'Start'}
-      </Button>
-      : null}
+  const text = `${state === 'not_ready' ? `${notReadySentence(item)} ` : ''}${item.description || (state === 'done' ? 'You finished this step.' : '')}`.trim()
+  return <div className="flex flex-col gap-3">
+    {text ? <p className="text-sm leading-6 text-foreground/80">{text}</p> : null}
+    <div className="flex flex-wrap gap-2">
+      {state === 'not_ready' && reason?.kind === 'after'
+        ? <Button type="button" variant="surface" onClick={() => onGoTo(reason.objective_uuid)}>Go to {reason.title}</Button>
+        : null}
+      {state !== 'not_ready'
+        ? <Button type="button" onClick={onStart} variant={state === 'done' ? 'surface' : 'plan'} className="min-w-32 flex-1 sm:flex-none">
+          {state === 'done' ? 'Review' : item.progress?.status && item.progress.status !== 'not_started' ? 'Continue' : 'Start'}
+        </Button>
+        : null}
+      {onAsk && state !== 'done' ? <Button type="button" variant="surface" onClick={onAsk}><Sparkles size={15} aria-hidden="true" />Ask Hub</Button> : null}
+    </div>
   </div>
 }

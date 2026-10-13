@@ -24,7 +24,7 @@ export default function CollectionPage({ orgslug, initialCollection }: { orgslug
   const percent = collection.badges.length ? Math.round((earned * 100) / collection.badges.length) : 0
   const next = collection.badges.find((card) => card.plan) || collection.badges.find((card) => !card.earned && card.status === 'published')
   return <div className="min-h-screen bg-background text-[15px] leading-[1.45] text-foreground">
-    <div className="mx-auto max-w-[1056px] px-6"><ContentPageHeader orgslug={orgslug} backLabel="Discover" onBack={() => router.push(getUriWithOrg(orgslug, routePaths.org.badges()))} noBottomMargin noHorizontalBleed /></div>
+    <div className="mx-auto max-w-[1056px] px-6"><ContentPageHeader orgslug={orgslug} backLabel="Discover" onBack={() => router.push(getUriWithOrg(orgslug, routePaths.org.discover()))} noBottomMargin noHorizontalBleed /></div>
     <section className="relative overflow-hidden bg-muted">
       <div className="absolute inset-0 bg-[url('/landing/cta.png')] bg-cover bg-center opacity-50" aria-hidden="true" />
       <div className="relative mx-auto max-w-[1056px] px-4 pb-14 pt-6 sm:px-6">

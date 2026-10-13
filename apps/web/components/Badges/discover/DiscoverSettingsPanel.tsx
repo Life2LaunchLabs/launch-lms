@@ -15,7 +15,7 @@ import { badgeDiscoverApi, type DiscoverSettings, type DiscoverSettingsResponse,
 
 const kinds: { value: DiscoverSlideKind; label: string }[] = [
   { value: 'badge', label: 'Featured badge' }, { value: 'collection', label: 'Badge series' },
-  { value: 'news', label: 'News' }, { value: 'link', label: 'Custom story' },
+  { value: 'link', label: 'Custom story' },
   { value: 'challenges', label: 'Challenges coming soon' },
 ]
 const blank = (): DiscoverSlideConfig => ({ kind: 'challenges', target: 'challenges', title: '', description: '', eyebrow: '', action_label: '', image_url: '/jungle_landscape.jpg', thumbnail_url: '', theme: 'dark' })
@@ -55,15 +55,15 @@ export default function DiscoverSettingsPanel({ orgId, orgslug }: { orgId: numbe
   return <div className="min-h-full bg-background text-foreground">
     <AdminFeatureHeader feature="Discover" tabs={[]} activeTab="discover" actions={<Button asChild size="sm" variant="outline"><Link href={getUriWithOrg(orgslug, '/admin/badges')}>Back to badges</Link></Button>} />
     <div className="mx-auto max-w-4xl space-y-6 p-6">
-      <div><h1 className="text-2xl font-semibold">Discover carousel</h1><p className="mt-2 text-sm text-muted-foreground">Feature news, badges, series, and announcements at the top of Discover.</p></div>
+      <div><h1 className="text-2xl font-semibold">Discover carousel</h1><p className="mt-2 text-sm text-muted-foreground">Feature badges, series, and announcements at the top of Discover.</p></div>
       {error ? <div role="alert" className="rounded-lg border border-destructive p-4 text-sm">{error}{!draft ? <Button onClick={() => void load(true)} variant="ghost">Retry</Button> : null}</div> : null}
       {!draft ? !error && <p role="status">Loading settings…</p> : <form className="space-y-6" onSubmit={event => { event.preventDefault(); void save() }}>
         <fieldset disabled={saving} className="space-y-6">
           <div className="flex items-center justify-between rounded-xl bg-card p-4"><label htmlFor="discover-enabled" className="font-medium">Show carousel</label><Switch id="discover-enabled" checked={draft.enabled} onCheckedChange={enabled => setDraft({ ...draft, enabled })} /></div>
-          <label className="grid gap-2 text-sm font-medium">Content selection<select aria-label="Content selection" className={selectClass} value={draft.mode} onChange={event => setDraft({ ...draft, mode: event.target.value as DiscoverSettings['mode'] })}><option value="automatic">Automatic</option><option value="curated">Curated</option></select><span className="font-normal text-muted-foreground">Automatic includes featured news, badges, a series, and the challenges announcement. Curated uses your slides in the order below.</span></label>
+          <label className="grid gap-2 text-sm font-medium">Content selection<select aria-label="Content selection" className={selectClass} value={draft.mode} onChange={event => setDraft({ ...draft, mode: event.target.value as DiscoverSettings['mode'] })}><option value="automatic">Automatic</option><option value="curated">Curated</option></select><span className="font-normal text-muted-foreground">Automatic includes featured badges, a series, and the challenges announcement. Curated uses your slides in the order below.</span></label>
           {draft.mode === 'curated' ? <div className="space-y-4">
             {draft.slides.map((slide, index) => {
-              const sources = slide.kind === 'badge' ? data?.options.badges : slide.kind === 'collection' ? data?.options.collections : data?.options.news
+              const sources = slide.kind === 'badge' ? data?.options.badges : slide.kind === 'collection' ? data?.options.collections : undefined
               return <section key={index} className="space-y-4 rounded-xl border border-border bg-card p-4" aria-label={`Slide ${index + 1}`}>
                 <div className="flex items-center justify-between"><h2 className="font-semibold">Slide {index + 1}</h2><div className="flex gap-1"><Button type="button" size="icon" variant="ghost" disabled={index === 0} aria-label={`Move slide ${index + 1} up`} onClick={() => move(index, -1)}><ArrowUp size={16} /></Button><Button type="button" size="icon" variant="ghost" disabled={index === draft.slides.length - 1} aria-label={`Move slide ${index + 1} down`} onClick={() => move(index, 1)}><ArrowDown size={16} /></Button><Button type="button" size="icon" variant="ghost" aria-label={`Remove slide ${index + 1}`} onClick={() => setDraft({ ...draft, slides: draft.slides.filter((_, position) => position !== index) })}><Trash2 size={16} /></Button></div></div>
                 <div className="grid gap-4 sm:grid-cols-2">

@@ -5,7 +5,7 @@ import { ChevronDown, LibraryBig } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import type { HubConversationSummary } from '@services/hub/advisor'
 import { hubTimestampLabel } from '@services/hub/timestamp'
-import HubConversationHistory from './HubConversationHistory'
+import HubConversationHistory from '../conversation/HubConversationHistory'
 
 export default function HubHomeRecents({
   conversations,

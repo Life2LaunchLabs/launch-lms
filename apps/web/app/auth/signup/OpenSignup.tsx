@@ -226,7 +226,7 @@ function OpenSignUpComponent({
               type="button"
               onClick={handleGoogleSignup}
               disabled={isGoogleLoading}
-              variant="ctaSecondary"
+              variant="surface"
               size="cta"
               className="w-full text-[16px]"
             >

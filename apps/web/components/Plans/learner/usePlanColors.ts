@@ -2,8 +2,7 @@
 
 import React from 'react'
 import type { PlanTarget } from '../PlanEditorShared'
-
-const PLAN_COLORS = ['#7c3aed', '#0f9f9a', '#d97706', '#2563eb', '#db2777', '#65a30d', '#dc2626', '#0891b2']
+import { PLAN_COLORS, planPalette } from './planColors'
 
 // Colors are a per-browser preference; storage can be unavailable (private windows), so never let it throw.
 function remember(key: string, colors: Record<string, string>) {
@@ -20,7 +19,8 @@ export default function usePlanColors(plans: PlanTarget[], viewerId: string | nu
   const [colors, setColors] = React.useState<Record<string, string>>({})
 
   React.useEffect(() => {
-    try { setColors(JSON.parse(window.localStorage.getItem(storageKey) || '{}')) } catch { setColors({}) }
+    // Older entries hold the previous palette's hexes; map them onto the current faces.
+    try { setColors(Object.fromEntries(Object.entries(JSON.parse(window.localStorage.getItem(storageKey) || '{}') as Record<string, string>).map(([uuid, color]) => [uuid, planPalette(color).face]))) } catch { setColors({}) }
   }, [storageKey])
 
   React.useEffect(() => {
