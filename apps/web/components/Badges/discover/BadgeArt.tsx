@@ -8,8 +8,8 @@ import { buttonVariants } from '@components/ui/button'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import type { BadgeCard } from '@services/learning/badgeDiscover'
 
-/** Soft tile colors behind badge art, picked per badge so a row reads as a colorful shelf. */
-const TILES = ['#DDF1E8', '#DCE6FB', '#FCEBCB', '#FBDDE2', '#EEE3FC', '#F1F8D0', '#F7EED6']
+/** Tile colors behind badge art, picked per badge so a row reads as a colorful shelf; each theme sets its own shades. */
+const TILES = Array.from({ length: 7 }, (_, index) => `var(--badge-tile-${index})`)
 
 export function tileColor(key: string): string {
   let hash = 0
@@ -36,8 +36,8 @@ export function BadgeSticker({ src, name, size = 136, className }: { src?: strin
 
 function Tag({ card }: { card: BadgeCard }) {
   const [label, style] = card.earned ? ['Earned', 'bg-[#D7F25C] text-[#111318]']
-    : card.plan ? ['In progress', 'bg-[#2B5FD9] text-white']
-    : card.status === 'coming_soon' ? ['Soon', 'bg-[#111318] text-white'] : [null, '']
+    : card.plan ? ['In progress', 'bg-[var(--org-primary-color)] text-[var(--org-on-primary-color)]']
+    : card.status === 'coming_soon' ? ['Soon', 'bg-shell text-white'] : [null, '']
   if (!label) return null
   return <span className={cn('absolute left-2.5 top-2.5 rounded-full px-2 py-1 text-[11px] font-black uppercase tracking-wide', style)}>{label}</span>
 }
@@ -49,7 +49,7 @@ export function BadgeTile({ card, orgslug, width = 196, fill = false }: { card: 
     <span className="relative flex h-[180px] items-center justify-center rounded-[18px] transition-transform duration-200 group-hover:-translate-y-[3px]" style={{ backgroundColor: tileColor(card.badge_uuid) }}>
       <span className="transition-transform duration-300 group-hover:-rotate-[5deg] group-hover:scale-105"><BadgeSticker src={card.thumbnail_image} name={card.name} /></span>
       <Tag card={card} />
-      {card.plan ? <span className="absolute inset-x-3.5 bottom-3 block h-2 overflow-hidden rounded-full bg-white/80"><span className="block h-full rounded-full bg-[#2B5FD9]" style={{ width: `${percent}%` }} /></span> : null}
+      {card.plan ? <span className="absolute inset-x-3.5 bottom-3 block h-2 overflow-hidden rounded-full bg-white/80"><span className="block h-full rounded-full bg-[var(--org-primary-color)]" style={{ width: `${percent}%` }} /></span> : null}
     </span>
     <span className="px-0.5 text-base font-black leading-tight">{card.name}</span>
   </Link>
@@ -64,12 +64,12 @@ export function Shelf({ children, label }: { children: React.ReactNode; label: s
 
 export function SectionTitle({ children, href, aside }: { children: React.ReactNode; href?: string; aside?: React.ReactNode }) {
   return <div className="flex flex-wrap items-center gap-3.5">
-    <h2 className="m-0 text-xl font-semibold tracking-tight text-foreground">{href ? <Link href={href} className="text-foreground no-underline hover:underline">{children} →</Link> : children}</h2>
+    <h2 className="m-0 text-xl font-extrabold tracking-tight text-foreground">{href ? <Link href={href} className="text-foreground no-underline hover:underline">{children} →</Link> : children}</h2>
     {aside}
   </div>
 }
 
 export function CollectedPill({ cards }: { cards: BadgeCard[] }) {
   const earned = cards.filter((card) => card.earned).length
-  return <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">{earned} of {cards.length} collected</span>
+  return <span className="rounded-full bg-raised px-2.5 py-1 text-xs font-bold text-muted-foreground">{earned} of {cards.length} collected</span>
 }

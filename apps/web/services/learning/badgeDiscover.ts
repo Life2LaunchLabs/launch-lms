@@ -54,10 +54,10 @@ export type BadgePage = BadgeCard & {
   ways: { badge_uuid: string; routes: BadgeRoute[]; plan: { plan_uuid: string; slug: string; status: string } | null }
 }
 
-export type DiscoverSlideKind = 'badge' | 'collection' | 'news' | 'link' | 'challenges'
+export type DiscoverSlideKind = 'badge' | 'collection' | 'link' | 'challenges'
 export type DiscoverSlideConfig = { kind: DiscoverSlideKind; target: string; title: string; description: string; eyebrow: string; action_label: string; image_url: string; thumbnail_url: string; theme: 'blue' | 'dark' | 'light' }
 export type DiscoverSettings = { enabled: boolean; mode: 'automatic' | 'curated'; slides: DiscoverSlideConfig[] }
-export type DiscoverSettingsResponse = { settings: DiscoverSettings; options: Record<'badges' | 'collections' | 'news', { id: string; name: string }[]> }
+export type DiscoverSettingsResponse = { settings: DiscoverSettings; options: Record<'badges' | 'collections', { id: string; name: string }[]> }
 export type DiscoverHeroSlide = Omit<DiscoverSlideConfig, 'target'> & { key: string; href: string; badge?: BadgeCard; collection?: BadgeCollectionPage }
 
 export type DiscoverFeed = {

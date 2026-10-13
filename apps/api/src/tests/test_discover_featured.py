@@ -3,9 +3,7 @@ from fastapi import HTTPException
 from pydantic import ValidationError
 from sqlmodel import select
 
-from src.core.capabilities import CORE_CAPABILITIES
 from src.db.discover import DiscoverSettings, DiscoverSlide
-from src.db.news import NewsArticle, NewsArticleStatus
 from src.db.organization_config import OrganizationConfig
 from src.db.users import AnonymousUser, User
 from src.services import badge_discover, discover_featured
@@ -13,23 +11,13 @@ from src.tests.test_badge_discover import _collect
 from src.tests.test_badge_routes import LEARNER, _session, _world
 
 
-def _news(session):
-    NewsArticle.__table__.create(session.get_bind(), checkfirst=True)
-    for uuid, org_id, status in [("news_public", 1, "published"), ("news_private", 1, "draft"), ("news_other", 2, "published")]:
-        session.add(NewsArticle(article_uuid=uuid, org_id=org_id, title=uuid, slug=uuid, status=NewsArticleStatus(status), featured=True))
-    session.commit()
-
-
-def test_automatic_hero_includes_published_site_news_and_challenges(monkeypatch):
-    monkeypatch.setitem(CORE_CAPABILITIES, "news", True)
+def test_automatic_hero_features_badges_series_and_challenges():
     with _session() as session:
         _world(session)
         _collect(session)
-        _news(session)
         slides = badge_discover.discover(session, AnonymousUser(), site_org_id=1)["hero_slides"]
-        assert slides[0]["key"] == "news:news_public"
         assert slides[-1]["kind"] == "challenges" and slides[-1]["href"] == ""
-        assert {slide["key"] for slide in slides}.isdisjoint({"news:news_private", "news:news_other"})
+        assert not any(slide["kind"] == "news" for slide in slides)
         assert any(slide["kind"] == "badge" for slide in slides)
         assert any(slide["kind"] == "collection" for slide in slides)
 
@@ -55,12 +43,10 @@ def test_curated_order_and_artwork_persist_without_overwriting_org_settings():
         assert discover_featured.hero_slides(session, 1, []) == []
 
 
-def test_selected_org_admin_required_and_unavailable_sources_rejected(monkeypatch):
-    monkeypatch.setitem(CORE_CAPABILITIES, "news", True)
+def test_selected_org_admin_required_and_unavailable_sources_rejected():
     with _session() as session:
         admin, _, _ = _world(session)
         _collect(session)
-        _news(session)
         row = session.get(User, admin.id)
         row.is_superadmin = False
         session.add(row)
@@ -70,11 +56,22 @@ def test_selected_org_admin_required_and_unavailable_sources_rejected(monkeypatc
             with pytest.raises(HTTPException) as error:
                 discover_featured.save_settings(session, user, org_id, DiscoverSettings())
             assert error.value.status_code == 403
-        for target in ["news_private", "news_other", "news_missing"]:
+        for kind, target in [("badge", "badge_missing"), ("collection", "badge_collection_missing")]:
             with pytest.raises(HTTPException) as error:
-                discover_featured.save_settings(session, admin, 1, DiscoverSettings(mode="curated", slides=[DiscoverSlide(kind="news", target=target)]))
+                discover_featured.save_settings(session, admin, 1, DiscoverSettings(mode="curated", slides=[DiscoverSlide(kind=kind, target=target)]))
             assert error.value.status_code == 422
-        assert discover_featured.read_settings(session, admin, 1)["options"]["news"] == [{"id": "news_public", "name": "news_public"}]
+        assert "news" not in discover_featured.read_settings(session, admin, 1)["options"]
+
+
+def test_stored_news_slides_are_dropped_without_losing_curation():
+    with _session() as session:
+        _world(session)
+        _collect(session)
+        row = session.exec(select(OrganizationConfig).where(OrganizationConfig.org_id == 1)).first() or OrganizationConfig(org_id=1)
+        row.config = {"customization": {"discover": {"mode": "curated", "slides": [{"kind": "news", "target": "news_public"}, {"kind": "challenges", "target": "challenges"}]}}}
+        session.add(row)
+        session.commit()
+        assert [slide["kind"] for slide in discover_featured.hero_slides(session, 1, [])] == ["challenges"]
 
 
 @pytest.mark.parametrize("target", ["javascript:alert(1)", "//evil.test", "/\\evil.test", "https://user:password@example.com", " "])

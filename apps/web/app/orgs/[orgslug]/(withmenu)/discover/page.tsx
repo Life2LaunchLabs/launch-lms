@@ -1,10 +1,10 @@
-import React from 'react'
+import React, { Suspense } from 'react'
 import { Metadata } from 'next'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
 import { getOrgThumbnailMediaDirectory, getOrgOgImageMediaDirectory } from '@services/media/media'
 import { getCanonicalUrl, getOrgSeoConfig, buildPageTitle, buildBreadcrumbJsonLd } from '@/lib/seo/utils'
 import { JsonLd } from '@components/SEO/JsonLd'
-import BadgeDiscoverPage from '@components/Badges/BadgeDiscoverPage'
+import DiscoverView from '@components/Discover/DiscoverPage'
 
 type MetadataProps = {
   params: Promise<{ orgslug: string }>
@@ -29,7 +29,7 @@ export async function generateMetadata(props: MetadataProps): Promise<Metadata> 
   return {
     title,
     description,
-    keywords: `${org.name}, ${org.description}, badges, digital badges, learning, education, online learning, ${org.name} badges`,
+    keywords: `${org.name}, ${org.description}, badges, digital badges, resources, learning, education, online learning, ${org.name} badges`,
     robots: {
       index: true,
       follow: true,
@@ -76,7 +76,7 @@ const DiscoverPage = async (params: any) => {
   return (
     <div>
       <JsonLd data={breadcrumbJsonLd} />
-      <BadgeDiscoverPage orgslug={orgslug} />
+      <Suspense fallback={null}><DiscoverView orgslug={orgslug} /></Suspense>
     </div>
   )
 }

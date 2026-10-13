@@ -345,6 +345,6 @@ Acceptance: owner and visitor views, publish/unpublish, bio edit, section orderi
 - [x] Phase 0 · Foundations
 - [x] Phase 1 · App shell and coach
 - [x] Phase 2 · Plans (simplified editor: one list per chapter; dated/flex zones and virtual "Right now"/"Completed" sections removed; helping feed folded into plan cards)
-- [ ] Phase 3 · Discover
+- [x] Phase 3 · Discover
 - [ ] Phase 4 · Portfolio
 - [ ] Phase 5 · Sweep and verification

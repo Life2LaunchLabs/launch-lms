@@ -2749,3 +2749,7 @@
 /* A plan's text accent: light on the dark theme, deep on the light theme. */
 [data-plan] { --plan-accent: var(--plan-accent-light); }
 .dark [data-plan], .dark[data-plan] { --plan-accent: var(--plan-accent-dark); }
+
+/* ─── Discover hero timer: the active segment fills while its story shows ─── */
+@keyframes discover-hero-timer { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.discover-hero-timer { transform-origin: left; animation: discover-hero-timer var(--hero-duration, 7s) linear forwards; }
