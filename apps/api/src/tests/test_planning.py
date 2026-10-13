@@ -271,6 +271,12 @@ def test_plan_target_date_is_optional_and_dates_are_bounded():
         undated = planning.create_plan(db, _user(1), PlanCreate(name="No target"))
         assert undated["due_date"] is None and undated["status"] == "active"
         assert [phase["name"] for phase in undated["phases"]] == ["Getting started"]
+        edited = planning.update_plan(db, _user(1), undated["slug"], PlanUpdate(name="Still open", step_order="in_order"))
+        assert edited["name"] == "Still open" and edited["due_date"] is None
+        assert edited["step_order"] == "in_order"
+        planning.update_plan(db, _user(1), undated["slug"], PlanUpdate(due_date=date(2027, 12, 31)))
+        cleared = planning.update_plan(db, _user(1), undated["slug"], PlanUpdate(due_date=None))
+        assert cleared["due_date"] is None
         with pytest.raises(HTTPException) as inverted:
             planning.create_plan(db, _user(1), PlanCreate(name="Backwards", start_date=date(2027, 1, 2), due_date=date(2027, 1, 1)))
         assert inverted.value.status_code == 422

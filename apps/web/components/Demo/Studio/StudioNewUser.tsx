@@ -18,7 +18,7 @@ const START: { id: StartFrom; title: string; detail: string }[] = [
   { id: 'copy', title: 'A copy of a real account', detail: 'Someone agreed to share their account as a starting point.' },
   { id: 'duplicate', title: 'Another demo user', detail: 'Same account and guide, new person.' },
 ]
-export const START_PAGES = [['/hub', 'Hub'], ['/portfolio', 'Portfolio'], ['/plans', 'My plans'], ['/badges', 'Discover'], ['/admin', 'Organization admin']] as const
+export const START_PAGES = [['/hub', 'Hub'], ['/portfolio', 'Portfolio'], ['/plans', 'Plans'], ['/badges', 'Discover'], ['/admin', 'Organization admin']] as const
 
 export default function StudioNewUser() {
   const { data } = useDemoStudio()

@@ -80,13 +80,13 @@ function LayoutContent({ children, orgslug }: { children: React.ReactNode; orgsl
         </div>
       )}
       <div className="flex-1 relative print:flex-none" style={{ zIndex: 'var(--z-content)' }}>
-        <div className={`mx-auto w-full md:flex md:max-w-full md:items-start print:block print:px-0 ${isActivityPage ? 'md:w-full md:px-0' : 'md:w-fit md:gap-4 md:px-4 lg:px-5 xl:px-6 2xl:px-8'}`}>
+        <div className={`org-page-layout mx-auto w-full md:flex md:items-start print:block print:px-0 ${isActivityPage ? 'md:w-full md:px-0' : 'md:px-6'}`}>
           {showOrgMenu && (
             <div className="print:hidden md:contents">
               <OrgMenu orgslug={orgslug} compact={workspace?.compact} />
             </div>
           )}
-          <div className={`min-w-0 w-full pb-[calc(5rem+env(safe-area-inset-bottom))] md:max-w-full md:shrink md:pb-0 print:pb-0 ${isActivityPage ? 'md:w-full' : 'md:w-[66rem]'}`}>
+          <div className={`org-page-content min-w-0 w-full pb-[calc(5rem+env(safe-area-inset-bottom))] md:max-w-full md:shrink md:pb-0 print:pb-0 ${isActivityPage ? 'md:w-full' : 'md:w-[66rem]'}`}>
             {children}
           </div>
           <div

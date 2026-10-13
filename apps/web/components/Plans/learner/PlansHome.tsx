@@ -42,13 +42,14 @@ type PlansHomeProps = {
 
 export default function PlansHome({ orgslug, token, getPlanColor, onCreate, renderObjective }: PlansHomeProps) {
   const router = useRouter()
-  const { data, isLoading } = useSWR<any>(token ? homeKey() : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: true })
+  const { data, error, isLoading, mutate: retry } = useSWR<any>(token ? homeKey() : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: true })
   const [selected, setSelected] = React.useState('')
   const [open, setOpen] = React.useState<StepItem | null>(null)
   const [busy, setBusy] = React.useState(false)
   const weekItems: StepItem[] = data?.week?.items || []
   const selectedUuid = selected || firstUp(weekItems)?.objective_uuid || ''
 
+  if (error) return <div className="mt-6 rounded-xl border border-border bg-card p-5" role="alert"><p className="text-sm">Your weekly steps could not load.</p><button type="button" onClick={() => void retry()} className="mt-3 min-h-11 text-sm font-semibold underline">Try again</button></div>
   if (isLoading || !data) return <div className="flex min-h-[45vh] items-center justify-center"><Loader2 className="animate-spin text-muted-foreground" /></div>
   if (!data.plans?.length) return <EmptyHome orgslug={orgslug} onCreate={onCreate} />
 
@@ -73,17 +74,17 @@ export default function PlansHome({ orgslug, token, getPlanColor, onCreate, rend
     ...((data.later || []).length ? [{ key: 'later', label: 'Later', sub: 'Whenever you’re ready', items: (data.later || []).flatMap((group: any) => group.items) }] : []),
   ]
 
-  return <div className="mt-6 flex flex-col gap-10">
-    <section aria-labelledby="this-week" className="rounded-[28px] border border-border bg-card p-4 shadow-sm sm:p-6">
+  return <div className="mt-6 flex flex-col gap-7">
+    <section aria-labelledby="this-week" className="rounded-2xl border border-border bg-card p-4 sm:p-5">
       <div className="flex flex-wrap items-end justify-between gap-3 px-1">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.12em] text-muted-foreground">{range(week.start, week.end)}</p>
-          <h2 id="this-week" className="text-3xl font-black tracking-tight sm:text-4xl">This week</h2>
+          <h2 id="this-week" className="text-2xl font-semibold tracking-tight">This week</h2>
         </div>
-        <p className="text-lg font-black">{week.done_count} of {week.total} done</p>
+        <p className="text-sm font-semibold">{week.done_count} of {week.total} done</p>
       </div>
       <div className="mt-4 flex gap-1.5 px-1" aria-hidden="true">
-        {weekItems.map((item) => <span key={item.objective_uuid} className="h-3 flex-1 rounded-full bg-muted" style={item.progress?.status === 'completed' ? { backgroundColor: planTone(colorFor(item)).ring } : undefined} />)}
+        {weekItems.map((item) => <span key={item.objective_uuid} className="h-2 flex-1 rounded-full bg-muted" style={item.progress?.status === 'completed' ? { backgroundColor: planTone(colorFor(item)).ring } : undefined} />)}
       </div>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3 px-1 text-sm text-muted-foreground">
         <span>{week.complete ? 'You did everything you planned this week.' : 'Next up is picked for you, but anything open is fair game.'}</span>
@@ -95,24 +96,27 @@ export default function PlansHome({ orgslug, token, getPlanColor, onCreate, rend
           steps a week
         </label>
       </div>
+      {week.total > week.target ? <p className="mt-2 px-1 text-xs text-muted-foreground">Dated and overdue steps are included alongside your weekly goal.</p> : null}
       {weekItems.length
         ? <div className="mt-4"><StepStack items={weekItems} colorFor={colorFor} selectedUuid={selectedUuid} onSelect={select} showPlanName renderSelected={renderSelected} /></div>
         : <p className="mt-6 rounded-2xl bg-muted px-4 py-8 text-center text-sm font-semibold text-muted-foreground">Nothing planned for this week yet.</p>}
-      {week.can_boost ? <div className={cn('mt-5 flex flex-wrap items-center gap-3 rounded-2xl px-4 py-4', week.complete ? 'bg-[#111318] text-white' : 'bg-muted/60')}>
-        <Sparkles size={20} className={week.complete ? 'text-[#D7F25C]' : 'text-muted-foreground'} aria-hidden="true" />
+      {week.can_boost ? <div className={cn('mt-5 flex flex-wrap items-center gap-3 rounded-2xl px-4 py-4', 'bg-muted/60')}>
+        <Sparkles size={20} className={'text-muted-foreground'} aria-hidden="true" />
         <span className="flex-1 text-sm font-bold">{week.complete ? 'Week done. Want to keep going?' : 'Moving fast? Pull a few more steps into this week.'}</span>
-        <button type="button" disabled={busy} onClick={more} className={cn('min-h-11 rounded-2xl px-5 text-sm font-black transition active:translate-y-[3px] disabled:opacity-60', week.complete ? 'bg-[#D7F25C] text-[#111318] shadow-[0_5px_0_#8BA42C]' : 'border-2 border-border bg-card')}>
+        <button type="button" disabled={busy} onClick={more} className={cn('min-h-11 rounded-2xl px-5 text-sm font-black transition active:translate-y-[3px] disabled:opacity-60', 'border border-border bg-card text-foreground')}>
           {busy ? 'Adding…' : 'Ready for more'}
         </button>
       </div> : null}
     </section>
 
     {groups.map((group) => <section key={group.key} aria-label={group.label}>
-      <div className="mb-2 flex items-baseline gap-3 pl-11 sm:pl-12">
-        <h2 className="text-2xl font-black tracking-tight">{group.label}</h2>
-        {group.sub ? <span className="text-sm font-semibold text-muted-foreground">{group.sub}</span> : null}
-      </div>
-      <StepStack items={group.items} colorFor={colorFor} selectedUuid={selectedUuid} onSelect={select} showPlanName renderSelected={renderSelected} />
+      <details open={group.key === 'next' ? true : undefined}>
+        <summary className="mb-2 min-h-11 cursor-pointer rounded-lg py-2 text-sm text-muted-foreground focus-visible:outline focus-visible:outline-2">
+          <h2 className="ml-2 inline text-xl font-semibold tracking-tight text-foreground">{group.label}</h2>
+          <span className="ml-3">{group.items.length} {group.items.length === 1 ? 'step' : 'steps'}{group.sub ? ` · ${group.sub}` : ''}</span>
+        </summary>
+        <StepStack items={group.items} colorFor={colorFor} selectedUuid={selectedUuid} onSelect={select} showPlanName renderSelected={renderSelected} />
+      </details>
     </section>)}
 
     <Modal isDialogOpen={Boolean(open)} onOpenChange={(value) => { if (!value) setOpen(null) }} minWidth="lg" minHeight="no-min" dialogTitle={open?.title || ''} dialogContent={open ? renderObjective(open, () => setOpen(null)) : null} />

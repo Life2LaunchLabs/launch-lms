@@ -41,3 +41,10 @@
 @media print { .hub-conversation-frame { display: none; } .hub-workspace--companion { padding: 0; } }
 
 .hub-workspace--companion .org-join-banner { position: sticky; width: 100%; border-radius: 15px 15px 0 0; }
+
+/* Full Hub uses the same centered navigation/content footprint as learner pages. */
+.org-page-layout, .hub-workspace--full { max-width: 1600px; }
+.hub-workspace--full { margin-inline: auto; padding-inline: 24px; gap: 0; }
+.hub-workspace--full .hub-conversation-frame--full { margin: 0; max-width: 800px; }
+.org-page-content > .general-content-wrapper { margin-inline: 0; }
+@media (max-width: 767px) { .hub-workspace--full { padding-inline: 0; gap: 0; } }

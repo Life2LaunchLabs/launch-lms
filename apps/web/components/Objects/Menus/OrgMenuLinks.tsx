@@ -64,7 +64,7 @@ export function getPrimaryOrgMenuItems({
     },
     {
       href: '/plans',
-      label: 'My plans',
+      label: 'Plans',
       icon: <ClipboardText size={18} weight="fill" />,
       active: Boolean(isOnPlans),
       show: true,

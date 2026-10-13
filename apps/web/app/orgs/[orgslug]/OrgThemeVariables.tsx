@@ -34,7 +34,7 @@ export default function OrgThemeVariables({ children }: { children: React.ReactN
   const darkPrimary = darkAccent || lightPrimary
   const themeVariables = {
     '--org-page-background-light': '#fafafa',
-    '--org-page-background-dark': '#0a0a0a',
+    '--org-page-background-dark': 'hsl(var(--background))',
     '--org-primary-color-light': lightPrimary,
     '--org-primary-color-dark': darkPrimary,
     '--org-on-primary-color-light': onAccent(lightPrimary),

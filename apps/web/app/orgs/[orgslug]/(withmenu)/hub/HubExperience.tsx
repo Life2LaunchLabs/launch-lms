@@ -462,7 +462,6 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
     const requestedConversation = filters.conversation?.trim()
     if (!requestedConversation || !accessToken || !org?.id || conversationUuid === requestedConversation) return
     openConversation(requestedConversation)
-    // The URL is the initial deep-link source; later switches call openConversation directly.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken, filters.conversation, org?.id])
 
@@ -474,7 +473,6 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
       const uuid = sessionStorage.getItem(storageKey)
       if (uuid) void openConversation(uuid)
     } catch { /* conversation history remains available without session storage */ }
-    // Restore once per authenticated workspace; explicit Hub links take precedence.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken, org?.id, storageKey])
 
@@ -546,13 +544,14 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
       try {
         await updateHubMemorySettings(org.id, { notice_dismissed: true }, accessToken)
       } catch {
-        // The acknowledgement can be retried on a later visit without blocking Hub.
+        setMemoryNoticeVisible(true)
+        setError('The memory notice could not be dismissed. Please try again.')
       }
     }
   }, [accessToken, memoryNoticeVisible, org?.id])
 
   const changeMemoryEnabled = async (enabled: boolean) => {
-    if (!accessToken || !org?.id || memorySettingSaving) return
+    if (!accessToken || !org?.id || memorySettingSaving) return false
     setMemorySettingSaving(true)
     setError('')
     try {
@@ -563,15 +562,16 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
       )
       setMemoryEnabled(settings.enabled)
       setMemoryNoticeVisible(false)
+      return true
     } catch (settingError: any) {
       setError(settingError?.message || 'Your memory setting could not be saved.')
+      return false
     } finally {
       setMemorySettingSaving(false)
     }
   }
 
   const resetChat = () => {
-    void dismissMemoryNotice()
     setMessages([])
     setConversationUuid(null)
     setConversationTitle('')
@@ -611,7 +611,6 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
     persistState(nextMessages, nextContext)
   }
 
-  // Transcript cards open the tray; a card removed from the chat is added back first.
   const openTrayAt = (resource: HubAdvisorResource) => {
     if (!inChat.has(resource.resource_uuid)) {
       const nextContext = addHubContextResource(contextResources, resource)
@@ -653,7 +652,6 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
     pendingSubmissionRef.current = null
     const content = (pendingSubmission?.content || draft).trim()
     if (!content || !accessToken || !org?.id || sending || conversationLoading || (!visible && !pendingSubmission?.allowHidden)) return
-    void dismissMemoryNotice()
     const previousMessages = messages
     let history: HubAdvisorMessage[] = hubAdvisorHistory(messages)
     while (history.length >= 2 && history.reduce((sum, item) => sum + item.content.length, 0) + content.length > 7_500) {
@@ -856,7 +854,6 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
     target.scrollIntoView({ behavior: 'smooth', block: 'center' })
     target.focus({ preventScroll: true })
     target.classList.remove('hub-object-pointed')
-    // Restart the calm outline pulse when the same activity is selected again.
     void target.offsetWidth
     target.classList.add('hub-object-pointed')
     window.setTimeout(() => target.classList.remove('hub-object-pointed'), 1400)
@@ -922,7 +919,7 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
 
       <div ref={scrollRef} hidden={view === 'resources'} className={`scrollbar-subtle absolute inset-x-0 bottom-0 overflow-y-auto overscroll-contain scroll-smooth ${conversationStarted || companion ? (companion && workspace?.editRun?.status === 'active' ? 'top-[4.75rem]' : companion && !workspace?.surface ? 'top-[4.5rem]' : 'top-11') : 'top-[3.25rem]'}`}>
         <div
-          className={`mx-auto min-h-full w-full max-w-3xl px-4 sm:px-6 ${conversationStarted || companion ? 'pt-5' : 'pt-7 sm:pt-10'}`}
+          className={`${companion ? 'mx-auto max-w-3xl' : ''} min-h-full w-full px-4 sm:px-6 ${conversationStarted || companion ? 'pt-5' : 'pt-7 sm:pt-10'}`}
           style={{ paddingBottom: composerHeight + 88 + (memoryNoticeVisible ? 148 : 0) + (libraryOpen ? 290 : 0) + (workspace?.editReviewItems.length ? 58 : 0) }}
         >
           <div className="space-y-7" aria-live="polite" aria-busy={sending || conversationLoading}>
@@ -986,13 +983,13 @@ export default function HubExperience({ orgslug, filters, companion = false, vis
 
       <div hidden={view === 'resources'} className="pointer-events-none absolute inset-x-0 bottom-20 z-[var(--z-sticky-header)] lg:bottom-0">
         <div aria-hidden="true" className="hub-composer-backdrop absolute bottom-0 left-0 right-2 -top-10" />
-        <div className="pointer-events-auto relative mx-auto w-full max-w-[50rem] px-4 pb-4 sm:px-5 sm:pb-6">
+        <div className="pointer-events-auto relative mx-auto w-full max-w-[50rem] px-4 pb-4 sm:px-6 sm:pb-6">
         {memoryNoticeVisible && (
           <HubMemoryNotice
             orgslug={orgslug}
             enabled={memoryEnabled}
             saving={memorySettingSaving}
-            onEnabledChange={(enabled) => void changeMemoryEnabled(enabled)}
+            onSave={changeMemoryEnabled}
             onDismiss={() => void dismissMemoryNotice()}
             onLearnMore={(href) => {
               void dismissMemoryNotice().finally(() => window.location.assign(href))

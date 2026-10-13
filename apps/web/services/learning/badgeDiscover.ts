@@ -1,8 +1,8 @@
 import { getAPIUrl } from '@services/config/config'
 import { RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/requests'
 
-async function request(path: string, token?: string, next?: any) {
-  const response = await fetch(`${getAPIUrl()}badges/${path}`, RequestBodyWithAuthHeader('GET', null, next ?? null, token))
+async function request(path: string, token?: string, next?: any, method = 'GET', body: any = null) {
+  const response = await fetch(`${getAPIUrl()}badges/${path}`, RequestBodyWithAuthHeader(method, body, next ?? null, token))
   return errorHandling(response)
 }
 
@@ -54,7 +54,14 @@ export type BadgePage = BadgeCard & {
   ways: { badge_uuid: string; routes: BadgeRoute[]; plan: { plan_uuid: string; slug: string; status: string } | null }
 }
 
+export type DiscoverSlideKind = 'badge' | 'collection' | 'news' | 'link' | 'challenges'
+export type DiscoverSlideConfig = { kind: DiscoverSlideKind; target: string; title: string; description: string; eyebrow: string; action_label: string; image_url: string; thumbnail_url: string; theme: 'blue' | 'dark' | 'light' }
+export type DiscoverSettings = { enabled: boolean; mode: 'automatic' | 'curated'; slides: DiscoverSlideConfig[] }
+export type DiscoverSettingsResponse = { settings: DiscoverSettings; options: Record<'badges' | 'collections' | 'news', { id: string; name: string }[]> }
+export type DiscoverHeroSlide = Omit<DiscoverSlideConfig, 'target'> & { key: string; href: string; badge?: BadgeCard; collection?: BadgeCollectionPage }
+
 export type DiscoverFeed = {
+  hero_slides: DiscoverHeroSlide[]
   featured: BadgeCard[]
   keep_going: BadgeCard[]
   collections: BadgeCollectionPage[]
@@ -66,7 +73,9 @@ const clean = (value: string) => encodeURIComponent(value)
 
 /** Learner-facing badge reads: the Discover feed, a badge's page and a collection's page. */
 export const badgeDiscoverApi = {
-  discover: (token?: string, orgId?: number): Promise<DiscoverFeed> => request(`discover${orgId ? `?org_id=${orgId}` : ''}`, token),
+  discover: (token?: string, orgId?: number, siteOrgId?: number): Promise<DiscoverFeed> => request(`discover?${new URLSearchParams({ ...(orgId ? { org_id: String(orgId) } : {}), ...(siteOrgId ? { site_org_id: String(siteOrgId) } : {}) })}`, token),
+  settings: (orgId: number, token: string): Promise<DiscoverSettingsResponse> => request(`discover/settings?org_id=${orgId}`, token),
+  saveSettings: (orgId: number, settings: DiscoverSettings, token: string): Promise<DiscoverSettingsResponse> => request(`discover/settings?org_id=${orgId}`, token, undefined, "PUT", settings),
   badge: (badgeUuid: string, token?: string, next?: any): Promise<BadgePage> => request(`${clean(badgeUuid)}/page`, token, next),
   collection: (collectionUuid: string, token?: string, next?: any): Promise<BadgeCollectionPage> => request(`collections/${clean(collectionUuid)}`, token, next),
 }

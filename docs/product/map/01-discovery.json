@@ -1162,7 +1162,7 @@
           "health": "works",
           "traceability": "partial",
           "priority": "unset",
-          "implementation_notes": "Landing modules and catalogs surface curated or trending material. Validate whether “trending,” “featured,” and “recommended” are understandable and useful rather than merely promotional.",
+          "implementation_notes": "Landing modules and catalogs surface curated or trending material. Validate whether “trending,” “featured,” and “recommended” are understandable and useful rather than merely promotional. Owner follow-up retains the large Discover hero with desktop side selectors, mobile scrolling selectors, and Challenges coming soon as a slide. Organization admins configure automatic or curated sources, order, artwork and copy at Badges → Discover carousel. Only published catalog/news sources resolve; configuration is stored in the existing org JSON. Owner review remains pending.",
           "original_state": "`Live` / `Conditional`",
           "updated_at": "2026-09-04T01:09:56.193726+00:00",
           "description": "",

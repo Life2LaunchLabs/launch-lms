@@ -17,7 +17,7 @@ const labels: Record<string, string> = {
 }
 
 // Learner sections named as the nav names them; admin keeps the plain labels above.
-const learnerSections: Record<string, string> = { badges: 'Discover', plans: 'My plans' }
+const learnerSections: Record<string, string> = { badges: 'Discover', plans: 'Plans' }
 
 function humanize(segment: string) {
   const decoded = decodeURIComponent(segment).replace(/[-_]+/g, ' ').trim()

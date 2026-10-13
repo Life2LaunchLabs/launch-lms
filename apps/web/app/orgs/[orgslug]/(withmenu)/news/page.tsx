@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import TabbedPageHeader from '@components/Objects/StyledElements/Headers/TabbedPageHeader'
 import { notFound } from 'next/navigation'
 import type React from 'react'
 import { ArrowUpRight, BadgeCheck, User } from 'lucide-react'
@@ -103,15 +104,9 @@ export default async function NewsPage(props: {
   const standardArticles = articles.filter((article) => !article.featured)
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mb-6">
-        <h1 className="text-3xl font-semibold tracking-tight text-foreground">
-          News
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-          Updates on the state of the app while this release is still taking shape.
-        </p>
-      </div>
+    <main className="mx-auto flex w-full max-w-[1056px] flex-col p-6">
+      <TabbedPageHeader activeTab="news" tabs={[]} expanded={false} fullHeader={null} compactHeader={<h1 className="text-2xl font-semibold tracking-tight">News</h1>} />
+      <p className="my-6 max-w-2xl text-sm text-muted-foreground">Updates from {org.name}.</p>
 
       {featuredArticles.length > 0 && (
         <section className="mb-6 flex flex-col gap-3">

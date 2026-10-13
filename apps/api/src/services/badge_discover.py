@@ -132,7 +132,7 @@ def _public_collections(db: Session, org_id: int | None) -> list[BadgeCollection
     return list(db.exec(statement.order_by(BadgeCollection.id)).all())
 
 
-def discover(db: Session, current_user: PublicUser | AnonymousUser | None, org_id: int | None = None) -> dict:
+def discover(db: Session, current_user: PublicUser | AnonymousUser | None, org_id: int | None = None, site_org_id: int | None = None) -> dict:
     """Everything the Discover page shows, in one call."""
     user_id = _user_id(current_user)
     badges = list(db.exec(lookups._public_badge_query(org_id).order_by(LearningBadge.id)).all())
@@ -146,7 +146,10 @@ def discover(db: Session, current_user: PublicUser | AnonymousUser | None, org_i
     startable = [card for card in available if card["status"] == LearningBadgeStatus.PUBLISHED.value]
     # Badges with art first, newest first: the hero carousel is image-led.
     featured = sorted(startable, key=lambda card: (bool(card["thumbnail_image"]), card["update_date"] or ""), reverse=True)[:FEATURED_COUNT]
+    from src.services.discover_featured import hero_slides
+
     return {
+        "hero_slides": hero_slides(db, site_org_id or org_id, featured, user_id),
         "featured": featured,
         "keep_going": [card for card in cards if card["plan"]],
         "collections": [_collection_dict(collections[collection_id], items) for collection_id, items in by_collection.items()],

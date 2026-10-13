@@ -46,19 +46,19 @@ function IssuerLogo({ org }: { org: EarnOption['issuer']['org'] }) {
 
 function Steps({ route, page }: { route: BadgeRoute; page: BadgePage }) {
   const chaptered = new Set(route.steps.map((step) => step.chapter)).size > 1
-  return <div className="overflow-x-auto px-6 pb-8 pt-9 sm:px-8">
-    <ol className="m-0 flex min-w-max list-none items-start p-0">
-      {route.steps.map((step, index) => <li key={`${step.title}-${index}`} className="flex items-start">
-        <div className="flex w-[132px] flex-col items-center gap-2.5 text-center">
-          <span className={cn('flex h-[72px] w-[72px] items-center justify-center rounded-full border-[3px] border-[#111318] text-[22px] font-black', step.kind === 'activity' ? 'bg-[#DCE6FB]' : 'bg-white')}>
+  return <div className="overflow-x-auto px-6 pb-8 pt-9 sm:px-6">
+    <ol className="m-0 flex min-w-max list-none items-start max-sm:min-w-0 max-sm:flex-col max-sm:gap-3 p-0">
+      {route.steps.map((step, index) => <li key={`${step.title}-${index}`} className="flex items-start max-sm:w-full">
+        <div className="flex w-[132px] flex-col items-center gap-2.5 text-center max-sm:w-full max-sm:flex-row max-sm:text-left">
+          <span className={cn('flex h-[72px] w-[72px] items-center justify-center rounded-full border-[3px] border-[#111318] text-[22px] font-black', step.kind === 'activity' ? 'bg-[#DCE6FB]' : 'bg-card')}>
             {step.kind === 'activity' ? <Play size={22} fill="currentColor" aria-label="Activity" /> : index + 1}
           </span>
           <strong className="text-[15px] leading-tight">{step.title}</strong>
-          {chaptered && step.chapter ? <span className="text-[13px] text-[#5B6274]">{step.chapter}</span> : null}
+          {chaptered && step.chapter ? <span className="text-[13px] text-muted-foreground">{step.chapter}</span> : null}
         </div>
-        <span aria-hidden="true" className="mt-[33px] block h-1.5 w-7 rounded-full bg-[#E3E7F0]" />
+        <span aria-hidden="true" className="mt-[33px] block h-1.5 w-7 max-sm:hidden rounded-full bg-[#E3E7F0]" />
       </li>)}
-      <li className="flex w-[132px] flex-col items-center gap-2.5 text-center">
+      <li className="flex w-[132px] flex-col items-center gap-2.5 text-center max-sm:w-full max-sm:flex-row max-sm:text-left">
         <BadgeSticker src={page.thumbnail_image} name={page.name} size={72} />
         <strong className="text-[15px] leading-tight">Badge is yours</strong>
       </li>
@@ -73,33 +73,33 @@ export default function EarnWith({ page, options, selected, onSelect, action }: 
   const others = options.length - 1
   const started = Boolean(page.ways.plan)
   return <section aria-labelledby="earn-title" className="flex flex-col gap-4">
-    <h2 id="earn-title" className="m-0 text-4xl font-black leading-tight tracking-tight">How you’ll earn it</h2>
-    <div className="overflow-hidden rounded-[28px] bg-white">
-      <div className="flex flex-wrap items-center gap-[18px] bg-[#E9F0FE] px-6 py-6 sm:px-7">
+    <h2 id="earn-title" className="m-0 text-2xl font-semibold leading-tight tracking-tight">How you’ll earn it</h2>
+    <div className="overflow-hidden rounded-[28px] bg-card">
+      <div className="flex flex-wrap items-center gap-[18px] bg-muted px-6 py-6 sm:px-7">
         <span aria-hidden="true" className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[#111318] text-lg font-black text-white">
           <IssuerLogo org={selected.issuer.org} />
         </span>
         <div className="flex min-w-0 flex-[1_1_240px] flex-col gap-0.5">
           <strong className="text-2xl leading-tight">Earn with {selected.issuer.org.name}</strong>
-          <span className="text-[15px] text-[#4B5161]">{selected.route.name} · {effort(selected.route)}</span>
+          <span className="text-[15px] text-muted-foreground">{selected.route.name} · {effort(selected.route)}</span>
         </div>
         {others > 0 && !started ? <button type="button" onClick={() => setChanging(!changing)} aria-expanded={changing}
           className="min-h-11 px-2 text-[15px] font-black text-[#2B5FD9]">{changing ? 'Done' : `${others} other option${others === 1 ? '' : 's'}`}</button> : null}
         <ActionButton action={action} className="h-[54px] text-[17px]" />
       </div>
-      {changing ? <div role="group" aria-label="Other ways to earn" className="grid gap-3 border-t border-[#DCE5FA] bg-[#F4F7FE] px-6 py-4 sm:grid-cols-2 sm:px-7 lg:grid-cols-3">
+      {changing ? <div role="group" aria-label="Other ways to earn" className="grid gap-3 border-t border-border bg-muted px-6 py-4 sm:grid-cols-2 sm:px-7 lg:grid-cols-3">
         {options.map((option) => {
           const active = optionKey(option) === optionKey(selected)
           return <button key={optionKey(option)} type="button" aria-pressed={active} onClick={() => { onSelect(option); setChanging(false) }}
-            className={cn('flex flex-col gap-1 rounded-2xl border-2 bg-white p-4 text-left transition', active ? 'border-[#2B5FD9]' : 'border-transparent hover:border-[#C9D6F5]')}>
+            className={cn('flex flex-col gap-1 rounded-2xl border-2 bg-card p-4 text-left transition', active ? 'border-[#2B5FD9]' : 'border-transparent hover:border-[#C9D6F5]')}>
             <span className="flex items-center justify-between gap-2"><strong className="text-base">{option.issuer.org.name}</strong>
-              <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-black uppercase tracking-wide', option.issuer.can_start ? 'bg-[#D7F25C] text-[#111318]' : 'bg-[#EDEFF5] text-[#4B5161]')}>{accessLabel(option.issuer)}</span></span>
-            <span className="text-sm text-[#5B6274]">{option.route.name} · {effort(option.route)}{option.route.recommended ? ' · Recommended' : ''}</span>
+              <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-black uppercase tracking-wide', option.issuer.can_start ? 'bg-[#D7F25C] text-foreground' : 'bg-[#EDEFF5] text-muted-foreground')}>{accessLabel(option.issuer)}</span></span>
+            <span className="text-sm text-muted-foreground">{option.route.name} · {effort(option.route)}{option.route.recommended ? ' · Recommended' : ''}</span>
             {active ? <span className="inline-flex items-center gap-1 text-xs font-black text-[#2B5FD9]"><Check size={13} />Selected</span> : null}
           </button>
         })}
       </div> : null}
-      {selected.route.description ? <p className="m-0 px-6 pt-6 text-base text-[#3A4152] sm:px-8">{selected.route.description}</p> : null}
+      {selected.route.description ? <p className="m-0 px-6 pt-6 text-base text-[#3A4152] sm:px-6">{selected.route.description}</p> : null}
       <Steps route={selected.route} page={page} />
     </div>
   </section>

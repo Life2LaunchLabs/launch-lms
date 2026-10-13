@@ -35,7 +35,7 @@
           "health": "works",
           "traceability": "partial",
           "priority": "unset",
-          "implementation_notes": "My plans groups steps into This week (the week's picks, with progress by plan), Next week, months for dated steps, and Later, beside the list of plans and a single New plan entry. Badge plans and the Launch Ready starter plan are ordinary plans here. Plan lists support active/completed/archived contexts and include independent and assigned plans.",
+          "implementation_notes": "Plans groups steps into This week (the week's picks, with progress by plan), Next week, months for dated steps, and Later, beside the list of plans and a single New plan entry. Badge plans and the Launch Ready starter plan are ordinary plans here. Plan lists support active/completed/archived contexts and include independent and assigned plans. The 2026-10-12 learner polish uses a compact weekly overview and an independent completed-plans disclosure in the overview rail. The owner follow-up restores progress-filled plan selectors and a stable primary navigation frame. Owner review of this revision remains pending.",
           "original_state": "`Live`",
           "updated_at": "2026-10-12T16:00:00+00:00",
           "description": "",
@@ -196,6 +196,10 @@
             {
               "kind": "code",
               "path": "apps/api/src/services/plan_home.py"
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/components/Plans/learner/PlansOverviewPanel.tsx"
             }
           ],
           "relationships": []
@@ -209,7 +213,7 @@
           "health": "works",
           "traceability": "partial",
           "priority": "unset",
-          "implementation_notes": "The plan page shows a carousel header with neighbouring plans, About this plan, and the full step stack opened at the next step. A plan identifies subject, owner, source assignment or badge, group, collaborators, start/due dates, and step progress.",
+          "implementation_notes": "The plan page has a compact identity/progress header, a plan picker, About this plan, and a step stack with the next step selected without automatically scrolling past the header. A plan identifies subject, owner, source assignment or badge, group, collaborators, start/due dates, and step progress. The 2026-10-12 learner polish adds a deterministic return to Plans and moves sharing and permitted detail editing into the header. System starter and source-issued badge definitions remain locked through effective API capabilities, including delegated roles. Owner review of this revision remains pending. Owner follow-up restores the full-color progress header and compact borderless sharing row. Create your own persists a personal plan immediately and opens header editing. Personal target dates remain optional when editing, matching plan creation; supplied dates still enforce phase/objective bounds.",
           "original_state": "`Live`",
           "updated_at": "2026-10-12T16:00:00+00:00",
           "description": "",
@@ -370,6 +374,14 @@
             {
               "kind": "code",
               "path": "apps/web/components/Plans/learner/StepStack.tsx"
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/components/Plans/learner/PlanHeaderActions.tsx"
+            },
+            {
+              "kind": "code",
+              "path": "apps/api/src/services/plan_permissions.py"
             }
           ],
           "relationships": []
@@ -6063,7 +6075,7 @@
           "health": "works",
           "traceability": "complete",
           "priority": "medium",
-          "implementation_notes": "Private server-side Hub threads preserve chat, deterministic search/resource events, and bounded resource/page context. A stable shared learner layout keeps one Hub instance mounted while routed app content changes. Desktop uses a viewport-contained, internally scrolling app frame on a darker outside canvas with low elevation; narrower screens use an accessible drawer. The companion uses the native Hub header with collapse/full-Hub actions, and New chat lives in the options menu.",
+          "implementation_notes": "Private server-side Hub threads preserve chat, deterministic search/resource events, and bounded resource/page context. A stable shared learner layout keeps one Hub instance mounted while routed app content changes. Desktop uses a viewport-contained, internally scrolling app frame on a darker outside canvas with low elevation; narrower screens use an accessible drawer. The companion uses the native Hub header with collapse/full-Hub actions, and New chat lives in the options menu. The 2026-10-12 learner polish restores five discrete recent conversations below next steps, with older history expanded inline. Owner review of this revision remains pending.",
           "original_state": null,
           "updated_at": "2026-09-16T02:21:15.096461+00:00",
           "description": "",
