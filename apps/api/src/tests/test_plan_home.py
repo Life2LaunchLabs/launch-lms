@@ -134,7 +134,8 @@ def test_ready_for_more_and_pace():
 def test_unfinished_steps_carry_into_next_week_and_dates_group_by_month():
     with _home_session() as db:
         today = date.today()
-        plan = _plan_with_steps(db, "Summer job", [f"Step {n}" for n in range(1, 8)])
+        # Enough undated steps that the dated one is not needed to fill this week or next.
+        plan = _plan_with_steps(db, "Summer job", [f"Step {n}" for n in range(1, 12)])
         due = today + timedelta(days=60)
         plan = planning.create_objective(db, _user(1), plan["slug"], PlanObjectiveCreate(title="Apply by the deadline", due_date=due))
         week = plan_home.home(db, _user(1), today)
@@ -230,3 +231,19 @@ def test_finished_plan_greets_its_learner_once():
         assert planning.get_plan(db, _user(1), plan["slug"])["celebration_pending"] is True
         planning.mark_plan_celebrated(db, _user(1), plan["slug"])
         assert planning.get_plan(db, _user(1), plan["slug"])["celebration_pending"] is False
+
+
+def test_open_steps_due_later_can_start_this_week():
+    with _home_session() as db:
+        today = date.today()
+        later = today + timedelta(days=90)
+        plan = planning.create_plan(db, _user(1), _plan_create("College apps"))
+        for title in ["Essay draft", "Recommendation letters"]:
+            plan = planning.create_objective(db, _user(1), plan["slug"], PlanObjectiveCreate(title=title, due_date=later))
+        plan = planning.create_objective(db, _user(1), plan["slug"], PlanObjectiveCreate(title="Submit", due_date=later))
+        plan = planning.update_plan(db, _user(1), plan["slug"], PlanUpdate(step_order=StepOrder.IN_ORDER))
+        home = plan_home.home(db, _user(1), today)
+        # Nothing is more pressing, so the open step starts now; blocked ones wait.
+        assert [item["title"] for item in home["week"]["items"]] == ["Essay draft"]
+        month = next(group for group in home["months"] if group["key"] == later.strftime("%Y-%m"))
+        assert "Essay draft" not in [item["title"] for item in month["items"]]
