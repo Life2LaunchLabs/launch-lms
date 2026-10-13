@@ -26,7 +26,6 @@
   .hub-shell[data-hub-state='open'] .hub-panel { transform: none; opacity: 1; }
   .hub-shell[data-hub-state='open'] .org-layout-shell { height: calc(100dvh - var(--candidate-experience-height, 0px) - var(--demo-bar-height, 0px)); min-height: 0; overflow: hidden; padding-right: calc(var(--hub-width) + 24px); background-color: hsl(var(--shell)) !important; }
   .hub-shell[data-hub-state='open'] .learner-page { height: calc(100% - 24px); margin-block: 12px; overflow-y: auto; overscroll-behavior: contain; border-radius: 24px; background: var(--org-page-background); box-shadow: 0 0 0 1px hsl(var(--border) / .7); }
-  .hub-shell[data-hub-state='open'] #org-layout-right-sidebar { display: none; }
   .hub-shell[data-hub-edge] .org-layout-shell { padding-right: 52px; }
   .hub-edge { top: 0; bottom: 0; right: 0; width: 52px; }
 }

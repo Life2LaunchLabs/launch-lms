@@ -61,9 +61,3 @@ export function planVars(color?: string | null): CSSProperties {
     '--plan-accent-dark': p.accentDark, '--plan-accent-light': p.accentLight,
   } as CSSProperties
 }
-
-/** @deprecated Read ``planVars``/``planPalette``; kept until the plan views move over. */
-export function planTone(color: string) {
-  const p = planPalette(color)
-  return { ring: p.face, foreground: p.faceInk }
-}

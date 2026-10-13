@@ -147,7 +147,6 @@
     "components/Pages/Portfolio/PortfolioShell.tsx|unused-imports/no-unused-imports|warning": 2,
     "components/Pages/Portfolio/ProjectEditorDialog.tsx|no-unused-vars|error": 3,
     "components/Pages/Portfolio/Timeline.tsx|no-unused-vars|error": 1,
-    "components/Plans/PlansWorkspace.tsx|react-hooks/exhaustive-deps|warning": 5,
     "components/Playground/PlaygroundCard.tsx|no-unused-vars|error": 1,
     "components/Playground/PlaygroundChatPanel.tsx|no-unused-vars|error": 1,
     "components/Playground/PlaygroundEditor.tsx|no-unused-vars|error": 1,
