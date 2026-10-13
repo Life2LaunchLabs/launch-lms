@@ -69,3 +69,5 @@ checks do not replace owner signoff.
 Implementation evidence: [Learner polish verification, 2026-10-12](learner-polish-verification-2026-10-12.md). Owner review remains pending.
 
 Follow-up direction and evidence: [stable layout/editorial Discover brief](learner-polish-followup-2026-10-12.md), [follow-up verification](learner-polish-followup-verification-2026-10-12.md). Owner review remains pending.
+
+Owner amendment: [Hub pane and portfolio tweaks, 2026-10-13](hub-pane-portfolio-tweaks-2026-10-13.md); real-application browser verification pending.
