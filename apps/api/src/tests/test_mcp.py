@@ -95,7 +95,10 @@ def test_initialize_lists_tools_with_preview_app_metadata(mcp):
     assert notification.status_code == 202
     tools = {tool["name"]: tool for tool in rpc("tools/list").json()["result"]["tools"]}
     assert {"list_activities", "get_activity", "validate_activity", "preview_activity", "save_activity"} <= set(tools)
-    assert not {"list_badges", "create_activity"} & set(tools)
+    assert "create_activity" not in tools
+    # Baseline: the connector never deletes or removes anything.
+    assert not [name for name in tools if any(word in name for word in ("delete", "remove", "archive", "unpublish", "revoke"))]
+    assert all(not tool["annotations"]["destructiveHint"] for tool in tools.values())
     assert tools["list_activities"]["inputSchema"]["required"] == ["template_uuid"]
     assert tools["preview_activity"]["_meta"]["ui"]["resourceUri"] == PREVIEW_APP_URI
     assert tools["save_activity"]["annotations"]["readOnlyHint"] is False
