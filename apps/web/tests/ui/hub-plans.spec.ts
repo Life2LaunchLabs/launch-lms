@@ -31,8 +31,8 @@ test('hub.action.create-plan: learner controls suggested navigation', async ({ p
   await action.press('Enter')
   await expect(page.getByRole('heading', { name: 'What are you working toward?' })).toBeVisible()
   await expect(page).toHaveURL((url) => url.pathname.endsWith('/plans') && !url.searchParams.has('hub_action'))
-  await expect(page.locator('[aria-label="Hub companion"]')).toContainText('I want to create a plan for changing careers')
-  await expect(page.locator('[aria-label="Hub companion"]')).toContainText('Creating a plan:')
+  await expect(page.locator('section.hub-panel')).toContainText('I want to create a plan for changing careers')
+  await expect(page.locator('section.hub-panel')).toContainText('Creating a plan:')
 
   await expect(page.getByText('Ready to review', { exact: true })).toBeVisible()
   await expect(page.getByLabel('Goal')).toHaveValue('Career transition plan')
@@ -55,7 +55,7 @@ test('hub.action.timeline: advice can hand off to the Timeline editor', async ({
   await expect(page.getByRole('dialog', { name: 'Add experience' })).toBeVisible()
   await expect(page.getByLabel('Type')).toHaveValue('work_career')
   await expect(page).toHaveURL((url) => url.pathname.endsWith('/portfolio/timeline') && !url.searchParams.has('experience'))
-  await expect(page.locator('[aria-label="Hub companion"]')).toContainText('Please help me add my new job to my portfolio timeline')
+  await expect(page.locator('section.hub-panel')).toContainText('Please help me add my new job to my portfolio timeline')
 })
 
 test('hub.action.unavailable: a rejected action stays in context and explains the failure', async ({ page }) => {
@@ -70,15 +70,13 @@ test('hub.action.unavailable: a rejected action stays in context and explains th
   })
   await action.click()
   await expect(page.getByRole('alert').filter({ hasText: 'That destination is no longer available' })).toBeVisible()
-  await expect(page).toHaveURL((url) => url.pathname.endsWith('/hub'))
+  await expect(page).toHaveURL((url) => url.pathname.endsWith('/plans'))
 })
 
 test('plans.create-editor: plans surface uses native object editing', async ({ page }, testInfo) => {
   await page.goto(environment.plansPath)
   await assertActualApp(page)
   await expect(page.getByRole('heading', { name: 'Plans', exact: true, level: 1 })).toBeVisible()
-  // Below the lg breakpoint plan creation lives in the Your plans panel (every learner has at least the starter plan).
-  if ((page.viewportSize()?.width ?? 1280) < 1024) await page.getByRole('button', { name: 'Your plans', exact: true }).click()
   const create = page.getByRole('button', { name: /create your own/i }).filter({ visible: true }).first()
   await create.click()
   // Creating makes a "New plan" and opens it with its details form ready to name it.

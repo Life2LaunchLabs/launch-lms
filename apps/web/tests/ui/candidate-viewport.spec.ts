@@ -15,12 +15,12 @@ test('BOT-217 populated Hub and candidate viewport', async ({ page }, testInfo) 
     await page.addInitScript(value => localStorage.setItem('theme', value), theme)
     for (const viewport of [{ width: 1280, height: 551 }, { width: 1280, height: 720 }, { width: 390, height: 844 }]) {
       await page.setViewportSize(viewport)
-      await page.goto('/hub')
+      await page.goto('/plans?hub=open')
       await expect(page.getByText('Unstable', { exact: true })).toBeVisible()
       await expect(page.getByText(/Synthetic recent conversation 1:/)).toBeVisible()
       const prefix = `${theme}-${viewport.width}x${viewport.height}`
       const capture = async (state: string) => {
-        const bounds = await page.evaluate(() => ({ width: innerWidth, height: innerHeight, documentWidth: document.documentElement.scrollWidth, documentHeight: document.documentElement.scrollHeight, scrollX, scrollY, hub: document.querySelector('.hub-conversation-frame')?.getBoundingClientRect().toJSON(), panel: document.querySelector('[aria-modal="true"]')?.getBoundingClientRect().toJSON(), panelWidth: document.querySelector('[aria-modal="true"]')?.scrollWidth }))
+        const bounds = await page.evaluate(() => ({ width: innerWidth, height: innerHeight, documentWidth: document.documentElement.scrollWidth, documentHeight: document.documentElement.scrollHeight, scrollX, scrollY, hub: document.querySelector('.hub-panel')?.getBoundingClientRect().toJSON(), panel: document.querySelector('[aria-modal="true"]')?.getBoundingClientRect().toJSON(), panelWidth: document.querySelector('[aria-modal="true"]')?.scrollWidth }))
         console.log(prefix, state, JSON.stringify(bounds))
         const screenshot = await page.screenshot({ path: testInfo.outputPath(`bot217-${prefix}-${state}.png`), fullPage: true })
         // Only this synthetic fixture opts into portable review evidence.

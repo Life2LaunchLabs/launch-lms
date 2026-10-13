@@ -199,7 +199,7 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Plans/learner/PlansOverviewPanel.tsx"
+              "path": "apps/web/components/Plans/learner/PlansHome.tsx"
             }
           ],
           "relationships": []
@@ -6017,19 +6017,19 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/app/orgs/[orgslug]/(withmenu)/hub/HubExperience.tsx",
+              "path": "apps/web/components/Hub/conversation/HubConversation.tsx",
               "symbol": null,
               "responsibility": "Responsive Search and ephemeral Ask interaction"
             },
             {
               "kind": "code",
-              "path": "apps/web/app/orgs/[orgslug]/(withmenu)/hub/HubMessageMicroBar.tsx",
+              "path": "apps/web/components/Hub/conversation/HubMessageMicroBar.tsx",
               "symbol": null,
               "responsibility": "Per-message copy, memory/source disclosure, timestamp, and return-to-origin link"
             },
             {
               "kind": "code",
-              "path": "apps/web/app/orgs/[orgslug]/(withmenu)/hub/hubInteraction.ts",
+              "path": "apps/web/services/hub/interaction.ts",
               "symbol": null,
               "responsibility": "Predictable Auto, Search, and Ask surface transitions"
             },
@@ -6177,31 +6177,31 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/app/orgs/[orgslug]/(withmenu)/hub/HubConversationHistory.tsx",
+              "path": "apps/web/components/Hub/conversation/HubConversationHistory.tsx",
               "symbol": null,
               "responsibility": "Provides searchable recent-history selection inside the full-width Hub header panel."
             },
             {
               "kind": "code",
-              "path": "apps/web/app/orgs/[orgslug]/(withmenu)/hub/HubExperience.tsx",
+              "path": "apps/web/components/Hub/conversation/HubConversation.tsx",
               "symbol": null,
               "responsibility": "Restores and continues rich Hub conversation state."
             },
             {
               "kind": "code",
-              "path": "apps/web/app/orgs/[orgslug]/(withmenu)/hub/HubHeader.tsx",
+              "path": "apps/web/components/Hub/conversation/HubHeader.tsx",
               "symbol": null,
               "responsibility": "Provides the minimal conversation-only Hub header, anchored history/resource panels, rename, archive, back, and new-conversation actions."
             },
             {
               "kind": "code",
-              "path": "apps/web/app/orgs/[orgslug]/(withmenu)/hub/HubHomeRecents.tsx",
+              "path": "apps/web/components/Hub/home/HubHomeRecents.tsx",
               "symbol": null,
               "responsibility": "Shows the headerless three-conversation home stack and opens full history or a selected conversation resource panel."
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Hub/HubWorkspace.tsx",
+              "path": "apps/web/components/Hub/HubShell.tsx",
               "symbol": null,
               "responsibility": "Keeps one Hub instance mounted outside routed learner content and adapts it between desktop split, mobile drawer, and full Hub."
             },
@@ -6338,13 +6338,13 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/app/orgs/[orgslug]/(withmenu)/hub/HubMemoryNotice.tsx",
+              "path": "apps/web/components/Hub/conversation/HubMemoryNotice.tsx",
               "symbol": "HubMemoryNotice",
               "responsibility": "First-use disclosure, Account link, dismissal, and immediate opt-out"
             },
             {
               "kind": "code",
-              "path": "apps/web/app/orgs/[orgslug]/(withmenu)/hub/HubMessageMicroBar.tsx",
+              "path": "apps/web/components/Hub/conversation/HubMessageMicroBar.tsx",
               "symbol": "HubMessageMicroBar",
               "responsibility": "Per-message copy, timestamp, and memory receipts"
             },
@@ -6442,7 +6442,7 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/app/orgs/[orgslug]/(withmenu)/hub/HubExperience.tsx",
+              "path": "apps/web/components/Hub/conversation/HubConversation.tsx",
               "symbol": null,
               "responsibility": ""
             },
@@ -6690,19 +6690,19 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/app/orgs/[orgslug]/(withmenu)/hub/HubExperience.tsx",
+              "path": "apps/web/components/Hub/conversation/HubConversation.tsx",
               "symbol": null,
               "responsibility": "Ephemeral context ownership and learner/advisor resource merge"
             },
             {
               "kind": "code",
-              "path": "apps/web/app/orgs/[orgslug]/(withmenu)/hub/HubResourceContext.tsx",
+              "path": "apps/web/components/Hub/resources/HubResourceContext.tsx",
               "symbol": null,
               "responsibility": "Transcript resource carousel, tray handle, and shared resource detail workspace"
             },
             {
               "kind": "code",
-              "path": "apps/web/app/orgs/[orgslug]/(withmenu)/hub/HubResourceTray.tsx",
+              "path": "apps/web/components/Hub/resources/HubResourceTray.tsx",
               "symbol": null,
               "responsibility": "Chat resource tray: strip, detail, previous/next, and remove from chat"
             },

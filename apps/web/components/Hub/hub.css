@@ -1,20 +1,23 @@
 /* Hub shell: navigation and Hub sit on the outside surface (--shell); the page is a card.
    States live on .hub-shell[data-hub-state]; phone drags write --hub-drag/--hub-fade. */
 .hub-shell { --hub-ease: cubic-bezier(.2, .8, .2, 1); --hub-nav: calc(4rem + env(safe-area-inset-bottom)); --hub-strip: 64px; }
+/* Hub's fixed surfaces start below the tester and demo bars when those show. Hub is a surface
+   above navigation, not a modal: menus, dialogs and tester panels open over it. */
+.hub-shell { --hub-top: calc(var(--candidate-experience-height, 0px) + var(--demo-bar-height, 0px)); }
 .hub-shell[data-dragging] .learner-page, .hub-shell[data-dragging] .hub-panel { transition: none !important; }
 .org-layout-shell { min-height: calc(100dvh - var(--candidate-experience-height, 0px) - var(--demo-bar-height, 0px)); }
 .candidate-experience--unstable ~ .hub-shell { --candidate-experience-height: 3rem; }
 
-.hub-panel { position: fixed; z-index: var(--z-modal); display: flex; flex-direction: column; background: hsl(var(--shell)); color: hsl(var(--foreground)); outline: none; transition: transform .42s var(--hub-ease), opacity .32s ease; }
+.hub-panel { position: fixed; z-index: calc(var(--z-nav) + 2); display: flex; flex-direction: column; background: hsl(var(--shell)); color: hsl(var(--foreground)); outline: none; transition: transform .42s var(--hub-ease), opacity .32s ease; }
 .hub-edge { position: fixed; z-index: var(--z-sticky); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; border: 0; padding: 0; background: hsl(var(--shell)); color: #7cc4ff; cursor: pointer; touch-action: none; }
 .hub-edge:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: -4px; }
 .hub-edge-dot { width: 8px; height: 8px; border-radius: 999px; background: hsl(var(--muted-foreground) / .5); }
 .hub-edge-dot--unread { background: #7cc4ff; animation: hub-edge-ping 1.8s ease-out infinite; }
 .hub-edge-grip { width: 4px; height: 40px; border-radius: 4px; background: hsl(var(--border)); }
-.hub-page-strip { position: fixed; z-index: calc(var(--z-modal) - 1); top: 0; left: 0; width: var(--hub-strip); bottom: var(--hub-nav); border: 0; padding: 0; background: transparent; cursor: pointer; touch-action: none; }
+.hub-page-strip { position: fixed; z-index: calc(var(--z-nav) + 1); top: var(--hub-top); left: 0; width: var(--hub-strip); bottom: var(--hub-nav); border: 0; padding: 0; background: transparent; cursor: pointer; touch-action: none; }
 @keyframes hub-edge-ping { 0% { box-shadow: 0 0 0 0 rgb(124 196 255 / .6); } 80%, 100% { box-shadow: 0 0 0 8px rgb(124 196 255 / 0); } }
 
-.hub-resizer { position: fixed; z-index: var(--z-modal); top: 12px; bottom: 12px; right: calc(var(--hub-width) + 12px); width: 12px; cursor: col-resize; outline: none; touch-action: none; }
+.hub-resizer { position: fixed; z-index: calc(var(--z-nav) + 2); top: calc(var(--hub-top) + 12px); bottom: 12px; right: calc(var(--hub-width) + 12px); width: 12px; cursor: col-resize; outline: none; touch-action: none; }
 .hub-resizer > span { position: absolute; inset-block: 24px; left: 50%; width: 3px; border-radius: 999px; background: hsl(var(--foreground) / .24); opacity: 0; transform: translateX(-50%); transition: opacity 120ms ease; }
 .hub-resizer:hover > span, .hub-resizer:focus-visible > span, .hub-resizing .hub-resizer > span { opacity: 1; }
 .hub-resizing, .hub-resizing * { cursor: col-resize !important; user-select: none !important; }
@@ -22,12 +25,12 @@
 
 /* Wider screens: Hub opens beside the page, which narrows into a card. */
 @media (min-width: 768px) {
-  .hub-panel { top: 12px; bottom: 12px; right: 12px; width: var(--hub-width); transform: translateX(calc(100% + 24px)); opacity: 0; }
+  .hub-panel { top: calc(var(--hub-top) + 12px); bottom: 12px; right: 12px; width: var(--hub-width); transform: translateX(calc(100% + 24px)); opacity: 0; }
   .hub-shell[data-hub-state='open'] .hub-panel { transform: none; opacity: 1; }
   .hub-shell[data-hub-state='open'] .org-layout-shell { height: calc(100dvh - var(--candidate-experience-height, 0px) - var(--demo-bar-height, 0px)); min-height: 0; overflow: hidden; padding-right: calc(var(--hub-width) + 24px); background-color: hsl(var(--shell)) !important; }
   .hub-shell[data-hub-state='open'] .learner-page { height: calc(100% - 24px); margin-block: 12px; overflow-y: auto; overscroll-behavior: contain; border-radius: 24px; background: var(--org-page-background); box-shadow: 0 0 0 1px hsl(var(--border) / .7); }
   .hub-shell[data-hub-edge] .org-layout-shell { padding-right: 52px; }
-  .hub-edge { top: 0; bottom: 0; right: 0; width: 52px; }
+  .hub-edge { top: var(--hub-top); bottom: 0; right: 0; width: 52px; }
 }
 
 /* Phones: the page card slides left, leaving a strip; Hub fills the rest above the nav.
@@ -35,14 +38,14 @@
 @media (max-width: 767px) {
   html:has(.hub-shell[data-hub-frozen]) body { background: hsl(var(--shell)); }
   .learner-page { transform: translateX(var(--hub-drag, 0px)); transition: transform .42s var(--hub-ease), border-radius .3s ease; }
-  .hub-shell[data-hub-frozen] .learner-page { position: fixed; z-index: var(--z-content); top: 0; left: 0; width: 100vw; bottom: calc(var(--hub-nav) + 8px); overflow: hidden; border-radius: 24px; background: var(--org-page-background); box-shadow: 0 0 0 2px hsl(var(--border) / .8), 0 20px 50px rgb(0 0 0 / .45); }
+  .hub-shell[data-hub-frozen] .learner-page { position: fixed; z-index: var(--z-content); top: var(--hub-top); left: 0; width: 100vw; bottom: calc(var(--hub-nav) + 8px); overflow: hidden; border-radius: 24px; background: var(--org-page-background); box-shadow: 0 0 0 2px hsl(var(--border) / .8), 0 20px 50px rgb(0 0 0 / .45); }
   .hub-shell[data-hub-frozen] .learner-page-inner { transform: translateY(var(--hub-frozen-y)); }
   .hub-shell[data-hub-state='open'] .learner-page { transform: translateX(calc(-100vw + var(--hub-strip) + var(--hub-drag, 0px))); }
   .hub-shell[data-hub-edge] .learner-page { width: calc(100% - 22px); border-radius: 0 20px 20px 0; }
-  .hub-panel { top: 0; bottom: var(--hub-nav); left: var(--hub-strip); right: 0; transform: translateX(calc(100% + var(--hub-drag, 0px))); opacity: var(--hub-fade, 0); visibility: hidden; }
+  .hub-panel { top: var(--hub-top); bottom: var(--hub-nav); left: var(--hub-strip); right: 0; transform: translateX(calc(100% + var(--hub-drag, 0px))); opacity: var(--hub-fade, 0); visibility: hidden; }
   .hub-shell[data-dragging] .hub-panel { visibility: visible; }
   .hub-shell[data-hub-state='open'] .hub-panel { transform: translateX(var(--hub-drag, 0px)); opacity: var(--hub-fade, 1); visibility: visible; }
-  .hub-edge { top: 0; bottom: var(--hub-nav); right: 0; width: 22px; gap: 10px; }
+  .hub-edge { top: var(--hub-top); bottom: var(--hub-nav); right: 0; width: 22px; gap: 10px; }
   .hub-edge-mark { display: none; }
 }
 

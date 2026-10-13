@@ -1,8 +1,8 @@
 # Learner UI refresh: coach shell, Plans landing, Discover, Portfolio
 
-Date: 2026-10-13. Status: **approved 2026-10-13, in progress** (single PR, one commit per step). Base: `dev` at `a457833`.
-The branch `claude/ui-dark-mode-polish-l6ybmx` also carries `b483fcf` (dark default,
-plan carousel, step path, Discover tiles); see Phase 0 for what happens to it.
+Date: 2026-10-13. Status: **implemented 2026-10-13** (single PR, one commit per phase). Base: `dev` at `a457833`.
+The branch `claude/ui-dark-mode-polish-l6ybmx` was reset to `dev`; an earlier exploratory
+commit (`b483fcf`) was discarded (see Phase 0).
 
 ## Objective
 
@@ -347,4 +347,19 @@ Acceptance: owner and visitor views, publish/unpublish, bio edit, section orderi
 - [x] Phase 2 · Plans (simplified editor: one list per chapter; dated/flex zones and virtual "Right now"/"Completed" sections removed; helping feed folded into plan cards)
 - [x] Phase 3 · Discover
 - [x] Phase 4 · Portfolio
-- [ ] Phase 5 · Sweep and verification
+- [x] Phase 5 · Sweep and verification
+
+## Verification notes
+
+- Repo checks pass: `./scripts/agent check --changed` (lint ratchet, typecheck, unit
+  tests, source size, architecture, docs, product map, API tests and ruff).
+- Browser UI suite (`tests/ui`, Chromium desktop 1440×900 and phone 390×844) against a
+  local stack with UI fixtures: all scenarios pass except `hub.action.create-plan`,
+  whose only failure is a console error from `/api/demo/status` returning 503 because
+  the local stack runs no demo service.
+- The suite caught and this branch fixed two shell issues: Hub's fixed surfaces now
+  start below the tester and demo bars, and Hub sits above navigation but below
+  menus, dialogs and tester panels.
+- Follow-ups outside this PR: retire the admin and backend News feature (D3); the
+  plan editor no longer offers "remove target date and move" when dragging a dated
+  step (steps keep their dates when moved).
