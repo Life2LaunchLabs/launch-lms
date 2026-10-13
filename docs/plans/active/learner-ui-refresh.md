@@ -1,6 +1,6 @@
 # Learner UI refresh: coach shell, Plans landing, Discover, Portfolio
 
-Date: 2026-10-13. Status: **draft for owner review**. Base: `dev` at `a457833`.
+Date: 2026-10-13. Status: **approved 2026-10-13, in progress** (single PR, one commit per step). Base: `dev` at `a457833`.
 The branch `claude/ui-dark-mode-polish-l6ybmx` also carries `b483fcf` (dark default,
 plan carousel, step path, Discover tiles); see Phase 0 for what happens to it.
 
@@ -14,8 +14,8 @@ paint over it:
   open, locked.
 - **The coach lives at the edge of the app**, not on its own page. One nav item
   pulls it out; once a conversation exists its edge stays visible.
-- **Discover holds everything to start**: badges, ready-made plans and resources,
-  with search as the primary action.
+- **Discover holds everything to start**: badges (each badge starts a plan) and
+  resources, with search as the primary action.
 - **Portfolio is a profile**: bio first, sections that open their own pages, no tabs.
 - **Dark by default**, blue-slate base, color used inside bounded shapes, one
   pressable component language.
@@ -165,7 +165,8 @@ AppShell (outside surface: --shell)
   Desktop side nav Hub item toggles; ⌘/Ctrl+J shortcut.
 - **Nav:** Plans · Discover · Portfolio · Hub (coach toggle, shows dot when the coach
   has something). Account, messages and help move to the Portfolio header on phones and
-  stay at the bottom of the desktop side nav (D2). News moves into Discover (D3).
+  stay at the bottom of the desktop side nav (D2). News is removed from the learner
+  side; Messages replaces it (D3).
 - **Routes:** `/` → `/plans`. `/hub` → `/plans?coach=open` (keeps `conversation=`).
   `/hub?resource=x`, `/resource/x` → `/discover/resources/x`. `/resources`, `/search`,
   `/badges` → `/discover` (with `q`/filters) (D1). `/badges/[uuid]` and
@@ -173,13 +174,11 @@ AppShell (outside surface: --shell)
 
 ## Phases
 
-One PR each to `dev`, in order. Each phase removes the code it replaces in the same PR.
+One PR to `dev`, one or more commits per phase, in order. Each phase removes the code it replaces.
 
 ### Phase 0: Foundations (tokens, theme, component kit)
 
-Reset `claude/ui-dark-mode-polish-l6ybmx` to `dev`; carry `b483fcf`'s useful parts
-forward deliberately rather than merging it whole (its plan view and Discover changes
-are rebuilt in Phases 2–3).
+`claude/ui-dark-mode-polish-l6ybmx` was reset to `dev`; `b483fcf` is discarded (owner).
 
 - Theme: `defaultTheme="dark"`. Dark tokens from the kit: page `#131F24`, surface
   `#1B2B32`, raised `#22343C`, line `#2F434C`, text primary/secondary/locked, plus new
@@ -274,28 +273,23 @@ desktop; `hub-plans.spec.ts` updated.
 
 - Route `/discover` (D1); search bar full width at the top with filter button (A3);
   applied-filter chips only when filters are set.
-- Feed order: hero → Keep going → Ready-made plans → badge collections → resources as
-  carousels by type (A4), then Saved.
+- Feed order: hero → Keep going → badge collections → resources as carousels by type
+  (A4), then Saved. Badges are the ready-made plans; no other templates for now (D5).
 - Hero autoplay (A5): ~6s per slide, segmented timer bar under the hero, pauses on
   hover/focus/touch and when offscreen, no autoplay with reduced motion, swipe on phone.
   Optional `autoplay_seconds` in `DiscoverSettings`.
-- Search view (`/discover?q=`): grouped results (plans, badges, resources, collections,
+- Search view (`/discover?q=`): grouped results (badges, collections, resources,
   channels) with per-group "See all", type filter, empty and loading states. Backed by
   `/search` (wire up the unused `searchOrgContent`) plus resource semantic search.
 - Resource detail page `/discover/resources/[uuid]` built from `ActiveResourceWorkspace`
   (notes, comments, reviews, save, share) with "Ask Hub about this" → `coach.attach`.
   Saved resources and user channels (from `HubResourceLibrary`) become the Saved shelf
   and its See-all page.
-- Backend: learner-startable templates. Add a `learner_startable` flag in the template
-  config (JSON, no new column), `GET /planning/templates/startable` and
-  `POST /planning/templates/{uuid}/start` via `plan_from_template`, admin toggle in the
-  template editor, include startable templates in `/badges/discover` (or a new discover
-  plans field) and in `/search`. Tests for tenant boundaries and unpublished filtering.
 - Remove: Hub resource view files once moved, unused `components/Resources/ResourceCard.tsx`,
   Discover's hardcoded colors.
 
 Acceptance: search-first flow at 390/900/1440; filters; each card type starts or opens
-correctly (badge → plan, template → plan, resource → detail); hero timer and pause;
+correctly (badge → plan, resource → detail); hero timer and pause;
 legacy URLs redirect with query preserved.
 
 ### Phase 4: Portfolio
@@ -321,15 +315,15 @@ Acceptance: owner and visitor views, publish/unpublish, bio edit, section orderi
   1800; dark and light; coach closed/open/edge; screenshots compared with the canvas.
 - Move this plan to `docs/plans/completed/` with evidence.
 
-## Decisions needed
+## Decisions (owner, 2026-10-13: defaults accepted except D3 and D5)
 
 | # | Question | Recommendation |
 | --- | --- | --- |
 | D1 | Rename `/badges` to `/discover`? | Yes; redirect `/badges`, keep `/badges/[uuid]` |
 | D2 | Where do Account, Messages and Help live on phones? | Portfolio header settings button with unread dot |
-| D3 | News nav item | Fold into Discover (hero slides and a News shelf) |
+| D3 | News nav item | **Owner: remove**; Messages replaces it. Learner news routes, nav and Discover news slides go; admin/backend news is a follow-up |
 | D4 | Does the edge persist across pages? | Yes, for the session, until the conversation is ended |
-| D5 | Ready-made plans need backend work (Phase 3). Ship Discover without them first? | Ship together; it's small since `plan_from_template` exists |
+| D5 | Ready-made plans | **Owner: not now**; badges are the ready-made plans |
 | D6 | Keep desktop coach resizing? | Keep (already built, 320–720px) |
 | D7 | Auth pages: light-pinned or follow the default? | Follow the default (dark) |
 | D8 | Light mode | Supported with the same component kit, not just tolerated |
@@ -347,7 +341,7 @@ Acceptance: owner and visitor views, publish/unpublish, bio edit, section orderi
 
 ## Progress
 
-- [ ] Owner review of this plan and decisions D1–D8
+- [x] Owner review of this plan and decisions D1–D8
 - [ ] Phase 0 · Foundations
 - [ ] Phase 1 · App shell and coach
 - [ ] Phase 2 · Plans
