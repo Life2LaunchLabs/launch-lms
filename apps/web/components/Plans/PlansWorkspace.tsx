@@ -8,7 +8,7 @@ import Link from 'next/link'
 import useSWR, { mutate } from 'swr'
 import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd'
 import toast from 'react-hot-toast'
-import { Award, CalendarDays, Check, ChevronDown, ChevronRight, Compass, FileText, Film, GripVertical, Image as ImageIcon, Link2, Loader2, Lock, Menu, MoreVertical, Pencil, Plus, RotateCcw, Sparkles, SquareCheck, Target, Trash2, Upload, Users, X, Zap } from 'lucide-react'
+import { Award, CalendarDays, Check, ChevronDown, ChevronRight, Compass, FileText, Film, GripVertical, Image as ImageIcon, Link2, Loader2, Lock, Menu, MoreVertical, Pencil, Plus, RotateCcw, SquareCheck, Target, Trash2, Upload, X, Zap } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
@@ -26,53 +26,21 @@ import { useOrg } from '@components/Contexts/OrgContext'
 import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 import { DiscussionEditor } from '@components/Objects/Communities/DiscussionEditor'
 import type { MediaAsset, MediaType } from '@services/media/library'
-import { PersonAvatar, PlanObjectiveHeader, PlanStepPicker, PlanWorkspaceHeader, type PlanTarget } from './PlanEditorShared'
-import PlanShareDialog from './PlanShareDialog'; import PlansHome from './learner/PlansHome'; import PlanView from './learner/PlanView'; import StepOrderSetting from './learner/StepOrderSetting'
+import { PersonAvatar, PlanObjectiveHeader, PlanStepPicker, type PlanTarget } from './PlanEditorShared'
+import PlansOverviewPanel from './learner/PlansOverviewPanel'
+import ContentPageHeader from '@components/Objects/StyledElements/Headers/ContentPageHeader'
+import TabbedPageHeader from '@components/Objects/StyledElements/Headers/TabbedPageHeader'
+import PlansHome from './learner/PlansHome'
+import PlanView from './learner/PlanView'
+import PlanHeaderActions from './learner/PlanHeaderActions'
+import usePlanColors from './learner/usePlanColors'
+import useQuickCreatePlan from './learner/useQuickCreatePlan'
 
 const plansKey = (lifecycle: PlanLifecycle) => `${getAPIUrl()}planning/plans?lifecycle=${lifecycle}`
 const invitesKey = () => `${getAPIUrl()}planning/invitations/me`
 const feedKey = (scope: PlanScope, planUuid?: string, exploreAll = false) => `${getAPIUrl()}planning/feed?scope=${scope}${planUuid ? `&plan_uuid=${encodeURIComponent(planUuid)}` : ''}${exploreAll ? '&explore_all=true' : ''}`
 const detailKey = (slug?: string) => slug ? `${getAPIUrl()}planning/plans/${encodeURIComponent(slug)}` : null
 const EMPTY_PLANS: PlanTarget[] = []
-const PLAN_COLORS = ['#7c3aed', '#0f9f9a', '#d97706', '#2563eb', '#db2777', '#65a30d', '#dc2626', '#0891b2']
-
-function fallbackPlanColor(planUuid = '') {
-  const hash = Array.from(planUuid).reduce((total, char) => ((total * 31) + char.charCodeAt(0)) >>> 0, 0)
-  return PLAN_COLORS[hash % PLAN_COLORS.length]
-}
-
-function usePlanColors(plans: PlanTarget[], viewerId: string | number | undefined) {
-  const storageKey = `launchlms:plan-colors:${viewerId || 'viewer'}`
-  const [colors, setColors] = React.useState<Record<string, string>>({})
-
-  React.useEffect(() => {
-    try { setColors(JSON.parse(window.localStorage.getItem(storageKey) || '{}')) } catch { setColors({}) }
-  }, [storageKey])
-
-  React.useEffect(() => {
-    if (!plans.length) return
-    setColors((current) => {
-      const next = { ...current }
-      const used = new Set(Object.values(next))
-      let changed = false
-      for (const plan of plans) {
-        if (next[plan.plan_uuid]) continue
-        next[plan.plan_uuid] = PLAN_COLORS.find((color) => !used.has(color)) || fallbackPlanColor(plan.plan_uuid)
-        used.add(next[plan.plan_uuid])
-        changed = true
-      }
-      if (changed) window.localStorage.setItem(storageKey, JSON.stringify(next))
-      return changed ? next : current
-    })
-  }, [plans, storageKey])
-
-  const setPlanColor = (planUuid: string, color: string) => setColors((current) => {
-    const next = { ...current, [planUuid]: color }
-    window.localStorage.setItem(storageKey, JSON.stringify(next))
-    return next
-  })
-  return { getPlanColor: (planUuid?: string) => colors[planUuid || ''] || fallbackPlanColor(planUuid), setPlanColor }
-}
 
 export default function PlansWorkspace({ orgslug, initialPlanSlug }: { orgslug: string; initialPlanSlug?: string }) {
   const session = useLHSession() as any
@@ -82,7 +50,6 @@ export default function PlansWorkspace({ orgslug, initialPlanSlug }: { orgslug: 
   const workspace = useHubWorkspace()
   const setSurface = workspace?.setSurface
   const token = session?.data?.tokens?.access_token
-  const [lifecycle, setLifecycle] = React.useState<PlanLifecycle>('active')
   const [scope, setScope] = React.useState<PlanScope>('all')
   const [selectedSlug, setSelectedSlug] = React.useState(initialPlanSlug || '')
   const [mobilePanel, setMobilePanel] = React.useState(false)
@@ -104,12 +71,14 @@ export default function PlansWorkspace({ orgslug, initialPlanSlug }: { orgslug: 
       setSelectedSlug('')
     }
   }, [pathname, workspace?.editRun])
-  const { data: plans = EMPTY_PLANS, isLoading } = useSWR<PlanTarget[]>(token ? plansKey(lifecycle) : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: true })
-  const { getPlanColor, setPlanColor } = usePlanColors(plans, session?.data?.user?.id)
+  const { data: plans = EMPTY_PLANS, error: plansError, isLoading, mutate: retryPlans } = useSWR<PlanTarget[]>(token ? plansKey('active') : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: true })
+  const { data: completedPlans = EMPTY_PLANS, error: completedError, mutate: retryCompleted } = useSWR<PlanTarget[]>(token ? plansKey('completed') : null, (url: string) => swrFetcher(url, token))
+  const colorPlans = React.useMemo(() => [...plans, ...completedPlans], [plans, completedPlans])
+  const { getPlanColor } = usePlanColors(colorPlans, session?.data?.user?.id)
   const selectedSummary = plans.find((plan) => plan.slug === selectedSlug)
-  const { data: detail } = useSWR<any>(token && selectedSlug ? detailKey(selectedSlug) : null, (url: string) => swrFetcher(url, token))
+  const { data: detail, error: detailError, mutate: retryDetail } = useSWR<any>(token && selectedSlug ? detailKey(selectedSlug) : null, (url: string) => swrFetcher(url, token))
   const { data: invitations = [] } = useSWR<any[]>(token ? invitesKey() : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: true })
-  const { data: feed, isLoading: feedLoading } = useSWR<any>(token ? feedKey(scope, selectedSummary?.plan_uuid || detail?.plan_uuid, exploreAll) : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: true })
+  const { data: feed, error: feedError, isLoading: feedLoading, mutate: retryFeed } = useSWR<any>(token ? feedKey(scope, selectedSummary?.plan_uuid || detail?.plan_uuid, exploreAll) : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: true })
 
   React.useEffect(() => {
     const segments = (pathname.split('/plans')[1] || '').split('/').filter(Boolean)
@@ -147,10 +116,10 @@ export default function PlansWorkspace({ orgslug, initialPlanSlug }: { orgslug: 
   const refresh = async () => {
     await mutate((key: unknown) => typeof key === 'string' && key.includes(`${getAPIUrl()}planning`))
   }
-  const choose = (plan: PlanTarget) => {
+  const choose = (plan: PlanTarget, editDetails = false) => {
     setSelectedSlug(plan.slug)
     setSelectedObjectiveUuid(''); setEditingPlan(false)
-    window.history.pushState({}, '', getUriWithOrg(orgslug, `/plans/${encodeURIComponent(plan.slug)}`))
+    window.history.pushState({}, '', getUriWithOrg(orgslug, `/plans/${encodeURIComponent(plan.slug)}${editDetails ? "?edit=details" : ""}`))
     setMobilePanel(false)
   }
   const clear = () => {
@@ -158,23 +127,21 @@ export default function PlansWorkspace({ orgslug, initialPlanSlug }: { orgslug: 
     setSelectedObjectiveUuid(''); setEditingPlan(false)
     window.history.pushState({}, '', getUriWithOrg(orgslug, '/plans'))
   }
-  const panel = <PlansPanel2 orgslug={orgslug}
-    lifecycle={lifecycle} setLifecycle={setLifecycle} plans={plans} invitations={invitations}
-    detail={detail} selectedSlug={selectedSlug} choose={choose} clear={clear} refresh={refresh}
-    token={token} onCreate={() => { setCreating(true); setSelectedSlug('') }} onCloseMobile={() => setMobilePanel(false)}
-    getPlanColor={getPlanColor} setPlanColor={setPlanColor}
-    selectedObjectiveUuid={selectedObjectiveUuid} setSelectedObjectiveUuid={setSelectedObjectiveUuid}
-  />
+  const finishHeaderEdit = () => { const next = new URLSearchParams(searchParams.toString()); next.delete('edit'); window.history.replaceState({}, '', `${pathname}${next.size ? `?${next}` : ''}`) }
+  const { quickCreate, busy: quickCreateBusy } = useQuickCreatePlan(token, async (plan) => { choose(plan, true); await refresh() })
+  const panel = !selectedSlug && !creating ? <PlansOverviewPanel orgslug={orgslug} plans={plans} completed={completedPlans} invitations={invitations} choose={choose} getPlanColor={getPlanColor} onCreate={() => void quickCreate()} creating={quickCreateBusy} token={token} refresh={refresh} completedError={Boolean(completedError)} retryCompleted={() => void retryCompleted()} /> : null
+
 
   if (!token && session?.status !== 'loading') return <GeneralWrapperStyled><div className="py-24 text-center"><h1 className="text-3xl font-black">Sign in to use Plans</h1><p className="mx-auto mt-3 max-w-md text-sm text-muted-foreground">Use the email that received your invitation. New here? Create an account and your pending plan will be waiting.</p><div className="mt-6 flex justify-center gap-3"><Link href={`/login?next=${encodeURIComponent(getUriWithOrg(orgslug, '/plans'))}`} className="rounded-lg bg-foreground px-5 py-3 text-sm font-black text-background">Sign in</Link><Link href={`/signup?next=${encodeURIComponent(getUriWithOrg(orgslug, '/plans'))}`} className="rounded-lg border border-border px-5 py-3 text-sm font-black">Create account</Link></div></div></GeneralWrapperStyled>
   return <>
     <GeneralWrapperStyled>
-      <main className="pb-20 pt-8">
-        {selectedSlug && detail ? (editingPlan || !detail.is_mine) ? <PlanWorkspaceHeader title={detail.name} color={getPlanColor(detail.plan_uuid)} onClose={editingPlan ? () => setEditingPlan(false) : clear} onOpenPanel={() => setMobilePanel(true)} /> : null : <><header className="flex items-start justify-between gap-4"><h1 className="text-4xl font-black tracking-tight">Plans</h1><button type="button" onClick={() => setMobilePanel(true)} className="plan-panel-trigger inline-flex h-10 items-center gap-2 rounded-lg border border-border px-3 text-xs font-black lg:hidden"><Menu size={16} />Plans</button></header>{feed?.has_helping ? <div className="mt-7 flex h-11 gap-1 rounded-xl bg-muted p-1 w-fit">{(['all', 'mine', 'helping'] as PlanScope[]).map((value) => <button key={value} onClick={() => setScope(value)} className={cn('rounded-lg px-4 py-2 text-xs font-black capitalize', scope === value ? 'bg-card shadow-sm' : 'text-muted-foreground')}>{value === 'mine' ? 'My plans' : value === 'helping' ? 'Shared with me' : value}</button>)}</div> : <div className="mt-7 h-11" />}</>}
-        {creating ? <CreatePlanEditor token={token} onCancel={(content?: string) => { setCreating(false); const run = workspace?.editRun; if (content && run?.status === 'active') workspace?.enqueueEditContinuation({ id: crypto.randomUUID(), conversationUuid: run.conversation_uuid, runUuid: run.run_uuid, content: `[[hub-session-event]] You cancelled the new plan\n${content}` }) }} refresh={refresh} onCreated={async (plan: any, content?: string) => { setCreating(false); let continuedRun = null; if (workspace?.editRun?.scope.kind === 'new_plan' && org?.id) { try { continuedRun = await bindHubEditRunPlan(org.id, workspace.editRun.run_uuid, plan.plan_uuid, token); workspace.setEditRun(continuedRun) } catch { toast.error('The plan was saved, but Hub lost its editing scope.') } } choose(plan); if (continuedRun && content) workspace?.enqueueEditContinuation({ id: crypto.randomUUID(), conversationUuid: continuedRun.conversation_uuid, runUuid: continuedRun.run_uuid, content: `[[hub-session-event]] You saved the plan\n${content}` }) }} /> : isLoading || (selectedSlug ? !detail || detail.source_assignment?.type === 'group' : feedLoading) ? <div className="flex min-h-[45vh] items-center justify-center"><Loader2 className="animate-spin text-muted-foreground" /></div> : selectedSlug && detail ? (!editingPlan && detail.is_mine) ? <PlanView orgslug={orgslug} detail={detail} plans={plans.filter((plan: any) => plan.is_mine !== false && plan.target_kind !== 'group')} getPlanColor={getPlanColor} choose={choose} onEdit={detail.capabilities?.includes('edit_structure') ? () => setEditingPlan(true) : undefined} renderObjective={(item: any) => <ObjectiveCard item={item} orgslug={orgslug} token={token} viewerUserId={session?.data?.user?.id} refresh={refresh} color={getPlanColor(detail.plan_uuid)} expanded />} /> : <PlanEditor detail={detail} orgslug={orgslug} token={token} viewerUserId={session?.data?.user?.id} refresh={refresh} color={getPlanColor(detail.plan_uuid)} selectedObjectiveUuid={selectedObjectiveUuid} setSelectedObjectiveUuid={setSelectedObjectiveUuid} /> : scope !== 'helping' ? <PlansHome orgslug={orgslug} token={token} getPlanColor={getPlanColor} onCreate={() => setCreating(true)} renderObjective={(item: any) => <ObjectiveCard item={item} orgslug={orgslug} token={token} viewerUserId={session?.data?.user?.id} refresh={refresh} color={getPlanColor(item.plan?.plan_uuid)} expanded />} /> : <Feed feed={feed} orgslug={orgslug} token={token} viewerUserId={session?.data?.user?.id} refresh={refresh} getPlanColor={getPlanColor} onCreate={() => setCreating(true)} />}
+      <main className="pb-16">
+        {selectedSlug ? <ContentPageHeader orgslug={orgslug} backLabel="Plans" onBack={clear} compactBottomMargin title={editingPlan ? 'Edit plan' : detail?.is_mine === false ? detail.name : undefined} /> : <TabbedPageHeader activeTab="plans" tabs={[]} expanded={false} fullHeader={null} compactHeader={<div className="flex items-center justify-between"><h1 className="text-2xl font-semibold tracking-tight">Plans</h1><Button type="button" variant="outline" onClick={() => setMobilePanel(true)} className="plan-panel-trigger lg:hidden"><Menu size={16} />Your plans</Button></div>} />}
+        {!selectedSlug && feed?.has_helping ? <div className="mt-4 flex gap-1 rounded-lg bg-muted p-1 w-fit">{(['all', 'mine', 'helping'] as PlanScope[]).map((value) => <Button key={value} variant={scope === value ? 'secondary' : 'ghost'} size="sm" onClick={() => setScope(value)}>{value === 'mine' ? 'Mine' : value === 'helping' ? 'Shared with me' : 'All'}</Button>)}</div> : null}
+        {(selectedSlug ? detailError : plansError || feedError) ? <div className="mt-6 rounded-xl border border-border bg-card p-5" role="alert"><p className="text-sm">{selectedSlug ? "This plan could not load. It may no longer be available to you." : "Your plans could not load."}</p><Button variant="outline" className="mt-3" onClick={() => { if (selectedSlug) void retryDetail(); else { void retryPlans(); void retryFeed() } }}>Try again</Button></div> : creating ? <CreatePlanEditor token={token} onCancel={(content?: string) => { setCreating(false); const run = workspace?.editRun; if (content && run?.status === 'active') workspace?.enqueueEditContinuation({ id: crypto.randomUUID(), conversationUuid: run.conversation_uuid, runUuid: run.run_uuid, content: `[[hub-session-event]] You cancelled the new plan\n${content}` }) }} refresh={refresh} onCreated={async (plan: any, content?: string) => { setCreating(false); let continuedRun = null; if (workspace?.editRun?.scope.kind === 'new_plan' && org?.id) { try { continuedRun = await bindHubEditRunPlan(org.id, workspace.editRun.run_uuid, plan.plan_uuid, token); workspace.setEditRun(continuedRun) } catch { toast.error('The plan was saved, but Hub lost its editing scope.') } } choose(plan); if (continuedRun && content) workspace?.enqueueEditContinuation({ id: crypto.randomUUID(), conversationUuid: continuedRun.conversation_uuid, runUuid: continuedRun.run_uuid, content: `[[hub-session-event]] You saved the plan\n${content}` }) }} /> : isLoading || (selectedSlug ? !detail || detail.source_assignment?.type === 'group' : feedLoading) ? <div className="flex min-h-[45vh] items-center justify-center"><Loader2 className="animate-spin text-muted-foreground" /></div> : selectedSlug && detail ? (!editingPlan && detail.is_mine) ? <PlanView orgslug={orgslug} detail={detail} token={token} refresh={refresh} onBack={clear} editDetails={searchParams.get("edit") === "details"} onHeaderEditFinished={finishHeaderEdit} plans={colorPlans.filter((plan: any) => plan.is_mine !== false && plan.target_kind !== 'group')} getPlanColor={getPlanColor} choose={choose} onEdit={detail.capabilities?.includes('edit_structure') ? () => setEditingPlan(true) : undefined} renderObjective={(item: any) => <ObjectiveCard item={item} orgslug={orgslug} token={token} viewerUserId={session?.data?.user?.id} refresh={refresh} color={getPlanColor(detail.plan_uuid)} expanded />} /> : <><PlanHeaderActions detail={detail} token={token} refresh={refresh} onBack={clear} />{editingPlan ? <Button variant="ghost" className="mt-3" onClick={() => setEditingPlan(false)}>Back to plan</Button> : null}<PlanEditor detail={detail} orgslug={orgslug} token={token} viewerUserId={session?.data?.user?.id} refresh={refresh} color={getPlanColor(detail.plan_uuid)} selectedObjectiveUuid={selectedObjectiveUuid} setSelectedObjectiveUuid={setSelectedObjectiveUuid} /></> : scope !== 'helping' ? <PlansHome orgslug={orgslug} token={token} getPlanColor={getPlanColor} onCreate={() => void quickCreate()} renderObjective={(item: any) => <ObjectiveCard item={item} orgslug={orgslug} token={token} viewerUserId={session?.data?.user?.id} refresh={refresh} color={getPlanColor(item.plan?.plan_uuid)} expanded />} /> : <Feed feed={feed} orgslug={orgslug} token={token} viewerUserId={session?.data?.user?.id} refresh={refresh} getPlanColor={getPlanColor} onCreate={() => void quickCreate()} />}
       </main>
     </GeneralWrapperStyled>
-    {mounted && panel && document.getElementById('org-layout-right-sidebar') ? createPortal(<div className="sticky top-4 max-h-[calc(100dvh-2rem)] overflow-y-auto pb-6">{panel}</div>, document.getElementById('org-layout-right-sidebar')!) : null}
+    {mounted && panel && document.getElementById('org-layout-right-sidebar') ? createPortal(<div className="sticky top-4 mt-[81px] max-h-[calc(100dvh-7rem)] overflow-y-auto pb-6">{panel}</div>, document.getElementById('org-layout-right-sidebar')!) : null}
     {mobilePanel ? <div className="plan-panel-overlay fixed inset-0 z-[var(--z-modal)] bg-black/35 lg:hidden" onClick={() => setMobilePanel(false)}><aside onClick={(event) => event.stopPropagation()} className="ml-auto h-full w-[min(92vw,360px)] overflow-y-auto bg-background p-4 shadow-2xl"><div className="mb-3 flex justify-end"><button onClick={() => setMobilePanel(false)} className="rounded-lg p-2 hover:bg-muted"><X size={18} /></button></div>{panel}</aside></div> : null}
   </>
 }
@@ -804,119 +771,6 @@ function ObjectiveCard({ item, orgslug, token, viewerUserId, refresh, color, edi
   </article>
 }
 
-function PlansPanel2(props: any) {
-  const { lifecycle, setLifecycle, plans, invitations, detail, selectedSlug, choose, clear, refresh, token, onCreate, getPlanColor, setPlanColor } = props
-  if (selectedSlug && detail) {
-    const planColor = getPlanColor(detail.plan_uuid)
-    return <div className="rounded-2xl border border-border bg-card p-4 shadow-sm"><PlanInspector detail={detail} token={token} refresh={refresh} clear={clear} color={planColor} setPlanColor={setPlanColor} /></div>
-  }
-  return (<div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-    <h2 className="font-black">Plans</h2>
-    <div className="mt-3 grid grid-cols-2 rounded-lg bg-muted p-1">{(['active', 'completed'] as PlanLifecycle[]).map((value) => <button key={value} onClick={() => setLifecycle(value)} className={cn('rounded-md px-2 py-2 text-[11px] font-black capitalize', lifecycle === value && 'bg-card shadow-sm')}>{value}</button>)}</div>
-    <div className="mt-3 space-y-2">{plans.map((plan: any) => { const color = getPlanColor(plan.plan_uuid); const shared = !plan.is_mine && plan.subject; const fill = Math.max(2, Number(plan.progress_percent || 0)); const group = plan.target_kind === 'group'; const minimum = Math.max(2, Number(plan.min_progress_percent || 0)); const maximum = Math.max(minimum, Number(plan.max_progress_percent || 0)); const background = group ? `linear-gradient(to right, ${color}99 0 ${minimum}%, ${color}55 ${minimum}% ${maximum}%, ${color}18 ${maximum}% 100%)` : `linear-gradient(to right, ${color}66 0%, ${color}66 ${fill}%, ${color}18 ${fill}%, ${color}18 100%)`; return <button key={plan.plan_uuid} onClick={() => choose(plan)} className="flex min-h-14 w-full items-center gap-2.5 overflow-hidden rounded-xl px-3 py-2 text-left transition hover:brightness-[0.98]" style={{ background }}>
-      <span className="min-w-0 flex-1"><span className="block truncate text-xs font-black">{plan.name}</span>{group ? <span className="mt-1 flex items-center gap-1.5 text-[9px] font-bold text-muted-foreground"><Users size={11} />{plan.target_name}’s plan · {minimum}–{maximum}% · {plan.learner_count}</span> : shared ? <span className="mt-1 flex items-center gap-1.5 text-[9px] font-bold text-muted-foreground"><PersonAvatar user={plan.subject} size="xs" />{plan.subject.name?.split(' ')[0] || 'Their'}’s plan</span> : null}</span>
-    </button> })}{!plans.length ? <p className="py-8 text-center text-xs text-muted-foreground">No {lifecycle} plans.</p> : null}</div>
-    {invitations.length ? <div className="mt-5 border-t border-border pt-4"><p className="flex items-center gap-1.5 text-xs font-black"><Sparkles size={13} className="text-blue-600" />New requests</p><div className="mt-2 space-y-2">{invitations.map((invitation: any) => <div key={invitation.invitation_uuid} className="rounded-xl bg-blue-50 p-3"><p className="text-xs font-black text-blue-950">{invitation.plan.name}</p><p className="mt-1 text-[10px] text-blue-700">{invitation.kind === 'subject' ? 'A plan for you' : `Help as ${invitation.role.name}`}</p><div className="mt-3 grid grid-cols-2 gap-2"><button onClick={async () => { await planningApi.respond(invitation.invitation_uuid, false, token); await refresh() }} className="rounded-md border border-blue-200 px-2 py-1.5 text-[10px] font-black text-blue-800">Hide</button><button onClick={async () => { await planningApi.respond(invitation.invitation_uuid, true, token); await refresh() }} className="rounded-md bg-blue-700 px-2 py-1.5 text-[10px] font-black text-white">Accept</button></div></div>)}</div></div> : null}
-    <div className="mt-4 rounded-xl border border-dashed border-border p-2"><p className="px-2 pb-1 pt-1 text-xs font-black">New plan</p><button onClick={onCreate} className="flex w-full items-center gap-3 rounded-lg p-2 text-left transition hover:bg-muted/50"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-foreground text-background"><Pencil size={14} /></span><span><span className="block text-xs font-black">Create your own</span><span className="mt-0.5 block text-[10px] text-muted-foreground">Set a goal, Hub helps with the steps</span></span></button><Link href={getUriWithOrg(props.orgslug || '', '/badges')} className="flex w-full items-center gap-3 rounded-lg p-2 text-left transition hover:bg-muted/50"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white"><Compass size={14} /></span><span><span className="block text-xs font-black">Find one in Discover</span><span className="mt-0.5 block text-[10px] text-muted-foreground">Badges you can start right now</span></span></Link></div>
-  </div>)
-}
-
-// eslint-disable-next-line no-unused-vars
-function InspectorField({ label, children }: { label: string; children: React.ReactNode }) {
-  return <label className="block"><span className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground">{label}</span>{children}</label>
-}
-
-// eslint-disable-next-line no-unused-vars
-const inspectorInput = 'h-9 w-full rounded-lg border border-border bg-background px-2.5 text-xs outline-none focus:border-foreground/40 disabled:opacity-60'
-
-/* Objective-specific sidebar editing was intentionally retired in favor of in-place cards.
-function ObjectiveInspector({ objective, detail, token, refresh, onClose }: any) {
-  const canEdit = detail.capabilities.includes('edit_structure')
-  const canSchedule = detail.capabilities.includes('edit_schedule')
-  const phase = detail.phases?.find((item: any) => item.objectives?.some((candidate: any) => candidate.objective_uuid === objective.objective_uuid))
-  const [draft, setDraft] = React.useState<any>({})
-  const [saving, setSaving] = React.useState(false)
-  const [editMode, setEditMode] = React.useState(false)
-  React.useEffect(() => setDraft({ ...objective, phase_uuid: phase?.phase_uuid || '', start_date: dateValue(objective.start_date), due_date: dateValue(objective.due_date) }), [objective, phase?.phase_uuid])
-  React.useEffect(() => setEditMode(false), [objective.objective_uuid])
-  const save = async () => {
-    setSaving(true)
-    try {
-      await planningApi.updateObjective(detail.slug, objective.objective_uuid, {
-        ...(canEdit ? { title: draft.title, description: draft.description || '', phase_uuid: draft.phase_uuid || null, priority: Number(draft.priority), blocked: Boolean(draft.blocked), completion_restricted: Boolean(draft.completion_restricted), fields: draft.fields || [] } : {}),
-        ...(canSchedule ? { start_date: draft.start_date || null, due_date: draft.due_date || null, allow_late: Boolean(draft.allow_late) } : {}),
-      }, token)
-      await refresh(); setEditMode(false); toast.success('Objective saved.')
-    } catch (error: any) { toast.error(error?.message || 'Could not save objective.') } finally { setSaving(false) }
-  }
-  if (!editMode) return <div className="space-y-4"><div><p className="text-sm font-black">{objective.title}</p><p className="mt-2 text-xs leading-5 text-muted-foreground">{objective.description || 'No description yet.'}</p></div><div className="grid grid-cols-2 gap-2 text-[10px]"><span className="rounded-lg bg-muted px-2.5 py-2"><span className="block font-black">Phase</span><span className="mt-0.5 block text-muted-foreground">{phase?.name || 'Unscheduled'}</span></span><span className="rounded-lg bg-muted px-2.5 py-2"><span className="block font-black">Target</span><span className="mt-0.5 block text-muted-foreground">{objective.due_date ? targetDateLabel(objective.due_date) : 'End of phase'}</span></span></div><div><p className="text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground">Requirements</p><div className="mt-2 space-y-1.5">{(objective.fields || []).map((field: any) => <div key={fieldKey(field)} className="flex items-center gap-2 rounded-lg bg-muted px-2.5 py-2 text-[10px] font-bold"><RequirementTypeIcon type={field.type} size={12} /><span className="min-w-0 flex-1 truncate">{field.title || 'Requirement'}</span>{fieldIsRestricted(field) ? <Lock size={10} /> : null}</div>)}{!objective.fields?.length ? <p className="text-[10px] text-muted-foreground">No extra requirements.</p> : null}</div></div>{canEdit || canSchedule ? <button onClick={() => setEditMode(true)} className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-muted px-3 py-2.5 text-xs font-black"><Pencil size={12} />Edit objective</button> : null}</div>
-  return <div className="space-y-4">
-    <InspectorField label="Title"><input value={draft.title || ''} disabled={!canEdit} onChange={(event) => setDraft({ ...draft, title: event.target.value })} className={inspectorInput} /></InspectorField>
-    <InspectorField label="Description"><textarea value={draft.description || ''} disabled={!canEdit} onChange={(event) => setDraft({ ...draft, description: event.target.value })} className="min-h-24 w-full rounded-lg border border-border bg-background p-2.5 text-xs leading-5 outline-none disabled:opacity-60" placeholder="Add helpful context" /></InspectorField>
-    <div className="grid grid-cols-2 gap-3"><InspectorField label="Phase"><select value={draft.phase_uuid || ''} disabled={!canEdit} onChange={(event) => setDraft({ ...draft, phase_uuid: event.target.value })} className={inspectorInput}>{detail.phases?.map((item: any) => <option key={item.phase_uuid} value={item.phase_uuid}>{item.name}</option>)}</select></InspectorField><InspectorField label="Priority"><select value={draft.priority ?? 1} disabled={!canEdit} onChange={(event) => setDraft({ ...draft, priority: event.target.value })} className={inspectorInput}><option value={0}>Low</option><option value={1}>Normal</option><option value={2}>High</option><option value={3}>Critical</option></select></InspectorField></div>
-    <div className="grid grid-cols-2 gap-3"><InspectorField label="Starts"><input type="date" value={draft.start_date || ''} disabled={!canSchedule} onChange={(event) => setDraft({ ...draft, start_date: event.target.value })} className={inspectorInput} /></InspectorField><InspectorField label="Target"><input type="date" value={draft.due_date || ''} disabled={!canSchedule} onChange={(event) => setDraft({ ...draft, due_date: event.target.value })} className={inspectorInput} /></InspectorField></div>
-    <div className="rounded-xl bg-muted/60 p-3"><p className="text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground">Behavior</p><label className="mt-3 flex items-center justify-between gap-3 text-xs font-bold"><span>Blocked for now</span><input type="checkbox" checked={Boolean(draft.blocked)} disabled={!canEdit} onChange={(event) => setDraft({ ...draft, blocked: event.target.checked })} /></label><label className="mt-3 flex items-center justify-between gap-3 text-xs font-bold"><span>Allow late completion</span><input type="checkbox" checked={Boolean(draft.allow_late)} disabled={!canSchedule} onChange={(event) => setDraft({ ...draft, allow_late: event.target.checked })} /></label><label className="mt-3 flex items-center justify-between gap-3 text-xs font-bold"><span>Reviewer must complete</span><input type="checkbox" checked={Boolean(draft.completion_restricted)} disabled={!canEdit || objective.kind === 'badge'} onChange={(event) => setDraft({ ...draft, completion_restricted: event.target.checked })} /></label></div>
-    <div><div className="flex items-center justify-between"><p className="text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground">Requirements</p>{canEdit ? <button onClick={() => setDraft({ ...draft, fields: [...(draft.fields || []), { field_uuid: `field_${crypto.randomUUID()}`, title: '', type: 'text', access: 'contributor' }] })} className="inline-flex items-center gap-1 text-[10px] font-black"><Plus size={11} />Add</button> : null}</div><div className="mt-2 space-y-2">{(draft.fields || []).map((field: any, index: number) => <div key={fieldKey(field) || index} className="rounded-xl border border-border p-2"><div className="flex gap-1.5"><input value={field.title || ''} disabled={!canEdit} onChange={(event) => setDraft({ ...draft, fields: draft.fields.map((item: any, itemIndex: number) => itemIndex === index ? { ...item, title: event.target.value } : item) })} placeholder="Requirement name" className="h-8 min-w-0 flex-1 bg-transparent px-1 text-xs font-bold outline-none" />{canEdit ? <button onClick={() => setDraft({ ...draft, fields: draft.fields.filter((_: any, itemIndex: number) => itemIndex !== index) })} aria-label="Remove requirement" className="rounded p-1.5 text-muted-foreground hover:text-red-700"><Trash2 size={12} /></button> : null}</div><div className="mt-1.5 grid grid-cols-2 gap-2"><select value={field.type || 'text'} disabled={!canEdit} onChange={(event) => setDraft({ ...draft, fields: draft.fields.map((item: any, itemIndex: number) => itemIndex === index ? { ...item, type: event.target.value } : item) })} className="h-7 rounded-md border border-border bg-background px-1.5 text-[10px]"><option value="text">Written response</option><option value="media">File or link</option></select><select value={field.access || field.lane || 'contributor'} disabled={!canEdit} onChange={(event) => setDraft({ ...draft, fields: draft.fields.map((item: any, itemIndex: number) => itemIndex === index ? { ...item, access: event.target.value, restricted: event.target.value === 'reviewer' } : item) })} className="h-7 rounded-md border border-border bg-background px-1.5 text-[10px]"><option value="contributor">Learner fills in</option><option value="reviewer">Reviewer fills in</option></select></div></div>)}{!draft.fields?.length ? <p className="rounded-xl border border-dashed border-border px-3 py-4 text-center text-[10px] text-muted-foreground">No extra requirements</p> : null}</div></div>
-    <div className="flex items-center justify-between rounded-xl border border-border p-3"><span><span className="block text-xs font-black capitalize">{String(objective.progress?.status || 'not started').replaceAll('_', ' ')}</span><span className="mt-0.5 block text-[10px] text-muted-foreground">{objective.fields?.length || 0} requirements · {objective.kind}</span></span>{objective.progress?.completed_at ? <Check size={16} className="text-emerald-600" /> : <Clock3 size={16} className="text-muted-foreground" />}</div>
-    {canEdit || canSchedule ? <button disabled={saving || !draft.title?.trim()} onClick={() => void save()} className="flex w-full items-center justify-center gap-2 rounded-lg bg-foreground px-3 py-2.5 text-xs font-black text-background disabled:opacity-40">{saving ? <Loader2 size={13} className="animate-spin" /> : null}Save changes</button> : null}
-    {canEdit ? <button onClick={async () => { if (!window.confirm('Delete this objective?')) return; try { await planningApi.removeObjective(detail.slug, objective.objective_uuid, token); onClose(); await refresh(); toast.success('Objective deleted.') } catch (error: any) { toast.error(error?.message || 'Could not delete objective.') } }} className="flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[10px] font-black text-red-700 hover:bg-red-50"><Trash2 size={12} />Delete objective</button> : null}
-  </div>
-}
-*/
-
-function PlanInspector({ detail, token, refresh, clear, color, setPlanColor }: any) {
-  const canEdit = detail.capabilities.includes('edit_plan_details')
-  const canSchedule = detail.capabilities.includes('edit_schedule')
-  const canComplete = detail.capabilities.includes('complete_plan')
-  const canDelete = detail.capabilities.includes('delete_plan')
-  const canAddPhase = detail.capabilities.includes('edit_structure')
-  const canInvite = detail.capabilities.includes('manage_collaborators') || detail.capabilities.includes('request_collaborators')
-  const [editing, setEditing] = React.useState(false)
-  const [draft, setDraft] = React.useState<any>({ name: detail.name, description: detail.description || '', due_date: dateValue(detail.due_date) })
-  const [saving, setSaving] = React.useState(false)
-  const [shareOpen, setShareOpen] = React.useState(false)
-  const [addingPhase, setAddingPhase] = React.useState(false)
-  const [phaseName, setPhaseName] = React.useState('')
-  React.useEffect(() => setDraft({ name: detail.name, description: detail.description || '', due_date: dateValue(detail.due_date) }), [detail])
-  const cancel = () => { setDraft({ name: detail.name, description: detail.description || '', due_date: dateValue(detail.due_date) }); setEditing(false) }
-  const save = async () => {
-    setSaving(true)
-    try { await planningApi.update(detail.slug, { ...(canEdit ? { name: draft.name.trim(), description: draft.description } : {}), ...(canSchedule ? { due_date: draft.due_date || null } : {}) }, token); await refresh(); setEditing(false); toast.success('Plan saved.') } catch (error: any) { toast.error(error?.message || 'Could not save plan.') } finally { setSaving(false) }
-  }
-  const toggleComplete = async () => {
-    if (detail.status !== 'completed' && detail.completed_objective_count < detail.objective_count && !window.confirm('Some objectives are unfinished. Complete this plan anyway?')) return
-    try { await planningApi.status(detail.slug, detail.status === 'completed' ? 'reopen' : 'complete', token); await refresh(); if (detail.status !== 'completed') clear() } catch (error: any) { toast.error(error?.message || 'Could not update plan status.') }
-  }
-  const deletePlan = async () => {
-    if (!window.confirm(`Delete “${detail.name}”? This permanently removes its objectives, progress, evidence, and activity.`)) return
-    try { await planningApi.remove(detail.slug, token); await refresh(); clear(); toast.success('Plan deleted.') } catch (error: any) { toast.error(error?.message || 'Could not delete plan.') }
-  }
-  const collaborators = (detail.collaborators || []).filter((person: any) => !person.is_subject && person.user?.id !== detail.subject?.id)
-  const visibleCollaborators = collaborators.slice(0, 3)
-  const addPhase = async () => {
-    if (!phaseName.trim()) return
-    setSaving(true)
-    try { await planningApi.addPhase(detail.slug, { name: phaseName.trim() }, token); setPhaseName(''); setAddingPhase(false); await refresh(); toast.success('Phase added.') } catch (error: any) { toast.error(error?.message || 'Could not add phase.') } finally { setSaving(false) }
-  }
-  const viewerRole = detail.viewer_role?.name || 'Collaborator'
-  return <div className="space-y-5">
-    <div className="flex items-start gap-3">
-      {editing ? <DropdownMenu><DropdownMenuTrigger asChild><button type="button" aria-label="Change plan color" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white shadow-sm" style={{ backgroundColor: color }}><Pencil size={14} /></button></DropdownMenuTrigger><DropdownMenuContent align="start"><div className="grid grid-cols-4 gap-2 p-2">{PLAN_COLORS.map((item) => <button key={item} type="button" onClick={() => setPlanColor(detail.plan_uuid, item)} aria-label={`Use ${item} for ${detail.name}`} className={cn('h-7 w-7 rounded-lg border-2', item === color ? 'border-foreground' : 'border-transparent')} style={{ backgroundColor: item }} />)}</div></DropdownMenuContent></DropdownMenu> : <span className="h-10 w-10 shrink-0 rounded-xl shadow-sm" style={{ backgroundColor: color }} />}
-      <div className="min-w-0 flex-1">{editing ? <input autoFocus value={draft.name || ''} disabled={!canEdit} onChange={(event) => setDraft({ ...draft, name: event.target.value })} className={cn(inlineEditableClass, 'w-full text-base font-black')} /> : <h2 className="truncate text-base font-black">{detail.name}</h2>}</div>
-      {canEdit || canSchedule ? editing ? <span className="flex items-center gap-1"><button type="button" disabled={saving} onClick={cancel} aria-label="Cancel editing plan" className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted disabled:opacity-40"><X size={14} /></button><button type="button" disabled={saving || !draft.name?.trim()} onClick={() => void save()} aria-label="Save plan" className="flex h-8 w-8 items-center justify-center rounded-lg bg-foreground text-background disabled:opacity-40">{saving ? <Loader2 size={13} className="animate-spin" /> : <Check size={14} />}</button></span> : <button type="button" onClick={() => setEditing(true)} aria-label="Edit plan" className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"><Pencil size={14} /></button> : null}
-    </div>
-    <div><div className="flex items-center justify-between text-[10px] font-black"><span>Progress</span><span>{detail.progress_percent}%</span></div><div className="mt-2 h-2 overflow-hidden rounded-full" style={{ backgroundColor: `${color}20` }}><div className="h-full rounded-full" style={{ width: `${detail.progress_percent}%`, backgroundColor: color }} /></div></div>
-    <div><p className="text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground">Target completion</p>{editing && canSchedule ? <input type="date" value={draft.due_date || ''} onChange={(event) => setDraft({ ...draft, due_date: event.target.value })} className="mt-1.5 h-9 w-full rounded-lg border border-border px-2 text-xs" /> : <p className="mt-1 text-xs font-bold">{detail.due_date ? new Date(`${dateValue(detail.due_date)}T12:00:00`).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) : 'No target date'}</p>}</div>
-    <div><p className="text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground">Description</p>{editing && canEdit ? <textarea value={draft.description || ''} onChange={(event) => setDraft({ ...draft, description: event.target.value })} className="mt-1.5 min-h-20 w-full rounded-lg border border-border p-2.5 text-xs leading-5 outline-none" /> : <p className="mt-1 text-xs leading-5 text-muted-foreground">{detail.description || 'No description yet.'}</p>}</div>
-    {!detail.is_mine && detail.subject ? <div className="flex items-center gap-2.5 rounded-xl bg-muted/60 p-3"><PersonAvatar user={detail.subject} size="md" /><span className="min-w-0"><span className="block truncate text-xs font-black">{detail.subject.name?.split(' ')[0]}’s plan</span><span className="mt-0.5 block text-[10px] text-muted-foreground">My role: {viewerRole}</span></span></div> : null}
-    <StepOrderSetting detail={detail} token={token} refresh={refresh} /><div className="border-t border-border pt-4"><p className="text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground">Shared with</p><button type="button" onClick={() => setShareOpen(true)} className="mt-2 w-full space-y-2 rounded-lg text-left">{visibleCollaborators.map((person: any) => <span key={person.collaborator_uuid} className="flex items-center gap-2.5"><PersonAvatar user={person.user} /><span className="min-w-0"><span className="block truncate text-xs font-black">{person.user?.name}</span><span className="block text-[10px] text-muted-foreground">{person.role?.name}</span></span></span>)}{collaborators.length > 3 ? <span className="block text-[10px] font-black text-muted-foreground">+{collaborators.length - 3} more</span> : null}{!collaborators.length ? <span className="block text-[10px] text-muted-foreground">Only you so far.</span> : null}</button><button type="button" onClick={() => setShareOpen(true)} className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-2 text-[10px] font-black">{canInvite ? <><Users size={12} />Share</> : 'See who has access'}</button></div>
-    <div className="border-t border-border pt-4"><p className="text-[10px] font-black uppercase tracking-[0.1em] text-muted-foreground">Phases</p><div className="mt-2 space-y-1">{(detail.phases || []).map((phase: any) => { const target = phase.effective_due_date || detail.due_date; return <button key={phase.phase_uuid} type="button" onClick={() => document.getElementById(`plan-phase-${phase.phase_uuid}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="flex w-full items-center justify-between gap-3 rounded-lg px-2 py-2 text-left hover:bg-muted"><span className="min-w-0 truncate text-xs font-black">{phase.name}</span><span className="shrink-0 text-[9px] text-muted-foreground">{target ? new Date(`${dateValue(target)}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'No date'}</span></button> })}</div>{canAddPhase ? addingPhase ? <div className="mt-2 flex gap-2"><input autoFocus value={phaseName} onChange={(event) => setPhaseName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void addPhase(); if (event.key === 'Escape') setAddingPhase(false) }} placeholder="Phase name" className="h-9 min-w-0 flex-1 rounded-lg border border-border px-2 text-xs" /><button type="button" disabled={saving || !phaseName.trim()} onClick={() => void addPhase()} className="rounded-lg bg-foreground px-3 text-background disabled:opacity-40"><Plus size={13} /></button></div> : <button type="button" onClick={() => setAddingPhase(true)} className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border px-3 py-2 text-[10px] font-black text-muted-foreground"><Plus size={12} />Add phase</button> : null}</div>
-    {canComplete ? <button onClick={() => void toggleComplete()} className={cn('flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-xs font-black', detail.status === 'completed' ? 'border border-border' : 'bg-foreground text-background')}>{detail.status === 'completed' ? <RotateCcw size={13} /> : <Check size={13} />}{detail.status === 'completed' ? 'Reopen plan' : 'Complete plan'}</button> : null}
-    {canDelete ? <button onClick={() => void deletePlan()} className="flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-black text-red-700 hover:bg-red-50"><Trash2 size={13} />Delete plan</button> : null}
-    <PlanShareDialog detail={detail} token={token} refresh={refresh} onLeft={clear} open={shareOpen} setOpen={setShareOpen} />
-  </div>
-}
-
 // eslint-disable-next-line no-unused-vars
 function planOwnerLabel(plan: any) {
   if (plan.is_mine) return 'Your plan'
@@ -925,37 +779,6 @@ function planOwnerLabel(plan: any) {
   return plan.owner?.name ? `Shared by ${plan.owner.name}` : plan.source_organization?.name || 'Shared plan'
 }
 
-// Kept temporarily for compatibility with pending plan-management work.
-// eslint-disable-next-line no-unused-vars
-function PlanSettings({ detail, token, refresh }: any) {
-  const [open, setOpen] = React.useState(false)
-  const [draft, setDraft] = React.useState<any>({})
-  const canEdit = detail.capabilities.includes('edit_plan_details')
-  const canSchedule = detail.capabilities.includes('edit_schedule')
-  if (!canEdit && !canSchedule) return null
-  const begin = () => { setDraft({ name: detail.name, description: detail.description || '', priority: detail.priority, start_date: detail.start_date || '', due_date: detail.due_date || '' }); setOpen(true) }
-  const save = async () => {
-    try { await planningApi.update(detail.slug, { ...(canEdit ? { name: draft.name, description: draft.description, priority: Number(draft.priority) } : {}), ...(canSchedule ? { start_date: draft.start_date || null, due_date: draft.due_date || null } : {}) }, token); setOpen(false); await refresh(); toast.success('Plan updated.') }
-    catch (error: any) { toast.error(error?.message || 'Could not update plan.') }
-  }
-  return <><button onClick={begin} className="mt-3 inline-flex items-center gap-1 text-[10px] font-black text-blue-700"><Pencil size={11} />Edit details and dates</button><Modal isDialogOpen={open} onOpenChange={setOpen} minHeight="no-min" minWidth="md" dialogTitle="Edit plan" dialogDescription="Keep the plan current as its direction and schedule evolve." dialogContent={<div className="space-y-3 p-2"><label className="block text-xs font-black">Name<input value={draft.name || ''} disabled={!canEdit} onChange={(event) => setDraft({ ...draft, name: event.target.value })} className="mt-1 h-10 w-full rounded-lg border border-border px-3 text-sm disabled:opacity-60" /></label><label className="block text-xs font-black">Description<textarea value={draft.description || ''} disabled={!canEdit} onChange={(event) => setDraft({ ...draft, description: event.target.value })} className="mt-1 min-h-24 w-full rounded-lg border border-border p-3 text-sm disabled:opacity-60" /></label><div className="grid grid-cols-2 gap-3"><label className="text-xs font-black">Start<input type="date" value={draft.start_date || ''} disabled={!canSchedule} onChange={(event) => setDraft({ ...draft, start_date: event.target.value })} className="mt-1 h-10 w-full rounded-lg border border-border px-2 text-xs" /></label><label className="text-xs font-black">Target<input type="date" value={draft.due_date || ''} disabled={!canSchedule} onChange={(event) => setDraft({ ...draft, due_date: event.target.value })} className="mt-1 h-10 w-full rounded-lg border border-border px-2 text-xs" /></label></div><button onClick={() => void save()} className="w-full rounded-lg bg-foreground px-4 py-3 text-xs font-black text-background">Save plan</button></div>} /></>
-}
-
-// eslint-disable-next-line no-unused-vars
-function PlanActivity({ detail, token }: any) {
-  const activityKey = token ? `${getAPIUrl()}planning/plans/${encodeURIComponent(detail.slug)}/activity` : null
-  const { data: activity = [], mutate: refreshActivity } = useSWR<any[]>(activityKey, (url: string) => swrFetcher(url, token))
-  const [comment, setComment] = React.useState('')
-  const [expanded, setExpanded] = React.useState(false)
-  const canComment = detail.capabilities.includes('comment')
-  const post = async () => {
-    if (!comment.trim()) return
-    try { await planningApi.comment(detail.slug, comment.trim(), token); setComment(''); await refreshActivity(); toast.success('Comment added.') }
-    catch (error: any) { toast.error(error?.message || 'Could not add comment.') }
-  }
-  const visible = expanded ? activity : activity.slice(0, 3)
-  return <div className="mt-5 border-t border-border pt-4"><div className="flex items-center justify-between"><p className="text-xs font-black">Activity</p>{activity.length > 3 ? <button onClick={() => setExpanded(!expanded)} className="text-[10px] font-black text-blue-700">{expanded ? 'Show less' : `View all ${activity.length}`}</button> : null}</div><div className="mt-2 space-y-2">{visible.map((item: any) => <div key={item.activity_uuid} className="rounded-lg bg-muted/50 p-2.5"><div className="flex items-center justify-between gap-2"><span className="truncate text-[10px] font-black">{item.actor?.name || 'System'}</span><span className="text-[9px] text-muted-foreground">{item.creation_date ? new Date(item.creation_date).toLocaleDateString() : ''}</span></div><p className="mt-1 text-[10px] leading-4 text-muted-foreground">{item.action === 'comment.added' ? item.payload?.body : String(item.action).replaceAll('.', ' ').replaceAll('_', ' ')}</p></div>)}{!activity.length ? <p className="py-2 text-[10px] text-muted-foreground">No activity yet.</p> : null}</div>{canComment ? <div className="mt-2 flex gap-2"><input value={comment} onChange={(event) => setComment(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void post() }} placeholder="Add a comment" className="h-9 min-w-0 flex-1 rounded-lg border border-border px-2 text-xs" /><button disabled={!comment.trim()} onClick={() => void post()} className="rounded-lg border border-border px-3 text-[10px] font-black disabled:opacity-40">Post</button></div> : null}</div>
-}
 
 // eslint-disable-next-line no-unused-vars
 function PlanStructure({ detail, token, refresh }: any) {

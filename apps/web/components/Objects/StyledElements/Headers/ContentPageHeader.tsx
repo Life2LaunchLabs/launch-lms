@@ -9,6 +9,7 @@ import React from 'react'
 function ContentPageHeader({
   backIcon = 'arrow',
   backLabel = 'Back',
+  backHref,
   orgslug,
   tabs,
   title,
@@ -22,6 +23,7 @@ function ContentPageHeader({
 }: {
   backIcon?: 'arrow' | 'x'
   backLabel?: string
+  backHref?: string
   orgslug: string
   tabs?: Array<{
     href: string
@@ -56,7 +58,7 @@ function ContentPageHeader({
         {!hasTabs && showBack && (
           <button
             type="button"
-            onClick={onBack || (() => router.back())}
+            onClick={onBack || (() => backHref ? router.push(getUriWithOrg(orgslug, backHref)) : router.back())}
             className="inline-flex h-10 min-w-0 items-center gap-2 pr-3 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
             aria-label={backLabel}
           >

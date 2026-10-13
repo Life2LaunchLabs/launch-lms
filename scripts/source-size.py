@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 
 
@@ -21,10 +22,11 @@ EXCLUDED_PARTS = {
 def source_files() -> list[Path]:
     result = []
     for source_root in ROOTS:
-        for path in source_root.rglob("*"):
-            relative_parts = set(path.relative_to(ROOT).parts)
-            if path.is_file() and path.suffix in EXTENSIONS and not relative_parts.intersection(EXCLUDED_PARTS):
-                if not path.name.endswith((".test.ts", ".test.tsx", ".spec.ts", ".spec.tsx")):
+        for directory, directories, filenames in os.walk(source_root):
+            directories[:] = [name for name in directories if name not in EXCLUDED_PARTS]
+            for filename in filenames:
+                path = Path(directory) / filename
+                if path.suffix in EXTENSIONS and not path.name.endswith((".test.ts", ".test.tsx", ".spec.ts", ".spec.tsx")):
                     result.append(path)
     return sorted(result)
 

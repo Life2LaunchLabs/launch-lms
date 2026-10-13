@@ -1,31 +1,22 @@
 'use client'
 
 import React from 'react'
-import { Award, ChevronDown } from 'lucide-react'
+import { Award } from 'lucide-react'
 import FeatureDisabledView from '@components/Dashboard/Shared/FeatureDisabled/FeatureDisabledView'
 import DiscoverFeed from '@components/Badges/discover/DiscoverFeed'
+import GeneralWrapper from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
+import TabbedPageHeader from '@components/Objects/StyledElements/Headers/TabbedPageHeader'
 
-type BadgeDiscoverPageProps = {
-  orgslug: string
-  choosingBadge?: boolean
-}
-
-export default function BadgeDiscoverPage({ orgslug, choosingBadge = false }: BadgeDiscoverPageProps) {
+/** Discover: badges to earn. Badges you're earning are plans; badges you've earned live on your portfolio. */
+export default function BadgeDiscoverPage({ orgslug }: { orgslug: string }) {
   return (
     <FeatureDisabledView featureName="collections" orgslug={orgslug} icon={Award} context="public">
-      <div className="flex flex-col gap-6 pb-12 pt-5 md:pt-0">
-        {choosingBadge ? (
-          <section className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-xl bg-[var(--org-primary-color)] px-4 py-3 text-[var(--org-on-primary-color)] shadow-sm" aria-labelledby="choose-a-badge-title">
-            <Award className="h-5 w-5" aria-hidden="true" />
-            <div className="min-w-0">
-              <h1 id="choose-a-badge-title" className="truncate text-sm font-black">Pick a badge to start</h1>
-              <p className="mt-0.5 truncate text-xs opacity-80">Open one that interests you and select <strong className="font-black">Start earning</strong>.</p>
-            </div>
-            <ChevronDown className="h-5 w-5 opacity-75" aria-hidden="true" />
-          </section>
-        ) : null}
-        <DiscoverFeed orgslug={orgslug} />
-      </div>
+      <GeneralWrapper wide>
+        <main className="pb-16 text-foreground">
+          <TabbedPageHeader activeTab="discover" tabs={[]} expanded={false} fullHeader={null} compactHeader={<h1 className="text-2xl font-semibold tracking-tight">Discover</h1>} />
+          <div className="pt-6"><DiscoverFeed orgslug={orgslug} /></div>
+        </main>
+      </GeneralWrapper>
     </FeatureDisabledView>
   )
 }

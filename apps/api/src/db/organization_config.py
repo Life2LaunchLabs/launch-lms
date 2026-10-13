@@ -3,6 +3,7 @@ from typing import Literal
 from pydantic import BaseModel
 from sqlalchemy import JSON, BigInteger, Column, ForeignKey
 from sqlmodel import Field, SQLModel
+from src.db.discover import DiscoverSettings
 
 # ============================================================================
 # v1 Feature models (kept for backward compat with existing code imports)
@@ -211,6 +212,7 @@ class CustomizationConfig(BaseModel):
     badge_issuer: BadgeIssuerConfig = BadgeIssuerConfig()
     onboarding: OnboardingConfig = OnboardingConfig()
     landing: dict = Field(default_factory=dict)
+    discover: DiscoverSettings = Field(default_factory=DiscoverSettings)
 
 
 # ============================================================================

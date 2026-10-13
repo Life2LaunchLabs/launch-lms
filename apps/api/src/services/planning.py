@@ -51,9 +51,9 @@ from src.db.users import PublicUser, User
 from src.security.org_auth import is_org_admin, require_org_admin
 from src.services.badge_routes import award_if_plan_complete, badge_summary as _badge_summary
 from src.services.messages import create_inbox_message, resolve_action_by_dedupe
+from src.services.plan_permissions import effective_plan_capabilities
 from src.services.plan_home import adaptive_future_groups as _adaptive_future_groups
 from src.services.plan_availability import apply_template_order, plan_availability, validated_prerequisites
-
 
 ALL_CAPABILITIES = {
     "view_plan", "comment", "contribute_fields", "update_progress",
@@ -171,11 +171,11 @@ def _collaboration(db: Session, plan_id: int, user_id: int) -> tuple[PlanCollabo
 
 def capabilities_for(db: Session, plan: Plan, user_id: int) -> set[str]:
     if plan.owner_user_id == user_id:
-        return set(ALL_CAPABILITIES) | {"transfer_ownership", "delete_plan"}
+        return effective_plan_capabilities(db, plan, user_id, set(ALL_CAPABILITIES) | {"transfer_ownership", "delete_plan"})
     row = _collaboration(db, int(plan.id), user_id)
     if row and row[1].key == "plan_admin":
-        return set(ALL_CAPABILITIES)
-    return _normalized_capabilities(row[1].capabilities) if row else set()
+        return effective_plan_capabilities(db, plan, user_id, set(ALL_CAPABILITIES))
+    return effective_plan_capabilities(db, plan, user_id, _normalized_capabilities(row[1].capabilities) if row else set())
 
 
 def _plan_access_people(db: Session, plan: Plan) -> list[dict]:
@@ -187,7 +187,7 @@ def _plan_access_people(db: Session, plan: Plan) -> list[dict]:
     return [{
         "user": _user_summary(db, collaborator.user_id),
         "role": {"key": role.key, "name": role.name},
-        "capabilities": sorted(ALL_CAPABILITIES) if collaborator.user_id == plan.owner_user_id or role.key == "plan_admin" else sorted(_normalized_capabilities(role.capabilities)),
+        "capabilities": sorted(capabilities_for(db, plan, collaborator.user_id)),
         "is_subject": collaborator.user_id == plan.subject_user_id,
     } for collaborator, role in rows]
 
@@ -477,7 +477,7 @@ def _plan_dict(db: Session, plan: Plan, user_id: int, include_detail: bool = Fal
         "subject": _user_summary(db, plan.subject_user_id), "owner": _user_summary(db, plan.owner_user_id),
         "source_organization": _org_summary(db, plan.source_org_id), "source_badge": _badge_summary(db, plan.source_badge_id),
         "is_mine": plan.subject_user_id == user_id, "is_owner": plan.owner_user_id == user_id,
-        "capabilities": sorted(capabilities - ({"edit_structure", "complete_plan"} if plan.source_badge_id else set())), "objective_count": len(objective_rows),  # badge steps come from the badge
+        "capabilities": sorted(capabilities), "objective_count": len(objective_rows),
         "completed_objective_count": complete_count,
         "progress_percent": round(complete_count * 100 / len(objective_rows)) if objective_rows else 0,
         "review_count": review_count, "attention_count": attention_count,
@@ -523,8 +523,8 @@ def _plan_dict(db: Session, plan: Plan, user_id: int, include_detail: bool = Fal
             objective["viewer_role"] = viewer_access["role"] if viewer_access else None
         organization_roles = db.exec(select(OrganizationPlanRole).where(OrganizationPlanRole.org_id == plan.source_org_id)).all() if plan.source_org_id and inspect(db.connection()).has_table("organizationplanrole") else []
         organization_role_by_key = {role.key: role for role in organization_roles}
-        result["roles"] = [{"role_uuid": role.role_uuid, "key": role.key, "name": "Learner" if role.key == "subject" else role.name, "capabilities": sorted(ALL_CAPABILITIES) if role.key == "plan_admin" else sorted(_normalized_capabilities(role.capabilities)), "grantable_role_keys": role.grantable_role_keys, "organization_role_uuid": organization_role_by_key.get(role.key).role_uuid if organization_role_by_key.get(role.key) else None, "locked": role.key == "plan_admin"} for role in db.exec(select(PlanRole).where(PlanRole.plan_id == plan.id)).all()]
-        result["available_capabilities"] = sorted(ALL_CAPABILITIES)
+        result["roles"] = [{"role_uuid": role.role_uuid, "key": role.key, "name": "Learner" if role.key == "subject" else role.name, "capabilities": sorted(effective_plan_capabilities(db, plan, user_id, set(ALL_CAPABILITIES) if role.key == "plan_admin" else _normalized_capabilities(role.capabilities))), "grantable_role_keys": role.grantable_role_keys, "organization_role_uuid": organization_role_by_key.get(role.key).role_uuid if organization_role_by_key.get(role.key) else None, "locked": role.key == "plan_admin"} for role in db.exec(select(PlanRole).where(PlanRole.plan_id == plan.id)).all()]
+        result["available_capabilities"] = sorted(effective_plan_capabilities(db, plan, user_id, set(ALL_CAPABILITIES)))
         result["can_manage_organization_roles"] = bool(plan.source_org_id and "manage_roles" in capabilities and is_org_admin(user_id, int(plan.source_org_id), db))
         result["invitations"] = []
         if "manage_collaborators" in capabilities:
@@ -918,13 +918,11 @@ def update_plan(db: Session, current_user: PublicUser, identifier: str, payload:
         return _plan_dict(db, plan, current_user.id, True)
     next_due = changes.get("due_date", plan.due_date)
     next_start = changes.get("start_date", plan.start_date)
-    if next_due is None:
-        raise HTTPException(status_code=422, detail="A target completion date is required")
-    if next_start and next_start > next_due:
+    if next_start and next_due and next_start > next_due:
         raise HTTPException(status_code=422, detail="Plan target date must be on or after its start date")
     phase_dates = [item.due_date for item in db.exec(select(PlanPhase).where(PlanPhase.plan_id == plan.id)).all() if item.due_date]
     objective_dates = [item.due_date for item in db.exec(select(PlanObjective).where(PlanObjective.plan_id == plan.id)).all() if item.due_date]
-    if any(value > next_due for value in [*phase_dates, *objective_dates]):
+    if next_due and any(value > next_due for value in [*phase_dates, *objective_dates]):
         raise HTTPException(status_code=422, detail="Plan target date cannot be before a phase or objective target date")
     for key, value in changes.items():
         setattr(plan, key, value)

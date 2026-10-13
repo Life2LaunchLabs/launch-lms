@@ -13,6 +13,7 @@ export default function HubConversationHistory({
   loading,
   disabled,
   attached = true,
+  inline = false,
   onSelect,
   onOpenResources,
 }: {
@@ -21,6 +22,7 @@ export default function HubConversationHistory({
   loading: boolean
   disabled: boolean
   attached?: boolean
+  inline?: boolean
   // ESLint's base rule treats TypeScript callback parameter names as runtime bindings.
   // eslint-disable-next-line no-unused-vars
   onSelect: (_conversationUuid: string) => void
@@ -39,7 +41,7 @@ export default function HubConversationHistory({
   }, [conversations, query])
 
   return (
-    <div className={`max-h-[min(34rem,calc(100dvh-5rem))] overflow-hidden border border-border/70 bg-background shadow-xl shadow-black/10 ${attached ? 'rounded-b-xl border-t-0' : 'rounded-xl'}`}>
+    <div className={`max-h-[min(34rem,calc(100dvh-5rem))] overflow-hidden border border-border/70 bg-background ${inline ? '' : 'shadow-xl shadow-black/10'} ${attached ? 'rounded-b-xl border-t-0' : 'rounded-xl'}`}>
       <div className="relative p-2.5">
         <Search className="pointer-events-none absolute left-5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
         <Input
@@ -48,7 +50,7 @@ export default function HubConversationHistory({
           placeholder="Search conversations…"
           aria-label="Search conversations"
           className="h-9 border-0 bg-muted/70 pl-9 shadow-none focus-visible:ring-1"
-          autoFocus
+          autoFocus={!inline}
         />
       </div>
       <div className="max-h-[min(29rem,calc(100dvh-9rem))] overflow-y-auto px-1.5 pb-2" aria-busy={loading}>

@@ -231,7 +231,15 @@ function createDatabase(databaseName: string): void {
   runDocker(['exec', DEV_DB_CONTAINER, 'createdb', '-U', DEV_DB_USER, '-O', DEV_DB_USER, databaseName])
 }
 
-function readDevDbState(root: string): { currentDatabase?: string; currentHead?: string } {
+type DevDbState = {
+  currentDatabase?: string
+  currentHead?: string
+  // Set when a head database is created and still needs rows imported from an older database.
+  // Cleared only after the import succeeds, so an interrupted run retries it.
+  pendingImport?: { database: string; sourceDatabase: string }
+}
+
+function readDevDbState(root: string): DevDbState {
   try {
     return JSON.parse(fs.readFileSync(getDevDbStatePath(root), 'utf8'))
   } catch {
@@ -239,8 +247,12 @@ function readDevDbState(root: string): { currentDatabase?: string; currentHead?:
   }
 }
 
-function writeDevDbState(root: string, state: { currentDatabase: string; currentHead: string }): void {
+function writeDevDbState(root: string, state: DevDbState): void {
   fs.writeFileSync(getDevDbStatePath(root), JSON.stringify(state, null, 2) + '\n')
+}
+
+function updateDevDbState(root: string, update: Partial<DevDbState>): void {
+  writeDevDbState(root, { ...readDevDbState(root), ...update })
 }
 
 function getDatabaseRevision(databaseName: string): string | null {
@@ -315,6 +327,13 @@ function ensureHeadDatabase(root: string, apiDir: string): { databaseName: strin
   const databaseName = getHeadDatabaseName(head)
 
   if (databaseExists(databaseName)) {
+    const { pendingImport } = readDevDbState(root)
+    if (pendingImport?.database === databaseName && databaseExists(pendingImport.sourceDatabase)) {
+      p.log.warning(
+        `Resuming import of compatible rows from ${pc.bold(pendingImport.sourceDatabase)} into ${pc.bold(databaseName)}`
+      )
+      return { databaseName, head, importSourceDatabase: pendingImport.sourceDatabase }
+    }
     return { databaseName, head }
   }
 
@@ -330,6 +349,7 @@ function ensureHeadDatabase(root: string, apiDir: string): { databaseName: strin
 
   if (sourceRevision && !knownRevisions.has(sourceRevision)) {
     createDatabase(databaseName)
+    updateDevDbState(root, { pendingImport: { database: databaseName, sourceDatabase } })
     p.log.warning(
       `Created dev database ${pc.bold(databaseName)} for Alembic head ${pc.bold(head)}; ` +
       `will import compatible rows from ${pc.bold(sourceDatabase)} after migrations.`
@@ -374,6 +394,7 @@ function importCompatibleDevData(root: string, apiDir: string, sourceDatabase: s
     ).trim()
     importSpinner.stop('Compatible data import complete')
     if (output) p.log.info(output)
+    updateDevDbState(root, { pendingImport: undefined })
   } catch (e: any) {
     importSpinner.stop('Compatible data import failed')
     p.log.warning(e?.stderr?.toString()?.trim() || e?.stdout?.toString()?.trim() || 'Continuing with the new database schema only.')
@@ -438,7 +459,7 @@ function runDevMigrations(root: string, apiDir: string, databaseUrl: string): vo
   migrationSpinner.start('Running database migrations...')
 
   try {
-    execSync(`bash ${migrationsScript}`, {
+    execFileSync('bash', [migrationsScript], {
       cwd: apiDir,
       stdio: 'pipe',
       env,
@@ -668,7 +689,7 @@ export async function devCommand(opts: { ee?: boolean; fresh?: boolean }) {
     const infraSpinner = p.spinner()
     infraSpinner.start('Starting DB, Redis, and local embedding containers...')
     try {
-      execSync(`docker compose -f ${composePath} -p ${PROJECT_NAME} up -d`, {
+      execFileSync('docker', ['compose', '-f', composePath, '-p', PROJECT_NAME, 'up', '-d'], {
         cwd: root,
         stdio: 'pipe',
       })
@@ -769,7 +790,7 @@ export async function devCommand(opts: { ee?: boolean; fresh?: boolean }) {
   }
 
   if (selectedDatabase) {
-    writeDevDbState(root, {
+    updateDevDbState(root, {
       currentDatabase: selectedDatabase.databaseName,
       currentHead: selectedDatabase.head,
     })

@@ -114,7 +114,7 @@ def test_checklist_is_the_learners_starter_plan():
         assert db.exec(select(LearningBadgeAward)).all() == []
 
 
-def test_badges_in_progress_come_from_active_badge_plans():
+def test_portfolio_badges_are_the_earned_ones():
     with _session() as db:
         user = _user()
         db.add(user)
@@ -134,10 +134,10 @@ def test_badges_in_progress_come_from_active_badge_plans():
 
         badges = service.get_owner_shell(_public(user), db)["badges"]
 
-        assert [(item["badge_uuid"], item["status"], item["progress"]) for item in badges["inProgress"]] == [
-            ("badge_5", "in_progress", {"completed": 1, "total": 3, "percent": 33}),
-        ]
-        assert [(item["badge_uuid"], item["status"]) for item in badges["earned"]] == [("badge_6", "earned")]
+        # Badges still being worked toward are plans, not portfolio entries.
+        assert [item["badge_uuid"] for item in badges["earned"]] == ["badge_6"]
+        assert [item["badge_uuid"] for item in badges["featured"]] == ["badge_6"]
+        assert "inProgress" not in badges
 
 
 def test_private_by_default_and_created_project_is_public_after_portfolio_publish():

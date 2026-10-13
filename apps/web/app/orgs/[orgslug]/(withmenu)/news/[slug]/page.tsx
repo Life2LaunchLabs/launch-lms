@@ -1,7 +1,7 @@
-import Link from 'next/link'
+import ContentPageHeader from '@components/Objects/StyledElements/Headers/ContentPageHeader'
 import { notFound } from 'next/navigation'
 import { ArrowUpRight } from 'lucide-react'
-import { getCoreCapabilities, getUriWithOrg, routePaths } from '@services/config/config'
+import { getCoreCapabilities } from '@services/config/config'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
 import { getPublishedNewsArticle } from '@services/news/news'
 import { PageTitleRegistration } from '@components/Contexts/PageTitleContext'
@@ -25,12 +25,7 @@ export default async function NewsArticlePage(props: {
     <>
     <PageTitleRegistration section="News" detail={article.title} />
     <main className="mx-auto flex w-full max-w-3xl flex-col px-4 py-8 sm:px-6 lg:px-8">
-      <Link
-        href={getUriWithOrg(orgslug, routePaths.org.news())}
-        className="mb-6 text-sm font-medium text-muted-foreground hover:text-foreground"
-      >
-        Back to News
-      </Link>
+      <ContentPageHeader orgslug={orgslug} backLabel="News" backHref="/news" title="News" noHorizontalBleed />
 
       <article className="rounded-[6px] border border-border bg-card p-6">
         {article.published_at && (

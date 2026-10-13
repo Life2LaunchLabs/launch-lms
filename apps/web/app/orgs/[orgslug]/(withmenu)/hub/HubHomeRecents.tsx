@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { ChevronDown, LibraryBig } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import type { HubConversationSummary } from '@services/hub/advisor'
@@ -26,24 +26,7 @@ export default function HubHomeRecents({
   onOpenResources: (_conversationUuid: string) => void
 }) {
   const [open, setOpen] = useState(false)
-  const rootRef = useRef<HTMLDivElement>(null)
-  const recent = conversations.slice(0, 3)
-
-  useEffect(() => {
-    if (!open) return
-    const closeOnOutside = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false)
-    }
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false)
-    }
-    document.addEventListener('pointerdown', closeOnOutside)
-    document.addEventListener('keydown', closeOnEscape)
-    return () => {
-      document.removeEventListener('pointerdown', closeOnOutside)
-      document.removeEventListener('keydown', closeOnEscape)
-    }
-  }, [open])
+  const recent = conversations.slice(0, 5)
 
   if (!loading && recent.length === 0) return null
 
@@ -53,8 +36,8 @@ export default function HubHomeRecents({
   }
 
   return (
-    <section ref={rootRef} className="relative z-10 pb-2" aria-label="Recent Hub conversations">
-      <p className="px-2 pb-1.5 text-xs font-medium text-muted-foreground">Recent</p>
+    <section className="border-t border-border pt-5 pb-2" aria-label="Recent Hub conversations">
+      <p className="px-2 pb-1.5 text-xs font-medium text-muted-foreground">Recent conversations</p>
       <div aria-busy={loading}>
         {loading && recent.length === 0 ? (
           <p className="px-2 py-3 text-sm text-muted-foreground" role="status">Loading conversations…</p>
@@ -95,12 +78,12 @@ export default function HubHomeRecents({
         onClick={toggleHistory}
         aria-expanded={open}
       >
-        See more
+        {open ? 'Show less' : 'All conversations'}
         <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <div className="absolute inset-x-0 top-full">
-          <HubConversationHistory
+        <div className="mt-3">
+          <HubConversationHistory inline
             conversations={conversations}
             activeConversationUuid={null}
             loading={loading}

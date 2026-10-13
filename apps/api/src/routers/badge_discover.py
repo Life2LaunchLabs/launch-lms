@@ -2,9 +2,11 @@ from fastapi import APIRouter, Depends
 from sqlmodel import Session
 
 from src.core.events.database import get_db_session
+from src.db.discover import DiscoverSettings
 from src.db.users import AnonymousUser, PublicUser
 from src.security.auth import get_current_user
 from src.services import badge_discover as service
+from src.services import discover_featured
 
 router = APIRouter()
 
@@ -12,11 +14,22 @@ router = APIRouter()
 @router.get("/discover")
 def api_discover_badges(
     org_id: int | None = None,
+    site_org_id: int | None = None,
     db: Session = Depends(get_db_session),
     current_user: PublicUser | AnonymousUser = Depends(get_current_user),
 ):
     """The Discover feed: featured badges, the learner's badges in progress, collections and everything else."""
-    return service.discover(db, current_user, org_id)
+    return service.discover(db, current_user, org_id, site_org_id)
+
+
+@router.get("/discover/settings")
+def api_read_discover_settings(org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
+    return discover_featured.read_settings(db, current_user, org_id)
+
+
+@router.put("/discover/settings")
+def api_save_discover_settings(payload: DiscoverSettings, org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
+    return discover_featured.save_settings(db, current_user, org_id, payload)
 
 
 @router.get("/collections/{collection_uuid}")

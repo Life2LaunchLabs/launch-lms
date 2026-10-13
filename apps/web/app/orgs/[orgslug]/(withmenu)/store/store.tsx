@@ -1,5 +1,6 @@
 'use client'
 import React from 'react'
+import TabbedPageHeader from '@components/Objects/StyledElements/Headers/TabbedPageHeader'
 import Link from 'next/link'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
 import { getUriWithOrg, routePaths } from '@services/config/config'
@@ -205,17 +206,8 @@ function Store({ orgslug, offers }: StoreProps) {
   return (
     <div className="w-full">
       <GeneralWrapperStyled>
-        <div className="flex items-center gap-3 my-6">
-          <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-card nice-shadow">
-            <ShoppingBag size={18} className="text-foreground" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-black text-foreground tracking-tight">Store</h1>
-            {org?.name && (
-              <p className="text-sm text-muted-foreground mt-0.5">Unlock premium content from {org.name}</p>
-            )}
-          </div>
-        </div>
+        <TabbedPageHeader activeTab="store" tabs={[]} expanded={false} fullHeader={null} compactHeader={<h1 className="text-2xl font-semibold tracking-tight">Store</h1>} />
+        {org?.name ? <p className="my-6 text-sm text-muted-foreground">Content and access from {org.name}.</p> : null}
 
         {offers.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">

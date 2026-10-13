@@ -4,6 +4,7 @@ import React from 'react'
 import { Award, CalendarClock, Check, Clock3, Link2, PauseCircle, Play, Target } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { planTone } from './planColors'
+import { Button } from '@components/ui/button'
 
 export type StepAvailability = {
   state: 'open' | 'not_ready' | 'done'
@@ -103,31 +104,24 @@ export function StepStack({ items, colorFor, selectedUuid, onSelect, showPlanNam
           <span className={cn('min-h-3 flex-1 border-l-[3px] border-dashed', index === items.length - 1 ? 'border-transparent' : 'border-border')} />
         </div>
         <div
-          className={cn('my-1.5 min-w-0 flex-1 rounded-[22px] p-4 transition-transform sm:p-5', !selected && 'hover:-translate-y-0.5', notReady ? 'bg-muted text-muted-foreground' : 'text-foreground', done && 'opacity-60')}
+          className={cn('my-1 min-w-0 flex-1 rounded-xl border p-3', notReady ? 'border-border bg-muted text-muted-foreground' : 'text-foreground', done && 'bg-card')}
           style={{
-            ...(notReady ? {} : { backgroundColor: tone.tint, boxShadow: `0 4px 0 ${tone.edge}` }),
-            ...(selected ? { outline: `3px solid ${notReady ? 'hsl(var(--muted-foreground) / 0.45)' : tone.main}` } : {}),
+            ...(!notReady && !done ? { backgroundColor: `color-mix(in srgb, ${tone.ring} 7%, hsl(var(--card)))` } : {}),
+            borderColor: selected && !notReady ? tone.ring : 'hsl(var(--border))',
           }}
         >
           <button type="button" onClick={() => onSelect(item)} aria-expanded={selected} className="flex w-full items-center gap-4 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-foreground focus-visible:ring-offset-2 rounded-xl">
-            <span className="flex min-w-0 flex-1 flex-col gap-1">
-              {showPlanName && item.plan ? <span className="inline-flex items-center gap-1.5 text-xs font-black" style={notReady ? undefined : { color: tone.main }}>
+            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+              {showPlanName && item.plan ? <span className="inline-flex items-center gap-1.5 text-xs font-black" >
                 <span className="h-2 w-2 rounded-full" style={{ backgroundColor: notReady ? 'currentColor' : tone.ring }} />{item.plan.name}
               </span> : null}
-              <span className={cn('text-lg font-black leading-tight sm:text-xl', done && 'line-through decoration-2')}>{item.title}</span>
-              <span className={cn('flex items-center gap-2 text-sm font-semibold', notReady ? 'text-muted-foreground' : 'text-foreground/75')}>
-                <MetaIcon size={16} aria-hidden="true" />{meta.text}
+              <span className={cn('text-base font-semibold leading-snug', done && 'text-muted-foreground')}>{item.title}</span>
+              <span className={cn('flex items-center gap-2 text-xs font-medium', notReady ? 'text-muted-foreground' : 'text-foreground/75')}>
+                <MetaIcon size={14} aria-hidden="true" />{meta.text}
               </span>
             </span>
-            <span className={cn('flex h-[70px] w-[88px] shrink-0 items-center justify-center rounded-2xl', notReady && 'bg-muted-foreground/15')} style={notReady ? undefined : { backgroundColor: item.badge ? '#fff' : tone.ring }}>
-              {item.badge?.thumbnail_image
-                ? <img src={item.badge.thumbnail_image} alt="" className={cn('badge-sticker-image h-14 w-14 object-contain', notReady && 'opacity-50 grayscale')} />
-                : item.badge ? <Award size={34} className={notReady ? 'text-muted-foreground' : ''} style={notReady ? undefined : { color: tone.ring }} />
-                : item.activity_id ? <Play size={32} fill="currentColor" className={notReady ? 'text-muted-foreground' : 'text-white'} />
-                : <Target size={32} className={notReady ? 'text-muted-foreground' : 'text-white'} />}
-            </span>
           </button>
-          {selected ? <div className="mt-4 border-t border-foreground/10 pt-4">{renderSelected(item, state)}</div> : null}
+          {selected ? <div className="mt-3 border-t border-border pt-3">{renderSelected(item, state)}</div> : null}
         </div>
       </li>
     })}
@@ -146,9 +140,9 @@ export function SelectedStepBody({ item, state, onStart, onGoTo }: { item: StepI
       ? <button type="button" onClick={() => onGoTo(reason.objective_uuid)} className="min-h-11 rounded-full border-2 border-border bg-card px-4 text-sm font-black hover:bg-muted">Go to {reason.title}</button>
       : null}
     {state !== 'not_ready'
-      ? <button type="button" onClick={onStart} className={cn('min-h-[50px] rounded-2xl px-6 text-base font-black transition active:translate-y-[3px]', state === 'done' ? 'border-2 border-border bg-card' : 'bg-[#D7F25C] text-[#111318] shadow-[0_5px_0_#8BA42C] active:shadow-[0_2px_0_#8BA42C]')}>
+      ? <Button type="button" onClick={onStart} variant={state === 'done' ? 'outline' : 'brand'} className="min-h-11 shrink-0">
         {state === 'done' ? 'Review' : item.progress?.status && item.progress.status !== 'not_started' ? 'Continue' : 'Start'}
-      </button>
+      </Button>
       : null}
   </div>
 }

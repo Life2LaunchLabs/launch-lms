@@ -19,7 +19,9 @@ depends_on = None
 
 
 def upgrade() -> None:
-    if op.get_bind().dialect.name == "postgresql":
+    bind = op.get_bind()
+    # Migrated databases store the source as text; only schemas built from the models carry the enum type.
+    if bind.dialect.name == "postgresql" and bind.execute(sa.text("SELECT 1 FROM pg_type WHERE typname = 'learningawardsource'")).first():
         op.execute("ALTER TYPE learningawardsource ADD VALUE IF NOT EXISTS 'PLAN_COMPLETION'")
     op.create_table(
         "badgeroute",

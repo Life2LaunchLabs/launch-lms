@@ -73,7 +73,7 @@ function OpenSignUpComponent({
   const router = useRouter()
   const searchParams = useSearchParams()
   const [error, setError] = React.useState('')
-  const nextUrl = searchParams.get('next')
+  const nextUrl = searchParams.get('next') || searchParams.get('redirect')
   const inviteCode = searchParams.get('inviteCode')
   const invitationToken = searchParams.get('invitation')
   const createOrgRedirect = getUriWithOrg(org?.slug, '/signup/org')

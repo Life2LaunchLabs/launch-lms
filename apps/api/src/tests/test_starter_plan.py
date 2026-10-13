@@ -228,3 +228,33 @@ def test_template_belongs_to_owner_org_and_creates_no_system_badge():
     sync_starter_template(db)
     assert db.exec(select(Program).where(Program.program_uuid == starter_plan.TEMPLATE_UUID)).one().org_id == 1
     assert db.exec(select(LearningBadge)).all() == []
+
+
+def test_starter_definition_is_locked_even_for_owner_and_delegated_admin():
+    import pytest
+    from fastapi import HTTPException
+    from src.db.planning import PlanRole, PlanCollaborator, PlanUpdate
+    from src.db.users import PublicUser
+    from src.services import planning
+
+    db = _session()
+    _create_user(db, user_id=10, username="maya")
+    _create_user(db, user_id=11, username="helper")
+    plan = ensure_starter_plan(db, 10)
+    detail = planning.get_plan(db, PublicUser(id=10, username="maya", first_name="Maya", last_name="Test", email="maya@example.com", user_uuid="user_10"), plan.slug)
+    capabilities = detail["capabilities"]
+    assert "edit_structure" not in detail["available_capabilities"]
+    assert all("edit_structure" not in role["capabilities"] for role in detail["roles"])
+    assert {"update_progress", "manage_collaborators"} <= set(capabilities)
+    assert not {"edit_structure", "edit_schedule", "edit_plan_details", "manage_roles"} & set(capabilities)
+    for payload in (PlanUpdate(step_order="any"), PlanUpdate(due_date="2026-12-01"), PlanUpdate(name="Changed")):
+        with pytest.raises(HTTPException) as error:
+            planning.update_plan(db, PublicUser(id=10, username="maya", first_name="Maya", last_name="Test", email="maya@example.com", user_uuid="user_10"), plan.slug, payload)
+        assert error.value.status_code == 403
+    role = db.exec(select(PlanRole).where(PlanRole.plan_id == plan.id, PlanRole.key == "plan_admin")).one()
+    db.add(PlanCollaborator(collaborator_uuid="delegated_admin", plan_id=plan.id, user_id=11, role_id=role.id, creation_date="", update_date=""))
+    db.commit()
+    assert "edit_structure" not in planning.capabilities_for(db, plan, 11)
+    with pytest.raises(HTTPException) as error:
+        planning.update_plan(db, PublicUser(id=11, username="helper", first_name="Helper", last_name="Test", email="helper@example.com", user_uuid="user_11"), plan.slug, PlanUpdate(step_order="in_order"))
+    assert error.value.status_code == 403

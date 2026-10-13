@@ -30,7 +30,7 @@ const LoginClient = (props: LoginClientProps) => {
   const [ssoEnabled, setSsoEnabled] = useState(false)
   const [ssoLoading, setSsoLoading] = useState(false)
   const searchParams = useSearchParams()
-  const nextUrl = searchParams.get('next')
+  const nextUrl = searchParams.get('next') || searchParams.get('redirect')
 
   // Error state with type information
   const [error, setError] = useState('')

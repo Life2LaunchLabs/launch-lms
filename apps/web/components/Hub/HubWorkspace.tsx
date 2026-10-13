@@ -161,7 +161,7 @@ export default function HubWorkspace({ children, orgslug }: { children: ReactNod
 
   const value = useMemo(() => ({ surface: currentSurface, setSurface, open, compact: opened && !full, editRun, setEditRun, editOperations, setEditOperations, editReviewItems, setEditReviewItems, editContinuations, enqueueEditContinuation, removeEditContinuation, clearEditContinuations }), [currentSurface, open, opened, full, editRun, editOperations, editReviewItems, editContinuations, enqueueEditContinuation, removeEditContinuation, clearEditContinuations])
   return <HubWorkspaceContext.Provider value={value}>
-    <div className={`hub-workspace ${opened && !full ? 'hub-workspace--companion' : ''}`}>
+    <div className={`hub-workspace ${full ? 'hub-workspace--full' : opened ? 'hub-workspace--companion' : ''}`}>
       <div ref={appRef} className="hub-app-frame scrollbar-subtle scrollbar-subtle-rounded" hidden={full}>{children}</div>
       {!full && !opened && <Button ref={launcherRef} variant="secondary" onClick={open} className="hub-companion-launcher fixed bottom-24 right-4 z-[var(--z-nav)] gap-2 rounded-full shadow-md md:bottom-6" aria-label="Open Hub companion"><PanelRightOpen size={18} />Continue with Hub</Button>}
       {!full && opened && narrow && <button type="button" tabIndex={-1} className="fixed inset-0 z-[var(--z-modal-backdrop)] bg-black/20" aria-label="Return to app" onClick={() => setOpened(false)} />}

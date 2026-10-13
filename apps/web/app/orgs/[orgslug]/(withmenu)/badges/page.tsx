@@ -4,11 +4,10 @@ import { getOrganizationContextInfo } from '@services/organizations/orgs'
 import { getOrgThumbnailMediaDirectory, getOrgOgImageMediaDirectory } from '@services/media/media'
 import { getCanonicalUrl, getOrgSeoConfig, buildPageTitle, buildBreadcrumbJsonLd } from '@/lib/seo/utils'
 import { JsonLd } from '@components/SEO/JsonLd'
-import BadgesHubPage from '@components/Badges/BadgesHubPage'
+import BadgeDiscoverPage from '@components/Badges/BadgeDiscoverPage'
 
 type MetadataProps = {
   params: Promise<{ orgslug: string }>
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
 export async function generateMetadata(props: MetadataProps): Promise<Metadata> {
@@ -24,7 +23,7 @@ export async function generateMetadata(props: MetadataProps): Promise<Metadata> 
     : null
   const imageUrl = ogImageUrl || getOrgThumbnailMediaDirectory(org?.org_uuid, org?.thumbnail_image)
   const canonical = getCanonicalUrl(params.orgslug, '/badges')
-  const title = buildPageTitle('Badges', org.name, seoConfig)
+  const title = buildPageTitle('Discover badges', org.name, seoConfig)
   const description = org.description || seoConfig.default_meta_description || ''
 
   return {
@@ -69,17 +68,15 @@ export async function generateMetadata(props: MetadataProps): Promise<Metadata> 
 
 const BadgesPage = async (params: any) => {
   const orgslug = (await params.params).orgslug
-  const searchParams = await params.searchParams
-  const choosingBadge = searchParams?.choose === '1'
   const breadcrumbJsonLd = buildBreadcrumbJsonLd([
     { name: 'Home', url: getCanonicalUrl(orgslug, '/') },
-    { name: 'Badges', url: getCanonicalUrl(orgslug, '/badges') },
+    { name: 'Discover badges', url: getCanonicalUrl(orgslug, '/badges') },
   ])
 
   return (
     <div>
       <JsonLd data={breadcrumbJsonLd} />
-      <BadgesHubPage orgslug={orgslug} initialTab="discover" choosingBadge={choosingBadge} />
+      <BadgeDiscoverPage orgslug={orgslug} />
     </div>
   )
 }

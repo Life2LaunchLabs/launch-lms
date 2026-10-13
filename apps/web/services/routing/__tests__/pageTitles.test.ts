@@ -12,6 +12,7 @@ test('covers learner routes without exposing dynamic identifiers', () => {
   assert.deepEqual(resolveAppPageTitle('/orgs/acme/hub'), { section: 'Hub', detail: undefined })
   assert.deepEqual(resolveAppPageTitle('/orgs/acme/portfolio/projects/5b128134-5dc2'), { section: 'Portfolio', detail: 'Projects' })
   assert.deepEqual(resolveAppPageTitle('/orgs/acme/plans/sb3-journey'), { section: 'Plans', detail: undefined })
+  assert.deepEqual(resolveAppPageTitle('/orgs/acme/badges'), { section: 'Discover', detail: undefined })
   assert.deepEqual(resolveAppPageTitle('/orgs/acme/account/notifications'), { section: 'Account', detail: 'Notifications' })
 })
 

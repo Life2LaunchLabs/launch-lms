@@ -7,7 +7,6 @@ from fastapi import HTTPException, status
 from sqlalchemy import inspect
 from sqlmodel import Session, select
 from src.db.learning import LearningBadge, LearningBadgeAward
-from src.db.planning import Plan, PlanStatus
 from src.db.media import MediaAsset
 from src.db.portfolio import (
     Portfolio,
@@ -435,35 +434,20 @@ def portfolio_shell(
         set(inspect(bind).get_table_names()) if bind is not None else set()
     )
     awards = list(db_session.exec(select(LearningBadgeAward).where(LearningBadgeAward.user_id == portfolio.user_id)).all()) if "learningbadgeaward" in learning_tables else []
-    earned_ids = {item.badge_id for item in awards}
-    badge_plans = [] if public_only or "plan" not in learning_tables else [
-        plan for plan in db_session.exec(select(Plan).where(
-            Plan.subject_user_id == portfolio.user_id, Plan.source_badge_id.is_not(None), Plan.status == PlanStatus.ACTIVE,  # type: ignore[union-attr]
-        )).all() if plan.source_badge_id not in earned_ids
-    ]
-    from src.services.badge_discover import _plan_progress
-
-    progress_by_badge = {plan.source_badge_id: progress for plan, progress in zip(badge_plans, (_plan_progress(db_session, badge_plans).get(int(plan.id), (0, 0)) for plan in badge_plans))}  # type: ignore[arg-type]
-    badge_ids = earned_ids | set(progress_by_badge)
+    # The portfolio shows credentials earned; badges being worked toward are plans.
+    badge_ids = {item.badge_id for item in awards}
     badges_by_id = {item.id: item for item in db_session.exec(select(LearningBadge).where(LearningBadge.id.in_(badge_ids))).all()} if badge_ids else {}  # type: ignore[union-attr]
 
-    def badge_dto(item: LearningBadge, badge_status: str) -> dict:
-        completed, total = (1, 1) if badge_status == "earned" else progress_by_badge.get(item.id, (0, 0))
+    def badge_dto(item: LearningBadge) -> dict:
         return {
             "badge_uuid": item.badge_uuid,
             "name": item.name,
             "description": item.description or "",
             "thumbnail_image": item.thumbnail_image or "",
-            "status": badge_status,
-            "progress": {"completed": completed, "total": total, "percent": round((completed / total) * 100) if total else 0},
         }
 
-    earned_badges = [badge_dto(badges_by_id[item.badge_id], "earned") for item in awards if item.badge_id in badges_by_id]
-    in_progress_badges = [badge_dto(badges_by_id[badge_id], "in_progress") for badge_id in progress_by_badge if badge_id in badges_by_id]
+    earned_badges = [badge_dto(badges_by_id[item.badge_id]) for item in awards if item.badge_id in badges_by_id]
     earned_badges = list({item["badge_uuid"]: item for item in earned_badges}.values())
-    in_progress_badges = list(
-        {item["badge_uuid"]: item for item in in_progress_badges}.values()
-    )
     hidden_badge_uuids = set(
         (portfolio.theme_settings or {}).get("hidden_badge_uuids") or []
     )
@@ -485,8 +469,6 @@ def portfolio_shell(
         for item in earned_badges
         if item["badge_uuid"] not in {badge["badge_uuid"] for badge in featured_badges}
     ]
-    if not public_only:
-        featured_badges += in_progress_badges
     featured_badges = featured_badges[:5]
     blockers = _readiness_blockers(portfolio, meaningful_count)
     if not public_only and user and not user.email_verified:
@@ -512,8 +494,7 @@ def portfolio_shell(
         {
             "key": "badges",
             "visible": not public_only or bool(earned_badges),
-            "itemCount": len(earned_badges)
-            + (0 if public_only else len(in_progress_badges)),
+            "itemCount": len(earned_badges),
         },
     ]
     return {
@@ -596,7 +577,6 @@ def portfolio_shell(
         ],
         "badges": {
             "earned": earned_badges,
-            "inProgress": in_progress_badges,
             "featured": featured_badges,
             "featuredBadgeUuids": featured_uuids,
             "hiddenBadgeUuids": list(hidden_badge_uuids) if not public_only else [],

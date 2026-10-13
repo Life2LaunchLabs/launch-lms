@@ -196,7 +196,7 @@ Help learners find relevant microcredentials, complete meaningful learning and a
   - `CREDENTIALS-G001-A001` [live] Browse the badge catalog
     - `CREDENTIALS-G001-A001-S001` [live / core] Browse available badges
     - `CREDENTIALS-G001-A001-S002` [live / core] Browse badge collections
-    - `CREDENTIALS-G001-A001-S003` [live / core] View the learner's badges
+    - `CREDENTIALS-G001-A001-S003` [live / core] Find earned badges on the portfolio Badges tab
     - `CREDENTIALS-G001-A001-S004` [removed / core] Browse badges offered through a program
   - `CREDENTIALS-G001-A002` [live] Review a badge
     - `CREDENTIALS-G001-A002-S001` [live / core] Review the badge purpose
@@ -284,7 +284,7 @@ Help learners find relevant microcredentials, complete meaningful learning and a
     - `CREDENTIALS-G004-A003-S003` [live / core] View the certificate
   - `CREDENTIALS-G004-A004` [live] Present a badge in the portfolio
     - `CREDENTIALS-G004-A004-S001` [live / core] Add a visible earned badge
-    - `CREDENTIALS-G004-A004-S002` [live / optional] Add a visible in-progress badge
+    - `CREDENTIALS-G004-A004-S002` [removed / optional] Add a visible in-progress badge
     - `CREDENTIALS-G004-A004-S003` [live / optional] Feature a badge
   - `CREDENTIALS-G004-A005` [live] Share a verifiable credential externally
     - `CREDENTIALS-G004-A005-S001` [live / core] Open the public credential
@@ -524,7 +524,7 @@ Help a learner turn activities, experiences, and credentials into a coherent sto
     - `PORTFOLIO-G003-A001-S005` [live / core] Respond to an item moderation state
   - `PORTFOLIO-G003-A002` [live] Control badge presentation
     - `PORTFOLIO-G003-A002-S001` [live / core] Show or hide an earned badge
-    - `PORTFOLIO-G003-A002-S002` [live / core] Show or hide an in-progress badge
+    - `PORTFOLIO-G003-A002-S002` [removed / core] Show or hide an in-progress badge
     - `PORTFOLIO-G003-A002-S003` [live / core] Feature or unfeature a badge
   - `PORTFOLIO-G003-A003` [live] Preview the external experience
     - `PORTFOLIO-G003-A003-S001` [live / core] Preview the public portfolio

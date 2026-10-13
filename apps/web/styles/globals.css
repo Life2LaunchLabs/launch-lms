@@ -405,11 +405,11 @@
     --z-max: 9999;
   }
   .dark {
-    --background: 0 0% 4%;
+    --background: 180 2% 10%;
     --foreground: 0 0% 93%;
-    --card: 0 0% 4%;
+    --card: 180 2% 12%;
     --card-foreground: 0 0% 93%;
-    --popover: 0 0% 10%;
+    --popover: 180 2% 14%;
     --popover-foreground: 0 0% 93%;
     --primary: 0 0% 98%;
     --primary-foreground: 0 0% 9%;
