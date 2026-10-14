@@ -2751,20 +2751,22 @@
 .dark [data-plan], .dark[data-plan] { --plan-accent: var(--plan-accent-dark); }
 
 /* ─── Weekly goal: green on the way there, gold once the learner goes past it ───
-   Gold carries a bright diagonal slash that sweeps in once when it turns gold. */
-:root { --week-green: #22c55e; --week-gold-edge: #b7791f; }
+   Gold is flat like a cartoon gold bar: a yellow face over an orange side, with a
+   wide and a thin pale slash across it that sweep in once when it turns gold. */
+:root { --week-green: #22c55e; --week-gold-edge: #f29400; }
 .week-gold {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(180deg, #ffd765, #f2a81d);
-  color: #3b2600;
+  background-color: #ffc21a;
+  color: #4a2a00;
 }
 .week-gold::after {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(115deg, transparent 0 54%, rgb(255 255 255 / 0.65) 54% 63%, transparent 63% 69%, rgb(255 255 255 / 0.45) 69% 73%, transparent 73%);
+  /* Fixed-size slashes near the end, so the chip and the long bar share one mark. */
+  background: linear-gradient(115deg, transparent calc(100% - 52px), #ffe27a calc(100% - 52px) calc(100% - 38px), transparent calc(100% - 38px) calc(100% - 32px), #ffe27a calc(100% - 32px) calc(100% - 27px), transparent calc(100% - 27px));
   animation: week-gold-sweep 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 @keyframes week-gold-sweep { from { transform: translateX(-110%); } to { transform: none; } }
