@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Buildings, Envelope, GearSix, Question, SignOut, Sun, User } from '@phosphor-icons/react'
+import { Buildings, ChatCircleDots, Envelope, GearSix, SignOut, Sun, User } from '@phosphor-icons/react'
 import { openCandidatePanel } from '@components/Candidate/CandidateExperience'
 import { signOut } from '@components/Contexts/AuthContext'
 import useInboxMessages from '@components/Hooks/useInboxMessages'
@@ -30,7 +30,7 @@ export default function PortfolioSettingsMenu({ orgslug }: { orgslug: string }) 
       <DropdownMenuItem asChild><Link href={getUriWithOrg(orgslug, routePaths.owner.account.organizations())} className={item}><Buildings size={18} weight="fill" /><span>Organizations</span></Link></DropdownMenuItem>
       <DropdownMenuItem asChild><Link href={getUriWithOrg(orgslug, routePaths.owner.account.preferences())} className={item}><Sun size={18} weight="fill" /><span>Appearance</span></Link></DropdownMenuItem>
       <DropdownMenuSeparator />
-      <DropdownMenuItem onClick={() => openCandidatePanel('feedback')} className={item}><Question size={18} weight="fill" /><span>Help &amp; feedback</span></DropdownMenuItem>
+      <DropdownMenuItem onClick={() => openCandidatePanel('feedback')} className={item}><ChatCircleDots size={18} weight="fill" /><span>Feedback</span></DropdownMenuItem>
       <DropdownMenuItem onClick={() => signOut({ callbackUrl: '/' })} className={`${item} text-red-600 focus:text-red-600`}><SignOut size={18} weight="fill" /><span>Sign out</span></DropdownMenuItem>
     </DropdownMenuContent>
   </DropdownMenu>
