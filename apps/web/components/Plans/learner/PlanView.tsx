@@ -8,18 +8,14 @@ import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { Button } from '@components/ui/button'
 import { getUriWithOrg } from '@services/config/config'
 import { cn } from '@/lib/utils'
-import { SelectedStepBody, StepStack, stepState, type StepItem } from './StepStack'
+import { Skeleton } from '@components/ui/skeleton'
+import { SelectedStepBody, StepStack, StepStackSkeleton, stepState, type StepItem } from './StepStack'
 import { planVars } from './planColors'
-import PlanHeaderActions from './PlanHeaderActions'
-import { PlanCarousel, PlanHeaderCard } from './PlanHeader'
 
-type PlanSummary = { plan_uuid: string; slug: string; name: string; progress_percent?: number }
 type PlanViewProps = {
-  orgslug: string; detail: any; token?: string; refresh: () => Promise<unknown>; onBack: () => void; plans: PlanSummary[]
+  orgslug: string; detail: any
   // eslint-disable-next-line no-unused-vars
   getPlanColor: (planUuid?: string) => string
-  // eslint-disable-next-line no-unused-vars
-  choose: (plan: any) => void
   onEdit?: () => void
   // eslint-disable-next-line no-unused-vars
   renderObjective: (item: StepItem, close: () => void) => React.ReactNode
@@ -34,8 +30,8 @@ function chaptersOf(detail: any) {
   return chapters.filter((chapter: any) => chapter.items.length)
 }
 
-/** A learner's plan: its header among their other plans, then the path of steps, opened at the next one. */
-export default function PlanView({ orgslug, detail, token, refresh, onBack, plans, getPlanColor, choose, onEdit, renderObjective }: PlanViewProps) {
+/** A learner's plan below its header: the path of steps, opened at the next one. */
+export default function PlanView({ orgslug, detail, getPlanColor, onEdit, renderObjective }: PlanViewProps) {
   const router = useRouter()
   const hub = useHub()
   const chapters = React.useMemo(() => chaptersOf(detail), [detail])
@@ -65,9 +61,6 @@ export default function PlanView({ orgslug, detail, token, refresh, onBack, plan
   const ask = hub ? (item: StepItem) => hub.open({ prompt: `Help me with “${item.title}” in my plan “${detail.name}”.` }) : undefined
 
   return <div data-plan="" style={planVars(getPlanColor(detail.plan_uuid))} className="flex flex-col gap-8">
-    <PlanCarousel plans={plans} activeUuid={detail.plan_uuid} getPlanColor={getPlanColor} choose={choose}>
-      <PlanHeaderCard detail={detail} done={done} total={steps.length} actions={<PlanHeaderActions orgslug={orgslug} detail={detail} token={token} refresh={refresh} onBack={onBack} onEdit={onEdit} />} />
-    </PlanCarousel>
     {chapters.length ? chapters.map((chapter: any) => {
       const chapterDone = chapter.items.filter((item: any) => item.progress?.status === 'completed').length
       const waiting = chapter.items.every((item: any) => stepState(item) === 'not_ready')
@@ -91,5 +84,13 @@ export default function PlanView({ orgslug, detail, token, refresh, onBack, plan
       </div>
     </div> : null}
     <Modal isDialogOpen={Boolean(open)} onOpenChange={(value) => { if (!value) setOpen(null) }} minWidth="lg" minHeight="no-min" dialogTitle={open?.title || ''} dialogContent={open ? renderObjective(open, () => setOpen(null)) : null} />
+  </div>
+}
+
+/** A plan's path while it loads: a chapter bar, then its steps. */
+export function PlanViewSkeleton() {
+  return <div className="flex flex-col gap-4">
+    <Skeleton className="h-12 rounded-2xl" />
+    <StepStackSkeleton count={5} />
   </div>
 }

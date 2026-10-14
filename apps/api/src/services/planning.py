@@ -52,6 +52,7 @@ from src.security.org_auth import is_org_admin, require_org_admin
 from src.services.badge_routes import award_if_plan_complete, badge_summary as _badge_summary
 from src.services.messages import create_inbox_message, resolve_action_by_dedupe
 from src.services.plan_permissions import effective_plan_capabilities
+from src.services.plan_progress import progress_for as _progress_for, progress_view as _progress_view
 from src.services.plan_home import adaptive_future_groups as _adaptive_future_groups
 from src.services.plan_availability import apply_template_order, plan_availability, validated_prerequisites
 from src.services.template_versions import issued_program
@@ -232,20 +233,6 @@ def _seed_roles(db: Session, plan: Plan, definitions: list[dict] | None = None) 
     return roles
 
 
-def _progress_for(db: Session, objective: PlanObjective) -> PlanObjectiveProgress:
-    progress = db.exec(select(PlanObjectiveProgress).where(PlanObjectiveProgress.plan_objective_id == objective.id)).first()
-    if progress:
-        return progress
-    now = _now_string()
-    progress = PlanObjectiveProgress(
-        progress_uuid=f"plan_progress_{uuid4()}", plan_objective_id=int(objective.id),
-        creation_date=now, update_date=now,
-    )
-    db.add(progress)
-    db.flush()
-    return progress
-
-
 def _badge_plan(db: Session, plan: Plan, badge_id: int | None) -> Plan | None:
     """The subject's own plan for earning this badge, if they started it."""
     if not badge_id or not plan.subject_user_id:
@@ -379,7 +366,7 @@ def _materialized_objective_fields(db: Session, snapshot: dict) -> list[dict]:
 
 
 def _objective_dict(db: Session, plan: Plan, objective: PlanObjective, capabilities: set[str], availability: dict | None = None) -> dict:
-    progress = _progress_for(db, objective)
+    progress = _progress_view(db, objective)
     phase = db.get(PlanPhase, objective.phase_id) if objective.phase_id else None
     effective_due_date = objective.due_date or (phase.due_date if phase else None) or plan.due_date
     status = progress.status.value if hasattr(progress.status, "value") else str(progress.status)
@@ -1165,7 +1152,7 @@ def update_objective(db: Session, current_user: PublicUser, identifier: str, obj
     if next_due and target_start and next_due < target_start:
         raise HTTPException(status_code=422, detail="Objective target date must be within its phase")
     if "fields" in changes:
-        if _progress_for(db, objective).status == PlanObjectiveStatus.COMPLETED:
+        if _progress_view(db, objective).status == PlanObjectiveStatus.COMPLETED:
             raise HTTPException(status_code=409, detail="Reopen this objective before changing its supporting items")
         changes["fields"] = _validated_plan_steps(db, changes["fields"])
         requirement_badges = _badges_for_requirement_fields(db, changes["fields"])

@@ -1795,7 +1795,7 @@
           "health": "works",
           "traceability": "partial",
           "priority": "unset",
-          "implementation_notes": "Undated steps are paced: each learner has a weekly target (default 5). On the first My plans load of a week the server picks the week's steps (dated this week or overdue, carried-over picks, then open undated steps round-robin across plans) and keeps them for the week. Ready for more adds up to three open steps; Next week previews the next batch; other undated steps wait in Later. Plan pages ignore pacing and show every step.",
+          "implementation_notes": "Undated steps are paced: each learner has a weekly target (default 5). On the first My plans load of a week the server picks the week's steps (dated this week or overdue, carried-over picks, then open undated steps round-robin across plans) and keeps them for the week. Only the learner grows a week: once every step is done, Pull 3 more adds up to three open steps from any active plan, and finishing steps or a plan finishing itself never refills it. The weekly goal shows as done/goal on the overview and a new goal starts next week. Next week previews the next batch; other undated steps wait in Later. Plan pages ignore pacing and show every step.",
           "original_state": null,
           "updated_at": "2026-10-12T16:00:00+00:00",
           "description": "",
@@ -1814,7 +1814,7 @@
             {
               "kind": "code",
               "path": "apps/api/src/services/plan_home.py",
-              "responsibility": "Weekly picks, Ready for more, and the My plans timeline"
+              "responsibility": "Weekly picks, Pull 3 more, and the My plans timeline"
             },
             {
               "kind": "code",
@@ -1852,7 +1852,7 @@
               "id": "PATHWAYS-G002-A007-S002",
               "activity_id": "PATHWAYS-G002-A007",
               "display_order": 2,
-              "title": "Change the weekly target",
+              "title": "Change the weekly goal for next week",
               "description": "",
               "step_kind": "optional",
               "product_state": "live",

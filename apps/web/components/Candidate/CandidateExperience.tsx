@@ -7,7 +7,7 @@ import { Button } from '@components/ui/button'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import CandidateToolbar from './CandidateToolbar'
-import { CandidatePanel, CandidatePanelContent, recordCandidateRoute } from '@components/Objects/Modals/FeedbackModal'
+import { CandidatePanel, CandidatePanelContent, FeedbackModal, recordCandidateRoute } from '@components/Objects/Modals/FeedbackModal'
 import { CandidateAnnouncement, markCandidateAnnouncementsViewed } from '@services/candidate/candidate'
 import { getConfig } from '@services/config/config'
 import { useDemoBarActive } from '@services/demo/demo'
@@ -18,13 +18,14 @@ export function openCandidatePanel(panel: CandidatePanel = 'feedback') {
   window.dispatchEvent(new CustomEvent(CANDIDATE_OPEN_EVENT, { detail: panel }))
 }
 
-export default function CandidateExperience({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
+export default function CandidateExperience() {
   const org = useOrg() as any
   const session = useLHSession() as any
   const token = session?.data?.tokens?.access_token as string | undefined
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
-  const [panel, setPanel] = useState<CandidatePanel>('feedback')
+  const [panel, setPanel] = useState<CandidatePanel>('announcements')
+  const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [feedbackConfigured, setFeedbackConfigured] = useState(true)
   const [unstable, setUnstable] = useState(false)
   const [unreadAnnouncements, setUnreadAnnouncements] = useState<CandidateAnnouncement[]>([])
@@ -46,8 +47,11 @@ export default function CandidateExperience({ theme = 'light' }: { theme?: 'ligh
 
   useEffect(() => {
     const listener = (event: Event) => {
+      const next = (event as CustomEvent<CandidatePanel>).detail || 'feedback'
+      // Feedback always opens in its own dialog; the unstable banner panel only carries announcements and releases.
+      if (next === 'feedback') { setOpen(false); setFeedbackOpen(true); return }
       returnFocusRef.current = document.activeElement as HTMLElement | null
-      setPanel((event as CustomEvent<CandidatePanel>).detail || 'feedback')
+      setPanel(next)
       setOpen(true)
     }
     window.addEventListener(CANDIDATE_OPEN_EVENT, listener)
@@ -86,14 +90,15 @@ export default function CandidateExperience({ theme = 'light' }: { theme?: 'ligh
 
   if (demoBarActive || session?.status !== 'authenticated' || getConfig('NEXT_PUBLIC_CANDIDATE_LEGACY_ENABLED', 'true') !== 'true') return null
   return <div className={`candidate-experience relative w-full min-w-0 max-w-full shrink-0 print:hidden ${unstable ? 'candidate-experience--unstable' : ''}`} style={{ zIndex: 'var(--z-overlay)' }}>
-    <CandidateToolbar accessToken={token} orgId={Number(org?.id)} activePanel={open ? panel : null} onConfiguration={configure} onOpen={show} onUnreadAnnouncements={receiveUnreadAnnouncements} />
+    <CandidateToolbar accessToken={token} activePanel={open ? panel : null} onConfiguration={configure} onOpen={show} onUnreadAnnouncements={receiveUnreadAnnouncements} />
     {currentAnnouncement && !open ? <section aria-live="polite" aria-label="Unread tester announcement" className="absolute right-3 top-full mt-2 w-[min(24rem,calc(100dvw-1.5rem))] min-w-0 [overflow-wrap:anywhere] rounded-2xl border border-amber-200 bg-background p-4 shadow-2xl" style={{ zIndex: 'var(--z-overlay)' }}><p className="text-xs font-black uppercase tracking-wide text-amber-700">Announcement</p><h2 className="mt-1 font-bold">{currentAnnouncement.title}</h2><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{currentAnnouncement.message}</p><Button className="mt-4 w-full" size="sm" onClick={() => setUnreadAnnouncements((items) => items.slice(1))}>{unreadAnnouncements.length > 1 ? 'Next' : 'Done'}</Button></section> : null}
-    {open && unstable ? <>
+    {open && unstable && panel !== 'feedback' ? <>
       <button type="button" aria-label="Close unstable panel" onClick={closePanel} className="fixed inset-0 top-12 max-w-[100dvw] bg-black/15" style={{ zIndex: 'var(--z-modal-backdrop)' }} />
-      <section ref={panelRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={`${panel} panel`} className={`fixed inset-x-0 bottom-0 max-h-[82dvh] max-w-[100dvw] overflow-x-hidden overflow-y-auto rounded-t-2xl border border-b-0 border-amber-200 bg-background p-4 shadow-2xl outline-none sm:absolute sm:bottom-auto sm:left-auto sm:right-4 sm:top-full sm:mt-2 sm:w-[min(42rem,calc(100dvw-2rem))] sm:rounded-2xl sm:border sm:p-5 ${theme === 'dark' ? 'dark border-white/10' : ''}`} style={{ zIndex: 'var(--z-modal)', backgroundColor: theme === 'dark' ? '#0f0f10' : undefined }}>
-        {panel !== 'feedback' ? <div className="mb-4 flex items-center justify-between"><h2 className="font-bold capitalize">{panel === 'releases' ? "What's new" : panel}</h2><button type="button" onClick={closePanel} aria-label="Close panel" className="rounded-lg p-2 hover:bg-muted"><X /></button></div> : null}
-        <CandidatePanelContent panel={panel} theme={theme} orgId={Number(org?.id)} accessToken={token} feedbackConfigured={feedbackConfigured} onReleasesViewed={() => window.dispatchEvent(new Event('candidate-releases-viewed'))} />
+      <section ref={panelRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={`${panel} panel`} className={`fixed inset-x-0 bottom-0 max-h-[82dvh] max-w-[100dvw] overflow-x-hidden overflow-y-auto rounded-t-2xl border border-b-0 border-amber-200 bg-background p-4 shadow-2xl outline-none sm:absolute sm:bottom-auto sm:left-auto sm:right-4 sm:top-full sm:mt-2 sm:w-[min(42rem,calc(100dvw-2rem))] sm:rounded-2xl sm:border sm:p-5`} style={{ zIndex: 'var(--z-modal)' }}>
+        <div className="mb-4 flex items-center justify-between"><h2 className="font-bold capitalize">{panel === 'releases' ? "What's new" : panel}</h2><button type="button" onClick={closePanel} aria-label="Close panel" className="rounded-lg p-2 hover:bg-muted"><X /></button></div>
+        <CandidatePanelContent panel={panel} orgId={Number(org?.id)} accessToken={token} feedbackConfigured={feedbackConfigured} onReleasesViewed={() => window.dispatchEvent(new Event('candidate-releases-viewed'))} />
       </section>
     </> : null}
+    <FeedbackModal open={feedbackOpen} onOpenChange={setFeedbackOpen} orgId={Number(org?.id)} accessToken={token} feedbackConfigured={feedbackConfigured} />
   </div>
 }

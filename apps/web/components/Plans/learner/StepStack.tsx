@@ -153,3 +153,17 @@ export function SelectedStepBody({ item, state, onStart, onGoTo, onAsk }: { item
     </div>
   </div>
 }
+
+/** A path of steps while they load: nodes on the line, a title and a meta line beside each. */
+export function StepStackSkeleton({ count = 4 }: { count?: number }) {
+  return <ol aria-hidden="true" className="flex flex-col">
+    {Array.from({ length: count }).map((_, index) => <li key={index} className="relative flex items-start gap-4 pb-4">
+      {index < count - 1 ? <span className="absolute left-[27px] top-12 bottom-0 w-[3px] -translate-x-1/2 rounded-full bg-border" /> : null}
+      <span className="flex w-14 shrink-0 justify-center pt-0.5"><span className={cn('rounded-full bg-muted motion-safe:animate-pulse', index === 0 ? 'h-14 w-14' : 'h-11 w-11')} /></span>
+      <span className="flex min-w-0 flex-1 flex-col gap-2 pt-2.5">
+        <span className="h-4 rounded-md bg-muted motion-safe:animate-pulse" style={{ width: `${[62, 48, 70, 55][index % 4]}%` }} />
+        <span className="h-3 w-24 rounded-md bg-muted motion-safe:animate-pulse" />
+      </span>
+    </li>)}
+  </ol>
+}

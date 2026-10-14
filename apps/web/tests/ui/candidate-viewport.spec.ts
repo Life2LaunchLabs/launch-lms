@@ -33,12 +33,14 @@ test('BOT-217 populated Coach and candidate viewport', async ({ page }, testInfo
         }
       }
       await capture('closed')
-      for (const [name, panel] of [['Announcements', 'announcements'], ['Feedback', 'feedback']]) {
+      // Feedback opens from the navigation (desktop sidebar); the tester bar only carries announcements.
+      const panels = viewport.width >= 768 ? [['Announcements', 'announcements panel'], ['Send feedback', 'Feedback']] : [['Announcements', 'announcements panel']]
+      for (const [name, dialogName] of panels) {
         const trigger = page.getByRole('button', { name, exact: true })
         await trigger.click()
-        await expect(page.getByRole('dialog', { name: `${panel} panel` })).toBeVisible()
-        if (panel !== 'feedback') await expect(page.getByRole('dialog').getByText(longText, { exact: true }).first()).toBeVisible()
-        await capture(panel)
+        await expect(page.getByRole('dialog', { name: dialogName })).toBeVisible()
+        if (name === 'Announcements') await expect(page.getByRole('dialog').getByText(longText, { exact: true }).first()).toBeVisible()
+        await capture(name === 'Announcements' ? 'announcements' : 'feedback')
         await page.keyboard.press('Escape')
         await expect(trigger).toBeFocused()
       }

@@ -8,7 +8,6 @@ import {
   CurrencyCircleDollar,
   Buildings,
   Globe,
-  Question,
   Gear,
   SignOut,
   SidebarSimple,
@@ -62,7 +61,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@components/ui/dropdown-menu'
-import { openCandidatePanel } from '@components/Candidate/CandidateExperience'
+import DashFeedbackButton from './DashFeedbackButton'
 import { AVAILABLE_LANGUAGES } from '@/lib/languages'
 import { getOrgLogoMediaDirectory } from '@services/media/media'
 import { cn } from '@/lib/utils'
@@ -478,6 +477,7 @@ function DashLeftMenu() {
 
       {/* Bottom Section */}
       <div className="border-t border-white/[0.08] py-3 px-3 shrink-0">
+        <DashFeedbackButton isCollapsed={isCollapsed} />
         <DropdownMenu modal={false}>
           <TooltipProvider delayDuration={0}>
             <Tooltip>
@@ -552,13 +552,6 @@ function DashLeftMenu() {
                 ))}
               </DropdownMenuSubContent>
             </DropdownMenuSub>
-            <DropdownMenuItem
-              onClick={() => openCandidatePanel('feedback')}
-              className="flex items-center gap-2 rounded-md px-3 py-2 text-white/70 focus:bg-white/[0.08] focus:text-white"
-            >
-              <Question size={16} weight="fill" />
-              <span>{t('common.help_menu.report_feedback')}</span>
-            </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-white/[0.08]" />
             <DropdownMenuItem asChild>
               <Link href={authenticatedOrgHref(getUriWithOrg(getDefaultOrg(), routePaths.org.portfolio()), true)} className="flex items-center gap-2 rounded-md px-3 py-2 text-white/70 focus:bg-white/[0.08] focus:text-white">
