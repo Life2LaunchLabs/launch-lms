@@ -3,15 +3,17 @@
 import React from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import useSWR, { mutate } from 'swr'
+import useSWR, { mutate, preload, useSWRConfig } from 'swr'
 import toast from 'react-hot-toast'
-import { Loader2, Plus } from 'lucide-react'
+import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from 'motion/react'
+import { Compass, Plus } from 'lucide-react'
 import { useHub } from '@components/Hub/HubContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
 import ContentPageHeader from '@components/Objects/StyledElements/Headers/ContentPageHeader'
 import { Button } from '@components/ui/button'
+import { Reveal, Skeleton } from '@components/ui/skeleton'
 import { type PlanLifecycle } from '@services/planning/planning'
 import { getAPIUrl, getUriWithOrg } from '@services/config/config'
 import { swrFetcher } from '@services/utils/ts/requests'
@@ -22,11 +24,11 @@ import ObjectiveCard from './objective/ObjectiveCard'
 import CreatePlanEditor from './edit/CreatePlanEditor'
 import PlanEditMode from './edit/PlanEditMode'
 import PlanStepsEditor from './edit/PlanStepsEditor'
-import PlansHome, { homeKey } from './learner/PlansHome'
-import PlanView from './learner/PlanView'
+import PlansHome, { homeKey, WeekSkeleton } from './learner/PlansHome'
+import PlanView, { PlanViewSkeleton } from './learner/PlanView'
 import PlanComplete from './learner/PlanComplete'
 import PlanHeaderActions from './learner/PlanHeaderActions'
-import { PlanHeaderCard } from './learner/PlanHeader'
+import { PlanCarousel, PlanHeaderCard, PlanTabs } from './learner/PlanHeader'
 import { planVars } from './learner/planColors'
 import usePlanColors from './learner/usePlanColors'
 import useQuickCreatePlan from './learner/useQuickCreatePlan'
@@ -36,6 +38,18 @@ const invitesKey = () => `${getAPIUrl()}planning/invitations/me`
 const detailKey = (slug?: string) => slug ? `${getAPIUrl()}planning/plans/${encodeURIComponent(slug)}` : null
 const EMPTY_PLANS: PlanTarget[] = []
 const canEdit = (plan: any) => ['edit_plan_details', 'edit_structure', 'edit_schedule'].some((capability) => plan.capabilities?.includes(capability))
+const stepsOf = (detail: any) => detail.objectives || detail.phases?.flatMap((phase: any) => phase.objectives || []) || []
+const EASE_OUT = [0.22, 1, 0.36, 1] as const
+
+/**
+ * The body below the plan strip slides toward the plan being opened: right for a plan
+ * further along the strip, left for one before it or for the overview.
+ */
+const swipe = {
+  enter: ({ dir, still }: { dir: number; still: boolean }) => ({ opacity: 0, x: still ? 0 : dir * 40 }),
+  center: { opacity: 1, x: 0, transition: { duration: 0.3, ease: EASE_OUT } },
+  exit: ({ dir, still }: { dir: number; still: boolean }) => ({ opacity: 0, x: still ? 0 : dir * -40, transition: { duration: 0.18, ease: 'easeIn' as const } }),
+}
 
 /** Plans: the landing page, one plan's path, and editing a plan, chosen by the URL. */
 export default function PlansWorkspace({ orgslug, initialPlanSlug }: { orgslug: string; initialPlanSlug?: string }) {
@@ -73,7 +87,10 @@ export default function PlansWorkspace({ orgslug, initialPlanSlug }: { orgslug: 
   const { data: invitations = [] } = useSWR<any[]>(token ? invitesKey() : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: true })
   const colorPlans = React.useMemo(() => [...plans, ...completedPlans], [plans, completedPlans])
   const { getPlanColor, setPlanColor } = usePlanColors(colorPlans, viewerUserId)
-  const ownPlans = React.useMemo(() => plans.filter((plan) => plan.target_kind === 'individual' && plan.is_mine !== false), [plans])
+  // Plans that open here (not group assignments), in the order the strip shows them.
+  const stripPlans = React.useMemo(() => plans.filter((plan) => plan.target_kind === 'individual'), [plans])
+  const { cache } = useSWRConfig()
+  const reduceMotion = useReducedMotion()
 
   React.useEffect(() => {
     const segments = (pathname.split('/plans')[1] || '').split('/').filter(Boolean)
@@ -144,41 +161,90 @@ export default function PlansWorkspace({ orgslug, initialPlanSlug }: { orgslug: 
   }
   const renderObjective = (item: any, color = getPlanColor(item.plan?.plan_uuid)) => <ObjectiveCard item={item} orgslug={orgslug} token={token} viewerUserId={viewerUserId} refresh={refresh} color={color} expanded />
 
+  // Fetch a plan as soon as the learner reaches for it, so it is usually there by the click.
+  const prefetch = (plan: any) => {
+    const key = token && plan?.slug && plan.target_kind !== 'group' ? detailKey(plan.slug) : null
+    if (key && !cache.get(key)?.data) void preload(key, (url: string) => swrFetcher(url, token)).catch(() => undefined)
+  }
+
+  // Which view the body shows, and which way it moved to get there.
+  const viewKey = creating ? 'new' : !selectedSlug ? 'overview' : `${editingPlan || editDetails ? 'edit' : 'plan'}:${selectedSlug}`
+  const place = (key: string) => {
+    if (key === 'overview' || key === 'new') return -1
+    const index = stripPlans.findIndex((plan) => plan.slug === key.split(':').slice(1).join(':'))
+    return index < 0 ? stripPlans.length : index
+  }
+  const [motionState, setMotionState] = React.useState({ key: viewKey, dir: 1, still: true })
+  if (motionState.key !== viewKey) {
+    const samePlan = motionState.key.split(':').slice(1).join(':') === viewKey.split(':').slice(1).join(':') && viewKey !== 'overview'
+    setMotionState({ key: viewKey, dir: Math.sign(place(viewKey) - place(motionState.key)) || 1, still: Boolean(reduceMotion) || samePlan })
+  }
+
   if (!token && session?.status !== 'loading') return <SignedOut orgslug={orgslug} />
 
-  const loading = <div className="flex min-h-[45vh] items-center justify-center"><Loader2 className="animate-spin text-muted-foreground" /></div>
-  const failed = (message: string, retry: () => void) => <div className="mt-6 rounded-2xl border-2 border-border bg-card p-5" role="alert"><p className="text-sm">{message}</p><Button variant="surface" className="mt-3" onClick={retry}>Try again</Button></div>
-  const editing = Boolean(detail) && (editingPlan || editDetails) && canEdit(detail)
+  const failed = (message: string, retry: () => void) => <div className="rounded-2xl border-2 border-border bg-card p-5" role="alert"><p className="text-sm">{message}</p><Button variant="surface" className="mt-3" onClick={retry}>Try again</Button></div>
+  const ready = Boolean(detail) && detail.slug === selectedSlug && detail.source_assignment?.type !== 'group'
+  const editing = ready && (editingPlan || editDetails) && canEdit(detail)
+  // Until the full plan arrives, its header renders from the plan list's summary.
+  const summary: any = stripPlans.find((plan) => plan.slug === selectedSlug) || completedPlans.find((plan) => plan.slug === selectedSlug)
+  const active: any = ready ? detail : summary
+  const celebrating = Boolean(active?.is_mine && home?.celebrations?.includes(active.plan_uuid))
+
+  // The strip over the body: plan tabs on the overview, the open plan's header among the others on a plan.
+  let strip: React.ReactNode = null
+  if (!selectedSlug && !creating && !plansError) {
+    strip = isLoading
+      ? <div className="-mx-4 flex gap-3 overflow-hidden px-4 pt-1 md:mx-0 md:grid md:grid-cols-2 md:px-0 xl:grid-cols-3" aria-hidden="true">{[0, 1, 2].map((index) => <Skeleton key={index} className="h-[70px] w-[78%] shrink-0 rounded-[18px] sm:w-[46%] md:w-auto" />)}</div>
+      : plans.length ? <PlanTabs plans={plans} getPlanColor={getPlanColor} choose={choose} onIntent={prefetch}>
+        <div className="flex w-[78%] shrink-0 snap-start items-center gap-2 rounded-[18px] border-2 border-dashed border-border p-2 sm:w-[46%] md:w-auto">
+          <Button type="button" variant="surface" size="sm" className="flex-1" onClick={() => void quickCreate()} disabled={quickCreateBusy}><Plus size={15} />{quickCreateBusy ? 'Creating…' : 'Create your own'}</Button>
+          <Button type="button" variant="ghost" size="sm" asChild><Link href={getUriWithOrg(orgslug, '/discover')}><Compass size={15} />Discover</Link></Button>
+        </div>
+      </PlanTabs> : null
+  } else if (selectedSlug && !creating && !editing && !celebrating && !detailError && active) {
+    const steps = ready ? stepsOf(detail) : null
+    const done = steps ? steps.filter((item: any) => item.progress?.status === 'completed').length : active.completed_objective_count || 0
+    const header = <div data-plan="" style={planVars(getPlanColor(active.plan_uuid))} className="h-full">
+      <PlanHeaderCard detail={active} done={done} total={steps ? steps.length : active.objective_count || 0} pending={!ready}
+        actions={ready ? <PlanHeaderActions orgslug={orgslug} detail={detail} token={token} refresh={refresh} onBack={clear} onEdit={canEdit(detail) ? () => setEditingPlan(true) : undefined} /> : null} />
+    </div>
+    strip = <PlanCarousel plans={stripPlans} activeUuid={active.plan_uuid} getPlanColor={getPlanColor} choose={choose} onIntent={prefetch}>{header}</PlanCarousel>
+  } else if (selectedSlug && !creating && !detailError && !ready) {
+    strip = <Skeleton className="h-52 rounded-3xl" />
+  }
 
   let content: React.ReactNode
   if (creating) content = <CreatePlanEditor token={token} refresh={refresh} onCancel={(text?: string) => { setCreating(false); if (text) continueRun(`[[hub-session-event]] You cancelled the new plan\n${text}`) }} onCreated={onCreated} />
-  else if (!selectedSlug) content = plansError ? failed('Your plans could not load.', () => void retryPlans()) : isLoading ? loading : <PlansHome orgslug={orgslug} token={token} plans={plans} completed={completedPlans} invitations={invitations} completedError={Boolean(completedError)} retryCompleted={() => void retryCompleted()} refresh={refresh} choose={choose} creating={quickCreateBusy} getPlanColor={getPlanColor} onCreate={() => void quickCreate()} renderObjective={(item) => renderObjective(item)} />
+  else if (!selectedSlug) content = plansError ? failed('Your plans could not load.', () => void retryPlans()) : isLoading ? <WeekSkeleton /> : <PlansHome orgslug={orgslug} token={token} plans={plans} completed={completedPlans} invitations={invitations} completedError={Boolean(completedError)} retryCompleted={() => void retryCompleted()} refresh={refresh} choose={choose} creating={quickCreateBusy} getPlanColor={getPlanColor} onCreate={() => void quickCreate()} renderObjective={(item) => renderObjective(item)} />
   else if (detailError) content = failed('This plan could not load. It may no longer be available to you.', () => void retryDetail())
-  else if (!detail || detail.slug !== selectedSlug || detail.source_assignment?.type === 'group') content = loading
-  else if (editing) content = <PlanEditMode detail={detail} orgslug={orgslug} token={token} viewerUserId={viewerUserId} refresh={refresh} color={getPlanColor(detail.plan_uuid)} setPlanColor={detail.is_mine ? setPlanColor : undefined} focusGoal={editDetails} onDone={finishEditing} selectedObjectiveUuid={selectedObjectiveUuid} setSelectedObjectiveUuid={setSelectedObjectiveUuid} />
-  else if (detail.is_mine && home?.celebrations?.includes(detail.plan_uuid)) content = <PlanComplete detail={detail} color={getPlanColor(detail.plan_uuid)} token={token} onDone={() => { clear(); void refresh() }} onView={() => void refresh()} />
-  else if (detail.is_mine) content = <PlanView orgslug={orgslug} detail={detail} token={token} refresh={refresh} onBack={clear} plans={ownPlans} getPlanColor={getPlanColor} choose={choose} onEdit={canEdit(detail) ? () => setEditingPlan(true) : undefined} renderObjective={(item) => renderObjective(item, getPlanColor(detail.plan_uuid))} />
-  else content = <HelpingView detail={detail} orgslug={orgslug} token={token} viewerUserId={viewerUserId} refresh={refresh} color={getPlanColor(detail.plan_uuid)} onBack={clear} onEdit={canEdit(detail) ? () => setEditingPlan(true) : undefined} selectedObjectiveUuid={selectedObjectiveUuid} setSelectedObjectiveUuid={setSelectedObjectiveUuid} />
+  else {
+    // Opening a plan: the header is already up; its steps fade in where the placeholder was.
+    let body: React.ReactNode = null
+    if (!ready) { /* the placeholder shows until it arrives */ }
+    else if (editing) body = <PlanEditMode detail={detail} orgslug={orgslug} token={token} viewerUserId={viewerUserId} refresh={refresh} color={getPlanColor(detail.plan_uuid)} setPlanColor={detail.is_mine ? setPlanColor : undefined} focusGoal={editDetails} onDone={finishEditing} selectedObjectiveUuid={selectedObjectiveUuid} setSelectedObjectiveUuid={setSelectedObjectiveUuid} />
+    else if (celebrating) body = <PlanComplete detail={detail} color={getPlanColor(detail.plan_uuid)} token={token} onDone={() => { clear(); void refresh() }} onView={() => void refresh()} />
+    else if (detail.is_mine) body = <PlanView orgslug={orgslug} detail={detail} getPlanColor={getPlanColor} onEdit={canEdit(detail) ? () => setEditingPlan(true) : undefined} renderObjective={(item) => renderObjective(item, getPlanColor(detail.plan_uuid))} />
+    else body = <div data-plan="" style={planVars(getPlanColor(detail.plan_uuid))}><PlanStepsEditor detail={detail} orgslug={orgslug} token={token} viewerUserId={viewerUserId} refresh={refresh} color={getPlanColor(detail.plan_uuid)} selectedObjectiveUuid={selectedObjectiveUuid} setSelectedObjectiveUuid={setSelectedObjectiveUuid} /></div>
+    content = <Reveal ready={ready} fallback={<PlanViewSkeleton />}>{body}</Reveal>
+  }
 
   return <GeneralWrapperStyled>
     <main className="pb-16">
       {selectedSlug || creating
-        ? <ContentPageHeader orgslug={orgslug} backLabel="Plans" onBack={clear} compactBottomMargin title={creating ? 'New plan' : editing ? 'Edit plan' : undefined} />
-        : <div className="flex items-center justify-between gap-3 pt-2"><h1 className="text-3xl font-extrabold tracking-tight">Plans</h1><Button type="button" variant="brand" size="sm" onClick={() => void quickCreate()} disabled={quickCreateBusy}><Plus size={16} />New plan</Button></div>}
-      {content}
+        ? <ContentPageHeader orgslug={orgslug} backLabel="Overview" onBack={clear} compactBottomMargin title={creating ? 'New plan' : editing ? 'Edit plan' : undefined} />
+        : <h1 className="pb-4 pt-2 text-3xl font-extrabold tracking-tight">Overview</h1>}
+      <LayoutGroup id="plans">
+        {strip}
+        <div className="relative mt-8 overflow-x-clip">
+          <AnimatePresence initial={false} mode="popLayout" custom={motionState}>
+            <motion.div key={viewKey} custom={motionState} variants={swipe} initial="enter" animate="center" exit="exit">
+              {content}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+      </LayoutGroup>
     </main>
   </GeneralWrapperStyled>
-}
-
-/** A plan someone shared with the viewer to help with: its header, then its steps to review and sign off. */
-// eslint-disable-next-line no-unused-vars
-function HelpingView({ detail, orgslug, token, viewerUserId, refresh, color, onBack, onEdit, selectedObjectiveUuid, setSelectedObjectiveUuid }: { detail: any; orgslug: string; token?: string; viewerUserId?: number; refresh: () => Promise<unknown>; color: string; onBack: () => void; onEdit?: () => void; selectedObjectiveUuid: string; setSelectedObjectiveUuid: (uuid: string) => void }) {
-  const steps = detail.objectives || detail.phases?.flatMap((phase: any) => phase.objectives || []) || []
-  const done = steps.filter((item: any) => item.progress?.status === 'completed').length
-  return <div data-plan="" style={planVars(color)} className="flex flex-col gap-8">
-    <PlanHeaderCard detail={detail} done={done} total={steps.length} actions={<PlanHeaderActions orgslug={orgslug} detail={detail} token={token} refresh={refresh} onBack={onBack} onEdit={onEdit} />} />
-    <PlanStepsEditor detail={detail} orgslug={orgslug} token={token} viewerUserId={viewerUserId} refresh={refresh} color={color} selectedObjectiveUuid={selectedObjectiveUuid} setSelectedObjectiveUuid={setSelectedObjectiveUuid} />
-  </div>
 }
 
 function SignedOut({ orgslug }: { orgslug: string }) {

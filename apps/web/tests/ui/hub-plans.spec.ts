@@ -76,7 +76,7 @@ test('hub.action.unavailable: a rejected action stays in context and explains th
 test('plans.create-editor: plans surface uses native object editing', async ({ page }, testInfo) => {
   await page.goto(environment.plansPath)
   await assertActualApp(page)
-  await expect(page.getByRole('heading', { name: 'Plans', exact: true, level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Overview', exact: true, level: 1 })).toBeVisible()
   const create = page.getByRole('button', { name: /create your own/i }).filter({ visible: true }).first()
   await create.click()
   // Creating makes a "New plan" and opens it with its details form ready to name it.
