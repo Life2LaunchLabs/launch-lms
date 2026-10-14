@@ -8,7 +8,6 @@ import {
   CurrencyCircleDollar,
   Buildings,
   Globe,
-  ChatCircleDots,
   Gear,
   SignOut,
   SidebarSimple,
@@ -62,7 +61,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@components/ui/dropdown-menu'
-import { openCandidatePanel } from '@components/Candidate/CandidateExperience'
+import DashFeedbackButton from './DashFeedbackButton'
 import { AVAILABLE_LANGUAGES } from '@/lib/languages'
 import { getOrgLogoMediaDirectory } from '@services/media/media'
 import { cn } from '@/lib/utils'
@@ -478,27 +477,7 @@ function DashLeftMenu() {
 
       {/* Bottom Section */}
       <div className="border-t border-white/[0.08] py-3 px-3 shrink-0">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              onClick={() => openCandidatePanel('feedback')}
-              aria-label="Send feedback"
-              className={cn(
-                "mb-1 flex items-center w-full rounded-lg text-white/50 hover:text-white hover:bg-white/[0.08] transition-all",
-                isCollapsed ? "justify-center h-10" : "px-3 py-2 gap-3"
-              )}
-            >
-              <ChatCircleDots size={20} weight="fill" />
-              {!isCollapsed && <span className="text-sm font-medium">Feedback</span>}
-            </button>
-          </TooltipTrigger>
-          {isCollapsed && (
-            <TooltipContent side="right" className="z-tooltip bg-[#1a1a1b] border-white/10 text-white text-xs px-2 py-1 shadow-lg shadow-black/20">
-              Feedback
-            </TooltipContent>
-          )}
-        </Tooltip>
+        <DashFeedbackButton isCollapsed={isCollapsed} />
         <DropdownMenu modal={false}>
           <TooltipProvider delayDuration={0}>
             <Tooltip>
