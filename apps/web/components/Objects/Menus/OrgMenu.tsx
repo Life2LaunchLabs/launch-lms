@@ -7,7 +7,7 @@ import { getOrgLogoMediaDirectory } from '@services/media/media'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { usePathname } from 'next/navigation'
-import { Buildings, CaretDown, ChatCircleDots, Envelope, Question, SidebarSimple, SignOut, Sun, User } from '@phosphor-icons/react'
+import { Buildings, CaretDown, ChatCircleDots, Envelope, SidebarSimple, SignOut, Sun, User } from '@phosphor-icons/react'
 import { openCandidatePanel } from '@components/Candidate/CandidateExperience'
 import { useJoinBannerVisible, JOIN_BANNER_HEIGHT } from '@components/Objects/Banners/OrgJoinBanner'
 import { GuestHeader } from '@components/Objects/Menus/GuestHeader'
@@ -212,7 +212,7 @@ export const OrgMenu = (props: { orgslug: string; compact?: boolean }) => {
             <div className={cn('mt-auto flex flex-col pt-6', isDesktopNavExpanded ? 'items-stretch' : 'items-center')}>
               <FeedbackSidebarButton onClick={openFeedback} isExpanded={isDesktopNavExpanded} />
               <div className="mt-2">
-                <DesktopAccountLink orgslug={orgslug} onHelp={openFeedback} isExpanded={isDesktopNavExpanded} unreadCount={unreadCount} />
+                <DesktopAccountLink orgslug={orgslug} isExpanded={isDesktopNavExpanded} unreadCount={unreadCount} />
               </div>
             </div>
           </div>
@@ -315,12 +315,10 @@ type SidebarItemProps = {
 
 function DesktopAccountLink({
   orgslug,
-  onHelp,
   isExpanded,
   unreadCount,
 }: {
   orgslug: string
-  onHelp: () => void
   isExpanded: boolean
   unreadCount: number
 }) {
@@ -403,13 +401,6 @@ function DesktopAccountLink({
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onClick={onHelp}
-          className="flex items-center gap-2"
-        >
-          <Question size={16} weight="fill" />
-          <span>Help &amp; feedback</span>
-        </DropdownMenuItem>
         <DropdownMenuItem
           onClick={() => signOut({ callbackUrl: '/' })}
           className="flex items-center gap-2 text-red-600 focus:text-red-600"

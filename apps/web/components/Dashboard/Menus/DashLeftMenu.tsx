@@ -8,7 +8,7 @@ import {
   CurrencyCircleDollar,
   Buildings,
   Globe,
-  Question,
+  ChatCircleDots,
   Gear,
   SignOut,
   SidebarSimple,
@@ -478,6 +478,27 @@ function DashLeftMenu() {
 
       {/* Bottom Section */}
       <div className="border-t border-white/[0.08] py-3 px-3 shrink-0">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={() => openCandidatePanel('feedback')}
+              aria-label="Send feedback"
+              className={cn(
+                "mb-1 flex items-center w-full rounded-lg text-white/50 hover:text-white hover:bg-white/[0.08] transition-all",
+                isCollapsed ? "justify-center h-10" : "px-3 py-2 gap-3"
+              )}
+            >
+              <ChatCircleDots size={20} weight="fill" />
+              {!isCollapsed && <span className="text-sm font-medium">Feedback</span>}
+            </button>
+          </TooltipTrigger>
+          {isCollapsed && (
+            <TooltipContent side="right" className="z-tooltip bg-[#1a1a1b] border-white/10 text-white text-xs px-2 py-1 shadow-lg shadow-black/20">
+              Feedback
+            </TooltipContent>
+          )}
+        </Tooltip>
         <DropdownMenu modal={false}>
           <TooltipProvider delayDuration={0}>
             <Tooltip>
@@ -552,13 +573,6 @@ function DashLeftMenu() {
                 ))}
               </DropdownMenuSubContent>
             </DropdownMenuSub>
-            <DropdownMenuItem
-              onClick={() => openCandidatePanel('feedback')}
-              className="flex items-center gap-2 rounded-md px-3 py-2 text-white/70 focus:bg-white/[0.08] focus:text-white"
-            >
-              <Question size={16} weight="fill" />
-              <span>{t('common.help_menu.report_feedback')}</span>
-            </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-white/[0.08]" />
             <DropdownMenuItem asChild>
               <Link href={authenticatedOrgHref(getUriWithOrg(getDefaultOrg(), routePaths.org.portfolio()), true)} className="flex items-center gap-2 rounded-md px-3 py-2 text-white/70 focus:bg-white/[0.08] focus:text-white">

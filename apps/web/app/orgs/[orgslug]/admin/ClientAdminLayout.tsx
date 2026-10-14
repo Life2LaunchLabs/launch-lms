@@ -21,7 +21,7 @@ function ClientAdminLayout({
         <AdminAuthorization authorizationMode="page">
             <ExperiencePreferenceTracker side="admin" orgslug={params.orgslug} />
             <OperationsSurface theme="dark" />
-            <CandidateExperience theme="dark" />
+            <CandidateExperience />
             <div className="flex min-h-[100dvh] flex-col md:h-[100dvh] md:flex-row md:overflow-hidden">
                 {isMobile ? (
                     <DashMobileMenu />
