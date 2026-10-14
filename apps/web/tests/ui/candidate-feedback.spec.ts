@@ -81,6 +81,17 @@ async function mockCandidateApi(page: Page) {
 
 test.beforeEach(async ({ page }) => mockCandidateApi(page))
 
+// Desktop opens feedback from the sidebar; phones have no sidebar and use the portfolio settings menu.
+async function openFeedback(page: Page) {
+  if ((page.viewportSize()?.width ?? 1280) >= 768) return page.getByRole('button', { name: 'Send feedback' }).click()
+  await page.goto('/portfolio')
+  // An unread tester announcement sits over the portfolio's top-right settings button until it is dismissed.
+  const notice = page.getByRole('region', { name: 'Unread tester announcement' })
+  if (await notice.waitFor({ timeout: 5_000 }).then(() => true, () => false)) await notice.getByRole('button', { name: 'Done', exact: true }).click()
+  await page.getByRole('button', { name: /^Settings/ }).click()
+  await page.getByRole('menuitem', { name: 'Feedback', exact: true }).click()
+}
+
 async function popoverColor(page: Page) {
   return page.evaluate(() => {
     const probe = document.createElement('div')
@@ -146,7 +157,7 @@ test('tester sees announcements and can paste a screenshot into quick feedback',
   // Release notes are no longer offered from the tester bar.
   await expect(page.getByRole('button', { name: /what's new/i })).toHaveCount(0)
 
-  await page.getByRole('button', { name: 'Send feedback' }).click()
+  await openFeedback(page)
   await expect(page.getByText('Share feedback', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: "I'm stuck" })).toBeVisible()
   await expect(page.getByLabel('1 comment, new activity')).toBeVisible()
@@ -183,9 +194,9 @@ test('tester sees announcements and can paste a screenshot into quick feedback',
   await expect(page.getByAltText('dropped-screen.png')).toBeVisible()
   await expect(page.getByText('3/3')).toBeVisible()
   await expect(page.getByText('Your submissions')).toBeVisible()
-  await expect(page.getByText('Your original note cannot be edited after it is sent.')).toHaveCount(0)
-  await expect(page.getByText('Edit', { exact: true })).toHaveCount(0)
-  await expect(page.getByText('Likely the narrow layout breakpoint.')).toHaveCount(0)
+  await expect(page.getByRole('dialog', { name: 'Feedback' }).getByText('Your original note cannot be edited after it is sent.')).toHaveCount(0)
+  await expect(page.getByRole('dialog', { name: 'Feedback' }).getByText('Edit', { exact: true })).toHaveCount(0)
+  await expect(page.getByRole('dialog', { name: 'Feedback' }).getByText('Likely the narrow layout breakpoint.')).toHaveCount(0)
   if (process.env.UI_TEST_CAPTURE === 'true') await page.screenshot({ path: testInfo.outputPath('candidate-feedback.png'), fullPage: true })
   await page.getByRole('button', { name: /^Send$/ }).click()
   await expect(page.getByText('Thanks for the feedback')).toBeVisible()
