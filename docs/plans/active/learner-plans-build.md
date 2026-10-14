@@ -46,16 +46,22 @@ the API (409), so the UI muting is not the only guard.
 Dated steps keep landing in the week or month they're due. Undated steps
 (personal plans, badge plans, most templates) are paced:
 
-- **Weekly target**: each learner has a target number of steps per week
-  (default 5, changeable from My plans).
+- **Weekly goal**: each learner has a goal number of steps per week
+  (default 5). The overview shows steps done out of the goal (`x/y`, which can
+  run past the goal); its menu changes the goal from next week on, so the
+  current week keeps what it was planned with. A week with nothing planned yet
+  takes the new goal at once.
 - **Filling the week**: on the first My plans load of a week, the server picks
   This week's steps: everything dated this week or overdue, unfinished picks
   carried over from last week, then undated *open* steps up to the target,
   taken round-robin across active plans (plan priority, then plan order). The
   picks are stored per learner per week so the week doesn't reshuffle.
-- **Ready for more**: when every step picked for the week is done, This week
-  offers "Ready for more", which adds up to 3 more open steps to the week (any
-  time is fine; it is most prominent once the week is done).
+- **Pull 3 more**: when every step in the week is done, This week shows a
+  "Well done" state with "Pull 3 more", which adds up to 3 more open steps from
+  any active plan (including ones started mid-week). Nothing else grows a
+  week: finishing every step, or a plan finishing itself (org and badge plans
+  do once every step is done), keeps the week as it is; a finished plan's
+  steps done this week stay counted in it.
 - **Further ahead**: Next week previews the next batch the same way (not
   stored). Beyond that, dated steps group by month (year shown when it rolls
   over); undated steps that aren't in a week yet sit in **Later**, by plan.

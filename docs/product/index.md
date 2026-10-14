@@ -348,7 +348,7 @@ Turn broad development goals into structured plans, objectives, evidence, collab
     - `PATHWAYS-G002-A006-S003` [live / alternative] Archive a plan
   - `PATHWAYS-G002-A007` [live] Pace undated steps with a weekly focus
     - `PATHWAYS-G002-A007-S001` [live / core] Review this week's steps
-    - `PATHWAYS-G002-A007-S002` [live / optional] Change the weekly target
+    - `PATHWAYS-G002-A007-S002` [live / optional] Change the weekly goal for next week
     - `PATHWAYS-G002-A007-S003` [live / optional] Ask for more steps
     - `PATHWAYS-G002-A007-S004` [live / core] Preview next week and later
 - **PATHWAYS-G003 — Coordinate and adapt a learner's live plan**

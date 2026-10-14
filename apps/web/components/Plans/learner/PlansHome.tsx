@@ -5,16 +5,18 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import useSWR, { mutate } from 'swr'
 import toast from 'react-hot-toast'
-import { ChevronDown, Compass, Loader2, PartyPopper, Plus, Sparkles } from 'lucide-react'
+import { ChevronDown, Compass, PartyPopper, Plus } from 'lucide-react'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { planningApi } from '@services/planning/planning'
 import { getAPIUrl, getUriWithOrg } from '@services/config/config'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { Button } from '@components/ui/button'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
+import { Reveal, Skeleton } from '@components/ui/skeleton'
 import { useHub } from '@components/Hub/HubContext'
-import { SelectedStepBody, StepStack, stepState, type StepItem } from './StepStack'
+import { cn } from '@/lib/utils'
+import { SelectedStepBody, StepStack, StepStackSkeleton, stepState, type StepItem } from './StepStack'
 import { planVars } from './planColors'
-import { PlanMark, PlanProgress } from './PlanHeader'
 
 export const homeKey = () => `${getAPIUrl()}planning/home`
 const RANGE = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' })
@@ -33,6 +35,7 @@ function firstUp(items: StepItem[]) {
 type PlansHomeProps = {
   orgslug: string
   token?: string
+  /** The learner's active plans; the overview's tabs show them above this. */
   plans: any[]
   completed: any[]
   invitations: any[]
@@ -50,22 +53,37 @@ type PlansHomeProps = {
   renderObjective: (item: StepItem, close: () => void) => React.ReactNode
 }
 
-/** The Plans landing page: the learner's plans, invitations, this week's steps, then what comes later. */
+const GOALS = [1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 15]
+
+/** The overview below the plan tabs: invitations, this week's steps, then what comes later. */
 export default function PlansHome({ orgslug, token, plans, completed, invitations, completedError, retryCompleted, refresh, choose, creating, getPlanColor, onCreate, renderObjective }: PlansHomeProps) {
+  const { data, error, mutate: retry } = useSWR<any>(token ? homeKey() : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: true })
+
+  if (error) return <div className="rounded-xl border border-border bg-card p-5" role="alert"><p className="text-sm">Your weekly steps could not load.</p><button type="button" onClick={() => void retry()} className="mt-3 min-h-11 text-sm font-semibold underline">Try again</button></div>
+  if (data && !data.plans?.length && !plans.length) return <><Invitations invitations={invitations} token={token} refresh={refresh} /><EmptyHome orgslug={orgslug} onCreate={onCreate} creating={creating} /></>
+
+  return <div className="flex flex-col gap-10">
+    <Invitations invitations={invitations} token={token} refresh={refresh} />
+    <Reveal ready={Boolean(data)} fallback={<WeekSkeleton />}>
+      {data ? <Week data={data} orgslug={orgslug} token={token} getPlanColor={getPlanColor} renderObjective={renderObjective} /> : null}
+    </Reveal>
+    <CompletedPlans plans={completed} getPlanColor={getPlanColor} choose={choose} error={completedError} retry={retryCompleted} />
+  </div>
+}
+
+/** This week, its goal and steps, then next week, the months ahead and later. */
+// eslint-disable-next-line no-unused-vars
+function Week({ data, orgslug, token, getPlanColor, renderObjective }: { data: any; orgslug: string; token?: string; getPlanColor: (planUuid?: string) => string; renderObjective: PlansHomeProps['renderObjective'] }) {
   const router = useRouter()
   const hub = useHub()
-  const { data, error, isLoading, mutate: retry } = useSWR<any>(token ? homeKey() : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: true })
   const [selected, setSelected] = React.useState('')
   const [open, setOpen] = React.useState<StepItem | null>(null)
   const [busy, setBusy] = React.useState(false)
-  const weekItems: StepItem[] = data?.week?.items || []
+  const week = data.week
+  const weekItems: StepItem[] = week?.items || []
   const openItems = weekItems.filter((item) => stepState(item) !== 'done')
   const doneItems = weekItems.filter((item) => stepState(item) === 'done')
   const selectedUuid = selected || firstUp(openItems)?.objective_uuid || ''
-
-  if (error) return <div className="mt-6 rounded-xl border border-border bg-card p-5" role="alert"><p className="text-sm">Your weekly steps could not load.</p><button type="button" onClick={() => void retry()} className="mt-3 min-h-11 text-sm font-semibold underline">Try again</button></div>
-  if (isLoading || !data) return <div className="flex min-h-[45vh] items-center justify-center"><Loader2 className="animate-spin text-muted-foreground" /></div>
-  if (!data.plans?.length && !plans.length) return <><Invitations invitations={invitations} token={token} refresh={refresh} /><EmptyHome orgslug={orgslug} onCreate={onCreate} creating={creating} /></>
 
   const colorFor = (item: StepItem) => getPlanColor(item.plan?.plan_uuid)
   const select = (item: StepItem) => setSelected(item.objective_uuid)
@@ -78,47 +96,26 @@ export default function PlansHome({ orgslug, token, plans, completed, invitation
     setBusy(true)
     try { await mutate(homeKey(), await planningApi.readyForMore(token), false) } catch { toast.error('Could not add more steps') } finally { setBusy(false) }
   }
-  const pullIn = async (planUuid: string) => {
-    setBusy(true)
-    try { await mutate(homeKey(), await planningApi.pullInPlan(planUuid, token), false) } catch { toast.error('Could not add that plan to this week') } finally { setBusy(false) }
-  }
   const pace = async (target: number) => {
     try { await mutate(homeKey(), await planningApi.setPace(target, token), false) } catch { toast.error('Could not change your weekly goal') }
   }
-  const week = data.week
   const groups: { key: string; label: string; sub?: string; items: StepItem[] }[] = [
     ...(data.next_week?.items?.length ? [{ key: 'next', label: 'Next week', sub: range(data.next_week.start, data.next_week.end), items: data.next_week.items }] : []),
     ...(data.months || []).map((group: any) => ({ key: group.key, label: group.label, items: group.items })),
     ...((data.later || []).length ? [{ key: 'later', label: 'Later', sub: 'Whenever you’re ready', items: (data.later || []).flatMap((group: any) => group.items) }] : []),
   ]
 
-  return <div className="mt-6 flex flex-col gap-10">
-    <PlanCards orgslug={orgslug} plans={plans} getPlanColor={getPlanColor} choose={choose} onCreate={onCreate} creating={creating} />
-    <Invitations invitations={invitations} token={token} refresh={refresh} />
-
-    <section aria-labelledby="this-week" className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+  return <div className="flex flex-col gap-10">
+    <section aria-labelledby="this-week" className="flex flex-col gap-4">
+      <div className="flex items-end justify-between gap-3">
         <div>
           <p className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground">{range(week.start, week.end)}</p>
           <h2 id="this-week" className="text-2xl font-extrabold tracking-tight">This week</h2>
         </div>
-        <p className="text-sm font-bold">{week.done_count} of {week.total} done</p>
+        <GoalChip done={week.done_count} goal={week.target} nextGoal={week.next_target ?? week.target} planned={Boolean(week.planned)} onChange={pace} />
       </div>
-      <div className="flex gap-1.5" aria-hidden="true">
-        {weekItems.map((item) => <span key={item.objective_uuid} className="h-3 flex-1 rounded-full bg-muted" style={item.progress?.status === 'completed' ? { backgroundColor: getPlanColor(item.plan?.plan_uuid) } : undefined} />)}
-      </div>
-      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
-        <span>{week.complete ? 'You did everything you planned this week.' : 'Next up is picked for you, but anything open is fair game.'}</span>
-        <label className="inline-flex items-center gap-2 font-bold">
-          Aim for
-          <select value={week.target} onChange={(event) => pace(Number(event.target.value))} className="h-9 rounded-xl border-2 border-border bg-card px-2 font-extrabold text-foreground">
-            {[1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 15].map((value) => <option key={value} value={value}>{value}</option>)}
-          </select>
-          steps a week
-        </label>
-      </div>
-      {week.total > week.target ? <p className="text-xs text-muted-foreground">Dated and overdue steps are included alongside your weekly goal.</p> : null}
-      {week.complete ? <WeekComplete week={week} busy={busy} onMore={more} onPullIn={pullIn} />
+      <GoalBar done={week.done_count} goal={week.target} />
+      {week.complete ? <WeekComplete week={week} busy={busy} onMore={more} />
         : openItems.length ? <StepStack items={openItems} colorFor={colorFor} selectedUuid={selectedUuid} currentUuid={firstUp(openItems)?.objective_uuid} onSelect={select} showPlanName renderSelected={renderSelected} />
         : <p className="rounded-2xl bg-card px-4 py-8 text-center text-sm font-bold text-muted-foreground">Nothing planned for this week yet.</p>}
       {doneItems.length ? <details className="group/done-week">
@@ -128,11 +125,6 @@ export default function PlansHome({ orgslug, token, plans, completed, invitation
         </summary>
         <StepStack items={doneItems} colorFor={colorFor} selectedUuid={selectedUuid} onSelect={select} showPlanName renderSelected={renderSelected} />
       </details> : null}
-      {!week.complete && week.can_boost ? <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-card px-4 py-4">
-        <Sparkles size={20} className="text-muted-foreground" aria-hidden="true" />
-        <span className="flex-1 text-sm font-bold">Moving fast? Pull a few more steps into this week.</span>
-        <Button type="button" variant="surface" disabled={busy} onClick={more}>{busy ? 'Adding…' : 'Ready for more'}</Button>
-      </div> : null}
     </section>
 
     {groups.map((group) => <section key={group.key} aria-label={group.label}>
@@ -145,55 +137,75 @@ export default function PlansHome({ orgslug, token, plans, completed, invitation
         <StepStack items={group.items} colorFor={colorFor} selectedUuid={selectedUuid} onSelect={select} showPlanName renderSelected={renderSelected} />
       </details>
     </section>)}
-
-    <CompletedPlans plans={completed} getPlanColor={getPlanColor} choose={choose} error={completedError} retry={retryCompleted} />
     <Modal isDialogOpen={Boolean(open)} onOpenChange={(value) => { if (!value) setOpen(null) }} minWidth="lg" minHeight="no-min" dialogTitle={open?.title || ''} dialogContent={open ? renderObjective(open, () => setOpen(null)) : null} />
   </div>
 }
 
-/** Everything planned this week is done: celebrate, then offer more only if the learner wants it. */
+/**
+ * Steps done out of the weekly goal, which opens a menu to change the goal. Going past
+ * the goal turns it gold. A new goal starts next week, so this week's plan holds.
+ */
 // eslint-disable-next-line no-unused-vars
-function WeekComplete({ week, busy, onMore, onPullIn }: { week: any; busy: boolean; onMore: () => void; onPullIn: (planUuid: string) => void }) {
-  const offers: { plan: { plan_uuid: string; name: string }; steps: number }[] = week.new_plans || []
-  return <div className="flex flex-col items-center gap-4 rounded-3xl bg-card px-5 py-8 text-center" role="status">
-    <PartyPopper size={36} className="text-[var(--org-primary-color,currentColor)]" aria-hidden="true" />
-    <div>
-      <p className="text-xl font-extrabold tracking-tight">Week complete!</p>
-      <p className="mt-1 text-sm text-muted-foreground">You finished all {week.done_count} {week.done_count === 1 ? 'step' : 'steps'} you planned. Enjoy it — or keep going.</p>
-    </div>
-    {offers.length || week.can_boost ? <div className="flex w-full max-w-md flex-col gap-2">
-      {offers.map((offer) => <Button key={offer.plan.plan_uuid} type="button" variant="brand" disabled={busy} onClick={() => onPullIn(offer.plan.plan_uuid)}>
-        Add {offer.steps} {offer.steps === 1 ? 'step' : 'steps'} from {offer.plan.name}
-      </Button>)}
-      {week.can_boost ? <Button type="button" variant="surface" disabled={busy} onClick={onMore}>{busy ? 'Adding…' : 'Pull 3 more steps'}</Button> : null}
-    </div> : null}
+function GoalChip({ done, goal, nextGoal, planned, onChange }: { done: number; goal: number; nextGoal: number; planned: boolean; onChange: (goal: number) => void }) {
+  const over = done > goal
+  const pending = nextGoal !== goal
+  return <div className="flex flex-col items-end gap-1">
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button type="button" aria-label={`${done} of your goal of ${goal} steps this week. Change goal`}
+          className={cn('flex h-10 items-center gap-1.5 rounded-xl px-3 font-extrabold tabular-nums transition-[background-color,box-shadow] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2',
+            over ? 'week-gold shadow-[0_3px_0_var(--week-gold-edge)]' : 'border-2 border-border bg-card shadow-[0_3px_0_hsl(var(--border))] hover:bg-raised')}>
+          <span className="relative z-10 text-lg leading-none">{done}</span>
+          <span className="relative z-10 text-sm leading-none opacity-70">/{goal}</span>
+          <ChevronDown size={15} className="relative z-10 opacity-70" aria-hidden="true" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel className="flex flex-col gap-0.5">
+          <span>Change goal</span>
+          <span className="text-xs font-normal text-muted-foreground">{planned ? 'Steps a week, starting next week' : 'Steps a week'}</span>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuRadioGroup value={String(nextGoal)} onValueChange={(value) => onChange(Number(value))} className="grid grid-cols-4 gap-1 p-1">
+          {GOALS.map((value) => <DropdownMenuRadioItem key={value} value={String(value)} className="justify-center pl-2 pr-2 font-bold tabular-nums data-[state=checked]:bg-accent [&>span:first-child]:hidden">{value}</DropdownMenuRadioItem>)}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+    {pending ? <span className="text-xs font-semibold text-muted-foreground">Goal {nextGoal} from next week</span> : null}
   </div>
 }
 
-/** The learner's plans as cards, with making or finding another at the end. */
-// eslint-disable-next-line no-unused-vars
-function PlanCards({ orgslug, plans, getPlanColor, choose, onCreate, creating }: { orgslug: string; plans: any[]; getPlanColor: (uuid?: string) => string; choose: (plan: any) => void; onCreate: () => void; creating?: boolean }) {
-  return <section aria-label="Your plans" className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-3 [scrollbar-width:none] md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 xl:grid-cols-3">
-    {plans.map((plan) => {
-      const percent = Math.round(plan.progress_percent || 0)
-      const forWhom = !plan.is_mine ? plan.subject?.name || plan.target_name : ''
-      return <button key={plan.plan_uuid} type="button" onClick={() => choose(plan)} aria-label={`${plan.name}, ${percent}% complete`} data-plan="" style={planVars(getPlanColor(plan.plan_uuid))}
-        className="flex w-[80%] shrink-0 snap-start flex-col gap-4 rounded-3xl bg-[var(--plan-deep)] p-5 text-left text-[var(--plan-deep-ink)] shadow-[0_6px_0_var(--plan-deep-edge)] transition active:translate-y-1 active:shadow-[0_2px_0_var(--plan-deep-edge)] md:w-auto">
-        <span className="flex items-start gap-3">
-          <PlanMark badge={plan.badge || plan.source_badge} size="sm" />
-          <span className="min-w-0 flex-1">
-            {forWhom ? <span className="block text-xs font-extrabold uppercase tracking-wider opacity-80">For {forWhom}</span> : null}
-            <span className="line-clamp-2 text-lg font-extrabold leading-snug">{plan.name}</span>
-          </span>
-        </span>
-        <span className="mt-auto flex items-center gap-3"><PlanProgress percent={percent} label={`${plan.name} progress`} /><span className="text-xs font-bold tabular-nums">{percent}%</span></span>
-      </button>
-    })}
-    <div className="flex w-[80%] shrink-0 snap-start flex-col justify-center gap-2 rounded-3xl border-2 border-dashed border-border p-4 md:w-auto">
-      <Button type="button" variant="surface" onClick={onCreate} disabled={creating}><Plus size={16} />{creating ? 'Creating…' : 'Create your own'}</Button>
-      <Button type="button" variant="ghost" asChild><Link href={getUriWithOrg(orgslug, '/discover')}><Compass size={16} />Find one in Discover</Link></Button>
+/** Progress toward the weekly goal: green until it fills, gold once you go past it. */
+function GoalBar({ done, goal }: { done: number; goal: number }) {
+  const over = done > goal
+  const percent = goal ? Math.min(100, Math.round((done * 100) / goal)) : 0
+  return <div role="progressbar" aria-label="Weekly goal" aria-valuenow={done} aria-valuemin={0} aria-valuemax={goal} aria-valuetext={`${done} of ${goal} steps`} className="h-3 overflow-hidden rounded-full bg-muted">
+    <span className={cn('block h-full rounded-full transition-[width] duration-500 ease-out', over ? 'week-gold' : 'bg-[var(--week-green)]')} style={{ width: `${percent ? Math.max(4, percent) : 0}%` }} />
+  </div>
+}
+
+/** Everything planned this week is done: celebrate, then offer more only if the learner asks. */
+function WeekComplete({ week, busy, onMore }: { week: any; busy: boolean; onMore: () => void }) {
+  return <div className="flex flex-col items-center gap-4 rounded-3xl bg-card px-5 py-8 text-center" role="status">
+    <PartyPopper size={36} className="text-[var(--org-primary-color,currentColor)]" aria-hidden="true" />
+    <div>
+      <p className="text-xl font-extrabold tracking-tight">Well done!</p>
+      <p className="mt-1 text-sm text-muted-foreground">{week.can_boost ? 'You finished everything for this week. Enjoy it — or keep going.' : 'You finished everything for this week, and you’re all caught up.'}</p>
     </div>
-  </section>
+    {week.can_boost ? <Button type="button" variant="surface" disabled={busy} onClick={onMore}>{busy ? 'Adding…' : 'Pull 3 more'}</Button> : null}
+  </div>
+}
+
+/** The overview's shape while the week loads: the heading, goal, bar and a few steps. */
+export function WeekSkeleton() {
+  return <div className="flex flex-col gap-4">
+    <div className="flex items-end justify-between gap-3">
+      <div className="flex flex-col gap-2"><Skeleton className="h-3 w-24 rounded-md" /><Skeleton className="h-7 w-36 rounded-lg" /></div>
+      <Skeleton className="h-10 w-20 rounded-xl" />
+    </div>
+    <Skeleton className="h-3 rounded-full" />
+    <StepStackSkeleton count={4} />
+  </div>
 }
 
 function Invitations({ invitations, token, refresh }: { invitations: any[]; token?: string; refresh: () => Promise<unknown> }) {

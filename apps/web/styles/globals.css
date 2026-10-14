@@ -2750,6 +2750,28 @@
 [data-plan] { --plan-accent: var(--plan-accent-light); }
 .dark [data-plan], .dark[data-plan] { --plan-accent: var(--plan-accent-dark); }
 
+/* ─── Weekly goal: green on the way there, gold once the learner goes past it ───
+   Gold carries a bright diagonal slash that sweeps in once when it turns gold. */
+:root { --week-green: #22c55e; --week-gold-edge: #b7791f; }
+.week-gold {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg, #ffd765, #f2a81d);
+  color: #3b2600;
+}
+.week-gold::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 0 54%, rgb(255 255 255 / 0.65) 54% 63%, transparent 63% 69%, rgb(255 255 255 / 0.45) 69% 73%, transparent 73%);
+  animation: week-gold-sweep 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes week-gold-sweep { from { transform: translateX(-110%); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .week-gold::after { animation: none; }
+}
+
 /* ─── Discover hero timer: the active segment fills while its story shows ─── */
 @keyframes discover-hero-timer { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 .discover-hero-timer { transform-origin: left; animation: discover-hero-timer var(--hero-duration, 7s) linear forwards; }
