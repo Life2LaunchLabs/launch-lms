@@ -31,6 +31,14 @@ audit output.
 1. Run `doctor`; stop if any semantic feedback status resolves to zero or more
    than one Jira status.
 2. Run `audit`. Review every untriaged report, its thread, and any safe evidence.
+   Attached screenshots are part of the report: many reports ("this is a little
+   meager", "minor clipping") are unreadable without them. Open every image
+   attachment before grouping or writing BOT work, and describe what it shows
+   in the BOT task so the delivery agent does not need FEED access. Through the
+   Atlassian MCP connector, read `attachment` with `getJiraIssue` per issue (JQL
+   search does not return attachments), then run `downloadJiraIssueAttachment`
+   and execute its `downloadCommand`; `api.media.atlassian.com` is reachable
+   from cloud sessions even when the Jira site host is not.
 3. Group related observations under stable concept slugs. Assess impact using the
    rubric below. A report may support more than one concept.
 4. Choose a disposition: `candidate`, `planned`, `evidence`, `needs-info`,

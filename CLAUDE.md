@@ -397,6 +397,12 @@ Organization
 
 ---
 
+## Feedback Triage (FEED → BOT)
+
+FEED is the feedback intake project; BOT is the delivery queue. Follow `docs/product/feedback-operations.md`. Always open the screenshots attached to FEED items before grouping or writing BOT tasks — the report text is often meaningless without them. With the Atlassian MCP connector: `getJiraIssue` with `fields: ["attachment"]` per issue (JQL omits attachments), then `downloadJiraIssueAttachment` and run its `downloadCommand`.
+
+---
+
 ## Code Conventions
 
 ### Backend (Python)
