@@ -232,11 +232,11 @@ def ensure_starter_plan(db: Session, user_id: int) -> Plan:
 
 def starter_checklist(db: Session, plan: Plan) -> dict:
     """The starter plan as the portfolio checklist: each step, whether it's done, and where it plays."""
-    from src.services.planning import _progress_for
+    from src.services.plan_progress import progress_view as _progress_view
 
     items = []
     for objective in db.exec(select(PlanObjective).where(PlanObjective.plan_id == plan.id).order_by(PlanObjective.position)).all():
-        status = _progress_for(db, objective).status
+        status = _progress_view(db, objective).status
         status = getattr(status, "value", status)
         if status == PlanObjectiveStatus.CANCELED.value:
             continue

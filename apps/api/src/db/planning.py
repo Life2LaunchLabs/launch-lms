@@ -443,6 +443,8 @@ class PlanWeeklyFocus(SQLModel, table=True):
     # pull them in instead of growing a week they may already have finished.
     plan_uuids: list[str] | None = Field(default=None, sa_column=Column(JSON, nullable=True))
     target: int = 5
+    # A goal the learner picked mid-week; the next week starts with it.
+    next_target: int | None = Field(default=None, sa_column=Column(Integer, nullable=True))
     boosts: int = 0
     creation_date: str = ""
     update_date: str = ""

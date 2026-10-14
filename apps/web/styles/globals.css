@@ -2750,6 +2750,30 @@
 [data-plan] { --plan-accent: var(--plan-accent-light); }
 .dark [data-plan], .dark[data-plan] { --plan-accent: var(--plan-accent-dark); }
 
+/* ─── Weekly goal: green on the way there, gold once the learner goes past it ───
+   Gold is flat like a cartoon gold bar: a yellow face over an orange side, with a
+   wide and a thin pale slash across it that sweep in once when it turns gold. */
+:root { --week-green: #22c55e; --week-gold-edge: #f29400; }
+.week-gold {
+  position: relative;
+  overflow: hidden;
+  background-color: #ffc21a;
+  color: #4a2a00;
+}
+.week-gold::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* Fixed-size slashes near the end, so the chip and the long bar share one mark. */
+  background: linear-gradient(115deg, transparent calc(100% - 52px), #ffe27a calc(100% - 52px) calc(100% - 38px), transparent calc(100% - 38px) calc(100% - 32px), #ffe27a calc(100% - 32px) calc(100% - 27px), transparent calc(100% - 27px));
+  animation: week-gold-sweep 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes week-gold-sweep { from { transform: translateX(-110%); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .week-gold::after { animation: none; }
+}
+
 /* ─── Discover hero timer: the active segment fills while its story shows ─── */
 @keyframes discover-hero-timer { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 .discover-hero-timer { transform-origin: left; animation: discover-hero-timer var(--hero-duration, 7s) linear forwards; }

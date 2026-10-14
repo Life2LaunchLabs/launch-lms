@@ -7,8 +7,11 @@ later, until the week holds that many. Picks are stored per week so the week sta
 into the next week. "Ready for more" adds a few extra steps on demand.
 
 A week is a commitment: it is planned once, from the plans the learner has when
-it starts. A plan started mid-week does not grow it; its steps wait in Next week
-and are offered once the week is done (or added when the learner asks).
+it starts, and only the learner grows it. A plan started mid-week does not; its
+steps wait in Next week until the learner asks for more. A plan that finishes
+mid-week (org and badge plans finish themselves) keeps its done steps in the
+week, so finishing never looks like an empty week to refill. Changing the
+weekly goal takes effect from next week, once this week has been planned.
 """
 
 from __future__ import annotations
@@ -85,9 +88,39 @@ class _Entry:
         return not self.done and self.status != PlanObjectiveStatus.SUBMITTED.value and self.availability["state"] == "open"
 
 
+def _plan_order(plan: Plan):
+    return (-(plan.priority or 0), plan.creation_date or "", plan.id or 0)
+
+
 def _my_plans(db: Session, user_id: int) -> list[Plan]:
     plans = db.exec(select(Plan).where(Plan.subject_user_id == user_id, Plan.status == PlanStatus.ACTIVE)).all()
-    return sorted(plans, key=lambda plan: (-(plan.priority or 0), plan.creation_date or "", plan.id or 0))
+    return sorted(plans, key=_plan_order)
+
+
+def _finished_since(db: Session, user_id: int, week_start: date) -> list[Plan]:
+    """Plans the learner finished this week: their done steps still belong to the week."""
+    since = datetime.combine(week_start, datetime.min.time())
+    plans = db.exec(select(Plan).where(
+        Plan.subject_user_id == user_id, Plan.status == PlanStatus.COMPLETED,
+        Plan.completed_at >= since,  # type: ignore[operator]
+    )).all()
+    return sorted(plans, key=_plan_order)
+
+
+def _with_finished(db: Session, user_id: int, plans: list[Plan], today: date) -> tuple[list[Plan], dict[int, list[_Entry]]]:
+    """Active plans' steps, plus the steps finished this week in plans that have since finished.
+
+    Finished plans never offer steps; they only keep this week's record whole.
+    """
+    week_start = _week_start(today)
+    finished = _finished_since(db, user_id, week_start)
+    entries_by_plan = _entries(db, plans + finished, today)
+    for plan in finished:
+        entries_by_plan[int(plan.id)] = [
+            entry for entry in entries_by_plan[int(plan.id)]
+            if entry.done and entry.completed_on is not None and entry.completed_on >= week_start
+        ]
+    return finished, entries_by_plan
 
 
 def _entries(db: Session, plans: list[Plan], today: date) -> dict[int, list[_Entry]]:
@@ -143,10 +176,15 @@ def _focus(db: Session, user_id: int, week_start: date) -> tuple[PlanWeeklyFocus
     now = _now_string()
     focus = PlanWeeklyFocus(
         user_id=user_id, week_start=week_start, objective_uuids=[],
-        target=previous.target if previous else DEFAULT_TARGET, boosts=0,
+        target=_upcoming_target(previous) if previous else DEFAULT_TARGET, boosts=0,
         creation_date=now, update_date=now,
     )
     return focus, previous
+
+
+def _upcoming_target(focus: PlanWeeklyFocus) -> int:
+    """The goal the week after ``focus`` starts with."""
+    return focus.next_target or focus.target
 
 
 def _open_candidates(
@@ -193,10 +231,15 @@ def _fill_week(
         if entry.plan.plan_uuid in known and entry.due is not None and entry.due <= week_end
         and (not entry.done or (entry.completed_on and entry.completed_on >= week_start))
     ]
-    if not picks and not dated_this_week and not extra:
-        # An empty week has nothing to protect: plan it from every plan the learner has now.
+    if not picks and not dated_this_week and not extra and not focus.objective_uuids:
+        # A week that never had anything in it has nothing to protect: plan it from every
+        # plan the learner has now. A week whose steps were all done (or whose plans
+        # finished) stays as it is until the learner asks for more.
         known |= {plan.plan_uuid for plan in plans}
         new_week = True
+    if extra:
+        # Asking for more draws on every plan, including ones started mid-week.
+        known |= {plan.plan_uuid for plan in plans}
     week_plans = [plan for plan in plans if plan.plan_uuid in known]
     # Only planning a week, or the learner asking, adds steps; loading never grows it.
     if new_week or refill or extra:
@@ -264,11 +307,12 @@ def home(db: Session, current_user: PublicUser, today: date | None = None, extra
     today = today or date.today()
     user_id = int(current_user.id)
     plans = _my_plans(db, user_id)
-    entries_by_plan = _entries(db, plans, today)
+    finished, entries_by_plan = _with_finished(db, user_id, plans, today)
     focus = _fill_week(db, user_id, plans, entries_by_plan, today, extra)
-    capabilities_by_plan = {int(plan.id): capabilities_for(db, plan, user_id) for plan in plans}
+    capabilities_by_plan = {int(plan.id): capabilities_for(db, plan, user_id) for plan in plans + finished}
     by_uuid = {entry.uuid: entry for entries in entries_by_plan.values() for entry in entries}
-    all_entries = [entry for plan in plans for entry in entries_by_plan[int(plan.id)]]
+    # Finished plans contribute only steps done this week, so they never reach later groups.
+    all_entries = [entry for plan in plans + finished for entry in entries_by_plan[int(plan.id)]]
 
     week_start = _week_start(today)
     week_end = week_start + timedelta(days=6)
@@ -276,7 +320,7 @@ def home(db: Session, current_user: PublicUser, today: date | None = None, extra
     picks = [by_uuid[uuid] for uuid in focus.objective_uuids or [] if uuid in by_uuid]
     pick_rank = {entry.uuid: index for index, entry in enumerate(picks)}
 
-    known = set(focus.plan_uuids or [])
+    known = set(focus.plan_uuids or []) | {plan.plan_uuid for plan in finished}
     week: list[_Entry] = []
     waiting: list[_Entry] = []
     for entry in all_entries:
@@ -320,7 +364,7 @@ def home(db: Session, current_user: PublicUser, today: date | None = None, extra
             [entry for entry in group if entry.due is None or entry.startable]
             for group in _open_candidates(entries_by_plan, plans, in_week | {entry.uuid for entry in picks}, next_end, startable_only=False)
         ],
-        max(0, focus.target - len(dated_next)),
+        max(0, _upcoming_target(focus) - len(dated_next)),
     )
     next_week = dated_next[:len(waiting)] + sorted(dated_next[len(waiting):], key=lambda entry: entry.due) + projected
     placed = in_week | {entry.uuid for entry in next_week}
@@ -345,6 +389,10 @@ def home(db: Session, current_user: PublicUser, today: date | None = None, extra
         "today": today,
         "week": {
             "start": week_start, "end": week_end, "target": focus.target, "boosts": focus.boosts,
+            # The goal next week is planned with; changing the goal never reshapes this week.
+            "next_target": _upcoming_target(focus),
+            # Whether this week has been planned; until it has, a new goal applies right away.
+            "planned": bool(focus.objective_uuids),
             "done_count": sum(entry.done for entry in week), "total": len(week),
             "complete": bool(week) and not remaining, "can_boost": has_more,
             "items": cards(week, "week"),
@@ -362,7 +410,7 @@ def home(db: Session, current_user: PublicUser, today: date | None = None, extra
 def ready_for_more(db: Session, current_user: PublicUser, today: date | None = None) -> dict:
     today = today or date.today()
     plans = _my_plans(db, int(current_user.id))
-    entries_by_plan = _entries(db, plans, today)
+    _, entries_by_plan = _with_finished(db, int(current_user.id), plans, today)
     focus = _fill_week(db, int(current_user.id), plans, entries_by_plan, today, extra=BOOST_SIZE)
     focus.boosts = (focus.boosts or 0) + 1
     focus.update_date = _now_string()
@@ -372,19 +420,25 @@ def ready_for_more(db: Session, current_user: PublicUser, today: date | None = N
 
 
 def set_pace(db: Session, current_user: PublicUser, target: int, today: date | None = None) -> dict:
+    """Change the weekly goal from next week on; this week keeps what it was planned with.
+
+    A week with nothing planned in it yet has nothing to keep, so it takes the goal now.
+    """
     if target < 1 or target > 20:
         raise HTTPException(status_code=422, detail="Pick between 1 and 20 steps a week")
     today = today or date.today()
-    plans = _my_plans(db, int(current_user.id))
-    focus = _fill_week(db, int(current_user.id), plans, _entries(db, plans, today), today)
-    focus.target = target
-    db.add(focus)
-    db.commit()
-    # A new goal is the learner asking: fill up to it from the week's plans.
-    focus = _fill_week(db, int(current_user.id), plans, _entries(db, plans, today), today, refill=True)
+    user_id = int(current_user.id)
+    plans = _my_plans(db, user_id)
+    focus = _fill_week(db, user_id, plans, _with_finished(db, user_id, plans, today)[1], today)
+    if focus.objective_uuids:
+        focus.next_target = None if target == focus.target else target
+    else:
+        focus.target, focus.next_target = target, None
     focus.update_date = _now_string()
     db.add(focus)
     db.commit()
+    if not focus.objective_uuids:
+        _fill_week(db, user_id, plans, _with_finished(db, user_id, plans, today)[1], today, refill=True)
     return home(db, current_user, today)
 
 
@@ -394,7 +448,7 @@ def pull_in_plan(db: Session, current_user: PublicUser, plan_uuid: str, today: d
     plans = _my_plans(db, int(current_user.id))
     if plan_uuid not in {plan.plan_uuid for plan in plans}:
         raise HTTPException(status_code=404, detail="Plan not found")
-    _fill_week(db, int(current_user.id), plans, _entries(db, plans, today), today, adopt={plan_uuid})
+    _fill_week(db, int(current_user.id), plans, _with_finished(db, int(current_user.id), plans, today)[1], today, adopt={plan_uuid})
     return home(db, current_user, today)
 
 
