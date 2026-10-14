@@ -7,7 +7,7 @@ import { Button } from '@components/ui/button'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import CandidateToolbar from './CandidateToolbar'
-import { CandidatePanel, CandidatePanelContent, recordCandidateRoute } from '@components/Objects/Modals/FeedbackModal'
+import { CandidatePanel, CandidatePanelContent, FeedbackModal, recordCandidateRoute } from '@components/Objects/Modals/FeedbackModal'
 import { CandidateAnnouncement, markCandidateAnnouncementsViewed } from '@services/candidate/candidate'
 import { getConfig } from '@services/config/config'
 import { useDemoBarActive } from '@services/demo/demo'
@@ -95,5 +95,7 @@ export default function CandidateExperience({ theme = 'light' }: { theme?: 'ligh
         <CandidatePanelContent panel={panel} theme={theme} orgId={Number(org?.id)} accessToken={token} feedbackConfigured={feedbackConfigured} onReleasesViewed={() => window.dispatchEvent(new Event('candidate-releases-viewed'))} />
       </section>
     </> : null}
+    {/* Stable builds have no tester toolbar, so feedback opens as a dialog instead. */}
+    {!unstable ? <FeedbackModal open={open} onOpenChange={setOpen} theme={theme} orgId={Number(org?.id)} accessToken={token} feedbackConfigured={feedbackConfigured} /> : null}
   </div>
 }

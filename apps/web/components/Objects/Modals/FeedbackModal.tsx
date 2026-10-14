@@ -248,11 +248,12 @@ interface FeedbackModalProps {
   theme?: 'light' | 'dark'
   orgId?: number
   accessToken?: string
+  feedbackConfigured?: boolean
 }
 
-export function FeedbackModal({ open, onOpenChange, theme = 'light', orgId, accessToken }: FeedbackModalProps) {
+export function FeedbackModal({ open, onOpenChange, theme = 'light', orgId, accessToken, feedbackConfigured = true }: FeedbackModalProps) {
   const isDark = theme === 'dark'
-  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className={isDark ? 'max-h-[92dvh] sm:max-w-2xl border-white/10 bg-[#0f0f10] text-white' : 'max-h-[92dvh] sm:max-w-2xl'}><DialogHeader><DialogTitle>Feedback</DialogTitle><DialogDescription>Tell us what needs attention. A quick sentence is plenty.</DialogDescription></DialogHeader><div className="max-h-[68dvh] overflow-y-auto pr-1"><CandidatePanelContent panel="feedback" theme={theme} orgId={orgId} accessToken={accessToken} /></div></DialogContent></Dialog>
+  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className={isDark ? 'max-h-[92dvh] sm:max-w-2xl border-white/10 bg-[#0f0f10] text-white' : 'max-h-[92dvh] sm:max-w-2xl'}><DialogHeader><DialogTitle>Feedback</DialogTitle><DialogDescription>Tell us what needs attention. A quick sentence is plenty.</DialogDescription></DialogHeader><div className="max-h-[68dvh] overflow-y-auto pr-1"><CandidatePanelContent panel="feedback" theme={theme} orgId={orgId} accessToken={accessToken} feedbackConfigured={feedbackConfigured} /></div></DialogContent></Dialog>
 }
 
 function ReleaseList({ releases, dark }: { releases: CandidateReleaseFeed['unseen']; dark: boolean }) {

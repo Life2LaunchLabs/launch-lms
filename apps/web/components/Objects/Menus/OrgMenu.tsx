@@ -7,7 +7,7 @@ import { getOrgLogoMediaDirectory } from '@services/media/media'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { usePathname } from 'next/navigation'
-import { Buildings, CaretDown, Envelope, Question, SidebarSimple, SignOut, Sun, User } from '@phosphor-icons/react'
+import { Buildings, CaretDown, ChatCircleDots, Envelope, Question, SidebarSimple, SignOut, Sun, User } from '@phosphor-icons/react'
 import { openCandidatePanel } from '@components/Candidate/CandidateExperience'
 import { useJoinBannerVisible, JOIN_BANNER_HEIGHT } from '@components/Objects/Banners/OrgJoinBanner'
 import { GuestHeader } from '@components/Objects/Menus/GuestHeader'
@@ -210,7 +210,8 @@ export const OrgMenu = (props: { orgslug: string; compact?: boolean }) => {
             </div>
 
             <div className={cn('mt-auto flex flex-col pt-6', isDesktopNavExpanded ? 'items-stretch' : 'items-center')}>
-              <div className="mt-6">
+              <FeedbackSidebarButton onClick={openFeedback} isExpanded={isDesktopNavExpanded} />
+              <div className="mt-2">
                 <DesktopAccountLink orgslug={orgslug} onHelp={openFeedback} isExpanded={isDesktopNavExpanded} unreadCount={unreadCount} />
               </div>
             </div>
@@ -272,6 +273,34 @@ function SidebarItem({
         <TooltipContent side="right" className="text-xs">
           {item.label}
         </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )
+}
+
+function FeedbackSidebarButton({ onClick, isExpanded }: { onClick: () => void; isExpanded: boolean }) {
+  const button = (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Send feedback"
+      className={cn(
+        'relative flex h-11 items-center rounded-2xl text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground',
+        isExpanded ? 'w-full justify-start gap-1 pl-0.5 pr-3' : 'w-11 justify-center'
+      )}
+    >
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center"><ChatCircleDots size={22} weight="fill" /></span>
+      <span className={cn('truncate text-sm font-medium', isExpanded ? 'inline' : 'hidden')}>Feedback</span>
+    </button>
+  )
+
+  if (isExpanded) return button
+
+  return (
+    <TooltipProvider delayDuration={0}>
+      <Tooltip>
+        <TooltipTrigger asChild>{button}</TooltipTrigger>
+        <TooltipContent side="right" className="text-xs">Feedback</TooltipContent>
       </Tooltip>
     </TooltipProvider>
   )
