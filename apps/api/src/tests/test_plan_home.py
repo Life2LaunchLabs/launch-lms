@@ -14,7 +14,7 @@ from src.db.planning import (
     PlanWeeklyFocus,
     StepOrder,
 )
-from src.services import plan_celebration, plan_home, planning
+from src.services import plan_celebration, plan_home, plan_progress, planning
 from src.tests.test_planning import _plan_create, _session, _user
 
 
@@ -285,3 +285,44 @@ def test_finishing_a_plan_does_not_refill_a_finished_week():
         # More only comes when the learner asks for it.
         more = plan_home.ready_for_more(db, _user(1), today)["week"]
         assert sorted(item["title"] for item in more["items"] if item["progress"]["status"] != "completed") == ["Practice", "Research"]
+
+
+def test_reading_a_step_without_stored_progress_writes_nothing():
+    from sqlmodel import select
+    from src.db.planning import PlanObjectiveProgress
+
+    with _home_session() as db:
+        plan = _plan_with_steps(db, "Summer job", ["Step 1", "Step 2"])
+        for row in db.exec(select(PlanObjectiveProgress)).all():
+            db.delete(row)
+        db.commit()
+        # Plans list, a plan and the weekly home all read progress; none of them may insert it.
+        planning.list_plans(db, _user(1), "active")
+        detail = planning.get_plan(db, _user(1), plan["slug"])
+        plan_home.home(db, _user(1))
+        assert [item["progress"]["status"] for item in detail["objectives"]] == ["not_started", "not_started"]
+        assert not db.new and db.exec(select(PlanObjectiveProgress)).all() == []
+        # The first write creates the row.
+        _complete(db, plan, detail["objectives"][0]["objective_uuid"])
+        assert [row.status for row in db.exec(select(PlanObjectiveProgress)).all()] == [PlanObjectiveStatus.COMPLETED]
+
+
+def test_a_writer_that_loses_the_race_to_create_progress_uses_the_winners_row(monkeypatch):
+    from sqlmodel import Session, select
+    from src.db.planning import PlanObjective, PlanObjectiveProgress
+
+    with _home_session() as db:
+        plan = _plan_with_steps(db, "Summer job", ["Step 1"])
+        for row in db.exec(select(PlanObjectiveProgress)).all():
+            db.delete(row)
+        db.commit()
+        objective = db.exec(select(PlanObjective)).one()
+        # Another request creates the row after this one looked for it and found none.
+        winner = Session(db.get_bind())
+        winner.add(plan_progress.new_progress(objective))
+        winner.commit()
+        monkeypatch.setattr(plan_progress, "stored_progress", lambda session, item, calls=iter([None]): next(calls, None) or session.exec(select(PlanObjectiveProgress).where(PlanObjectiveProgress.plan_objective_id == item.id)).first())
+        progress = plan_progress.progress_for(db, objective)
+        assert progress.id is not None
+        assert len(db.exec(select(PlanObjectiveProgress)).all()) == 1
+        _complete(db, plan, objective.objective_uuid)
