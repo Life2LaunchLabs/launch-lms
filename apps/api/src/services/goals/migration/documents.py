@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 
 from sqlmodel import Session, select
 
-from src.db.learning import LearningActivity
+from src.db.learning import LearningActivity, LearningBadge
 from src.services.goals.access import LEGACY_ALIASES
 from src.services.goals.document import DOCUMENT_FORMAT, DOCUMENT_FORMAT_VERSION, default_roles, validate_document
 from src.db.planning import ALL_CAPABILITIES
@@ -63,6 +63,10 @@ def _activity_uuid(db: Session, activity_id: int | None) -> str | None:
     return db.exec(select(LearningActivity.activity_uuid).where(LearningActivity.id == activity_id)).first()
 
 
+def badge_exists(db: Session, badge_uuid: str | None) -> bool:
+    return bool(badge_uuid) and db.exec(select(LearningBadge.id).where(LearningBadge.badge_uuid == badge_uuid)).first() is not None
+
+
 def _objectives_by_phase(phases: list[dict], objectives: list[dict] | None) -> list[tuple[dict, list[dict]]]:
     """Phases with their objectives, whether objectives are listed flat (with ``phase_uuid``) or nested in phases."""
     ordered = sorted(phases, key=lambda phase: (phase.get("position") or 0))
@@ -104,7 +108,7 @@ def convert_snapshot(db: Session, meta: dict, phases: list[dict], objectives: li
                     else:
                         warnings.append(f"{item.get('title')}: activity missing, kept as a task")
                         kind, config = "task", {}
-                if kind == "badge" and not config.get("badge_uuid"):
+                if kind == "badge" and not badge_exists(db, config.get("badge_uuid")):
                     warnings.append(f"{item.get('title')}: badge missing, kept as a task")
                     kind, config = "task", {}
                 step = {
