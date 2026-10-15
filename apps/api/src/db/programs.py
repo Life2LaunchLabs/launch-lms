@@ -332,46 +332,8 @@ class ObjectiveProgressUpdate(SQLModel):
     completion_date: datetime | None = None
 
 
-class ProgramAssignmentObjectiveUpdate(SQLModel):
-    definition_version: int
-    title: str
-    description: str = ""
-    fields: list[dict] = Field(default_factory=list)
-    completion_restricted: bool = False
-    allow_late: bool = False
-
-
 class ParticipantResponse(SQLModel):
     accept: bool
-
-
-class LearnerProgramEnrollmentView(SQLModel):
-    participant_uuid: str
-    status: str
-    created_at: str = ""
-    program: dict
-    organization: dict
-    assignment: dict
-    objectives: list[dict] = Field(default_factory=list)
-    enrollment: dict
-    run: dict
-    enrollment_count: int = 1
-
-
-class LearnerProgramDetailView(SQLModel):
-    program: dict
-    organization: dict
-    current_enrollment: LearnerProgramEnrollmentView
-    enrollments: list[LearnerProgramEnrollmentView]
-
-
-class ObjectiveReviewDecision(SQLModel):
-    objective_uuid: str
-    user_id: int
-    plan_uuid: str | None = None
-    plan_objective_uuid: str | None = None
-    action: str
-    message: str = ""
 
 
 class ProgramTemplateVersion(SQLModel, table=True):

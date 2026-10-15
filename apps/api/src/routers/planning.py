@@ -20,7 +20,6 @@ from src.db.planning import (
     PlanOwnershipTransfer,
     PlanPhaseCreate,
     PlanPhaseUpdate,
-    PlanRoleCreate,
     PlanRoleUpdate,
     PlanStatus,
     PlanUpdate,
@@ -31,9 +30,6 @@ from src.db.programs import ProgramAssignment, ProgramAssignmentCreate, ProgramC
 from src.db.programs import (
     ObjectiveCreate,
     ObjectiveProgressUpdate,
-    ObjectiveReviewDecision,
-    ProgramAssignmentObjectiveUpdate,
-    ProgramObjectiveScheduleUpdate,
     ProgramObjectiveUpdate,
     ProgramPhaseCreate,
     ProgramPhaseUpdate,
@@ -78,25 +74,6 @@ def _require_managed_assignment(org_id: int, assignment_uuid: str, db: Session) 
         raise HTTPException(status_code=403, detail="Group plan assignments require a Full plan or higher")
 
 
-@router.get("/feed")
-def api_feed(
-    scope: str = Query(default="all", pattern="^(all|mine|helping)$"),
-    plan_uuid: str | None = None,
-    explore_all: bool = False,
-    db: Session = Depends(get_db_session),
-    current_user: PublicUser = Depends(get_current_user),
-):
-    return service.feed(db, current_user, scope, plan_uuid, explore_all)
-
-
-@router.get("/reviews")
-def api_reviews(
-    db: Session = Depends(get_db_session),
-    current_user: PublicUser = Depends(get_current_user),
-):
-    return service.review_queue(db, current_user)
-
-
 @router.get("/plans")
 def api_list_plans(
     lifecycle: str | None = Query(default=None, pattern="^(active|completed|archived|pending)$"),
@@ -119,11 +96,6 @@ def api_get_plan(identifier: str, db: Session = Depends(get_db_session), current
 @router.get("/plans/{identifier}/reviews")
 def api_plan_reviews(identifier: str, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
     return service.plan_reviews(db, current_user, identifier)
-
-
-@router.get("/legacy/{legacy_identifier}")
-def api_resolve_legacy_plan(legacy_identifier: str, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    return service.resolve_legacy_plan(db, current_user, legacy_identifier)
 
 
 @router.patch("/plans/{identifier}")
@@ -161,11 +133,6 @@ def api_update_phase(identifier: str, phase_uuid: str, payload: PlanPhaseUpdate,
     return service.update_phase(db, current_user, identifier, phase_uuid, payload)
 
 
-@router.delete("/plans/{identifier}/phases/{phase_uuid}")
-def api_delete_phase(identifier: str, phase_uuid: str, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    return service.delete_phase(db, current_user, identifier, phase_uuid)
-
-
 @router.post("/plans/{identifier}/objectives")
 def api_create_objective(identifier: str, payload: PlanObjectiveCreate, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
     return service.create_objective(db, current_user, identifier, payload)
@@ -186,19 +153,9 @@ def api_update_progress(identifier: str, objective_uuid: str, payload: PlanObjec
     return service.update_objective_progress(db, current_user, identifier, objective_uuid, payload)
 
 
-@router.post("/plans/{identifier}/roles")
-def api_create_role(identifier: str, payload: PlanRoleCreate, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    return service.create_role(db, current_user, identifier, payload)
-
-
 @router.patch("/plans/{identifier}/roles/{role_uuid}")
 def api_update_role(identifier: str, role_uuid: str, payload: PlanRoleUpdate, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
     return service.update_role(db, current_user, identifier, role_uuid, payload)
-
-
-@router.delete("/plans/{identifier}/roles/{role_uuid}")
-def api_delete_role(identifier: str, role_uuid: str, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    return service.delete_role(db, current_user, identifier, role_uuid)
 
 
 @router.post("/plans/{identifier}/organization-roles")
@@ -360,19 +317,9 @@ def api_add_template_objective(template_uuid: str, org_id: int, payload: Objecti
     return template_service.add_program_objective(db, current_user, org_id, template_uuid, payload)
 
 
-@router.put("/templates/{template_uuid}/objectives/{objective_uuid}/schedule")
-def api_update_template_objective_schedule(template_uuid: str, objective_uuid: str, org_id: int, payload: ProgramObjectiveScheduleUpdate, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    return template_service.update_program_objective_schedule(db, current_user, org_id, template_uuid, objective_uuid, payload)
-
-
 @router.put("/templates/{template_uuid}/objectives/{objective_uuid}")
 def api_update_template_objective(template_uuid: str, objective_uuid: str, org_id: int, payload: ProgramObjectiveUpdate, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
     return template_service.update_program_objective(db, current_user, org_id, template_uuid, objective_uuid, payload)
-
-
-@router.delete("/templates/{template_uuid}/objectives/{objective_uuid}")
-def api_remove_template_objective(template_uuid: str, objective_uuid: str, org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    return template_service.remove_program_objective(db, current_user, org_id, template_uuid, objective_uuid)
 
 
 @router.post("/templates/{template_uuid}/phases")
@@ -383,11 +330,6 @@ def api_create_template_phase(template_uuid: str, org_id: int, payload: ProgramP
 @router.put("/templates/{template_uuid}/phases/{phase_uuid}")
 def api_update_template_phase(template_uuid: str, phase_uuid: str, org_id: int, payload: ProgramPhaseUpdate, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
     return template_service.update_program_phase(db, current_user, org_id, template_uuid, phase_uuid, payload)
-
-
-@router.delete("/templates/{template_uuid}/phases/{phase_uuid}")
-def api_delete_template_phase(template_uuid: str, phase_uuid: str, org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    return template_service.delete_program_phase(db, current_user, org_id, template_uuid, phase_uuid)
 
 
 @router.put("/templates/{template_uuid}/order")
@@ -427,46 +369,10 @@ def api_assignment_batch_matrix(assignment_uuid: str, org_id: int | None = None,
     return template_service.assignment_matrix(db, current_user, resolved_org_id, assignment_uuid)
 
 
-@router.post("/assignment-batches/{assignment_uuid}/complete")
-def api_complete_assignment_batch(assignment_uuid: str, org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    _require_managed_assignment(org_id, assignment_uuid, db)
-    return template_service.change_assignment_status(db, current_user, org_id, assignment_uuid, PlanStatus.COMPLETED)
-
-
-@router.post("/assignment-batches/{assignment_uuid}/reopen")
-def api_reopen_assignment_batch(assignment_uuid: str, org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    _require_managed_assignment(org_id, assignment_uuid, db)
-    return template_service.change_assignment_status(db, current_user, org_id, assignment_uuid, PlanStatus.ACTIVE)
-
-
-@router.post("/assignment-batches/{assignment_uuid}/archive")
-def api_archive_assignment_batch(assignment_uuid: str, org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    _require_managed_assignment(org_id, assignment_uuid, db)
-    return template_service.change_assignment_status(db, current_user, org_id, assignment_uuid, PlanStatus.ARCHIVED)
-
-
-@router.delete("/assignment-batches/{assignment_uuid}")
-def api_delete_assignment_batch(assignment_uuid: str, org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    _require_managed_assignment(org_id, assignment_uuid, db)
-    return template_service.delete_assignment(db, current_user, org_id, assignment_uuid)
-
-
 @router.get("/assignment-batches/{assignment_uuid}/reviews")
 def api_assignment_batch_reviews(assignment_uuid: str, org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
     _require_managed_assignment(org_id, assignment_uuid, db)
     return template_service.assignment_reviews(db, current_user, org_id, assignment_uuid)
-
-
-@router.patch("/assignment-batches/{assignment_uuid}/definition/objectives/{objective_uuid}")
-def api_update_assignment_objective(assignment_uuid: str, objective_uuid: str, org_id: int, payload: ProgramAssignmentObjectiveUpdate, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    _require_managed_assignment(org_id, assignment_uuid, db)
-    return template_service.update_assignment_objective(db, current_user, org_id, assignment_uuid, objective_uuid, payload)
-
-
-@router.post("/assignment-batches/{assignment_uuid}/reviews/objective")
-def api_review_assignment_objective(assignment_uuid: str, org_id: int, payload: ObjectiveReviewDecision, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    _require_managed_assignment(org_id, assignment_uuid, db)
-    return template_service.review_objective_submission(db, current_user, org_id, assignment_uuid, payload)
 
 
 @router.post("/assignment-batches/progress")

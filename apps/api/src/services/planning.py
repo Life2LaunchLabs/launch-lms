@@ -39,7 +39,6 @@ from src.db.planning import (
     PlanPhaseCreate,
     PlanPhaseUpdate,
     PlanRole,
-    PlanRoleCreate,
     PlanRoleUpdate,
     PlanStatus,
     PlanUpdate,
@@ -240,19 +239,6 @@ def _badge_plan(db: Session, plan: Plan, badge_id: int | None) -> Plan | None:
     return db.exec(select(Plan).where(
         Plan.subject_user_id == plan.subject_user_id, Plan.source_badge_id == badge_id, Plan.status == PlanStatus.ACTIVE,
     )).first()
-
-
-def _badge_state(db: Session, plan: Plan, objective: PlanObjective, progress: PlanObjectiveProgress) -> str:
-    stored = progress.status.value if hasattr(progress.status, "value") else str(progress.status)
-    if not objective.badge_id or not plan.subject_user_id:
-        return stored
-    award = db.exec(select(LearningBadgeAward).where(
-        LearningBadgeAward.badge_id == objective.badge_id,
-        LearningBadgeAward.user_id == plan.subject_user_id,
-    )).first()
-    if award and (not objective.badge_major_version or award.major_version == objective.badge_major_version):
-        return PlanObjectiveStatus.COMPLETED.value
-    return PlanObjectiveStatus.IN_PROGRESS.value if _badge_plan(db, plan, objective.badge_id) else stored
 
 
 def _badge_requirement(db: Session, plan: Plan, objective: PlanObjective, badge: LearningBadge, field: dict) -> dict:
@@ -854,31 +840,6 @@ def _require_individual_definition(db: Session, plan: Plan) -> None:
         })
 
 
-def resolve_legacy_plan(db: Session, current_user: PublicUser, legacy_identifier: str) -> dict:
-    from src.db.programs import Program, ProgramAssignment, ProgramParticipant
-
-    plan = db.exec(select(Plan).where(
-        Plan.subject_user_id == current_user.id,
-        Plan.source_program_id.is_not(None),
-    ).join(Program, Program.id == Plan.source_program_id).where(
-        (Program.slug == legacy_identifier) | (Program.program_uuid == legacy_identifier),
-    ).order_by(Plan.update_date.desc())).first()
-    if not plan:
-        participant = db.exec(select(ProgramParticipant).where(
-            ProgramParticipant.participant_uuid == legacy_identifier,
-            ProgramParticipant.user_id == current_user.id,
-        )).first()
-        if participant:
-            assignment = db.get(ProgramAssignment, participant.assignment_id)
-            plan = db.exec(select(Plan).where(
-                Plan.source_assignment_id == (assignment.id if assignment else -1),
-                Plan.subject_user_id == current_user.id,
-            )).first()
-    if not plan:
-        raise HTTPException(status_code=404, detail="Migrated plan not found")
-    return {"plan_uuid": plan.plan_uuid, "slug": plan.slug}
-
-
 def update_plan(db: Session, current_user: PublicUser, identifier: str, payload: PlanUpdate) -> dict:
     plan = _plan_or_404(db, identifier)
     changes = payload.model_dump(exclude_unset=True)
@@ -1044,21 +1005,6 @@ def update_phase(db: Session, current_user: PublicUser, identifier: str, phase_u
     _activity(db, plan, current_user.id, "phase.updated", {"phase_uuid": phase_uuid, "fields": sorted(changes)})
     db.commit()
     return _plan_dict(db, plan, current_user.id, True)
-
-
-def delete_phase(db: Session, current_user: PublicUser, identifier: str, phase_uuid: str) -> dict:
-    plan = _plan_or_404(db, identifier)
-    _require_individual_definition(db, plan)
-    _require(db, plan, current_user.id, "edit_structure")
-    phase = db.exec(select(PlanPhase).where(PlanPhase.plan_id == plan.id, PlanPhase.phase_uuid == phase_uuid)).first()
-    if not phase:
-        raise HTTPException(status_code=404, detail="Plan phase not found")
-    if db.exec(select(PlanObjective.id).where(PlanObjective.phase_id == phase.id)).first() is not None:
-        raise HTTPException(status_code=409, detail="Move or remove this phase's objectives first")
-    db.delete(phase)
-    _activity(db, plan, current_user.id, "phase.deleted", {"phase_uuid": phase_uuid})
-    db.commit()
-    return {"deleted": True, "phase_uuid": phase_uuid}
 
 
 def create_objective(db: Session, current_user: PublicUser, identifier: str, payload: PlanObjectiveCreate) -> dict:
@@ -1242,29 +1188,6 @@ def update_objective_progress(db: Session, current_user: PublicUser, identifier:
     return _objective_dict(db, plan, objective, capabilities)
 
 
-def create_role(db: Session, current_user: PublicUser, identifier: str, payload: PlanRoleCreate) -> dict:
-    plan = _plan_or_404(db, identifier)
-    _require_individual_definition(db, plan)
-    _require(db, plan, current_user.id, "manage_roles")
-    key = _slug(payload.key).replace("-", "_")
-    invalid = set(payload.capabilities) - ALL_CAPABILITIES
-    if invalid:
-        raise HTTPException(status_code=422, detail=f"Unknown capabilities: {', '.join(sorted(invalid))}")
-    existing_keys = set(db.exec(select(PlanRole.key).where(PlanRole.plan_id == plan.id)).all())
-    if key in existing_keys:
-        raise HTTPException(status_code=409, detail="Role key already exists")
-    if set(payload.grantable_role_keys) - existing_keys:
-        raise HTTPException(status_code=422, detail="A grantable role does not exist")
-    _validate_role_authority(db, plan, current_user.id, payload.capabilities, payload.grantable_role_keys)
-    now = _now_string()
-    role = PlanRole(role_uuid=f"plan_role_{uuid4()}", plan_id=int(plan.id), key=key, name=payload.name.strip() or key, capabilities=payload.capabilities, grantable_role_keys=payload.grantable_role_keys, creation_date=now, update_date=now)
-    db.add(role)
-    _activity(db, plan, current_user.id, "role.created", {"key": key})
-    db.commit()
-    db.refresh(role)
-    return {"role_uuid": role.role_uuid, "key": role.key, "name": role.name, "capabilities": role.capabilities, "grantable_role_keys": role.grantable_role_keys}
-
-
 def _validate_role_authority(db: Session, plan: Plan, actor_user_id: int, capabilities: list[str], grantable_role_keys: list[str]) -> None:
     if plan.owner_user_id == actor_user_id:
         return
@@ -1307,23 +1230,6 @@ def update_role(db: Session, current_user: PublicUser, identifier: str, role_uui
     _activity(db, plan, current_user.id, "role.updated", {"role_uuid": role_uuid, "fields": sorted(changes)})
     db.commit()
     return {"role_uuid": role.role_uuid, "key": role.key, "name": role.name, "capabilities": role.capabilities, "grantable_role_keys": role.grantable_role_keys}
-
-
-def delete_role(db: Session, current_user: PublicUser, identifier: str, role_uuid: str) -> dict:
-    plan = _plan_or_404(db, identifier)
-    _require_individual_definition(db, plan)
-    _require(db, plan, current_user.id, "manage_roles")
-    role = db.exec(select(PlanRole).where(PlanRole.plan_id == plan.id, PlanRole.role_uuid == role_uuid)).first()
-    if not role:
-        raise HTTPException(status_code=404, detail="Plan role not found")
-    if role.key in {"subject", "reviewer", "plan_admin", "viewer"}:
-        raise HTTPException(status_code=422, detail="Default plan roles cannot be deleted")
-    if db.exec(select(PlanCollaborator.id).where(PlanCollaborator.role_id == role.id, PlanCollaborator.active == True)).first() is not None:  # noqa: E712
-        raise HTTPException(status_code=409, detail="Reassign collaborators before deleting this role")
-    db.delete(role)
-    _activity(db, plan, current_user.id, "role.deleted", {"role_uuid": role_uuid, "key": role.key})
-    db.commit()
-    return {"deleted": True, "role_uuid": role_uuid}
 
 
 def _organization_role_dict(role: OrganizationPlanRole) -> dict:
