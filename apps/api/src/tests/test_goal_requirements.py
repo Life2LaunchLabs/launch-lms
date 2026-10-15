@@ -20,6 +20,7 @@ from src.db.requirements import (
     RequirementNode,
     RequirementNodeInput,
 )
+from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
 from src.db.users import User
 from src.services import requirements
@@ -39,7 +40,9 @@ def world():
                   RequirementNode, RequirementAssignmentBatch, RequirementEnrollment, RequirementAttainmentSource):
         model.__table__.create(db.get_bind(), checkfirst=True)
     db.add(User(id=TEACHER, user_uuid="user_4", username="teach", email="te@example.com", first_name="Terry", last_name="Teach", creation_date=NOW, update_date=NOW))
-    db.add(UserOrganization(user_id=TEACHER, org_id=1, role_id=4, creation_date=NOW, update_date=NOW))
+    # A teacher: can run goals for the organization, but isn't an admin.
+    db.add(Role(id=5, role_uuid="role_teacher", name="Teacher", rights={"dashboard": {"action_access": True}, "learning_activities": {"action_update": True}}))
+    db.add(UserOrganization(user_id=TEACHER, org_id=1, role_id=5, creation_date=NOW, update_date=NOW))
     db.commit()
     admin = _user(ADMIN)
     framework = requirements.create_framework(db, admin, RequirementFrameworkCreate(org_id=1, name="Career Ready", nodes=[

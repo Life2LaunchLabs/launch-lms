@@ -33,6 +33,8 @@ class Activity(StepType):
 
 class BadgeConfig(Config):
     badge_uuid: str = Field(min_length=1)
+    # The badge version the step was written against; earlier holders count only when accepted.
+    major_version: int | None = Field(default=None, ge=1)
     accept_previous_major_versions: bool = False
 
 

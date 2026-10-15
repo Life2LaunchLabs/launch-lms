@@ -96,7 +96,7 @@ def issue_goal(
     template: GoalTemplate,
     version: GoalTemplateVersion,
     *,
-    subject_user_id: int,
+    subject_user_id: int | None,
     owner_user_id: int | None = None,
     org_id: int | None = None,
     source: GoalSource = GoalSource.ASSIGNMENT,
@@ -110,7 +110,10 @@ def issue_goal(
     status: GoalStatus = GoalStatus.ACTIVE,
     actor_user_id: int | None = None,
 ) -> Goal:
-    """A live goal from a template version, with its roles, members, stages and steps (flushed, not committed)."""
+    """A live goal from a template version, with its roles, members, stages and steps (flushed, not committed).
+
+    ``subject_user_id`` is None for a goal issued to someone without an account yet; it waits for them.
+    """
     document = version.document or {}
     if not document.get("stages"):
         raise HTTPException(status_code=422, detail="This template version has no stages")
@@ -131,7 +134,7 @@ def issue_goal(
     seeded = access.seed_roles(db, goal, roles)
     subject_role = seeded.get(roles.get("subject_role_key") or "subject")
     staff_role = seeded.get(roles.get("staff_role_key") or "reviewer")
-    if subject_role and goal.owner_user_id != subject_user_id:
+    if subject_role and subject_user_id and goal.owner_user_id != subject_user_id:
         access.add_member(db, goal, subject_user_id, subject_role)
     for staff_id in dict.fromkeys(staff_user_ids or []):
         if staff_role and staff_id not in {subject_user_id, goal.owner_user_id}:

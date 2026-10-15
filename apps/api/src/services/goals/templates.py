@@ -271,3 +271,20 @@ def issuable_version(db: Session, template: GoalTemplate) -> GoalTemplateVersion
     if not version:
         raise HTTPException(status_code=409, detail="Publish the template before handing it out")
     return version
+
+
+def template_activity(db: Session, current_user: PublicUser, org_id: int, template_uuid: str, activity_uuid: str) -> dict:
+    """A template's working activity with its pages, for the activity editor."""
+    from src.db.learning import LearningPage
+    from src.services.learning import lookups
+
+    require_org_admin(current_user.id, org_id, db)
+    template = template_or_404(db, org_id, template_uuid)
+    activity = db.exec(select(LearningActivity).where(LearningActivity.activity_uuid == activity_uuid)).first()
+    if not activity or activity.goal_template_id != template.id or activity.frozen_from_id is not None:
+        raise HTTPException(status_code=404, detail="Activity not found in this template")
+    pages = db.exec(select(LearningPage).where(LearningPage.activity_id == activity.id).order_by(LearningPage.order)).all()  # type: ignore[arg-type]
+    return {
+        "template": {"template_uuid": template.template_uuid, "title": template.title, "org_id": template.org_id},
+        "activity": lookups._serialize_activity(activity, list(pages)).model_dump(),
+    }
