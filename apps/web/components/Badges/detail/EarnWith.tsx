@@ -71,7 +71,7 @@ function Steps({ route, page }: { route: BadgeRoute; page: BadgePage }) {
 export default function EarnWith({ page, options, selected, onSelect, action }: { page: BadgePage; options: EarnOption[]; selected: EarnOption; onSelect: (option: EarnOption) => void; action: EarnAction }) {
   const [changing, setChanging] = React.useState(false)
   const others = options.length - 1
-  const started = Boolean(page.ways.plan)
+  const started = Boolean(page.ways.goal)
   return <section aria-labelledby="earn-title" className="flex flex-col gap-4">
     <h2 id="earn-title" className="m-0 text-2xl font-semibold leading-tight tracking-tight">How you’ll earn it</h2>
     <div className="overflow-hidden rounded-[28px] bg-card">

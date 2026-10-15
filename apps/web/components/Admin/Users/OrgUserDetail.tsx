@@ -4,7 +4,7 @@ import Link from 'next/link'
 import React from 'react'
 import useSWR from 'swr'
 import toast from 'react-hot-toast'
-import { Award, CalendarDays, ChevronRight, ClipboardCheck, Layers3, Loader2, Mail, Plus, Shield, UserRound, Users } from 'lucide-react'
+import { Award, CalendarDays, ClipboardCheck, Layers3, Loader2, Mail, Shield, UserRound, Users } from 'lucide-react'
 import PageLoading from '@components/Objects/Loaders/PageLoading'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
@@ -15,8 +15,9 @@ import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { conferLearningBadge, getLearningBadgeCollections } from '@services/learning/learning'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import { cn } from '@/lib/utils'
-import { LearnerGaps, LearnerRequirementTree } from '@components/Admin/Plans/LearnerRequirements'
-import ProgramAssignmentModal from '@components/Admin/Programs/ProgramAssignmentModal'
+import { LearnerGaps, LearnerRequirementTree } from '@components/Goals/admin/live/LearnerRequirements'
+import { ManagedUserGoals } from '@components/Goals/admin/live/CohortGoals'
+import { goalAdminApi, managedUserKey } from '@services/goals/admin'
 
 function formatDate(value?: string | null) {
   if (!value) return '—'
@@ -44,7 +45,7 @@ export default function OrgUserDetail({ username, orgslug, activeSubpage = 'over
     <div className="flex h-full w-full flex-col bg-[#f8f8f8]">
       {user ? <div className="relative z-10 bg-[#fcfbfc] px-10 tracking-tight nice-shadow"><div className="pb-4 pt-6"><Breadcrumbs items={[{ label: 'Users', href: getUriWithOrg(orgslug, routePaths.org.dash.users.users()) }, { label: [user.first_name, user.last_name].filter(Boolean).join(' ') || user.username }]} /></div><div className="flex items-center gap-4 pb-5"><UserAvatar userUuid={user.user_uuid} avatarImage={user.avatar_image} size={56} /><div><h1 className="text-2xl font-black text-gray-950">{[user.first_name, user.last_name].filter(Boolean).join(' ') || user.username}</h1><p className="text-sm text-gray-500">@{user.username}</p></div></div><nav className="flex space-x-1 text-sm font-black">{[
         { id: 'overview', label: 'Overview', icon: Users },
-        { id: 'plans', label: 'Plans', icon: Layers3 },
+        { id: 'plans', label: 'Goals', icon: Layers3 },
         { id: 'requirements', label: 'Requirements', icon: ClipboardCheck },
       ].map((tab: any) => { const Icon = tab.icon; return <Link key={tab.id} href={getUriWithOrg(orgslug, routePaths.org.dash.users.userPage(username, tab.id))} className={cn('flex items-center gap-2 border-black px-3 py-2 transition', activeSubpage === tab.id ? 'border-b-4' : 'opacity-50 hover:opacity-75')}><Icon size={16} />{tab.label}</Link> })}</nav></div> : null}
       <main className="flex-1 overflow-y-auto px-8 py-6">
@@ -58,7 +59,7 @@ export default function OrgUserDetail({ username, orgslug, activeSubpage = 'over
             {activeSubpage === 'overview' ? <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,1fr)]">
               <LearnerGaps orgId={Number(org.id)} userId={user.id} token={accessToken} learnerName={[user.first_name, user.last_name].filter(Boolean).join(' ') || user.username} />
               <div className="space-y-5">
-                <UserProgramsPanel userId={user.id} orgId={Number(org.id)} orgslug={orgslug} accessToken={accessToken} compact />
+                <UserGoalsPanel userId={user.id} orgId={Number(org.id)} orgslug={orgslug} accessToken={accessToken} compact />
                 <section className="grid gap-3 rounded-xl border border-gray-100 bg-white p-5 nice-shadow sm:grid-cols-2">
                   <DetailCard icon={<Mail size={15} />} label="Email" value={user.email || '—'} />
                   <DetailCard icon={<Shield size={15} />} label="Organization role" value={membership.role?.name || '—'} />
@@ -68,7 +69,7 @@ export default function OrgUserDetail({ username, orgslug, activeSubpage = 'over
                 <IssueBadgePanel user={user} orgId={Number(org.id)} accessToken={accessToken} />
               </div>
             </div> : null}
-            {activeSubpage === 'plans' ? <UserProgramsPanel userId={user.id} orgId={Number(org.id)} orgslug={orgslug} accessToken={accessToken} /> : null}
+            {activeSubpage === 'plans' ? <UserGoalsPanel userId={user.id} orgId={Number(org.id)} orgslug={orgslug} accessToken={accessToken} /> : null}
             {activeSubpage === 'requirements' ? <LearnerRequirementTree orgId={Number(org.id)} userId={user.id} token={accessToken} /> : null}
           </div>
         )}
@@ -77,23 +78,9 @@ export default function OrgUserDetail({ username, orgslug, activeSubpage = 'over
   )
 }
 
-function UserProgramsPanel({ userId, orgId, orgslug, accessToken, compact = false }: { userId: number; orgId: number; orgslug: string; accessToken?: string; compact?: boolean }) {
-  const userProgramsKey = orgId && accessToken ? `${getAPIUrl()}planning/managed-users/${userId}?org_id=${orgId}` : null
-  const { data, mutate: refreshUserPrograms } = useSWR(
-    userProgramsKey,
-    (url: string) => swrFetcher(url, accessToken),
-    { revalidateOnFocus: false }
-  )
-  const programs = data?.programs || []
-  return (
-    <section className="rounded-xl border border-gray-100 bg-white p-5 nice-shadow">
-      <div className="flex items-center justify-between gap-4"><div><h2 className="flex items-center gap-2 text-sm font-bold text-gray-900"><Layers3 size={17} />Plans</h2><p className="mt-1 text-xs text-gray-500">Templates handed to them directly or through a group. Personal plans stay private unless they share them.</p></div><div className="flex items-center gap-2"><ProgramAssignmentModal initialUserIds={[userId]} onAssigned={refreshUserPrograms} trigger={<button className="inline-flex items-center gap-1.5 rounded-lg bg-black px-3 py-2 text-xs font-bold text-white"><Plus size={14} />Assign a template</button>} /></div></div>
-      {programs.length ? <div className={cn('mt-4 grid gap-3', !compact && 'md:grid-cols-2')}>{programs.map((program: any) => {
-        const href = getUriWithOrg(orgslug, program.cohort ? routePaths.org.dash.users.groupPlans(program.cohort.id, program.assignment_uuid) : program.plan_uuid ? routePaths.org.dash.livePlan(program.plan_uuid) : routePaths.org.dash.planAssignment(program.assignment_uuid))
-        return <Link key={program.participant_uuid} href={href} className="group rounded-lg border border-gray-200 p-4 transition hover:border-blue-300"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-black text-gray-900 group-hover:text-blue-700">{program.program_name}</p><p className="mt-1 text-xs text-gray-500">{program.cohort?.name ? `Through ${program.cohort.name}` : 'Assigned directly'}</p></div><ChevronRight size={16} className="text-gray-300 group-hover:text-blue-600" /></div><div className="mt-3 flex items-center gap-3"><div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-100"><div className="h-full rounded-full bg-blue-600" style={{ width: `${program.progress_percent}%` }} /></div><span className="text-[10px] font-black text-gray-500">{program.progress_percent}%</span></div></Link>
-      })}</div> : <div className="mt-4 rounded-lg border border-dashed border-gray-200 py-8 text-center text-xs font-semibold text-gray-400">No templates handed out to them yet.</div>}
-    </section>
-  )
+function UserGoalsPanel({ userId, orgId, orgslug, accessToken, compact = false }: { userId: number; orgId: number; orgslug: string; accessToken?: string; compact?: boolean }) {
+  const { data, mutate } = useSWR(orgId && accessToken ? managedUserKey(userId, orgId) : null, () => goalAdminApi.managedUser(orgId, userId, accessToken), { revalidateOnFocus: false })
+  return <ManagedUserGoals orgslug={orgslug} userId={userId} data={data} refresh={() => mutate()} compact={compact} />
 }
 
 function IssueBadgePanel({ user, orgId, accessToken }: { user: any; orgId: number; accessToken?: string }) {

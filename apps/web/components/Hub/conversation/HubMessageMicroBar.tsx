@@ -60,7 +60,7 @@ export default function HubMessageMicroBar({ role, content, createdAt, memories 
           </PopoverTrigger>
           <PopoverContent align={role === 'user' ? 'end' : 'start'} className="w-[min(24rem,calc(100vw-2rem))] border-border/90 bg-background p-3 shadow-xl shadow-black/20">
             <p className="mb-2 px-1 text-xs font-semibold text-muted-foreground">{label}</p>
-            {role === 'assistant' && source ? <div className="mb-3 rounded-lg bg-muted/60 px-3 py-2 text-sm"><p className="font-medium">Page accessed</p><p className="mt-1 text-xs text-muted-foreground">{sourceTitle}{source.objective_title ? ` · ${source.objective_title}` : ''}</p></div> : null}
+            {role === 'assistant' && source ? <div className="mb-3 rounded-lg bg-muted/60 px-3 py-2 text-sm"><p className="font-medium">Page accessed</p><p className="mt-1 text-xs text-muted-foreground">{sourceTitle}{source.step_title || source.objective_title ? ` · ${source.step_title || source.objective_title}` : ''}</p></div> : null}
             {items.length > 0 ? <><p className="mb-2 px-1 text-xs font-semibold text-muted-foreground">Saved memories</p><HubMemoryItems memories={items} orgId={orgId} accessToken={accessToken} onChange={setItems} /></> : role === 'assistant' && !source ? <p className="px-1 py-2 text-sm text-muted-foreground">No readable page details or saved memories informed this response.</p> : null}
           </PopoverContent>
         </Popover>

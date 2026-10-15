@@ -1,6 +1,7 @@
-import ProgramsAdminPage from '@components/Admin/Programs/ProgramsAdminPage'
+import TemplateDetail from '@components/Goals/admin/templates/TemplateDetail'
 
-export default async function PlanTemplatePage({ params }: { params: Promise<{ orgslug: string; programuuid: string }> }) {
+// `programuuid` carries a goal template uuid (templates kept their program uuids).
+export default async function GoalTemplatePage({ params }: { params: Promise<{ orgslug: string; programuuid: string }> }) {
   const { orgslug, programuuid } = await params
-  return <ProgramsAdminPage orgslug={orgslug} programUuid={decodeURIComponent(programuuid)} activeSubpage="overview" />
+  return <TemplateDetail orgslug={orgslug} templateUuid={decodeURIComponent(programuuid)} subpage="overview" />
 }

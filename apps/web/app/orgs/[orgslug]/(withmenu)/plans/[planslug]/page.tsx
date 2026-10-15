@@ -1,6 +1,7 @@
-import PlansWorkspace from '@components/Plans/PlansWorkspace'
+import GoalsWorkspace from '@components/Goals/learner/GoalsWorkspace'
 
-export default async function PlanPage({ params }: { params: Promise<{ orgslug: string; planslug: string }> }) {
+/** One goal; the ``planslug`` segment carries the goal uuid. */
+export default async function GoalPage({ params }: { params: Promise<{ orgslug: string; planslug: string }> }) {
   const { orgslug, planslug } = await params
-  return <PlansWorkspace orgslug={orgslug} initialPlanSlug={decodeURIComponent(planslug)} />
+  return <GoalsWorkspace orgslug={orgslug} initialGoalUuid={decodeURIComponent(planslug)} />
 }

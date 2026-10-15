@@ -2,11 +2,12 @@
 
 import React from 'react'
 import Link from 'next/link'
+import useSWR from 'swr'
 import { Award, BriefcaseBusiness, Play } from 'lucide-react'
 import { Button } from '@components/ui/button'
-import { Input } from '@components/ui/input'
 import { Label } from '@components/ui/label'
 import { getUriWithOrg, routePaths } from '@services/config/config'
+import { getLearningBadges } from '@services/learning/learning'
 import type { PortfolioConfig, Step } from '@services/goals/types'
 import type { ConfigPanelProps, StepCardProps, StepDefinition } from './registry'
 import { CardNote, Feedback, FinishControls, StepIntro } from './shared'
@@ -59,9 +60,23 @@ function BadgeCard(props: StepCardProps<'badge'>) {
   </div>
 }
 
-function BadgeConfigPanel({ config, onChange }: ConfigPanelProps<'badge'>) {
+type BadgeChoice = { badge_uuid: string; name?: string; title?: string; thumbnail_image?: string | null }
+
+function BadgeConfigPanel({ config, onChange, orgId, token }: ConfigPanelProps<'badge'>) {
+  const { data: badges = [], isLoading } = useSWR<BadgeChoice[]>(token ? ['goal-step-badges', orgId ?? '', token] : null, async () => {
+    const response = await getLearningBadges(orgId ?? undefined, token)
+    return Array.isArray(response) ? response : response?.data || []
+  }, { revalidateOnFocus: false })
+  const known = badges.some((item) => item.badge_uuid === config.badge_uuid)
   return <div className="flex flex-col gap-2">
-    <div className="flex flex-col gap-1"><Label>Badge</Label><Input value={config.badge_uuid} onChange={(event) => onChange({ ...config, badge_uuid: event.target.value })} placeholder="badge uuid" /></div>
+    <div className="flex flex-col gap-1">
+      <Label htmlFor="step-badge">Badge</Label>
+      <select id="step-badge" value={config.badge_uuid || ''} disabled={isLoading} onChange={(event) => onChange({ ...config, badge_uuid: event.target.value })} className="h-9 rounded-xl border-2 border-border bg-background px-2 text-sm font-semibold">
+        <option value="">{isLoading ? 'Loading badges…' : 'Choose a badge'}</option>
+        {config.badge_uuid && !known && !isLoading ? <option value={config.badge_uuid}>A badge this organization can’t see</option> : null}
+        {badges.map((item) => <option key={item.badge_uuid} value={item.badge_uuid}>{item.name || item.title || 'Untitled badge'}</option>)}
+      </select>
+    </div>
     <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={!!config.accept_previous_major_versions} onChange={(event) => onChange({ ...config, accept_previous_major_versions: event.target.checked })} />Earlier versions of the badge count</label>
   </div>
 }

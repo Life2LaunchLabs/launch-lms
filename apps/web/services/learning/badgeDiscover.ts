@@ -6,6 +6,9 @@ async function request(path: string, token?: string, next?: any, method = 'GET',
   return errorHandling(response)
 }
 
+/** The learner's goal for a badge, as badge pages embed it. */
+export type BadgeGoal = { goal_uuid: string; title?: string; done: number; total: number; status: string }
+
 export type BadgeCard = {
   badge_uuid: string
   name: string
@@ -18,7 +21,8 @@ export type BadgeCard = {
   route_count: number
   collection: { collection_uuid: string; name: string } | null
   earned: boolean
-  plan: { plan_uuid: string; slug: string; done: number; total: number } | null
+  /** The learner's active goal for this badge, once they've started it. */
+  goal: BadgeGoal | null
 }
 
 export type BadgeCollectionPage = {
@@ -34,7 +38,7 @@ export type BadgeCollectionPage = {
 
 export type BadgeRoute = {
   route_uuid: string
-  program_uuid: string
+  template_uuid: string
   name: string
   description: string
   recommended: boolean
@@ -51,7 +55,7 @@ export type BadgePage = BadgeCard & {
   trust_line: string
   proves: { title: string; body?: string; media_url?: string }[]
   collection: BadgeCollectionPage | null
-  ways: { badge_uuid: string; routes: BadgeRoute[]; plan: { plan_uuid: string; slug: string; status: string } | null }
+  ways: { badge_uuid: string; routes: BadgeRoute[]; goal: BadgeGoal | null }
 }
 
 export type DiscoverSlideKind = 'badge' | 'collection' | 'link' | 'challenges'

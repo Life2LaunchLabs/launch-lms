@@ -32,7 +32,7 @@ test('hub.action.create-plan: learner controls suggested navigation', async ({ p
   await expect(page.getByRole('heading', { name: 'What are you working toward?' })).toBeVisible()
   await expect(page).toHaveURL((url) => url.pathname.endsWith('/plans') && !url.searchParams.has('hub_action'))
   await expect(page.locator('section.hub-panel')).toContainText('I want to create a plan for changing careers')
-  await expect(page.locator('section.hub-panel')).toContainText('Creating a plan:')
+  await expect(page.locator('section.hub-panel')).toContainText('Creating a goal:')
 
   await expect(page.getByText('Ready to review', { exact: true })).toBeVisible()
   await expect(page.getByLabel('Goal')).toHaveValue('Career transition plan')
@@ -79,8 +79,8 @@ test('plans.create-editor: plans surface uses native object editing', async ({ p
   await expect(page.getByRole('heading', { name: 'Overview', exact: true, level: 1 })).toBeVisible()
   const create = page.getByRole('button', { name: /create your own/i }).filter({ visible: true }).first()
   await create.click()
-  // Creating makes a "New plan" and opens it with its details form ready to name it.
-  await expect(page.getByRole('textbox', { name: 'Goal' })).toHaveValue('New plan')
+  // Creating makes a "New goal" and opens it with its details form ready to name it.
+  await expect(page.getByRole('textbox', { name: 'Goal' })).toHaveValue('New goal')
   await expect(page.getByRole('button', { name: 'Save changes' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Cancel' })).toBeVisible()
   if (process.env.UI_TEST_CAPTURE === 'true') {

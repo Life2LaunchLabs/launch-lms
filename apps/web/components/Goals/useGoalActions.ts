@@ -11,7 +11,7 @@ import type { StepActions } from './steps'
  * Calls the goal API for one goal and keeps every view of it current: each change returns
  * the whole goal, which replaces the cached goal at once, and the rest of /goals revalidates.
  */
-export function useGoalMutation(goalUuid: string, token?: string) {
+export function useGoalMutation(goalUuid: string) {
   const { mutate } = useSWRConfig()
   const [busy, setBusy] = React.useState(false)
   const run = React.useCallback(async (change: () => Promise<Goal | unknown>, done?: string) => {
@@ -34,7 +34,7 @@ export function useGoalMutation(goalUuid: string, token?: string) {
 
 /** A step card's actions, bound to its goal and step. */
 export function useStepActions(goal: Goal, step: Step, token: string | undefined, openActivity: () => void): StepActions {
-  const { busy, run } = useGoalMutation(goal.goal_uuid, token)
+  const { busy, run } = useGoalMutation(goal.goal_uuid)
   const g = goal.goal_uuid
   const s = step.step_uuid
   const quiet = <T,>(promise: () => Promise<T>) => run(promise).then(() => undefined, () => undefined)

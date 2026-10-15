@@ -6,6 +6,8 @@ import { assertActualApp } from './auth'
 const fixture = JSON.parse(readFileSync('.playwright/learner-flow.json', 'utf8'))
 const orgPath = `/orgs/${fixture.org_slug}`
 const frameworkPath = (uuid: string, tab: string) => `${orgPath}/admin/plans/requirements/${uuid}/${tab}`
+// Goals have no slug; the seed writes goal_uuid (equal to the old plan uuid).
+const goalId: string = fixture.goal_uuid || fixture.plan_uuid || fixture.plan_slug
 
 async function capture(page: Page, info: TestInfo, name: string) {
   const screenshot = await page.screenshot({ path: info.outputPath(name), fullPage: true, animations: 'disabled' })
@@ -79,7 +81,7 @@ test('framework.generated: deliberate level conversion can be canceled and gener
   expect(preserved.nodes.map((node: any) => node.code)).toEqual(['HS.HECPS', 'HS.HECPS.D', 'HS.HECPS.D.2'])
 })
 
-test('plans.invitation: organization and personal inviter are visible with the role', async ({ page }, info) => {
+test('goals.invitation: organization and personal inviter are visible with the role', async ({ page }, info) => {
   test.setTimeout(60_000)
   await page.goto(`${orgPath}/plans`)
   await assertActualApp(page)
@@ -89,26 +91,26 @@ test('plans.invitation: organization and personal inviter are visible with the r
   const personalRow = page.getByText('Personal invitation test', { exact: true }).locator('..').locator('..')
   await expect(personalRow).toContainText('Personal Inviter')
   await expect(personalRow).toContainText('Help as Viewer')
-  await expect(page.getByText('A plan for you', { exact: true })).toHaveCount(0)
+  await expect(page.getByText('A goal for you', { exact: true })).toHaveCount(0)
   await expect(organizationRow.getByRole('button', { name: 'Accept', exact: true })).toBeEnabled()
-  await capture(page, info, 'plan-inviting-organization.png')
+  await capture(page, info, 'goal-inviting-organization.png')
 })
 
-test('plans.path: pending work looks finished and activity plays without navigation or Coach', async ({ page }, info) => {
+test('goals.path: pending work looks finished and activity plays without navigation or Coach', async ({ page }, info) => {
   test.setTimeout(60_000)
-  await page.goto(`${orgPath}/plans/${fixture.plan_slug}`)
+  await page.goto(`${orgPath}/plans/${goalId}`)
   await assertActualApp(page)
-  const pending = page.locator(`[data-objective-shell="${fixture.pending_uuid}"]`)
-  const active = page.locator(`[data-objective-shell="${fixture.activity_uuid}"]`)
+  const pending = page.locator(`[data-step-shell="${fixture.pending_uuid}"]`)
+  const active = page.locator(`[data-step-shell="${fixture.activity_uuid}"]`)
   await expect(pending).toContainText('Waiting on review')
   await expect(pending.locator('.path-node-current')).toHaveCount(0)
   await expect(active.locator('.path-node-current')).toBeVisible()
   await pending.getByRole('button', { name: /Welcome submission, Waiting on review/ }).click()
-  await expect(pending.getByRole('button', { name: 'Review', exact: true })).toBeVisible()
+  await expect(pending.getByText('Handed in. Waiting on review.', { exact: true })).toBeVisible()
   await expect(pending.getByRole('button', { name: /Start|Continue/ })).toHaveCount(0)
   await expect(pending.getByRole('button', { name: 'Ask Coach', exact: true })).toHaveCount(0)
-  await capture(page, info, 'objective-waiting-review.png')
-  await active.getByRole('button', { name: /Practice activity, Activity/ }).click()
+  await capture(page, info, 'step-waiting-review.png')
+  await active.getByRole('button', { name: /^Practice activity, / }).click()
   await active.getByRole('button', { name: 'Ask Coach', exact: true }).click()
   await expect(page.getByRole('region', { name: 'Coach', exact: true })).toBeVisible()
   const composer = page.getByLabel('Ask a question or search Launch LMS')
@@ -130,7 +132,7 @@ test('plans.path: pending work looks finished and activity plays without navigat
   expect(box.height).toBe(page.viewportSize()!.height)
   await capture(page, info, 'focused-activity.png')
   await page.getByRole('button', { name: 'Close activity', exact: true }).click()
-  await expect(page).toHaveURL((url) => url.pathname.endsWith(`/plans/${fixture.plan_slug}`))
+  await expect(page).toHaveURL((url) => url.pathname.endsWith(`/plans/${goalId}`))
   await expect(page.locator('.hub-shell')).toBeVisible()
   await page.getByRole('button', { name: /Open Coach/ }).click()
   await expect(composer).toBeVisible()

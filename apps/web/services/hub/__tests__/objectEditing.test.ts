@@ -10,22 +10,22 @@ import {
   recoverObjectEditState,
   reserveAgentField,
   restoreAgentProposal,
-  shouldOpenHubNewPlanEditor,
+  shouldOpenHubNewGoalEditor,
   summarizeObjectReview,
   updateUserField,
 } from '../objectEditing.ts'
 
-test('a cancelled new-plan editor stays closed until Coach makes a later proposal', () => {
+test('a cancelled new-goal editor stays closed until Coach makes a later proposal', () => {
   const run = {
-    status: 'active', scope: { kind: 'new_plan' }, objects: [{ object_key: 'new-plan', status: 'cancelled' }],
+    status: 'active', scope: { kind: 'new_goal' }, objects: [{ object_key: 'new-goal', status: 'cancelled' }],
     events: [
-      { sequence: 1, kind: 'plan.proposed' },
-      { sequence: 2, kind: 'plan.cancelled' },
+      { sequence: 1, kind: 'goal.proposed' },
+      { sequence: 2, kind: 'goal.cancelled' },
     ],
   }
-  assert.equal(shouldOpenHubNewPlanEditor(run), false)
-  assert.equal(shouldOpenHubNewPlanEditor({ ...run, events: [...run.events, { sequence: 3, kind: 'plan.proposed' }] }), true)
-  assert.equal(shouldOpenHubNewPlanEditor({ ...run, objects: [{ object_key: 'new-plan', status: 'editing' }] }), true)
+  assert.equal(shouldOpenHubNewGoalEditor(run), false)
+  assert.equal(shouldOpenHubNewGoalEditor({ ...run, events: [...run.events, { sequence: 3, kind: 'goal.proposed' }] }), true)
+  assert.equal(shouldOpenHubNewGoalEditor({ ...run, objects: [{ object_key: 'new-goal', status: 'editing' }] }), true)
 })
 
 test('an agent cannot reserve a learner-active or learner-dirty field', () => {

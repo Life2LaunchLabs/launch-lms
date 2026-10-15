@@ -15,7 +15,7 @@ import useSWR from 'swr'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { DiscoverOrganization } from '@services/organizations/orgs'
-import useProgramInvitations, { ProgramInvitation } from '@components/Hooks/useProgramInvitations'
+import useGoalInvitations, { type OrgGoalInvitation } from '@components/Hooks/useGoalInvitations'
 
 interface OrganizationDetailClientProps {
   organization: DiscoverOrganization
@@ -29,9 +29,9 @@ export default function OrganizationDetailClient({
   const session = useLHSession() as any
   const token = session?.data?.tokens?.access_token
   const { data: adminOrganizations } = useSWR(token ? `${getAPIUrl()}orgs/user_admin/page/1/limit/100` : null, (url) => swrFetcher(url, token), { revalidateOnFocus: false })
-  const { programs, isLoading: programsLoading, respond } = useProgramInvitations()
+  const { goals: orgGoals, isLoading: goalsLoading, respond } = useGoalInvitations()
   const [busy, setBusy] = React.useState<string | null>(null)
-  const organizationPrograms = programs.filter((item) => item.organization.slug === organization.slug)
+  const organizationGoals = orgGoals.filter((item) => item.organization.slug === organization.slug)
   const canAdmin = Array.isArray(adminOrganizations) && adminOrganizations.some((item: any) => item.slug === organization.slug)
   const heroImage = organization.thumbnail_image
     ? getOrgThumbnailMediaDirectory(organization.org_uuid, organization.thumbnail_image)
@@ -40,13 +40,13 @@ export default function OrganizationDetailClient({
     ? getOrgLogoMediaDirectory(organization.org_uuid, organization.logo_image)
     : null
 
-  const respondToInvitation = async (invitation: ProgramInvitation, accept: boolean) => {
-    setBusy(invitation.participant_uuid)
+  const respondToInvitation = async (invitation: OrgGoalInvitation, accept: boolean) => {
+    setBusy(invitation.goal_uuid)
     try {
       await respond(invitation, accept)
-      toast.success(accept ? 'Program accepted.' : 'Program invitation declined.')
+      toast.success(accept ? 'Goal accepted.' : 'Goal declined.')
     } catch (error: any) {
-      toast.error(error?.message || 'Could not update the program invitation.')
+      toast.error(error?.message || 'Could not answer this goal invitation.')
     } finally {
       setBusy(null)
     }
@@ -157,16 +157,16 @@ export default function OrganizationDetailClient({
           </div>
         </div>
         {token ? <section className="rounded-[28px] border border-border bg-card p-6 nice-shadow md:p-8">
-          <div><p className="text-xs font-black uppercase tracking-wider text-muted-foreground">Learning relationship</p><h2 className="mt-1 text-xl font-black text-foreground">Your programs with {organization.name}</h2><p className="mt-1 text-sm text-muted-foreground">Direct and group assignments appear here from invitation through completion.</p></div>
-          {programsLoading ? <div className="flex justify-center py-12"><Loader2 className="animate-spin text-muted-foreground" /></div> : organizationPrograms.length ? <div className="mt-5 space-y-3">{organizationPrograms.map((item) => {
-            const invited = item.status === 'invited'
+          <div><p className="text-xs font-black uppercase tracking-wider text-muted-foreground">Learning relationship</p><h2 className="mt-1 text-xl font-black text-foreground">Your goals with {organization.name}</h2><p className="mt-1 text-sm text-muted-foreground">Direct and group assignments appear here from invitation through completion.</p></div>
+          {goalsLoading ? <div className="flex justify-center py-12"><Loader2 className="animate-spin text-muted-foreground" /></div> : organizationGoals.length ? <div className="mt-5 space-y-3">{organizationGoals.map((item) => {
+            const invited = item.status === 'pending'
             const statusLabel = invited ? 'Invited' : item.assignment.active ? 'Active' : 'Completed'
-            return <article key={item.participant_uuid} className="flex flex-col gap-4 rounded-2xl border border-border p-4 sm:flex-row sm:items-center">
+            return <article key={item.goal_uuid} className="flex flex-col gap-4 rounded-2xl border border-border p-4 sm:flex-row sm:items-center">
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-lime-100 text-lime-800"><Layers3 size={20} /></span>
-              <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="font-black text-foreground">{item.program.name}</h3><span className={invited ? 'rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black uppercase text-blue-700' : 'rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-black uppercase text-green-700'}>{statusLabel}</span></div><p className="mt-1 text-xs text-muted-foreground">{item.group?.name ? `Assigned through ${item.group.name}` : 'Assigned directly'}{item.assignment.due_date ? ` · Due ${new Date(item.assignment.due_date).toLocaleDateString()}` : ''}</p>{invited && item.assignment.welcome_message ? <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{item.assignment.welcome_message}</p> : null}</div>
-              {invited ? <div className="grid shrink-0 grid-cols-2 gap-2"><button disabled={busy === item.participant_uuid} onClick={() => void respondToInvitation(item, false)} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-black text-muted-foreground disabled:opacity-50"><X size={14} />Decline</button><button disabled={busy === item.participant_uuid} onClick={() => void respondToInvitation(item, true)} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-foreground px-3 text-xs font-black text-background disabled:opacity-50">{busy === item.participant_uuid ? <Loader2 className="animate-spin" size={14} /> : <Check size={14} />}Accept</button></div> : <Link href={routePaths.org.plans()} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-black hover:bg-muted">Open in Plans<ChevronRight size={14} /></Link>}
+              <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="font-black text-foreground">{item.title}</h3><span className={invited ? 'rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black uppercase text-blue-700' : 'rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-black uppercase text-green-700'}>{statusLabel}</span></div><p className="mt-1 text-xs text-muted-foreground">{item.group?.name ? `Assigned through ${item.group.name}` : 'Assigned directly'}{item.assignment.due_date ? ` · Due ${new Date(item.assignment.due_date).toLocaleDateString()}` : ''}</p>{invited && item.assignment.welcome_message ? <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{item.assignment.welcome_message}</p> : null}</div>
+              {invited ? <div className="grid shrink-0 grid-cols-2 gap-2"><button disabled={busy === item.goal_uuid} onClick={() => void respondToInvitation(item, false)} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-black text-muted-foreground disabled:opacity-50"><X size={14} />Decline</button><button disabled={busy === item.goal_uuid} onClick={() => void respondToInvitation(item, true)} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-foreground px-3 text-xs font-black text-background disabled:opacity-50">{busy === item.goal_uuid ? <Loader2 className="animate-spin" size={14} /> : <Check size={14} />}Accept</button></div> : <Link href={routePaths.org.plan(item.goal_uuid)} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-black hover:bg-muted">Open goal<ChevronRight size={14} /></Link>}
             </article>
-          })}</div> : <div className="mt-5 rounded-2xl border border-dashed border-border px-5 py-10 text-center"><Layers3 className="mx-auto text-muted-foreground" size={28} /><p className="mt-2 text-sm font-semibold text-muted-foreground">You don’t have any programs with this organization yet.</p></div>}
+          })}</div> : <div className="mt-5 rounded-2xl border border-dashed border-border px-5 py-10 text-center"><Layers3 className="mx-auto text-muted-foreground" size={28} /><p className="mt-2 text-sm font-semibold text-muted-foreground">You don’t have any goals with this organization yet.</p></div>}
         </section> : null}
       </div>
     </GeneralWrapperStyled>

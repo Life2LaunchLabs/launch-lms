@@ -4,11 +4,30 @@ import { useState } from 'react'
 import { ArrowRight, ChevronDown, ChevronsUp, ListChecks } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import type { HubEditObjectState, HubEditOperation, HubEditRun, HubEditRunEvent } from '@services/hub/advisor'
+import { NEW_GOAL_OBJECT_KEY } from '@services/hub/objectEditing'
 
 type EditRun = HubEditRun | null
 
 /** A message-like record the timeline is placed against. */
 type TimelineMessage = { role: string; createdAt?: string }
+
+/** Keeps the proposed items the learner hasn't saved or cancelled yet; drops an operation once none are left. */
+function pendingItems(operation: HubEditOperation, stateByKey: Map<string, HubEditObjectState>): HubEditOperation[] {
+  const open = (localId: string) => !stateByKey.has(localId) || stateByKey.get(localId)?.status === 'editing'
+  if (operation.type === 'set_new_goal_details') {
+    const state = stateByKey.get(NEW_GOAL_OBJECT_KEY)
+    return !state || state.status === 'editing' ? [operation] : []
+  }
+  if (operation.type === 'add_goal_stages') {
+    const stages = (operation.stages || []).filter((stage) => open(stage.local_id))
+    return stages.length ? [{ ...operation, stages }] : []
+  }
+  if (operation.type === 'add_goal_steps') {
+    const steps = (operation.steps || []).filter((step) => open(step.local_id))
+    return steps.length ? [{ ...operation, steps }] : []
+  }
+  return [operation]
+}
 
 export function recoverHubEditOperations(run: EditRun): HubEditOperation[] {
   if (!run || run.status !== 'active') return []
@@ -16,37 +35,14 @@ export function recoverHubEditOperations(run: EditRun): HubEditOperation[] {
   return run.events.flatMap((event) => {
     const operation = event.payload?.operation
     if (!operation || typeof operation !== 'object' || !('type' in operation)) return []
-    if (operation.type === 'set_new_plan_details' && stateByKey.get('new-plan')?.status !== 'editing' && stateByKey.has('new-plan')) return []
-    if (operation.type === 'add_plan_objectives' && 'objectives' in operation && Array.isArray(operation.objectives)) {
-      const objectives = operation.objectives.filter((objective: any) => !stateByKey.has(objective.local_id) || stateByKey.get(objective.local_id)?.status === 'editing')
-      return objectives.length ? [{ ...operation, objectives } as HubEditOperation] : []
-    }
-    if (operation.type === 'add_plan_phases' && 'phases' in operation && Array.isArray(operation.phases)) {
-      const phases = operation.phases.filter((phase: any) => !stateByKey.has(phase.local_id) || stateByKey.get(phase.local_id)?.status === 'editing')
-      return phases.length ? [{ ...operation, phases } as HubEditOperation] : []
-    }
-    return [operation as HubEditOperation]
+    return pendingItems(operation as HubEditOperation, stateByKey)
   })
 }
 
 export function mergePendingHubEditOperations(current: HubEditOperation[], incoming: HubEditOperation[], run: EditRun): HubEditOperation[] {
   if (run && run.status !== 'active') return []
   const stateByKey = new Map((run?.objects || []).map((item) => [item.object_key, item]))
-  const pending = current.flatMap((operation) => {
-    if (operation.type === 'set_new_plan_details') {
-      const state = stateByKey.get('new-plan')
-      return !state || state.status === 'editing' ? [operation] : []
-    }
-    if (operation.type === 'add_plan_phases') {
-      const phases = operation.phases.filter((phase) => !stateByKey.has(phase.local_id) || stateByKey.get(phase.local_id)?.status === 'editing')
-      return phases.length ? [{ ...operation, phases } as HubEditOperation] : []
-    }
-    if (operation.type === 'add_plan_objectives') {
-      const objectives = operation.objectives.filter((objective) => !stateByKey.has(objective.local_id) || stateByKey.get(objective.local_id)?.status === 'editing')
-      return objectives.length ? [{ ...operation, objectives } as HubEditOperation] : []
-    }
-    return []
-  })
+  const pending = current.flatMap((operation) => operation.type === 'propose_edit_conclusion' ? [] : pendingItems(operation, stateByKey))
   const merged = new Map(pending.map((operation) => [operation.operation_id, operation]))
   for (const operation of incoming) {
     if (!merged.has(operation.operation_id)) merged.set(operation.operation_id, operation)
@@ -62,11 +58,11 @@ export function sessionEventLabel(content: string) {
 export type HubRunTimelineEntry = { id: string; kind: 'agent' | 'learner' | 'boundary'; events: HubEditRunEvent[]; createdAt: string }
 
 function hubEventTarget(event: HubEditRunEvent, localId?: string) {
-    if (localId && event.kind === 'objectives.proposed') return `hub-edit-objective-${localId}`
-    if (localId && event.kind === 'phases.proposed') return `hub-edit-phase-${localId}`
-    if (event.kind === 'plan.proposed') return 'hub-edit-new-plan'
+    if (localId && event.kind === 'steps.proposed') return `hub-edit-step-${localId}`
+    if (localId && event.kind === 'stages.proposed') return `hub-edit-stage-${localId}`
+    if (event.kind === 'goal.proposed') return 'hub-edit-new-goal'
     if (!event.object_uuid) return ''
-    return event.object_type === 'phase' ? `plan-phase-${event.object_uuid}` : `hub-object-${event.object_uuid}`
+    return event.object_type === 'stage' ? `goal-stage-${event.object_uuid}` : `hub-object-${event.object_uuid}`
 }
 
 export function buildHubRunTimeline(events: HubEditRunEvent[]): HubRunTimelineEntry[] {
@@ -95,7 +91,7 @@ export function HubSessionBoundary({ event, run, onRestore }: { event: HubEditRu
   const terminal = event.kind === 'run.completed' || event.kind === 'run.cancelled'
   const scopeKind = String(event.payload?.scope_kind || run?.scope.kind || '')
   const rawGoal = String(event.payload?.goal || run?.goal || 'Focused work')
-  const goal = /^\s*(create|edit|update|build)\b/i.test(rawGoal) ? rawGoal : `${scopeKind === 'new_plan' ? 'Create a plan' : 'Edit a plan'}: ${rawGoal}`
+  const goal = /^\s*(create|edit|update|build)\b/i.test(rawGoal) ? rawGoal : `${scopeKind === 'new_goal' || scopeKind === 'new_plan' ? 'Create a goal' : 'Edit a goal'}: ${rawGoal}`
   const verb = event.kind === 'run.started' ? 'started session' : event.kind === 'run.reopened' ? 'reopened session' : 'ended session'
   return <div className="flex items-center gap-2 py-1 text-[10px] text-muted-foreground" aria-label={`${verb}: ${goal}`}>
     <span className="h-px flex-1 bg-border" />
@@ -109,9 +105,9 @@ export function HubEditActivity({ events, objects, onPoint, onFinish, pendingRev
   const conclusion = events.find((event) => event.kind === 'run.conclusion_proposed')
   const [expanded, setExpanded] = useState(Boolean(conclusion))
   const details = events.flatMap((event) => {
-    const operation = event.payload?.operation as { phases?: Array<{ local_id: string; name: string }>; objectives?: Array<{ local_id: string; title: string }> } | undefined
-    if (operation?.phases) return operation.phases.map((phase) => { const state = objects.find((item) => item.object_key === phase.local_id); return { id: `${event.event_uuid}:${phase.local_id}`, label: `Proposed phase “${phase.name}”`, targetId: state?.object_uuid ? `plan-phase-${state.object_uuid}` : hubEventTarget(event, phase.local_id) } })
-    if (operation?.objectives) return operation.objectives.map((objective) => { const state = objects.find((item) => item.object_key === objective.local_id); return { id: `${event.event_uuid}:${objective.local_id}`, label: `Proposed objective “${objective.title}”`, targetId: state?.object_uuid ? `hub-object-${state.object_uuid}` : hubEventTarget(event, objective.local_id) } })
+    const operation = event.payload?.operation as { stages?: Array<{ local_id: string; title: string }>; steps?: Array<{ local_id: string; title: string }> } | undefined
+    if (operation?.stages) return operation.stages.map((stage) => { const state = objects.find((item) => item.object_key === stage.local_id); return { id: `${event.event_uuid}:${stage.local_id}`, label: `Proposed stage “${stage.title}”`, targetId: state?.object_uuid ? `goal-stage-${state.object_uuid}` : hubEventTarget(event, stage.local_id) } })
+    if (operation?.steps) return operation.steps.map((step) => { const state = objects.find((item) => item.object_key === step.local_id); return { id: `${event.event_uuid}:${step.local_id}`, label: `Proposed step “${step.title}”`, targetId: state?.object_uuid ? `hub-object-${state.object_uuid}` : hubEventTarget(event, step.local_id) } })
     return [{ id: event.event_uuid, label: event.summary, targetId: hubEventTarget(event) }]
   })
   const summary = events.map((event) => event.summary.replace(/^Prepared/, 'Proposed')).join(' · ')
