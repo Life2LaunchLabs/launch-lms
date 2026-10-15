@@ -47,6 +47,14 @@ class PlanCollaboratorRequestStatus(str, Enum):
     DECLINED = "declined"
 
 
+ALL_CAPABILITIES = {
+    "view_plan", "comment", "contribute_fields", "update_progress",
+    "request_collaborators", "contribute_restricted_fields", "complete_restricted_objectives",
+    "review_badge_submissions", "edit_plan_details", "edit_structure",
+    "edit_schedule", "complete_plan", "archive_plan", "manage_collaborators",
+    "manage_roles",
+}
+
 DEFAULT_ROLE_DEFINITIONS = (
     {
         "key": "subject",
@@ -117,11 +125,13 @@ class Plan(SQLModel, table=True):
 
 
 class PlanRole(SQLModel, table=True):
-    __table_args__ = (UniqueConstraint("role_uuid"), UniqueConstraint("plan_id", "key"))
+    __table_args__ = (UniqueConstraint("role_uuid"), UniqueConstraint("plan_id", "key"), UniqueConstraint("goal_id", "key"))
 
     id: int | None = Field(default=None, primary_key=True)
     role_uuid: str = Field(index=True)
-    plan_id: int = Field(sa_column=Column(Integer, ForeignKey("plan.id", ondelete="CASCADE"), index=True))
+    plan_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("plan.id", ondelete="CASCADE"), nullable=True, index=True))
+    # Set instead of plan_id for goals; plan_id goes when the plan tables are dropped.
+    goal_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("goal.id", ondelete="CASCADE"), nullable=True, index=True))
     key: str
     name: str
     capabilities: list[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
@@ -131,11 +141,13 @@ class PlanRole(SQLModel, table=True):
 
 
 class PlanCollaborator(SQLModel, table=True):
-    __table_args__ = (UniqueConstraint("collaborator_uuid"), UniqueConstraint("plan_id", "user_id"))
+    __table_args__ = (UniqueConstraint("collaborator_uuid"), UniqueConstraint("plan_id", "user_id"), UniqueConstraint("goal_id", "user_id"))
 
     id: int | None = Field(default=None, primary_key=True)
     collaborator_uuid: str = Field(index=True)
-    plan_id: int = Field(sa_column=Column(Integer, ForeignKey("plan.id", ondelete="CASCADE"), index=True))
+    plan_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("plan.id", ondelete="CASCADE"), nullable=True, index=True))
+    # Set instead of plan_id for goals; plan_id goes when the plan tables are dropped.
+    goal_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("goal.id", ondelete="CASCADE"), nullable=True, index=True))
     user_id: int = Field(sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), index=True))
     role_id: int = Field(sa_column=Column(Integer, ForeignKey("planrole.id", ondelete="RESTRICT"), index=True))
     active: bool = True
@@ -215,7 +227,9 @@ class PlanInvitation(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     invitation_uuid: str = Field(index=True)
-    plan_id: int = Field(sa_column=Column(Integer, ForeignKey("plan.id", ondelete="CASCADE"), index=True))
+    plan_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("plan.id", ondelete="CASCADE"), nullable=True, index=True))
+    # Set instead of plan_id for goals; plan_id goes when the plan tables are dropped.
+    goal_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("goal.id", ondelete="CASCADE"), nullable=True, index=True))
     kind: PlanInvitationKind = Field(sa_column=Column(String, nullable=False, index=True))
     email: str
     email_normalized: str = Field(index=True)
@@ -235,7 +249,9 @@ class PlanCollaboratorRequest(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     request_uuid: str = Field(index=True)
-    plan_id: int = Field(sa_column=Column(Integer, ForeignKey("plan.id", ondelete="CASCADE"), index=True))
+    plan_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("plan.id", ondelete="CASCADE"), nullable=True, index=True))
+    # Set instead of plan_id for goals; plan_id goes when the plan tables are dropped.
+    goal_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("goal.id", ondelete="CASCADE"), nullable=True, index=True))
     requested_by_user_id: int = Field(sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), index=True))
     email: str
     email_normalized: str = Field(index=True)
@@ -249,10 +265,12 @@ class PlanCollaboratorRequest(SQLModel, table=True):
 
 
 class PlanAttachment(SQLModel, table=True):
-    __table_args__ = (UniqueConstraint("plan_id", "asset_id"),)
+    __table_args__ = (UniqueConstraint("plan_id", "asset_id"), UniqueConstraint("goal_id", "asset_id"))
 
     id: int | None = Field(default=None, primary_key=True)
-    plan_id: int = Field(sa_column=Column(Integer, ForeignKey("plan.id", ondelete="CASCADE"), index=True))
+    plan_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("plan.id", ondelete="CASCADE"), nullable=True, index=True))
+    # Set instead of plan_id for goals; plan_id goes when the plan tables are dropped.
+    goal_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("goal.id", ondelete="CASCADE"), nullable=True, index=True))
     asset_id: int = Field(sa_column=Column(Integer, ForeignKey("mediaasset.id", ondelete="CASCADE"), index=True))
     added_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
     creation_date: str = ""
@@ -263,7 +281,9 @@ class PlanActivity(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     activity_uuid: str = Field(index=True)
-    plan_id: int = Field(sa_column=Column(Integer, ForeignKey("plan.id", ondelete="CASCADE"), index=True))
+    plan_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("plan.id", ondelete="CASCADE"), nullable=True, index=True))
+    # Set instead of plan_id for goals; plan_id goes when the plan tables are dropped.
+    goal_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("goal.id", ondelete="CASCADE"), nullable=True, index=True))
     actor_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True, index=True))
     action: str = Field(index=True)
     payload: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))

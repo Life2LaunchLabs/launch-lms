@@ -137,6 +137,11 @@ def sync_objective_from_run(db: Session, run: LearningRun) -> None:
     from src.services.learning import grading
     from src.services.planning import _progress_for
 
+    if run.goal_step_id:
+        from src.services.goals.completion import on_run_changed
+
+        on_run_changed(db, run)
+        return
     if not run.plan_objective_id or not run.activity_id:
         return
     objective = db.get(PlanObjective, run.plan_objective_id)

@@ -3,6 +3,7 @@ from datetime import datetime
 import pytest
 from fastapi import HTTPException
 from sqlmodel import Session, create_engine, select
+from src.db.goals import Goal, GoalStep, StepProgress
 from src.db.learning import (
     BadgeCollection,
     BadgeIssuerAuthorization,
@@ -116,6 +117,9 @@ def _create_tables(engine) -> None:
         PlanObjectiveProgress,
         PlanInvitation,
         PlanActivity,
+        Goal,
+        GoalStep,
+        StepProgress,
     ):
         model.__table__.create(engine)
 

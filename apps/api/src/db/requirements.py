@@ -128,6 +128,7 @@ class RequirementAttainmentSource(SQLModel, table=True):
         UniqueConstraint("source_uuid"),
         UniqueConstraint("enrollment_id", "node_uuid", "plan_objective_progress_id"),
         UniqueConstraint("enrollment_id", "node_uuid", "objective_progress_id"),
+        UniqueConstraint("enrollment_id", "node_uuid", "step_progress_id"),
     )
 
     id: int | None = Field(default=None, primary_key=True)
@@ -136,6 +137,7 @@ class RequirementAttainmentSource(SQLModel, table=True):
     node_uuid: str = Field(index=True)
     plan_objective_progress_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("planobjectiveprogress.id", ondelete="CASCADE"), nullable=True, index=True))
     objective_progress_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("objectiveprogress.id", ondelete="CASCADE"), nullable=True, index=True))
+    step_progress_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("step_progress.id", ondelete="CASCADE"), nullable=True, index=True))
     objective_title: str = ""
     evidence_snapshot: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
     verified_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))

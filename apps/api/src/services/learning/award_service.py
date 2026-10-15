@@ -83,6 +83,9 @@ async def confer_award(
     )
     db_session.add(award)
     db_session.commit()
+    from src.services.goals.completion import on_badge_awarded
+
+    on_badge_awarded(db_session, int(award.user_id), int(award.badge_id))
     db_session.refresh(award)
     return build_award_response(request, db_session, award)
 

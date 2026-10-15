@@ -9,6 +9,8 @@ from src.routers import (
     code_execution,
     dev,
     demo,
+    goal_templates,
+    goals,
     demo_guide,
     health,
     hub,
@@ -95,6 +97,18 @@ v1_router.include_router(
     prefix="/usergroups",
     tags=["usergroups"],
     dependencies=[Depends(require_plan_for_usergroups("full", "User Groups"))]
+)
+v1_router.include_router(
+    goals.router,
+    prefix="/goals",
+    tags=["goals"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
+v1_router.include_router(
+    goal_templates.router,
+    prefix="/goal-templates",
+    tags=["goals"],
+    dependencies=[Depends(get_non_api_token_user)],
 )
 v1_router.include_router(
     programs.router,

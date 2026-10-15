@@ -14,8 +14,6 @@ deploy and are issued from their live rows.
 
 from __future__ import annotations
 
-import hashlib
-import json
 from copy import deepcopy
 from datetime import datetime
 from types import SimpleNamespace
@@ -24,13 +22,12 @@ from uuid import uuid4
 from fastapi import HTTPException
 from sqlmodel import Session, func, select
 
-from src.db.learning import LearningActivity, LearningPage
+from src.db.learning import LearningActivity
 from src.db.planning import PlanObjective
 from src.db.programs import FrozenActivity, Program, ProgramAssignment, ProgramTemplateVersion
 from src.db.users import PublicUser
 from src.security.org_auth import require_org_admin
-from src.services.learning_documents.document import export_document
-from src.services.learning_documents.references import rewrite_page_references
+from src.services.learning.activity_copy import activity_hash, content_hash as _hash, copy_activity
 
 PHASE_FIELDS = ("phase_uuid", "name", "description", "position", "target_days", "suggested_duration_weeks")
 TEMPLATE_FIELDS = ("name", "description", "instructions", "step_order", "role_definitions", "default_subject_role_key", "default_staff_role_key")
@@ -38,25 +35,6 @@ TEMPLATE_FIELDS = ("name", "description", "instructions", "step_order", "role_de
 
 def _now() -> str:
     return datetime.now().isoformat()
-
-
-def _hash(value) -> str:
-    canonical = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False, default=str)
-    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:32]
-
-
-def _pages(db: Session, activity: LearningActivity) -> list[LearningPage]:
-    return list(db.exec(select(LearningPage).where(LearningPage.activity_id == activity.id).order_by(LearningPage.order, LearningPage.id)).all())  # type: ignore[arg-type]
-
-
-def activity_hash(db: Session, activity: LearningActivity) -> str:
-    """Content hash of an activity, independent of its own and its pages' uuids."""
-    pages = _pages(db, activity)
-    document = export_document(activity, pages)
-    numbering = {page.page_uuid: f"page-{index}" for index, page in enumerate(pages)}
-    document = rewrite_page_references(document, numbering)
-    document["activity"].pop("activity_uuid", None)
-    return _hash(document)
 
 
 def is_frozen(db: Session, activity_id: int | None) -> bool:
@@ -69,28 +47,6 @@ def working_activity(db: Session, objective_id: int) -> LearningActivity | None:
     return db.exec(select(LearningActivity).where(LearningActivity.objective_id == objective_id, LearningActivity.id.not_in(frozen)).order_by(LearningActivity.id)).first()  # type: ignore[union-attr]
 
 
-def _copy_activity(db: Session, source: LearningActivity) -> LearningActivity:
-    now = _now()
-    pages = _pages(db, source)
-    renamed = {page.page_uuid: f"learning_page_{uuid4()}" for page in pages}
-    copy = LearningActivity(
-        activity_uuid=f"learning_activity_{uuid4()}", objective_id=source.objective_id, org_id=source.org_id,
-        title=source.title, description=source.description, thumbnail_image=source.thumbnail_image, icon=source.icon,
-        settings=rewrite_page_references(deepcopy(source.settings or {}), renamed), creation_date=now, update_date=now,
-    )
-    db.add(copy)
-    db.flush()
-    for page in pages:
-        db.add(LearningPage(
-            activity_id=int(copy.id), org_id=page.org_id, page_uuid=renamed[page.page_uuid], page_type=page.page_type,  # type: ignore[arg-type]
-            title=page.title, order=page.order, required=page.required,
-            content=rewrite_page_references(deepcopy(page.content or {}), renamed), design=deepcopy(page.design or {}),
-            scoring=deepcopy(page.scoring or {}), completion=deepcopy(page.completion or {}), creation_date=now, update_date=now,
-        ))
-    db.flush()
-    return copy
-
-
 def freeze_activity(db: Session, activity: LearningActivity) -> LearningActivity:
     """The frozen copy of a working activity's current content, reusing an identical earlier one."""
     content = activity_hash(db, activity)
@@ -100,14 +56,14 @@ def freeze_activity(db: Session, activity: LearningActivity) -> LearningActivity
     if db.exec(select(PlanObjective.id).where(PlanObjective.activity_id == activity.id)).first() is not None:
         # Issued before versioning: learners already play this row, so it becomes the frozen copy
         # (their runs and answers stay put) and an identical copy becomes the working draft.
-        draft = _copy_activity(db, activity)
+        draft = copy_activity(db, activity)
         for earlier in db.exec(select(FrozenActivity).where(FrozenActivity.source_activity_id == activity.id)).all():
             earlier.source_activity_id = draft.id
             db.add(earlier)
         db.add(FrozenActivity(activity_id=int(activity.id), source_activity_id=draft.id, source_hash=content, creation_date=_now()))  # type: ignore[arg-type]
         db.flush()
         return activity
-    frozen = _copy_activity(db, activity)
+    frozen = copy_activity(db, activity)
     db.add(FrozenActivity(activity_id=int(frozen.id), source_activity_id=activity.id, source_hash=content, creation_date=_now()))  # type: ignore[arg-type]
     db.flush()
     return frozen

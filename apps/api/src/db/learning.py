@@ -326,7 +326,12 @@ class IssuerLearnerRequestDecision(SQLModel):
 class LearningActivityBase(SQLModel):
     """An interactive activity: the content of a plan template's activity objective."""
 
-    objective_id: int = Field(sa_column=Column(Integer, ForeignKey("objective.id", ondelete="CASCADE"), nullable=False, index=True))
+    objective_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("objective.id", ondelete="CASCADE"), nullable=True, index=True))
+    # Goal templates own their activities; objective_id goes when the plan tables are dropped.
+    goal_template_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("goal_template.id", ondelete="CASCADE"), nullable=True, index=True))
+    # Frozen copies published in a goal template version: the working activity and its content hash then.
+    frozen_from_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningactivity.id", ondelete="SET NULL"), nullable=True, index=True))
+    frozen_hash: str | None = Field(default=None, sa_column=Column(String, nullable=True))
     org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
     title: str
     description: str | None = ""
@@ -456,8 +461,11 @@ class LearningRun(SQLModel, table=True):
     activity_id: int = Field(sa_column=Column(Integer, ForeignKey("learningactivity.id", ondelete="CASCADE"), nullable=False, index=True))
     org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
     issuing_org_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("organization.id", ondelete="SET NULL"), nullable=True, index=True))  # the plan's source organization
-    plan_id: int = Field(sa_column=Column(Integer, ForeignKey("plan.id", ondelete="CASCADE"), nullable=False, index=True))
-    plan_objective_id: int = Field(sa_column=Column(Integer, ForeignKey("planobjective.id", ondelete="CASCADE"), nullable=False, index=True))
+    plan_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("plan.id", ondelete="CASCADE"), nullable=True, index=True))
+    plan_objective_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("planobjective.id", ondelete="CASCADE"), nullable=True, index=True))
+    # Runs of goal activity steps; the plan columns go when the plan tables are dropped.
+    goal_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("goal.id", ondelete="CASCADE"), nullable=True, index=True))
+    goal_step_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("goal_step.id", ondelete="CASCADE"), nullable=True, index=True))
     user_id: int = Field(sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True))
     status: LearningRunStatus = LearningRunStatus.IN_PROGRESS
     started_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(DateTime, nullable=False))
@@ -520,8 +528,10 @@ class LearningRunRead(BaseModel):
     activity_id: int
     org_id: int
     issuing_org_id: int | None = None
-    plan_id: int
-    plan_objective_id: int
+    plan_id: int | None = None
+    plan_objective_id: int | None = None
+    goal_id: int | None = None
+    goal_step_id: int | None = None
     user_id: int
     status: LearningRunStatus
     started_at: datetime
