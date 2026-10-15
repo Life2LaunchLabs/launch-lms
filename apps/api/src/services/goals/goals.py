@@ -38,7 +38,7 @@ from src.db.media import MediaAsset
 from src.db.planning import PlanCollaborator
 from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
-from src.services.goals import access, completion
+from src.services.goals import access, completion, references
 from src.services.goals.availability import availability, node_state, ordered_steps
 from src.services.goals.types import StepState, step_type
 
@@ -126,6 +126,7 @@ def goal_dict(db: Session, goal: Goal, user_id: int, granted: set[str] | None = 
                                 stage_by_id.get(step.stage_id), locks[int(step.id)], staff)  # type: ignore[arg-type]
         for step in steps
     }
+    references.attach(db, steps, views)
     ordered = ordered_steps(stages, steps)
     done = sum(1 for step in steps if statuses.get(int(step.id)) in DONE_STEP_STATUSES)  # type: ignore[arg-type]
     return {

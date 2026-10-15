@@ -353,6 +353,7 @@ def test_activity_steps_finish_from_the_learners_run():
         goal = _issue(db, _published(db, {"type": "activity", "title": "Interest quiz"}))
         view = goals.get_goal(db, _user(LEARNER), goal.goal_uuid)
         quiz = _step(view, "Interest quiz")
+        assert quiz["reference"]["activity_uuid"] == quiz["config"]["activity_uuid"] and quiz["reference"]["page_count"] >= 0
         with pytest.raises(HTTPException, match="finish on their own"):
             _status(db, LEARNER, goal, quiz, StepStatus.COMPLETED)
         started = goals.start_activity(db, _user(LEARNER), goal.goal_uuid, quiz["step_uuid"])
