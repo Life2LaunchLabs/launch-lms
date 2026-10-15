@@ -1,9 +1,5 @@
-import json
 
-import httpx
-import pytest
 
-from src.services.hub_advisor import AnthropicMessagesProvider, AdvisorMessage, OpenAIResponsesProvider
 from src.db.hub import HubConversation, HubEditObjectState, HubEditRun, HubEditRunEvent
 from src.services.hub_plan_tools import CONCLUDE_EDIT_TOOL, NEW_PLAN_TOOL, PLAN_OBJECTIVES_TOOL, PLAN_PHASES_TOOL, parse_plan_tool_call, plan_edit_tools, record_plan_proposals
 
@@ -72,46 +68,6 @@ def test_recorder_stages_phases_before_objectives_and_waits_for_review():
         ))
         db.commit()
         assert record_plan_proposals(db, run.run_uuid, [objective]) == []
-
-
-@pytest.mark.asyncio
-async def test_both_providers_return_the_same_typed_new_plan_operation():
-    fields = {"name": "Explore nursing", "description": "Compare programs.", "due_date": "2027-06-01"}
-
-    async def openai_handler(request: httpx.Request):
-        payload = json.loads(request.content)
-        assert [tool["name"] for tool in payload["tools"]] == ["suggest_navigation", NEW_PLAN_TOOL, CONCLUDE_EDIT_TOOL]
-        return httpx.Response(200, json={
-            "model": "gpt-test",
-            "output": [
-                {"type": "message", "content": [{"type": "output_text", "text": "I prepared a starting point."}]},
-                {"type": "function_call", "name": NEW_PLAN_TOOL, "arguments": json.dumps(fields)},
-            ],
-        })
-
-    async def anthropic_handler(request: httpx.Request):
-        payload = json.loads(request.content)
-        assert [tool["name"] for tool in payload["tools"]] == ["suggest_navigation", NEW_PLAN_TOOL, CONCLUDE_EDIT_TOOL]
-        return httpx.Response(200, json={
-            "model": "claude-test",
-            "content": [
-                {"type": "text", "text": "I prepared a starting point."},
-                {"type": "tool_use", "name": NEW_PLAN_TOOL, "input": fields},
-            ],
-        })
-
-    async with httpx.AsyncClient(transport=httpx.MockTransport(openai_handler)) as client:
-        openai = await OpenAIResponsesProvider("test-key", "gpt-test", client, edit_scope="new_plan").respond(
-            [AdvisorMessage(role="user", content="Help me make the plan")], "safe-user",
-        )
-    async with httpx.AsyncClient(transport=httpx.MockTransport(anthropic_handler)) as client:
-        anthropic = await AnthropicMessagesProvider("test-key", "claude-test", client, edit_scope="new_plan").respond(
-            [AdvisorMessage(role="user", content="Help me make the plan")], "safe-user",
-        )
-
-    assert len(openai.plan_operations) == len(anthropic.plan_operations) == 1
-    assert openai.plan_operations[0]["fields"] == fields
-    assert anthropic.plan_operations[0]["fields"] == fields
 
 
 def test_new_plan_target_date_is_optional():

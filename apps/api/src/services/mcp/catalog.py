@@ -8,6 +8,8 @@ from typing import Awaitable, Callable
 from fastapi import Request
 from sqlmodel import Session
 
+from src.services.goals import mcp_library as goal_library
+from src.services.goals import mcp_templates as goal_templates
 from src.services.mcp import handlers
 from src.services.mcp.app_shell import PREVIEW_APP_URI
 from src.services.oauth.server import AccessContext
@@ -15,7 +17,7 @@ from src.services.oauth.server import AccessContext
 Handler = Callable[[Request, Session, AccessContext, dict], Awaitable[dict]]
 
 _DOCUMENT = {"type": "object", "description": "An Activity Document (format 'launch-lms.activity', format_version 1). See get_activity_schema."}
-_TEMPLATE_DOCUMENT = {"type": "object", "description": "A Plan Template Document (format 'launch-lms.plan-template', format_version 1). See get_plan_template_schema."}
+_TEMPLATE_DOCUMENT = {"type": "object", "description": "A Goal Template Document (format 'launch-lms.goal-template', format_version 1): template details and stages of typed steps. See get_plan_template_schema."}
 _FRAMEWORK_DOCUMENT = {"type": "object", "description": "A Requirement Framework Document (format 'launch-lms.requirement-framework', format_version 1). See get_requirement_framework_schema."}
 _BADGE_DOCUMENT = {"type": "object", "description": "A Badge Document (format 'launch-lms.badge', format_version 1). See get_badge_schema."}
 _ORG = {
@@ -76,9 +78,9 @@ TOOLS = [
     Tool(
         "list_activities",
         "List activities",
-        "List the interactive activities of a plan template: one per activity objective, edited in place.",
+        "List the interactive activities of a plan template: one per activity step, edited in place.",
         {"properties": {"template_uuid": {"type": "string"}}, "required": ["template_uuid"]},
-        handlers.list_activities,
+        goal_templates.list_activities,
     ),
     Tool(
         "get_activity",
@@ -137,48 +139,48 @@ TOOLS = [
         "List plan templates",
         "List the plan templates in the connected organization with their size and how often they have been assigned. Start here to find the template an admin is talking about.",
         {"properties": {"query": {"type": "string", "description": "Optional case-insensitive filter on name and description."}}},
-        handlers.list_plan_templates,
+        goal_templates.list_plan_templates,
         scope="plans:read",
     ),
     Tool(
         "get_plan_template",
         "Get a plan template",
-        "Read one plan template as a Plan Template Document (details, roles, phases, objectives, steps and schedule), plus its etag (needed to save).",
+        "Read one plan template as a Goal Template Document (details, roles and stages of typed steps with their schedule), plus its etag (needed to save).",
         {"properties": {"template_uuid": {"type": "string"}}, "required": ["template_uuid"]},
-        handlers.get_plan_template,
+        goal_templates.get_plan_template,
         scope="plans:read",
     ),
     Tool(
         "get_plan_template_schema",
         "Plan template format guide",
-        "Get the authoring guide and JSON Schema for Plan Template Documents: phases, objectives, steps, schedules, badge objectives and roles. Read it before writing or editing a template.",
+        "Get the authoring guide and JSON Schema for Goal Template Documents: stages, step types, schedules, badge steps and roles. Read it before writing or editing a template.",
         {"properties": {}},
-        handlers.get_plan_template_schema,
+        goal_templates.get_plan_template_schema,
         scope="plans:read",
     ),
     Tool(
         "validate_plan_template",
         "Validate a plan template",
-        "Check a Plan Template Document against every server rule without saving. Returns all errors and warnings with JSON paths. Pass template_uuid when editing an existing template; omit it for a new one.",
+        "Check a Goal Template Document against every server rule without saving. Returns all errors and warnings with JSON paths. Pass template_uuid when editing an existing template; omit it for a new one.",
         {"properties": {"document": _TEMPLATE_DOCUMENT, "template_uuid": {"type": "string"}}, "required": ["document"]},
-        handlers.validate_plan_template,
+        goal_templates.validate_plan_template,
         scope="plans:read",
     ),
     Tool(
         "save_plan_template",
         "Save a plan template",
-        "Save a Plan Template Document over a plan template's draft. Requires the etag from get_plan_template (or the last save). Fails with the current document if someone changed the template since. New plans keep using the published version until publish_plan_template; plans already issued never change.",
+        "Save a Goal Template Document over a plan template's draft. Requires the etag from get_plan_template (or the last save). Fails with the current document if someone changed the template since. New plans keep using the published version until publish_plan_template; plans already issued never change.",
         {"properties": {"template_uuid": {"type": "string"}, "document": _TEMPLATE_DOCUMENT, "base_etag": {"type": "string"}}, "required": ["template_uuid", "document", "base_etag"]},
-        handlers.save_plan_template,
+        goal_templates.save_plan_template,
         scope="plans:write",
         read_only=False,
     ),
     Tool(
         "create_plan_template",
         "Create a plan template",
-        "Create a new plan template (as an unpublished draft) from a Plan Template Document. Omit uuids for new phases and objectives; a document read with get_plan_template can be passed to copy that template.",
+        "Create a new plan template (as an unpublished draft) from a Goal Template Document. Omit keys for new stages and steps; a document read with get_plan_template can be passed to copy that template.",
         {"properties": {"document": _TEMPLATE_DOCUMENT}, "required": ["document"]},
-        handlers.create_plan_template,
+        goal_templates.create_plan_template,
         scope="plans:write",
         read_only=False,
     ),
@@ -187,15 +189,15 @@ TOOLS = [
         "List plan template versions",
         "List a plan template's published versions (newest first), which one new plans are issued from, how many assignments each has, and whether the draft has unpublished changes.",
         {"properties": {"template_uuid": {"type": "string"}}, "required": ["template_uuid"]},
-        handlers.list_plan_template_versions,
+        goal_templates.list_plan_template_versions,
         scope="plans:read",
     ),
     Tool(
         "publish_plan_template",
         "Publish a plan template",
-        "Publish the template's draft (its phases, objectives and activities) as a new version. New assignments and badge starts use it; plans already issued keep their version, with their learners' answers. Only call this when the admin asks.",
+        "Publish the template's draft (its stages, steps and activities) as a new version. New assignments and badge starts use it; plans already issued keep their version, with their learners' answers. Only call this when the admin asks.",
         {"properties": {"template_uuid": {"type": "string"}, "note": {"type": "string", "description": "What changed, shown in the version history."}}, "required": ["template_uuid"]},
-        handlers.publish_plan_template,
+        goal_templates.publish_plan_template,
         scope="plans:write",
         read_only=False,
     ),
@@ -204,39 +206,40 @@ TOOLS = [
         "Roll back a plan template",
         "Roll back: publish an earlier version again as the newest version, so new plans are issued from it. Plans already issued and the template's draft are unchanged. Only call this when the admin asks.",
         {"properties": {"template_uuid": {"type": "string"}, "number": {"type": "integer"}, "note": {"type": "string"}}, "required": ["template_uuid", "number"]},
-        handlers.restore_plan_template_version,
+        goal_templates.restore_plan_template_version,
         scope="plans:write",
         read_only=False,
     ),
     Tool(
         "set_objective_requirements",
-        "Link an objective to requirements",
-        "Replace the requirement nodes one plan template objective counts toward. Link leaf requirements (see list_requirement_frameworks). Use it to say that objectives in different templates achieve the same thing.",
+        "Link a step to requirements",
+        "Replace the requirement nodes one plan template step counts toward (the step's key; templates moved from plans also accept the old objective_uuid). Link leaf requirements (see list_requirement_frameworks). Use it to say that steps in different templates achieve the same thing.",
         {
             "properties": {
                 "template_uuid": {"type": "string"},
-                "objective_uuid": {"type": "string"},
+                "step_key": {"type": "string", "description": "The step's key in the template document."},
+                "objective_uuid": {"type": "string", "description": "Older name for step_key; templates moved from plans kept their objective uuids as step keys."},
                 "node_uuids": {"type": "array", "items": {"type": "string"}, "description": "The full set; an empty list removes every link."},
             },
-            "required": ["template_uuid", "objective_uuid", "node_uuids"],
+            "required": ["template_uuid", "node_uuids"],
         },
-        handlers.set_objective_requirements,
+        goal_templates.set_objective_requirements,
         scope="plans:write",
         read_only=False,
     ),
     Tool(
         "update_template_badge_versions",
-        "Move badge objectives to the latest badge versions",
-        "Point a template's badge objectives at each badge's newest published major version (get_plan_template lists outdated ones). Future assignments then require the new version.",
+        "Move badge steps to the latest badge versions",
+        "Point a template's badge steps at each badge's newest published major version (get_plan_template lists outdated ones). Future assignments then require the new version.",
         {"properties": {"template_uuid": {"type": "string"}, "accept_previous_major_versions": {"type": "boolean", "description": "Still accept awards of the earlier version."}}, "required": ["template_uuid"]},
-        handlers.update_template_badge_versions,
+        goal_templates.update_template_badge_versions,
         scope="plans:write",
         read_only=False,
     ),
     Tool(
         "list_requirement_frameworks",
         "List requirement frameworks",
-        "List the organization's requirement frameworks with every requirement node (code, title, whether it is a leaf). Objectives link to leaf nodes.",
+        "List the organization's requirement frameworks with every requirement node (code, title, whether it is a leaf). Template steps link to leaf nodes.",
         {"properties": {}},
         handlers.list_requirement_frameworks,
         scope="plans:read",
@@ -244,7 +247,7 @@ TOOLS = [
     Tool(
         "get_requirement_framework",
         "Get a requirement framework",
-        "Read a requirement framework's working version as a Requirement Framework Document, plus its etag (needed to save), version history, the template objectives linked to each node, and leaf requirements nothing links to yet.",
+        "Read a requirement framework's working version as a Requirement Framework Document, plus its etag (needed to save), version history, the template steps linked to each node, and leaf requirements nothing links to yet.",
         {"properties": {"framework_uuid": {"type": "string"}}, "required": ["framework_uuid"]},
         handlers.get_requirement_framework,
         scope="plans:read",
@@ -260,7 +263,7 @@ TOOLS = [
     Tool(
         "validate_requirement_framework",
         "Validate a requirement framework",
-        "Check a Requirement Framework Document against every rule without saving, including which linked objectives an edit would affect. Pass framework_uuid when editing an existing framework.",
+        "Check a Requirement Framework Document against every rule without saving, including which linked steps an edit would affect. Pass framework_uuid when editing an existing framework.",
         {"properties": {"document": _FRAMEWORK_DOCUMENT, "framework_uuid": {"type": "string"}}, "required": ["document"]},
         handlers.validate_requirement_framework,
         scope="plans:read",
@@ -410,7 +413,7 @@ TOOLS = [
         "Search the global library",
         "Search the plan templates or requirement frameworks published to the shared Launch LMS library.",
         {"properties": {"kind": _LIBRARY_KIND, "query": {"type": "string"}}, "required": ["kind"]},
-        handlers.search_library,
+        goal_library.search_library,
         scope="plans:read",
     ),
     Tool(
@@ -418,7 +421,7 @@ TOOLS = [
         "Copy from the global library",
         "Copy a library plan template or requirement framework into the connected organization as an independent copy.",
         {"properties": {"kind": _LIBRARY_KIND, "uuid": {"type": "string", "description": "The library item's uuid from search_library."}}, "required": ["kind", "uuid"]},
-        handlers.copy_from_library,
+        goal_library.copy_from_library,
         scope="plans:write",
         read_only=False,
     ),
@@ -427,7 +430,7 @@ TOOLS = [
         "Publish to the global library",
         "Publish (or refresh) a snapshot of one of this organization's plan templates or published requirement frameworks to the shared library. Only the platform's owner organization can do this. Only call it when the admin asks.",
         {"properties": {"kind": _LIBRARY_KIND, "uuid": {"type": "string"}}, "required": ["kind", "uuid"]},
-        handlers.publish_to_library,
+        goal_library.publish_to_library,
         scope="plans:write",
         read_only=False,
     ),

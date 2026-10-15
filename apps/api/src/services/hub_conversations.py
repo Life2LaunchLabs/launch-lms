@@ -355,7 +355,7 @@ def conversation_detail(
     accessible_resources: list[dict],
 ) -> dict:
     conversation = get_owned_conversation(db_session, conversation_uuid, org_id, user_id)
-    from src.services.hub_context import visible_receipt
+    from src.services.goals.coach_context import visible_receipt
     resources_by_uuid = _public_resources(accessible_resources)
     messages = db_session.exec(select(HubConversationMessage).where(
         HubConversationMessage.conversation_id == conversation.id

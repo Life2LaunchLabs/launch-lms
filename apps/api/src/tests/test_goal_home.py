@@ -56,7 +56,7 @@ def test_items_are_steps_with_their_type_state_and_route():
         step_uuid = goal["stages"][0]["steps"][0]["step_uuid"] if goal["stages"][0]["steps"] else goal["unstaged_steps"][0]["step_uuid"]
         assert item["step_uuid"] == step_uuid and item["type"] == "task" and item["state"] == "open" and item["status"] == "not_started"
         assert item["goal"] == {"goal_uuid": goal["goal_uuid"], "title": "Summer job"}
-        assert item["route"] == f"/goals/{goal['goal_uuid']}?step={step_uuid}"
+        assert item["route"] == f"/plans/{goal['goal_uuid']}?step={step_uuid}"
         assert item["locked"] is False and item["fraction"] == 0 and item["placement"] == "week"
 
 

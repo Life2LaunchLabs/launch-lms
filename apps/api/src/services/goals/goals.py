@@ -39,6 +39,7 @@ from src.db.planning import PlanCollaborator
 from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
 from src.services.goals import access, completion, references
+from src.services.goals.badges import badge_summary
 from src.services.goals.availability import availability, node_state, ordered_steps
 from src.services.goals.types import StepState, step_type
 
@@ -135,7 +136,7 @@ def goal_dict(db: Session, goal: Goal, user_id: int, granted: set[str] | None = 
         "step_order": _value(goal.step_order), "org_id": goal.org_id, "start_date": goal.start_date,
         "target_date": goal.target_date, "finished_at": goal.finished_at, "finish": goal.finish or {},
         "owner": _user_summary(db, goal.owner_user_id), "subject": _user_summary(db, goal.subject_user_id),
-        "capabilities": sorted(granted), "progress": {"done": done, "total": len(steps)},
+        "capabilities": sorted(granted), "progress": {"done": done, "total": len(steps)}, "source_badge": badge_summary(db, goal.badge_id),
         "stages": [
             {
                 "stage_uuid": stage.stage_uuid, "position": stage.position, "title": stage.title, "description": stage.description,
@@ -208,8 +209,6 @@ def list_my_goals(db: Session, current_user: PublicUser, include_finished: bool 
     """Goals the user is working toward, owns or is a member of, plus one row per group they staff.
 
     Goals an organization issued to someone else stay out (staff work on those from admin), as plans did."""
-    from src.services.badge_routes import badge_summary
-
     member_goal_ids = select(PlanCollaborator.goal_id).where(PlanCollaborator.user_id == current_user.id, PlanCollaborator.active == True, PlanCollaborator.goal_id.is_not(None))  # type: ignore[union-attr]  # noqa: E712
     statement = select(Goal).where(
         or_(Goal.subject_user_id == current_user.id, Goal.owner_user_id == current_user.id, Goal.id.in_(member_goal_ids)),  # type: ignore[union-attr]

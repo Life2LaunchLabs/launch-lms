@@ -5,14 +5,15 @@ from sqlmodel import Field, SQLModel
 
 
 class BadgeRoute(SQLModel, table=True):
-    """A plan template the badge's creator publishes as a way to earn the badge."""
+    """A template the badge's creator publishes as a way to earn the badge (a goal template; ``program_id`` is legacy)."""
 
-    __table_args__ = (UniqueConstraint("route_uuid"), UniqueConstraint("badge_id", "program_id"))
+    __table_args__ = (UniqueConstraint("route_uuid"), UniqueConstraint("badge_id", "program_id"), UniqueConstraint("badge_id", "goal_template_id"))
 
     id: int | None = Field(default=None, primary_key=True)
     route_uuid: str = Field(default="", index=True)
     badge_id: int = Field(sa_column=Column(Integer, ForeignKey("learningbadge.id", ondelete="CASCADE"), index=True))
-    program_id: int = Field(sa_column=Column(Integer, ForeignKey("program.id", ondelete="CASCADE"), index=True))
+    program_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("program.id", ondelete="CASCADE"), nullable=True, index=True))
+    goal_template_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("goal_template.id", ondelete="CASCADE"), nullable=True, index=True))
     recommended: bool = False
     position: int = 0
     creation_date: str = ""

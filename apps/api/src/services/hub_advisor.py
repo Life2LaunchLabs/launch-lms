@@ -104,7 +104,7 @@ class AdvisorResult:
     input_tokens: int = 0
     output_tokens: int = 0
     action_destinations: tuple[str, ...] = ()
-    plan_operations: tuple[dict, ...] = ()
+    goal_operations: tuple[dict, ...] = ()
 
 
 def _grounding_terms(value: str) -> set[str]:
@@ -249,63 +249,57 @@ class DeterministicUiTestProvider:
         prompt = messages[-1].content.split("\n\n", 1)[0].casefold()
         if self.memory:
             return AdvisorResult(text='{"candidates": []}', model="ui-test-memory")
-        if self.edit_scope == "new_plan" and "cancelled the new plan" in prompt:
-            return AdvisorResult(
-                text="You cancelled that plan. Would you like to revise the idea, create a different plan, or finish here?",
-                model="ui-test-advisor",
-            )
-        if self.edit_scope == "new_plan":
-            from src.services.hub_plan_tools import parse_plan_tool_call
-            operation = parse_plan_tool_call("propose_new_plan_details", {
-                "name": "Career transition plan",
+        from src.services.goals.coach_tools import parse_goal_tool_call, scope
+        edit_scope = scope(self.edit_scope)
+        if edit_scope == "new_goal" and "cancelled the new goal" in prompt:
+            return AdvisorResult(text="You cancelled that goal. Would you like to revise the idea, create a different goal, or finish here?", model="ui-test-advisor")
+        if edit_scope == "new_goal":
+            operation = parse_goal_tool_call("propose_new_goal_details", {
+                "title": "Career transition plan",
                 "description": "Build the skills, experience, and connections needed for a thoughtful career change.",
-                "due_date": "2099-12-31",
+                "target_date": "2099-12-31",
             })
             return AdvisorResult(
-                text="I prepared complete plan details in the editor for you to review. Nothing is saved until you choose Save plan.",
+                text="I prepared complete goal details in the editor for you to review. Nothing is saved until you choose Save goal.",
                 model="ui-test-advisor",
-                plan_operations=(operation,) if operation else (),
+                goal_operations=(operation,) if operation else (),
             )
-        if self.edit_scope == "plan":
-            from src.services.hub_plan_tools import parse_plan_tool_call
-            if "saved phase" in prompt or "cancelled phase" in prompt:
-                if "all proposed phases have now been reviewed" not in prompt and "remaining proposed phases: 0" not in prompt:
-                    return AdvisorResult(
-                        text="I’ve recorded that choice. The other proposed phases are still ready for your review.",
-                        model="ui-test-advisor",
-                    )
-                operation = parse_plan_tool_call("propose_plan_objectives", {"objectives": [
-                    {"title": "Clarify the target role", "description": "Define the kind of role and work environment to aim for.", "due_date": "", "phase_name": "Explore"},
-                    {"title": "Map skills and gaps", "description": "Compare current experience with the requirements of promising roles.", "due_date": "", "phase_name": "Prepare"},
-                    {"title": "Complete one practical experiment", "description": "Test the direction through a small project, course, or conversation.", "due_date": "", "phase_name": "Transition"},
+        if edit_scope == "goal":
+            if "saved stage" in prompt or "cancelled stage" in prompt:
+                if "all proposed stages have now been reviewed" not in prompt:
+                    return AdvisorResult(text="I’ve recorded that choice. The other proposed stages are still ready for your review.", model="ui-test-advisor")
+                settings = {"prompt": "", "max_words": 0, "list_label": "", "list_target": 0, "slot_labels": [], "options": [], "multiple": False, "event_date": "", "place": ""}
+                operation = parse_goal_tool_call("propose_goal_steps", {"steps": [
+                    {"type": "write", "title": "Clarify the target role", "description": "Define the kind of role and work environment to aim for.", "due_date": "", "stage_title": "Explore", "resource_uuid": "",
+                     "settings": {**settings, "prompt": "What kind of role and workplace are you aiming for?"}},
+                    {"type": "task", "title": "Map skills and gaps", "description": "Compare current experience with the requirements of promising roles.", "due_date": "", "stage_title": "Prepare", "resource_uuid": "",
+                     "settings": {**settings, "list_label": "Skills to build", "list_target": 3}},
+                    {"type": "task", "title": "Complete one practical experiment", "description": "Test the direction through a small project, course, or conversation.", "due_date": "", "stage_title": "Transition", "resource_uuid": "", "settings": settings},
                 ]})
                 return AdvisorResult(
-                    text="The phases are set. I prepared three starting objectives for you to review next.",
-                    model="ui-test-advisor", plan_operations=(operation,) if operation else (),
+                    text="The stages are set. I prepared three starting steps for you to review next.",
+                    model="ui-test-advisor", goal_operations=(operation,) if operation else (),
                 )
-            if "saved objective" in prompt or "cancelled objective" in prompt:
-                if "all proposed objectives have now been reviewed" not in prompt and "remaining proposed objectives: 0" not in prompt:
-                    return AdvisorResult(
-                        text="I’ve recorded that choice. The other proposed objectives are still ready for your review.",
-                        model="ui-test-advisor",
-                    )
-                operation = parse_plan_tool_call("propose_edit_conclusion", {
-                    "summary": "The plan now has a clear starting structure.",
+            if "saved step" in prompt or "cancelled step" in prompt:
+                if "all proposed steps have now been reviewed" not in prompt:
+                    return AdvisorResult(text="I’ve recorded that choice. The other proposed steps are still ready for your review.", model="ui-test-advisor")
+                operation = parse_goal_tool_call("propose_edit_conclusion", {
+                    "summary": "The goal now has a clear starting structure.",
                 })
                 return AdvisorResult(
-                    text="That gives the plan a useful starting structure. If it looks right, we can finish this edit.",
+                    text="That gives the goal a useful starting structure. If it looks right, we can finish this edit.",
                     model="ui-test-advisor",
-                    plan_operations=(operation,) if operation else (),
+                    goal_operations=(operation,) if operation else (),
                 )
-            operation = parse_plan_tool_call("propose_plan_phases", {"phases": [
-                {"name": "Explore", "description": "Clarify the direction and compare realistic paths.", "due_date": ""},
-                {"name": "Prepare", "description": "Build the skills, evidence, and relationships needed to move.", "due_date": ""},
-                {"name": "Transition", "description": "Test opportunities and make the move deliberately.", "due_date": ""},
+            operation = parse_goal_tool_call("propose_goal_stages", {"stages": [
+                {"title": "Explore", "description": "Clarify the direction and compare realistic paths.", "timing": ""},
+                {"title": "Prepare", "description": "Build the skills, evidence, and relationships needed to move.", "timing": ""},
+                {"title": "Transition", "description": "Test opportunities and make the move deliberately.", "timing": ""},
             ]})
             return AdvisorResult(
-                text="I prepared three phases for you to review. Each stays unsaved until you choose Save phase.",
+                text="I prepared three stages for you to review. Each stays unsaved until you save it.",
                 model="ui-test-advisor",
-                plan_operations=(operation,) if operation else (),
+                goal_operations=(operation,) if operation else (),
             )
         if "create a plan" in prompt or "start a plan" in prompt:
             return AdvisorResult(
@@ -356,8 +350,8 @@ class OpenAIResponsesProvider:
 
     async def respond(self, messages: list[AdvisorMessage], safety_identifier: str) -> AdvisorResult:
         from src.services.hub_actions import navigation_tool
-        from src.services.hub_plan_tools import parse_plan_tool_call, plan_edit_tools
-        tools = [navigation_tool("openai"), *plan_edit_tools("openai", self.edit_scope)] if self.allow_actions else []
+        from src.services.goals.coach_tools import goal_edit_tools, parse_goal_tool_call
+        tools = [navigation_tool("openai"), *goal_edit_tools("openai", self.edit_scope)] if self.allow_actions else []
         payload = {
             "model": self.model,
             "instructions": self.instructions,
@@ -426,7 +420,7 @@ class OpenAIResponsesProvider:
             if content.get("type") == "output_text" and content.get("text", "").strip()
         ).strip()
         action_destinations = []
-        plan_operations = []
+        goal_operations = []
         if self.allow_actions:
             for output in data.get("output", []):
                 if output.get("type") != "function_call":
@@ -437,9 +431,9 @@ class OpenAIResponsesProvider:
                     continue
                 if output.get("name") == "suggest_navigation" and isinstance(arguments.get("destination"), str):
                     action_destinations.append(arguments["destination"])
-                operation = parse_plan_tool_call(str(output.get("name") or ""), arguments)
+                operation = parse_goal_tool_call(str(output.get("name") or ""), arguments)
                 if operation:
-                    plan_operations.append(operation)
+                    goal_operations.append(operation)
         if not text:
             raise AdvisorUnavailable("The advisor did not return a response. Please try again.")
         usage = data.get("usage") or {}
@@ -449,7 +443,7 @@ class OpenAIResponsesProvider:
             input_tokens=int(usage.get("input_tokens") or 0),
             output_tokens=int(usage.get("output_tokens") or 0),
             action_destinations=tuple(action_destinations),
-            plan_operations=tuple(plan_operations),
+            goal_operations=tuple(goal_operations),
         )
 
 
@@ -477,7 +471,7 @@ class AnthropicMessagesProvider:
 
     async def respond(self, messages: list[AdvisorMessage], safety_identifier: str) -> AdvisorResult:
         from src.services.hub_actions import navigation_tool
-        from src.services.hub_plan_tools import parse_plan_tool_call, plan_edit_tools
+        from src.services.goals.coach_tools import goal_edit_tools, parse_goal_tool_call
         payload: dict = {
             "model": self.model,
             "system": self.instructions,
@@ -486,7 +480,7 @@ class AnthropicMessagesProvider:
             "metadata": {"user_id": safety_identifier},
         }
         if self.allow_actions:
-            payload["tools"] = [navigation_tool("anthropic"), *plan_edit_tools("anthropic", self.edit_scope)]
+            payload["tools"] = [navigation_tool("anthropic"), *goal_edit_tools("anthropic", self.edit_scope)]
             payload["tool_choice"] = {"type": "auto"}
         if self.advanced.get("thinking_effort") not in (None, "default"):
             payload["thinking"] = {"type": "adaptive"}
@@ -547,7 +541,7 @@ class AnthropicMessagesProvider:
             and item.get("name") == "suggest_navigation"
             and isinstance(item.get("input", {}).get("destination"), str)
         ] if self.allow_actions else []
-        plan_operations = [operation for item in data.get("content", []) if item.get("type") == "tool_use" for operation in [parse_plan_tool_call(str(item.get("name") or ""), item.get("input") or {})] if operation] if self.allow_actions else []
+        goal_operations = [operation for item in data.get("content", []) if item.get("type") == "tool_use" for operation in [parse_goal_tool_call(str(item.get("name") or ""), item.get("input") or {})] if operation] if self.allow_actions else []
         if not text:
             raise AdvisorUnavailable("The advisor did not return a response. Please try again.")
         usage = data.get("usage") or {}
@@ -557,7 +551,7 @@ class AnthropicMessagesProvider:
             input_tokens=int(usage.get("input_tokens") or 0),
             output_tokens=int(usage.get("output_tokens") or 0),
             action_destinations=tuple(action_destinations),
-            plan_operations=tuple(plan_operations),
+            goal_operations=tuple(goal_operations),
         )
 
 
@@ -695,7 +689,7 @@ async def ask_hub_advisor(
         from src.services.hub_memory import ground_messages_with_memories
         provider_messages = ground_messages_with_memories(provider_messages, grounding_memories)
     if page_context is not None:
-        from src.services.hub_context import ground_page_context
+        from src.services.goals.coach_context import ground_page_context
         provider_messages = ground_page_context(provider_messages, page_context)
     from src.services.hub_actions import navigation_capability_context
     capability_context = navigation_capability_context(db_session, org_id)
@@ -711,15 +705,15 @@ async def ask_hub_advisor(
             f"Native objects currently awaiting learner review: {len(pending_objects)}. "
             "Typed editing tools prepare complete values in the real editor; they never save. "
             "Do not propose edits outside this scope. A conversational refinement may update the goal while retaining "
-            "the same scope, but a request to act on another plan or product surface requires a new learner-granted run. "
+            "the same scope, but a request to act on another goal or product surface requires a new learner-granted run. "
             "When that happens, ask how to resolve any unfinished objects, propose concluding this run, and only then "
             "offer the separately scoped action. Keep useful out-of-scope follow-up ideas until this run concludes rather "
             "than silently widening authority. Every turn in an active editing run must end in an explicit "
             "state: prepare a supported edit, ask one clear question needed to continue, or call the conclusion tool "
             "to propose finishing the editing goal. Never merely promise that a finish button will appear. When native "
             "objects are still awaiting learner review, explicitly say so and wait for that "
-            "review rather than duplicating the proposal. Never propose phases and objectives that depend on those "
-            "phases in the same turn; wait until every proposed phase is reviewed and saved. Never stop at a bare "
+            "review rather than duplicating the proposal. Never propose stages and steps that depend on those "
+            "stages in the same turn; wait until every proposed stage is reviewed and saved. Never stop at a bare "
             "acknowledgement.\n</hub_editing_scope>"
         )
     elif recent_edit_run and recent_edit_run.get("status") in {"cancelled", "completed"}:

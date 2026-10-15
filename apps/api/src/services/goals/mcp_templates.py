@@ -20,6 +20,7 @@ from src.db.goals import GoalAssignment, GoalTemplate, GoalTemplateVersion
 from src.db.learning import LearningActivity, LearningPage
 from src.security.org_auth import require_org_admin
 from src.services.goals import templates
+from src.services.goals.badge_versions import outdated_badge_steps
 from src.services.goals.document import iter_steps, json_schema
 from src.services.goals.mcp_template_checks import check_document, reject
 from src.services.oauth.server import AccessContext
@@ -54,18 +55,15 @@ def _counts(document: dict) -> tuple[int, int]:
 
 
 def earns_badges(db: Session, template: GoalTemplate) -> list[dict]:
-    """Badges this template is a way to earn. Badge routes still point at the legacy program row, which shares the uuid."""
-    tables = inspect(db.get_bind())
-    if not (tables.has_table("badgeroute") and tables.has_table("program")):
-        return []
+    """Badges this template is a way to earn."""
     from src.db.badge_routes import BadgeRoute
     from src.db.learning import LearningBadge
-    from src.db.programs import Program
 
+    if not inspect(db.get_bind()).has_table("badgeroute"):
+        return []
     rows = db.exec(
         select(BadgeRoute, LearningBadge).join(LearningBadge, LearningBadge.id == BadgeRoute.badge_id)
-        .join(Program, Program.id == BadgeRoute.program_id)
-        .where(Program.program_uuid == template.template_uuid, LearningBadge.deleted_at.is_(None))  # type: ignore[union-attr]
+        .where(BadgeRoute.goal_template_id == template.id, LearningBadge.deleted_at.is_(None))  # type: ignore[union-attr]
     ).all()
     return [{"badge_uuid": badge.badge_uuid, "name": badge.name, "recommended": route.recommended} for route, badge in rows]
 
@@ -107,6 +105,7 @@ def envelope(db: Session, template: GoalTemplate) -> dict:
             "status": getattr(template.status, "value", template.status), "system_type": template.system_type,
             "assignment_count": assignment_count, "published_to_library": template.library_published_at is not None,
             "earns_badges": earns_badges(db, template), "versioning": version_status(db, template),
+            "outdated_badge_steps": outdated_badge_steps(db, template),
         },
         "editor_url": template_editor_url(db, template.org_id, template.template_uuid),
     }
@@ -251,18 +250,14 @@ async def set_objective_requirements(request: Request, db_session: Session, ctx:
 
 
 async def update_template_badge_versions(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
-    """Badge steps count any award of their badge; this sets whether earlier major versions still count."""
+    """Point the draft's badge steps at each badge's newest major version (``goals.badge_versions``)."""
+    from src.services.goals.badge_versions import update_badge_versions
+
     template = _template(db_session, ctx, args["template_uuid"])
-    accept = bool(args.get("accept_previous_major_versions"))
-    document = deepcopy(template.document or {})
-    changed = False
-    for _, step in iter_steps(document):
-        if step.get("type") == "badge" and bool((step.get("config") or {}).get("accept_previous_major_versions")) != accept:
-            step["config"] = {**step["config"], "accept_previous_major_versions": accept}
-            changed = True
-    if changed:
-        _save_draft(db_session, ctx, template, document)
-    return {**envelope(db_session, template), "changed": changed}
+    before = templates.etag(template)
+    update_badge_versions(db_session, ctx.user, ctx.org_id, template.template_uuid, bool(args.get("accept_previous_major_versions")))
+    db_session.refresh(template)
+    return {**envelope(db_session, template), "changed": templates.etag(template) != before}
 
 
 async def list_activities(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:

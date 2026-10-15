@@ -2,10 +2,11 @@ from fastapi import APIRouter, Depends
 from sqlmodel import Session
 
 from src.core.events.database import get_db_session
-from src.db.badge_routes import BadgePlanStart, BadgeRouteOffersUpdate, BadgeRoutesUpdate
+from src.db.badge_routes import BadgeRouteOffersUpdate
 from src.db.users import AnonymousUser, PublicUser
 from src.security.auth import get_current_user
-from src.services import badge_routes as service
+from src.services.goals import badge_routes as service
+from src.services.goals.badge_routes import GoalBadgeRoutesUpdate, GoalBadgeStart
 
 router = APIRouter()
 
@@ -16,18 +17,18 @@ def api_badge_routes(
     db: Session = Depends(get_db_session),
     current_user: PublicUser | AnonymousUser = Depends(get_current_user),
 ):
-    """The ways to earn a badge (plan templates), the issuers offering each, and the learner's plan if started."""
+    """The ways to earn a badge (goal templates), the issuers offering each, and the learner's goal if started."""
     return service.list_routes(db, current_user if isinstance(current_user, PublicUser) else None, badge_uuid)
 
 
 @router.put("/{badge_uuid}/routes")
 def api_set_badge_routes(
     badge_uuid: str,
-    payload: BadgeRoutesUpdate,
+    payload: GoalBadgeRoutesUpdate,
     db: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
 ):
-    """The badge's creator chooses which of its plan templates earn it and which is recommended."""
+    """The badge's creator chooses which of its goal templates earn it and which is recommended."""
     return service.set_routes(db, current_user, badge_uuid, payload)
 
 
@@ -46,9 +47,9 @@ def api_set_offered_routes(
 @router.post("/{badge_uuid}/start-plan")
 def api_start_badge_plan(
     badge_uuid: str,
-    payload: BadgePlanStart,
+    payload: GoalBadgeStart,
     db: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
 ):
-    """Start earning a badge: creates the learner's own plan from the route, offered by the issuer."""
-    return service.start_badge_plan(db, current_user, badge_uuid, payload)
+    """Start earning a badge: the learner's goal from the route, offered by the issuer ({goal_uuid, title, status, done, total})."""
+    return service.start(db, current_user, badge_uuid, payload)

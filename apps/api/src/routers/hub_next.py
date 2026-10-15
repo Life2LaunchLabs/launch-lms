@@ -5,7 +5,7 @@ from sqlmodel import Session
 from src.core.events.database import get_db_session
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
-from src.services.hub_next_actions import next_actions
+from src.services.goals.next_actions import next_actions
 
 router = APIRouter()
 
@@ -16,8 +16,8 @@ class HubNextAction(BaseModel):
     reason: str
     route: str
     tier: int
-    plan_uuid: str | None = None
-    objective_uuid: str | None = None
+    goal_uuid: str | None = None
+    step_uuid: str | None = None
 
 
 @router.get("/next-actions", response_model=list[HubNextAction])

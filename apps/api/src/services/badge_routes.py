@@ -18,16 +18,13 @@ from sqlmodel import Session, select
 
 from src.db.badge_routes import BadgePlanStart, BadgeRoute, BadgeRouteOffer, BadgeRouteOffersUpdate, BadgeRoutesUpdate
 from src.db.learning import (
-    BadgeIssuerLearnerLink,
-    BadgeIssuerLearnerLinkStatus,
-    LearningAwardSource,
     LearningBadge,
     LearningBadgeAward,
-    LearningBadgeVersion,
 )
 from src.db.planning import Plan, PlanObjective, PlanObjectiveProgress, PlanStatus
 from src.db.programs import Objective, ObjectiveKind, Program, ProgramObjective, ProgramPhase
 from src.db.users import PublicUser
+from src.services.goals.badges import award_badge, badge_summary  # noqa: F401  (moved; re-exported for legacy plans)
 from src.services.learning.lookups import _get_badge
 
 
@@ -66,11 +63,6 @@ def _offered(db: Session, badge: LearningBadge) -> dict[int, set[int]]:
 
 def _offers(offered: dict[int, set[int]], org_id: int, route: BadgeRoute) -> bool:
     return org_id not in offered or int(route.id or 0) in offered[org_id]
-
-
-def badge_summary(db: Session, badge_id: int | None) -> dict | None:
-    badge = db.get(LearningBadge, badge_id) if badge_id else None
-    return {"badge_uuid": badge.badge_uuid, "name": badge.name, "thumbnail_image": badge.thumbnail_image or ""} if badge else None
 
 
 def active_badge_plan(db: Session, badge: LearningBadge, user_id: int) -> Plan | None:
@@ -228,30 +220,4 @@ def award_if_plan_complete(db: Session, plan: Plan) -> LearningBadgeAward | None
     db.add(plan)
     db.commit()
     db.refresh(award)
-    return award
-
-
-def award_badge(db: Session, badge: LearningBadge, user_id: int, issuing_org_id: int | None, evidence: dict) -> LearningBadgeAward:
-    """Award the badge's current major version for finishing a way to earn it (flushed, not committed)."""
-    version = db.get(LearningBadgeVersion, badge.active_version_id) if badge.active_version_id else None
-    major = int(str(version.semantic_version or "1.0.0").split(".")[0]) if version else 1
-    award = db.exec(select(LearningBadgeAward).where(
-        LearningBadgeAward.badge_id == badge.id, LearningBadgeAward.user_id == user_id, LearningBadgeAward.major_version == major,
-    )).first()
-    if award is None:
-        now = datetime.utcnow()
-        award = LearningBadgeAward(
-            award_uuid=f"award_{uuid4()}", badge_id=badge.id, badge_version_id=version.id if version else None, major_version=major,
-            org_id=badge.org_id, issuing_org_id=issuing_org_id if issuing_org_id != badge.org_id else None,
-            user_id=user_id, source=LearningAwardSource.PLAN_COMPLETION, issued_at=now,
-            evidence=evidence, creation_date=str(now), update_date=str(now),
-        )
-        db.add(award)
-        for link in db.exec(select(BadgeIssuerLearnerLink).where(
-            BadgeIssuerLearnerLink.badge_id == badge.id, BadgeIssuerLearnerLink.user_id == user_id,
-            BadgeIssuerLearnerLink.status == BadgeIssuerLearnerLinkStatus.ACCEPTED,
-        )).all():
-            link.status, link.end_reason, link.ended_at, link.update_date = BadgeIssuerLearnerLinkStatus.COMPLETED, "badge_completed", now, str(now)
-            db.add(link)
-    db.flush()
     return award

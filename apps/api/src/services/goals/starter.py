@@ -34,7 +34,7 @@ from src.services.learning_page_convert import find_question_block
 
 logger = logging.getLogger(__name__)
 
-DATA_PATH = Path(__file__).resolve().parents[1] / "starter_plan" / "starter_plan.json"
+DATA_PATH = Path(__file__).with_name("starter_plan.json")
 STARTER = "starter"
 # Kept from the legacy starter plan so migrated goals keep matching their steps.
 TEMPLATE_UUID = "program_starter"
@@ -223,6 +223,20 @@ def ensure_starter_goal(db: Session, user_id: int) -> Goal:
     return goal
 
 
+def step_href(goal_uuid: str, step: GoalStep) -> str:
+    """Where a checklist step opens: an activity step plays on its own page."""
+    from src.services.goals.home import route
+
+    return f"/plans/{goal_uuid}/steps/{step.step_uuid}/activity" if step.type == "activity" else route(goal_uuid, step.step_uuid)
+
+
+def redirect_path(db: Session, user_id: int) -> str:
+    """The next step of the learner's starter goal (the Welcome step at first), or the goal itself."""
+    checklist = starter_checklist(db, ensure_starter_goal(db, user_id))
+    step = checklist["nextIncomplete"] or (checklist["items"][0] if checklist["items"] else None)
+    return step["href"] if step else f"/plans/{checklist['goal']['goal_uuid']}"
+
+
 def starter_checklist(db: Session, goal: Goal) -> dict:
     """The starter goal as the portfolio checklist: each step and whether it's done."""
     items = []
@@ -232,7 +246,7 @@ def starter_checklist(db: Session, goal: Goal) -> dict:
             continue
         items.append({
             "key": step.step_uuid, "step_uuid": step.step_uuid, "label": step.title, "supportingText": step.description or "",
-            "complete": status == StepStatus.COMPLETED.value,
+            "href": step_href(goal.goal_uuid, step), "complete": status == StepStatus.COMPLETED.value,
         })
     completed = sum(item["complete"] for item in items)
     return {

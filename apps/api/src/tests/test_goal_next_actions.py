@@ -28,7 +28,7 @@ def test_undated_unstarted_step_is_suggested():
         db.commit()
         result = next_actions(db, ME, TODAY)
         assert [item["title"] for item in result] == ["Take the interest quiz"]
-        assert result[0]["route"] == "/goals/goal_1?step=step_1" and result[0]["tier"] == 3 and result[0]["reason"]
+        assert result[0]["route"] == "/plans/goal_1?step=step_1" and result[0]["tier"] == 3 and result[0]["reason"]
         assert result[0]["goal_uuid"] == "goal_1" and result[0]["step_uuid"] == "step_1" and result[0]["kind"] == "step"
 
 

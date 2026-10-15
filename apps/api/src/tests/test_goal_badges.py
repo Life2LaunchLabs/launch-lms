@@ -8,7 +8,6 @@ from src.db.badge_routes import BadgeRoute, BadgeRouteOffer
 from src.db.goals import Goal, StepStatus, StepStatusChange
 from src.db.learning import BadgeIssuerAuthorization, BadgeIssuerAuthorizationStatus, LearningBadge, LearningBadgeAward, LearningBadgeStatus
 from src.db.organizations import Organization
-from src.db.programs import Program
 from src.services.goals import goals
 from src.services.goals.badges import goal_summaries, goal_summary, start_badge_goal
 from src.tests.test_goals import LEARNER, NOW, _published, _session as _goal_session, _user
@@ -16,7 +15,7 @@ from src.tests.test_goals import LEARNER, NOW, _published, _session as _goal_ses
 
 def _world(issuer_access: str = "open") -> tuple[Session, LearningBadge, list[str]]:
     db = _goal_session()
-    for model in (Program, BadgeRoute, BadgeRouteOffer, BadgeIssuerAuthorization):
+    for model in (BadgeRoute, BadgeRouteOffer, BadgeIssuerAuthorization):
         model.__table__.create(db.get_bind(), checkfirst=True)
     db.add(Organization(id=2, org_uuid="org_2", name="Partner", slug="partner", email="partner@example.com", creation_date=NOW, update_date=NOW))
     badge = LearningBadge(id=1, badge_uuid="badge_adapt", org_id=1, name="Adaptability", status=LearningBadgeStatus.PUBLISHED, creation_date=NOW, update_date=NOW)
@@ -29,11 +28,7 @@ def _world(issuer_access: str = "open") -> tuple[Session, LearningBadge, list[st
     uuids = []
     for position, titles in enumerate((["Notice change", "Your story"], ["Write it up"])):
         template = _published(db, *({"type": "task", "title": title} for title in titles))
-        # Routes still point at the legacy template, which shares the goal template's uuid.
-        program = Program(program_uuid=template.template_uuid, slug=f"route-{position}", org_id=1, name=template.title, creation_date=NOW, update_date=NOW)
-        db.add(program)
-        db.flush()
-        db.add(BadgeRoute(route_uuid=f"route_{position}", badge_id=1, program_id=program.id, recommended=position == 0, position=position, creation_date=NOW))
+        db.add(BadgeRoute(route_uuid=f"route_{position}", badge_id=1, goal_template_id=template.id, recommended=position == 0, position=position, creation_date=NOW))
         uuids.append(template.template_uuid)
     db.commit()
     return db, badge, uuids
@@ -48,7 +43,7 @@ def test_starting_a_badge_issues_the_learners_own_locked_goal_and_finishing_it_a
         view = goals.get_goal(db, _user(LEARNER), goal.goal_uuid)
         assert [step["title"] for step in view["stages"][0]["steps"]] == ["Notice change", "Your story"]
         assert "edit_structure" not in view["capabilities"] and "complete_plan" not in view["capabilities"]
-        assert goal_summary(db, LEARNER, badge) == {"goal_uuid": goal.goal_uuid, "done": 0, "total": 2, "status": "active"}
+        assert goal_summary(db, LEARNER, badge) == {"goal_uuid": goal.goal_uuid, "title": "Adaptability", "done": 0, "total": 2, "status": "active"}
 
         for step in view["stages"][0]["steps"]:
             goals.change_status(db, _user(LEARNER), goal.goal_uuid, step["step_uuid"], StepStatusChange(status=StepStatus.COMPLETED))

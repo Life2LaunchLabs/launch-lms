@@ -118,34 +118,3 @@ def test_request_only_issuers_need_an_accepted_request():
         with pytest.raises(HTTPException) as waiting:
             badge_routes.start_badge_plan(session, LEARNER, "badge_adapt", BadgePlanStart(issuer_org_id=2))
         assert waiting.value.status_code == 409
-
-
-
-def test_start_badge_plans_outcome_starts_picked_badges_on_their_recommended_route():
-    from src.db.portfolio import Portfolio, PortfolioSection
-    from src.db.users import User
-    from src.services.learning_portfolio_actions import apply_portfolio_outcomes
-
-    with _session() as session:
-        _, badge, routes = _world(session)
-        for model in (Portfolio, PortfolioSection):
-            model.__table__.create(session.get_bind(), checkfirst=True)
-        session.add(LearningBadge(badge_uuid="badge_draft", org_id=1, name="Draft", status=LearningBadgeStatus.DRAFT, creation_date=NOW, update_date=NOW))
-        badge.public = True
-        session.add(badge)
-        session.commit()
-        outcomes = {"version": 1, "actions": [{"id": "start", "type": "start_badge_plans", "badge_uuids": {"$source": "binding", "key": "picked"}}]}
-        learner = session.get(User, 2)
-
-        receipts, _ = apply_portfolio_outcomes(session, learner, 1, outcomes, {"answers": {}, "bindings": {"picked": ["badge_adapt", "badge_draft", "badge_missing"]}})
-        session.commit()
-        assert receipts["start"] == {"type": "start_badge_plans", "badge_uuids": ["badge_adapt"]}
-        plans = session.exec(select(Plan).where(Plan.subject_user_id == 2, Plan.source_badge_id == badge.id)).all()
-        assert len(plans) == 1
-        assert badge_routes.list_routes(session, LEARNER, "badge_adapt")["plan"]["slug"] == plans[0].slug
-        assert [item.title for item in session.exec(select(PlanObjective).where(PlanObjective.plan_id == plans[0].id).order_by(PlanObjective.position)).all()] == ["Notice change", "Your story"]
-
-        # Picking it again keeps the one plan.
-        apply_portfolio_outcomes(session, learner, 2, outcomes, {"answers": {}, "bindings": {"picked": ["badge_adapt"]}})
-        session.commit()
-        assert len(session.exec(select(Plan).where(Plan.subject_user_id == 2, Plan.source_badge_id == badge.id)).all()) == 1

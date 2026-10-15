@@ -1,9 +1,9 @@
 {
   "files": {
     "apps/api/src/db/learning.py": 542,
-    "apps/api/src/routers/auth.py": 552,
+    "apps/api/src/routers/auth.py": 549,
     "apps/api/src/routers/candidate_feedback.py": 636,
-    "apps/api/src/routers/hub.py": 546,
+    "apps/api/src/routers/hub.py": 542,
     "apps/api/src/routers/learning.py": 544,
     "apps/api/src/routers/orgs/orgs.py": 1022,
     "apps/api/src/routers/payments.py": 731,
@@ -17,7 +17,7 @@
     "apps/api/src/services/api_tokens/api_tokens.py": 510,
     "apps/api/src/services/candidate_jira.py": 585,
     "apps/api/src/services/communities/discussions.py": 596,
-    "apps/api/src/services/hub_advisor.py": 744,
+    "apps/api/src/services/hub_advisor.py": 738,
     "apps/api/src/services/learning_marketplace.py": 890,
     "apps/api/src/services/learning_portfolio_actions.py": 509,
     "apps/api/src/services/media.py": 536,

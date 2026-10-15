@@ -61,23 +61,29 @@ async def test_ui_fixture_provider_returns_semantic_actions_without_external_cal
         ),
     ], "safe")
     memory = await DeterministicUiTestProvider(memory=True).respond([message("user", "anything")], "safe")
-    editing = await DeterministicUiTestProvider(edit_scope="new_plan").respond(
-        [message("user", "Prepare the plan details")], "safe",
+    editing = await DeterministicUiTestProvider(edit_scope="new_goal").respond(
+        [message("user", "Prepare the goal details")], "safe",
     )
-    continued = await DeterministicUiTestProvider(edit_scope="plan").respond(
-        [message("user", "I saved the plan details")], "safe",
+    continued = await DeterministicUiTestProvider(edit_scope="goal").respond(
+        [message("user", "I saved the goal details")], "safe",
+    )
+    stepped = await DeterministicUiTestProvider(edit_scope="goal").respond(
+        [message("user", "You finished reviewing the proposed stages\nI saved stage “Explore”.\nAll proposed stages have now been reviewed.")], "safe",
     )
     cancelled = await DeterministicUiTestProvider(edit_scope="new_plan").respond(
-        [message("user", "I cancelled the new plan instead of saving it")], "safe",
+        [message("user", "I cancelled the new goal instead of saving it")], "safe",
     )
 
     assert plan.action_destinations == ("create_plan",)
     assert timeline.action_destinations == ("add_timeline",)
     assert json.loads(memory.text) == {"candidates": []}
-    assert editing.plan_operations[0]["type"] == "set_new_plan_details"
+    assert editing.goal_operations[0]["type"] == "set_new_goal_details"
     assert editing.action_destinations == ()
-    assert continued.plan_operations[0]["type"] == "add_plan_phases"
-    assert len(continued.plan_operations[0]["phases"]) == 3
+    assert continued.goal_operations[0]["type"] == "add_goal_stages"
+    assert len(continued.goal_operations[0]["stages"]) == 3
+    steps = stepped.goal_operations[0]["steps"]
+    assert stepped.goal_operations[0]["type"] == "add_goal_steps" and [step["type"] for step in steps] == ["write", "task", "task"]
+    assert steps[1]["config"]["list"]["label"] == "Skills to build" and steps[1]["config"]["list"]["target"] == 3
     assert "Would you like" in cancelled.text
 
 
@@ -550,19 +556,19 @@ async def test_advisor_returns_retry_after_when_rate_limited(monkeypatch):
 async def test_advisor_route_returns_edit_operations_without_changing_conversation_contract(monkeypatch):
     record_advice_signature = inspect.signature(hub_router.record_advice)
     operation = {
-        "operation_id": "hub_plan_operation_test", "type": "set_new_plan_details",
-        "object_type": "plan", "object_uuid": None, "object_label": "Career plan",
-        "fields": {"name": "Career plan", "description": "", "due_date": "2099-12-31"},
+        "operation_id": "hub_goal_operation_test", "type": "set_new_goal_details",
+        "object_type": "goal", "object_uuid": None, "object_label": "Career change",
+        "fields": {"title": "Career change", "description": "", "target_date": "2099-12-31"},
     }
     run = {
-        "run_uuid": "hub_edit_run_test", "goal": "Create a plan",
-        "scope": {"kind": "new_plan", "label": "New plan", "route": "/plans"},
+        "run_uuid": "hub_edit_run_test", "goal": "Create a goal",
+        "scope": {"kind": "new_goal", "label": "New goal", "route": "/plans"},
     }
     async def resources(*_args, **_kwargs):
         return []
     async def advice(*_args, **kwargs):
         assert kwargs["edit_run"] == run
-        return AdvisorResult("Prepared.", "fake", plan_operations=(operation,))
+        return AdvisorResult("Prepared.", "fake", goal_operations=(operation,))
     def persist(db_session, **kwargs):
         record_advice_signature.bind(db_session, **kwargs)
         now = datetime.utcnow()
@@ -580,7 +586,7 @@ async def test_advisor_route_returns_edit_operations_without_changing_conversati
     monkeypatch.setattr(hub_router, "advisor_resources_for_request", lambda *_args: [])
     monkeypatch.setattr(hub_router, "ask_hub_advisor", advice)
     monkeypatch.setattr(hub_router, "build_navigation_actions", lambda *_args: [])
-    monkeypatch.setattr(hub_router, "record_plan_proposals", lambda *_args: [operation])
+    monkeypatch.setattr(hub_router, "record_goal_proposals", lambda *_args: [operation])
     monkeypatch.setattr(hub_router, "record_advice", persist)
     monkeypatch.setattr(hub_router, "record_used_memories", lambda *_args: None)
     monkeypatch.setattr(hub_router, "memory_settings", lambda *_args: {"enabled": False})
@@ -597,3 +603,36 @@ async def test_advisor_route_returns_edit_operations_without_changing_conversati
     )
 
     assert response.edit_operations == [operation]
+
+
+@pytest.mark.asyncio
+async def test_both_providers_return_the_same_typed_new_goal_operation():
+    from src.services.goals.coach_tools import CONCLUDE_EDIT_TOOL, NEW_GOAL_TOOL
+
+    arguments = {"title": "Explore nursing", "description": "Compare programs.", "target_date": "2027-06-01"}
+
+    async def openai_handler(request: httpx.Request):
+        assert [tool["name"] for tool in json.loads(request.content)["tools"]] == ["suggest_navigation", NEW_GOAL_TOOL, CONCLUDE_EDIT_TOOL]
+        return httpx.Response(200, json={"model": "gpt-test", "output": [
+            {"type": "message", "content": [{"type": "output_text", "text": "I prepared a starting point."}]},
+            {"type": "function_call", "name": NEW_GOAL_TOOL, "arguments": json.dumps(arguments)},
+        ]})
+
+    async def anthropic_handler(request: httpx.Request):
+        assert [tool["name"] for tool in json.loads(request.content)["tools"]] == ["suggest_navigation", NEW_GOAL_TOOL, CONCLUDE_EDIT_TOOL]
+        return httpx.Response(200, json={"model": "claude-test", "content": [
+            {"type": "text", "text": "I prepared a starting point."},
+            {"type": "tool_use", "name": NEW_GOAL_TOOL, "input": arguments},
+        ]})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(openai_handler)) as client:
+        openai = await OpenAIResponsesProvider("test-key", "gpt-test", client, edit_scope="new_goal").respond(
+            [AdvisorMessage(role="user", content="Help me set the goal")], "safe-user",
+        )
+    async with httpx.AsyncClient(transport=httpx.MockTransport(anthropic_handler)) as client:
+        anthropic = await AnthropicMessagesProvider("test-key", "claude-test", client, edit_scope="new_plan").respond(
+            [AdvisorMessage(role="user", content="Help me set the goal")], "safe-user",
+        )
+
+    assert [item["type"] for item in openai.goal_operations] == [item["type"] for item in anthropic.goal_operations] == ["set_new_goal_details"]
+    assert openai.goal_operations[0]["fields"] == anthropic.goal_operations[0]["fields"] == arguments

@@ -189,7 +189,7 @@ def finish_if_complete(db: Session, goal: Goal) -> None:
         return
     badge = db.get(LearningBadge, goal.badge_id) if _value(goal.source) == GoalSource.BADGE.value and goal.badge_id else None
     if badge:
-        from src.services.badge_routes import award_badge
+        from src.services.goals.badges import award_badge
 
         award_badge(db, badge, int(goal.subject_user_id), goal.org_id, {"goal_uuid": goal.goal_uuid})
     goal.status = GoalStatus.FINISHED

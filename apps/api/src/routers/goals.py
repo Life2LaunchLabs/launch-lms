@@ -123,6 +123,14 @@ def api_delete_entry(goal_uuid: str, step_uuid: str, entry_uuid: str, db: Sessio
     return service.delete_entry(db, user, goal_uuid, step_uuid, entry_uuid)
 
 
+@router.get("/{goal_uuid}/steps/{step_uuid}/activity")
+def api_step_activity(goal_uuid: str, step_uuid: str, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    """The activity a step plays, with its pages and the subject's run (null until started)."""
+    from src.services.goals.activity_view import step_activity
+
+    return step_activity(db, user, goal_uuid, step_uuid)
+
+
 @router.post("/{goal_uuid}/steps/{step_uuid}/activity")
 def api_start_activity(goal_uuid: str, step_uuid: str, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
     return service.start_activity(db, user, goal_uuid, step_uuid)

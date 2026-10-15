@@ -47,7 +47,7 @@ def _goal_ref(goal: Goal) -> dict:
 
 def route(goal_uuid: str, step_uuid: str | None = None) -> str:
     """The web path a home item opens."""
-    return f"/goals/{goal_uuid}" + (f"?step={step_uuid}" if step_uuid else "")
+    return f"/plans/{goal_uuid}" + (f"?step={step_uuid}" if step_uuid else "")
 
 
 def step_item(entry: Entry, placement: str) -> dict:
