@@ -20,7 +20,6 @@ import StaffGoalPeople from './StaffGoalPeople'
 import { EmptyState, PageLoader, PersonAvatar, personName, REVIEW_CAPABILITY, SectionCard } from './ui'
 
 export type StaffGoalSubpage = 'overview' | 'steps' | 'reviews' | 'people' | 'activity' | 'settings'
-export const STAFF_GOAL_SUBPAGES: StaffGoalSubpage[] = ['overview', 'steps', 'reviews', 'people', 'activity', 'settings']
 
 const TABS = [
   { id: 'overview' as const, label: 'Overview', icon: Gauge },

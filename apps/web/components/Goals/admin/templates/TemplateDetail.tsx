@@ -23,7 +23,6 @@ import { StaleTemplateBanner, useTemplate, type TemplateEditing } from './useTem
 
 /** Template tabs; the URL keeps the old `objectives` segment for the steps tab. */
 export type TemplateSubpage = 'overview' | 'objectives' | 'assignments' | 'settings'
-export const TEMPLATE_SUBPAGES: TemplateSubpage[] = ['overview', 'objectives', 'assignments', 'settings']
 
 const TABS = [
   { key: 'overview' as const, label: 'Overview', icon: LayoutGrid },

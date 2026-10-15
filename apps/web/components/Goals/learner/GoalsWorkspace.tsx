@@ -83,8 +83,9 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
   const goals = React.useMemo(() => all.filter((goal) => goal.status !== 'finished'), [all])
   const finished = React.useMemo(() => all.filter((goal) => goal.status === 'finished' && !isGroup(goal)), [all])
   const { getGoalColor, setGoalColor } = useGoalColors(all, viewerUserId)
-  // Goals that open here (not group rows), in the order the strip shows them.
-  const stripGoals = React.useMemo(() => goals.filter((goal) => !isGroup(goal)), [goals])
+  // Goals that open here (not group rows), in the order the strip shows them. A goal an
+  // organization handed the learner waits under Invitations until they accept it.
+  const stripGoals = React.useMemo(() => goals.filter((goal) => !isGroup(goal) && goal.status !== 'pending'), [goals])
   const { cache } = useSWRConfig()
   const reduceMotion = useReducedMotion()
 

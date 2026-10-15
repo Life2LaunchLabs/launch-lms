@@ -35,6 +35,9 @@ function UploadCard({ step, actions, canWork, staff, token, viewerUserId }: Step
   const [link, setLink] = React.useState('')
   const open = canWork && !step.locked && step.status !== 'completed' && step.status !== 'submitted'
   const missing = step.config.slots.filter((slot) => !filled(step, slot))
+  // Mirrors the API: required slots first; when every slot is optional, any one file will do.
+  const required = missing.find((slot) => !slot.optional)
+  const blocker = required ? `Add ${required.label} first` : missing.length === step.config.slots.length ? 'Add a file first' : null
   const choose = (slot: UploadSlot) => {
     const media = slot.kinds.filter((kind) => kind !== 'link') as MediaType[]
     if (!media.length) return setLinkSlot(slot)
@@ -62,7 +65,7 @@ function UploadCard({ step, actions, canWork, staff, token, viewerUserId }: Step
       <Input autoFocus value={link} onChange={(event) => setLink(event.target.value)} placeholder={`Link for ${linkSlot.label}`} />
       <button type="submit" className="rounded-xl border-2 px-3 text-xs font-bold">Add</button>
     </form> : null}
-    <FinishControls step={step} actions={actions} canWork={canWork} staff={staff} blocker={missing.length ? `Add ${missing[0].label} first` : null} />
+    <FinishControls step={step} actions={actions} canWork={canWork} staff={staff} blocker={blocker} />
     {picking && viewerUserId ? <MediaPickerDialog open onOpenChange={(next) => { if (!next) setPicking(null) }} title={`Add ${picking.slot.label}`} description="Upload something new or choose it from your media library." owner={{ type: 'user', id: viewerUserId }} mediaType={picking.type} accessToken={token}
       onSave={async (asset) => { await actions.addEntry({ kind: 'file', slot: picking.slot.key, asset_uuid: asset.asset_uuid, url: asset.url, title: asset.title || asset.filename || '' }); setPicking(null) }} /> : null}
   </div>
@@ -78,6 +81,7 @@ function UploadConfigPanel({ config, onChange }: ConfigPanelProps<'upload'>) {
       {(['image', 'video', 'document', 'link'] as const).map((kind) => <label key={kind} className="flex items-center gap-1 text-xs font-semibold">
         <input type="checkbox" checked={slot.kinds.includes(kind)} onChange={(event) => { const kinds = event.target.checked ? [...slot.kinds, kind] : slot.kinds.filter((item) => item !== kind); if (kinds.length) update(index, { ...slot, kinds }) }} />{kind}
       </label>)}
+      <label className="flex items-center gap-1 text-xs font-semibold"><input type="checkbox" checked={!!slot.optional} onChange={(event) => update(index, { ...slot, optional: event.target.checked })} />optional</label>
       {slots.length > 1 ? <button type="button" aria-label="Remove slot" onClick={() => onChange({ slots: slots.filter((_, at) => at !== index) })} className="p-1 text-muted-foreground"><X size={15} /></button> : null}
     </div>)}
     <button type="button" onClick={() => onChange({ slots: [...slots, { key: `slot_${Date.now().toString(36)}`, label: '', kinds: ['image', 'document'] }] })} className="self-start text-xs font-bold text-[var(--plan-accent)]">Add another</button>

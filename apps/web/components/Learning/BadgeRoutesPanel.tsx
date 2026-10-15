@@ -30,7 +30,7 @@ export default function BadgeRoutesPanel({ badge, orgslug }: { badge: any; orgsl
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div>
         <h2 className="text-lg font-bold">Ways to earn</h2>
-        <p className="mt-1 max-w-xl text-sm text-muted-foreground">Plan templates learners can follow to earn this badge. Starting one gives the learner their own goal, offered by the issuer they choose. Finishing every step awards the badge.</p>
+        <p className="mt-1 max-w-xl text-sm text-muted-foreground">Goal templates learners can follow to earn this badge. Starting one gives the learner their own goal, offered by the issuer they choose. Finishing every step awards the badge.</p>
       </div>
       {saving ? <Loader2 size={16} className="animate-spin text-muted-foreground" /> : null}
     </div>
@@ -45,12 +45,12 @@ export default function BadgeRoutesPanel({ badge, orgslug }: { badge: any; orgsl
         <button type="button" disabled={saving} onClick={() => save(current.filter((_, i) => i !== index))} aria-label={`Remove ${route.name}`} className="rounded-lg p-2 text-muted-foreground hover:bg-red-50 hover:text-red-700"><Trash2 size={15} /></button>
       </div>)}
       {!routes.length ? <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
-        No ways to earn this badge yet. Add a plan template learners can follow to earn it.
+        No ways to earn this badge yet. Add a goal template learners can follow to earn it.
       </div> : null}
       {available.length ? <label className="flex items-center gap-2 pt-2 text-xs font-bold">
         <Plus size={14} className="text-muted-foreground" />
         <select value="" disabled={saving} onChange={(event) => event.target.value && save([...current, { template_uuid: event.target.value, recommended: !current.length }])} className="h-9 flex-1 rounded-lg border border-border bg-background px-2">
-          <option value="">Add a plan template…</option>
+          <option value="">Add a goal template…</option>
           {available.map((template: GoalTemplate) => <option key={template.template_uuid} value={template.template_uuid}>{template.title}</option>)}
         </select>
       </label> : null}

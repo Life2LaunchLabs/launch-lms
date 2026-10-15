@@ -191,6 +191,21 @@ def test_unpublished_or_archived_templates_cannot_be_handed_out():
 
 # Working through steps --------------------------------------------------------------------
 
+def test_optional_upload_slots_need_one_file_between_them():
+    with _session() as db:
+        template = _published(db, {"type": "upload", "title": "Photos", "config": {"slots": [
+            {"key": "before", "label": "Before", "kinds": ["link"], "optional": True},
+            {"key": "after", "label": "After", "kinds": ["link"], "optional": True},
+        ]}})
+        goal = _issue(db, template)
+        photos = _step(goals.get_goal(db, _user(LEARNER), goal.goal_uuid), "Photos")
+        with pytest.raises(HTTPException, match="Add a file first"):
+            _status(db, LEARNER, goal, photos, StepStatus.COMPLETED)
+        goals.add_entry(db, _user(LEARNER), goal.goal_uuid, photos["step_uuid"], StepEntryCreate(kind="link", slot="after", url="https://lee.dev/after"))
+        _status(db, LEARNER, goal, photos, StepStatus.COMPLETED)
+        assert _step(goals.get_goal(db, _user(LEARNER), goal.goal_uuid), "Photos")["status"] == "completed"
+
+
 def test_learner_finishes_steps_by_their_type_rules():
     with _session() as db:
         template = _published(

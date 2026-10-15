@@ -3,7 +3,7 @@ import test from 'node:test'
 import { isFocusedActivityPath } from '../learnerExperience.ts'
 
 test('activity entry routes focus the player before and after tenant routing', () => {
-  for (const path of ['/plans/my-plan/objectives/step-1/activity', '/activity/a1', '/badges/b1/chapter/c1']) {
+  for (const path of ['/plans/goal_1/steps/goal_step_1/activity', '/activity/a1', '/badges/b1/chapter/c1']) {
     assert.equal(isFocusedActivityPath(path), true)
     assert.equal(isFocusedActivityPath(`/orgs/academy${path}/`), true)
   }

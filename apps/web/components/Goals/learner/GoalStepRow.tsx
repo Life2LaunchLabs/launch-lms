@@ -47,7 +47,7 @@ export function GoalStepRow({ goal, step, viewer, selected, last, onSelect, onGo
       {!selected && RowResult && step.result ? <div className="mt-2"><RowResult step={step as never} /></div> : null}
       {selected ? <div className="mt-3 flex flex-col gap-3">
         {locked ? <LockedBody step={step} onGoTo={onGoTo} /> : <StepCard goal={goal} step={step} viewer={viewer} onOpenActivity={onOpenActivity} />}
-        {onAsk && !done ? <Button type="button" variant="surface" className="self-start" onClick={onAsk}><Sparkles size={15} aria-hidden="true" />Ask Coach</Button> : null}
+        {onAsk && !done && step.state !== 'waiting' ? <Button type="button" variant="surface" className="self-start" onClick={onAsk}><Sparkles size={15} aria-hidden="true" />Ask Coach</Button> : null}
       </div> : null}
     </div>
   </li>

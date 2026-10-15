@@ -22,7 +22,7 @@ export interface PersonSummary {
 }
 
 export interface TaskConfig { list?: { label?: string; target?: number; item_kind?: 'text' | 'link' } }
-export interface UploadSlot { key: string; label: string; kinds: Array<'image' | 'video' | 'document' | 'link'> }
+export interface UploadSlot { key: string; label: string; kinds: Array<'image' | 'video' | 'document' | 'link'>; optional?: boolean }
 export interface UploadConfig { slots: UploadSlot[] }
 export interface WriteConfig { prompt?: string; max_words?: number }
 export interface ActivityConfig { activity_uuid: string }

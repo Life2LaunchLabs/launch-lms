@@ -89,7 +89,7 @@ export default function CohortMatrix({ orgslug, orgId, token, assignmentUuid }: 
           return <button key={stage.stage_key} type="button" aria-expanded={!isClosed} onClick={() => setClosed({ ...closed, [stage.stage_key]: !isClosed })} className={cn('flex min-w-0 items-center gap-1.5 rounded-t-lg px-2.5 py-2 text-left', index % 2 ? 'bg-gray-50' : 'bg-gray-100')} style={{ gridColumn: `span ${width(stage)}` }}>
             <ChevronRight size={12} className={cn('shrink-0 text-gray-500 transition', !isClosed && 'rotate-90')} />
             <span className="truncate text-xs font-black text-gray-900">{stage.title}</span>
-            {!isClosed ? <span className="shrink-0 text-[11px] text-gray-500">{stage.steps.length} steps</span> : null}
+            {!isClosed ? <span className="shrink-0 text-[11px] text-gray-500">{stage.steps.length} {stage.steps.length === 1 ? 'step' : 'steps'}</span> : null}
           </button>
         })}
       </div>

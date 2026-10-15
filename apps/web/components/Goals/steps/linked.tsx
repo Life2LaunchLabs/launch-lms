@@ -17,13 +17,14 @@ import { CardNote, Feedback, FinishControls, StepIntro } from './shared'
 function ActivityCard(props: StepCardProps<'activity'>) {
   const { step, actions, canWork } = props
   const started = step.status !== 'not_started'
-  const done = step.status === 'completed' || step.status === 'excused'
+  // Handed in counts as done here: the learner can look back at it while it waits on review.
+  const done = step.status === 'completed' || step.status === 'excused' || step.status === 'submitted'
   return <div className="flex flex-col gap-3">
     <StepIntro step={step} />
     <Feedback step={step} />
-    {step.reference?.page_count ? <CardNote icon={Play}>{step.reference.page_count} pages{started && !done ? ` · ${Math.round(step.fraction * 100)}% through` : ''}</CardNote> : null}
+    {step.reference?.page_count ? <CardNote icon={Play}>{step.reference.page_count} {step.reference.page_count === 1 ? 'page' : 'pages'}{started && !done ? ` · ${Math.round(step.fraction * 100)}% through` : ''}</CardNote> : null}
     {canWork && !step.locked ? <Button type="button" variant={done ? 'surface' : 'plan'} className="self-start" onClick={actions.openActivity}><Play size={15} aria-hidden="true" />{done ? 'Review' : started ? 'Continue' : 'Start'}</Button> : null}
-    {props.staff ? <FinishControls {...props} finishesItself /> : null}
+    <FinishControls {...props} finishesItself />
   </div>
 }
 

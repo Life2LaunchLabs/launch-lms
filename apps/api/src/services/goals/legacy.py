@@ -153,7 +153,8 @@ def convert_objective(objective: LegacyObjective, badge_id_uuid: str | None = No
             warnings.append(f"unknown field type {kind!r}, kept as Write")
             kind = "text"
         if kind == "media":
-            slot = {"key": field_uuid, "label": field_title, "kinds": list(raw.get("allowed_types") or ["image", "document"])}
+            # Plans never required their media fields, so the slots they become don't either.
+            slot = {"key": field_uuid, "label": field_title, "kinds": list(raw.get("allowed_types") or ["image", "document"]), "optional": True}
             if upload is None:
                 upload = StepSpec("upload", field_title, {"slots": [slot]}, completed_by, review, [field_uuid])
                 steps.append(upload)

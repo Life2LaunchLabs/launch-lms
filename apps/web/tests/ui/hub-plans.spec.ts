@@ -35,7 +35,8 @@ test('hub.action.create-plan: learner controls suggested navigation', async ({ p
   await expect(page.locator('section.hub-panel')).toContainText('Creating a goal:')
 
   await expect(page.getByText('Ready to review', { exact: true })).toBeVisible()
-  await expect(page.getByLabel('Goal')).toHaveValue('Career transition plan')
+  // The Coach transcript's "Create a goal" session label also matches a loose 'Goal' label.
+  await expect(page.getByRole('textbox', { name: /^Goal/ })).toHaveValue('Career transition plan')
   await expect(page.getByText('Suggested by Coach')).toHaveCount(3)
 
   expect(browserErrors, `Browser errors:\n${browserErrors.join('\n')}`).toEqual([])
