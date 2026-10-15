@@ -8,6 +8,12 @@ before the migration is written:
     uv run python scripts/goals_migration_report.py            # text report
     uv run python scripts/goals_migration_report.py --json     # machine-readable
     uv run python scripts/goals_migration_report.py --org-id 3
+    uv run python scripts/goals_migration_report.py --try-move  # run the real move, then roll it back
+
+``--try-move`` runs the plans-to-goals move itself (with its checks) inside a
+transaction and rolls it back, so a copy of production can be tried before the
+cutover release. It needs an empty goal model, which every release before the
+cutover has.
 """
 
 from __future__ import annotations
@@ -296,11 +302,34 @@ def _print(data: dict, indent: int = 0) -> None:
             print(f"{pad}{key}: {value}")
 
 
+def _try_move(as_json: bool) -> None:
+    from src.services.goals.migration import run
+
+    with Session(engine) as db:
+        try:
+            result = run(db)
+            data = {"ok": True, "counts": result.counts, "warnings": result.warnings}
+        except Exception as error:  # noqa: BLE001 - report whatever stopped the move
+            data = {"ok": False, "error": f"{type(error).__name__}: {error}"}
+        finally:
+            db.rollback()
+    if as_json:
+        print(json.dumps(data, indent=2, sort_keys=True, default=str))
+    else:
+        _print({key: value for key, value in data.items() if key != "warnings"})
+        for warning in data.get("warnings") or []:
+            print(f"warning: {warning}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--org-id", type=int, help="Limit to one organization")
     parser.add_argument("--json", action="store_true", help="Print JSON instead of text")
+    parser.add_argument("--try-move", action="store_true", help="Run the plans-to-goals move and roll it back")
     args = parser.parse_args()
+    if args.try_move:
+        _try_move(args.json)
+        return
     with Session(engine) as db:
         data = report(db, args.org_id)
         db.rollback()
