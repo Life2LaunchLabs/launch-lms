@@ -167,6 +167,8 @@ class Goal(SQLModel, table=True):
     description: str = ""
     status: GoalStatus = Field(default=GoalStatus.ACTIVE, sa_column=Column(String, nullable=False, index=True))
     step_order: StepOrder = Field(default=StepOrder.ANY, sa_column=Column(String, nullable=False, server_default="any"))
+    # Higher comes first in This week.
+    priority: int = Field(default=1, sa_column=Column(Integer, nullable=False, server_default="1"))
     start_date: date | None = Field(default=None, sa_column=Column(Date, nullable=True))
     target_date: date | None = Field(default=None, sa_column=Column(Date, nullable=True))
     finished_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
