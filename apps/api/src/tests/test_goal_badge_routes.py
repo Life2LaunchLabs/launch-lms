@@ -22,12 +22,12 @@ def test_routes_list_set_offer_and_start_on_goal_templates():
             (uuids[0], "College ready", True, 2), (uuids[1], "College ready", False, 1)]
         assert listed["routes"][0]["steps"][0] == {"title": "Notice change", "kind": "task", "chapter": "Apply"} and listed["goal"] is None
 
-        # Reorder and recommend the second, by template_uuid or the web's legacy program_uuid.
+        # Reorder and recommend the second.
         update = badge_routes.GoalBadgeRoutesUpdate(routes=[
-            badge_routes.GoalBadgeRouteInput(program_uuid=uuids[1], recommended=True), badge_routes.GoalBadgeRouteInput(template_uuid=uuids[0])])
+            badge_routes.GoalBadgeRouteInput(template_uuid=uuids[1], recommended=True), badge_routes.GoalBadgeRouteInput(template_uuid=uuids[0])])
         result = badge_routes.set_routes(db, _user(ADMIN), "badge_adapt", update)
         assert [(item["template_uuid"], item["recommended"]) for item in result["routes"]] == [(uuids[1], True), (uuids[0], False)]
-        assert {route.goal_template_id for route in db.exec(select(BadgeRoute)).all()} and db.exec(select(BadgeRoute)).all()[0].program_id is None
+        assert {route.goal_template_id for route in db.exec(select(BadgeRoute)).all()}
         with pytest.raises(HTTPException) as foreign:
             badge_routes.set_routes(db, _user(ADMIN), "badge_adapt", badge_routes.GoalBadgeRoutesUpdate(routes=[badge_routes.GoalBadgeRouteInput(template_uuid="nope")]))
         assert foreign.value.status_code == 422
@@ -35,7 +35,7 @@ def test_routes_list_set_offer_and_start_on_goal_templates():
         offered = badge_routes.set_offered_routes(db, _user(ADMIN), "badge_adapt", 2, BadgeRouteOffersUpdate(route_uuids=["route_0"]))
         assert offered["offers"] == {"2": ["route_0"]}
 
-        started = badge_routes.start(db, _user(LEARNER), "badge_adapt", badge_routes.GoalBadgeStart(program_uuid=uuids[0], issuer_org_id=2))
+        started = badge_routes.start(db, _user(LEARNER), "badge_adapt", badge_routes.GoalBadgeStart(template_uuid=uuids[0], issuer_org_id=2))
         goal = db.exec(select(Goal)).one()
         assert started == {"goal_uuid": goal.goal_uuid, "title": "Adaptability", "status": "active", "done": 0, "total": 2}
         assert badge_routes.list_routes(db, _user(LEARNER), "badge_adapt")["goal"]["goal_uuid"] == goal.goal_uuid

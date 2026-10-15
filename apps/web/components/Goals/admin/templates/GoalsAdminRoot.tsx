@@ -5,7 +5,7 @@ import { ClipboardCheck, Inbox, Layers3 } from 'lucide-react'
 import AdminFeatureHeader from '@components/Admin/AdminFeatureHeader'
 import ReviewInbox from '@components/Goals/admin/live/ReviewInbox'
 import RequirementsExplorer from '@components/Goals/admin/live/RequirementsExplorer'
-import { RequirementFrameworkDetail } from '@components/Admin/Programs/RequirementsAdmin'
+import { RequirementFrameworkDetail } from '@components/Goals/admin/RequirementsAdmin'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { getUriWithOrg, routePaths } from '@services/config/config'
@@ -16,7 +16,7 @@ export type GoalsAdminTab = 'inbox' | 'templates' | 'requirements'
 export function goalsAdminTabs(orgslug: string) {
   return [
     { id: 'inbox', label: 'Inbox', icon: <Inbox size={16} />, href: getUriWithOrg(orgslug, routePaths.org.dash.plans()) },
-    { id: 'templates', label: 'Templates', icon: <Layers3 size={16} />, href: getUriWithOrg(orgslug, routePaths.org.dash.programs()) },
+    { id: 'templates', label: 'Templates', icon: <Layers3 size={16} />, href: getUriWithOrg(orgslug, routePaths.org.dash.goalTemplates()) },
     { id: 'requirements', label: 'Requirements', icon: <ClipboardCheck size={16} />, href: getUriWithOrg(orgslug, routePaths.org.dash.planRequirements()) },
   ]
 }

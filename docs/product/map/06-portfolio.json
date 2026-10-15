@@ -2406,7 +2406,7 @@
           "references": [
             {
               "kind": "code",
-              "path": "apps/api/src/services/starter_plan/__init__.py",
+              "path": "apps/api/src/services/goals/starter.py",
               "symbol": "starter_checklist"
             },
             {

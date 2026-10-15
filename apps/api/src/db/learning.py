@@ -324,9 +324,8 @@ class IssuerLearnerRequestDecision(SQLModel):
 
 
 class LearningActivityBase(SQLModel):
-    """An interactive activity: the content of a plan template's activity objective."""
+    """An interactive activity: the content of a goal template's activity step."""
 
-    objective_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("objective.id", ondelete="CASCADE"), nullable=True, index=True))
     goal_template_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("goal_template.id", ondelete="CASCADE"), nullable=True, index=True))
     frozen_from_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningactivity.id", ondelete="SET NULL"), nullable=True, index=True))
     frozen_hash: str | None = Field(default=None, sa_column=Column(String, nullable=True))
@@ -458,9 +457,7 @@ class LearningRun(SQLModel, table=True):
     run_uuid: str = Field(default="", index=True)
     activity_id: int = Field(sa_column=Column(Integer, ForeignKey("learningactivity.id", ondelete="CASCADE"), nullable=False, index=True))
     org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
-    issuing_org_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("organization.id", ondelete="SET NULL"), nullable=True, index=True))  # the plan's source organization
-    plan_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("plan.id", ondelete="CASCADE"), nullable=True, index=True))
-    plan_objective_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("planobjective.id", ondelete="CASCADE"), nullable=True, index=True))
+    issuing_org_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("organization.id", ondelete="SET NULL"), nullable=True, index=True))  # the organization that issued the goal
     goal_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("goal.id", ondelete="CASCADE"), nullable=True, index=True))
     goal_step_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("goal_step.id", ondelete="CASCADE"), nullable=True, index=True))
     user_id: int = Field(sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True))
@@ -525,8 +522,6 @@ class LearningRunRead(BaseModel):
     activity_id: int
     org_id: int
     issuing_org_id: int | None = None
-    plan_id: int | None = None
-    plan_objective_id: int | None = None
     goal_id: int | None = None
     goal_step_id: int | None = None
     user_id: int

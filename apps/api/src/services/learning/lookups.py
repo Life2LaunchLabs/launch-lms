@@ -99,12 +99,7 @@ def _require_activity_editor(db_session: Session, user, activity: LearningActivi
 
 def _ensure_editable(db_session: Session, activity: LearningActivity) -> None:
     """Frozen copies belong to a published template version and never change."""
-    frozen = activity.frozen_from_id is not None
-    if not frozen and activity.goal_template_id is None and activity.objective_id is not None:
-        from src.services.template_versions import is_frozen  # activities the plans-to-goals move hasn't reached
-
-        frozen = is_frozen(db_session, activity.id)
-    if frozen:
+    if activity.frozen_from_id is not None:
         raise HTTPException(status_code=409, detail="This activity is part of a published template version and cannot be edited. Edit the template's draft instead.")
 
 

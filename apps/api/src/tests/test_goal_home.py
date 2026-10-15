@@ -5,7 +5,7 @@ from fastapi import HTTPException
 from sqlmodel import select
 
 from src.db.goals import Goal, GoalCreate, GoalStatus, GoalUpdate, StepCreate, StepProgress, StepStatus, StepStatusChange
-from src.db.planning import PlanWeeklyFocus
+from src.db.goals import PlanWeeklyFocus
 from src.services.goals import goals, home, lifecycle, structure
 from src.tests.test_goals import LEARNER, _issue, _published, _session, _user
 

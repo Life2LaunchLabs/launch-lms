@@ -72,7 +72,7 @@ def start_badge_goal(db: Session, user: PublicUser, badge: LearningBadge, templa
     if not offers(offered(db, badge), issuer, route):
         raise HTTPException(status_code=403, detail="This organization doesn't offer that way of earning the badge")
     version = templates.issuable_version(db, template)
-    link = validate_issuer_start(db, badge, issuer, user_id, set())
+    link = validate_issuer_start(db, badge, issuer, user_id)
     goal = issue_goal(
         db, template, version, subject_user_id=user_id, owner_user_id=user_id, org_id=issuer, source=GoalSource.BADGE,
         badge_id=badge.id, title=badge.name, staff_user_ids=[int(item) for item in (link.staff_user_ids if link else [])], actor_user_id=user_id,

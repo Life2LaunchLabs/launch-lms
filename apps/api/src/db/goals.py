@@ -302,6 +302,26 @@ class StepEntry(SQLModel, table=True):
     update_date: str = ""
 
 
+class PlanWeeklyFocus(SQLModel, table=True):
+    """The undated steps picked into one learner's week, so the week stays stable."""
+
+    __table_args__ = (UniqueConstraint("user_id", "week_start"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), index=True))
+    week_start: date = Field(sa_column=Column(Date, nullable=False, index=True))
+    objective_uuids: list[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
+    # Plans the week was planned from. Plans started later wait for the learner to
+    # pull them in instead of growing a week they may already have finished.
+    plan_uuids: list[str] | None = Field(default=None, sa_column=Column(JSON, nullable=True))
+    target: int = 5
+    # A goal the learner picked mid-week; the next week starts with it.
+    next_target: int | None = Field(default=None, sa_column=Column(Integer, nullable=True))
+    boosts: int = 0
+    creation_date: str = ""
+    update_date: str = ""
+
+
 class GoalStory(SQLModel, table=True):
     """A generated story of a finished personal goal. Reopening keeps earlier versions."""
 

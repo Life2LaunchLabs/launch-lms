@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import useSWR, { mutate } from 'swr'
 import { ChevronRight, ClipboardCheck, Search } from 'lucide-react'
-import { CreateFramework } from '@components/Admin/Programs/RequirementsAdmin'
+import { CreateFramework } from '@components/Goals/admin/RequirementsAdmin'
 import { stepDefinition } from '@components/Goals/steps'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { frameworksKey, requirementsApi, type Coverage } from '@services/goals/requirements'
@@ -174,7 +174,7 @@ function NodeDetail({ node, nodes, templates, orgslug, leaves }: { node: any; no
     {isLeaf ? <div className="space-y-3">
       <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">Covered by</p>
       {byTemplate.map(({ template, steps }) => <div key={template.template_uuid}>
-        <Link href={getUriWithOrg(orgslug, routePaths.org.dash.program(template.template_uuid))} className="text-[13px] font-bold text-gray-900 hover:text-blue-700">{template.title}</Link>
+        <Link href={getUriWithOrg(orgslug, routePaths.org.dash.goalTemplate(template.template_uuid))} className="text-[13px] font-bold text-gray-900 hover:text-blue-700">{template.title}</Link>
         <div className="mt-1.5 flex flex-wrap gap-1.5">{steps.length ? steps.map((step: any) => <StepChip key={step.step_key} step={step} />) : <span className="text-xs text-gray-400">Not covered</span>}</div>
       </div>)}
       <p className="text-xs leading-5 text-gray-500">Steps linked to the same requirement count as equivalent: a learner who misses one can do another. Link steps to requirements in a goal template’s steps.</p>

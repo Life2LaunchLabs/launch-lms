@@ -1,8 +1,8 @@
 """Deep-copy one account's own work onto another live account.
 
-Copies what belongs to the person (portfolio, badge runs and awards, plans,
+Copies what belongs to the person (portfolio, badge runs and awards, goals,
 saved resources, media and, optionally, coach conversations) with fresh row ids
-and identifiers. Shared content they reference (badges, resources, programs)
+and identifiers. Shared content they reference (badges, resources, goal templates)
 is linked, not duplicated. Inbox messages and other people's work never copy.
 """
 
@@ -22,8 +22,6 @@ OWNED = {
     "learningresponseattempt": "user_id",
     "learningbadgeaward": "user_id",
     "badgeissuerlearnerlink": "user_id",
-    "objectiveprogress": "user_id",
-    "programparticipant": "user_id",
     "requirementenrollment": "user_id",
     "usersavedresource": "user_id",
     "userresourcechannel": "user_id",
@@ -42,7 +40,7 @@ CHILD_TABLES = frozenset(
     """
 learningpageprogress usersavedresourcechannel portfoliosection
 projectitem projectitemblock timelineentry timelineentryblock timelineprojectlink
-portfoliolink profiletrait planrole planphase planobjective planobjectiveprogress
+portfoliolink profiletrait planrole goal_stage goal_step step_progress step_entry goal_story
 planattachment planactivity requirementattainmentsource
 """.split()
 )
@@ -57,12 +55,12 @@ COPYABLE = (
     | frozenset(CONVERSATIONS)
     | CHILD_TABLES
     | CONVERSATION_CHILDREN
-    | {"plan", "plancollaborator"}
+    | {"goal", "plancollaborator"}
 )
 # Rows tied to an organization only make sense where the copy is also a member.
 ORG_SCOPED = frozenset(
     """
-objectiveprogress programparticipant requirementenrollment userresourcechannel
+requirementenrollment userresourcechannel
 usergroupuser hubconversation hubmemory hubmemorypreference hubeditrun
 """.split()
 )
@@ -125,16 +123,16 @@ def collect(
         if name in ORG_SCOPED and "org_id" in table.c:
             condition &= table.c.org_id.in_(org_ids)
         add(name, condition)
-    plan = tables["plan"]
+    goal = tables["goal"]
     add(
-        "plan",
-        (plan.c.subject_user_id == source_id) | (plan.c.owner_user_id == source_id),
+        "goal",
+        (goal.c.subject_user_id == source_id) | (goal.c.owner_user_id == source_id),
     )
     collaborator = tables["plancollaborator"]
-    if rows["plan"]:
+    if rows["goal"]:
         add(
             "plancollaborator",
-            collaborator.c.plan_id.in_(list(rows["plan"]))
+            collaborator.c.goal_id.in_(list(rows["goal"]))
             & (collaborator.c.user_id == source_id),
         )
     children = CHILD_TABLES | (CONVERSATION_CHILDREN if conversations else frozenset())
@@ -206,8 +204,6 @@ def copy_rows(
                 values[column.name] = rewrite(value)
             if drop:
                 continue
-            if name == "plan" and values.get("slug"):
-                values["slug"] = f"{values['slug'][:80]}-{uuid4().hex[:6]}"
             new_id = db.execute(
                 table.insert().values(**values).returning(table.c.id)
             ).scalar_one()

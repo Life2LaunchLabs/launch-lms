@@ -76,17 +76,6 @@ class RequirementNode(SQLModel, table=True):
     update_date: str = ""
 
 
-class ProgramObjectiveRequirement(SQLModel, table=True):
-    __table_args__ = (UniqueConstraint("program_objective_id", "framework_id", "node_uuid"),)
-
-    id: int | None = Field(default=None, primary_key=True)
-    mapping_uuid: str = Field(index=True, unique=True)
-    program_objective_id: int = Field(sa_column=Column(Integer, ForeignKey("programobjective.id", ondelete="CASCADE"), index=True))
-    framework_id: int = Field(sa_column=Column(Integer, ForeignKey("requirementframework.id", ondelete="CASCADE"), index=True))
-    node_uuid: str = Field(index=True)
-    creation_date: str = ""
-
-
 class RequirementAssignmentBatch(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("batch_uuid"),)
 
@@ -126,8 +115,6 @@ class RequirementEnrollment(SQLModel, table=True):
 class RequirementAttainmentSource(SQLModel, table=True):
     __table_args__ = (
         UniqueConstraint("source_uuid"),
-        UniqueConstraint("enrollment_id", "node_uuid", "plan_objective_progress_id"),
-        UniqueConstraint("enrollment_id", "node_uuid", "objective_progress_id"),
         UniqueConstraint("enrollment_id", "node_uuid", "step_progress_id"),
     )
 
@@ -135,8 +122,6 @@ class RequirementAttainmentSource(SQLModel, table=True):
     source_uuid: str = Field(index=True)
     enrollment_id: int = Field(sa_column=Column(Integer, ForeignKey("requirementenrollment.id", ondelete="CASCADE"), index=True))
     node_uuid: str = Field(index=True)
-    plan_objective_progress_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("planobjectiveprogress.id", ondelete="CASCADE"), nullable=True, index=True))
-    objective_progress_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("objectiveprogress.id", ondelete="CASCADE"), nullable=True, index=True))
     step_progress_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("step_progress.id", ondelete="CASCADE"), nullable=True, index=True))
     objective_title: str = ""
     evidence_snapshot: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))

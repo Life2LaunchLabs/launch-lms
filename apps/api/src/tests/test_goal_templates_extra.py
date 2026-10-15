@@ -11,7 +11,7 @@ from src.db.goals import Goal, GoalStep, GoalTemplate, StepStatus, StepStatusCha
 from src.db.learning import LearningActivity, LearningBadge, LearningBadgeAward, LearningBadgeVersion, LearningPage
 from src.db.messages import InboxMessage
 from src.db.organizations import Organization
-from src.db.planning import PlanCollaborator, PlanInvitation, PlanRole
+from src.db.goal_sharing import PlanCollaborator, PlanInvitation, PlanRole
 from src.services.goals import assignments, badge_versions, goals, library, templates
 from src.tests.test_goals import ADMIN, LEARNER, NOW, OTHER, _document, _published, _session as _goal_session, _user
 

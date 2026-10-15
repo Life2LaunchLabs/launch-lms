@@ -15,7 +15,6 @@ from src.core.events.database import get_db_session
 from src.db.learning import LearningActivity, LearningPage
 from src.db.learning_previews import LearningActivityPreview
 from src.db.oauth import OAuthAuthorizationCode, OAuthClient, OAuthGrant
-from src.db.programs import Objective, ObjectiveKind, Program, ProgramObjective
 from src.routers import mcp as mcp_router
 from src.services.mcp import app_shell
 from src.services.mcp.app_shell import PREVIEW_APP_URI
@@ -55,7 +54,6 @@ def mcp(monkeypatch):
     session, alice, carol = documents_world._world()
     for model in (OAuthClient, OAuthAuthorizationCode, OAuthGrant):
         model.__table__.create(engine)
-    _goal_template(session, 50, "program_template", 1, "Career Ready", 50, "learning_activity_draft", "objective_activity")
     app = FastAPI()
     app.include_router(mcp_router.router, prefix="/api/v1/mcp")
     app.dependency_overrides[get_db_session] = lambda: session
@@ -109,11 +107,11 @@ def test_initialize_lists_tools_with_preview_app_metadata(mcp):
 
 def test_read_tools_walk_template_to_activity(mcp):
     _, _, _, call, _ = mcp
-    editor_url = f"{frontend_url()}/orgs/creator/admin/plans/program_template/activity/draft"
-    listed = call("list_activities", {"template_uuid": "program_template"})["structuredContent"]
-    assert listed["template"] == {"template_uuid": "program_template", "title": "Career Ready"}
+    editor_url = f"{frontend_url()}/orgs/creator/admin/plans/goal_template_career/activity/draft"
+    listed = call("list_activities", {"template_uuid": "goal_template_career"})["structuredContent"]
+    assert listed["template"] == {"template_uuid": "goal_template_career", "title": "Career Ready"}
     assert listed["activities"] == [{
-        "activity_uuid": "learning_activity_draft", "step_key": "objective_activity", "title": "Career interests",
+        "activity_uuid": "learning_activity_draft", "step_key": "career_interests", "title": "Career interests",
         "page_count": 3, "branching": True, "editor_url": editor_url,
     }]
     assert call("list_activities")["isError"] is True
@@ -158,7 +156,7 @@ def test_unsaved_activities_validate_and_preview_against_a_template(mcp):
     _, session, _, call, _ = mcp
     document = {"activity": {"title": "Reflect"}, "pages": [{"page_uuid": "start", "title": "Start", "content": {"version": 2, "blocks": []}}]}
     assert call("validate_activity", {"document": document})["structuredContent"]["valid"] is True
-    preview = call("preview_activity", {"template_uuid": "program_template", "document": document})
+    preview = call("preview_activity", {"template_uuid": "goal_template_career", "document": document})
     assert preview["structuredContent"]["unsaved"] is True and "unsaved draft" in preview["content"][0]["text"]
     assert session.exec(select(LearningActivityPreview)).one().activity_id is None
     missing = call("preview_activity", {"template_uuid": "program_nope", "document": document})
@@ -167,18 +165,14 @@ def test_unsaved_activities_validate_and_preview_against_a_template(mcp):
 
 def test_tokens_are_confined_to_their_org_and_scopes(mcp):
     _, session, _, call, alice = mcp
-    if not session.get(Program, 1):
-        _create_org(session, org_id=3, slug="other")
-    session.add(Program(id=60, program_uuid="program_other", slug="other-template", org_id=2, name="Other"))
-    session.add(Objective(id=60, objective_uuid="objective_other", org_id=2, title="Other org", kind=ObjectiveKind.ACTIVITY))
-    session.add(ProgramObjective(program_id=60, objective_id=60))
-    session.add(LearningActivity(id=60, activity_uuid="learning_activity_other", objective_id=60, org_id=2, title="Other org", creation_date="", update_date=""))
+    _create_org(session, org_id=3, slug="other")
+    session.add(LearningActivity(id=60, activity_uuid="learning_activity_other", org_id=2, title="Other org", creation_date="", update_date=""))
     session.commit()
-    _goal_template(session, 60, "program_other", 2, "Other", 60, "learning_activity_other", "objective_other")
+    _goal_template(session, 60, "goal_template_other", 2, "Other", 60, "learning_activity_other", "other_step")
     denied = call("get_activity", {"activity_uuid": "learning_activity_other"})
     assert denied["isError"] is True and "connected organization" in denied["content"][0]["text"]
-    assert call("list_activities", {"template_uuid": "program_other"})["isError"] is True
-    assert call("preview_activity", {"template_uuid": "program_other", "document": {}})["isError"] is True
+    assert call("list_activities", {"template_uuid": "goal_template_other"})["isError"] is True
+    assert call("preview_activity", {"template_uuid": "goal_template_other", "document": {}})["isError"] is True
 
     read_only = _token(session, alice.id, 1, scope="activities:read")
     blocked = call("save_activity", {"activity_uuid": "learning_activity_draft", "document": {}, "base_etag": "x"}, auth=read_only)

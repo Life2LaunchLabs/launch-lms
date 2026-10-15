@@ -30,7 +30,7 @@ from src.db.goals import (
     StepStatus,
 )
 from src.db.media import MediaAsset
-from src.db.planning import PlanCollaborator
+from src.db.goal_sharing import PlanCollaborator
 from src.db.requirements import RequirementFramework
 from src.db.usergroups import UserGroup
 from src.db.users import PublicUser, User

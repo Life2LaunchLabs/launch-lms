@@ -3,7 +3,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { ChevronRight } from 'lucide-react'
-import { SectionCard } from '@components/Admin/Plans/shared'
+import { SectionCard } from '@components/Goals/admin/shared'
 import { stepDefinition } from '@components/Goals/steps'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import type { TemplateDetail } from '@services/goals/templates'
@@ -67,7 +67,7 @@ export default function TemplateOverview({ orgslug, orgId, token, template }: { 
             <ChevronRight size={14} className="text-gray-300" />
           </Link></li>)}
         </ul> : <p className="text-sm text-gray-500">Not handed out yet.</p>}
-        {assignments.length > 6 ? <Link href={getUriWithOrg(orgslug, routePaths.org.dash.programPage(template.template_uuid, 'assignments'))} className="mt-2 block text-xs font-bold text-gray-900">All {assignments.length}</Link> : null}
+        {assignments.length > 6 ? <Link href={getUriWithOrg(orgslug, routePaths.org.dash.goalTemplatePage(template.template_uuid, 'assignments'))} className="mt-2 block text-xs font-bold text-gray-900">All {assignments.length}</Link> : null}
       </SectionCard>
       <SectionCard title="Requirements it meets">
         {coverage.length ? <div className="space-y-3">{coverage.map((framework) => <div key={framework.framework_uuid}>

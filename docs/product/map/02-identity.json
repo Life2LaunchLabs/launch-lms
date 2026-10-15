@@ -661,9 +661,9 @@
           "references": [
             {
               "kind": "code",
-              "path": "apps/api/src/services/starter_plan/__init__.py",
-              "symbol": "ensure_starter_plan",
-              "responsibility": "Create the starter plan and check off done steps"
+              "path": "apps/api/src/services/goals/starter.py",
+              "symbol": "ensure_starter_goal",
+              "responsibility": "Create the starter goal and check off done steps"
             },
             {
               "kind": "code",
@@ -677,7 +677,7 @@
             },
             {
               "kind": "test",
-              "path": "apps/api/src/tests/test_starter_plan.py"
+              "path": "apps/api/src/tests/test_goal_starter.py"
             }
           ],
           "relationships": []

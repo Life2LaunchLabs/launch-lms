@@ -35,7 +35,7 @@ from src.db.goals import (
     StepSubmission,
 )
 from src.db.media import MediaAsset
-from src.db.planning import PlanCollaborator
+from src.db.goal_sharing import PlanCollaborator
 from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
 from src.services.goals import access, completion, references

@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlmodel import Session
 
 from src.core.events.database import get_db_session
-from src.db.planning import (
+from src.db.goal_sharing import (
     OrganizationPlanRoleCreate,
     OrganizationPlanRoleUpdate,
     PlanAttachmentCreate,
