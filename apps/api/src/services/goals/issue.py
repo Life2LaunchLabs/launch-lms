@@ -166,7 +166,8 @@ def issue_step(db: Session, goal: Goal, version: GoalTemplateVersion, step_key: 
     spec = next((step for _, step in iter_steps(version.document or {}) if step.get("key") == step_key), None)
     if not spec:
         raise HTTPException(status_code=404, detail="Step not found in this template")
-    position = (db.exec(select(func.max(GoalStep.position)).where(GoalStep.goal_id == goal.id, GoalStep.stage_id == (stage.id if stage else None))).one() or -1) + 1
+    last = db.exec(select(func.max(GoalStep.position)).where(GoalStep.goal_id == goal.id, GoalStep.stage_id == (stage.id if stage else None))).one()
+    position = 0 if last is None else last + 1
     step = build_step(db, goal, stage, {**spec, "after": []}, position)
     db.flush()
     access.log(db, goal, actor_user_id, "step.added", {"step_uuid": step.step_uuid, "from_template_step": step_key})

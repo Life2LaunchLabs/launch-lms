@@ -580,10 +580,7 @@ def sync_legacy_progress(db: Session, progress: ObjectiveProgress, objective: Ob
 
 
 def _backfill(db: Session, enrollment: RequirementEnrollment) -> None:
-    plans = db.exec(select(Plan).where(
-        Plan.source_org_id == enrollment.org_id, Plan.subject_user_id == enrollment.user_id,
-    )).all()
-    for plan in plans:
+    for plan in db.exec(select(Plan).where(Plan.source_org_id == enrollment.org_id, Plan.subject_user_id == enrollment.user_id)).all():
         objectives = db.exec(select(PlanObjective).where(PlanObjective.plan_id == plan.id)).all()
         for objective in objectives:
             progress = db.exec(select(PlanObjectiveProgress).where(
@@ -601,6 +598,8 @@ def _backfill(db: Session, enrollment: RequirementEnrollment) -> None:
     )).all()
     for progress, objective in legacy:
         sync_legacy_progress(db, progress, objective)
+    from src.services.goals.credit import backfill_steps
+    backfill_steps(db, enrollment)
 
 
 def assign_framework(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str, payload: RequirementAssignmentCreate) -> dict:
