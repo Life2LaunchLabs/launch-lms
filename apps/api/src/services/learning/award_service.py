@@ -7,12 +7,12 @@ from uuid import uuid4
 from fastapi import HTTPException, Request, status
 from sqlmodel import Session, select
 from src.db.learning import (
-    LearningAwardCreate,
     LearningAwardSource,
     LearningBadge,
     LearningBadgeAward,
     LearningBadgeVersion,
 )
+from src.db.learning_requests import LearningAwardCreate
 from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
 from src.db.users import AnonymousUser, PublicUser, User
@@ -83,6 +83,9 @@ async def confer_award(
     )
     db_session.add(award)
     db_session.commit()
+    from src.services.goals.completion import on_badge_awarded
+
+    on_badge_awarded(db_session, int(award.user_id), int(award.badge_id))
     db_session.refresh(award)
     return build_award_response(request, db_session, award)
 

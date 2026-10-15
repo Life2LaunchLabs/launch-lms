@@ -326,7 +326,10 @@ class IssuerLearnerRequestDecision(SQLModel):
 class LearningActivityBase(SQLModel):
     """An interactive activity: the content of a plan template's activity objective."""
 
-    objective_id: int = Field(sa_column=Column(Integer, ForeignKey("objective.id", ondelete="CASCADE"), nullable=False, index=True))
+    objective_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("objective.id", ondelete="CASCADE"), nullable=True, index=True))
+    goal_template_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("goal_template.id", ondelete="CASCADE"), nullable=True, index=True))
+    frozen_from_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningactivity.id", ondelete="SET NULL"), nullable=True, index=True))
+    frozen_hash: str | None = Field(default=None, sa_column=Column(String, nullable=True))
     org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
     title: str
     description: str | None = ""
@@ -456,8 +459,10 @@ class LearningRun(SQLModel, table=True):
     activity_id: int = Field(sa_column=Column(Integer, ForeignKey("learningactivity.id", ondelete="CASCADE"), nullable=False, index=True))
     org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
     issuing_org_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("organization.id", ondelete="SET NULL"), nullable=True, index=True))  # the plan's source organization
-    plan_id: int = Field(sa_column=Column(Integer, ForeignKey("plan.id", ondelete="CASCADE"), nullable=False, index=True))
-    plan_objective_id: int = Field(sa_column=Column(Integer, ForeignKey("planobjective.id", ondelete="CASCADE"), nullable=False, index=True))
+    plan_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("plan.id", ondelete="CASCADE"), nullable=True, index=True))
+    plan_objective_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("planobjective.id", ondelete="CASCADE"), nullable=True, index=True))
+    goal_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("goal.id", ondelete="CASCADE"), nullable=True, index=True))
+    goal_step_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("goal_step.id", ondelete="CASCADE"), nullable=True, index=True))
     user_id: int = Field(sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True))
     status: LearningRunStatus = LearningRunStatus.IN_PROGRESS
     started_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(DateTime, nullable=False))
@@ -520,8 +525,10 @@ class LearningRunRead(BaseModel):
     activity_id: int
     org_id: int
     issuing_org_id: int | None = None
-    plan_id: int
-    plan_objective_id: int
+    plan_id: int | None = None
+    plan_objective_id: int | None = None
+    goal_id: int | None = None
+    goal_step_id: int | None = None
     user_id: int
     status: LearningRunStatus
     started_at: datetime
@@ -530,33 +537,6 @@ class LearningRunRead(BaseModel):
     attempts: list[dict] = []
     navigation: dict | None = None
     render_context: dict = Field(default_factory=dict)
-
-
-class LearningPageComplete(SQLModel):
-    run_uuid: str
-    page_uuid: str
-    data: dict = Field(default_factory=dict)
-
-
-class LearningResponseSubmit(SQLModel):
-    run_uuid: str
-    page_uuid: str
-    answer: dict = Field(default_factory=dict)
-    button: str | None = None
-
-
-class LearningResponseGrade(SQLModel):
-    score: float
-    feedback: str | None = ""
-    question_scores: dict[str, float] = Field(default_factory=dict)
-    question_feedback: dict[str, str] = Field(default_factory=dict)
-
-
-class LearningAwardCreate(SQLModel):
-    badge_uuid: str
-    user_id: int
-    issuing_org_id: int | None = None
-    evidence: dict = Field(default_factory=dict)
 
 
 LearningActivityRead.model_rebuild()

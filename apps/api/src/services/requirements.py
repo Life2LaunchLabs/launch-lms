@@ -7,6 +7,7 @@ from fastapi import HTTPException
 from sqlalchemy import inspect
 from sqlmodel import Session, select
 
+from src.db.goals import StepProgress
 from src.db.planning import Plan, PlanObjective, PlanObjectiveProgress, PlanObjectiveStatus
 from src.db.organizations import Organization
 from src.db.programs import Objective, ObjectiveProgress, ObjectiveProgressStatus, ProgramObjective
@@ -502,19 +503,15 @@ def _recompute_enrollment(db: Session, enrollment: RequirementEnrollment) -> Non
 
 def _upsert_source(
     db: Session, enrollment: RequirementEnrollment, node_uuid: str, *,
-    plan_progress: PlanObjectiveProgress | None = None, legacy_progress: ObjectiveProgress | None = None,
+    plan_progress: PlanObjectiveProgress | None = None, legacy_progress: ObjectiveProgress | None = None, step_progress: StepProgress | None = None,
     title: str, evidence: dict, verified_by: int | None, verified_at: datetime | None, active: bool,
 ) -> None:
-    statement = select(RequirementAttainmentSource).where(
-        RequirementAttainmentSource.enrollment_id == enrollment.id,
-        RequirementAttainmentSource.node_uuid == node_uuid,
-    )
-    statement = statement.where(
-        RequirementAttainmentSource.plan_objective_progress_id == plan_progress.id
-    ) if plan_progress else statement.where(
-        RequirementAttainmentSource.objective_progress_id == legacy_progress.id
-    )
-    source = db.exec(statement).first()
+    same_progress = (RequirementAttainmentSource.step_progress_id == step_progress.id if step_progress
+                     else RequirementAttainmentSource.plan_objective_progress_id == plan_progress.id if plan_progress
+                     else RequirementAttainmentSource.objective_progress_id == legacy_progress.id)
+    source = db.exec(select(RequirementAttainmentSource).where(
+        RequirementAttainmentSource.enrollment_id == enrollment.id, RequirementAttainmentSource.node_uuid == node_uuid, same_progress,
+    )).first()
     now = _now()
     if not source:
         source = RequirementAttainmentSource(
@@ -522,6 +519,7 @@ def _upsert_source(
             node_uuid=node_uuid,
             plan_objective_progress_id=int(plan_progress.id) if plan_progress else None,
             objective_progress_id=int(legacy_progress.id) if legacy_progress else None,
+            step_progress_id=int(step_progress.id) if step_progress else None,
             creation_date=now.isoformat(), update_date=now.isoformat(),
         )
     source.objective_title = title

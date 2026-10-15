@@ -292,6 +292,8 @@ def _serialize_run(db_session: Session, run: LearningRun) -> LearningRunRead:
         issuing_org_id=run.issuing_org_id,
         plan_id=run.plan_id,
         plan_objective_id=run.plan_objective_id,
+        goal_id=run.goal_id,
+        goal_step_id=run.goal_step_id,
         user_id=run.user_id,
         status=run.status,
         started_at=run.started_at,

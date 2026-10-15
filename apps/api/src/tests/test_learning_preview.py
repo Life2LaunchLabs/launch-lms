@@ -127,7 +127,7 @@ async def test_unsaved_activities_preview_against_their_template():
 
 async def test_live_run_navigation_matches_the_preview_engine():
     """Live plan-step runs route exactly like the preview."""
-    from src.db.learning import LearningPageComplete, LearningResponseSubmit
+    from src.db.learning_requests import LearningPageComplete, LearningResponseSubmit
     from src.db.planning import Plan, PlanObjective
     from src.services.learning import runtime
     from src.services.learning.run_navigation import _run_navigation

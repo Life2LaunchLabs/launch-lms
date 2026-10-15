@@ -12,6 +12,7 @@ from src.db.learning import LearningBadge, LearningBadgeAward
 from src.db.media import MediaAsset, MediaOwnerType
 from src.db.organizations import Organization
 from src.db.planning import (
+    ALL_CAPABILITIES,
     DEFAULT_ROLE_DEFINITIONS,
     Plan,
     PlanActivity,
@@ -55,14 +56,6 @@ from src.services.plan_progress import progress_for as _progress_for, progress_v
 from src.services.plan_home import adaptive_future_groups as _adaptive_future_groups
 from src.services.plan_availability import apply_template_order, plan_availability, validated_prerequisites
 from src.services.template_versions import issued_program
-
-ALL_CAPABILITIES = {
-    "view_plan", "comment", "contribute_fields", "update_progress",
-    "request_collaborators", "contribute_restricted_fields", "complete_restricted_objectives",
-    "review_badge_submissions", "edit_plan_details", "edit_structure",
-    "edit_schedule", "complete_plan", "archive_plan", "manage_collaborators",
-    "manage_roles",
-}
 
 LEGACY_CAPABILITY_ALIASES = {
     "contribute_reviewer_fields": "contribute_restricted_fields",

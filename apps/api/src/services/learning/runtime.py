@@ -7,13 +7,12 @@ from sqlmodel import Session, select
 from src.db.learning import (
     LearningActivity,
     LearningPage,
-    LearningPageComplete,
     LearningPageProgress,
     LearningResponseAttempt,
-    LearningResponseSubmit,
     LearningRunRead,
     LearningRunStatus,
 )
+from src.db.learning_requests import LearningPageComplete, LearningResponseSubmit
 from src.db.users import PublicUser, User
 from src.services.learning_portfolio_actions import (
     PortfolioActionError,
