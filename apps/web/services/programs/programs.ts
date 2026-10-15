@@ -63,11 +63,6 @@ export const requirementsApi = {
   publish: (orgId: number, uuid: string, token?: string) => planningRequest(`/requirements/${encodeURIComponent(uuid)}/publish?org_id=${orgId}`, token, 'POST'),
   assign: (orgId: number, uuid: string, data: any, token?: string) => planningRequest(`/requirements/${encodeURIComponent(uuid)}/assignments?org_id=${orgId}`, token, 'POST', data),
   migrateActive: (orgId: number, uuid: string, enrollmentUuids: string[] | null, token?: string) => planningRequest(`/requirements/${encodeURIComponent(uuid)}/migrate-active?org_id=${orgId}`, token, 'POST', { enrollment_uuids: enrollmentUuids }),
-  report: (orgId: number, filters: { framework_uuid?: string; version?: number; usergroup_id?: number; node_uuid?: string; status?: string }, token?: string) => {
-    const params = new URLSearchParams({ org_id: String(orgId) })
-    Object.entries(filters).forEach(([key, value]) => { if (value !== undefined && value !== '') params.set(key, String(value)) })
-    return planningRequest(`/requirements/report?${params.toString()}`, token)
-  },
   coverage: (orgId: number, uuid: string, token?: string) => planningRequest(`/requirements/${encodeURIComponent(uuid)}/coverage?org_id=${orgId}`, token),
 }
 
