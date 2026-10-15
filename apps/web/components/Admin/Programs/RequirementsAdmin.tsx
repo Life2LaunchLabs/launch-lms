@@ -15,7 +15,7 @@ import { Label } from '@components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@components/ui/select'
 import { Textarea } from '@components/ui/textarea'
 import { getAPIUrl, getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config'
-import { requirementsApi } from '@services/programs/programs'
+import { requirementsApi } from '@services/goals/requirements'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { cn } from '@/lib/utils'
 

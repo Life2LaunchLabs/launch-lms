@@ -17,13 +17,13 @@ function KeepGoing({ cards, orgslug }: { cards: BadgeCard[]; orgslug: string }) 
     <SectionTitle>Keep going</SectionTitle>
     <Shelf label="Badges you’re earning">
       {cards.map((card) => {
-        const percent = card.plan?.total ? Math.round((card.plan.done * 100) / card.plan.total) : 0
-        return <Link key={card.badge_uuid} href={getUriWithOrg(orgslug, routePaths.org.plan(card.plan!.slug))} aria-label={`${card.name}: Continue plan`}
+        const percent = card.goal?.total ? Math.round((card.goal.done * 100) / card.goal.total) : 0
+        return <Link key={card.badge_uuid} href={getUriWithOrg(orgslug, routePaths.org.plan(card.goal!.goal_uuid))} aria-label={`${card.name}: Keep going`}
           className="group flex w-[min(340px,80vw)] shrink-0 items-center gap-3 rounded-2xl border-2 border-border bg-card p-3 text-foreground no-underline shadow-[0_4px_0_hsl(var(--edge))]">
           <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl" style={{ backgroundColor: tileColor(card.badge_uuid) }}><BadgeSticker src={card.thumbnail_image} name={card.name} size={48} /></span>
           <span className="flex min-w-0 flex-1 flex-col gap-1.5">
             <span className="truncate text-base font-extrabold">{card.name}</span>
-            <span className="text-[13px] text-muted-foreground">{card.plan!.done} of {card.plan!.total} steps done</span>
+            <span className="text-[13px] text-muted-foreground">{card.goal!.done} of {card.goal!.total} steps done</span>
             <span className="block h-2.5 overflow-hidden rounded-full bg-muted"><span className="block h-full rounded-full bg-[var(--org-primary-color)]" style={{ width: `${percent}%` }} /></span>
           </span>
           <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--org-primary-color)] text-[var(--org-on-primary-color)] transition group-hover:scale-105"><ArrowRight size={16} /></span>
@@ -57,7 +57,7 @@ export default function DiscoverFeed({ orgslug, showBadges = true, showResources
   if (!showBadges) return <div className="flex flex-col gap-9 text-foreground"><ResourceShelves orgslug={orgslug} /></div>
   if (error) return <p className="rounded-2xl bg-card p-6 text-sm font-medium text-muted-foreground">Badges couldn’t load. Refresh to try again.</p>
   if (!feed) return <Skeleton />
-  const startable = feed.badges.filter((card) => !card.collection && !card.plan).sort((a, b) => Number(a.status === 'coming_soon') - Number(b.status === 'coming_soon'))
+  const startable = feed.badges.filter((card) => !card.collection && !card.goal).sort((a, b) => Number(a.status === 'coming_soon') - Number(b.status === 'coming_soon'))
   return <div className="flex flex-col gap-9 text-foreground">
     <DiscoverHero slides={feed.hero_slides} orgslug={orgslug} />
     <KeepGoing cards={feed.keep_going} orgslug={orgslug} />

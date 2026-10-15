@@ -12,19 +12,23 @@ export type EditableFieldState = {
 export type ObjectEditState = Record<string, EditableFieldState>
 export type FieldReviewOutcome = 'accepted' | 'customized' | 'rejected' | 'entered'
 
-type RecoverableNewPlanRun = {
+type RecoverableNewGoalRun = {
   status: string
   scope: { kind: string }
   objects: Array<{ object_key: string; status: string }>
   events: Array<{ sequence: number; kind: string }>
 }
 
-export function shouldOpenHubNewPlanEditor(run: RecoverableNewPlanRun | null | undefined) {
-  if (!run || run.status !== 'active' || run.scope.kind !== 'new_plan') return false
-  const object = run.objects.find((item) => item.object_key === 'new-plan')
+/** The edit object key of the new-goal form Coach fills in. */
+export const NEW_GOAL_OBJECT_KEY = 'new-goal'
+
+/** Whether a new-goal run still needs its form: nothing saved yet, or Coach proposed details again since. */
+export function shouldOpenHubNewGoalEditor(run: RecoverableNewGoalRun | null | undefined) {
+  if (!run || run.status !== 'active' || run.scope.kind !== 'new_goal') return false
+  const object = run.objects.find((item) => item.object_key === NEW_GOAL_OBJECT_KEY)
   if (!object || object.status === 'editing') return true
-  const lastProposal = Math.max(0, ...run.events.filter((event) => event.kind === 'plan.proposed').map((event) => event.sequence))
-  const lastDecision = Math.max(0, ...run.events.filter((event) => event.kind === 'plan.cancelled' || event.kind === 'plan.saved' || event.kind === 'plan.created').map((event) => event.sequence))
+  const lastProposal = Math.max(0, ...run.events.filter((event) => event.kind === 'goal.proposed').map((event) => event.sequence))
+  const lastDecision = Math.max(0, ...run.events.filter((event) => ['goal.cancelled', 'goal.saved', 'goal.created'].includes(event.kind)).map((event) => event.sequence))
   return lastProposal > lastDecision
 }
 

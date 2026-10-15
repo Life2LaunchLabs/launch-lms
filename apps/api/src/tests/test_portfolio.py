@@ -37,7 +37,7 @@ from src.tests.test_badge_marketplace import _create_badge, _create_tables
 
 
 def _session():
-    """Portfolio tables plus the planning tables the starter plan checklist needs, with org 1."""
+    """Portfolio tables plus the goal tables the starter goal checklist needs, with org 1."""
     engine = create_engine(
         "sqlite:///:memory:", connect_args={"check_same_thread": False}
     )
@@ -54,6 +54,13 @@ def _session():
         TimelineProjectLink,
     ):
         model.__table__.create(engine)
+    from src.db.goals import Goal, GoalAssignment, GoalStage, GoalStep, GoalStory, GoalTemplate, GoalTemplateVersion, StepEntry, StepProgress
+    from src.db.learning import BadgeIssuerLearnerLink, LearningActivity, LearningPage, LearningPageProgress, LearningResponseAttempt, LearningRun
+    from src.db.planning import OrganizationPlanRole, PlanActivity, PlanCollaborator, PlanRole
+
+    for model in (LearningActivity, LearningPage, LearningRun, LearningPageProgress, LearningResponseAttempt, BadgeIssuerLearnerLink,
+                  PlanRole, PlanCollaborator, PlanActivity, OrganizationPlanRole, GoalTemplate, GoalTemplateVersion, GoalAssignment, Goal, GoalStage, GoalStep, StepProgress, StepEntry, GoalStory):
+        model.__table__.create(engine, checkfirst=True)
     session = Session(engine)
     session.add(
         Organization(
@@ -86,7 +93,9 @@ def _public(user):
     return PublicUser.model_validate(user)
 
 
-def test_checklist_is_the_learners_starter_plan():
+def test_checklist_is_the_learners_starter_goal():
+    from src.db.goals import Goal
+
     with _session() as db:
         user = _user()
         db.add(user)
@@ -95,22 +104,22 @@ def test_checklist_is_the_learners_starter_plan():
 
         checklist = service.get_owner_shell(actor, db)["checklist"]
 
-        plans = db.exec(select(Plan).where(Plan.subject_user_id == 1)).all()
-        assert len(plans) == 1
-        assert checklist["plan"]["plan_uuid"] == plans[0].plan_uuid
+        goals = db.exec(select(Goal).where(Goal.subject_user_id == 1)).all()
+        assert len(goals) == 1
+        assert checklist["goal"]["goal_uuid"] == goals[0].goal_uuid
         assert checklist["total"] == 6
         # A learner who already has a name has done the Welcome step.
         assert checklist["completed"] == 1
         assert checklist["nextIncomplete"] == checklist["items"][1]
-        assert checklist["items"][0]["href"].startswith(f"/plans/{plans[0].slug}/objectives/")
+        assert checklist["items"][0]["href"].startswith(f"/plans/{goals[0].goal_uuid}/steps/")
 
         service.create_timeline(TimelineEntryCreate(title="A previous experience"), actor, db)
         checklist = service.get_owner_shell(actor, db)["checklist"]
 
-        assert len(db.exec(select(Plan).where(Plan.subject_user_id == 1)).all()) == 1
+        assert len(db.exec(select(Goal).where(Goal.subject_user_id == 1)).all()) == 1
         assert [item["complete"] for item in checklist["items"]] == [True, True, False, False, False, False]
         assert checklist["completed"] == 2
-        # Finishing the checklist awards nothing: Launch Ready is a plan, not a badge.
+        # Finishing the checklist awards nothing: Launch Ready is a goal, not a badge.
         assert db.exec(select(LearningBadgeAward)).all() == []
 
 

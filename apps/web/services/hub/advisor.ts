@@ -1,12 +1,13 @@
 import { getAPIUrl } from '@services/config/config'
 import type { ResourceType } from '@services/resources/resources'
+import type { StepConfigs, StepTypeKey } from '@services/goals/types'
 import { RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/requests'
 
 
 export type HubSurfaceHint = {
-  surface: 'plan' | 'plans' | 'group_plan' | 'unsupported'
+  surface: 'goal' | 'goals' | 'group_goal' | 'unsupported'
   entity_id?: string
-  selected_objective_id?: string
+  selected_step_id?: string
   visible_ids?: string[]
   page_path?: string
   page_title?: string
@@ -17,7 +18,8 @@ export type HubPageReceipt = {
   page_path?: string
   page_title?: string
   truncated?: boolean
-  sources: Array<{ source_type?: 'group_plan'; plan_id: string; assignment_id?: string; title: string; objective_id?: string; objective_title?: string; updated_at: string; page_path?: string; page_title?: string }>
+  // Receipts saved before goals carry objective_title instead of step_title.
+  sources: Array<{ source_type?: 'group_goal' | 'group_plan'; goal_id?: string; assignment_id?: string; title: string; step_id?: string; step_title?: string; objective_title?: string; updated_at: string; page_path?: string; page_title?: string }>
 }
 
 export type HubAdvisorResource = {
@@ -52,7 +54,7 @@ export type HubSuggestedAction = {
   primary_behavior?: 'navigate' | 'begin_edit'
   primary_label?: string
   alternate_label?: string
-  edit_scope?: { kind: 'new_plan' | 'plan'; label: string }
+  edit_scope?: { kind: HubEditScopeKind | 'new_plan' | 'plan'; label: string }
 }
 
 export type HubEditRunEvent = {
@@ -68,27 +70,42 @@ export type HubEditRunEvent = {
   created_at: string
 }
 
+/** A stage Coach proposes; ``local_id`` is its edit object key and its request key when saved. */
+export type HubProposedStage = { local_id: string; title: string; description: string; timing: string }
+
+/** A typed step Coach proposes, its config already checked by the step registry. */
+export type HubProposedStep = {
+  local_id: string
+  type: StepTypeKey
+  title: string
+  description: string
+  config: StepConfigs[StepTypeKey]
+  due_date: string
+  stage_title: string
+  materials?: Array<Record<string, unknown>>
+}
+
 export type HubEditOperation = {
   operation_id: string
-  type: 'set_new_plan_details'
-  object_type: 'plan'
+  type: 'set_new_goal_details'
+  object_type: 'goal'
   object_uuid?: string | null
   object_label: string
-  fields: { name: string; description: string; due_date: string }
+  fields: { title: string; description: string; target_date: string }
 } | {
   operation_id: string
-  type: 'add_plan_phases'
-  object_type: 'phase'
+  type: 'add_goal_stages'
+  object_type: 'stage'
   object_uuid?: string | null
   object_label: string
-  phases: Array<{ local_id: string; name: string; description: string; due_date: string }>
+  stages: HubProposedStage[]
 } | {
   operation_id: string
-  type: 'add_plan_objectives'
-  object_type: 'objective'
+  type: 'add_goal_steps'
+  object_type: 'step'
   object_uuid?: string | null
   object_label: string
-  objectives: Array<{ local_id: string; title: string; description: string; due_date: string; phase_name: string }>
+  steps: HubProposedStep[]
 } | {
   operation_id: string
   type: 'propose_edit_conclusion'
@@ -98,11 +115,14 @@ export type HubEditOperation = {
   summary: string
 }
 
+/** What a run may edit: a goal still being created, or one saved goal. */
+export type HubEditScopeKind = 'new_goal' | 'goal'
+
 export type HubEditRun = {
   run_uuid: string
   conversation_uuid: string
   goal: string
-  scope: { kind: 'new_plan' | 'plan'; target_uuid?: string | null; label: string; route: string }
+  scope: { kind: HubEditScopeKind; target_uuid?: string | null; label: string; route: string }
   status: 'active' | 'cancelled' | 'completed'
   created_at: string
   updated_at: string
@@ -251,8 +271,9 @@ export function updateHubEditRunGoal(orgId: number, runUuid: string, goal: strin
   return hubRequest<HubEditRun>(`edit-runs/${encodeURIComponent(runUuid)}/goal?org_id=${encodeURIComponent(orgId)}`, 'PATCH', accessToken, { goal })
 }
 
-export function bindHubEditRunPlan(orgId: number, runUuid: string, planIdentifier: string, accessToken: string) {
-  return hubRequest<HubEditRun>(`edit-runs/${encodeURIComponent(runUuid)}/plan-target?org_id=${encodeURIComponent(orgId)}`, 'POST', accessToken, { plan_identifier: planIdentifier })
+/** Points a new-goal run at the personal goal the learner just saved, so Coach can keep building it. */
+export function bindHubEditRunGoal(orgId: number, runUuid: string, goalUuid: string, accessToken: string) {
+  return hubRequest<HubEditRun>(`edit-runs/${encodeURIComponent(runUuid)}/goal-target?org_id=${encodeURIComponent(orgId)}`, 'POST', accessToken, { goal_uuid: goalUuid })
 }
 
 export function saveHubEditObjectState(

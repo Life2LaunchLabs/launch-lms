@@ -165,6 +165,15 @@ def _private_version(db: Session, template: GoalTemplate, legacy: ProgramTemplat
     return version
 
 
+def _step_dates(schedule: dict | None) -> dict:
+    """Per-objective dates; an objective's first step keeps its uuid as the key."""
+    dates = {}
+    for item in (schedule or {}).get("objectives") or []:
+        if item.get("objective_uuid") and (item.get("due_date") or item.get("allow_late")):
+            dates[item["objective_uuid"]] = {"due_date": item.get("due_date"), "allow_late": bool(item.get("allow_late"))}
+    return dates
+
+
 def _stage_dates(schedule: dict | None) -> dict:
     dates = {}
     for phase in (schedule or {}).get("phases") or []:
@@ -186,6 +195,7 @@ def migrate_assignment(db: Session, assignment: ProgramAssignment, maps: Templat
         usergroup_id=assignment.usergroup_id, user_id=assignment.user_id, subject_email=assignment.subject_email,
         welcome_message=assignment.welcome_message or "", staff_user_ids=list(assignment.staff_user_ids or []),
         start_date=_date(assignment.start_date), due_date=_date(assignment.due_date), stage_dates=_stage_dates(assignment.schedule),
+        step_dates=_step_dates(assignment.schedule), collaborators=[dict(item) for item in assignment.collaborators or [] if item.get("user_id")],
         active=assignment.active, owner_user_id=assignment.owner_user_id, created_by_user_id=assignment.created_by_user_id,
         creation_date=assignment.creation_date, update_date=assignment.update_date,
     )

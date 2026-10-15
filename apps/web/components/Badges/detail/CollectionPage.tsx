@@ -22,7 +22,7 @@ export default function CollectionPage({ orgslug, initialCollection }: { orgslug
   const { data: collection = initialCollection } = useSWR(['badge-collection', initialCollection.collection_uuid, token || 'public'], () => badgeDiscoverApi.collection(initialCollection.collection_uuid, token), { fallbackData: initialCollection, revalidateOnMount: Boolean(token) })
   const earned = collection.badges.filter((card) => card.earned).length
   const percent = collection.badges.length ? Math.round((earned * 100) / collection.badges.length) : 0
-  const next = collection.badges.find((card) => card.plan) || collection.badges.find((card) => !card.earned && card.status === 'published')
+  const next = collection.badges.find((card) => card.goal) || collection.badges.find((card) => !card.earned && card.status === 'published')
   return <div className="min-h-screen bg-background text-[15px] leading-[1.45] text-foreground">
     <div className="mx-auto max-w-[1056px] px-6"><ContentPageHeader orgslug={orgslug} backLabel="Discover" onBack={() => router.push(getUriWithOrg(orgslug, routePaths.org.discover()))} noBottomMargin noHorizontalBleed /></div>
     <section className="relative overflow-hidden bg-muted">
@@ -50,9 +50,9 @@ export default function CollectionPage({ orgslug, initialCollection }: { orgslug
         <div className="flex flex-[1_1_260px] flex-col gap-0.5">
           <span className="text-xs font-black uppercase tracking-[.08em] text-[#D7F25C]">Your next badge</span>
           <strong className="text-[28px] font-black">{next.name}</strong>
-          <span className="text-[#C6CAD6]">{next.plan ? `${next.plan.done} of ${next.plan.total} steps done.` : next.subtitle || 'Ready when you are.'}</span>
+          <span className="text-[#C6CAD6]">{next.goal ? `${next.goal.done} of ${next.goal.total} steps done.` : next.subtitle || 'Ready when you are.'}</span>
         </div>
-        <Link href={next.plan ? getUriWithOrg(orgslug, routePaths.org.plan(next.plan.slug)) : getUriWithOrg(orgslug, routePaths.org.badgeDetail(next.badge_uuid.replace(/^badge_/, '')))} className={cn(CHUNKY, 'h-[54px] text-[17px] no-underline')}>{next.plan ? 'Keep going' : 'Start it'}</Link>
+        <Link href={next.goal ? getUriWithOrg(orgslug, routePaths.org.plan(next.goal.goal_uuid)) : getUriWithOrg(orgslug, routePaths.org.badgeDetail(next.badge_uuid.replace(/^badge_/, '')))} className={cn(CHUNKY, 'h-[54px] text-[17px] no-underline')}>{next.goal ? 'Keep going' : 'Start it'}</Link>
       </section> : null}
       <section aria-labelledby="all-badges" className="flex flex-col gap-[18px]">
         <h2 id="all-badges" className="m-0 text-3xl font-black">All {collection.badges.length} badges</h2>

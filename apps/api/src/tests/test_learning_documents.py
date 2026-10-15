@@ -6,6 +6,7 @@ import pytest
 from fastapi import HTTPException
 from sqlmodel import Session, create_engine, select
 
+from src.db.goals import GoalAssignment, GoalTemplate, GoalTemplateVersion
 from src.db.learning import LearningActivity, LearningPage, LearningPageType
 from src.db.learning_previews import LearningActivityPreview
 from src.db.programs import Objective, ObjectiveKind, Program, ProgramObjective, ProgramPhase
@@ -60,6 +61,19 @@ def _flow(made: str = P2, other: str = P3, entry: str = P1) -> dict:
             {"from": f"page:{other}", "to": "complete", "priority": 0},
         ],
     }
+
+
+def _goal_template(session: Session, template_id: int, template_uuid: str, org_id: int, title: str, activity_id: int, activity_uuid: str, step_key: str) -> None:
+    """The goal template an activity belongs to (moved plans keep their uuids: template = program, step key = objective)."""
+    for model in (GoalTemplate, GoalTemplateVersion, GoalAssignment):
+        model.__table__.create(session.get_bind(), checkfirst=True)
+    session.add(GoalTemplate(id=template_id, template_uuid=template_uuid, org_id=org_id, title=title, document={
+        "format": "launch-lms.goal-template", "format_version": 1, "template": {"title": title},
+        "stages": [{"key": f"stage_{template_id}", "title": "Explore", "steps": [{"key": step_key, "type": "activity", "title": "Career interests", "config": {"activity_uuid": activity_uuid}}]}],
+    }))
+    session.flush()
+    session.get(LearningActivity, activity_id).goal_template_id = template_id
+    session.commit()
 
 
 def _world(system_type: str | None = None):

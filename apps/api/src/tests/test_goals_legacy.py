@@ -47,6 +47,8 @@ def test_media_fields_become_one_upload_with_a_slot_each_and_keep_the_objective_
     [upload] = conversion.steps
     assert upload.type == "upload" and upload.title == "Portfolio"
     assert [slot["key"] for slot in upload.config["slots"]] == ["resume", "photo"]
+    # Plans never required media fields, so neither slot holds the step back on its own.
+    assert all(slot["optional"] for slot in upload.config["slots"])
     assert upload.source_field_uuids == ["resume", "photo"]
 
 

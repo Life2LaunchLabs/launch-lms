@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { CalendarDays, ClipboardCheck, Layers3, Loader2, Plus, Settings, Trash2, Users } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { ClipboardCheck, Layers3, Loader2, Settings, Trash2, Users } from 'lucide-react'
 import { motion } from 'motion/react'
 import useSWR from 'swr'
 import toast from 'react-hot-toast'
@@ -12,15 +12,14 @@ import ManageUsers from '@components/Objects/Modals/Dash/OrgUserGroups/ManageUse
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { deleteUserGroup, updateUserGroup } from '@services/usergroups/usergroups'
-import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
-import { swrFetcher } from '@services/utils/ts/requests'
+import { getUriWithOrg, routePaths } from '@services/config/config'
+import { cohortKey, goalAdminApi } from '@services/goals/admin'
 import React from 'react'
-import ProgramAssignmentModal from '@components/Admin/Programs/ProgramAssignmentModal'
-import GroupRequirementsGrid from '@components/Admin/Plans/GroupRequirementsGrid'
-import GroupPlansGrid from '@components/Admin/Plans/GroupPlansGrid'
+import GroupRequirementsGrid from '@components/Goals/admin/live/GroupRequirementsGrid'
+import { CohortGoals } from '@components/Goals/admin/live/CohortGoals'
 
 const tabs = [
-  { id: 'plans', label: 'Plans', icon: Layers3 },
+  { id: 'plans', label: 'Goals', icon: Layers3 },
   { id: 'requirements', label: 'Requirements', icon: ClipboardCheck },
   { id: 'members', label: 'Members', icon: Users },
   { id: 'settings', label: 'Settings', icon: Settings },
@@ -33,8 +32,8 @@ export default function GroupAdminDetail({ orgslug, groupId, subpage = 'plans' }
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
   const activeSubpage: GroupSubpage = tabs.some((tab) => tab.id === subpage) ? subpage : 'plans'
-  const key = org?.id && accessToken ? `${getAPIUrl()}planning/cohorts/${groupId}?org_id=${org.id}` : null
-  const { data, isLoading, mutate } = useSWR(key, (url) => swrFetcher(url, accessToken), { revalidateOnFocus: false })
+  const key = org?.id && accessToken ? cohortKey(groupId, Number(org.id)) : null
+  const { data, isLoading, mutate } = useSWR(key, () => goalAdminApi.cohort(Number(org.id), groupId, accessToken), { revalidateOnFocus: false })
 
   if (isLoading || !data) {
     return <div className="flex min-h-[400px] items-center justify-center bg-[#f8f8f8]"><Loader2 className="h-7 w-7 animate-spin text-muted-foreground" /></div>
@@ -62,7 +61,7 @@ export default function GroupAdminDetail({ orgslug, groupId, subpage = 'plans' }
           orgId={Number(org.id)}
           canEdit
           entityName="Group"
-          fallbackDescription="Plans, requirements and members for this group."
+          fallbackDescription="Goals, requirements and members for this group."
           fallbackIcon={<Users size={32} strokeWidth={1.5} />}
           metadata={<><Users size={14} />{data.learner_count} member{data.learner_count === 1 ? '' : 's'}</>}
           updateItem={updateGroup}
@@ -83,33 +82,11 @@ export default function GroupAdminDetail({ orgslug, groupId, subpage = 'plans' }
       </div>
       <div className="h-6" />
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.1 }}>
-        {activeSubpage === 'plans' ? <GroupPlans orgslug={orgslug} orgId={Number(org.id)} token={accessToken} groupId={groupId} programs={data.programs || []} completedPrograms={data.completed_programs || []} refresh={mutate} /> : null}
+        {activeSubpage === 'plans' ? <CohortGoals orgslug={orgslug} orgId={Number(org.id)} token={accessToken} groupId={groupId} cohort={data} refresh={() => mutate()} /> : null}
         {activeSubpage === 'requirements' ? <div className="px-10 pb-10"><GroupRequirementsGrid orgslug={orgslug} orgId={Number(org.id)} token={accessToken} groupId={groupId} /></div> : null}
         {activeSubpage === 'members' ? <div className="px-10 pb-10"><section className="rounded-xl bg-card p-6 shadow-xs"><ManageUsers usergroup_id={groupId} embedded /></section></div> : null}
         {activeSubpage === 'settings' ? <GroupSettings orgslug={orgslug} group={group} /> : null}
       </motion.div>
-    </div>
-  )
-}
-
-function GroupPlans({ orgslug, orgId, token, groupId, programs, completedPrograms, refresh }: { orgslug: string; orgId: number; token?: string; groupId: number; programs: any[]; completedPrograms: any[]; refresh: () => Promise<any> }) {
-  const router = useRouter()
-  const params = useSearchParams()
-  const all = [...programs, ...completedPrograms]
-  const requested = params.get('assignment')
-  const current = all.find((item) => item.assignment_uuid === requested) || programs[0] || completedPrograms[0]
-  const choose = (uuid: string) => router.replace(getUriWithOrg(orgslug, routePaths.org.dash.users.groupPlans(groupId, uuid)))
-  const assign = <ProgramAssignmentModal initialGroupIds={[groupId]} onAssigned={refresh} trigger={<button className="inline-flex h-9 items-center gap-2 rounded-full border border-gray-200 bg-white px-4 text-sm font-medium hover:bg-gray-50"><Plus size={15} />Assign a template</button>} />
-  if (!current) return <div className="px-10 pb-10"><div className="rounded-xl border-2 border-dashed border-border bg-card py-16 text-center"><Layers3 className="mx-auto h-9 w-9 text-gray-300" /><p className="mt-3 text-sm text-muted-foreground">No templates are assigned to this group yet.</p><div className="mt-4 flex justify-center">{assign}</div></div></div>
-  return (
-    <div className="space-y-4 px-10 pb-10">
-      <div className="flex flex-wrap items-center gap-2">
-        {all.map((program) => <button key={program.assignment_uuid} type="button" onClick={() => choose(program.assignment_uuid)} aria-pressed={program.assignment_uuid === current.assignment_uuid} className={`inline-flex h-9 items-center gap-2 rounded-full border px-4 text-sm font-semibold ${program.assignment_uuid === current.assignment_uuid ? 'border-black bg-black text-white' : 'border-gray-200 bg-white text-gray-800 hover:bg-gray-50'}`}>{program.program_name}{!program.active ? <span className="text-[10px] font-bold uppercase opacity-70">ended</span> : <span className={`text-xs ${program.assignment_uuid === current.assignment_uuid ? 'text-white/70' : 'text-gray-500'}`}>{program.progress_percent}%</span>}</button>)}
-        <span className="flex-1" />
-        <span className="inline-flex items-center gap-1.5 text-xs text-gray-500"><CalendarDays size={13} />{current.due_date ? `${current.active ? 'Ends' : 'Ended'} ${new Date(current.due_date).toLocaleDateString()}` : 'Self paced'}{current.staff?.length ? ` · Staff: ${current.staff.map((person: any) => [person.first_name, person.last_name].filter(Boolean).join(' ') || person.username).join(', ')}` : ''}</span>
-        {assign}
-      </div>
-      <GroupPlansGrid orgslug={orgslug} orgId={orgId} token={token} assignmentUuid={current.assignment_uuid} />
     </div>
   )
 }

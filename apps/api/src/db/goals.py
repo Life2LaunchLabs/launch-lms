@@ -140,6 +140,10 @@ class GoalAssignment(SQLModel, table=True):
     due_date: date | None = Field(default=None, sa_column=Column(Date, nullable=True))
     # Dates per stage key: {"<stage key>": {"start_date": "...", "due_date": "..."}}.
     stage_dates: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    # Step key -> {"due_date", "allow_late"}: per-step dates set when assigning.
+    step_dates: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False, server_default="{}"))
+    # [{"user_id", "role_key"}]: people added to each issued goal with a role.
+    collaborators: list[dict] = Field(default_factory=list, sa_column=Column(JSON, nullable=False, server_default="[]"))
     active: bool = True
     owner_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True, index=True))
     created_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
@@ -167,6 +171,8 @@ class Goal(SQLModel, table=True):
     description: str = ""
     status: GoalStatus = Field(default=GoalStatus.ACTIVE, sa_column=Column(String, nullable=False, index=True))
     step_order: StepOrder = Field(default=StepOrder.ANY, sa_column=Column(String, nullable=False, server_default="any"))
+    # Higher comes first in This week.
+    priority: int = Field(default=1, sa_column=Column(Integer, nullable=False, server_default="1"))
     start_date: date | None = Field(default=None, sa_column=Column(Date, nullable=True))
     target_date: date | None = Field(default=None, sa_column=Column(Date, nullable=True))
     finished_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))

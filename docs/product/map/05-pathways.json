@@ -191,7 +191,7 @@
           "references": [
             {
               "kind": "code",
-              "path": "apps/web/components/Plans/learner/PlansHome.tsx"
+              "path": "apps/web/components/Goals/home/GoalsHome.tsx"
             },
             {
               "kind": "code",
@@ -199,7 +199,7 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Plans/learner/PlansHome.tsx"
+              "path": "apps/web/components/Goals/home/GoalsHome.tsx"
             }
           ],
           "relationships": []
@@ -369,15 +369,15 @@
           "references": [
             {
               "kind": "code",
-              "path": "apps/web/components/Plans/learner/PlanView.tsx"
+              "path": "apps/web/components/Goals/learner/GoalPath.tsx"
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Plans/learner/StepStack.tsx"
+              "path": "apps/web/components/Goals/learner/GoalStepRow.tsx"
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Plans/learner/PlanHeaderActions.tsx"
+              "path": "apps/web/components/Goals/learner/GoalHeaderActions.tsx"
             },
             {
               "kind": "code",
@@ -666,7 +666,7 @@
               "references": [
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Plans/learner/PlansHome.tsx"
+                  "path": "apps/web/components/Goals/home/GoalsHome.tsx"
                 },
                 {
                   "kind": "test",
@@ -865,7 +865,7 @@
               "references": [
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Plans/PlansWorkspace.tsx",
+                  "path": "apps/web/components/Goals/learner/GoalsWorkspace.tsx",
                   "symbol": "byDueDate,PlanEditor",
                   "responsibility": "Orders explicitly dated objectives chronologically within each live-plan section."
                 }
@@ -944,7 +944,7 @@
           "references": [
             {
               "kind": "code",
-              "path": "apps/web/components/Plans/PlansWorkspace.tsx"
+              "path": "apps/web/components/Goals/learner/GoalsWorkspace.tsx"
             },
             {
               "kind": "code",
@@ -1240,7 +1240,7 @@
               "references": [
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Plans/learner/StepStack.tsx"
+                  "path": "apps/web/components/Goals/learner/GoalStepRow.tsx"
                 },
                 {
                   "kind": "test",
@@ -1818,7 +1818,7 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Plans/learner/PlansHome.tsx"
+              "path": "apps/web/components/Goals/home/GoalsHome.tsx"
             },
             {
               "kind": "test",
@@ -2522,7 +2522,7 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Admin/Programs/AdminLivePlanDetail.tsx",
+              "path": "apps/web/components/Goals/admin/live/StaffGoalDetail.tsx",
               "symbol": "ActivityAndFiles",
               "responsibility": "Presents plan discussion, audit history, and shared files in the individual live-plan workspace."
             }
@@ -2983,7 +2983,7 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Admin/Programs/AdminLivePlanDetail.tsx",
+              "path": "apps/web/components/Goals/admin/live/StaffGoalDetail.tsx",
               "symbol": "Objectives, PlanSettings",
               "responsibility": "Lets authorized staff update learner-specific objective definitions, plan details, priority, and schedule."
             }
@@ -3253,7 +3253,7 @@
               "references": [
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Admin/Programs/ProgramsAdminPage.tsx",
+                  "path": "apps/web/components/Goals/admin/templates/TemplateDetail.tsx",
                   "symbol": "ObjectiveInlineCreator",
                   "responsibility": "Expands the shared objective editor directly within a template phase for inline save and cancel."
                 }
@@ -3332,7 +3332,7 @@
                 },
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Admin/Programs/ProgramAssignmentModal.tsx",
+                  "path": "apps/web/components/Goals/admin/templates/GoalAssignmentModal.tsx",
                   "symbol": "ScheduleStep,ProgramAssignmentModal",
                   "responsibility": "The template's Assign dialog: sets phase dates and per-objective due rules for the group or learners it is handed to."
                 }
@@ -3391,7 +3391,7 @@
               "references": [
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Admin/Programs/ProgramsAdminPage.tsx",
+                  "path": "apps/web/components/Goals/admin/templates/TemplateDetail.tsx",
                   "symbol": "ProgramList",
                   "responsibility": "Offers searchable library and blank paths from the new-template action."
                 }
@@ -3449,13 +3449,13 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Admin/Programs/ProgramsAdminPage.tsx",
+              "path": "apps/web/components/Goals/admin/templates/TemplateDetail.tsx",
               "symbol": "ObjectiveInlineCreator, TemplateRoles",
               "responsibility": "Creates template objectives inline with the shared card and edits compact template role summaries."
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Plans/PlanEditorShared.tsx",
+              "path": "apps/web/components/Goals/edit/StepEditor.tsx",
               "symbol": "PlanObjectiveDefinitionCard, PlanStepPicker, PlanPermissionChecklist",
               "responsibility": "Provides the shared objective, step, badge, and permission interactions used across template and live-plan surfaces."
             },
@@ -3808,7 +3808,7 @@
           "references": [
             {
               "kind": "code",
-              "path": "apps/web/components/Admin/Programs/ProgramsAdminPage.tsx",
+              "path": "apps/web/components/Goals/admin/templates/TemplateDetail.tsx",
               "symbol": "PlanStructureGuide, AssignmentRow, AssignmentSection",
               "responsibility": "Explains the managed-plan hierarchy and routes batch and individual assignments to the correct workspace."
             }
@@ -4003,13 +4003,13 @@
           "references": [
             {
               "kind": "code",
-              "path": "apps/web/components/Admin/Programs/AdminLivePlanDetail.tsx",
+              "path": "apps/web/components/Goals/admin/live/StaffGoalDetail.tsx",
               "symbol": "AdminLivePlanDetail",
               "responsibility": "Labels learner-specific live plans and preserves navigation back through their source assignment."
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Admin/Plans/GroupPlansGrid.tsx",
+              "path": "apps/web/components/Goals/admin/live/CohortMatrix.tsx",
               "symbol": "GroupPlansGrid",
               "responsibility": "The group's Plans tab: learners by steps grouped into chapters, with bulk mark done or excuse and review cells that open the review queue."
             }
@@ -4981,13 +4981,13 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Admin/Programs/ProgramObjectiveEditorRow.tsx",
+              "path": "apps/web/components/Goals/admin/templates/TemplateStepRow.tsx",
               "symbol": "RequirementMappings",
               "responsibility": "Lets administrators select requirement mappings for a template objective."
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Admin/Programs/ProgramsAdminPage.tsx",
+              "path": "apps/web/components/Goals/admin/templates/TemplateDetail.tsx",
               "symbol": "TemplateRequirementCoverage",
               "responsibility": "Summarizes mapped requirement coverage for a plan template."
             },
@@ -5404,7 +5404,7 @@
                 },
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Admin/Plans/RequirementEvidenceExport.tsx"
+                  "path": "apps/web/components/Goals/admin/live/RequirementEvidenceExport.tsx"
                 },
                 {
                   "kind": "test",
@@ -5861,7 +5861,7 @@
           "references": [
             {
               "kind": "code",
-              "path": "apps/web/components/Admin/Programs/ProgramsAdminPage.tsx",
+              "path": "apps/web/components/Goals/admin/templates/TemplateDetail.tsx",
               "symbol": "TemplateRequirementCoverage",
               "responsibility": "Shows mapped versus uncovered requirement leaves on a plan template."
             }

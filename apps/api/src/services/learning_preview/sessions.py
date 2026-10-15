@@ -21,7 +21,7 @@ from src.db.organizations import Organization
 from src.db.users import AnonymousUser, PublicUser
 from src.services import learning
 from src.services.learning_documents.document import export_document, prepare_document
-from src.services.learning_documents.store import activity_pages
+from src.services.learning_documents.store import activity_pages, template_by_uuid
 from src.services.learning_preview import engine
 
 PREVIEW_TTL = timedelta(hours=24)
@@ -30,7 +30,7 @@ TOKEN_PREFIX = "lpv_"
 
 class PreviewCreate(BaseModel):
     activity_uuid: str | None = Field(default=None, description="Preview this stored activity (or use it as the base for `document`).")
-    template_uuid: str | None = Field(default=None, description="Plan template the document belongs to when previewing a not-yet-saved activity.")
+    template_uuid: str | None = Field(default=None, description="Goal template the document belongs to when previewing a not-yet-saved activity.")
     document: dict | None = Field(default=None, description="An Activity Document to preview without saving it.")
     persona: dict = Field(default_factory=dict, description="Learner variables to start with, e.g. {'user.first_name': 'Sam'}.")
     source: str = Field(default="editor", pattern=r"^(editor|link|connector)$")
@@ -63,15 +63,13 @@ def preview_url(org: Organization, token: str) -> str:
 async def create_preview(
     request: Request, payload: PreviewCreate, current_user: PublicUser | AnonymousUser, db_session: Session
 ) -> dict:
-    from src.db.programs import Program
-
     activity = learning._get_activity(db_session, payload.activity_uuid) if payload.activity_uuid else None
-    template = None if activity or not payload.template_uuid else db_session.exec(select(Program).where(Program.program_uuid == payload.template_uuid)).first()
+    template = None if activity or not payload.template_uuid else template_by_uuid(db_session, payload.template_uuid)
     if activity is None and template is None:
         raise HTTPException(status_code=422, detail="Pass activity_uuid or template_uuid")
-    org_id = activity.org_id if activity else template.org_id  # type: ignore[union-attr]
+    org_id = activity.org_id if activity else template["org_id"]  # type: ignore[index]
     user = learning._require_org_admin(db_session, current_user, org_id)
-    system = learning._is_system_activity(db_session, activity) if activity else template.system_type is not None  # type: ignore[union-attr]
+    system = learning._is_system_activity(db_session, activity) if activity else template["system_type"] is not None  # type: ignore[index]
     existing = activity_pages(db_session, activity) if activity else []
     raw = payload.document if payload.document is not None else export_document(activity, existing) if activity else None
     if raw is None:

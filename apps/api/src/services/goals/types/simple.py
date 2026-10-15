@@ -51,6 +51,8 @@ class UploadSlot(Config):
     key: str = Field(min_length=1, max_length=120)
     label: str = Field(min_length=1, max_length=200)
     kinds: list[Literal["image", "video", "document", "link"]] = Field(default_factory=lambda: ["image", "document"], min_length=1)
+    # An optional slot doesn't hold the step back; a step whose slots are all optional needs one file in any of them.
+    optional: bool = False
 
 
 class UploadConfig(Config):
@@ -76,7 +78,11 @@ class Upload(StepType):
 
     def completion_blocker(self, state: StepState) -> str | None:
         missing = self._missing(state)
-        return f"Add {missing[0]['label']} first" if missing else None
+        required = [slot for slot in missing if not slot.get("optional")]
+        if required:
+            return f"Add {required[0]['label']} first"
+        slots = state.config.get("slots") or []
+        return "Add a file first" if slots and len(missing) == len(slots) else None
 
     def fraction(self, state: StepState) -> float:
         slots = state.config.get("slots") or []

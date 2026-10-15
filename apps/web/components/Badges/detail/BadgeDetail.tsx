@@ -32,7 +32,7 @@ function Hero({ page, orgslug, action, steps }: { page: BadgePage; orgslug: stri
           <div className="flex flex-wrap gap-2">{chips.map((chip) => <span key={chip} className="rounded-full border border-white/30 bg-card/15 px-3 py-1.5 text-sm font-bold text-white">{chip}</span>)}</div>
           <div className="mt-2.5 flex flex-wrap items-center gap-[18px]">
             <ActionButton action={action} className="min-h-11 px-6 text-sm" />
-            {!page.ways.plan && !page.earned ? <span className="max-w-[220px] text-sm text-[#EAF0FF]">It shows up in Plans as soon as you start.</span> : null}
+            {!page.ways.goal && !page.earned ? <span className="max-w-[220px] text-sm text-[#EAF0FF]">It shows up in Plans as soon as you start.</span> : null}
           </div>
         </div>
         <div className="relative flex min-h-[300px] flex-[1_1_320px] items-center justify-center sm:min-h-[380px]">
@@ -93,9 +93,9 @@ export default function BadgeDetail({ orgslug, initialPage }: { orgslug: string;
   const start = async (option: EarnOption) => {
     setBusy(true)
     try {
-      const plan = await badgeRoutesApi.start(page.badge_uuid, { program_uuid: option.route.program_uuid, issuer_org_id: option.issuer.org.id }, token)
+      const goal = await badgeRoutesApi.start(page.badge_uuid, { template_uuid: option.route.template_uuid, issuer_org_id: option.issuer.org.id }, token)
       toast.success('Added to Plans')
-      router.push(getUriWithOrg(orgslug, routePaths.org.plan(plan.slug)))
+      router.push(getUriWithOrg(orgslug, routePaths.org.plan(goal.goal_uuid)))
     } catch (error: any) {
       toast.error(error?.message || 'Could not start this badge.')
       setBusy(false)
@@ -115,7 +115,7 @@ export default function BadgeDetail({ orgslug, initialPage }: { orgslug: string;
   }
 
   const here = getUriWithOrg(orgslug, routePaths.org.badgeDetail(page.badge_uuid.replace(/^badge_/, '')))
-  const action: EarnAction = page.ways.plan ? { label: page.ways.plan.status === 'completed' ? 'See your plan' : 'Keep going', href: getUriWithOrg(orgslug, routePaths.org.plan(page.ways.plan.slug)) }
+  const action: EarnAction = page.ways.goal ? { label: page.ways.goal.status === 'finished' ? 'See your goal' : 'Keep going', href: getUriWithOrg(orgslug, routePaths.org.plan(page.ways.goal.goal_uuid)) }
     : page.earned ? { label: 'You earned this', href: getUriWithOrg(orgslug, routePaths.org.portfolioBadges()) }
     : page.status === 'coming_soon' ? { label: 'Coming soon', disabled: true }
     : !selected ? { label: 'Not open yet', disabled: true }

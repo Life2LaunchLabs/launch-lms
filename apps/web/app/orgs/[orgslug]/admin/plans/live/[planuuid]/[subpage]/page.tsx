@@ -1,10 +1,14 @@
-import { notFound } from 'next/navigation'
-import AdminLivePlanDetail, { type LivePlanSubpage } from '@components/Admin/Programs/AdminLivePlanDetail'
+import { notFound, redirect } from 'next/navigation'
+import StaffGoalDetail, { type StaffGoalSubpage } from '@components/Goals/admin/live/StaffGoalDetail'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 
-const subpages = new Set<LivePlanSubpage>(['overview', 'objectives', 'reviews', 'people', 'activity', 'settings'])
+// Kept here: a value exported from a client module reaches a server component only as a reference.
+const STAFF_GOAL_SUBPAGES: StaffGoalSubpage[] = ['overview', 'steps', 'reviews', 'people', 'activity', 'settings']
 
-export default async function AdminLivePlanSubpage({ params }: { params: Promise<{ orgslug: string; planuuid: string; subpage: string }> }) {
+export default async function StaffGoalSubpageRoute({ params }: { params: Promise<{ orgslug: string; planuuid: string; subpage: string }> }) {
   const { orgslug, planuuid, subpage } = await params
-  if (!subpages.has(subpage as LivePlanSubpage) || subpage === 'overview') notFound()
-  return <AdminLivePlanDetail orgslug={orgslug} planUuid={decodeURIComponent(planuuid)} activeSubpage={subpage as LivePlanSubpage} />
+  const goalUuid = decodeURIComponent(planuuid)
+  if (subpage === 'objectives') redirect(getUriWithOrg(orgslug, routePaths.org.dash.livePlan(goalUuid, 'steps')))
+  if (!STAFF_GOAL_SUBPAGES.includes(subpage as StaffGoalSubpage) || subpage === 'overview') notFound()
+  return <StaffGoalDetail orgslug={orgslug} goalUuid={goalUuid} activeSubpage={subpage as StaffGoalSubpage} />
 }

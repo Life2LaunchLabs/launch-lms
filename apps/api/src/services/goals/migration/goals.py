@@ -13,6 +13,7 @@ sources are re-pointed to the step that took them over.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from uuid import uuid4
 
 from sqlalchemy import update
@@ -73,6 +74,16 @@ def _value(item) -> str:
     return getattr(item, "value", item)
 
 
+def _celebrated_at(db: Session, plan: Plan):
+    """Finished plans that already greeted their learner stay greeted."""
+    from src.db.users import User
+    from src.services.plan_celebration import CELEBRATED_PLANS_KEY
+
+    user = db.get(User, plan.subject_user_id) if plan.subject_user_id else None
+    seen = ((user.details or {}).get(CELEBRATED_PLANS_KEY) or []) if user else []
+    return (plan.completed_at or datetime.now()) if plan.plan_uuid in seen else None
+
+
 def _source(db: Session, plan: Plan) -> tuple[GoalSource, GoalOwnership]:
     if plan.source_assignment_id:
         return GoalSource.ASSIGNMENT, GoalOwnership.EXTERNAL
@@ -96,7 +107,7 @@ def _goal(db: Session, plan: Plan, maps: TemplateMaps) -> Goal:
         ownership=ownership, source=source, template_id=template.id if template else None, version_id=version_id,
         assignment_id=assignment.id if assignment else None, badge_id=plan.source_badge_id, title=plan.name, description=plan.description or "",
         status=PLAN_STATUS.get(_value(plan.status), GoalStatus.ACTIVE), step_order=STEP_ORDER.get(plan.step_order or "any", "any"),
-        start_date=plan.start_date, target_date=plan.due_date, finished_at=plan.completed_at,
+        priority=plan.priority or 1, celebrated_at=_celebrated_at(db, plan), start_date=plan.start_date, target_date=plan.due_date, finished_at=plan.completed_at,
         creation_date=plan.creation_date, update_date=plan.update_date,
     )
     db.add(goal)

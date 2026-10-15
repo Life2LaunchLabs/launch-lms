@@ -6,7 +6,6 @@ import pytest
 from fastapi import HTTPException
 from sqlmodel import Session, create_engine, select
 from src.db.organizations import Organization
-from src.db.planning import Plan
 from src.db.users import User
 from src.services.users.email_verification import (
     NO_ORG_UUID,
@@ -376,12 +375,13 @@ def test_require_email_verification_env_var(
 
 
 @pytest.mark.asyncio
-async def test_welcome_onboarding_sends_guests_to_signup_and_learners_to_their_starter_plan():
+async def test_welcome_onboarding_sends_guests_to_signup_and_learners_to_their_starter_goal():
+    from src.db.goals import Goal
     from src.db.users import AnonymousUser, PublicUser
     from src.routers.auth import get_welcome_onboarding
-    from src.services.starter_plan import ensure_starter_plan, starter_checklist
+    from src.services.goals.starter import ensure_starter_goal, starter_checklist
     from src.tests.test_badge_marketplace import _create_user as create_user
-    from src.tests.test_starter_plan import _session
+    from src.tests.test_goal_starter import _session
 
     db = _session()
     assert await get_welcome_onboarding(None, AnonymousUser(), db) == {"redirect_url": "/signup"}
@@ -390,6 +390,7 @@ async def test_welcome_onboarding_sends_guests_to_signup_and_learners_to_their_s
     learner = PublicUser.model_validate(db.get(User, 10))
     result = await get_welcome_onboarding(None, learner, db)
 
-    checklist = starter_checklist(db, ensure_starter_plan(db, 10))
-    assert result == {"redirect_url": f"/orgs/owner{checklist['items'][0]['href']}"}
-    assert len(db.exec(select(Plan).where(Plan.subject_user_id == 10)).all()) == 1
+    checklist = starter_checklist(db, ensure_starter_goal(db, 10))
+    assert result == {"redirect_url": f"/orgs/studio{checklist['items'][0]['href']}"}
+    assert checklist["items"][0]["href"].startswith(f"/plans/{checklist['goal']['goal_uuid']}/steps/")
+    assert len(db.exec(select(Goal).where(Goal.subject_user_id == 10)).all()) == 1

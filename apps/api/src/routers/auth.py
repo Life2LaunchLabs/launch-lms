@@ -69,13 +69,10 @@ def _get_owner_org(db_session: Session) -> Organization:
 
 
 def _starter_plan_redirect_url(owner_org: Organization, user_id: int, db_session: Session) -> str:
-    """The next step of the learner's Launch Ready starter plan (the Welcome step at first)."""
-    from src.services.starter_plan import ensure_starter_plan, starter_checklist
+    """The next step of the learner's Launch Ready starter goal (the Welcome step at first)."""
+    from src.services.goals.starter import redirect_path
 
-    checklist = starter_checklist(db_session, ensure_starter_plan(db_session, user_id))
-    step = checklist["nextIncomplete"] or (checklist["items"][0] if checklist["items"] else None)
-    target = step["href"] if step else f"/plans/{checklist['plan']['slug']}"
-    return f"/orgs/{owner_org.slug}{target}"
+    return f"/orgs/{owner_org.slug}{redirect_path(db_session, user_id)}"
 
 
 def _generate_onboarding_username(email: str, db_session: Session) -> str:

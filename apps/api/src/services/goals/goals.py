@@ -38,7 +38,8 @@ from src.db.media import MediaAsset
 from src.db.planning import PlanCollaborator
 from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
-from src.services.goals import access, completion
+from src.services.goals import access, completion, references
+from src.services.goals.badges import badge_summary
 from src.services.goals.availability import availability, node_state, ordered_steps
 from src.services.goals.types import StepState, step_type
 
@@ -126,6 +127,7 @@ def goal_dict(db: Session, goal: Goal, user_id: int, granted: set[str] | None = 
                                 stage_by_id.get(step.stage_id), locks[int(step.id)], staff)  # type: ignore[arg-type]
         for step in steps
     }
+    references.attach(db, steps, views)
     ordered = ordered_steps(stages, steps)
     done = sum(1 for step in steps if statuses.get(int(step.id)) in DONE_STEP_STATUSES)  # type: ignore[arg-type]
     return {
@@ -134,7 +136,7 @@ def goal_dict(db: Session, goal: Goal, user_id: int, granted: set[str] | None = 
         "step_order": _value(goal.step_order), "org_id": goal.org_id, "start_date": goal.start_date,
         "target_date": goal.target_date, "finished_at": goal.finished_at, "finish": goal.finish or {},
         "owner": _user_summary(db, goal.owner_user_id), "subject": _user_summary(db, goal.subject_user_id),
-        "capabilities": sorted(granted), "progress": {"done": done, "total": len(steps)},
+        "capabilities": sorted(granted), "progress": {"done": done, "total": len(steps)}, "source_badge": badge_summary(db, goal.badge_id),
         "stages": [
             {
                 "stage_uuid": stage.stage_uuid, "position": stage.position, "title": stage.title, "description": stage.description,
@@ -153,28 +155,83 @@ def get_goal(db: Session, current_user: PublicUser, goal_uuid: str) -> dict:
     return goal_dict(db, goal, current_user.id, granted)
 
 
+def _done_total(db: Session, goal_ids: list[int]) -> dict[int, tuple[int, int]]:
+    if not goal_ids:
+        return {}
+    totals = dict(db.exec(select(GoalStep.goal_id, func.count()).where(GoalStep.goal_id.in_(goal_ids)).group_by(GoalStep.goal_id)).all())  # type: ignore[union-attr, call-overload]
+    done = dict(db.exec(select(GoalStep.goal_id, func.count()).join(StepProgress, StepProgress.step_id == GoalStep.id).where(  # type: ignore[call-overload]
+        GoalStep.goal_id.in_(goal_ids), StepProgress.status.in_(list(DONE_STEP_STATUSES)),  # type: ignore[union-attr, attr-defined]
+    ).group_by(GoalStep.goal_id)).all())
+    return {goal_id: (int(done.get(goal_id, 0)), int(totals.get(goal_id, 0))) for goal_id in goal_ids}
+
+
+def _percent(done: int, total: int) -> int:
+    return round(done * 100 / total) if total else 0
+
+
+def _group_rows(db: Session, user_id: int, include_finished: bool) -> list[dict]:
+    """One row per active group assignment the user staffs, summarising its learners' goals."""
+    from src.db.goals import GoalAssignment, GoalTemplate
+    from src.db.usergroups import UserGroup
+
+    org_ids = select(UserOrganization.org_id).where(UserOrganization.user_id == user_id)
+    assignments = [item for item in db.exec(select(GoalAssignment).where(
+        GoalAssignment.active == True, GoalAssignment.usergroup_id.is_not(None), GoalAssignment.org_id.in_(org_ids),  # type: ignore[union-attr, attr-defined]  # noqa: E712
+    )).all() if item.owner_user_id == user_id or user_id in (item.staff_user_ids or [])]
+    rows = []
+    for assignment in assignments:
+        statuses = [GoalStatus.PENDING, GoalStatus.ACTIVE] + ([GoalStatus.FINISHED] if include_finished else [])
+        members = db.exec(select(Goal).where(Goal.assignment_id == assignment.id, Goal.status.in_(statuses))).all()  # type: ignore[attr-defined]
+        if not members:
+            continue
+        counts = _done_total(db, [int(goal.id) for goal in members])  # type: ignore[arg-type]
+        percents = [_percent(*counts[int(goal.id)]) for goal in members]  # type: ignore[arg-type]
+        template = db.get(GoalTemplate, assignment.template_id)
+        group = db.get(UserGroup, assignment.usergroup_id)
+        rows.append({
+            "target_kind": "group", "assignment_uuid": assignment.assignment_uuid, "title": members[0].title,
+            "template_title": template.title if template else members[0].title, "group": {"id": group.id, "name": group.name} if group else None,
+            "status": "active", "target_date": assignment.due_date, "learner_count": len(members),
+            "min_progress_percent": min(percents), "max_progress_percent": max(percents),
+            "organization": _org_ref(db, assignment.org_id), "is_subject": False,
+        })
+    return rows
+
+
+def _org_ref(db: Session, org_id: int | None) -> dict | None:
+    from src.db.organizations import Organization
+
+    org = db.get(Organization, org_id) if org_id else None
+    return {"id": org.id, "name": org.name, "slug": org.slug} if org else None
+
+
 def list_my_goals(db: Session, current_user: PublicUser, include_finished: bool = True) -> list[dict]:
-    """Goals the user is working toward, owns or is a member of."""
+    """Goals the user is working toward, owns or is a member of, plus one row per group they staff.
+
+    Goals an organization issued to someone else stay out (staff work on those from admin), as plans did."""
     member_goal_ids = select(PlanCollaborator.goal_id).where(PlanCollaborator.user_id == current_user.id, PlanCollaborator.active == True, PlanCollaborator.goal_id.is_not(None))  # type: ignore[union-attr]  # noqa: E712
     statement = select(Goal).where(
         or_(Goal.subject_user_id == current_user.id, Goal.owner_user_id == current_user.id, Goal.id.in_(member_goal_ids)),  # type: ignore[union-attr]
+        or_(Goal.subject_user_id == current_user.id, Goal.assignment_id.is_(None)),  # type: ignore[union-attr]
         Goal.status != GoalStatus.ARCHIVED,
     )
     if not include_finished:
         statement = statement.where(Goal.status != GoalStatus.FINISHED)
     goals = db.exec(statement.order_by(Goal.id)).all()  # type: ignore[arg-type]
+    counts = _done_total(db, [int(goal.id) for goal in goals])  # type: ignore[arg-type]
     result = []
     for goal in goals:
-        total = db.exec(select(func.count()).select_from(GoalStep).where(GoalStep.goal_id == goal.id)).one()
-        done = db.exec(select(func.count()).select_from(StepProgress).join(GoalStep, GoalStep.id == StepProgress.step_id).where(
-            GoalStep.goal_id == goal.id, StepProgress.status.in_(list(DONE_STEP_STATUSES)),  # type: ignore[attr-defined]
-        )).one()
+        done, total = counts[int(goal.id)]  # type: ignore[arg-type]
+        subject = _user_summary(db, goal.subject_user_id)
         result.append({
-            "goal_uuid": goal.goal_uuid, "title": goal.title, "ownership": _value(goal.ownership), "source": _value(goal.source),
-            "status": _value(goal.status), "target_date": goal.target_date, "progress": {"done": int(done), "total": int(total)},
-            "is_subject": goal.subject_user_id == current_user.id,
+            "target_kind": "individual", "goal_uuid": goal.goal_uuid, "title": goal.title, "ownership": _value(goal.ownership),
+            "source": _value(goal.source), "status": _value(goal.status), "priority": goal.priority, "target_date": goal.target_date,
+            "progress": {"done": done, "total": total}, "progress_percent": _percent(done, total),
+            "source_badge": badge_summary(db, goal.badge_id), "organization": _org_ref(db, goal.org_id),
+            "subject": {"id": subject["id"], "name": subject["name"]} if subject else None,
+            "is_subject": goal.subject_user_id == current_user.id, "update_date": goal.update_date,
         })
-    return result
+    return result + _group_rows(db, current_user.id, include_finished)
 
 
 # Personal goals and goal details ---------------------------------------------------
@@ -301,7 +358,8 @@ def add_entry(db: Session, current_user: PublicUser, goal_uuid: str, step_uuid: 
             raise HTTPException(status_code=404, detail="File not found")
     if entry_kind == "file" and not asset:
         raise HTTPException(status_code=422, detail="Upload the file first")
-    position = (db.exec(select(func.max(StepEntry.position)).where(StepEntry.step_id == step.id)).one() or -1) + 1
+    last = db.exec(select(func.max(StepEntry.position)).where(StepEntry.step_id == step.id)).one()
+    position = 0 if last is None else last + 1
     now = _now()
     entry = StepEntry(
         entry_uuid=f"step_entry_{uuid4()}", step_id=int(step.id), kind=entry_kind, slot=payload.slot,  # type: ignore[arg-type]

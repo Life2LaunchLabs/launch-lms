@@ -10,7 +10,7 @@ from src.db.learning import LearningPageProgress, LearningResponseAttempt, Learn
 from src.db.learning_previews import LearningActivityPreview
 from src.services.learning_documents import store
 from src.services.learning_preview import engine, sessions
-from src.tests.test_learning_documents import P1, P2, P3, _world
+from src.tests.test_learning_documents import P1, P2, P3, _goal_template, _world
 from src.tests.test_badge_marketplace import _request
 
 
@@ -110,6 +110,7 @@ async def test_invalid_documents_cannot_be_previewed():
 
 async def test_unsaved_activities_preview_against_their_template():
     session, alice, carol = _world()
+    _goal_template(session, 50, "program_template", 1, "Career Ready", 50, "learning_activity_draft", "objective_activity")
     document = {"activity": {"title": "Reflect"}, "pages": [{"page_uuid": "start", "title": "Start", "content": {"version": 2, "blocks": []}}]}
     created = await sessions.create_preview(_request(), sessions.PreviewCreate(template_uuid="program_template", document=document), alice, session)
     stored = session.exec(select(LearningActivityPreview)).one()

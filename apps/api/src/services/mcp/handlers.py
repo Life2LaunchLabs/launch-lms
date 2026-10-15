@@ -48,9 +48,8 @@ def _activity(db_session: Session, ctx: AccessContext, activity_uuid: str) -> Le
 def _editor_url(db_session: Session, activity: LearningActivity) -> str:
     org = learning._get_org(db_session, activity.org_id)
     activity_uuid = activity.activity_uuid.removeprefix("learning_activity_")
-    relation = db_session.exec(select(ProgramObjective).where(ProgramObjective.objective_id == activity.objective_id)).first()
-    program = db_session.get(Program, relation.program_id) if relation else None
-    return f"{frontend_url()}/orgs/{org.slug}/admin/plans/{program.program_uuid if program else ''}/activity/{activity_uuid}"
+    template = store.owning_template(db_session, activity)
+    return f"{frontend_url()}/orgs/{org.slug}/admin/plans/{template['template_uuid'] if template else ''}/activity/{activity_uuid}"
 
 
 async def list_activities(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
@@ -120,7 +119,8 @@ def _scope_target(db_session: Session, ctx: AccessContext, args: dict) -> tuple[
     activity_uuid, template_uuid = args.get("activity_uuid"), args.get("template_uuid")
     if activity_uuid:
         return _activity(db_session, ctx, activity_uuid).activity_uuid, None
-    if template_uuid and not db_session.exec(select(Program.id).where(Program.program_uuid == template_uuid, Program.org_id == ctx.org_id)).first():
+    template = store.template_by_uuid(db_session, template_uuid) if template_uuid else None
+    if template_uuid and (template is None or template["org_id"] != ctx.org_id):
         raise HTTPException(status_code=404, detail="Plan template not found in the connected organization")
     return None, template_uuid
 

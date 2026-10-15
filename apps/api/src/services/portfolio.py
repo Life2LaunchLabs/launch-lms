@@ -114,10 +114,10 @@ def _get_portfolio(db_session: Session, user_id: int) -> Portfolio | None:
 
 
 def _launch_ready_state(user_id: int, db_session: Session) -> dict:
-    """The portfolio checklist: the learner's Launch Ready starter plan."""
-    from src.services.starter_plan import ensure_starter_plan, starter_checklist
+    """The portfolio checklist: the learner's Launch Ready starter goal."""
+    from src.services.goals.starter import ensure_starter_goal, starter_checklist
 
-    return starter_checklist(db_session, ensure_starter_plan(db_session, user_id))
+    return starter_checklist(db_session, ensure_starter_goal(db_session, user_id))
 
 
 def get_or_create_portfolio(current_user: PublicUser, db_session: Session) -> Portfolio:

@@ -93,26 +93,27 @@ def _bump_version(version: LearningBadgeVersion, db_session: Session | None = No
 
 
 def _require_activity_editor(db_session: Session, user, activity: LearningActivity) -> None:
-    """Activities belong to plan templates; their organization's admins edit them."""
+    """Activities belong to templates; their organization's admins edit them."""
     access_rules._require_org_admin(db_session, user, activity.org_id)
 
 
 def _ensure_editable(db_session: Session, activity: LearningActivity) -> None:
-    """Frozen copies belong to a published plan template version and never change."""
-    from src.services.template_versions import is_frozen
+    """Frozen copies belong to a published template version and never change."""
+    frozen = activity.frozen_from_id is not None
+    if not frozen and activity.goal_template_id is None and activity.objective_id is not None:
+        from src.services.template_versions import is_frozen  # activities the plans-to-goals move hasn't reached
 
-    if is_frozen(db_session, activity.id):
-        raise HTTPException(status_code=409, detail="This activity is part of a published plan template version and cannot be edited. Edit the template's draft instead.")
+        frozen = is_frozen(db_session, activity.id)
+    if frozen:
+        raise HTTPException(status_code=409, detail="This activity is part of a published template version and cannot be edited. Edit the template's draft instead.")
 
 
 def _is_system_activity(db_session: Session, activity: LearningActivity) -> bool:
-    """Activities of a system template (the starter plan) may use trusted portfolio outcomes and system blocks."""
-    from src.db.programs import Program, ProgramObjective
+    """Activities of a system template (the starter) may use trusted portfolio outcomes and system blocks."""
+    from src.services.learning_documents.store import owning_template
 
-    return db_session.exec(
-        select(Program.id).join(ProgramObjective, ProgramObjective.program_id == Program.id)
-        .where(ProgramObjective.objective_id == activity.objective_id, Program.system_type.is_not(None))  # type: ignore[union-attr]
-    ).first() is not None
+    template = owning_template(db_session, activity)
+    return bool(template and template["system_type"] is not None)
 
 
 def _serialize_page(page: LearningPage) -> LearningPageRead:

@@ -21,15 +21,7 @@ from src.services.hub_advisor import (
     extract_hub_memory_candidates,
 )
 from src.services.hub_conversations import (
-    archive_conversation,
-    advisor_history,
-    conversation_detail,
-    delete_conversation,
-    list_conversations,
-    record_advice,
-    record_search,
-    rename_conversation,
-    save_state,
+    archive_conversation, advisor_history, conversation_detail, delete_conversation, list_conversations, record_advice, record_search, rename_conversation, save_state,
 )
 from src.services.resources import list_resources
 from src.services.hub_memory import (
@@ -45,10 +37,11 @@ from src.services.hub_memory import (
     update_memory,
 )
 
-from src.services.hub_context import HubSurfaceHint, page_context
+from src.services.goals.coach_apply import CoachStageCreate, CoachStepCreate, add_stage_once, add_step_once, bind_created_goal
+from src.services.goals.coach_context import GoalSurfaceHint as HubSurfaceHint, page_context
+from src.services.goals.coach_tools import record_goal_proposals, scope
 from src.services.hub_actions import build_navigation_actions, requests_plan_creation, resolve_navigation_action
-from src.services.hub_edit_runs import active_edit_run, begin_edit_run, bind_created_plan, conclude_edit_run, latest_edit_run, record_edit_run_activity, reopen_edit_run, save_object_state, update_edit_run_goal
-from src.services.hub_plan_tools import record_plan_proposals
+from src.services.hub_edit_runs import active_edit_run, begin_edit_run, conclude_edit_run, latest_edit_run, record_edit_run_activity, reopen_edit_run, save_object_state, update_edit_run_goal
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -109,8 +102,8 @@ class HubEditRunConclusion(BaseModel):
     status: Literal["cancelled", "completed"]
 
 
-class HubEditRunPlanTarget(BaseModel):
-    plan_identifier: str = Field(min_length=1, max_length=120)
+class HubEditRunGoalTarget(BaseModel):
+    goal_uuid: str = Field(min_length=1, max_length=120)
 
 
 class HubEditObjectStateUpdate(BaseModel):
@@ -370,7 +363,7 @@ async def create_hub_advice(
     accessible = {str(item.get("resource_uuid")) for item in accessible_resources}
     plan_creation_request = not edit_run and requests_plan_creation(user_content)
     action_destinations = ("create_plan",) if plan_creation_request else result.action_destinations
-    assistant_text = "Sure — should we go create that plan together?" if plan_creation_request else result.text
+    assistant_text = "Sure — should we go create that goal together?" if plan_creation_request else result.text
     suggested_actions = build_navigation_actions(action_destinations, db_session, org_id, user_content)
     page_receipt = context.get("receipt") or {}
     if edit_run and page_receipt.get("status") == "ready":
@@ -381,7 +374,7 @@ async def create_hub_advice(
             summary=f"Inspected {', '.join(labels)}" if labels else "Inspected the current page",
             payload={"sources": sources[:8]}, transient=True,
         )
-    edit_operations = record_plan_proposals(db_session, edit_run["run_uuid"], result.plan_operations, grounding_resources) if edit_run else []
+    edit_operations = record_goal_proposals(db_session, edit_run["run_uuid"], result.goal_operations, grounding_resources) if edit_run else []
     persisted = record_advice(
         db_session, org_id=org_id, user_id=current_user.id,
         conversation_uuid=body.conversation_uuid, user_content=user_content,
@@ -464,9 +457,9 @@ def resolve_hub_navigation_action(
         user_id=current_user.id,
         action_id=action_id,
         route=resolved["route"],
-        scope_kind=edit_scope["kind"],
+        scope_kind=scope(edit_scope["kind"]) or edit_scope["kind"],
         target_label=edit_scope["label"],
-        goal=resolved.get("goal") or "Create a personal plan together",
+        goal=resolved.get("goal") or "Create a personal goal together",
     )
     return {**resolved, "edit_run": run}
 
@@ -513,17 +506,20 @@ def update_hub_edit_run_goal(
     return update_edit_run_goal(db_session, run_uuid, org_id, current_user.id, body.goal)
 
 
-@router.post("/edit-runs/{run_uuid}/plan-target")
-def bind_hub_edit_run_plan(
-    run_uuid: str,
-    org_id: int,
-    body: HubEditRunPlanTarget,
-    current_user: PublicUser = Depends(get_current_user),
-    db_session: Session = Depends(get_db_session),
-):
-    return bind_created_plan(
-        db_session, run_uuid, org_id, current_user.id, body.plan_identifier,
-    )
+@router.post("/edit-runs/{run_uuid}/goal-target")
+def bind_hub_edit_run_goal(run_uuid: str, org_id: int, body: HubEditRunGoalTarget, current_user: PublicUser = Depends(get_current_user), db_session: Session = Depends(get_db_session)):
+    return bind_created_goal(db_session, run_uuid, org_id, current_user.id, body.goal_uuid)
+
+
+# Saving a Coach proposal on a goal; saving the same proposal again never adds a second stage or step.
+@router.post("/goals/{goal_uuid}/coach/stages")
+def apply_coach_stage(goal_uuid: str, body: CoachStageCreate, current_user: PublicUser = Depends(get_current_user), db_session: Session = Depends(get_db_session)):
+    return add_stage_once(db_session, current_user, goal_uuid, body)
+
+
+@router.post("/goals/{goal_uuid}/coach/steps")
+def apply_coach_step(goal_uuid: str, body: CoachStepCreate, current_user: PublicUser = Depends(get_current_user), db_session: Session = Depends(get_db_session)):
+    return add_step_once(db_session, current_user, goal_uuid, body)
 
 
 @router.put("/edit-runs/{run_uuid}/objects/{object_key}")

@@ -21,7 +21,7 @@ import { Textarea } from '@components/ui/textarea'
 import ContentPageHeader from '@components/Objects/StyledElements/Headers/ContentPageHeader'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
 import { formatAppPageTitle } from '@services/routing/pageTitles'
-import { planVars } from '@components/Plans/learner/planColors'
+import { planVars } from '@components/Goals/planColors'
 
 const swatchStyles: Record<string, React.CSSProperties> = {
   '--background': { backgroundColor: 'hsl(var(--background))' },

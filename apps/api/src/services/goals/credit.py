@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from sqlalchemy import inspect
 from sqlmodel import Session, select
 
 from src.db.goals import Goal, GoalStep, StepProgress, StepStatus
@@ -39,3 +40,14 @@ def requirement_links(db: Session, org_id: int | None, node_uuids: list[str]) ->
         {"framework_id": int(frameworks[node].id), "framework_uuid": frameworks[node].framework_uuid, "node_uuid": node}  # type: ignore[arg-type]
         for node in node_uuids if node in frameworks
     ]
+
+
+def backfill_steps(db: Session, enrollment: RequirementEnrollment) -> None:
+    """Credit a new enrollment with the goal steps the learner already finished."""
+    if not inspect(db.connection()).has_table(StepProgress.__tablename__):
+        return
+    rows = db.exec(select(StepProgress, GoalStep, Goal).join(GoalStep, GoalStep.id == StepProgress.step_id).join(Goal, Goal.id == GoalStep.goal_id).where(
+        Goal.org_id == enrollment.org_id, Goal.subject_user_id == enrollment.user_id, StepProgress.status == StepStatus.COMPLETED,
+    )).all()
+    for progress, step, goal in rows:
+        sync_step_progress(db, progress, step, goal, {"submission": progress.submission, "answer": progress.answer})

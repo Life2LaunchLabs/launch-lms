@@ -49,12 +49,15 @@ export default function AccountMessages({ orgslug }: { orgslug: string }) {
         <div className="space-y-3">
           {messages.map((message) => {
             const isInvitation = message.action_kind?.endsWith('_invitation')
-            const planSlug = typeof message.action_data?.plan_slug === 'string' ? message.action_data.plan_slug : null
+            const goalUuid = message.action_kind === 'goal_invitation' && typeof message.action_data?.goal_uuid === 'string' ? message.action_data.goal_uuid : null
+            // Older plan invitations only carry a slug, which goal pages no longer use.
             const href = message.action_kind === 'organization_invitation' && message.sender_organization?.slug
               ? getUriWithOrg(orgslug, routePaths.org.organization(message.sender_organization.slug))
-              : planSlug
-                ? getUriWithOrg(orgslug, routePaths.org.plan(planSlug))
-                : message.action_url
+              : goalUuid
+                ? getUriWithOrg(orgslug, routePaths.org.plan(goalUuid))
+                : message.action_kind === 'plan_invitation'
+                  ? getUriWithOrg(orgslug, routePaths.org.plans())
+                  : message.action_url
             return (
               <article key={message.message_uuid} className="rounded-2xl border border-border bg-card p-5 nice-shadow sm:p-6">
                 <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
