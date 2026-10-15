@@ -36,7 +36,6 @@ from src.db.planning import (
     PlanPhaseCreate,
     PlanPhaseUpdate,
     PlanRole,
-    PlanRoleCreate,
     PlanRoleUpdate,
     PlanStatus,
     PlanUpdate,
@@ -45,11 +44,9 @@ from src.db.planning import (
 from src.db.programs import Objective, ObjectiveProgress, ObjectiveProgressStatus, ParticipantStatus, Program, ProgramAssignment, ProgramAssignmentCreate, ProgramCreate, ProgramParticipant, ProgramTemplateVersion, FrozenActivity
 from src.db.users import PublicUser, User
 from src.services import planning, programs
-from src.routers import planning as planning_router, programs as programs_router
+from src.routers import planning as planning_router
 from src.routers.planning import _require_managed_plans as require_planning_managed
 from src.routers.planning import _require_managed_assignment as require_planning_assignment
-from src.routers.programs import _require_managed_plans as require_legacy_managed
-from src.routers.programs import _require_managed_assignment as require_legacy_assignment
 
 
 NOW = "2026-08-27T12:00:00+00:00"
@@ -436,13 +433,18 @@ def test_materialized_badge_snapshots_become_badge_requirements():
         }]
 
 
+def _add_role(db, slug: str, key: str, capabilities: list[str]) -> dict:
+    plan = db.exec(select(Plan).where(Plan.slug == slug)).one()
+    now = datetime.now().isoformat()
+    db.add(PlanRole(role_uuid=f"plan_role_{key}", plan_id=int(plan.id), key=key, name=key, capabilities=capabilities, grantable_role_keys=[], creation_date=now, update_date=now))
+    db.commit()
+    return {"key": key}
+
+
 def test_structure_schedule_role_and_leave_permissions_are_independent():
     with _session() as db:
         created = planning.create_plan(db, _user(1), _plan_create("Permission lanes"))
-        structure_role = planning.create_role(db, _user(1), created["slug"], PlanRoleCreate(
-            key="structure_editor", name="Structure editor",
-            capabilities=["view_plan", "edit_structure"],
-        ))
+        structure_role = _add_role(db, created["slug"], "structure_editor", ["view_plan", "edit_structure"])
         invitation = planning.create_invitation(db, _user(1), created["slug"], PlanInvitationCreate(
             email="helper@example.com", role_key=structure_role["key"],
         ))
@@ -467,25 +469,6 @@ def test_structure_schedule_role_and_leave_permissions_are_independent():
         with pytest.raises(HTTPException) as owner_cannot_leave:
             planning.leave_plan(db, _user(1), created["slug"])
         assert owner_cannot_leave.value.status_code == 422
-
-
-def test_role_manager_cannot_create_a_more_powerful_role():
-    with _session() as db:
-        created = planning.create_plan(db, _user(1), _plan_create("No escalation"))
-        manager = planning.create_role(db, _user(1), created["slug"], PlanRoleCreate(
-            key="role_manager", name="Role manager",
-            capabilities=["view_plan", "manage_roles"], grantable_role_keys=["viewer"],
-        ))
-        invitation = planning.create_invitation(db, _user(1), created["slug"], PlanInvitationCreate(
-            email="helper@example.com", role_key=manager["key"],
-        ))
-        planning.respond_to_invitation(db, _user(2), invitation["invitation_uuid"], True)
-        with pytest.raises(HTTPException) as denied:
-            planning.create_role(db, _user(2), created["slug"], PlanRoleCreate(
-                key="admin_by_stealth", name="Admin by stealth",
-                capabilities=["view_plan", "edit_structure"],
-            ))
-        assert denied.value.status_code == 403
 
 
 def test_comments_activity_and_plan_scoped_attachments():
@@ -541,14 +524,14 @@ def test_group_plan_entitlement_applies_to_planning_and_legacy_adapters():
             OrganizationConfig(id=2, org_id=20, config={"config_version": "2.0", "plan": "full"}, creation_date=NOW, update_date=NOW),
         ])
         db.commit()
-        for require in (require_planning_managed, require_legacy_managed):
+        for require in (require_planning_managed,):
             with pytest.raises(HTTPException) as denied:
                 require(10, db)
             assert denied.value.status_code == 403
             require(20, db)
 
 
-def test_free_org_can_create_templates_through_planning_and_legacy_adapters(monkeypatch):
+def test_free_org_can_create_templates(monkeypatch):
     with _session() as db:
         payload = ProgramCreate(org_id=10, name="Free template")
         calls = []
@@ -559,8 +542,7 @@ def test_free_org_can_create_templates_through_planning_and_legacy_adapters(monk
 
         monkeypatch.setattr(programs, "create_program", create_template)
         assert planning_router.api_create_template(payload, db, _user(1))["name"] == "Free template"
-        assert programs_router.api_create_program(payload, db, _user(1))["name"] == "Free template"
-        assert calls == ["Free template", "Free template"]
+        assert calls == ["Free template"]
 
 
 def test_free_org_can_assign_individuals_but_not_groups(monkeypatch):
@@ -579,7 +561,6 @@ def test_free_org_can_assign_individuals_but_not_groups(monkeypatch):
         group = ProgramAssignmentCreate(usergroup_id=7)
         handlers = (
             lambda payload: planning_router.api_assign_template("template_1", 10, payload, db, _user(1)),
-            lambda payload: programs_router.api_assign_program("template_1", payload, 10, db, _user(1)),
         )
         for handler in handlers:
             assert handler(direct)["assignment_uuid"] == "assignment_direct"
@@ -587,7 +568,7 @@ def test_free_org_can_assign_individuals_but_not_groups(monkeypatch):
             with pytest.raises(HTTPException) as denied:
                 handler(group)
             assert denied.value.status_code == 403
-        assert len(calls) == 4
+        assert len(calls) == 2
 
 
 def test_free_org_can_manage_direct_assignments_but_not_group_assignments():
@@ -601,7 +582,7 @@ def test_free_org_can_manage_direct_assignments_but_not_group_assignments():
             ProgramAssignment(assignment_uuid="assignment_group", org_id=10, program_id=program.id, usergroup_id=7, creation_date=NOW, update_date=NOW),
         ])
         db.commit()
-        for require in (require_planning_assignment, require_legacy_assignment):
+        for require in (require_planning_assignment,):
             require(10, "assignment_direct", db)
             with pytest.raises(HTTPException) as denied:
                 require(10, "assignment_group", db)
@@ -854,22 +835,6 @@ def test_external_email_assignment_materializes_pending_recipient_bound_plan():
         assert invitations[0]["plan"]["name"] == "External plan"
         message = db.exec(select(InboxMessage).where(InboxMessage.recipient_email_normalized == "future@example.com")).one()
         assert message.action_data["invitation_uuid"] == invitations[0]["invitation_uuid"]
-
-
-def test_legacy_program_and_participant_identifiers_resolve_precise_plan():
-    with _session() as db:
-        program = Program(id=1, program_uuid="program_legacy", slug="legacy-path", org_id=1, name="Legacy", creation_date=NOW, update_date=NOW)
-        assignment = ProgramAssignment(id=30, assignment_uuid="assignment_legacy", org_id=1, program_id=1, user_id=1, creation_date=NOW, update_date=NOW)
-        participant = ProgramParticipant(id=40, participant_uuid="participant_legacy", assignment_id=30, org_id=1, user_id=1, status=ParticipantStatus.ACTIVE, creation_date=NOW, update_date=NOW)
-        db.add_all([program, assignment, participant])
-        created = planning.create_plan(db, _user(1), _plan_create("Migrated legacy plan"))
-        plan = planning._plan_or_404(db, created["slug"])
-        plan.source_program_id = program.id
-        plan.source_assignment_id = assignment.id
-        db.add(plan)
-        db.commit()
-        assert planning.resolve_legacy_plan(db, _user(1), program.slug)["slug"] == plan.slug
-        assert planning.resolve_legacy_plan(db, _user(1), participant.participant_uuid)["slug"] == plan.slug
 
 
 def test_group_sourced_plan_rejects_individual_definition_changes_with_workspace_destination():

@@ -149,7 +149,6 @@ export const routePaths = {
       programs: () => '/admin/plans/templates',
       program: (programUuid: string) => `/admin/plans/${encodeURIComponent(programUuid)}`,
       programPage: (programUuid: string, subpage: string) => `/admin/plans/${encodeURIComponent(programUuid)}/${encodeURIComponent(subpage)}`,
-      programAssignmentNew: (programUuid: string) => `/admin/plans/${encodeURIComponent(programUuid)}/assignments/new`,
       planRequirements: () => '/admin/plans/requirements',
       planRequirement: (frameworkUuid: string, subpage = 'details') => `/admin/plans/requirements/${encodeURIComponent(frameworkUuid)}/${encodeURIComponent(subpage)}`,
       // Resolves an assignment to the page that now shows it: its group's Plans tab or the learner.

@@ -351,13 +351,6 @@ class PlanInvitationResponse(SQLModel):
     accept: bool
 
 
-class PlanRoleCreate(SQLModel):
-    key: str
-    name: str
-    capabilities: list[str] = Field(default_factory=list)
-    grantable_role_keys: list[str] = Field(default_factory=list)
-
-
 class PlanRoleUpdate(SQLModel):
     name: str | None = None
     capabilities: list[str] | None = None

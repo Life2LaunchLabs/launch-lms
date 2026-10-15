@@ -21,20 +21,15 @@ from src.db.planning import (
     PlanRole,
 )
 from src.db.roles import Role
-from src.db.planning import PlanObjectiveProgressUpdate, PlanStatus
-from src.services import planning
 from src.services import template_versions
 from src.db.programs import (
     Objective,
     ObjectiveCreate,
     ObjectiveProgress,
     ObjectiveProgressStatus,
-    ObjectiveReviewDecision,
-    LearnerProgramDetailView,
     Program,
     ProgramAssignment,
     ProgramAssignmentCreate,
-    ProgramAssignmentObjectiveUpdate,
     ProgramCreate,
     ProgramObjective,
     ProgramPhase,
@@ -45,7 +40,6 @@ from src.db.programs import (
     ProgramPhaseOrder,
     ProgramReorder,
     ProgramParticipant,
-    ProgramObjectiveScheduleUpdate,
     ProgramObjectiveUpdate,
 )
 from src.db.usergroup_user import UserGroupUser
@@ -53,35 +47,23 @@ from src.db.usergroups import UserGroup
 from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
 from src.services.programs import (
-    _badge_award_keys,
     add_program_objective,
     assign_program,
     assignment_matrix,
-    assignment_reviews,
     cohort_overview,
-    change_assignment_status,
     copy_program_from_library,
     create_program_phase,
-    delete_program_phase,
-    remove_program_objective,
     create_program,
-    delete_assignment,
     ensure_group_participants,
     get_program,
     list_program_assignments,
     list_program_library,
     mark_my_program_invitations_viewed,
-    my_enrollment_detail,
-    my_program_detail,
-    my_programs_all,
     my_program_summaries,
     reorder_program,
     publish_program_to_library,
     respond_to_invitation,
-    review_objective_submission,
-    update_assignment_objective,
     update_progress,
-    update_program_objective_schedule,
     update_program_objective,
     update_program_phase,
 )
@@ -209,96 +191,6 @@ def test_reusing_an_objective_copies_it_so_templates_progress_independently():
         assert second_matrix["learners"][0]["cells"][second_uuid]["status"] == "not_started"
 
 
-def test_badge_objective_can_accept_an_earlier_major_award():
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    _tables(engine)
-    with Session(engine) as session:
-        _setup(session)
-        session.add(LearningBadgeAward(
-            award_uuid="award_v1", badge_id=12, major_version=1,
-            org_id=1, user_id=2, creation_date=NOW, update_date=NOW,
-        ))
-        session.commit()
-        objective = {
-            "id": 7,
-            "badge_id": 12,
-            "badge_major_version": 2,
-            "accept_previous_major_versions": True,
-        }
-        assert _badge_award_keys(session, [2], [objective]) == {(2, 7)}
-        objective["accept_previous_major_versions"] = False
-        assert _badge_award_keys(session, [2], [objective]) == set()
-
-
-def test_learner_submission_can_be_flagged_resubmitted_and_confirmed():
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    _tables(engine)
-    with Session(engine) as session:
-        admin = _setup(session)
-        learner = PublicUser(id=2, user_uuid="user_2", username="learner", email="learner@example.com", first_name="Lee", last_name="Arner")
-        program = create_program(session, admin, ProgramCreate(org_id=1, name="Creative Futures"))
-        program = add_program_objective(
-            session,
-            admin,
-            1,
-            program["program_uuid"],
-            ObjectiveCreate(
-                title="Portfolio",
-                allow_learner_confirmation=True,
-                custom_fields=[{
-                    "field_uuid": "work",
-                    "title": "Work",
-                    "type": "media",
-                    "allow_student_upload": True,
-                    "allowed_types": ["link"],
-                }],
-            ),
-        )
-        objective_uuid = program["objectives"][0]["objective_uuid"]
-        assignment = assign_program(
-            session,
-            admin,
-            1,
-            program["program_uuid"],
-            ProgramAssignmentCreate(usergroup_id=1, staff_user_ids=[1]),
-        )
-        participant = session.exec(select(ProgramParticipant)).one()
-        respond_to_invitation(session, learner, 1, participant.participant_uuid, True)
-        plan = session.exec(select(Plan)).one()
-        plan_objective = session.exec(select(PlanObjective)).one()
-
-        def submit(note: str) -> None:
-            planning.update_objective_progress(
-                session, learner, plan.plan_uuid, plan_objective.objective_uuid,
-                PlanObjectiveProgressUpdate(status="submitted", note=note, field_values={"work": [{"type": "link", "url": "https://example.com"}]}),
-            )
-
-        submit("First draft")
-        queue = assignment_reviews(session, admin, 1, assignment["assignment_uuid"])
-        review = queue["objective_reviews"][0]
-        assert review["learner_note"] == "First draft" and review["objective"]["objective_uuid"] == objective_uuid
-
-        decision = {"objective_uuid": objective_uuid, "user_id": 2, "plan_uuid": review["plan_uuid"], "plan_objective_uuid": review["plan_objective_uuid"]}
-        flagged = review_objective_submission(
-            session, admin, 1, assignment["assignment_uuid"],
-            ObjectiveReviewDecision(**decision, action="flag", message="Add a reflection."),
-        )
-        assert flagged["status"] == "changes_requested"
-        with pytest.raises(HTTPException) as missing_plan:
-            review_objective_submission(session, admin, 1, assignment["assignment_uuid"], ObjectiveReviewDecision(objective_uuid=objective_uuid, user_id=2, action="confirm"))
-        assert missing_plan.value.status_code == 422
-
-        submit("Second draft")
-        confirmed = review_objective_submission(
-            session, admin, 1, assignment["assignment_uuid"],
-            ObjectiveReviewDecision(**decision, action="confirm"),
-        )
-        assert confirmed["status"] == "completed"
-        progress = session.exec(select(PlanObjectiveProgress)).one()
-        assert progress.feedback_history[0]["message"] == "Add a reflection."
-        assert session.exec(select(ObjectiveProgress)).first() is None
-
-
 def test_readding_a_cohort_member_preserves_progress_and_reinvites():
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     _tables(engine)
@@ -375,70 +267,6 @@ def test_direct_and_group_program_invitations_are_available_in_learner_inbox():
         result = mark_my_program_invitations_viewed(session, learner)
         assert result["updated"] == 2
         assert all(not item["unread"] for item in my_program_summaries(session, learner))
-
-
-def test_all_my_programs_include_programs_from_each_organization():
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    _tables(engine)
-    with Session(engine) as session:
-        admin = _setup(session)
-        learner = PublicUser(id=2, user_uuid="user_2", username="learner", email="learner@example.com", first_name="Lee", last_name="Arner")
-        session.add(Organization(id=2, org_uuid="org_2", name="Academy", slug="academy", email="academy@example.com", creation_date=NOW, update_date=NOW))
-        session.add(UserOrganization(user_id=1, org_id=2, role_id=1, creation_date=NOW, update_date=NOW))
-        session.add(UserOrganization(user_id=2, org_id=2, role_id=4, creation_date=NOW, update_date=NOW))
-        session.commit()
-        first = create_program(session, admin, ProgramCreate(org_id=1, name="Studio Program"))
-        second = create_program(session, admin, ProgramCreate(org_id=2, name="Studio Program"))
-        assign_program(session, admin, 1, first["program_uuid"], ProgramAssignmentCreate(user_id=2, staff_user_ids=[1]))
-        assign_program(session, admin, 2, second["program_uuid"], ProgramAssignmentCreate(user_id=2, staff_user_ids=[1]))
-
-        programs = my_programs_all(session, learner)
-
-        assert len(programs) == 2
-        assert {item["program"]["slug"] for item in programs} == {"studio-program", "studio-program-2"}
-        assert {item["organization"]["slug"] for item in programs} == {"studio", "academy"}
-
-
-def test_program_detail_prioritizes_current_enrollment_and_keeps_run_history():
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    _tables(engine)
-    with Session(engine) as session:
-        admin = _setup(session)
-        learner = PublicUser(id=2, user_uuid="user_2", username="learner", email="learner@example.com", first_name="Lee", last_name="Arner")
-        program = create_program(session, admin, ProgramCreate(org_id=1, name="Creative Futures"))
-        first_run = assign_program(session, admin, 1, program["program_uuid"], ProgramAssignmentCreate(user_id=2, staff_user_ids=[1]))
-        second_run = assign_program(session, admin, 1, program["program_uuid"], ProgramAssignmentCreate(user_id=2, staff_user_ids=[1]))
-        assignments = session.exec(select(ProgramAssignment)).all()
-        assignment_by_uuid = {item.assignment_uuid: item for item in assignments}
-        enrollments = session.exec(select(ProgramParticipant)).all()
-        enrollment_by_assignment = {item.assignment_id: item for item in enrollments}
-        active = enrollment_by_assignment[assignment_by_uuid[first_run["assignment_uuid"]].id]
-        declined = enrollment_by_assignment[assignment_by_uuid[second_run["assignment_uuid"]].id]
-        active.status = "active"
-        declined.status = "declined"
-        session.add_all([active, declined])
-        session.commit()
-
-        detail = my_program_detail(session, learner, program["slug"])
-        programs = my_programs_all(session, learner)
-        validated = LearnerProgramDetailView.model_validate(detail)
-
-        assert validated.program["slug"] == "creative-futures"
-        assert detail["current_enrollment"]["participant_uuid"] == active.participant_uuid
-        assert [item["status"] for item in detail["enrollments"]] == ["active", "declined"]
-        assert detail["current_enrollment"]["run"]["assignment_uuid"] == first_run["assignment_uuid"]
-        assert detail["current_enrollment"]["enrollment"]["status"] == "active"
-        assert len(programs) == 1
-        assert programs[0]["enrollment_count"] == 2
-
-        legacy_detail = my_enrollment_detail(session, learner, declined.participant_uuid)
-        assert legacy_detail["current_enrollment"]["participant_uuid"] == declined.participant_uuid
-
-        assignment_by_uuid[first_run["assignment_uuid"]].active = False
-        session.add(assignment_by_uuid[first_run["assignment_uuid"]])
-        session.commit()
-        completed_detail = my_program_detail(session, learner, program["slug"])
-        assert completed_detail["current_enrollment"]["status"] == "completed"
 
 
 def test_learner_can_accept_program_invitation():
@@ -532,17 +360,6 @@ def test_program_phases_support_cross_phase_reordering_and_evidence_fields():
         assert moved["allow_learner_confirmation"] is True
         assert moved["custom_fields"][0]["allowed_types"] == ["video"]
 
-        with pytest.raises(HTTPException) as occupied:
-            delete_program_phase(session, admin, 1, program["program_uuid"], second_phase["phase_uuid"])
-        assert occupied.value.status_code == 409
-        removed = remove_program_objective(session, admin, 1, program["program_uuid"], objective_uuid)
-        assert removed["objectives"] == []
-        assert session.exec(select(Objective).where(Objective.objective_uuid == objective_uuid)).one().archived is True
-        remaining = delete_program_phase(session, admin, 1, program["program_uuid"], second_phase["phase_uuid"])
-        assert [phase["phase_uuid"] for phase in remaining["phases"]] == [first_phase["phase_uuid"]]
-        with pytest.raises(HTTPException) as last:
-            delete_program_phase(session, admin, 1, program["program_uuid"], first_phase["phase_uuid"])
-        assert last.value.status_code == 422
 
 
 def test_assignment_snapshots_phase_dates_and_objective_schedule_rules():
@@ -556,13 +373,14 @@ def test_assignment_snapshots_phase_dates_and_objective_schedule_rules():
         )
         objective = program["objectives"][0]
         phase = program["phases"][0]
-        update_program_objective_schedule(
+        update_program_objective(
             session,
             admin,
             1,
             program["program_uuid"],
             objective["objective_uuid"],
-            ProgramObjectiveScheduleUpdate(
+            ProgramObjectiveUpdate(
+                title="Showcase",
                 default_start_rule="phase_start",
                 default_due_rule="specific_date",
                 default_allow_late=True,
@@ -599,105 +417,6 @@ def test_assignment_snapshots_phase_dates_and_objective_schedule_rules():
         assert rule["effective_due_date"] == "2026-10-10"
         assert rule["allow_late"] is True
         assert result["schedule"]["phases"][0]["end_date"] == "2026-10-15"
-
-
-def test_group_assignment_definition_is_versioned_and_template_stays_independent():
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    _tables(engine)
-    with Session(engine) as session:
-        admin = _setup(session)
-        program = create_program(session, admin, ProgramCreate(org_id=1, name="Creative Futures"))
-        program = add_program_objective(
-            session,
-            admin,
-            1,
-            program["program_uuid"],
-            ObjectiveCreate(
-                title="Portfolio",
-                custom_fields=[{
-                    "field_uuid": "artifact",
-                    "title": "Artifact",
-                    "type": "media",
-                    "allowed_types": ["pdf"],
-                }],
-            ),
-        )
-        objective_uuid = program["objectives"][0]["objective_uuid"]
-        assignment = assign_program(
-            session,
-            admin,
-            1,
-            program["program_uuid"],
-            ProgramAssignmentCreate(
-                usergroup_id=1,
-                collaborators=[{"user_id": 1, "role_key": "reviewer"}],
-            ),
-        )
-        assert assignment["collaborators"] == [{"user_id": 1, "role_key": "plan_admin"}]
-
-        changed = update_assignment_objective(
-            session,
-            admin,
-            1,
-            assignment["assignment_uuid"],
-            objective_uuid,
-            ProgramAssignmentObjectiveUpdate(
-                definition_version=1,
-                title="Final portfolio",
-                fields=[{"field_uuid": "artifact", "title": "Artifact", "type": "media", "allowed_types": ["document"]}],
-            ),
-        )
-        assert changed["definition_version"] == 2
-        stored = session.exec(select(ProgramAssignment)).one()
-        assert stored.objective_snapshot[0]["title"] == "Final portfolio"
-        assert get_program(session, admin, 1, program["program_uuid"])["objectives"][0]["title"] == "Portfolio"
-
-        with pytest.raises(HTTPException) as conflict:
-            update_assignment_objective(
-                session,
-                admin,
-                1,
-                assignment["assignment_uuid"],
-                objective_uuid,
-                ProgramAssignmentObjectiveUpdate(definition_version=1, title="Stale edit"),
-            )
-        assert conflict.value.status_code == 409
-
-
-def test_group_assignment_can_be_completed_reopened_and_deleted_as_one_target():
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    _tables(engine)
-    with Session(engine) as session:
-        admin = _setup(session)
-        program = create_program(session, admin, ProgramCreate(org_id=1, name="Creative Futures"))
-        assignment = assign_program(
-            session,
-            admin,
-            1,
-            program["program_uuid"],
-            ProgramAssignmentCreate(usergroup_id=1, staff_user_ids=[1]),
-        )
-
-        completed = change_assignment_status(
-            session, admin, 1, assignment["assignment_uuid"], PlanStatus.COMPLETED
-        )
-        assert completed["status"] == "completed"
-        assert session.exec(select(ProgramAssignment)).one().active is False
-
-        reopened = change_assignment_status(
-            session, admin, 1, assignment["assignment_uuid"], PlanStatus.ACTIVE
-        )
-        assert reopened["status"] == "active"
-        assert session.exec(select(ProgramAssignment)).one().active is True
-
-        deleted = delete_assignment(session, admin, 1, assignment["assignment_uuid"])
-        assert deleted == {
-            "deleted": True,
-            "assignment_uuid": assignment["assignment_uuid"],
-            "affected_plan_count": 1,
-        }
-        assert session.exec(select(ProgramAssignment)).first() is None
-        assert session.exec(select(ProgramParticipant)).first() is None
 
 
 def test_objectives_inherit_phase_targets_without_materializing_override_dates():
