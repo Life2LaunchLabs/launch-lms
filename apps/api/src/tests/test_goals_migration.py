@@ -165,3 +165,25 @@ def test_the_move_runs_once_and_checks_itself():
         with pytest.raises(RuntimeError, match="goals: 2 legacy rows, 1 migrated"):
             verify(session)
         assert session.exec(select(Program)).one() and session.exec(select(Plan)).all()
+
+
+def test_a_step_whose_badge_was_deleted_becomes_a_task():
+    with _session() as session:
+        _, _, plan, _ = _seed(session)
+        gone = {"field_uuid": "field_gone", "type": "badge", "title": "Earn the old badge", "badge_uuid": "badge_deleted"}
+        assignment = session.exec(select(ProgramAssignment)).one()
+        snapshot = [dict(item) for item in assignment.objective_snapshot]
+        snapshot[-1]["custom_fields"] = [*snapshot[-1].get("custom_fields", []), gone]
+        assignment.objective_snapshot = snapshot
+        live = session.exec(select(PlanObjective).where(PlanObjective.plan_id == plan.id).order_by(PlanObjective.position.desc())).first()
+        live.fields = [*(live.fields or []), gone]
+        session.add_all([assignment, live])
+        session.commit()
+
+        result = run(session)
+        session.commit()
+
+        assert any("badge missing, kept as a task" in warning for warning in result.warnings)
+        goal = session.exec(select(Goal).where(Goal.goal_uuid == plan.plan_uuid)).one()
+        steps = session.exec(select(GoalStep).where(GoalStep.goal_id == goal.id)).all()
+        assert "badge" not in {step.type for step in steps} and any(step.title == "Earn the old badge" for step in steps)

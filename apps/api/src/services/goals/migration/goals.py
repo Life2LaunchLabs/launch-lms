@@ -49,7 +49,7 @@ from src.db.planning import (
 from src.db.programs import Objective, Program
 from src.db.requirements import RequirementAttainmentSource
 from src.services.goals.legacy import STATUS_MAP, StepSpec, convert_objective, objective_from_plan
-from src.services.goals.migration.documents import STEP_ORDER, step_key
+from src.services.goals.migration.documents import STEP_ORDER, badge_exists, step_key
 from src.services.goals.migration.templates import TemplateMaps
 from src.services.goals.types import step_type
 
@@ -137,6 +137,8 @@ def _resolved(db: Session, spec: StepSpec, goal: Goal, counts: GoalCounts, title
 
         uuid = db.exec(select(LearningActivity.activity_uuid).where(LearningActivity.id == config.get("activity_id"))).first()
         config = {"activity_uuid": uuid} if uuid else {}
+    if kind == "badge" and not badge_exists(db, config.get("badge_uuid")):
+        config = {}
     if kind in {"activity", "badge"} and not any(config.values()):
         counts.warnings.append(f"{title}: {kind} missing, kept as a task")
         kind, config = "task", {}
