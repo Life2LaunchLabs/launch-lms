@@ -6,7 +6,7 @@ from sqlmodel import select
 
 from src.db.goals import Goal, GoalCreate, GoalStatus, GoalUpdate, StepCreate, StepProgress, StepStatus, StepStatusChange
 from src.db.planning import PlanWeeklyFocus
-from src.services.goals import goals, home, structure
+from src.services.goals import goals, home, lifecycle, structure
 from src.tests.test_goals import LEARNER, _issue, _published, _session, _user
 
 
@@ -211,7 +211,7 @@ def test_finished_goal_greets_its_learner_once():
         db.add(row)
         db.commit()
         assert _home(db)["celebrations"] == [goal["goal_uuid"]]
-        assert home.mark_celebrated(db, _user(LEARNER), goal["goal_uuid"]) == {"goal_uuid": goal["goal_uuid"], "celebration_pending": False}
+        assert lifecycle.mark_celebrated(db, _user(LEARNER), goal["goal_uuid"])["celebration_pending"] is False
         assert _home(db)["celebrations"] == []
 
 

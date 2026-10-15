@@ -39,8 +39,3 @@ def api_home_pull_goal(goal_uuid: str, db: Session = Depends(get_db_session), us
     """Bring a goal started mid-week into this week."""
     return service.pull_in_goal(db, user, goal_uuid)
 
-
-@router.post("/home/goals/{goal_uuid}/celebrated")
-def api_home_goal_celebrated(goal_uuid: str, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
-    """The learner has seen their finished goal's reward; it won't greet them again."""
-    return service.mark_celebrated(db, user, goal_uuid)

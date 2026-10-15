@@ -9,7 +9,7 @@ grouping.
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
 from fastapi import HTTPException
 from sqlmodel import Session, select
@@ -240,17 +240,4 @@ def pull_in_goal(db: Session, current_user: PublicUser, goal_uuid: str, today: d
         raise HTTPException(status_code=404, detail="Goal not found")
     fill_week(db, user_id, goals, with_finished(db, user_id, goals, today)[1], today, adopt={goal_uuid})
     return home(db, current_user, today)
-
-
-def mark_celebrated(db: Session, current_user: PublicUser, goal_uuid: str) -> dict:
-    """The learner has seen their finished goal's reward; it won't greet them again."""
-    goal = db.exec(select(Goal).where(Goal.goal_uuid == goal_uuid)).first()
-    if not goal or goal.subject_user_id != current_user.id:
-        raise HTTPException(status_code=404, detail="Goal not found")
-    if goal.celebrated_at is None and _value(goal.status) == GoalStatus.FINISHED.value:
-        goal.celebrated_at = datetime.now()
-        goal.update_date = now_string()
-        db.add(goal)
-        db.commit()
-    return {"goal_uuid": goal.goal_uuid, "celebration_pending": False}
 
