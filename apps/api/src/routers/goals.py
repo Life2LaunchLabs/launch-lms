@@ -20,7 +20,7 @@ from src.db.goals import (
 )
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
-from src.services.goals import goals as service
+from src.services.goals import goals as service, structure
 
 router = APIRouter()
 
@@ -60,42 +60,42 @@ def api_respond(goal_uuid: str, payload: GoalResponse, db: Session = Depends(get
 
 @router.post("/{goal_uuid}/stages")
 def api_add_stage(goal_uuid: str, payload: StageCreate, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
-    return service.add_stage(db, user, goal_uuid, payload)
+    return structure.add_stage(db, user, goal_uuid, payload)
 
 
 @router.put("/{goal_uuid}/stages/order")
 def api_reorder_stages(goal_uuid: str, payload: StageOrder, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
-    return service.reorder_stages(db, user, goal_uuid, payload.stage_uuids)
+    return structure.reorder_stages(db, user, goal_uuid, payload.stage_uuids)
 
 
 @router.patch("/{goal_uuid}/stages/{stage_uuid}")
 def api_update_stage(goal_uuid: str, stage_uuid: str, payload: StageUpdate, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
-    return service.update_stage(db, user, goal_uuid, stage_uuid, payload)
+    return structure.update_stage(db, user, goal_uuid, stage_uuid, payload)
 
 
 @router.delete("/{goal_uuid}/stages/{stage_uuid}")
 def api_delete_stage(goal_uuid: str, stage_uuid: str, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
-    return service.delete_stage(db, user, goal_uuid, stage_uuid)
+    return structure.delete_stage(db, user, goal_uuid, stage_uuid)
 
 
 @router.post("/{goal_uuid}/steps")
 def api_add_step(goal_uuid: str, payload: StepCreate, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
-    return service.add_step(db, user, goal_uuid, payload)
+    return structure.add_step(db, user, goal_uuid, payload)
 
 
 @router.patch("/{goal_uuid}/steps/{step_uuid}")
 def api_update_step(goal_uuid: str, step_uuid: str, payload: StepUpdate, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
-    return service.update_step(db, user, goal_uuid, step_uuid, payload)
+    return structure.update_step(db, user, goal_uuid, step_uuid, payload)
 
 
 @router.put("/{goal_uuid}/steps/{step_uuid}/move")
 def api_move_step(goal_uuid: str, step_uuid: str, payload: StepMove, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
-    return service.move_step(db, user, goal_uuid, step_uuid, payload)
+    return structure.move_step(db, user, goal_uuid, step_uuid, payload)
 
 
 @router.delete("/{goal_uuid}/steps/{step_uuid}")
 def api_delete_step(goal_uuid: str, step_uuid: str, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
-    return service.delete_step(db, user, goal_uuid, step_uuid)
+    return structure.delete_step(db, user, goal_uuid, step_uuid)
 
 
 @router.put("/{goal_uuid}/steps/{step_uuid}/status")

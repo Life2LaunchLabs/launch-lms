@@ -16,7 +16,6 @@ from src.db.learning import (
     IssuerLearnerRequestCreate,
     IssuerLearnerRequestDecision,
     LearningActivity,
-    LearningAwardCreate,
     LearningBadge,
     LearningBadgeCreate,
     LearningBadgeAward,
@@ -25,10 +24,9 @@ from src.db.learning import (
     LearningPageProgress,
     LearningPageType,
     LearningResponseAttempt,
-    LearningResponseGrade,
-    LearningResponseSubmit,
     LearningRun,
 )
+from src.db.learning_requests import LearningAwardCreate, LearningResponseGrade, LearningResponseSubmit
 from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
 from src.db.plan_requests import PlanRequest

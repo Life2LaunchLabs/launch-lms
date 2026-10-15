@@ -67,7 +67,7 @@ def _step_due(step: dict, stage_start: date | None, stage_due: date | None) -> d
 
 def build_step(db: Session, goal: Goal, stage: GoalStage | None, spec: dict, position: int, *, due_date: date | None = None) -> GoalStep:
     """A live step from a template document step (or a step a learner or Coach wrote in the same shape)."""
-    from src.services.requirements import requirement_links
+    from src.services.goals.credit import requirement_links
 
     kind = step_type(spec["type"])
     config = kind.validate_config(spec.get("config"))

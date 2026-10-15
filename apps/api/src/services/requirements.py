@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from sqlalchemy import inspect
 from sqlmodel import Session, select
 
-from src.db.goals import Goal, GoalStep, StepProgress, StepStatus
+from src.db.goals import StepProgress
 from src.db.planning import Plan, PlanObjective, PlanObjectiveProgress, PlanObjectiveStatus
 from src.db.organizations import Organization
 from src.db.programs import Objective, ObjectiveProgress, ObjectiveProgressStatus, ProgramObjective
@@ -503,21 +503,15 @@ def _recompute_enrollment(db: Session, enrollment: RequirementEnrollment) -> Non
 
 def _upsert_source(
     db: Session, enrollment: RequirementEnrollment, node_uuid: str, *,
-    plan_progress: PlanObjectiveProgress | None = None, legacy_progress: ObjectiveProgress | None = None,
-    step_progress: StepProgress | None = None,
+    plan_progress: PlanObjectiveProgress | None = None, legacy_progress: ObjectiveProgress | None = None, step_progress: StepProgress | None = None,
     title: str, evidence: dict, verified_by: int | None, verified_at: datetime | None, active: bool,
 ) -> None:
-    statement = select(RequirementAttainmentSource).where(
-        RequirementAttainmentSource.enrollment_id == enrollment.id,
-        RequirementAttainmentSource.node_uuid == node_uuid,
-    )
-    if step_progress:
-        statement = statement.where(RequirementAttainmentSource.step_progress_id == step_progress.id)
-    elif plan_progress:
-        statement = statement.where(RequirementAttainmentSource.plan_objective_progress_id == plan_progress.id)
-    else:
-        statement = statement.where(RequirementAttainmentSource.objective_progress_id == legacy_progress.id)
-    source = db.exec(statement).first()
+    same_progress = (RequirementAttainmentSource.step_progress_id == step_progress.id if step_progress
+                     else RequirementAttainmentSource.plan_objective_progress_id == plan_progress.id if plan_progress
+                     else RequirementAttainmentSource.objective_progress_id == legacy_progress.id)
+    source = db.exec(select(RequirementAttainmentSource).where(
+        RequirementAttainmentSource.enrollment_id == enrollment.id, RequirementAttainmentSource.node_uuid == node_uuid, same_progress,
+    )).first()
     now = _now()
     if not source:
         source = RequirementAttainmentSource(
@@ -559,38 +553,6 @@ def sync_live_progress(db: Session, progress: PlanObjectiveProgress, plan_object
                 title=plan_objective.title, evidence={"field_values": progress.field_values or {}, "learner_note": progress.subject_note},
                 verified_by=progress.updated_by_user_id, verified_at=progress.completed_at, active=active)
             _recompute_enrollment(db, enrollment)
-
-
-def sync_step_progress(db: Session, progress: StepProgress, step: GoalStep, goal: Goal, evidence: dict) -> None:
-    """Credit (or withdraw) the requirements a goal step counts toward."""
-    if not _available(db) or not step.requirement_links or not goal.subject_user_id:
-        return
-    if not progress.id:
-        db.flush()
-    active = getattr(progress.status, "value", progress.status) == StepStatus.COMPLETED.value
-    for link in step.requirement_links:
-        enrollments = db.exec(select(RequirementEnrollment).where(
-            RequirementEnrollment.org_id == goal.org_id,
-            RequirementEnrollment.user_id == goal.subject_user_id,
-            RequirementEnrollment.framework_id == link.get("framework_id"),
-        )).all()
-        for enrollment in enrollments:
-            if link.get("node_uuid") not in set((enrollment.framework_snapshot or {}).get("leaf_node_uuids") or []):
-                continue
-            _upsert_source(db, enrollment, link["node_uuid"], step_progress=progress, title=step.title, evidence=evidence,
-                verified_by=progress.completed_by_user_id, verified_at=progress.completed_at, active=active)
-            _recompute_enrollment(db, enrollment)
-
-
-def requirement_links(db: Session, org_id: int | None, node_uuids: list[str]) -> list[dict]:
-    """Requirement links for a step, from node uuids the template document checked."""
-    if not org_id or not node_uuids:
-        return []
-    frameworks = mappable_nodes(db, org_id)
-    return [
-        {"framework_id": int(frameworks[node].id), "framework_uuid": frameworks[node].framework_uuid, "node_uuid": node}  # type: ignore[arg-type]
-        for node in node_uuids if node in frameworks
-    ]
 
 
 def sync_legacy_progress(db: Session, progress: ObjectiveProgress, objective: Objective) -> None:

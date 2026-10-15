@@ -7,12 +7,12 @@ from uuid import uuid4
 from fastapi import HTTPException, Request, status
 from sqlmodel import Session, select
 from src.db.learning import (
-    LearningAwardCreate,
     LearningAwardSource,
     LearningBadge,
     LearningBadgeAward,
     LearningBadgeVersion,
 )
+from src.db.learning_requests import LearningAwardCreate
 from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
 from src.db.users import AnonymousUser, PublicUser, User

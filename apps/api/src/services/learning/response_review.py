@@ -9,10 +9,10 @@ from src.db.learning import (
     LearningPage,
     LearningPageProgress,
     LearningResponseAttempt,
-    LearningResponseGrade,
     LearningRun,
     LearningRunStatus,
 )
+from src.db.learning_requests import LearningResponseGrade
 from src.db.planning import Plan
 from src.db.users import AnonymousUser, PublicUser, User
 from src.security.superadmin import is_user_superadmin

@@ -163,7 +163,7 @@ def set_status(
 
 
 def _after_change(db: Session, goal: Goal, step: GoalStep, progress: StepProgress, actor_user_id: int | None, method: CompletionMethod, previous: str) -> None:
-    from src.services.requirements import sync_step_progress
+    from src.services.goals.credit import sync_step_progress
 
     state = state_of(db, step, progress)
     evidence = {"submission": progress.submission or {}, "answer": progress.answer, "result": step_type(step.type).result(state)}

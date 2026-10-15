@@ -34,7 +34,7 @@ from src.db.user_organizations import UserOrganization
 from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup
 from src.db.users import PublicUser, User
-from src.services.goals import assignments, goals, issue, templates
+from src.services.goals import assignments, goals, issue, structure, templates
 from src.services.goals.completion import on_badge_awarded
 
 NOW = "2026-10-15T12:00:00"
@@ -304,11 +304,11 @@ def test_personal_goals_are_private_learner_owned_and_never_wait_on_staff():
         with pytest.raises(HTTPException) as hidden:
             goals.get_goal(db, _user(OTHER), created["goal_uuid"])
         assert hidden.value.status_code == 404
-        view = goals.add_stage(db, _user(LEARNER), created["goal_uuid"], StageCreate(title="Research", timing="this fall"))
+        view = structure.add_stage(db, _user(LEARNER), created["goal_uuid"], StageCreate(title="Research", timing="this fall"))
         research = view["stages"][1]["stage_uuid"]
         with pytest.raises(HTTPException, match="never wait on staff"):
-            goals.add_step(db, _user(LEARNER), created["goal_uuid"], StepCreate(stage_uuid=research, type="task", title="Ask", completed_by="staff"))
-        view = goals.add_step(db, _user(LEARNER), created["goal_uuid"], StepCreate(stage_uuid=research, type="decision", title="Choose", config={"options": [{"key": "bio", "label": "Biology"}, {"key": "art", "label": "Art"}]}))
+            structure.add_step(db, _user(LEARNER), created["goal_uuid"], StepCreate(stage_uuid=research, type="task", title="Ask", completed_by="staff"))
+        view = structure.add_step(db, _user(LEARNER), created["goal_uuid"], StepCreate(stage_uuid=research, type="decision", title="Choose", config={"options": [{"key": "bio", "label": "Biology"}, {"key": "art", "label": "Art"}]}))
         choose = _step(view, "Choose")
         goal = db.exec(select(Goal).where(Goal.goal_uuid == created["goal_uuid"])).one()
         with pytest.raises(HTTPException, match="Make a choice"):

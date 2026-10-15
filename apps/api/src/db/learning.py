@@ -327,9 +327,7 @@ class LearningActivityBase(SQLModel):
     """An interactive activity: the content of a plan template's activity objective."""
 
     objective_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("objective.id", ondelete="CASCADE"), nullable=True, index=True))
-    # Goal templates own their activities; objective_id goes when the plan tables are dropped.
     goal_template_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("goal_template.id", ondelete="CASCADE"), nullable=True, index=True))
-    # Frozen copies published in a goal template version: the working activity and its content hash then.
     frozen_from_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningactivity.id", ondelete="SET NULL"), nullable=True, index=True))
     frozen_hash: str | None = Field(default=None, sa_column=Column(String, nullable=True))
     org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
@@ -463,7 +461,6 @@ class LearningRun(SQLModel, table=True):
     issuing_org_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("organization.id", ondelete="SET NULL"), nullable=True, index=True))  # the plan's source organization
     plan_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("plan.id", ondelete="CASCADE"), nullable=True, index=True))
     plan_objective_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("planobjective.id", ondelete="CASCADE"), nullable=True, index=True))
-    # Runs of goal activity steps; the plan columns go when the plan tables are dropped.
     goal_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("goal.id", ondelete="CASCADE"), nullable=True, index=True))
     goal_step_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("goal_step.id", ondelete="CASCADE"), nullable=True, index=True))
     user_id: int = Field(sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True))
@@ -540,33 +537,6 @@ class LearningRunRead(BaseModel):
     attempts: list[dict] = []
     navigation: dict | None = None
     render_context: dict = Field(default_factory=dict)
-
-
-class LearningPageComplete(SQLModel):
-    run_uuid: str
-    page_uuid: str
-    data: dict = Field(default_factory=dict)
-
-
-class LearningResponseSubmit(SQLModel):
-    run_uuid: str
-    page_uuid: str
-    answer: dict = Field(default_factory=dict)
-    button: str | None = None
-
-
-class LearningResponseGrade(SQLModel):
-    score: float
-    feedback: str | None = ""
-    question_scores: dict[str, float] = Field(default_factory=dict)
-    question_feedback: dict[str, str] = Field(default_factory=dict)
-
-
-class LearningAwardCreate(SQLModel):
-    badge_uuid: str
-    user_id: int
-    issuing_org_id: int | None = None
-    evidence: dict = Field(default_factory=dict)
 
 
 LearningActivityRead.model_rebuild()

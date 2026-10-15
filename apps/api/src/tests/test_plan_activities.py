@@ -8,11 +8,11 @@ from src.db.learning import (
     LearningActivity,
     LearningBadge,
     LearningPage,
-    LearningPageComplete,
     LearningPageType,
     LearningResponseAttempt,
     LearningRun,
 )
+from src.db.learning_requests import LearningPageComplete
 from src.db.planning import Plan, PlanObjective, PlanObjectiveProgress
 from src.db.portfolio import Portfolio, TimelineEntry
 from src.db.programs import FrozenActivity, ObjectiveCreate, ObjectiveKind, ProgramAssignmentCreate, ProgramCreate, ProgramParticipant, ProgramUpdate
