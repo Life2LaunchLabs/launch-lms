@@ -54,7 +54,7 @@ export type HubSuggestedAction = {
   primary_behavior?: 'navigate' | 'begin_edit'
   primary_label?: string
   alternate_label?: string
-  edit_scope?: { kind: HubEditScopeKind | 'new_plan' | 'plan'; label: string }
+  edit_scope?: { kind: HubEditScopeKind | 'new_plan' | 'plan'; label: string; target_uuid?: string }
 }
 
 export type HubEditRunEvent = {
@@ -85,6 +85,12 @@ export type HubProposedStep = {
   materials?: Array<Record<string, unknown>>
 }
 
+type ChangeBase = { local_id: string; reason: string }
+/** A change Coach suggests to a step the goal has; ``from`` is the row as it was when suggested. */
+export type HubStepChange = ChangeBase & { step_uuid: string; remove: boolean; title?: string; description?: string; stage_uuid?: string; stage_title?: string; from: { title: string; description: string; stage_title: string } }
+export type HubStageChange = ChangeBase & { stage_uuid: string; remove: boolean; title?: string; milestone?: string; timing?: string; from: { title: string; milestone: string; timing: string } }
+export type HubGoalDetailsChange = ChangeBase & { title?: string; description?: string; from: { title: string; description: string } }
+
 export type HubEditOperation = {
   operation_id: string
   type: 'set_new_goal_details'
@@ -106,6 +112,27 @@ export type HubEditOperation = {
   object_uuid?: string | null
   object_label: string
   steps: HubProposedStep[]
+} | {
+  operation_id: string
+  type: 'change_goal_steps'
+  object_type: 'step'
+  object_uuid?: string | null
+  object_label: string
+  changes: HubStepChange[]
+} | {
+  operation_id: string
+  type: 'change_goal_stages'
+  object_type: 'stage'
+  object_uuid?: string | null
+  object_label: string
+  changes: HubStageChange[]
+} | {
+  operation_id: string
+  type: 'set_goal_details'
+  object_type: 'goal'
+  object_uuid?: string | null
+  object_label: string
+  changes: HubGoalDetailsChange[]
 } | {
   operation_id: string
   type: 'propose_edit_conclusion'
@@ -274,6 +301,20 @@ export function updateHubEditRunGoal(orgId: number, runUuid: string, goal: strin
 /** Points a new-goal run at the personal goal the learner just saved, so Coach can keep building it. */
 export function bindHubEditRunGoal(orgId: number, runUuid: string, goalUuid: string, accessToken: string) {
   return hubRequest<HubEditRun>(`edit-runs/${encodeURIComponent(runUuid)}/goal-target?org_id=${encodeURIComponent(orgId)}`, 'POST', accessToken, { goal_uuid: goalUuid })
+}
+
+/** The learner asks Coach to plan their goal with them; an active session on the goal is returned as it is. */
+export function startGoalCoachSession(orgId: number, goalUuid: string, accessToken: string, conversationUuid?: string | null) {
+  return hubRequest<HubEditRun>(`goals/${encodeURIComponent(goalUuid)}/coach/session?org_id=${encodeURIComponent(orgId)}`, 'POST', accessToken, { conversation_uuid: conversationUuid || null })
+}
+
+/** One session's suggestions on a goal that are still waiting, from an active or an ended session. */
+export type GoalSuggestionRun = { run_uuid: string; active: boolean; operations: HubEditOperation[]; objects: HubEditObjectState[] }
+
+export const goalSuggestionsKey = (orgId: number, goalUuid: string) => `hub/goals/${goalUuid}/coach/suggestions?org_id=${orgId}`
+
+export function getGoalCoachSuggestions(orgId: number, goalUuid: string, accessToken: string) {
+  return hubRequest<{ runs: GoalSuggestionRun[] }>(`goals/${encodeURIComponent(goalUuid)}/coach/suggestions?org_id=${encodeURIComponent(orgId)}`, 'GET', accessToken)
 }
 
 export function saveHubEditObjectState(

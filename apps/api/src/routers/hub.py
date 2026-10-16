@@ -39,9 +39,10 @@ from src.services.hub_memory import (
 
 from src.services.goals.coach_apply import CoachStageCreate, CoachStepCreate, add_stage_once, add_step_once, bind_created_goal
 from src.services.goals.coach_context import GoalSurfaceHint as HubSurfaceHint, page_context
+from src.services.goals.coach_sessions import GoalSessionStart, goal_suggestions, session_target, start_goal_session
 from src.services.goals.coach_tools import record_goal_proposals, scope
 from src.services.hub_actions import build_navigation_actions, requests_plan_creation, resolve_navigation_action
-from src.services.hub_edit_runs import active_edit_run, begin_edit_run, conclude_edit_run, latest_edit_run, record_edit_run_activity, reopen_edit_run, save_object_state, update_edit_run_goal
+from src.services.hub_edit_runs import active_edit_run, conclude_edit_run, latest_edit_run, record_edit_run_activity, reopen_edit_run, save_object_state, update_edit_run_goal
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -333,6 +334,7 @@ async def create_hub_advice(
     context = page_context(db_session, org_id, current_user.id, body.surface)
     edit_run = active_edit_run(db_session, body.conversation_uuid, org_id, current_user.id) if body.conversation_uuid else None
     recent_edit_run = latest_edit_run(db_session, body.conversation_uuid, org_id, current_user.id) if body.conversation_uuid and not edit_run else None
+    target = session_target(db_session, current_user.id, body.surface) if not edit_run else None
     used_memories = select_memories(db_session, org_id, current_user.id, user_content)
     grounding_resources = advisor_resources_for_request(
         user_content,
@@ -351,6 +353,7 @@ async def create_hub_advice(
             page_context=context,
             edit_run=edit_run,
             recent_edit_run=recent_edit_run,
+            session_target=target,
         )
     except AdvisorProviderLimited as error:
         raise HTTPException(
@@ -363,8 +366,8 @@ async def create_hub_advice(
     accessible = {str(item.get("resource_uuid")) for item in accessible_resources}
     plan_creation_request = not edit_run and requests_plan_creation(user_content)
     action_destinations = ("create_plan",) if plan_creation_request else result.action_destinations
-    assistant_text = "Sure — should we go create that goal together?" if plan_creation_request else result.text
-    suggested_actions = build_navigation_actions(action_destinations, db_session, org_id, user_content)
+    assistant_text = "Choosing a goal is yours to do, so I won't set it up for you. You can start it here, and once it exists I can plan it with you." if plan_creation_request else result.text
+    suggested_actions = build_navigation_actions(action_destinations, db_session, org_id, target)
     page_receipt = context.get("receipt") or {}
     if edit_run and page_receipt.get("status") == "ready":
         sources = page_receipt.get("sources") or []
@@ -438,28 +441,17 @@ def resolve_hub_navigation_action(
     db_session: Session = Depends(get_db_session),
 ):
     resolved = resolve_navigation_action(
-        db_session,
-        org_id=org_id,
-        user_id=current_user.id,
-        conversation_uuid=body.conversation_uuid,
-        message_uuid=body.message_uuid,
-        action_id=action_id,
+        db_session, org_id=org_id, user_id=current_user.id,
+        conversation_uuid=body.conversation_uuid, message_uuid=body.message_uuid, action_id=action_id,
     )
     if body.mode != "edit":
         return resolved
     edit_scope = resolved.get("edit_scope")
-    if resolved.get("primary_behavior") != "begin_edit" or not edit_scope:
+    if resolved.get("primary_behavior") != "begin_edit" or not edit_scope or scope(edit_scope.get("kind")) != "goal" or not edit_scope.get("target_uuid"):
         raise HTTPException(status_code=422, detail="That action does not grant editing")
-    run = begin_edit_run(
-        db_session,
-        conversation_uuid=body.conversation_uuid,
-        org_id=org_id,
-        user_id=current_user.id,
-        action_id=action_id,
-        route=resolved["route"],
-        scope_kind=scope(edit_scope["kind"]) or edit_scope["kind"],
-        target_label=edit_scope["label"],
-        goal=resolved.get("goal") or "Create a personal goal together",
+    run = start_goal_session(
+        db_session, org_id=org_id, user_id=current_user.id, goal_uuid=edit_scope["target_uuid"],
+        conversation_uuid=body.conversation_uuid, action_id=action_id,
     )
     return {**resolved, "edit_run": run}
 
@@ -475,23 +467,12 @@ def get_active_hub_edit_run(
 
 
 @router.post("/edit-runs/{run_uuid}/reopen")
-def reopen_hub_edit_run(
-    run_uuid: str,
-    org_id: int,
-    current_user: PublicUser = Depends(get_current_user),
-    db_session: Session = Depends(get_db_session),
-):
+def reopen_hub_edit_run(run_uuid: str, org_id: int, current_user: PublicUser = Depends(get_current_user), db_session: Session = Depends(get_db_session)):
     return reopen_edit_run(db_session, run_uuid, org_id, current_user.id)
 
 
 @router.post("/edit-runs/{run_uuid}/conclude")
-def conclude_hub_edit_run(
-    run_uuid: str,
-    org_id: int,
-    body: HubEditRunConclusion,
-    current_user: PublicUser = Depends(get_current_user),
-    db_session: Session = Depends(get_db_session),
-):
+def conclude_hub_edit_run(run_uuid: str, org_id: int, body: HubEditRunConclusion, current_user: PublicUser = Depends(get_current_user), db_session: Session = Depends(get_db_session)):
     return conclude_edit_run(db_session, run_uuid, org_id, current_user.id, body.status)
 
 
@@ -509,6 +490,16 @@ def update_hub_edit_run_goal(
 @router.post("/edit-runs/{run_uuid}/goal-target")
 def bind_hub_edit_run_goal(run_uuid: str, org_id: int, body: HubEditRunGoalTarget, current_user: PublicUser = Depends(get_current_user), db_session: Session = Depends(get_db_session)):
     return bind_created_goal(db_session, run_uuid, org_id, current_user.id, body.goal_uuid)
+
+
+@router.post("/goals/{goal_uuid}/coach/session")
+def start_hub_goal_session(goal_uuid: str, org_id: int, body: GoalSessionStart, current_user: PublicUser = Depends(get_current_user), db_session: Session = Depends(get_db_session)):
+    return start_goal_session(db_session, org_id=org_id, user_id=current_user.id, goal_uuid=goal_uuid, conversation_uuid=body.conversation_uuid)
+
+
+@router.get("/goals/{goal_uuid}/coach/suggestions")
+def list_hub_goal_suggestions(goal_uuid: str, org_id: int, current_user: PublicUser = Depends(get_current_user), db_session: Session = Depends(get_db_session)):
+    return {"runs": goal_suggestions(db_session, org_id, current_user.id, goal_uuid)}
 
 
 # Saving a Coach proposal on a goal; saving the same proposal again never adds a second stage or step.

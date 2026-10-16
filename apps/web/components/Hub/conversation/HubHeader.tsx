@@ -64,7 +64,7 @@ export default function HubHeader({
   onEnd: () => void
 }) {
   const hasConversation = conversationStarted || Boolean(conversationUuid)
-  const sessionModeLabel = editRun?.scope.kind === 'new_goal' || /\b(create|start|build)\b.*\b(goal|plan)\b/i.test(editRun?.goal || '') ? 'Creating a goal' : 'Editing a goal'
+  const sessionModeLabel = editRun?.scope.kind === 'new_goal' ? 'Creating a goal' : 'Planning'
   const [panel, setPanel] = useState<Panel>(null)
   const [renaming, setRenaming] = useState(false)
   const [renameValue, setRenameValue] = useState(title)
@@ -176,7 +176,7 @@ export default function HubHeader({
         </div> : null}
 
         {panel === 'session' && editRun?.status === 'active' ? <div className="absolute inset-x-4 top-[4.75rem] z-[var(--z-popover)] rounded-xl border border-border bg-popover p-3 shadow-lg sm:inset-x-5">
-          <div><p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Scope</p><p className="mt-1 text-xs leading-5 text-muted-foreground">{editRun.scope.kind === 'new_goal' ? 'Create and fill in a new personal goal' : `Edit goal: ${editRun.scope.label}`}</p></div>
+          <div><p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Scope</p><p className="mt-1 text-xs leading-5 text-muted-foreground">{editRun.scope.kind === 'new_goal' ? 'A new personal goal' : `Your goal: ${editRun.scope.label}`}</p></div>
           <form className="mt-3" onSubmit={async (event) => { event.preventDefault(); if (!goalValue.trim() || !onUpdateEditGoal) return; setGoalSaving(true); try { await onUpdateEditGoal(goalValue.trim()); setGoalEditing(false) } finally { setGoalSaving(false) } }}>
             <label htmlFor="hub-session-goal" className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Goal</label>
             <textarea id="hub-session-goal" value={goalValue} onFocus={() => setGoalEditing(true)} onChange={(event) => setGoalValue(event.target.value)} maxLength={500} className="mt-1 min-h-16 w-full resize-y rounded-lg border border-border bg-background px-2.5 py-2 text-xs leading-5 outline-none transition focus:ring-2 focus:ring-ring" />

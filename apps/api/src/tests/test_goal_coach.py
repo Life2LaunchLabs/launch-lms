@@ -17,8 +17,10 @@ from src.services import hub_edit_runs
 from src.services.goals import coach_apply, goals, structure
 from src.services.goals.coach_apply import CoachStageCreate, CoachStepCreate, add_stage_once, add_step_once, bind_created_goal
 from src.services.goals.coach_context import GoalSurfaceHint, page_context, visible_receipt
+from src.services.goals.coach_sessions import goal_outline, goal_suggestions, start_goal_session
 from src.services.goals.coach_tools import (
-    CONCLUDE_EDIT_TOOL, GOAL_STAGES_TOOL, GOAL_STEPS_TOOL, NEW_GOAL_TOOL, attach_catalog_resources, goal_edit_tools, parse_goal_tool_call, record_goal_proposals,
+    CONCLUDE_EDIT_TOOL, GOAL_DETAILS_TOOL, GOAL_STAGES_TOOL, GOAL_STEPS_TOOL, STAGE_CHANGES_TOOL, STEP_CHANGES_TOOL,
+    attach_catalog_resources, goal_edit_tools, parse_goal_tool_call, record_goal_proposals,
 )
 from src.tests.test_goals import ADMIN, LEARNER, OTHER, _issue, _published, _session, _status, _step, _user  # noqa: F401
 
@@ -49,19 +51,27 @@ def _steps(*items):
 # Tools ---------------------------------------------------------------------------------
 
 def test_tools_are_scope_bounded_and_accept_plan_era_scopes():
+    goal_tools = [GOAL_STAGES_TOOL, GOAL_STEPS_TOOL, STEP_CHANGES_TOOL, STAGE_CHANGES_TOOL, GOAL_DETAILS_TOOL, CONCLUDE_EDIT_TOOL]
     assert goal_edit_tools("openai", None) == []
-    assert [tool["name"] for tool in goal_edit_tools("openai", "goal")] == [GOAL_STAGES_TOOL, GOAL_STEPS_TOOL, CONCLUDE_EDIT_TOOL]
-    assert [tool["name"] for tool in goal_edit_tools("anthropic", "plan")] == [GOAL_STAGES_TOOL, GOAL_STEPS_TOOL, CONCLUDE_EDIT_TOOL]
-    assert goal_edit_tools("openai", "new_plan")[0]["name"] == NEW_GOAL_TOOL
+    assert [tool["name"] for tool in goal_edit_tools("openai", "goal")] == goal_tools
+    assert [tool["name"] for tool in goal_edit_tools("anthropic", "plan")] == goal_tools
+    # Coach never writes a new goal: a run begun for one before that rule can only finish.
+    assert [tool["name"] for tool in goal_edit_tools("openai", "new_plan")] == [CONCLUDE_EDIT_TOOL]
+    for tool in goal_edit_tools("openai", "goal"):
+        assert tool["strict"] and _strict(tool["parameters"])
     strict = goal_edit_tools("openai", "goal")[1]["parameters"]["properties"]["steps"]["items"]
     assert set(strict["required"]) == set(strict["properties"]) and strict["properties"]["type"]["enum"] == ["task", "write", "upload", "event", "decision"]
 
 
-def test_new_goal_and_stage_tools_validate_complete_values():
-    fields = parse_goal_tool_call(NEW_GOAL_TOOL, {"title": "Explore nursing", "description": "Compare two programs.", "target_date": "2027-06-01"})["fields"]
-    assert fields == {"title": "Explore nursing", "description": "Compare two programs.", "target_date": "2027-06-01"}
-    assert parse_goal_tool_call(NEW_GOAL_TOOL, {"title": "Try", "description": "", "target_date": ""})["fields"]["target_date"] == ""
-    assert parse_goal_tool_call(NEW_GOAL_TOOL, {"title": "Explore", "description": "", "target_date": "someday"}) is None
+def _strict(schema) -> bool:
+    """Every object in a strict tool schema requires all of its properties and allows no others."""
+    if schema.get("type") == "object":
+        return set(schema["required"]) == set(schema["properties"]) and schema["additionalProperties"] is False and all(_strict(item) for item in schema["properties"].values())
+    return _strict(schema["items"]) if schema.get("type") == "array" else True
+
+
+def test_stage_tools_validate_complete_values():
+    assert parse_goal_tool_call("propose_new_goal_details", {"title": "Explore nursing", "description": "", "target_date": ""}) is None
     stages = parse_goal_tool_call(GOAL_STAGES_TOOL, {"stages": [{"title": "Explore", "description": "Compare.", "timing": "This fall"}, {"title": "", "description": "", "timing": ""}]})
     assert stages["type"] == "add_goal_stages" and [(item["title"], item["timing"]) for item in stages["stages"]] == [("Explore", "This fall")]
     assert parse_goal_tool_call(CONCLUDE_EDIT_TOOL, {"summary": "The first steps are ready."})["type"] == "propose_edit_conclusion"
@@ -246,3 +256,97 @@ def test_new_goal_run_binds_to_the_learners_new_personal_goal(monkeypatch):
             bind_created_goal(db, run["run_uuid"], 1, LEARNER, goal_uuid)
         assert again.value.status_code == 409
         assert [tool["name"] for tool in goal_edit_tools("openai", bound["scope"]["kind"])][0] == GOAL_STAGES_TOOL
+
+
+# Sessions on an existing goal ------------------------------------------------------------------
+
+def _changes(**items):
+    step = {"step_id": "", "title": "", "description": "", "stage_id": "", "remove": False, "reason": ""}
+    return {"changes": [{**step, **item} for item in items.get("steps", [])]}
+
+
+def _goal_session(db, monkeypatch):
+    from src.services import hub_conversations
+    from src.services.goals import coach_sessions
+    for module in (hub_edit_runs, hub_conversations, coach_sessions):
+        monkeypatch.setattr(module, "require_org_membership", lambda *_args: None)
+    _hub(db)
+    goal_uuid, step_uuid = _personal(db)
+    return goal_uuid, step_uuid
+
+
+def test_a_session_starts_only_on_the_learners_own_goal_and_is_picked_back_up(monkeypatch):
+    with _session() as db:
+        goal_uuid, _ = _goal_session(db, monkeypatch)
+        run = start_goal_session(db, org_id=1, user_id=LEARNER, goal_uuid=goal_uuid)
+        assert run["scope"] == {"kind": "goal", "target_uuid": goal_uuid, "label": "Design career", "route": f"/plans/{goal_uuid}"}
+        assert run["status"] == "active" and run["goal"] == "Plan “Design career” together"
+        # Asking again from the goal page, or from another conversation, returns the same session.
+        assert start_goal_session(db, org_id=1, user_id=LEARNER, goal_uuid=goal_uuid, conversation_uuid="conversation_other")["run_uuid"] == run["run_uuid"]
+        with pytest.raises(HTTPException) as other:
+            start_goal_session(db, org_id=1, user_id=OTHER, goal_uuid=goal_uuid)
+        assert other.value.status_code == 404
+        external = _issue(db, _published(db, {"type": "task", "title": "Visit"}))
+        with pytest.raises(HTTPException):
+            start_goal_session(db, org_id=1, user_id=LEARNER, goal_uuid=external.goal_uuid)
+
+        # A conversation already running a session on something else gets a fresh conversation instead.
+        hub_edit_runs.conclude_edit_run(db, run["run_uuid"], 1, LEARNER, "cancelled")
+        busy = HubConversation(conversation_uuid="conversation_busy", org_id=1, user_id=LEARNER, title="Busy")
+        db.add(busy)
+        db.commit()
+        db.add(HubEditRun(run_uuid="run_busy", conversation_id=busy.id, org_id=1, user_id=LEARNER, goal="Other", scope_kind="goal",
+                          target_uuid="goal_other", target_label="Other", route="/plans", started_from_action_id="action_busy"))
+        db.commit()
+        fresh = start_goal_session(db, org_id=1, user_id=LEARNER, goal_uuid=goal_uuid, conversation_uuid="conversation_busy")
+        assert fresh["run_uuid"] != run["run_uuid"] and fresh["conversation_uuid"] not in {"conversation_busy", run["conversation_uuid"]}
+
+
+def test_change_suggestions_name_real_rows_and_carry_what_they_change(monkeypatch):
+    with _session() as db:
+        goal_uuid, step_uuid = _goal_session(db, monkeypatch)
+        stage_uuid = goals.get_goal(db, _user(LEARNER), goal_uuid)["stages"][0]["stage_uuid"]
+        run = start_goal_session(db, org_id=1, user_id=LEARNER, goal_uuid=goal_uuid)
+        outline = json.loads(goal_outline(db, goal_uuid, LEARNER))
+        assert outline["steps"] == [{"id": step_uuid, "title": "Why this career?", "type": "write", "stage_id": stage_uuid, "done": False}]
+
+        steps = parse_goal_tool_call(STEP_CHANGES_TOOL, _changes(steps=[
+            {"step_id": step_uuid, "title": "Why this work matters to me", "reason": "Clearer"},
+            {"step_id": "step_forged", "remove": True},
+            {"step_id": step_uuid, "title": "Why this career?"},
+        ]))
+        stages = parse_goal_tool_call(STAGE_CHANGES_TOOL, {"changes": [
+            {"stage_id": stage_uuid, "title": "", "milestone": "A shortlist of roles", "timing": "", "remove": False, "reason": ""},
+            {"stage_id": stage_uuid, "title": "", "milestone": "", "timing": "", "remove": True, "reason": "Has a step"},
+        ]})
+        details = parse_goal_tool_call(GOAL_DETAILS_TOOL, {"title": "Design my career", "description": "", "reason": ""})
+        recorded = record_goal_proposals(db, run["run_uuid"], [steps, stages, details])
+        by_type = {item["type"]: item["changes"] for item in recorded}
+        # A forged id and a change to what's already there are dropped; a stage with steps can't be removed.
+        assert [(item["title"], item["from"]["title"]) for item in by_type["change_goal_steps"]] == [("Why this work matters to me", "Why this career?")]
+        assert [(item["milestone"], item["from"]["milestone"]) for item in by_type["change_goal_stages"]] == [("A shortlist of roles", "")]
+        assert by_type["set_goal_details"][0]["title"] == "Design my career"
+
+
+def test_suggestions_outlive_the_session_until_added_or_dropped(monkeypatch):
+    with _session() as db:
+        goal_uuid, _ = _goal_session(db, monkeypatch)
+        run = start_goal_session(db, org_id=1, user_id=LEARNER, goal_uuid=goal_uuid)
+        stages = parse_goal_tool_call(GOAL_STAGES_TOOL, {"stages": [{"title": "Explore", "description": "", "timing": ""}, {"title": "Prepare", "description": "", "timing": ""}]})
+        record_goal_proposals(db, run["run_uuid"], [stages])
+        # Steps wait while suggested stages are still on the goal.
+        assert record_goal_proposals(db, run["run_uuid"], [parse_goal_tool_call(GOAL_STEPS_TOOL, _steps({"title": "Compare"}))]) == []
+        hub_edit_runs.conclude_edit_run(db, run["run_uuid"], 1, LEARNER, "cancelled")
+
+        left = goal_suggestions(db, 1, LEARNER, goal_uuid)
+        assert [(item["active"], [stage["title"] for stage in item["operations"][0]["stages"]]) for item in left] == [(False, ["Explore", "Prepare"])]
+        first = left[0]["operations"][0]["stages"][0]["local_id"]
+        # Dropping one after the session ended is still recorded; editing it is not.
+        hub_edit_runs.save_object_state(db, run_uuid=run["run_uuid"], org_id=1, user_id=LEARNER, object_key=first, object_type="stage",
+                                        current_fields={"title": "Explore"}, proposal_fields={}, status="cancelled")
+        with pytest.raises(HTTPException):
+            hub_edit_runs.save_object_state(db, run_uuid=run["run_uuid"], org_id=1, user_id=LEARNER, object_key="other", object_type="stage",
+                                            current_fields={}, proposal_fields={}, status="editing")
+        assert [stage["title"] for stage in goal_suggestions(db, 1, LEARNER, goal_uuid)[0]["operations"][0]["stages"]] == ["Prepare"]
+        with pytest.raises(HTTPException):
+            goal_suggestions(db, 1, OTHER, goal_uuid)

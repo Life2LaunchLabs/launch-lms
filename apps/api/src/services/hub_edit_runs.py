@@ -299,7 +299,9 @@ def save_object_state(
     )).first()
     if run is None:
         raise HTTPException(status_code=404, detail="Editing run not found")
-    if run.status != ACTIVE:
+    # Suggestions left on a goal outlive the session, so the learner can still add or drop them.
+    settling_left_suggestion = status in {"saved", "cancelled"} and scope(run.scope_kind) == "goal"
+    if run.status != ACTIVE and not settling_left_suggestion:
         raise HTTPException(status_code=409, detail="The editing run is no longer active")
     if object_key in {"new-goal", "new-plan"} and scope(run.scope_kind) != "new_goal" and status != "saved":
         raise HTTPException(status_code=409, detail="The new goal editor is no longer active")
