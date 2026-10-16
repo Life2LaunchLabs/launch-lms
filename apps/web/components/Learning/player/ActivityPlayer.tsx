@@ -168,6 +168,15 @@ export function ActivityPlayer({
     const destination = pages.findIndex((item: any) => item.page_uuid === exitTo)
     if (destination > index) setIndex(destination); else onClose()
   }
+  // Enter in a one-line answer moves on, as Continue would (phone keyboards have no other way).
+  // Text areas keep Enter for new lines; pages that route on their own buttons wait for a tap.
+  const enterToContinue = (event: React.KeyboardEvent) => {
+    const target = event.target as HTMLElement
+    if (event.key !== 'Enter' || event.nativeEvent.isComposing || !(target instanceof HTMLInputElement)) return
+    if (['checkbox', 'radio', 'file', 'button', 'submit'].includes(target.type) || !unlocked || footerButtons(page, run)) return
+    event.preventDefault()
+    void completeAndNext()
+  }
   const timed = useAutoAdvance(page, unlocked, () => void completeAndNext(), index > 0 ? () => setIndex(index - 1) : undefined)
 
   return (
@@ -187,6 +196,7 @@ export function ActivityPlayer({
       footer={footerButtons(page, run, unlocked ? completeAndNext : undefined)}
       timed={timed}
     >
+      <div className="contents" onKeyDown={enterToContinue}>
       <LearningPageContent
         page={page}
         answer={answer}
@@ -198,6 +208,7 @@ export function ActivityPlayer({
         onButton={unlocked ? completeAndNext : undefined}
         responseMediaOwner={responseMediaOwner}
       />
+      </div>
     </LearningActivitySurface>
   )
 }

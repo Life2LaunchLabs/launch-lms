@@ -141,15 +141,9 @@ def check_in(db: Session, goal: Goal, now: datetime | None = None, provider=None
 
     now = now or datetime.utcnow()
     found = signals(db, goal, now)
-    keys = {item["key"] for item in found}
     existing = db.exec(select(CoachNote).where(CoachNote.goal_id == goal.id)).all()
     seen = {note.signal_key for note in existing}
-    for note in existing:
-        # An open note goes once its signal is gone (the step was started, the stage planned) or it ran out.
-        gone = note.signal_key not in keys and not note.signal_key.startswith(("milestone:", "review:"))
-        if _value(note.status) == CoachNoteStatus.OPEN.value and (gone or (note.expires_at and note.expires_at <= now)):
-            note.status = CoachNoteStatus.EXPIRED
-            db.add(note)
+    _expire(existing, {item["key"] for item in found}, now)
     open_count = sum(1 for note in existing if _value(note.status) == CoachNoteStatus.OPEN.value)
     fresh = [item for item in found if item["key"] not in seen][:max(0, MAX_NOTES - open_count)]
     worded, model = {}, ""
@@ -182,6 +176,37 @@ def check_in(db: Session, goal: Goal, now: datetime | None = None, provider=None
     db.add(goal)
     db.commit()
     return created
+
+
+def _expire(notes: list[CoachNote], keys: set[str] | None, now: datetime) -> bool:
+    """Expire open notes whose signal is gone (the step was started, the stage planned) or that ran out.
+    ``keys`` None means the goal is no longer active, so every open note goes."""
+    changed = False
+    for note in notes:
+        if _value(note.status) != CoachNoteStatus.OPEN.value:
+            continue
+        gone = keys is None or (note.signal_key not in keys and not note.signal_key.startswith(("milestone:", "review:")))
+        if gone or (note.expires_at and note.expires_at <= now):
+            note.status = CoachNoteStatus.EXPIRED
+            changed = True
+    return changed
+
+
+def sweep(db: Session, goal: Goal, now: datetime | None = None) -> None:
+    """Retire open notes the goal has moved past since the last check-in, so Coach never asks for a
+    first step on a goal that has steps, or for anything on a finished goal. Commits when it changes a note."""
+    now = now or datetime.utcnow()
+    notes = list(db.exec(select(CoachNote).where(CoachNote.goal_id == goal.id, CoachNote.status == CoachNoteStatus.OPEN.value)).all())
+    if not notes:
+        return
+    active = _value(goal.status) == GoalStatus.ACTIVE.value
+    # Read the rules no earlier than the newest note was raised, so a time-gated rule
+    # (a new goal's first-steps wait) can't retire a note it raised itself.
+    at = max([now, *(note.created_at for note in notes if note.created_at)])
+    if _expire(notes, {item["key"] for item in signals(db, goal, at)} if active else None, now):
+        for note in notes:
+            db.add(note)
+        db.commit()
 
 
 def due_soon(db: Session, goal: Goal, delay: timedelta = timedelta(0)) -> None:

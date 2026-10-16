@@ -429,7 +429,7 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, responseMe
                   </select>
                 ) : isSingleLine ? (
                   <input
-                    type={htmlInputType}
+                    type={htmlInputType} enterKeyHint="next"
                     autoComplete={validation === 'name' ? 'name' : validation === 'email' ? 'email' : validation === 'phone' ? 'tel' : validation === 'url' ? 'url' : undefined}
                     aria-invalid={Boolean(validationError)} aria-label={input.label || undefined}
                     value={value}

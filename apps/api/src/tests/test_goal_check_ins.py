@@ -289,3 +289,25 @@ def test_when_the_rules_find_nothing_the_model_looks_the_goal_over_once_a_week()
         assert len(reviewer.prompts) == 1
         db.refresh(notes[0])
         assert notes[0].status == "open"
+
+
+def test_notes_the_goal_has_moved_past_go_without_waiting_for_the_next_check_in():
+    from src.services.goals import lifecycle
+
+    with _session() as db:
+        goal_uuid = _goal(db)
+        goal = _row(db, goal_uuid)
+        later = datetime.utcnow() + timedelta(hours=2)
+        assert [note.kind for note in check_ins.check_in(db, goal, later)] == ["first_steps"]
+        assert [note["title"] for note in goal_notes(db, _user(LEARNER), goal_uuid)["notes"]] == ["Ready for a first step?"]
+        # Adding a step answers the note, and brings Coach's next look forward.
+        stage_uuid = goals.get_goal(db, _user(LEARNER), goal_uuid)["stages"][0]["stage_uuid"]
+        _step(db, goal_uuid, stage_uuid, "Call the admissions office")
+        assert _row(db, goal_uuid).next_check_in_at <= datetime.utcnow() + check_ins.FIRST_CHECK_IN
+        assert goal_notes(db, _user(LEARNER), goal_uuid)["notes"] == []
+        # A finished goal carries no notes at all.
+        db.add(CoachNote(note_uuid="coach_note_x", goal_id=goal.id, user_id=goal.owner_user_id, kind="no_why", signal_key="no_why",
+                         title="Why does it matter?", body="", actions=[], created_at=datetime.utcnow()))
+        db.commit()
+        lifecycle.finish(db, _user(LEARNER), goal_uuid)
+        assert goal_notes(db, _user(LEARNER), goal_uuid)["notes"] == []

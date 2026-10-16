@@ -78,7 +78,7 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
   }, [hubStart]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const { data: all = EMPTY, error: listError, isLoading, mutate: retryList } = useSWR<GoalSummary[]>(token ? goalsUrl('?include_finished=true') : null, () => goalsApi.list(token), { revalidateOnFocus: true })
-  const { data: detail, error: detailError, mutate: retryDetail } = useSWR<Goal>(token && selectedUuid ? goalUrl(selectedUuid) : null, () => goalsApi.get(selectedUuid, token))
+  const { data: detail, error: detailError, mutate: retryDetail, isValidating: detailValidating } = useSWR<Goal>(token && selectedUuid ? goalUrl(selectedUuid) : null, () => goalsApi.get(selectedUuid, token))
   // Finished goals that have not greeted their learner yet (shared with This week's data).
   const { data: home } = useSWR<{ celebrations?: string[] }>(token ? homeKey() : null, (url: string) => swrFetcher(url, token))
   const goals = React.useMemo(() => all.filter((goal) => goal.status !== 'finished'), [all])
@@ -167,10 +167,11 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
     setConfirmingEnd(false)
     try { await coach.end(); setEditing(false) } catch { /* the toast says what went wrong */ }
   }
-  // A draft opened by its link goes back to setting it up.
+  // A draft opened by its link goes back to setting it up, once the goal is fresh: a copy cached
+  // while the launch flow ran would otherwise bounce a goal that just went live.
   React.useEffect(() => {
-    if (detail?.status === 'draft' && detail.goal_uuid === selectedUuid) router.replace(getUriWithOrg(orgslug, launchPath(detail.goal_uuid)))
-  }, [detail, selectedUuid, orgslug, router])
+    if (!detailValidating && detail?.status === 'draft' && detail.goal_uuid === selectedUuid) router.replace(getUriWithOrg(orgslug, launchPath(detail.goal_uuid)))
+  }, [detail, detailValidating, selectedUuid, orgslug, router])
 
   // Fetch a goal as soon as the learner reaches for it, so it is usually there by the click.
   const prefetch = (goal: GoalSummary) => {
@@ -261,7 +262,7 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
         : <h1 className="pb-4 pt-2 text-3xl font-extrabold tracking-tight">Overview</h1>}
       <LayoutGroup id="plans">
         {strip}
-        {goal && goal.ownership === 'personal' && viewerUserId !== undefined && goal.owner?.id === viewerUserId && !celebrating ? <GoalCoachBar goalUuid={goal.goal_uuid} token={token} /> : null}
+        {goal && goal.ownership === 'personal' && goal.status === 'active' && viewerUserId !== undefined && goal.owner?.id === viewerUserId && !celebrating ? <GoalCoachBar goalUuid={goal.goal_uuid} token={token} /> : null}
         <div className="relative mt-8 overflow-x-clip">
           <AnimatePresence initial={false} mode="popLayout" custom={motionState}>
             <motion.div key={viewKey} custom={motionState} variants={swipe} initial="enter" animate="center" exit="exit">

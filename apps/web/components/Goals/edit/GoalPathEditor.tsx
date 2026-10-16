@@ -264,6 +264,8 @@ function AddStepLine({ goal, stageUuid, token, autoFocus }: { goal: Goal; stageU
     {title.trim() ? <select aria-label="Kind of step" value={kind} onChange={(event) => setPicked(event.target.value as StepTypeKey)} className="h-8 shrink-0 rounded-lg border border-border bg-background px-2 text-xs font-bold">
       {QUICK_KINDS.map((type) => <option key={type} value={type}>{stepDefinition(type).label}</option>)}
     </select> : null}
+    {/* Enter isn't the only way to save: a phone keyboard may not offer it. */}
+    {title.trim() ? <Button type="submit" variant="plan" size="sm" className="h-8 shrink-0" disabled={busy}>Add</Button> : null}
   </form>
 }
 

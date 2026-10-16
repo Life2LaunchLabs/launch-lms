@@ -5,11 +5,12 @@ from __future__ import annotations
 from uuid import uuid4
 
 from fastapi import HTTPException
+from sqlalchemy import func
 from sqlmodel import Session, select
 
 from src.db.goals import Goal, GoalStage, GoalStep, StageCreate, StageUpdate, StepCompleter, StepCreate, StepMove, StepUpdate
 from src.db.users import PublicUser
-from src.services.goals import access
+from src.services.goals import access, check_ins
 from src.services.goals.goals import _now, _personal, _value, goal_dict, step_or_404
 from src.services.goals.types import step_type
 
@@ -127,8 +128,15 @@ def add_step(db: Session, current_user: PublicUser, goal_uuid: str, payload: Ste
     _renumber(db, siblings)
     db.flush()
     access.log(db, goal, current_user.id, "step.added", {"step_uuid": step.step_uuid, "type": step.type})
+    if _first_step(db, goal):
+        # The goal just took shape: Coach looks it over again soon rather than at the next weekly check-in.
+        check_ins.due_soon(db, goal, check_ins.FIRST_CHECK_IN)
     db.commit()
     return goal_dict(db, goal, current_user.id)
+
+
+def _first_step(db: Session, goal: Goal) -> bool:
+    return db.exec(select(func.count()).select_from(GoalStep).where(GoalStep.goal_id == goal.id)).one() == 1
 
 
 def update_step(db: Session, current_user: PublicUser, goal_uuid: str, step_uuid: str, payload: StepUpdate) -> dict:
