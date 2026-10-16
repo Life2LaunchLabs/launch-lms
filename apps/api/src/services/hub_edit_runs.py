@@ -68,10 +68,6 @@ def _run_dict(db: Session, run: HubEditRun) -> dict:
     }
 
 
-def run_id(db: Session, run_uuid: str) -> int:
-    return int(db.exec(select(HubEditRun.id).where(HubEditRun.run_uuid == run_uuid)).one())
-
-
 def _owned_conversation(db: Session, conversation_uuid: str, org_id: int, user_id: int) -> HubConversation:
     require_org_membership(user_id, org_id, db)
     conversation = db.exec(select(HubConversation).where(
