@@ -19,6 +19,7 @@ import HubHeader from './HubHeader'
 import HubComposer, { COMPOSER_MIN_HEIGHT, type HubComposerHandle } from './HubComposer'
 import HubThread, { type HubConversationMessage } from './HubThread'
 import HubHome from '../home/HubHome'
+import { CoachNoteCards } from '@components/Goals/coach/CoachNotes'
 import HubResourceTray from '../resources/HubResourceTray'
 import { asAdvisorResource } from '../resources/HubResourceContext'
 import { addHubContextResource, addHubContextResources, hubAdvisorHistory, inferHubResponseKind, newHubTranscriptResources, removeHubContextResource, restoreSubmittedDraft } from '@services/hub/interaction'
@@ -401,6 +402,10 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
   }
 
   const busy = sending || conversationLoading
+  const pick = (content: string) => { pendingSubmissionRef.current = { content, preserveDraft: true }; composerRef.current?.submit() }
+  // On a goal, Coach's notes on it show as cards: before anything else, or after the conversation.
+  const noteGoal = hub?.surface?.hint.surface === 'goal' ? hub.surface.hint.entity_id : undefined
+  const notes = noteGoal ? <CoachNoteCards goalUuid={noteGoal} orgslug={orgslug} token={accessToken} disabled={busy} onAsk={pick} /> : null
   return <div className="relative h-full min-h-0 w-full overflow-hidden" aria-label="Coach conversation">
     <h1 className="sr-only">{conversationTitle || 'Coach'}</h1>
     <HubHeader
@@ -417,7 +422,7 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
     <div ref={scrollRef} className={`scrollbar-subtle absolute inset-x-0 bottom-0 overflow-y-auto overscroll-contain scroll-smooth ${hub?.editRun?.status === 'active' ? 'top-[5.25rem]' : !hub?.surface ? 'top-[5rem]' : 'top-14'}`}>
       <div className="min-h-full w-full px-3 pt-4 sm:px-4" style={{ paddingBottom: Math.max(composerHeight + 88 + (memory.visible ? 148 : 0) + (libraryOpen ? 290 : 0) + (hub?.editReviewItems.length ? 58 : 0), overlayHeight + 40) }}>
         <div className="space-y-6" aria-live="polite" aria-busy={busy}>
-          {!conversationUuid && messages.length === 0 ? <HubHome orgslug={orgslug} token={accessToken} disabled={busy} conversations={conversations} historyLoading={historyLoading} onHistoryOpen={refreshHistory} onSelect={openConversation} onOpenResources={(uuid) => void openConversation(uuid, true)} onPick={(content) => { pendingSubmissionRef.current = { content, preserveDraft: true }; composerRef.current?.submit() }} /> : null}
+          {!conversationStarted ? <>{notes}<HubHome orgslug={orgslug} token={accessToken} disabled={busy} conversations={conversations} historyLoading={historyLoading} onHistoryOpen={refreshHistory} onSelect={openConversation} onOpenResources={(uuid) => void openConversation(uuid, true)} onPick={pick} /></> : null}
           {conversationLoading ? <div className="py-16 text-center text-sm text-muted-foreground" role="status">Loading conversation…</div> : null}
           <HubThread
             messages={messages} timelineSlots={timelineSlots} editRun={hub?.editRun || null} editObjects={hub?.editRun?.objects || []}
@@ -428,6 +433,7 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
             onPoint={editing.pointTo} onFinish={() => void editing.finish()} onRestore={() => void editing.restore()}
           />
           {sending ? <div className="text-sm text-muted-foreground" role="status">Thinking…</div> : null}
+          {conversationStarted && !conversationLoading ? notes : null}
           {error ? <div className="rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">{error}</div> : null}
         </div>
       </div>

@@ -38,8 +38,9 @@ from src.db.media import MediaAsset
 from src.db.planning import PlanCollaborator
 from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
-from src.services.goals import access, completion, references
+from src.services.goals import access, check_ins, completion, references
 from src.services.goals.badges import badge_summary
+from src.services.goals.coach_notes import note_counts
 from src.services.goals.availability import availability, node_state, ordered_steps
 from src.services.goals.types import StepState, step_type
 
@@ -219,6 +220,7 @@ def list_my_goals(db: Session, current_user: PublicUser, include_finished: bool 
         statement = statement.where(Goal.status != GoalStatus.FINISHED)
     goals = db.exec(statement.order_by(Goal.id)).all()  # type: ignore[arg-type]
     counts = _done_total(db, [int(goal.id) for goal in goals])  # type: ignore[arg-type]
+    notes = note_counts(db, current_user.id, [int(goal.id) for goal in goals])  # type: ignore[arg-type]
     result = []
     for goal in goals:
         done, total = counts[int(goal.id)]  # type: ignore[arg-type]
@@ -229,7 +231,7 @@ def list_my_goals(db: Session, current_user: PublicUser, include_finished: bool 
             "progress": {"done": done, "total": total}, "progress_percent": _percent(done, total),
             "source_badge": badge_summary(db, goal.badge_id), "organization": _org_ref(db, goal.org_id),
             "subject": {"id": subject["id"], "name": subject["name"]} if subject else None,
-            "is_subject": goal.subject_user_id == current_user.id, "update_date": goal.update_date,
+            "is_subject": goal.subject_user_id == current_user.id, "update_date": goal.update_date, "coach_notes": notes.get(int(goal.id), 0),  # type: ignore[arg-type]
         })
     return result + _group_rows(db, current_user.id, include_finished)
 
@@ -253,6 +255,7 @@ def create_personal_goal(db: Session, current_user: PublicUser, payload: GoalCre
     access.seed_roles(db, goal, None)
     db.add(GoalStage(stage_uuid=f"goal_stage_{uuid4()}", goal_id=int(goal.id), position=0, title="Getting started", creation_date=now, update_date=now))  # type: ignore[arg-type]
     access.log(db, goal, current_user.id, "goal.created", {})
+    check_ins.due_soon(db, goal, check_ins.FIRST_CHECK_IN)
     db.commit()
     db.refresh(goal)
     return goal_dict(db, goal, current_user.id)

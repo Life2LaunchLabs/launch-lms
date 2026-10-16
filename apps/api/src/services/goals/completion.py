@@ -171,6 +171,14 @@ def _after_change(db: Session, goal: Goal, step: GoalStep, progress: StepProgres
     access.log(db, goal, actor_user_id, "step.status", {
         "step_uuid": step.step_uuid, "from": previous, "to": _value(progress.status), "method": _value(method),
     })
+    if step.stage_id is not None and _value(progress.status) in DONE_STEP_STATUSES and previous not in DONE_STEP_STATUSES:
+        # Finishing a stage brings Coach's next check-in forward.
+        stage_steps = [int(item.id) for item in db.exec(select(GoalStep).where(GoalStep.stage_id == step.stage_id)).all()]  # type: ignore[arg-type]
+        done = db.exec(select(StepProgress.step_id).where(StepProgress.step_id.in_(stage_steps), StepProgress.status.in_(list(DONE_STEP_STATUSES)))).all()  # type: ignore[union-attr, attr-defined]
+        if set(stage_steps) <= {int(item) for item in done} | {int(step.id)}:  # type: ignore[arg-type]
+            from src.services.goals.check_ins import due_soon
+
+            due_soon(db, goal)
 
 
 def finish_if_complete(db: Session, goal: Goal) -> None:

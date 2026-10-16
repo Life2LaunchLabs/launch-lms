@@ -5,6 +5,7 @@ from fastapi import HTTPException
 from sqlmodel import SQLModel, Session, create_engine, select
 
 from src.db.goals import (
+    CoachNote,
     Goal,
     GoalAssignment,
     GoalAssignmentCreate,
@@ -50,7 +51,7 @@ def _session() -> Session:
         LearningBadge.__table__, LearningBadgeVersion.__table__, LearningBadgeAward.__table__, BadgeIssuerLearnerLink.__table__, MediaAsset.__table__,
         PlanRole.__table__, PlanCollaborator.__table__, PlanActivity.__table__, OrganizationPlanRole.__table__,
         GoalTemplate.__table__, GoalTemplateVersion.__table__, GoalAssignment.__table__, Goal.__table__, GoalStage.__table__,
-        GoalStep.__table__, StepProgress.__table__, StepEntry.__table__, GoalStory.__table__, Portfolio.__table__, Plan.__table__,
+        GoalStep.__table__, StepProgress.__table__, StepEntry.__table__, GoalStory.__table__, CoachNote.__table__, Portfolio.__table__, Plan.__table__,
     ])
     db = Session(engine)
     db.add(Organization(id=1, org_uuid="org_1", name="Studio", slug="studio", email="studio@example.com", creation_date=NOW, update_date=NOW))

@@ -1,7 +1,8 @@
 """Ranked "what should I do next?" suggestions for Coach home, across the learner's goals.
 
 Uses the same steps and lock check as This week (``home_week``), so a step that
-waits on order, a prerequisite, a start date or a hold is never suggested.
+waits on order, a prerequisite, a start date or a hold is never suggested. Coach's
+newest open note on a goal comes first.
 Routes are built here from known destinations; nothing the client or a model
 supplies reaches them.
 """
@@ -13,6 +14,7 @@ from datetime import date, timedelta
 from sqlmodel import Session
 
 from src.db.goals import GoalOwnership, StepStatus
+from src.services.goals.coach_notes import open_notes
 from src.services.goals.home import route
 from src.services.goals.home_week import goal_entries, my_goals
 
@@ -65,7 +67,11 @@ def next_actions(db: Session, user_id: int, today: date | None = None) -> list[d
                 "route": route(goal.goal_uuid, entry.uuid), "goal_uuid": goal.goal_uuid, "step_uuid": entry.uuid,
             }))
 
-    chosen: list[dict] = []
+    # Coach's newest open note leads, when there is one: it is what Coach noticed at a check-in.
+    chosen: list[dict] = [{
+        "kind": "coach_note", "title": note.title, "reason": note.body, "tier": 2, "route": route(goal.goal_uuid),
+        "goal_uuid": goal.goal_uuid, "note_uuid": note.note_uuid,
+    } for note, goal in open_notes(db, user_id, goals)[:1]]
     seen_goals: set[str] = set()
     assigned_count = 0
     for tier, _due, item in sorted(candidates, key=lambda candidate: (candidate[0], candidate[1])):

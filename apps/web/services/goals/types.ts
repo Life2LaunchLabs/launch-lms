@@ -159,6 +159,8 @@ export interface GoalSummary {
   target_date: string | null
   progress: { done: number; total: number }
   is_subject: boolean
+  /** Coach's open notes on the goal (the owner's own). */
+  coach_notes?: number
   [key: string]: unknown
 }
 

@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import useSWR from 'swr'
-import { ArrowRight, Compass, HeartHandshake } from 'lucide-react'
+import { ArrowRight, Compass, HeartHandshake, Sparkles } from 'lucide-react'
 import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
 import { actionableHubActions, hubActionHref, HUB_NEXT_ACTIONS_PATH, type HubNextAction } from '@services/hub/nextActions'
 import { swrFetcher } from '@services/utils/ts/requests'
@@ -38,9 +38,9 @@ export default function HubHomeStack({
       </div>
       <ul className="grid gap-3">
         {actions.map((action, index) => (
-          <li key={`${action.goal_uuid}:${action.step_uuid}`}>
+          <li key={`${action.goal_uuid}:${action.note_uuid || action.step_uuid}`}>
             <Link href={getUriWithOrg(orgslug, hubActionHref(action))} className={`group flex items-center gap-3 rounded-2xl border bg-card p-4 shadow-xs transition hover:border-primary/40 hover:shadow-md focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none ${index === 0 ? 'border-primary/30' : 'border-border'}`}>
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Compass className="size-4" aria-hidden /></span>
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">{action.kind === 'coach_note' ? <Sparkles className="size-4" aria-hidden /> : <Compass className="size-4" aria-hidden />}</span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-medium text-foreground">{action.title}</span>
                 <span className="mt-0.5 block text-xs text-muted-foreground">{action.reason}</span>

@@ -24,3 +24,9 @@ test('a step opens on its goal page; anything else keeps its route', () => {
   assert.equal(hubActionHref({ ...base, kind: 'step', goal_uuid: 'g1', step_uuid: 's1' }), '/plans/g1?step=s1')
   assert.equal(hubActionHref({ ...base, kind: 'discover', route: '/resources' }), '/resources')
 })
+
+test('Coach’s note is actionable and opens its goal', () => {
+  const note: HubNextAction = { ...base, kind: 'coach_note', goal_uuid: 'g1', note_uuid: 'n1', route: '/plans/g1' }
+  assert.deepEqual(actionableHubActions([note]), [note])
+  assert.equal(hubActionHref(note), '/plans/g1')
+})

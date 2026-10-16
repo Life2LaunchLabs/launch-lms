@@ -20,6 +20,7 @@ import EndSessionDialog from '@components/Hub/conversation/EndSessionDialog'
 import { unreviewedSuggestions } from '@components/Hub/conversation/editRunTimeline'
 import { useGoalMutation } from '@components/Goals/useGoalActions'
 import CreateGoalEditor from '@components/Goals/edit/CreateGoalEditor'
+import { GoalCoachBar } from '@components/Goals/coach/CoachNotes'
 import { planVars } from '@components/Goals/planColors'
 import { getUriWithOrg } from '@services/config/config'
 import { goalsApi, goalsUrl, goalUrl, isGoalsKey } from '@services/goals/goals'
@@ -258,6 +259,7 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
         : <h1 className="pb-4 pt-2 text-3xl font-extrabold tracking-tight">Overview</h1>}
       <LayoutGroup id="plans">
         {strip}
+        {goal && goal.ownership === 'personal' && viewerUserId !== undefined && goal.owner?.id === viewerUserId && !celebrating ? <GoalCoachBar goalUuid={goal.goal_uuid} token={token} /> : null}
         <div className="relative mt-8 overflow-x-clip">
           <AnimatePresence initial={false} mode="popLayout" custom={motionState}>
             <motion.div key={viewKey} custom={motionState} variants={swipe} initial="enter" animate="center" exit="exit">
