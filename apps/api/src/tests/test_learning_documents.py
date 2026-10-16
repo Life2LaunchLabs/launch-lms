@@ -242,3 +242,16 @@ def test_published_schema_describes_blocks_and_flow():
     schema = activity_document_json_schema()
     assert {"$ref": "#/$defs/StandardPageContent"} in schema["$defs"]["ActivityDocumentPage"]["properties"]["content"]["anyOf"]
     assert "QuestionBlock" in schema["$defs"] and "Flow" in schema["$defs"]
+
+
+def test_design_language_fields_validate():
+    question = {"id": "blk_q", "type": "question", "kind": "multiple_choice", "design": {"style": "cards", "entrance": "fade"},
+                "content": {"options": [{"id": "a", "text": "Calm", "icon": "🌊", "description": "Slow and steady"}]}}
+    footer = {"id": "blk_skip", "type": "button", "design": {"placement": "footer"}, "content": {"label": "Skip", "action": "continue"}}
+    page = {"page_uuid": "p", "title": "Q", "design": {"background": {"color": "#0f172a", "scene": "starfield"}, "celebrate": True, "auto_advance_ms": 5000},
+            "content": {"version": 2, "blocks": [question, footer]}}
+    document = {"activity": {"title": "A", "settings": {"design": {"progress": "segments", "exit": {"label": "Later"}}}}, "pages": [page]}
+    assert prepare_document(document, existing_page_uuids=set(), allow_system_blocks=False).ok
+    question["design"]["style"] = "carousel"
+    bad = prepare_document(document, existing_page_uuids=set(), allow_system_blocks=False)
+    assert not bad.ok and "design.style" in bad.errors[0].message

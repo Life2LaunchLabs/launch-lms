@@ -16,6 +16,12 @@ export interface BlockDesign {
   variant?: "primary" | "secondary"
   /** Buttons sharing a group render side by side. */
   group?: string
+  /** How the block enters; blocks rise in, staggered in page order, by default. */
+  entrance?: "rise" | "fade" | "none"
+  /** Continue buttons only: `footer` draws the button beside Continue as a secondary action. */
+  placement?: "inline" | "footer"
+  /** Choice questions only: how options are drawn. Cards show each option's `icon` and `description`. */
+  style?: "list" | "pills" | "scale" | "cards"
 }
 
 /** Set by the platform on system activities; not editable by admins. */
@@ -45,6 +51,10 @@ export interface ChoiceOption {
   id: string
   text?: string
   category?: string
+  /** An emoji or short mark shown on pills, scale steps and cards. */
+  icon?: string
+  /** A line under the option on cards. */
+  description?: string
   [key: string]: any
 }
 

@@ -2,11 +2,9 @@
 
 import React from 'react'
 import toast from 'react-hot-toast'
-import {
-  isQuestionResponseRequired,
-  LearningActivitySurface,
-  LearningPageContent,
-} from '@components/Learning/LearningBadgeViews'
+import { footerButtons, isQuestionResponseRequired, LearningPageContent } from '@components/Learning/LearningBadgeViews'
+import { LearningActivitySurface } from './ActivitySurface'
+import useAutoAdvance from './useAutoAdvance'
 
 // The learner runtime behind a player: the live run API for learners, or the
 // side-effect-free preview API for admins and the Claude connector. Both return
@@ -156,6 +154,14 @@ export function ActivityPlayer({
     }
   }
 
+  // The configured exit jumps ahead to its page on the route (so finishing pages still run), else closes.
+  const exitTo = activity.settings?.design?.exit?.to_page_uuid
+  const exit = () => {
+    const destination = pages.findIndex((item: any) => item.page_uuid === exitTo)
+    if (destination > index) setIndex(destination); else onClose()
+  }
+  const timed = useAutoAdvance(page, unlocked, () => void completeAndNext(), index > 0 ? () => setIndex(index - 1) : undefined)
+
   return (
     <LearningActivitySurface
       pages={pages}
@@ -167,6 +173,11 @@ export function ActivityPlayer({
       onAction={() => completeAndNext()}
       interactionState={answer}
       className={className}
+      settings={activity.settings}
+      onPrevious={() => navigateToPage(pages[index - 1]?.page_uuid)}
+      onExit={exitTo ? exit : undefined}
+      footer={footerButtons(page, run, unlocked ? completeAndNext : undefined)}
+      timed={timed}
     >
       <LearningPageContent
         page={page}
