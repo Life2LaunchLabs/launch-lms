@@ -122,6 +122,8 @@ export interface Stage {
   title: string
   description: string
   timing: string
+  /** What reaching the end of the stage looks like. */
+  milestone: string
   start_date: string | null
   due_date: string | null
   steps: Step[]

@@ -195,6 +195,8 @@ class GoalStage(SQLModel, table=True):
     description: str = ""
     # Rough timing in the learner's words ("this fall", "2 weeks"), shown when there are no dates.
     timing: str = ""
+    # What reaching the end of the stage looks like ("Accepted to pre-vet"); stages end at milestones.
+    milestone: str = ""
     start_date: date | None = Field(default=None, sa_column=Column(Date, nullable=True))
     due_date: date | None = Field(default=None, sa_column=Column(Date, nullable=True))
     # The template stage it was issued from.
@@ -342,6 +344,7 @@ class StageCreate(SQLModel):
     title: str = Field(min_length=1, max_length=200)
     description: str = ""
     timing: str = Field(default="", max_length=120)
+    milestone: str = Field(default="", max_length=200)
     position: int | None = Field(default=None, ge=0)
 
 
@@ -349,6 +352,7 @@ class StageUpdate(SQLModel):
     title: str | None = Field(default=None, min_length=1, max_length=200)
     description: str | None = None
     timing: str | None = Field(default=None, max_length=120)
+    milestone: str | None = Field(default=None, max_length=200)
     start_date: date | None = None
     due_date: date | None = None
 

@@ -2,10 +2,10 @@
 
 import React from 'react'
 import toast from 'react-hot-toast'
-import { Loader2, Lock, Pencil } from 'lucide-react'
+import { Check, Loader2, Lock, Pencil } from 'lucide-react'
 import { useSWRConfig } from 'swr'
 import { Button } from '@components/ui/button'
-import GoalEditMode from '@components/Goals/edit/GoalEditMode'
+import GoalPathEditor from '@components/Goals/edit/GoalPathEditor'
 import { GoalStepRow, type PathViewer } from '@components/Goals/learner/GoalStepRow'
 import useGoalColors from '@components/Goals/learner/useGoalColors'
 import { planVars } from '@components/Goals/planColors'
@@ -30,15 +30,20 @@ export default function StaffGoalPath({ goal, orgslug, orgId, token, viewerUserI
   const goTo = (stepUuid: string) => { setSelected(stepUuid); document.getElementById(`step-${stepUuid}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }) }
   const openActivity = () => toast('Activities open in the learner’s own view. Grade their answers from Reviews.')
 
-  if (editing) return <div data-plan="" style={planVars(color)} className="mx-auto max-w-3xl">
-    <GoalEditMode goal={goal} orgslug={orgslug} token={token} color={color} setColor={(next: string) => setGoalColor(goal.goal_uuid, next)} onDone={() => setEditing(false)} />
+  const editToggle = canEdit ? <Button type="button" variant={editing ? 'plan' : 'surface'} aria-pressed={editing} onClick={() => setEditing(!editing)}>{editing ? <Check size={15} aria-hidden="true" /> : <Pencil size={15} aria-hidden="true" />}{editing ? 'Done editing' : 'Edit steps'}</Button> : null
+  if (editing) return <div data-plan="" style={planVars(color)} className="mx-auto max-w-3xl space-y-6">
+    <div className="flex flex-wrap items-end justify-between gap-3">
+      <div><h2 className="text-lg font-black text-gray-950">Steps</h2><p className="mt-1 text-sm text-gray-500">Editing. Changes save as you make them.</p></div>
+      {editToggle}
+    </div>
+    <GoalPathEditor goal={goal} token={token} color={color} setColor={(next: string) => setGoalColor(goal.goal_uuid, next)} />
   </div>
 
   const groups = [...goal.stages.map((stage) => ({ key: stage.stage_uuid, title: stage.title, due: stage.due_date, steps: stage.steps })), ...(goal.unstaged_steps.length ? [{ key: 'unstaged', title: goal.stages.length ? 'Other steps' : '', due: null, steps: goal.unstaged_steps }] : [])]
   return <div data-plan="" style={planVars(color)} className="mx-auto max-w-3xl space-y-6">
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div><h2 className="text-lg font-black text-gray-950">Steps</h2><p className="mt-1 text-sm text-gray-500">The same path the learner sees. Open a step to review it, sign it off or leave a staff note.</p></div>
-      {canEdit ? <Button type="button" variant="surface" onClick={() => setEditing(true)}><Pencil size={15} aria-hidden="true" />Edit steps</Button> : null}
+      {editToggle}
     </div>
     {!goalSteps(goal).length ? <p className="rounded-xl border border-dashed border-gray-200 bg-white p-10 text-center text-sm text-gray-500">This goal has no steps yet.</p> : null}
     {groups.map((group) => <section key={group.key}>

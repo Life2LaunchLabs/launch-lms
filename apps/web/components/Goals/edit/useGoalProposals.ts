@@ -66,6 +66,5 @@ export function useGoalProposals(goal: Goal) {
     setSteps(remaining)
     finish('steps', remaining.length, decision)
   }
-  const moveStep = (localId: string, stageUuid: string) => setSteps((current) => current.map((item) => item.step.local_id === localId ? { ...item, stageUuid } : item))
-  return { editing, stages, steps, settleStage, settleStep, moveStep }
+  return { editing, stages, steps, settleStage, settleStep }
 }

@@ -16,6 +16,7 @@ from src.db.goals import (
     GoalTemplate,
     GoalTemplateVersion,
     StageCreate,
+    StageUpdate,
     StepCreate,
     StepEntry,
     StepEntryCreate,
@@ -319,8 +320,11 @@ def test_personal_goals_are_private_learner_owned_and_never_wait_on_staff():
         with pytest.raises(HTTPException) as hidden:
             goals.get_goal(db, _user(OTHER), created["goal_uuid"])
         assert hidden.value.status_code == 404
-        view = structure.add_stage(db, _user(LEARNER), created["goal_uuid"], StageCreate(title="Research", timing="this fall"))
+        view = structure.add_stage(db, _user(LEARNER), created["goal_uuid"], StageCreate(title="Research", timing="this fall", milestone=" Shortlist of three "))
         research = view["stages"][1]["stage_uuid"]
+        assert view["stages"][1]["milestone"] == "Shortlist of three"
+        view = structure.update_stage(db, _user(LEARNER), created["goal_uuid"], research, StageUpdate(milestone="Applied to two"))
+        assert view["stages"][1]["milestone"] == "Applied to two"
         with pytest.raises(HTTPException, match="never wait on staff"):
             structure.add_step(db, _user(LEARNER), created["goal_uuid"], StepCreate(stage_uuid=research, type="task", title="Ask", completed_by="staff"))
         view = structure.add_step(db, _user(LEARNER), created["goal_uuid"], StepCreate(stage_uuid=research, type="decision", title="Choose", config={"options": [{"key": "bio", "label": "Biology"}, {"key": "art", "label": "Art"}]}))

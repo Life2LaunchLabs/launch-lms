@@ -2,7 +2,7 @@
 
 import React from 'react'
 import toast from 'react-hot-toast'
-import { Check, Loader2, Sparkles, X } from 'lucide-react'
+import { Check, Loader2, Plus, Sparkles, X } from 'lucide-react'
 import { useHub } from '@components/Hub/HubContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { Button } from '@components/ui/button'
@@ -13,8 +13,9 @@ import { saveHubEditObjectState, type HubEditObjectState, type HubEditRun, type 
 import { goalCoachApi } from '@services/goals/coach'
 import type { Goal, StepTypeKey } from '@services/goals/types'
 import { useGoalMutation } from '../useGoalActions'
-import StepEditor, { type StepDraft } from './StepEditor'
-import { liveMode, otherSteps, stepInput } from './stepDrafts'
+import { stepDefinition } from '../steps'
+import type { StepDraft } from './StepEditor'
+import { liveMode, stepInput } from './stepDrafts'
 
 type Fields = Record<string, string | number | boolean | null>
 type ObjectStatus = 'editing' | 'cancelled' | 'saved'
@@ -137,18 +138,19 @@ function recoveredDraft(base: StepDraft, fields?: Fields): StepDraft {
   return { ...base, type, config, title: String(fields.title ?? base.title), description: String(fields.description ?? base.description), due_date: fields.due_date ? String(fields.due_date) : null }
 }
 
-/** A typed step Coach proposed, in the single step editor: review it, change it, then save or cancel. */
-export function ProposedStepEditor({ goal, step, stageUuid, onStageChange, recovered, token, onSettled }: {
+/**
+ * A step Coach suggested, as one quiet line where it would go: + adds it as an ordinary step the
+ * learner can then change or remove, x drops it. Lines only show while the goal is being edited.
+ */
+export function SuggestedStepLine({ goal, step, stageUuid, recovered, token, onSettled }: {
   goal: Goal; step: HubProposedStep; stageUuid: string; recovered?: HubEditObjectState; token?: string
-  // eslint-disable-next-line no-unused-vars
-  onStageChange: (stageUuid: string) => void
   // eslint-disable-next-line no-unused-vars
   onSettled: (localId: string, decision: string) => void
 }) {
   const mode = liveMode(goal)
   const base = React.useMemo<StepDraft>(() => ({ type: step.type, title: step.title, description: step.description, config: step.config, completed_by: 'learner', review_required: false, reviewer_guidance: '', after: [], due_date: step.due_date || null }), [step])
   const proposal = React.useMemo(() => stepFields(base, stageUuid), [base]) // eslint-disable-line react-hooks/exhaustive-deps
-  const [draft, setDraft] = React.useState<StepDraft>(() => recoveredDraft(base, recovered?.current_fields))
+  const draft = React.useMemo(() => recoveredDraft(base, recovered?.current_fields), [base, recovered])
   const [saving, setSaving] = React.useState(false)
   const { run } = useGoalMutation(goal.goal_uuid)
   const targetId = `hub-edit-step-${step.local_id}`
@@ -156,38 +158,36 @@ export function ProposedStepEditor({ goal, step, stageUuid, onStageChange, recov
   const persist = useRunObject(goal, step.local_id, 'step', recovered, token)
   const clearReview = useReviewItem(step.local_id, step.title, 'step', targetId)
   const current = stepFields(draft, stageUuid)
-  usePersistWhileEditing(() => persist(current, proposal, 'editing', label), [draft, stageUuid])
+  const Icon = stepDefinition(draft.type).icon
 
-  const cancel = async () => {
+  const drop = async () => {
     setSaving(true)
     await persist(current, proposal, 'cancelled', label)
     clearReview(); setSaving(false)
-    onSettled(step.local_id, `I cancelled step “${label}”. Review: ${review(current, proposal)}.`)
+    onSettled(step.local_id, `I dropped the suggested step “${label}”.`)
   }
-  const save = async () => {
+  const keep = async () => {
     if (!draft.title.trim()) return
     setSaving(true)
     try {
       const input = { ...stepInput(draft, mode), stage_uuid: stageUuid || null, materials: step.materials || [], request_key: step.local_id }
-      const result = await run(() => goalCoachApi.addStep(goal.goal_uuid, input, token), 'Step added')
+      const result = await run(() => goalCoachApi.addStep(goal.goal_uuid, input, token))
       await persist(current, proposal, 'saved', label, (result as { created_step_uuid?: string | null })?.created_step_uuid)
       clearReview()
       const stage = goal.stages.find((item) => item.stage_uuid === stageUuid)
-      onSettled(step.local_id, `I saved step “${draft.title.trim()}” (${draft.type}) in ${stage ? `stage “${stage.title}”` : 'no stage'}; due ${draft.due_date || 'none'}; description “${draft.description.slice(0, 800)}”. Review: ${review(current, proposal)}.`)
+      onSettled(step.local_id, `I added the suggested step “${draft.title.trim()}” (${draft.type}) to ${stage ? `stage “${stage.title}”` : 'no stage'}.`)
     } catch { /* useGoalMutation already said what went wrong */ } finally { setSaving(false) }
   }
 
-  return <article id={targetId} tabIndex={-1} aria-label={`Proposed step ${label}`} className="flex flex-col gap-4 rounded-2xl border-2 border-dashed border-violet-300 bg-card p-4 outline-none">
-    <div className="flex flex-wrap items-center justify-between gap-2">{suggested}
-      <span className="flex items-center gap-2">
-        {goal.stages.length ? <select aria-label="Stage" value={stageUuid} onChange={(event) => onStageChange(event.target.value)} className="h-9 max-w-[12rem] rounded-xl border-2 border-border bg-background px-2 text-xs font-bold">
-          {goal.stages.map((stage) => <option key={stage.stage_uuid} value={stage.stage_uuid}>{stage.title}</option>)}
-          <option value="">No stage</option>
-        </select> : null}
-        <Button type="button" variant="ghost" size="icon" disabled={saving} onClick={() => void cancel()} aria-label={`Cancel step ${label}`}><X size={15} /></Button>
-        <Button type="button" variant="plan" size="icon" disabled={saving || !draft.title.trim()} onClick={() => void save()} aria-label={`Save step ${label}`}>{saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={15} />}</Button>
-      </span>
-    </div>
-    <StepEditor value={draft} onChange={setDraft} mode={mode} others={otherSteps(goal)} orgId={goal.org_id} token={token} />
-  </article>
+  return <li id={targetId} tabIndex={-1} aria-label={`Suggested step ${label}`} title={draft.description || undefined} className="group flex items-center gap-3 rounded-xl py-1 pr-2 text-sm text-muted-foreground outline-none transition hover:bg-current/[0.04] focus-visible:ring-2 focus-visible:ring-[var(--plan-face)]">
+    <span className="flex w-14 shrink-0 justify-center">
+      <button type="button" disabled={saving} onClick={() => void keep()} aria-label={`Add ${label}`} className="flex h-8 w-8 items-center justify-center rounded-full border border-current/25 transition hover:border-[var(--plan-face)] hover:bg-[var(--plan-face)] hover:text-[var(--plan-face-ink)] disabled:opacity-50">
+        {saving ? <Loader2 size={14} className="animate-spin" /> : <Plus size={15} />}
+      </button>
+    </span>
+    <Icon size={14} aria-hidden="true" className="shrink-0 opacity-70" />
+    <span className="min-w-0 flex-1 truncate">{label}</span>
+    <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider opacity-60">suggested</span>
+    <button type="button" disabled={saving} onClick={() => void drop()} aria-label={`Drop ${label}`} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full opacity-60 transition hover:bg-muted hover:opacity-100"><X size={14} /></button>
+  </li>
 }
