@@ -74,16 +74,30 @@ test('hub.action.unavailable: a rejected action stays in context and explains th
   await expect(page).toHaveURL((url) => url.pathname.endsWith('/plans'))
 })
 
-test('plans.create-editor: plans surface uses native object editing', async ({ page }, testInfo) => {
+test('plans.create-editor: a new goal opens for editing in place', async ({ page }, testInfo) => {
   await page.goto(environment.plansPath)
   await assertActualApp(page)
   await expect(page.getByRole('heading', { name: 'Overview', exact: true, level: 1 })).toBeVisible()
   const create = page.getByRole('button', { name: /create your own/i }).filter({ visible: true }).first()
   await create.click()
-  // Creating makes a "New goal" and opens it with its details form ready to name it.
-  await expect(page.getByRole('textbox', { name: 'Goal' })).toHaveValue('New goal')
-  await expect(page.getByRole('button', { name: 'Save changes' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Cancel' })).toBeVisible()
+  // Creating makes a "New goal" and opens it in place with editing on, ready to name it.
+  const title = page.getByRole('textbox', { name: 'Goal title' })
+  await expect(title).toHaveValue('New goal')
+  const editSwitch = page.getByRole('switch', { name: 'Edit' })
+  await expect(editSwitch).toHaveAttribute('aria-checked', 'true')
+  await expect(page).toHaveURL((url) => Boolean(url.searchParams.get('edit')))
+  // Fields save as they are left: rename the goal and add a step from the add line.
+  await title.fill('Pick a college')
+  await title.press('Enter')
+  const newStep = page.getByRole('textbox', { name: 'New step' }).first()
+  await newStep.fill('Decide on a shortlist')
+  await newStep.press('Enter')
+  await expect(page.getByRole('textbox', { name: 'Step title' })).toHaveValue('Decide on a shortlist')
+  // Turning editing off shows the same goal as the learner works it.
+  await editSwitch.click()
+  await expect(editSwitch).toHaveAttribute('aria-checked', 'false')
+  await expect(page.getByRole('heading', { name: 'Pick a college', level: 1 })).toBeVisible()
+  await expect(page.getByText('Decide on a shortlist').first()).toBeVisible()
   if (process.env.UI_TEST_CAPTURE === 'true') {
     await page.screenshot({ path: testInfo.outputPath('plans-create-editor.png'), fullPage: true })
   }
