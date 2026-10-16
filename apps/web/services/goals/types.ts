@@ -1,6 +1,6 @@
 // The goal model as the API returns it. Mirrors apps/api/src/services/goals.
 
-export type StepTypeKey = 'task' | 'upload' | 'write' | 'activity' | 'event' | 'badge' | 'portfolio' | 'decision' | 'routine'
+export type StepTypeKey = 'task' | 'upload' | 'write' | 'activity' | 'event' | 'badge' | 'portfolio' | 'decision' | 'routine' | 'explore'
 export type StepStatus = 'not_started' | 'in_progress' | 'submitted' | 'changes_requested' | 'completed' | 'excused'
 export type NodeState = 'locked' | 'open' | 'started' | 'waiting' | 'retry' | 'done'
 export type StepCompleter = 'learner' | 'staff'
@@ -31,6 +31,7 @@ export interface BadgeConfig { badge_uuid: string; accept_previous_major_version
 export interface PortfolioConfig { check: 'welcome' | 'timeline' | 'project' | 'traits' | 'launch' | 'badges' }
 export interface DecisionOption { key: string; label: string }
 export interface DecisionConfig { question?: string; options: DecisionOption[]; multiple?: boolean; allow_other?: boolean }
+export interface ExploreConfig { question?: string; suggestions?: Array<{ resource_uuid: string; title?: string }> }
 export interface RoutineFollowUp { after_days: number; statuses: string[] }
 export interface RoutineConfig { cadence?: 'weekly'; target: number; entry_kind?: 'named' | 'count'; item_label?: string; end_date?: string; end_after?: number; follow_up?: RoutineFollowUp }
 
@@ -44,6 +45,7 @@ export interface StepConfigs {
   portfolio: PortfolioConfig
   decision: DecisionConfig
   routine: RoutineConfig
+  explore: ExploreConfig
 }
 
 export type StepResult =
@@ -52,6 +54,7 @@ export type StepResult =
   | { kind: 'text'; text: string }
   | { kind: 'rsvp'; rsvp: 'yes' | 'no' | 'maybe' }
   | { kind: 'choice'; choices: string[]; reason: string }
+  | { kind: 'explore'; answer: string; count: number; thumbs: Array<{ kind: string; title: string; url: string; image: string }> }
   | { kind: 'routine'; target: number; this_week: number; total: number; weeks: Array<{ start: string; count: number }>; follow_ups_due: number }
 
 export interface StepEntry {

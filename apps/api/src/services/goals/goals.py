@@ -8,7 +8,7 @@ step's status directly.
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import datetime
 from uuid import uuid4
 
 from fastapi import HTTPException
@@ -356,20 +356,7 @@ def add_entry(db: Session, current_user: PublicUser, goal_uuid: str, step_uuid: 
     entry_kind = _value(payload.kind)
     if entry_kind not in kind.entry_kinds:
         raise HTTPException(status_code=422, detail=f"{kind.label} steps don't collect {entry_kind} entries")
-    follow_up_due = None
-    if step.type == "routine":
-        if _value(completion.progress_view(db, step).status) in DONE_STEP_STATUSES:
-            raise HTTPException(status_code=409, detail="This routine has ended; reopen it to log more")
-        if (step.config or {}).get("entry_kind", "named") == "named" and not payload.title.strip():
-            raise HTTPException(status_code=422, detail="Say what you did")
-        follow_up = (step.config or {}).get("follow_up")
-        follow_up_due = date.today() + timedelta(days=int(follow_up["after_days"])) if follow_up else None
-    if step.type == "upload":
-        slots = {slot["key"]: slot for slot in (step.config or {}).get("slots") or []}
-        if payload.slot not in slots:
-            raise HTTPException(status_code=422, detail="Pick one of the step's slots")
-        if entry_kind == "link" and "link" not in slots[payload.slot]["kinds"]:
-            raise HTTPException(status_code=422, detail="This slot takes files, not links")
+    extra = kind.prepare_entry(db, step, _value(completion.progress_view(db, step).status) in DONE_STEP_STATUSES, entry_kind, payload)
     asset = None
     if payload.asset_uuid:
         asset = db.exec(select(MediaAsset).where(MediaAsset.asset_uuid == payload.asset_uuid)).first()
@@ -380,22 +367,19 @@ def add_entry(db: Session, current_user: PublicUser, goal_uuid: str, step_uuid: 
     last = db.exec(select(func.max(StepEntry.position)).where(StepEntry.step_id == step.id)).one()
     position = 0 if last is None else last + 1
     now = _now()
+    fields = {
+        "title": payload.title.strip(), "url": payload.url.strip(), "resource_uuid": payload.resource_uuid, "note": payload.note, "data": payload.data,
+    }
     entry = StepEntry(
         entry_uuid=f"step_entry_{uuid4()}", step_id=int(step.id), kind=entry_kind, slot=payload.slot,  # type: ignore[arg-type]
-        title=payload.title.strip(), url=payload.url.strip(), asset_id=asset.id if asset else None,
-        resource_uuid=payload.resource_uuid, note=payload.note, data=payload.data, position=position,
-        period_start=_week_start(date.today()) if entry_kind == "log" else None, follow_up_due=follow_up_due,
-        created_by_user_id=current_user.id, creation_date=now, update_date=now,
+        asset_id=asset.id if asset else None, position=position, created_by_user_id=current_user.id, creation_date=now, update_date=now,
+        **{**fields, **extra},
     )
     db.add(entry)
     db.commit()
     _mark_started(db, goal, step, current_user.id)
     completion.on_logged(db, step)
     return goal_dict(db, goal, current_user.id)
-
-
-def _week_start(day: date) -> date:
-    return day - timedelta(days=day.weekday())
 
 
 def _entry(db: Session, step: GoalStep, entry_uuid: str) -> StepEntry:

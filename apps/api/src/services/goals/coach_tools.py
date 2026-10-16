@@ -26,7 +26,7 @@ STEP_CHANGES_TOOL = "propose_step_changes"
 STAGE_CHANGES_TOOL = "propose_stage_changes"
 GOAL_DETAILS_TOOL = "propose_goal_details"
 # Steps Coach may write. Activity, badge and portfolio steps point at things Coach can't create.
-COACH_STEP_TYPES = tuple(key for key in ("task", "write", "upload", "event", "decision", "routine") if key in TYPES)
+COACH_STEP_TYPES = tuple(key for key in ("task", "write", "upload", "event", "decision", "routine", "explore") if key in TYPES)
 # Runs begun before the goal cutover carry the plan scope names.
 SCOPE_ALIASES = {"new_plan": "new_goal", "plan": "goal"}
 MAX_STAGES, MAX_STEPS = 4, 5
@@ -46,7 +46,7 @@ def _schema(properties: dict) -> dict:
 _STRING = {"type": "string"}
 _DATE = {"type": "string", "description": "YYYY-MM-DD, or an empty string."}
 _SETTINGS = _schema({
-    "prompt": {"type": "string", "description": "write: the prompt. decision: the question. Empty otherwise."},
+    "prompt": {"type": "string", "description": "write: the prompt. decision and explore: the question. Empty otherwise."},
     "max_words": {"type": "integer", "description": "write: a word limit, or 0 for none."},
     "list_label": {"type": "string", "description": "task: what the learner lists (e.g. 'Schools I contacted'); empty for a plain tick."},
     "list_target": {"type": "integer", "description": "task: how many list items finish it, or 0."},
@@ -81,7 +81,7 @@ def goal_edit_tools(provider: str, scope_kind: str | None) -> list[dict]:
             GOAL_STEPS_TOOL,
             f"Prepare one to {MAX_STEPS} new typed steps, shown as suggested lines on the goal page. Nothing is saved; the learner adds or drops each step. "
             "Pick the type that fits: task (do it, optionally list items), write (a written answer), upload (hand in files), "
-            "event (go somewhere on a date), decision (choose between options), routine (something done a number of times every week). Build on the answers and results in the page context.",
+            "event (go somewhere on a date), decision (choose between options), routine (something done a number of times every week), explore (a question answered by collecting resources, links and notes). Build on the answers and results in the page context.",
             _schema({"steps": {"type": "array", "minItems": 1, "maxItems": MAX_STEPS, "items": _schema({
                 "type": {"type": "string", "enum": list(COACH_STEP_TYPES)},
                 "title": {"type": "string", "description": "A concise, action-oriented step."},
@@ -176,6 +176,8 @@ def step_config(kind: str, title: str, settings: dict) -> dict:
         options = [str(option).strip()[:300] for option in settings.get("options") or [] if str(option).strip()]
         config = {"question": prompt[:1000], "options": [{"key": f"option_{index + 1}", "label": label} for index, label in enumerate(options[:30])],
                   "multiple": bool(settings.get("multiple"))}
+    elif kind == "explore":
+        config = {"question": (prompt or title)[:1000]}
     elif kind == "routine":
         follow_up_days = max(0, min(90, int(settings.get("follow_up_days") or 0)))
         config = {"target": max(1, min(50, int(settings.get("per_week") or 3))), **({"follow_up": {"after_days": follow_up_days}} if follow_up_days else {})}
@@ -276,7 +278,11 @@ def attach_catalog_resources(operations: tuple[dict, ...] | list[dict], resource
             resource = shown.get(str(step.pop("resource_uuid", "") or ""))
             url = str((resource or {}).get("external_url") or "")
             materials = list(step.get("materials") or [])
-            if resource and url.startswith(("https://", "http://")):
+            if resource and step.get("type") == "explore":
+                # An Explore step shows it as a suggested piece of evidence.
+                suggestion = {"resource_uuid": resource["resource_uuid"], "title": str(resource.get("title") or "Resource")[:300]}
+                step["config"] = {**(step.get("config") or {}), "suggestions": [suggestion]}
+            elif resource and url.startswith(("https://", "http://")):
                 materials.append({"kind": "resource", "resource_uuid": resource["resource_uuid"], "title": str(resource.get("title") or "Resource")[:200], "url": url})
             steps.append({**step, "materials": materials})
         result.append({**operation, "steps": steps})

@@ -5,8 +5,11 @@ from __future__ import annotations
 import datetime as dt
 from typing import Literal
 
+from fastapi import HTTPException
 from pydantic import Field, model_validator
+from sqlmodel import Session
 
+from src.db.goals import GoalStep
 from src.services.goals.types.base import Config, StepState, StepType, Submission
 
 
@@ -71,6 +74,14 @@ class Upload(StepType):
     label = "Upload"
     config_model = UploadConfig
     entry_kinds = frozenset({"file", "link"})
+
+    def prepare_entry(self, db: Session, step: GoalStep, done: bool, entry_kind: str, payload) -> dict:
+        slots = {slot["key"]: slot for slot in (step.config or {}).get("slots") or []}
+        if payload.slot not in slots:
+            raise HTTPException(status_code=422, detail="Pick one of the step's slots")
+        if entry_kind == "link" and "link" not in slots[payload.slot]["kinds"]:
+            raise HTTPException(status_code=422, detail="This slot takes files, not links")
+        return {}
 
     def _missing(self, state: StepState) -> list[dict]:
         filled = {entry.slot for entry in state.entries_of("file", "link")}
