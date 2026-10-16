@@ -29,7 +29,7 @@ class TemplateStep(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     key: str | None = Field(default=None, description="Keep it for existing steps; omit it for new ones.")
-    type: str = Field(description="One of the step types: task, upload, write, activity, event, badge, portfolio, decision, routine.")
+    type: str = Field(description="One of the step types: task, upload, write, activity, event, badge, portfolio, decision, routine, explore.")
     title: str = Field(min_length=1, max_length=300)
     description: str = ""
     config: dict = Field(default_factory=dict, description="The type's settings.")

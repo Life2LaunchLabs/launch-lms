@@ -81,6 +81,10 @@ class StepType:
         except ValidationError as error:
             raise HTTPException(status_code=422, detail=f"{self.label}: {_validation_message(error)}") from error
 
+    def prepare_entry(self, db: Session, step: GoalStep, done: bool, entry_kind: str, payload) -> dict:
+        """Check a new entry (a ``StepEntryCreate``) and return what to store on it beyond what was sent."""
+        return {}
+
     def completion_blocker(self, state: StepState) -> str | None:
         """Why the learner can't finish the step yet, or None."""
         return None

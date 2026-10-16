@@ -13,6 +13,7 @@ from typing import Literal
 
 from fastapi import HTTPException
 from pydantic import Field, model_validator
+from sqlmodel import Session
 
 from src.db.goals import GoalStage, GoalStep, StepEntry
 from src.services.goals.types.base import Config, StepState, StepType
@@ -98,6 +99,16 @@ class Routine(StepType):
     def validate_config(self, config: dict | None) -> dict:
         data = super().validate_config(config)
         return {key: value.isoformat() if isinstance(value, dt.date) else value for key, value in data.items()}
+
+    def prepare_entry(self, db: Session, step: GoalStep, done: bool, entry_kind: str, payload) -> dict:
+        if done:
+            raise HTTPException(status_code=409, detail="This routine has ended; reopen it to log more")
+        config = step.config or {}
+        if config.get("entry_kind", "named") == "named" and not payload.title.strip():
+            raise HTTPException(status_code=422, detail="Say what you did")
+        today = dt.date.today()
+        follow_up = config.get("follow_up")
+        return {"period_start": week_start_of(today), "follow_up_due": today + dt.timedelta(days=int(follow_up["after_days"])) if follow_up else None}
 
     def fraction(self, state: StepState) -> float:
         # This week's progress toward the target; the ring never closes while the routine runs.

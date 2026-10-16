@@ -60,7 +60,7 @@ def test_tools_are_scope_bounded_and_accept_plan_era_scopes():
     for tool in goal_edit_tools("openai", "goal"):
         assert tool["strict"] and _strict(tool["parameters"])
     strict = goal_edit_tools("openai", "goal")[1]["parameters"]["properties"]["steps"]["items"]
-    assert set(strict["required"]) == set(strict["properties"]) and strict["properties"]["type"]["enum"] == ["task", "write", "upload", "event", "decision", "routine"]
+    assert set(strict["required"]) == set(strict["properties"]) and strict["properties"]["type"]["enum"] == ["task", "write", "upload", "event", "decision", "routine", "explore"]
 
 
 def _strict(schema) -> bool:
