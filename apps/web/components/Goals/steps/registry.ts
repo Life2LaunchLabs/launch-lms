@@ -17,6 +17,8 @@ export interface StepActions {
   deleteEntry: (entryUuid: string) => Promise<void>
   /** Opens the activity player. */
   openActivity: () => void
+  /** Asks Coach about the step; shown beside the step's main action. */
+  ask?: () => void
 }
 
 export interface StepCardProps<T extends StepTypeKey = StepTypeKey> {

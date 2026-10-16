@@ -2,10 +2,10 @@
 
 import React from 'react'
 import useSWR, { useSWRConfig } from 'swr'
-import { Award, BookOpen, MoreHorizontal, Sparkles, UserPlus } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { Award, BookOpen, MoreHorizontal, Settings2, Sparkles, UserPlus, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
+import { useGoalEditing } from '@components/Goals/edit/GoalEditing'
 import GoalShareDialog from '@components/Goals/share/GoalShareDialog'
 import { getUriWithOrg } from '@services/config/config'
 import { goalUrl, isGoalsKey } from '@services/goals/goals'
@@ -25,16 +25,18 @@ function Avatar({ user }: { user: PersonSummary | null }) {
     : <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-foreground text-[8px] font-black text-background">{String(user?.name || '?').split(/\s+/).slice(0, 2).map((word) => word[0]).join('').toUpperCase()}</span>
 }
 
-/** Who a goal is shared with, Edit, and the goal's other actions, sitting on its header card. */
-export default function GoalHeaderActions({ orgslug, goal, badge, token, onBack, editing = false, onToggleEdit, coachWorking = false, waiting = 0, onPlanWithCoach }: {
-  orgslug: string; goal: Goal; badge?: GoalBadge; token?: string; onBack: () => void; editing?: boolean; onToggleEdit?: () => void
+/** Who a goal is shared with, its settings, and the goal's other actions, sitting on its header card. */
+export default function GoalHeaderActions({ orgslug, goal, badge, token, onBack, coachWorking = false, onEndCoach, onPlanWithCoach }: {
+  orgslug: string; goal: Goal; badge?: GoalBadge; token?: string; onBack: () => void
   /** Coach has a session running on this goal. */
   coachWorking?: boolean
-  /** Coach's suggestions waiting while Edit is off. */
-  waiting?: number
+  onEndCoach?: () => void
   onPlanWithCoach?: () => void
 }) {
   const { mutate } = useSWRConfig()
+  // The goal's settings (name, why, icon, colour, dates) open in a sheet, for whoever can change them.
+  const editing = useGoalEditing()
+  const onSettings = editing && (can(goal, 'edit_plan_details') || can(goal, 'edit_schedule')) ? () => editing.open({ kind: 'settings' }) : undefined
   const [shareOpen, setShareOpen] = React.useState(false)
   const { data: people } = useSWR<{ collaborators: Person[] }>(token ? goalUrl(goal.goal_uuid, '/people') : null, (url: string) => swrFetcher(url, token))
   const others = (people?.collaborators || []).filter((person) => !person.is_subject)
@@ -60,15 +62,11 @@ export default function GoalHeaderActions({ orgslug, goal, badge, token, onBack,
       <span className="max-w-40 truncate">{label}</span>
     </button>
     <span className="flex-1" />
-    {coachWorking ? <span className="flex min-h-10 items-center gap-1.5 px-1 text-xs font-bold text-[var(--plan-deep-ink)]" title="Coach’s suggestions show on the goal as you edit">
+    {coachWorking ? <span className="flex min-h-10 items-center gap-1.5 px-1 text-xs font-bold text-[var(--plan-deep-ink)]" title="Coach’s suggestions show on the goal; ones you haven’t reviewed stay after the session ends">
       <Sparkles size={14} aria-hidden="true" className="animate-pulse motion-reduce:animate-none" />Coach is working with you
+      {onEndCoach ? <button type="button" onClick={onEndCoach} aria-label="End Coach’s session" className="ml-1 flex h-7 w-7 items-center justify-center rounded-lg bg-black/15 hover:bg-black/25"><X size={13} aria-hidden="true" /></button> : null}
     </span> : null}
-    {onToggleEdit ? <button type="button" role="switch" aria-checked={editing} onClick={onToggleEdit} className={chip}>
-      <span aria-hidden="true" className={cn('relative h-4 w-7 rounded-full transition-colors', editing ? 'bg-[var(--plan-deep-ink)]' : 'bg-black/25')}>
-        <span className={cn('absolute top-0.5 h-3 w-3 rounded-full transition-all', editing ? 'left-3.5 bg-[var(--plan-deep)]' : 'left-0.5 bg-[var(--plan-deep-ink)]')} />
-      </span>Edit
-      {waiting ? <span className="rounded-full bg-[var(--plan-deep-ink)] px-1.5 text-[10px] text-[var(--plan-deep)]" title={`${waiting} of Coach’s suggestions are waiting`}>{waiting}<span className="sr-only"> suggestions waiting</span></span> : null}
-    </button> : null}
+    {onSettings ? <button type="button" onClick={onSettings} aria-label="Goal settings" className={chip}><Settings2 size={16} aria-hidden="true" /></button> : null}
     {badge?.badge_uuid || canFinish || canDelete || onPlanWithCoach || goal.status === 'finished' ? <DropdownMenu>
       <DropdownMenuTrigger asChild><button type="button" aria-label="Goal actions" className={chip}><MoreHorizontal size={18} /></button></DropdownMenuTrigger>
       <DropdownMenuContent align="end">

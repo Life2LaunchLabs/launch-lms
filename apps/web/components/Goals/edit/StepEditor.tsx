@@ -34,9 +34,9 @@ export function newStepDraft<T extends StepTypeKey>(type: T, title = ''): StepDr
 }
 
 /** The step types as a row of choices, each with its icon and what it is for. */
-export function StepTypePicker({ value, onChange, personal = false }: { value?: StepTypeKey; onChange: (type: StepTypeKey) => void; personal?: boolean }) { // eslint-disable-line no-unused-vars
+export function StepTypePicker({ value, onChange, personal = false, types: only }: { value?: StepTypeKey; onChange: (type: StepTypeKey) => void; personal?: boolean; types?: StepTypeKey[] }) { // eslint-disable-line no-unused-vars
   // A learner's own goal can't point at an organization's activities or badges.
-  const types = personal ? STEP_TYPE_ORDER.filter((type) => type !== 'activity') : STEP_TYPE_ORDER
+  const types = only || (personal ? STEP_TYPE_ORDER.filter((type) => type !== 'activity') : STEP_TYPE_ORDER)
   return <div role="radiogroup" aria-label="Step type" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
     {types.map((type) => {
       const definition = stepDefinition(type)
@@ -85,23 +85,42 @@ export default function StepEditor({ value, onChange, mode, others = [], typeLoc
       {value.completed_by === 'learner' && !definition.finishesItself ? <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={value.review_required} onChange={(event) => set({ review_required: event.target.checked })} />Staff review it before it counts</label> : null}
       {value.review_required || value.completed_by === 'staff' ? <div className="flex flex-col gap-1"><Label htmlFor="step-guidance">Notes for reviewers</Label><Textarea id="step-guidance" rows={2} value={value.reviewer_guidance} onChange={(event) => set({ reviewer_guidance: event.target.value })} placeholder="What a good one looks like" /></div> : null}
     </div>}
-    <div className="grid gap-3 border-t pt-4 sm:grid-cols-2">
-      {mode === 'template'
-        ? <div className="flex flex-col gap-1"><Label htmlFor="step-week">Due in week</Label><Input id="step-week" type="number" min={1} value={value.due_week ?? ''} onChange={(event) => set({ due_week: event.target.value ? Math.max(1, Number(event.target.value)) : null })} placeholder="No due week" /></div>
-        : <>
-          {personal ? null : <div className="flex flex-col gap-1"><Label htmlFor="step-start">Opens on</Label><Input id="step-start" type="date" value={value.start_date || ''} onChange={(event) => set({ start_date: event.target.value || null })} /></div>}
-          <div className="flex flex-col gap-1"><Label htmlFor="step-due">Due</Label><Input id="step-due" type="date" value={value.due_date || ''} onChange={(event) => set({ due_date: event.target.value || null })} /></div>
-        </>}
-      {others.length ? <div className="flex flex-col gap-1 sm:col-span-2">
-        <Label>Opens after</Label>
-        <div className="flex flex-wrap gap-1.5">
-          {others.map((other) => {
-            const on = value.after.includes(other.id)
-            return <button key={other.id} type="button" aria-pressed={on} onClick={() => set({ after: on ? value.after.filter((id) => id !== other.id) : [...value.after, other.id] })}
-              className={cn('max-w-[16rem] truncate rounded-[10px] border-2 px-2.5 py-1 text-xs font-bold', on ? 'border-[var(--plan-face)] bg-[color-mix(in_srgb,var(--plan-face)_13%,hsl(var(--card)))]' : 'border-border text-muted-foreground')}>{other.title || 'Untitled step'}</button>
-          })}
-        </div>
-      </div> : null}
+    {mode === 'template' ? <div className="grid gap-3 border-t pt-4 sm:grid-cols-2">
+      <div className="flex flex-col gap-1"><Label htmlFor="step-week">Due in week</Label><Input id="step-week" type="number" min={1} value={value.due_week ?? ''} onChange={(event) => set({ due_week: event.target.value ? Math.max(1, Number(event.target.value)) : null })} placeholder="No due week" /></div>
+      <AfterPicker value={value} others={others} set={set} />
+    </div> : <StepTiming value={value} others={others} set={set} />}
+  </div>
+}
+
+type TimingProps = { value: StepDraft; others: Array<{ id: string; title: string }>; set: (patch: Partial<StepDraft>) => void } // eslint-disable-line no-unused-vars
+
+/** When a live step opens and is due: all optional, and tucked away until wanted. Without any, it goes with its stage. */
+function StepTiming({ value, others, set }: TimingProps) {
+  const used = Boolean(value.start_date || value.due_date || value.after.length)
+  return <details open={used} className="group/timing border-t pt-3">
+    <summary className="flex min-h-9 cursor-pointer list-none items-center justify-between gap-2 text-sm font-bold text-muted-foreground">
+      <span>Timing <span className="font-normal">· {used ? 'set' : 'goes with its stage'}</span></span>
+      <span aria-hidden="true" className="text-xs transition-transform group-open/timing:rotate-180">▾</span>
+    </summary>
+    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+      <div className="flex flex-col gap-1"><Label htmlFor="step-start">Starts</Label><Input id="step-start" type="date" value={value.start_date || ''} max={value.due_date || undefined} onChange={(event) => set({ start_date: event.target.value || null })} /></div>
+      <div className="flex flex-col gap-1"><Label htmlFor="step-due">Due</Label><Input id="step-due" type="date" value={value.due_date || ''} min={value.start_date || undefined} onChange={(event) => set({ due_date: event.target.value || null })} /></div>
+      <AfterPicker value={value} others={others} set={set} />
+    </div>
+  </details>
+}
+
+/** Other steps this one waits for. */
+function AfterPicker({ value, others, set }: TimingProps) {
+  if (!others.length) return null
+  return <div className="flex flex-col gap-1 sm:col-span-2">
+    <Label>Starts after</Label>
+    <div className="flex flex-wrap gap-1.5">
+      {others.map((other) => {
+        const on = value.after.includes(other.id)
+        return <button key={other.id} type="button" aria-pressed={on} onClick={() => set({ after: on ? value.after.filter((id) => id !== other.id) : [...value.after, other.id] })}
+          className={cn('max-w-[16rem] truncate rounded-[10px] border-2 px-2.5 py-1 text-xs font-bold', on ? 'border-[var(--plan-face)] bg-[color-mix(in_srgb,var(--plan-face)_13%,hsl(var(--card)))]' : 'border-border text-muted-foreground')}>{other.title || 'Untitled step'}</button>
+      })}
     </div>
   </div>
 }

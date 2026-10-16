@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from enum import Enum
+from typing import Literal
 
 from sqlalchemy import JSON, Boolean, Column, Date, DateTime, ForeignKey, Integer, String, UniqueConstraint
 from sqlmodel import Field, SQLModel
@@ -373,11 +374,16 @@ class GoalCreate(SQLModel):
     target_date: date | None = None
 
 
+# The marks a learner can give their own goal; the web draws each one.
+GOAL_ICONS = ("target", "book", "briefcase", "graduation", "heart", "dumbbell", "palette", "music", "code", "leaf", "home", "rocket")
+
+
 class GoalUpdate(SQLModel):
     title: str | None = Field(default=None, min_length=1, max_length=200)
     description: str | None = None
     target_date: date | None = None
     step_order: StepOrder | None = None
+    icon: Literal[GOAL_ICONS] | None = None  # type: ignore[valid-type]
 
 
 class StageCreate(SQLModel):

@@ -39,11 +39,10 @@ test('hub.action.create-plan: Coach points to a new goal but never sets it up', 
   expect(browserErrors, `Browser errors:\n${browserErrors.join('\n')}`).toEqual([])
 })
 
-test('plans.coach-session: Coach suggests on the goal itself while Edit is on', async ({ page }, testInfo) => {
+test('plans.coach-session: Coach suggests on the goal itself', async ({ page }, testInfo) => {
   await page.goto(environment.plansPath)
   await assertActualApp(page)
   await launchGoal(page, `Planning practice ${Date.now().toString(36).slice(-6)}`)
-  const editSwitch = page.getByRole('switch', { name: /^Edit/ })
 
   await page.getByRole('button', { name: 'Goal actions' }).click()
   await page.getByRole('menuitem', { name: 'Plan with Coach' }).click()
@@ -57,24 +56,15 @@ test('plans.coach-session: Coach suggests on the goal itself while Edit is on', 
   // On a phone Coach covers the goal; tuck it to work on the page.
   if (testInfo.project.name.includes('phone')) await page.getByRole('button', { name: 'Show the page', exact: true }).click()
   await explore.getByRole('button', { name: 'Add Explore' }).click()
-  await expect(page.getByRole('textbox', { name: 'Stage name' }).last()).toHaveValue('Explore')
+  await expect(page.getByRole('heading', { name: 'Explore', exact: true })).toBeVisible()
   await expect(page.getByRole('group', { name: /^Suggested stage / })).toHaveCount(2)
   if (process.env.UI_TEST_CAPTURE === 'true') {
     await page.screenshot({ path: testInfo.outputPath('plans-coach-session.png'), fullPage: true })
   }
 
-  // Turning Edit off during the session asks first; the unreviewed suggestions stay on the goal.
-  await editSwitch.click()
-  const dialog = page.getByRole('dialog', { name: 'End Coach’s session too?' })
-  await expect(dialog).toContainText('2 suggestions you haven’t reviewed will stay on the goal as suggestions.')
-  await dialog.getByRole('button', { name: 'Keep editing' }).click()
-  await expect(editSwitch).toHaveAttribute('aria-checked', 'true')
-  await editSwitch.click()
-  await page.getByRole('dialog', { name: 'End Coach’s session too?' }).getByRole('button', { name: 'End both' }).click()
-  await expect(editSwitch).toHaveAttribute('aria-checked', 'false')
+  // Ending the session leaves the unreviewed suggestions on the goal.
+  await page.getByRole('button', { name: 'End Coach’s session' }).click()
   await expect(page.getByText('Coach is working with you')).toHaveCount(0)
-  await expect(editSwitch).toContainText('2')
-  await editSwitch.click()
   await expect(page.getByRole('group', { name: /^Suggested stage / })).toHaveCount(2)
 })
 
@@ -142,10 +132,10 @@ test('plans.launch: a new goal starts in the launch flow and lands with its answ
   await expect(page.getByText('Your goal is ready.', { exact: false })).toBeVisible()
   await next()
 
-  // Finishing opens the goal, ready to shape, with what the learner said.
-  await expect(page).toHaveURL((url) => url.pathname.endsWith(`/plans/${goalUuid}`) && Boolean(url.searchParams.get('edit')))
-  await expect(page.getByRole('switch', { name: /^Edit/ })).toHaveAttribute('aria-checked', 'true')
-  await expect(page.getByRole('textbox', { name: 'Goal title' })).toHaveValue(title)
+  // Finishing opens the goal with what the learner said, each part editable from its own menu.
+  await expect(page).toHaveURL((url) => url.pathname.endsWith(`/plans/${goalUuid}`))
+  await expect(page.getByRole('heading', { name: title }).first()).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Goal settings' })).toBeVisible()
   await expect(page.getByText('I want a place that fits me.').first()).toBeVisible()
   await expect(page.getByRole('button', { name: /^Coach checks in monthly/ })).toBeVisible()
 

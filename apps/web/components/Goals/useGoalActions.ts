@@ -38,7 +38,7 @@ export function useGoalMutation(goalUuid: string) {
 }
 
 /** A step card's actions, bound to its goal and step. */
-export function useStepActions(goal: Goal, step: Step, token: string | undefined, openActivity: () => void): StepActions {
+export function useStepActions(goal: Goal, step: Step, token: string | undefined, openActivity: () => void, ask?: () => void): StepActions {
   const { busy, run } = useGoalMutation(goal.goal_uuid)
   const g = goal.goal_uuid
   const s = step.step_uuid
@@ -51,5 +51,6 @@ export function useStepActions(goal: Goal, step: Step, token: string | undefined
     updateEntry: (entryUuid, data) => quiet(() => goalsApi.updateEntry(g, s, entryUuid, data, token)),
     deleteEntry: (entryUuid) => quiet(() => goalsApi.deleteEntry(g, s, entryUuid, token)),
     openActivity,
+    ask,
   }
 }
