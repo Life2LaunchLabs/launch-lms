@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Trophy } from 'lucide-react'
+import { Flag, Trophy } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useHub } from '@components/Hub/HubContext'
 import { Button } from '@components/ui/button'
@@ -13,12 +13,13 @@ import GoalFindings from './GoalFindings'
 import type { GoalBadge } from './GoalHeader'
 import { GoalStepRow, type PathViewer } from './GoalStepRow'
 
-type Section = { key: string; title: string; steps: Step[] }
+type Section = { key: string; title: string; milestone?: string; stageUuid?: string; steps: Step[] }
 
-function sectionsOf(goal: Goal): Section[] {
-  const sections: Section[] = goal.stages.map((stage) => ({ key: stage.stage_uuid, title: stage.title, steps: stage.steps }))
+/** The goal's stages as sections; empty stages stay when they can be planned from here. */
+function sectionsOf(goal: Goal, keepEmpty: boolean): Section[] {
+  const sections: Section[] = goal.stages.map((stage) => ({ key: stage.stage_uuid, title: stage.title, milestone: stage.milestone, stageUuid: stage.stage_uuid, steps: stage.steps }))
   if (goal.unstaged_steps.length) sections.push({ key: 'loose', title: sections.length ? 'More steps' : 'Steps', steps: goal.unstaged_steps })
-  return sections.filter((section) => section.steps.length)
+  return sections.filter((section) => section.steps.length || (keepEmpty && section.stageUuid))
 }
 
 const workable = (step: Step) => step.state === 'open' || step.state === 'started' || step.state === 'retry'
@@ -38,13 +39,16 @@ type GoalPathProps = {
   // eslint-disable-next-line no-unused-vars
   onSelect: (stepUuid: string) => void
   onEdit?: () => void
+  /** Turns editing on at an empty stage ("Start planning"). */
+  // eslint-disable-next-line no-unused-vars
+  onPlanStage?: (stageUuid: string) => void
 }
 
 /** A goal below its header: its stages as sections of steps, opened at the next step. Staff see the same path. */
-export default function GoalPath({ goal, color, badge, viewer, selectedUuid, onSelect, onEdit }: GoalPathProps) {
+export default function GoalPath({ goal, color, badge, viewer, selectedUuid, onSelect, onEdit, onPlanStage }: GoalPathProps) {
   const router = useRouter()
   const hub = useHub()
-  const sections = React.useMemo(() => sectionsOf(goal), [goal])
+  const sections = React.useMemo(() => sectionsOf(goal, Boolean(onPlanStage)), [goal, onPlanStage])
   const total = goal.progress.total
   const done = goal.progress.done
   const nextUuid = nextStep(goal)?.step_uuid
@@ -71,11 +75,16 @@ export default function GoalPath({ goal, color, badge, viewer, selectedUuid, onS
     <GoalFindings goal={goal} onGoTo={goTo} />
     {sections.length ? sections.map((section) => {
       const sectionDone = section.steps.filter((step) => step.state === 'done').length
-      const waiting = section.steps.every((step) => step.state === 'locked')
+      const empty = !section.steps.length
+      const waiting = empty || section.steps.every((step) => step.state === 'locked')
       return <section key={section.key} aria-label={section.title} className="flex flex-col gap-4">
-        {sections.length > 1 || (section.title !== 'Steps' && section.title !== goal.title) ? <div className={cn('flex items-baseline justify-between gap-3 rounded-2xl border-2 px-4 py-3', waiting ? 'border-border text-muted-foreground' : 'border-[var(--plan-face)] bg-[color-mix(in_srgb,var(--plan-face)_12%,hsl(var(--card)))]')}>
-          <h2 className="text-lg font-extrabold tracking-tight">{section.title}</h2>
-          <span className="shrink-0 text-xs font-bold text-muted-foreground">{sectionDone} of {section.steps.length}</span>
+        {sections.length > 1 || (section.title !== 'Steps' && section.title !== goal.title) ? <div className={cn('flex flex-col gap-1 rounded-2xl border-2 px-4 py-3', waiting ? 'border-border text-muted-foreground' : 'border-[var(--plan-face)] bg-[color-mix(in_srgb,var(--plan-face)_12%,hsl(var(--card)))]')}>
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="text-lg font-extrabold tracking-tight">{section.title}</h2>
+            {empty ? null : <span className="shrink-0 text-xs font-bold text-muted-foreground">{sectionDone} of {section.steps.length}</span>}
+          </div>
+          {section.milestone ? <p className="flex items-center gap-2 text-sm text-muted-foreground"><Flag size={13} aria-hidden="true" className="shrink-0" />{section.milestone}</p> : null}
+          {empty && onPlanStage && section.stageUuid ? <Button type="button" variant="surface" size="sm" className="mt-2 self-start" onClick={() => onPlanStage(section.stageUuid!)}>Start planning</Button> : null}
         </div> : null}
         <ol className="flex flex-col">
           {section.steps.map((step, index) => <GoalStepRow key={step.step_uuid} goal={goal} step={step} viewer={viewer} selected={step.step_uuid === selected} last={index === section.steps.length - 1}

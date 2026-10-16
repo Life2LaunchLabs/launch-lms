@@ -2,7 +2,8 @@
 
 import React from 'react'
 import useSWR, { useSWRConfig } from 'swr'
-import { Award, MoreHorizontal, Pencil, UserPlus } from 'lucide-react'
+import { Award, MoreHorizontal, UserPlus } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
 import GoalShareDialog from '@components/Goals/share/GoalShareDialog'
@@ -25,7 +26,7 @@ function Avatar({ user }: { user: PersonSummary | null }) {
 }
 
 /** Who a goal is shared with, Edit, and the goal's other actions, sitting on its header card. */
-export default function GoalHeaderActions({ orgslug, goal, badge, token, onBack, onEdit }: { orgslug: string; goal: Goal; badge?: GoalBadge; token?: string; onBack: () => void; onEdit?: () => void }) {
+export default function GoalHeaderActions({ orgslug, goal, badge, token, onBack, editing = false, onToggleEdit }: { orgslug: string; goal: Goal; badge?: GoalBadge; token?: string; onBack: () => void; editing?: boolean; onToggleEdit?: () => void }) {
   const { mutate } = useSWRConfig()
   const [shareOpen, setShareOpen] = React.useState(false)
   const { data: people } = useSWR<{ collaborators: Person[] }>(token ? goalUrl(goal.goal_uuid, '/people') : null, (url: string) => swrFetcher(url, token))
@@ -52,7 +53,11 @@ export default function GoalHeaderActions({ orgslug, goal, badge, token, onBack,
       <span className="max-w-40 truncate">{label}</span>
     </button>
     <span className="flex-1" />
-    {onEdit ? <button type="button" onClick={onEdit} className={chip}><Pencil size={14} aria-hidden="true" />Edit</button> : null}
+    {onToggleEdit ? <button type="button" role="switch" aria-checked={editing} onClick={onToggleEdit} className={chip}>
+      <span aria-hidden="true" className={cn('relative h-4 w-7 rounded-full transition-colors', editing ? 'bg-[var(--plan-deep-ink)]' : 'bg-black/25')}>
+        <span className={cn('absolute top-0.5 h-3 w-3 rounded-full transition-all', editing ? 'left-3.5 bg-[var(--plan-deep)]' : 'left-0.5 bg-[var(--plan-deep-ink)]')} />
+      </span>Edit
+    </button> : null}
     {badge?.badge_uuid || canFinish || canDelete ? <DropdownMenu>
       <DropdownMenuTrigger asChild><button type="button" aria-label="Goal actions" className={chip}><MoreHorizontal size={18} /></button></DropdownMenuTrigger>
       <DropdownMenuContent align="end">

@@ -51,9 +51,9 @@ export const goalsApi = {
   update: (goalUuid: string, data: { title?: string; description?: string; target_date?: string | null; step_order?: StepOrder }, token?: string) => request<Goal>(goalUrl(goalUuid), token, 'PATCH', data),
   respond: (goalUuid: string, accept: boolean, token?: string) => request<Goal>(goalUrl(goalUuid, '/respond'), token, 'POST', { accept }),
 
-  addStage: (goalUuid: string, data: { title: string; description?: string; timing?: string; position?: number }, token?: string) => request<Goal>(goalUrl(goalUuid, '/stages'), token, 'POST', data),
+  addStage: (goalUuid: string, data: { title: string; description?: string; timing?: string; milestone?: string; position?: number }, token?: string) => request<Goal>(goalUrl(goalUuid, '/stages'), token, 'POST', data),
   reorderStages: (goalUuid: string, stageUuids: string[], token?: string) => request<Goal>(goalUrl(goalUuid, '/stages/order'), token, 'PUT', { stage_uuids: stageUuids }),
-  updateStage: (goalUuid: string, stageUuid: string, data: { title?: string; description?: string; timing?: string; start_date?: string | null; due_date?: string | null }, token?: string) => request<Goal>(goalUrl(goalUuid, `/stages/${q(stageUuid)}`), token, 'PATCH', data),
+  updateStage: (goalUuid: string, stageUuid: string, data: { title?: string; description?: string; timing?: string; milestone?: string; start_date?: string | null; due_date?: string | null }, token?: string) => request<Goal>(goalUrl(goalUuid, `/stages/${q(stageUuid)}`), token, 'PATCH', data),
   deleteStage: (goalUuid: string, stageUuid: string, token?: string) => request<Goal>(goalUrl(goalUuid, `/stages/${q(stageUuid)}`), token, 'DELETE'),
 
   addStep: (goalUuid: string, data: StepInput, token?: string) => request<Goal>(goalUrl(goalUuid, '/steps'), token, 'POST', data),
