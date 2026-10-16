@@ -8,7 +8,7 @@ step's status directly.
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from uuid import uuid4
 
 from fastapi import HTTPException
@@ -43,6 +43,7 @@ from src.services.goals.badges import badge_summary
 from src.services.goals.coach_notes import note_counts
 from src.services.goals.availability import availability, node_state, ordered_steps
 from src.services.goals.types import StepState, step_type
+from src.services.goals.types.routine import check_follow_up_status
 
 STAFF_CAPABILITY = "complete_restricted_objectives"
 
@@ -153,6 +154,7 @@ def goal_dict(db: Session, goal: Goal, user_id: int, granted: set[str] | None = 
 def get_goal(db: Session, current_user: PublicUser, goal_uuid: str) -> dict:
     goal = access.goal_or_404(db, goal_uuid)
     granted = access.require(db, goal, current_user.id, "view_plan")
+    completion.end_routines(db, goal)
     return goal_dict(db, goal, current_user.id, granted)
 
 
@@ -348,6 +350,14 @@ def add_entry(db: Session, current_user: PublicUser, goal_uuid: str, step_uuid: 
     entry_kind = _value(payload.kind)
     if entry_kind not in kind.entry_kinds:
         raise HTTPException(status_code=422, detail=f"{kind.label} steps don't collect {entry_kind} entries")
+    follow_up_due = None
+    if step.type == "routine":
+        if _value(completion.progress_view(db, step).status) in DONE_STEP_STATUSES:
+            raise HTTPException(status_code=409, detail="This routine has ended; reopen it to log more")
+        if (step.config or {}).get("entry_kind", "named") == "named" and not payload.title.strip():
+            raise HTTPException(status_code=422, detail="Say what you did")
+        follow_up = (step.config or {}).get("follow_up")
+        follow_up_due = date.today() + timedelta(days=int(follow_up["after_days"])) if follow_up else None
     if step.type == "upload":
         slots = {slot["key"]: slot for slot in (step.config or {}).get("slots") or []}
         if payload.slot not in slots:
@@ -368,18 +378,17 @@ def add_entry(db: Session, current_user: PublicUser, goal_uuid: str, step_uuid: 
         entry_uuid=f"step_entry_{uuid4()}", step_id=int(step.id), kind=entry_kind, slot=payload.slot,  # type: ignore[arg-type]
         title=payload.title.strip(), url=payload.url.strip(), asset_id=asset.id if asset else None,
         resource_uuid=payload.resource_uuid, note=payload.note, data=payload.data, position=position,
-        period_start=_week_start(date.today()) if entry_kind == "log" else None,
+        period_start=_week_start(date.today()) if entry_kind == "log" else None, follow_up_due=follow_up_due,
         created_by_user_id=current_user.id, creation_date=now, update_date=now,
     )
     db.add(entry)
     db.commit()
     _mark_started(db, goal, step, current_user.id)
+    completion.on_logged(db, step)
     return goal_dict(db, goal, current_user.id)
 
 
 def _week_start(day: date) -> date:
-    from datetime import timedelta
-
     return day - timedelta(days=day.weekday())
 
 
@@ -395,7 +404,10 @@ def update_entry(db: Session, current_user: PublicUser, goal_uuid: str, step_uui
     step = step_or_404(db, goal, step_uuid)
     _require_contribute(db, goal, step, current_user.id)
     entry = _entry(db, step, entry_uuid)
-    for key, value in payload.model_dump(exclude_unset=True).items():
+    changes = payload.model_dump(exclude_unset=True)
+    if step.type == "routine" and "follow_up_status" in changes:
+        check_follow_up_status(step, changes["follow_up_status"])
+    for key, value in changes.items():
         setattr(entry, key, value)
     entry.update_date = _now()
     db.add(entry)

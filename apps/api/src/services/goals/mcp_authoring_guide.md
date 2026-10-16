@@ -67,6 +67,7 @@ Every step has exactly one `type`, and `config` holds that type's settings.
 | `badge` | `badge_uuid`, `accept_previous_major_versions` | earns the badge | the badge is awarded |
 | `portfolio` | `check`: `welcome`, `timeline`, `project`, `traits`, `launch` or `badges` | completes a portfolio section | the section is complete |
 | `decision` | `question`, `options`: `[{key, label}]`, `multiple`, `allow_other` | chooses, with a reason | a choice is saved |
+| `routine` | `target` (times a week), `entry_kind` (`named` or `count`), `item_label`, `end_date`, `end_after`, `follow_up`: `{after_days, statuses}` | logs each one; sets follow-up outcomes | the learner ends it, or its end date, its stage's end or `end_after` comes first |
 
 Unknown config keys are errors. Activity, badge and portfolio steps finish on
 their own, so they are always `completed_by: "learner"`.

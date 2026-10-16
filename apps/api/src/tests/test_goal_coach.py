@@ -43,7 +43,7 @@ def _run(db, scope_kind="goal", target_uuid="goal_one"):
 
 
 def _steps(*items):
-    settings = {"prompt": "", "max_words": 0, "list_label": "", "list_target": 0, "slot_labels": [], "options": [], "multiple": False, "event_date": "", "place": ""}
+    settings = {"prompt": "", "max_words": 0, "list_label": "", "list_target": 0, "slot_labels": [], "options": [], "multiple": False, "event_date": "", "place": "", "per_week": 0, "follow_up_days": 0}
     return {"steps": [{"type": "task", "title": "", "description": "", "stage_title": "", "due_date": "", "resource_uuid": "", **item,
                        "settings": {**settings, **item.get("settings", {})}} for item in items]}
 
@@ -60,7 +60,7 @@ def test_tools_are_scope_bounded_and_accept_plan_era_scopes():
     for tool in goal_edit_tools("openai", "goal"):
         assert tool["strict"] and _strict(tool["parameters"])
     strict = goal_edit_tools("openai", "goal")[1]["parameters"]["properties"]["steps"]["items"]
-    assert set(strict["required"]) == set(strict["properties"]) and strict["properties"]["type"]["enum"] == ["task", "write", "upload", "event", "decision"]
+    assert set(strict["required"]) == set(strict["properties"]) and strict["properties"]["type"]["enum"] == ["task", "write", "upload", "event", "decision", "routine"]
 
 
 def _strict(schema) -> bool:

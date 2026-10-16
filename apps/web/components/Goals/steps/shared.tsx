@@ -28,7 +28,7 @@ export function Feedback({ step }: { step: Step }) {
  * How the step gets finished, from where the viewer stands: the learner marks it done or
  * hands it in, staff approve, send back, complete it for the learner or reopen it.
  */
-export function FinishControls({ step, actions, canWork, staff, finishesItself = false, blocker }: { step: Step; actions: StepActions; canWork: boolean; staff: boolean; finishesItself?: boolean; blocker?: string | null }) {
+export function FinishControls({ step, actions, canWork, staff, finishesItself = false, blocker, finishLabel }: { step: Step; actions: StepActions; canWork: boolean; staff: boolean; finishesItself?: boolean; blocker?: string | null; finishLabel?: string }) {
   const [sendingBack, setSendingBack] = React.useState(false)
   const [note, setNote] = React.useState('')
   if (step.locked) return null
@@ -60,7 +60,7 @@ export function FinishControls({ step, actions, canWork, staff, finishesItself =
   if (finishesItself || !canWork) return null
   return <div className="flex flex-col gap-1.5">
     <Button type="button" variant="plan" className="self-start" disabled={actions.busy || !!blocker} onClick={() => actions.setStatus('completed')}>
-      <Check size={15} aria-hidden="true" />{step.review_required ? 'Hand in' : 'Mark done'}
+      <Check size={15} aria-hidden="true" />{step.review_required ? 'Hand in' : finishLabel || 'Mark done'}
     </Button>
     {blocker ? <CardNote>{blocker}</CardNote> : null}
   </div>

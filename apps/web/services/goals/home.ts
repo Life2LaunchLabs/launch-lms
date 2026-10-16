@@ -29,6 +29,10 @@ export interface HomeItem {
   locked_reason: LockReason | null
   route: string
   placement: 'week' | 'next_week' | 'month' | 'later'
+  /** Routines: the second line, for follow-ups that are due. */
+  line?: 'follow_up'
+  /** Routines: this week's target is met, though the routine keeps running. */
+  week_done?: boolean
 }
 
 export interface HomeGoal {
