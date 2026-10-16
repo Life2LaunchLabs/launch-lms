@@ -46,15 +46,15 @@ export default function GoalHeaderActions({ orgslug, goal, badge, token, onBack,
   React.useEffect(() => setShareOpen(false), [goal.goal_uuid])
   const refresh = () => mutate((key) => isGoalsKey(key))
 
-  const finishOrReopen = async () => {
-    if (!finished && goal.progress.done < goal.progress.total && !window.confirm('Some steps are unfinished. Finish this goal anyway?')) return
-    try { await (finished ? goalLifecycleApi.reopen : goalLifecycleApi.finish)(goal.goal_uuid, token); await refresh() } catch (error: any) { toast.error(error?.message || 'Could not update this goal') }
+  // Finishing is the goal's last step; the menu only reopens a finished goal.
+  const reopen = async () => {
+    try { await goalLifecycleApi.reopen(goal.goal_uuid, token); await refresh() } catch (error: any) { toast.error(error?.message || 'Could not reopen this goal') }
   }
   const remove = async () => {
     if (!window.confirm(`Delete “${goal.title}” and its progress?`)) return
     try { await goalLifecycleApi.remove(goal.goal_uuid, token); onBack(); await refresh() } catch (error: any) { toast.error(error?.message || 'Could not delete this goal') }
   }
-  const canFinish = personal && can(goal, 'edit_plan_details')
+  const canReopen = finished && personal && can(goal, 'edit_plan_details')
   const canDelete = personal && can(goal, 'delete_plan')
   return <div className="flex flex-wrap items-center gap-2">
     <button type="button" onClick={() => setShareOpen(true)} className={chip}>
@@ -67,13 +67,13 @@ export default function GoalHeaderActions({ orgslug, goal, badge, token, onBack,
       {onEndCoach ? <button type="button" onClick={onEndCoach} aria-label="End Coach’s session" className="ml-1 flex h-7 w-7 items-center justify-center rounded-lg bg-black/15 hover:bg-black/25"><X size={13} aria-hidden="true" /></button> : null}
     </span> : null}
     {onSettings ? <button type="button" onClick={onSettings} aria-label="Goal settings" className={chip}><Settings2 size={16} aria-hidden="true" /></button> : null}
-    {badge?.badge_uuid || canFinish || canDelete || onPlanWithCoach || goal.status === 'finished' ? <DropdownMenu>
+    {badge?.badge_uuid || canReopen || canDelete || onPlanWithCoach || goal.status === 'finished' ? <DropdownMenu>
       <DropdownMenuTrigger asChild><button type="button" aria-label="Goal actions" className={chip}><MoreHorizontal size={18} /></button></DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         {onPlanWithCoach ? <DropdownMenuItem onSelect={onPlanWithCoach}><Sparkles size={14} className="mr-2" />Plan with Coach</DropdownMenuItem> : null}
         {badge?.badge_uuid ? <DropdownMenuItem asChild><a href={getUriWithOrg(orgslug, `/badges/${String(badge.badge_uuid).replace(/^badge_/, '')}`)}><Award size={14} className="mr-2" />View badge</a></DropdownMenuItem> : null}
         {goal.status === 'finished' ? <DropdownMenuItem asChild><a href={getUriWithOrg(orgslug, `/plans/${encodeURIComponent(goal.goal_uuid)}/story`)}><BookOpen size={14} className="mr-2" />Watch your story</a></DropdownMenuItem> : null}
-        {canFinish ? <DropdownMenuItem onSelect={() => void finishOrReopen()}>{finished ? 'Reopen goal' : 'Finish goal'}</DropdownMenuItem> : null}
+        {canReopen ? <DropdownMenuItem onSelect={() => void reopen()}>Reopen goal</DropdownMenuItem> : null}
         {canDelete ? <DropdownMenuItem onSelect={() => void remove()} className="text-red-600">Delete goal</DropdownMenuItem> : null}
       </DropdownMenuContent>
     </DropdownMenu> : null}

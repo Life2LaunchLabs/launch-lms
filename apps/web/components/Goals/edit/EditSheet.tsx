@@ -16,7 +16,7 @@ export default function EditSheet({ open, onOpenChange, color, title, descriptio
   color: string
   title: React.ReactNode
   description?: React.ReactNode
-  children: React.ReactNode
+  children?: React.ReactNode
   footer?: React.ReactNode
 }) {
   return <Dialog open={open} onOpenChange={onOpenChange}>

@@ -5,6 +5,7 @@ import toast from 'react-hot-toast'
 import { Loader2, Lock, Settings2 } from 'lucide-react'
 import { useSWRConfig } from 'swr'
 import { Button } from '@components/ui/button'
+import { canMoveStages, ScheduleNotes, useMoveToStage } from '@components/Goals/learner/GoalStages'
 import { AddStageButton, AddStepButton, GoalEditingProvider, StageMenu, StepMenu, useGoalEditing } from '@components/Goals/edit/GoalEditing'
 import { GoalStepRow, type PathViewer } from '@components/Goals/learner/GoalStepRow'
 import useGoalColors from '@components/Goals/learner/useGoalColors'
@@ -26,6 +27,8 @@ export default function StaffGoalPath({ goal, orgslug, orgId, token, viewerUserI
 function StaffPath({ goal, orgslug, orgId, token, viewerUserId, color }: { goal: Goal; orgslug: string; orgId: number; token?: string; viewerUserId?: number; color: string }) {
   const [selected, setSelected] = React.useState<string | null>(null)
   const editing = useGoalEditing()
+  const mover = useMoveToStage(goal, token, color)
+  const movable = canMoveStages(goal)
   React.useEffect(() => {
     const hash = typeof window !== 'undefined' ? window.location.hash.replace('#step-', '') : ''
     if (hash) setSelected(hash)
@@ -43,14 +46,16 @@ function StaffPath({ goal, orgslug, orgId, token, viewerUserId, color }: { goal:
     </div>
     {!goalSteps(goal).length && !editing?.structure ? <p className="rounded-xl border border-dashed border-gray-200 bg-white p-10 text-center text-sm text-gray-500">This goal has no steps yet.</p> : null}
     {groups.map((group) => <section key={group.key} className="space-y-2">
-      {group.title ? <div className="flex items-end gap-3"><h3 className="text-sm font-black uppercase tracking-[0.12em]">{group.title}</h3><p className="flex-1 text-xs text-muted-foreground">{group.steps.length} step{group.steps.length === 1 ? '' : 's'}</p>{group.stage ? <StageMenu stage={group.stage} index={group.index} /> : null}</div> : null}
+      {group.title ? <div className="flex items-end gap-3"><h3 className="text-sm font-black uppercase tracking-[0.12em]">{group.title}</h3>{group.stage && group.stage.stage_uuid === goal.current_stage_uuid ? <span className="text-xs font-extrabold uppercase tracking-wider text-[var(--plan-accent)]">Now</span> : null}<p className="flex-1 text-xs text-muted-foreground">{group.steps.length} step{group.steps.length === 1 ? '' : 's'}</p>{group.stage ? <StageMenu stage={group.stage} index={group.index} onMakeCurrent={movable && group.stage.stage_uuid !== goal.current_stage_uuid ? () => mover.ask(group.stage!) : undefined} /> : null}</div> : null}
+      {group.stage ? <ScheduleNotes goal={goal} stageUuid={group.stage.stage_uuid} /> : null}
       <ol className="flex flex-col">{group.steps.map((step, index) => <React.Fragment key={step.step_uuid}>
-        <GoalStepRow goal={goal} step={step} viewer={viewer} selected={selected === step.step_uuid} last={index === group.steps.length - 1} onSelect={() => setSelected(selected === step.step_uuid ? null : step.step_uuid)} onGoTo={goTo} onOpenActivity={openActivity} menu={<StepMenu step={step} />} />
+        <GoalStepRow goal={goal} step={step} viewer={viewer} selected={selected === step.step_uuid} last={index === group.steps.length - 1} onSelect={() => setSelected(selected === step.step_uuid ? null : step.step_uuid)} onGoTo={goTo} onOpenActivity={openActivity} menu={<StepMenu step={step} />} after={<ScheduleNotes goal={goal} stepUuid={step.step_uuid} className="pb-1" />} />
         {selected === step.step_uuid && reviewer ? <li className="mb-4 ml-[72px]"><StaffNotes goal={goal} step={step} orgId={orgId} token={token} /></li> : null}
       </React.Fragment>)}</ol>
       <AddStepButton stageUuid={group.stage?.stage_uuid ?? null} />
     </section>)}
     <AddStageButton />
+    {mover.sheet}
   </div>
 }
 

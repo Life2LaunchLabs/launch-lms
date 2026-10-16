@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { ArrowDown, ArrowUp, Copy, CornerDownRight, Loader2, MoreVertical, Pencil, Trash2, Undo2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, Copy, CornerDownRight, Flag, Loader2, MoreVertical, Pencil, Trash2, Undo2 } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
 import { goalsApi } from '@services/goals/goals'
@@ -171,8 +171,8 @@ export function StepMenu({ step, className }: { step: Step; className?: string }
   </DropdownMenu>
 }
 
-/** A stage's own menu: edit, move, delete (once its steps have moved on). */
-export function StageMenu({ stage, index }: { stage: Stage; index: number }) {
+/** A stage's own menu: make it the current stage, edit, move, delete (once its steps have moved on). */
+export function StageMenu({ stage, index, onMakeCurrent }: { stage: Stage; index: number; onMakeCurrent?: () => void }) {
   const editing = useGoalEditing()
   const { busy, run } = useGoalMutation(editing?.goal.goal_uuid || '')
   if (!editing) return null
@@ -190,6 +190,7 @@ export function StageMenu({ stage, index }: { stage: Stage; index: number }) {
   return <DropdownMenu>
     <DropdownMenuTrigger asChild><button type="button" disabled={busy} aria-label={`More for ${stage.title}`} className={menuButton}>{busy ? <Loader2 size={16} className="animate-spin" /> : <MoreVertical size={16} />}</button></DropdownMenuTrigger>
     <DropdownMenuContent align="end" className="min-w-44">
+      {onMakeCurrent ? <DropdownMenuItem onSelect={onMakeCurrent}><Flag size={14} className="mr-2" />Make this the current stage</DropdownMenuItem> : null}
       <DropdownMenuItem onSelect={() => editing.open({ kind: 'stage', stage })}><Pencil size={14} className="mr-2" />Edit stage</DropdownMenuItem>
       {structure ? <>
         <DropdownMenuSeparator />

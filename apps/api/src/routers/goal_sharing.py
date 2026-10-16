@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlmodel import Session
 
 from src.core.events.database import get_db_session
+from src.db.goals import GoalFinish
 from src.db.planning import (
     OrganizationPlanRoleCreate,
     OrganizationPlanRoleUpdate,
@@ -157,8 +158,8 @@ def api_archive(goal_uuid: str, db: Session = DB, user: PublicUser = USER):
 
 
 @router.post("/{goal_uuid}/finish")
-def api_finish(goal_uuid: str, db: Session = DB, user: PublicUser = USER):
-    return lifecycle.finish(db, user, goal_uuid)
+def api_finish(goal_uuid: str, payload: GoalFinish | None = None, db: Session = DB, user: PublicUser = USER):
+    return lifecycle.finish(db, user, goal_uuid, payload)
 
 
 @router.post("/{goal_uuid}/reopen")

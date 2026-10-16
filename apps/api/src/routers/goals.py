@@ -20,7 +20,7 @@ from src.db.goals import (
 )
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
-from src.services.goals import goals as service, structure
+from src.services.goals import goals as service, schedule, structure
 
 router = APIRouter()
 
@@ -31,6 +31,10 @@ class GoalResponse(BaseModel):
 
 class StageOrder(BaseModel):
     stage_uuids: list[str]
+
+
+class CurrentStage(BaseModel):
+    stage_uuid: str
 
 
 @router.get("")
@@ -66,6 +70,12 @@ def api_add_stage(goal_uuid: str, payload: StageCreate, db: Session = Depends(ge
 @router.put("/{goal_uuid}/stages/order")
 def api_reorder_stages(goal_uuid: str, payload: StageOrder, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
     return structure.reorder_stages(db, user, goal_uuid, payload.stage_uuids)
+
+
+@router.put("/{goal_uuid}/stages/current")
+def api_set_current_stage(goal_uuid: str, payload: CurrentStage, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    goal = schedule.set_current_stage(db, user, goal_uuid, payload.stage_uuid)
+    return service.goal_dict(db, goal, user.id)
 
 
 @router.patch("/{goal_uuid}/stages/{stage_uuid}")

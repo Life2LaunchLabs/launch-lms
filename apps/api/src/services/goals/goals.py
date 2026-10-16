@@ -38,7 +38,7 @@ from src.db.media import MediaAsset
 from src.db.planning import PlanCollaborator
 from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
-from src.services.goals import access, check_ins, completion, references
+from src.services.goals import access, check_ins, completion, references, schedule
 from src.services.goals.badges import badge_summary
 from src.services.goals.coach_notes import note_counts
 from src.services.goals.availability import availability, node_state, ordered_steps
@@ -139,6 +139,7 @@ def goal_dict(db: Session, goal: Goal, user_id: int, granted: set[str] | None = 
         "target_date": goal.target_date, "finished_at": goal.finished_at, "finish": goal.finish or {},
         "owner": _user_summary(db, goal.owner_user_id), "subject": _user_summary(db, goal.subject_user_id),
         "capabilities": sorted(granted), "progress": {"done": done, "total": len(steps)}, "source_badge": badge_summary(db, goal.badge_id),
+        "current_stage_uuid": schedule.current_stage(goal, stages), "schedule_warnings": schedule.conflicts(stages, steps),
         "stages": [
             {
                 "stage_uuid": stage.stage_uuid, "position": stage.position, "title": stage.title, "description": stage.description,

@@ -52,6 +52,8 @@ export const goalsApi = {
   respond: (goalUuid: string, accept: boolean, token?: string) => request<Goal>(goalUrl(goalUuid, '/respond'), token, 'POST', { accept }),
 
   addStage: (goalUuid: string, data: { title: string; description?: string; timing?: string; milestone?: string; position?: number }, token?: string) => request<Goal>(goalUrl(goalUuid, '/stages'), token, 'POST', data),
+  /** Moves the goal on (or back) to a stage. */
+  setCurrentStage: (goalUuid: string, stageUuid: string, token?: string) => request<Goal>(goalUrl(goalUuid, '/stages/current'), token, 'PUT', { stage_uuid: stageUuid }),
   reorderStages: (goalUuid: string, stageUuids: string[], token?: string) => request<Goal>(goalUrl(goalUuid, '/stages/order'), token, 'PUT', { stage_uuids: stageUuids }),
   updateStage: (goalUuid: string, stageUuid: string, data: { title?: string; description?: string; timing?: string; milestone?: string; start_date?: string | null; due_date?: string | null }, token?: string) => request<Goal>(goalUrl(goalUuid, `/stages/${q(stageUuid)}`), token, 'PATCH', data),
   deleteStage: (goalUuid: string, stageUuid: string, token?: string) => request<Goal>(goalUrl(goalUuid, `/stages/${q(stageUuid)}`), token, 'DELETE'),

@@ -378,6 +378,12 @@ class GoalCreate(SQLModel):
 GOAL_ICONS = ("target", "book", "briefcase", "graduation", "heart", "dumbbell", "palette", "music", "code", "leaf", "home", "rocket")
 
 
+class GoalFinish(SQLModel):
+    """How the learner says it went, when they finish their own goal."""
+    reached: Literal["yes", "partly", "changed"] | None = None
+    what_happened: str = Field(default="", max_length=2000)
+
+
 class GoalUpdate(SQLModel):
     title: str | None = Field(default=None, min_length=1, max_length=200)
     description: str | None = None

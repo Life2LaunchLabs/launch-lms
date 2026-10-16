@@ -16,8 +16,12 @@ test('goal.story: finishing a goal opens its story, which ends on the medal and 
   const title = `Story practice ${Date.now().toString(36).slice(-6)}`
   const { goalUuid } = await launchGoal(page, title)
 
-  await page.getByRole('button', { name: 'Goal actions' }).click()
-  await page.getByRole('menuitem', { name: 'Finish goal' }).click()
+  // Finishing is the goal's last step: say how it went, then finish.
+  const finish = page.getByRole('region', { name: 'Finish' })
+  await finish.getByRole('button', { name: 'Finish goal' }).click()
+  const sheet = page.getByRole('dialog', { name: 'Finish your goal' })
+  await sheet.getByRole('radio', { name: 'Yes' }).click()
+  await sheet.getByRole('button', { name: 'Finish goal' }).click()
 
   // The goal greets the learner with its story, once.
   await expect(page).toHaveURL((url) => url.pathname.endsWith(`/plans/${goalUuid}/story`))
