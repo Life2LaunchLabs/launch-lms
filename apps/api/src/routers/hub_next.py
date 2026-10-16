@@ -18,6 +18,7 @@ class HubNextAction(BaseModel):
     tier: int
     goal_uuid: str | None = None
     step_uuid: str | None = None
+    note_uuid: str | None = None
 
 
 @router.get("/next-actions", response_model=list[HubNextAction])

@@ -362,3 +362,20 @@ async def migratev1_2(
         db_session.commit()
 
     return {"message": "Migration successful"}
+
+
+@router.post("/goals/{goal_uuid}/check-in")
+def dev_goal_check_in(
+    goal_uuid: str,
+    db_session: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_authenticated_user),
+):
+    """Run Coach's check-in on one of your goals now, as if its first hour had passed (fixed wording)."""
+    from datetime import timedelta
+
+    from src.services.goals import check_ins
+    from src.services.goals.coach_notes import _own_goal
+
+    goal = _own_goal(db_session, current_user.id, goal_uuid)
+    notes = check_ins.check_in(db_session, goal, datetime.utcnow() + check_ins.FIRST_CHECK_IN + timedelta(minutes=1))
+    return {"created": [note.note_uuid for note in notes]}
