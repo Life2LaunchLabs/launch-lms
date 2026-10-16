@@ -8,7 +8,7 @@ import { ActivityPlayer, type ActivityRuntime } from '@components/Learning/playe
 import { OptionSourceContext } from '@components/Learning/player/OptionSources'
 import { completeLearningPage, submitLearningResponse } from '@services/learning/learning'
 import { goalLaunchApi } from '@services/goals/launch'
-import { goalsApi, goalUrl, isGoalsKey } from '@services/goals/goals'
+import { goalsApi, goalsUrl, goalUrl, isGoalsKey } from '@services/goals/goals'
 import { getUriWithOrg } from '@services/config/config'
 
 /**
@@ -38,9 +38,13 @@ export default function GoalLaunchPlayer({ orgslug, goalUuid, activity, initialR
     router.refresh()
   }
   // The goal page sends a draft back here, so it must not open on a copy cached while the goal
-  // was still a draft: put the live goal in the cache first, then open it.
+  // was still a draft: put the live goal, and the list it now belongs to, in the cache first, then
+  // open it, so its header doesn't rebuild once the list arrives.
   const finish = async () => {
-    try { await mutate(goalUrl(goalUuid), goalsApi.get(goalUuid, accessToken), { revalidate: false }) } catch { /* the page fetches it */ }
+    await Promise.all([
+      mutate(goalUrl(goalUuid), goalsApi.get(goalUuid, accessToken), { revalidate: false }),
+      mutate(goalsUrl('?include_finished=true'), goalsApi.list(accessToken), { revalidate: false }),
+    ]).catch(() => undefined) /* the page fetches them */
     leave(`/plans/${encodeURIComponent(goalUuid)}`)
   }
   const sources = React.useMemo(() => ({ goalUuid, token: accessToken }), [goalUuid, accessToken])

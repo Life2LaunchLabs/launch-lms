@@ -11,7 +11,7 @@ export async function nameGoal(page: Page, title: string) {
   await next.click()
 }
 
-/** Starts a goal from "Create your own", names it, skips the rest of the launch flow and lands on the goal with Edit on. */
+/** Starts a goal from "Create your own", names it, skips the rest of the launch flow and lands on the goal. */
 export async function launchGoal(page: Page, title: string) {
   const started = page.waitForResponse((response) => /\/goals\/launch$/.test(new URL(response.url()).pathname) && response.request().method() === 'POST')
   await page.getByRole('button', { name: /create your own/i }).filter({ visible: true }).first().click()
@@ -25,8 +25,8 @@ export async function launchGoal(page: Page, title: string) {
   await page.getByRole('button', { name: 'Skip to my goal' }).click()
   await expect(page.getByText('You’re set.').or(page.getByText("You're set."))).toBeVisible()
   await page.getByRole('button', { name: /^Finish/ }).click()
-  await expect(page).toHaveURL((url) => url.pathname.endsWith(`/plans/${goalUuid}`) && Boolean(url.searchParams.get('edit')))
-  await expect(page.getByRole('switch', { name: /^Edit/ })).toHaveAttribute('aria-checked', 'true')
+  await expect(page).toHaveURL((url) => url.pathname.endsWith(`/plans/${goalUuid}`))
+  await expect(page.getByRole('button', { name: 'Goal settings' })).toBeVisible()
   return {
     goalUuid,
     authorization: (await response.request().allHeaders()).authorization,

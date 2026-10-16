@@ -2,7 +2,7 @@
 
 import React from 'react'
 import useSWR, { useSWRConfig } from 'swr'
-import { Award, BookOpen, MoreHorizontal, Settings2, Sparkles, UserPlus } from 'lucide-react'
+import { Award, BookOpen, MoreHorizontal, Settings2, Sparkles, UserPlus, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
 import { useGoalEditing } from '@components/Goals/edit/GoalEditing'
@@ -26,10 +26,11 @@ function Avatar({ user }: { user: PersonSummary | null }) {
 }
 
 /** Who a goal is shared with, its settings, and the goal's other actions, sitting on its header card. */
-export default function GoalHeaderActions({ orgslug, goal, badge, token, onBack, coachWorking = false, onPlanWithCoach }: {
+export default function GoalHeaderActions({ orgslug, goal, badge, token, onBack, coachWorking = false, onEndCoach, onPlanWithCoach }: {
   orgslug: string; goal: Goal; badge?: GoalBadge; token?: string; onBack: () => void
   /** Coach has a session running on this goal. */
   coachWorking?: boolean
+  onEndCoach?: () => void
   onPlanWithCoach?: () => void
 }) {
   const { mutate } = useSWRConfig()
@@ -61,8 +62,9 @@ export default function GoalHeaderActions({ orgslug, goal, badge, token, onBack,
       <span className="max-w-40 truncate">{label}</span>
     </button>
     <span className="flex-1" />
-    {coachWorking ? <span className="flex min-h-10 items-center gap-1.5 px-1 text-xs font-bold text-[var(--plan-deep-ink)]" title="Coach’s suggestions show on the goal as you edit">
+    {coachWorking ? <span className="flex min-h-10 items-center gap-1.5 px-1 text-xs font-bold text-[var(--plan-deep-ink)]" title="Coach’s suggestions show on the goal; ones you haven’t reviewed stay after the session ends">
       <Sparkles size={14} aria-hidden="true" className="animate-pulse motion-reduce:animate-none" />Coach is working with you
+      {onEndCoach ? <button type="button" onClick={onEndCoach} aria-label="End Coach’s session" className="ml-1 flex h-7 w-7 items-center justify-center rounded-lg bg-black/15 hover:bg-black/25"><X size={13} aria-hidden="true" /></button> : null}
     </span> : null}
     {onSettings ? <button type="button" onClick={onSettings} aria-label="Goal settings" className={chip}><Settings2 size={16} aria-hidden="true" /></button> : null}
     {badge?.badge_uuid || canFinish || canDelete || onPlanWithCoach || goal.status === 'finished' ? <DropdownMenu>
