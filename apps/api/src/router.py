@@ -20,6 +20,7 @@ from src.routers import (
     hub,
     hub_launch,
     hub_next,
+    hub_questions,
     instance,
     media,
     messages,
@@ -195,6 +196,12 @@ v1_router.include_router(
 )
 v1_router.include_router(
     hub_next.router,
+    prefix="/hub",
+    tags=["hub"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
+v1_router.include_router(
+    hub_questions.router,
     prefix="/hub",
     tags=["hub"],
     dependencies=[Depends(get_non_api_token_user)],

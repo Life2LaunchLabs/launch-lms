@@ -2,6 +2,7 @@ import { getAPIUrl } from '@services/config/config'
 import type { ResourceType } from '@services/resources/resources'
 import type { StepConfigs, StepTypeKey } from '@services/goals/types'
 import { RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/requests'
+import type { HubQuestion } from './questions'
 
 
 export type HubSurfaceHint = {
@@ -42,6 +43,7 @@ export type HubAdvisorMessage = {
   page_context?: HubPageReceipt | null
   resources?: HubAdvisorResource[]
   suggested_actions?: HubSuggestedAction[]
+  questions?: HubQuestion[]
 }
 
 export type HubSuggestedAction = {
@@ -241,6 +243,7 @@ export async function askHubAdvisor(
   suggested_actions: HubSuggestedAction[]
   edit_operations: HubEditOperation[]
   edit_run?: HubEditRun | null
+  questions?: HubQuestion[]
 } & ConversationWriteResult> {
   // The API reconstructs established threads from its owned transcript. Sending only
   // the new turn prevents stale or oversized rendered history from poisoning a retry.

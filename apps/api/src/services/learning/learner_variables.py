@@ -161,7 +161,8 @@ def _target_value_type(db_session: Session, org_id: int | None, target: str) -> 
             )
         ).first()
         if variable:
-            return str(variable.value_type or "text")
+            # The column loads as the enum; its str() is the member name, not the stored value.
+            return str(getattr(variable.value_type, "value", variable.value_type) or "text")
     return "text"
 
 

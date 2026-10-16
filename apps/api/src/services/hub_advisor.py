@@ -105,6 +105,7 @@ class AdvisorResult:
     output_tokens: int = 0
     action_destinations: tuple[str, ...] = ()
     goal_operations: tuple[dict, ...] = ()
+    questions: tuple[dict, ...] = ()
 
 
 def _grounding_terms(value: str) -> set[str]:
@@ -235,86 +236,13 @@ class AdvisorProvider(Protocol):
     async def respond(self, messages: list[AdvisorMessage], safety_identifier: str) -> AdvisorResult: ...
 
 
-class DeterministicUiTestProvider:
-    """Local browser-fixture provider; it is never enabled in a production configuration."""
-
-    def __init__(self, memory: bool = False, edit_scope: str | None = None):
-        self.memory = memory
-        self.edit_scope = edit_scope
-
-    async def respond(self, messages: list[AdvisorMessage], safety_identifier: str) -> AdvisorResult:
-        # Browser fixtures append trusted capability instructions and untrusted
-        # grounding after the learner's text. Match only the learner-authored
-        # portion so words in that context cannot select the fixture response.
-        prompt = messages[-1].content.split("\n\n", 1)[0].casefold()
-        if self.memory:
-            return AdvisorResult(text='{"candidates": []}', model="ui-test-memory")
-        from src.services.goals.coach_tools import parse_goal_tool_call, scope
-        edit_scope = scope(self.edit_scope)
-        if edit_scope == "goal":
-            if "suggested stage" in prompt:
-                if "all proposed stages have now been reviewed" not in prompt:
-                    return AdvisorResult(text="I’ve recorded that choice. The other proposed stages are still ready for your review.", model="ui-test-advisor")
-                settings = {"prompt": "", "max_words": 0, "list_label": "", "list_target": 0, "slot_labels": [], "options": [], "multiple": False, "event_date": "", "place": ""}
-                operation = parse_goal_tool_call("propose_goal_steps", {"steps": [
-                    {"type": "write", "title": "Clarify the target role", "description": "Define the kind of role and work environment to aim for.", "due_date": "", "stage_title": "Explore", "resource_uuid": "",
-                     "settings": {**settings, "prompt": "What kind of role and workplace are you aiming for?"}},
-                    {"type": "task", "title": "Map skills and gaps", "description": "Compare current experience with the requirements of promising roles.", "due_date": "", "stage_title": "Prepare", "resource_uuid": "",
-                     "settings": {**settings, "list_label": "Skills to build", "list_target": 3}},
-                    {"type": "task", "title": "Complete one practical experiment", "description": "Test the direction through a small project, course, or conversation.", "due_date": "", "stage_title": "Transition", "resource_uuid": "", "settings": settings},
-                ]})
-                return AdvisorResult(
-                    text="The stages are set. I suggested three starting steps to look at next.",
-                    model="ui-test-advisor", goal_operations=(operation,) if operation else (),
-                )
-            if "suggested step" in prompt:
-                if "all proposed steps have now been reviewed" not in prompt:
-                    return AdvisorResult(text="I’ve recorded that choice. The other proposed steps are still ready for your review.", model="ui-test-advisor")
-                operation = parse_goal_tool_call("propose_edit_conclusion", {
-                    "summary": "The goal now has a clear starting structure.",
-                })
-                return AdvisorResult(
-                    text="That gives the goal a useful starting structure. If it looks right, we can finish this edit.",
-                    model="ui-test-advisor",
-                    goal_operations=(operation,) if operation else (),
-                )
-            operation = parse_goal_tool_call("propose_goal_stages", {"stages": [
-                {"title": "Explore", "description": "Clarify the direction and compare realistic paths.", "timing": ""},
-                {"title": "Prepare", "description": "Build the skills, evidence, and relationships needed to move.", "timing": ""},
-                {"title": "Transition", "description": "Test opportunities and make the move deliberately.", "timing": ""},
-            ]})
-            return AdvisorResult(
-                text="I suggested three stages on your goal. Add the ones that fit; nothing changes until you do.",
-                model="ui-test-advisor",
-                goal_operations=(operation,) if operation else (),
-            )
-        if "plan this goal" in prompt or "plan it with me" in prompt:
-            return AdvisorResult(
-                text="Happy to. Start a session and I'll suggest stages on the goal itself; you keep only what fits.",
-                model="ui-test-advisor", action_destinations=("plan_goal",),
-            )
-        if "create a plan" in prompt or "start a plan" in prompt:
-            return AdvisorResult(
-                text="A goal can turn that direction into stages and next steps. You can start one and keep shaping it as you learn.",
-                model="ui-test-advisor", action_destinations=("create_plan",),
-            )
-        if "timeline" in prompt or "portfolio" in prompt:
-            return AdvisorResult(
-                text="That sounds worth preserving in your story. You can add it to your portfolio timeline when you are ready.",
-                model="ui-test-advisor", action_destinations=("add_timeline",),
-            )
-        return AdvisorResult(
-            text="A plan can turn that direction into goals and next steps. You can start one and keep shaping it as you learn.",
-            model="ui-test-advisor", action_destinations=("create_plan",),
-        )
-
-
 def _ui_test_provider(memory: bool = False, edit_scope: str | None = None) -> AdvisorProvider | None:
     if os.getenv("LAUNCHLMS_UI_TEST_FIXTURES", "false").lower() != "true":
         return None
     from config.config import get_launchlms_config
     if not get_launchlms_config().general_config.development_mode:
         raise AdvisorUnavailable("UI test fixtures require development mode.")
+    from src.services.hub_advisor_fixture import DeterministicUiTestProvider
     return DeterministicUiTestProvider(memory=memory, edit_scope=edit_scope)
 
 
@@ -343,7 +271,8 @@ class OpenAIResponsesProvider:
     async def respond(self, messages: list[AdvisorMessage], safety_identifier: str) -> AdvisorResult:
         from src.services.hub_actions import navigation_tool
         from src.services.goals.coach_tools import goal_edit_tools, parse_goal_tool_call
-        tools = [navigation_tool("openai"), *goal_edit_tools("openai", self.edit_scope)] if self.allow_actions else []
+        from src.services.hub_questions import parse_question_call, question_tool
+        tools = [navigation_tool("openai"), question_tool("openai"), *goal_edit_tools("openai", self.edit_scope)] if self.allow_actions else []
         payload = {
             "model": self.model,
             "instructions": self.instructions,
@@ -411,8 +340,7 @@ class OpenAIResponsesProvider:
             for content in output.get("content", [])
             if content.get("type") == "output_text" and content.get("text", "").strip()
         ).strip()
-        action_destinations = []
-        goal_operations = []
+        action_destinations, goal_operations, questions = [], [], []
         if self.allow_actions:
             for output in data.get("output", []):
                 if output.get("type") != "function_call":
@@ -426,6 +354,7 @@ class OpenAIResponsesProvider:
                 operation = parse_goal_tool_call(str(output.get("name") or ""), arguments)
                 if operation:
                     goal_operations.append(operation)
+                questions.extend(parse_question_call(str(output.get("name") or ""), arguments))
         if not text:
             raise AdvisorUnavailable("The advisor did not return a response. Please try again.")
         usage = data.get("usage") or {}
@@ -436,6 +365,7 @@ class OpenAIResponsesProvider:
             output_tokens=int(usage.get("output_tokens") or 0),
             action_destinations=tuple(action_destinations),
             goal_operations=tuple(goal_operations),
+            questions=tuple(questions),
         )
 
 
@@ -464,6 +394,7 @@ class AnthropicMessagesProvider:
     async def respond(self, messages: list[AdvisorMessage], safety_identifier: str) -> AdvisorResult:
         from src.services.hub_actions import navigation_tool
         from src.services.goals.coach_tools import goal_edit_tools, parse_goal_tool_call
+        from src.services.hub_questions import parse_question_call, question_tool
         payload: dict = {
             "model": self.model,
             "system": self.instructions,
@@ -472,7 +403,7 @@ class AnthropicMessagesProvider:
             "metadata": {"user_id": safety_identifier},
         }
         if self.allow_actions:
-            payload["tools"] = [navigation_tool("anthropic"), *goal_edit_tools("anthropic", self.edit_scope)]
+            payload["tools"] = [navigation_tool("anthropic"), question_tool("anthropic"), *goal_edit_tools("anthropic", self.edit_scope)]
             payload["tool_choice"] = {"type": "auto"}
         if self.advanced.get("thinking_effort") not in (None, "default"):
             payload["thinking"] = {"type": "adaptive"}
@@ -533,6 +464,7 @@ class AnthropicMessagesProvider:
             and item.get("name") == "suggest_navigation"
             and isinstance(item.get("input", {}).get("destination"), str)
         ] if self.allow_actions else []
+        questions = [question for item in data.get("content", []) if item.get("type") == "tool_use" for question in parse_question_call(str(item.get("name") or ""), item.get("input") or {})] if self.allow_actions else []
         goal_operations = [operation for item in data.get("content", []) if item.get("type") == "tool_use" for operation in [parse_goal_tool_call(str(item.get("name") or ""), item.get("input") or {})] if operation] if self.allow_actions else []
         if not text:
             raise AdvisorUnavailable("The advisor did not return a response. Please try again.")
@@ -544,6 +476,7 @@ class AnthropicMessagesProvider:
             output_tokens=int(usage.get("output_tokens") or 0),
             action_destinations=tuple(action_destinations),
             goal_operations=tuple(goal_operations),
+            questions=tuple(questions),
         )
 
 
@@ -685,7 +618,8 @@ async def ask_hub_advisor(
         from src.services.goals.coach_context import ground_page_context
         provider_messages = ground_page_context(provider_messages, page_context)
     from src.services.hub_actions import navigation_capability_context
-    capability_context = navigation_capability_context(db_session, org_id, session_target)
+    from src.services.hub_questions import question_context
+    capability_context = navigation_capability_context(db_session, org_id, session_target) + question_context(db_session, org_id, user_id, edit_run, session_target)
     capability_context += (
         "\n\nKeep every learner-facing reply under 1,600 characters. Prefer a few short paragraphs and do not "
         "repeat background the learner already supplied."
