@@ -150,3 +150,45 @@ def test_the_runner_checks_in_on_due_goals_and_finishing_a_stage_brings_the_next
         db.refresh(goal)
         assert goal.next_check_in_at <= datetime.utcnow()
         assert [row.goal_uuid for row in check_ins.due_goals(db, datetime.utcnow())] == [goal_uuid]
+
+
+def test_a_routine_gone_quiet_for_two_weeks_gets_one_note_until_it_is_logged_again():
+    from src.db.goals import StepEntry, StepEntryCreate
+    from src.services.goals.types.routine import week_start_of
+
+    with _session() as db:
+        goal_uuid = _goal(db, "Summer job")
+        view = structure.add_step(db, _user(LEARNER), goal_uuid, StepCreate(type="routine", title="Send applications", config={"target": 3}))
+        step_uuid = next(step["step_uuid"] for step in [s for stage in view["stages"] for s in stage["steps"]] + view["unstaged_steps"] if step["type"] == "routine")
+        row = db.exec(select(GoalStep).where(GoalStep.step_uuid == step_uuid)).one()
+        row.creation_date = (datetime.now() - timedelta(weeks=5)).isoformat()
+        db.add(row)
+        this_week = week_start_of(date.today())
+        # Logged three weeks ago; nothing in the two weeks since.
+        goals.add_entry(db, _user(LEARNER), goal_uuid, step_uuid, StepEntryCreate(kind="log", title="Cafe"))
+        entry = db.exec(select(StepEntry).where(StepEntry.step_id == row.id)).one()
+        entry.period_start = this_week - timedelta(weeks=3)
+        db.add(entry)
+        db.commit()
+
+        goal = _row(db, goal_uuid)
+        notes = check_ins.check_in(db, goal, datetime.utcnow())
+        quiet = [note for note in notes if note.signal_key.startswith("routine_missed:")]
+        assert [note.signal_key for note in quiet] == [f"routine_missed:{step_uuid}:{(this_week - timedelta(weeks=2)).isoformat()}"]
+        assert not any(note.signal_key.startswith("stalled:") for note in notes)
+        assert [action["kind"] for action in quiet[0].actions] == ["step", "ask", "dismiss"]
+        # The next check-in in the same lapse adds nothing new.
+        assert not [note for note in check_ins.check_in(db, goal, datetime.utcnow()) if note.signal_key.startswith("routine_missed:")]
+
+        # Logging again this week clears it.
+        goals.add_entry(db, _user(LEARNER), goal_uuid, step_uuid, StepEntryCreate(kind="log", title="Library"))
+        check_ins.check_in(db, goal, datetime.utcnow())
+        db.refresh(quiet[0])
+        assert quiet[0].status == "expired"
+
+
+def test_a_new_routine_is_not_called_quiet():
+    with _session() as db:
+        goal_uuid = _goal(db, "Run more")
+        structure.add_step(db, _user(LEARNER), goal_uuid, StepCreate(type="routine", title="Run", config={"target": 2, "entry_kind": "count"}))
+        assert not [item for item in check_ins.signals(db, _row(db, goal_uuid), datetime.utcnow()) if item["kind"] == "routine_missed"]

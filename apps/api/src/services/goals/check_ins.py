@@ -1,6 +1,6 @@
 """Coach's check-ins on personal goals: rules decide when, the model words what.
 
-A check-in reads plain signals from the goal (a step not started for weeks, an empty stage
+A check-in reads plain signals from the goal (a step not started for weeks, a routine gone quiet, an empty stage
 coming up, a stage just finished, a goal with no steps yet), then one model call turns them
 into at most three notes in Coach's voice. A check-in never changes the goal; each note only
 offers things the learner can choose to do. Without a model, notes use fixed wording.
@@ -21,13 +21,16 @@ from uuid import uuid4
 from sqlalchemy import or_, text
 from sqlmodel import Session, select
 
-from src.db.goals import CoachNote, CoachNoteStatus, Goal, GoalOwnership, GoalStage, GoalStatus, StepStatus
+from src.db.goals import CoachNote, CoachNoteStatus, Goal, GoalOwnership, GoalStage, GoalStatus, StepEntry, StepStatus
 from src.services.goals.home_week import goal_entries
+from src.services.goals.types.routine import count_in_week, week_start_of
 
 logger = logging.getLogger(__name__)
 
 MAX_NOTES = 3
 STALLED_DAYS = 21
+# A running routine with no logs for this many whole weeks in a row.
+ROUTINE_MISSED_WEEKS = 2
 STAGE_SOON_DAYS = 14
 MILESTONE_RECENT_DAYS = 14
 NOTE_DAYS = 14
@@ -112,10 +115,30 @@ def signals(db: Session, goal: Goal, now: datetime) -> list[dict]:
             })
         break
 
-    # The step waiting longest without being started.
+    # A running routine that has gone quiet: no logs in the last whole weeks. Its key names the
+    # first quiet week, so one lapse is one note, and a later lapse can get its own.
+    for entry in entries:
+        if not entry.routine or entry.done:
+            continue
+        missed = _missed_weeks(db, entry.step, today)
+        if missed is None:
+            continue
+        first_quiet, weeks = missed
+        found.append({
+            "kind": "routine_missed", "key": f"routine_missed:{entry.uuid}:{first_quiet.isoformat()}", "step_uuid": entry.uuid,
+            "facts": f"The routine “{entry.step.title}” has had nothing logged for {weeks} weeks in a row.",
+            "title": f"How’s “{entry.step.title}” going?"[:80], "body": "Nothing’s been logged for a couple of weeks. It might need a smaller target, or a fresh start.",
+            "actions": [
+                {"kind": "step", "label": "Open the routine", "step_uuid": entry.uuid},
+                {"kind": "ask", "label": "Talk it through", "prompt": f"My routine “{entry.step.title}” on my goal “{title}” has gone quiet for a couple of weeks. Ask me a few questions about what changed and whether to adjust it."},
+                _dismiss(),
+            ],
+        })
+
+    # The step waiting longest without being started (a routine that never started is the quiet routine above).
     stalled = [
         entry for entry in entries
-        if entry.startable and entry.status == StepStatus.NOT_STARTED.value
+        if not entry.routine and entry.startable and entry.status == StepStatus.NOT_STARTED.value
         and (_created(entry.step.creation_date) or now) <= now - timedelta(days=STALLED_DAYS)
     ]
     if stalled:
@@ -132,6 +155,27 @@ def signals(db: Session, goal: Goal, now: datetime) -> list[dict]:
             ],
         })
     return found
+
+
+def _missed_weeks(db: Session, step, today) -> tuple | None:
+    """The first of the whole weeks in a row with nothing logged, ending last week, and how many;
+    None unless there are at least ROUTINE_MISSED_WEEKS. Weeks before the routine existed don't count."""
+    created = _created(step.creation_date)
+    if created is None:
+        return None
+    logs = list(db.exec(select(StepEntry).where(StepEntry.step_id == step.id)).all())
+    first_week = week_start_of(created.date())
+    if count_in_week(logs, week_start_of(today)):
+        return None
+    week = week_start_of(today) - timedelta(weeks=1)
+    quiet = 0
+    # A week the routine started part-way through counts only if the routine existed all week.
+    while week > first_week and count_in_week(logs, week) == 0:
+        quiet += 1
+        week -= timedelta(weeks=1)
+    if quiet < ROUTINE_MISSED_WEEKS:
+        return None
+    return week + timedelta(weeks=1), quiet
 
 
 async def _model_wording(provider, goal: Goal, fresh: list[dict], safety_identifier: str) -> tuple[dict[str, dict], str]:
