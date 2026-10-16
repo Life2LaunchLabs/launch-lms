@@ -47,6 +47,25 @@ export interface ButtonContent {
   revisit_page_uuid?: string
 }
 
+/** Bars that grow in, such as steps done each week. */
+export interface ChartBlock {
+  /** Unique within the page. */
+  id: string
+  design?: BlockDesign
+  system?: BlockSystem
+  type: "chart"
+  content: ChartContent
+}
+
+export interface ChartContent {
+  kind?: "bars"
+  title?: string
+  values?: Array<number>
+  labels?: Array<string>
+  /** Read the values from a list variable instead, such as `goal.stats.weekly`. */
+  binding?: DisplayBinding
+}
+
 export interface ChoiceOption {
   id: string
   text?: string
@@ -118,6 +137,23 @@ export interface ImageContent {
   alt?: string
   binding?: DisplayBinding
   [key: string]: any
+}
+
+/** A medal that lands on the page. */
+export interface MedalBlock {
+  /** Unique within the page. */
+  id: string
+  design?: BlockDesign
+  system?: BlockSystem
+  type: "medal"
+  content: MedalContent
+}
+
+export interface MedalContent {
+  title?: string
+  subtitle?: string
+  /** An image for the medal's face, such as a badge's; a star when empty. */
+  image?: string
 }
 
 export interface Negation {
@@ -201,14 +237,53 @@ export interface QuestionScoring {
   [key: string]: any
 }
 
+/** A pull quote that fades in line by line. */
+export interface QuoteBlock {
+  /** Unique within the page. */
+  id: string
+  design?: BlockDesign
+  system?: BlockSystem
+  type: "quote"
+  content: QuoteContent
+}
+
+export interface QuoteContent {
+  text?: string
+  attribution?: string
+  /** Read the quote from an earlier answer or a variable, such as `goal.why`. */
+  binding?: DisplayBinding
+}
+
 /** Standard page content (version 2). */
 export interface StandardPageContent {
   version?: 2
-  blocks?: Array<TextBlock | ImageBlock | ButtonBlock | QuestionBlock | PortfolioPreviewBlock>
+  blocks?: Array<TextBlock | ImageBlock | ButtonBlock | QuestionBlock | PortfolioPreviewBlock | StatBlock | QuoteBlock | ChartBlock | MedalBlock>
   /** Label for the page's continue action. */
   action_label?: string
   variants?: PageVariants
   [key: string]: any
+}
+
+/** A row of up to four numbers that count up as the page opens. */
+export interface StatBlock {
+  /** Unique within the page. */
+  id: string
+  design?: BlockDesign
+  system?: BlockSystem
+  type: "stat"
+  content: StatContent
+}
+
+export interface StatContent {
+  items: Array<StatItem>
+}
+
+export interface StatItem {
+  /** The number to show; counts up when it is a number. */
+  value?: number | string
+  label?: string
+  /** Read the value from a variable instead, such as `goal.stats.steps_done`. */
+  binding?: DisplayBinding
 }
 
 export interface TextBlock {
@@ -240,7 +315,7 @@ export interface TextInputField {
 }
 
 export interface VariantOverride {
-  blocks?: Array<TextBlock | ImageBlock | ButtonBlock | QuestionBlock | PortfolioPreviewBlock>
+  blocks?: Array<TextBlock | ImageBlock | ButtonBlock | QuestionBlock | PortfolioPreviewBlock | StatBlock | QuoteBlock | ChartBlock | MedalBlock>
   [key: string]: any
 }
 

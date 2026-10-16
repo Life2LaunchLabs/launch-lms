@@ -2,7 +2,7 @@
 
 import React from 'react'
 import useSWR, { useSWRConfig } from 'swr'
-import { Award, MoreHorizontal, Sparkles, UserPlus } from 'lucide-react'
+import { Award, BookOpen, MoreHorizontal, Sparkles, UserPlus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
@@ -69,11 +69,12 @@ export default function GoalHeaderActions({ orgslug, goal, badge, token, onBack,
       </span>Edit
       {waiting ? <span className="rounded-full bg-[var(--plan-deep-ink)] px-1.5 text-[10px] text-[var(--plan-deep)]" title={`${waiting} of Coach’s suggestions are waiting`}>{waiting}<span className="sr-only"> suggestions waiting</span></span> : null}
     </button> : null}
-    {badge?.badge_uuid || canFinish || canDelete || onPlanWithCoach ? <DropdownMenu>
+    {badge?.badge_uuid || canFinish || canDelete || onPlanWithCoach || goal.status === 'finished' ? <DropdownMenu>
       <DropdownMenuTrigger asChild><button type="button" aria-label="Goal actions" className={chip}><MoreHorizontal size={18} /></button></DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         {onPlanWithCoach ? <DropdownMenuItem onSelect={onPlanWithCoach}><Sparkles size={14} className="mr-2" />Plan with Coach</DropdownMenuItem> : null}
         {badge?.badge_uuid ? <DropdownMenuItem asChild><a href={getUriWithOrg(orgslug, `/badges/${String(badge.badge_uuid).replace(/^badge_/, '')}`)}><Award size={14} className="mr-2" />View badge</a></DropdownMenuItem> : null}
+        {goal.status === 'finished' ? <DropdownMenuItem asChild><a href={getUriWithOrg(orgslug, `/plans/${encodeURIComponent(goal.goal_uuid)}/story`)}><BookOpen size={14} className="mr-2" />Watch your story</a></DropdownMenuItem> : null}
         {canFinish ? <DropdownMenuItem onSelect={() => void finishOrReopen()}>{finished ? 'Reopen goal' : 'Finish goal'}</DropdownMenuItem> : null}
         {canDelete ? <DropdownMenuItem onSelect={() => void remove()} className="text-red-600">Delete goal</DropdownMenuItem> : null}
       </DropdownMenuContent>

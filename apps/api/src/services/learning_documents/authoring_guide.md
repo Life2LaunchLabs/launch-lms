@@ -100,6 +100,15 @@ the flow can route on which one was pressed (see below):
 A `revisit` button jumps back to a page that comes earlier on the route:
 `{ "type": "button", "content": { "label": "Back to the intro", "action": "revisit", "revisit_page_uuid": "new-intro" } }`.
 
+Story blocks show numbers, words and achievements with their own motion:
+`{ "type": "stat", "content": { "items": [ { "value": 12, "label": "steps done" } ] } }` (up to 4, numbers count up),
+`{ "type": "quote", "content": { "text": "…", "attribution": "Why you started" } }`,
+`{ "type": "chart", "content": { "kind": "bars", "values": [1, 3, 2], "labels": ["Oct 1", "Oct 8", "Oct 15"] } }` and
+`{ "type": "medal", "content": { "title": "Goal complete", "subtitle": "…", "image": "" } }`.
+A stat item, quote or chart can read a variable through `binding` instead. Activities run inside a
+goal can read `goal.title`, `goal.why` and `goal.stats.steps_done`, `.weeks`, `.decisions`,
+`.stages_done` and `.weekly` (steps done each week, for a chart).
+
 ## Design
 
 Every activity plays full screen; these make it feel alive. Use them with

@@ -127,6 +127,7 @@ import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 import type { MediaAsset } from '@services/media/library'
 import { TimelineCardView, type TimelineEntry } from '@components/Pages/Portfolio/Timeline'
 import { EditorPreviewModal } from '@components/Learning/player/EditorPreviewModal'
+import StoryBlock, { STORY_BLOCKS } from '@components/Learning/player/StoryBlocks'
 
 /** Edits one activity in place. `ownerName` is the plan template it belongs to; `orgId` owns its variables and media. */
 export default function LearningActivityEditor({
@@ -1323,13 +1324,9 @@ function CanvasBlock({ block, page, selected, readOnly, registerBlockEl, onHover
       ? <div className="rounded-lg border border-dashed border-violet-300 bg-violet-50 px-4 py-3 text-sm font-semibold text-violet-800">{block.content.nodes[0].content[0].attrs?.binding?.fallback || 'Dynamic value'}</div>
       : <TextBlockEditor block={block} selected={selected} readOnly={contentReadOnly} onEditorReady={onTextEditorReady} onPatch={onPatch} />
   ) : block.type === 'image' ? (
-    <ImageBlockEditor
-      block={block}
-      selected={selected}
-      readOnly={contentReadOnly}
-      onPatch={onPatch}
-      onRequestImageUpload={onRequestImageUpload}
-    />
+    <ImageBlockEditor block={block} selected={selected} readOnly={contentReadOnly} onPatch={onPatch} onRequestImageUpload={onRequestImageUpload} />
+  ) : STORY_BLOCKS.has(block.type) ? (
+    <StoryBlock block={block} run={null} />
   ) : block.type === 'button' ? (
     <button type="button" disabled className={`pointer-events-none min-h-11 rounded-full px-5 py-3 text-sm font-bold ${block.design?.variant === 'primary' ? 'bg-[var(--org-primary-color)] text-white' : 'border border-gray-200 bg-white text-gray-700 shadow-sm'}`}>{block.content?.label || 'Continue'}</button>
   ) : block.type === 'portfolio_preview' ? (
