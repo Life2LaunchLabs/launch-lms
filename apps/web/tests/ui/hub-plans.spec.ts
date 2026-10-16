@@ -55,6 +55,8 @@ test('plans.coach-session: Coach suggests on the goal itself while Edit is on', 
   const explore = page.getByRole('group', { name: 'Suggested stage Explore' })
   await expect(explore).toBeVisible()
   await expect(page.getByRole('group', { name: /^Suggested stage / })).toHaveCount(3)
+  // On a phone Coach covers the goal; tuck it to work on the page.
+  if (testInfo.project.name.includes('phone')) await page.getByRole('button', { name: 'Show the page', exact: true }).click()
   await explore.getByRole('button', { name: 'Add Explore' }).click()
   await expect(page.getByRole('textbox', { name: 'Stage name' }).last()).toHaveValue('Explore')
   await expect(page.getByRole('group', { name: /^Suggested stage / })).toHaveCount(2)

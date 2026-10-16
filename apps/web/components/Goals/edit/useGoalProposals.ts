@@ -21,6 +21,9 @@ export type SuggestionKind = 'stages' | 'steps' | 'changes'
 
 const EMPTY: GoalSuggestionRun[] = []
 
+/** An id for a queued session event; ``crypto.randomUUID`` is missing on plain-http hosts. */
+export const continuationId = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`
+
 /**
  * Coach's suggestions waiting on this goal, from the session running now or one that has ended.
  * They are read from the server, refetched as Coach's session moves on.
@@ -100,7 +103,7 @@ export function useGoalProposals(goal: Goal, token?: string) {
     const remaining = left.filter((other) => other.runUuid === item.runUuid && !next.has('stage' in other ? other.stage.local_id : 'step' in other ? other.step.local_id : other.change.local_id))
     if (remaining.length) return
     const noun = kind === 'changes' ? 'suggested changes' : `proposed ${kind}`
-    hub?.enqueueEditContinuation({ id: crypto.randomUUID(), conversationUuid: run.conversation_uuid, runUuid: run.run_uuid, content: `[[hub-session-event]] You finished reviewing the ${noun}\n${decision}\nAll ${noun} have now been reviewed. Continue working toward our editing goal.` })
+    hub?.enqueueEditContinuation({ id: continuationId(), conversationUuid: run.conversation_uuid, runUuid: run.run_uuid, content: `[[hub-session-event]] You finished reviewing the ${noun}\n${decision}\nAll ${noun} have now been reviewed. Continue working toward our editing goal.` })
   }
 
   return { session, count, ...placed, settle }

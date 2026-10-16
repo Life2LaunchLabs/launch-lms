@@ -6,7 +6,7 @@ import { useOrg } from '@components/Contexts/OrgContext'
 import { recoverHubEditOperations } from '@components/Hub/conversation/editRunTimeline'
 import { concludeHubEditRun, startGoalCoachSession } from '@services/hub/advisor'
 import type { Goal } from '@services/goals/types'
-import { useGoalSession } from './useGoalProposals'
+import { continuationId, useGoalSession } from './useGoalProposals'
 
 /**
  * Coach's session on one goal, started by the learner from the goal page. Starting opens Coach
@@ -27,7 +27,7 @@ export default function useGoalCoachSession(goal: Pick<Goal, 'goal_uuid' | 'titl
       hub.open({ conversation: run.conversation_uuid })
       const fresh = run.events.length <= 1
       if (fresh || ask) hub.enqueueEditContinuation({
-        id: crypto.randomUUID(), conversationUuid: run.conversation_uuid, runUuid: run.run_uuid,
+        id: continuationId(), conversationUuid: run.conversation_uuid, runUuid: run.run_uuid,
         content: `[[hub-session-event]] You asked Coach to plan this goal with you\n${ask || `Look over my goal “${goal.title}” and suggest what would help most next. Keep it small; I'll keep what fits.`}`,
       })
     } catch (error: any) {
