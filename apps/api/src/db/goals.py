@@ -35,6 +35,8 @@ class GoalSource(str, Enum):
 
 
 class GoalStatus(str, Enum):
+    # A personal goal still being set up in the launch flow.
+    DRAFT = "draft"
     # Issued to someone who hasn't accepted it yet.
     PENDING = "pending"
     ACTIVE = "active"
@@ -182,6 +184,8 @@ class Goal(SQLModel, table=True):
     # Coach's check-ins on personal goals: "weekly" or "monthly", and when the next one is due.
     coach_cadence: str = Field(default="weekly", sa_column=Column(String, nullable=False, server_default="weekly"))
     next_check_in_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True, index=True))
+    # What the learner said when they set it up: {"size", "starting_point", "template_uuid"} (see goals/launch.py).
+    details: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False, server_default="{}"))
     creation_date: str = ""
     update_date: str = ""
 

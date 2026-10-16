@@ -125,6 +125,14 @@ export interface Negation {
   condition: Comparison | AllOf | Negation
 }
 
+/** Where a choice question's options come from when they aren't typed in. */
+export interface OptionsSource {
+  /** `goal_templates`: plan templates the learner can start from, ranked by the goal's wording, with a search for more. The run must belong to a goal. */
+  kind: "goal_templates"
+  /** How many options show before "See more". */
+  limit?: number
+}
+
 /** Show different blocks depending on an earlier question's answer. */
 export interface PageVariants {
   source?: VariantSource
@@ -175,6 +183,8 @@ export interface QuestionCompletion {
 export interface QuestionContent {
   label?: string
   options?: Array<ChoiceOption>
+  /** Options come from this source instead of `options`; bind the choice with `variable_bindings.selected`. */
+  options_source?: OptionsSource
   categories?: Array<Record<string, any>>
   inputs?: Array<TextInputField>
   [key: string]: any

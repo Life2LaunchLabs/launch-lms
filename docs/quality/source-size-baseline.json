@@ -66,7 +66,7 @@
     "apps/web/components/Learning/AdminBadgeShell.tsx": 1200,
     "apps/web/components/Learning/BadgeCertificatePreview.tsx": 634,
     "apps/web/components/Learning/IssuingAdminShell.tsx": 591,
-    "apps/web/components/Learning/LearningBadgeViews.tsx": 922,
+    "apps/web/components/Learning/LearningBadgeViews.tsx": 919,
     "apps/web/components/Learning/editor/LearningActivityEditor.tsx": 2909,
     "apps/web/components/Learning/editor/VisualFlowEditor.tsx": 1092,
     "apps/web/components/Objects/Media/MediaPickerDialog.tsx": 888,

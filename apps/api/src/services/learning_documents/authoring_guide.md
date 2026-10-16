@@ -74,6 +74,13 @@ with `"question_mode": "scored"`. A scored question with no correct options can
 never earn its points, so a graded activity containing one can never be passed.
 Allow several answers with `max_selections` > 1.
 
+Options can come from a source instead of the document:
+`"options_source": { "kind": "goal_templates", "limit": 3 }` lists the plans a learner can
+start their goal from (top matches, with "See more" to search). Leave `options` empty and
+write the pick with `"variable_bindings": { "selected": [ { "target": "goal.template" } ] }`.
+Activities run in a goal's launch flow may write `goal.title`, `goal.why`, `goal.size`,
+`goal.starting_point`, `goal.coach_cadence` and `goal.template`.
+
 Text response:
 
 ```json

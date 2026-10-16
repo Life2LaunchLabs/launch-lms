@@ -87,6 +87,30 @@ def build_step(db: Session, goal: Goal, stage: GoalStage | None, spec: dict, pos
     return step
 
 
+def build_stages(db: Session, goal: Goal, document: dict, schedule: dict, first_position: int = 0) -> None:
+    """A template document's stages and steps on a live goal, with step order links (flushed, not committed)."""
+    now = _now()
+    keys_to_uuids: dict[str, str] = {}
+    built: list[tuple[dict, GoalStep]] = []
+    for stage_position, spec in enumerate(document["stages"], start=first_position):
+        stage_start, stage_due = schedule.get(spec["key"], (None, None))
+        stage = GoalStage(
+            stage_uuid=f"goal_stage_{uuid4()}", goal_id=int(goal.id), position=stage_position, title=spec["title"],  # type: ignore[arg-type]
+            description=spec.get("description") or "", timing=spec.get("timing") or "", milestone=spec.get("milestone") or "", start_date=stage_start,
+            due_date=stage_due, template_key=spec["key"], creation_date=now, update_date=now,
+        )
+        db.add(stage)
+        db.flush()
+        for position, step_spec in enumerate(spec.get("steps") or []):
+            step = build_step(db, goal, stage, step_spec, position, due_date=_step_due(step_spec, stage_start, stage_due))
+            keys_to_uuids[step_spec["key"]] = step.step_uuid
+            built.append((step_spec, step))
+    for step_spec, step in built:
+        step.after_step_uuids = [keys_to_uuids[key] for key in step_spec.get("after") or [] if key in keys_to_uuids]
+        db.add(step)
+    db.flush()
+
+
 def _source_value(source: GoalSource) -> str:
     return getattr(source, "value", source)
 
@@ -140,26 +164,7 @@ def issue_goal(
         if staff_role and staff_id not in {subject_user_id, goal.owner_user_id}:
             access.add_member(db, goal, int(staff_id), staff_role)
 
-    schedule = stage_schedule(document, start_date, stage_dates)
-    keys_to_uuids: dict[str, str] = {}
-    built: list[tuple[dict, GoalStep]] = []
-    for stage_position, spec in enumerate(document["stages"]):
-        stage_start, stage_due = schedule.get(spec["key"], (None, None))
-        stage = GoalStage(
-            stage_uuid=f"goal_stage_{uuid4()}", goal_id=int(goal.id), position=stage_position, title=spec["title"],  # type: ignore[arg-type]
-            description=spec.get("description") or "", timing=spec.get("timing") or "", milestone=spec.get("milestone") or "", start_date=stage_start,
-            due_date=stage_due, template_key=spec["key"], creation_date=now, update_date=now,
-        )
-        db.add(stage)
-        db.flush()
-        for position, step_spec in enumerate(spec.get("steps") or []):
-            step = build_step(db, goal, stage, step_spec, position, due_date=_step_due(step_spec, stage_start, stage_due))
-            keys_to_uuids[step_spec["key"]] = step.step_uuid
-            built.append((step_spec, step))
-    for step_spec, step in built:
-        step.after_step_uuids = [keys_to_uuids[key] for key in step_spec.get("after") or [] if key in keys_to_uuids]
-        db.add(step)
-    db.flush()
+    build_stages(db, goal, document, stage_schedule(document, start_date, stage_dates))
     access.log(db, goal, actor_user_id, "goal.issued", {"source": _source_value(source), "template_uuid": template.template_uuid, "version": version.number})
     return goal
 

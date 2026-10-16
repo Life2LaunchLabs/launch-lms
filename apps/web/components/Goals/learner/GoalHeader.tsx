@@ -122,14 +122,15 @@ function GoalTab({ goal, color, onChoose, onIntent }: { goal: GoalSummary; color
   const source = goalSource(header)
   return <motion.button type="button" layoutId={goalMorphId(goal.goal_uuid)} transition={GOAL_MORPH} style={{ ...planVars(color), borderRadius: 18 }} data-plan=""
     onClick={onChoose} onPointerEnter={onIntent} onFocus={onIntent} onTouchStart={onIntent} whileTap={{ y: 3 }}
-    aria-label={`${goal.title}, ${percent}% complete${goal.coach_notes ? ', Coach has a note' : ''}`}
+    aria-label={`${goal.title}, ${goal.status === 'draft' ? 'finish setting up' : `${percent}% complete`}${goal.coach_notes ? ', Coach has a note' : ''}`}
     className="relative flex w-[78%] shrink-0 snap-start items-center gap-3 bg-[var(--plan-deep)] px-3 py-2.5 text-left text-[var(--plan-deep-ink)] shadow-[0_4px_0_var(--plan-deep-edge)] hover:brightness-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 sm:w-[46%] md:w-auto">
     {goal.coach_notes ? <span data-testid="coach-note-dot" aria-hidden="true" className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-[var(--plan-deep-ink)]" /> : null}
     <GoalMark badge={header.source_badge} size="sm" layoutId={goalMarkId(goal.goal_uuid)} />
     <Settle className="flex min-w-0 flex-1 flex-col gap-1">
       {source ? <span className="truncate text-[11px] font-extrabold uppercase tracking-wider opacity-80">{source}</span> : null}
       <span className="truncate text-sm font-extrabold leading-tight">{goal.title}</span>
-      <span className="flex items-center gap-2"><GoalProgress thin percent={percent} label={`${goal.title} progress`} /><span className="text-[11px] font-bold tabular-nums opacity-90">{percent}%</span></span>
+      {goal.status === 'draft' ? <span className="text-[11px] font-bold opacity-90">Finish setting up</span>
+        : <span className="flex items-center gap-2"><GoalProgress thin percent={percent} label={`${goal.title} progress`} /><span className="text-[11px] font-bold tabular-nums opacity-90">{percent}%</span></span>}
     </Settle>
   </motion.button>
 }

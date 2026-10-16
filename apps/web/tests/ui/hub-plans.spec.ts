@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { assertActualApp } from './auth'
 import { loadUiTestEnvironment } from './environment'
+import { launchGoal, nameGoal } from './goalLaunch'
 
 const environment = loadUiTestEnvironment({ requireCredentials: false })
 
@@ -20,7 +21,7 @@ test('hub.action.create-plan: Coach points to a new goal but never sets it up', 
   await assertActualApp(page)
   await askHub(page, 'I want to create a plan for changing careers')
 
-  // Starting a goal is the learner's own decision: the button only opens the new goal page.
+  // Starting a goal is the learner's own decision: the button only opens the launch flow.
   await expect(page.getByTestId('hub-suggested-actions').last().getByRole('button', { name: 'Work on this plan' })).toHaveCount(0)
   const action = page.getByTestId('hub-suggested-actions').last().getByRole('button', { name: 'Start a goal', exact: true })
   await expect(action).toBeVisible()
@@ -30,10 +31,9 @@ test('hub.action.create-plan: Coach points to a new goal but never sets it up', 
     await page.screenshot({ path: testInfo.outputPath('hub-create-plan-action.png'), fullPage: true })
   }
   await action.press('Enter')
-  await expect(page.getByRole('heading', { name: 'What are you working toward?' })).toBeVisible()
-  await expect(page).toHaveURL((url) => url.pathname.endsWith('/plans') && !url.searchParams.has('hub_action'))
-  await expect(page.locator('section.hub-panel')).toContainText('I want to create a plan for changing careers')
-  await expect(page.locator('section.hub-panel')).not.toContainText('Creating a goal:')
+  await expect(page.getByText('What do you want to work toward?')).toBeVisible()
+  await expect(page).toHaveURL((url) => url.pathname.endsWith('/launch') && !url.searchParams.has('hub_action'))
+  await expect(page.getByRole('textbox', { name: 'Your goal' })).toHaveValue('')
   await expect(page.getByText('Suggested by Coach')).toHaveCount(0)
 
   expect(browserErrors, `Browser errors:\n${browserErrors.join('\n')}`).toEqual([])
@@ -42,9 +42,8 @@ test('hub.action.create-plan: Coach points to a new goal but never sets it up', 
 test('plans.coach-session: Coach suggests on the goal itself while Edit is on', async ({ page }, testInfo) => {
   await page.goto(environment.plansPath)
   await assertActualApp(page)
-  await page.getByRole('button', { name: /create your own/i }).filter({ visible: true }).first().click()
+  await launchGoal(page, `Planning practice ${Date.now().toString(36).slice(-6)}`)
   const editSwitch = page.getByRole('switch', { name: /^Edit/ })
-  await expect(editSwitch).toHaveAttribute('aria-checked', 'true')
 
   await page.getByRole('button', { name: 'Goal actions' }).click()
   await page.getByRole('menuitem', { name: 'Plan with Coach' }).click()
@@ -111,31 +110,62 @@ test('hub.action.unavailable: a rejected action stays in context and explains th
   await expect(page).toHaveURL((url) => url.pathname.endsWith('/plans'))
 })
 
-test('plans.create-editor: a new goal opens for editing in place', async ({ page }, testInfo) => {
+test('plans.launch: a new goal starts in the launch flow and lands with its answers', async ({ page }, testInfo) => {
+  const browserErrors: string[] = []
+  page.on('console', (message) => { if (message.type() === 'error') browserErrors.push(message.text()) })
+  page.on('pageerror', (error) => browserErrors.push(error.message))
+
   await page.goto(environment.plansPath)
   await assertActualApp(page)
-  await expect(page.getByRole('heading', { name: 'Overview', exact: true, level: 1 })).toBeVisible()
-  const create = page.getByRole('button', { name: /create your own/i }).filter({ visible: true }).first()
-  await create.click()
-  // Creating makes a "New goal" and opens it in place with editing on, ready to name it.
-  const title = page.getByRole('textbox', { name: 'Goal title' })
-  await expect(title).toHaveValue('New goal')
-  const editSwitch = page.getByRole('switch', { name: /^Edit/ })
-  await expect(editSwitch).toHaveAttribute('aria-checked', 'true')
-  await expect(page).toHaveURL((url) => Boolean(url.searchParams.get('edit')))
-  // Fields save as they are left: rename the goal and add a step from the add line.
-  await title.fill('Pick a college')
-  await title.press('Enter')
-  const newStep = page.getByRole('textbox', { name: 'New step' }).first()
-  await newStep.fill('Decide on a shortlist')
-  await newStep.press('Enter')
-  await expect(page.getByRole('textbox', { name: 'Step title' })).toHaveValue('Decide on a shortlist')
-  // Turning editing off shows the same goal as the learner works it.
-  await editSwitch.click()
-  await expect(editSwitch).toHaveAttribute('aria-checked', 'false')
-  await expect(page.getByRole('heading', { name: 'Pick a college', level: 1 })).toBeVisible()
-  await expect(page.getByText('Decide on a shortlist').first()).toBeVisible()
-  if (process.env.UI_TEST_CAPTURE === 'true') {
-    await page.screenshot({ path: testInfo.outputPath('plans-create-editor.png'), fullPage: true })
-  }
+  const started = page.waitForResponse((response) => /\/goals\/launch$/.test(new URL(response.url()).pathname) && response.request().method() === 'POST')
+  await page.getByRole('button', { name: /create your own/i }).filter({ visible: true }).first().click()
+  const goalUuid = (await (await started).json()).goal.goal_uuid
+  const title = `Pick a college ${goalUuid.slice(-6)}`
+  const next = () => page.getByRole('button', { name: /^(Continue|Finish)/ }).click()
+
+  await nameGoal(page, title)
+  await page.getByRole('textbox', { name: 'Why it matters' }).fill('I want a place that fits me.')
+  await next()
+  await page.getByRole('radio', { name: /A few months/ }).click()
+  await next()
+  await page.getByRole('radio', { name: /Just an idea/ }).click()
+  await next()
+  await page.getByRole('radio', { name: /I.ll steer/ }).click()
+  await next()
+  // The plans to start from come from the organization; nothing has to be picked.
+  await expect(page.getByText('Start from a plan?')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Start blank' })).toBeVisible()
+  await expect(page.getByText(/No plans to start from yet|stages?/).first()).toBeVisible()
+  if (process.env.UI_TEST_CAPTURE === 'true') await page.waitForTimeout(1000)
+  if (process.env.UI_TEST_CAPTURE === 'true') await page.screenshot({ path: testInfo.outputPath('plans-launch-templates.png'), fullPage: true })
+  await page.getByRole('button', { name: 'Start blank' }).click()
+  await expect(page.getByText('Your goal is ready.', { exact: false })).toBeVisible()
+  await next()
+
+  // Finishing opens the goal, ready to shape, with what the learner said.
+  await expect(page).toHaveURL((url) => url.pathname.endsWith(`/plans/${goalUuid}`) && Boolean(url.searchParams.get('edit')))
+  await expect(page.getByRole('switch', { name: /^Edit/ })).toHaveAttribute('aria-checked', 'true')
+  await expect(page.getByRole('textbox', { name: 'Goal title' })).toHaveValue(title)
+  await expect(page.getByText('I want a place that fits me.').first()).toBeVisible()
+  await expect(page.getByRole('button', { name: /^Coach checks in monthly/ })).toBeVisible()
+
+  expect(browserErrors, `Browser errors:\n${browserErrors.join('\n')}`).toEqual([])
+})
+
+test('plans.launch-draft: a goal left mid-setup says so and reopens the launch flow', async ({ page }) => {
+  await page.goto(environment.plansPath)
+  await assertActualApp(page)
+  const started = page.waitForResponse((response) => /\/goals\/launch$/.test(new URL(response.url()).pathname) && response.request().method() === 'POST')
+  await page.getByRole('button', { name: /create your own/i }).filter({ visible: true }).first().click()
+  const goalUuid = (await (await started).json()).goal.goal_uuid
+  const title = `Half set up ${goalUuid.slice(-6)}`
+  await nameGoal(page, title)
+  await expect(page.getByRole('textbox', { name: 'Why it matters' })).toBeVisible()
+
+  await page.goto(environment.plansPath)
+  const tab = page.getByRole('button', { name: `${title}, finish setting up` })
+  await expect(tab).toBeVisible()
+  await tab.click()
+  await expect(page).toHaveURL((url) => url.pathname.endsWith(`/plans/${goalUuid}/launch`))
+  await expect(page.getByRole('textbox', { name: 'Why it matters' })).toBeVisible()
 })

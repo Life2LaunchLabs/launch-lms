@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { assertActualApp } from './auth'
 import { loadUiTestEnvironment } from './environment'
+import { launchGoal } from './goalLaunch'
 
 const environment = loadUiTestEnvironment({ requireCredentials: false })
 
@@ -11,20 +12,11 @@ test('goal.coach-notes: a check-in leaves a note on the goal that runs from the 
 
   await page.goto(environment.plansPath)
   await assertActualApp(page)
-  const created = page.waitForResponse((response) => /\/goals$/.test(new URL(response.url()).pathname) && response.request().method() === 'POST')
-  await page.getByRole('button', { name: /create your own/i }).filter({ visible: true }).first().click()
-  const response = await created
-  const goal = await response.json()
-  const authorization = (await response.request().allHeaders()).authorization
-  const api = response.url().replace(/goals$/, '')
-  const title = `Check-in practice ${goal.goal_uuid.slice(-6)}`
-  const field = page.getByRole('textbox', { name: 'Goal title' })
-  await field.fill(title)
-  await field.press('Enter')
-  await expect(page.getByRole('switch', { name: /^Edit/ })).toBeVisible()
+  const title = `Check-in practice ${Date.now().toString(36).slice(-6)}`
+  const { goalUuid, authorization, api } = await launchGoal(page, title)
 
   // Coach's check-in runs on a schedule; the dev route runs it now, as if the goal's first hour had passed.
-  const checkIn = await page.request.post(`${api}dev/goals/${goal.goal_uuid}/check-in`, { headers: { authorization } })
+  const checkIn = await page.request.post(`${api}dev/goals/${goalUuid}/check-in`, { headers: { authorization } })
   expect(checkIn.ok()).toBeTruthy()
 
   // The goal's tab gets a dot; the goal's Coach bar says what Coach noticed.

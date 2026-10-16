@@ -19,7 +19,6 @@ import { suggestionCount, useGoalSuggestions } from '@components/Goals/edit/useG
 import EndSessionDialog from '@components/Hub/conversation/EndSessionDialog'
 import { unreviewedSuggestions } from '@components/Hub/conversation/editRunTimeline'
 import { useGoalMutation } from '@components/Goals/useGoalActions'
-import CreateGoalEditor from '@components/Goals/edit/CreateGoalEditor'
 import { GoalCoachBar } from '@components/Goals/coach/CoachNotes'
 import { planVars } from '@components/Goals/planColors'
 import { getUriWithOrg } from '@services/config/config'
@@ -32,7 +31,7 @@ import GoalHeaderActions from './GoalHeaderActions'
 import { GoalCarousel, GoalHeaderCard, GoalTabs, summaryHeader, type HeaderGoal } from './GoalHeader'
 import { GoalPathSkeleton } from './GoalStepRow'
 import useGoalColors from './useGoalColors'
-import useQuickCreateGoal from './useQuickCreateGoal'
+import useStartGoal, { launchPath } from './useStartGoal'
 
 const EMPTY: GoalSummary[] = []
 const homeKey = () => goalsUrl('/home')
@@ -61,7 +60,6 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
   const token: string | undefined = session?.data?.tokens?.access_token
   const viewerUserId = session?.data?.user?.id !== undefined ? Number(session.data.user.id) : undefined
   const [selectedUuid, setSelectedUuid] = React.useState(initialGoalUuid || '')
-  const [creating, setCreating] = React.useState(false)
   // Editing is a switch on the goal itself, kept in the URL (?edit=1) so a reload stays in it.
   // ?edit=details also puts the cursor in the title (a goal just created).
   const [editingGoal, setEditingGoal] = React.useState(() => Boolean(searchParams.get('edit')))
@@ -69,13 +67,16 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
   const [selectedStepUuid, setSelectedStepUuid] = React.useState('')
   const editDetails = searchParams.get('edit') === 'details'
 
+  // Coach's "Start a goal" lands here; the learner sets the goal up in the launch flow.
+  const { startGoal, busy: startingGoal } = useStartGoal(orgslug, token)
+  const hubStart = searchParams.get('hub_action') === 'create-plan' && Boolean(token)
   React.useEffect(() => {
-    if (searchParams.get('hub_action') !== 'create-plan') return
-    setCreating(true)
-    const next = new URLSearchParams(searchParams.toString())
+    if (!hubStart) return
+    const next = new URLSearchParams(window.location.search)
     next.delete('hub_action')
-    window.history.replaceState({}, '', `${pathname}${next.size ? `?${next.toString()}` : ''}`)
-  }, [pathname, searchParams])
+    window.history.replaceState({}, '', `${window.location.pathname}${next.size ? `?${next.toString()}` : ''}`)
+    void startGoal()
+  }, [hubStart]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const { data: all = EMPTY, error: listError, isLoading, mutate: retryList } = useSWR<GoalSummary[]>(token ? goalsUrl('?include_finished=true') : null, () => goalsApi.list(token), { revalidateOnFocus: true })
   const { data: detail, error: detailError, mutate: retryDetail } = useSWR<Goal>(token && selectedUuid ? goalUrl(selectedUuid) : null, () => goalsApi.get(selectedUuid, token))
@@ -130,12 +131,13 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
   const choose = (goal: GoalSummary | Goal, edit = false) => {
     const assignment = (goal as GoalSummary).assignment_uuid
     if ((goal as GoalSummary).target_kind === 'group' && assignment) { router.push(getUriWithOrg(orgslug, `/plans/groups/${assignment}`)); return }
+    if (goal.status === 'draft') { router.push(getUriWithOrg(orgslug, launchPath(goal.goal_uuid))); return }
     setSelectedUuid(goal.goal_uuid)
     setSelectedStepUuid(''); setEditingGoal(edit); setFocusStage('')
     window.history.pushState({}, '', getUriWithOrg(orgslug, `/plans/${encodeURIComponent(goal.goal_uuid)}${edit ? '?edit=details' : ''}`))
   }
   const clear = () => {
-    setSelectedUuid(''); setCreating(false)
+    setSelectedUuid('')
     setSelectedStepUuid(''); setEditingGoal(false)
     window.history.pushState({}, '', getUriWithOrg(orgslug, '/plans'))
   }
@@ -162,12 +164,10 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
     setConfirmingEnd(false)
     try { await coach.end(); setEditing(false) } catch { /* the toast says what went wrong */ }
   }
-  const { quickCreate, busy: quickCreateBusy } = useQuickCreateGoal(token, async (goal) => { choose(goal, true); await refresh() })
-  const onCreated = async (goal: Goal) => {
-    setCreating(false)
-    choose(goal)
-    void refresh()
-  }
+  // A draft opened by its link goes back to setting it up.
+  React.useEffect(() => {
+    if (detail?.status === 'draft' && detail.goal_uuid === selectedUuid) router.replace(getUriWithOrg(orgslug, launchPath(detail.goal_uuid)))
+  }, [detail, selectedUuid, orgslug, router])
 
   // Fetch a goal as soon as the learner reaches for it, so it is usually there by the click.
   const prefetch = (goal: GoalSummary) => {
@@ -176,9 +176,9 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
   }
 
   // Which view the body shows, and which way it moved to get there.
-  const viewKey = creating ? 'new' : !selectedUuid ? 'overview' : `${editingGoal ? 'edit' : 'goal'}:${selectedUuid}`
+  const viewKey = !selectedUuid ? 'overview' : `${editingGoal ? 'edit' : 'goal'}:${selectedUuid}`
   const place = (key: string) => {
-    if (key === 'overview' || key === 'new') return -1
+    if (key === 'overview') return -1
     const index = stripGoals.findIndex((goal) => goal.goal_uuid === key.split(':').slice(1).join(':'))
     return index < 0 ? stripGoals.length : index
   }
@@ -206,16 +206,16 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
 
   // The strip over the body: goal tabs on the overview, the open goal's header among the others on a goal.
   let strip: React.ReactNode = null
-  if (!selectedUuid && !creating && !listError) {
+  if (!selectedUuid && !listError) {
     strip = isLoading
       ? <div className="-mx-4 flex gap-3 overflow-hidden px-4 pt-1 md:mx-0 md:grid md:grid-cols-2 md:px-0 xl:grid-cols-3" aria-hidden="true">{[0, 1, 2].map((index) => <Skeleton key={index} className="h-[70px] w-[78%] shrink-0 rounded-[18px] sm:w-[46%] md:w-auto" />)}</div>
       : stripGoals.length ? <GoalTabs goals={stripGoals} getGoalColor={getGoalColor} choose={choose} onIntent={prefetch}>
         <div className="flex w-[78%] shrink-0 snap-start items-center gap-2 rounded-[18px] border-2 border-dashed border-border p-2 sm:w-[46%] md:w-auto">
-          <Button type="button" variant="surface" size="sm" className="flex-1" onClick={() => void quickCreate()} disabled={quickCreateBusy}><Plus size={15} />{quickCreateBusy ? 'Creating…' : 'Create your own'}</Button>
+          <Button type="button" variant="surface" size="sm" className="flex-1" onClick={() => void startGoal()} disabled={startingGoal}><Plus size={15} />{startingGoal ? 'Starting…' : 'Create your own'}</Button>
           <Button type="button" variant="ghost" size="sm" asChild><Link href={getUriWithOrg(orgslug, '/discover')}><Compass size={15} />Discover</Link></Button>
         </div>
       </GoalTabs> : null
-  } else if (selectedUuid && !creating && !celebrating && !detailError && header) {
+  } else if (selectedUuid && !celebrating && !detailError && header) {
     const details = editing && goal && can(goal, 'edit_plan_details')
       ? {
         onRename: (title: string) => runGoal(() => goalsApi.update(goal.goal_uuid, { title }, token), undefined, true),
@@ -230,13 +230,12 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
           onPlanWithCoach={coach.available && goal.ownership === 'personal' && can(goal, 'delete_plan') && can(goal, 'edit_structure') && !coach.session ? () => void coach.start() : undefined} /> : null} />
     </div>
     strip = <GoalCarousel goals={stripGoals} activeUuid={selectedUuid} getGoalColor={getGoalColor} choose={choose} onIntent={prefetch}>{card}</GoalCarousel>
-  } else if (selectedUuid && !creating && !detailError && !ready) {
+  } else if (selectedUuid && !detailError && !ready) {
     strip = <Skeleton className="h-52 rounded-3xl" />
   }
 
   let content: React.ReactNode
-  if (creating) content = <CreateGoalEditor token={token} onCancel={() => setCreating(false)} onCreated={(created) => void onCreated(created)} />
-  else if (!selectedUuid) content = listError ? failed('Your goals could not load.', () => void retryList()) : isLoading ? <Skeleton className="h-64 rounded-3xl" /> : <GoalsHome orgslug={orgslug} token={token} goals={goals} finished={finished} choose={choose} getGoalColor={getGoalColor} onCreate={() => void quickCreate()} creating={quickCreateBusy} />
+  if (!selectedUuid) content = listError ? failed('Your goals could not load.', () => void retryList()) : isLoading ? <Skeleton className="h-64 rounded-3xl" /> : <GoalsHome orgslug={orgslug} token={token} goals={goals} finished={finished} choose={choose} getGoalColor={getGoalColor} onCreate={() => void startGoal()} creating={startingGoal} />
   else if (detailError) content = failed('This goal could not load. It may no longer be available to you.', () => void retryDetail())
   else {
     // Opening a goal: the header is already up; its steps fade in where the placeholder was.
@@ -254,8 +253,8 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
     <EndSessionDialog open={confirmingEnd} unreviewed={unreviewedSuggestions(coach.session)} title="End Coach’s session too?" endLabel="End both" keepLabel="Keep editing"
       onEnd={() => void endBoth()} onKeep={() => setConfirmingEnd(false)} />
     <main className="pb-16">
-      {selectedUuid || creating
-        ? <ContentPageHeader orgslug={orgslug} backLabel="Overview" onBack={clear} compactBottomMargin title={creating ? 'New goal' : undefined} />
+      {selectedUuid
+        ? <ContentPageHeader orgslug={orgslug} backLabel="Overview" onBack={clear} compactBottomMargin />
         : <h1 className="pb-4 pt-2 text-3xl font-extrabold tracking-tight">Overview</h1>}
       <LayoutGroup id="plans">
         {strip}

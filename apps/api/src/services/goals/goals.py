@@ -240,8 +240,8 @@ def list_my_goals(db: Session, current_user: PublicUser, include_finished: bool 
 
 # Personal goals and goal details ---------------------------------------------------
 
-def create_personal_goal(db: Session, current_user: PublicUser, payload: GoalCreate) -> dict:
-    """A goal the learner writes and owns. It starts with one empty stage."""
+def new_personal_goal(db: Session, current_user: PublicUser, payload: GoalCreate, status: GoalStatus = GoalStatus.ACTIVE) -> Goal:
+    """A personal goal with its roles and one empty stage (flushed, not committed)."""
     if payload.org_id is not None and not db.exec(select(UserOrganization.id).where(
         UserOrganization.user_id == current_user.id, UserOrganization.org_id == payload.org_id,
     )).first():
@@ -250,13 +250,19 @@ def create_personal_goal(db: Session, current_user: PublicUser, payload: GoalCre
     goal = Goal(
         goal_uuid=f"goal_{uuid4()}", org_id=payload.org_id, owner_user_id=current_user.id, subject_user_id=current_user.id,
         ownership=GoalOwnership.PERSONAL, source=GoalSource.NONE, title=payload.title.strip(), description=payload.description,
-        target_date=payload.target_date, creation_date=now, update_date=now,
+        target_date=payload.target_date, status=status, creation_date=now, update_date=now,
     )
     db.add(goal)
     db.flush()
     access.seed_roles(db, goal, None)
     db.add(GoalStage(stage_uuid=f"goal_stage_{uuid4()}", goal_id=int(goal.id), position=0, title="Getting started", creation_date=now, update_date=now))  # type: ignore[arg-type]
     access.log(db, goal, current_user.id, "goal.created", {})
+    return goal
+
+
+def create_personal_goal(db: Session, current_user: PublicUser, payload: GoalCreate) -> dict:
+    """A goal the learner writes and owns. It starts with one empty stage."""
+    goal = new_personal_goal(db, current_user, payload)
     check_ins.due_soon(db, goal, check_ins.FIRST_CHECK_IN)
     db.commit()
     db.refresh(goal)
