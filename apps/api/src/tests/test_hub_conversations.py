@@ -1,6 +1,7 @@
 from sqlmodel import Session, SQLModel, create_engine
 
 from src.db.hub import (
+    HubQuestion,
     HubConversation,
     HubConversationMessage,
     HubConversationMessageResource,
@@ -21,6 +22,7 @@ def _session(monkeypatch):
     SQLModel.metadata.create_all(engine, tables=[
         HubConversation.__table__,
         HubConversationMessage.__table__,
+        HubQuestion.__table__,
         HubConversationMessageResource.__table__,
         HubConversationResource.__table__,
         HubMemoryPreference.__table__,

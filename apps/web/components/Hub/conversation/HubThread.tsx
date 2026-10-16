@@ -7,6 +7,8 @@ import type { Resource } from '@services/resources/resources'
 import HubResourceCarousel from '../resources/HubResourceContext'
 import HubQuickSearch from './HubQuickSearch'
 import HubMessageMicroBar from './HubMessageMicroBar'
+import QuestionSet from '@components/Questions/QuestionSet'
+import type { HubQuestionAnswer } from '@services/hub/questions'
 import { AssistantResponse, HubSuggestedActions } from './HubMessageParts'
 import { HubEditActivity, HubLearnerSessionEvent, HubSessionBoundary, sessionEventLabel, type HubRunTimelineEntry } from './editRunTimeline'
 
@@ -37,6 +39,7 @@ type HubThreadProps = {
   onOpenResource: (resource: HubAdvisorResource) => void
   onInspectSearchResource: (messageId: string, resource: Resource) => void
   onActivateAction: (messageId: string, action: HubSuggestedAction, mode: 'navigate' | 'edit') => Promise<void>
+  onAnswer: (messageId: string, answers: HubQuestionAnswer[]) => Promise<void>
   onPoint: (targetId: string) => void
   /* eslint-enable no-unused-vars */
   onFinish: () => void
@@ -44,7 +47,7 @@ type HubThreadProps = {
 }
 
 /** The conversation itself: messages, Coach's suggestions and resources, and the editing session woven in. */
-export default function HubThread({ messages, timelineSlots, editRun, editObjects, pendingReviewCount, pendingResources, inChat, orgId, orgUuid, accessToken, sending, narratedConclusionMessageId, restoreOfferMessageId, onOpenResource, onInspectSearchResource, onActivateAction, onPoint, onFinish, onRestore }: HubThreadProps) {
+export default function HubThread({ messages, timelineSlots, editRun, editObjects, pendingReviewCount, pendingResources, inChat, orgId, orgUuid, accessToken, sending, narratedConclusionMessageId, restoreOfferMessageId, onOpenResource, onInspectSearchResource, onActivateAction, onAnswer, onPoint, onFinish, onRestore }: HubThreadProps) {
   const timeline = (slot: number) => (timelineSlots.get(slot) || []).map((entry) => entry.kind === 'agent'
     ? <HubEditActivity key={entry.id} events={entry.events} objects={editObjects} onPoint={onPoint} onFinish={onFinish} pendingReviewCount={pendingReviewCount} />
     : entry.kind === 'boundary'
@@ -68,6 +71,7 @@ export default function HubThread({ messages, timelineSlots, editRun, editObject
           {microBar(message, `Resource search results for ${message.searchQuery}`)}
         </div> : <>
           <AssistantResponse content={message.content} />
+          <QuestionSet questions={message.questions || []} disabled={sending} onSubmit={(answers) => onAnswer(message.id, answers)} />
           <HubSuggestedActions actions={message.suggestedActions || []} disabled={sending} onActivate={(action, mode) => onActivateAction(message.id, action, mode)} />
           {message.id === narratedConclusionMessageId ? <Button type="button" size="sm" className="mt-2 h-8 text-xs" onClick={onFinish}>Finish session</Button> : null}
           {message.id === restoreOfferMessageId ? <Button type="button" size="sm" className="mt-2 h-8 gap-1.5 text-xs" onClick={onRestore}>Continue focused session<ArrowRight size={13} /></Button> : null}

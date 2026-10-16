@@ -242,6 +242,36 @@ class HubEditObjectState(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.utcnow, index=True)
 
 
+class HubQuestion(SQLModel, table=True):
+    """A question Coach asked through ``ask_learner``, and the learner's answer.
+
+    ``keep`` names where the answer is kept (a field of the learner's goal or one of the
+    organization's learner variables); ``kept`` records what happened when it was answered.
+    """
+
+    __tablename__ = "hubquestion"
+    __table_args__ = (Index("ix_hubquestion_message_position", "message_id", "position"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    question_uuid: str = Field(index=True, unique=True)
+    org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), nullable=False, index=True))
+    user_id: int = Field(sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True))
+    conversation_id: int = Field(sa_column=Column(Integer, ForeignKey("hubconversation.id", ondelete="CASCADE"), nullable=False, index=True))
+    message_id: int = Field(sa_column=Column(Integer, ForeignKey("hubconversationmessage.id", ondelete="CASCADE"), nullable=False, index=True))
+    goal_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("goal.id", ondelete="SET NULL"), nullable=True, index=True))
+    position: int = 0
+    kind: str = Field(sa_column=Column(String(16), nullable=False))
+    prompt: str = Field(sa_column=Column(Text, nullable=False))
+    options: list = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
+    settings: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    keep: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
+    status: str = Field(default="open", sa_column=Column(String(16), nullable=False, index=True))
+    answer: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
+    kept: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    answered_at: datetime | None = None
+
+
 class HubAdvisorAdvancedConfiguration(BaseModel):
     max_output_tokens: int = PydanticField(default=700, ge=128, le=4_000)
     reasoning_effort: Literal["default", "none", "low", "medium", "high", "xhigh"] = "default"

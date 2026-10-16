@@ -42,6 +42,7 @@ from src.services.goals.coach_context import GoalSurfaceHint as HubSurfaceHint, 
 from src.services.goals.coach_sessions import GoalSessionStart, goal_suggestions, session_target, start_goal_session
 from src.services.goals.coach_tools import record_goal_proposals, scope
 from src.services.hub_actions import build_navigation_actions, requests_plan_creation, resolve_navigation_action
+from src.services.hub_questions import record_questions
 from src.services.hub_edit_runs import active_edit_run, conclude_edit_run, latest_edit_run, record_edit_run_activity, reopen_edit_run, save_object_state, update_edit_run_goal
 
 router = APIRouter()
@@ -91,6 +92,7 @@ class HubAdvisorResponse(BaseModel):
     suggested_actions: list[dict] = Field(default_factory=list)
     edit_operations: list[dict] = Field(default_factory=list)
     edit_run: dict | None = None
+    questions: list[dict] = Field(default_factory=list)
 
 
 class HubNavigationActionResolve(BaseModel):
@@ -389,10 +391,8 @@ async def create_hub_advice(
         page_receipt=context["receipt"],
         suggested_actions=suggested_actions,
     )
-    record_used_memories(
-        db_session, persisted["assistant_message_uuid"], used_memories,
-        org_id, current_user.id,
-    )
+    record_used_memories(db_session, persisted["assistant_message_uuid"], used_memories, org_id, current_user.id)
+    questions = record_questions(db_session, org_id=org_id, user_id=current_user.id, message_uuid=persisted["assistant_message_uuid"], questions=list(result.questions), edit_run=edit_run, target=target)
     memory_changes: list[dict] = []
     if memory_settings(db_session, org_id, current_user.id)["enabled"]:
         try:
@@ -429,6 +429,7 @@ async def create_hub_advice(
         suggested_actions=suggested_actions,
         edit_operations=edit_operations,
         edit_run=active_edit_run(db_session, persisted["conversation_uuid"], org_id, current_user.id) if edit_run else None,
+        questions=questions,
     )
 
 
@@ -477,13 +478,7 @@ def conclude_hub_edit_run(run_uuid: str, org_id: int, body: HubEditRunConclusion
 
 
 @router.patch("/edit-runs/{run_uuid}/goal")
-def update_hub_edit_run_goal(
-    run_uuid: str,
-    org_id: int,
-    body: HubEditRunGoalUpdate,
-    current_user: PublicUser = Depends(get_current_user),
-    db_session: Session = Depends(get_db_session),
-):
+def update_hub_edit_run_goal(run_uuid: str, org_id: int, body: HubEditRunGoalUpdate, current_user: PublicUser = Depends(get_current_user), db_session: Session = Depends(get_db_session)):
     return update_edit_run_goal(db_session, run_uuid, org_id, current_user.id, body.goal)
 
 

@@ -14,6 +14,7 @@ import {
 } from '@services/hub/advisor'
 import { getResource, Resource } from '@services/resources/resources'
 import { getUriWithOrg } from '@services/config/config'
+import { answerHubQuestions, type HubQuestionAnswer } from '@services/hub/questions'
 import HubHeader from './HubHeader'
 import HubComposer, { COMPOSER_MIN_HEIGHT, type HubComposerHandle } from './HubComposer'
 import HubThread, { type HubConversationMessage } from './HubThread'
@@ -71,6 +72,7 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
   const [trayUuid, setTrayUuid] = useState<string | null>(null)
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [composerHeight, setComposerHeight] = useState(COMPOSER_MIN_HEIGHT)
+  const [overlayHeight, setOverlayHeight] = useState(0)
   const scrollRef = useRef<HTMLDivElement>(null)
   const composerRef = useRef<HubComposerHandle>(null)
   const messageSequenceRef = useRef(0)
@@ -121,7 +123,7 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
       if (!alive.current || load !== loadSequence.current) return
       const restored = conversation.messages.map((message) => ({
         id: message.id, role: message.role, content: message.content, resources: message.resources, resourceLabel: message.resource_label,
-        searchQuery: message.search_query, createdAt: message.created_at, memories: message.memories, page_context: message.page_context, suggestedActions: message.suggested_actions,
+        searchQuery: message.search_query, createdAt: message.created_at, memories: message.memories, page_context: message.page_context, suggestedActions: message.suggested_actions, questions: message.questions,
       }))
       setMessages(restored)
       setConversationUuid(conversation.conversation_uuid)
@@ -306,7 +308,7 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
         transcriptResources.forEach((resource) => introducedResourceUuidsRef.current.add(resource.resource_uuid))
         setMessages([...previousMessages,
           userMessage(response.user_message_uuid, response.user_message_created_at, { memories: response.memory_changes, page_context: response.page_context }),
-          { id: response.assistant_message_uuid, role: 'assistant', content: response.answer, resources: transcriptResources, resourceLabel: transcriptResources.length ? 'Suggested' : undefined, createdAt: response.assistant_message_created_at, memories: response.memories_used, page_context: response.page_context, suggestedActions: response.suggested_actions },
+          { id: response.assistant_message_uuid, role: 'assistant', content: response.answer, resources: transcriptResources, resourceLabel: transcriptResources.length ? 'Suggested' : undefined, createdAt: response.assistant_message_created_at, memories: response.memories_used, page_context: response.page_context, suggestedActions: response.suggested_actions, questions: response.questions },
         ])
         setContextResources((current) => addHubContextResources(current, response.resources))
         hub?.setEditOperations((current) => mergePendingHubEditOperations(current, response.edit_operations || [], response.edit_run || hub.editRun))
@@ -359,6 +361,20 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
     }
   }
 
+  // The learner answers Coach's questions; the answers go back to Coach as their next message.
+  const answerQuestions = async (messageId: string, answers: HubQuestionAnswer[]) => {
+    if (!accessToken || !org?.id || sending) return
+    setError('')
+    try {
+      const result = await answerHubQuestions(org.id, messageId, answers, accessToken)
+      setMessages((current) => current.map((message) => message.id === messageId ? { ...message, questions: result.questions } : message))
+      pendingSubmissionRef.current = { content: result.content, preserveDraft: true, allowHidden: true }
+      window.requestAnimationFrame(() => composerRef.current?.submit())
+    } catch (answerError: any) {
+      setError(answerError?.message || 'Your answers could not be sent.')
+    }
+  }
+
   const renameConversation = async (uuid: string, title: string) => {
     if (!accessToken || !org?.id) return
     try {
@@ -399,7 +415,7 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
     <EndSessionDialog open={Boolean(pendingEnd)} unreviewed={unreviewedSuggestions(hub?.editRun || null)} keepLabel="Keep the session"
       onEnd={() => { const then = pendingEnd; setPendingEnd(null); then?.() }} onKeep={() => setPendingEnd(null)} />
     <div ref={scrollRef} className={`scrollbar-subtle absolute inset-x-0 bottom-0 overflow-y-auto overscroll-contain scroll-smooth ${hub?.editRun?.status === 'active' ? 'top-[5.25rem]' : !hub?.surface ? 'top-[5rem]' : 'top-14'}`}>
-      <div className="min-h-full w-full px-3 pt-4 sm:px-4" style={{ paddingBottom: composerHeight + 88 + (memory.visible ? 148 : 0) + (libraryOpen ? 290 : 0) + (hub?.editReviewItems.length ? 58 : 0) }}>
+      <div className="min-h-full w-full px-3 pt-4 sm:px-4" style={{ paddingBottom: Math.max(composerHeight + 88 + (memory.visible ? 148 : 0) + (libraryOpen ? 290 : 0) + (hub?.editReviewItems.length ? 58 : 0), overlayHeight + 40) }}>
         <div className="space-y-6" aria-live="polite" aria-busy={busy}>
           {!conversationUuid && messages.length === 0 ? <HubHome orgslug={orgslug} token={accessToken} disabled={busy} conversations={conversations} historyLoading={historyLoading} onHistoryOpen={refreshHistory} onSelect={openConversation} onOpenResources={(uuid) => void openConversation(uuid, true)} onPick={(content) => { pendingSubmissionRef.current = { content, preserveDraft: true }; composerRef.current?.submit() }} /> : null}
           {conversationLoading ? <div className="py-16 text-center text-sm text-muted-foreground" role="status">Loading conversation…</div> : null}
@@ -408,7 +424,7 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
             pendingReviewCount={hub?.editReviewItems.length || 0} pendingResources={pendingResources} inChat={inChat}
             orgId={org?.id} orgUuid={org?.org_uuid} accessToken={accessToken} sending={sending}
             narratedConclusionMessageId={editing.narratedConclusionMessageId} restoreOfferMessageId={editing.restoreOfferMessageId}
-            onOpenResource={openTrayAt} onInspectSearchResource={inspectSearchResource} onActivateAction={activateSuggestedAction}
+            onOpenResource={openTrayAt} onInspectSearchResource={inspectSearchResource} onActivateAction={activateSuggestedAction} onAnswer={answerQuestions}
             onPoint={editing.pointTo} onFinish={() => void editing.finish()} onRestore={() => void editing.restore()}
           />
           {sending ? <div className="text-sm text-muted-foreground" role="status">Thinking…</div> : null}
@@ -418,7 +434,7 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
     </div>
     <HubComposer
       ref={composerRef} orgslug={orgslug} orgId={org?.id} accessToken={accessToken} draft={draft} setDraft={setDraft} onSubmit={submit}
-      onStop={() => advisorAbortRef.current?.abort()} sending={sending} loading={conversationLoading} onHeightChange={setComposerHeight}
+      onStop={() => advisorAbortRef.current?.abort()} sending={sending} loading={conversationLoading} onHeightChange={setComposerHeight} onOverlayHeightChange={setOverlayHeight}
       memory={memory} reviewItems={hub?.editReviewItems || []} onReview={editing.pointTo} conversationStarted={conversationStarted}
       contextResources={contextResources} onOpenTray={() => setTrayUuid(contextResources.at(-1)?.resource_uuid ?? null)}
       libraryOpen={libraryOpen} setLibraryOpen={setLibraryOpen} onAddResource={addResource}

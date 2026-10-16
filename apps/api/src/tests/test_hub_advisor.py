@@ -17,15 +17,16 @@ from src.db.resources import ResourceAccessModeEnum, ResourceTypeEnum
 from src.db.users import PublicUser, User
 from src.services import hub_advisor
 from src.services import hub_actions
+from src.services import hub_questions
 from src.services import hub_configuration
 from src.routers import hub as hub_router
+from src.services.hub_advisor_fixture import DeterministicUiTestProvider
 from src.services.hub_advisor import (
     AdvisorMessage,
     AdvisorResult,
     AdvisorProviderLimited,
     AdvisorUnavailable,
     AnthropicMessagesProvider,
-    DeterministicUiTestProvider,
     OpenAIResponsesProvider,
     ask_hub_advisor,
     advisor_resources_for_request,
@@ -524,6 +525,7 @@ async def test_advisor_requires_membership_and_applies_user_rate_limit(monkeypat
     monkeypatch.setattr(hub_advisor, "require_org_membership", lambda user_id, org_id, _db: membership.append((user_id, org_id)))
     monkeypatch.setattr(hub_advisor, "check_rate_limit", lambda *args: (True, 1, 60))
     monkeypatch.setattr(hub_actions, "_org_config", lambda *_args: {})
+    monkeypatch.setattr(hub_questions, "question_context", lambda *_args: "")
     request = Request({"type": "http", "headers": [], "client": ("127.0.0.1", 1234)})
 
     result = await ask_hub_advisor(request, 7, 11, [message("user", "Help")], object(), FakeProvider())  # type: ignore[arg-type]
@@ -636,3 +638,35 @@ async def test_both_providers_return_the_same_typed_step_changes():
     assert [item["type"] for item in openai.goal_operations] == [item["type"] for item in anthropic.goal_operations] == ["change_goal_steps"]
     strip = lambda operation: [{key: value for key, value in change.items() if key != "local_id"} for change in operation["changes"]]  # noqa: E731
     assert strip(openai.goal_operations[0]) == strip(anthropic.goal_operations[0]) == [{"step_uuid": "step_one", "remove": False, "reason": "Clearer", "title": "Visit two campuses"}]
+
+
+@pytest.mark.asyncio
+async def test_both_providers_offer_and_return_questions_in_any_chat():
+    from src.services.hub_questions import ASK_LEARNER_TOOL
+
+    arguments = {"questions": [{"prompt": "How many hours a week?", "kind": "single", "options": ["1-2", "3-5"], "allow_skip": False,
+                                "low_label": "", "high_label": "", "keep": "none", "variable_key": ""}]}
+
+    async def openai_handler(request: httpx.Request):
+        assert ASK_LEARNER_TOOL in [tool["name"] for tool in json.loads(request.content)["tools"]]
+        return httpx.Response(200, json={"model": "gpt-test", "output": [
+            {"type": "message", "content": [{"type": "output_text", "text": "Quick question."}]},
+            {"type": "function_call", "name": ASK_LEARNER_TOOL, "arguments": json.dumps(arguments)},
+        ]})
+
+    async def anthropic_handler(request: httpx.Request):
+        assert ASK_LEARNER_TOOL in [tool["name"] for tool in json.loads(request.content)["tools"]]
+        return httpx.Response(200, json={"model": "claude-test", "content": [
+            {"type": "text", "text": "Quick question."}, {"type": "tool_use", "name": ASK_LEARNER_TOOL, "input": arguments},
+        ]})
+
+    # No focused session: questions work in any conversation.
+    async with httpx.AsyncClient(transport=httpx.MockTransport(openai_handler)) as client:
+        openai = await OpenAIResponsesProvider("test-key", "gpt-test", client).respond([AdvisorMessage(role="user", content="Help me plan")], "safe-user")
+    async with httpx.AsyncClient(transport=httpx.MockTransport(anthropic_handler)) as client:
+        anthropic = await AnthropicMessagesProvider("test-key", "claude-test", client).respond([AdvisorMessage(role="user", content="Help me plan")], "safe-user")
+    assert openai.questions == anthropic.questions and [item["options"] for item in openai.questions] == [["1-2", "3-5"]]
+    asked = await DeterministicUiTestProvider().respond([message("user", "Ask me a few questions")], "safe")
+    assert [item["kind"] for item in asked.questions] == ["single", "scale", "text"]
+    replied = await DeterministicUiTestProvider(edit_scope="goal").respond([message("user", "My answers:\n- How sure? 4 of 5")], "safe")
+    assert replied.questions == () and replied.goal_operations == ()
