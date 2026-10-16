@@ -147,7 +147,7 @@ def issue_goal(
         stage_start, stage_due = schedule.get(spec["key"], (None, None))
         stage = GoalStage(
             stage_uuid=f"goal_stage_{uuid4()}", goal_id=int(goal.id), position=stage_position, title=spec["title"],  # type: ignore[arg-type]
-            description=spec.get("description") or "", timing=spec.get("timing") or "", start_date=stage_start,
+            description=spec.get("description") or "", timing=spec.get("timing") or "", milestone=spec.get("milestone") or "", start_date=stage_start,
             due_date=stage_due, template_key=spec["key"], creation_date=now, update_date=now,
         )
         db.add(stage)

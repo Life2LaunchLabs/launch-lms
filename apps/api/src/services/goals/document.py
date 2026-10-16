@@ -50,6 +50,7 @@ class TemplateStage(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     description: str = ""
     timing: str = Field(default="", max_length=120, description="Rough timing shown when there are no dates.")
+    milestone: str = Field(default="", max_length=200, description="What reaching the end of the stage looks like.")
     duration_weeks: int | None = Field(default=None, ge=1)
     steps: list[TemplateStep] = Field(default_factory=list)
 

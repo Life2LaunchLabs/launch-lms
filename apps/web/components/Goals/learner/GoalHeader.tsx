@@ -5,6 +5,7 @@ import { motion, useReducedMotion } from 'motion/react'
 import { Award, Target } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { planVars } from '@components/Goals/planColors'
+import EditableText from '@components/Goals/edit/EditableText'
 import type { GoalSummary, StepOrder } from '@services/goals/types'
 
 const RULES: Record<StepOrder, string> = { any: 'Any order', in_order: 'Steps open in order', by_stage: 'Stages open in turn' }
@@ -67,7 +68,16 @@ export function GoalProgress({ percent, label, thin = false }: { percent: number
  * It renders from the goal list's summary while the full goal loads, so opening a goal
  * shows its header at once; ``actions`` hold their place until they are ready.
  */
-export function GoalHeaderCard({ goal, done, total, actions, pending = false }: { goal: HeaderGoal; done: number; total: number; actions?: React.ReactNode; pending?: boolean }) {
+/** The header's title and description as fields while the goal is being edited; each saves on its own. */
+export type HeaderEditing = {
+  // eslint-disable-next-line no-unused-vars
+  onRename: (title: string) => Promise<unknown>
+  // eslint-disable-next-line no-unused-vars
+  onDescribe: (description: string) => Promise<unknown>
+  focusTitle?: boolean
+}
+
+export function GoalHeaderCard({ goal, done, total, actions, pending = false, editing }: { goal: HeaderGoal; done: number; total: number; actions?: React.ReactNode; pending?: boolean; editing?: HeaderEditing }) {
   const percent = total ? Math.round((done * 100) / total) : 0
   return <motion.section layoutId={goalMorphId(goal.goal_uuid)} transition={GOAL_MORPH} style={{ borderRadius: 24 }} aria-label={goal.title} aria-busy={pending || undefined}
     className="flex h-full flex-col bg-[var(--plan-deep)] p-5 text-[var(--plan-deep-ink)] shadow-[0_6px_0_var(--plan-deep-edge)]">
@@ -75,11 +85,15 @@ export function GoalHeaderCard({ goal, done, total, actions, pending = false }: 
       <GoalMark badge={goal.source_badge} layoutId={goalMarkId(goal.goal_uuid)} />
       <Settle className="min-w-0 flex-1">
         <p className="text-xs font-extrabold uppercase tracking-wider opacity-80">{goalSource(goal, 'Your goal')}</p>
-        <h1 className="mt-1 text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">{goal.title}</h1>
+        {editing
+          ? <h1 className="mt-1 text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl"><EditableText value={goal.title} label="Goal title" required autoFocus={editing.focusTitle} onSave={editing.onRename} /></h1>
+          : <h1 className="mt-1 text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">{goal.title}</h1>}
       </Settle>
     </div>
     <Settle className="mt-4 flex flex-col gap-4">
-      {goal.description ? <p className="line-clamp-3 text-sm opacity-90">{goal.description}</p> : null}
+      {editing
+        ? <EditableText multiline value={goal.description || ''} label="Why this goal matters" placeholder="Why this goal matters to you" onSave={editing.onDescribe} className="text-sm opacity-90" />
+        : goal.description ? <p className="line-clamp-3 text-sm opacity-90">{goal.description}</p> : null}
       <div className="flex flex-wrap items-center gap-3">
         <GoalProgress percent={percent} label="Goal progress" />
         <span className="text-xs font-bold">{done} of {total} done</span>

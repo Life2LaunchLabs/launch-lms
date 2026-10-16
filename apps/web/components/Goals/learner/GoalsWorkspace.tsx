@@ -15,7 +15,8 @@ import ContentPageHeader from '@components/Objects/StyledElements/Headers/Conten
 import { Button } from '@components/ui/button'
 import { Reveal, Skeleton } from '@components/ui/skeleton'
 import GoalsHome from '@components/Goals/home/GoalsHome'
-import GoalEditMode from '@components/Goals/edit/GoalEditMode'
+import GoalPathEditor from '@components/Goals/edit/GoalPathEditor'
+import { useGoalMutation } from '@components/Goals/useGoalActions'
 import CreateGoalEditor from '@components/Goals/edit/CreateGoalEditor'
 import { planVars } from '@components/Goals/planColors'
 import { getUriWithOrg } from '@services/config/config'
@@ -61,7 +62,10 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
   const viewerUserId = session?.data?.user?.id !== undefined ? Number(session.data.user.id) : undefined
   const [selectedUuid, setSelectedUuid] = React.useState(initialGoalUuid || '')
   const [creating, setCreating] = React.useState(false)
-  const [editingGoal, setEditingGoal] = React.useState(false)
+  // Editing is a switch on the goal itself, kept in the URL (?edit=1) so a reload stays in it.
+  // ?edit=details also puts the cursor in the title (a goal just created).
+  const [editingGoal, setEditingGoal] = React.useState(() => Boolean(searchParams.get('edit')))
+  const [focusStage, setFocusStage] = React.useState('')
   const [selectedStepUuid, setSelectedStepUuid] = React.useState('')
   const editDetails = searchParams.get('edit') === 'details'
 
@@ -94,7 +98,9 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
     if (segments.length > 1) return
     setSelectedUuid(decodeURIComponent(segments[0] || ''))
     // A link can open a goal at one step (This week, Coach): /plans/{goal}?step={step}.
-    setSelectedStepUuid(new URLSearchParams(window.location.search).get('step') || '')
+    const params = new URLSearchParams(window.location.search)
+    setSelectedStepUuid(params.get('step') || '')
+    setEditingGoal(Boolean(params.get('edit')))
   }, [pathname])
 
   // Tell Coach what the learner is looking at: their goals, or one goal and the steps in view.
@@ -128,7 +134,7 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
     const assignment = (goal as GoalSummary).assignment_uuid
     if ((goal as GoalSummary).target_kind === 'group' && assignment) { router.push(getUriWithOrg(orgslug, `/plans/groups/${assignment}`)); return }
     setSelectedUuid(goal.goal_uuid)
-    setSelectedStepUuid(''); setEditingGoal(false)
+    setSelectedStepUuid(''); setEditingGoal(edit); setFocusStage('')
     window.history.pushState({}, '', getUriWithOrg(orgslug, `/plans/${encodeURIComponent(goal.goal_uuid)}${edit ? '?edit=details' : ''}`))
   }
   const clear = () => {
@@ -136,12 +142,13 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
     setSelectedStepUuid(''); setEditingGoal(false)
     window.history.pushState({}, '', getUriWithOrg(orgslug, '/plans'))
   }
-  const finishEditing = () => {
-    setEditingGoal(false)
-    if (!editDetails) return
-    const next = new URLSearchParams(searchParams.toString()); next.delete('edit')
-    window.history.replaceState({}, '', `${pathname}${next.size ? `?${next}` : ''}`)
+  const setEditing = (on: boolean, stageUuid = '') => {
+    setEditingGoal(on); setFocusStage(on ? stageUuid : '')
+    const next = new URLSearchParams(window.location.search)
+    if (on) next.set('edit', '1'); else next.delete('edit')
+    window.history.replaceState({}, '', `${window.location.pathname}${next.size ? `?${next}` : ''}`)
   }
+  const { run: runGoal } = useGoalMutation(selectedUuid)
   const { quickCreate, busy: quickCreateBusy } = useQuickCreateGoal(token, async (goal) => { choose(goal, true); await refresh() })
   const continueRun = (content: string, run = hub?.editRun) => {
     if (run?.status === 'active') hub?.enqueueEditContinuation({ id: crypto.randomUUID(), conversationUuid: run.conversation_uuid, runUuid: run.run_uuid, content })
@@ -164,7 +171,7 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
   }
 
   // Which view the body shows, and which way it moved to get there.
-  const viewKey = creating ? 'new' : !selectedUuid ? 'overview' : `${editingGoal || editDetails ? 'edit' : 'goal'}:${selectedUuid}`
+  const viewKey = creating ? 'new' : !selectedUuid ? 'overview' : `${editingGoal ? 'edit' : 'goal'}:${selectedUuid}`
   const place = (key: string) => {
     if (key === 'overview' || key === 'new') return -1
     const index = stripGoals.findIndex((goal) => goal.goal_uuid === key.split(':').slice(1).join(':'))
@@ -182,7 +189,7 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
   const ready = Boolean(detail) && detail!.goal_uuid === selectedUuid
   const goal = ready ? detail! : null
   const isSubject = Boolean(goal && viewerUserId !== undefined && goal.subject?.id === viewerUserId)
-  const editing = Boolean(goal && (editingGoal || editDetails) && canEdit(goal))
+  const editing = Boolean(goal && editingGoal && canEdit(goal))
   // Until the full goal arrives, its header renders from the goal list's summary.
   const summary = stripGoals.find((item) => item.goal_uuid === selectedUuid) || finished.find((item) => item.goal_uuid === selectedUuid)
   const header: HeaderGoal | null = summary
@@ -203,10 +210,17 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
           <Button type="button" variant="ghost" size="sm" asChild><Link href={getUriWithOrg(orgslug, '/discover')}><Compass size={15} />Discover</Link></Button>
         </div>
       </GoalTabs> : null
-  } else if (selectedUuid && !creating && !editing && !celebrating && !detailError && header) {
+  } else if (selectedUuid && !creating && !celebrating && !detailError && header) {
+    const details = editing && goal && can(goal, 'edit_plan_details')
+      ? {
+        onRename: (title: string) => runGoal(() => goalsApi.update(goal.goal_uuid, { title }, token), undefined, true),
+        onDescribe: (description: string) => runGoal(() => goalsApi.update(goal.goal_uuid, { description }, token), undefined, true),
+        focusTitle: editDetails,
+      }
+      : undefined
     const card = <div data-plan="" style={planVars(color)} className="h-full">
-      <GoalHeaderCard goal={header} done={goal ? goal.progress.done : summary?.progress.done || 0} total={goal ? goal.progress.total : summary?.progress.total || 0} pending={!goal}
-        actions={goal ? <GoalHeaderActions orgslug={orgslug} goal={goal} badge={badge} token={token} onBack={clear} onEdit={canEdit(goal) ? () => setEditingGoal(true) : undefined} /> : null} />
+      <GoalHeaderCard goal={header} done={goal ? goal.progress.done : summary?.progress.done || 0} total={goal ? goal.progress.total : summary?.progress.total || 0} pending={!goal} editing={details}
+        actions={goal ? <GoalHeaderActions orgslug={orgslug} goal={goal} badge={badge} token={token} onBack={clear} editing={editing} onToggleEdit={canEdit(goal) ? () => setEditing(!editing) : undefined} /> : null} />
     </div>
     strip = <GoalCarousel goals={stripGoals} activeUuid={selectedUuid} getGoalColor={getGoalColor} choose={choose} onIntent={prefetch}>{card}</GoalCarousel>
   } else if (selectedUuid && !creating && !detailError && !ready) {
@@ -221,9 +235,10 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
     // Opening a goal: the header is already up; its steps fade in where the placeholder was.
     let body: React.ReactNode = null
     if (!goal) { /* the placeholder shows until it arrives */ }
-    else if (editing) body = <GoalEditMode goal={goal} orgslug={orgslug} token={token} color={color} setColor={isSubject ? (next: string) => setGoalColor(goal.goal_uuid, next) : undefined} focusDetails={editDetails} onDone={finishEditing} />
+    else if (editing) body = <div data-plan="" style={planVars(color)}><GoalPathEditor goal={goal} token={token} color={color} focusStage={focusStage} setColor={isSubject ? (next: string) => setGoalColor(goal.goal_uuid, next) : undefined} /></div>
     else if (celebrating) body = <GoalComplete goal={goal} badge={badge} color={color} token={token} onDone={() => { clear(); void refresh() }} onView={() => void refresh()} />
-    else body = <GoalPath goal={goal} color={color} badge={badge} selectedUuid={selectedStepUuid} onSelect={setSelectedStepUuid} onEdit={canEdit(goal) ? () => setEditingGoal(true) : undefined}
+    else body = <GoalPath goal={goal} color={color} badge={badge} selectedUuid={selectedStepUuid} onSelect={setSelectedStepUuid} onEdit={canEdit(goal) ? () => setEditing(true) : undefined}
+      onPlanStage={canEdit(goal) ? (stageUuid) => setEditing(true, stageUuid) : undefined}
       viewer={{ orgslug, token, viewerUserId, canWork: isSubject && can(goal, 'update_progress'), staff: !isSubject && can(goal, 'complete_restricted_objectives') }} />
     content = <Reveal ready={ready} fallback={<GoalPathSkeleton />}>{body}</Reveal>
   }
@@ -231,7 +246,7 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
   return <GeneralWrapperStyled>
     <main className="pb-16">
       {selectedUuid || creating
-        ? <ContentPageHeader orgslug={orgslug} backLabel="Overview" onBack={clear} compactBottomMargin title={creating ? 'New goal' : editing ? 'Edit goal' : undefined} />
+        ? <ContentPageHeader orgslug={orgslug} backLabel="Overview" onBack={clear} compactBottomMargin title={creating ? 'New goal' : undefined} />
         : <h1 className="pb-4 pt-2 text-3xl font-extrabold tracking-tight">Overview</h1>}
       <LayoutGroup id="plans">
         {strip}

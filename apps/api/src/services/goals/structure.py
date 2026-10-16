@@ -37,7 +37,7 @@ def add_stage(db: Session, current_user: PublicUser, goal_uuid: str, payload: St
     now = _now()
     stage = GoalStage(
         stage_uuid=f"goal_stage_{uuid4()}", goal_id=int(goal.id), title=payload.title.strip(), description=payload.description,  # type: ignore[arg-type]
-        timing=payload.timing, creation_date=now, update_date=now,
+        timing=payload.timing, milestone=payload.milestone.strip(), creation_date=now, update_date=now,
     )
     position = len(stages) if payload.position is None else min(payload.position, len(stages))
     stages.insert(position, stage)

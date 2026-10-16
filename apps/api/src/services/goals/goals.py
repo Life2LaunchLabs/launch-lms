@@ -140,7 +140,7 @@ def goal_dict(db: Session, goal: Goal, user_id: int, granted: set[str] | None = 
         "stages": [
             {
                 "stage_uuid": stage.stage_uuid, "position": stage.position, "title": stage.title, "description": stage.description,
-                "timing": stage.timing, "start_date": stage.start_date, "due_date": stage.due_date,
+                "timing": stage.timing, "milestone": stage.milestone, "start_date": stage.start_date, "due_date": stage.due_date,
                 "steps": [views[int(step.id)] for step in ordered if step.stage_id == stage.id],  # type: ignore[arg-type]
             }
             for stage in stages
