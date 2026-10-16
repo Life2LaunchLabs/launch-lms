@@ -26,7 +26,20 @@ function pendingItems(operation: HubEditOperation, stateByKey: Map<string, HubEd
     const steps = (operation.steps || []).filter((step) => open(step.local_id))
     return steps.length ? [{ ...operation, steps }] : []
   }
+  if (operation.type === 'change_goal_steps' || operation.type === 'change_goal_stages' || operation.type === 'set_goal_details') {
+    const changes = (operation.changes as Array<{ local_id: string }>).filter((change) => open(change.local_id))
+    return changes.length ? [{ ...operation, changes } as HubEditOperation] : []
+  }
   return [operation]
+}
+
+/** How many of a session's suggested stages, steps and changes the learner hasn't added or dropped yet. */
+export function unreviewedSuggestions(run: EditRun): number {
+  return recoverHubEditOperations(run).reduce((total, operation) => total + (
+    operation.type === 'add_goal_stages' ? operation.stages.length
+      : operation.type === 'add_goal_steps' ? operation.steps.length
+        : 'changes' in operation ? operation.changes.length : 0
+  ), 0)
 }
 
 export function recoverHubEditOperations(run: EditRun): HubEditOperation[] {
@@ -60,6 +73,8 @@ export type HubRunTimelineEntry = { id: string; kind: 'agent' | 'learner' | 'bou
 function hubEventTarget(event: HubEditRunEvent, localId?: string) {
     if (localId && event.kind === 'steps.proposed') return `hub-edit-step-${localId}`
     if (localId && event.kind === 'stages.proposed') return `hub-edit-stage-${localId}`
+    if (localId && event.kind.endsWith('changes.proposed')) return `hub-edit-change-${localId}`
+    if (localId && event.kind === 'goal_details.proposed') return `hub-edit-change-${localId}`
     if (event.kind === 'goal.proposed') return 'hub-edit-new-goal'
     if (!event.object_uuid) return ''
     return event.object_type === 'stage' ? `goal-stage-${event.object_uuid}` : `hub-object-${event.object_uuid}`
@@ -91,7 +106,7 @@ export function HubSessionBoundary({ event, run, onRestore }: { event: HubEditRu
   const terminal = event.kind === 'run.completed' || event.kind === 'run.cancelled'
   const scopeKind = String(event.payload?.scope_kind || run?.scope.kind || '')
   const rawGoal = String(event.payload?.goal || run?.goal || 'Focused work')
-  const goal = /^\s*(create|edit|update|build)\b/i.test(rawGoal) ? rawGoal : `${scopeKind === 'new_goal' || scopeKind === 'new_plan' ? 'Create a goal' : 'Edit a goal'}: ${rawGoal}`
+  const goal = /^\s*(create|edit|update|build|plan)\b/i.test(rawGoal) ? rawGoal : `${scopeKind === 'new_goal' || scopeKind === 'new_plan' ? 'Create a goal' : 'Edit a goal'}: ${rawGoal}`
   const verb = event.kind === 'run.started' ? 'started session' : event.kind === 'run.reopened' ? 'reopened session' : 'ended session'
   return <div className="flex items-center gap-2 py-1 text-[10px] text-muted-foreground" aria-label={`${verb}: ${goal}`}>
     <span className="h-px flex-1 bg-border" />
@@ -107,6 +122,8 @@ export function HubEditActivity({ events, objects, onPoint, onFinish, pendingRev
   const details = events.flatMap((event) => {
     const operation = event.payload?.operation as { stages?: Array<{ local_id: string; title: string }>; steps?: Array<{ local_id: string; title: string }> } | undefined
     if (operation?.stages) return operation.stages.map((stage) => { const state = objects.find((item) => item.object_key === stage.local_id); return { id: `${event.event_uuid}:${stage.local_id}`, label: `Proposed stage “${stage.title}”`, targetId: state?.object_uuid ? `goal-stage-${state.object_uuid}` : hubEventTarget(event, stage.local_id) } })
+    const changes = (event.payload?.operation as { changes?: Array<{ local_id: string; remove?: boolean; from?: { title?: string } }> } | undefined)?.changes
+    if (changes) return changes.map((change) => ({ id: `${event.event_uuid}:${change.local_id}`, label: change.remove ? `Suggested removing “${change.from?.title || 'a row'}”` : `Suggested a change to “${change.from?.title || 'the goal'}”`, targetId: hubEventTarget(event, change.local_id) }))
     if (operation?.steps) return operation.steps.map((step) => { const state = objects.find((item) => item.object_key === step.local_id); return { id: `${event.event_uuid}:${step.local_id}`, label: `Proposed step “${step.title}”`, targetId: state?.object_uuid ? `hub-object-${state.object_uuid}` : hubEventTarget(event, step.local_id) } })
     return [{ id: event.event_uuid, label: event.summary, targetId: hubEventTarget(event) }]
   })

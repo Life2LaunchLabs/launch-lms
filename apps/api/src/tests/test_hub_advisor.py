@@ -61,30 +61,23 @@ async def test_ui_fixture_provider_returns_semantic_actions_without_external_cal
         ),
     ], "safe")
     memory = await DeterministicUiTestProvider(memory=True).respond([message("user", "anything")], "safe")
-    editing = await DeterministicUiTestProvider(edit_scope="new_goal").respond(
-        [message("user", "Prepare the goal details")], "safe",
-    )
     continued = await DeterministicUiTestProvider(edit_scope="goal").respond(
         [message("user", "I saved the goal details")], "safe",
     )
     stepped = await DeterministicUiTestProvider(edit_scope="goal").respond(
-        [message("user", "You finished reviewing the proposed stages\nI saved stage “Explore”.\nAll proposed stages have now been reviewed.")], "safe",
+        [message("user", "You finished reviewing the proposed stages\nI added the suggested stage “Explore”.\nAll proposed stages have now been reviewed.")], "safe",
     )
-    cancelled = await DeterministicUiTestProvider(edit_scope="new_plan").respond(
-        [message("user", "I cancelled the new goal instead of saving it")], "safe",
-    )
+    session = await DeterministicUiTestProvider().respond([message("user", "Can you plan this goal with me?")], "safe")
 
     assert plan.action_destinations == ("create_plan",)
     assert timeline.action_destinations == ("add_timeline",)
     assert json.loads(memory.text) == {"candidates": []}
-    assert editing.goal_operations[0]["type"] == "set_new_goal_details"
-    assert editing.action_destinations == ()
+    assert session.action_destinations == ("plan_goal",)
     assert continued.goal_operations[0]["type"] == "add_goal_stages"
     assert len(continued.goal_operations[0]["stages"]) == 3
     steps = stepped.goal_operations[0]["steps"]
     assert stepped.goal_operations[0]["type"] == "add_goal_steps" and [step["type"] for step in steps] == ["write", "task", "task"]
     assert steps[1]["config"]["list"]["label"] == "Skills to build" and steps[1]["config"]["list"]["target"] == 3
-    assert "Would you like" in cancelled.text
 
 
 def test_conversation_must_be_bounded_alternating_and_end_with_user():
@@ -606,33 +599,40 @@ async def test_advisor_route_returns_edit_operations_without_changing_conversati
 
 
 @pytest.mark.asyncio
-async def test_both_providers_return_the_same_typed_new_goal_operation():
-    from src.services.goals.coach_tools import CONCLUDE_EDIT_TOOL, NEW_GOAL_TOOL
+async def test_both_providers_return_the_same_typed_step_changes():
+    from src.services.goals.coach_tools import STEP_CHANGES_TOOL
 
-    arguments = {"title": "Explore nursing", "description": "Compare programs.", "target_date": "2027-06-01"}
+    arguments = {"changes": [{"step_id": "step_one", "title": "Visit two campuses", "description": "", "stage_id": "", "remove": False, "reason": "Clearer"}]}
+
+    def offered(request: httpx.Request) -> list[str]:
+        names = [tool["name"] for tool in json.loads(request.content)["tools"]]
+        # Coach can suggest changes on a goal, and has no tool that writes a new goal.
+        assert STEP_CHANGES_TOOL in names and "propose_new_goal_details" not in names
+        return names
 
     async def openai_handler(request: httpx.Request):
-        assert [tool["name"] for tool in json.loads(request.content)["tools"]] == ["suggest_navigation", NEW_GOAL_TOOL, CONCLUDE_EDIT_TOOL]
+        offered(request)
         return httpx.Response(200, json={"model": "gpt-test", "output": [
-            {"type": "message", "content": [{"type": "output_text", "text": "I prepared a starting point."}]},
-            {"type": "function_call", "name": NEW_GOAL_TOOL, "arguments": json.dumps(arguments)},
+            {"type": "message", "content": [{"type": "output_text", "text": "One change to look at."}]},
+            {"type": "function_call", "name": STEP_CHANGES_TOOL, "arguments": json.dumps(arguments)},
         ]})
 
     async def anthropic_handler(request: httpx.Request):
-        assert [tool["name"] for tool in json.loads(request.content)["tools"]] == ["suggest_navigation", NEW_GOAL_TOOL, CONCLUDE_EDIT_TOOL]
+        offered(request)
         return httpx.Response(200, json={"model": "claude-test", "content": [
-            {"type": "text", "text": "I prepared a starting point."},
-            {"type": "tool_use", "name": NEW_GOAL_TOOL, "input": arguments},
+            {"type": "text", "text": "One change to look at."},
+            {"type": "tool_use", "name": STEP_CHANGES_TOOL, "input": arguments},
         ]})
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(openai_handler)) as client:
-        openai = await OpenAIResponsesProvider("test-key", "gpt-test", client, edit_scope="new_goal").respond(
-            [AdvisorMessage(role="user", content="Help me set the goal")], "safe-user",
+        openai = await OpenAIResponsesProvider("test-key", "gpt-test", client, edit_scope="goal").respond(
+            [AdvisorMessage(role="user", content="Tidy my steps")], "safe-user",
         )
     async with httpx.AsyncClient(transport=httpx.MockTransport(anthropic_handler)) as client:
-        anthropic = await AnthropicMessagesProvider("test-key", "claude-test", client, edit_scope="new_plan").respond(
-            [AdvisorMessage(role="user", content="Help me set the goal")], "safe-user",
+        anthropic = await AnthropicMessagesProvider("test-key", "claude-test", client, edit_scope="plan").respond(
+            [AdvisorMessage(role="user", content="Tidy my steps")], "safe-user",
         )
 
-    assert [item["type"] for item in openai.goal_operations] == [item["type"] for item in anthropic.goal_operations] == ["set_new_goal_details"]
-    assert openai.goal_operations[0]["fields"] == anthropic.goal_operations[0]["fields"] == arguments
+    assert [item["type"] for item in openai.goal_operations] == [item["type"] for item in anthropic.goal_operations] == ["change_goal_steps"]
+    strip = lambda operation: [{key: value for key, value in change.items() if key != "local_id"} for change in operation["changes"]]  # noqa: E731
+    assert strip(openai.goal_operations[0]) == strip(anthropic.goal_operations[0]) == [{"step_uuid": "step_one", "remove": False, "reason": "Clearer", "title": "Visit two campuses"}]

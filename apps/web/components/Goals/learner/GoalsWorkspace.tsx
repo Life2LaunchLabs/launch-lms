@@ -4,18 +4,20 @@ import React from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import useSWR, { mutate, preload, useSWRConfig } from 'swr'
-import toast from 'react-hot-toast'
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from 'motion/react'
 import { Compass, Plus } from 'lucide-react'
 import { useHub } from '@components/Hub/HubContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { useOrg } from '@components/Contexts/OrgContext'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
 import ContentPageHeader from '@components/Objects/StyledElements/Headers/ContentPageHeader'
 import { Button } from '@components/ui/button'
 import { Reveal, Skeleton } from '@components/ui/skeleton'
 import GoalsHome from '@components/Goals/home/GoalsHome'
 import GoalPathEditor from '@components/Goals/edit/GoalPathEditor'
+import useGoalCoachSession from '@components/Goals/edit/useGoalCoachSession'
+import { suggestionCount, useGoalSuggestions } from '@components/Goals/edit/useGoalProposals'
+import EndSessionDialog from '@components/Hub/conversation/EndSessionDialog'
+import { unreviewedSuggestions } from '@components/Hub/conversation/editRunTimeline'
 import { useGoalMutation } from '@components/Goals/useGoalActions'
 import CreateGoalEditor from '@components/Goals/edit/CreateGoalEditor'
 import { planVars } from '@components/Goals/planColors'
@@ -23,8 +25,6 @@ import { getUriWithOrg } from '@services/config/config'
 import { goalsApi, goalsUrl, goalUrl, isGoalsKey } from '@services/goals/goals'
 import { can, goalSteps, type Goal, type GoalSummary } from '@services/goals/types'
 import { swrFetcher } from '@services/utils/ts/requests'
-import { bindHubEditRunGoal } from '@services/hub/advisor'
-import { shouldOpenHubNewGoalEditor } from '@services/hub/objectEditing'
 import GoalPath from './GoalPath'
 import GoalComplete from './GoalComplete'
 import GoalHeaderActions from './GoalHeaderActions'
@@ -52,7 +52,6 @@ const swipe = {
 /** Goals: the landing page, one goal's path, and editing a goal, chosen by the URL. */
 export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: string; initialGoalUuid?: string }) {
   const session = useLHSession() as any
-  const org = useOrg() as any
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -76,9 +75,6 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
     next.delete('hub_action')
     window.history.replaceState({}, '', `${pathname}${next.size ? `?${next.toString()}` : ''}`)
   }, [pathname, searchParams])
-  React.useEffect(() => {
-    if (shouldOpenHubNewGoalEditor(hub?.editRun) && pathname.endsWith('/plans')) { setCreating(true); setSelectedUuid('') }
-  }, [pathname, hub?.editRun])
 
   const { data: all = EMPTY, error: listError, isLoading, mutate: retryList } = useSWR<GoalSummary[]>(token ? goalsUrl('?include_finished=true') : null, () => goalsApi.list(token), { revalidateOnFocus: true })
   const { data: detail, error: detailError, mutate: retryDetail } = useSWR<Goal>(token && selectedUuid ? goalUrl(selectedUuid) : null, () => goalsApi.get(selectedUuid, token))
@@ -149,19 +145,27 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
     window.history.replaceState({}, '', `${window.location.pathname}${next.size ? `?${next}` : ''}`)
   }
   const { run: runGoal } = useGoalMutation(selectedUuid)
-  const { quickCreate, busy: quickCreateBusy } = useQuickCreateGoal(token, async (goal) => { choose(goal, true); await refresh() })
-  const continueRun = (content: string, run = hub?.editRun) => {
-    if (run?.status === 'active') hub?.enqueueEditContinuation({ id: crypto.randomUUID(), conversationUuid: run.conversation_uuid, runUuid: run.run_uuid, content })
+  // Coach's session on the open goal edits the goal itself, so it keeps Edit on while it runs.
+  const coach = useGoalCoachSession({ goal_uuid: selectedUuid, title: detail?.title || '' }, token)
+  const { runs: waitingRuns } = useGoalSuggestions(selectedUuid, detail?.ownership === 'personal' && detail.goal_uuid === selectedUuid && can(detail, 'delete_plan') ? token : undefined)
+  const [confirmingEnd, setConfirmingEnd] = React.useState(false)
+  const sessionUuid = coach.session?.run_uuid
+  React.useEffect(() => {
+    if (sessionUuid) setEditing(true)
+  }, [sessionUuid])
+  const toggleEdit = (on: boolean) => {
+    if (!on && coach.session) { setConfirmingEnd(true); return }
+    setEditing(on)
   }
-  const onCreated = async (goal: Goal, content?: string) => {
+  const endBoth = async () => {
+    setConfirmingEnd(false)
+    try { await coach.end(); setEditing(false) } catch { /* the toast says what went wrong */ }
+  }
+  const { quickCreate, busy: quickCreateBusy } = useQuickCreateGoal(token, async (goal) => { choose(goal, true); await refresh() })
+  const onCreated = async (goal: Goal) => {
     setCreating(false)
-    let continued = null
-    if (hub?.editRun?.scope.kind === 'new_goal' && org?.id && token) {
-      try { continued = await bindHubEditRunGoal(org.id, hub.editRun.run_uuid, goal.goal_uuid, token); hub.setEditRun(continued) } catch { toast.error('The goal was saved, but Coach lost its editing scope.') }
-    }
     choose(goal)
     void refresh()
-    if (continued && content) continueRun(`[[hub-session-event]] You saved the goal\n${content}`, continued)
   }
 
   // Fetch a goal as soon as the learner reaches for it, so it is usually there by the click.
@@ -220,7 +224,9 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
       : undefined
     const card = <div data-plan="" style={planVars(color)} className="h-full">
       <GoalHeaderCard goal={header} done={goal ? goal.progress.done : summary?.progress.done || 0} total={goal ? goal.progress.total : summary?.progress.total || 0} pending={!goal} editing={details}
-        actions={goal ? <GoalHeaderActions orgslug={orgslug} goal={goal} badge={badge} token={token} onBack={clear} editing={editing} onToggleEdit={canEdit(goal) ? () => setEditing(!editing) : undefined} /> : null} />
+        actions={goal ? <GoalHeaderActions orgslug={orgslug} goal={goal} badge={badge} token={token} onBack={clear} editing={editing} onToggleEdit={canEdit(goal) ? () => toggleEdit(!editing) : undefined}
+          coachWorking={Boolean(coach.session)} waiting={editing ? 0 : suggestionCount(waitingRuns)}
+          onPlanWithCoach={coach.available && goal.ownership === 'personal' && can(goal, 'delete_plan') && can(goal, 'edit_structure') && !coach.session ? () => void coach.start() : undefined} /> : null} />
     </div>
     strip = <GoalCarousel goals={stripGoals} activeUuid={selectedUuid} getGoalColor={getGoalColor} choose={choose} onIntent={prefetch}>{card}</GoalCarousel>
   } else if (selectedUuid && !creating && !detailError && !ready) {
@@ -228,7 +234,7 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
   }
 
   let content: React.ReactNode
-  if (creating) content = <CreateGoalEditor token={token} onCancel={(text?: string) => { setCreating(false); if (text) continueRun(`[[hub-session-event]] You cancelled the new goal\n${text}`) }} onCreated={(created, text) => void onCreated(created, text)} />
+  if (creating) content = <CreateGoalEditor token={token} onCancel={() => setCreating(false)} onCreated={(created) => void onCreated(created)} />
   else if (!selectedUuid) content = listError ? failed('Your goals could not load.', () => void retryList()) : isLoading ? <Skeleton className="h-64 rounded-3xl" /> : <GoalsHome orgslug={orgslug} token={token} goals={goals} finished={finished} choose={choose} getGoalColor={getGoalColor} onCreate={() => void quickCreate()} creating={quickCreateBusy} />
   else if (detailError) content = failed('This goal could not load. It may no longer be available to you.', () => void retryDetail())
   else {
@@ -244,6 +250,8 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
   }
 
   return <GeneralWrapperStyled>
+    <EndSessionDialog open={confirmingEnd} unreviewed={unreviewedSuggestions(coach.session)} title="End Coach’s session too?" endLabel="End both" keepLabel="Keep editing"
+      onEnd={() => void endBoth()} onKeep={() => setConfirmingEnd(false)} />
     <main className="pb-16">
       {selectedUuid || creating
         ? <ContentPageHeader orgslug={orgslug} backLabel="Overview" onBack={clear} compactBottomMargin title={creating ? 'New goal' : undefined} />

@@ -3,7 +3,6 @@
 import React from 'react'
 import { DragDropContext, Draggable, Droppable, type DraggableProvidedDragHandleProps, type DropResult } from '@hello-pangea/dnd'
 import { ArrowDown, ArrowUp, Check, Flag, GripVertical, Loader2, Plus, SlidersHorizontal, Sparkles, Trash2, X } from 'lucide-react'
-import { useHub } from '@components/Hub/HubContext'
 import { Button } from '@components/ui/button'
 import { PLAN_PALETTES, planPalette } from '@components/Goals/planColors'
 import { goalsApi } from '@services/goals/goals'
@@ -13,11 +12,12 @@ import { statusLine } from '../path/stepText'
 import { stepDefinition } from '../steps'
 import { useGoalMutation } from '../useGoalActions'
 import EditableText from './EditableText'
-import { ProposedStageEditor, SuggestedStepLine } from './GoalProposals'
+import { GoalChangeLine, StageChangeLine, StepChangeLine, SuggestedStageLine, SuggestedStepLine } from './GoalProposals'
 import { QUICK_KINDS, guessStepKind } from './kindGuess'
 import StepEditor, { newStepDraft, type StepDraft } from './StepEditor'
 import { dateValue, liveMode, otherSteps, stepChanges, stepDraft, stepInput, usesPlanning } from './stepDrafts'
-import { useGoalProposals } from './useGoalProposals'
+import useGoalCoachSession from './useGoalCoachSession'
+import { useGoalProposals, type PendingStageChange } from './useGoalProposals'
 
 const LOOSE = 'loose'
 
@@ -49,12 +49,14 @@ type Props = {
  * saves as it is made. Coach's suggested steps sit in the stack as quiet lines.
  */
 export default function GoalPathEditor({ goal, token, color, setColor, focusStage }: Props) {
-  const hub = useHub()
   const canEdit = can(goal, 'edit_structure')
   const [openStep, setOpenStep] = React.useState('')
   const [showDates, setShowDates] = React.useState(() => usesPlanning(goal))
   const { busy, run } = useGoalMutation(goal.goal_uuid)
-  const proposals = useGoalProposals(goal)
+  // Coach works only on the learner's own goal (only its owner can delete it); staff editing it see no suggestions.
+  const own = goal.ownership === 'personal' && can(goal, 'delete_plan')
+  const proposals = useGoalProposals(goal, own ? token : undefined)
+  const coach = useGoalCoachSession(goal, token)
 
   React.useEffect(() => {
     if (focusStage) document.getElementById(`goal-stage-${focusStage}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -75,26 +77,28 @@ export default function GoalPathEditor({ goal, token, color, setColor, focusStag
           {steps.map((step, index) => <Draggable key={step.step_uuid} draggableId={step.step_uuid} index={index} isDragDisabled={!canEdit || busy}>
             {(drag, dragging) => <li ref={drag.innerRef} {...drag.draggableProps} style={drag.draggableProps.style}>
               <EditStepLine goal={goal} step={step} token={token} open={openStep === step.step_uuid} onOpenChange={(open) => setOpenStep(open ? step.step_uuid : '')} dragHandle={drag.dragHandleProps} dragging={dragging.isDragging} />
+              {proposals.stepChanges.filter((item) => item.change.step_uuid === step.step_uuid).map((item) => <div key={item.change.local_id} className="ml-14 mt-1"><StepChangeLine goal={goal} item={item} token={token} onSettled={proposals.settle} /></div>)}
             </li>}
           </Draggable>)}
           {provided.placeholder}
         </ol>}
       </Droppable>
       {suggested.length ? <ul aria-label="Suggested steps" className="flex flex-col">
-        {suggested.map(({ step, stageUuid: target, recovered }) => <SuggestedStepLine key={step.local_id} goal={goal} step={step} stageUuid={target} recovered={recovered} token={token} onSettled={proposals.settleStep} />)}
+        {suggested.map((item) => <SuggestedStepLine key={item.step.local_id} goal={goal} item={item} token={token} onSettled={proposals.settle} />)}
       </ul> : null}
       {canEdit ? <AddStepLine goal={goal} stageUuid={stageUuid} token={token} autoFocus={Boolean(focusStage) && focusStage === stageUuid} /> : null}
-      {canEdit && hub && !steps.length && !suggested.length && stageTitle ? <button type="button" onClick={() => hub.open({ prompt: `Suggest a few steps for the stage “${stageTitle}” of my goal “${goal.title}”.` })}
-        className="ml-14 mt-1 flex w-fit items-center gap-2 rounded-lg px-1 text-xs font-bold text-muted-foreground transition hover:text-foreground"><Sparkles size={13} aria-hidden="true" />Ask Coach for ideas</button> : null}
+      {canEdit && own && coach.available && !steps.length && !suggested.length && stageTitle ? <button type="button" onClick={() => void coach.start(`Suggest a few steps for the stage “${stageTitle}”.`)}
+        className="ml-14 mt-1 flex w-fit items-center gap-2 rounded-lg px-1 text-xs font-bold text-muted-foreground transition hover:text-foreground"><Sparkles size={13} aria-hidden="true" />Plan with Coach</button> : null}
     </div>
   }
 
   const looseSuggestions = proposals.steps.some((item) => !item.stageUuid)
   return <div className="-mx-3 flex flex-col gap-8 rounded-3xl px-3 py-4 sm:-mx-5 sm:px-5" style={EDIT_GRID} data-goal-editing="">
+    {proposals.goalChanges.map((item) => <GoalChangeLine key={item.change.local_id} goal={goal} item={item} token={token} onSettled={proposals.settle} />)}
     <GoalSettingsRow goal={goal} token={token} color={color} setColor={setColor} showDates={showDates} setShowDates={setShowDates} />
     <DragDropContext onDragEnd={onDragEnd}>
       {goal.stages.map((stage, index) => <section key={stage.stage_uuid} id={`goal-stage-${stage.stage_uuid}`} aria-label={stage.title} className="flex scroll-mt-24 flex-col gap-3">
-        <StageEditHeader goal={goal} stage={stage} index={index} token={token} showDates={showDates} />
+        <StageEditHeader goal={goal} stage={stage} index={index} token={token} showDates={showDates} changes={proposals.stageChanges.filter((item) => item.change.stage_uuid === stage.stage_uuid)} onSettled={proposals.settle} />
         {stepList(stage.stage_uuid, stage.steps, stage.stage_uuid, stage.title)}
       </section>)}
       {goal.unstaged_steps.length || looseSuggestions || !goal.stages.length ? <section aria-label={goal.stages.length ? 'More steps' : 'Steps'} className="flex flex-col gap-3">
@@ -102,7 +106,7 @@ export default function GoalPathEditor({ goal, token, color, setColor, focusStag
         {stepList(LOOSE, goal.unstaged_steps, null)}
       </section> : null}
     </DragDropContext>
-    {proposals.stages.map(({ stage, position, recovered }) => <ProposedStageEditor key={stage.local_id} goal={goal} stage={stage} position={position} recovered={recovered} token={token} onSettled={proposals.settleStage} />)}
+    {proposals.stages.map((item) => <SuggestedStageLine key={item.stage.local_id} goal={goal} item={item} token={token} onSettled={proposals.settle} />)}
     {canEdit ? <AddStageLine goal={goal} token={token} /> : null}
   </div>
 }
@@ -141,7 +145,10 @@ function GoalSettingsRow({ goal, token, color, setColor, showDates, setShowDates
 }
 
 /** A stage's name, milestone and rough timing as fields in its header, plus moving and deleting it. */
-function StageEditHeader({ goal, stage, index, token, showDates }: { goal: Goal; stage: Stage; index: number; token?: string; showDates: boolean }) {
+function StageEditHeader({ goal, stage, index, token, showDates, changes, onSettled }: {
+  goal: Goal; stage: Stage; index: number; token?: string; showDates: boolean; changes: PendingStageChange[]
+  onSettled: React.ComponentProps<typeof StageChangeLine>['onSettled']
+}) {
   const canEdit = can(goal, 'edit_structure')
   const canSchedule = can(goal, 'edit_schedule') && showDates
   const { busy, run } = useGoalMutation(goal.goal_uuid)
@@ -156,7 +163,8 @@ function StageEditHeader({ goal, stage, index, token, showDates }: { goal: Goal;
     if (!window.confirm(`Delete the stage “${stage.title}”?`)) return
     void run(() => goalsApi.deleteStage(goal.goal_uuid, stage.stage_uuid, token), 'Stage deleted').catch(() => undefined)
   }
-  return <div className="flex items-start gap-2 rounded-2xl border-2 border-border bg-card px-4 py-3">
+  return <div className="flex flex-col gap-2">
+  <div className="flex items-start gap-2 rounded-2xl border-2 border-border bg-card px-4 py-3">
     <div className="grid min-w-0 flex-1 gap-1">
       <EditableText value={stage.title} label="Stage name" required disabled={!canEdit} onSave={(title) => save({ title })} className="text-lg font-extrabold tracking-tight" />
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -174,6 +182,8 @@ function StageEditHeader({ goal, stage, index, token, showDates }: { goal: Goal;
       <Button type="button" variant="ghost" size="icon" className="h-7 w-7" disabled={busy || index === goal.stages.length - 1} onClick={() => move(1)} aria-label={`Move ${stage.title} down`}><ArrowDown size={13} /></Button>
       <Button type="button" variant="ghost" size="icon" className="h-7 w-7" disabled={busy || stage.steps.length > 0} title={stage.steps.length ? 'Move or delete its steps first' : undefined} onClick={remove} aria-label={`Delete ${stage.title}`}><Trash2 size={13} /></Button>
     </span> : null}
+  </div>
+  {changes.map((item) => <StageChangeLine key={item.change.local_id} goal={goal} item={item} token={token} onSettled={onSettled} />)}
   </div>
 }
 

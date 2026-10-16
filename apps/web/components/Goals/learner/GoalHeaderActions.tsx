@@ -2,7 +2,7 @@
 
 import React from 'react'
 import useSWR, { useSWRConfig } from 'swr'
-import { Award, MoreHorizontal, UserPlus } from 'lucide-react'
+import { Award, MoreHorizontal, Sparkles, UserPlus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
@@ -26,7 +26,14 @@ function Avatar({ user }: { user: PersonSummary | null }) {
 }
 
 /** Who a goal is shared with, Edit, and the goal's other actions, sitting on its header card. */
-export default function GoalHeaderActions({ orgslug, goal, badge, token, onBack, editing = false, onToggleEdit }: { orgslug: string; goal: Goal; badge?: GoalBadge; token?: string; onBack: () => void; editing?: boolean; onToggleEdit?: () => void }) {
+export default function GoalHeaderActions({ orgslug, goal, badge, token, onBack, editing = false, onToggleEdit, coachWorking = false, waiting = 0, onPlanWithCoach }: {
+  orgslug: string; goal: Goal; badge?: GoalBadge; token?: string; onBack: () => void; editing?: boolean; onToggleEdit?: () => void
+  /** Coach has a session running on this goal. */
+  coachWorking?: boolean
+  /** Coach's suggestions waiting while Edit is off. */
+  waiting?: number
+  onPlanWithCoach?: () => void
+}) {
   const { mutate } = useSWRConfig()
   const [shareOpen, setShareOpen] = React.useState(false)
   const { data: people } = useSWR<{ collaborators: Person[] }>(token ? goalUrl(goal.goal_uuid, '/people') : null, (url: string) => swrFetcher(url, token))
@@ -53,14 +60,19 @@ export default function GoalHeaderActions({ orgslug, goal, badge, token, onBack,
       <span className="max-w-40 truncate">{label}</span>
     </button>
     <span className="flex-1" />
+    {coachWorking ? <span className="flex min-h-10 items-center gap-1.5 px-1 text-xs font-bold text-[var(--plan-deep-ink)]" title="Coach’s suggestions show on the goal as you edit">
+      <Sparkles size={14} aria-hidden="true" className="animate-pulse motion-reduce:animate-none" />Coach is working with you
+    </span> : null}
     {onToggleEdit ? <button type="button" role="switch" aria-checked={editing} onClick={onToggleEdit} className={chip}>
       <span aria-hidden="true" className={cn('relative h-4 w-7 rounded-full transition-colors', editing ? 'bg-[var(--plan-deep-ink)]' : 'bg-black/25')}>
         <span className={cn('absolute top-0.5 h-3 w-3 rounded-full transition-all', editing ? 'left-3.5 bg-[var(--plan-deep)]' : 'left-0.5 bg-[var(--plan-deep-ink)]')} />
       </span>Edit
+      {waiting ? <span className="rounded-full bg-[var(--plan-deep-ink)] px-1.5 text-[10px] text-[var(--plan-deep)]" title={`${waiting} of Coach’s suggestions are waiting`}>{waiting}<span className="sr-only"> suggestions waiting</span></span> : null}
     </button> : null}
-    {badge?.badge_uuid || canFinish || canDelete ? <DropdownMenu>
+    {badge?.badge_uuid || canFinish || canDelete || onPlanWithCoach ? <DropdownMenu>
       <DropdownMenuTrigger asChild><button type="button" aria-label="Goal actions" className={chip}><MoreHorizontal size={18} /></button></DropdownMenuTrigger>
       <DropdownMenuContent align="end">
+        {onPlanWithCoach ? <DropdownMenuItem onSelect={onPlanWithCoach}><Sparkles size={14} className="mr-2" />Plan with Coach</DropdownMenuItem> : null}
         {badge?.badge_uuid ? <DropdownMenuItem asChild><a href={getUriWithOrg(orgslug, `/badges/${String(badge.badge_uuid).replace(/^badge_/, '')}`)}><Award size={14} className="mr-2" />View badge</a></DropdownMenuItem> : null}
         {canFinish ? <DropdownMenuItem onSelect={() => void finishOrReopen()}>{finished ? 'Reopen goal' : 'Finish goal'}</DropdownMenuItem> : null}
         {canDelete ? <DropdownMenuItem onSelect={() => void remove()} className="text-red-600">Delete goal</DropdownMenuItem> : null}

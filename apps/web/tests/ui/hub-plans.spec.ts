@@ -11,7 +11,7 @@ async function askHub(page: import('@playwright/test').Page, prompt: string) {
   await page.getByRole('button', { name: 'Send message' }).click()
 }
 
-test('hub.action.create-plan: learner controls suggested navigation', async ({ page }, testInfo) => {
+test('hub.action.create-plan: Coach points to a new goal but never sets it up', async ({ page }, testInfo) => {
   const browserErrors: string[] = []
   page.on('console', (message) => { if (message.type() === 'error') browserErrors.push(message.text()) })
   page.on('pageerror', (error) => browserErrors.push(error.message))
@@ -20,9 +20,10 @@ test('hub.action.create-plan: learner controls suggested navigation', async ({ p
   await assertActualApp(page)
   await askHub(page, 'I want to create a plan for changing careers')
 
-  const action = page.getByTestId('hub-suggested-actions').last().getByRole('button', { name: 'Work on this plan', exact: true })
+  // Starting a goal is the learner's own decision: the button only opens the new goal page.
+  await expect(page.getByTestId('hub-suggested-actions').last().getByRole('button', { name: 'Work on this plan' })).toHaveCount(0)
+  const action = page.getByTestId('hub-suggested-actions').last().getByRole('button', { name: 'Start a goal', exact: true })
   await expect(action).toBeVisible()
-  await expect(action).toBeEnabled()
   await action.focus()
   await expect(action).toBeFocused()
   if (process.env.UI_TEST_CAPTURE === 'true') {
@@ -32,14 +33,48 @@ test('hub.action.create-plan: learner controls suggested navigation', async ({ p
   await expect(page.getByRole('heading', { name: 'What are you working toward?' })).toBeVisible()
   await expect(page).toHaveURL((url) => url.pathname.endsWith('/plans') && !url.searchParams.has('hub_action'))
   await expect(page.locator('section.hub-panel')).toContainText('I want to create a plan for changing careers')
-  await expect(page.locator('section.hub-panel')).toContainText('Creating a goal:')
-
-  await expect(page.getByText('Ready to review', { exact: true })).toBeVisible()
-  // The Coach transcript's "Create a goal" session label also matches a loose 'Goal' label.
-  await expect(page.getByRole('textbox', { name: /^Goal/ })).toHaveValue('Career transition plan')
-  await expect(page.getByText('Suggested by Coach')).toHaveCount(3)
+  await expect(page.locator('section.hub-panel')).not.toContainText('Creating a goal:')
+  await expect(page.getByText('Suggested by Coach')).toHaveCount(0)
 
   expect(browserErrors, `Browser errors:\n${browserErrors.join('\n')}`).toEqual([])
+})
+
+test('plans.coach-session: Coach suggests on the goal itself while Edit is on', async ({ page }, testInfo) => {
+  await page.goto(environment.plansPath)
+  await assertActualApp(page)
+  await page.getByRole('button', { name: /create your own/i }).filter({ visible: true }).first().click()
+  const editSwitch = page.getByRole('switch', { name: /^Edit/ })
+  await expect(editSwitch).toHaveAttribute('aria-checked', 'true')
+
+  await page.getByRole('button', { name: 'Goal actions' }).click()
+  await page.getByRole('menuitem', { name: 'Plan with Coach' }).click()
+  await expect(page.getByText('Coach is working with you')).toBeVisible()
+  await expect(page.locator('section.hub-panel')).toContainText('Planning:')
+
+  // Coach's stages arrive as quiet suggested lines on the goal, not in a separate form.
+  const explore = page.getByRole('group', { name: 'Suggested stage Explore' })
+  await expect(explore).toBeVisible()
+  await expect(page.getByRole('group', { name: /^Suggested stage / })).toHaveCount(3)
+  await explore.getByRole('button', { name: 'Add Explore' }).click()
+  await expect(page.getByRole('textbox', { name: 'Stage name' }).last()).toHaveValue('Explore')
+  await expect(page.getByRole('group', { name: /^Suggested stage / })).toHaveCount(2)
+  if (process.env.UI_TEST_CAPTURE === 'true') {
+    await page.screenshot({ path: testInfo.outputPath('plans-coach-session.png'), fullPage: true })
+  }
+
+  // Turning Edit off during the session asks first; the unreviewed suggestions stay on the goal.
+  await editSwitch.click()
+  const dialog = page.getByRole('dialog', { name: 'End Coach’s session too?' })
+  await expect(dialog).toContainText('2 suggestions you haven’t reviewed will stay on the goal as suggestions.')
+  await dialog.getByRole('button', { name: 'Keep editing' }).click()
+  await expect(editSwitch).toHaveAttribute('aria-checked', 'true')
+  await editSwitch.click()
+  await page.getByRole('dialog', { name: 'End Coach’s session too?' }).getByRole('button', { name: 'End both' }).click()
+  await expect(editSwitch).toHaveAttribute('aria-checked', 'false')
+  await expect(page.getByText('Coach is working with you')).toHaveCount(0)
+  await expect(editSwitch).toContainText('2')
+  await editSwitch.click()
+  await expect(page.getByRole('group', { name: /^Suggested stage / })).toHaveCount(2)
 })
 
 test('hub.action.timeline: advice can hand off to the Timeline editor', async ({ page }, testInfo) => {
@@ -63,7 +98,7 @@ test('hub.action.unavailable: a rejected action stays in context and explains th
   await page.goto(environment.hubPath)
   await assertActualApp(page)
   await askHub(page, 'I want to create a plan for improving my interview skills')
-  const action = page.getByTestId('hub-suggested-actions').last().getByRole('button', { name: 'Work on this plan', exact: true })
+  const action = page.getByTestId('hub-suggested-actions').last().getByRole('button', { name: 'Start a goal', exact: true })
   await expect(action).toBeVisible()
 
   await page.route('**/api/v1/hub/actions/*/resolve?*', async (route) => {
@@ -83,7 +118,7 @@ test('plans.create-editor: a new goal opens for editing in place', async ({ page
   // Creating makes a "New goal" and opens it in place with editing on, ready to name it.
   const title = page.getByRole('textbox', { name: 'Goal title' })
   await expect(title).toHaveValue('New goal')
-  const editSwitch = page.getByRole('switch', { name: 'Edit' })
+  const editSwitch = page.getByRole('switch', { name: /^Edit/ })
   await expect(editSwitch).toHaveAttribute('aria-checked', 'true')
   await expect(page).toHaveURL((url) => Boolean(url.searchParams.get('edit')))
   // Fields save as they are left: rename the goal and add a step from the add line.
