@@ -139,6 +139,14 @@ export interface Stage {
 /** The marks a learner can give their own goal (the API's GOAL_ICONS). */
 export type GoalIcon = 'target' | 'book' | 'briefcase' | 'graduation' | 'heart' | 'dumbbell' | 'palette' | 'music' | 'code' | 'leaf' | 'home' | 'rocket'
 
+/** A date or ordering in a plan that can't all come true; the API's schedule.conflicts. */
+export interface ScheduleWarning {
+  kind: 'stage_dates' | 'stage_order' | 'step_dates' | 'step_before_stage' | 'step_after_stage' | 'waits_on_later' | 'due_before_wait'
+  message: string
+  stage_uuid: string | null
+  step_uuid: string | null
+}
+
 export interface Goal {
   goal_uuid: string
   title: string
@@ -159,6 +167,9 @@ export interface Goal {
   progress: { done: number; total: number }
   stages: Stage[]
   unstaged_steps: Step[]
+  /** The one stage the goal is on now (a goal moves on by hand or when a stage's start date arrives). */
+  current_stage_uuid?: string | null
+  schedule_warnings?: ScheduleWarning[]
 }
 
 export interface GoalSummary {

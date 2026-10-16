@@ -14,6 +14,7 @@ import useGoalCoachSession from '@components/Goals/edit/useGoalCoachSession'
 import { useGoalProposals } from '@components/Goals/edit/useGoalProposals'
 import { cn } from '@/lib/utils'
 import GoalFindings from './GoalFindings'
+import { canMoveStages, FinishStep, MoveOnLine, ScheduleNotes, useMoveToStage } from './GoalStages'
 import type { GoalBadge } from './GoalHeader'
 import { GoalStepRow, type PathViewer } from './GoalStepRow'
 
@@ -32,12 +33,6 @@ const workable = (step: Step) => step.state === 'open' || step.state === 'starte
 export function nextStep(goal: Goal) {
   const steps = goalSteps(goal)
   return steps.find(workable) || steps.find((step) => step.state !== 'done')
-}
-
-/** The stage being worked on: the first with a step still to do that has opened. */
-export function activeStage(goal: Goal) {
-  const today = new Date().toISOString().slice(0, 10)
-  return goal.stages.find((stage) => stage.steps.some((step) => step.state !== 'done') && !(stage.start_date && String(stage.start_date).slice(0, 10) > today))
 }
 
 const shortDate = (value?: string | null) => value ? new Date(`${String(value).slice(0, 10)}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''
@@ -78,7 +73,9 @@ export default function GoalPath({ goal, color, badge, viewer, selectedUuid, onS
   const done = goal.progress.done
   const nextUuid = nextStep(goal)?.step_uuid
   const selected = selectedUuid || nextUuid || ''
-  const current = activeStage(goal)?.stage_uuid
+  const current = goal.current_stage_uuid
+  const mover = useMoveToStage(goal, viewer.token, color)
+  const movable = canMoveStages(goal) && !viewer.staff
 
   // Open at the step asked for, else the one to do next, like a path that starts where you left off.
   React.useEffect(() => {
@@ -114,10 +111,11 @@ export default function GoalPath({ goal, color, badge, viewer, selectedUuid, onS
               {active ? <span aria-hidden="true" className="h-2 w-2 rounded-full bg-[var(--plan-face)]" /> : null}{eyebrow}
             </p> : null}
             <h2 className={cn('text-xl font-extrabold tracking-tight', !active && current && 'text-foreground/80')}>{section.title}</h2>
+            <ScheduleNotes goal={goal} stageUuid={section.stage?.stage_uuid} className="mt-1" />
           </div>
           <div className="flex shrink-0 items-center gap-1">
             {section.steps.length ? <span className="text-xs font-bold text-muted-foreground">{sectionDone} of {section.steps.length}</span> : null}
-            {section.stage ? <StageMenu stage={section.stage} index={section.index} /> : null}
+            {section.stage ? <StageMenu stage={section.stage} index={section.index} onMakeCurrent={movable && !active ? () => mover.ask(section.stage!) : undefined} /> : null}
           </div>
         </div> : null}
         {section.stage ? proposals.stageChanges.filter((item) => item.change.stage_uuid === section.stage!.stage_uuid).map((item) => <StageChangeLine key={item.change.local_id} goal={goal} item={item} token={viewer.token} onSettled={proposals.settle} />) : null}
@@ -125,8 +123,9 @@ export default function GoalPath({ goal, color, badge, viewer, selectedUuid, onS
           {section.steps.map((step, index) => <GoalStepRow key={step.step_uuid} goal={goal} step={step} viewer={viewer} selected={step.step_uuid === selected} last={index === section.steps.length - 1}
             onSelect={() => onSelect(step.step_uuid)} onGoTo={goTo} onOpenActivity={() => openActivity(step)} onAsk={ask ? () => ask(step) : undefined}
             menu={<StepMenu step={step} />}
-            after={proposals.stepChanges.filter((item) => item.change.step_uuid === step.step_uuid).map((item) => <StepChangeLine key={item.change.local_id} goal={goal} item={item} token={viewer.token} onSettled={proposals.settle} />)} />)}
+            after={<><ScheduleNotes goal={goal} stepUuid={step.step_uuid} className="pb-1" />{proposals.stepChanges.filter((item) => item.change.step_uuid === step.step_uuid).map((item) => <StepChangeLine key={item.change.local_id} goal={goal} item={item} token={viewer.token} onSettled={proposals.settle} />)}</>} />)}
         </ol> : <p className="ml-[72px] text-sm text-muted-foreground">No steps here yet.</p>}
+        {active && movable ? <MoveOnLine stage={section.stage!} next={goal.stages[section.index + 1]} onMove={() => mover.ask(goal.stages[section.index + 1])} /> : null}
         {suggested.length ? <ul aria-label="Suggested steps" className="flex flex-col">
           {suggested.map((item) => <SuggestedStepLine key={item.step.local_id} goal={goal} item={item} token={viewer.token} onSettled={proposals.settle} />)}
         </ul> : null}
@@ -142,7 +141,8 @@ export default function GoalPath({ goal, color, badge, viewer, selectedUuid, onS
     </div>}
     {proposals.stages.map((item) => <SuggestedStageLine key={item.stage.local_id} goal={goal} item={item} token={viewer.token} onSettled={proposals.settle} />)}
     <AddStageButton />
-    {total ? <div className="flex items-center gap-4">
+    {mover.sheet}
+    {goal.ownership === 'personal' ? <FinishStep goal={goal} token={viewer.token} color={color} orgslug={viewer.orgslug} /> : total ? <div className="flex items-center gap-4">
       <span className={cn('flex h-14 w-14 shrink-0 items-center justify-center rounded-full', done === total ? 'bg-[var(--plan-face)] text-[var(--plan-face-ink)] shadow-[0_4px_0_var(--plan-edge)]' : 'bg-muted text-muted-foreground')} aria-hidden="true"><Trophy size={24} /></span>
       <div>
         <p className="font-extrabold">{done === total ? 'All steps done' : 'Your goal'}</p>

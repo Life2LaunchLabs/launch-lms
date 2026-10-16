@@ -1,6 +1,6 @@
 """A goal's lifecycle (archive, delete, finish, reopen, celebrated) and the organization page's goal invitations.
 
-Finishing and reopening are minimal here; the finish story flow replaces them later.
+Finishing records how the learner says it went, for the goal's story.
 """
 
 from __future__ import annotations
@@ -10,7 +10,7 @@ from datetime import datetime
 from fastapi import HTTPException
 from sqlmodel import Session, select
 
-from src.db.goals import Goal, GoalAssignment, GoalOwnership, GoalStatus, GoalTemplate
+from src.db.goals import Goal, GoalAssignment, GoalFinish, GoalOwnership, GoalStatus, GoalTemplate
 from src.db.usergroups import UserGroup
 from src.db.users import PublicUser, User
 from src.services.goals import access
@@ -60,10 +60,14 @@ def _personal_edit(db: Session, current_user: PublicUser, goal_uuid: str) -> Goa
     return goal
 
 
-def finish(db: Session, current_user: PublicUser, goal_uuid: str) -> dict:
+def finish(db: Session, current_user: PublicUser, goal_uuid: str, payload: GoalFinish | None = None) -> dict:
     goal = _personal_edit(db, current_user, goal_uuid)
     if _value(goal.status) != GoalStatus.ACTIVE.value:
         raise HTTPException(status_code=409, detail="Only active goals can be finished")
+    if payload:
+        # The goal's story quotes this back; a rename recorded earlier stays.
+        said = {"reached": payload.reached, "what_happened": payload.what_happened.strip()}
+        goal.finish = {**(goal.finish or {}), **{key: value for key, value in said.items() if value}}
     goal.finished_at = datetime.utcnow()
     return _set(db, goal, current_user.id, GoalStatus.FINISHED, "goal.finished")
 
