@@ -17,7 +17,7 @@ from sqlmodel import Session, select
 
 from src.db.goal_templates import AssignmentSchedule, GoalAssignmentRequest
 from src.db.goals import Goal, GoalAssignment, GoalAssignmentCreate, GoalSource, GoalStatus, GoalStep, GoalTemplate, GoalTemplateVersion
-from src.db.planning import PlanInvitation, PlanInvitationKind, PlanInvitationStatus, PlanRole
+from src.db.goal_sharing import PlanInvitation, PlanInvitationKind, PlanInvitationStatus, PlanRole
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
 from src.db.usergroup_user import UserGroupUser
@@ -134,6 +134,13 @@ def sync_assignment(db: Session, assignment: GoalAssignment, actor_user_id: int 
     if external and not learners:
         return [_issue(db, assignment, template, version, None, actor_user_id)]
     return [_issue(db, assignment, template, version, user_id, actor_user_id) for user_id in learners if user_id not in have]
+
+
+
+def sync_group(db: Session, usergroup_id: int) -> None:
+    """Issue goals from the group's active assignments to members who joined after them (flushed, not committed)."""
+    for assignment in db.exec(select(GoalAssignment).where(GoalAssignment.usergroup_id == usergroup_id, GoalAssignment.active == True)).all():  # noqa: E712
+        sync_assignment(db, assignment)
 
 
 def _can_manage(db: Session, org_id: int, user_ids: list[int]) -> set[int]:

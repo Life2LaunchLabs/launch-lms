@@ -29,7 +29,7 @@ from src.db.learning import BadgeIssuerLearnerLink, LearningActivity, LearningRe
 from src.db.media import MediaAsset
 from src.db.organizations import Organization
 from src.db.portfolio import Portfolio
-from src.db.planning import OrganizationPlanRole, Plan, PlanActivity, PlanCollaborator, PlanRole
+from src.db.goal_sharing import OrganizationPlanRole, PlanActivity, PlanCollaborator, PlanRole
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
 from src.db.usergroup_user import UserGroupUser
@@ -50,7 +50,7 @@ def _session() -> Session:
         LearningBadge.__table__, LearningBadgeVersion.__table__, LearningBadgeAward.__table__, BadgeIssuerLearnerLink.__table__, MediaAsset.__table__,
         PlanRole.__table__, PlanCollaborator.__table__, PlanActivity.__table__, OrganizationPlanRole.__table__,
         GoalTemplate.__table__, GoalTemplateVersion.__table__, GoalAssignment.__table__, Goal.__table__, GoalStage.__table__,
-        GoalStep.__table__, StepProgress.__table__, StepEntry.__table__, GoalStory.__table__, Portfolio.__table__, Plan.__table__,
+        GoalStep.__table__, StepProgress.__table__, StepEntry.__table__, GoalStory.__table__, Portfolio.__table__,
     ])
     db = Session(engine)
     db.add(Organization(id=1, org_uuid="org_1", name="Studio", slug="studio", email="studio@example.com", creation_date=NOW, update_date=NOW))
@@ -366,7 +366,7 @@ def test_badge_goals_award_their_badge_and_badge_steps_follow_awards():
 
 
 def test_activity_steps_finish_from_the_learners_run():
-    from src.services.plan_activities import sync_objective_from_run
+    from src.services.goals.completion import on_run_changed
 
     with _session() as db:
         goal = _issue(db, _published(db, {"type": "activity", "title": "Interest quiz"}))
@@ -381,7 +381,8 @@ def test_activity_steps_finish_from_the_learners_run():
         run.status = LearningRunStatus.COMPLETED
         db.add(run)
         db.commit()
-        sync_objective_from_run(db, run)
+        on_run_changed(db, run)
+        db.commit()
         view = goals.get_goal(db, _user(LEARNER), goal.goal_uuid)
         assert _step(view, "Interest quiz")["state"] == "done" and view["status"] == "finished"
 

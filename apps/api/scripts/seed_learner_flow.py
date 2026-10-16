@@ -15,7 +15,7 @@ from sqlmodel import Session, select
 from src.db.goals import CompletionMethod, Goal, GoalAssignmentCreate, GoalCreate, GoalStep, StepStatus
 from src.db.learning import LearningActivity, LearningPage, LearningPageType
 from src.db.organizations import Organization
-from src.db.planning import PlanInvitationCreate
+from src.db.goal_sharing import PlanInvitationCreate
 from src.db.requirements import RequirementFrameworkCreate, RequirementNodeInput
 from src.db.users import PublicUser, User
 from src.services import requirements

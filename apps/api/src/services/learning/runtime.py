@@ -168,8 +168,8 @@ async def complete_page(
     db_session.add(run)
     db_session.commit()
     db_session.refresh(run)
-    from src.services.plan_activities import sync_objective_from_run
-    sync_objective_from_run(db_session, run)
+    from src.services.goals.completion import on_run_changed
+    on_run_changed(db_session, run)
     db_session.refresh(run)
     return run_navigation._serialize_run(db_session, run)
 

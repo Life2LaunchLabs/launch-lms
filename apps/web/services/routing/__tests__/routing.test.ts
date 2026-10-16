@@ -149,7 +149,7 @@ test('legacy Coach links open Coach beside Plans, or the resource or search they
 test('route manifest builds key dashboard and owner routes', () => {
   assert.equal(routePaths.org.dash.badges(), '/admin/badges')
   assert.equal(routePaths.org.dash.plans(), '/admin/plans')
-  assert.equal(routePaths.org.dash.programs(), '/admin/plans/templates')
+  assert.equal(routePaths.org.dash.goalTemplates(), '/admin/plans/templates')
   assert.equal(routePaths.org.dash.planReview({ assignment: 'assignment_1', objective: 'objective_1' }), '/admin/plans/review?assignment=assignment_1&objective=objective_1')
   assert.equal(routePaths.org.dash.planRequirements(), '/admin/plans/requirements')
   assert.equal(routePaths.org.dash.planRequirement('framework 1', 'levels'), '/admin/plans/requirements/framework%201/levels')

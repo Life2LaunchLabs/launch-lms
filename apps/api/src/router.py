@@ -27,14 +27,8 @@ from src.routers import (
     orgs,
     operations_surface,
     plans,
-    plan_activities,
-    plan_admin,
-    plan_home,
-    plan_sharing,
-    planning,
-    template_versions,
     portfolio,
-    programs,
+    requirement_frameworks,
     roles,
     search,
     stream,
@@ -120,45 +114,9 @@ v1_router.include_router(
     dependencies=[Depends(get_non_api_token_user)],
 )
 v1_router.include_router(
-    programs.router,
-    prefix="/programs",
-    tags=["programs"],
-    dependencies=[Depends(get_non_api_token_user)],
-)
-v1_router.include_router(
-    planning.router,
+    requirement_frameworks.router,
     prefix="/planning",
-    tags=["planning"],
-    dependencies=[Depends(get_non_api_token_user)],
-)
-v1_router.include_router(
-    template_versions.router,
-    prefix="/planning",
-    tags=["planning"],
-    dependencies=[Depends(get_non_api_token_user)],
-)
-v1_router.include_router(
-    plan_admin.router,
-    prefix="/planning",
-    tags=["planning"],
-    dependencies=[Depends(get_non_api_token_user)],
-)
-v1_router.include_router(
-    plan_activities.router,
-    prefix="/planning",
-    tags=["planning"],
-    dependencies=[Depends(get_non_api_token_user)],
-)
-v1_router.include_router(
-    plan_home.router,
-    prefix="/planning",
-    tags=["planning"],
-    dependencies=[Depends(get_non_api_token_user)],
-)
-v1_router.include_router(
-    plan_sharing.router,
-    prefix="/planning",
-    tags=["planning"],
+    tags=["requirements"],
     dependencies=[Depends(get_non_api_token_user)],
 )
 v1_router.include_router(auth.router, prefix="/auth", tags=["auth"])

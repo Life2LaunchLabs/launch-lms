@@ -21,7 +21,7 @@ from sqlmodel import Session, select
 
 from src.db.goals import Goal, GoalOwnership, GoalStage, GoalStep, StageCreate, StepCreate
 from src.db.hub import HubEditObjectState, HubEditRun, HubEditRunEvent
-from src.db.planning import PlanActivity
+from src.db.goal_sharing import PlanActivity
 from src.db.users import PublicUser
 from src.security.org_auth import require_org_membership
 from src.services.goals import access

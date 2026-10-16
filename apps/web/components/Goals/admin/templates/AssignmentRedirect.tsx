@@ -3,7 +3,7 @@
 import React from 'react'
 import { useRouter } from 'next/navigation'
 import useSWR from 'swr'
-import { EmptyState, PageLoader } from '@components/Admin/Plans/shared'
+import { EmptyState, PageLoader } from '@components/Goals/admin/shared'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { getUriWithOrg } from '@services/config/config'

@@ -16,7 +16,7 @@ from sqlmodel import Session, select
 from src.db.goals import Goal, GoalStatus
 from src.db.messages import InboxMessage
 from src.db.organizations import Organization
-from src.db.planning import (
+from src.db.goal_sharing import (
     PlanCollaborator,
     PlanCollaboratorRequest,
     PlanCollaboratorRequestCreate,

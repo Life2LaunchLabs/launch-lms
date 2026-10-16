@@ -15,7 +15,7 @@ from sqlmodel import Session, select
 
 from src.db.goals import Goal, GoalAssignment, GoalSource
 from src.db.organizations import Organization
-from src.db.planning import (
+from src.db.goal_sharing import (
     ALL_CAPABILITIES,
     DEFAULT_ROLE_DEFINITIONS,
     OrganizationPlanRole,

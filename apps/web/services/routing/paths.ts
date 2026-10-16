@@ -146,9 +146,9 @@ export const routePaths = {
       plans: () => '/admin/plans',
       planReview: (params: { assignment: string; objective?: string | null; planObjective?: string | null; activity?: string | null; focus?: string | null }) =>
         withQuery('/admin/plans/review', { assignment: params.assignment, objective: params.objective, step: params.planObjective, activity: params.activity, focus: params.focus }),
-      programs: () => '/admin/plans/templates',
-      program: (programUuid: string) => `/admin/plans/${encodeURIComponent(programUuid)}`,
-      programPage: (programUuid: string, subpage: string) => `/admin/plans/${encodeURIComponent(programUuid)}/${encodeURIComponent(subpage)}`,
+      goalTemplates: () => '/admin/plans/templates',
+      goalTemplate: (templateUuid: string) => `/admin/plans/${encodeURIComponent(templateUuid)}`,
+      goalTemplatePage: (templateUuid: string, subpage: string) => `/admin/plans/${encodeURIComponent(templateUuid)}/${encodeURIComponent(subpage)}`,
       planRequirements: () => '/admin/plans/requirements',
       planRequirement: (frameworkUuid: string, subpage = 'details') => `/admin/plans/requirements/${encodeURIComponent(frameworkUuid)}/${encodeURIComponent(subpage)}`,
       // Resolves an assignment to the page that now shows it: its group's Plans tab or the learner.

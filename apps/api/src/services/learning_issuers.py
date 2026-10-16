@@ -109,7 +109,7 @@ def _org_summary(org: Organization) -> dict:
     return {"id": org.id, "org_uuid": org.org_uuid, "slug": org.slug, "name": org.name, "logo_image": org.logo_image}
 
 
-def issuer_options(db_session: Session, badge: LearningBadge, user_id: int | None, program_org_ids: set[int]) -> dict:
+def issuer_options(db_session: Session, badge: LearningBadge, user_id: int | None) -> dict:
     """The issuers this learner can see, which one is preselected, and which can start now."""
     issuers = active_issuers(db_session, badge)
     authorization_ids = [authorization.id for _, _, authorization in issuers if authorization and authorization.id]
@@ -123,7 +123,7 @@ def issuer_options(db_session: Session, badge: LearningBadge, user_id: int | Non
     options = []
     for org_id, access, authorization in issuers:
         link = links.get(authorization.id) if authorization else None
-        accepted = org_id in program_org_ids or bool(link and link.status == BadgeIssuerLearnerLinkStatus.ACCEPTED)
+        accepted = bool(link and link.status == BadgeIssuerLearnerLinkStatus.ACCEPTED)
         if access == "invite" and not accepted and not link:
             continue
         org = db_session.get(Organization, org_id)
@@ -158,15 +158,12 @@ def validate_issuer_start(
     badge: LearningBadge,
     issuing_org_id: int,
     user_id: int | None,
-    program_org_ids: set[int],
 ) -> BadgeIssuerLearnerLink | None:
     """Allow starting under an issuer the learner may use, joining an open issuer on the way."""
     match = next(((access, authorization) for org_id, access, authorization in active_issuers(db_session, badge) if org_id == issuing_org_id), None)
     if match is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This organization is not issuing this badge")
     access, authorization = match
-    if issuing_org_id in program_org_ids:
-        return None
     if user_id is None:
         if access == "open" and issuing_org_id == badge.org_id:
             return None

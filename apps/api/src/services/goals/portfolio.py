@@ -5,17 +5,13 @@ from __future__ import annotations
 from sqlmodel import Session, select
 
 from src.db.goals import Goal, GoalSource
-from src.db.planning import Plan
 from src.db.portfolio import Portfolio, PortfolioContentStatus, PortfolioVisibility, ProfileTrait, ProjectItem, TimelineEntry
 
 
 def done_checks(db: Session, user_id: int) -> set[str]:
     """The portfolio checks the learner passes: welcome, timeline, project, traits, launch, badges."""
     done: set[str] = set()
-    started_badge = db.exec(select(Goal.id).where(Goal.subject_user_id == user_id, Goal.source == GoalSource.BADGE)).first() or db.exec(
-        select(Plan.id).where(Plan.subject_user_id == user_id, Plan.source_badge_id.is_not(None))  # type: ignore[union-attr]
-    ).first()
-    if started_badge:
+    if db.exec(select(Goal.id).where(Goal.subject_user_id == user_id, Goal.source == GoalSource.BADGE)).first():
         done.add("badges")
     portfolio = db.exec(select(Portfolio).where(Portfolio.user_id == user_id)).first()
     if not portfolio:

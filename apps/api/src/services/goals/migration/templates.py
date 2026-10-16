@@ -17,12 +17,12 @@ from sqlmodel import Session, func, select
 
 from src.db.goals import GoalAssignment, GoalTemplate, GoalTemplateVersion, TemplateStatus
 from src.db.learning import LearningActivity
-from src.db.programs import FrozenActivity, Program, ProgramAssignment, ProgramTemplateVersion
 from src.services.goals import templates as template_service
 from src.services.goals.document import iter_steps
 from src.services.goals.migration.documents import Converted, convert_snapshot
+from src.services.goals.migration.drafts import PHASE_FIELDS, TEMPLATE_FIELDS, draft_fingerprint, program_phases
+from src.services.goals.migration.legacy_tables import FrozenActivity, Program, ProgramAssignment, ProgramTemplateVersion
 from src.services.learning.activity_copy import copy_activity
-from src.services.template_versions import PHASE_FIELDS, TEMPLATE_FIELDS, draft_fingerprint
 
 
 @dataclass
@@ -59,7 +59,7 @@ def _claim_working_activities(db: Session, template: GoalTemplate, converted: Co
             activity.goal_template_id = template.id
             db.add(activity)
         else:
-            copy = copy_activity(db, activity, goal_template_id=template.id, objective_id=activity.objective_id)
+            copy = copy_activity(db, activity, goal_template_id=template.id)
             step["config"]["activity_uuid"] = copy.activity_uuid
     db.flush()
 
@@ -78,9 +78,7 @@ def _claim_frozen_activities(db: Session, template: GoalTemplate, document: dict
 
 
 def _draft(db: Session, program: Program) -> Converted:
-    from src.services.programs import _program_phases
-
-    phases = _program_phases(db, program)
+    phases = program_phases(db, program)
     meta = {key: getattr(program, key) for key in TEMPLATE_FIELDS}
     return convert_snapshot(db, meta, phases, None, program.org_id)
 
@@ -145,9 +143,7 @@ def _private_version(db: Session, template: GoalTemplate, legacy: ProgramTemplat
     meta = snapshot.get("template") or {key: getattr(program, key) for key in TEMPLATE_FIELDS}
     phases = list(snapshot.get("phases") or [])
     if not phases:
-        from src.services.programs import _program_phases
-
-        phases = [{key: phase.get(key) for key in PHASE_FIELDS} for phase in _program_phases(db, program)]
+        phases = [{key: phase.get(key) for key in PHASE_FIELDS} for phase in program_phases(db, program)]
     converted = convert_snapshot(db, meta, phases, list(assignment.objective_snapshot or []), program.org_id)
     maps.warnings.extend(f"{program.name} (assignment): {warning}" for warning in converted.warnings)
     _claim_frozen_activities(db, template, converted.document)

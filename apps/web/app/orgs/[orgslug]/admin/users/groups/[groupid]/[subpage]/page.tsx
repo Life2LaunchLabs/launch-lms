@@ -4,7 +4,7 @@ import GroupAdminDetail, { type GroupSubpage } from '@components/Admin/Users/Gro
 import { routePaths } from '@services/config/config'
 
 const SUBPAGES = new Set<GroupSubpage>(['plans', 'requirements', 'members', 'settings'])
-const RENAMED: Record<string, GroupSubpage> = { programs: 'plans', users: 'members', reports: 'requirements' }
+const RENAMED: Record<string, GroupSubpage> = { users: 'members', reports: 'requirements' }
 
 export default async function GroupDetailPage({ params }: { params: Promise<{ orgslug: string; groupid: string; subpage: string }> }) {
   const { orgslug, groupid, subpage } = await params

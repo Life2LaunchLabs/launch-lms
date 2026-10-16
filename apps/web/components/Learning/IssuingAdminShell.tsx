@@ -6,7 +6,7 @@ import { Award, Check, ClipboardCheck, Handshake, Loader2, Plus, Search, Trash2 
 import { motion } from 'motion/react'
 import toast from 'react-hot-toast'; import IssuerRouteOffers from './IssuerRouteOffers'
 import AdminFeatureHeader from '@components/Admin/AdminFeatureHeader'
-import { ActivityAggregateGradeForm } from '@components/Admin/Programs/ActivityGrading'
+import { ActivityAggregateGradeForm } from '@components/Goals/admin/ActivityGrading'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { SafeImage } from '@components/Objects/SafeImage'
 import { Button } from '@components/ui/button'

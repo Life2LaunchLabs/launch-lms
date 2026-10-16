@@ -290,11 +290,12 @@ def credit_requirement(db: Session, current_user: PublicUser, org_id: int, user_
     if node_uuid not in set((enrollment.framework_snapshot or {}).get("leaf_node_uuids") or []):
         raise HTTPException(status_code=422, detail="Only individual requirements can be credited")
     now = _now()
-    source = db.exec(select(RequirementAttainmentSource).where(
+    # Sources with no step are staff credits, or completions kept from before goals; only a credit is reused.
+    unlinked = db.exec(select(RequirementAttainmentSource).where(
         RequirementAttainmentSource.enrollment_id == enrollment.id, RequirementAttainmentSource.node_uuid == node_uuid,
-        RequirementAttainmentSource.plan_objective_progress_id.is_(None), RequirementAttainmentSource.objective_progress_id.is_(None),  # type: ignore[union-attr]
         RequirementAttainmentSource.step_progress_id.is_(None),  # type: ignore[union-attr]
-    )).first() or RequirementAttainmentSource(
+    )).all()
+    source = next((item for item in unlinked if (item.evidence_snapshot or {}).get("kind") == "staff_credit"), None) or RequirementAttainmentSource(
         source_uuid=f"requirement_source_{uuid4()}", enrollment_id=int(enrollment.id), node_uuid=node_uuid, creation_date=now.isoformat(),  # type: ignore[arg-type]
     )
     source.objective_title = "Credited by staff"

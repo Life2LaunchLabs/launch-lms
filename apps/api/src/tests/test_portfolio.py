@@ -1,10 +1,10 @@
 import pytest
 from fastapi import HTTPException
 from sqlmodel import Session, create_engine, select
+from src.db.goals import Goal, GoalStatus
 from src.db.learning import LearningBadgeAward
 from src.db.media import MediaAsset
 from src.db.organizations import Organization
-from src.db.planning import Plan, PlanObjective, PlanObjectiveProgress, PlanObjectiveStatus, PlanStatus
 from src.db.portfolio import (
     Portfolio,
     PortfolioFeaturedProjectUpdate,
@@ -56,7 +56,7 @@ def _session():
         model.__table__.create(engine)
     from src.db.goals import Goal, GoalAssignment, GoalStage, GoalStep, GoalStory, GoalTemplate, GoalTemplateVersion, StepEntry, StepProgress
     from src.db.learning import BadgeIssuerLearnerLink, LearningActivity, LearningPage, LearningPageProgress, LearningResponseAttempt, LearningRun
-    from src.db.planning import OrganizationPlanRole, PlanActivity, PlanCollaborator, PlanRole
+    from src.db.goal_sharing import OrganizationPlanRole, PlanActivity, PlanCollaborator, PlanRole
 
     for model in (LearningActivity, LearningPage, LearningRun, LearningPageProgress, LearningResponseAttempt, BadgeIssuerLearnerLink,
                   PlanRole, PlanCollaborator, PlanActivity, OrganizationPlanRole, GoalTemplate, GoalTemplateVersion, GoalAssignment, Goal, GoalStage, GoalStep, StepProgress, StepEntry, GoalStory):
@@ -131,19 +131,14 @@ def test_portfolio_badges_are_the_earned_ones():
         started = _create_badge(db, badge_id=5, org_id=1)
         earned = _create_badge(db, badge_id=6, org_id=1)
         abandoned = _create_badge(db, badge_id=7, org_id=1)
-        for plan_id, badge, status in ((10, started, PlanStatus.ACTIVE), (11, earned, PlanStatus.ACTIVE), (12, abandoned, PlanStatus.ARCHIVED)):
-            db.add(Plan(id=plan_id, plan_uuid=f"plan_{plan_id}", slug=f"plan-{plan_id}", name=badge.name, status=status, subject_user_id=1, source_badge_id=badge.id, creation_date="", update_date=""))
-        db.flush()
-        for objective_id, (plan_id, done) in enumerate(((10, True), (10, False), (10, False), (11, False)), start=1):
-            db.add(PlanObjective(id=objective_id, objective_uuid=f"plan_objective_{objective_id}", plan_id=plan_id, title=f"Step {objective_id}", creation_date="", update_date=""))
-            if done:
-                db.add(PlanObjectiveProgress(progress_uuid=f"progress_{objective_id}", plan_objective_id=objective_id, status=PlanObjectiveStatus.COMPLETED, creation_date="", update_date=""))
+        for goal_id, badge, status in ((10, started, GoalStatus.ACTIVE), (11, earned, GoalStatus.ACTIVE), (12, abandoned, GoalStatus.ARCHIVED)):
+            db.add(Goal(id=goal_id, goal_uuid=f"goal_{goal_id}", title=badge.name, status=status, owner_user_id=1, subject_user_id=1, badge_id=badge.id))
         db.add(LearningBadgeAward(award_uuid="award_6", badge_id=earned.id, org_id=1, user_id=1))
         db.commit()
 
         badges = service.get_owner_shell(_public(user), db)["badges"]
 
-        # Badges still being worked toward are plans, not portfolio entries.
+        # Badges still being worked toward are goals, not portfolio entries.
         assert [item["badge_uuid"] for item in badges["earned"]] == ["badge_6"]
         assert [item["badge_uuid"] for item in badges["featured"]] == ["badge_6"]
         assert "inProgress" not in badges

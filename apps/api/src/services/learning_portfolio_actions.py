@@ -201,7 +201,7 @@ def _start_badge_plans(db: Session, user: User, badge_uuids: list) -> list[str]:
             LearningBadge.badge_uuid == badge_uuid, LearningBadge.status == LearningBadgeStatus.PUBLISHED,
             LearningBadge.public == True, LearningBadge.deleted_at.is_(None),  # type: ignore[union-attr]  # noqa: E712
         )).first()
-        issuer_org_id = issuer_options(db, badge, int(user.id), set())["startable_issuer_org_id"] if badge and badge_routes(db, badge) else None  # type: ignore[arg-type]
+        issuer_org_id = issuer_options(db, badge, int(user.id))["startable_issuer_org_id"] if badge and badge_routes(db, badge) else None  # type: ignore[arg-type]
         if badge and issuer_org_id is not None:
             try:
                 start_badge_goal(db, user, badge, None, issuer_org_id, commit=False)  # type: ignore[arg-type]

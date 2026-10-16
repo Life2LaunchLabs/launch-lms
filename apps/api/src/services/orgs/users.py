@@ -23,7 +23,7 @@ from src.db.organizations import (
 )
 from src.db.roles import Role, RoleRead
 from src.db.learning import LearningBadge, LearningBadgeStatus
-from src.db.programs import ProgramAssignment, ProgramParticipant
+from src.db.goals import Goal, GoalAssignment
 from src.db.user_organizations import UserOrganization
 from src.db.usergroup_resources import UserGroupResource
 from src.db.usergroup_user import UserGroupUser
@@ -334,14 +334,14 @@ async def get_organization_users(
     elif status == "unverified":
         base_statement = base_statement.where(User.email_verified == False)
 
-    # Active means an active program or a published badge is currently assigned.
-    # Staff ownership lives on program assignments, so "assigned to me" narrows
-    # the result to learners on programs owned by the current staff member.
+    # Active means an active goal assignment or a published badge is currently assigned.
+    # Staff ownership lives on goal assignments, so "assigned to me" narrows
+    # the result to learners on assignments the current staff member works.
     if active is not None or assigned_to_me:
         active_assignments = db_session.exec(
-            select(ProgramAssignment).where(
-                ProgramAssignment.org_id == int(org_id),
-                ProgramAssignment.active == True,  # noqa: E712
+            select(GoalAssignment).where(
+                GoalAssignment.org_id == int(org_id),
+                GoalAssignment.active == True,  # noqa: E712
             )
         ).all()
         relevant_assignments = [
@@ -361,8 +361,8 @@ async def get_organization_users(
         }
         if assignment_ids:
             assigned_user_ids.update(db_session.exec(
-                select(ProgramParticipant.user_id).where(
-                    ProgramParticipant.assignment_id.in_(assignment_ids)  # type: ignore[union-attr]
+                select(Goal.subject_user_id).where(
+                    Goal.assignment_id.in_(assignment_ids), Goal.subject_user_id.is_not(None)  # type: ignore[union-attr]
                 )
             ).all())
         if assigned_group_ids:

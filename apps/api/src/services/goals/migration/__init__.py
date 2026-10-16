@@ -14,11 +14,9 @@ from dataclasses import dataclass, field
 from sqlmodel import Session, func, select
 
 from src.db.goals import Goal, GoalAssignment, GoalStep, GoalTemplate, StepProgress
-from src.db.planning import Plan, PlanObjective, PlanObjectiveProgress
-from src.db.programs import Program, ProgramAssignment
-from src.db.requirements import RequirementAttainmentSource
-from src.services.goals.legacy import STATUS_MAP
 from src.services.goals.migration.goals import migrate_plans
+from src.services.goals.migration.legacy_tables import REQUIREMENT_SOURCE, Plan, PlanObjective, PlanObjectiveProgress, Program, ProgramAssignment
+from src.services.goals.migration.objectives import STATUS_MAP
 from src.services.goals.migration.templates import migrate_templates
 
 
@@ -64,8 +62,7 @@ def verify(db: Session) -> None:
     actual = Counter(getattr(status, "value", status) for status in first_steps)
     if expected != actual:
         problems.append(f"progress statuses: expected {dict(expected)}, got {dict(actual)}")
-    stranded = _count(db, RequirementAttainmentSource, RequirementAttainmentSource.plan_objective_progress_id.is_not(None),  # type: ignore[union-attr]
-                      RequirementAttainmentSource.step_progress_id.is_(None))  # type: ignore[union-attr]
+    stranded = _count(db, REQUIREMENT_SOURCE, REQUIREMENT_SOURCE.c.plan_objective_progress_id.is_not(None), REQUIREMENT_SOURCE.c.step_progress_id.is_(None))
     if stranded:
         problems.append(f"requirement sources: {stranded} still point only at plan progress")
     if problems:
