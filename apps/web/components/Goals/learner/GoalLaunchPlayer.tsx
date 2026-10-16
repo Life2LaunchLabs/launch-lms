@@ -8,7 +8,7 @@ import { ActivityPlayer, type ActivityRuntime } from '@components/Learning/playe
 import { OptionSourceContext } from '@components/Learning/player/OptionSources'
 import { completeLearningPage, submitLearningResponse } from '@services/learning/learning'
 import { goalLaunchApi } from '@services/goals/launch'
-import { isGoalsKey } from '@services/goals/goals'
+import { goalsApi, goalUrl, isGoalsKey } from '@services/goals/goals'
 import { getUriWithOrg } from '@services/config/config'
 
 /**
@@ -37,6 +37,12 @@ export default function GoalLaunchPlayer({ orgslug, goalUuid, activity, initialR
     router.replace(getUriWithOrg(orgslug, path))
     router.refresh()
   }
+  // The goal page sends a draft back here, so it must not open on a copy cached while the goal
+  // was still a draft: put the live goal in the cache first, then open it.
+  const finish = async () => {
+    try { await mutate(goalUrl(goalUuid), goalsApi.get(goalUuid, accessToken), { revalidate: false }) } catch { /* the page fetches it */ }
+    leave(`/plans/${encodeURIComponent(goalUuid)}?edit=1`)
+  }
   const sources = React.useMemo(() => ({ goalUuid, token: accessToken }), [goalUuid, accessToken])
 
   return <OptionSourceContext.Provider value={sources}>
@@ -45,7 +51,7 @@ export default function GoalLaunchPlayer({ orgslug, goalUuid, activity, initialR
       initialRun={initialRun}
       runtime={runtime}
       onClose={() => leave('/plans')}
-      onFinish={() => leave(`/plans/${encodeURIComponent(goalUuid)}?edit=1`)}
+      onFinish={() => void finish()}
       responseMediaOwner={{ type: 'user', id: Number(session?.data?.user?.id) }}
     />
   </OptionSourceContext.Provider>

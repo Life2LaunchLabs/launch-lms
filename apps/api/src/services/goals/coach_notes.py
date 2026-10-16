@@ -14,9 +14,9 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlmodel import Session, select
 
-from src.db.goals import CoachNote, CoachNoteStatus, Goal
+from src.db.goals import CoachNote, CoachNoteStatus, Goal, GoalStatus
 from src.db.users import PublicUser
-from src.services.goals import access
+from src.services.goals import access, check_ins
 from src.services.goals.check_ins import CADENCE
 
 
@@ -49,7 +49,9 @@ def _own_goal(db: Session, user_id: int, goal_uuid: str) -> Goal:
 
 def open_notes(db: Session, user_id: int, goals: list[Goal] | None = None) -> list[tuple[CoachNote, Goal]]:
     """The learner's open notes, newest first, optionally only on some goals."""
-    statement = select(CoachNote, Goal).join(Goal, Goal.id == CoachNote.goal_id).where(CoachNote.user_id == user_id, _open(datetime.utcnow()))
+    statement = select(CoachNote, Goal).join(Goal, Goal.id == CoachNote.goal_id).where(
+        CoachNote.user_id == user_id, _open(datetime.utcnow()), Goal.status == GoalStatus.ACTIVE.value,
+    )
     if goals is not None:
         statement = statement.where(CoachNote.goal_id.in_([goal.id for goal in goals]))  # type: ignore[union-attr]
     return list(db.exec(statement.order_by(CoachNote.created_at.desc())).all())  # type: ignore[union-attr]
@@ -69,6 +71,7 @@ def goal_notes(db: Session, current_user: PublicUser, goal_uuid: str) -> dict:
     if goal.owner_user_id != current_user.id:
         access.require(db, goal, current_user.id, "view_plan")
         return {"notes": [], "cadence": "weekly", "next_check_in_at": None}
+    check_ins.sweep(db, goal)
     return {
         "notes": [note_dict(note, goal) for note, _goal in open_notes(db, current_user.id, [goal])],
         "cadence": goal.coach_cadence if goal.coach_cadence in CADENCE else "weekly", "next_check_in_at": goal.next_check_in_at,

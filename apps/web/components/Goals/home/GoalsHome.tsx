@@ -43,7 +43,12 @@ export default function GoalsHome({ orgslug, token, goals, finished, choose, get
   const { data: invitations = [] } = useSWR<ReceivedInvitation[]>(token ? myInvitationsKey() : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: true })
 
   if (error) return <div className="rounded-xl border border-border bg-card p-5" role="alert"><p className="text-sm">Your weekly steps could not load.</p><button type="button" onClick={() => void retry()} className="mt-3 min-h-11 text-sm font-semibold underline">Try again</button></div>
-  if (data && !data.goals.length && !goals.length) return <><Invitations invitations={invitations} token={token} /><EmptyHome orgslug={orgslug} onCreate={onCreate} creating={creating} /></>
+  // With nothing active, finished goals stay in reach under the empty state, opened.
+  if (data && !data.goals.length && !goals.length) return <div className="flex flex-col gap-10">
+    <Invitations invitations={invitations} token={token} />
+    <EmptyHome orgslug={orgslug} onCreate={onCreate} creating={creating} />
+    <FinishedGoals goals={finished} getGoalColor={getGoalColor} choose={choose} error={finishedError} retry={retryFinished} open />
+  </div>
 
   return <div className="flex flex-col gap-10">
     <Invitations invitations={invitations} token={token} />
@@ -99,10 +104,10 @@ function Invitations({ invitations, token }: { invitations: ReceivedInvitation[]
 }
 
 // eslint-disable-next-line no-unused-vars
-function FinishedGoals({ goals, getGoalColor, choose, error, retry }: { goals: GoalSummary[]; getGoalColor: (uuid?: string) => string; choose: (goal: GoalSummary) => void; error?: boolean; retry?: () => void }) {
+function FinishedGoals({ goals, getGoalColor, choose, error, retry, open = false }: { goals: GoalSummary[]; getGoalColor: (uuid?: string) => string; choose: (goal: GoalSummary) => void; error?: boolean; retry?: () => void; open?: boolean }) {
   if (error) return retry ? <Button variant="ghost" onClick={retry} className="w-fit text-xs">Retry finished goals</Button> : null
   if (!goals.length) return null
-  return <details className="group/done">
+  return <details className="group/done" open={open}>
     <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 rounded-xl py-2">
       <h2 className="text-xl font-extrabold tracking-tight">Finished</h2>
       <span className="text-sm text-muted-foreground">{goals.length} {goals.length === 1 ? 'goal' : 'goals'}</span>
@@ -115,7 +120,7 @@ function FinishedGoals({ goals, getGoalColor, choose, error, retry }: { goals: G
 }
 
 function EmptyHome({ orgslug, onCreate, creating }: { orgslug: string; onCreate: () => void; creating: boolean }) {
-  return <div className="mt-8 rounded-3xl border-2 border-dashed border-border px-6 py-14 text-center">
+  return <div className="rounded-3xl border-2 border-dashed border-border px-6 py-14 text-center">
     <h2 className="text-2xl font-extrabold">Start with something that matters</h2>
     <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">Set your own goal, or pick a badge to earn and its goal shows up here.</p>
     <div className="mt-6 flex flex-wrap justify-center gap-3">
