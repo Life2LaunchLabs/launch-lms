@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Check, Clock3, RotateCcw, Undo2, UserCheck } from 'lucide-react'
+import { Check, Clock3, RotateCcw, Sparkles, Undo2, UserCheck } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import { Textarea } from '@components/ui/textarea'
 import type { Step } from '@services/goals/types'
@@ -54,16 +54,25 @@ export function FinishControls({ step, actions, canWork, staff, finishesItself =
     </div>
   }
 
+  const ask = actions.ask ? <AskCoach onAsk={actions.ask} /> : null
   if (done(step)) return null
   if (step.status === 'submitted') return <CardNote icon={Clock3}>Handed in. Waiting on review.</CardNote>
-  if (step.completed_by === 'staff') return <CardNote icon={UserCheck}>Someone helping with this goal marks this done.</CardNote>
-  if (finishesItself || !canWork) return null
+  if (step.completed_by === 'staff') return <div className="flex flex-wrap items-center gap-2"><CardNote icon={UserCheck}>Someone helping with this goal marks this done.</CardNote>{ask}</div>
+  if (finishesItself || !canWork) return ask
   return <div className="flex flex-col gap-1.5">
-    <Button type="button" variant="plan" className="self-start" disabled={actions.busy || !!blocker} onClick={() => actions.setStatus('completed')}>
-      <Check size={15} aria-hidden="true" />{step.review_required ? 'Hand in' : finishLabel || 'Mark done'}
-    </Button>
+    <div className="flex flex-wrap items-center gap-2">
+      <Button type="button" variant="plan" disabled={actions.busy || !!blocker} onClick={() => actions.setStatus('completed')}>
+        <Check size={15} aria-hidden="true" />{step.review_required ? 'Hand in' : finishLabel || 'Mark done'}
+      </Button>
+      {ask}
+    </div>
     {blocker ? <CardNote>{blocker}</CardNote> : null}
   </div>
+}
+
+/** Asking Coach about a step, beside the step's main action. */
+function AskCoach({ onAsk }: { onAsk: () => void }) {
+  return <Button type="button" variant="surface" onClick={onAsk}><Sparkles size={15} aria-hidden="true" />Ask Coach</Button>
 }
 
 /** The description, with the step's materials under it. */

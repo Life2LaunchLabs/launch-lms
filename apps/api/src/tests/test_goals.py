@@ -421,3 +421,18 @@ def test_completed_steps_credit_their_requirements_and_reopening_withdraws_it():
         _status(db, ADMIN, goal, _step(view, "Essay"), StepStatus.NOT_STARTED)
         db.refresh(source)
         assert source.revoked_at is not None and db.get(RequirementEnrollment, 1).status == "active"
+
+
+def test_a_learner_marks_their_goal_with_an_icon_from_the_set():
+    import pydantic
+
+    from src.db.goals import GoalCreate, GoalUpdate
+
+    with _session() as db:
+        goal_uuid = goals.create_personal_goal(db, _user(LEARNER), GoalCreate(title="Run a 10k", org_id=1))["goal_uuid"]
+        assert goals.update_goal(db, _user(LEARNER), goal_uuid, GoalUpdate(icon="dumbbell"))["icon"] == "dumbbell"
+        listed = next(row for row in goals.list_my_goals(db, _user(LEARNER)) if row["goal_uuid"] == goal_uuid)
+        assert listed["icon"] == "dumbbell"
+        assert goals.update_goal(db, _user(LEARNER), goal_uuid, GoalUpdate(icon=None))["icon"] is None
+        with pytest.raises(pydantic.ValidationError):
+            GoalUpdate(icon="skull")

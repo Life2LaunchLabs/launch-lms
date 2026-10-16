@@ -2,25 +2,25 @@
 
 import React from 'react'
 import { motion, useReducedMotion } from 'motion/react'
-import { Award, Target } from 'lucide-react'
+import { Award } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { planVars } from '@components/Goals/planColors'
-import EditableText from '@components/Goals/edit/EditableText'
-import type { GoalSummary, StepOrder } from '@services/goals/types'
+import { GoalIconMark } from '@components/Goals/goalIcons'
+import type { GoalIcon, GoalSummary, StepOrder } from '@services/goals/types'
 
 const RULES: Record<StepOrder, string> = { any: 'Any order', in_order: 'Steps open in order', by_stage: 'Stages open in turn' }
 
 export type GoalBadge = { badge_uuid?: string; name?: string; thumbnail_image?: string } | null
 /** What a goal's header needs: the goal list's summary, filled in by the full goal once it loads. */
 export type HeaderGoal = {
-  goal_uuid: string; title: string; description?: string; step_order?: StepOrder
+  goal_uuid: string; title: string; description?: string; step_order?: StepOrder; icon?: GoalIcon | null
   source_badge?: GoalBadge; organization?: { name?: string } | null; is_subject?: boolean; subject?: { name?: string } | null
 }
 
 /** A summary row's badge, organization and subject, typed. */
 export function summaryHeader(summary: GoalSummary): HeaderGoal {
   return {
-    goal_uuid: summary.goal_uuid, title: summary.title, is_subject: summary.is_subject,
+    goal_uuid: summary.goal_uuid, title: summary.title, icon: summary.icon, is_subject: summary.is_subject,
     source_badge: (summary.source_badge as GoalBadge) || null, organization: (summary.organization as { name?: string } | null) || null,
     subject: (summary.subject as { name?: string } | null) || null,
   }
@@ -48,11 +48,11 @@ function Settle({ className, children }: { className?: string; children: React.R
   return <motion.div className={className} initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.18, delay: 0.12 }}>{children}</motion.div>
 }
 
-/** A goal's badge sticker, or a target when it has no badge. */
-export function GoalMark({ badge, size = 'md', layoutId }: { badge?: GoalBadge; size?: 'sm' | 'md'; layoutId?: string }) {
+/** A goal's badge sticker, or its own mark (a target until the learner picks one) when it has no badge. */
+export function GoalMark({ badge, icon, size = 'md', layoutId }: { badge?: GoalBadge; icon?: GoalIcon | null; size?: 'sm' | 'md'; layoutId?: string }) {
   const box = size === 'sm' ? 'h-10 w-10 rounded-xl' : 'h-16 w-16 rounded-2xl'
   return <motion.span layoutId={layoutId} transition={GOAL_MORPH} className={cn('flex shrink-0 items-center justify-center bg-black/15', box)} aria-hidden="true">
-    {badge?.thumbnail_image ? <img src={badge.thumbnail_image} alt="" className={cn('badge-sticker-image object-contain', size === 'sm' ? 'h-8 w-8' : 'h-14 w-14')} /> : badge ? <Award size={size === 'sm' ? 20 : 30} /> : <Target size={size === 'sm' ? 20 : 30} />}
+    {badge?.thumbnail_image ? <img src={badge.thumbnail_image} alt="" className={cn('badge-sticker-image object-contain', size === 'sm' ? 'h-8 w-8' : 'h-14 w-14')} /> : badge ? <Award size={size === 'sm' ? 20 : 30} /> : <GoalIconMark icon={icon} size={size === 'sm' ? 20 : 30} />}
   </motion.span>
 }
 
@@ -68,32 +68,19 @@ export function GoalProgress({ percent, label, thin = false }: { percent: number
  * It renders from the goal list's summary while the full goal loads, so opening a goal
  * shows its header at once; ``actions`` hold their place until they are ready.
  */
-/** The header's title and description as fields while the goal is being edited; each saves on its own. */
-export type HeaderEditing = {
-  // eslint-disable-next-line no-unused-vars
-  onRename: (title: string) => Promise<unknown>
-  // eslint-disable-next-line no-unused-vars
-  onDescribe: (description: string) => Promise<unknown>
-  focusTitle?: boolean
-}
-
-export function GoalHeaderCard({ goal, done, total, actions, pending = false, editing }: { goal: HeaderGoal; done: number; total: number; actions?: React.ReactNode; pending?: boolean; editing?: HeaderEditing }) {
+export function GoalHeaderCard({ goal, done, total, actions, pending = false }: { goal: HeaderGoal; done: number; total: number; actions?: React.ReactNode; pending?: boolean }) {
   const percent = total ? Math.round((done * 100) / total) : 0
   return <motion.section layoutId={goalMorphId(goal.goal_uuid)} transition={GOAL_MORPH} style={{ borderRadius: 24 }} aria-label={goal.title} aria-busy={pending || undefined}
     className="flex h-full flex-col bg-[var(--plan-deep)] p-5 text-[var(--plan-deep-ink)] shadow-[0_6px_0_var(--plan-deep-edge)]">
     <div className="flex items-start gap-4">
-      <GoalMark badge={goal.source_badge} layoutId={goalMarkId(goal.goal_uuid)} />
+      <GoalMark badge={goal.source_badge} icon={goal.icon} layoutId={goalMarkId(goal.goal_uuid)} />
       <Settle className="min-w-0 flex-1">
         <p className="text-xs font-extrabold uppercase tracking-wider opacity-80">{goalSource(goal, 'Your goal')}</p>
-        {editing
-          ? <h1 className="mt-1 text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl"><EditableText value={goal.title} label="Goal title" required autoFocus={editing.focusTitle} onSave={editing.onRename} /></h1>
-          : <h1 className="mt-1 text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">{goal.title}</h1>}
+        <h1 className="mt-1 text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">{goal.title}</h1>
       </Settle>
     </div>
     <Settle className="mt-4 flex flex-col gap-4">
-      {editing
-        ? <EditableText multiline value={goal.description || ''} label="Why this goal matters" placeholder="Why this goal matters to you" onSave={editing.onDescribe} className="text-sm opacity-90" />
-        : goal.description ? <p className="line-clamp-3 text-sm opacity-90">{goal.description}</p> : null}
+      {goal.description ? <p className="line-clamp-3 text-sm opacity-90">{goal.description}</p> : null}
       <div className="flex flex-wrap items-center gap-3">
         <GoalProgress percent={percent} label="Goal progress" />
         <span className="text-xs font-bold">{done} of {total} done</span>
@@ -125,7 +112,7 @@ function GoalTab({ goal, color, onChoose, onIntent }: { goal: GoalSummary; color
     aria-label={`${goal.title}, ${goal.status === 'draft' ? 'finish setting up' : `${percent}% complete`}${goal.coach_notes ? ', Coach has a note' : ''}`}
     className="relative flex w-[78%] shrink-0 snap-start items-center gap-3 bg-[var(--plan-deep)] px-3 py-2.5 text-left text-[var(--plan-deep-ink)] shadow-[0_4px_0_var(--plan-deep-edge)] hover:brightness-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 sm:w-[46%] md:w-auto">
     {goal.coach_notes ? <span data-testid="coach-note-dot" aria-hidden="true" className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-[var(--plan-deep-ink)]" /> : null}
-    <GoalMark badge={header.source_badge} size="sm" layoutId={goalMarkId(goal.goal_uuid)} />
+    <GoalMark badge={header.source_badge} icon={header.icon} size="sm" layoutId={goalMarkId(goal.goal_uuid)} />
     <Settle className="flex min-w-0 flex-1 flex-col gap-1">
       {source ? <span className="truncate text-[11px] font-extrabold uppercase tracking-wider opacity-80">{source}</span> : null}
       <span className="truncate text-sm font-extrabold leading-tight">{goal.title}</span>

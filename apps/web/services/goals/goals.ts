@@ -1,6 +1,6 @@
 import { getAPIUrl } from '@services/config/config'
 import { RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/requests'
-import type { EntryKind, Goal, GoalSummary, StepCompleter, StepOrder, StepStatus, StepTypeKey } from './types'
+import type { EntryKind, Goal, GoalIcon, GoalSummary, StepCompleter, StepOrder, StepStatus, StepTypeKey } from './types'
 
 const q = encodeURIComponent
 
@@ -48,7 +48,7 @@ export const goalsApi = {
   list: (token?: string, includeFinished = true) => request<GoalSummary[]>(goalsUrl(`?include_finished=${includeFinished}`), token),
   get: (goalUuid: string, token?: string) => request<Goal>(goalUrl(goalUuid), token),
   create: (data: { title: string; description?: string; org_id?: number | null; target_date?: string | null }, token?: string) => request<Goal>(goalsUrl(), token, 'POST', data),
-  update: (goalUuid: string, data: { title?: string; description?: string; target_date?: string | null; step_order?: StepOrder }, token?: string) => request<Goal>(goalUrl(goalUuid), token, 'PATCH', data),
+  update: (goalUuid: string, data: { title?: string; description?: string; target_date?: string | null; step_order?: StepOrder; icon?: GoalIcon | null }, token?: string) => request<Goal>(goalUrl(goalUuid), token, 'PATCH', data),
   respond: (goalUuid: string, accept: boolean, token?: string) => request<Goal>(goalUrl(goalUuid, '/respond'), token, 'POST', { accept }),
 
   addStage: (goalUuid: string, data: { title: string; description?: string; timing?: string; milestone?: string; position?: number }, token?: string) => request<Goal>(goalUrl(goalUuid, '/stages'), token, 'POST', data),

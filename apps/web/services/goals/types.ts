@@ -136,10 +136,14 @@ export interface Stage {
   steps: Step[]
 }
 
+/** The marks a learner can give their own goal (the API's GOAL_ICONS). */
+export type GoalIcon = 'target' | 'book' | 'briefcase' | 'graduation' | 'heart' | 'dumbbell' | 'palette' | 'music' | 'code' | 'leaf' | 'home' | 'rocket'
+
 export interface Goal {
   goal_uuid: string
   title: string
   description: string
+  icon?: GoalIcon | null
   ownership: GoalOwnership
   source: GoalSource
   status: GoalStatus
@@ -160,6 +164,7 @@ export interface Goal {
 export interface GoalSummary {
   goal_uuid: string
   title: string
+  icon?: GoalIcon | null
   ownership: GoalOwnership
   source: GoalSource
   status: GoalStatus

@@ -13,12 +13,8 @@ import ContentPageHeader from '@components/Objects/StyledElements/Headers/Conten
 import { Button } from '@components/ui/button'
 import { Reveal, Skeleton } from '@components/ui/skeleton'
 import GoalsHome from '@components/Goals/home/GoalsHome'
-import GoalPathEditor from '@components/Goals/edit/GoalPathEditor'
 import useGoalCoachSession from '@components/Goals/edit/useGoalCoachSession'
-import { suggestionCount, useGoalSuggestions } from '@components/Goals/edit/useGoalProposals'
-import EndSessionDialog from '@components/Hub/conversation/EndSessionDialog'
-import { unreviewedSuggestions } from '@components/Hub/conversation/editRunTimeline'
-import { useGoalMutation } from '@components/Goals/useGoalActions'
+import { GoalEditingProvider } from '@components/Goals/edit/GoalEditing'
 import { GoalCoachBar } from '@components/Goals/coach/CoachNotes'
 import { planVars } from '@components/Goals/planColors'
 import { getUriWithOrg } from '@services/config/config'
@@ -34,7 +30,6 @@ import useStartGoal, { launchPath } from './useStartGoal'
 
 const EMPTY: GoalSummary[] = []
 const homeKey = () => goalsUrl('/home')
-const canEdit = (goal: Goal) => ['edit_plan_details', 'edit_structure', 'edit_schedule'].some((capability) => can(goal, capability))
 const isGroup = (goal: GoalSummary) => goal.target_kind === 'group'
 const EASE_OUT = [0.22, 1, 0.36, 1] as const
 
@@ -59,12 +54,7 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
   const token: string | undefined = session?.data?.tokens?.access_token
   const viewerUserId = session?.data?.user?.id !== undefined ? Number(session.data.user.id) : undefined
   const [selectedUuid, setSelectedUuid] = React.useState(initialGoalUuid || '')
-  // Editing is a switch on the goal itself, kept in the URL (?edit=1) so a reload stays in it.
-  // ?edit=details also puts the cursor in the title (a goal just created).
-  const [editingGoal, setEditingGoal] = React.useState(() => Boolean(searchParams.get('edit')))
-  const [focusStage, setFocusStage] = React.useState('')
   const [selectedStepUuid, setSelectedStepUuid] = React.useState('')
-  const editDetails = searchParams.get('edit') === 'details'
 
   // Coach's "Start a goal" lands here; the learner sets the goal up in the launch flow.
   const { startGoal, busy: startingGoal } = useStartGoal(orgslug, token)
@@ -97,7 +87,6 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
     // A link can open a goal at one step (This week, Coach): /plans/{goal}?step={step}.
     const params = new URLSearchParams(window.location.search)
     setSelectedStepUuid(params.get('step') || '')
-    setEditingGoal(Boolean(params.get('edit')))
   }, [pathname])
 
   // Tell Coach what the learner is looking at: their goals, or one goal and the steps in view.
@@ -124,49 +113,28 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
     document.querySelectorAll('[data-step-shell]').forEach((node) => observer.observe(node))
     publish()
     return () => { observer.disconnect(); setSurface(null) }
-  }, [detail, stripGoals, selectedUuid, selectedStepUuid, pathname, setSurface, editingGoal])
+  }, [detail, stripGoals, selectedUuid, selectedStepUuid, pathname, setSurface])
 
   // A goal finished since the learner last looked greets them with its story, once.
   const storyDue = Boolean(detail && detail.goal_uuid === selectedUuid && viewerUserId !== undefined && detail.subject?.id === viewerUserId && home?.celebrations?.includes(detail.goal_uuid))
   React.useEffect(() => {
     if (storyDue) router.replace(getUriWithOrg(orgslug, `/plans/${encodeURIComponent(selectedUuid)}/story`))
   }, [storyDue, selectedUuid, orgslug, router])
-  const choose = (goal: GoalSummary | Goal, edit = false) => {
+  const choose = (goal: GoalSummary | Goal) => {
     const assignment = (goal as GoalSummary).assignment_uuid
     if ((goal as GoalSummary).target_kind === 'group' && assignment) { router.push(getUriWithOrg(orgslug, `/plans/groups/${assignment}`)); return }
     if (goal.status === 'draft') { router.push(getUriWithOrg(orgslug, launchPath(goal.goal_uuid))); return }
     setSelectedUuid(goal.goal_uuid)
-    setSelectedStepUuid(''); setEditingGoal(edit); setFocusStage('')
-    window.history.pushState({}, '', getUriWithOrg(orgslug, `/plans/${encodeURIComponent(goal.goal_uuid)}${edit ? '?edit=details' : ''}`))
+    setSelectedStepUuid('')
+    window.history.pushState({}, '', getUriWithOrg(orgslug, `/plans/${encodeURIComponent(goal.goal_uuid)}`))
   }
   const clear = () => {
     setSelectedUuid('')
-    setSelectedStepUuid(''); setEditingGoal(false)
+    setSelectedStepUuid('')
     window.history.pushState({}, '', getUriWithOrg(orgslug, '/plans'))
   }
-  const setEditing = (on: boolean, stageUuid = '') => {
-    setEditingGoal(on); setFocusStage(on ? stageUuid : '')
-    const next = new URLSearchParams(window.location.search)
-    if (on) next.set('edit', '1'); else next.delete('edit')
-    window.history.replaceState({}, '', `${window.location.pathname}${next.size ? `?${next}` : ''}`)
-  }
-  const { run: runGoal } = useGoalMutation(selectedUuid)
-  // Coach's session on the open goal edits the goal itself, so it keeps Edit on while it runs.
+  // Coach's session on the open goal: its suggestions show on the goal as they come.
   const coach = useGoalCoachSession({ goal_uuid: selectedUuid, title: detail?.title || '' }, token)
-  const { runs: waitingRuns } = useGoalSuggestions(selectedUuid, detail?.ownership === 'personal' && detail.goal_uuid === selectedUuid && can(detail, 'delete_plan') ? token : undefined)
-  const [confirmingEnd, setConfirmingEnd] = React.useState(false)
-  const sessionUuid = coach.session?.run_uuid
-  React.useEffect(() => {
-    if (sessionUuid) setEditing(true)
-  }, [sessionUuid])
-  const toggleEdit = (on: boolean) => {
-    if (!on && coach.session) { setConfirmingEnd(true); return }
-    setEditing(on)
-  }
-  const endBoth = async () => {
-    setConfirmingEnd(false)
-    try { await coach.end(); setEditing(false) } catch { /* the toast says what went wrong */ }
-  }
   // A draft opened by its link goes back to setting it up, once the goal is fresh: a copy cached
   // while the launch flow ran would otherwise bounce a goal that just went live.
   React.useEffect(() => {
@@ -180,7 +148,7 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
   }
 
   // Which view the body shows, and which way it moved to get there.
-  const viewKey = !selectedUuid ? 'overview' : `${editingGoal ? 'edit' : 'goal'}:${selectedUuid}`
+  const viewKey = !selectedUuid ? 'overview' : `goal:${selectedUuid}`
   const place = (key: string) => {
     if (key === 'overview') return -1
     const index = stripGoals.findIndex((goal) => goal.goal_uuid === key.split(':').slice(1).join(':'))
@@ -188,8 +156,7 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
   }
   const [motionState, setMotionState] = React.useState({ key: viewKey, dir: 1, still: true })
   if (motionState.key !== viewKey) {
-    const sameGoal = motionState.key.split(':').slice(1).join(':') === viewKey.split(':').slice(1).join(':') && viewKey !== 'overview'
-    setMotionState({ key: viewKey, dir: Math.sign(place(viewKey) - place(motionState.key)) || 1, still: Boolean(reduceMotion) || sameGoal })
+    setMotionState({ key: viewKey, dir: Math.sign(place(viewKey) - place(motionState.key)) || 1, still: Boolean(reduceMotion) })
   }
 
   if (!token && session?.status !== 'loading') return <SignedOut orgslug={orgslug} />
@@ -198,12 +165,11 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
   const ready = Boolean(detail) && detail!.goal_uuid === selectedUuid
   const goal = ready ? detail! : null
   const isSubject = Boolean(goal && viewerUserId !== undefined && goal.subject?.id === viewerUserId)
-  const editing = Boolean(goal && editingGoal && canEdit(goal))
   // Until the full goal arrives, its header renders from the goal list's summary.
   const summary = stripGoals.find((item) => item.goal_uuid === selectedUuid) || finished.find((item) => item.goal_uuid === selectedUuid)
   const header: HeaderGoal | null = summary
-    ? { ...summaryHeader(summary), ...(goal ? { title: goal.title, description: goal.description, step_order: goal.step_order } : {}) }
-    : goal ? { goal_uuid: goal.goal_uuid, title: goal.title, description: goal.description, step_order: goal.step_order, is_subject: isSubject, subject: goal.subject } : null
+    ? { ...summaryHeader(summary), ...(goal ? { title: goal.title, description: goal.description, step_order: goal.step_order, icon: goal.icon } : {}) }
+    : goal ? { goal_uuid: goal.goal_uuid, title: goal.title, description: goal.description, step_order: goal.step_order, icon: goal.icon, is_subject: isSubject, subject: goal.subject } : null
   const badge = header?.source_badge || null
   const celebrating = Boolean(goal && isSubject && home?.celebrations?.includes(goal.goal_uuid))
   const color = getGoalColor(selectedUuid)
@@ -220,17 +186,9 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
         </div>
       </GoalTabs> : null
   } else if (selectedUuid && !celebrating && !detailError && header) {
-    const details = editing && goal && can(goal, 'edit_plan_details')
-      ? {
-        onRename: (title: string) => runGoal(() => goalsApi.update(goal.goal_uuid, { title }, token), undefined, true),
-        onDescribe: (description: string) => runGoal(() => goalsApi.update(goal.goal_uuid, { description }, token), undefined, true),
-        focusTitle: editDetails,
-      }
-      : undefined
     const card = <div data-plan="" style={planVars(color)} className="h-full">
-      <GoalHeaderCard goal={header} done={goal ? goal.progress.done : summary?.progress.done || 0} total={goal ? goal.progress.total : summary?.progress.total || 0} pending={!goal} editing={details}
-        actions={goal ? <GoalHeaderActions orgslug={orgslug} goal={goal} badge={badge} token={token} onBack={clear} editing={editing} onToggleEdit={canEdit(goal) ? () => toggleEdit(!editing) : undefined}
-          coachWorking={Boolean(coach.session)} waiting={editing ? 0 : suggestionCount(waitingRuns)}
+      <GoalHeaderCard goal={header} done={goal ? goal.progress.done : summary?.progress.done || 0} total={goal ? goal.progress.total : summary?.progress.total || 0} pending={!goal}
+        actions={goal ? <GoalHeaderActions orgslug={orgslug} goal={goal} badge={badge} token={token} onBack={clear} coachWorking={Boolean(coach.session)}
           onPlanWithCoach={coach.available && goal.ownership === 'personal' && can(goal, 'delete_plan') && can(goal, 'edit_structure') && !coach.session ? () => void coach.start() : undefined} /> : null} />
     </div>
     strip = <GoalCarousel goals={stripGoals} activeUuid={selectedUuid} getGoalColor={getGoalColor} choose={choose} onIntent={prefetch}>{card}</GoalCarousel>
@@ -245,22 +203,20 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
     // Opening a goal: the header is already up; its steps fade in where the placeholder was.
     let body: React.ReactNode = null
     if (!goal) { /* the placeholder shows until it arrives */ }
-    else if (editing) body = <div data-plan="" style={planVars(color)}><GoalPathEditor goal={goal} token={token} color={color} focusStage={focusStage} setColor={isSubject ? (next: string) => setGoalColor(goal.goal_uuid, next) : undefined} /></div>
     else if (celebrating) { /* the story opens; the placeholder shows until it does */ }
-    else body = <GoalPath goal={goal} color={color} badge={badge} selectedUuid={selectedStepUuid} onSelect={setSelectedStepUuid} onEdit={canEdit(goal) ? () => setEditing(true) : undefined}
-      onPlanStage={canEdit(goal) ? (stageUuid) => setEditing(true, stageUuid) : undefined}
+    else body = <GoalPath goal={goal} color={color} badge={badge} selectedUuid={selectedStepUuid} onSelect={setSelectedStepUuid}
+      own={goal.ownership === 'personal' && can(goal, 'delete_plan')}
       viewer={{ orgslug, token, viewerUserId, canWork: isSubject && can(goal, 'update_progress'), staff: !isSubject && can(goal, 'complete_restricted_objectives') }} />
     content = <Reveal ready={ready} fallback={<GoalPathSkeleton />}>{body}</Reveal>
   }
 
   return <GeneralWrapperStyled>
-    <EndSessionDialog open={confirmingEnd} unreviewed={unreviewedSuggestions(coach.session)} title="End Coach’s session too?" endLabel="End both" keepLabel="Keep editing"
-      onEnd={() => void endBoth()} onKeep={() => setConfirmingEnd(false)} />
     <main className="pb-16">
       {selectedUuid
         ? <ContentPageHeader orgslug={orgslug} backLabel="Overview" onBack={clear} compactBottomMargin />
         : <h1 className="pb-4 pt-2 text-3xl font-extrabold tracking-tight">Overview</h1>}
       <LayoutGroup id="plans">
+        <GoalEditingProvider goal={goal} token={token} color={color} setColor={isSubject && goal ? (next: string) => setGoalColor(goal.goal_uuid, next) : undefined}>
         {strip}
         {goal && goal.ownership === 'personal' && goal.status === 'active' && viewerUserId !== undefined && goal.owner?.id === viewerUserId && !celebrating ? <GoalCoachBar goalUuid={goal.goal_uuid} token={token} /> : null}
         <div className="relative mt-8 overflow-x-clip">
@@ -270,6 +226,7 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
             </motion.div>
           </AnimatePresence>
         </div>
+        </GoalEditingProvider>
       </LayoutGroup>
     </main>
   </GeneralWrapperStyled>

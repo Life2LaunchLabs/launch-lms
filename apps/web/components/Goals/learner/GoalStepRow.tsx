@@ -1,7 +1,6 @@
 'use client'
 
 import React from 'react'
-import { Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@components/ui/button'
 import { Skeleton } from '@components/ui/skeleton'
@@ -25,10 +24,14 @@ type RowProps = {
   onGoTo: (stepUuid: string) => void
   onOpenActivity: () => void
   onAsk?: () => void
+  /** The step's own menu (edit, move, delete), for whoever can edit the goal. */
+  menu?: React.ReactNode
+  /** Lines under the row, such as Coach's suggested changes to it. */
+  after?: React.ReactNode
 }
 
 /** A step on the goal's path: its node, title and status; selected, its card opens in place. */
-export function GoalStepRow({ goal, step, viewer, selected, last, onSelect, onGoTo, onOpenActivity, onAsk }: RowProps) {
+export function GoalStepRow({ goal, step, viewer, selected, last, onSelect, onGoTo, onOpenActivity, onAsk, menu, after }: RowProps) {
   const definition = stepDefinition(step.type)
   const RowResult = definition.RowResult
   const status = statusLine(step)
@@ -40,15 +43,18 @@ export function GoalStepRow({ goal, step, viewer, selected, last, onSelect, onGo
       <PathNode state={step.state} fraction={step.fraction} icon={definition.icon} selected={selected} />
     </button>
     <div className={cn('min-w-0 flex-1', selected ? 'rounded-2xl border-2 bg-card p-4 shadow-[0_4px_0_hsl(var(--edge))]' : 'pt-2', selected && (locked ? 'border-border' : 'border-[var(--plan-face)]'))}>
-      <button type="button" onClick={onSelect} tabIndex={-1} className="flex w-full min-w-0 flex-col items-start gap-0.5 text-left">
-        <span className={cn('max-w-full font-bold leading-snug', selected ? 'text-lg' : 'truncate text-base', (done || locked) && !selected && 'text-muted-foreground')}>{step.title}</span>
-        <span className="text-xs font-semibold text-muted-foreground">{status}</span>
-      </button>
+      <div className="flex items-start gap-1">
+        <button type="button" onClick={onSelect} tabIndex={-1} className="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left">
+          <span className={cn('max-w-full font-bold leading-snug', selected ? 'text-lg' : 'truncate text-base', (done || locked) && !selected && 'text-muted-foreground')}>{step.title}</span>
+          <span className="text-xs font-semibold text-muted-foreground">{status}</span>
+        </button>
+        {menu ? <span className={cn('shrink-0', selected ? '-mr-2 -mt-1' : '-mt-1')}>{menu}</span> : null}
+      </div>
       {!selected && RowResult && step.result ? <div className="mt-2"><RowResult step={step as never} /></div> : null}
       {selected ? <div className="mt-3 flex flex-col gap-3">
-        {locked ? <LockedBody step={step} onGoTo={onGoTo} /> : <StepCard goal={goal} step={step} viewer={viewer} onOpenActivity={onOpenActivity} />}
-        {onAsk && !done && step.state !== 'waiting' ? <Button type="button" variant="surface" className="self-start" onClick={onAsk}><Sparkles size={15} aria-hidden="true" />Ask Coach</Button> : null}
+        {locked ? <LockedBody step={step} onGoTo={onGoTo} /> : <StepCard goal={goal} step={step} viewer={viewer} onOpenActivity={onOpenActivity} onAsk={onAsk && !done && step.state !== 'waiting' ? onAsk : undefined} />}
       </div> : null}
+      {after}
     </div>
   </li>
 }
@@ -64,8 +70,8 @@ function LockedBody({ step, onGoTo }: { step: Step; onGoTo: (stepUuid: string) =
 }
 
 /** The selected step's card body from the registry, worked on in place. */
-function StepCard({ goal, step, viewer, onOpenActivity }: { goal: Goal; step: Step; viewer: PathViewer; onOpenActivity: () => void }) {
-  const actions = useStepActions(goal, step, viewer.token, onOpenActivity)
+function StepCard({ goal, step, viewer, onOpenActivity, onAsk }: { goal: Goal; step: Step; viewer: PathViewer; onOpenActivity: () => void; onAsk?: () => void }) {
+  const actions = useStepActions(goal, step, viewer.token, onOpenActivity, onAsk)
   const CardBody = stepDefinition(step.type).CardBody as React.ComponentType<StepCardProps>
   return <CardBody goal={goal} step={step} actions={actions} canWork={viewer.canWork} staff={viewer.staff} orgslug={viewer.orgslug} token={viewer.token} viewerUserId={viewer.viewerUserId} />
 }

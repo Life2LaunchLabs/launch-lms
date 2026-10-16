@@ -135,7 +135,7 @@ def goal_dict(db: Session, goal: Goal, user_id: int, granted: set[str] | None = 
     return {
         "goal_uuid": goal.goal_uuid, "title": goal.title, "description": goal.description,
         "ownership": _value(goal.ownership), "source": _value(goal.source), "status": _value(goal.status),
-        "step_order": _value(goal.step_order), "org_id": goal.org_id, "start_date": goal.start_date,
+        "step_order": _value(goal.step_order), "org_id": goal.org_id, "start_date": goal.start_date, "icon": (goal.details or {}).get("icon"),
         "target_date": goal.target_date, "finished_at": goal.finished_at, "finish": goal.finish or {},
         "owner": _user_summary(db, goal.owner_user_id), "subject": _user_summary(db, goal.subject_user_id),
         "capabilities": sorted(granted), "progress": {"done": done, "total": len(steps)}, "source_badge": badge_summary(db, goal.badge_id),
@@ -229,7 +229,7 @@ def list_my_goals(db: Session, current_user: PublicUser, include_finished: bool 
         subject = _user_summary(db, goal.subject_user_id)
         result.append({
             "target_kind": "individual", "goal_uuid": goal.goal_uuid, "title": goal.title, "ownership": _value(goal.ownership),
-            "source": _value(goal.source), "status": _value(goal.status), "priority": goal.priority, "target_date": goal.target_date,
+            "source": _value(goal.source), "status": _value(goal.status), "priority": goal.priority, "target_date": goal.target_date, "icon": (goal.details or {}).get("icon"),
             "progress": {"done": done, "total": total}, "progress_percent": _percent(done, total),
             "source_badge": badge_summary(db, goal.badge_id), "organization": _org_ref(db, goal.org_id),
             "subject": {"id": subject["id"], "name": subject["name"]} if subject else None,
@@ -273,6 +273,11 @@ def update_goal(db: Session, current_user: PublicUser, goal_uuid: str, payload: 
     goal = access.goal_or_404(db, goal_uuid)
     changes = payload.model_dump(exclude_unset=True)
     access.require(db, goal, current_user.id, "edit_structure" if "step_order" in changes else "edit_plan_details")
+    if "icon" in changes:
+        # The mark lives with the goal's other details: null puts back the default.
+        icon = changes.pop("icon")
+        details = {key: value for key, value in (goal.details or {}).items() if key != "icon"}
+        goal.details = {**details, "icon": icon} if icon else details
     for key, value in changes.items():
         setattr(goal, key, value.strip() if isinstance(value, str) and key == "title" else value)
     goal.update_date = _now()

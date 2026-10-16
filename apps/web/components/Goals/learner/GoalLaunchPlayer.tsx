@@ -41,7 +41,7 @@ export default function GoalLaunchPlayer({ orgslug, goalUuid, activity, initialR
   // was still a draft: put the live goal in the cache first, then open it.
   const finish = async () => {
     try { await mutate(goalUrl(goalUuid), goalsApi.get(goalUuid, accessToken), { revalidate: false }) } catch { /* the page fetches it */ }
-    leave(`/plans/${encodeURIComponent(goalUuid)}?edit=1`)
+    leave(`/plans/${encodeURIComponent(goalUuid)}`)
   }
   const sources = React.useMemo(() => ({ goalUuid, token: accessToken }), [goalUuid, accessToken])
 
