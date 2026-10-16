@@ -150,3 +150,142 @@ def test_the_runner_checks_in_on_due_goals_and_finishing_a_stage_brings_the_next
         db.refresh(goal)
         assert goal.next_check_in_at <= datetime.utcnow()
         assert [row.goal_uuid for row in check_ins.due_goals(db, datetime.utcnow())] == [goal_uuid]
+
+
+def test_a_routine_gone_quiet_for_two_weeks_gets_one_note_until_it_is_logged_again():
+    from src.db.goals import StepEntry, StepEntryCreate
+    from src.services.goals.types.routine import week_start_of
+
+    with _session() as db:
+        goal_uuid = _goal(db, "Summer job")
+        view = structure.add_step(db, _user(LEARNER), goal_uuid, StepCreate(type="routine", title="Send applications", config={"target": 3}))
+        step_uuid = next(step["step_uuid"] for step in [s for stage in view["stages"] for s in stage["steps"]] + view["unstaged_steps"] if step["type"] == "routine")
+        row = db.exec(select(GoalStep).where(GoalStep.step_uuid == step_uuid)).one()
+        row.creation_date = (datetime.now() - timedelta(weeks=5)).isoformat()
+        db.add(row)
+        this_week = week_start_of(date.today())
+        # Logged three weeks ago; nothing in the two weeks since.
+        goals.add_entry(db, _user(LEARNER), goal_uuid, step_uuid, StepEntryCreate(kind="log", title="Cafe"))
+        entry = db.exec(select(StepEntry).where(StepEntry.step_id == row.id)).one()
+        entry.period_start = this_week - timedelta(weeks=3)
+        db.add(entry)
+        db.commit()
+
+        goal = _row(db, goal_uuid)
+        notes = check_ins.check_in(db, goal, datetime.utcnow())
+        quiet = [note for note in notes if note.signal_key.startswith("routine_missed:")]
+        assert [note.signal_key for note in quiet] == [f"routine_missed:{step_uuid}:{(this_week - timedelta(weeks=2)).isoformat()}"]
+        assert not any(note.signal_key.startswith("stalled:") for note in notes)
+        assert [action["kind"] for action in quiet[0].actions] == ["step", "ask", "dismiss"]
+        # The next check-in in the same lapse adds nothing new.
+        assert not [note for note in check_ins.check_in(db, goal, datetime.utcnow()) if note.signal_key.startswith("routine_missed:")]
+
+        # Logging again this week clears it.
+        goals.add_entry(db, _user(LEARNER), goal_uuid, step_uuid, StepEntryCreate(kind="log", title="Library"))
+        check_ins.check_in(db, goal, datetime.utcnow())
+        db.refresh(quiet[0])
+        assert quiet[0].status == "expired"
+
+
+def test_a_new_routine_is_not_called_quiet():
+    with _session() as db:
+        goal_uuid = _goal(db, "Run more")
+        structure.add_step(db, _user(LEARNER), goal_uuid, StepCreate(type="routine", title="Run", config={"target": 2, "entry_kind": "count"}))
+        assert not [item for item in check_ins.signals(db, _row(db, goal_uuid), datetime.utcnow()) if item["kind"] == "routine_missed"]
+
+
+def _kinds(db, goal_uuid, now=None):
+    return [item["kind"] for item in check_ins.signals(db, _row(db, goal_uuid), now or datetime.utcnow())]
+
+
+def test_the_check_in_looks_over_dates_milestones_and_the_why():
+    with _session() as db:
+        goal_uuid = _goal(db, "Summer job")
+        goal = _row(db, goal_uuid)
+        goal.creation_date = (datetime.now() - timedelta(days=10)).isoformat()
+        goal.target_date = date.today() + timedelta(days=10)
+        db.add(goal)
+        stage = goals.get_goal(db, _user(LEARNER), goal_uuid)["stages"][0]["stage_uuid"]
+        late = _step(db, goal_uuid, stage, "Update my CV")
+        _step(db, goal_uuid, stage, "Ask for a reference")
+        row = db.exec(select(GoalStep).where(GoalStep.step_uuid == late)).one()
+        row.due_date = date.today() - timedelta(days=2)
+        db.add(row)
+        db.commit()
+
+        # Most useful first: a slipped date, the goal's own date coming up, then the gentler asks.
+        assert _kinds(db, goal_uuid) == ["overdue", "deadline", "no_milestone", "no_why"]
+        overdue = check_ins.signals(db, goal, datetime.utcnow())[0]
+        assert overdue["key"] == f"overdue:{late}:{row.due_date.isoformat()}" and overdue["step_uuid"] == late
+
+        # Naming the milestone and the why answers those; a new date clears the slip.
+        structure.update_stage(db, _user(LEARNER), goal_uuid, stage, StageUpdate(milestone="An offer in hand"))
+        goal.description = "Saving for a car"
+        row.due_date = date.today() + timedelta(days=5)
+        db.add(goal)
+        db.add(row)
+        db.commit()
+        assert _kinds(db, goal_uuid) == ["deadline"]
+
+        # Weeks without finishing anything reads as a goal gone quiet.
+        goal.creation_date = (datetime.now() - timedelta(days=30)).isoformat()
+        goal.target_date = None
+        db.add(goal)
+        db.commit()
+        assert _kinds(db, goal_uuid) == ["quiet_goal"]
+
+
+def test_routine_follow_ups_that_come_due_get_a_note():
+    from src.db.goals import StepEntry, StepEntryCreate
+
+    with _session() as db:
+        goal_uuid = _goal(db, "Summer job")
+        view = structure.add_step(db, _user(LEARNER), goal_uuid, StepCreate(type="routine", title="Send applications", config={"target": 3, "follow_up": {"after_days": 7}}))
+        step_uuid = next(step["step_uuid"] for step in [s for stage in view["stages"] for s in stage["steps"]] + view["unstaged_steps"] if step["type"] == "routine")
+        goals.add_entry(db, _user(LEARNER), goal_uuid, step_uuid, StepEntryCreate(kind="log", title="Cafe"))
+        assert "follow_ups" not in _kinds(db, goal_uuid)
+        entry = db.exec(select(StepEntry)).one()
+        entry.follow_up_due = date.today() - timedelta(days=1)
+        db.add(entry)
+        db.commit()
+        follow_up = next(item for item in check_ins.signals(db, _row(db, goal_uuid), datetime.utcnow()) if item["kind"] == "follow_ups")
+        assert follow_up["key"] == f"follow_ups:{step_uuid}:{entry.follow_up_due.isoformat()}"
+        assert [action["kind"] for action in follow_up["actions"]] == ["step", "dismiss"]
+
+
+class Reviewer:
+    """A model that, asked to look a goal over, points at one gap."""
+
+    def __init__(self):
+        self.prompts = []
+
+    async def respond(self, messages, safety_identifier):
+        import json
+
+        payload = json.loads(messages[-1].content)
+        self.prompts.append(payload)
+        notes = [{"key": "review", "title": "Who will you ask for references?", "body": "No step covers references yet.", "prompt": "Help me plan who to ask for references."}] if "review" in payload else []
+        return AdvisorResult(text=json.dumps({"notes": notes}), model="review-model")
+
+
+def test_when_the_rules_find_nothing_the_model_looks_the_goal_over_once_a_week():
+    with _session() as db:
+        goal_uuid = _goal(db, "Summer job")
+        stage = goals.get_goal(db, _user(LEARNER), goal_uuid)["stages"][0]["stage_uuid"]
+        _step(db, goal_uuid, stage, "Update my CV")
+        goal = _row(db, goal_uuid)
+        reviewer = Reviewer()
+        notes = check_ins.check_in(db, goal, datetime.utcnow(), provider=reviewer)
+        assert [(note.kind, note.title, note.model) for note in notes] == [("review", "Who will you ask for references?", "review-model")]
+        assert notes[0].actions == [
+            {"id": "a1", "kind": "ask", "label": "Talk it through", "prompt": "Help me plan who to ask for references."},
+            {"id": "a2", "kind": "dismiss", "label": "Not now"},
+        ]
+        outline = reviewer.prompts[0]["review"]
+        assert outline["title"] == "Summer job" and outline["stages"][0]["steps"][0]["title"] == "Update my CV"
+
+        # Again this week: no second look, and the note stays open.
+        assert check_ins.check_in(db, goal, datetime.utcnow(), provider=reviewer) == []
+        assert len(reviewer.prompts) == 1
+        db.refresh(notes[0])
+        assert notes[0].status == "open"
