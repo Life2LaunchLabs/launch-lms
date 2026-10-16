@@ -1,7 +1,7 @@
 """drop the plan and program tables, and the columns that pointed at them
 
 Revision ID: g2c3d4e5f6a7
-Revises: g1b2c3d4e5f6
+Revises: g3d4e5f6a7b8
 
 Plans moved to goals in g1b2c3d4e5f6 and have been read-only since. This drops
 the legacy tables (programs, their phases, objectives, assignments,
@@ -28,7 +28,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = 'g2c3d4e5f6a7'
-down_revision: Union[str, None] = 'g1b2c3d4e5f6'
+down_revision: Union[str, None] = 'g3d4e5f6a7b8'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
