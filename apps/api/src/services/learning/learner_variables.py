@@ -82,15 +82,24 @@ def _extract_learning_variables(page: LearningPage, result: dict) -> list[dict]:
                 )
 
         if kind in {"multiple_choice", "categorized_multi_select"}:
-            option_bindings = bindings.get("options") or {}
-            if not isinstance(option_bindings, dict):
-                continue
             selected_options = [
                 str(option_id)
                 for option_id in sub_result.get("option_ids")
                 or sub_result.get("selected")
                 or []
             ]
+            # Options from a source (no fixed ids to bind) write the chosen id itself; none chosen clears it.
+            for binding in _normalize_bindings(bindings.get("selected")):
+                variables.append(
+                    {
+                        "target": str(binding.get("target") or ""),
+                        "value": selected_options[0] if len(selected_options) == 1 else selected_options or "",
+                        "source": {"page_uuid": page.page_uuid, "block_id": block_id, "option_ids": selected_options},
+                    }
+                )
+            option_bindings = bindings.get("options") or {}
+            if not isinstance(option_bindings, dict):
+                continue
             if bindings.get("options_value_mode") == "selected_text_list":
                 options = (question.get("content") or {}).get("options") or []
                 option_labels = {

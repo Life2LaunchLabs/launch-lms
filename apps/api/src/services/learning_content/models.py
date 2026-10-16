@@ -177,6 +177,15 @@ class TextInputField(BaseModel):
     height: float | None = None
 
 
+class OptionsSource(BaseModel):
+    """Where a choice question's options come from when they aren't typed in."""
+
+    model_config = STRICT
+
+    kind: Literal["goal_templates"] = Field(description="`goal_templates`: plan templates the learner can start from, ranked by the goal's wording, with a search for more. The run must belong to a goal.")
+    limit: int = Field(default=3, ge=1, le=6, description="How many options show before \"See more\".")
+
+
 class QuestionContent(BaseModel):
     """Choice kinds use ``options`` (+ ``categories`` for categorized
     selection); ``text_input`` uses ``inputs``; ``image_upload`` only a label."""
@@ -185,6 +194,7 @@ class QuestionContent(BaseModel):
 
     label: str | None = None
     options: list[ChoiceOption] | None = None
+    options_source: OptionsSource | None = Field(default=None, description="Options come from this source instead of `options`; bind the choice with `variable_bindings.selected`.")
     categories: list[dict[str, Any]] | None = None
     inputs: list[TextInputField] | None = None
 

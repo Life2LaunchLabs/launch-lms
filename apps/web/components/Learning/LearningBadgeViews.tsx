@@ -9,7 +9,7 @@ import { ArrowLeft, ArrowRight, Copy, Loader2, Pause, Play, Upload } from 'lucid
 import YouTube from 'react-youtube'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import {
-  findQuestionBlock,
+  findQuestionBlock, questionAllowsNoAnswer,
   getBlockCompletion,
   getBlockScoring,
   getQuestionAnswer,
@@ -28,6 +28,7 @@ import { ProjectCardView, type Project } from '@components/Pages/Portfolio/Portf
 import { normalizeMediaUrl } from '@services/media/media'
 import { CategorizedMultiSelect } from '@components/Portfolio/CategorizedMultiSelect'
 import ChoiceOptions from './player/ChoiceOptions'
+import SourcedChoiceOptions from '@components/Learning/player/OptionSources'
 import { EntranceMotion } from './player/design'
 
 export function LearningPageContent({ page, answer, setAnswer, setUnlocked, pages, run, onNavigatePage, onButton, responseMediaOwner }: any) {
@@ -53,7 +54,7 @@ function StandardPageContent({ page, answer, setAnswer, setUnlocked, run, pages,
   const unlockedByBlockRef = React.useRef<Record<string, boolean>>({})
 
   React.useEffect(() => {
-    unlockedByBlockRef.current = Object.fromEntries(blocks.filter((block: any) => block.type === 'question' && block.kind === 'image_upload' && getBlockCompletion(block)?.required === false).map((block: any) => [block.id, true]))
+    unlockedByBlockRef.current = Object.fromEntries(blocks.filter((block: any) => block.type === 'question' && questionAllowsNoAnswer(block)).map((block: any) => [block.id, true]))
     setUnlocked?.(questionIds.every((id: string) => unlockedByBlockRef.current[id]))
   }, [blocks, page?.page_uuid, questionIds, setUnlocked])
 
@@ -262,8 +263,8 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, responseMe
     if (page.page_type === 'multiple_choice' || page.page_type === 'categorized_multi_select') {
       const completion = page.completion || {}
       const selectedIds = Array.isArray(answer?.option_ids) ? answer.option_ids : answer?.option_id ? [answer.option_id] : []
-      const minSelections = Math.max(1, Number(completion.min_selections ?? 1))
-      const maxSelections = Math.max(minSelections, Number(completion.max_selections ?? 1))
+      const minSelections = Math.max(page.content?.options_source ? 0 : 1, Number(completion.min_selections ?? 1))
+      const maxSelections = Math.max(minSelections, 1, Number(completion.max_selections ?? 1))
       setUnlocked(selectedIds.length >= minSelections && selectedIds.length <= maxSelections)
       return
     }
@@ -296,13 +297,9 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, responseMe
     }))
     const visibleOptions = options.length ? options : [{ id: 'a', text: '' }, { id: 'b', text: '' }]
     const completion = page.completion || {}
-    const minSelections = Math.max(1, Number(completion.min_selections ?? 1))
-    const maxSelections = Math.max(minSelections, Number(completion.max_selections ?? 1))
-    const selectedIds = Array.isArray(answer?.option_ids)
-      ? answer.option_ids
-      : answer?.option_id
-        ? [answer.option_id]
-        : []
+    const minSelections = Math.max(page.content?.options_source ? 0 : 1, Number(completion.min_selections ?? 1))
+    const maxSelections = Math.max(minSelections, 1, Number(completion.max_selections ?? 1))
+    const selectedIds = Array.isArray(answer?.option_ids) ? answer.option_ids : answer?.option_id ? [answer.option_id] : []
     const toggleOption = (id: string) => {
       let next = selectedIds.includes(id)
         ? selectedIds.filter((selectedId: string) => selectedId !== id)
@@ -321,7 +318,7 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, responseMe
             <h1 className="text-3xl font-bold text-foreground">{page.content?.prompt || 'Question prompt'}</h1>
           </section>
         )}
-        <ChoiceOptions options={visibleOptions} selected={selectedIds} multiple={maxSelections > 1} style={page.choice_style} onToggle={toggleOption} />
+        {page.content?.options_source ? <SourcedChoiceOptions source={page.content.options_source} selected={selectedIds} style={page.choice_style} onToggle={toggleOption} /> : <ChoiceOptions options={visibleOptions} selected={selectedIds} multiple={maxSelections > 1} style={page.choice_style} onToggle={toggleOption} />}
       </div>
     )
   }
@@ -436,7 +433,7 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, responseMe
                   <input
                     type={htmlInputType}
                     autoComplete={validation === 'name' ? 'name' : validation === 'email' ? 'email' : validation === 'phone' ? 'tel' : validation === 'url' ? 'url' : undefined}
-                    aria-invalid={Boolean(validationError)}
+                    aria-invalid={Boolean(validationError)} aria-label={input.label || undefined}
                     value={value}
                     onChange={(event) => updateTextInput(input.id, event.target.value)}
                     placeholder={input.placeholder}
@@ -450,7 +447,7 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, responseMe
                     onChange={(event) => updateTextInput(input.id, event.target.value)}
                     placeholder={input.placeholder}
                     style={{ height }}
-                    aria-invalid={Boolean(validationError)}
+                    aria-invalid={Boolean(validationError)} aria-label={input.label || undefined}
                     className={`w-full resize-none rounded-xl border bg-card p-4 text-foreground outline-none shadow-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-[var(--org-primary-color)] ${validationError ? 'border-red-400' : 'border-border focus:border-[var(--org-primary-color)]'}`}
                   />
                 )}

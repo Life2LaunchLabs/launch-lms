@@ -119,7 +119,7 @@ function EmptyHome({ orgslug, onCreate, creating }: { orgslug: string; onCreate:
     <h2 className="text-2xl font-extrabold">Start with something that matters</h2>
     <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">Set your own goal, or pick a badge to earn and its goal shows up here.</p>
     <div className="mt-6 flex flex-wrap justify-center gap-3">
-      <Button type="button" variant="brand" onClick={onCreate} disabled={creating}><Plus size={16} />{creating ? 'Creating…' : 'Create your own'}</Button>
+      <Button type="button" variant="brand" onClick={onCreate} disabled={creating}><Plus size={16} />{creating ? 'Starting…' : 'Create your own'}</Button>
       <Button type="button" variant="surface" asChild><Link href={getUriWithOrg(orgslug, '/discover')}><Compass size={16} />Find one in Discover</Link></Button>
     </div>
   </div>

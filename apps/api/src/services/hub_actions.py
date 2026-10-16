@@ -46,7 +46,7 @@ class NavigationDestination:
 NAVIGATION_DESTINATIONS = {
     item.key: item for item in (
         NavigationDestination("plans", "View plans", "/plans", "Review, continue, or organize personal and assigned plans."),
-        NavigationDestination("create_plan", "Start a goal", "/plans?hub_action=create-plan", "Open a new goal the learner sets up themselves. Coach never fills it in or creates it."),
+        NavigationDestination("create_plan", "Start a goal", "/plans?hub_action=create-plan", "Open the launch flow, where the learner sets up a new goal themselves. Coach never fills it in or creates it."),
         NavigationDestination("plan_goal", "Plan it with Coach", "/plans", "Start a focused session with Coach on the goal the learner has open, so Coach can suggest stages, steps and changes on the goal page."),
         NavigationDestination("portfolio", "Open portfolio", "/portfolio", "Review the learner's portfolio and its readiness."),
         NavigationDestination("add_timeline", "Add to Timeline", "/portfolio/timeline?experience=work_career", "Record a meaningful job, learning, volunteer, or life experience in the portfolio Timeline."),

@@ -3,6 +3,7 @@
 import React from 'react'
 import toast from 'react-hot-toast'
 import { footerButtons, isQuestionResponseRequired, LearningPageContent } from '@components/Learning/LearningBadgeViews'
+import { allowsNoAnswer } from './OptionSources'
 import { LearningActivitySurface } from './ActivitySurface'
 import useAutoAdvance from './useAutoAdvance'
 
@@ -98,11 +99,16 @@ export function ActivityPlayer({
     if (position > 0) setIndex(position)
   }, [run, activity])
 
+  // A new page starts from its saved answer, if any. The run arriving later (or refreshing)
+  // with nothing saved for this page keeps what the learner has typed so far.
+  const shownPage = React.useRef<string | undefined>(undefined)
   React.useEffect(() => {
-    setUnlocked(Boolean(page) && !isQuestionResponseRequired(page))
     const prior = (run?.attempts || [])
       .filter((item: any) => item.page_uuid === page?.page_uuid && !baseline?.has(item.attempt_uuid))
       .at(-1)
+    if (shownPage.current === page?.page_uuid && !prior) return
+    shownPage.current = page?.page_uuid
+    setUnlocked(Boolean(page) && (!isQuestionResponseRequired(page) || allowsNoAnswer(page)))
     setAnswer(prior?.answer || {})
   }, [page, baseline, run?.attempts])
 
@@ -139,7 +145,9 @@ export function ActivityPlayer({
       // (a retake or review), step to the page after this one on the route.
       const nextPages = routedPages(activity, nextRun)
       const position = nextPages.findIndex((item: any) => item.page_uuid === page.page_uuid)
-      const nextPageUuid = nextNavigation?.current_page_uuid || nextPages[position + 1]?.page_uuid
+      // A finished run that reached its last page is done, even with optional pages skipped on the way.
+      const done = nextRun?.status === 'completed' && position === nextPages.length - 1
+      const nextPageUuid = done ? undefined : nextNavigation?.current_page_uuid || nextPages[position + 1]?.page_uuid
       const destination = nextPageUuid ? nextPages.findIndex((item: any) => item.page_uuid === nextPageUuid) : -1
       if (destination >= 0) {
         setIndex(destination)

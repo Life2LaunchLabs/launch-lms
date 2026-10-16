@@ -66,6 +66,17 @@ export function getBlockCompletion(block: LearningQuestionBlock): any {
   return block?.completion && typeof block.completion === 'object' ? block.completion : {}
 }
 
+/** A question the learner can leave blank: an optional upload, optional text, or a sourced choice with no minimum. */
+export function questionAllowsNoAnswer(block: any): boolean {
+  const completion = getBlockCompletion(block)
+  if (block?.kind === 'image_upload') return completion.required === false
+  if (block?.kind === 'text_input') {
+    const inputs = block.content?.inputs || []
+    return inputs.length > 0 && inputs.every((input: any) => completion.inputs?.[input.id]?.required === false && !Number(completion.inputs?.[input.id]?.min_words))
+  }
+  return block?.kind === 'multiple_choice' && Boolean(block.content?.options_source) && Number(completion.min_selections ?? 1) === 0
+}
+
 export function getQuestionAnswer(answer: any, blockId: string): any {
   return answer?.questions?.[blockId] || {}
 }
