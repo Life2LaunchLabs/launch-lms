@@ -6,9 +6,10 @@ from fastapi import HTTPException
 
 from src.services.goals.types.base import StepState, StepType
 from src.services.goals.types.linked import Activity, Badge, Decision, Portfolio
+from src.services.goals.types.routine import Routine
 from src.services.goals.types.simple import Event, Task, Upload, Write
 
-TYPES: dict[str, StepType] = {step_type.key: step_type for step_type in (Task(), Upload(), Write(), Activity(), Event(), Badge(), Portfolio(), Decision())}
+TYPES: dict[str, StepType] = {step_type.key: step_type for step_type in (Task(), Upload(), Write(), Activity(), Event(), Badge(), Portfolio(), Decision(), Routine())}
 
 
 def step_type(key: str) -> StepType:

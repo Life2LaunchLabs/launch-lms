@@ -26,7 +26,7 @@ STEP_CHANGES_TOOL = "propose_step_changes"
 STAGE_CHANGES_TOOL = "propose_stage_changes"
 GOAL_DETAILS_TOOL = "propose_goal_details"
 # Steps Coach may write. Activity, badge and portfolio steps point at things Coach can't create.
-COACH_STEP_TYPES = tuple(key for key in ("task", "write", "upload", "event", "decision") if key in TYPES)
+COACH_STEP_TYPES = tuple(key for key in ("task", "write", "upload", "event", "decision", "routine") if key in TYPES)
 # Runs begun before the goal cutover carry the plan scope names.
 SCOPE_ALIASES = {"new_plan": "new_goal", "plan": "goal"}
 MAX_STAGES, MAX_STEPS = 4, 5
@@ -55,6 +55,8 @@ _SETTINGS = _schema({
     "multiple": {"type": "boolean", "description": "decision: more than one option can be chosen."},
     "event_date": _DATE,
     "place": {"type": "string", "description": "event: where it happens; empty otherwise."},
+    "per_week": {"type": "integer", "description": "routine: how many times a week, or 0 otherwise."},
+    "follow_up_days": {"type": "integer", "description": "routine: days after each one to follow up (applications, messages), or 0 for none."},
 })
 
 
@@ -79,7 +81,7 @@ def goal_edit_tools(provider: str, scope_kind: str | None) -> list[dict]:
             GOAL_STEPS_TOOL,
             f"Prepare one to {MAX_STEPS} new typed steps, shown as suggested lines on the goal page. Nothing is saved; the learner adds or drops each step. "
             "Pick the type that fits: task (do it, optionally list items), write (a written answer), upload (hand in files), "
-            "event (go somewhere on a date), decision (choose between options). Build on the answers and results in the page context.",
+            "event (go somewhere on a date), decision (choose between options), routine (something done a number of times every week). Build on the answers and results in the page context.",
             _schema({"steps": {"type": "array", "minItems": 1, "maxItems": MAX_STEPS, "items": _schema({
                 "type": {"type": "string", "enum": list(COACH_STEP_TYPES)},
                 "title": {"type": "string", "description": "A concise, action-oriented step."},
@@ -174,6 +176,9 @@ def step_config(kind: str, title: str, settings: dict) -> dict:
         options = [str(option).strip()[:300] for option in settings.get("options") or [] if str(option).strip()]
         config = {"question": prompt[:1000], "options": [{"key": f"option_{index + 1}", "label": label} for index, label in enumerate(options[:30])],
                   "multiple": bool(settings.get("multiple"))}
+    elif kind == "routine":
+        follow_up_days = max(0, min(90, int(settings.get("follow_up_days") or 0)))
+        config = {"target": max(1, min(50, int(settings.get("per_week") or 3))), **({"follow_up": {"after_days": follow_up_days}} if follow_up_days else {})}
     else:
         config = {}
     return step_type(kind).validate_config(config)

@@ -8,7 +8,7 @@ activity log, credits or withdraws requirements, and checks whether the goal
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from uuid import uuid4
 
 from fastapi import HTTPException
@@ -21,6 +21,7 @@ from src.db.goals import (
     Goal,
     GoalOwnership,
     GoalSource,
+    GoalStage,
     GoalStatus,
     GoalStep,
     StepEntry,
@@ -222,6 +223,29 @@ def _auto(db: Session, step: GoalStep, target: StepStatus) -> None:
     if target == StepStatus.COMPLETED and step.review_required:
         target = StepStatus.SUBMITTED
     set_status(db, goal, step, target, actor_user_id=goal.subject_user_id, method=CompletionMethod.AUTO)
+
+
+def end_routines(db: Session, goal: Goal, today: date | None = None) -> None:
+    """End the goal's running routines whose end date (their own or their stage's) has passed."""
+    from src.services.goals.types.routine import ends_on
+
+    if _value(goal.status) != GoalStatus.ACTIVE.value:
+        return
+    today = today or date.today()
+    routines = list(db.exec(select(GoalStep).where(GoalStep.goal_id == goal.id, GoalStep.type == "routine")).all())
+    for step in routines:
+        stage = db.get(GoalStage, step.stage_id) if step.stage_id else None
+        last_day = ends_on(step, stage)
+        if last_day and last_day < today:
+            _auto(db, step, StepStatus.COMPLETED)
+
+
+def on_logged(db: Session, step: GoalStep) -> None:
+    """A routine that has reached its total ends."""
+    from src.services.goals.types.routine import reached_total
+
+    if step.type == "routine" and reached_total(step, entries(db, step)):
+        _auto(db, step, StepStatus.COMPLETED)
 
 
 def on_run_changed(db: Session, run: LearningRun) -> None:

@@ -69,6 +69,11 @@ class Entry:
         return self.status == StepStatus.SUBMITTED.value
 
     @property
+    def routine(self) -> bool:
+        """Routines are always in the week while they run, so they are never picked or paced."""
+        return self.step.type == "routine"
+
+    @property
     def startable(self) -> bool:
         return not self.done and not self.waiting and not self.lock["locked"]
 
@@ -84,10 +89,12 @@ def my_goals(db: Session, user_id: int) -> list[Goal]:
 
 def goal_entries(db: Session, goals: list[Goal], today: date) -> dict[int, list[Entry]]:
     """Every step of every goal, in goal order, with status, lock and due date."""
+    from src.services.goals.completion import end_routines
     from src.services.goals.goals import _structure
 
     result: dict[int, list[Entry]] = {}
     for goal in goals:
+        end_routines(db, goal, today)
         stages, steps, progress, entries = _structure(db, goal)
         locks = availability(goal, stages, steps, {key: _value(row.status) for key, row in progress.items()}, today)
         stage_by_id = {stage.id: stage for stage in stages}
@@ -160,7 +167,7 @@ def open_candidates(entries_by_goal: dict[int, list[Entry]], goals: list[Goal], 
     return [
         [
             entry for entry in entries_by_goal[int(goal.id)]  # type: ignore[arg-type]
-            if (entry.due is None or entry.due > after) and entry.uuid not in exclude and not entry.done
+            if (entry.due is None or entry.due > after) and entry.uuid not in exclude and not entry.done and not entry.routine
             and (entry.startable if startable_only else not entry.waiting)
         ]
         for goal in goals
@@ -195,11 +202,11 @@ def fill_week(
         # A new week starts with whatever was picked last week and is still unfinished.
         picks = [
             uuid for uuid in previous.objective_uuids or []
-            if uuid in by_uuid and not by_uuid[uuid].done and (by_uuid[uuid].due is None or by_uuid[uuid].due > week_end)  # type: ignore[operator]
+            if uuid in by_uuid and not by_uuid[uuid].done and not by_uuid[uuid].routine and (by_uuid[uuid].due is None or by_uuid[uuid].due > week_end)  # type: ignore[operator]
         ]
     dated_this_week = [
         entry for entries in entries_by_goal.values() for entry in entries
-        if entry.goal.goal_uuid in known and entry.due is not None and entry.due <= week_end
+        if entry.goal.goal_uuid in known and entry.due is not None and entry.due <= week_end and not entry.routine
         and (not entry.done or (entry.completed_on and entry.completed_on >= week_start))
     ]
     if not picks and not dated_this_week and not extra and not focus.objective_uuids:

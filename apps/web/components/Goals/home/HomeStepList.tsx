@@ -32,8 +32,8 @@ function itemStep(item: HomeItem): Step {
   }
 }
 
-export const itemKey = (item: HomeItem) => `${item.placement}:${item.step_uuid}`
-export const isDone = (item: HomeItem) => item.state === 'done' || item.state === 'waiting'
+export const itemKey = (item: HomeItem) => `${item.placement}:${item.step_uuid}${item.line ? `:${item.line}` : ''}`
+export const isDone = (item: HomeItem) => item.week_done ?? (item.state === 'done' || item.state === 'waiting')
 
 type ListProps = {
   items: HomeItem[]
@@ -67,24 +67,26 @@ function HomeStepRow({ item, orgslug, token, color, selected, last, onSelect, on
   const step = full || itemStep(item)
   const definition = stepDefinition(step.type)
   const RowResult = definition.RowResult
-  const status = statusLine(step)
+  const followUp = item.line === 'follow_up'
+  const title = followUp ? item.title : step.title
+  const status = followUp ? `From ${step.title}` : statusLine(step)
   const locked = step.state === 'locked'
   const done = step.state === 'done'
   const openActivity = () => router.push(getUriWithOrg(orgslug, `/plans/${encodeURIComponent(item.goal.goal_uuid)}/steps/${encodeURIComponent(item.step_uuid)}/activity`))
   const ask = hub ? () => hub.open({ prompt: `Help me with “${step.title}” in my goal “${item.goal.title}”.` }) : undefined
 
-  return <li id={`step-${item.step_uuid}`} data-step-shell={item.step_uuid} data-plan="" style={planVars(color)} className="relative flex items-start gap-4 pb-4 scroll-mt-24">
+  return <li id={followUp ? undefined : `step-${item.step_uuid}`} data-step-shell={item.step_uuid} data-plan="" style={planVars(color)} className="relative flex items-start gap-4 pb-4 scroll-mt-24">
     {!last ? <span aria-hidden="true" className={cn('absolute left-[28px] top-12 bottom-0 w-[3px] -translate-x-1/2 rounded-full', done ? 'bg-[var(--plan-face)]/60' : 'bg-border')} /> : null}
-    <button type="button" onClick={onSelect} aria-label={`${step.title}, ${status}`} aria-expanded={selected} className="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
+    <button type="button" onClick={onSelect} aria-label={`${title}, ${status}`} aria-expanded={selected} className="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
       <PathNode state={step.state} fraction={step.fraction} icon={definition.icon} selected={selected} />
     </button>
     <div className={cn('min-w-0 flex-1', selected ? 'rounded-2xl border-2 bg-card p-4 shadow-[0_4px_0_hsl(var(--edge))]' : 'pt-1', selected && (locked ? 'border-border' : 'border-[var(--plan-face)]'))}>
       <button type="button" onClick={onSelect} tabIndex={-1} className="flex w-full min-w-0 flex-col items-start gap-0.5 text-left">
         <span className="inline-flex max-w-full items-center gap-1.5 truncate text-xs font-extrabold text-[var(--plan-accent)]">{item.goal.title}</span>
-        <span className={cn('max-w-full font-bold leading-snug', selected ? 'text-lg' : 'truncate text-base', (done || locked) && !selected && 'text-muted-foreground')}>{step.title}</span>
+        <span className={cn('max-w-full font-bold leading-snug', selected ? 'text-lg' : 'truncate text-base', (done || locked) && !selected && 'text-muted-foreground')}>{title}</span>
         <span className="text-xs font-semibold text-muted-foreground">{status}</span>
       </button>
-      {!selected && RowResult && step.result ? <div className="mt-2"><RowResult step={step as never} /></div> : null}
+      {!selected && !followUp && RowResult && step.result ? <div className="mt-2"><RowResult step={step as never} /></div> : null}
       {selected ? <div className="mt-3 flex flex-col gap-3">
         {locked ? <LockedBody step={step} onGoTo={onGoTo} />
           : goal && full ? <StepCard goal={goal} step={full} orgslug={orgslug} token={token} openActivity={openActivity} />
