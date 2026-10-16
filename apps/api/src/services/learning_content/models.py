@@ -63,6 +63,9 @@ class BlockDesign(BaseModel):
     shape: Literal["rounded", "circle"] | None = None
     variant: Literal["primary", "secondary"] | None = None
     group: str | None = Field(default=None, description="Buttons sharing a group render side by side.")
+    entrance: Literal["rise", "fade", "none"] | None = Field(default=None, description="How the block enters; blocks rise in, staggered in page order, by default.")
+    placement: Literal["inline", "footer"] | None = Field(default=None, description="Continue buttons only: `footer` draws the button beside Continue as a secondary action.")
+    style: Literal["list", "pills", "scale", "cards"] | None = Field(default=None, description="Choice questions only: how options are drawn. Cards show each option's `icon` and `description`.")
 
 
 class BlockSystem(BaseModel):
@@ -157,6 +160,8 @@ class ChoiceOption(BaseModel):
     id: str = Field(min_length=1)
     text: str = ""
     category: str | None = None
+    icon: str | None = Field(default=None, description="An emoji or short mark shown on pills, scale steps and cards.")
+    description: str | None = Field(default=None, description="A line under the option on cards.")
 
 
 class TextInputField(BaseModel):

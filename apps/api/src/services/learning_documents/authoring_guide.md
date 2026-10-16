@@ -93,6 +93,25 @@ the flow can route on which one was pressed (see below):
 A `revisit` button jumps back to a page that comes earlier on the route:
 `{ "type": "button", "content": { "label": "Back to the intro", "action": "revisit", "revisit_page_uuid": "new-intro" } }`.
 
+## Design
+
+Every activity plays full screen; these make it feel alive. Use them with
+intent: one scene or celebration where it lands, not on every page.
+
+- Page background: `"design": { "background": { "color": "#0f172a", "gradient_to": "#1e3a8a", "scene": "starfield", "intensity": "medium" } }`.
+  Scenes: `starfield`, `aurora`, `drift`, `confetti` (or omit). Text turns light on dark colours.
+- `"design": { "celebrate": true }` bursts confetti when the page opens (a finish line, a milestone).
+- `"design": { "auto_advance_ms": 6000 }` moves the page on by itself, story style:
+  learners tap to skip or go back and hold to pause; a page with questions waits for its answers.
+- Activity defaults in `settings.design`: `"background"` (same shape, a page's own replaces it),
+  `"progress": "segments"` (one segment per page; timed pages use segments anyway), and
+  `"exit": { "label": "Save for later", "confirm": "Leave now?", "to_page_uuid": "p9" }`
+  (no label shows a plain X; `to_page_uuid` jumps ahead to that page if it is still on the route, else the activity closes).
+- Block design: `"entrance": "rise" | "fade" | "none"` (blocks rise in, staggered, by default);
+  a continue button with `"placement": "footer"` sits beside Continue at the bottom;
+  a choice question's `"style": "list" | "pills" | "scale" | "cards"` (options may carry
+  `"icon"` (an emoji) and, for cards, `"description"`; a scale labels its two ends with the first and last option).
+
 ## Branching flow
 
 Without `settings.flow` pages run in array order. A flow is an acyclic graph:

@@ -74,6 +74,8 @@ def main():
         output.write_text(json.dumps({
             "org_id": org.id, "org_slug": org.slug, "org_name": org.name, "goal_uuid": goal_uuid, "pending_uuid": steps[0].step_uuid,
             "activity_uuid": steps[1].step_uuid, "framework_uuid": framework["framework_uuid"], "assignment_uuid": assignment["assignment_uuid"],
+            # An activity the design preview test can stand on; previews never change it.
+            "preview_activity_uuid": template["document"]["stages"][0]["steps"][2]["config"]["activity_uuid"],
         }, indent=2) + "\n")
 
 
