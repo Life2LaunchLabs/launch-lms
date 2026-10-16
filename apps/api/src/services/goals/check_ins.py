@@ -1,8 +1,9 @@
 """Coach's check-ins on personal goals: rules decide when, the model words what.
 
-A check-in reads plain signals from the goal (a step not started for weeks, a routine gone quiet, an empty stage
-coming up, a stage just finished, a goal with no steps yet), then one model call turns them
-into at most three notes in Coach's voice. A check-in never changes the goal; each note only
+A check-in reads plain signals from the goal (check_in_signals: a stage coming up empty, a date
+slipping, a routine gone quiet, a goal with no why, and more), then one model call turns them
+into at most three notes in Coach's voice. When the rules find nothing new, the model looks the
+whole goal over and may add one note on something that seems missing. A check-in never changes the goal; each note only
 offers things the learner can choose to do. Without a model, notes use fixed wording.
 
 Check-ins run on the goal's cadence (weekly, or monthly when the learner steers) and right
@@ -21,21 +22,14 @@ from uuid import uuid4
 from sqlalchemy import or_, text
 from sqlmodel import Session, select
 
-from src.db.goals import CoachNote, CoachNoteStatus, Goal, GoalOwnership, GoalStage, GoalStatus, StepEntry, StepStatus
+from src.db.goals import CoachNote, CoachNoteStatus, Goal, GoalOwnership, GoalStatus
+from src.services.goals.check_in_signals import FIRST_CHECK_IN, signals  # noqa: F401 (FIRST_CHECK_IN is used by goal creation and the dev route)
 from src.services.goals.home_week import goal_entries
-from src.services.goals.types.routine import count_in_week, week_start_of
 
 logger = logging.getLogger(__name__)
 
 MAX_NOTES = 3
-STALLED_DAYS = 21
-# A running routine with no logs for this many whole weeks in a row.
-ROUTINE_MISSED_WEEKS = 2
-STAGE_SOON_DAYS = 14
-MILESTONE_RECENT_DAYS = 14
 NOTE_DAYS = 14
-# A new goal gets a moment to be filled in before Coach asks about its first steps.
-FIRST_CHECK_IN = timedelta(hours=1)
 CADENCE = {"weekly": timedelta(days=7), "monthly": timedelta(days=30)}
 BATCH = 20
 RUNNER_LOCK = 0x434F4348
@@ -47,135 +41,18 @@ Write one note per signal, in the order given. Each note has a title (at most 60
 and a body (one or two short sentences, at most 200 characters), in a warm, plain voice,
 speaking to the learner as "you". Notice; never nag, guilt or pressure. Never say you changed
 the goal or will do something for them; the learner decides. Return only JSON:
-{"notes": [{"key": "<signal key>", "title": "...", "body": "..."}]}"""
+{"notes": [{"key": "<signal key>", "title": "...", "body": "..."}]}
+
+When the input has "review" instead of signals, read the goal's outline and look for the one
+thing most worth a second look: a step it will clearly need that isn't there, a stage that
+looks too big to start, a date that doesn't fit, a step that is really several. Skip anything
+in "recent_notes". If something stands out, return one note keyed "review" with a title, a
+body, and a "prompt": what the learner could say to Coach to work on it, in their voice, at
+most 200 characters. If nothing stands out, return {"notes": []}."""
 
 
 def _value(item) -> str:
     return str(getattr(item, "value", item))
-
-
-def _created(value: str) -> datetime | None:
-    try:
-        return datetime.fromisoformat(value).replace(tzinfo=None) if value else None
-    except ValueError:
-        return None
-
-
-def _dismiss(label: str = "Not now") -> dict:
-    return {"kind": "dismiss", "label": label}
-
-
-def signals(db: Session, goal: Goal, now: datetime) -> list[dict]:
-    """What a check-in notices on a goal, most useful first. Each signal has a stable key."""
-    today = now.date()
-    entries = goal_entries(db, [goal], today)[int(goal.id)]  # type: ignore[arg-type]
-    title = goal.title
-    found: list[dict] = []
-    if not entries:
-        created = _created(goal.creation_date)
-        if created is None or now - created >= FIRST_CHECK_IN:
-            found.append({
-                "kind": "first_steps", "key": "first_steps", "facts": "The goal has no steps yet.",
-                "title": "Ready for a first step?", "body": f"“{title}” doesn’t have any steps yet. A small first one makes it real.",
-                "actions": [{"kind": "session", "label": "Plan it with me", "prompt": f"Help me pick a few small first steps for “{title}”."}, _dismiss()],
-            })
-        return found
-
-    by_stage: dict[int, list] = {}
-    for entry in entries:
-        if entry.stage is not None:
-            by_stage.setdefault(int(entry.stage.id), []).append(entry)  # type: ignore[arg-type]
-    stages = db.exec(select(GoalStage).where(GoalStage.goal_id == goal.id).order_by(GoalStage.position)).all()  # type: ignore[arg-type]
-
-    # A stage that was just finished: every step done, the last one recently.
-    for stage in stages:
-        steps = by_stage.get(int(stage.id), [])  # type: ignore[arg-type]
-        finished_on = [entry.completed_on for entry in steps if entry.completed_on]
-        if all(entry.done for entry in steps) and finished_on and (today - max(finished_on)).days <= MILESTONE_RECENT_DAYS:
-            reached = stage.milestone or stage.title
-            found.append({
-                "kind": "milestone", "key": f"milestone:{stage.stage_uuid}", "facts": f"The learner just finished the stage “{stage.title}”" + (f", reaching the milestone “{stage.milestone}”." if stage.milestone else "."),
-                "title": f"You reached “{reached}”"[:80], "body": "That stage is done. Worth a moment to notice what got you here.",
-                "actions": [{"kind": "ask", "label": "Look back with Coach", "prompt": f"I just finished “{stage.title}” on my goal “{title}”. Ask me a few questions about how it went and what’s next."}, _dismiss("Thanks")],
-            })
-
-    # The next stage with nothing in it, when it is close: its start date is near, or everything before it is done.
-    earlier_done = True
-    for stage in stages:
-        steps = by_stage.get(int(stage.id), [])  # type: ignore[arg-type]
-        if steps:
-            earlier_done = earlier_done and all(entry.done for entry in steps)
-            continue
-        soon = stage.start_date is not None and stage.start_date <= today + timedelta(days=STAGE_SOON_DAYS)
-        if soon or earlier_done:
-            found.append({
-                "kind": "plan_stage", "key": f"plan_stage:{stage.stage_uuid}", "facts": f"The stage “{stage.title}” has no steps yet, and it is coming up" + (f" (it starts {stage.start_date:%b} {stage.start_date.day})." if stage.start_date else "."),
-                "title": f"Plan “{stage.title}”?"[:80], "body": "This stage is coming up and doesn’t have steps yet.",
-                "actions": [{"kind": "session", "label": "Plan it with me", "prompt": f"Help me plan the stage “{stage.title}” of my goal “{title}”."}, _dismiss()],
-            })
-        break
-
-    # A running routine that has gone quiet: no logs in the last whole weeks. Its key names the
-    # first quiet week, so one lapse is one note, and a later lapse can get its own.
-    for entry in entries:
-        if not entry.routine or entry.done:
-            continue
-        missed = _missed_weeks(db, entry.step, today)
-        if missed is None:
-            continue
-        first_quiet, weeks = missed
-        found.append({
-            "kind": "routine_missed", "key": f"routine_missed:{entry.uuid}:{first_quiet.isoformat()}", "step_uuid": entry.uuid,
-            "facts": f"The routine “{entry.step.title}” has had nothing logged for {weeks} weeks in a row.",
-            "title": f"How’s “{entry.step.title}” going?"[:80], "body": "Nothing’s been logged for a couple of weeks. It might need a smaller target, or a fresh start.",
-            "actions": [
-                {"kind": "step", "label": "Open the routine", "step_uuid": entry.uuid},
-                {"kind": "ask", "label": "Talk it through", "prompt": f"My routine “{entry.step.title}” on my goal “{title}” has gone quiet for a couple of weeks. Ask me a few questions about what changed and whether to adjust it."},
-                _dismiss(),
-            ],
-        })
-
-    # The step waiting longest without being started (a routine that never started is the quiet routine above).
-    stalled = [
-        entry for entry in entries
-        if not entry.routine and entry.startable and entry.status == StepStatus.NOT_STARTED.value
-        and (_created(entry.step.creation_date) or now) <= now - timedelta(days=STALLED_DAYS)
-    ]
-    if stalled:
-        entry = min(stalled, key=lambda item: item.step.creation_date)
-        weeks = (now - (_created(entry.step.creation_date) or now)).days // 7
-        found.append({
-            "kind": "stalled", "key": f"stalled:{entry.uuid}", "step_uuid": entry.uuid,
-            "facts": f"The step “{entry.step.title}” has been waiting {weeks} weeks without being started.",
-            "title": f"Still up for “{entry.step.title}”?"[:80], "body": "It’s been waiting a while. Sometimes a step just needs to be smaller.",
-            "actions": [
-                {"kind": "step", "label": "Open the step", "step_uuid": entry.uuid},
-                {"kind": "ask", "label": "Talk it through", "prompt": f"I haven’t started “{entry.step.title}” on my goal “{title}”. Ask me a few questions to figure out what’s in the way."},
-                _dismiss(),
-            ],
-        })
-    return found
-
-
-def _missed_weeks(db: Session, step, today) -> tuple | None:
-    """The first of the whole weeks in a row with nothing logged, ending last week, and how many;
-    None unless there are at least ROUTINE_MISSED_WEEKS. Weeks before the routine existed don't count."""
-    created = _created(step.creation_date)
-    if created is None:
-        return None
-    logs = list(db.exec(select(StepEntry).where(StepEntry.step_id == step.id)).all())
-    first_week = week_start_of(created.date())
-    if count_in_week(logs, week_start_of(today)):
-        return None
-    week = week_start_of(today) - timedelta(weeks=1)
-    quiet = 0
-    # A week the routine started part-way through counts only if the routine existed all week.
-    while week > first_week and count_in_week(logs, week) == 0:
-        quiet += 1
-        week -= timedelta(weeks=1)
-    if quiet < ROUTINE_MISSED_WEEKS:
-        return None
-    return week + timedelta(weeks=1), quiet
 
 
 async def _model_wording(provider, goal: Goal, fresh: list[dict], safety_identifier: str) -> tuple[dict[str, dict], str]:
@@ -195,6 +72,48 @@ async def _model_wording(provider, goal: Goal, fresh: list[dict], safety_identif
         if title:
             worded[note["key"]] = {"title": title, "body": body}
     return worded, result.model or ""
+
+
+def _outline(db: Session, goal: Goal, now: datetime) -> dict:
+    """The goal as the reviewer sees it: its why and dates, and each stage's steps."""
+    stages: dict[str, dict] = {}
+    loose: list[dict] = []
+    for entry in goal_entries(db, [goal], now.date())[int(goal.id)]:  # type: ignore[arg-type]
+        step = {"title": entry.step.title, "type": entry.step.type, "status": entry.status, **({"due": entry.due.isoformat()} if entry.due else {})}
+        if entry.stage is None:
+            loose.append(step)
+            continue
+        stage = stages.setdefault(entry.stage.stage_uuid, {
+            "title": entry.stage.title, "milestone": entry.stage.milestone or "",
+            **({"starts": entry.stage.start_date.isoformat()} if entry.stage.start_date else {}),
+            **({"due": entry.stage.due_date.isoformat()} if entry.stage.due_date else {}), "steps": [],
+        })
+        stage["steps"].append(step)
+    return {
+        "title": goal.title, "why": (goal.description or "")[:600], "today": now.date().isoformat(),
+        **({"target_date": goal.target_date.isoformat()} if goal.target_date else {}),
+        "stages": list(stages.values()), "unstaged_steps": loose,
+    }
+
+
+async def _model_review(provider, db: Session, goal: Goal, key: str, existing: list[CoachNote], now: datetime, safety_identifier: str) -> tuple[list[dict], str]:
+    """At most one note on whatever seems missing from the goal; none when nothing stands out."""
+    from src.services.hub_advisor import AdvisorMessage, _json_object
+
+    recent = [note.title for note in existing if note.created_at and note.created_at >= now - timedelta(days=60)]
+    prompt = json.dumps({"review": _outline(db, goal, now), "recent_notes": recent[-10:]}, ensure_ascii=False)
+    result = await provider.respond([AdvisorMessage(role="user", content=prompt)], safety_identifier)
+    for note in _json_object(result.text).get("notes") or []:
+        if not isinstance(note, dict) or note.get("key") != "review":
+            continue
+        title, body = " ".join(str(note.get("title") or "").split())[:80], " ".join(str(note.get("body") or "").split())[:280]
+        ask = " ".join(str(note.get("prompt") or "").split())[:300]
+        if title and ask:
+            return [{
+                "kind": "review", "key": key, "title": title, "body": body,
+                "actions": [{"kind": "ask", "label": "Talk it through", "prompt": ask}, {"kind": "dismiss", "label": "Not now"}],
+            }], result.model or ""
+    return [], ""
 
 
 def note_provider(db: Session):
@@ -227,7 +146,7 @@ def check_in(db: Session, goal: Goal, now: datetime | None = None, provider=None
     seen = {note.signal_key for note in existing}
     for note in existing:
         # An open note goes once its signal is gone (the step was started, the stage planned) or it ran out.
-        gone = note.signal_key not in keys and not note.signal_key.startswith("milestone:")
+        gone = note.signal_key not in keys and not note.signal_key.startswith(("milestone:", "review:"))
         if _value(note.status) == CoachNoteStatus.OPEN.value and (gone or (note.expires_at and note.expires_at <= now)):
             note.status = CoachNoteStatus.EXPIRED
             db.add(note)
@@ -239,6 +158,15 @@ def check_in(db: Session, goal: Goal, now: datetime | None = None, provider=None
             worded, model = asyncio.run(_model_wording(provider, goal, fresh, advisor_safety_identifier(int(goal.owner_user_id))))
         except Exception:
             logger.warning("Coach note wording failed; using fixed wording", exc_info=True)
+    if not fresh and open_count < MAX_NOTES and provider is not None:
+        # Nothing new from the rules: the model looks the whole goal over, at most once a week.
+        key = f"review:{(now.date() - timedelta(days=now.weekday())).isoformat()}"
+        if key not in seen:
+            try:
+                fresh, model = asyncio.run(_model_review(provider, db, goal, key, existing, now, advisor_safety_identifier(int(goal.owner_user_id))))
+                worded = {item["key"]: item for item in fresh}
+            except Exception:
+                logger.warning("Coach goal review failed", exc_info=True)
     created = []
     for item in fresh:
         words = worded.get(item["key"]) or {"title": item["title"], "body": item["body"]}
