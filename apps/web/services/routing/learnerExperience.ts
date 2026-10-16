@@ -2,7 +2,7 @@
 export function isFocusedActivityPath(pathname: string | null): boolean {
   const path = (pathname || '').replace(/^\/orgs\/[^/]+(?=\/|$)/, '')
   return /^\/plans\/[^/]+\/steps\/[^/]+\/activity\/?$/.test(path)
-    || /^\/plans\/[^/]+\/launch\/?$/.test(path)
+    || /^\/plans\/[^/]+\/(launch|story)\/?$/.test(path)
     || /^\/activity\/[^/]+(?:\/|$)/.test(path)
     || /^\/badges\/[^/]+\/chapter\/[^/]+(?:\/|$)/.test(path)
 }

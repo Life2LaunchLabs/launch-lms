@@ -12,6 +12,7 @@ from src.routers import (
     goal_admin,
     goal_coach_notes,
     goal_launch,
+    goal_story,
     goal_home,
     goal_requirements,
     goal_sharing,
@@ -106,7 +107,7 @@ v1_router.include_router(
     dependencies=[Depends(require_plan_for_usergroups("full", "User Groups"))]
 )
 # Fixed paths under /goals (home, invitations) register before /goals/{goal_uuid}.
-for module in (goal_home, goal_sharing, goal_coach_notes, goal_launch):
+for module in (goal_home, goal_sharing, goal_coach_notes, goal_launch, goal_story):
     v1_router.include_router(module.router, prefix="/goals", tags=["goals"], dependencies=[Depends(get_non_api_token_user)])
 for module in (goal_admin, goal_requirements):
     v1_router.include_router(module.router, prefix="/goal-admin", tags=["goals"], dependencies=[Depends(get_non_api_token_user)])

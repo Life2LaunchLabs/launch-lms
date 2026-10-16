@@ -29,6 +29,7 @@ import { normalizeMediaUrl } from '@services/media/media'
 import { CategorizedMultiSelect } from '@components/Portfolio/CategorizedMultiSelect'
 import ChoiceOptions from './player/ChoiceOptions'
 import SourcedChoiceOptions from '@components/Learning/player/OptionSources'
+import StoryBlock, { STORY_BLOCKS } from '@components/Learning/player/StoryBlocks'
 import { EntranceMotion } from './player/design'
 
 export function LearningPageContent({ page, answer, setAnswer, setUnlocked, pages, run, onNavigatePage, onButton, responseMediaOwner }: any) {
@@ -110,14 +111,11 @@ export function buildQuestionVirtualPage(page: any, block: any) {
 
 function StandardBlockView({ block, page, answer, setAnswer, setUnlocked, responseMediaOwner, run, pages, onNavigatePage, onButton }: any) {
   const blockStyle = getStandardBlockStyle(block)
+  if (STORY_BLOCKS.has(block.type)) return <StoryBlock block={block} run={run} style={blockStyle} />
 
   if (block.type === 'text') {
     const nodes = resolveDisplayNodes(getTextBlockNodes(block as LearningTextBlock), run)
-    return (
-      <section className="learning-info-stack-section" style={blockStyle}>
-        <InfoTextBlock block={nodes} blockId={block.id} />
-      </section>
-    )
+    return <section className="learning-info-stack-section" style={blockStyle}><InfoTextBlock block={nodes} blockId={block.id} /></section>
   }
 
   if (block.type === 'image') {

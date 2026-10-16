@@ -3,7 +3,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import useSWR, { mutate, preload, useSWRConfig } from 'swr'
+import useSWR, { preload, useSWRConfig } from 'swr'
 import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from 'motion/react'
 import { Compass, Plus } from 'lucide-react'
 import { useHub } from '@components/Hub/HubContext'
@@ -22,11 +22,10 @@ import { useGoalMutation } from '@components/Goals/useGoalActions'
 import { GoalCoachBar } from '@components/Goals/coach/CoachNotes'
 import { planVars } from '@components/Goals/planColors'
 import { getUriWithOrg } from '@services/config/config'
-import { goalsApi, goalsUrl, goalUrl, isGoalsKey } from '@services/goals/goals'
+import { goalsApi, goalsUrl, goalUrl } from '@services/goals/goals'
 import { can, goalSteps, type Goal, type GoalSummary } from '@services/goals/types'
 import { swrFetcher } from '@services/utils/ts/requests'
 import GoalPath from './GoalPath'
-import GoalComplete from './GoalComplete'
 import GoalHeaderActions from './GoalHeaderActions'
 import { GoalCarousel, GoalHeaderCard, GoalTabs, summaryHeader, type HeaderGoal } from './GoalHeader'
 import { GoalPathSkeleton } from './GoalStepRow'
@@ -127,7 +126,11 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
     return () => { observer.disconnect(); setSurface(null) }
   }, [detail, stripGoals, selectedUuid, selectedStepUuid, pathname, setSurface, editingGoal])
 
-  const refresh = async () => { await mutate((key: unknown) => isGoalsKey(key)) }
+  // A goal finished since the learner last looked greets them with its story, once.
+  const storyDue = Boolean(detail && detail.goal_uuid === selectedUuid && viewerUserId !== undefined && detail.subject?.id === viewerUserId && home?.celebrations?.includes(detail.goal_uuid))
+  React.useEffect(() => {
+    if (storyDue) router.replace(getUriWithOrg(orgslug, `/plans/${encodeURIComponent(selectedUuid)}/story`))
+  }, [storyDue, selectedUuid, orgslug, router])
   const choose = (goal: GoalSummary | Goal, edit = false) => {
     const assignment = (goal as GoalSummary).assignment_uuid
     if ((goal as GoalSummary).target_kind === 'group' && assignment) { router.push(getUriWithOrg(orgslug, `/plans/groups/${assignment}`)); return }
@@ -242,7 +245,7 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
     let body: React.ReactNode = null
     if (!goal) { /* the placeholder shows until it arrives */ }
     else if (editing) body = <div data-plan="" style={planVars(color)}><GoalPathEditor goal={goal} token={token} color={color} focusStage={focusStage} setColor={isSubject ? (next: string) => setGoalColor(goal.goal_uuid, next) : undefined} /></div>
-    else if (celebrating) body = <GoalComplete goal={goal} badge={badge} color={color} token={token} onDone={() => { clear(); void refresh() }} onView={() => void refresh()} />
+    else if (celebrating) { /* the story opens; the placeholder shows until it does */ }
     else body = <GoalPath goal={goal} color={color} badge={badge} selectedUuid={selectedStepUuid} onSelect={setSelectedStepUuid} onEdit={canEdit(goal) ? () => setEditing(true) : undefined}
       onPlanStage={canEdit(goal) ? (stageUuid) => setEditing(true, stageUuid) : undefined}
       viewer={{ orgslug, token, viewerUserId, canWork: isSubject && can(goal, 'update_progress'), staff: !isSubject && can(goal, 'complete_restricted_objectives') }} />

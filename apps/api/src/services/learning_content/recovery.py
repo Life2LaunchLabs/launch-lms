@@ -19,7 +19,7 @@ from typing import Any
 
 from pydantic import BaseModel, ValidationError
 
-BLOCK_TYPES = {"text", "image", "button", "question", "portfolio_preview"}
+BLOCK_TYPES = {"text", "image", "button", "question", "portfolio_preview", "stat", "quote", "chart", "medal"}
 
 # Error types a repair may resolve by deleting the offending key. Anything
 # else (unknown block type, missing id, bad flow graph) needs a person.
