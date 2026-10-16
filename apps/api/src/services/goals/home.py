@@ -31,6 +31,7 @@ from src.services.goals.home_week import (
     with_finished,
 )
 from src.services.goals.types import StepState, step_type
+from src.services.goals.types.routine import count_in_week
 
 
 def _value(item) -> str:
@@ -67,8 +68,27 @@ def step_item(entry: Entry, placement: str) -> dict:
     }
 
 
+def _routine_lines(entry: Entry, placement: str) -> list[dict]:
+    """A running routine: this week's count toward its target, and a second line when follow-ups are due."""
+    item = step_item(entry, placement)
+    result = item["result"] or {}
+    item["week_done"] = week_done(entry)
+    if entry.done or not result.get("follow_ups_due"):
+        return [item]
+    follow_up = {**item, "line": "follow_up", "title": f"Follow up on {result['follow_ups_due']}", "week_done": False}
+    return [item, follow_up]
+
+
 # Step type -> the lines it shows. Types without an entry show one line per step.
-LINES: dict[str, Callable[[Entry, str], list[dict]]] = {}
+LINES: dict[str, Callable[[Entry, str], list[dict]]] = {"routine": _routine_lines}
+
+
+def week_done(entry: Entry, today: date | None = None) -> bool:
+    """Done as far as this week goes: a running routine counts once it meets its weekly target."""
+    if entry.done or not entry.routine:
+        return entry.done
+    target = int((entry.step.config or {}).get("target") or 1)
+    return count_in_week(entry.entries, week_start_of(today or date.today())) >= target
 
 
 def lines(entry: Entry, placement: str) -> list[dict]:
@@ -123,6 +143,11 @@ def home(db: Session, current_user: PublicUser, today: date | None = None) -> di
         if entry.status == StepStatus.EXCUSED.value:
             continue
         done_this_week = entry.done and entry.completed_on is not None and entry.completed_on >= week_start
+        if entry.routine:
+            # A running routine is always in the week; one that ended this week stays as done.
+            if entry.goal.goal_uuid in known and (done_this_week or (not entry.done and not entry.lock["locked"])):
+                week.append(entry)
+            continue
         dated_now = entry.due is not None and entry.due <= week_end and not entry.done
         if entry.uuid in pick_rank and (not entry.done or done_this_week):
             week.append(entry)
@@ -133,11 +158,11 @@ def home(db: Session, current_user: PublicUser, today: date | None = None) -> di
             waiting.append(entry)
     # What is left comes first; finished steps follow in the order they were done.
     week.sort(key=lambda entry: (
-        1 if entry.done else 0, entry.completed_on or date.min, 0 if entry.due and entry.due < today else 1,
+        1 if week_done(entry, today) else 0, entry.completed_on or date.min, 0 if entry.due and entry.due < today else 1,
         entry.due or date.max, pick_rank.get(entry.uuid, len(pick_rank)),
     ))
     in_week = {entry.uuid for entry in week}
-    remaining = [entry for entry in week if not entry.done]
+    remaining = [entry for entry in week if not week_done(entry, today)]
 
     offers = []
     for goal in (goal for goal in goals if goal.goal_uuid not in known):
@@ -148,7 +173,7 @@ def home(db: Session, current_user: PublicUser, today: date | None = None) -> di
             offers.append({"goal": _goal_ref(goal), "steps": steps})
 
     dated_next = sorted(waiting, key=lambda entry: entry.due) + [  # type: ignore[arg-type, return-value]
-        entry for entry in all_entries if entry.due and next_start <= entry.due <= next_end and not entry.done and entry.uuid not in in_week
+        entry for entry in all_entries if entry.due and next_start <= entry.due <= next_end and not entry.done and not entry.routine and entry.uuid not in in_week
     ]
     projected = round_robin(
         [
@@ -162,14 +187,14 @@ def home(db: Session, current_user: PublicUser, today: date | None = None) -> di
     placed = in_week | {entry.uuid for entry in next_week}
 
     months: dict[str, dict] = {}
-    for entry in sorted((entry for entry in all_entries if entry.due and entry.due > next_end and not entry.done and entry.uuid not in placed), key=lambda entry: entry.due):  # type: ignore[arg-type, return-value]
+    for entry in sorted((entry for entry in all_entries if entry.due and entry.due > next_end and not entry.done and not entry.routine and entry.uuid not in placed), key=lambda entry: entry.due):  # type: ignore[arg-type, return-value]
         key = entry.due.strftime("%Y-%m")  # type: ignore[union-attr]
         months.setdefault(key, {"key": key, "label": _month_label(entry.due, today), "items": []})["items"].append(entry)  # type: ignore[arg-type]
         placed.add(entry.uuid)
 
     later = []
     for goal in goals:
-        items = [entry for entry in entries_by_goal[int(goal.id)] if entry.due is None and not entry.done and entry.uuid not in placed]  # type: ignore[arg-type]
+        items = [entry for entry in entries_by_goal[int(goal.id)] if entry.due is None and not entry.done and not entry.routine and entry.uuid not in placed]  # type: ignore[arg-type]
         if items:
             later.append({"goal": _goal_ref(goal), "items": items})
 
@@ -181,7 +206,7 @@ def home(db: Session, current_user: PublicUser, today: date | None = None) -> di
             "next_target": upcoming_target(focus),
             # Whether this week has been planned; until it has, a new target applies right away.
             "planned": bool(focus.objective_uuids),
-            "done_count": sum(entry.done for entry in week), "total": len(week),
+            "done_count": sum(week_done(entry, today) for entry in week), "total": len(week),
             "complete": bool(week) and not remaining,
             "can_boost": any(open_candidates(entries_by_goal, goals, in_week, week_end)),
             "items": _cards(week, "week"),
