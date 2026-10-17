@@ -610,13 +610,11 @@ async def ask_hub_advisor(
         ADVISOR_RATE_WINDOW_SECONDS,
     )
     if not allowed:
-        raise HTTPException(
-            status_code=429,
-            detail="Too many advisor requests. Try again shortly.",
-            headers={"Retry-After": str(retry_after)},
-        )
+        raise HTTPException(status_code=429, detail="Too many advisor requests. Try again shortly.", headers={"Retry-After": str(retry_after)})
     safety_identifier = advisor_safety_identifier(user_id)
-    provider_messages = ground_advisor_messages(messages, grounding_resources or [])
+    policy = coach_runtime(db_session)
+    from src.services.coach.learner import ground_learner_context
+    provider_messages = ground_learner_context(ground_advisor_messages(messages, grounding_resources or []), db_session, org_id, user_id, policy)
     if grounding_memories:
         from src.services.hub_memory import ground_messages_with_memories
         provider_messages = ground_messages_with_memories(provider_messages, grounding_memories)
@@ -625,7 +623,6 @@ async def ask_hub_advisor(
         provider_messages = ground_page_context(provider_messages, page_context)
     from src.services.hub_actions import navigation_capability_context
     from src.services.hub_questions import question_context
-    policy = coach_runtime(db_session)
     capability_context = ""
     if policy.can("open_pages"):
         capability_context += navigation_capability_context(db_session, org_id, session_target)

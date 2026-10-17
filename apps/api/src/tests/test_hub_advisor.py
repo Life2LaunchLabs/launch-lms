@@ -367,7 +367,7 @@ async def test_memory_extraction_supports_explicit_commands_and_structured_provi
 
 @pytest.mark.asyncio
 async def test_advisor_requires_membership_and_applies_user_rate_limit(monkeypatch):
-    monkeypatch.setattr(hub_advisor, "coach_runtime", lambda *_args: CoachRuntime(True, "Coach well.", {}, {}))
+    monkeypatch.setattr(hub_advisor, "coach_runtime", lambda *_args: CoachRuntime(True, "Coach well.", {"read_portfolio": False, "read_goals": False}, {}))
     membership = []
     monkeypatch.setattr(hub_advisor, "require_org_membership", lambda user_id, org_id, _db: membership.append((user_id, org_id)))
     monkeypatch.setattr(hub_advisor, "check_rate_limit", lambda *args: (True, 1, 60))

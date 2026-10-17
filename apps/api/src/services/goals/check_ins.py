@@ -49,7 +49,9 @@ thing most worth a second look: a step it will clearly need that isn't there, a 
 looks too big to start, a date that doesn't fit, a step that is really several. Skip anything
 in "recent_notes". If something stands out, return one note keyed "review" with a title, a
 body, and a "prompt": what the learner could say to Coach to work on it, in their voice, at
-most 200 characters. If nothing stands out, return {"notes": []}."""
+most 200 characters. If nothing stands out, return {"notes": []}. When "learner" is present it
+says who the learner is and what else they're working on: use it to judge fit (a date that
+clashes with another goal, a step that ignores what they already do), never quote it back."""
 
 
 def _value(item) -> str:
@@ -102,7 +104,11 @@ async def _model_review(provider, db: Session, goal: Goal, key: str, existing: l
     from src.services.hub_advisor import AdvisorMessage, _json_object
 
     recent = [note.title for note in existing if note.created_at and note.created_at >= now - timedelta(days=60)]
-    prompt = json.dumps({"review": _outline(db, goal, now), "recent_notes": recent[-10:]}, ensure_ascii=False)
+    from src.services.coach.learner import for_policy
+    from src.services.coach.policy import runtime
+
+    learner = for_policy(db, goal.org_id, goal.subject_user_id, runtime(db)) if goal.subject_user_id else {}
+    prompt = json.dumps({"review": _outline(db, goal, now), "recent_notes": recent[-10:], **({"learner": learner} if learner else {})}, ensure_ascii=False, default=str)
     result = await provider.respond([AdvisorMessage(role="user", content=prompt)], safety_identifier)
     for note in _json_object(result.text).get("notes") or []:
         if not isinstance(note, dict) or note.get("key") != "review":

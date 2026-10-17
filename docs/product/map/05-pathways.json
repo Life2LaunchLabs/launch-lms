@@ -6258,6 +6258,12 @@
             },
             {
               "kind": "code",
+              "path": "apps/api/src/services/coach/learner.py",
+              "symbol": "learner_context",
+              "responsibility": "Who the learner is (portfolio) and what they're working on (goals), bounded and gated by the coaching policy"
+            },
+            {
+              "kind": "code",
               "path": "apps/api/src/services/hub_context.py",
               "symbol": null,
               "responsibility": "Resolves bounded saved plan and objective context server-side, revalidates access, and produces source receipts."
@@ -6291,6 +6297,12 @@
               "path": "apps/api/src/tests/test_hub_advisor.py",
               "symbol": null,
               "responsibility": "Conversation boundary, provider payload, membership, and rate-limit coverage"
+            },
+            {
+              "kind": "test",
+              "path": "apps/api/src/tests/test_coach_learner.py",
+              "symbol": null,
+              "responsibility": "Learner context scope, ordering, budget, and ability gating"
             },
             {
               "kind": "test",
