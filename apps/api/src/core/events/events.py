@@ -64,8 +64,6 @@ def startup_app(app: FastAPI) -> Callable:
         app.state.demo_cleanup = asyncio.create_task(run_cleanup(engine))
         app.state.demo_preparation = asyncio.create_task(run_preparation(engine))
         app.state.demo_recapture = asyncio.create_task(run_recapture(engine))
-        from src.services.goals.check_ins import run_check_ins
-        app.state.coach_check_ins = asyncio.create_task(run_check_ins(engine))
 
         # Former EE startup work has either been folded into core startup
         # or intentionally disabled until a native rebuild lands.
@@ -76,7 +74,7 @@ def startup_app(app: FastAPI) -> Callable:
 def shutdown_app(app: FastAPI) -> Callable:
     async def close_app() -> None:
         import asyncio
-        for name in ('demo_cleanup', 'demo_preparation', 'demo_recapture', 'coach_check_ins'):
+        for name in ('demo_cleanup', 'demo_preparation', 'demo_recapture'):
             task = getattr(app.state, name, None)
             if task:
                 task.cancel()

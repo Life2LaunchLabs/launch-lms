@@ -10,7 +10,7 @@ import { useHub } from '@components/Hub/HubContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import useGoalCoachSession from '@components/Goals/edit/useGoalCoachSession'
 import { getUriWithOrg } from '@services/config/config'
-import { actOnCoachNote, checkInLine, takeFirstLook, coachNotesUrl, type CoachNote, type CoachNoteAction, type GoalCoachNotes } from '@services/goals/coachNotes'
+import { actOnCoachNote, catchUpCoach, checkInLine, takeFirstLook, coachNotesUrl, type CoachNote, type CoachNoteAction, type GoalCoachNotes } from '@services/goals/coachNotes'
 import { isGoalsKey } from '@services/goals/goals'
 import { goalSuggestionsKey } from '@services/hub/advisor'
 import { swrFetcher } from '@services/utils/ts/requests'
@@ -18,6 +18,22 @@ import { swrFetcher } from '@services/utils/ts/requests'
 /** Coach's open notes on one goal and its check-in schedule; only the goal's owner has any. */
 export function useGoalCoachNotes(goalUuid?: string, token?: string) {
   return useSWR<GoalCoachNotes>(goalUuid && token ? coachNotesUrl(goalUuid) : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: true, shouldRetryOnError: false })
+}
+
+let caughtUp = ''
+
+/**
+ * Coach catches up when the learner arrives: check-ins that came due while they were away run
+ * now, once per visit, and the goals refresh to show any new notes.
+ */
+export function useCoachCatchUp(token?: string) {
+  React.useEffect(() => {
+    if (!token || caughtUp === token) return
+    caughtUp = token
+    catchUpCoach(token)
+      .then(({ checked_in }) => { if (checked_in) void mutate((key: unknown) => isGoalsKey(key)) })
+      .catch(() => undefined)
+  }, [token])
 }
 
 /**

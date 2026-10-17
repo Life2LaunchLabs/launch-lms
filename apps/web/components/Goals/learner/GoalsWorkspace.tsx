@@ -15,7 +15,7 @@ import { Reveal, Skeleton } from '@components/ui/skeleton'
 import GoalsHome from '@components/Goals/home/GoalsHome'
 import useGoalCoachSession from '@components/Goals/edit/useGoalCoachSession'
 import { GoalEditingProvider } from '@components/Goals/edit/GoalEditing'
-import { GoalCoachBar } from '@components/Goals/coach/CoachNotes'
+import { GoalCoachBar, useCoachCatchUp } from '@components/Goals/coach/CoachNotes'
 import { planVars } from '@components/Goals/planColors'
 import { getUriWithOrg } from '@services/config/config'
 import { goalsApi, goalsUrl, goalUrl } from '@services/goals/goals'
@@ -55,6 +55,7 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
   const viewerUserId = session?.data?.user?.id !== undefined ? Number(session.data.user.id) : undefined
   const [selectedUuid, setSelectedUuid] = React.useState(initialGoalUuid || '')
   const [selectedStepUuid, setSelectedStepUuid] = React.useState('')
+  useCoachCatchUp(token)
 
   // Coach's "Start a goal" lands here; the learner sets the goal up in the launch flow.
   const { startGoal, busy: startingGoal } = useStartGoal(orgslug, token)

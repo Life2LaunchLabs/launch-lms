@@ -6,9 +6,10 @@ into at most three notes in Coach's voice. When the rules find nothing new, the 
 whole goal over and may add one note on something that seems missing. A check-in never changes the goal; each note only
 offers things the learner can choose to do. Without a model, notes use fixed wording.
 
-Check-ins run on the goal's cadence (weekly, or monthly when the learner steers) and right
-after events: a goal is created or a stage is finished. A single in-process runner picks up
-due goals; a Postgres advisory lock keeps it to one API worker at a time.
+Check-ins come due on the goal's cadence (weekly, or monthly when the learner steers) and right
+after events: a goal is created or a stage is finished. They run when the learner arrives: there
+are no reminders outside the app, so the learner sets the rhythm by coming back, and Coach catches
+up on whatever came due while they were away.
 """
 
 from __future__ import annotations
@@ -20,7 +21,7 @@ from dataclasses import replace
 from datetime import datetime, timedelta
 from uuid import uuid4
 
-from sqlalchemy import or_, text
+from sqlalchemy import or_
 from sqlmodel import Session, select
 
 from src.db.goals import CoachNote, CoachNoteStatus, Goal, GoalOwnership, GoalStatus
@@ -33,8 +34,9 @@ MAX_NOTES = 3
 NOTE_DAYS = 14
 CADENCE = {"weekly": timedelta(days=7), "monthly": timedelta(days=30)}
 BATCH = 20
-RUNNER_LOCK = 0x434F4348
-RUNNER_SECONDS = 300
+# How many goals one arrival catches up on, and how long a goal is held while it is checked in on.
+CATCH_UP_GOALS = 5
+CLAIM = timedelta(minutes=10)
 
 NOTE_WRITER_INSTRUCTIONS = """You write Coach's check-in notes for one learner's goal.
 The input is JSON: the goal and a list of signals, each with a key and plain facts.
@@ -232,51 +234,43 @@ def due_soon(db: Session, goal: Goal, delay: timedelta = timedelta(0)) -> None:
         db.add(goal)
 
 
-def due_goals(db: Session, now: datetime, limit: int = BATCH) -> list[Goal]:
-    return list(db.exec(select(Goal).where(
+def due_goals(db: Session, now: datetime, limit: int = BATCH, user_id: int | None = None) -> list[Goal]:
+    statement = select(Goal).where(
         Goal.ownership == GoalOwnership.PERSONAL.value, Goal.status == GoalStatus.ACTIVE.value,
         or_(Goal.next_check_in_at.is_(None), Goal.next_check_in_at <= now),  # type: ignore[union-attr, operator]
-    ).order_by(Goal.next_check_in_at).limit(limit)).all())  # type: ignore[arg-type]
+    )
+    if user_id is not None:
+        statement = statement.where(Goal.owner_user_id == user_id)
+    return list(db.exec(statement.order_by(Goal.next_check_in_at).limit(limit)).all())  # type: ignore[arg-type]
 
 
-def run_due(engine) -> int:
-    """Check in on goals that are due, while holding the runner lock. Returns how many ran."""
-    with engine.connect() as lease:
-        postgres = engine.dialect.name == "postgresql"
-        if postgres:
-            acquired = lease.execute(text("SELECT pg_try_advisory_lock(:key)"), {"key": RUNNER_LOCK}).scalar()
-            lease.commit()
-            if not acquired:
-                return 0
+def catch_up(db: Session, user_id: int, now: datetime | None = None) -> int:
+    """The learner arrived: check in on their goals that came due while they were away. Returns how many ran.
+
+    Each goal is claimed first (its next check-in pushed a few minutes out), so a second tab
+    arriving at the same moment skips it rather than checking in twice."""
+    from src.services.coach.policy import runtime
+
+    now = now or datetime.utcnow()
+    if not runtime(db).can("goal_notes"):
+        return 0
+    goals = due_goals(db, now, CATCH_UP_GOALS, user_id)
+    if not goals:
+        return 0
+    for goal in goals:
+        goal.next_check_in_at = now + CLAIM
+        db.add(goal)
+    db.commit()
+    provider = note_provider(db)
+    ran = 0
+    for goal in goals:
         try:
-            with Session(engine) as db:
-                from src.services.coach.policy import runtime
-                if not runtime(db).can("goal_notes"):
-                    return 0
-                provider = note_provider(db)
-                ran = 0
-                for goal in due_goals(db, datetime.utcnow()):
-                    try:
-                        check_in(db, goal, provider=provider)
-                        ran += 1
-                    except Exception:
-                        db.rollback()
-                        logger.exception("Coach check-in failed for goal %s", goal.goal_uuid)
-                        goal.next_check_in_at = schedule(goal, datetime.utcnow())
-                        db.add(goal)
-                        db.commit()
-                return ran
-        finally:
-            if postgres:
-                lease.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": RUNNER_LOCK})
-                lease.commit()
-
-
-async def run_check_ins(engine):
-    while True:
-        try:
-            ran = await asyncio.to_thread(run_due, engine)
+            check_in(db, goal, now, provider=provider)
+            ran += 1
         except Exception:
-            logger.exception("Coach check-ins will retry")
-            ran = 0
-        await asyncio.sleep(5 if ran >= BATCH else RUNNER_SECONDS)
+            db.rollback()
+            logger.exception("Coach check-in failed for goal %s", goal.goal_uuid)
+            goal.next_check_in_at = schedule(goal, now)
+            db.add(goal)
+            db.commit()
+    return ran
