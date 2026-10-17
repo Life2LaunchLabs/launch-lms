@@ -13,7 +13,7 @@ from src.db.users import PublicUser
 from src.services.goals import access, completion
 from src.services.goals.goals import _mark_started, _now, _require_contribute, _require_open, _value, goal_dict, step_or_404
 from src.services.goals.types import step_type
-from src.services.goals.types.routine import check_follow_up_status
+from src.services.goals.types.routine import check_update
 
 
 def add_entry(db: Session, current_user: PublicUser, goal_uuid: str, step_uuid: str, payload: StepEntryCreate) -> dict:
@@ -47,7 +47,6 @@ def add_entry(db: Session, current_user: PublicUser, goal_uuid: str, step_uuid: 
     db.add(entry)
     db.commit()
     _mark_started(db, goal, step, current_user.id)
-    completion.on_logged(db, step)
     return goal_dict(db, goal, current_user.id)
 
 
@@ -64,8 +63,8 @@ def update_entry(db: Session, current_user: PublicUser, goal_uuid: str, step_uui
     _require_contribute(db, goal, step, current_user.id)
     entry = _entry(db, step, entry_uuid)
     changes = payload.model_dump(exclude_unset=True)
-    if step.type == "routine" and "follow_up_status" in changes:
-        check_follow_up_status(step, changes["follow_up_status"])
+    if step.type == "routine":
+        check_update(changes)
     if "data" in changes:
         # Data merges, so a pin and a rating set back to back don't undo each other.
         changes["data"] = {**(entry.data or {}), **(changes["data"] or {})}

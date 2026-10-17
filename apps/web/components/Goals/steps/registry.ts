@@ -15,7 +15,7 @@ export interface StepActions {
   // eslint-disable-next-line no-unused-vars
   addEntry: (data: EntryInput) => Promise<boolean>
   // eslint-disable-next-line no-unused-vars
-  updateEntry: (entryUuid: string, data: { title?: string; note?: string; done?: boolean; follow_up_status?: string | null; data?: Record<string, unknown> }) => Promise<boolean>
+  updateEntry: (entryUuid: string, data: { title?: string; note?: string; done?: boolean; data?: Record<string, unknown> }) => Promise<boolean>
   // eslint-disable-next-line no-unused-vars
   deleteEntry: (entryUuid: string) => Promise<boolean>
   /** Opens the activity player. */
@@ -35,6 +35,8 @@ export interface StepCardProps<T extends StepTypeKey = StepTypeKey> {
   orgslug: string
   token?: string
   viewerUserId?: number
+  /** Shown in a list of things to do (the home page): just what to do now, without history. */
+  compact?: boolean
 }
 
 export interface ConfigPanelProps<T extends StepTypeKey = StepTypeKey> {

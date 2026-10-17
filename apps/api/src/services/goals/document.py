@@ -18,6 +18,7 @@ from sqlmodel import Session
 
 from src.db.planning import ALL_CAPABILITIES, DEFAULT_ROLE_DEFINITIONS
 from src.services.goals.types import step_type
+from src.services.goals.types.routine import upgrade_config as upgrade_routine
 
 DOCUMENT_FORMAT = "launch-lms.goal-template"
 DOCUMENT_FORMAT_VERSION = 1
@@ -108,7 +109,8 @@ def _key(prefix: str) -> str:
 def upgrade_document(raw: dict) -> dict:
     """An older document in today's shape: steps open with their stage (or after the steps they
     wait on), so a template that went "in order" now has each step wait on the one before it;
-    an event's reflection prompt gave way to the note every step has."""
+    an event's reflection prompt gave way to the note every step has; a routine counted
+    per week became an action on a cadence."""
     if not isinstance(raw, dict) or not isinstance(raw.get("template"), dict):
         return raw
     document = {**raw, "template": {key: value for key, value in raw["template"].items() if key != "step_order"}}
@@ -120,6 +122,8 @@ def upgrade_document(raw: dict) -> dict:
             step = {key: value for key, value in step.items() if key != "allow_late"} if isinstance(step, dict) else step
             if isinstance(step, dict) and step.get("type") == "event" and isinstance(step.get("config"), dict) and "reflection_prompt" in step["config"]:
                 step["config"] = {key: value for key, value in step["config"].items() if key != "reflection_prompt"}
+            if isinstance(step, dict) and step.get("type") == "routine" and isinstance(step.get("config"), dict):
+                step["config"] = upgrade_routine(step["config"])
             if in_order and isinstance(step, dict):
                 step["key"] = step.get("key") or _key("step")
                 if previous and not step.get("after"):

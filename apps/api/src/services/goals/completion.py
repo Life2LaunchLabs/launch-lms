@@ -241,14 +241,6 @@ def end_routines(db: Session, goal: Goal, today: date | None = None) -> None:
             _auto(db, step, StepStatus.COMPLETED)
 
 
-def on_logged(db: Session, step: GoalStep) -> None:
-    """A routine that has reached its total ends."""
-    from src.services.goals.types.routine import reached_total
-
-    if step.type == "routine" and reached_total(step, entries(db, step)):
-        _auto(db, step, StepStatus.COMPLETED)
-
-
 def on_run_changed(db: Session, run: LearningRun) -> None:
     """Carry an activity run's result onto its goal step."""
     from src.services.learning import grading

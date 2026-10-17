@@ -1573,6 +1573,44 @@
                   "path": "apps/web/services/goals/__tests__/calendar.test.ts"
                 }
               ]
+            },
+            {
+              "id": "PATHWAYS-G002-A004-S009",
+              "activity_id": "PATHWAYS-G002-A004",
+              "display_order": 9,
+              "title": "Keep up a routine",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "partial",
+              "automated_status": "passed",
+              "manual_status": "not_tested",
+              "implementation_notes": "A routine comes round daily, on chosen weekdays, or on chosen days of the month, and each time asks for an action: add a few named items, enter a number (one line per named series), or check it off. The card reads the cadence in words, charts past times (bars, or lines for numbers), and each column opens that time's action to fill in late. Home shows only the current action. Older weekly-count routines migrate to weekly on Mondays; follow-ups and totals are gone.",
+              "updated_at": "2026-10-17T02:00:00+00:00",
+              "verification": {
+                "status": "unverified"
+              },
+              "signoff": {},
+              "source": {},
+              "references": [
+                {
+                  "kind": "code",
+                  "path": "apps/api/src/services/goals/types/routine.py"
+                },
+                {
+                  "kind": "code",
+                  "path": "apps/web/components/Goals/steps/routine.tsx"
+                },
+                {
+                  "kind": "test",
+                  "path": "apps/api/src/tests/test_goal_routines.py"
+                },
+                {
+                  "kind": "test",
+                  "path": "apps/web/services/goals/__tests__/routine.test.ts"
+                }
+              ]
             }
           ],
           "references": [],

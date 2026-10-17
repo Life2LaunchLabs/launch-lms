@@ -2,7 +2,7 @@
 
 The week itself is planned in ``home_week``; this module groups the steps and
 renders them. Each step renders as one or more lines (``LINES``), so a type can
-contribute its own lines (routines add a follow-up line) without touching the
+contribute its own lines (a routine shows one line for its action) without touching the
 grouping.
 """
 
@@ -31,7 +31,7 @@ from src.services.goals.home_week import (
     with_finished,
 )
 from src.services.goals.types import StepState, step_type
-from src.services.goals.types.routine import count_in_week
+from src.services.goals.types.routine import met, trigger_on
 
 
 def _value(item) -> str:
@@ -69,14 +69,10 @@ def step_item(entry: Entry, placement: str) -> dict:
 
 
 def _routine_lines(entry: Entry, placement: str) -> list[dict]:
-    """A running routine: this week's count toward its target, and a second line when follow-ups are due."""
+    """A running routine: one line for its action, done once the current trigger is met."""
     item = step_item(entry, placement)
-    result = item["result"] or {}
     item["week_done"] = week_done(entry)
-    if entry.done or not result.get("follow_ups_due"):
-        return [item]
-    follow_up = {**item, "line": "follow_up", "title": f"Follow up on {result['follow_ups_due']}", "week_done": False}
-    return [item, follow_up]
+    return [item]
 
 
 # Step type -> the lines it shows. Types without an entry show one line per step.
@@ -84,11 +80,11 @@ LINES: dict[str, Callable[[Entry, str], list[dict]]] = {"routine": _routine_line
 
 
 def week_done(entry: Entry, today: date | None = None) -> bool:
-    """Done as far as this week goes: a running routine counts once it meets its weekly target."""
+    """Done for now: a running routine counts once its current trigger's action is done."""
     if entry.done or not entry.routine:
         return entry.done
-    target = int((entry.step.config or {}).get("target") or 1)
-    return count_in_week(entry.entries, week_start_of(today or date.today())) >= target
+    config = entry.step.config or {}
+    return met(config, entry.entries, trigger_on(config, today or date.today()))
 
 
 def lines(entry: Entry, placement: str) -> list[dict]:
