@@ -6,7 +6,8 @@ import { Button } from '@components/ui/button'
 import { Skeleton } from '@components/ui/skeleton'
 import { PathNode } from '@components/Goals/path/PathNode'
 import { lockedSentence, statusLine } from '@components/Goals/path/stepText'
-import { stepDefinition, type StepCardProps } from '@components/Goals/steps'
+import { stepDefinition } from '@components/Goals/steps'
+import StepBody from '@components/Goals/steps/StepBody'
 import { useStepActions } from '@components/Goals/useGoalActions'
 import type { Goal, Step } from '@services/goals/types'
 
@@ -72,8 +73,7 @@ function LockedBody({ step, onGoTo }: { step: Step; onGoTo: (stepUuid: string) =
 /** The selected step's card body from the registry, worked on in place. */
 function StepCard({ goal, step, viewer, onOpenActivity, onAsk }: { goal: Goal; step: Step; viewer: PathViewer; onOpenActivity: () => void; onAsk?: () => void }) {
   const actions = useStepActions(goal, step, viewer.token, onOpenActivity, onAsk)
-  const CardBody = stepDefinition(step.type).CardBody as React.ComponentType<StepCardProps>
-  return <CardBody goal={goal} step={step} actions={actions} canWork={viewer.canWork} staff={viewer.staff} orgslug={viewer.orgslug} token={viewer.token} viewerUserId={viewer.viewerUserId} />
+  return <StepBody goal={goal} step={step} actions={actions} canWork={viewer.canWork} staff={viewer.staff} orgslug={viewer.orgslug} token={viewer.token} viewerUserId={viewer.viewerUserId} />
 }
 
 /** A path of steps while they load: nodes on the line, a title and a status line beside each. */

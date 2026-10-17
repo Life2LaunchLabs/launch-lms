@@ -34,15 +34,14 @@ function WriteCard({ step, actions, canWork, staff }: StepCardProps<'write'>) {
       <Textarea value={text} onChange={(event) => setText(event.target.value)} onBlur={() => { if (dirty) save() }} rows={6} placeholder="Write here" />
       <CardNote>{count} {count === 1 ? 'word' : 'words'}{limit ? ` of ${limit}` : ''}{dirty ? ' · not saved yet' : ''}</CardNote>
     </> : saved ? <p className="whitespace-pre-wrap rounded-xl border bg-background p-3 text-sm leading-6">{saved}</p> : null}
-    <FinishControls step={step} actions={{ ...actions, setStatus: async (status, note) => { if (dirty) await save(); await actions.setStatus(status, note) } }} canWork={canWork} staff={staff}
+    <FinishControls step={step} actions={{ ...actions, setStatus: async (status, note) => { if (dirty) await save(); return actions.setStatus(status, note) } }} canWork={canWork} staff={staff}
       blocker={!text.trim() ? 'Write something first' : limit && count > limit ? `Keep it under ${limit} words` : null} />
   </div>
 }
 
-function WriteConfigPanel({ config, onChange }: ConfigPanelProps<'write'>) {
-  return <div className="grid gap-3 sm:grid-cols-3">
-    <div className="flex flex-col gap-1 sm:col-span-2"><Label>Prompt</Label><Input value={config.prompt || ''} onChange={(event) => onChange({ ...config, prompt: event.target.value })} placeholder="What changed for you?" /></div>
-    <div className="flex flex-col gap-1"><Label>Word limit</Label><Input type="number" min={0} value={config.max_words || ''} onChange={(event) => onChange({ ...config, max_words: Number(event.target.value) || undefined })} placeholder="None" /></div>
+function WriteSettings({ config, onChange }: ConfigPanelProps<'write'>) {
+  return <div className="flex flex-col gap-1"><Label htmlFor="write-limit">Word limit</Label>
+    <Input id="write-limit" type="number" min={0} className="sm:w-40" value={config.max_words || ''} onChange={(event) => onChange({ ...config, max_words: Number(event.target.value) || undefined })} placeholder="None" />
   </div>
 }
 
@@ -53,6 +52,6 @@ export const write: StepDefinition<'write'> = {
   icon: PenLine,
   RowResult: WriteRow,
   CardBody: WriteCard,
-  ConfigPanel: WriteConfigPanel,
-  defaultConfig: () => ({ prompt: '' }),
+  SettingsPanel: WriteSettings,
+  defaultConfig: () => ({}),
 }

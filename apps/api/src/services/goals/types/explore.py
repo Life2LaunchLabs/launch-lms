@@ -1,9 +1,10 @@
-"""Explore: a question plus the evidence that answers it.
+"""Explore: a board of what the learner found, ending in what they made of it.
 
 The learner collects entries of any kind (a library resource, a link, a file or
-photo, a plain note), each with an optional one-line takeaway in its note, and
-the step completes when a one-sentence answer is saved. Staff or Coach can
-seed suggested resources; they show as entries the learner hasn't opened yet.
+photo, a plain note), each with notes, and optionally pins (``data.pinned``) or
+rates them 1 to 5 (``data.rating``, when the step turns ratings on). The step
+completes when they write their outcome. Staff or Coach can seed suggested
+resources; they show as entries the learner hasn't added yet.
 """
 
 from __future__ import annotations
@@ -27,6 +28,8 @@ class Suggestion(Config):
 class ExploreConfig(Config):
     question: str = Field(default="", max_length=1000)
     suggestions: list[Suggestion] = Field(default_factory=list, max_length=12)
+    # Each entry gets a 1 to 5 star rating.
+    ratings: bool = False
 
 
 def resource_or_422(db: Session, resource_uuid: str) -> Resource:
@@ -77,7 +80,7 @@ class Explore(StepType):
         return {}
 
     def completion_blocker(self, state: StepState) -> str | None:
-        return None if str(state.progress.answer or "").strip() else "Write your answer first"
+        return None if str(state.progress.answer or "").strip() else "Write your outcome first"
 
     def fraction(self, state: StepState) -> float:
         if str(state.progress.answer or "").strip():
@@ -85,7 +88,8 @@ class Explore(StepType):
         return min(0.5, 0.15 * len(state.entries_of(*EVIDENCE_KINDS)))
 
     def result(self, state: StepState) -> dict | None:
-        entries = state.entries_of(*EVIDENCE_KINDS)
+        # Pinned entries first, so the row shows what the learner marked as mattering.
+        entries = sorted(state.entries_of(*EVIDENCE_KINDS), key=lambda entry: not (entry.data or {}).get("pinned"))
         answer = str(state.progress.answer or "").strip()
         if not answer and not entries:
             return None

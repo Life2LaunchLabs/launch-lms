@@ -20,7 +20,7 @@ from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup
 from src.db.users import PublicUser, User
 from src.services import requirements
-from src.services.goals import assignments, goals, review, templates
+from src.services.goals import assignments, entries, goals, review, templates
 
 
 def main():
@@ -70,7 +70,7 @@ def main():
             step = db.exec(select(GoalStep).where(GoalStep.goal_id == goal.id)).one()
             for slot, title, url in [("reflection", f"{user.first_name}'s synthetic resume reflection.", "https://example.org/synthetic-reflection"),
                                      ("resume_link", "Synthetic resume", "https://example.org/synthetic-resume")]:
-                goals.add_entry(db, learner, goal.goal_uuid, step.step_uuid, StepEntryCreate(kind=StepEntryKind.LINK, slot=slot, title=title, url=url))
+                entries.add_entry(db, learner, goal.goal_uuid, step.step_uuid, StepEntryCreate(kind=StepEntryKind.LINK, slot=slot, title=title, url=url))
             # Reviewed steps go to staff when the learner finishes them.
             goals.change_status(db, learner, goal.goal_uuid, step.step_uuid, StepStatusChange(status=StepStatus.COMPLETED))
             if user.first_name == "Alex":

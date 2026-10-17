@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from sqlmodel import select
 
 from src.db.goals import CoachNote, Goal, GoalCreate, GoalStep, StageCreate, StageUpdate, StepCreate, StepStatusChange
-from src.services.goals import check_ins, goals, schedule, structure
+from src.services.goals import check_ins, entries, goals, schedule, structure
 from src.services.goals.coach_notes import NoteAction, act, goal_notes
 from src.services.goals.next_actions import next_actions
 from src.services.hub_advisor import AdvisorResult
@@ -166,7 +166,7 @@ def test_a_routine_gone_quiet_for_two_weeks_gets_one_note_until_it_is_logged_aga
         db.add(row)
         this_week = week_start_of(date.today())
         # Logged three weeks ago; nothing in the two weeks since.
-        goals.add_entry(db, _user(LEARNER), goal_uuid, step_uuid, StepEntryCreate(kind="log", title="Cafe"))
+        entries.add_entry(db, _user(LEARNER), goal_uuid, step_uuid, StepEntryCreate(kind="log", title="Cafe"))
         entry = db.exec(select(StepEntry).where(StepEntry.step_id == row.id)).one()
         entry.period_start = this_week - timedelta(weeks=3)
         db.add(entry)
@@ -182,7 +182,7 @@ def test_a_routine_gone_quiet_for_two_weeks_gets_one_note_until_it_is_logged_aga
         assert not [note for note in check_ins.check_in(db, goal, datetime.utcnow()) if note.signal_key.startswith("routine_missed:")]
 
         # Logging again this week clears it.
-        goals.add_entry(db, _user(LEARNER), goal_uuid, step_uuid, StepEntryCreate(kind="log", title="Library"))
+        entries.add_entry(db, _user(LEARNER), goal_uuid, step_uuid, StepEntryCreate(kind="log", title="Library"))
         check_ins.check_in(db, goal, datetime.utcnow())
         db.refresh(quiet[0])
         assert quiet[0].status == "expired"
@@ -243,7 +243,7 @@ def test_routine_follow_ups_that_come_due_get_a_note():
         goal_uuid = _goal(db, "Summer job")
         view = structure.add_step(db, _user(LEARNER), goal_uuid, StepCreate(type="routine", title="Send applications", config={"target": 3, "follow_up": {"after_days": 7}}))
         step_uuid = next(step["step_uuid"] for step in [s for stage in view["stages"] for s in stage["steps"]] + view["unstaged_steps"] if step["type"] == "routine")
-        goals.add_entry(db, _user(LEARNER), goal_uuid, step_uuid, StepEntryCreate(kind="log", title="Cafe"))
+        entries.add_entry(db, _user(LEARNER), goal_uuid, step_uuid, StepEntryCreate(kind="log", title="Cafe"))
         assert "follow_ups" not in _kinds(db, goal_uuid)
         entry = db.exec(select(StepEntry)).one()
         entry.follow_up_due = date.today() - timedelta(days=1)

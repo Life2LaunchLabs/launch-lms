@@ -107,7 +107,8 @@ def _key(prefix: str) -> str:
 
 def upgrade_document(raw: dict) -> dict:
     """An older document in today's shape: steps open with their stage (or after the steps they
-    wait on), so a template that went "in order" now has each step wait on the one before it."""
+    wait on), so a template that went "in order" now has each step wait on the one before it;
+    an event's reflection prompt gave way to the note every step has."""
     if not isinstance(raw, dict) or not isinstance(raw.get("template"), dict):
         return raw
     document = {**raw, "template": {key: value for key, value in raw["template"].items() if key != "step_order"}}
@@ -117,6 +118,8 @@ def upgrade_document(raw: dict) -> dict:
         steps, previous = [], None
         for step in (stage.get("steps") or []) if isinstance(stage, dict) else []:
             step = {key: value for key, value in step.items() if key != "allow_late"} if isinstance(step, dict) else step
+            if isinstance(step, dict) and step.get("type") == "event" and isinstance(step.get("config"), dict) and "reflection_prompt" in step["config"]:
+                step["config"] = {key: value for key, value in step["config"].items() if key != "reflection_prompt"}
             if in_order and isinstance(step, dict):
                 step["key"] = step.get("key") or _key("step")
                 if previous and not step.get("after"):

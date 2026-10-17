@@ -13,7 +13,7 @@ import EditSheet from './EditSheet'
 import GoalSettingsSheet from './GoalSettingsSheet'
 import { QUICK_KINDS } from './kindGuess'
 import StageSheet from './StageSheet'
-import StepEditor, { newStepDraft, type StepDraft } from './StepEditor'
+import StepEditor, { draftProblem, newStepDraft, type StepDraft } from './StepEditor'
 import { liveMode, stepChanges, stepDraft, stepInput } from './stepDrafts'
 
 type Target =
@@ -80,7 +80,7 @@ function AddStepSheet({ goal, token, color, stageUuid, type, onClose }: { goal: 
   const { busy, run } = useGoalMutation(goal.goal_uuid)
   const stage = goal.stages.find((item) => item.stage_uuid === stageUuid)
   const save = async () => {
-    if (!draft.title.trim()) return
+    if (draftProblem(draft)) return
     try {
       await run(() => goalsApi.addStep(goal.goal_uuid, { ...stepInput(draft, mode), stage_uuid: stageUuid }, token), 'Step added')
       onClose()
@@ -88,7 +88,7 @@ function AddStepSheet({ goal, token, color, stageUuid, type, onClose }: { goal: 
   }
   return <EditSheet open onOpenChange={(open) => { if (!open) onClose() }} color={color} title={`New ${stepDefinition(type).label.toLowerCase()} step`} description={stage ? `In ${stage.title}` : undefined}
     footer={<><Button type="button" variant="ghost" disabled={busy} onClick={onClose}>Cancel</Button>
-      <Button type="button" variant="plan" disabled={busy || !draft.title.trim()} onClick={() => void save()}>{busy ? <Loader2 size={14} className="animate-spin" /> : null}Add step</Button></>}>
+      <Button type="button" variant="plan" disabled={busy || !!draftProblem(draft)} onClick={() => void save()}>{busy ? <Loader2 size={14} className="animate-spin" /> : null}Add step</Button></>}>
     <form onSubmit={(event) => { event.preventDefault(); void save() }} className="contents">
       <StepEditor value={draft} onChange={setDraft} mode={mode} typeLocked live={{ goal, stageUuid }} orgId={goal.org_id} token={token} />
       <button type="submit" hidden aria-hidden="true" tabIndex={-1} />
@@ -103,7 +103,7 @@ function EditStepSheet({ goal, step, token, color, onClose }: { goal: Goal; step
   const [draft, setDraft] = React.useState<StepDraft>(initial)
   const { busy, run } = useGoalMutation(goal.goal_uuid)
   const save = async () => {
-    const changes = draft.title.trim() ? stepChanges(initial, draft, mode) : {}
+    const changes = draftProblem(draft) ? {} : stepChanges(initial, draft, mode)
     try {
       if (Object.keys(changes).length) await run(() => goalsApi.updateStep(goal.goal_uuid, step.step_uuid, changes, token))
       onClose()
@@ -111,7 +111,7 @@ function EditStepSheet({ goal, step, token, color, onClose }: { goal: Goal; step
   }
   return <EditSheet open onOpenChange={(open) => { if (!open) onClose() }} color={color} title="Edit step" description={stepDefinition(step.type).label}
     footer={<><Button type="button" variant="ghost" disabled={busy} onClick={onClose}>Cancel</Button>
-      <Button type="button" variant="plan" disabled={busy || !draft.title.trim()} onClick={() => void save()}>{busy ? <Loader2 size={14} className="animate-spin" /> : null}Save</Button></>}>
+      <Button type="button" variant="plan" disabled={busy || !!draftProblem(draft)} onClick={() => void save()}>{busy ? <Loader2 size={14} className="animate-spin" /> : null}Save</Button></>}>
     <StepEditor value={draft} onChange={setDraft} mode={mode} typeLocked live={{ goal, stageUuid: step.stage_uuid, stepUuid: step.step_uuid }} orgId={goal.org_id} token={token} />
   </EditSheet>
 }

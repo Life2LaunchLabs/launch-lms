@@ -5,7 +5,7 @@ from fastapi import HTTPException
 from sqlmodel import select
 
 from src.db.goals import GoalCreate, StageCreate, StageUpdate, StepCreate, StepEntry, StepEntryCreate, StepEntryUpdate, StepStatus, StepStatusChange
-from src.services.goals import goals, home, structure
+from src.services.goals import entries, goals, home, structure
 from src.services.goals.types import step_type
 from src.services.goals.types.routine import week_start_of
 from src.tests.test_goal_home import _home_session
@@ -23,7 +23,7 @@ def _routine(db, config: dict | None = None, title: str = "Send applications") -
 
 
 def _log(db, view: dict, step: dict, title: str = "Cafe on Main") -> dict:
-    view = goals.add_entry(db, _user(LEARNER), view["goal_uuid"], step["step_uuid"], StepEntryCreate(kind="log", title=title))
+    view = entries.add_entry(db, _user(LEARNER), view["goal_uuid"], step["step_uuid"], StepEntryCreate(kind="log", title=title))
     return next(item for item in _steps(view) if item["step_uuid"] == step["step_uuid"])
 
 
@@ -55,10 +55,10 @@ def test_named_routines_need_a_title_and_count_routines_do_not():
     with _home_session() as db:
         view, step = _routine(db)
         with pytest.raises(HTTPException) as error:
-            goals.add_entry(db, _user(LEARNER), view["goal_uuid"], step["step_uuid"], StepEntryCreate(kind="log"))
+            entries.add_entry(db, _user(LEARNER), view["goal_uuid"], step["step_uuid"], StepEntryCreate(kind="log"))
         assert error.value.status_code == 422
         view, step = _routine(db, {"target": 3, "entry_kind": "count"}, title="Run")
-        view = goals.add_entry(db, _user(LEARNER), view["goal_uuid"], step["step_uuid"], StepEntryCreate(kind="log"))
+        view = entries.add_entry(db, _user(LEARNER), view["goal_uuid"], step["step_uuid"], StepEntryCreate(kind="log"))
         assert next(item for item in _steps(view) if item["type"] == "routine")["result"]["this_week"] == 1
 
 
@@ -88,8 +88,8 @@ def test_follow_ups_come_due_and_a_status_clears_them():
         lines = [item for item in home.home(db, _user(LEARNER))["week"]["items"] if item["type"] == "routine"]
         assert [item.get("line") for item in lines] == [None, "follow_up"] and lines[1]["title"] == "Follow up on 1"
         with pytest.raises(HTTPException):
-            goals.update_entry(db, _user(LEARNER), view["goal_uuid"], step["step_uuid"], entry["entry_uuid"], StepEntryUpdate(follow_up_status="Maybe"))
-        view = goals.update_entry(db, _user(LEARNER), view["goal_uuid"], step["step_uuid"], entry["entry_uuid"], StepEntryUpdate(follow_up_status="Replied"))
+            entries.update_entry(db, _user(LEARNER), view["goal_uuid"], step["step_uuid"], entry["entry_uuid"], StepEntryUpdate(follow_up_status="Maybe"))
+        view = entries.update_entry(db, _user(LEARNER), view["goal_uuid"], step["step_uuid"], entry["entry_uuid"], StepEntryUpdate(follow_up_status="Replied"))
         assert next(item for item in _steps(view) if item["type"] == "routine")["result"]["follow_ups_due"] == 0
 
 

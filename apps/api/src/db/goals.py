@@ -442,8 +442,12 @@ class StepStatusChange(SQLModel):
 
 class StepSubmission(SQLModel):
     submission: dict = Field(default_factory=dict)
-    answer: str | None = Field(default=None, max_length=500)
+    answer: str | None = Field(default=None, max_length=2000)
     learner_note: str | None = Field(default=None, max_length=10000)
+
+
+class StepNote(SQLModel):
+    note: str = Field(default="", max_length=10000)
 
 
 class StepEntryCreate(SQLModel):
@@ -462,6 +466,7 @@ class StepEntryUpdate(SQLModel):
     note: str | None = Field(default=None, max_length=10000)
     done: bool | None = None
     follow_up_status: str | None = Field(default=None, max_length=60)
+    # Merged into the entry's data, key by key.
     data: dict | None = None
 
 

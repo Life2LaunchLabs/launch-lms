@@ -24,6 +24,7 @@ from src.db.goals import (
     StepProgress,
     StepStatus,
     StepStatusChange,
+    StepNote,
     StepSubmission,
 )
 from src.db.learning import BadgeIssuerLearnerLink, LearningActivity, LearningResponseAttempt, LearningBadge, LearningBadgeAward, LearningBadgeVersion, LearningPage, LearningPageProgress, LearningRun, LearningRunStatus
@@ -36,7 +37,7 @@ from src.db.user_organizations import UserOrganization
 from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup
 from src.db.users import PublicUser, User
-from src.services.goals import assignments, goals, issue, schedule, structure, templates
+from src.services.goals import assignments, entries, goals, issue, schedule, structure, templates
 from src.services.goals.completion import on_badge_awarded
 
 NOW = "2026-10-15T12:00:00"
@@ -203,7 +204,7 @@ def test_optional_upload_slots_need_one_file_between_them():
         photos = _step(goals.get_goal(db, _user(LEARNER), goal.goal_uuid), "Photos")
         with pytest.raises(HTTPException, match="Add a file first"):
             _status(db, LEARNER, goal, photos, StepStatus.COMPLETED)
-        goals.add_entry(db, _user(LEARNER), goal.goal_uuid, photos["step_uuid"], StepEntryCreate(kind="link", slot="after", url="https://lee.dev/after"))
+        entries.add_entry(db, _user(LEARNER), goal.goal_uuid, photos["step_uuid"], StepEntryCreate(kind="link", slot="after", url="https://lee.dev/after"))
         _status(db, LEARNER, goal, photos, StepStatus.COMPLETED)
         assert _step(goals.get_goal(db, _user(LEARNER), goal.goal_uuid), "Photos")["status"] == "completed"
 
@@ -224,10 +225,10 @@ def test_learner_finishes_steps_by_their_type_rules():
             _status(db, LEARNER, goal, documents, StepStatus.COMPLETED)
         db.add(MediaAsset(asset_uuid="asset_1", owner_user_id=LEARNER, owner_type="user", media_type="document", source_type="upload", filename="resume.pdf", url="https://files.example.com/resume.pdf", creation_date=NOW, update_date=NOW))
         db.commit()
-        goals.add_entry(db, _user(LEARNER), goal.goal_uuid, documents["step_uuid"], StepEntryCreate(kind="file", slot="resume", asset_uuid="asset_1", title="resume.pdf"))
+        entries.add_entry(db, _user(LEARNER), goal.goal_uuid, documents["step_uuid"], StepEntryCreate(kind="file", slot="resume", asset_uuid="asset_1", title="resume.pdf"))
         with pytest.raises(HTTPException, match="takes files"):
-            goals.add_entry(db, _user(LEARNER), goal.goal_uuid, documents["step_uuid"], StepEntryCreate(kind="link", slot="resume", url="https://x.dev"))
-        view = goals.add_entry(db, _user(LEARNER), goal.goal_uuid, documents["step_uuid"], StepEntryCreate(kind="link", slot="site", url="https://lee.dev"))
+            entries.add_entry(db, _user(LEARNER), goal.goal_uuid, documents["step_uuid"], StepEntryCreate(kind="link", slot="resume", url="https://x.dev"))
+        view = entries.add_entry(db, _user(LEARNER), goal.goal_uuid, documents["step_uuid"], StepEntryCreate(kind="link", slot="site", url="https://lee.dev"))
         documents = _step(view, "Documents")
         assert documents["state"] == "started" and documents["fraction"] == 1.0
         assert len(documents["result"]["files"]) == 2
@@ -244,10 +245,10 @@ def test_learner_finishes_steps_by_their_type_rules():
 
         schools = _step(view, "Three schools")
         for name in ("A", "B"):
-            goals.add_entry(db, _user(LEARNER), goal.goal_uuid, schools["step_uuid"], StepEntryCreate(kind="item", title=name))
+            entries.add_entry(db, _user(LEARNER), goal.goal_uuid, schools["step_uuid"], StepEntryCreate(kind="item", title=name))
         with pytest.raises(HTTPException, match="Add 3 items"):
             _status(db, LEARNER, goal, schools, StepStatus.COMPLETED)
-        goals.add_entry(db, _user(LEARNER), goal.goal_uuid, schools["step_uuid"], StepEntryCreate(kind="item", title="C"))
+        entries.add_entry(db, _user(LEARNER), goal.goal_uuid, schools["step_uuid"], StepEntryCreate(kind="item", title="C"))
         view = _status(db, LEARNER, goal, schools, StepStatus.COMPLETED)
 
         # Every step done: an external goal finishes on its own.
@@ -297,6 +298,13 @@ def test_in_order_goals_lock_later_steps_until_earlier_ones_are_done_or_waiting(
         assert [step["state"] for step in view["stages"][0]["steps"]] == ["done", "waiting", "open"]
 
 
+def test_older_templates_lose_the_event_reflection_prompt_to_the_step_note():
+    with _session() as db:
+        template = _published(db, {"type": "event", "title": "Open day", "config": {"place": "Gym", "reflection_prompt": "What did you take away?"}})
+        view = goals.get_goal(db, _user(LEARNER), _issue(db, template).goal_uuid)
+        assert "reflection_prompt" not in _step(view, "Open day")["config"]
+
+
 def test_staff_can_excuse_and_reopen_steps_but_learners_cannot():
     with _session() as db:
         goal = _issue(db, _published(db, {"type": "task", "title": "Visit"}, {"type": "task", "title": "Tour"}))
@@ -336,9 +344,12 @@ def test_personal_goals_are_private_learner_owned_and_never_wait_on_staff():
         schedule.set_current_stage(db, _user(LEARNER), goal.goal_uuid, research)
         with pytest.raises(HTTPException, match="Make a choice"):
             _status(db, LEARNER, goal, choose, StepStatus.COMPLETED)
-        goals.save_submission(db, _user(LEARNER), goal.goal_uuid, choose["step_uuid"], StepSubmission(submission={"choices": ["bio"], "reason": "I like labs"}))
-        view = _status(db, LEARNER, goal, choose, StepStatus.COMPLETED)
+        goals.save_submission(db, _user(LEARNER), goal.goal_uuid, choose["step_uuid"], StepSubmission(submission={"choices": ["bio"]}))
+        _status(db, LEARNER, goal, choose, StepStatus.COMPLETED)
+        # The note is the step's "why", and it can still be added once the step is done.
+        view = goals.save_note(db, _user(LEARNER), goal.goal_uuid, choose["step_uuid"], StepNote(note=" I like labs "))
         assert _step(view, "Choose")["result"] == {"kind": "choice", "choices": ["Biology"], "reason": "I like labs"}
+        assert _step(view, "Choose")["learner_note"] == "I like labs"
         # Personal goals finish only when the learner says so.
         assert view["status"] == "active"
 

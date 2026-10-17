@@ -65,6 +65,7 @@ export const goalsApi = {
 
   setStatus: (goalUuid: string, stepUuid: string, status: StepStatus, note?: string, token?: string) => request<Goal>(step(goalUuid, stepUuid, '/status'), token, 'PUT', { status, note }),
   saveSubmission: (goalUuid: string, stepUuid: string, data: { submission?: Record<string, unknown>; answer?: string; learner_note?: string }, token?: string) => request<Goal>(step(goalUuid, stepUuid, '/submission'), token, 'PUT', data),
+  saveNote: (goalUuid: string, stepUuid: string, note: string, token?: string) => request<Goal>(step(goalUuid, stepUuid, '/note'), token, 'PUT', { note }),
   addEntry: (goalUuid: string, stepUuid: string, data: EntryInput, token?: string) => request<Goal>(step(goalUuid, stepUuid, '/entries'), token, 'POST', data),
   updateEntry: (goalUuid: string, stepUuid: string, entryUuid: string, data: { title?: string; note?: string; done?: boolean; follow_up_status?: string | null; data?: Record<string, unknown> }, token?: string) => request<Goal>(step(goalUuid, stepUuid, `/entries/${q(entryUuid)}`), token, 'PATCH', data),
   deleteEntry: (goalUuid: string, stepUuid: string, entryUuid: string, token?: string) => request<Goal>(step(goalUuid, stepUuid, `/entries/${q(entryUuid)}`), token, 'DELETE'),

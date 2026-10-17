@@ -3,6 +3,7 @@
 import React from 'react'
 import { FileText, Film, Image as ImageIcon, Link2, Plus, Upload as UploadIcon, X } from 'lucide-react'
 import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
+import { cn } from '@/lib/utils'
 import { Input } from '@components/ui/input'
 import { Label } from '@components/ui/label'
 import { normalizeMediaUrl } from '@services/media/media'
@@ -54,7 +55,7 @@ function UploadCard({ step, actions, canWork, staff, token, viewerUserId }: Step
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-bold">{slot.label}</p>
             {entry ? <a href={normalizeMediaUrl(entry.url)} target="_blank" rel="noreferrer" className="block truncate text-xs font-semibold text-[var(--plan-accent)] hover:underline">{entry.title || 'Open'}</a>
-              : <p className="text-xs font-semibold text-muted-foreground">{slot.kinds.join(', ')}</p>}
+              : <p className="text-xs font-semibold text-muted-foreground">{kindText(slot)}{slot.optional ? ' · optional' : ''}</p>}
           </div>
           {open && entry ? <button type="button" aria-label="Remove" onClick={() => actions.deleteEntry(entry.entry_uuid)} className="p-1 text-muted-foreground hover:text-foreground"><X size={15} /></button> : null}
           {open && !entry && slot.kinds.includes('link') && slot.kinds.length > 1 ? <button type="button" onClick={() => setLinkSlot(slot)} className="text-xs font-bold text-[var(--plan-accent)]">Add a link</button> : null}
@@ -71,31 +72,45 @@ function UploadCard({ step, actions, canWork, staff, token, viewerUserId }: Step
   </div>
 }
 
+const KINDS = [['image', 'Photo'], ['video', 'Video'], ['document', 'Document'], ['link', 'Link']] as const
+const kindText = (slot: UploadSlot) => slot.kinds.map((kind) => KINDS.find(([key]) => key === kind)?.[1] || kind).join(' or ')
+const chip = (on: boolean) => cn('rounded-full border-[1.5px] px-2.5 py-1 text-xs font-bold transition', on ? 'border-[var(--plan-face)] bg-[color-mix(in_srgb,var(--plan-face)_15%,hsl(var(--card)))]' : 'text-muted-foreground hover:border-[var(--plan-face)]')
+
+/** The items to add, each laid out the way it shows on the step: its slot, its name and what it takes. */
 function UploadConfigPanel({ config, onChange }: ConfigPanelProps<'upload'>) {
   const slots = config.slots || []
   const update = (index: number, slot: UploadSlot) => onChange({ slots: slots.map((item, at) => at === index ? slot : item) })
   return <div className="flex flex-col gap-2">
-    <Label>What they hand in</Label>
-    {slots.map((slot, index) => <div key={index} className="flex flex-wrap items-center gap-2 rounded-xl border p-2">
-      <Input className="min-w-40 flex-1" value={slot.label} onChange={(event) => update(index, { ...slot, label: event.target.value })} placeholder="A photo of your work" />
-      {(['image', 'video', 'document', 'link'] as const).map((kind) => <label key={kind} className="flex items-center gap-1 text-xs font-semibold">
-        <input type="checkbox" checked={slot.kinds.includes(kind)} onChange={(event) => { const kinds = event.target.checked ? [...slot.kinds, kind] : slot.kinds.filter((item) => item !== kind); if (kinds.length) update(index, { ...slot, kinds }) }} />{kind}
-      </label>)}
-      <label className="flex items-center gap-1 text-xs font-semibold"><input type="checkbox" checked={!!slot.optional} onChange={(event) => update(index, { ...slot, optional: event.target.checked })} />optional</label>
-      {slots.length > 1 ? <button type="button" aria-label="Remove slot" onClick={() => onChange({ slots: slots.filter((_, at) => at !== index) })} className="p-1 text-muted-foreground"><X size={15} /></button> : null}
-    </div>)}
-    <button type="button" onClick={() => onChange({ slots: [...slots, { key: `slot_${Date.now().toString(36)}`, label: '', kinds: ['image', 'document'] }] })} className="self-start text-xs font-bold text-[var(--plan-accent)]">Add another</button>
+    <Label>Items</Label>
+    <ul className="flex flex-col gap-2">
+      {slots.map((slot, index) => <li key={index} className="flex items-start gap-3 rounded-xl border bg-background p-2">
+        <Thumb slot={slot} />
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+          <div className="flex items-center gap-1">
+            <Input className="h-8 border-0 bg-transparent px-0 font-bold shadow-none focus-visible:ring-0" value={slot.label} onChange={(event) => update(index, { ...slot, label: event.target.value })} placeholder="A photo of your work" aria-label={`Item ${index + 1}`} />
+            {slots.length > 1 ? <button type="button" aria-label={`Remove item ${index + 1}`} onClick={() => onChange({ slots: slots.filter((_, at) => at !== index) })} className="p-1 text-muted-foreground hover:text-foreground"><X size={15} /></button> : null}
+          </div>
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="What it takes">
+            {KINDS.map(([kind, label]) => { const on = slot.kinds.includes(kind); return <button key={kind} type="button" aria-pressed={on} className={chip(on)}
+              onClick={() => { const kinds = on ? slot.kinds.filter((item) => item !== kind) : [...slot.kinds, kind]; if (kinds.length) update(index, { ...slot, kinds }) }}>{label}</button> })}
+            <button type="button" aria-pressed={!!slot.optional} className={chip(!!slot.optional)} onClick={() => update(index, { ...slot, optional: !slot.optional })}>Optional</button>
+          </div>
+        </div>
+      </li>)}
+    </ul>
+    <button type="button" onClick={() => onChange({ slots: [...slots, { key: `slot_${Date.now().toString(36)}`, label: '', kinds: ['image', 'document'] }] })} className="self-start text-xs font-bold text-[var(--plan-accent)]">Add an item</button>
   </div>
 }
 
 export const upload: StepDefinition<'upload'> = {
   type: 'upload',
   label: 'Upload',
-  hint: 'Hand in files, photos or links, one slot each',
+  hint: 'Add files, photos or links, one item each',
   icon: UploadIcon,
   statusLine: (step) => step.config.slots.length > 1 ? `${step.config.slots.filter((slot) => filled(step, slot)).length} of ${step.config.slots.length} added` : null,
   RowResult: UploadRow,
   CardBody: UploadCard,
   ConfigPanel: UploadConfigPanel,
+  cleanConfig: (config) => ({ slots: config.slots.map((slot, index) => ({ ...slot, label: slot.label.trim() || `Item ${index + 1}` })) }),
   defaultConfig: () => ({ slots: [{ key: 'slot_1', label: 'Your file', kinds: ['image', 'document'] }] }),
 }

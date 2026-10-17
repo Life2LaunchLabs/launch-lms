@@ -24,7 +24,7 @@ from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
 from src.db.users import User
 from src.services import requirements
-from src.services.goals import assignments, goals, templates
+from src.services.goals import assignments, entries, goals, templates
 from src.services.goals import requirement_evidence as evidence
 from src.services.goals import requirements as service
 from src.services.goals.requirements import MakeupStep
@@ -74,7 +74,7 @@ def _goal(db, user_id: int) -> Goal:
 def _submit_resume(db, user_id: int, url: str) -> tuple[Goal, dict]:
     goal = _goal(db, user_id)
     step = _step(goals.get_goal(db, _user(user_id), goal.goal_uuid), "Your first resume")
-    goals.add_entry(db, _user(user_id), goal.goal_uuid, step["step_uuid"], StepEntryCreate(kind=StepEntryKind.LINK, slot="resume", title="My resume", url=url))
+    entries.add_entry(db, _user(user_id), goal.goal_uuid, step["step_uuid"], StepEntryCreate(kind=StepEntryKind.LINK, slot="resume", title="My resume", url=url))
     _status(db, user_id, goal, step, StepStatus.COMPLETED)
     return goal, step
 

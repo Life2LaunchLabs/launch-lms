@@ -42,11 +42,12 @@ export function useStepActions(goal: Goal, step: Step, token: string | undefined
   const { busy, run } = useGoalMutation(goal.goal_uuid)
   const g = goal.goal_uuid
   const s = step.step_uuid
-  const quiet = <T,>(promise: () => Promise<T>, background = false) => run(promise, undefined, background).then(() => undefined, () => undefined)
+  const quiet = <T,>(promise: () => Promise<T>, background = false) => run(promise, undefined, background).then(() => true, () => false)
   return {
     busy,
     setStatus: (status, note) => quiet(() => goalsApi.setStatus(g, s, status, note, token)),
     saveSubmission: (data) => quiet(() => goalsApi.saveSubmission(g, s, data, token), true),
+    saveNote: (note) => quiet(() => goalsApi.saveNote(g, s, note, token)),
     addEntry: (data) => quiet(() => goalsApi.addEntry(g, s, data, token)),
     updateEntry: (entryUuid, data) => quiet(() => goalsApi.updateEntry(g, s, entryUuid, data, token)),
     deleteEntry: (entryUuid) => quiet(() => goalsApi.deleteEntry(g, s, entryUuid, token)),

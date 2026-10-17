@@ -27,14 +27,12 @@ from src.db.goals import (
     GoalUpdate,
     StepCompleter,
     StepEntry,
-    StepEntryCreate,
-    StepEntryUpdate,
     StepProgress,
     StepStatus,
     StepStatusChange,
+    StepNote,
     StepSubmission,
 )
-from src.db.media import MediaAsset
 from src.db.planning import PlanCollaborator
 from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
@@ -43,7 +41,6 @@ from src.services.goals.badges import badge_summary
 from src.services.goals.coach_notes import note_counts
 from src.services.goals.availability import availability, node_state, ordered_steps
 from src.services.goals.types import StepState, step_type
-from src.services.goals.types.routine import check_follow_up_status
 
 STAFF_CAPABILITY = "complete_restricted_objectives"
 
@@ -354,71 +351,18 @@ def save_submission(db: Session, current_user: PublicUser, goal_uuid: str, step_
     return goal_dict(db, goal, current_user.id)
 
 
-def add_entry(db: Session, current_user: PublicUser, goal_uuid: str, step_uuid: str, payload: StepEntryCreate) -> dict:
+def save_note(db: Session, current_user: PublicUser, goal_uuid: str, step_uuid: str, payload: StepNote) -> dict:
+    """The learner's note on a step: theirs to add or change while it's open and after it's done."""
     goal = access.goal_or_404(db, goal_uuid)
     step = step_or_404(db, goal, step_uuid)
     _require_contribute(db, goal, step, current_user.id)
-    _require_open(db, goal, step)
-    kind = step_type(step.type)
-    entry_kind = _value(payload.kind)
-    if entry_kind not in kind.entry_kinds:
-        raise HTTPException(status_code=422, detail=f"{kind.label} steps don't collect {entry_kind} entries")
-    extra = kind.prepare_entry(db, step, _value(completion.progress_view(db, step).status) in DONE_STEP_STATUSES, entry_kind, payload)
-    asset = None
-    if payload.asset_uuid:
-        asset = db.exec(select(MediaAsset).where(MediaAsset.asset_uuid == payload.asset_uuid)).first()
-        if not asset or asset.owner_user_id not in {current_user.id, None}:
-            raise HTTPException(status_code=404, detail="File not found")
-    if entry_kind == "file" and not asset:
-        raise HTTPException(status_code=422, detail="Upload the file first")
-    last = db.exec(select(func.max(StepEntry.position)).where(StepEntry.step_id == step.id)).one()
-    position = 0 if last is None else last + 1
-    now = _now()
-    fields = {
-        "title": payload.title.strip(), "url": payload.url.strip(), "resource_uuid": payload.resource_uuid, "note": payload.note, "data": payload.data,
-    }
-    entry = StepEntry(
-        entry_uuid=f"step_entry_{uuid4()}", step_id=int(step.id), kind=entry_kind, slot=payload.slot,  # type: ignore[arg-type]
-        asset_id=asset.id if asset else None, position=position, created_by_user_id=current_user.id, creation_date=now, update_date=now,
-        **{**fields, **extra},
-    )
-    db.add(entry)
-    db.commit()
-    _mark_started(db, goal, step, current_user.id)
-    completion.on_logged(db, step)
-    return goal_dict(db, goal, current_user.id)
-
-
-def _entry(db: Session, step: GoalStep, entry_uuid: str) -> StepEntry:
-    entry = db.exec(select(StepEntry).where(StepEntry.step_id == step.id, StepEntry.entry_uuid == entry_uuid)).first()
-    if not entry:
-        raise HTTPException(status_code=404, detail="Entry not found")
-    return entry
-
-
-def update_entry(db: Session, current_user: PublicUser, goal_uuid: str, step_uuid: str, entry_uuid: str, payload: StepEntryUpdate) -> dict:
-    goal = access.goal_or_404(db, goal_uuid)
-    step = step_or_404(db, goal, step_uuid)
-    _require_contribute(db, goal, step, current_user.id)
-    entry = _entry(db, step, entry_uuid)
-    changes = payload.model_dump(exclude_unset=True)
-    if step.type == "routine" and "follow_up_status" in changes:
-        check_follow_up_status(step, changes["follow_up_status"])
-    for key, value in changes.items():
-        setattr(entry, key, value)
-    entry.update_date = _now()
-    db.add(entry)
-    db.commit()
-    return goal_dict(db, goal, current_user.id)
-
-
-def delete_entry(db: Session, current_user: PublicUser, goal_uuid: str, step_uuid: str, entry_uuid: str) -> dict:
-    goal = access.goal_or_404(db, goal_uuid)
-    step = step_or_404(db, goal, step_uuid)
-    _require_contribute(db, goal, step, current_user.id)
-    if _value(completion.progress_view(db, step).status) in DONE_STEP_STATUSES:
-        raise HTTPException(status_code=409, detail="This step is done; reopen it to change it")
-    db.delete(_entry(db, step, entry_uuid))
+    progress = completion.progress_for(db, step)
+    if _value(progress.status) not in DONE_STEP_STATUSES:
+        _require_open(db, goal, step)
+    progress.learner_note = payload.note.strip()
+    progress.updated_by_user_id = current_user.id
+    progress.update_date = _now()
+    db.add(progress)
     db.commit()
     return goal_dict(db, goal, current_user.id)
 

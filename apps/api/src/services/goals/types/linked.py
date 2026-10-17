@@ -85,7 +85,6 @@ class DecisionConfig(Config):
 class DecisionSubmission(Config):
     choices: list[str] = Field(default_factory=list, max_length=30)
     other: str = Field(default="", max_length=300)
-    reason: str = Field(default="", max_length=10000)
     # Steps whose answers this decision rests on; defaults to the stage's Explore steps.
     supporting_step_uuids: list[str] = Field(default_factory=list, max_length=50)
 
@@ -126,4 +125,4 @@ class Decision(StepType):
 
     def result(self, state: StepState) -> dict | None:
         chosen = self._chosen(state)
-        return {"kind": "choice", "choices": chosen, "reason": state.submission.get("reason") or ""} if chosen else None
+        return {"kind": "choice", "choices": chosen, "reason": state.progress.learner_note or ""} if chosen else None

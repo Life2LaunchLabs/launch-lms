@@ -1,6 +1,6 @@
 import type { StepInput } from '@services/goals/goals'
 import type { Goal, Step } from '@services/goals/types'
-import type { StepDraft, StepEditorMode } from './StepEditor'
+import { savedConfig, type StepDraft, type StepEditorMode } from './StepEditor'
 
 /** The editor mode for steps on a live goal: a learner's own goal hides staff settings. */
 export const liveMode = (goal: Goal): StepEditorMode => goal.ownership === 'personal' ? 'personal' : 'live'
@@ -19,7 +19,7 @@ export function stepDraft(step: Step): StepDraft {
 export function stepInput(draft: StepDraft, mode: StepEditorMode): Omit<StepInput, 'stage_uuid' | 'position'> {
   const personal = mode === 'personal'
   return {
-    type: draft.type, title: draft.title.trim(), description: draft.description, config: draft.config as unknown as Record<string, unknown>,
+    type: draft.type, title: draft.title.trim(), description: draft.description, config: savedConfig(draft) as unknown as Record<string, unknown>,
     completed_by: personal ? 'learner' : draft.completed_by, review_required: personal ? false : draft.review_required,
     reviewer_guidance: personal ? '' : draft.reviewer_guidance, after_step_uuids: draft.after,
     start_date: draft.start_date || null, due_date: draft.due_date || null,

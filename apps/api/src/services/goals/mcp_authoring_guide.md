@@ -62,12 +62,15 @@ Every step has exactly one `type`, and `config` holds that type's settings.
 | `upload` | `slots`: `[{key, label, kinds: ["image","video","document","link"]}]` | adds one file per slot | every slot is filled |
 | `write` | `prompt`, optional `max_words` | writes a text answer | handed in |
 | `activity` | `activity_uuid` (set by the server) | plays an interactive activity | the run finishes (and is graded, if it needs grading) |
-| `event` | `date`, `start_time`, `end_time`, `place`, `url`, `rsvp`, `reflection_prompt` | RSVPs, optionally reflects | attended |
+| `event` | `date`, `start_time`, `end_time`, `place`, `url`, `rsvp` | RSVPs, adds it to their calendar | attended |
 | `badge` | `badge_uuid`, `accept_previous_major_versions` | earns the badge | the badge is awarded |
 | `portfolio` | `check`: `welcome`, `timeline`, `project`, `traits`, `launch` or `badges` | completes a portfolio section | the section is complete |
-| `decision` | `question`, `options`: `[{key, label}]`, `multiple`, `allow_other` | chooses, with a reason | a choice is saved |
+| `decision` | `question`, `options`: `[{key, label}]`, `multiple`, `allow_other` | chooses | a choice is saved |
 | `routine` | `target` (times a week), `entry_kind` (`named` or `count`), `item_label`, `end_date`, `end_after`, `follow_up`: `{after_days, statuses}` | logs each one; sets follow-up outcomes | the learner ends it, or its end date, its stage's end or `end_after` comes first |
-| `explore` | `question`, optional `suggestions`: `[{resource_uuid, title}]` (library resources to start from) | collects resources, links, files and notes, each with a takeaway, then writes a one-sentence answer | the answer is saved |
+| `explore` | `question`, optional `suggestions`: `[{resource_uuid, title}]` (library resources to start from), `ratings` (rate each find 1 to 5) | collects resources, links, files and notes on a board, pins the ones that matter, then writes their outcome | the outcome is saved |
+
+Every step also has the learner's own note, added while it's open or after it's done; don't
+add a config field asking for a reflection or a reason.
 
 Unknown config keys are errors. Activity, badge and portfolio steps finish on
 their own, so they are always `completed_by: "learner"`.
