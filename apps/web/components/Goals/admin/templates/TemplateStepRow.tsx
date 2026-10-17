@@ -4,7 +4,7 @@ import React from 'react'
 import Link from 'next/link'
 import { ChevronDown, GripVertical, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
 import type { DraggableProvidedDragHandleProps } from '@hello-pangea/dnd'
-import StepEditor, { newStepDraft, type StepDraft } from '@components/Goals/edit/StepEditor'
+import StepEditor, { draftProblem, newStepDraft, savedConfig, type StepDraft } from '@components/Goals/edit/StepEditor'
 import { stepDefinition } from '@components/Goals/steps'
 import { Button } from '@components/ui/button'
 import { getUriWithOrg, routePaths } from '@services/config/config'
@@ -55,7 +55,7 @@ export default function TemplateStepRow({ step, stage, others, orgslug, orgId, t
   const definition = stepDefinition(step.type)
   const Icon = definition.icon
   const activityUuid = step.type === 'activity' ? (step.config as ActivityConfig).activity_uuid : ''
-  const save = async () => { if (draft.title.trim() && await onSave(draftToStep(draft, step), 'Step saved.')) setOpen(false) }
+  const save = async () => { if (!draftProblem(draft) && await onSave(draftToStep({ ...draft, config: savedConfig(draft) }, step), 'Step saved.')) setOpen(false) }
   return <div className={cn('group flex items-stretch gap-1', dragging && 'rounded-xl shadow-xl ring-2 ring-blue-300')}>
     <button type="button" {...dragHandleProps} className="w-7 cursor-grab rounded-lg text-muted-foreground opacity-0 hover:bg-muted focus:opacity-100 group-hover:opacity-100" aria-label={`Move ${step.title}`}><GripVertical size={16} className="mx-auto" /></button>
     <div className="min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-card shadow-xs">
@@ -72,7 +72,7 @@ export default function TemplateStepRow({ step, stage, others, orgslug, orgId, t
         <StepRequirementLinks value={step.requirement_node_uuids || []} frameworks={frameworks} saving={saving} onSave={(nodes) => onSave({ ...step, requirement_node_uuids: nodes }, 'Requirement links saved.')} />
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Button type="button" size="sm" variant="ghost" className="text-red-700" disabled={saving} onClick={() => { if (window.confirm(`Remove "${step.title}" from the template draft?`)) void onDelete() }}><Trash2 />Remove step</Button>
-          <div className="flex gap-2"><Button type="button" size="sm" variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button type="button" size="sm" disabled={saving || !draft.title.trim()} onClick={() => void save()}>{saving ? <Loader2 className="animate-spin" /> : null}Save step</Button></div>
+          <div className="flex gap-2"><Button type="button" size="sm" variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button type="button" size="sm" disabled={saving || !!draftProblem(draft)} onClick={() => void save()}>{saving ? <Loader2 className="animate-spin" /> : null}Save step</Button></div>
         </div>
       </div> : null}
     </div>
@@ -84,13 +84,13 @@ export function NewTemplateStep({ stage, others, orgId, token, saving, onAdd }: 
   const [draft, setDraft] = React.useState<StepDraft | null>(null)
   if (!draft) return <button type="button" onClick={() => setDraft(newStepDraft('task'))} className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border text-xs font-bold text-muted-foreground transition hover:border-foreground hover:bg-muted hover:text-foreground"><Plus size={15} />Add a step</button>
   const add = async () => {
-    if (!draft.title.trim()) return
-    if (await onAdd(draftToStep(draft))) setDraft(null)
+    if (draftProblem(draft)) return
+    if (await onAdd(draftToStep({ ...draft, config: savedConfig(draft) }))) setDraft(null)
   }
   return <section className="rounded-xl border border-[var(--plan-face)] bg-card p-4 shadow-xs">
     <p className="mb-3 text-xs font-black">New step · {stage.title}</p>
     <StepEditor value={draft} onChange={setDraft} mode="template" others={others} orgId={orgId} token={token} />
     {draft.type === 'activity' ? <p className="mt-3 text-xs text-muted-foreground">Its activity is created when you add the step; write its pages next with Edit activity.</p> : null}
-    <div className="mt-4 flex justify-end gap-2"><Button type="button" size="sm" variant="outline" onClick={() => setDraft(null)} disabled={saving}>Cancel</Button><Button type="button" size="sm" onClick={() => void add()} disabled={saving || !draft.title.trim()}>{saving ? <Loader2 className="animate-spin" /> : <Plus />}Add step</Button></div>
+    <div className="mt-4 flex justify-end gap-2"><Button type="button" size="sm" variant="outline" onClick={() => setDraft(null)} disabled={saving}>Cancel</Button><Button type="button" size="sm" onClick={() => void add()} disabled={saving || !!draftProblem(draft)}>{saving ? <Loader2 className="animate-spin" /> : <Plus />}Add step</Button></div>
   </section>
 }

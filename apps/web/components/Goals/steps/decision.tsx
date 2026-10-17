@@ -1,17 +1,23 @@
 'use client'
 
 import React from 'react'
-import { Signpost, X } from 'lucide-react'
+import { Check, Signpost, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Input } from '@components/ui/input'
 import { Label } from '@components/ui/label'
-import { Textarea } from '@components/ui/textarea'
-import { goalSteps, type DecisionOption, type Step } from '@services/goals/types'
+import { goalSteps, type DecisionConfig, type DecisionOption, type Step } from '@services/goals/types'
 import type { ConfigPanelProps, StepCardProps, StepDefinition } from './registry'
 import { Feedback, FinishControls, StepIntro } from './shared'
 
-type Choice = { choices: string[]; other: string; reason: string; supporting_step_uuids?: string[] }
-const choiceOf = (step: Step<'decision'>): Choice => ({ choices: step.submission?.choices || [], other: step.submission?.other || '', reason: step.submission?.reason || '', supporting_step_uuids: step.submission?.supporting_step_uuids })
+type Choice = { choices: string[]; other: string; supporting_step_uuids?: string[] }
+const choiceOf = (step: Step<'decision'>): Choice => ({ choices: step.submission?.choices || [], other: step.submission?.other || '', ...(step.submission?.supporting_step_uuids?.length ? { supporting_step_uuids: step.submission.supporting_step_uuids } : {}) })
+const MIN_OPTIONS = 2
+
+/** The mark beside an option: a circle when one can be picked, a box when several can. */
+function Mark({ on, multiple }: { on: boolean; multiple?: boolean }) {
+  return <span aria-hidden="true" className={cn('grid h-5 w-5 shrink-0 place-items-center border-2', multiple ? 'rounded-md' : 'rounded-full',
+    on ? 'border-[var(--plan-face)] bg-[var(--plan-face)] text-[var(--plan-face-ink)]' : 'border-border bg-background')}>{on ? <Check size={12} strokeWidth={3.5} /> : null}</span>
+}
 
 function DecisionRow({ step }: { step: Step<'decision'> }) {
   if (step.result?.kind !== 'choice') return null
@@ -21,8 +27,10 @@ function DecisionRow({ step }: { step: Step<'decision'> }) {
 function DecisionCard({ goal, step, actions, canWork, staff }: StepCardProps<'decision'>) {
   const config = step.config
   const saved = choiceOf(step)
+  const savedKey = JSON.stringify(saved)
   const [draft, setDraft] = React.useState<Choice>(saved)
-  React.useEffect(() => setDraft(choiceOf(step)), [step])
+  // Only a new saved choice replaces what's being typed; a refresh of the goal doesn't.
+  React.useEffect(() => setDraft(JSON.parse(savedKey)), [savedKey])
   const open = canWork && !step.locked && step.status !== 'completed' && step.status !== 'submitted'
   // What the choice rests on: the steps the learner picked, else the answered steps earlier in the same stage.
   const supporting = React.useMemo(() => {
@@ -31,8 +39,10 @@ function DecisionCard({ goal, step, actions, canWork, staff }: StepCardProps<'de
     if (picked?.length) return all.filter((item) => picked.includes(item.step_uuid))
     return all.filter((item) => item.stage_uuid === step.stage_uuid && item.position < step.position && (item.answer || item.result?.kind === 'text'))
   }, [goal, saved.supporting_step_uuids, step.stage_uuid, step.position])
-  const toggle = (key: string) => setDraft((current) => ({ ...current, choices: current.choices.includes(key) ? current.choices.filter((item) => item !== key) : config.multiple ? [...current.choices, key] : [key], other: config.multiple ? current.other : '' }))
-  const save = (next: Choice = draft) => actions.saveSubmission({ submission: next })
+  const save = (next: Choice) => (JSON.stringify(next) === savedKey ? Promise.resolve(true) : actions.saveSubmission({ submission: next }))
+  const choose = (next: Choice) => { setDraft(next); void save(next) }
+  const toggle = (key: string) => choose({ ...draft, choices: draft.choices.includes(key) ? draft.choices.filter((item) => item !== key) : config.multiple ? [...draft.choices, key] : [key], other: config.multiple ? draft.other : '' })
+  const writeIn = (other: string) => setDraft({ ...draft, other, choices: config.multiple || !other.trim() ? draft.choices : [] })
   const chosen = draft.choices.length + (draft.other.trim() ? 1 : 0)
   return <div className="flex flex-col gap-3">
     {config.question ? <p className="text-sm font-bold">{config.question}</p> : null}
@@ -45,43 +55,61 @@ function DecisionCard({ goal, step, actions, canWork, staff }: StepCardProps<'de
         {item.answer || (item.result?.kind === 'text' ? item.result.text : '')}
       </a>)}
     </div> : null}
-    <div className="flex flex-col gap-1.5">
-      {config.options.map((option) => <button key={option.key} type="button" disabled={!open} onClick={() => toggle(option.key)} className={cn('rounded-xl border-2 px-3 py-2 text-left text-sm font-bold', draft.choices.includes(option.key) ? 'border-[var(--plan-face)] bg-[color-mix(in_srgb,var(--plan-face)_13%,hsl(var(--card)))]' : 'bg-background')}>{option.label}</button>)}
-      {config.allow_other !== false && open ? <Input value={draft.other} onChange={(event) => setDraft({ ...draft, other: event.target.value, choices: config.multiple ? draft.choices : [] })} placeholder={config.options.length ? 'Something else' : 'Your choice'} />
-        : !open && saved.other ? <p className="rounded-xl border-2 border-[var(--plan-face)] px-3 py-2 text-sm font-bold">{saved.other}</p> : null}
+    <div role={config.multiple ? 'group' : 'radiogroup'} aria-label="Options" className="flex flex-col gap-1.5">
+      {config.options.map((option) => { const on = draft.choices.includes(option.key); return <button key={option.key} type="button" role={config.multiple ? 'checkbox' : 'radio'} aria-checked={on} disabled={!open} onClick={() => toggle(option.key)}
+        className={cn('flex items-center gap-3 rounded-xl border-2 px-3 py-2 text-left text-sm font-bold transition', on ? 'border-[var(--plan-face)] bg-[color-mix(in_srgb,var(--plan-face)_13%,hsl(var(--card)))]' : 'bg-background enabled:hover:border-[var(--plan-face)]')}>
+        <Mark on={on} multiple={config.multiple} />{option.label}
+      </button> })}
+      {config.allow_other !== false && open ? <form className={cn('flex items-center gap-3 rounded-xl border-2 px-3 py-1', draft.other.trim() ? 'border-[var(--plan-face)]' : 'border-dashed')} onSubmit={(event) => { event.preventDefault(); void save(draft) }}>
+        <Mark on={Boolean(draft.other.trim())} multiple={config.multiple} />
+        <Input value={draft.other} onChange={(event) => writeIn(event.target.value)} onBlur={() => void save(draft)} maxLength={300} aria-label="Your own choice"
+          placeholder={config.options.length ? 'Something else' : 'Your choice'} className="h-8 border-0 bg-transparent px-0 font-bold shadow-none focus-visible:ring-0" />
+      </form> : !open && saved.other ? <p className="flex items-center gap-3 rounded-xl border-2 border-[var(--plan-face)] px-3 py-2 text-sm font-bold"><Mark on multiple={config.multiple} />{saved.other}</p> : null}
     </div>
-    {open ? <div className="flex flex-col gap-1"><Label>Why</Label><Textarea rows={3} value={draft.reason} onChange={(event) => setDraft({ ...draft, reason: event.target.value })} onBlur={() => save()} /></div>
-      : saved.reason ? <p className="whitespace-pre-wrap text-sm text-foreground/80">{saved.reason}</p> : null}
     <FinishControls step={step} canWork={canWork} staff={staff} blocker={!chosen ? 'Make a choice first' : null}
-      actions={{ ...actions, setStatus: async (status, note) => { await save(); await actions.setStatus(status, note) } }} />
+      actions={{ ...actions, setStatus: async (status, note) => (await save(draft)) && actions.setStatus(status, note) }} />
   </div>
 }
 
+/** The options as the learner will see them: at least two, each a row to pick. */
 function DecisionConfigPanel({ config, onChange }: ConfigPanelProps<'decision'>) {
   const options = config.options || []
-  const setOption = (index: number, option: DecisionOption) => onChange({ ...config, options: options.map((item, at) => at === index ? option : item) })
-  return <div className="flex flex-col gap-3">
-    <div className="flex flex-col gap-1"><Label>Question</Label><Input value={config.question || ''} onChange={(event) => onChange({ ...config, question: event.target.value })} placeholder="Which path will you take?" /></div>
-    <div className="flex flex-col gap-1.5">
-      <Label>Options</Label>
-      {options.map((option, index) => <div key={option.key} className="flex gap-2">
-        <Input value={option.label} onChange={(event) => setOption(index, { ...option, label: event.target.value })} />
-        <button type="button" aria-label="Remove option" onClick={() => onChange({ ...config, options: options.filter((_, at) => at !== index) })} className="p-1 text-muted-foreground"><X size={15} /></button>
-      </div>)}
-      <button type="button" onClick={() => onChange({ ...config, options: [...options, { key: `option_${Date.now().toString(36)}`, label: '' }] })} className="self-start text-xs font-bold text-[var(--plan-accent)]">Add an option</button>
-    </div>
+  const rows: DecisionOption[] = [...options, ...Array.from({ length: Math.max(0, MIN_OPTIONS - options.length) }, () => ({ key: '', label: '' }))]
+  const setRow = (index: number, label: string) => onChange({ ...config, options: rows.map((item, at) => ({ key: item.key || `option_${Date.now().toString(36)}_${at}`, label: at === index ? label : item.label })) })
+  return <div className="flex flex-col gap-1.5">
+    <Label>Options</Label>
+    <ol className="flex flex-col gap-1.5 border-l-2 border-[color-mix(in_srgb,var(--plan-face)_40%,transparent)] pl-3">
+      {rows.map((option, index) => <li key={index} className="flex items-center gap-2 rounded-xl border-2 bg-background px-3 py-1">
+        <Mark on={false} multiple={config.multiple} />
+        <Input value={option.label} onChange={(event) => setRow(index, event.target.value)} aria-label={`Option ${index + 1}`} placeholder={`Option ${index + 1}`} maxLength={300}
+          className="h-8 border-0 bg-transparent px-0 font-bold shadow-none focus-visible:ring-0" />
+        {rows.length > MIN_OPTIONS ? <button type="button" aria-label={`Remove option ${index + 1}`} onClick={() => onChange({ ...config, options: rows.filter((_, at) => at !== index) })} className="p-1 text-muted-foreground hover:text-foreground"><X size={15} /></button> : null}
+      </li>)}
+    </ol>
+    <button type="button" onClick={() => onChange({ ...config, options: [...rows.map((item, at) => ({ ...item, key: item.key || `option_${Date.now().toString(36)}_${at}` })), { key: `option_${Date.now().toString(36)}_${rows.length}`, label: '' }] })}
+      className="ml-3 self-start text-xs font-bold text-[var(--plan-accent)]">Add an option</button>
+  </div>
+}
+
+function DecisionSettings({ config, onChange }: ConfigPanelProps<'decision'>) {
+  return <div className="flex flex-col gap-2">
     <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={!!config.multiple} onChange={(event) => onChange({ ...config, multiple: event.target.checked })} />More than one can be picked</label>
     <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={config.allow_other !== false} onChange={(event) => onChange({ ...config, allow_other: event.target.checked })} />They can write in their own</label>
   </div>
 }
 
+const cleanOptions = (config: DecisionConfig): DecisionConfig => ({ ...config, options: (config.options || []).map((option) => ({ ...option, label: option.label.trim() })).filter((option) => option.label) })
+
 export const decision: StepDefinition<'decision'> = {
   type: 'decision',
   label: 'Decision',
-  hint: 'Choose between options and say why',
+  hint: 'Choose between options',
   icon: Signpost,
   RowResult: DecisionRow,
   CardBody: DecisionCard,
   ConfigPanel: DecisionConfigPanel,
-  defaultConfig: () => ({ question: '', options: [], multiple: false, allow_other: true }),
+  SettingsPanel: DecisionSettings,
+  cleanConfig: cleanOptions,
+  configProblem: (config) => cleanOptions(config).options.length < MIN_OPTIONS ? 'Give it at least two options' : null,
+  defaultConfig: () => ({ options: [], multiple: false, allow_other: true }),
 }

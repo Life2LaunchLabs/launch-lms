@@ -145,16 +145,18 @@ class EventConfig(Config):
     place: str = Field(default="", max_length=300)
     url: str = Field(default="", max_length=2000)
     rsvp: bool = False
-    reflection_prompt: str = Field(default="", max_length=2000)
 
 
 class EventSubmission(Submission):
     rsvp: Literal["yes", "no", "maybe"] | None = None
-    reflection: str = Field(default="", max_length=20000)
 
 
 class Event(StepType):
-    """Attended means completed. Who confirms it follows the step's completed_by, like any step."""
+    """Attended means completed. Who confirms it follows the step's completed_by, like any step.
+
+    The config is what a calendar event needs (a day, times, a place, a link), so the step can
+    be added to the learner's calendar as it is.
+    """
 
     key = "event"
     label = "Event"

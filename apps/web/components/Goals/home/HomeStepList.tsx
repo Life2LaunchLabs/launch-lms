@@ -12,7 +12,8 @@ import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { planVars } from '@components/Goals/planColors'
 import { PathNode } from '@components/Goals/path/PathNode'
 import { lockedSentence, statusLine } from '@components/Goals/path/stepText'
-import { stepDefinition, type StepCardProps } from '@components/Goals/steps'
+import { stepDefinition } from '@components/Goals/steps'
+import StepBody from '@components/Goals/steps/StepBody'
 import { useStepActions } from '@components/Goals/useGoalActions'
 import { getUriWithOrg } from '@services/config/config'
 import { goalUrl } from '@services/goals/goals'
@@ -110,10 +111,9 @@ function LockedBody({ step, onGoTo }: { step: Step; onGoTo: (stepUuid: string) =
 /** The step's own card body from the registry, worked on right here. */
 function StepCard({ goal, step, orgslug, token, openActivity }: { goal: Goal; step: Step; orgslug: string; token?: string; openActivity: () => void }) {
   const actions = useStepActions(goal, step, token, openActivity)
-  const CardBody = stepDefinition(step.type).CardBody as React.ComponentType<StepCardProps>
   const session = useLHSession() as any
   const canWork = can(goal, 'update_progress') || can(goal, 'contribute_fields')
-  return <CardBody goal={goal} step={step} actions={actions} canWork={canWork} staff={false} orgslug={orgslug} token={token} viewerUserId={session?.data?.user?.id} />
+  return <StepBody goal={goal} step={step} actions={actions} canWork={canWork} staff={false} orgslug={orgslug} token={token} viewerUserId={session?.data?.user?.id} />
 }
 
 /** A path of steps while they load: nodes on the line, a goal name, title and status beside each. */

@@ -1,9 +1,9 @@
 import pytest
 from fastapi import HTTPException
 
-from src.db.goals import GoalCreate, StepCreate, StepEntryCreate, StepStatus, StepStatusChange, StepSubmission
+from src.db.goals import GoalCreate, StepCreate, StepEntryCreate, StepEntryUpdate, StepStatus, StepStatusChange, StepSubmission
 from src.db.resources import Resource
-from src.services.goals import goals, structure
+from src.services.goals import entries, goals, structure
 from src.services.goals.coach_tools import attach_catalog_resources, step_config
 from src.services.goals.types import step_type
 from src.tests.test_goals import LEARNER, _session, _user
@@ -29,14 +29,14 @@ def _explore(db, config: dict | None = None) -> tuple[dict, dict]:
 
 
 def _add(db, view: dict, step: dict, **entry) -> dict:
-    view = goals.add_entry(db, _user(LEARNER), view["goal_uuid"], step["step_uuid"], StepEntryCreate(**entry))
+    view = entries.add_entry(db, _user(LEARNER), view["goal_uuid"], step["step_uuid"], StepEntryCreate(**entry))
     return next(item for item in _steps(view) if item["step_uuid"] == step["step_uuid"])
 
 
 def test_config_is_checked_and_suggestions_must_exist():
     with _explore_session() as db:
         explore = step_type("explore")
-        assert explore.validate_config({}) == {"question": "", "suggestions": []}
+        assert explore.validate_config({}) == {"question": "", "suggestions": [], "ratings": False}
         with pytest.raises(HTTPException):
             explore.validate_config({"suggestions": [{"resource_uuid": "a"}, {"resource_uuid": "a"}]})
         with pytest.raises(HTTPException):
@@ -58,7 +58,7 @@ def test_evidence_of_any_kind_with_takeaways_then_an_answer_finishes_it():
         assert step["state"] == "started" and step["result"]["count"] == 3 and step["result"]["answer"] == ""
         with pytest.raises(HTTPException) as error:
             goals.change_status(db, _user(LEARNER), view["goal_uuid"], step["step_uuid"], StepStatusChange(status=StepStatus.COMPLETED))
-        assert error.value.detail == "Write your answer first"
+        assert error.value.detail == "Write your outcome first"
         goals.save_submission(db, _user(LEARNER), view["goal_uuid"], step["step_uuid"], StepSubmission(answer="About $5k a year, less with grants."))
         view = goals.change_status(db, _user(LEARNER), view["goal_uuid"], step["step_uuid"], StepStatusChange(status=StepStatus.COMPLETED))
         step = _steps(view)[0]
@@ -66,6 +66,19 @@ def test_evidence_of_any_kind_with_takeaways_then_an_answer_finishes_it():
         with pytest.raises(HTTPException) as error:
             _add(db, view, step, kind="note", note="Late thought")
         assert error.value.status_code == 409
+
+
+def test_pins_and_ratings_merge_into_entry_data_and_pinned_entries_lead_the_row():
+    with _explore_session() as db:
+        view, step = _explore(db, {"ratings": True})
+        step = _add(db, view, step, kind="link", url="https://north.example", title="North Tech", data={"image": "https://north.example/og.png"})
+        step = _add(db, view, step, kind="note", note="Valley has evening classes")
+        later = step["entries"][1]
+        entries.update_entry(db, _user(LEARNER), view["goal_uuid"], step["step_uuid"], later["entry_uuid"], StepEntryUpdate(data={"rating": 4}))
+        view = entries.update_entry(db, _user(LEARNER), view["goal_uuid"], step["step_uuid"], later["entry_uuid"], StepEntryUpdate(data={"pinned": True}))
+        step = _steps(view)[0]
+        assert step["entries"][1]["data"] == {"rating": 4, "pinned": True}
+        assert [thumb["title"] for thumb in step["result"]["thumbs"]] == ["Valley has evening classes", "North Tech"]
 
 
 def test_empty_evidence_is_refused():
@@ -78,7 +91,7 @@ def test_empty_evidence_is_refused():
 
 
 def test_coach_writes_the_question_and_its_resource_becomes_a_suggestion():
-    assert step_config("explore", "Trade schools", {"prompt": "What do they cost?"}) == {"question": "What do they cost?", "suggestions": []}
+    assert step_config("explore", "Trade schools", {"prompt": "What do they cost?"}) == {"question": "What do they cost?", "suggestions": [], "ratings": False}
     operation = {"type": "add_goal_steps", "steps": [{"type": "explore", "title": "Costs", "config": {"question": "What do they cost?"}, "resource_uuid": "resource_1"}]}
     shown = [{"resource_uuid": "resource_1", "title": "Trade school guide", "external_url": "https://example.com/guide"}]
     step = attach_catalog_resources([operation], shown)[0]["steps"][0]

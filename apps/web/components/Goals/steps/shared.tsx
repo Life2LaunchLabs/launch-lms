@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import { Check, Clock3, RotateCcw, Sparkles, Undo2, UserCheck } from 'lucide-react'
+import { Check, Clock3, NotebookPen, RotateCcw, Sparkles, Undo2, UserCheck } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import { Textarea } from '@components/ui/textarea'
 import type { Step } from '@services/goals/types'
@@ -85,4 +85,39 @@ export function StepIntro({ step }: { step: Step }) {
       {materials.map((item, index) => <a key={index} href={String(item.url || '#')} target="_blank" rel="noreferrer" className="rounded-[10px] border-[1.5px] bg-background px-2.5 py-1.5 text-xs font-bold hover:border-[var(--plan-face)]">{String(item.title || item.url)}</a>)}
     </div> : null}
   </div>
+}
+
+/**
+ * The learner's note on a step, the same on every type: added whenever the step is open, kept
+ * after it's done, and asked for (opened and focused) right after it's marked done.
+ */
+export function StepNote({ step, actions, canWork, prompted, onSettled }: { step: Step; actions: StepActions; canWork: boolean; prompted: boolean; onSettled: () => void }) {
+  const saved = step.learner_note || ''
+  const [editing, setEditing] = React.useState(false)
+  const [text, setText] = React.useState(saved)
+  const field = React.useRef<HTMLTextAreaElement>(null)
+  React.useEffect(() => { if (prompted) { setText(saved); setEditing(true) } }, [prompted]) // eslint-disable-line react-hooks/exhaustive-deps
+  React.useEffect(() => { if (editing) field.current?.focus() }, [editing])
+  const close = () => { setEditing(false); onSettled() }
+  const editable = canWork && !step.locked
+  if (!editing) {
+    if (saved) return <div className="flex flex-col gap-0.5 rounded-xl border-l-4 border-[var(--plan-face)] bg-background px-3 py-2">
+      <span className="flex items-center justify-between gap-2 text-xs font-extrabold text-muted-foreground">Note
+        {editable ? <button type="button" onClick={() => { setText(saved); setEditing(true) }} className="font-bold text-[var(--plan-accent)] hover:underline">Edit</button> : null}</span>
+      <p className="whitespace-pre-wrap text-sm leading-6 text-foreground/80">{saved}</p>
+    </div>
+    if (!editable) return null
+    return <button type="button" onClick={() => setEditing(true)} className="flex items-center gap-1.5 self-start rounded-md text-xs font-bold text-muted-foreground hover:text-foreground">
+      <NotebookPen size={13} aria-hidden="true" />Add a note
+    </button>
+  }
+  return <form className="flex flex-col gap-2" onSubmit={async (event) => { event.preventDefault(); if (text.trim() === saved.trim() || await actions.saveNote(text)) close() }}>
+    <label htmlFor={`note-${step.step_uuid}`} className="text-sm font-bold">{prompted ? 'Anything to add?' : 'Note'}</label>
+    <Textarea ref={field} id={`note-${step.step_uuid}`} rows={3} value={text} onChange={(event) => setText(event.target.value)} maxLength={10000}
+      placeholder={prompted ? 'How it went, what you noticed, what’s next' : 'Anything worth remembering about this step'} />
+    <div className="flex flex-wrap gap-2">
+      <Button type="submit" variant="plan" size="sm" disabled={actions.busy}>Save note</Button>
+      <Button type="button" variant="ghost" size="sm" onClick={close}>{prompted ? 'Not now' : 'Cancel'}</Button>
+    </div>
+  </form>
 }

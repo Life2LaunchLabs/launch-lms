@@ -25,12 +25,12 @@ export interface UploadSlot { key: string; label: string; kinds: Array<'image' |
 export interface UploadConfig { slots: UploadSlot[] }
 export interface WriteConfig { prompt?: string; max_words?: number }
 export interface ActivityConfig { activity_uuid: string }
-export interface EventConfig { date?: string; start_time?: string; end_time?: string; place?: string; url?: string; rsvp?: boolean; reflection_prompt?: string }
+export interface EventConfig { date?: string; start_time?: string; end_time?: string; place?: string; url?: string; rsvp?: boolean }
 export interface BadgeConfig { badge_uuid: string; accept_previous_major_versions?: boolean }
 export interface PortfolioConfig { check: 'welcome' | 'timeline' | 'project' | 'traits' | 'launch' | 'badges' }
 export interface DecisionOption { key: string; label: string }
 export interface DecisionConfig { question?: string; options: DecisionOption[]; multiple?: boolean; allow_other?: boolean }
-export interface ExploreConfig { question?: string; suggestions?: Array<{ resource_uuid: string; title?: string }> }
+export interface ExploreConfig { question?: string; suggestions?: Array<{ resource_uuid: string; title?: string }>; ratings?: boolean }
 export interface RoutineFollowUp { after_days: number; statuses: string[] }
 export interface RoutineConfig { cadence?: 'weekly'; target: number; entry_kind?: 'named' | 'count'; item_label?: string; end_date?: string; end_after?: number; follow_up?: RoutineFollowUp }
 

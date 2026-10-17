@@ -1475,6 +1475,104 @@
                   "path": "docs/design/framework-editor-and-learner-flow-verification.md"
                 }
               ]
+            },
+            {
+              "id": "PATHWAYS-G002-A004-S006",
+              "activity_id": "PATHWAYS-G002-A004",
+              "display_order": 6,
+              "title": "Add a note to any step",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "partial",
+              "automated_status": "passed",
+              "manual_status": "not_tested",
+              "implementation_notes": "Every step has one note: added while it's open, asked for right after it's marked done, and kept once it's done.",
+              "updated_at": "2026-10-17T01:00:00+00:00",
+              "verification": {
+                "status": "unverified"
+              },
+              "signoff": {},
+              "source": {},
+              "references": [
+                {
+                  "kind": "code",
+                  "path": "apps/web/components/Goals/steps/StepBody.tsx"
+                },
+                {
+                  "kind": "code",
+                  "path": "apps/api/src/services/goals/goals.py"
+                },
+                {
+                  "kind": "test",
+                  "path": "apps/api/src/tests/test_goals.py"
+                }
+              ]
+            },
+            {
+              "id": "PATHWAYS-G002-A004-S007",
+              "activity_id": "PATHWAYS-G002-A004",
+              "display_order": 7,
+              "title": "Collect finds on an Explore board",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "partial",
+              "automated_status": "passed",
+              "manual_status": "not_tested",
+              "implementation_notes": "Drop or paste links, photos and PDFs, or add library resources and notes; grid or stack, search, type and sort, pins and optional 1–5 star ratings. Done asks for the outcome; a finished board shows its pins and the outcome.",
+              "updated_at": "2026-10-17T01:00:00+00:00",
+              "verification": {
+                "status": "unverified"
+              },
+              "signoff": {},
+              "source": {},
+              "references": [
+                {
+                  "kind": "code",
+                  "path": "apps/web/components/Goals/steps/exploreBoard.tsx"
+                },
+                {
+                  "kind": "code",
+                  "path": "apps/web/components/Goals/steps/exploreAdd.tsx"
+                },
+                {
+                  "kind": "test",
+                  "path": "apps/api/src/tests/test_goal_explore.py"
+                }
+              ]
+            },
+            {
+              "id": "PATHWAYS-G002-A004-S008",
+              "activity_id": "PATHWAYS-G002-A004",
+              "display_order": 8,
+              "title": "Add an event step to my calendar",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "partial",
+              "automated_status": "passed",
+              "manual_status": "not_tested",
+              "implementation_notes": "Event steps open in Google Calendar or download as an .ics file; the learner says they went once the day comes.",
+              "updated_at": "2026-10-17T01:00:00+00:00",
+              "verification": {
+                "status": "unverified"
+              },
+              "signoff": {},
+              "source": {},
+              "references": [
+                {
+                  "kind": "code",
+                  "path": "apps/web/services/goals/calendar.ts"
+                },
+                {
+                  "kind": "test",
+                  "path": "apps/web/services/goals/__tests__/calendar.test.ts"
+                }
+              ]
             }
           ],
           "references": [],

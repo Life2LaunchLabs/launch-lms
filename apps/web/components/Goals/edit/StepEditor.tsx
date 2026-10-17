@@ -66,40 +66,72 @@ type StepEditorProps = {
   token?: string
 }
 
+/** The config as it's saved, without what the editor only shows (such as empty options). */
+export function savedConfig(draft: StepDraft) {
+  const clean = stepDefinition(draft.type).cleanConfig as ((config: StepConfigs[StepTypeKey]) => StepConfigs[StepTypeKey]) | undefined // eslint-disable-line no-unused-vars
+  return clean ? clean(draft.config) : draft.config
+}
+
+/** Why the draft can't be saved yet: no title, or the type's own settings aren't complete. */
+export function draftProblem(draft: StepDraft): string | null {
+  if (!draft.title.trim()) return 'Give it a title'
+  const problem = stepDefinition(draft.type).configProblem as ((config: StepConfigs[StepTypeKey]) => string | null) | undefined // eslint-disable-line no-unused-vars
+  return problem ? problem(draft.config) : null
+}
+
 /**
- * The single step editor: type, title, details, the type's own settings, who finishes it and
- * when it opens. Learners editing their own goal see only what applies to them.
+ * The single step editor: type, title, details and what the type needs, with the fiddly bits
+ * (the type's settings, who marks it done, when it opens and closes) in a closed Settings
+ * section. Learners editing their own goal see only what applies to them.
  */
 export default function StepEditor({ value, onChange, mode, others = [], live, typeLocked = false, orgId, token }: StepEditorProps) {
   const definition = stepDefinition(value.type)
   const ConfigPanel = definition.ConfigPanel as React.ComponentType<any> | undefined
+  const SettingsPanel = definition.SettingsPanel as React.ComponentType<any> | undefined
   const set = (patch: Partial<StepDraft>) => onChange({ ...value, ...patch })
+  const setConfig = (config: StepConfigs[StepTypeKey]) => set({ config })
   const personal = mode === 'personal'
+  const problem = value.title.trim() ? draftProblem(value) : null
+  const timed = value.start_date || value.due_date || value.after.length || value.due_week
+  const summary = [
+    timed ? 'timing set' : mode === 'template' ? null : 'opens and closes with its stage',
+    personal ? null : value.completed_by === 'staff' ? 'staff mark it done' : value.review_required ? 'staff review it' : null,
+  ].filter(Boolean).join(' · ')
   return <div className="flex flex-col gap-4">
     {typeLocked ? null : <StepTypePicker value={value.type} personal={personal} onChange={(type) => type !== value.type && onChange({ ...value, type, config: stepDefinition(type).defaultConfig() })} />}
     <div className="flex flex-col gap-1"><Label htmlFor="step-title">Title</Label><Input id="step-title" value={value.title} onChange={(event) => set({ title: event.target.value })} placeholder="What needs to happen?" /></div>
     <div className="flex flex-col gap-1"><Label htmlFor="step-details">Details</Label><Textarea id="step-details" rows={3} value={value.description} onChange={(event) => set({ description: event.target.value })} placeholder="Anything that helps" /></div>
-    {ConfigPanel ? <ConfigPanel config={value.config} onChange={(config: StepConfigs[StepTypeKey]) => set({ config })} orgId={orgId} token={token} /> : null}
-    {personal ? null : <div className="flex flex-col gap-2 border-t pt-4">
-      <Label>Who marks it done</Label>
-      <div className="flex flex-wrap gap-2">
-        {(['learner', 'staff'] as const).map((who) => <button key={who} type="button" aria-pressed={value.completed_by === who} onClick={() => set({ completed_by: who, review_required: who === 'staff' ? false : value.review_required })}
-          className={cn('rounded-xl border-2 px-3 py-1.5 text-sm font-bold', value.completed_by === who ? 'border-[var(--plan-face)] bg-[color-mix(in_srgb,var(--plan-face)_13%,hsl(var(--card)))]' : 'border-border')}>{who === 'learner' ? 'The learner' : 'Staff'}</button>)}
-      </div>
-      {value.completed_by === 'learner' && !definition.finishesItself ? <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={value.review_required} onChange={(event) => set({ review_required: event.target.checked })} />Staff review it before it counts</label> : null}
-      {value.review_required || value.completed_by === 'staff' ? <div className="flex flex-col gap-1"><Label htmlFor="step-guidance">Notes for reviewers</Label><Textarea id="step-guidance" rows={2} value={value.reviewer_guidance} onChange={(event) => set({ reviewer_guidance: event.target.value })} placeholder="What a good one looks like" /></div> : null}
-    </div>}
-    {mode === 'template' ? <div className="grid gap-3 border-t pt-4 sm:grid-cols-2">
-      <div className="flex flex-col gap-1"><Label htmlFor="step-week">Due in week</Label><Input id="step-week" type="number" min={1} value={value.due_week ?? ''} onChange={(event) => set({ due_week: event.target.value ? Math.max(1, Number(event.target.value)) : null })} placeholder="No due week" /></div>
-      <AfterPicker value={value} others={others} set={set} />
-    </div> : live ? <details className="group/settings border-t pt-3">
+    {ConfigPanel ? <ConfigPanel config={value.config} onChange={setConfig} orgId={orgId} token={token} personal={personal} /> : null}
+    {problem ? <p role="status" className="text-xs font-semibold text-amber-700 dark:text-amber-400">{problem}</p> : null}
+    <details className="group/settings border-t pt-3">
       <summary className="flex min-h-9 cursor-pointer list-none items-center justify-between gap-2 text-sm font-bold text-muted-foreground">
-        <span>Settings <span className="font-normal">· {value.start_date || value.due_date || value.after.length ? 'timing set' : 'opens and closes with its stage'}</span></span>
+        <span>Settings{summary ? <span className="font-normal"> · {summary}</span> : null}</span>
         <span aria-hidden="true" className="text-xs transition-transform group-open/settings:rotate-180">▾</span>
       </summary>
-      <div className="mt-3 flex flex-col gap-2"><span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Timing</span><StepTiming {...live} value={value} set={set} token={token} /></div>
-    </details> : null}
+      <div className="mt-3 flex flex-col gap-5">
+        {SettingsPanel ? <SettingsPanel config={value.config} onChange={setConfig} orgId={orgId} token={token} personal={personal} /> : null}
+        {personal ? null : <Setting title="Who marks it done">
+          <div className="flex flex-wrap gap-2">
+            {(['learner', 'staff'] as const).map((who) => <button key={who} type="button" aria-pressed={value.completed_by === who} onClick={() => set({ completed_by: who, review_required: who === 'staff' ? false : value.review_required })}
+              className={cn('rounded-xl border-2 px-3 py-1.5 text-sm font-bold', value.completed_by === who ? 'border-[var(--plan-face)] bg-[color-mix(in_srgb,var(--plan-face)_13%,hsl(var(--card)))]' : 'border-border')}>{who === 'learner' ? 'The learner' : 'Staff'}</button>)}
+          </div>
+          {value.completed_by === 'learner' && !definition.finishesItself ? <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={value.review_required} onChange={(event) => set({ review_required: event.target.checked })} />Staff review it before it counts</label> : null}
+          {value.review_required || value.completed_by === 'staff' ? <div className="flex flex-col gap-1"><Label htmlFor="step-guidance">Notes for reviewers</Label><Textarea id="step-guidance" rows={2} value={value.reviewer_guidance} onChange={(event) => set({ reviewer_guidance: event.target.value })} placeholder="What a good one looks like" /></div> : null}
+        </Setting>}
+        {mode === 'template' ? <Setting title="Timing">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="flex flex-col gap-1"><Label htmlFor="step-week">Due in week</Label><Input id="step-week" type="number" min={1} value={value.due_week ?? ''} onChange={(event) => set({ due_week: event.target.value ? Math.max(1, Number(event.target.value)) : null })} placeholder="No due week" /></div>
+            <AfterPicker value={value} others={others} set={set} />
+          </div>
+        </Setting> : live ? <Setting title="Timing"><StepTiming {...live} value={value} set={set} token={token} /></Setting> : null}
+      </div>
+    </details>
   </div>
+}
+
+/** One group in the Settings section. */
+export function Setting({ title, children }: { title: string; children: React.ReactNode }) {
+  return <div className="flex flex-col gap-2"><span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{title}</span>{children}</div>
 }
 
 type TimingProps = { value: StepDraft; others: Array<{ id: string; title: string }>; set: (patch: Partial<StepDraft>) => void } // eslint-disable-line no-unused-vars

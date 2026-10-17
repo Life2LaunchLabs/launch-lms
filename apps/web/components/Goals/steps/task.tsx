@@ -4,9 +4,8 @@ import React from 'react'
 import { Check, Plus, SquareCheck, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Input } from '@components/ui/input'
-import { Label } from '@components/ui/label'
 import type { Step } from '@services/goals/types'
-import type { ConfigPanelProps, StepCardProps, StepDefinition } from './registry'
+import type { StepCardProps, StepDefinition } from './registry'
 import { Feedback, FinishControls, StepIntro } from './shared'
 
 const listOf = (step: Step<'task'>) => step.config.list
@@ -54,25 +53,10 @@ function TaskCard({ step, actions, canWork, staff }: StepCardProps<'task'>) {
   </div>
 }
 
-function TaskConfigPanel({ config, onChange }: ConfigPanelProps<'task'>) {
-  const list = config.list
-  return <div className="flex flex-col gap-3">
-    <label className="flex items-center gap-2 text-sm font-semibold">
-      <input type="checkbox" checked={!!list} onChange={(event) => onChange(event.target.checked ? { list: { label: '', target: 0, item_kind: 'text' } } : {})} />
-      The learner keeps a list
-    </label>
-    {list ? <div className="grid gap-3 sm:grid-cols-3">
-      <div className="flex flex-col gap-1 sm:col-span-2"><Label>List label</Label><Input value={list.label || ''} onChange={(event) => onChange({ list: { ...list, label: event.target.value } })} placeholder="People I talked to" /></div>
-      <div className="flex flex-col gap-1"><Label>How many</Label><Input type="number" min={0} max={100} value={list.target || 0} onChange={(event) => onChange({ list: { ...list, target: Number(event.target.value) || 0 } })} /></div>
-      <label className="flex items-center gap-2 text-sm font-semibold sm:col-span-3"><input type="checkbox" checked={list.item_kind === 'link'} onChange={(event) => onChange({ list: { ...list, item_kind: event.target.checked ? 'link' : 'text' } })} />Each item is a link</label>
-    </div> : null}
-  </div>
-}
-
 export const task: StepDefinition<'task'> = {
   type: 'task',
   label: 'Task',
-  hint: 'Something to do, with an optional list to fill',
+  hint: 'Something to do, marked done when it is',
   icon: SquareCheck,
   statusLine: (step) => {
     const target = listOf(step)?.target
@@ -80,6 +64,5 @@ export const task: StepDefinition<'task'> = {
   },
   RowResult: TaskRow,
   CardBody: TaskCard,
-  ConfigPanel: TaskConfigPanel,
   defaultConfig: () => ({}),
 }

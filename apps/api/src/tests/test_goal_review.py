@@ -5,7 +5,7 @@ from sqlmodel import select
 from src.db.goals import Goal, GoalAssignmentCreate, GoalStep, StepEntryCreate, StepStatus
 from src.db.learning import LearningPage, LearningPageType, LearningResponseAttempt, LearningRun
 from src.db.media import MediaAsset
-from src.services.goals import assignments, goals, review
+from src.services.goals import assignments, entries, goals, review
 from src.tests.test_goals import ADMIN, LEARNER, NOW, OTHER, _published, _session, _status, _step, _user
 
 RESUME = {"key": "resume", "type": "upload", "title": "Your first resume", "review_required": True, "reviewer_guidance": "One page",
@@ -33,7 +33,7 @@ def _submit_resume(db, user_id: int) -> str:
                       filename=f"resume{user_id}.pdf", url=f"https://files.example.com/{user_id}.pdf", creation_date=NOW, update_date=NOW))
     db.commit()
     step = _step(goals.get_goal(db, _user(user_id), goal.goal_uuid), "Your first resume")
-    goals.add_entry(db, _user(user_id), goal.goal_uuid, step["step_uuid"], StepEntryCreate(kind="file", slot="file", asset_uuid=asset_uuid))
+    entries.add_entry(db, _user(user_id), goal.goal_uuid, step["step_uuid"], StepEntryCreate(kind="file", slot="file", asset_uuid=asset_uuid))
     _status(db, user_id, goal, step, StepStatus.COMPLETED)
     return step["step_uuid"]
 

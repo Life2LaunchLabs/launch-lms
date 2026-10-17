@@ -2,19 +2,22 @@ import type React from 'react'
 import type { Goal, Step, StepConfigs, StepStatus, StepTypeKey } from '@services/goals/types'
 import type { EntryInput } from '@services/goals/goals'
 
-/** What a step card can do, already bound to its goal and step. Each call refreshes the goal. */
+/** What a step card can do, already bound to its goal and step. Each call refreshes the goal and says whether it worked. */
 export interface StepActions {
   busy: boolean
   // eslint-disable-next-line no-unused-vars
-  setStatus: (status: StepStatus, note?: string) => Promise<void>
+  setStatus: (status: StepStatus, note?: string) => Promise<boolean>
   // eslint-disable-next-line no-unused-vars
-  saveSubmission: (data: { submission?: Record<string, unknown>; answer?: string; learner_note?: string }) => Promise<void>
+  saveSubmission: (data: { submission?: Record<string, unknown>; answer?: string; learner_note?: string }) => Promise<boolean>
+  /** The learner's note on the step, open or done. */
   // eslint-disable-next-line no-unused-vars
-  addEntry: (data: EntryInput) => Promise<void>
+  saveNote: (note: string) => Promise<boolean>
   // eslint-disable-next-line no-unused-vars
-  updateEntry: (entryUuid: string, data: { title?: string; note?: string; done?: boolean; follow_up_status?: string | null }) => Promise<void>
+  addEntry: (data: EntryInput) => Promise<boolean>
   // eslint-disable-next-line no-unused-vars
-  deleteEntry: (entryUuid: string) => Promise<void>
+  updateEntry: (entryUuid: string, data: { title?: string; note?: string; done?: boolean; follow_up_status?: string | null; data?: Record<string, unknown> }) => Promise<boolean>
+  // eslint-disable-next-line no-unused-vars
+  deleteEntry: (entryUuid: string) => Promise<boolean>
   /** Opens the activity player. */
   openActivity: () => void
   /** Asks Coach about the step; shown beside the step's main action. */
@@ -60,4 +63,14 @@ export interface StepDefinition<T extends StepTypeKey = StepTypeKey> {
   defaultConfig: () => StepConfigs[T]
   /** Steps the learner can't finish by hand (activities, badges, portfolio checks). */
   finishesItself?: boolean
+  /** False when the type asks its own question as it's marked done, so the note isn't asked for too. */
+  notePrompt?: boolean
+  /** The type's fiddly settings, shown in the editor's closed Settings section. */
+  SettingsPanel?: React.ComponentType<ConfigPanelProps<T>>
+  /** The config as saved: drops what the editor only shows (such as empty options). */
+  // eslint-disable-next-line no-unused-vars
+  cleanConfig?: (config: StepConfigs[T]) => StepConfigs[T]
+  /** Why the config can't be saved yet, if it can't. */
+  // eslint-disable-next-line no-unused-vars
+  configProblem?: (config: StepConfigs[T]) => string | null
 }

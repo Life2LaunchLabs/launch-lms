@@ -14,13 +14,14 @@ from src.db.goals import (
     StepEntryCreate,
     StepEntryUpdate,
     StepMove,
+    StepNote,
     StepStatusChange,
     StepSubmission,
     StepUpdate,
 )
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
-from src.services.goals import goals as service, schedule, structure
+from src.services.goals import entries, goals as service, schedule, structure
 
 router = APIRouter()
 
@@ -118,19 +119,24 @@ def api_step_submission(goal_uuid: str, step_uuid: str, payload: StepSubmission,
     return service.save_submission(db, user, goal_uuid, step_uuid, payload)
 
 
+@router.put("/{goal_uuid}/steps/{step_uuid}/note")
+def api_step_note(goal_uuid: str, step_uuid: str, payload: StepNote, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    return service.save_note(db, user, goal_uuid, step_uuid, payload)
+
+
 @router.post("/{goal_uuid}/steps/{step_uuid}/entries")
 def api_add_entry(goal_uuid: str, step_uuid: str, payload: StepEntryCreate, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
-    return service.add_entry(db, user, goal_uuid, step_uuid, payload)
+    return entries.add_entry(db, user, goal_uuid, step_uuid, payload)
 
 
 @router.patch("/{goal_uuid}/steps/{step_uuid}/entries/{entry_uuid}")
 def api_update_entry(goal_uuid: str, step_uuid: str, entry_uuid: str, payload: StepEntryUpdate, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
-    return service.update_entry(db, user, goal_uuid, step_uuid, entry_uuid, payload)
+    return entries.update_entry(db, user, goal_uuid, step_uuid, entry_uuid, payload)
 
 
 @router.delete("/{goal_uuid}/steps/{step_uuid}/entries/{entry_uuid}")
 def api_delete_entry(goal_uuid: str, step_uuid: str, entry_uuid: str, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
-    return service.delete_entry(db, user, goal_uuid, step_uuid, entry_uuid)
+    return entries.delete_entry(db, user, goal_uuid, step_uuid, entry_uuid)
 
 
 @router.get("/{goal_uuid}/steps/{step_uuid}/activity")
