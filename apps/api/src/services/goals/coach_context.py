@@ -19,7 +19,7 @@ from sqlmodel import Session, select
 from src.db.goals import DONE_STEP_STATUSES, Goal, GoalAssignment, GoalStage, GoalStep, GoalTemplate, GoalTemplateVersion, StepEntry, StepProgress
 from src.db.usergroups import UserGroup
 from src.security.org_auth import is_org_admin, require_org_membership
-from src.services.goals import access
+from src.services.goals import access, schedule
 from src.services.goals.availability import ordered_steps
 from src.services.goals.document import iter_steps
 from src.services.goals.types import StepState, step_type
@@ -75,12 +75,12 @@ def safe_result(result: dict | None) -> dict | None:
     return {key: value for key, value in result.items() if isinstance(value, (str, int, float, bool)) and key not in {"url", "asset_id"}}
 
 
-def _step_fact(db: Session, step: GoalStep, stage: GoalStage | None, goal: Goal) -> dict:
+def _step_fact(db: Session, step: GoalStep, stage: GoalStage | None, goal: Goal, stage_end=None) -> dict:
     progress = db.exec(select(StepProgress).where(StepProgress.step_id == step.id)).first()
     status = _value(progress.status) if progress else "not_started"
     fact = {
         "id": step.step_uuid, "type": step.type, "title": step.title[:200], "description": (step.description or "")[:1200],
-        "status": status, "due_date": str(step.due_date or (stage.due_date if stage else None) or goal.target_date or ""),
+        "status": status, "due_date": str(step.due_date or stage_end or goal.target_date or ""),
         "stage": stage.title[:200] if stage else None,
     }
     if progress:
@@ -113,7 +113,8 @@ def _goal_facts(db: Session, goal: Goal, hint: GoalSurfaceHint, detailed: bool) 
         return None
     included = [selected] if selected else [step for step in steps if step.step_uuid in hint.visible_ids][:8]
     stage_by_id = {stage.id: stage for stage in stages}
-    facts["steps"] = [_step_fact(db, step, stage_by_id.get(step.stage_id), goal) for step in included]
+    ends = schedule.stage_ends(goal, stages)
+    facts["steps"] = [_step_fact(db, step, stage_by_id.get(step.stage_id), goal, ends.get(step.stage_id)) for step in included]  # type: ignore[arg-type]
     if selected:
         source["step_id"], source["step_title"] = selected.step_uuid, selected.title[:200]
     return facts, source
@@ -156,7 +157,7 @@ def group_facts(db: Session, assignment: GoalAssignment) -> tuple[dict, dict]:
         "steps": [
             {"id": step.get("key"), "type": step.get("type"), "title": str(step.get("title") or "Step")[:200],
              "description": str(step.get("description") or "")[:1200], "stage": str(stage.get("title") or "")[:200],
-             "due_date": str((dates.get(stage.get("key")) or {}).get("due_date") or assignment.due_date or ""),
+             "stage_starts": str((dates.get(stage.get("key")) or {}).get("start_date") or ""), "due_date": str(assignment.due_date or ""),
              "learners_done": done_by_key.get(step.get("key") or "", 0)}
             for stage, step in iter_steps(document)
         ][:8],

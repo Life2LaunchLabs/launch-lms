@@ -40,7 +40,6 @@ export interface HomeGoal {
   title: string
   description: string
   priority: number | null
-  step_order: string
   ownership: string
   source: string
   organization: { id: number; name: string; slug: string } | null

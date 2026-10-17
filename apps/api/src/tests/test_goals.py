@@ -36,7 +36,7 @@ from src.db.user_organizations import UserOrganization
 from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup
 from src.db.users import PublicUser, User
-from src.services.goals import assignments, goals, issue, structure, templates
+from src.services.goals import assignments, goals, issue, schedule, structure, templates
 from src.services.goals.completion import on_badge_awarded
 
 NOW = "2026-10-15T12:00:00"
@@ -173,7 +173,7 @@ def test_assigning_to_a_group_issues_pending_goals_that_learners_accept():
         view = goals.respond(db, _user(LEARNER), mine[0]["goal_uuid"], True)
         assert view["status"] == "active" and view["source"] == "assignment" and view["ownership"] == "external"
         stage = view["stages"][0]
-        assert (stage["start_date"], stage["due_date"]) == (date(2026, 11, 2), date(2026, 11, 29))
+        assert (stage["start_date"], stage["end_date"]) == (date(2026, 11, 2), None)
         essay = _step(view, "Essay")
         assert essay["due_date"] == date(2026, 11, 15)
         assert essay["after_step_uuids"] == [_step(view, "Visit a campus")["step_uuid"]]
@@ -331,6 +331,9 @@ def test_personal_goals_are_private_learner_owned_and_never_wait_on_staff():
         view = structure.add_step(db, _user(LEARNER), created["goal_uuid"], StepCreate(stage_uuid=research, type="decision", title="Choose", config={"options": [{"key": "bio", "label": "Biology"}, {"key": "art", "label": "Art"}]}))
         choose = _step(view, "Choose")
         goal = db.exec(select(Goal).where(Goal.goal_uuid == created["goal_uuid"])).one()
+        # Its steps open once the goal moves on to Research.
+        assert choose["locked_reason"] == {"kind": "stage", "title": "Research", "date": None}
+        schedule.set_current_stage(db, _user(LEARNER), goal.goal_uuid, research)
         with pytest.raises(HTTPException, match="Make a choice"):
             _status(db, LEARNER, goal, choose, StepStatus.COMPLETED)
         goals.save_submission(db, _user(LEARNER), goal.goal_uuid, choose["step_uuid"], StepSubmission(submission={"choices": ["bio"], "reason": "I like labs"}))

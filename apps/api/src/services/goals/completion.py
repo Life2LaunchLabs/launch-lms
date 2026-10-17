@@ -227,15 +227,16 @@ def _auto(db: Session, step: GoalStep, target: StepStatus) -> None:
 
 def end_routines(db: Session, goal: Goal, today: date | None = None) -> None:
     """End the goal's running routines whose end date (their own or their stage's) has passed."""
+    from src.services.goals.schedule import stage_ends
     from src.services.goals.types.routine import ends_on
 
     if _value(goal.status) != GoalStatus.ACTIVE.value:
         return
     today = today or date.today()
     routines = list(db.exec(select(GoalStep).where(GoalStep.goal_id == goal.id, GoalStep.type == "routine")).all())
+    ends = stage_ends(goal, list(db.exec(select(GoalStage).where(GoalStage.goal_id == goal.id)).all())) if routines else {}
     for step in routines:
-        stage = db.get(GoalStage, step.stage_id) if step.stage_id else None
-        last_day = ends_on(step, stage)
+        last_day = ends_on(step, ends.get(step.stage_id))  # type: ignore[arg-type]
         if last_day and last_day < today:
             _auto(db, step, StepStatus.COMPLETED)
 

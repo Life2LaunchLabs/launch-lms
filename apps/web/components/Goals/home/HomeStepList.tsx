@@ -25,7 +25,7 @@ function itemStep(item: HomeItem): Step {
   return {
     step_uuid: item.step_uuid, stage_uuid: item.stage?.stage_uuid ?? null, position: 0, type: item.type, title: item.title, description: item.description || '',
     config: stepDefinition(item.type).defaultConfig(), materials: [], completed_by: 'learner', review_required: false,
-    start_date: null, due_date: item.due_date, allow_late: false, held: false, after_step_uuids: [], requirement_links: [],
+    start_date: null, due_date: item.due_date, held: false, after_step_uuids: [], requirement_links: [],
     status: item.status, locked: item.locked, locked_reason: item.locked_reason, state: item.state, fraction: item.fraction, result: item.result,
     submission: {}, answer: '', learner_note: '', reviewer_note: '', feedback_history: [], completed_at: item.completed_at,
     completion_method: null, entries: [], reference: null,

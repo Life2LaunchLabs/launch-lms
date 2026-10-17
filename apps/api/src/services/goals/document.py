@@ -38,8 +38,7 @@ class TemplateStep(BaseModel):
     review_required: bool = Field(default=False, description="Learner steps only: staff approve it before it counts as done.")
     reviewer_guidance: str = Field(default="", max_length=4000)
     after: list[str] = Field(default_factory=list, description="Keys of steps that must be finished before this one opens.")
-    due_week: int | None = Field(default=None, ge=1, description="Week within the stage it is due; needs the stage's duration_weeks.")
-    allow_late: bool = False
+    due_week: int | None = Field(default=None, ge=1, description="Week within the stage it closes; needs the stage's duration_weeks. Without it, it closes when the stage ends.")
     requirement_node_uuids: list[str] = Field(default_factory=list)
 
 
@@ -51,7 +50,7 @@ class TemplateStage(BaseModel):
     description: str = ""
     timing: str = Field(default="", max_length=120, description="Rough timing shown when there are no dates.")
     milestone: str = Field(default="", max_length=200, description="What reaching the end of the stage looks like.")
-    duration_weeks: int | None = Field(default=None, ge=1)
+    duration_weeks: int | None = Field(default=None, ge=1, description="How long until the next stage starts, when the goal has a start date.")
     steps: list[TemplateStep] = Field(default_factory=list)
 
 
@@ -78,7 +77,6 @@ class TemplateMeta(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     description: str = ""
     instructions: str = Field(default="", description="Shown to staff when they assign the template.")
-    step_order: Literal["any", "in_order", "by_stage"] = "any"
 
 
 class GoalTemplateDocument(BaseModel):
@@ -98,13 +96,36 @@ def default_roles() -> dict:
 def empty_document(title: str, description: str = "") -> dict:
     return {
         "format": DOCUMENT_FORMAT, "format_version": DOCUMENT_FORMAT_VERSION,
-        "template": {"title": title, "description": description, "instructions": "", "step_order": "any"},
+        "template": {"title": title, "description": description, "instructions": ""},
         "roles": default_roles(), "stages": [{"key": _key("stage"), "title": "Stage 1", "description": "", "timing": "", "steps": []}],
     }
 
 
 def _key(prefix: str) -> str:
     return f"{prefix}_{uuid4().hex[:12]}"
+
+
+def upgrade_document(raw: dict) -> dict:
+    """An older document in today's shape: steps open with their stage (or after the steps they
+    wait on), so a template that went "in order" now has each step wait on the one before it."""
+    if not isinstance(raw, dict) or not isinstance(raw.get("template"), dict):
+        return raw
+    document = {**raw, "template": {key: value for key, value in raw["template"].items() if key != "step_order"}}
+    in_order = raw["template"].get("step_order") == "in_order"
+    stages = []
+    for stage in raw.get("stages") or []:
+        steps, previous = [], None
+        for step in (stage.get("steps") or []) if isinstance(stage, dict) else []:
+            step = {key: value for key, value in step.items() if key != "allow_late"} if isinstance(step, dict) else step
+            if in_order and isinstance(step, dict):
+                step["key"] = step.get("key") or _key("step")
+                if previous and not step.get("after"):
+                    step["after"] = [previous]
+            previous = step.get("key") if isinstance(step, dict) else None
+            steps.append(step)
+        stages.append({**stage, "steps": steps} if isinstance(stage, dict) else stage)
+    document["stages"] = stages
+    return document
 
 
 def json_schema() -> dict:
@@ -123,7 +144,7 @@ def validate_document(db: Session, raw: dict, org_id: int | None, *, requirement
     ``requirement_nodes`` is the set of node uuids steps may link to (None skips the check).
     """
     try:
-        parsed = GoalTemplateDocument.model_validate(raw)
+        parsed = GoalTemplateDocument.model_validate(upgrade_document(raw))
     except ValidationError as error:
         first = error.errors()[0]
         where = ".".join(str(part) for part in first.get("loc", ()))

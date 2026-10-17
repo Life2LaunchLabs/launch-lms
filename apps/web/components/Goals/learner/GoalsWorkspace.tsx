@@ -168,8 +168,8 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
   // Until the full goal arrives, its header renders from the goal list's summary.
   const summary = stripGoals.find((item) => item.goal_uuid === selectedUuid) || finished.find((item) => item.goal_uuid === selectedUuid)
   const header: HeaderGoal | null = summary
-    ? { ...summaryHeader(summary), ...(goal ? { title: goal.title, description: goal.description, step_order: goal.step_order, icon: goal.icon } : {}) }
-    : goal ? { goal_uuid: goal.goal_uuid, title: goal.title, description: goal.description, step_order: goal.step_order, icon: goal.icon, is_subject: isSubject, subject: goal.subject } : null
+    ? { ...summaryHeader(summary), ...(goal ? { title: goal.title, description: goal.description, icon: goal.icon } : {}) }
+    : goal ? { goal_uuid: goal.goal_uuid, title: goal.title, description: goal.description, icon: goal.icon, is_subject: isSubject, subject: goal.subject } : null
   const badge = header?.source_badge || null
   const celebrating = Boolean(goal && isSubject && home?.celebrations?.includes(goal.goal_uuid))
   const color = getGoalColor(selectedUuid)

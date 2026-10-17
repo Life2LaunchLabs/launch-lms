@@ -5,7 +5,6 @@ export type StepStatus = 'not_started' | 'in_progress' | 'submitted' | 'changes_
 export type NodeState = 'locked' | 'open' | 'started' | 'waiting' | 'retry' | 'done'
 export type StepCompleter = 'learner' | 'staff'
 export type CompletionMethod = 'learner' | 'staff' | 'auto'
-export type StepOrder = 'any' | 'in_order' | 'by_stage'
 export type GoalStatus = 'draft' | 'pending' | 'active' | 'finished' | 'archived'
 export type GoalOwnership = 'personal' | 'external'
 export type GoalSource = 'none' | 'assignment' | 'badge' | 'starter' | 'template'
@@ -78,6 +77,7 @@ export type LockReason =
   | { kind: 'after'; step_uuid: string; title: string }
   | { kind: 'held' }
   | { kind: 'opens'; date: string }
+  | { kind: 'stage'; title: string; date: string | null }
 
 export interface FeedbackItem {
   message: string
@@ -97,8 +97,8 @@ export interface Step<T extends StepTypeKey = StepTypeKey> {
   completed_by: StepCompleter
   review_required: boolean
   start_date: string | null
+  /** Its own open and close dates; without them it opens and closes with its stage. */
   due_date: string | null
-  allow_late: boolean
   held: boolean
   after_step_uuids: string[]
   requirement_links: Array<{ node_uuid: string; code?: string; title?: string; framework_uuid?: string }>
@@ -132,7 +132,8 @@ export interface Stage {
   /** What reaching the end of the stage looks like. */
   milestone: string
   start_date: string | null
-  due_date: string | null
+  /** The day before the next stage starts, else the goal's target date. */
+  end_date: string | null
   steps: Step[]
 }
 
@@ -141,7 +142,7 @@ export type GoalIcon = 'target' | 'book' | 'briefcase' | 'graduation' | 'heart' 
 
 /** A date or ordering in a plan that can't all come true; the API's schedule.conflicts. */
 export interface ScheduleWarning {
-  kind: 'stage_dates' | 'stage_order' | 'step_dates' | 'step_before_stage' | 'step_after_stage' | 'waits_on_later' | 'due_before_wait'
+  kind: 'stage_order' | 'step_dates' | 'step_before_stage' | 'step_after_stage' | 'waits_on_later' | 'closes_before_wait'
   message: string
   stage_uuid: string | null
   step_uuid: string | null
@@ -155,7 +156,6 @@ export interface Goal {
   ownership: GoalOwnership
   source: GoalSource
   status: GoalStatus
-  step_order: StepOrder
   org_id: number | null
   start_date: string | null
   target_date: string | null
@@ -167,7 +167,7 @@ export interface Goal {
   progress: { done: number; total: number }
   stages: Stage[]
   unstaged_steps: Step[]
-  /** The one stage the goal is on now (a goal moves on by hand or when a stage's start date arrives). */
+  /** The stage the goal is on: the last whose start date has arrived, else the first. */
   current_stage_uuid?: string | null
   schedule_warnings?: ScheduleWarning[]
 }
@@ -205,7 +205,6 @@ export interface TemplateStep<T extends StepTypeKey = StepTypeKey> {
   reviewer_guidance?: string
   after?: string[]
   due_week?: number | null
-  allow_late?: boolean
   requirement_node_uuids?: string[]
 }
 
@@ -228,7 +227,7 @@ export interface TemplateRole {
 export interface TemplateDocument {
   format: 'launch-lms.goal-template'
   format_version: 1
-  template: { title: string; description?: string; instructions?: string; step_order: StepOrder }
+  template: { title: string; description?: string; instructions?: string }
   roles?: { definitions: TemplateRole[]; subject_role_key: string; staff_role_key: string } | null
   stages: TemplateStage[]
 }

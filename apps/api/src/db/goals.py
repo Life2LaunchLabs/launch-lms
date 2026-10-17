@@ -69,12 +69,6 @@ class CompletionMethod(str, Enum):
     AUTO = "auto"
 
 
-class StepOrder(str, Enum):
-    ANY = "any"
-    IN_ORDER = "in_order"
-    BY_STAGE = "by_stage"
-
-
 class GoalTemplate(SQLModel, table=True):
     __tablename__ = "goal_template"
     __table_args__ = (UniqueConstraint("template_uuid"),)
@@ -141,9 +135,9 @@ class GoalAssignment(SQLModel, table=True):
     staff_user_ids: list[int] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
     start_date: date | None = Field(default=None, sa_column=Column(Date, nullable=True))
     due_date: date | None = Field(default=None, sa_column=Column(Date, nullable=True))
-    # Dates per stage key: {"<stage key>": {"start_date": "...", "due_date": "..."}}.
+    # Start dates per stage key: {"<stage key>": {"start_date": "..."}}.
     stage_dates: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
-    # Step key -> {"due_date", "allow_late"}: per-step dates set when assigning.
+    # Step key -> {"due_date"}: per-step close dates set when assigning.
     step_dates: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False, server_default="{}"))
     # [{"user_id", "role_key"}]: people added to each issued goal with a role.
     collaborators: list[dict] = Field(default_factory=list, sa_column=Column(JSON, nullable=False, server_default="[]"))
@@ -173,7 +167,6 @@ class Goal(SQLModel, table=True):
     title: str
     description: str = ""
     status: GoalStatus = Field(default=GoalStatus.ACTIVE, sa_column=Column(String, nullable=False, index=True))
-    step_order: StepOrder = Field(default=StepOrder.ANY, sa_column=Column(String, nullable=False, server_default="any"))
     # Higher comes first in This week.
     priority: int = Field(default=1, sa_column=Column(Integer, nullable=False, server_default="1"))
     start_date: date | None = Field(default=None, sa_column=Column(Date, nullable=True))
@@ -205,8 +198,8 @@ class GoalStage(SQLModel, table=True):
     timing: str = ""
     # What reaching the end of the stage looks like ("Accepted to pre-vet"); stages end at milestones.
     milestone: str = ""
+    # When it starts; it runs until the next stage starts (see services/goals/schedule.py).
     start_date: date | None = Field(default=None, sa_column=Column(Date, nullable=True))
-    due_date: date | None = Field(default=None, sa_column=Column(Date, nullable=True))
     # The template stage it was issued from.
     template_key: str | None = Field(default=None, sa_column=Column(String, nullable=True))
     creation_date: str = ""
@@ -234,9 +227,9 @@ class GoalStep(SQLModel, table=True):
     # Learner steps that staff approve before they count as done.
     review_required: bool = False
     reviewer_guidance: str = ""
+    # Opens and closes with its stage unless these are set (or it waits on other steps).
     start_date: date | None = Field(default=None, sa_column=Column(Date, nullable=True))
     due_date: date | None = Field(default=None, sa_column=Column(Date, nullable=True, index=True))
-    allow_late: bool = False
     # Staff put the step on hold.
     held: bool = False
     after_step_uuids: list[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
@@ -388,7 +381,6 @@ class GoalUpdate(SQLModel):
     title: str | None = Field(default=None, min_length=1, max_length=200)
     description: str | None = None
     target_date: date | None = None
-    step_order: StepOrder | None = None
     icon: Literal[GOAL_ICONS] | None = None  # type: ignore[valid-type]
 
 
@@ -406,7 +398,6 @@ class StageUpdate(SQLModel):
     timing: str | None = Field(default=None, max_length=120)
     milestone: str | None = Field(default=None, max_length=200)
     start_date: date | None = None
-    due_date: date | None = None
 
 
 class StepCreate(SQLModel):
@@ -436,7 +427,6 @@ class StepUpdate(SQLModel):
     after_step_uuids: list[str] | None = None
     start_date: date | None = None
     due_date: date | None = None
-    allow_late: bool | None = None
     held: bool | None = None
 
 

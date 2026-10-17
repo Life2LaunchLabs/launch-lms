@@ -24,6 +24,7 @@ from sqlmodel import Session, select
 from src.db.goals import DONE_STEP_STATUSES, Goal, GoalStage, GoalStatus, GoalStep, StepEntry, StepProgress, StepStatus
 from src.db.planning import PlanWeeklyFocus
 from src.services.goals.availability import availability, ordered_steps
+from src.services.goals.schedule import stage_ends
 
 DEFAULT_TARGET = 5
 BOOST_SIZE = 3
@@ -50,10 +51,10 @@ class Entry:
 
     __slots__ = ("goal", "stage", "step", "progress", "entries", "status", "lock", "due", "completed_on")
 
-    def __init__(self, goal: Goal, stage: GoalStage | None, step: GoalStep, progress: StepProgress | None, entries: list[StepEntry], lock: dict):
+    def __init__(self, goal: Goal, stage: GoalStage | None, step: GoalStep, progress: StepProgress | None, entries: list[StepEntry], lock: dict, stage_end: date | None = None):
         self.goal, self.stage, self.step, self.progress, self.entries, self.lock = goal, stage, step, progress, entries, lock
         self.status = _value(progress.status) if progress else StepStatus.NOT_STARTED.value
-        self.due = _as_date(step.due_date or (stage.due_date if stage else None))
+        self.due = _as_date(step.due_date or stage_end)
         self.completed_on = _as_date(progress.completed_at) if progress and progress.completed_at else None
 
     @property
@@ -98,8 +99,9 @@ def goal_entries(db: Session, goals: list[Goal], today: date) -> dict[int, list[
         stages, steps, progress, entries = _structure(db, goal)
         locks = availability(goal, stages, steps, {key: _value(row.status) for key, row in progress.items()}, today)
         stage_by_id = {stage.id: stage for stage in stages}
+        ends = stage_ends(goal, stages)
         result[int(goal.id)] = [  # type: ignore[arg-type]
-            Entry(goal, stage_by_id.get(step.stage_id), step, progress.get(int(step.id)), entries.get(int(step.id), []), locks[int(step.id)])  # type: ignore[arg-type]
+            Entry(goal, stage_by_id.get(step.stage_id), step, progress.get(int(step.id)), entries.get(int(step.id), []), locks[int(step.id)], ends.get(step.stage_id))  # type: ignore[arg-type]
             for step in ordered_steps(stages, steps)
         ]
     return result

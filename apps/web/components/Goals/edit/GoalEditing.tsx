@@ -1,11 +1,11 @@
 'use client'
 
 import React from 'react'
-import { ArrowDown, ArrowUp, Copy, CornerDownRight, Flag, Loader2, MoreVertical, Pencil, Trash2, Undo2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, Copy, CornerDownRight, Flag, Loader2, MoreVertical, Pencil, Plus, Trash2, Undo2, X } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
 import { goalsApi } from '@services/goals/goals'
-import { can, type Goal, type Stage, type Step, type StepTypeKey } from '@services/goals/types'
+import { can, goalSteps, type Goal, type Stage, type Step, type StepTypeKey } from '@services/goals/types'
 import { cn } from '@/lib/utils'
 import { stepDefinition } from '../steps'
 import { useGoalMutation } from '../useGoalActions'
@@ -13,11 +13,11 @@ import EditSheet from './EditSheet'
 import GoalSettingsSheet from './GoalSettingsSheet'
 import { QUICK_KINDS } from './kindGuess'
 import StageSheet from './StageSheet'
-import StepEditor, { newStepDraft, StepTypePicker, type StepDraft } from './StepEditor'
-import { liveMode, otherSteps, stepChanges, stepDraft, stepInput } from './stepDrafts'
+import StepEditor, { newStepDraft, type StepDraft } from './StepEditor'
+import { liveMode, stepChanges, stepDraft, stepInput } from './stepDrafts'
 
 type Target =
-  | { kind: 'add-step'; stageUuid: string | null }
+  | { kind: 'add-step'; stageUuid: string | null; type: StepTypeKey }
   | { kind: 'step'; step: Step }
   | { kind: 'add-stage' }
   | { kind: 'stage'; stage: Stage }
@@ -60,7 +60,7 @@ export function GoalEditingProvider({ goal, token, color, setColor, children }: 
   const liveStage = target?.kind === 'stage' ? goal.stages.find((stage) => stage.stage_uuid === target.stage.stage_uuid) : undefined
   return <EditingContext.Provider value={value}>
     {children}
-    {target?.kind === 'add-step' ? <AddStepSheet key={`add-${target.stageUuid}`} goal={goal} token={token} color={color} stageUuid={target.stageUuid} onClose={close} /> : null}
+    {target?.kind === 'add-step' ? <AddStepSheet key={`add-${target.stageUuid}-${target.type}`} goal={goal} token={token} color={color} stageUuid={target.stageUuid} type={target.type} onClose={close} /> : null}
     {target?.kind === 'step' && liveStep ? <EditStepSheet key={liveStep.step_uuid} goal={goal} step={liveStep} token={token} color={color} onClose={close} /> : null}
     {target?.kind === 'add-stage' || (target?.kind === 'stage' && liveStage) ? <StageSheet goal={goal} stage={liveStage} token={token} color={color} onClose={close} /> : null}
     {target?.kind === 'settings' ? <GoalSettingsSheet goal={goal} token={token} color={color} setColor={setColor} onClose={close} /> : null}
@@ -70,41 +70,29 @@ export function GoalEditingProvider({ goal, token, color, setColor, children }: 
 /** The kinds a step can be added as here: a learner's own goal never points at an organization's activities or badges. */
 const addableKinds = (goal: Goal): StepTypeKey[] => goal.ownership === 'personal' ? QUICK_KINDS : ['task', 'upload', 'write', 'explore', 'decision', 'routine', 'event', 'activity', 'badge']
 
-/**
- * Adding a step: first its type, confirmed because a step keeps its type, then its name and
- * the rest of it. Nothing is saved until Add step.
- */
-function AddStepSheet({ goal, token, color, stageUuid, onClose }: { goal: Goal; token?: string; color: string; stageUuid: string | null; onClose: () => void }) {
+/** Kinds that point at something chosen (an activity, a badge), so they open in the editor before they're added. */
+const NEEDS_PICK: StepTypeKey[] = ['activity', 'badge']
+
+/** Adding a step that needs something chosen first: nothing is saved until Add step. */
+function AddStepSheet({ goal, token, color, stageUuid, type, onClose }: { goal: Goal; token?: string; color: string; stageUuid: string | null; type: StepTypeKey; onClose: () => void }) {
   const mode = liveMode(goal)
-  const [kind, setKind] = React.useState<StepTypeKey | null>(null)
-  const [draft, setDraft] = React.useState<StepDraft | null>(null)
+  const [draft, setDraft] = React.useState<StepDraft>(() => newStepDraft(type))
   const { busy, run } = useGoalMutation(goal.goal_uuid)
   const stage = goal.stages.find((item) => item.stage_uuid === stageUuid)
   const save = async () => {
-    if (!draft?.title.trim()) return
+    if (!draft.title.trim()) return
     try {
       await run(() => goalsApi.addStep(goal.goal_uuid, { ...stepInput(draft, mode), stage_uuid: stageUuid }, token), 'Step added')
       onClose()
     } catch { /* toast shown */ }
   }
-  const definition = kind ? stepDefinition(kind) : null
-  return <EditSheet open onOpenChange={(open) => { if (!open) onClose() }} color={color}
-    title={draft ? `New ${stepDefinition(draft.type).label.toLowerCase()} step` : 'What kind of step?'}
-    description={draft ? (stage ? `In ${stage.title}` : undefined) : 'A step keeps its kind once it’s added.'}
-    footer={draft
-      ? <><Button type="button" variant="ghost" disabled={busy} onClick={() => setDraft(null)}>Back</Button>
-        <Button type="button" variant="plan" disabled={busy || !draft.title.trim()} onClick={() => void save()}>{busy ? <Loader2 size={14} className="animate-spin" /> : null}Add step</Button></>
-      : <><Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
-        <Button type="button" variant="plan" disabled={!kind} onClick={() => kind && setDraft(newStepDraft(kind))}>{definition ? `Make it a ${definition.label.toLowerCase()}` : 'Choose a kind'}</Button></>}>
-    {draft
-      ? <form onSubmit={(event) => { event.preventDefault(); void save() }} className="contents">
-        <StepEditor value={draft} onChange={setDraft} mode={mode} typeLocked others={otherSteps(goal)} orgId={goal.org_id} token={token} />
-        <button type="submit" hidden aria-hidden="true" tabIndex={-1} />
-      </form>
-      : <>
-        <StepTypePicker value={kind || undefined} types={addableKinds(goal)} onChange={setKind} />
-        {definition ? <p className="text-sm text-muted-foreground">{definition.hint}.</p> : null}
-      </>}
+  return <EditSheet open onOpenChange={(open) => { if (!open) onClose() }} color={color} title={`New ${stepDefinition(type).label.toLowerCase()} step`} description={stage ? `In ${stage.title}` : undefined}
+    footer={<><Button type="button" variant="ghost" disabled={busy} onClick={onClose}>Cancel</Button>
+      <Button type="button" variant="plan" disabled={busy || !draft.title.trim()} onClick={() => void save()}>{busy ? <Loader2 size={14} className="animate-spin" /> : null}Add step</Button></>}>
+    <form onSubmit={(event) => { event.preventDefault(); void save() }} className="contents">
+      <StepEditor value={draft} onChange={setDraft} mode={mode} typeLocked live={{ goal, stageUuid }} orgId={goal.org_id} token={token} />
+      <button type="submit" hidden aria-hidden="true" tabIndex={-1} />
+    </form>
   </EditSheet>
 }
 
@@ -124,7 +112,7 @@ function EditStepSheet({ goal, step, token, color, onClose }: { goal: Goal; step
   return <EditSheet open onOpenChange={(open) => { if (!open) onClose() }} color={color} title="Edit step" description={stepDefinition(step.type).label}
     footer={<><Button type="button" variant="ghost" disabled={busy} onClick={onClose}>Cancel</Button>
       <Button type="button" variant="plan" disabled={busy || !draft.title.trim()} onClick={() => void save()}>{busy ? <Loader2 size={14} className="animate-spin" /> : null}Save</Button></>}>
-    <StepEditor value={draft} onChange={setDraft} mode={mode} typeLocked others={otherSteps(goal, step.step_uuid)} orgId={goal.org_id} token={token} />
+    <StepEditor value={draft} onChange={setDraft} mode={mode} typeLocked live={{ goal, stageUuid: step.stage_uuid, stepUuid: step.step_uuid }} orgId={goal.org_id} token={token} />
   </EditSheet>
 }
 
@@ -203,14 +191,41 @@ export function StageMenu({ stage, index, onMakeCurrent }: { stage: Stage; index
   </DropdownMenu>
 }
 
-/** "Add a step" at the foot of a stage. */
-export function AddStepButton({ stageUuid }: { stageUuid: string | null }) {
+/**
+ * "Add a step" at the foot of a stage: the + opens the kinds in line (and turns into an ✕ to
+ * cancel), and picking one adds the step and opens it to name it.
+ */
+export function AddStepButton({ stageUuid, className }: { stageUuid: string | null; className?: string }) {
   const editing = useGoalEditing()
+  const [choosing, setChoosing] = React.useState(false)
+  const { busy, run } = useGoalMutation(editing?.goal.goal_uuid || '')
   if (!editing?.structure) return null
-  return <button type="button" onClick={() => editing.open({ kind: 'add-step', stageUuid })}
-    className="ml-[72px] flex min-h-10 w-fit items-center gap-2 rounded-xl px-2 text-sm font-bold text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline focus-visible:outline-2">
-    <span aria-hidden="true" className="text-lg leading-none">+</span>Add a step
-  </button>
+  const { goal, token } = editing
+  const add = async (type: StepTypeKey) => {
+    if (NEEDS_PICK.includes(type)) { setChoosing(false); editing.open({ kind: 'add-step', stageUuid, type }); return }
+    const before = new Set(goalSteps(goal).map((step) => step.step_uuid))
+    try {
+      const draft = newStepDraft(type, stepDefinition(type).label)
+      const updated = await run(() => goalsApi.addStep(goal.goal_uuid, { ...stepInput(draft, liveMode(goal)), stage_uuid: stageUuid }, token)) as Goal
+      setChoosing(false)
+      const added = updated?.stages ? goalSteps(updated).find((step) => !before.has(step.step_uuid)) : undefined
+      if (added) editing.open({ kind: 'step', step: added })
+    } catch { /* toast shown */ }
+  }
+  return <div role="group" aria-label={choosing ? 'Add a step' : undefined} className={cn('ml-[72px] flex flex-wrap items-center gap-1.5', className)}>
+    <button type="button" aria-expanded={choosing} aria-label={choosing ? 'Cancel adding a step' : undefined} onClick={() => setChoosing(!choosing)}
+      className="flex min-h-10 items-center gap-2 rounded-xl px-2 text-sm font-bold text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline focus-visible:outline-2">
+      {busy ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : choosing ? <X size={16} aria-hidden="true" /> : <Plus size={16} aria-hidden="true" />}{choosing ? null : 'Add a step'}
+    </button>
+    {choosing ? addableKinds(goal).map((type) => {
+      const definition = stepDefinition(type)
+      const Icon = definition.icon
+      return <button key={type} type="button" disabled={busy} onClick={() => void add(type)} title={definition.hint} aria-label={`Add ${definition.label}`}
+        className="flex min-h-9 items-center gap-1.5 rounded-full border-2 border-border bg-card px-3 text-sm font-bold transition hover:border-[var(--plan-face)] disabled:opacity-50">
+        <Icon size={14} aria-hidden="true" className="text-[var(--plan-accent)]" />{definition.label}
+      </button>
+    }) : null}
+  </div>
 }
 
 /** "Add a stage" at the foot of the goal. */

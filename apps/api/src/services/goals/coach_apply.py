@@ -33,7 +33,7 @@ GOAL_ROUTE = "/plans/{goal_uuid}"
 
 class CoachStageCreate(StageCreate):
     request_key: str | None = Field(default=None, min_length=1, max_length=160)
-    due_date: date | None = None
+    start_date: date | None = None
 
 
 class CoachStepCreate(StepCreate):
@@ -67,13 +67,13 @@ def add_stage_once(db: Session, current_user: PublicUser, goal_uuid: str, payloa
             return _result(db, goal, current_user.id, "created_stage_uuid", existing.stage_uuid, "existing")
         if _applied_before(db, goal, "stage.added", payload.request_key):  # type: ignore[arg-type]
             return _result(db, goal, current_user.id, "created_stage_uuid", None, "removed")
-    if payload.due_date is not None:
+    if payload.start_date is not None:
         access.require(db, goal, current_user.id, "edit_schedule")
     stages = sorted(db.exec(select(GoalStage).where(GoalStage.goal_id == goal.id)).all(), key=lambda item: item.position)
     now = _now()
     stage = GoalStage(
         stage_uuid=stage_uuid or f"goal_stage_{uuid4()}", goal_id=int(goal.id),  # type: ignore[arg-type]
-        title=payload.title.strip(), description=payload.description, timing=payload.timing, due_date=payload.due_date, creation_date=now, update_date=now,
+        title=payload.title.strip(), description=payload.description, timing=payload.timing, start_date=payload.start_date, creation_date=now, update_date=now,
     )
     position = len(stages) if payload.position is None else min(payload.position, len(stages))
     stages.insert(position, stage)

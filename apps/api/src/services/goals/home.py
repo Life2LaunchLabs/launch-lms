@@ -106,7 +106,7 @@ def _goal_summary(db: Session, goal: Goal, entries: list[Entry]) -> dict:
     org = db.get(Organization, goal.org_id) if goal.org_id else None
     return {
         "goal_uuid": goal.goal_uuid, "title": goal.title, "description": goal.description, "priority": goal.priority,
-        "step_order": _value(goal.step_order), "ownership": _value(goal.ownership), "source": _value(goal.source),
+        "ownership": _value(goal.ownership), "source": _value(goal.source),
         "organization": {"id": org.id, "name": org.name, "slug": org.slug} if org else None,
         "step_count": total, "completed_step_count": done, "progress_percent": round(done * 100 / total) if total else 0,
         "route": route(goal.goal_uuid), "creation_date": goal.creation_date,

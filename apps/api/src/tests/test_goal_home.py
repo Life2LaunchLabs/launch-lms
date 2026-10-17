@@ -4,7 +4,7 @@ import pytest
 from fastapi import HTTPException
 from sqlmodel import select
 
-from src.db.goals import Goal, GoalCreate, GoalStatus, GoalUpdate, StepCreate, StepProgress, StepStatus, StepStatusChange
+from src.db.goals import Goal, GoalCreate, GoalStatus, StepCreate, StepUpdate, StepProgress, StepStatus, StepStatusChange
 from src.db.planning import PlanWeeklyFocus
 from src.services.goals import goals, home, lifecycle, structure
 from src.tests.test_goals import LEARNER, _issue, _published, _session, _user
@@ -163,7 +163,9 @@ def test_open_steps_due_later_can_start_this_week_and_locked_ones_wait():
         today = date.today()
         later = today + timedelta(days=90)
         goal = _goal(db, "College apps", ["Essay draft", "Recommendation letters", "Submit"], due_date=later)
-        goals.update_goal(db, _user(LEARNER), goal["goal_uuid"], GoalUpdate(step_order="in_order"))
+        uuids = [step["step_uuid"] for stage in goal["stages"] for step in stage["steps"]] + [step["step_uuid"] for step in goal["unstaged_steps"]]
+        for before, step_uuid in zip(uuids, uuids[1:]):
+            structure.update_step(db, _user(LEARNER), goal["goal_uuid"], step_uuid, StepUpdate(after_step_uuids=[before]))
         result = _home(db, today)
         # Nothing is more pressing, so the open step starts now; locked ones wait.
         assert [item["title"] for item in result["week"]["items"]] == ["Essay draft"]

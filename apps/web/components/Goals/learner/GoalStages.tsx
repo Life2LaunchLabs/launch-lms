@@ -2,17 +2,21 @@
 
 import React from 'react'
 import { useSWRConfig } from 'swr'
-import { AlertTriangle, ArrowRight, BookOpen, Flag, Loader2 } from 'lucide-react'
+import { AlertTriangle, ArrowRight, BookOpen, CalendarDays, Flag, Loader2, Lock, LockOpen, MoreVertical, PartyPopper, Sparkles, Trophy } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Button } from '@components/ui/button'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
+import { Input } from '@components/ui/input'
 import { Label } from '@components/ui/label'
 import { Textarea } from '@components/ui/textarea'
 import EditSheet from '@components/Goals/edit/EditSheet'
+import { dateValue } from '@components/Goals/edit/stepDrafts'
 import { getUriWithOrg } from '@services/config/config'
 import { goalsApi, goalUrl, isGoalsKey } from '@services/goals/goals'
 import { goalLifecycleApi } from '@services/goals/lifecycle'
 import { can, type Goal, type Stage } from '@services/goals/types'
 import { cn } from '@/lib/utils'
+import { shortDate } from '../path/stepText'
 import { useGoalMutation } from '../useGoalActions'
 
 /** Whoever works or schedules the goal can move it between stages. */
@@ -65,26 +69,33 @@ const REACHED: Array<{ value: NonNullable<Goal['finish']['reached']>; label: str
 ]
 
 /**
- * The last step on a learner's own goal: saying it's done, and how it went. A goal handed to
- * them finishes by itself when its steps are done, so it has no such step.
+ * The goal's last section, after its stages: one locked step, Complete, that unlocks when every
+ * step is done. On a learner's own goal it's where they claim it (or finish early, from its
+ * menu); a goal handed to them finishes by itself. Its date is the goal's target.
  */
-export function FinishStep({ goal, token, color, orgslug }: { goal: Goal; token?: string; color: string; orgslug: string }) {
+export function FinishSection({ goal, token, color, orgslug, badge }: { goal: Goal; token?: string; color: string; orgslug: string; badge?: { name?: string } | null }) {
   const { mutate } = useSWRConfig()
-  const [open, setOpen] = React.useState(false)
+  const [sheet, setSheet] = React.useState<'finish' | 'date' | null>(null)
   const [reached, setReached] = React.useState<Goal['finish']['reached'] | null>(null)
   const [said, setSaid] = React.useState('')
+  const [target, setTarget] = React.useState(dateValue(goal.target_date))
   const [busy, setBusy] = React.useState(false)
-  if (goal.ownership !== 'personal' || !can(goal, 'edit_plan_details') || !['active', 'finished'].includes(goal.status)) return null
+  const { busy: saving, run } = useGoalMutation(goal.goal_uuid)
+  const total = goal.progress.total
+  const left = total - goal.progress.done
+  if (!total && goal.ownership !== 'personal') return null
   const finished = goal.status === 'finished'
-  const all = goal.progress.total > 0 && goal.progress.done === goal.progress.total
-  const left = goal.progress.total - goal.progress.done
+  const unlocked = total > 0 && left === 0
+  const claimable = goal.ownership === 'personal' && can(goal, 'edit_plan_details') && goal.status === 'active'
+  const dated = can(goal, 'edit_schedule') && goal.status === 'active'
+  const when = finished ? `Finished ${shortDate(goal.finished_at)}` : goal.target_date ? `By ${shortDate(goal.target_date)}` : ''
   const finish = async () => {
     setBusy(true)
     try {
       await goalLifecycleApi.finish(goal.goal_uuid, token, { reached, what_happened: said })
       await mutate(goalUrl(goal.goal_uuid))
       await mutate((key) => isGoalsKey(key) && key !== goalUrl(goal.goal_uuid))
-      setOpen(false)
+      setSheet(null)
       toast.success('Goal finished')
     } catch (error: any) {
       toast.error(error?.message || 'Could not finish this goal')
@@ -92,23 +103,43 @@ export function FinishStep({ goal, token, color, orgslug }: { goal: Goal; token?
       setBusy(false)
     }
   }
-  return <section aria-label="Finish" className="flex gap-4">
-    <span aria-hidden="true" className={cn('flex h-14 w-14 shrink-0 items-center justify-center rounded-full', finished || all ? 'bg-[var(--plan-face)] text-[var(--plan-face-ink)] shadow-[0_4px_0_var(--plan-edge)]' : 'bg-muted text-muted-foreground')}><Flag size={22} /></span>
-    <div className={cn('flex min-w-0 flex-1 flex-col gap-3 rounded-2xl border-2 p-4', all && !finished ? 'border-[var(--plan-face)]' : 'border-border')}>
-      <div>
-        <h2 className="font-extrabold">{finished ? 'Goal finished' : 'Finish your goal'}</h2>
-        <p className="text-sm text-muted-foreground">{finished
-          ? `You finished this on ${new Date(goal.finished_at || Date.now()).toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}.`
-          : all ? 'Every step is done. Say how it went, and your story comes next.' : 'Whenever you’re ready, even with steps left. Say how it went, and your story comes next.'}</p>
+  const saveDate = async () => {
+    try { await run(() => goalsApi.update(goal.goal_uuid, { target_date: target || null }, token)); setSheet(null) } catch { /* toast shown */ }
+  }
+  const Mark = finished ? Trophy : unlocked ? LockOpen : Lock
+  return <section aria-label="Finish" className="relative overflow-hidden rounded-3xl bg-[var(--plan-face)] px-5 pb-14 pt-5 text-[var(--plan-face-ink)] shadow-[0_6px_0_var(--plan-edge)] sm:px-7">
+    {unlocked && !finished ? <Sparkles aria-hidden="true" size={120} className="pointer-events-none absolute -right-6 -top-6 opacity-15 motion-safe:animate-pulse" /> : null}
+    <div className="relative flex items-start justify-between gap-3">
+      <div className="min-w-0">
+        <h2 className="text-xl font-extrabold tracking-tight">Finish</h2>
+        {when ? <p className="text-sm font-semibold opacity-75">{when}</p> : null}
       </div>
-      <div className="flex flex-wrap gap-2">
-        {finished ? <Button variant="surface" asChild><a href={getUriWithOrg(orgslug, `/plans/${encodeURIComponent(goal.goal_uuid)}/story`)}><BookOpen size={15} aria-hidden="true" />Watch your story</a></Button>
-          : <Button type="button" variant={all ? 'plan' : 'surface'} onClick={() => setOpen(true)}><Flag size={15} aria-hidden="true" />Finish goal</Button>}
-      </div>
+      {dated || (claimable && !unlocked) ? <DropdownMenu>
+        <DropdownMenuTrigger asChild><button type="button" aria-label="More for Finish" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition hover:bg-black/10 data-[state=open]:bg-black/10"><MoreVertical size={16} /></button></DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="min-w-44">
+          {dated ? <DropdownMenuItem onSelect={() => { setTarget(dateValue(goal.target_date)); setSheet('date') }}><CalendarDays size={14} className="mr-2" />{goal.target_date ? 'Change the date' : 'Set a date'}</DropdownMenuItem> : null}
+          {claimable && !unlocked ? <DropdownMenuItem onSelect={() => setSheet('finish')}><Flag size={14} className="mr-2" />Finish early</DropdownMenuItem> : null}
+        </DropdownMenuContent>
+      </DropdownMenu> : null}
     </div>
-    {open ? <EditSheet open onOpenChange={setOpen} color={color} title="Finish your goal"
+    <div className={cn('relative mt-4 flex flex-wrap items-center gap-4 rounded-2xl p-4 transition', unlocked && !finished ? 'bg-[var(--plan-face-ink)] text-[var(--plan-face)] shadow-[0_4px_0_rgb(0_0_0/0.25)]' : 'bg-black/10')}>
+      <span aria-hidden="true" className={cn('flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl', unlocked && !finished ? 'bg-[var(--plan-face)] text-[var(--plan-face-ink)] motion-safe:animate-bounce' : 'bg-black/15')}><Mark size={26} /></span>
+      <div className="min-w-0 flex-1 basis-40">
+        <p className="font-extrabold">{finished ? 'Victory claimed' : unlocked ? 'Unlocked. Claim your victory!' : 'Complete'}</p>
+        <p className="text-sm opacity-80">{finished
+          ? goal.ownership === 'personal' ? 'Your story is ready.' : badge?.name ? `You earned the ${badge.name} badge.` : 'Every step is done.'
+          : unlocked ? goal.ownership === 'personal' ? 'Every step is done. Say how it went.' : 'Every step is done.'
+            : total ? `${left} step${left === 1 ? '' : 's'} to go to unlock it.` : 'Add steps, and finishing them unlocks it.'}</p>
+      </div>
+      {finished && goal.ownership === 'personal' ? <a href={getUriWithOrg(orgslug, `/plans/${encodeURIComponent(goal.goal_uuid)}/story`)} className="flex min-h-10 items-center gap-2 rounded-xl bg-[var(--plan-face-ink)] px-4 text-sm font-extrabold text-[var(--plan-face)]"><BookOpen size={15} aria-hidden="true" />Watch your story</a>
+        : finished && badge ? <a href={getUriWithOrg(orgslug, '/portfolio/badges')} className="flex min-h-10 items-center gap-2 rounded-xl bg-[var(--plan-face-ink)] px-4 text-sm font-extrabold text-[var(--plan-face)]">View badges</a>
+          : claimable ? <button type="button" disabled={!unlocked} onClick={() => setSheet('finish')}
+            className={cn('flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-5 text-sm font-extrabold transition sm:w-auto', unlocked ? 'bg-[var(--plan-face)] text-[var(--plan-face-ink)] shadow-[0_4px_0_var(--plan-edge)] hover:brightness-105 active:translate-y-0.5 active:shadow-none' : 'cursor-not-allowed bg-black/10 opacity-60')}>
+            {unlocked ? <PartyPopper size={16} aria-hidden="true" /> : <Lock size={15} aria-hidden="true" />}Claim victory</button> : null}
+    </div>
+    {sheet === 'finish' ? <EditSheet open onOpenChange={(open) => { if (!open) setSheet(null) }} color={color} title={unlocked ? 'Claim your victory' : 'Finish early?'}
       description={left > 0 ? `${left} step${left === 1 ? '' : 's'} ${left === 1 ? 'isn’t' : 'aren’t'} done. That’s fine; you can reopen the goal later.` : undefined}
-      footer={<><Button type="button" variant="ghost" disabled={busy} onClick={() => setOpen(false)}>Not yet</Button>
+      footer={<><Button type="button" variant="ghost" disabled={busy} onClick={() => setSheet(null)}>Not yet</Button>
         <Button type="button" variant="plan" disabled={busy} onClick={() => void finish()}>{busy ? <Loader2 size={14} className="animate-spin" /> : null}Finish goal</Button></>}>
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-2">
@@ -123,6 +154,12 @@ export function FinishStep({ goal, token, color, orgslug }: { goal: Goal; token?
           <Textarea id="goal-what-happened" rows={3} value={said} maxLength={2000} onChange={(event) => setSaid(event.target.value)} placeholder="A line or two for your story" />
         </div>
       </div>
+    </EditSheet> : null}
+    {sheet === 'date' ? <EditSheet open onOpenChange={(open) => { if (!open) setSheet(null) }} color={color} title="Finish date" description="When you want to get there. The last stage runs until then."
+      footer={<><Button type="button" variant="ghost" disabled={saving} onClick={() => setSheet(null)}>Cancel</Button>
+        <Button type="button" variant="plan" disabled={saving} onClick={() => void saveDate()}>{saving ? <Loader2 size={14} className="animate-spin" /> : null}Save</Button></>}>
+      <div className="flex flex-col gap-1"><Label htmlFor="goal-target">Date <span className="font-normal text-muted-foreground">(optional)</span></Label>
+        <Input id="goal-target" type="date" value={target} onChange={(event) => setTarget(event.target.value)} className="sm:w-56" /></div>
     </EditSheet> : null}
   </section>
 }

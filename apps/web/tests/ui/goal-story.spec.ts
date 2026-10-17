@@ -16,10 +16,12 @@ test('goal.story: finishing a goal opens its story, which ends on the medal and 
   const title = `Story practice ${Date.now().toString(36).slice(-6)}`
   const { goalUuid } = await launchGoal(page, title)
 
-  // Finishing is the goal's last step: say how it went, then finish.
+  // Finish is the goal's last section, locked until its steps are done; a learner can still finish early from its menu.
   const finish = page.getByRole('region', { name: 'Finish' })
-  await finish.getByRole('button', { name: 'Finish goal' }).click()
-  const sheet = page.getByRole('dialog', { name: 'Finish your goal' })
+  await expect(finish.getByRole('button', { name: 'Claim victory' })).toBeDisabled()
+  await finish.getByRole('button', { name: 'More for Finish' }).click()
+  await page.getByRole('menuitem', { name: 'Finish early' }).click()
+  const sheet = page.getByRole('dialog', { name: 'Finish early?' })
   await sheet.getByRole('radio', { name: 'Yes' }).click()
   await sheet.getByRole('button', { name: 'Finish goal' }).click()
 

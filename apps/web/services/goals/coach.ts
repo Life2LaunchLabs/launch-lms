@@ -20,7 +20,7 @@ const coachUrl = (goalUuid: string, path: string) => `${getAPIUrl()}hub/goals/${
  * saving the same proposal twice never makes two stages or steps.
  */
 export const goalCoachApi = {
-  addStage: (goalUuid: string, data: { request_key: string; title: string; description?: string; timing?: string; due_date?: string | null; position?: number }, token?: string) =>
+  addStage: (goalUuid: string, data: { request_key: string; title: string; description?: string; timing?: string; start_date?: string | null; position?: number }, token?: string) =>
     request<CoachApplied<'created_stage_uuid'>>(coachUrl(goalUuid, '/stages'), token, 'POST', data),
   addStep: (goalUuid: string, data: StepInput & { request_key: string }, token?: string) =>
     request<CoachApplied<'created_step_uuid'>>(coachUrl(goalUuid, '/steps'), token, 'POST', data),

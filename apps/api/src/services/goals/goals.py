@@ -101,7 +101,7 @@ def step_dict(step: GoalStep, progress: StepProgress, entries: list[StepEntry], 
         "step_uuid": step.step_uuid, "stage_uuid": stage.stage_uuid if stage else None, "position": step.position,
         "type": step.type, "title": step.title, "description": step.description, "config": step.config or {},
         "materials": step.materials or [], "completed_by": _value(step.completed_by), "review_required": step.review_required,
-        "start_date": step.start_date, "due_date": step.due_date, "allow_late": step.allow_late, "held": step.held,
+        "start_date": step.start_date, "due_date": step.due_date, "held": step.held,
         "after_step_uuids": step.after_step_uuids or [], "requirement_links": step.requirement_links or [],
         "status": status, "locked": lock["locked"], "locked_reason": lock["reason"],
         "state": node_state(status, lock["locked"], fraction), "fraction": round(fraction, 3),
@@ -131,19 +131,20 @@ def goal_dict(db: Session, goal: Goal, user_id: int, granted: set[str] | None = 
     }
     references.attach(db, steps, views)
     ordered = ordered_steps(stages, steps)
+    ends = schedule.stage_ends(goal, stages)
     done = sum(1 for step in steps if statuses.get(int(step.id)) in DONE_STEP_STATUSES)  # type: ignore[arg-type]
     return {
         "goal_uuid": goal.goal_uuid, "title": goal.title, "description": goal.description,
         "ownership": _value(goal.ownership), "source": _value(goal.source), "status": _value(goal.status),
-        "step_order": _value(goal.step_order), "org_id": goal.org_id, "start_date": goal.start_date, "icon": (goal.details or {}).get("icon"),
+        "org_id": goal.org_id, "start_date": goal.start_date, "icon": (goal.details or {}).get("icon"),
         "target_date": goal.target_date, "finished_at": goal.finished_at, "finish": goal.finish or {},
         "owner": _user_summary(db, goal.owner_user_id), "subject": _user_summary(db, goal.subject_user_id),
         "capabilities": sorted(granted), "progress": {"done": done, "total": len(steps)}, "source_badge": badge_summary(db, goal.badge_id),
-        "current_stage_uuid": schedule.current_stage(goal, stages), "schedule_warnings": schedule.conflicts(stages, steps),
+        "current_stage_uuid": schedule.current_stage(stages), "schedule_warnings": schedule.conflicts(goal, stages, steps),
         "stages": [
             {
                 "stage_uuid": stage.stage_uuid, "position": stage.position, "title": stage.title, "description": stage.description,
-                "timing": stage.timing, "milestone": stage.milestone, "start_date": stage.start_date, "due_date": stage.due_date,
+                "timing": stage.timing, "milestone": stage.milestone, "start_date": stage.start_date, "end_date": ends.get(int(stage.id)),  # type: ignore[arg-type]
                 "steps": [views[int(step.id)] for step in ordered if step.stage_id == stage.id],  # type: ignore[arg-type]
             }
             for stage in stages
@@ -273,7 +274,7 @@ def create_personal_goal(db: Session, current_user: PublicUser, payload: GoalCre
 def update_goal(db: Session, current_user: PublicUser, goal_uuid: str, payload: GoalUpdate) -> dict:
     goal = access.goal_or_404(db, goal_uuid)
     changes = payload.model_dump(exclude_unset=True)
-    access.require(db, goal, current_user.id, "edit_structure" if "step_order" in changes else "edit_plan_details")
+    access.require(db, goal, current_user.id, "edit_plan_details")
     if "icon" in changes:
         # The mark lives with the goal's other details: null puts back the default.
         icon = changes.pop("icon")

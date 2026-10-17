@@ -394,7 +394,7 @@ Turn broad development goals into structured plans, objectives, evidence, collab
     - `PATHWAYS-G004-A001-S006` [live / core] Edit the template
     - `PATHWAYS-G004-A001-S007` [live / alternative] Start from a published template
     - `PATHWAYS-G004-A001-S008` [live / core] Add an activity step and edit its activity
-    - `PATHWAYS-G004-A001-S009` [live / core] Set the step order
+    - `PATHWAYS-G004-A001-S009` [live / core] Set when steps open and close
   - `PATHWAYS-G004-A002` [live] Version the badges referenced by a template
     - `PATHWAYS-G004-A002-S001` [live / core] Identify outdated badge references
     - `PATHWAYS-G004-A002-S002` [live / core] Choose a newer badge version

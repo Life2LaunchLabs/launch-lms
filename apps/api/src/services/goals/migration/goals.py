@@ -49,7 +49,7 @@ from src.db.planning import (
 from src.db.programs import Objective, Program
 from src.db.requirements import RequirementAttainmentSource
 from src.services.goals.legacy import STATUS_MAP, StepSpec, convert_objective, objective_from_plan
-from src.services.goals.migration.documents import STEP_ORDER, badge_exists, step_key
+from src.services.goals.migration.documents import badge_exists, step_key
 from src.services.goals.migration.templates import TemplateMaps
 from src.services.goals.types import step_type
 
@@ -106,7 +106,7 @@ def _goal(db: Session, plan: Plan, maps: TemplateMaps) -> Goal:
         goal_uuid=plan.plan_uuid, org_id=plan.source_org_id, owner_user_id=plan.owner_user_id, subject_user_id=plan.subject_user_id,
         ownership=ownership, source=source, template_id=template.id if template else None, version_id=version_id,
         assignment_id=assignment.id if assignment else None, badge_id=plan.source_badge_id, title=plan.name, description=plan.description or "",
-        status=PLAN_STATUS.get(_value(plan.status), GoalStatus.ACTIVE), step_order=STEP_ORDER.get(plan.step_order or "any", "any"),
+        status=PLAN_STATUS.get(_value(plan.status), GoalStatus.ACTIVE),
         priority=plan.priority or 1, celebrated_at=_celebrated_at(db, plan), start_date=plan.start_date, target_date=plan.due_date, finished_at=plan.completed_at,
         creation_date=plan.creation_date, update_date=plan.update_date,
     )
@@ -248,7 +248,7 @@ def _objective_steps(db: Session, goal: Goal, objective: PlanObjective, stage: G
             description=(objective.description or "") if index == 0 else "", config=config,
             completed_by="learner" if kind in {"activity", "badge"} else spec.completed_by,
             review_required=spec.review_required and spec.completed_by == "learner", reviewer_guidance=objective.reviewer_guidance or "",
-            start_date=objective.start_date, due_date=objective.due_date, allow_late=objective.allow_late, held=objective.blocked,
+            start_date=objective.start_date, due_date=objective.due_date, held=objective.blocked,
             requirement_links=list(objective.requirement_mappings or []) if last else [],
             activity_id=references.get("activity_id"), badge_id=references.get("badge_id"),
             template_key=step_key(template_uuid, index) if template_uuid else None,

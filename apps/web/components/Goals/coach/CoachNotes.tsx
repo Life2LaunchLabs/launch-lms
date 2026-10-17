@@ -29,7 +29,7 @@ export function GoalCoachBar({ goalUuid, token }: { goalUuid: string; token?: st
   const notes = data.notes || []
   const line = notes.length ? notes[0].title : checkInLine(data)
   return <button type="button" onClick={() => hub?.open()} disabled={!hub} aria-label={notes.length ? `Coach has ${notes.length === 1 ? 'a note' : `${notes.length} notes`}: ${line}` : line}
-    className="mt-3 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs text-muted-foreground transition hover:bg-muted/60 hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
+    className="mt-3 flex min-h-11 w-full items-center gap-2 rounded-2xl border border-border/70 bg-card px-4 py-2.5 text-left text-xs text-muted-foreground shadow-xs transition hover:bg-muted/60 hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
     <Sparkles size={14} aria-hidden="true" className={notes.length ? 'text-foreground' : undefined} />
     <span className={notes.length ? 'min-w-0 flex-1 truncate font-semibold text-foreground' : 'min-w-0 flex-1 truncate'}>{line}</span>
     {notes.length ? <span className="flex shrink-0 items-center gap-1 font-semibold">{notes.length === 1 ? '1 note' : `${notes.length} notes`}<ArrowRight size={13} aria-hidden="true" /></span> : null}

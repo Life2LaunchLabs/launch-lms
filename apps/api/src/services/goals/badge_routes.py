@@ -67,7 +67,7 @@ def route_summary(db: Session, template: GoalTemplate) -> dict:
     steps = [{"title": step.get("title") or "", "kind": step.get("type") or "", "chapter": stage.get("title") or ""} for stage, step in iter_steps(document)]
     return {
         "template_uuid": template.template_uuid, "name": template.title,
-        "description": template.description or "", "step_order": (document.get("template") or {}).get("step_order") or "any",
+        "description": template.description or "",
         "steps": steps, "step_count": len(steps), "activity_count": sum(step["kind"] == "activity" for step in steps),
     }
 

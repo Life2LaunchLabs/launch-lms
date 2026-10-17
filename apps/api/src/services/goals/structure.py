@@ -10,7 +10,7 @@ from sqlmodel import Session, select
 
 from src.db.goals import Goal, GoalStage, GoalStep, StageCreate, StageUpdate, StepCompleter, StepCreate, StepMove, StepUpdate
 from src.db.users import PublicUser
-from src.services.goals import access, check_ins
+from src.services.goals import access, check_ins, schedule
 from src.services.goals.goals import _now, _personal, _value, goal_dict, step_or_404
 from src.services.goals.types import step_type
 
@@ -52,7 +52,7 @@ def add_stage(db: Session, current_user: PublicUser, goal_uuid: str, payload: St
 def update_stage(db: Session, current_user: PublicUser, goal_uuid: str, stage_uuid: str, payload: StageUpdate) -> dict:
     goal = access.goal_or_404(db, goal_uuid)
     changes = payload.model_dump(exclude_unset=True)
-    access.require(db, goal, current_user.id, "edit_schedule" if set(changes) <= {"start_date", "due_date"} else "edit_structure")
+    access.require(db, goal, current_user.id, "edit_schedule" if set(changes) <= {"start_date"} else "edit_structure")
     stage = _stage(db, goal, stage_uuid)
     for key, value in changes.items():
         setattr(stage, key, value)
@@ -96,6 +96,10 @@ def _prerequisites(db: Session, goal: Goal, uuids: list[str], step_uuid: str | N
     known = set(db.exec(select(GoalStep.step_uuid).where(GoalStep.goal_id == goal.id, GoalStep.step_uuid.in_(cleaned))).all())  # type: ignore[attr-defined]
     if len(known) != len(cleaned):
         raise HTTPException(status_code=422, detail="A step can only wait on other steps of this goal")
+    if step_uuid:
+        steps = list(db.exec(select(GoalStep).where(GoalStep.goal_id == goal.id)).all())
+        if any(uuid == step_uuid or step_uuid in schedule.waits_on(steps, uuid) for uuid in cleaned):
+            raise HTTPException(status_code=422, detail="That step already waits on this one")
     return cleaned
 
 
@@ -142,7 +146,7 @@ def _first_step(db: Session, goal: Goal) -> bool:
 def update_step(db: Session, current_user: PublicUser, goal_uuid: str, step_uuid: str, payload: StepUpdate) -> dict:
     goal = access.goal_or_404(db, goal_uuid)
     changes = payload.model_dump(exclude_unset=True)
-    schedule_only = set(changes) <= {"start_date", "due_date", "allow_late", "held"}
+    schedule_only = set(changes) <= {"start_date", "due_date", "after_step_uuids", "held"}
     access.require(db, goal, current_user.id, "edit_schedule" if schedule_only else "edit_structure")
     step = step_or_404(db, goal, step_uuid)
     kind = step_type(step.type)
