@@ -1,12 +1,10 @@
 import logging
-from typing import Literal
 
 from fastapi import APIRouter, Depends, Request, status
 from sqlmodel import Session
 from src.core.capabilities import CORE_CAPABILITIES
 from src.core.events.database import get_db_session
 from src.db.messages import WelcomeMessageTemplateUpdate
-from src.db.hub import HubAdvisorConfigurationUpdate
 from src.db.organizations import OrganizationCreate
 from src.db.plan_requests import PlanRequestRead, PlanRequestUpdate
 from src.db.roles import Role, RoleTypeEnum
@@ -18,7 +16,6 @@ from src.services.orgs.usage import get_org_usage_and_limits
 from src.services.superadmin import orgs as orgs_service
 from src.services.superadmin import users as users_service
 from src.services import messages as messages_service
-from src.services import hub_configuration
 from src.services.superadmin.orgs import (
     OrgConfigUpdateRequest,
     OrgPackagesUpdateRequest,
@@ -70,32 +67,6 @@ async def reset_welcome_message_template(
     db_session: Session = Depends(get_db_session),
 ):
     return messages_service.reset_welcome_template(db_session)
-
-
-@router.get("/settings/hub-advisor")
-async def get_hub_advisor_configuration(
-    db_session: Session = Depends(get_db_session),
-):
-    return hub_configuration.get_hub_advisor_configuration(db_session)
-
-
-@router.put("/settings/hub-advisor")
-async def update_hub_advisor_configuration(
-    payload: HubAdvisorConfigurationUpdate,
-    current_user: PublicUser = Depends(get_current_user),
-    db_session: Session = Depends(get_db_session),
-):
-    return hub_configuration.update_hub_advisor_configuration(
-        db_session, current_user, payload
-    )
-
-
-@router.get("/settings/hub-advisor/models")
-async def list_hub_advisor_models(
-    provider: Literal["openai", "anthropic"],
-    db_session: Session = Depends(get_db_session),
-):
-    return await hub_configuration.list_hub_advisor_models(db_session, provider)
 
 
 @router.get("/roles")

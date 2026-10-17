@@ -22,6 +22,7 @@ import {
   Newspaper,
   Settings,
   School,
+  Sparkles,
   Store,
   UserRound,
   Users,
@@ -296,6 +297,7 @@ const PLATFORM_ICONS: Record<PlatformSection, React.ComponentType<{ className?: 
   requests: Inbox,
   feedback: MessageSquareWarning,
   demo: FlaskConical,
+  coach: Sparkles,
   settings: Settings,
   news: Newspaper,
 }

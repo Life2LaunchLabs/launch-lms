@@ -3936,21 +3936,27 @@
             },
             {
               "kind": "code",
-              "path": "apps/api/src/services/hub_configuration.py",
-              "symbol": "update_hub_advisor_configuration",
-              "responsibility": "Encrypt, persist, redact, and resolve platform advisor configuration"
+              "path": "apps/api/src/services/coach/policy.py",
+              "symbol": "CoachRuntime",
+              "responsibility": "The platform coaching policy: method, playbooks, routines, abilities and per-tier models, assembled into Coach's instructions"
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Admin/Platform/PlatformSettings.tsx",
-              "symbol": "PlatformSettings",
-              "responsibility": "Superadmin controls for provider model, instructions, credential, and rollout state"
+              "path": "apps/api/src/services/coach/keys.py",
+              "symbol": "create_key",
+              "responsibility": "Encrypt, persist, and redact provider API keys; several per provider"
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/components/Admin/Platform/Coach/CoachShell.tsx",
+              "symbol": "CoachShell",
+              "responsibility": "Platform › Coach: Method, Knowledge, Routines, Abilities and Model tabs"
             },
             {
               "kind": "test",
-              "path": "apps/api/src/tests/test_hub_advisor.py",
+              "path": "apps/api/src/tests/test_coach_policy.py",
               "symbol": null,
-              "responsibility": "Credential redaction, encryption, enablement, and Hub provider boundary checks"
+              "responsibility": "Key encryption and redaction, tiers, abilities, knowledge selection, and instruction layering"
             }
           ],
           "relationships": []

@@ -2,14 +2,14 @@ import pytest
 from fastapi import HTTPException
 from sqlmodel import SQLModel, Session, create_engine
 
-from src.db.hub import HubAdvisorConfiguration
+from src.db.coach import CoachPolicy
 from src.db.users import PublicUser, User
 from src.services.hub_launch import DEFAULT_LAUNCH_CARDS, HubLaunchCard, effective_launch_cards, launch_cards_settings, save_launch_cards
 
 
 def _db() -> Session:
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    SQLModel.metadata.create_all(engine, tables=[User.__table__, HubAdvisorConfiguration.__table__])
+    SQLModel.metadata.create_all(engine, tables=[User.__table__, CoachPolicy.__table__])
     return Session(engine)
 
 
@@ -82,9 +82,9 @@ def test_blank_text_is_rejected_after_trimming(field):
 
 def test_admin_routes_are_superadmin_only_and_served_under_superadmin():
     from src.router import v1_router
-    from src.routers.superadmin_hub_launch import router as admin_router
+    from src.routers.coach_admin import router as admin_router
     from src.security.superadmin import require_superadmin
 
     assert any(dep.dependency is require_superadmin for dep in admin_router.dependencies)
     paths = {route.path for route in v1_router.routes}
-    assert "/api/v1/superadmin/settings/hub-launch-cards" in paths and "/api/v1/hub/launch-cards" in paths
+    assert "/api/v1/superadmin/coach/launch-cards" in paths and "/api/v1/hub/launch-cards" in paths

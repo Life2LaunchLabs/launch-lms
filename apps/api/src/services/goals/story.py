@@ -16,6 +16,7 @@ import hashlib
 import json
 import logging
 import math
+from dataclasses import replace
 from datetime import date, datetime, timedelta
 from uuid import uuid4
 
@@ -34,7 +35,7 @@ The input is JSON: the goal, why it mattered to them, and what they did. Return 
 {"open": "...", "close": "..."}
 "open" (at most 90 characters) sets the scene, looking back at where they started.
 "close" (at most 140 characters) is a warm send-off that names something real they did.
-Speak to the learner as "you". Plain words; no exclamation marks, no clichés, no invented facts."""
+Speak to the learner as "you". No invented facts."""
 
 
 def _value(item) -> str:
@@ -170,16 +171,23 @@ def _inputs_hash(db: Session, goal: Goal) -> str:
 
 def story_provider(db: Session):
     """Coach's model for the story's opening and closing lines, or None (fixed lines)."""
-    from src.services.hub_advisor import AnthropicMessagesProvider, OpenAIResponsesProvider, _advisor_credentials, _ui_test_provider
+    from src.services.coach.policy import runtime
+    from src.services.coach.providers import provider_for
+    from src.services.hub_advisor import _ui_test_provider
 
     try:
         if _ui_test_provider(memory=True):
             return None
-        provider, api_key, model, _instructions, advanced = _advisor_credentials(db)
+        policy = runtime(db)
+        if not policy.enabled or not policy.can("finish_story"):
+            return None
+        model = policy.model(policy.tier_for("goal_finished"))
     except Exception:
         return None
-    cls = AnthropicMessagesProvider if provider == "anthropic" else OpenAIResponsesProvider
-    return cls(api_key, model, instructions=STORY_WRITER_INSTRUCTIONS, advanced={**advanced, "max_output_tokens": 300}, allow_actions=False)
+    return provider_for(
+        replace(model, settings={**model.settings, "max_output_tokens": 300}),
+        instructions=policy.instructions("goal_finished", contract=STORY_WRITER_INSTRUCTIONS), allow_actions=False,
+    )
 
 
 async def _model_words(provider, db: Session, goal: Goal, slides: list[dict], safety_identifier: str) -> tuple[dict, str]:

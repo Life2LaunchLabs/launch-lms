@@ -6,20 +6,13 @@ from types import SimpleNamespace
 import httpx
 import pytest
 from fastapi import HTTPException, Request
-from sqlmodel import Session, create_engine
 
-from src.db.hub import (
-    HubAdvisorConfiguration,
-    HubAdvisorConfigurationUpdate,
-    HubAdvisorProviderConfiguration,
-)
 from src.db.resources import ResourceAccessModeEnum, ResourceTypeEnum
-from src.db.users import PublicUser, User
 from src.services import hub_advisor
 from src.services import hub_actions
 from src.services import hub_questions
-from src.services import hub_configuration
 from src.routers import hub as hub_router
+from src.services.coach.policy import CoachRuntime
 from src.services.hub_advisor_fixture import DeterministicUiTestProvider
 from src.services.hub_advisor import (
     AdvisorMessage,
@@ -335,153 +328,6 @@ async def test_anthropic_provider_parses_the_same_navigation_proposal_contract()
     assert result.action_destinations == ("add_timeline",)
 
 
-def _admin() -> PublicUser:
-    return PublicUser(
-        id=7,
-        user_uuid="user_7",
-        username="admin",
-        email="admin@example.com",
-        first_name="Platform",
-        last_name="Admin",
-        is_superadmin=True,
-    )
-
-
-def _configuration_session() -> Session:
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    User.__table__.create(engine)
-    HubAdvisorConfiguration.__table__.create(engine)
-    HubAdvisorProviderConfiguration.__table__.create(engine)
-    return Session(engine)
-
-
-def test_superadmin_configuration_encrypts_key_and_never_returns_it():
-    with _configuration_session() as db:
-        result = hub_configuration.update_hub_advisor_configuration(
-            db,
-            _admin(),
-            HubAdvisorConfigurationUpdate(
-                provider="openai",
-                enabled=True,
-                model="gpt-test",
-                instructions="Give concise guidance.",
-                api_key="sk-test-secret-that-must-not-leak",
-            ),
-        )
-        stored = hub_configuration.get_provider_record(db, "openai")
-        assert stored is not None and stored.api_key_ciphertext is not None
-        assert stored.api_key_ciphertext != "sk-test-secret-that-must-not-leak"
-        assert "sk-test-secret" not in stored.api_key_ciphertext
-        assert "api_key" not in result
-        assert result["provider_configurations"]["openai"]["api_key_configured"] is True
-        assert hub_configuration.get_enabled_hub_advisor_credentials(db) == (
-            "openai",
-            "sk-test-secret-that-must-not-leak",
-            "gpt-test",
-            "Give concise guidance.",
-            {
-                "max_output_tokens": 700,
-                "reasoning_effort": "default",
-                "verbosity": "default",
-                "thinking_effort": "default",
-            },
-        )
-
-
-def test_enabled_configuration_requires_key_and_key_can_be_cleared():
-    with _configuration_session() as db:
-        with pytest.raises(HTTPException, match="Add an Anthropic API key"):
-            hub_configuration.update_hub_advisor_configuration(
-                db,
-                _admin(),
-                HubAdvisorConfigurationUpdate(
-                    provider="anthropic",
-                    enabled=True,
-                    model="claude-test",
-                    instructions="Help learners.",
-                ),
-            )
-        hub_configuration.update_hub_advisor_configuration(
-            db,
-            _admin(),
-            HubAdvisorConfigurationUpdate(
-                provider="openai",
-                enabled=False,
-                model="gpt-test",
-                instructions="Help learners.",
-                api_key="sk-test-secret-that-must-not-leak",
-            ),
-        )
-        result = hub_configuration.update_hub_advisor_configuration(
-            db,
-            _admin(),
-            HubAdvisorConfigurationUpdate(
-                provider="openai",
-                enabled=False,
-                model="gpt-test",
-                instructions="Help learners.",
-                clear_api_key=True,
-            ),
-        )
-        assert result["provider_configurations"]["openai"]["api_key_configured"] is False
-        with pytest.raises(RuntimeError, match="not configured or enabled"):
-            hub_configuration.get_enabled_hub_advisor_credentials(db)
-
-
-def test_provider_credentials_and_settings_are_retained_independently():
-    with _configuration_session() as db:
-        hub_configuration.update_hub_advisor_configuration(
-            db,
-            _admin(),
-            HubAdvisorConfigurationUpdate(
-                provider="openai",
-                enabled=False,
-                model="gpt-test",
-                instructions="Shared instructions.",
-                api_key="sk-openai-secret-that-must-not-leak",
-                advanced={"max_output_tokens": 500, "reasoning_effort": "low"},
-            ),
-        )
-        result = hub_configuration.update_hub_advisor_configuration(
-            db,
-            _admin(),
-            HubAdvisorConfigurationUpdate(
-                provider="anthropic",
-                enabled=True,
-                model="claude-test",
-                instructions="Shared instructions.",
-                api_key="sk-anthropic-secret-that-must-not-leak",
-                advanced={"max_output_tokens": 900, "thinking_effort": "high"},
-            ),
-        )
-
-        assert result["provider"] == "anthropic"
-        assert result["provider_configurations"]["openai"]["api_key_configured"] is True
-        assert result["provider_configurations"]["openai"]["advanced"]["max_output_tokens"] == 500
-        assert result["provider_configurations"]["anthropic"]["api_key_configured"] is True
-        assert hub_configuration.get_enabled_hub_advisor_credentials(db) == (
-            "anthropic",
-            "sk-anthropic-secret-that-must-not-leak",
-            "claude-test",
-            "Shared instructions.",
-            {
-                "max_output_tokens": 900,
-                "reasoning_effort": "default",
-                "verbosity": "default",
-                "thinking_effort": "high",
-            },
-        )
-
-
-@pytest.mark.asyncio
-async def test_model_catalog_uses_curated_choices_without_a_provider_key():
-    with _configuration_session() as db:
-        result = await hub_configuration.list_hub_advisor_models(db, "anthropic")
-
-    assert result["source"] == "curated"
-    assert any(model["id"] == "claude-haiku-4-5-20251001" for model in result["models"])
-
-
 class FakeProvider:
     async def respond(self, messages, safety_identifier):
         assert messages[-1].content.startswith("Help\n\n<launch_lms_capabilities>")
@@ -521,6 +367,7 @@ async def test_memory_extraction_supports_explicit_commands_and_structured_provi
 
 @pytest.mark.asyncio
 async def test_advisor_requires_membership_and_applies_user_rate_limit(monkeypatch):
+    monkeypatch.setattr(hub_advisor, "coach_runtime", lambda *_args: CoachRuntime(True, "Coach well.", {}, {}))
     membership = []
     monkeypatch.setattr(hub_advisor, "require_org_membership", lambda user_id, org_id, _db: membership.append((user_id, org_id)))
     monkeypatch.setattr(hub_advisor, "check_rate_limit", lambda *args: (True, 1, 60))
@@ -549,6 +396,7 @@ async def test_advisor_returns_retry_after_when_rate_limited(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_advisor_route_returns_edit_operations_without_changing_conversation_contract(monkeypatch):
+    monkeypatch.setattr(hub_router, "coach_runtime", lambda *_args: CoachRuntime(True, "Coach well.", {}, {}))
     record_advice_signature = inspect.signature(hub_router.record_advice)
     operation = {
         "operation_id": "hub_goal_operation_test", "type": "set_new_goal_details",

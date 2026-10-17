@@ -44,6 +44,9 @@ def main() -> int:
         if session.get(DemoConfiguration, 1) is None:
             session.add(DemoConfiguration())
             session.commit()
+        from src.services.coach.policy import seed_defaults
+
+        seed_defaults(session)
     print("Fresh database schema bootstrapped from current models.")
     return 0
 

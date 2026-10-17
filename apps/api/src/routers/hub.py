@@ -38,6 +38,7 @@ from src.services.hub_memory import (
 )
 
 from src.services.goals.coach_apply import CoachStageCreate, CoachStepCreate, add_stage_once, add_step_once, bind_created_goal
+from src.services.coach.policy import runtime as coach_runtime
 from src.services.goals.coach_context import GoalSurfaceHint as HubSurfaceHint, page_context
 from src.services.goals.coach_sessions import GoalSessionStart, goal_suggestions, session_target, start_goal_session
 from src.services.goals.coach_tools import record_goal_proposals, scope
@@ -333,16 +334,13 @@ async def create_hub_advice(
         if body.conversation_uuid
         else [AdvisorMessage(role=item.role, content=item.content.strip()) for item in body.messages]
     )
-    context = page_context(db_session, org_id, current_user.id, body.surface)
+    policy = coach_runtime(db_session)
+    context = page_context(db_session, org_id, current_user.id, body.surface if policy.can("read_page") else None)
     edit_run = active_edit_run(db_session, body.conversation_uuid, org_id, current_user.id) if body.conversation_uuid else None
     recent_edit_run = latest_edit_run(db_session, body.conversation_uuid, org_id, current_user.id) if body.conversation_uuid and not edit_run else None
     target = session_target(db_session, current_user.id, body.surface) if not edit_run else None
-    used_memories = select_memories(db_session, org_id, current_user.id, user_content)
-    grounding_resources = advisor_resources_for_request(
-        user_content,
-        accessible_resources,
-        body.resource_uuids,
-    )
+    used_memories = select_memories(db_session, org_id, current_user.id, user_content) if policy.can("read_memory") else []
+    grounding_resources = advisor_resources_for_request(user_content, accessible_resources, body.resource_uuids) if policy.can("read_resources") else []
     try:
         result = await ask_hub_advisor(
             request,
@@ -394,7 +392,7 @@ async def create_hub_advice(
     record_used_memories(db_session, persisted["assistant_message_uuid"], used_memories, org_id, current_user.id)
     questions = record_questions(db_session, org_id=org_id, user_id=current_user.id, message_uuid=persisted["assistant_message_uuid"], questions=list(result.questions), edit_run=edit_run, target=target)
     memory_changes: list[dict] = []
-    if memory_settings(db_session, org_id, current_user.id)["enabled"]:
+    if policy.can("remember") and memory_settings(db_session, org_id, current_user.id)["enabled"]:
         try:
             candidates, extraction_model = await extract_hub_memory_candidates(
                 user_content,
