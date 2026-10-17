@@ -68,7 +68,11 @@ def start_goal_session(
     from src.services.hub_conversations import _new_conversation
     from src.services.hub_edit_runs import ACTIVE, _run_dict, begin_edit_run
 
+    from src.services.coach.policy import runtime
+
     require_org_membership(user_id, org_id, db)
+    if not runtime(db).can("plan_goals"):
+        raise HTTPException(status_code=409, detail="Planning goals with Coach is turned off right now.")
     goal = plannable_goal(db, goal_uuid, user_id)
     if goal is None:
         raise HTTPException(status_code=404, detail="Goal not found")

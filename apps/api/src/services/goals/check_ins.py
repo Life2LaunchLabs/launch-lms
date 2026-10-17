@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from dataclasses import replace
 from datetime import datetime, timedelta
 from uuid import uuid4
 
@@ -38,9 +39,9 @@ RUNNER_SECONDS = 300
 NOTE_WRITER_INSTRUCTIONS = """You write Coach's check-in notes for one learner's goal.
 The input is JSON: the goal and a list of signals, each with a key and plain facts.
 Write one note per signal, in the order given. Each note has a title (at most 60 characters)
-and a body (one or two short sentences, at most 200 characters), in a warm, plain voice,
-speaking to the learner as "you". Notice; never nag, guilt or pressure. Never say you changed
-the goal or will do something for them; the learner decides. Return only JSON:
+and a body (one or two short sentences, at most 200 characters), speaking to the learner as
+"you". Never say you changed the goal or will do something for them; the learner decides.
+Return only JSON:
 {"notes": [{"key": "<signal key>", "title": "...", "body": "..."}]}
 
 When the input has "review" instead of signals, read the goal's outline and look for the one
@@ -117,18 +118,23 @@ async def _model_review(provider, db: Session, goal: Goal, key: str, existing: l
 
 
 def note_provider(db: Session):
-    """Coach's model for wording notes, or None (fixed wording) when no model is set up."""
-    from src.services.hub_advisor import AnthropicMessagesProvider, OpenAIResponsesProvider, _advisor_credentials, _ui_test_provider
+    """Coach's model for wording notes, or None (fixed wording) when Coach isn't set up."""
+    from src.services.coach.policy import runtime
+    from src.services.hub_advisor import _ui_test_provider, provider_for
 
     try:
         if _ui_test_provider(memory=True):
             return None
-        provider, api_key, model, _instructions, advanced = _advisor_credentials(db)
+        policy = runtime(db)
+        if not policy.enabled:
+            return None
+        model = policy.model(policy.tier_for("goal_check_in"))
     except Exception:
         return None
-    options = {**advanced, "max_output_tokens": 600}
-    cls = AnthropicMessagesProvider if provider == "anthropic" else OpenAIResponsesProvider
-    return cls(api_key, model, instructions=NOTE_WRITER_INSTRUCTIONS, advanced=options, allow_actions=False)
+    return provider_for(
+        replace(model, settings={**model.settings, "max_output_tokens": 600}),
+        instructions=policy.instructions("goal_check_in", contract=NOTE_WRITER_INSTRUCTIONS), allow_actions=False,
+    )
 
 
 def schedule(goal: Goal, now: datetime) -> datetime:
@@ -237,6 +243,9 @@ def run_due(engine) -> int:
                 return 0
         try:
             with Session(engine) as db:
+                from src.services.coach.policy import runtime
+                if not runtime(db).can("goal_notes"):
+                    return 0
                 provider = note_provider(db)
                 ran = 0
                 for goal in due_goals(db, datetime.utcnow()):

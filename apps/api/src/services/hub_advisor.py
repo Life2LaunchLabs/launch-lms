@@ -15,8 +15,8 @@ from fastapi import HTTPException, Request
 from sqlmodel import Session
 
 from src.security.org_auth import require_org_membership
-from src.services.hub_configuration import DEFAULT_HUB_ADVISOR_INSTRUCTIONS
-from src.services.demo.providers import advisor_credentials as _advisor_credentials, reserve_ai as _reserve_demo_ai
+from src.services.coach.policy import DEFAULT_METHOD, CoachModel, runtime as coach_runtime
+from src.services.demo.providers import reserve_ai as _reserve_demo_ai
 from src.services.security.rate_limiting import check_rate_limit, get_client_ip
 
 logger = logging.getLogger(__name__)
@@ -38,6 +38,26 @@ memory_uuid matching an existing memory; and explicit true only when the learner
 Save only information likely to help in future unrelated conversations. Never save assistant claims, third-party facts,
 credentials, contact details, precise location, health/disability, protected identity, immigration, legal, financial,
 disciplinary, or secret information. Prefer no candidate over a speculative one. Use update/supersede for contradictions."""
+
+REPLY_RULES = (
+    "Keep every learner-facing reply under 1,600 characters. Prefer a few short paragraphs and do not "
+    "repeat background the learner already supplied."
+)
+# Code-owned rules for a planning session on a goal; shown read-only on Platform › Coach.
+PLANNING_SESSION_RULES = (
+    'Typed editing tools put suggestions on the goal page; they never save. The learner keeps or drops each one. '
+    'Never create a new goal or suggest that you will; the learner starts goals themselves. Do not propose edits '
+    'outside this scope. A conversational refinement may update the goal while retaining the same scope, but a '
+    'request to act on another goal or product surface requires a new learner-granted run. When that happens, ask '
+    'how to resolve any unfinished objects, propose concluding this run, and only then offer the separately scoped '
+    'action. Keep useful out-of-scope follow-up ideas until this run concludes rather than silently widening '
+    'authority. Every turn in an active editing run must end in an explicit state: prepare a supported edit, ask '
+    'one clear question needed to continue, or call the conclusion tool to propose finishing the editing goal. '
+    'Never merely promise that a finish button will appear. When suggested stages or steps are still waiting for '
+    'the learner, say so briefly and wait for that review rather than duplicating the proposal. Never propose '
+    'stages and steps that depend on those stages in the same turn; wait until every proposed stage is reviewed and'
+    ' saved. Never stop at a bare acknowledgement.'
+)
 
 _GROUNDING_STOP_WORDS = {
     "a", "about", "an", "and", "are", "can", "do", "for", "from", "help", "how",
@@ -246,16 +266,39 @@ def _ui_test_provider(memory: bool = False, edit_scope: str | None = None) -> Ad
     return DeterministicUiTestProvider(memory=memory, edit_scope=edit_scope)
 
 
+# The chat tools, each turned on by a Coach ability.
+ALL_TOOLS = frozenset({"navigation", "questions", "goal_edit"})
+TOOL_ABILITIES = {"navigation": "open_pages", "questions": "ask_questions", "goal_edit": "plan_goals"}
+
+
+def _tools(provider: str, allowed: frozenset[str], edit_scope: str | None) -> list[dict]:
+    from src.services.goals.coach_tools import goal_edit_tools
+    from src.services.hub_actions import navigation_tool
+    from src.services.hub_questions import question_tool
+
+    return [
+        *([navigation_tool(provider)] if "navigation" in allowed else []),
+        *([question_tool(provider)] if "questions" in allowed else []),
+        *(goal_edit_tools(provider, edit_scope) if "goal_edit" in allowed else []),
+    ]
+
+
+def provider_for(model: CoachModel, **options) -> "AdvisorProvider":
+    cls = AnthropicMessagesProvider if model.provider == "anthropic" else OpenAIResponsesProvider
+    return cls(model.api_key, model.model, advanced=model.settings, **options)
+
+
 class OpenAIResponsesProvider:
     def __init__(
         self,
         api_key: str,
         model: str = DEFAULT_MODEL,
         client: httpx.AsyncClient | None = None,
-        instructions: str = DEFAULT_HUB_ADVISOR_INSTRUCTIONS,
+        instructions: str = DEFAULT_METHOD,
         advanced: dict | None = None,
         allow_actions: bool = True,
         edit_scope: str | None = None,
+        tools: frozenset[str] = ALL_TOOLS,
     ):
         if not api_key.strip():
             raise AdvisorUnavailable("Coach is not configured yet.")
@@ -266,13 +309,13 @@ class OpenAIResponsesProvider:
         self.advanced = advanced or {}
         self.allow_actions = allow_actions
         self.edit_scope = edit_scope
+        self.tools = tools
         self.client = client
 
     async def respond(self, messages: list[AdvisorMessage], safety_identifier: str) -> AdvisorResult:
-        from src.services.hub_actions import navigation_tool
-        from src.services.goals.coach_tools import goal_edit_tools, parse_goal_tool_call
-        from src.services.hub_questions import parse_question_call, question_tool
-        tools = [navigation_tool("openai"), question_tool("openai"), *goal_edit_tools("openai", self.edit_scope)] if self.allow_actions else []
+        from src.services.goals.coach_tools import parse_goal_tool_call
+        from src.services.hub_questions import parse_question_call
+        tools = _tools("openai", self.tools, self.edit_scope) if self.allow_actions else []
         payload = {
             "model": self.model,
             "instructions": self.instructions,
@@ -280,7 +323,7 @@ class OpenAIResponsesProvider:
             "max_output_tokens": int(self.advanced.get("max_output_tokens", MAX_OUTPUT_TOKENS)),
             "store": False,
             "tools": tools,
-            "tool_choice": "auto" if self.allow_actions else "none",
+            "tool_choice": "auto" if tools else "none",
             "safety_identifier": safety_identifier,
         }
         if self.advanced.get("reasoning_effort") not in (None, "default"):
@@ -375,10 +418,11 @@ class AnthropicMessagesProvider:
         api_key: str,
         model: str,
         client: httpx.AsyncClient | None = None,
-        instructions: str = DEFAULT_HUB_ADVISOR_INSTRUCTIONS,
+        instructions: str = DEFAULT_METHOD,
         advanced: dict | None = None,
         allow_actions: bool = True,
         edit_scope: str | None = None,
+        tools: frozenset[str] = ALL_TOOLS,
     ):
         if not api_key.strip():
             raise AdvisorUnavailable("Coach is not configured yet.")
@@ -389,12 +433,12 @@ class AnthropicMessagesProvider:
         self.advanced = advanced or {}
         self.allow_actions = allow_actions
         self.edit_scope = edit_scope
+        self.tools = tools
         self.client = client
 
     async def respond(self, messages: list[AdvisorMessage], safety_identifier: str) -> AdvisorResult:
-        from src.services.hub_actions import navigation_tool
-        from src.services.goals.coach_tools import goal_edit_tools, parse_goal_tool_call
-        from src.services.hub_questions import parse_question_call, question_tool
+        from src.services.goals.coach_tools import parse_goal_tool_call
+        from src.services.hub_questions import parse_question_call
         payload: dict = {
             "model": self.model,
             "system": self.instructions,
@@ -402,8 +446,9 @@ class AnthropicMessagesProvider:
             "max_tokens": int(self.advanced.get("max_output_tokens", MAX_OUTPUT_TOKENS)),
             "metadata": {"user_id": safety_identifier},
         }
-        if self.allow_actions:
-            payload["tools"] = [navigation_tool("anthropic"), question_tool("anthropic"), *goal_edit_tools("anthropic", self.edit_scope)]
+        tools = _tools("anthropic", self.tools, self.edit_scope) if self.allow_actions else []
+        if tools:
+            payload["tools"] = tools
             payload["tool_choice"] = {"type": "auto"}
         if self.advanced.get("thinking_effort") not in (None, "default"):
             payload["thinking"] = {"type": "adaptive"}
@@ -480,34 +525,38 @@ class AnthropicMessagesProvider:
         )
 
 
-def configured_advisor_provider(db_session: Session, edit_scope: str | None = None) -> AdvisorProvider:
+def configured_advisor_provider(db_session: Session, edit_scope: str | None = None, query: str = "") -> AdvisorProvider:
+    """Coach for a chat turn: the policy's method, matching knowledge and routines, on the trigger's tier."""
     fixture = _ui_test_provider(edit_scope=edit_scope)
     if fixture:
         return fixture
+    policy = coach_runtime(db_session)
+    if not policy.enabled:
+        raise AdvisorUnavailable("Coach is not configured or enabled.")
+    triggers = ("learner_message", "planning_session") if edit_scope else ("learner_message",)
+    tier = max((policy.tier_for(trigger) for trigger in triggers), key=("fast", "standard", "deep").index)
     try:
-        provider, api_key, model, instructions, advanced = _advisor_credentials(db_session)
+        model = policy.model(tier)
     except RuntimeError as error:
         raise AdvisorUnavailable(str(error)) from None
-    if provider == "anthropic":
-        return AnthropicMessagesProvider(api_key, model, instructions=instructions, advanced=advanced, edit_scope=edit_scope)
-    return OpenAIResponsesProvider(api_key, model, instructions=instructions, advanced=advanced, edit_scope=edit_scope)
+    tools = frozenset(tool for tool, ability in TOOL_ABILITIES.items() if policy.can(ability))
+    return provider_for(model, instructions=policy.instructions(*triggers, query=query), edit_scope=edit_scope, tools=tools)
 
 
 def configured_memory_provider(db_session: Session) -> AdvisorProvider:
     fixture = _ui_test_provider(memory=True)
     if fixture:
         return fixture
+    policy = coach_runtime(db_session)
+    if not policy.enabled:
+        raise AdvisorUnavailable("Coach is not configured or enabled.")
     try:
-        provider, api_key, model, _instructions, advanced = _advisor_credentials(db_session)
+        model = policy.model("fast")
     except RuntimeError as error:
         raise AdvisorUnavailable(str(error)) from None
-    memory_advanced = {**advanced, "max_output_tokens": 500}
-    if provider == "anthropic":
-        return AnthropicMessagesProvider(
-            api_key, model, instructions=MEMORY_EXTRACTOR_INSTRUCTIONS, advanced=memory_advanced, allow_actions=False,
-        )
-    return OpenAIResponsesProvider(
-        api_key, model, instructions=MEMORY_EXTRACTOR_INSTRUCTIONS, advanced=memory_advanced, allow_actions=False,
+    return provider_for(
+        CoachModel(model.provider, model.api_key, model.model, {**model.settings, "max_output_tokens": 500}),
+        instructions=MEMORY_EXTRACTOR_INSTRUCTIONS, allow_actions=False,
     )
 
 
@@ -619,11 +668,13 @@ async def ask_hub_advisor(
         provider_messages = ground_page_context(provider_messages, page_context)
     from src.services.hub_actions import navigation_capability_context
     from src.services.hub_questions import question_context
-    capability_context = navigation_capability_context(db_session, org_id, session_target) + question_context(db_session, org_id, user_id, edit_run, session_target)
-    capability_context += (
-        "\n\nKeep every learner-facing reply under 1,600 characters. Prefer a few short paragraphs and do not "
-        "repeat background the learner already supplied."
-    )
+    policy = coach_runtime(db_session)
+    capability_context = ""
+    if policy.can("open_pages"):
+        capability_context += navigation_capability_context(db_session, org_id, session_target)
+    if policy.can("ask_questions"):
+        capability_context += question_context(db_session, org_id, user_id, edit_run, session_target)
+    capability_context += "\n\n" + REPLY_RULES
     if edit_run:
         from src.services.goals.coach_sessions import session_prompt
         waiting, outline = session_prompt(db_session, edit_run, user_id)
@@ -631,19 +682,7 @@ async def ask_hub_advisor(
             "\n\n<hub_editing_scope>\nThe learner has granted a native editing run for: "
             f"{edit_run['goal']}. Current scope: {edit_run['scope']['label']}. "
             f"Suggestions still waiting for the learner to add or drop: {waiting}. "
-            "Typed editing tools put suggestions on the goal page; they never save. The learner keeps or drops each one. "
-            "Never create a new goal or suggest that you will; the learner starts goals themselves. "
-            "Do not propose edits outside this scope. A conversational refinement may update the goal while retaining "
-            "the same scope, but a request to act on another goal or product surface requires a new learner-granted run. "
-            "When that happens, ask how to resolve any unfinished objects, propose concluding this run, and only then "
-            "offer the separately scoped action. Keep useful out-of-scope follow-up ideas until this run concludes rather "
-            "than silently widening authority. Every turn in an active editing run must end in an explicit "
-            "state: prepare a supported edit, ask one clear question needed to continue, or call the conclusion tool "
-            "to propose finishing the editing goal. Never merely promise that a finish button will appear. When suggested "
-            "stages or steps are still waiting for the learner, say so briefly and wait for that "
-            "review rather than duplicating the proposal. Never propose stages and steps that depend on those "
-            "stages in the same turn; wait until every proposed stage is reviewed and saved. Never stop at a bare "
-            "acknowledgement.\n</hub_editing_scope>"
+            + PLANNING_SESSION_RULES + "\n</hub_editing_scope>"
         )
         capability_context += outline
     elif recent_edit_run and recent_edit_run.get("status") in {"cancelled", "completed"}:
@@ -659,7 +698,8 @@ async def ask_hub_advisor(
         *provider_messages[:-1],
         AdvisorMessage(role="user", content=provider_messages[-1].content + capability_context),
     ]
-    result = await (provider or configured_advisor_provider(db_session, edit_run["scope"]["kind"] if edit_run else None)).respond(provider_messages, safety_identifier)
+    query = " ".join([messages[-1].content, *(str(item.get("title") or "") for item in ((page_context or {}).get("receipt") or {}).get("sources", []))])
+    result = await (provider or configured_advisor_provider(db_session, edit_run["scope"]["kind"] if edit_run else None, query=query)).respond(provider_messages, safety_identifier)
     result = replace(result, text=bound_advisor_text(result.text))
     logger.info(
         "hub_advisor_usage org_id=%s user_id=%s model=%s input_tokens=%s output_tokens=%s",

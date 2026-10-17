@@ -26,6 +26,7 @@ import {
   Tray,
   Flag,
   Flask,
+  Sparkle,
 } from '@phosphor-icons/react'
 import Link from 'next/link'
 import React, { useState } from 'react'
@@ -640,6 +641,7 @@ const PLATFORM_ICONS: Record<PlatformSection, React.ReactNode> = {
   requests: <Tray size={20} weight="fill" />,
   feedback: <Flag size={20} weight="fill" />,
   demo: <Flask size={20} weight="fill" />,
+  coach: <Sparkle size={20} weight="fill" />,
   settings: <Gear size={20} weight="fill" />,
   news: <Newspaper size={20} weight="fill" />,
 }
