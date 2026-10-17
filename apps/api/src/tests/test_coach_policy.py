@@ -199,7 +199,7 @@ def test_coach_admin_routes_are_superadmin_only():
 
 
 def test_chat_runs_on_the_triggers_tier_with_only_the_allowed_tools(monkeypatch):
-    from src.services import hub_advisor
+    from src.services.coach import providers
 
     with _db() as db:
         standard = _key(db, "openai", "sk-openai-secret-value-0001")
@@ -210,15 +210,15 @@ def test_chat_runs_on_the_triggers_tier_with_only_the_allowed_tools(monkeypatch)
         }))
         policy.save_routine(db, _admin(), CoachRoutineWrite(name="Plan deeply", trigger="planning_session", instructions="Think it through.", tier="deep"))
         snapshot = policy._load(db)
-    monkeypatch.setattr(hub_advisor, "coach_runtime", lambda *_args: snapshot)
-    monkeypatch.setattr(hub_advisor, "_ui_test_provider", lambda **_kwargs: None)
+    monkeypatch.setattr(providers, "coach_runtime", lambda *_args: snapshot)
+    monkeypatch.setattr(providers, "_ui_test_provider", lambda **_kwargs: None)
 
-    chat = hub_advisor.configured_advisor_provider(object())
-    assert isinstance(chat, hub_advisor.OpenAIResponsesProvider) and "Think it through." not in chat.instructions
+    chat = providers.configured_advisor_provider(object())
+    assert isinstance(chat, providers.OpenAIResponsesProvider) and "Think it through." not in chat.instructions
     assert chat.tools == frozenset({"questions", "goal_edit"})
 
-    planning = hub_advisor.configured_advisor_provider(object(), edit_scope="goal")
-    assert isinstance(planning, hub_advisor.AnthropicMessagesProvider) and "Think it through." in planning.instructions
+    planning = providers.configured_advisor_provider(object(), edit_scope="goal")
+    assert isinstance(planning, providers.AnthropicMessagesProvider) and "Think it through." in planning.instructions
 
 
 def test_a_new_platform_starts_with_the_safety_playbook_and_seed_routines():

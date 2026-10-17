@@ -15,7 +15,7 @@ from fastapi import HTTPException, Request
 from sqlmodel import Session
 
 from src.security.org_auth import require_org_membership
-from src.services.coach.policy import DEFAULT_METHOD, CoachModel, runtime as coach_runtime
+from src.services.coach.policy import DEFAULT_METHOD, runtime as coach_runtime
 from src.services.demo.providers import reserve_ai as _reserve_demo_ai
 from src.services.security.rate_limiting import check_rate_limit, get_client_ip
 
@@ -39,10 +39,7 @@ Save only information likely to help in future unrelated conversations. Never sa
 credentials, contact details, precise location, health/disability, protected identity, immigration, legal, financial,
 disciplinary, or secret information. Prefer no candidate over a speculative one. Use update/supersede for contradictions."""
 
-REPLY_RULES = (
-    "Keep every learner-facing reply under 1,600 characters. Prefer a few short paragraphs and do not "
-    "repeat background the learner already supplied."
-)
+REPLY_RULES = "Keep every learner-facing reply under 1,600 characters. Prefer a few short paragraphs and do not repeat background the learner already supplied."
 # Code-owned rules for a planning session on a goal; shown read-only on Platform › Coach.
 PLANNING_SESSION_RULES = (
     'Typed editing tools put suggestions on the goal page; they never save. The learner keeps or drops each one. '
@@ -266,9 +263,8 @@ def _ui_test_provider(memory: bool = False, edit_scope: str | None = None) -> Ad
     return DeterministicUiTestProvider(memory=memory, edit_scope=edit_scope)
 
 
-# The chat tools, each turned on by a Coach ability.
+# The chat tools, each turned on by a Coach ability (see services.coach.providers).
 ALL_TOOLS = frozenset({"navigation", "questions", "goal_edit"})
-TOOL_ABILITIES = {"navigation": "open_pages", "questions": "ask_questions", "goal_edit": "plan_goals"}
 
 
 def _tools(provider: str, allowed: frozenset[str], edit_scope: str | None) -> list[dict]:
@@ -281,11 +277,6 @@ def _tools(provider: str, allowed: frozenset[str], edit_scope: str | None) -> li
         *([question_tool(provider)] if "questions" in allowed else []),
         *(goal_edit_tools(provider, edit_scope) if "goal_edit" in allowed else []),
     ]
-
-
-def provider_for(model: CoachModel, **options) -> "AdvisorProvider":
-    cls = AnthropicMessagesProvider if model.provider == "anthropic" else OpenAIResponsesProvider
-    return cls(model.api_key, model.model, advanced=model.settings, **options)
 
 
 class OpenAIResponsesProvider:
@@ -525,41 +516,6 @@ class AnthropicMessagesProvider:
         )
 
 
-def configured_advisor_provider(db_session: Session, edit_scope: str | None = None, query: str = "") -> AdvisorProvider:
-    """Coach for a chat turn: the policy's method, matching knowledge and routines, on the trigger's tier."""
-    fixture = _ui_test_provider(edit_scope=edit_scope)
-    if fixture:
-        return fixture
-    policy = coach_runtime(db_session)
-    if not policy.enabled:
-        raise AdvisorUnavailable("Coach is not configured or enabled.")
-    triggers = ("learner_message", "planning_session") if edit_scope else ("learner_message",)
-    tier = max((policy.tier_for(trigger) for trigger in triggers), key=("fast", "standard", "deep").index)
-    try:
-        model = policy.model(tier)
-    except RuntimeError as error:
-        raise AdvisorUnavailable(str(error)) from None
-    tools = frozenset(tool for tool, ability in TOOL_ABILITIES.items() if policy.can(ability))
-    return provider_for(model, instructions=policy.instructions(*triggers, query=query), edit_scope=edit_scope, tools=tools)
-
-
-def configured_memory_provider(db_session: Session) -> AdvisorProvider:
-    fixture = _ui_test_provider(memory=True)
-    if fixture:
-        return fixture
-    policy = coach_runtime(db_session)
-    if not policy.enabled:
-        raise AdvisorUnavailable("Coach is not configured or enabled.")
-    try:
-        model = policy.model("fast")
-    except RuntimeError as error:
-        raise AdvisorUnavailable(str(error)) from None
-    return provider_for(
-        CoachModel(model.provider, model.api_key, model.model, {**model.settings, "max_output_tokens": 500}),
-        instructions=MEMORY_EXTRACTOR_INSTRUCTIONS, allow_actions=False,
-    )
-
-
 def _json_object(value: str) -> dict:
     stripped = value.strip()
     if stripped.startswith("```"):
@@ -599,6 +555,7 @@ async def extract_hub_memory_candidates(
                 "memory_uuid": ranked[0].get("memory_uuid"), "explicit": True,
             }], "explicit")
         return [], "explicit"
+    from src.services.coach.providers import configured_memory_provider
     selected_provider = provider or (configured_memory_provider(db_session) if db_session else None)
     if selected_provider is None:
         return [], None
@@ -699,6 +656,7 @@ async def ask_hub_advisor(
         AdvisorMessage(role="user", content=provider_messages[-1].content + capability_context),
     ]
     query = " ".join([messages[-1].content, *(str(item.get("title") or "") for item in ((page_context or {}).get("receipt") or {}).get("sources", []))])
+    from src.services.coach.providers import configured_advisor_provider
     result = await (provider or configured_advisor_provider(db_session, edit_run["scope"]["kind"] if edit_run else None, query=query)).respond(provider_messages, safety_identifier)
     result = replace(result, text=bound_advisor_text(result.text))
     logger.info(

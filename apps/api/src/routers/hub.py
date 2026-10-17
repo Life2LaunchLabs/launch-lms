@@ -340,11 +340,7 @@ async def create_hub_advice(
     recent_edit_run = latest_edit_run(db_session, body.conversation_uuid, org_id, current_user.id) if body.conversation_uuid and not edit_run else None
     target = session_target(db_session, current_user.id, body.surface) if not edit_run else None
     used_memories = select_memories(db_session, org_id, current_user.id, user_content) if policy.can("read_memory") else []
-    grounding_resources = advisor_resources_for_request(
-        user_content,
-        accessible_resources,
-        body.resource_uuids,
-    ) if policy.can("read_resources") else []
+    grounding_resources = advisor_resources_for_request(user_content, accessible_resources, body.resource_uuids) if policy.can("read_resources") else []
     try:
         result = await ask_hub_advisor(
             request,

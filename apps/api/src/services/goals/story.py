@@ -172,7 +172,8 @@ def _inputs_hash(db: Session, goal: Goal) -> str:
 def story_provider(db: Session):
     """Coach's model for the story's opening and closing lines, or None (fixed lines)."""
     from src.services.coach.policy import runtime
-    from src.services.hub_advisor import _ui_test_provider, provider_for
+    from src.services.coach.providers import provider_for
+    from src.services.hub_advisor import _ui_test_provider
 
     try:
         if _ui_test_provider(memory=True):

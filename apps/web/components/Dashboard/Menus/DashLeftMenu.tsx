@@ -25,8 +25,7 @@ import {
   ChartPieSlice,
   Tray,
   Flag,
-  Flask,
-  Sparkle,
+  Flask, Sparkle,
 } from '@phosphor-icons/react'
 import Link from 'next/link'
 import React, { useState } from 'react'
@@ -632,7 +631,6 @@ const MenuLink = ({ href, icon, label, isCollapsed, isExternal }: {
 
   return linkElement
 }
-
 
 const PLATFORM_ICONS: Record<PlatformSection, React.ReactNode> = {
   overview: <ChartPieSlice size={20} weight="fill" />,
