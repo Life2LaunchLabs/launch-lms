@@ -22,7 +22,6 @@ export default function CoachAbilities({ policy }: { policy: CoachPolicy }) {
     setPending(ability.key)
     try {
       await mutate(await coachAdminApi.update({ abilities: { [ability.key]: enabled } }, token), { revalidate: false })
-      toast.success(`${ability.label}: ${enabled ? 'on' : 'off'}.`)
     } catch (error) {
       toast.error(errorMessage(error, 'Could not change the ability.'))
     } finally {

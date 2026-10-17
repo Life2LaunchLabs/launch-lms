@@ -72,7 +72,7 @@ ABILITY_KEYS = {item[0] for item in ABILITIES}
 # Moments Coach acts on. A routine attaches instructions to one; the output each moment produces is fixed in code.
 TRIGGERS = {
     "learner_message": {"label": "The learner sends a message", "detail": "Added to every reply in the Coach chat.", "tier": "standard"},
-    "planning_session": {"label": "A planning session on a goal", "detail": "Added while Coach and the learner plan a goal together on the goal page.", "tier": "standard"},
+    "planning_session": {"label": "The learner plans a goal with Coach", "detail": "Added while Coach and the learner plan a goal together on the goal page.", "tier": "standard"},
     "goal_check_in": {"label": "A goal's check-in is due", "detail": "Weekly or monthly on the learner's cadence, soon after a goal is created, and after a stage is finished. Coach leaves up to three notes on the goal's Coach bar.", "tier": "standard"},
     "goal_finished": {"label": "A goal is finished", "detail": "Coach writes the opening and closing lines of the finish story.", "tier": "standard"},
 }

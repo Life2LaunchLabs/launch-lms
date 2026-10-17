@@ -16,39 +16,51 @@ test('platform.coach-policy: the coaching team edits the method, knowledge, rout
 
   await page.goto(coachPath)
   await assertActualApp(page)
-  const tabs = page.getByRole('navigation', { name: 'Coach policy' })
+  // Tabs are links; the steps below go to them by URL because save toasts can sit over the tab row for a moment.
+  await expect(page.getByRole('navigation', { name: 'Coach policy' }).getByRole('link')).toHaveCount(5)
 
   // Method: one markdown document, with a preview.
-  const method = page.getByLabel('Method document')
+  const method = page.getByRole('textbox', { name: 'Method document' })
   await expect(method).toHaveValue(/# How Coach coaches/)
-  const marker = `Notice effort before results ${Date.now().toString(36)}.`
-  await method.fill(`${await method.inputValue()}\n\n## Effort\n\n${marker}`)
+  const original = await method.inputValue()
+  const heading = `Effort ${Date.now().toString(36)}`
+  await method.fill(`${original}\n\n## ${heading}\n\nNotice effort before results.`)
   await page.getByRole('button', { name: 'Preview' }).click()
-  await expect(page.getByRole('heading', { name: 'Effort' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: heading })).toBeVisible()
   await capture('coach-method')
   await page.getByRole('button', { name: 'Save method' }).click()
   await expect(page.getByText('Method saved.')).toBeVisible()
 
   // Knowledge: Safety is an always-on playbook; a new one is matched by "used when".
-  await tabs.getByRole('link', { name: 'Knowledge' }).click()
+  await page.goto(`${coachPath}/knowledge`)
   await expect(page.getByRole('button', { name: /Safety\s*Always/ })).toBeVisible()
   const title = `Big dreams ${Date.now().toString(36)}`
   await page.getByRole('button', { name: 'New playbook' }).click()
   await page.getByPlaceholder('Big career dreams').fill(title)
   await page.getByPlaceholder(/long-shot career/).fill('A learner wants a long-shot career like pro gaming')
-  await page.getByLabel('Playbook', { exact: true }).fill('Take the dream seriously, then find the first real step.')
+  await page.getByRole('textbox', { name: 'Playbook', exact: true }).fill('Take the dream seriously, then find the first real step.')
   await page.getByRole('button', { name: 'Save playbook' }).click()
-  await expect(page.getByRole('button', { name: new RegExp(title) })).toBeVisible()
+  const playbook = page.getByRole('button', { name: new RegExp(`^${title}`) })
+  await expect(playbook).toBeVisible()
   await capture('coach-knowledge')
+  // Leave the shared test platform as it was.
+  await playbook.click()
+  page.once('dialog', (dialog) => void dialog.accept())
+  await page.getByRole('button', { name: 'Delete', exact: true }).click()
+  await expect(playbook).toHaveCount(0)
+  await page.goto(coachPath)
+  await method.fill(original)
+  await page.getByRole('button', { name: 'Save method' }).click()
+  await expect(page.getByText('Method saved.').first()).toBeVisible()
 
   // Routines: grouped by the moment they run on; the seeded voice routines are there.
-  await tabs.getByRole('link', { name: 'Routines' }).click()
+  await page.goto(`${coachPath}/routines`)
   await expect(page.getByRole('heading', { name: 'When a goal\'s check-in is due' })).toBeVisible()
-  await expect(page.getByText('Check-in notes', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Edit Check-in notes' })).toBeVisible()
   await capture('coach-routines')
 
   // Abilities: plain switches in three groups, with the fixed rules shown read-only.
-  await tabs.getByRole('link', { name: 'Abilities' }).click()
+  await page.goto(`${coachPath}/abilities`)
   await expect(page.getByRole('heading', { name: 'What Coach reads' })).toBeVisible()
   const askQuestions = page.getByRole('switch', { name: 'Ask quick questions' })
   await expect(askQuestions).toBeChecked()
@@ -60,7 +72,7 @@ test('platform.coach-policy: the coaching team edits the method, knowledge, rout
   await capture('coach-abilities')
 
   // Model: keys and tiers; Coach can't be turned on before Standard has a key and a model.
-  await tabs.getByRole('link', { name: 'Model' }).click()
+  await page.goto(`${coachPath}/model`)
   await expect(page.getByRole('heading', { name: 'Model tiers' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Standard', exact: true })).toBeVisible()
   await capture('coach-model')
