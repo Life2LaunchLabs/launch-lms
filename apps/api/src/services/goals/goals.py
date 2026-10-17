@@ -84,7 +84,7 @@ def _entry_dict(entry: StepEntry) -> dict:
     return {
         "entry_uuid": entry.entry_uuid, "kind": _value(entry.kind), "slot": entry.slot, "title": entry.title, "url": entry.url,
         "asset_id": entry.asset_id, "resource_uuid": entry.resource_uuid, "note": entry.note, "done": entry.done,
-        "period_start": entry.period_start, "follow_up_status": entry.follow_up_status, "follow_up_due": entry.follow_up_due,
+        "period_start": entry.period_start,
         "data": entry.data or {}, "creation_date": entry.creation_date,
     }
 

@@ -294,10 +294,8 @@ class StepEntry(SQLModel, table=True):
     resource_uuid: str | None = Field(default=None, sa_column=Column(String, nullable=True))
     note: str = ""
     done: bool = False
-    # Routines: the start of the week the entry was logged in.
+    # Routines: the trigger (the day it came round) the entry was logged for.
     period_start: date | None = Field(default=None, sa_column=Column(Date, nullable=True, index=True))
-    follow_up_status: str | None = Field(default=None, sa_column=Column(String, nullable=True))
-    follow_up_due: date | None = Field(default=None, sa_column=Column(Date, nullable=True))
     data: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
     position: int = 0
     created_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
@@ -459,13 +457,14 @@ class StepEntryCreate(SQLModel):
     resource_uuid: str | None = None
     note: str = Field(default="", max_length=10000)
     data: dict = Field(default_factory=dict)
+    # Routines: an earlier trigger to log for; the current one when left out.
+    period: date | None = None
 
 
 class StepEntryUpdate(SQLModel):
     title: str | None = Field(default=None, max_length=500)
     note: str | None = Field(default=None, max_length=10000)
     done: bool | None = None
-    follow_up_status: str | None = Field(default=None, max_length=60)
     # Merged into the entry's data, key by key.
     data: dict | None = None
 

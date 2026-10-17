@@ -40,6 +40,8 @@ export interface EntryInput {
   resource_uuid?: string | null
   note?: string
   data?: Record<string, unknown>
+  /** Routines: an earlier trigger to log for. */
+  period?: string
 }
 
 const step = (goalUuid: string, stepUuid: string, path = '') => goalUrl(goalUuid, `/steps/${q(stepUuid)}${path}`)
@@ -67,7 +69,7 @@ export const goalsApi = {
   saveSubmission: (goalUuid: string, stepUuid: string, data: { submission?: Record<string, unknown>; answer?: string; learner_note?: string }, token?: string) => request<Goal>(step(goalUuid, stepUuid, '/submission'), token, 'PUT', data),
   saveNote: (goalUuid: string, stepUuid: string, note: string, token?: string) => request<Goal>(step(goalUuid, stepUuid, '/note'), token, 'PUT', { note }),
   addEntry: (goalUuid: string, stepUuid: string, data: EntryInput, token?: string) => request<Goal>(step(goalUuid, stepUuid, '/entries'), token, 'POST', data),
-  updateEntry: (goalUuid: string, stepUuid: string, entryUuid: string, data: { title?: string; note?: string; done?: boolean; follow_up_status?: string | null; data?: Record<string, unknown> }, token?: string) => request<Goal>(step(goalUuid, stepUuid, `/entries/${q(entryUuid)}`), token, 'PATCH', data),
+  updateEntry: (goalUuid: string, stepUuid: string, entryUuid: string, data: { title?: string; note?: string; done?: boolean; data?: Record<string, unknown> }, token?: string) => request<Goal>(step(goalUuid, stepUuid, `/entries/${q(entryUuid)}`), token, 'PATCH', data),
   deleteEntry: (goalUuid: string, stepUuid: string, entryUuid: string, token?: string) => request<Goal>(step(goalUuid, stepUuid, `/entries/${q(entryUuid)}`), token, 'DELETE'),
   startActivity: (goalUuid: string, stepUuid: string, token?: string) => request(step(goalUuid, stepUuid, '/activity'), token, 'POST'),
 }

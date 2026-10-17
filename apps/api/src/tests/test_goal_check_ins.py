@@ -155,16 +155,17 @@ def test_the_runner_checks_in_on_due_goals_and_finishing_a_stage_brings_the_next
 
 def test_a_routine_gone_quiet_for_two_weeks_gets_one_note_until_it_is_logged_again():
     from src.db.goals import StepEntry, StepEntryCreate
-    from src.services.goals.types.routine import week_start_of
+    from src.services.goals.types.routine import trigger_on
 
+    mondays = {"cadence": "weekly", "days": [1], "action": {"kind": "list", "target": 3}}
     with _session() as db:
         goal_uuid = _goal(db, "Summer job")
-        view = structure.add_step(db, _user(LEARNER), goal_uuid, StepCreate(type="routine", title="Send applications", config={"target": 3}))
+        view = structure.add_step(db, _user(LEARNER), goal_uuid, StepCreate(type="routine", title="Send applications", config=mondays))
         step_uuid = next(step["step_uuid"] for step in [s for stage in view["stages"] for s in stage["steps"]] + view["unstaged_steps"] if step["type"] == "routine")
         row = db.exec(select(GoalStep).where(GoalStep.step_uuid == step_uuid)).one()
         row.creation_date = (datetime.now() - timedelta(weeks=5)).isoformat()
         db.add(row)
-        this_week = week_start_of(date.today())
+        this_week = trigger_on(mondays, date.today())
         # Logged three weeks ago; nothing in the two weeks since.
         entries.add_entry(db, _user(LEARNER), goal_uuid, step_uuid, StepEntryCreate(kind="log", title="Cafe"))
         entry = db.exec(select(StepEntry).where(StepEntry.step_id == row.id)).one()
@@ -191,7 +192,7 @@ def test_a_routine_gone_quiet_for_two_weeks_gets_one_note_until_it_is_logged_aga
 def test_a_new_routine_is_not_called_quiet():
     with _session() as db:
         goal_uuid = _goal(db, "Run more")
-        structure.add_step(db, _user(LEARNER), goal_uuid, StepCreate(type="routine", title="Run", config={"target": 2, "entry_kind": "count"}))
+        structure.add_step(db, _user(LEARNER), goal_uuid, StepCreate(type="routine", title="Run", config={"cadence": "daily", "action": {"kind": "check"}}))
         assert not [item for item in check_ins.signals(db, _row(db, goal_uuid), datetime.utcnow()) if item["kind"] == "routine_missed"]
 
 
@@ -234,24 +235,6 @@ def test_the_check_in_looks_over_dates_milestones_and_the_why():
         db.add(goal)
         db.commit()
         assert _kinds(db, goal_uuid) == ["quiet_goal"]
-
-
-def test_routine_follow_ups_that_come_due_get_a_note():
-    from src.db.goals import StepEntry, StepEntryCreate
-
-    with _session() as db:
-        goal_uuid = _goal(db, "Summer job")
-        view = structure.add_step(db, _user(LEARNER), goal_uuid, StepCreate(type="routine", title="Send applications", config={"target": 3, "follow_up": {"after_days": 7}}))
-        step_uuid = next(step["step_uuid"] for step in [s for stage in view["stages"] for s in stage["steps"]] + view["unstaged_steps"] if step["type"] == "routine")
-        entries.add_entry(db, _user(LEARNER), goal_uuid, step_uuid, StepEntryCreate(kind="log", title="Cafe"))
-        assert "follow_ups" not in _kinds(db, goal_uuid)
-        entry = db.exec(select(StepEntry)).one()
-        entry.follow_up_due = date.today() - timedelta(days=1)
-        db.add(entry)
-        db.commit()
-        follow_up = next(item for item in check_ins.signals(db, _row(db, goal_uuid), datetime.utcnow()) if item["kind"] == "follow_ups")
-        assert follow_up["key"] == f"follow_ups:{step_uuid}:{entry.follow_up_due.isoformat()}"
-        assert [action["kind"] for action in follow_up["actions"]] == ["step", "dismiss"]
 
 
 class Reviewer:

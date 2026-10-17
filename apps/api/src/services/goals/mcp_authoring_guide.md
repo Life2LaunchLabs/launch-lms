@@ -66,7 +66,7 @@ Every step has exactly one `type`, and `config` holds that type's settings.
 | `badge` | `badge_uuid`, `accept_previous_major_versions` | earns the badge | the badge is awarded |
 | `portfolio` | `check`: `welcome`, `timeline`, `project`, `traits`, `launch` or `badges` | completes a portfolio section | the section is complete |
 | `decision` | `question`, `options`: `[{key, label}]`, `multiple`, `allow_other` | chooses | a choice is saved |
-| `routine` | `target` (times a week), `entry_kind` (`named` or `count`), `item_label`, `end_date`, `end_after`, `follow_up`: `{after_days, statuses}` | logs each one; sets follow-up outcomes | the learner ends it, or its end date, its stage's end or `end_after` comes first |
+| `routine` | `cadence` (`daily`, `weekly` or `monthly`), `days` (weekly: 0 Sunday to 6 Saturday; monthly: 1 to 31), `action`: `{kind: list|number|check, target, label, unit, series}` | logs the action each time it comes round; a chart of past times | the learner ends it, or its close date or its stage's end comes first |
 | `explore` | `question`, optional `suggestions`: `[{resource_uuid, title}]` (library resources to start from), `ratings` (rate each find 1 to 5) | collects resources, links, files and notes on a board, pins the ones that matter, then writes their outcome | the outcome is saved |
 
 Every step also has the learner's own note, added while it's open or after it's done; don't

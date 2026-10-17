@@ -55,8 +55,11 @@ _SETTINGS = _schema({
     "multiple": {"type": "boolean", "description": "decision: more than one option can be chosen."},
     "event_date": _DATE,
     "place": {"type": "string", "description": "event: where it happens; empty otherwise."},
-    "per_week": {"type": "integer", "description": "routine: how many times a week, or 0 otherwise."},
-    "follow_up_days": {"type": "integer", "description": "routine: days after each one to follow up (applications, messages), or 0 for none."},
+    "cadence": {"type": "string", "enum": ["daily", "weekly", "monthly", ""], "description": "routine: how often it comes round; empty otherwise."},
+    "days": {"type": "array", "items": {"type": "integer"}, "description": "routine: weekly, weekdays 0 (Sunday) to 6; monthly, days of the month 1 to 31; empty otherwise."},
+    "action_kind": {"type": "string", "enum": ["list", "number", "check", ""], "description": "routine: what each time asks for: list (add a few named items), number (enter a value, like a weight), check (just do it); empty otherwise."},
+    "action_target": {"type": "integer", "description": "routine with action_kind list: how many items each time; 0 otherwise."},
+    "action_label": {"type": "string", "description": "routine: what one item is called ('job opening'), or what the number measures ('Weight'); empty otherwise."},
 })
 
 
@@ -81,7 +84,7 @@ def goal_edit_tools(provider: str, scope_kind: str | None) -> list[dict]:
             GOAL_STEPS_TOOL,
             f"Prepare one to {MAX_STEPS} new typed steps, shown as suggested lines on the goal page. Nothing is saved; the learner adds or drops each step. "
             "Pick the type that fits: task (do it, optionally list items), write (a written answer), upload (hand in files), "
-            "event (go somewhere on a date), decision (choose between options), routine (something done a number of times every week), explore (a question answered by collecting resources, links and notes). Build on the answers and results in the page context.",
+            "event (go somewhere on a date), decision (choose between options), routine (an action repeated daily, on some weekdays, or on some days of the month), explore (a question answered by collecting resources, links and notes). Build on the answers and results in the page context.",
             _schema({"steps": {"type": "array", "minItems": 1, "maxItems": MAX_STEPS, "items": _schema({
                 "type": {"type": "string", "enum": list(COACH_STEP_TYPES)},
                 "title": {"type": "string", "description": "A concise, action-oriented step."},
@@ -179,8 +182,12 @@ def step_config(kind: str, title: str, settings: dict) -> dict:
     elif kind == "explore":
         config = {"question": (prompt or title)[:1000]}
     elif kind == "routine":
-        follow_up_days = max(0, min(90, int(settings.get("follow_up_days") or 0)))
-        config = {"target": max(1, min(50, int(settings.get("per_week") or 3))), **({"follow_up": {"after_days": follow_up_days}} if follow_up_days else {})}
+        cadence = settings.get("cadence") if settings.get("cadence") in {"daily", "weekly", "monthly"} else "weekly"
+        days = [int(day) for day in settings.get("days") or [] if isinstance(day, int)] or ([0] if cadence == "weekly" else [1])
+        action_kind = settings.get("action_kind") if settings.get("action_kind") in {"list", "number", "check"} else "check"
+        config = {"cadence": cadence, "days": days, "action": {
+            "kind": action_kind, "target": max(1, min(50, int(settings.get("action_target") or 1))), "label": str(settings.get("action_label") or "").strip()[:60],
+        }}
     else:
         config = {}
     return step_type(kind).validate_config(config)

@@ -31,8 +31,13 @@ export interface PortfolioConfig { check: 'welcome' | 'timeline' | 'project' | '
 export interface DecisionOption { key: string; label: string }
 export interface DecisionConfig { question?: string; options: DecisionOption[]; multiple?: boolean; allow_other?: boolean }
 export interface ExploreConfig { question?: string; suggestions?: Array<{ resource_uuid: string; title?: string }>; ratings?: boolean }
-export interface RoutineFollowUp { after_days: number; statuses: string[] }
-export interface RoutineConfig { cadence?: 'weekly'; target: number; entry_kind?: 'named' | 'count'; item_label?: string; end_date?: string; end_after?: number; follow_up?: RoutineFollowUp }
+export type RoutineCadence = 'daily' | 'weekly' | 'monthly'
+export type RoutineActionKind = 'list' | 'number' | 'check'
+/** What each time asks for: `target` named items, one number per series, or just doing it. */
+export interface RoutineAction { kind: RoutineActionKind; target?: number; label?: string; unit?: string; series?: string[] }
+/** Weekly days run 0 (Sunday) to 6; monthly days 1 to 31; daily has none. */
+export interface RoutineConfig { cadence: RoutineCadence; days: number[]; action: RoutineAction }
+export interface RoutinePeriod { start: string; count: number; done: number; wanted: number; values: Record<string, number> }
 
 export interface StepConfigs {
   task: TaskConfig
@@ -54,7 +59,7 @@ export type StepResult =
   | { kind: 'rsvp'; rsvp: 'yes' | 'no' | 'maybe' }
   | { kind: 'choice'; choices: string[]; reason: string }
   | { kind: 'explore'; answer: string; count: number; thumbs: Array<{ kind: string; title: string; url: string; image: string }> }
-  | { kind: 'routine'; target: number; this_week: number; total: number; weeks: Array<{ start: string; count: number }>; follow_ups_due: number }
+  | { kind: 'routine'; current: string; done: number; wanted: number; streak: number; total: number; periods: RoutinePeriod[] }
 
 export interface StepEntry {
   entry_uuid: string
@@ -66,9 +71,8 @@ export interface StepEntry {
   resource_uuid: string | null
   note: string
   done: boolean
+  /** Routines: the trigger the entry was logged for. */
   period_start: string | null
-  follow_up_status: string | null
-  follow_up_due: string | null
   data: Record<string, unknown>
   creation_date: string
 }

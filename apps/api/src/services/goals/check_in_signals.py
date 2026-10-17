@@ -15,13 +15,15 @@ from sqlmodel import Session, select
 
 from src.db.goals import Goal, GoalStage, StepStatus
 from src.services.goals.home_week import Entry, goal_entries
-from src.services.goals.types.routine import count_in_week, follow_ups_due, week_start_of
+from src.services.goals.types.routine import logged_in, trigger_on
 
 STALLED_DAYS = 21
 # A goal with open steps and nothing finished for this long has gone quiet.
 QUIET_GOAL_DAYS = 21
-# A running routine with no logs for this many whole weeks in a row.
-ROUTINE_MISSED_WEEKS = 2
+# A running routine with nothing logged for at least this many of its triggers in a row,
+# spanning at least this many days (so a daily routine isn't nagged after two days).
+ROUTINE_MISSED_TRIGGERS = 2
+ROUTINE_MISSED_DAYS = 14
 STAGE_SOON_DAYS = 14
 MILESTONE_RECENT_DAYS = 14
 # A goal's own target date this close, with steps still open, is worth a look at the plan.
@@ -64,7 +66,6 @@ def signals(db: Session, goal: Goal, now: datetime) -> list[dict]:
         *_plan_stage(goal, stages, by_stage, today),
         *_overdue(goal, entries, today),
         *_deadline(goal, entries, today),
-        *_follow_ups(goal, entries, today),
         *_quiet_routines(goal, entries, today),
         *_stalled(goal, entries, now),
         *_quiet_goal(goal, entries, now),
@@ -154,63 +155,46 @@ def _deadline(goal: Goal, entries: list[Entry], today: date) -> list[dict]:
     }]
 
 
-def _follow_ups(goal: Goal, entries: list[Entry], today: date) -> list[dict]:
-    """A routine with follow-ups that have come due and have no status yet."""
-    found = []
-    for entry in entries:
-        if not entry.routine or entry.done:
-            continue
-        due = follow_ups_due(entry.entries, today)
-        if not due:
-            continue
-        earliest = min(item.follow_up_due for item in due)  # type: ignore[type-var]
-        found.append({
-            "kind": "follow_ups", "key": f"follow_ups:{entry.uuid}:{earliest.isoformat()}", "step_uuid": entry.uuid,  # type: ignore[union-attr]
-            "facts": f"{len(due)} logged items on the routine “{entry.step.title}” are due a follow-up.",
-            "title": f"Time to follow up on {len(due)}" if len(due) > 1 else "Time to follow up on one", "body": f"Some of your “{entry.step.title}” logs are ready for a follow-up.",
-            "actions": [{"kind": "step", "label": "Open the routine", "step_uuid": entry.uuid}, _dismiss()],
-        })
-    return found
-
-
 def _quiet_routines(goal: Goal, entries: list[Entry], today: date) -> list[dict]:
-    """A running routine with no logs in the last whole weeks. Its key names the first quiet
-    week, so one lapse is one note, and a later lapse can get its own."""
+    """A running routine with nothing logged for a while. Its key names the first quiet
+    trigger, so one lapse is one note, and a later lapse can get its own."""
     found = []
     for entry in entries:
         if not entry.routine or entry.done:
             continue
-        missed = _missed_weeks(entry, today)
-        if missed is None:
+        first_quiet = _first_missed(entry, today)
+        if first_quiet is None:
             continue
-        first_quiet, weeks = missed
         found.append({
             "kind": "routine_missed", "key": f"routine_missed:{entry.uuid}:{first_quiet.isoformat()}", "step_uuid": entry.uuid,
-            "facts": f"The routine “{entry.step.title}” has had nothing logged for {weeks} weeks in a row.",
-            "title": f"How’s “{entry.step.title}” going?"[:80], "body": "Nothing’s been logged for a couple of weeks. It might need a smaller target, or a fresh start.",
+            "facts": f"The routine “{entry.step.title}” has had nothing logged since {_day(first_quiet)}.",
+            "title": f"How’s “{entry.step.title}” going?"[:80], "body": "Nothing’s been logged for a while. It might need a smaller target, or a fresh start.",
             "actions": [
                 {"kind": "step", "label": "Open the routine", "step_uuid": entry.uuid},
-                {"kind": "ask", "label": "Talk it through", "prompt": f"My routine “{entry.step.title}” on my goal “{goal.title}” has gone quiet for a couple of weeks. Ask me a few questions about what changed and whether to adjust it."},
+                {"kind": "ask", "label": "Talk it through", "prompt": f"My routine “{entry.step.title}” on my goal “{goal.title}” has gone quiet for a while. Ask me a few questions about what changed and whether to adjust it."},
                 _dismiss(),
             ],
         })
     return found
 
 
-def _missed_weeks(entry: Entry, today: date) -> tuple[date, int] | None:
-    """The first of the whole weeks in a row with nothing logged, ending last week, and how many;
-    None unless there are at least ROUTINE_MISSED_WEEKS, or something was logged this week.
-    The week the routine was added in doesn't count."""
+def _first_missed(entry: Entry, today: date) -> date | None:
+    """The first of the routine's past triggers in a row with nothing logged, ending with the
+    one before the current trigger; None unless the run is long enough, or something was logged
+    for the current trigger. Triggers up to the one the routine was added in don't count."""
+    config = entry.step.config or {}
     created = _created(entry.step.creation_date)
-    if created is None or count_in_week(entry.entries, week_start_of(today)):
+    current = trigger_on(config, today)
+    if created is None or logged_in(config, entry.entries, current):
         return None
-    first_week = week_start_of(created.date())
-    week = week_start_of(today) - timedelta(weeks=1)
-    quiet = 0
-    while week > first_week and count_in_week(entry.entries, week) == 0:
-        quiet += 1
-        week -= timedelta(weeks=1)
-    return (week + timedelta(weeks=1), quiet) if quiet >= ROUTINE_MISSED_WEEKS else None
+    first = trigger_on(config, created.date())
+    trigger, quiet, first_quiet = trigger_on(config, current - timedelta(days=1)), 0, None
+    while trigger > first and not logged_in(config, entry.entries, trigger):
+        quiet, first_quiet = quiet + 1, trigger
+        trigger = trigger_on(config, trigger - timedelta(days=1))
+    if first_quiet is None or quiet < ROUTINE_MISSED_TRIGGERS or (today - first_quiet).days < ROUTINE_MISSED_DAYS:
+        return None
+    return first_quiet
 
 
 def _stalled(goal: Goal, entries: list[Entry], now: datetime) -> list[dict]:
