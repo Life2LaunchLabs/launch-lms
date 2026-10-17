@@ -85,6 +85,8 @@ export type HubProposedStep = {
   due_date: string
   stage_title: string
   materials?: Array<Record<string, unknown>>
+  /** A few words on why Coach suggests it, shown quietly on the line. */
+  why?: string
 }
 
 type ChangeBase = { local_id: string; reason: string }

@@ -93,6 +93,7 @@ def goal_edit_tools(provider: str, scope_kind: str | None) -> list[dict]:
                 "due_date": _DATE,
                 "settings": _SETTINGS,
                 "resource_uuid": {"type": "string", "description": "The id of one catalog entry shown to you that the learner should use; empty when none fits. Never a URL."},
+                "why": {"type": "string", "description": "A few words on why this step helps, shown quietly under it; empty when it's obvious."},
             })}}),
         ))
         unchanged = "Empty to leave it as it is."
@@ -218,6 +219,7 @@ def _parse_steps(arguments: dict) -> list[dict]:
             "local_id": f"hub_step_{uuid4().hex}", "type": kind, "title": title, "description": description, "config": config,
             "due_date": due_date, "stage_title": str(raw.get("stage_title") or "").strip()[:200],
             "resource_uuid": str(raw.get("resource_uuid") or "").strip()[:64],
+            **({"why": why} if (why := " ".join(str(raw.get("why") or "").split())[:200]) else {}),
         })
     return steps
 

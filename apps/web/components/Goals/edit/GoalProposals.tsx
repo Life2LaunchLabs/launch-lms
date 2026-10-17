@@ -115,7 +115,7 @@ export function SuggestedStepLine({ goal, item, token, onSettled }: { goal: Goal
       <button type="button" disabled={saving} onClick={() => void keep()} aria-label={`Add ${label}`} className={lineButton}>{saving ? <Loader2 size={14} className="animate-spin" /> : <Plus size={15} />}</button>
     </span>
     <Icon size={14} aria-hidden="true" className="shrink-0 opacity-70" />
-    <span className="min-w-0 flex-1 truncate">{label}</span>
+    <span className="min-w-0 flex-1 truncate">{label}{step.why ? <span className="ml-2 text-xs opacity-70">{step.why}</span> : null}</span>
     {tag}
     <button type="button" disabled={saving} onClick={() => void drop()} aria-label={`Drop ${label}`} className={dropButton}><X size={14} /></button>
   </li>

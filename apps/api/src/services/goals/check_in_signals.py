@@ -13,7 +13,7 @@ from datetime import date, datetime, timedelta
 
 from sqlmodel import Session, select
 
-from src.db.goals import Goal, GoalStage, StepStatus
+from src.db.goals import CoachNote, Goal, GoalStage, StepStatus
 from src.services.goals.home_week import Entry, goal_entries
 from src.services.goals.types.routine import logged_in, trigger_on
 
@@ -54,7 +54,9 @@ def signals(db: Session, goal: Goal, now: datetime) -> list[dict]:
     today = now.date()
     entries = goal_entries(db, [goal], today)[int(goal.id)]  # type: ignore[arg-type]
     if not entries:
-        return _first_steps(goal, now)
+        # Coach's first look already offered first steps on a new goal.
+        looked = db.exec(select(CoachNote.id).where(CoachNote.goal_id == goal.id, CoachNote.kind == "first_look")).first()
+        return [] if looked else _first_steps(goal, now)
     stages = db.exec(select(GoalStage).where(GoalStage.goal_id == goal.id).order_by(GoalStage.position)).all()  # type: ignore[arg-type]
     by_stage: dict[int, list[Entry]] = {}
     for entry in entries:

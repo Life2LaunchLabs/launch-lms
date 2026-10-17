@@ -24,13 +24,20 @@ export type CoachNote = {
   created_at: string
 }
 
-export type GoalCoachNotes = { notes: CoachNote[]; cadence: 'weekly' | 'monthly'; next_check_in_at: string | null }
+/** ``first_look_due``: Coach hasn't looked at this new goal yet, or the goal changed since. */
+export type GoalCoachNotes = { notes: CoachNote[]; cadence: 'weekly' | 'monthly'; next_check_in_at: string | null; first_look_due?: boolean }
 
 export const coachNotesUrl = (goalUuid: string) => goalUrl(goalUuid, '/coach-notes')
 
 /** Records the learner's choice on a note; the caller runs the returned action. */
 export async function actOnCoachNote(goalUuid: string, noteUuid: string, actionId: string, token?: string): Promise<{ note: CoachNote; action: CoachNoteAction }> {
   const response = await fetch(`${coachNotesUrl(goalUuid)}/${encodeURIComponent(noteUuid)}/act`, RequestBodyWithAuthHeader('POST', { action_id: actionId }, null, token))
+  return errorHandling(response)
+}
+
+/** Asks Coach to take its first look at a new goal; returns the goal's notes either way. */
+export async function takeFirstLook(goalUuid: string, orgId: number, token?: string): Promise<GoalCoachNotes> {
+  const response = await fetch(`${coachNotesUrl(goalUuid)}/first-look?org_id=${orgId}`, RequestBodyWithAuthHeader('POST', {}, null, token))
   return errorHandling(response)
 }
 
