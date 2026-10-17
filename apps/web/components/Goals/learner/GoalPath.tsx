@@ -1,10 +1,9 @@
 'use client'
 
 import React from 'react'
-import { Sparkles, Trophy } from 'lucide-react'
+import { Sparkles } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useHub } from '@components/Hub/HubContext'
-import { Button } from '@components/ui/button'
 import { planVars } from '@components/Goals/planColors'
 import { getUriWithOrg } from '@services/config/config'
 import { goalSteps, type Goal, type Stage, type Step } from '@services/goals/types'
@@ -13,8 +12,8 @@ import { GoalChangeLine, StageChangeLine, StepChangeLine, SuggestedStageLine, Su
 import useGoalCoachSession from '@components/Goals/edit/useGoalCoachSession'
 import { useGoalProposals } from '@components/Goals/edit/useGoalProposals'
 import { cn } from '@/lib/utils'
-import GoalFindings from './GoalFindings'
-import { canMoveStages, FinishStep, MoveOnLine, ScheduleNotes, useMoveToStage } from './GoalStages'
+import { shortDate } from '../path/stepText'
+import { canMoveStages, FinishSection, MoveOnLine, ScheduleNotes, useMoveToStage } from './GoalStages'
 import type { GoalBadge } from './GoalHeader'
 import { GoalStepRow, type PathViewer } from './GoalStepRow'
 
@@ -35,13 +34,17 @@ export function nextStep(goal: Goal) {
   return steps.find(workable) || steps.find((step) => step.state !== 'done')
 }
 
-const shortDate = (value?: string | null) => value ? new Date(`${String(value).slice(0, 10)}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''
-
-/** A stage's line over its title, as the feed's sections have one: where it sits, and its dates. */
-function stageEyebrow(section: Section, active: boolean) {
+/**
+ * A stage's date under its title: when it starts, when it started, or the span it ran once the
+ * goal has moved past it; nothing for a stage not started with no date.
+ */
+function stageDate(goal: Goal, section: Section, place: 'past' | 'current' | 'next') {
   const stage = section.stage
-  const dates = stage?.start_date || stage?.due_date ? [shortDate(stage.start_date), shortDate(stage.due_date)].filter(Boolean).join(' – ') : ''
-  return [active ? 'Now' : section.stage ? `Stage ${section.index + 1}` : '', dates].filter(Boolean).join(' · ')
+  if (!stage) return ''
+  const start = stage.start_date || (section.index === 0 ? goal.start_date : null)
+  if (place === 'past') return start && stage.end_date ? `${shortDate(start)} – ${shortDate(stage.end_date)}` : stage.end_date ? `Until ${shortDate(stage.end_date)}` : ''
+  if (place === 'current') return start ? `Started ${shortDate(start)}` : ''
+  return stage.start_date ? `Starts ${shortDate(stage.start_date)}` : ''
 }
 
 type GoalPathProps = {
@@ -69,8 +72,6 @@ export default function GoalPath({ goal, color, badge, viewer, selectedUuid, onS
   const proposals = useGoalProposals(goal, own ? viewer.token : undefined)
   const coach = useGoalCoachSession(goal, viewer.token)
   const sections = React.useMemo(() => sectionsOf(goal, Boolean(editing?.structure)), [goal, editing?.structure])
-  const total = goal.progress.total
-  const done = goal.progress.done
   const nextUuid = nextStep(goal)?.step_uuid
   const selected = selectedUuid || nextUuid || ''
   const current = goal.current_stage_uuid
@@ -95,22 +96,24 @@ export default function GoalPath({ goal, color, badge, viewer, selectedUuid, onS
   const ask = hub && !viewer.staff ? (step: Step) => hub.open({ prompt: `Help me with “${step.title}” in my goal “${goal.title}”.` }) : undefined
   const looseSuggestions = proposals.steps.filter((item) => !item.stageUuid)
 
-  return <div data-plan="" style={planVars(color)} className="flex flex-col gap-8">
-    <GoalFindings goal={goal} onGoTo={goTo} />
+  const currentIndex = goal.stages.findIndex((stage) => stage.stage_uuid === current)
+
+  return <div data-plan="" style={planVars(color)} className="flex flex-col gap-4">
     {proposals.goalChanges.map((item) => <GoalChangeLine key={item.change.local_id} goal={goal} item={item} token={viewer.token} onSettled={proposals.settle} />)}
     {sections.length ? sections.map((section) => {
       const sectionDone = section.steps.filter((step) => step.state === 'done').length
       const active = Boolean(section.stage && section.stage.stage_uuid === current)
+      const place = !section.stage || currentIndex < 0 ? 'next' : section.index < currentIndex ? 'past' : active ? 'current' : 'next'
       const suggested = section.stage ? proposals.steps.filter((item) => item.stageUuid === section.stage!.stage_uuid) : looseSuggestions
-      const eyebrow = stageEyebrow(section, active)
+      const when = stageDate(goal, section, place)
       const titled = sections.length > 1 || (section.title !== 'Steps' && section.title !== goal.title) || Boolean(editing?.structure)
-      return <section key={section.key} id={section.stage ? `goal-stage-${section.stage.stage_uuid}` : undefined} aria-label={section.title} className="flex scroll-mt-24 flex-col gap-3">
-        {titled ? <div className="flex items-end justify-between gap-3">
+      // The stage the goal is on sits on a quiet surface of the goal's colour; every stage keeps the same inset so the path lines up.
+      return <section key={section.key} id={section.stage ? `goal-stage-${section.stage.stage_uuid}` : undefined} aria-label={section.title} aria-current={active && sections.length > 1 ? 'step' : undefined}
+        className={cn('flex scroll-mt-24 flex-col gap-3 rounded-3xl px-2 py-4 sm:px-4', active && sections.length > 1 && 'bg-[color-mix(in_srgb,var(--plan-face)_9%,transparent)]')}>
+        {titled ? <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            {eyebrow ? <p className={cn('flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider', active ? 'text-[var(--plan-accent)]' : 'text-muted-foreground')}>
-              {active ? <span aria-hidden="true" className="h-2 w-2 rounded-full bg-[var(--plan-face)]" /> : null}{eyebrow}
-            </p> : null}
-            <h2 className={cn('text-xl font-extrabold tracking-tight', !active && current && 'text-foreground/80')}>{section.title}</h2>
+            <h2 className={cn('text-xl font-extrabold tracking-tight', place === 'past' && 'text-foreground/70')}>{section.title}</h2>
+            {when ? <p className="text-sm font-semibold text-muted-foreground">{when}</p> : null}
             <ScheduleNotes goal={goal} stageUuid={section.stage?.stage_uuid} className="mt-1" />
           </div>
           <div className="flex shrink-0 items-center gap-1">
@@ -135,20 +138,13 @@ export default function GoalPath({ goal, color, badge, viewer, selectedUuid, onS
             className="flex min-h-10 items-center gap-2 rounded-xl px-2 text-sm font-bold text-muted-foreground transition hover:bg-muted hover:text-foreground"><Sparkles size={14} aria-hidden="true" />Plan with Coach</button> : null}
         </div>
       </section>
-    }) : <div className="rounded-2xl border-2 border-dashed border-border px-6 py-10 text-center">
+    }) : <div className="flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-border px-6 py-10 text-center">
       <p className="font-bold">No steps yet</p>
-      {editing?.structure ? <Button type="button" variant="plan" className="mt-4" onClick={() => editing.open({ kind: 'add-step', stageUuid: null })}>Add a step</Button> : null}
+      <AddStepButton stageUuid={null} className="ml-0 justify-center" />
     </div>}
     {proposals.stages.map((item) => <SuggestedStageLine key={item.stage.local_id} goal={goal} item={item} token={viewer.token} onSettled={proposals.settle} />)}
     <AddStageButton />
     {mover.sheet}
-    {goal.ownership === 'personal' ? <FinishStep goal={goal} token={viewer.token} color={color} orgslug={viewer.orgslug} /> : total ? <div className="flex items-center gap-4">
-      <span className={cn('flex h-14 w-14 shrink-0 items-center justify-center rounded-full', done === total ? 'bg-[var(--plan-face)] text-[var(--plan-face-ink)] shadow-[0_4px_0_var(--plan-edge)]' : 'bg-muted text-muted-foreground')} aria-hidden="true"><Trophy size={24} /></span>
-      <div>
-        <p className="font-extrabold">{done === total ? 'All steps done' : 'Your goal'}</p>
-        <p className="text-sm text-muted-foreground">{badge?.name ? `${badge.name} badge` : 'Every step brings you closer.'}</p>
-        {done === total && badge ? <Button variant="link" asChild className="h-auto p-0 text-xs"><a href={getUriWithOrg(viewer.orgslug, '/portfolio/badges')}>View earned badges</a></Button> : null}
-      </div>
-    </div> : null}
+    <FinishSection goal={goal} token={viewer.token} color={color} orgslug={viewer.orgslug} badge={badge} />
   </div>
 }

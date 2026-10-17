@@ -18,13 +18,11 @@ class AssignmentCollaborator(SQLModel):
 class StageSchedule(SQLModel):
     stage_key: str
     start_date: date | None = None
-    due_date: date | None = None
 
 
 class StepSchedule(SQLModel):
     step_key: str
     due_date: date | None = None
-    allow_late: bool | None = None
 
 
 class AssignmentSchedule(SQLModel):

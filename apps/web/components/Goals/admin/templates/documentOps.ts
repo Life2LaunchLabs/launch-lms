@@ -20,7 +20,7 @@ export function stepToDraft(step: TemplateStep): StepDraft {
 
 export function draftToStep(draft: StepDraft, previous?: TemplateStep): TemplateStep {
   return {
-    ...(previous || { key: newKey('step'), materials: [], allow_late: false, requirement_node_uuids: [] }),
+    ...(previous || { key: newKey('step'), materials: [], requirement_node_uuids: [] }),
     type: draft.type, title: draft.title.trim(), description: draft.description, config: draft.config, completed_by: draft.completed_by,
     review_required: draft.completed_by === 'learner' && draft.review_required, reviewer_guidance: draft.reviewer_guidance, after: draft.after, due_week: draft.due_week ?? null,
   }

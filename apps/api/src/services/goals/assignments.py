@@ -61,8 +61,6 @@ def _apply(db: Session, assignment: GoalAssignment, goal: Goal) -> None:
                 continue
             if rule.get("due_date"):
                 step.due_date = date.fromisoformat(rule["due_date"])
-            if rule.get("allow_late") is not None:
-                step.allow_late = bool(rule["allow_late"])
             db.add(step)
     roles = {role.key: role for role in db.exec(select(PlanRole).where(PlanRole.goal_id == goal.id)).all()}
     for item in collaborators_of(assignment):
@@ -172,29 +170,25 @@ def _collaborators(db: Session, org_id: int, payload: GoalAssignmentRequest, own
 
 
 def _schedule(document: dict, schedule: AssignmentSchedule | None, stage_dates: dict) -> tuple[dict, dict]:
-    """Stage dates and step rules from the schedule; with stages given, every stage needs a target date, in order."""
-    dates = {key: dict(value) for key, value in (stage_dates or {}).items()}
+    """Stage start dates and step close dates from the schedule; stage starts follow stage order."""
+    dates = {key: {"start_date": value.get("start_date")} for key, value in (stage_dates or {}).items() if isinstance(value, dict)}
     if not schedule:
         return dates, {}
-    stages = document.get("stages") or []
     given = {item.stage_key: item for item in schedule.stages}
-    if schedule.stages:
-        for stage in stages:
-            item = given.get(stage["key"])
-            if not item or not item.due_date:
-                raise HTTPException(status_code=422, detail=f"Set a target date for {stage['title']}")
-            if item.start_date and item.start_date > item.due_date:
-                raise HTTPException(status_code=422, detail=f"{stage['title']} ends before it starts")
-            dates[stage["key"]] = {"start_date": _iso(item.start_date), "due_date": _iso(item.due_date)}
-        targets = [given[stage["key"]].due_date for stage in stages]
-        if targets != sorted(targets):  # type: ignore[type-var]
-            raise HTTPException(status_code=422, detail="Stage target dates must follow stage order")
+    starts = []
+    for stage in document.get("stages") or []:
+        item = given.get(stage["key"])
+        if item and item.start_date:
+            dates[stage["key"]] = {"start_date": _iso(item.start_date)}
+            starts.append(item.start_date)
+    if starts != sorted(starts):
+        raise HTTPException(status_code=422, detail="Stage start dates must follow stage order")
     step_keys = {step["key"]: step["title"] for _, step in iter_steps(document)}
     steps = {}
     for item in schedule.steps:
         if item.step_key not in step_keys:
             raise HTTPException(status_code=422, detail="A scheduled step isn't in this template")
-        steps[item.step_key] = {"due_date": _iso(item.due_date), "allow_late": item.allow_late}
+        steps[item.step_key] = {"due_date": _iso(item.due_date)}
     return dates, steps
 
 
@@ -219,13 +213,12 @@ def assign(db: Session, current_user: PublicUser, org_id: int, template_uuid: st
     document = version.document or {}
     collaborators = _collaborators(db, org_id, payload, owner_id, document.get("roles") or {})
     stage_dates, step_dates = _schedule(document, payload.schedule, payload.stage_dates)
-    due_ends = [date.fromisoformat(item["due_date"]) for item in stage_dates.values() if isinstance(item, dict) and item.get("due_date")]
     now = _now()
     assignment = GoalAssignment(
         assignment_uuid=f"goal_assignment_{uuid4()}", org_id=org_id, template_id=int(template.id), version_id=int(version.id),  # type: ignore[arg-type]
         usergroup_id=payload.usergroup_id, user_id=payload.user_id, subject_email=email, welcome_message=payload.welcome_message,
         staff_user_ids=[item["user_id"] for item in collaborators], start_date=payload.start_date,
-        due_date=payload.due_date or (max(due_ends) if due_ends else None), stage_dates=stage_dates,
+        due_date=payload.due_date, stage_dates=stage_dates,
         step_dates=step_dates, collaborators=collaborators, owner_user_id=owner_id, created_by_user_id=current_user.id, creation_date=now, update_date=now,
     )
     db.add(assignment)

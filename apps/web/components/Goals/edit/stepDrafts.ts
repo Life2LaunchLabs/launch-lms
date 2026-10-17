@@ -1,6 +1,5 @@
 import type { StepInput } from '@services/goals/goals'
 import type { Goal, Step } from '@services/goals/types'
-import { goalSteps } from '@services/goals/types'
 import type { StepDraft, StepEditorMode } from './StepEditor'
 
 /** The editor mode for steps on a live goal: a learner's own goal hides staff settings. */
@@ -37,6 +36,3 @@ export function stepChanges(before: StepDraft, after: StepDraft, mode: StepEdito
   }
   return changes as Partial<Omit<StepInput, 'type' | 'stage_uuid' | 'position'>>
 }
-
-/** The other steps a step can wait for. */
-export const otherSteps = (goal: Goal, stepUuid?: string) => goalSteps(goal).filter((item) => item.step_uuid !== stepUuid).map((item) => ({ id: item.step_uuid, title: item.title }))

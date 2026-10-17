@@ -9,7 +9,7 @@ ordered list of typed steps.
 {
   "format": "launch-lms.goal-template",
   "format_version": 1,
-  "template": {"title": "Career Ready", "description": "...", "instructions": "...", "step_order": "any"},
+  "template": {"title": "Career Ready", "description": "...", "instructions": "..."},
   "roles": {"definitions": [...], "subject_role_key": "subject", "staff_role_key": "reviewer"},
   "stages": [
     {
@@ -31,7 +31,6 @@ ordered list of typed steps.
           "reviewer_guidance": "Check it fits on one page.",
           "after": [],
           "due_week": 2,
-          "allow_late": false,
           "requirement_node_uuids": []
         }
       ]
@@ -102,16 +101,18 @@ Find badges with `list_badges`, then add a step `{"type": "badge", "config":
 {"badge_uuid": "badge_…"}}`. `update_template_badge_versions` decides whether
 awards of earlier major versions still count.
 
-## When steps open
+## When steps open and close
 
-`template.step_order` is copied onto every goal issued from the template:
+Every step sits inside its stage. A stage runs from its start until the next
+stage starts (the last one until the goal's target date); `duration_weeks`
+spaces stages out when a goal is assigned with a start date.
 
-- `any`: every step can be started any time.
-- `in_order`: each step opens when the one before it is finished.
-- `by_stage`: each stage opens when the stage before it is finished.
-
-A step's `after` lists keys of steps that must be finished first. A step
-waiting on review counts as finished for opening what follows.
+- A step opens when its stage starts, or once the steps listed in `after` (by
+  key) are finished. A step waiting on review counts as finished for opening
+  what follows. A step can't wait on one in a later stage, or on one that
+  waits on it.
+- A step closes when its stage ends, or `due_week` weeks into the stage.
+  Closing never locks a step; it shows as late.
 
 ## Requirements
 

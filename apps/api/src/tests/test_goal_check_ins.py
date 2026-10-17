@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from sqlmodel import select
 
 from src.db.goals import CoachNote, Goal, GoalCreate, GoalStep, StageCreate, StageUpdate, StepCreate, StepStatusChange
-from src.services.goals import check_ins, goals, structure
+from src.services.goals import check_ins, goals, schedule, structure
 from src.services.goals.coach_notes import NoteAction, act, goal_notes
 from src.services.goals.next_actions import next_actions
 from src.services.hub_advisor import AdvisorResult
@@ -85,6 +85,7 @@ def test_signals_become_at_most_three_model_worded_notes_that_expire_with_their_
         _step(db, goal_uuid, apply, "Draft the essay", age_days=2)
         _stage(db, goal_uuid, "Interviews", start_date=date.today() + timedelta(days=10))
         _stage(db, goal_uuid, "Later", start_date=date.today() + timedelta(days=60))
+        schedule.set_current_stage(db, _user(LEARNER), goal_uuid, apply)
 
         model = Wording("milestone")
         notes = check_ins.check_in(db, first, provider=model)

@@ -67,9 +67,9 @@ def test_excludes_done_held_submitted_and_other_people_or_inactive_goals():
 
 def test_uses_the_same_lock_check_as_this_week():
     with _session() as db:
-        _goal(db, 1, "In order", step_order="in_order")
+        _goal(db, 1, "Waiting")
         _step(db, 1, 1, "Held first", held=True, position=0)
-        _step(db, 2, 1, "Waits on the first", position=1)
+        _step(db, 2, 1, "Waits on the first", position=1, after_step_uuids=["step_1"])
         _goal(db, 2, "Opens later")
         _step(db, 3, 2, "Not yet", start_date=TODAY + timedelta(days=10))
         _goal(db, 3, "Prerequisite")

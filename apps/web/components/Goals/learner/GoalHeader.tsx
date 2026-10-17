@@ -6,14 +6,12 @@ import { Award } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { planVars } from '@components/Goals/planColors'
 import { GoalIconMark } from '@components/Goals/goalIcons'
-import type { GoalIcon, GoalSummary, StepOrder } from '@services/goals/types'
-
-const RULES: Record<StepOrder, string> = { any: 'Any order', in_order: 'Steps open in order', by_stage: 'Stages open in turn' }
+import type { GoalIcon, GoalSummary } from '@services/goals/types'
 
 export type GoalBadge = { badge_uuid?: string; name?: string; thumbnail_image?: string } | null
 /** What a goal's header needs: the goal list's summary, filled in by the full goal once it loads. */
 export type HeaderGoal = {
-  goal_uuid: string; title: string; description?: string; step_order?: StepOrder; icon?: GoalIcon | null
+  goal_uuid: string; title: string; description?: string; icon?: GoalIcon | null
   source_badge?: GoalBadge; organization?: { name?: string } | null; is_subject?: boolean; subject?: { name?: string } | null
 }
 
@@ -84,7 +82,6 @@ export function GoalHeaderCard({ goal, done, total, actions, pending = false }: 
       <div className="flex flex-wrap items-center gap-3">
         <GoalProgress percent={percent} label="Goal progress" />
         <span className="text-xs font-bold">{done} of {total} done</span>
-        <span className="text-xs opacity-80">{RULES[goal.step_order || 'any'] || RULES.any}</span>
       </div>
       {pending ? <div className="flex h-10 gap-2" aria-hidden="true"><span className="w-32 rounded-xl bg-black/15 motion-safe:animate-pulse" /><span className="flex-1" /><span className="w-10 rounded-xl bg-black/15 motion-safe:animate-pulse" /></div> : actions}
     </Settle>

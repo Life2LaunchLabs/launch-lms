@@ -15,7 +15,7 @@ from fastapi import HTTPException
 from pydantic import Field, model_validator
 from sqlmodel import Session
 
-from src.db.goals import GoalStage, GoalStep, StepEntry
+from src.db.goals import GoalStep, StepEntry
 from src.services.goals.types.base import Config, StepState, StepType
 
 HISTORY_WEEKS = 8
@@ -66,11 +66,11 @@ def follow_ups_due(entries: list[StepEntry], today: dt.date) -> list[StepEntry]:
     return [entry for entry in logs(entries) if entry.follow_up_due and entry.follow_up_due <= today and not entry.follow_up_status]
 
 
-def ends_on(step: GoalStep, stage: GoalStage | None) -> dt.date | None:
-    """The last day the routine runs: its own end date or its stage's end, whichever is first."""
+def ends_on(step: GoalStep, stage_end: dt.date | None) -> dt.date | None:
+    """The last day the routine runs: its own end date, its close date or its stage's end, whichever is first."""
     raw = (step.config or {}).get("end_date")
     own = dt.date.fromisoformat(raw) if isinstance(raw, str) else raw
-    candidates = [day for day in (own, stage.due_date if stage else None) if day]
+    candidates = [day for day in (own, step.due_date, stage_end) if day]
     return min(candidates) if candidates else None
 
 

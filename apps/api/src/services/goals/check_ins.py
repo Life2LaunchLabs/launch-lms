@@ -86,7 +86,7 @@ def _outline(db: Session, goal: Goal, now: datetime) -> dict:
         stage = stages.setdefault(entry.stage.stage_uuid, {
             "title": entry.stage.title, "milestone": entry.stage.milestone or "",
             **({"starts": entry.stage.start_date.isoformat()} if entry.stage.start_date else {}),
-            **({"due": entry.stage.due_date.isoformat()} if entry.stage.due_date else {}), "steps": [],
+            "steps": [],
         })
         stage["steps"].append(step)
     return {

@@ -182,30 +182,27 @@ def test_assignment_schedule_staff_roles_and_progress_summary():
         db.add(membership)
         db.commit()
         template = _publish(db, _two_stages())
-        with pytest.raises(HTTPException, match="Set a target date for Apply"):
-            assignments.assign(db, _user(ADMIN), 1, template.template_uuid, GoalAssignmentRequest(
-                usergroup_id=1, schedule=AssignmentSchedule(stages=[StageSchedule(stage_key="explore", due_date=date(2026, 11, 1))])))
         with pytest.raises(HTTPException, match="follow stage order"):
             assignments.assign(db, _user(ADMIN), 1, template.template_uuid, GoalAssignmentRequest(usergroup_id=1, schedule=AssignmentSchedule(stages=[
-                StageSchedule(stage_key="explore", due_date=date(2026, 12, 1)), StageSchedule(stage_key="apply", due_date=date(2026, 11, 1))])))
+                StageSchedule(stage_key="explore", start_date=date(2026, 12, 1)), StageSchedule(stage_key="apply", start_date=date(2026, 11, 1))])))
 
         result = assignments.assign(db, _user(ADMIN), 1, template.template_uuid, GoalAssignmentRequest(
-            usergroup_id=1, collaborators=[AssignmentCollaborator(user_id=OTHER, role_key="viewer")],
+            usergroup_id=1, due_date=date(2026, 12, 20), collaborators=[AssignmentCollaborator(user_id=OTHER, role_key="viewer")],
             schedule=AssignmentSchedule(
-                stages=[StageSchedule(stage_key="explore", start_date=date(2026, 10, 1), due_date=date(2026, 11, 15)), StageSchedule(stage_key="apply", due_date=date(2026, 12, 20))],
-                steps=[StepSchedule(step_key="essay", due_date=date(2026, 12, 10), allow_late=True)],
+                stages=[StageSchedule(stage_key="explore", start_date=date(2026, 10, 1)), StageSchedule(stage_key="apply", start_date=date(2026, 11, 16))],
+                steps=[StepSchedule(step_key="essay", due_date=date(2026, 12, 10))],
             ),
         ))
         assert result["due_date"] == date(2026, 12, 20) and result["learner_count"] == 2
         assert result["collaborators"] == [{"user_id": ADMIN, "role_key": "plan_admin"}, {"user_id": OTHER, "role_key": "viewer"}]
-        assert result["schedule"]["steps"] == [{"step_key": "essay", "due_date": "2026-12-10", "allow_late": True}]
+        assert result["schedule"]["steps"] == [{"step_key": "essay", "due_date": "2026-12-10"}]
         assert {item["stage_key"] for item in result["schedule"]["stages"]} == {"explore", "apply"}
 
         goal = db.exec(select(Goal).where(Goal.subject_user_id == LEARNER)).one()
         view = goals.respond(db, _user(LEARNER), goal.goal_uuid, True)
-        assert [(stage["start_date"], stage["due_date"]) for stage in view["stages"]] == [(date(2026, 10, 1), date(2026, 11, 15)), (date(2026, 11, 16), date(2026, 12, 20))]
+        assert [(stage["start_date"], stage["end_date"]) for stage in view["stages"]] == [(date(2026, 10, 1), date(2026, 11, 15)), (date(2026, 11, 16), date(2026, 12, 20))]
         essay = db.exec(select(GoalStep).where(GoalStep.goal_id == goal.id, GoalStep.template_key == "essay")).one()
-        assert essay.due_date == date(2026, 12, 10) and essay.allow_late
+        assert essay.due_date == date(2026, 12, 10)
         member = db.exec(select(PlanCollaborator, PlanRole).join(PlanRole, PlanRole.id == PlanCollaborator.role_id).where(PlanCollaborator.goal_id == goal.id, PlanCollaborator.user_id == OTHER)).one()
         assert member[1].key == "viewer"
 

@@ -5,13 +5,15 @@ import { cn } from '@/lib/utils'
 import { Input } from '@components/ui/input'
 import { Label } from '@components/ui/label'
 import { Textarea } from '@components/ui/textarea'
-import type { StepCompleter, StepConfigs, StepTypeKey } from '@services/goals/types'
+import type { Goal, StepCompleter, StepConfigs, StepTypeKey } from '@services/goals/types'
 import { STEP_TYPE_ORDER, stepDefinition } from '../steps'
+import StepTiming from './StepTiming'
 
 /**
  * One step being written, the same shape wherever steps are edited: a template draft, a live
  * goal (staff or a cohort edit) or a learner's own goal. ``after`` holds template step keys in a
- * template and step uuids on a live goal; a template counts in ``due_week``, a live goal in dates.
+ * template and step uuids on a live goal; a template counts in ``due_week``, a live goal in its
+ * own open and close dates (none means it opens and closes with its stage).
  */
 export interface StepDraft<T extends StepTypeKey = StepTypeKey> {
   type: T
@@ -54,8 +56,10 @@ type StepEditorProps = {
   // eslint-disable-next-line no-unused-vars
   onChange: (value: StepDraft) => void
   mode: StepEditorMode
-  /** Steps this one can wait for: template keys or live step uuids, with their titles. */
+  /** Template steps this one can wait for, by key, with their titles. */
   others?: Array<{ id: string; title: string }>
+  /** On a live goal: the goal, the stage the step sits in and the step itself (none while adding), for its timing. */
+  live?: { goal: Goal; stageUuid: string | null; stepUuid?: string }
   /** The type can only change before the step exists. */
   typeLocked?: boolean
   orgId?: number | null
@@ -66,7 +70,7 @@ type StepEditorProps = {
  * The single step editor: type, title, details, the type's own settings, who finishes it and
  * when it opens. Learners editing their own goal see only what applies to them.
  */
-export default function StepEditor({ value, onChange, mode, others = [], typeLocked = false, orgId, token }: StepEditorProps) {
+export default function StepEditor({ value, onChange, mode, others = [], live, typeLocked = false, orgId, token }: StepEditorProps) {
   const definition = stepDefinition(value.type)
   const ConfigPanel = definition.ConfigPanel as React.ComponentType<any> | undefined
   const set = (patch: Partial<StepDraft>) => onChange({ ...value, ...patch })
@@ -88,27 +92,17 @@ export default function StepEditor({ value, onChange, mode, others = [], typeLoc
     {mode === 'template' ? <div className="grid gap-3 border-t pt-4 sm:grid-cols-2">
       <div className="flex flex-col gap-1"><Label htmlFor="step-week">Due in week</Label><Input id="step-week" type="number" min={1} value={value.due_week ?? ''} onChange={(event) => set({ due_week: event.target.value ? Math.max(1, Number(event.target.value)) : null })} placeholder="No due week" /></div>
       <AfterPicker value={value} others={others} set={set} />
-    </div> : <StepTiming value={value} others={others} set={set} />}
+    </div> : live ? <details className="group/settings border-t pt-3">
+      <summary className="flex min-h-9 cursor-pointer list-none items-center justify-between gap-2 text-sm font-bold text-muted-foreground">
+        <span>Settings <span className="font-normal">· {value.start_date || value.due_date || value.after.length ? 'timing set' : 'opens and closes with its stage'}</span></span>
+        <span aria-hidden="true" className="text-xs transition-transform group-open/settings:rotate-180">▾</span>
+      </summary>
+      <div className="mt-3 flex flex-col gap-2"><span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Timing</span><StepTiming {...live} value={value} set={set} token={token} /></div>
+    </details> : null}
   </div>
 }
 
 type TimingProps = { value: StepDraft; others: Array<{ id: string; title: string }>; set: (patch: Partial<StepDraft>) => void } // eslint-disable-line no-unused-vars
-
-/** When a live step opens and is due: all optional, and tucked away until wanted. Without any, it goes with its stage. */
-function StepTiming({ value, others, set }: TimingProps) {
-  const used = Boolean(value.start_date || value.due_date || value.after.length)
-  return <details open={used} className="group/timing border-t pt-3">
-    <summary className="flex min-h-9 cursor-pointer list-none items-center justify-between gap-2 text-sm font-bold text-muted-foreground">
-      <span>Timing <span className="font-normal">· {used ? 'set' : 'goes with its stage'}</span></span>
-      <span aria-hidden="true" className="text-xs transition-transform group-open/timing:rotate-180">▾</span>
-    </summary>
-    <div className="mt-3 grid gap-3 sm:grid-cols-2">
-      <div className="flex flex-col gap-1"><Label htmlFor="step-start">Starts</Label><Input id="step-start" type="date" value={value.start_date || ''} max={value.due_date || undefined} onChange={(event) => set({ start_date: event.target.value || null })} /></div>
-      <div className="flex flex-col gap-1"><Label htmlFor="step-due">Due</Label><Input id="step-due" type="date" value={value.due_date || ''} min={value.start_date || undefined} onChange={(event) => set({ due_date: event.target.value || null })} /></div>
-      <AfterPicker value={value} others={others} set={set} />
-    </div>
-  </details>
-}
 
 /** Other steps this one waits for. */
 function AfterPicker({ value, others, set }: TimingProps) {

@@ -4,7 +4,7 @@ import pytest
 from fastapi import HTTPException
 from sqlmodel import select
 
-from src.db.goals import GoalCreate, GoalStage, StageCreate, StepCreate, StepEntry, StepEntryCreate, StepEntryUpdate, StepStatus, StepStatusChange
+from src.db.goals import GoalCreate, StageCreate, StageUpdate, StepCreate, StepEntry, StepEntryCreate, StepEntryUpdate, StepStatus, StepStatusChange
 from src.services.goals import goals, home, structure
 from src.services.goals.types import step_type
 from src.services.goals.types.routine import week_start_of
@@ -115,10 +115,9 @@ def test_a_routine_ends_with_its_stage():
         view = goals.create_personal_goal(db, _user(LEARNER), GoalCreate(title="Summer job"))
         view = structure.add_stage(db, _user(LEARNER), view["goal_uuid"], StageCreate(title="Apply"))
         stage_uuid = view["stages"][0]["stage_uuid"]
-        stage = db.exec(select(GoalStage).where(GoalStage.stage_uuid == stage_uuid)).one()
-        stage.due_date = date.today() - timedelta(days=1)
-        db.add(stage)
-        db.commit()
+        # The next stage started today, so this one ended yesterday.
+        view = structure.add_stage(db, _user(LEARNER), view["goal_uuid"], StageCreate(title="Interview"))
+        structure.update_stage(db, _user(LEARNER), view["goal_uuid"], view["stages"][-1]["stage_uuid"], StageUpdate(start_date=date.today()))
         view = structure.add_step(db, _user(LEARNER), view["goal_uuid"], StepCreate(type="routine", title="Apply", stage_uuid=stage_uuid, config={"target": 2}))
         assert _steps(goals.get_goal(db, _user(LEARNER), view["goal_uuid"]))[0]["status"] == "completed"
 

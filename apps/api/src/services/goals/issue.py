@@ -22,10 +22,9 @@ from src.db.goals import (
     GoalStep,
     GoalTemplate,
     GoalTemplateVersion,
-    StepOrder,
 )
 from src.services.goals import access
-from src.services.goals.document import iter_steps
+from src.services.goals.document import iter_steps, upgrade_document
 from src.services.goals.types import step_type
 
 
@@ -52,7 +51,7 @@ def stage_schedule(document: dict, start: date | None, stage_dates: dict | None 
         given = stage_dates.get(stage["key"]) or {}
         begins = _date(given.get("start_date")) or cursor
         weeks = stage.get("duration_weeks")
-        ends = _date(given.get("due_date")) or (begins + timedelta(days=7 * weeks - 1) if begins and weeks else None)
+        ends = begins + timedelta(days=7 * weeks - 1) if begins and weeks else None
         schedule[stage["key"]] = (begins, ends)
         cursor = ends + timedelta(days=1) if ends else None
     return schedule
@@ -78,7 +77,7 @@ def build_step(db: Session, goal: Goal, stage: GoalStage | None, spec: dict, pos
         position=position, type=kind.key, title=spec["title"], description=spec.get("description") or "",
         config=config, materials=list(spec.get("materials") or []),
         completed_by=spec.get("completed_by") or "learner", review_required=bool(spec.get("review_required")),
-        reviewer_guidance=spec.get("reviewer_guidance") or "", due_date=due_date, allow_late=bool(spec.get("allow_late")),
+        reviewer_guidance=spec.get("reviewer_guidance") or "", due_date=due_date,
         requirement_links=requirement_links(db, goal.org_id, list(spec.get("requirement_node_uuids") or [])),
         activity_id=references.get("activity_id"), badge_id=references.get("badge_id"),
         template_key=spec.get("key"), creation_date=now, update_date=now,
@@ -97,7 +96,7 @@ def build_stages(db: Session, goal: Goal, document: dict, schedule: dict, first_
         stage = GoalStage(
             stage_uuid=f"goal_stage_{uuid4()}", goal_id=int(goal.id), position=stage_position, title=spec["title"],  # type: ignore[arg-type]
             description=spec.get("description") or "", timing=spec.get("timing") or "", milestone=spec.get("milestone") or "", start_date=stage_start,
-            due_date=stage_due, template_key=spec["key"], creation_date=now, update_date=now,
+            template_key=spec["key"], creation_date=now, update_date=now,
         )
         db.add(stage)
         db.flush()
@@ -138,7 +137,7 @@ def issue_goal(
 
     ``subject_user_id`` is None for a goal issued to someone without an account yet; it waits for them.
     """
-    document = version.document or {}
+    document = upgrade_document(version.document or {})
     if not document.get("stages"):
         raise HTTPException(status_code=422, detail="This template version has no stages")
     meta = document.get("template") or {}
@@ -148,7 +147,7 @@ def issue_goal(
         owner_user_id=owner_user_id or subject_user_id, subject_user_id=subject_user_id,
         ownership=GoalOwnership.EXTERNAL, source=source, template_id=template.id, version_id=version.id,
         assignment_id=assignment_id, badge_id=badge_id, title=title or meta.get("title") or template.title,
-        description=meta.get("description") or "", status=status, step_order=meta.get("step_order") or StepOrder.ANY.value,
+        description=meta.get("description") or "", status=status,
         start_date=start_date, target_date=due_date, creation_date=now, update_date=now,
     )
     db.add(goal)

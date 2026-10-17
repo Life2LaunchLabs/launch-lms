@@ -7,8 +7,8 @@ import { cn } from '@/lib/utils'
 
 // Pieces of the assign dialog: pickers, the stage schedule and small status bits.
 
-export type StageDate = { stage_key: string; due_date: string }
-export type StepRule = { step_key: string; stage_key: string; custom: boolean; due_date: string; allow_late: boolean; default_allow_late: boolean }
+export type StageDate = { stage_key: string; start_date: string }
+export type StepRule = { step_key: string; stage_key: string; custom: boolean; due_date: string }
 
 export interface OrgMember { id: number; username?: string; first_name?: string; last_name?: string; email?: string }
 export interface Membership { user?: OrgMember; role?: { id: number; name?: string; rights?: Record<string, Record<string, boolean>> }; id?: number }
@@ -29,18 +29,19 @@ const dateValue = (date: Date) => date.toISOString().slice(0, 10)
 export const today = () => dateValue(new Date())
 const addDays = (value: string, days: number) => { const date = new Date(`${value}T12:00:00`); date.setDate(date.getDate() + days); return dateValue(date) }
 
-/** A first schedule: each stage ends after its length in weeks (one week when it has none). */
-export function defaultSchedule(document: TemplateDocument): { stages: StageDate[]; steps: StepRule[] } {
-  let target = today()
-  const stages = document.stages.map((stage) => { target = addDays(target, Math.max(1, Number(stage.duration_weeks || 1)) * 7); return { stage_key: stage.key as string, due_date: target } })
-  const steps = document.stages.flatMap((stage) => stage.steps.map((step) => ({ step_key: step.key as string, stage_key: stage.key as string, custom: false, due_date: '', allow_late: !!step.allow_late, default_allow_late: !!step.allow_late })))
-  return { stages, steps }
+/** A first schedule: stages back to back from today by their length in weeks (one week when they have none). */
+export function defaultSchedule(document: TemplateDocument): { stages: StageDate[]; steps: StepRule[]; target: string } {
+  let start = today()
+  const stages = document.stages.map((stage) => { const item = { stage_key: stage.key as string, start_date: start }; start = addDays(start, Math.max(1, Number(stage.duration_weeks || 1)) * 7); return item })
+  const steps = document.stages.flatMap((stage) => stage.steps.map((step) => ({ step_key: step.key as string, stage_key: stage.key as string, custom: false, due_date: '' })))
+  return { stages, steps, target: addDays(start, -1) }
 }
 
-export function scheduleProblem(stages: StageDate[], steps: StepRule[]) {
-  if (stages.some((stage) => !stage.due_date)) return 'Set a target date for every stage.'
-  if (stages.some((stage, index) => index > 0 && stage.due_date < stages[index - 1].due_date)) return 'Stage target dates must follow stage order.'
-  if (steps.some((rule) => rule.custom && !rule.due_date)) return 'Pick a date for every step with a custom target.'
+export function scheduleProblem(stages: StageDate[], steps: StepRule[], target: string) {
+  const starts = stages.map((stage) => stage.start_date).filter(Boolean)
+  if (starts.some((start, index) => index > 0 && start < starts[index - 1])) return 'Stage start dates must follow stage order.'
+  if (target && starts.length && target < starts[starts.length - 1]) return 'The goal’s target comes before its last stage starts.'
+  if (steps.some((rule) => rule.custom && !rule.due_date)) return 'Pick a date for every step with its own close date.'
   return null
 }
 
@@ -48,38 +49,45 @@ type ScheduleProps = {
   document: TemplateDocument
   stages: StageDate[]
   steps: StepRule[]
+  target: string
   // eslint-disable-next-line no-unused-vars
-  setStage: (stageKey: string, dueDate: string) => void
+  setTarget: (value: string) => void
+  // eslint-disable-next-line no-unused-vars
+  setStage: (stageKey: string, startDate: string) => void
   // eslint-disable-next-line no-unused-vars
   setStep: (stepKey: string, patch: Partial<StepRule>) => void
 }
 
-/** Target dates per stage; the last is the goal's target. Steps follow their stage unless overridden. */
-export function ScheduleStep({ document, stages, steps, setStage, setStep }: ScheduleProps) {
+/** When each stage starts (it runs until the next one does) and the goal's target. Steps close with their stage unless given a date. */
+export function ScheduleStep({ document, stages, steps, target, setTarget, setStage, setStep }: ScheduleProps) {
+  const inputClass = 'h-8 rounded-md border border-border bg-card px-2 text-xs font-normal text-foreground'
   return <div className="space-y-5">
-    <div className="rounded-xl border border-blue-100 bg-blue-50 p-4"><p className="text-sm font-black text-blue-950">Schedule by stage</p><p className="mt-1 text-xs leading-5 text-blue-800">The last stage&apos;s date is the goal&apos;s target. Steps are due with their stage; open the overrides only for exceptions.</p></div>
+    <div className="rounded-xl border border-blue-100 bg-blue-50 p-4"><p className="text-sm font-black text-blue-950">Schedule by stage</p><p className="mt-1 text-xs leading-5 text-blue-800">Each stage runs until the next one starts, and the last until the goal&apos;s target. Steps close with their stage; give one its own date only for exceptions.</p></div>
     {document.stages.map((stage, index) => {
       const date = stages.find((item) => item.stage_key === stage.key)
       return <section key={stage.key} className="overflow-hidden rounded-xl border border-border">
         <header className="flex flex-wrap items-end gap-3 bg-muted/40 px-4 py-3">
           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground text-xs font-black text-background">{index + 1}</span>
           <div className="min-w-44 flex-1"><p className="text-sm font-black">{stage.title}</p><p className="mt-0.5 text-xs text-muted-foreground">{stage.duration_weeks ? `${stage.duration_weeks} weeks suggested` : `${stage.steps.length} steps`}</p></div>
-          <label className="block text-[10px] font-black uppercase tracking-wider text-muted-foreground"><span className="mb-1 block">{index === document.stages.length - 1 ? 'Goal target' : 'Stage target'}</span><input type="date" value={date?.due_date || ''} onChange={(event) => setStage(stage.key as string, event.target.value)} className="h-8 rounded-md border border-border bg-card px-2 text-xs font-normal text-foreground" /></label>
+          <label className="block text-[10px] font-black uppercase tracking-wider text-muted-foreground"><span className="mb-1 block">Starts</span><input type="date" value={date?.start_date || ''} onChange={(event) => setStage(stage.key as string, event.target.value)} className={inputClass} /></label>
         </header>
-        {stage.steps.length ? <details className="border-t border-border"><summary className="cursor-pointer px-4 py-3 text-xs font-black text-muted-foreground hover:bg-muted/30">Step overrides</summary><div className="space-y-2 px-4 pb-4">
+        {stage.steps.length ? <details className="border-t border-border"><summary className="cursor-pointer px-4 py-3 text-xs font-black text-muted-foreground hover:bg-muted/30">Step close dates</summary><div className="space-y-2 px-4 pb-4">
           {stage.steps.map((step) => {
             const rule = steps.find((item) => item.step_key === step.key)
             if (!rule) return null
-            return <div key={step.key} className="grid gap-2 rounded-lg bg-muted/40 p-3 sm:grid-cols-[minmax(180px,1fr)_170px_150px_80px] sm:items-center">
+            return <div key={step.key} className="grid gap-2 rounded-lg bg-muted/40 p-3 sm:grid-cols-[minmax(180px,1fr)_170px_150px] sm:items-center">
               <p className="truncate text-xs font-bold" title={step.title}>{step.title}</p>
-              <select aria-label={`Target for ${step.title}`} value={rule.custom ? 'custom' : 'stage'} onChange={(event) => setStep(rule.step_key, { custom: event.target.value === 'custom', due_date: event.target.value === 'custom' ? rule.due_date : '' })} className="h-8 min-w-0 rounded-md border border-border bg-card px-2 text-xs"><option value="stage">Due with its stage</option><option value="custom">Custom date</option></select>
-              {rule.custom ? <input type="date" aria-label={`Date for ${step.title}`} value={rule.due_date} onChange={(event) => setStep(rule.step_key, { due_date: event.target.value })} className="h-8 min-w-0 rounded-md border border-border px-2 text-[11px]" /> : <span className="text-xs text-muted-foreground">{date?.due_date || 'Stage target'}</span>}
-              <label className="inline-flex items-center gap-1.5 text-[10px] font-bold"><input type="checkbox" checked={rule.allow_late} onChange={(event) => setStep(rule.step_key, { allow_late: event.target.checked })} />Late OK</label>
+              <select aria-label={`Close for ${step.title}`} value={rule.custom ? 'custom' : 'stage'} onChange={(event) => setStep(rule.step_key, { custom: event.target.value === 'custom', due_date: event.target.value === 'custom' ? rule.due_date : '' })} className="h-8 min-w-0 rounded-md border border-border bg-card px-2 text-xs"><option value="stage">Closes with its stage</option><option value="custom">Its own date</option></select>
+              {rule.custom ? <input type="date" aria-label={`Date for ${step.title}`} value={rule.due_date} onChange={(event) => setStep(rule.step_key, { due_date: event.target.value })} className="h-8 min-w-0 rounded-md border border-border px-2 text-[11px]" /> : <span className="text-xs text-muted-foreground">End of stage</span>}
             </div>
           })}
         </div></details> : null}
       </section>
     })}
+    <section className="flex flex-wrap items-end gap-3 rounded-xl border border-border bg-muted/40 px-4 py-3">
+      <div className="min-w-44 flex-1"><p className="text-sm font-black">Finish</p><p className="mt-0.5 text-xs text-muted-foreground">The goal&apos;s target; the last stage runs until then.</p></div>
+      <label className="block text-[10px] font-black uppercase tracking-wider text-muted-foreground"><span className="mb-1 block">Goal target</span><input type="date" value={target} onChange={(event) => setTarget(event.target.value)} className={inputClass} /></label>
+    </section>
   </div>
 }
 

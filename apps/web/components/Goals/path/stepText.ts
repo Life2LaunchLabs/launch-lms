@@ -17,6 +17,7 @@ export function lockedSentence(step: Step) {
   if (!reason) return ''
   if (reason.kind === 'opens') return `This opens on ${shortDate(reason.date)}.`
   if (reason.kind === 'after') return `Finish ${reason.title} first, then this opens.`
+  if (reason.kind === 'stage') return reason.date ? `This opens when ${reason.title} starts on ${shortDate(reason.date)}.` : `This opens when the goal moves on to ${reason.title}.`
   return 'Someone helping with this goal has put this step on hold.'
 }
 
@@ -26,13 +27,14 @@ export function statusLine(step: Step) {
     const reason = step.locked_reason
     if (reason?.kind === 'opens') return `Opens ${shortDate(reason.date)}`
     if (reason?.kind === 'after') return `After ${reason.title}`
+    if (reason?.kind === 'stage') return reason.date ? `Opens ${shortDate(reason.date)}` : `Opens with ${reason.title}`
     return reason?.kind === 'held' ? 'On hold for now' : 'Not open yet'
   }
   if (step.state === 'done') return step.status === 'excused' ? 'Excused' : step.completed_at ? `Done ${shortDate(step.completed_at)}` : 'Done'
   if (step.state === 'waiting') return 'Waiting on review'
   if (step.state === 'retry') return 'Needs another go'
   const own = stepDefinition(step.type).statusLine?.(step as never)
-  const due = step.due_date ? `Due ${shortDate(step.due_date)}` : ''
+  const due = step.due_date ? `Closes ${shortDate(step.due_date)}` : ''
   if (own) return due ? `${own} · ${due.toLowerCase()}` : own
   return due || 'Any time'
 }

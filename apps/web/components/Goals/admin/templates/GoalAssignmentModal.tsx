@@ -44,6 +44,7 @@ export default function GoalAssignmentModal({ trigger, initialTemplateUuid = '',
   const [targets, setTargets] = React.useState<Target[]>(initialTargets)
   const [stageDates, setStageDates] = React.useState<StageDate[]>([])
   const [stepRules, setStepRules] = React.useState<StepRule[]>([])
+  const [goalTarget, setGoalTarget] = React.useState('')
   const [scheduledFor, setScheduledFor] = React.useState('')
   const [staffIds, setStaffIds] = React.useState<number[]>([])
   const [staffRoles, setStaffRoles] = React.useState<Record<number, string>>({})
@@ -75,7 +76,7 @@ export default function GoalAssignmentModal({ trigger, initialTemplateUuid = '',
   React.useEffect(() => {
     if (!template || scheduledFor === template.template_uuid) return
     const schedule = defaultSchedule(template.document)
-    setStageDates(schedule.stages); setStepRules(schedule.steps)
+    setStageDates(schedule.stages); setStepRules(schedule.steps); setGoalTarget(schedule.target)
     setWelcome(template.document.template.instructions || '')
     setScheduledFor(template.template_uuid)
   }, [template, scheduledFor])
@@ -93,7 +94,7 @@ export default function GoalAssignmentModal({ trigger, initialTemplateUuid = '',
     if (!next.includes(ownerId)) setOwnerId(next[0] || 0)
   }
   const ready = !!template && scheduledFor === templateUuid && !templateLoading
-  const problem = ready ? scheduleProblem(stageDates, stepRules) : 'Loading the template.'
+  const problem = ready ? scheduleProblem(stageDates, stepRules, goalTarget) : 'Loading the template.'
   const recipients = targets.length + emails.length
 
   const submit = async () => {
@@ -102,10 +103,10 @@ export default function GoalAssignmentModal({ trigger, initialTemplateUuid = '',
     const base: GoalAssignmentRequest = {
       staff_user_ids: staffIds,
       collaborators: staffIds.map((userId) => ({ user_id: userId, role_key: userId === ownerId ? 'plan_admin' : staffRoles[userId] || staffRoleKey })),
-      owner_user_id: ownerId, start_date: startDate, welcome_message: welcome,
+      owner_user_id: ownerId, start_date: startDate, due_date: goalTarget || null, welcome_message: welcome,
       schedule: {
-        stages: stageDates.map((item) => ({ stage_key: item.stage_key, due_date: item.due_date })),
-        steps: stepRules.filter((rule) => rule.custom || rule.allow_late !== rule.default_allow_late).map((rule) => ({ step_key: rule.step_key, due_date: rule.custom ? rule.due_date : null, allow_late: rule.allow_late })),
+        stages: stageDates.map((item) => ({ stage_key: item.stage_key, start_date: item.start_date || null })),
+        steps: stepRules.filter((rule) => rule.custom).map((rule) => ({ step_key: rule.step_key, due_date: rule.due_date })),
       },
     }
     const requests = [
@@ -158,8 +159,8 @@ export default function GoalAssignmentModal({ trigger, initialTemplateUuid = '',
         </div>
       </div>
     </div>}
-    {step === 1 && <div className="min-h-0 flex-1 overflow-y-auto pr-1">{!ready || !template ? <Loading /> : <ScheduleStep document={template.document} stages={stageDates} steps={stepRules}
-      setStage={(key, dueDate) => setStageDates((current) => current.map((item) => item.stage_key === key ? { ...item, due_date: dueDate } : item))}
+    {step === 1 && <div className="min-h-0 flex-1 overflow-y-auto pr-1">{!ready || !template ? <Loading /> : <ScheduleStep document={template.document} stages={stageDates} steps={stepRules} target={goalTarget} setTarget={setGoalTarget}
+      setStage={(key, startDate) => setStageDates((current) => current.map((item) => item.stage_key === key ? { ...item, start_date: startDate } : item))}
       setStep={(key, patch) => setStepRules((current) => current.map((item) => item.step_key === key ? { ...item, ...patch } : item))} />}</div>}
     {step === 2 && <div className="min-h-0 flex-1 overflow-y-auto pr-1"><div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
       <section><div className="mb-3"><h3 className="text-sm font-black">Goal team</h3><p className="mt-1 text-xs text-muted-foreground">The owner is each goal&apos;s goal admin. Choose working roles for anyone else.</p></div>
@@ -179,8 +180,8 @@ export default function GoalAssignmentModal({ trigger, initialTemplateUuid = '',
       </aside>
     </div></div>}
     {step === 3 && <div className="min-h-0 flex-1 overflow-y-auto"><div className="mx-auto max-w-2xl space-y-4 rounded-2xl border border-border p-6">
-      <div><p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Ready to create</p><h3 className="mt-1 text-xl font-black">{template?.title}</h3><p className="mt-1 text-sm text-muted-foreground">{recipients} {recipients === 1 ? 'assignment' : 'assignments'} · {staffIds.length} staff · target {stageDates.at(-1)?.due_date || 'not set'}</p></div>
-      <div className="grid gap-3 sm:grid-cols-2"><div className="rounded-xl bg-muted p-4"><p className="text-xs font-black">Schedule</p><p className="mt-1 text-xs text-muted-foreground">{stageDates.length} stages. Steps are due with their stage unless overridden.</p></div><div className="rounded-xl bg-muted p-4"><p className="text-xs font-black">Version {template?.published_version}</p><p className="mt-1 text-xs text-muted-foreground">Learners get the published version; later edits don&apos;t change their goals.</p></div></div>
+      <div><p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Ready to create</p><h3 className="mt-1 text-xl font-black">{template?.title}</h3><p className="mt-1 text-sm text-muted-foreground">{recipients} {recipients === 1 ? 'assignment' : 'assignments'} · {staffIds.length} staff · target {goalTarget || 'not set'}</p></div>
+      <div className="grid gap-3 sm:grid-cols-2"><div className="rounded-xl bg-muted p-4"><p className="text-xs font-black">Schedule</p><p className="mt-1 text-xs text-muted-foreground">{stageDates.length} stages. Steps close with their stage unless given a date.</p></div><div className="rounded-xl bg-muted p-4"><p className="text-xs font-black">Version {template?.published_version}</p><p className="mt-1 text-xs text-muted-foreground">Learners get the published version; later edits don&apos;t change their goals.</p></div></div>
     </div></div>}
     <div className="mt-4 flex shrink-0 items-center justify-between border-t border-border pt-4">
       <button type="button" onClick={() => step === 0 ? changeOpen(false) : setStep((current) => current - 1)} disabled={saving} className="rounded-lg border border-border px-4 py-2 text-xs font-black">{step === 0 ? 'Cancel' : 'Back'}</button>

@@ -90,8 +90,8 @@ export interface GoalAssignmentRequest {
   start_date?: string | null
   due_date?: string | null
   schedule?: {
-    stages: Array<{ stage_key: string; start_date?: string | null; due_date?: string | null }>
-    steps: Array<{ step_key: string; due_date?: string | null; allow_late?: boolean | null }>
+    stages: Array<{ stage_key: string; start_date?: string | null }>
+    steps: Array<{ step_key: string; due_date?: string | null }>
   } | null
 }
 
