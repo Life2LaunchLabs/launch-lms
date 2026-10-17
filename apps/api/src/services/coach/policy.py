@@ -66,6 +66,7 @@ ABILITIES = (
     ("ask_questions", "chat", "Ask quick questions", "Tap-to-answer question sets under a reply."),
     ("plan_goals", "chat", "Plan a goal with the learner", "Suggests stages and steps as quiet lines on the goal page. The learner keeps or drops each one."),
     ("remember", "chat", "Remember what the learner shares", "Saves memories from the learner's messages, when the learner has memory turned on."),
+    ("first_look", "own", "Take a first look at new goals", "Soon after a goal is created: a note on its Coach bar saying what Coach sees and what it would talk through first, and a few suggested steps, each with a short why. The learner keeps or drops each one."),
     ("goal_notes", "own", "Leave notes on goals", "Check-ins that show on a goal's Coach bar."),
     ("finish_story", "own", "Write the finish story", "The opening and closing lines of a finished goal's story. When off, the story uses fixed wording."),
 )
@@ -75,6 +76,7 @@ ABILITY_KEYS = {item[0] for item in ABILITIES}
 TRIGGERS = {
     "learner_message": {"label": "The learner sends a message", "detail": "Added to every reply in the Coach chat.", "tier": "standard"},
     "planning_session": {"label": "The learner plans a goal with Coach", "detail": "Added while Coach and the learner plan a goal together on the goal page.", "tier": "standard"},
+    "goal_created": {"label": "A goal is created", "detail": "Coach takes a first look: a note on the goal's Coach bar, a plan for the first conversation and a few suggested steps. It looks again if the learner changes the goal before opening the note.", "tier": "standard"},
     "goal_check_in": {"label": "A goal's check-in is due", "detail": "Weekly or monthly on the learner's cadence, soon after a goal is created, and after a stage is finished. Coach leaves up to three notes on the goal's Coach bar.", "tier": "standard"},
     "goal_finished": {"label": "A goal is finished", "detail": "Coach writes the opening and closing lines of the finish story.", "tier": "standard"},
 }

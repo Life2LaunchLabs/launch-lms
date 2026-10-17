@@ -198,7 +198,7 @@ def _expire(notes: list[CoachNote], keys: set[str] | None, now: datetime) -> boo
     for note in notes:
         if _value(note.status) != CoachNoteStatus.OPEN.value:
             continue
-        gone = keys is None or (note.signal_key not in keys and not note.signal_key.startswith(("milestone:", "review:")))
+        gone = keys is None or (note.signal_key not in keys and not note.signal_key.startswith(("milestone:", "review:", "first_look:")))
         if gone or (note.expires_at and note.expires_at <= now):
             note.status = CoachNoteStatus.EXPIRED
             changed = True

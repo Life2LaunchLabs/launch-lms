@@ -72,9 +72,13 @@ def goal_notes(db: Session, current_user: PublicUser, goal_uuid: str) -> dict:
         access.require(db, goal, current_user.id, "view_plan")
         return {"notes": [], "cadence": "weekly", "next_check_in_at": None}
     check_ins.sweep(db, goal)
+    from src.services.coach import first_look
+    from src.services.coach.policy import runtime
+
     return {
         "notes": [note_dict(note, goal) for note, _goal in open_notes(db, current_user.id, [goal])],
         "cadence": goal.coach_cadence if goal.coach_cadence in CADENCE else "weekly", "next_check_in_at": goal.next_check_in_at,
+        "first_look_due": first_look.due(db, goal, int(current_user.id), runtime(db)),
     }
 
 

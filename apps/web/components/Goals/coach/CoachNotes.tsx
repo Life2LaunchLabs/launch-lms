@@ -2,15 +2,17 @@
 
 import React from 'react'
 import { useRouter } from 'next/navigation'
-import useSWR, { mutate } from 'swr'
+import useSWR, { mutate, type KeyedMutator } from 'swr'
 import toast from 'react-hot-toast'
 import { ArrowRight, Sparkles } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import { useHub } from '@components/Hub/HubContext'
+import { useOrg } from '@components/Contexts/OrgContext'
 import useGoalCoachSession from '@components/Goals/edit/useGoalCoachSession'
 import { getUriWithOrg } from '@services/config/config'
-import { actOnCoachNote, checkInLine, coachNotesUrl, type CoachNote, type CoachNoteAction, type GoalCoachNotes } from '@services/goals/coachNotes'
+import { actOnCoachNote, checkInLine, takeFirstLook, coachNotesUrl, type CoachNote, type CoachNoteAction, type GoalCoachNotes } from '@services/goals/coachNotes'
 import { isGoalsKey } from '@services/goals/goals'
+import { goalSuggestionsKey } from '@services/hub/advisor'
 import { swrFetcher } from '@services/utils/ts/requests'
 
 /** Coach's open notes on one goal and its check-in schedule; only the goal's owner has any. */
@@ -19,15 +21,38 @@ export function useGoalCoachNotes(goalUuid?: string, token?: string) {
 }
 
 /**
+ * A new goal gets Coach's first look once the bar shows it: a note, and suggested steps on the goal.
+ * It runs again when the learner changes the goal before opening the note.
+ */
+function useFirstLook(goalUuid: string, data: GoalCoachNotes | undefined, orgId: number | undefined, token: string | undefined, refresh: KeyedMutator<GoalCoachNotes>) {
+  const [looking, setLooking] = React.useState(false)
+  const asked = React.useRef('')
+  const due = Boolean(data?.first_look_due && orgId && token)
+  React.useEffect(() => {
+    const key = `${goalUuid}:${(data?.notes || []).map((note) => note.note_uuid).join(',')}`
+    if (!due || asked.current === key) return
+    asked.current = key
+    setLooking(true)
+    takeFirstLook(goalUuid, orgId!, token)
+      .then((notes) => { void refresh(notes, { revalidate: false }); void mutate((swrKey: unknown) => Array.isArray(swrKey) && swrKey[0] === goalSuggestionsKey(orgId!, goalUuid)) })
+      .catch(() => undefined)
+      .finally(() => setLooking(false))
+  }, [due, goalUuid, orgId, token, data?.notes, refresh])
+  return looking
+}
+
+/**
  * One line under a goal's header: what Coach noticed, or when it checks in next.
  * Opening it shows the notes as cards in the Coach chat, where their actions run.
  */
 export function GoalCoachBar({ goalUuid, token }: { goalUuid: string; token?: string }) {
   const hub = useHub()
-  const { data } = useGoalCoachNotes(goalUuid, token)
+  const org = useOrg() as { id?: number } | null
+  const { data, mutate: refresh } = useGoalCoachNotes(goalUuid, token)
+  const looking = useFirstLook(goalUuid, data, org?.id, token, refresh)
   if (!data) return null
   const notes = data.notes || []
-  const line = notes.length ? notes[0].title : checkInLine(data)
+  const line = looking && !notes.length ? 'Coach is taking a first look…' : notes.length ? notes[0].title : checkInLine(data)
   return <button type="button" onClick={() => hub?.open()} disabled={!hub} aria-label={notes.length ? `Coach has ${notes.length === 1 ? 'a note' : `${notes.length} notes`}: ${line}` : line}
     className="mt-3 flex min-h-11 w-full items-center gap-2 rounded-2xl border border-border/70 bg-card px-4 py-2.5 text-left text-xs text-muted-foreground shadow-xs transition hover:bg-muted/60 hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring">
     <Sparkles size={14} aria-hidden="true" className={notes.length ? 'text-foreground' : undefined} />
