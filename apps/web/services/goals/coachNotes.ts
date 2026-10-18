@@ -1,5 +1,5 @@
 import { RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/requests'
-import { goalUrl } from './goals'
+import { goalUrl, goalsUrl } from './goals'
 
 /** Something the learner can do about a note. Coach never acts on the goal itself. */
 export type CoachNoteAction = {
@@ -38,6 +38,12 @@ export async function actOnCoachNote(goalUuid: string, noteUuid: string, actionI
 /** Asks Coach to take its first look at a new goal; returns the goal's notes either way. */
 export async function takeFirstLook(goalUuid: string, orgId: number, token?: string): Promise<GoalCoachNotes> {
   const response = await fetch(`${coachNotesUrl(goalUuid)}/first-look?org_id=${orgId}`, RequestBodyWithAuthHeader('POST', {}, null, token))
+  return errorHandling(response)
+}
+
+/** The learner arrived: Coach checks in on their goals that came due while they were away. */
+export async function catchUpCoach(token?: string): Promise<{ checked_in: number }> {
+  const response = await fetch(goalsUrl('/coach-catch-up'), RequestBodyWithAuthHeader('POST', {}, null, token))
   return errorHandling(response)
 }
 

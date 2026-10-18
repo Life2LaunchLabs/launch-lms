@@ -55,7 +55,7 @@ test('platform.coach-policy: the coaching team edits the method, knowledge, rout
 
   // Routines: grouped by the moment they run on; the seeded voice routines are there.
   await page.goto(`${coachPath}/routines`)
-  await expect(page.getByRole('heading', { name: 'When a goal\'s check-in is due' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'When the learner comes back and a check-in is due' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Edit Check-in notes' })).toBeVisible()
   await capture('coach-routines')
 

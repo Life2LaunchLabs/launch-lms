@@ -133,7 +133,7 @@ def test_the_owner_acts_on_notes_and_they_lead_next_actions_and_mark_the_goal_ta
         assert next(item for item in goals.list_my_goals(db, _user(LEARNER)) if item["goal_uuid"] == goal_uuid)["coach_notes"] == 0
 
 
-def test_the_runner_checks_in_on_due_goals_and_finishing_a_stage_brings_the_next_forward():
+def test_arriving_catches_up_on_due_goals_and_finishing_a_stage_brings_the_next_forward():
     with _session() as db:
         goal_uuid = _goal(db)
         goal = _row(db, goal_uuid)
@@ -142,7 +142,9 @@ def test_the_runner_checks_in_on_due_goals_and_finishing_a_stage_brings_the_next
         goal.next_check_in_at = datetime.utcnow() - timedelta(minutes=1)
         db.add(goal)
         db.commit()
-        assert check_ins.run_due(db.get_bind()) == 1
+        assert check_ins.catch_up(db, OTHER) == 0
+        assert check_ins.catch_up(db, LEARNER) == 1
+        assert check_ins.catch_up(db, LEARNER) == 0
         db.refresh(goal)
         assert goal.next_check_in_at > datetime.utcnow() + timedelta(days=6)
         assert check_ins.due_goals(db, datetime.utcnow()) == []

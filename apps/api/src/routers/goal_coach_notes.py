@@ -7,10 +7,17 @@ from src.core.events.database import get_db_session
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
 from src.services.coach import first_look
+from src.services.goals import check_ins
 from src.services.goals.coach_notes import NoteAction, _own_goal, act, goal_notes
 from src.security.org_auth import require_org_membership
 
 router = APIRouter()
+
+
+@router.post("/coach-catch-up")
+def api_coach_catch_up(db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    """The learner arrived: Coach checks in on their goals that came due while they were away."""
+    return {"checked_in": check_ins.catch_up(db, int(user.id))}
 
 
 @router.get("/{goal_uuid}/coach-notes")

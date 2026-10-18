@@ -77,7 +77,7 @@ TRIGGERS = {
     "learner_message": {"label": "The learner sends a message", "detail": "Added to every reply in the Coach chat.", "tier": "standard"},
     "planning_session": {"label": "The learner plans a goal with Coach", "detail": "Added while Coach and the learner plan a goal together on the goal page.", "tier": "standard"},
     "goal_created": {"label": "A goal is created", "detail": "Coach takes a first look: a note on the goal's Coach bar, a plan for the first conversation and a few suggested steps. It looks again if the learner changes the goal before opening the note.", "tier": "standard"},
-    "goal_check_in": {"label": "A goal's check-in is due", "detail": "Weekly or monthly on the learner's cadence, soon after a goal is created, and after a stage is finished. Coach leaves up to three notes on the goal's Coach bar.", "tier": "standard"},
+    "goal_check_in": {"label": "The learner comes back and a check-in is due", "detail": "A check-in comes due weekly or monthly on the learner's cadence, and after a stage is finished. It runs when the learner next opens their plans, catching up on what happened while they were away. Coach leaves up to three notes on the goal's Coach bar.", "tier": "standard"},
     "goal_finished": {"label": "A goal is finished", "detail": "Coach writes the opening and closing lines of the finish story.", "tier": "standard"},
 }
 TIER_ORDER = {tier: index for index, tier in enumerate(TIERS)}
