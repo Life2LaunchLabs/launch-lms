@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useSWRConfig, type KeyedMutator } from 'swr'
 import toast from 'react-hot-toast'
-import { ArrowLeft, Ban, Building2, Flag, MoreHorizontal } from 'lucide-react'
+import { ArrowLeft, Ban, Flag, MoreHorizontal } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import { Checkbox } from '@components/ui/checkbox'
 import { Skeleton } from '@components/ui/skeleton'
@@ -15,6 +15,7 @@ import { PersonAvatar } from '@components/Goals/share/PersonAvatar'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { connectApi, connectKeys, type Chat } from '@services/connect/connect'
 import { useConnectToken } from './useConnect'
+import { OrgMark } from './ConnectInbox'
 import ChatWorkspace from './workspace/ChatWorkspace'
 
 /** Where a step opens for its learner: their plan, at that step. */
@@ -83,11 +84,12 @@ function ChatHeader({ chat, orgslug, listHref, onSheet }: { chat: Chat; orgslug:
   const group = chat.kind === 'school' || chat.kind === 'goal'
   return <header className="flex shrink-0 items-center gap-3 px-3 py-2.5 md:px-4">
     <Link href={listHref} aria-label="Back to Connect" className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-foreground/[0.06] md:hidden"><ArrowLeft size={18} /></Link>
-    {chat.kind === 'school' ? <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white"><Building2 size={18} /></span>
+    {chat.kind === 'school' ? <OrgMark org={chat.org} />
       : chat.kind === 'goal' ? <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--org-primary-color)] text-white"><Flag size={18} /></span>
       : <PersonAvatar user={person as any} size="md" />}
     <div className="min-w-0 flex-1">
-      {person && chat.kind === 'direct' ? <Link href={getUriWithOrg(orgslug, `/user/${encodeURIComponent(person.username)}`)} className="block truncate font-black leading-tight hover:underline">{chat.title}</Link> : <h2 className="truncate font-black leading-tight">{chat.title}</h2>}
+      {person && chat.kind === 'direct' ? <Link href={getUriWithOrg(orgslug, `/user/${encodeURIComponent(person.username)}`)} className="block truncate font-black leading-tight hover:underline">{chat.title}</Link>
+        : chat.kind === 'school' && chat.org ? <Link href={getUriWithOrg(orgslug, routePaths.org.organization(chat.org.slug))} className="block truncate font-black leading-tight hover:underline">{chat.title}</Link> : <h2 className="truncate font-black leading-tight">{chat.title}</h2>}
       {group ? <p className="truncate text-xs text-muted-foreground">{chat.people.map((item) => item.name).join(', ')}</p> : person ? <p className="truncate text-xs text-muted-foreground">@{person.username}</p> : null}
     </div>
     {chat.kind === 'direct' ? <DropdownMenu modal={false}>

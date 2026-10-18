@@ -27,7 +27,7 @@ export function getPrimaryOrgMenuItems({
   pathname?: string | null
   resolvedFeatures: any
   hubOpen?: boolean
-  /** Unread chats or chat requests. */
+  /** Unread chats, chat requests, or invitations from organizations. */
   connectWaiting?: boolean
 }): OrgMenuNavItem[] {
   const isOnPortfolio = Boolean(pathname?.includes('/portfolio'))
@@ -35,7 +35,7 @@ export function getPrimaryOrgMenuItems({
   return [
     { href: '/plans', label: 'Plans', icon: <ClipboardText size={22} weight="fill" />, active: Boolean(pathname?.includes('/plans')) && !hubOpen, show: true },
     { href: '/discover', label: 'Discover', icon: <Compass size={22} weight="fill" />, active: isOnDiscover && !hubOpen, show: isFeatureEnabled(resolvedFeatures, 'badges') || isFeatureEnabled(resolvedFeatures, 'resources') },
-    { href: '/connect', label: 'Connect', icon: <ChatsCircle size={22} weight="fill" />, active: Boolean(pathname?.includes('/connect')) && !hubOpen, show: true, dot: connectWaiting },
+    { href: '/connect', label: 'Connect', icon: <ChatsCircle size={22} weight="fill" />, active: Boolean(pathname?.includes('/connect') || pathname?.includes('/organization/')) && !hubOpen, show: true, dot: connectWaiting },
     { href: '/portfolio', label: 'Portfolio', icon: <User size={22} weight="fill" />, active: isOnPortfolio && !hubOpen, show: true },
     { action: 'hub', label: 'Coach', icon: <Sparkle size={22} weight="fill" />, active: hubOpen, show: true },
   ]
