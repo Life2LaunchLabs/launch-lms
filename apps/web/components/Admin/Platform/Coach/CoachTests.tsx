@@ -6,9 +6,10 @@ import useSWR from 'swr'
 import { ChevronDown, FlaskConical, Loader2, Plus } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import { formatDateTime } from '@components/Admin/Platform/shared'
-import { COACH_POLICY_PATH, coachAdminApi, type CoachPolicy, type CoachTests as Tests } from '@services/coach/admin'
+import { COACH_POLICY_PATH, coachAdminApi, type CoachPolicy, type CoachTestWrite, type CoachTests as Tests } from '@services/coach/admin'
 import CoachTestEditor, { blankTest } from './CoachTestEditor'
 import { RunDetails, RunScores } from './CoachTestResults'
+import CoachReports from './CoachReports'
 import { Panel, errorMessage, useCoachPolicy } from './CoachShell'
 
 export default function CoachTests({ policy }: { policy: CoachPolicy }) {
@@ -17,7 +18,8 @@ export default function CoachTests({ policy }: { policy: CoachPolicy }) {
     refreshInterval: (latest) => (latest?.latest_run?.status === 'running' ? 2000 : 0),
   })
   const [open, setOpen] = React.useState<string | null>(null)
-  const [adding, setAdding] = React.useState(false)
+  const [adding, setAdding] = React.useState<CoachTestWrite | null>(null)
+  const [addKey, setAddKey] = React.useState(0)
   const [starting, setStarting] = React.useState(false)
 
   async function run() {
@@ -71,10 +73,10 @@ export default function CoachTests({ policy }: { policy: CoachPolicy }) {
       <Panel
         title="Tests"
         description="Write learners and their words the way real learners do. Never mention testing in them: models answer differently when they can tell."
-        actions={<Button type="button" variant="outline" onClick={() => { setAdding(true); setOpen(null) }} disabled={adding}><Plus size={15} />New test</Button>}
+        actions={<Button type="button" variant="outline" onClick={() => { setAdding(blankTest); setOpen(null) }} disabled={adding !== null}><Plus size={15} />New test</Button>}
       >
         <ol className="space-y-3">
-          {adding ? <li><CoachTestEditor initial={blankTest} token={token} onSaved={mutate} onDone={() => setAdding(false)} /></li> : null}
+          {adding ? <li><CoachTestEditor key={addKey} initial={adding} token={token} onSaved={mutate} onDone={() => setAdding(null)} /></li> : null}
           {data.tests.map((test) => (
             <li key={test.test_uuid} className="rounded-xl border border-black/10">
               <button type="button" onClick={() => setOpen(open === test.test_uuid ? null : test.test_uuid)} aria-expanded={open === test.test_uuid} className="flex w-full min-w-0 items-center gap-3 p-3 text-left">
@@ -93,8 +95,9 @@ export default function CoachTests({ policy }: { policy: CoachPolicy }) {
             </li>
           ))}
         </ol>
-        {!data.tests.length && !adding ? <p className="text-sm text-gray-500">No tests yet. Start with the moments you care most about getting right, like a learner who wants to give up.</p> : null}
+        {!data.tests.length && adding === null ? <p className="text-sm text-gray-500">No tests yet. Start with the moments you care most about getting right, like a learner who wants to give up.</p> : null}
       </Panel>
+      <CoachReports token={token} onMakeTest={(draft) => { setAdding(draft); setAddKey((key) => key + 1); setOpen(null); window.scrollTo({ top: 0, behavior: 'smooth' }) }} />
     </div>
   )
 }

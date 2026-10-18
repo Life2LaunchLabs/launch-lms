@@ -4005,6 +4005,24 @@
               "path": "apps/api/src/tests/test_coach_tests.py",
               "symbol": null,
               "responsibility": "Tests reach Coach with nothing that says test, both versions are graded, failures stay per response, and releases keep their run's results"
+            },
+            {
+              "kind": "code",
+              "path": "apps/api/src/services/coach/reports.py",
+              "symbol": "report",
+              "responsibility": "Learners report a Coach reply; the team gets the conversation up to it without the learner's name, marks it reviewed, and starts a test from it"
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/components/Hub/conversation/HubReportDialog.tsx",
+              "symbol": "HubReportDialog",
+              "responsibility": "The learner reports a Coach reply with a reason and an optional note, told what the coaching team will see"
+            },
+            {
+              "kind": "test",
+              "path": "apps/api/src/tests/test_coach_reports.py",
+              "symbol": null,
+              "responsibility": "Only Coach replies in the learner's own conversation can be reported, the team's copy stops at the reply and carries no name, and reviewed reports sort last"
             }
           ],
           "relationships": []

@@ -9,7 +9,7 @@ from src.db.users import PublicUser
 from src.security.auth import get_current_user
 from src.security.superadmin import require_superadmin
 from src.services import hub_launch
-from src.services.coach import keys, policy, releases, scenarios
+from src.services.coach import keys, policy, releases, reports, scenarios
 from src.services.hub_launch import HubLaunchCardsUpdate
 
 router = APIRouter(dependencies=[Depends(require_superadmin)])
@@ -140,6 +140,17 @@ def run_coach_tests(background: BackgroundTasks, current_user: PublicUser = Depe
 @router.get("/tests/runs/{run_uuid}")
 def get_coach_test_run(run_uuid: str, db_session: Session = Depends(get_db_session)):
     return scenarios.get_run(db_session, run_uuid)
+
+
+@router.get("/reports")
+def list_coach_reports(db_session: Session = Depends(get_db_session)):
+    """Coach replies learners reported, without their names."""
+    return reports.reports_view(db_session)
+
+
+@router.post("/reports/{report_uuid}/review")
+def review_coach_report(report_uuid: str, db_session: Session = Depends(get_db_session)):
+    return reports.mark_reviewed(db_session, report_uuid)
 
 
 @router.get("/launch-cards")
