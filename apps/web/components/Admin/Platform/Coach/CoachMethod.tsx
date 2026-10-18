@@ -18,7 +18,7 @@ export default function CoachMethod({ policy }: { policy: CoachPolicy }) {
     setBusy(true)
     try {
       await mutate(await coachAdminApi.update({ method }, token), { revalidate: false })
-      toast.success('Method saved. Coach uses it from the next message.')
+      toast.success('Method saved. Release the draft to give it to learners.')
     } catch (error) {
       toast.error(errorMessage(error, 'Could not save the method.'))
     } finally {

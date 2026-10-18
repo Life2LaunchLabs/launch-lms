@@ -3950,13 +3950,31 @@
               "kind": "code",
               "path": "apps/web/components/Admin/Platform/Coach/CoachShell.tsx",
               "symbol": "CoachShell",
-              "responsibility": "Platform › Coach: Method, Knowledge, Routines, Abilities and Model tabs"
+              "responsibility": "Platform › Coach: Method, Knowledge, Routines, Abilities, Model and Releases tabs, with the draft's unreleased changes on every tab"
+            },
+            {
+              "kind": "code",
+              "path": "apps/api/src/services/coach/releases.py",
+              "symbol": "release",
+              "responsibility": "Freeze the draft policy into a numbered live release, describe draft changes, roll back and discard the draft"
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/components/Admin/Platform/Coach/CoachReleases.tsx",
+              "symbol": "CoachReleases",
+              "responsibility": "Releases tab: the draft's changes, release with a note, discard the draft, and roll back to an earlier release"
             },
             {
               "kind": "test",
               "path": "apps/api/src/tests/test_coach_policy.py",
               "symbol": null,
               "responsibility": "Key encryption and redaction, tiers, abilities, knowledge selection, and instruction layering"
+            },
+            {
+              "kind": "test",
+              "path": "apps/api/src/tests/test_coach_releases.py",
+              "symbol": null,
+              "responsibility": "Edits wait in the draft, releasing makes them live, rollback and discard, and Coach stays runnable across releases and keys"
             }
           ],
           "relationships": []

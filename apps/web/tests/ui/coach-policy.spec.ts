@@ -6,7 +6,7 @@ const environment = loadUiTestEnvironment({ requireCredentials: false })
 // Platform pages sit beside Plans: /orgs/<slug>/admin/platform/coach, or /admin/platform/coach on an org host.
 const coachPath = environment.plansPath.replace(/plans(\?.*)?$/, 'admin/platform/coach')
 
-test('platform.coach-policy: the coaching team edits the method, knowledge, routines and abilities', async ({ page }, testInfo) => {
+test('platform.coach-policy: the coaching team edits the method, knowledge, routines and abilities, and releases the draft', async ({ page }, testInfo) => {
   const browserErrors: string[] = []
   page.on('console', (message) => { if (message.type() === 'error') browserErrors.push(message.text()) })
   page.on('pageerror', (error) => browserErrors.push(error.message))
@@ -17,7 +17,7 @@ test('platform.coach-policy: the coaching team edits the method, knowledge, rout
   await page.goto(coachPath)
   await assertActualApp(page)
   // Tabs are links; the steps below go to them by URL because save toasts can sit over the tab row for a moment.
-  await expect(page.getByRole('navigation', { name: 'Coach policy' }).getByRole('link')).toHaveCount(5)
+  await expect(page.getByRole('navigation', { name: 'Coach policy' }).getByRole('link')).toHaveCount(6)
 
   // Method: one markdown document, with a preview.
   const method = page.getByRole('textbox', { name: 'Method document' })
@@ -48,6 +48,21 @@ test('platform.coach-policy: the coaching team edits the method, knowledge, rout
   page.once('dialog', (dialog) => void dialog.accept())
   await page.getByRole('button', { name: 'Delete', exact: true }).click()
   await expect(playbook).toHaveCount(0)
+
+  // Releases: the method edit waits in the draft until it is released; rolling back makes the earlier release live again.
+  await expect(page.getByRole('status').filter({ hasText: '1 change in the draft' })).toBeVisible()
+  await page.goto(`${coachPath}/releases`)
+  await expect(page.getByText('Edited the method', { exact: true }).first()).toBeVisible()
+  await page.getByRole('textbox', { name: 'Release note' }).fill('Notice effort first')
+  await page.getByRole('button', { name: 'Release to learners' }).click()
+  await expect(page.getByText(/^Release \d+ is live\.$/)).toBeVisible()
+  await expect(page.getByText(/The draft is the same as release \d+\./)).toBeVisible()
+  await capture('coach-releases')
+  page.once('dialog', (dialog) => void dialog.accept())
+  await page.getByRole('button', { name: 'Roll back to this' }).first().click()
+  await expect(page.getByText(/^Release \d+ is live again\.$/)).toBeVisible()
+  await expect(page.getByText(/^Rolled back to release \d+$/).first()).toBeVisible()
+
   await page.goto(coachPath)
   await method.fill(original)
   await page.getByRole('button', { name: 'Save method' }).click()

@@ -30,6 +30,8 @@ class CoachPolicy(SQLModel, table=True):
     tiers: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False, server_default="{}"))
     # Conversation-starter cards on Coach home; NULL means the code defaults.
     launch_cards: list | None = Field(default=None, sa_column=Column(JSON, nullable=True))
+    # The release learners get. Edits on the tabs change the draft; NULL (no release yet) means Coach runs the draft.
+    live_release_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("coach_release.id", ondelete="SET NULL"), nullable=True))
     updated_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -86,6 +88,22 @@ class CoachRoutine(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class CoachRelease(SQLModel, table=True):
+    """A numbered, frozen copy of the draft: method, abilities, models, playbooks and routines."""
+
+    __tablename__ = "coach_release"
+
+    id: int | None = Field(default=None, primary_key=True)
+    release_uuid: str = Field(sa_column=Column(String, nullable=False, unique=True, index=True))
+    number: int = Field(sa_column=Column(Integer, nullable=False, unique=True))
+    snapshot: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    # What changed from the release that was live, in words.
+    changes: list = Field(default_factory=list, sa_column=Column(JSON, nullable=False, server_default="[]"))
+    note: str = Field(default="", sa_column=Column(Text, nullable=False, server_default=""))
+    released_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
+    released_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class CoachModelSettings(BaseModel):
     max_output_tokens: int = PydanticField(default=700, ge=128, le=4_000)
     # OpenAI
@@ -108,6 +126,10 @@ class CoachPolicyUpdate(BaseModel):
     method: str | None = PydanticField(default=None, max_length=60_000)
     abilities: dict[str, bool] | None = None
     tiers: dict[Tier, CoachTierUpdate] | None = None
+
+
+class CoachReleaseCreate(BaseModel):
+    note: str = PydanticField(default="", max_length=2_000)
 
 
 class CoachKeyCreate(BaseModel):

@@ -114,12 +114,17 @@ def update_key(db: Session, current_user: PublicUser, key_uuid: str, payload: Co
 
 def delete_key(db: Session, key_uuid: str) -> None:
     key = get_key(db, key_uuid)
+    from src.services.coach.policy import live_snapshot
+
     policy = db.get(CoachPolicy, 1)
     tiers = (policy.tiers if policy else None) or {}
     using = [tier for tier in TIERS if (tiers.get(tier) or {}).get("key_uuid") == key_uuid]
     if using:
         names = " and ".join(tier.capitalize() for tier in using)
         raise HTTPException(status_code=409, detail=f"{names} uses this key. Choose another key for it first.")
+    live = live_snapshot(db).get("tiers") or {}
+    if any((live.get(tier) or {}).get("key_uuid") == key_uuid for tier in TIERS):
+        raise HTTPException(status_code=409, detail="The live release uses this key. Release a draft that doesn't use it first.")
     db.delete(key)
     db.commit()
 
