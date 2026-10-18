@@ -8,7 +8,7 @@ export const PAGE_TITLE_FORMAT = {
 
 const labels: Record<string, string> = {
   account: 'Account', achievements: 'Achievements', analytics: 'Analytics', badge: 'Badges', badges: 'Badges',
-  boards: 'Boards', communities: 'Communities', community: 'Communities', discover: 'Discover', edit: 'Edit',
+  boards: 'Boards', communities: 'Communities', community: 'Communities', connect: 'Connect', discover: 'Discover', edit: 'Edit',
   journal: 'Journal', marketplace: 'Marketplace', organization: 'Organizations',
   organizations: 'Organizations', payments: 'Payments', plans: 'Plans', platform: 'Platform', playground: 'Playgrounds',
   playgrounds: 'Playgrounds', podcast: 'Podcasts', podcasts: 'Podcasts', portfolio: 'Portfolio', programs: 'Programs',
@@ -59,6 +59,7 @@ export function resolveAppPageTitle(pathname: string): AppPageTitle {
     const detail = route.slice(1).find(part => labels[part.toLowerCase()])
     return { section, detail: label(detail) }
   }
-  if (['community', 'organization', 'playground', 'podcast', 'resource'].includes(route[0])) return { section }
+  // A chat's segment is its id, so Connect pages are titled by section alone.
+  if (['community', 'connect', 'organization', 'playground', 'podcast', 'resource'].includes(route[0])) return { section }
   return { section, detail: label(route[1]) }
 }

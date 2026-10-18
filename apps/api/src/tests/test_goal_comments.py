@@ -6,8 +6,8 @@ from sqlmodel import select
 
 from src.db.goal_comments import GoalCommentCreate, GoalCommentUpdate
 from src.db.goals import GoalStep
-from src.db.messages import InboxMessage
 from src.db.planning import PlanCollaboratorRequest, PlanCollaboratorRequestCreate, PlanInvitation, PlanInvitationCreate, PlanRole
+from src.services.connect import chats
 from src.services.goals import access, comments, sharing, sharing_roles
 from src.tests.test_goal_sharing import OTHER_EMAIL, _issued, _join, _personal, _session
 from src.tests.test_goals import ADMIN, LEARNER, OTHER, _user
@@ -17,8 +17,10 @@ def _say(db, user_id: int, goal_uuid: str, body: str, **extra) -> dict:
     return comments.add_comment(db, _user(user_id), goal_uuid, GoalCommentCreate(body=body, **extra))
 
 
-def _messages(db, user_id: int) -> list[InboxMessage]:
-    return list(db.exec(select(InboxMessage).where(InboxMessage.recipient_user_id == user_id, InboxMessage.action_kind == "goal_comment")).all())
+def _cards(db, user_id: int) -> list[str]:
+    """What someone sees in their chats: the cards the app posted about comments, by people other than them."""
+    listed = chats.list_chats(db, _user(user_id))["chats"]
+    return [chat["last_message"]["body"] for chat in listed if chat["last_message"]["kind"] == "card" and not chat["last_message"]["mine"]]
 
 
 def test_people_offer_viewer_commenter_editor_and_older_goals_get_them_on_use():
@@ -64,7 +66,7 @@ def test_mentioning_someone_without_access_invites_them_as_a_commenter():
         sharing.respond_to_invitation(db, _user(OTHER), invitation.invitation_uuid, True)
         reply = _say(db, OTHER, uuid, "Looks good!", parent_uuid=result["thread"]["comment_uuid"])
         assert [item["body"] for item in reply["thread"]["replies"]] == ["Looks good!"]
-        assert any("replied" in message.subject for message in _messages(db, LEARNER))
+        assert _cards(db, LEARNER) == ["Commented on Earn a nursing degree"]
 
 
 def test_mentions_notify_people_with_access_and_threads_resolve_and_reopen():
@@ -72,7 +74,7 @@ def test_mentions_notify_people_with_access_and_threads_resolve_and_reopen():
         uuid = _personal(db)["goal_uuid"]
         _join(db, uuid, OTHER, OTHER_EMAIL, "commenter")
         thread = _say(db, LEARNER, uuid, "Which school first, @sam?")["thread"]
-        assert [message.subject for message in _messages(db, OTHER)] == ["Lee Arner mentioned you on Earn a nursing degree"]
+        assert _cards(db, OTHER) == ["Mentioned you on Earn a nursing degree"]
         resolved = comments.resolve_thread(db, _user(OTHER), uuid, thread["comment_uuid"], True)
         assert resolved["resolved"] and resolved["resolved_by"]["id"] == OTHER
         reopened = _say(db, OTHER, uuid, "Actually, one more thing", parent_uuid=thread["comment_uuid"])["thread"]

@@ -2,7 +2,7 @@ import { notFound, redirect } from 'next/navigation'
 import OrgUserDetail, { type UserSubpage } from '@components/Admin/Users/OrgUserDetail'
 import { routePaths } from '@services/config/config'
 
-const subpages = new Set<UserSubpage>(['overview', 'plans', 'requirements'])
+const subpages = new Set<UserSubpage>(['overview', 'plans', 'requirements', 'messages'])
 const RENAMED: Record<string, string> = { assignments: 'plans', review: 'overview' }
 
 export default async function UserDetailSubpage({ params }: { params: Promise<{ orgslug: string; username: string; subpage: string }> }) {

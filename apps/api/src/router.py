@@ -7,6 +7,7 @@ from src.routers import (
     candidate_feedback,
     feedback_connection,
     code_execution,
+    connect,
     dev,
     demo,
     goal_admin,
@@ -38,6 +39,8 @@ from src.routers import (
     planning,
     template_versions,
     portfolio,
+    portfolio_people,
+    school,
     programs,
     roles,
     search,
@@ -308,9 +311,27 @@ v1_router.include_router(
     dependencies=[Depends(get_non_api_token_user)]
 )
 v1_router.include_router(
+    connect.router,
+    prefix="/connect",
+    tags=["connect"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
+v1_router.include_router(
     messages.router,
     prefix="/messages",
     tags=["messages"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
+v1_router.include_router(
+    school.router,
+    prefix="/school",
+    tags=["school"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
+v1_router.include_router(
+    portfolio_people.router,
+    prefix="/portfolio",
+    tags=["portfolio"],
     dependencies=[Depends(get_non_api_token_user)],
 )
 v1_router.include_router(

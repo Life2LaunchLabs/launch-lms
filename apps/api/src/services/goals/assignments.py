@@ -27,6 +27,7 @@ from src.security.org_auth import require_org_admin
 from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
 from src.services.goals import access, templates
 from src.services.goals.assignment_summary import assignment_dict, collaborators_of
+from src.services.school import staff as group_staff
 from src.services.goals.document import iter_steps
 from src.services.goals.issue import issue_goal
 
@@ -67,6 +68,7 @@ def _apply(db: Session, assignment: GoalAssignment, goal: Goal) -> None:
         role = roles.get(item["role_key"])
         if role and item["user_id"] not in {goal.owner_user_id, goal.subject_user_id}:
             access.add_member(db, goal, int(item["user_id"]), role)
+    group_staff.apply_to_goal(db, assignment, goal)
     db.flush()
 
 

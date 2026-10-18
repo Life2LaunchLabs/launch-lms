@@ -34,6 +34,7 @@ from src.db.organizations import Organization
 from src.db.portfolio import Portfolio
 from src.db.planning import OrganizationPlanRole, Plan, PlanActivity, PlanCollaborator, PlanRole
 from src.db.roles import Role
+from src.db.school import UserGroupStaff
 from src.db.user_organizations import UserOrganization
 from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup
@@ -54,7 +55,7 @@ def _session() -> Session:
         PlanRole.__table__, PlanCollaborator.__table__, PlanActivity.__table__, OrganizationPlanRole.__table__,
         GoalTemplate.__table__, GoalTemplateVersion.__table__, GoalAssignment.__table__, Goal.__table__, GoalStage.__table__,
         GoalStep.__table__, StepProgress.__table__, StepEntry.__table__, GoalStory.__table__, CoachNote.__table__, Portfolio.__table__, Plan.__table__,
-        CoachPolicy.__table__, CoachProviderKey.__table__, CoachPlaybook.__table__,
+        CoachPolicy.__table__, CoachProviderKey.__table__, CoachPlaybook.__table__, UserGroupStaff.__table__,
     ])
     db = Session(engine)
     db.add(Organization(id=1, org_uuid="org_1", name="Studio", slug="studio", email="studio@example.com", creation_date=NOW, update_date=NOW))

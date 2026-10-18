@@ -95,6 +95,8 @@ export const routePaths = {
     /** Opens Coach beside Plans, optionally resuming a conversation or starting with a prompt. */
     coachOpen: (params?: { conversation?: string; prompt?: string }) => withQuery('/plans', { coach: 'open', coach_conversation: params?.conversation, coach_prompt: params?.prompt }),
     portfolio: () => '/portfolio',
+    connect: () => '/connect',
+    chat: (conversationUuid: string) => `/connect/${encodeURIComponent(conversationUuid)}`,
     portfolioProjects: () => '/portfolio/projects',
     portfolioProjectsNew: () => '/portfolio/projects/new',
     portfolioProjectDetail: (projectUuid: string) => `/portfolio/projects/${encodeURIComponent(projectUuid)}`,

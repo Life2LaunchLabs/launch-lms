@@ -6,7 +6,10 @@ import pytest
 from fastapi import HTTPException
 from sqlmodel import SQLModel, Session, select
 
+from src.db.conversations import Conversation, ConversationMember, ConversationMessage, ConversationReport, UserBlock
 from src.db.goal_comments import GoalComment, GoalCommentCreate
+from src.db.portfolio_people import PortfolioComment, PortfolioPerson
+from src.db.school import StaffNote, UserGroupStaff
 from src.db.goals import Goal, GoalAssignmentCreate, GoalCreate
 from src.db.media import MediaAsset, MediaOwnerType, MediaSourceType, MediaType
 from src.db.messages import InboxMessage
@@ -34,6 +37,8 @@ def _session() -> Session:
     db = _goal_session()
     SQLModel.metadata.create_all(db.get_bind(), tables=[
         PlanInvitation.__table__, PlanCollaboratorRequest.__table__, PlanAttachment.__table__, InboxMessage.__table__, GoalComment.__table__,  # type: ignore[attr-defined]
+        Conversation.__table__, ConversationMember.__table__, ConversationMessage.__table__, UserBlock.__table__, ConversationReport.__table__,  # type: ignore[attr-defined]
+        PortfolioPerson.__table__, PortfolioComment.__table__, UserGroupStaff.__table__, StaffNote.__table__,  # type: ignore[attr-defined]
     ])
     return db
 

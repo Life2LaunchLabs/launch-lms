@@ -33,6 +33,7 @@ import { useHub } from '@components/Hub/HubContext'
 import { cn } from '@/lib/utils'
 import { Z_INDEX } from '@/lib/z-index'
 import useInboxMessages from '@components/Hooks/useInboxMessages'
+import { useConnectCounts } from '@components/Connect/useConnect'
 
 const DESKTOP_NAV_COLLAPSED_WIDTH = '44px'
 const DESKTOP_NAV_EXPANDED_WIDTH = '264px'
@@ -50,6 +51,7 @@ export const OrgMenu = (props: { orgslug: string; compact?: boolean }) => {
   })
   const { isVisible: isJoinBannerVisible } = useJoinBannerVisible()
   const { unreadCount } = useInboxMessages()
+  const connect = useConnectCounts()
   const topOffset = isJoinBannerVisible ? JOIN_BANNER_HEIGHT : 0
   const config = org?.config?.config
   const resolvedFeatures = config?.resolved_features
@@ -68,6 +70,7 @@ export const OrgMenu = (props: { orgslug: string; compact?: boolean }) => {
     pathname,
     resolvedFeatures,
     hubOpen: hub?.state === 'open',
+    connectWaiting: connect.unread + connect.requests > 0,
   }).filter((item) => item.show)
 
   const isDesktopNavExpanded = isDesktopExpanded && !props.compact
@@ -260,7 +263,7 @@ function SidebarItem({
     </>
   )
 
-  const element = <NavItemControl item={item} orgslug={orgslug} className={sharedClass}>{content}</NavItemControl>
+  const element = <NavItemControl item={item} orgslug={orgslug} className={sharedClass} dot={item.dot && !item.active}>{content}</NavItemControl>
 
   if (isExpanded) {
     return element
