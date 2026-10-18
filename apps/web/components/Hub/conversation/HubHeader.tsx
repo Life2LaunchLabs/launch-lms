@@ -1,7 +1,7 @@
 'use client'
 
 import { FormEvent, useEffect, useRef, useState } from 'react'
-import { Archive, Check, ChevronDown, ChevronRight, CircleHelp, Loader2, MoreHorizontal, Pencil, Plus, Radio, X } from 'lucide-react'
+import { Archive, Check, ChevronDown, ChevronRight, CircleHelp, Loader2, MoreHorizontal, Pencil, Plus, Radio, Share2, X } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import {
   DropdownMenu,
@@ -30,6 +30,7 @@ export default function HubHeader({
   onOpenResources,
   onRename,
   onArchive,
+  onShare,
   contextUnavailable = false,
   editRun,
   onStopEditing,
@@ -53,6 +54,8 @@ export default function HubHeader({
   // eslint-disable-next-line no-unused-vars
   onRename: (_title: string) => Promise<void>
   onArchive: () => Promise<void>
+  /** Opens the choice to share this conversation with the coaching team. */
+  onShare?: () => void
   contextUnavailable?: boolean
   editRun?: HubEditRun | null
   onStopEditing?: () => void
@@ -138,7 +141,7 @@ export default function HubHeader({
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuItem onSelect={() => { setPanel(null); onNew() }}>
                   <Plus /> New chat
                 </DropdownMenuItem>
@@ -147,6 +150,9 @@ export default function HubHeader({
                   <DropdownMenuItem onSelect={() => { setPanel(null); setRenameValue(title); setRenaming(true) }}>
                     <Pencil /> Rename
                   </DropdownMenuItem>
+                  {onShare ? <DropdownMenuItem onSelect={onShare}>
+                    <Share2 /> Share with coaching team
+                  </DropdownMenuItem> : null}
                   <DropdownMenuItem onSelect={() => void onArchive()}>
                     <Archive /> Archive
                   </DropdownMenuItem>

@@ -153,6 +153,26 @@ class CoachTestRun(SQLModel, table=True):
     finished_at: datetime | None = None
 
 
+class CoachSharedConversation(SQLModel, table=True):
+    """A Coach conversation a learner chose to share with the coaching team, to learn from or turn into a test.
+
+    A copy without the learner's name: the messages and what Coach knew about them when they shared it.
+    Deleting the conversation, or the learner un-sharing it, removes it.
+    """
+
+    __tablename__ = "coach_shared_conversation"
+
+    id: int | None = Field(default=None, primary_key=True)
+    share_uuid: str = Field(sa_column=Column(String, nullable=False, unique=True, index=True))
+    conversation_id: int = Field(sa_column=Column(Integer, ForeignKey("hubconversation.id", ondelete="CASCADE"), nullable=False, unique=True))
+    # [{"role": "user" | "assistant", "content"}]
+    messages: list = Field(default_factory=list, sa_column=Column(JSON, nullable=False, server_default="[]"))
+    # In the shape of a test's learner (see CoachTestLearner).
+    learner: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False, server_default="{}"))
+    note: str = Field(default="", sa_column=Column(Text, nullable=False, server_default=""))
+    shared_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class CoachModelSettings(BaseModel):
     max_output_tokens: int = PydanticField(default=700, ge=128, le=4_000)
     # OpenAI
@@ -179,6 +199,10 @@ class CoachPolicyUpdate(BaseModel):
 
 class CoachReleaseCreate(BaseModel):
     note: str = PydanticField(default="", max_length=2_000)
+
+
+class CoachShareCreate(BaseModel):
+    note: str = PydanticField(default="", max_length=500)
 
 
 class CoachRubricLine(BaseModel):

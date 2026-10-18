@@ -25,6 +25,7 @@ import { asAdvisorResource } from '../resources/HubResourceContext'
 import { addHubContextResource, addHubContextResources, hubAdvisorHistory, inferHubResponseKind, newHubTranscriptResources, removeHubContextResource, restoreSubmittedDraft } from '@services/hub/interaction'
 import { buildHubRunTimeline, mergePendingHubEditOperations, placeHubRunTimeline, recoverHubEditOperations, unreviewedSuggestions } from './editRunTimeline'
 import EndSessionDialog from './EndSessionDialog'
+import ShareWithCoachTeam from './ShareWithCoachTeam'
 import useHubMemory from './useHubMemory'
 import useHubEditRun from './useHubEditRun'
 
@@ -62,6 +63,7 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
   const [messages, setMessages] = useState<HubConversationMessage[]>([])
   const [conversationUuid, setConversationUuid] = useState<string | null>(null)
   const [conversationTitle, setConversationTitle] = useState('')
+  const [sharing, setSharing] = useState(false)
   const [conversations, setConversations] = useState<HubConversationSummary[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
   const [conversationLoading, setConversationLoading] = useState(false)
@@ -413,12 +415,13 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
       loading={historyLoading} disabled={busy} onHistoryOpen={refreshHistory} onNew={() => endingSession(resetChat)} onSelect={openConversation}
       onOpenResources={(uuid) => void openConversation(uuid, true)}
       onRename={(title) => conversationUuid ? renameConversation(conversationUuid, title) : Promise.resolve()}
-      onArchive={archiveConversation} contextUnavailable={!hub?.surface} editRun={hub?.editRun}
+      onArchive={archiveConversation} onShare={() => setSharing(true)} contextUnavailable={!hub?.surface} editRun={hub?.editRun}
       onStopEditing={() => endingSession(() => void editing.stop())} onUpdateEditGoal={editing.updateGoal}
       onTuck={() => hub?.tuck()} onEnd={() => endingSession(() => hub?.end())}
     />
     <EndSessionDialog open={Boolean(pendingEnd)} unreviewed={unreviewedSuggestions(hub?.editRun || null)} keepLabel="Keep the session"
       onEnd={() => { const then = pendingEnd; setPendingEnd(null); then?.() }} onKeep={() => setPendingEnd(null)} />
+    <ShareWithCoachTeam open={sharing} onOpenChange={setSharing} orgId={org?.id} conversationUuid={conversationUuid} accessToken={accessToken} />
     <div ref={scrollRef} className={`scrollbar-subtle absolute inset-x-0 bottom-0 overflow-y-auto overscroll-contain scroll-smooth ${hub?.editRun?.status === 'active' ? 'top-[5.25rem]' : !hub?.surface ? 'top-[5rem]' : 'top-14'}`}>
       <div className="min-h-full w-full px-3 pt-4 sm:px-4" style={{ paddingBottom: Math.max(composerHeight + 88 + (memory.visible ? 148 : 0) + (libraryOpen ? 290 : 0) + (hub?.editReviewItems.length ? 58 : 0), overlayHeight + 40) }}>
         <div className="space-y-6" aria-live="polite" aria-busy={busy}>

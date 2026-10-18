@@ -9,7 +9,7 @@ from src.db.users import PublicUser
 from src.security.auth import get_current_user
 from src.security.superadmin import require_superadmin
 from src.services import hub_launch
-from src.services.coach import keys, policy, releases, scenarios
+from src.services.coach import keys, policy, releases, scenarios, sharing
 from src.services.hub_launch import HubLaunchCardsUpdate
 
 router = APIRouter(dependencies=[Depends(require_superadmin)])
@@ -140,6 +140,17 @@ def run_coach_tests(background: BackgroundTasks, current_user: PublicUser = Depe
 @router.get("/tests/runs/{run_uuid}")
 def get_coach_test_run(run_uuid: str, db_session: Session = Depends(get_db_session)):
     return scenarios.get_run(db_session, run_uuid)
+
+
+@router.get("/shared")
+def list_shared_conversations(db_session: Session = Depends(get_db_session)):
+    """Conversations learners shared with the coaching team, without their names."""
+    return sharing.shared_view(db_session)
+
+
+@router.delete("/shared/{share_uuid}", status_code=204)
+def dismiss_shared_conversation(share_uuid: str, db_session: Session = Depends(get_db_session)):
+    sharing.dismiss(db_session, share_uuid)
 
 
 @router.get("/launch-cards")

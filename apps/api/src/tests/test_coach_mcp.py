@@ -81,3 +81,12 @@ def test_a_model_writes_tests_and_runs_them(db, monkeypatch):
     assert "Still running" in progress["content"][0]["text"]
     refused = _call(db, "run_coach_tests", {}, _ctx(superadmin=False))
     assert refused["isError"]
+
+
+def test_a_model_reads_shared_conversations_to_draft_tests(db, monkeypatch):
+    from src.services.coach import sharing
+
+    monkeypatch.setattr(sharing, "shared_view", lambda _db: [])
+    listed = _call(db, "list_coach_shared_conversations", {})
+    assert listed["content"][0]["text"] == "No learner has shared a conversation yet."
+    assert _call(db, "list_coach_shared_conversations", {}, _ctx(superadmin=False))["isError"]

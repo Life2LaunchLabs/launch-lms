@@ -125,6 +125,16 @@ COACH_TOOLS = [
         platform=True,
     ),
     Tool(
+        "list_coach_shared_conversations",
+        "List conversations learners shared with Coach's team",
+        "Platform admins only. Coach conversations learners chose to share with the coaching team, without their names: the messages, what Coach knew about the learner, and a conversation test drafted from each. Finish a draft (title, persona, rubric) and save it with save_coach_test.",
+        {"properties": {}},
+        coach_mcp.list_coach_shared_conversations,
+        scope="coach:read",
+        org_scoped=False,
+        platform=True,
+    ),
+    Tool(
         "get_coach_test_run",
         "Get a Coach test run",
         "Platform admins only. A test run's progress, or its scores, every response, and the judge's evidence for each rubric line.",

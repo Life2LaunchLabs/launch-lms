@@ -14,7 +14,7 @@ from sqlmodel import Session
 from src.db.coach import CoachPlaybookWrite, CoachTestWrite
 from src.services import learning
 from src.services.coach import policy as coach_policy
-from src.services.coach import releases, scenarios
+from src.services.coach import releases, scenarios, sharing
 from src.services.oauth.config import frontend_url
 from src.services.oauth.server import AccessContext
 
@@ -134,6 +134,12 @@ async def get_coach_test_run(request: Request, db: Session, ctx: AccessContext, 
     return {"run": scenarios.get_run(db, str(args["run_uuid"])), "editor_url": _coach_url(db, ctx, "/tests")}
 
 
+async def list_coach_shared_conversations(request: Request, db: Session, ctx: AccessContext, args: dict) -> dict:
+    """Conversations learners chose to share with the coaching team, with a conversation test drafted from each."""
+    _require_platform_admin(ctx)
+    return {"shared": sharing.shared_view(db), "editor_url": _coach_url(db, ctx, "/tests")}
+
+
 def _score(side: dict) -> str:
     return f"musts {side['must'][0]}/{side['must'][1]}, shoulds {side['should'][0]}/{side['should'][1]}"
 
@@ -147,6 +153,9 @@ def summary(name: str, result: dict) -> str | None:
         return f"{'Added' if result['created'] else 'Saved'} playbook \"{book['title']}\" ({book['playbook_uuid']}) to the draft.{waiting}"
     if name == "delete_coach_playbook":
         return f"Deleted playbook {result['deleted']} from the draft.{waiting}"
+    if name == "list_coach_shared_conversations":
+        count = len(result["shared"])
+        return f"{count} shared conversation{'s' if count != 1 else ''}. Each has a draft_test to finish (title, persona, rubric) and save with save_coach_test." if count else "No learner has shared a conversation yet."
     if name == "save_coach_test":
         test = result["test"]
         return f"{'Added' if result['created'] else 'Saved'} test \"{test['title']}\" ({test['test_uuid']}). Run it with run_coach_tests."

@@ -4005,6 +4005,24 @@
               "path": "apps/api/src/tests/test_coach_tests.py",
               "symbol": null,
               "responsibility": "Tests reach Coach with nothing that says test, both versions are graded, failures stay per response, and releases keep their run's results"
+            },
+            {
+              "kind": "code",
+              "path": "apps/api/src/services/coach/sharing.py",
+              "symbol": "share",
+              "responsibility": "Learners share a Coach conversation with the coaching team, without their name, and can stop sharing; admins start a conversation test from it"
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/components/Hub/conversation/ShareWithCoachTeam.tsx",
+              "symbol": "ShareWithCoachTeam",
+              "responsibility": "The learner's consent dialog for sharing one Coach conversation with the coaching team, and taking it back"
+            },
+            {
+              "kind": "test",
+              "path": "apps/api/src/tests/test_coach_sharing.py",
+              "symbol": null,
+              "responsibility": "Only the learner shares their conversation, the team's copy carries no name, and stopping or dismissing removes it"
             }
           ],
           "relationships": []
