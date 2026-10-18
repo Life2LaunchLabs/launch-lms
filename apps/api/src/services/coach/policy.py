@@ -17,7 +17,7 @@ from fastapi import HTTPException
 from sqlmodel import Session, select
 
 from src.db.coach import (
-    TIERS, CoachOrder, CoachPlaybook, CoachPlaybookWrite, CoachPolicy, CoachPolicyUpdate, CoachProviderKey,
+    TIERS, CoachOrder, CoachPlaybook, CoachPlaybookWrite, CoachPolicy, CoachPolicyUpdate, CoachProviderKey, CoachRelease,
     CoachRoutine, CoachRoutineWrite, CoachModelSettings,
 )
 from src.db.users import PublicUser
@@ -167,19 +167,54 @@ class CoachRuntime:
         return "\n\n".join(parts)
 
 
+def draft_snapshot(db: Session, policy: CoachPolicy | None = None) -> dict:
+    """The draft as admins left it on the tabs: what the next release will freeze."""
+    policy = policy or db.get(CoachPolicy, POLICY_ID)
+    return {
+        "method": policy.method if policy else DEFAULT_METHOD,
+        "abilities": _abilities(policy),
+        "tiers": dict((policy.tiers if policy else None) or {}),
+        "playbooks": [{key: value for key, value in _playbook_dict(book).items() if key != "updated_at"} for book in _playbooks(db)],
+        "routines": [{key: value for key, value in _routine_dict(item).items() if key != "updated_at"} for item in _routines(db)],
+    }
+
+
+def live_snapshot(db: Session, policy: CoachPolicy | None = None) -> dict:
+    """The live release, or the draft on a platform that has never released."""
+    policy = policy or db.get(CoachPolicy, POLICY_ID)
+    release = db.get(CoachRelease, policy.live_release_id) if policy and policy.live_release_id else None
+    return dict(release.snapshot) if release else draft_snapshot(db, policy)
+
+
+def runtime_from(db: Session, snapshot: dict, enabled: bool) -> CoachRuntime:
+    method = snapshot.get("method") or ""
+    saved = snapshot.get("abilities") or {}
+    return CoachRuntime(
+        enabled=enabled,
+        method=method if method.strip() else DEFAULT_METHOD,
+        abilities={key: bool(saved.get(key, True)) for key in ABILITY_KEYS},
+        tiers=dict(snapshot.get("tiers") or {}),
+        keys={key.key_uuid: (key.provider, key.ciphertext) for key in db.exec(select(CoachProviderKey)).all()},
+        playbooks=tuple(
+            {"title": book["title"], "used_when": book["used_when"], "body": book["body"], "always": book["always"]}
+            for book in snapshot.get("playbooks") or [] if book.get("enabled", True)
+        ),
+        routines=tuple(
+            {"name": item["name"], "trigger": item["trigger"], "instructions": item["instructions"], "tier": item["tier"]}
+            for item in snapshot.get("routines") or [] if item.get("enabled", True) and item.get("trigger") in TRIGGERS
+        ),
+    )
+
+
 def _load(db: Session) -> CoachRuntime:
     policy = db.get(CoachPolicy, POLICY_ID)
-    playbooks = db.exec(select(CoachPlaybook).where(CoachPlaybook.enabled == True).order_by(CoachPlaybook.position, CoachPlaybook.id)).all()  # noqa: E712
-    routines = db.exec(select(CoachRoutine).where(CoachRoutine.enabled == True, CoachRoutine.trigger.in_(list(TRIGGERS))).order_by(CoachRoutine.position, CoachRoutine.id)).all()  # type: ignore[attr-defined]  # noqa: E712
-    return CoachRuntime(
-        enabled=bool(policy and policy.enabled),
-        method=policy.method if policy and policy.method.strip() else DEFAULT_METHOD,
-        abilities=_abilities(policy),
-        tiers=dict((policy.tiers if policy else None) or {}),
-        keys={key.key_uuid: (key.provider, key.ciphertext) for key in db.exec(select(CoachProviderKey)).all()},
-        playbooks=tuple({"title": book.title, "used_when": book.used_when, "body": book.body, "always": book.always} for book in playbooks),
-        routines=tuple({"name": item.name, "trigger": item.trigger, "instructions": item.instructions, "tier": item.tier} for item in routines),
-    )
+    return runtime_from(db, live_snapshot(db), bool(policy and policy.enabled))
+
+
+def draft_runtime(db: Session) -> CoachRuntime:
+    """Coach as the draft would run it, for trying the draft before it is released."""
+    policy = db.get(CoachPolicy, POLICY_ID)
+    return runtime_from(db, draft_snapshot(db), bool(policy and policy.enabled))
 
 
 def runtime(db: Session) -> CoachRuntime:
@@ -205,6 +240,9 @@ def seed_defaults(db: Session) -> None:
     for position, (name, trigger, instructions) in enumerate(SEED_ROUTINES):
         db.add(CoachRoutine(routine_uuid=f"coach_routine_{uuid4().hex}", name=name, trigger=trigger, instructions=instructions, position=position))
     db.commit()
+    from src.services.coach.releases import release
+
+    release(db, None, note="The starting policy")
 
 
 def _policy(db: Session) -> CoachPolicy:
@@ -257,6 +295,8 @@ def _playbook_dict(book: CoachPlaybook) -> dict:
 
 
 def policy_view(db: Session) -> dict:
+    from src.services.coach import releases
+
     policy = _policy(db)
     abilities = _abilities(policy)
     return {
@@ -271,6 +311,7 @@ def policy_view(db: Session) -> dict:
         "routines": [_routine_dict(item) for item in _routines(db)],
         "playbooks": [_playbook_dict(item) for item in _playbooks(db)],
         "built_in_rules": built_in_rules(),
+        "release": releases.summary(db),
         "updated_at": policy.updated_at,
     }
 
@@ -278,7 +319,7 @@ def policy_view(db: Session) -> dict:
 def _tier_uses(db: Session) -> dict[str, list[str]]:
     """What runs on each tier, in words, for the Model tab."""
     uses: dict[str, list[str]] = {tier: [] for tier in TIERS}
-    snapshot = _load(db)
+    snapshot = draft_runtime(db)
     for key, trigger in TRIGGERS.items():
         uses[snapshot.tier_for(key)].append(trigger["label"])
     for tier, label in TIER_USES.items():
@@ -308,9 +349,11 @@ def update_policy(db: Session, current_user: PublicUser, payload: CoachPolicyUpd
     if payload.enabled is not None:
         policy.enabled = payload.enabled
     if policy.enabled:
-        standard = (policy.tiers or {}).get("standard") or {}
+        # Learners get the live release, so that is what needs a Standard model.
+        standard = (live_snapshot(db, policy)["tiers"] or {}).get("standard") or {}
         if not standard.get("key_uuid") or not standard.get("model"):
-            raise HTTPException(status_code=422, detail="Give the Standard tier a key and a model before turning Coach on.")
+            then = " and release the draft" if policy.live_release_id else ""
+            raise HTTPException(status_code=422, detail=f"Give the Standard tier a key and a model{then} before turning Coach on.")
     policy.updated_by_user_id = current_user.id
     policy.updated_at = datetime.utcnow()
     db.add(policy)

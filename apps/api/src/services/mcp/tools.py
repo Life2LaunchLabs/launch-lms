@@ -10,6 +10,7 @@ from fastapi import HTTPException, Request
 from fastapi.encoders import jsonable_encoder
 from sqlmodel import Session
 
+from src.services.coach import mcp as coach_mcp
 from src.services.goals import mcp_templates as goal_mcp
 from src.services.mcp.catalog import TOOLS, TOOLS_BY_NAME, Tool  # noqa: F401  (re-exported)
 from src.services.oauth.server import AccessContext, admin_orgs
@@ -26,6 +27,8 @@ def _summary(name: str, result: dict) -> str:
             f"Saved \"{document['activity']['title']}\" ({len(document['pages'])} pages) in \"{result['context'].get('template_name')}\". "
             f"New etag: {result['etag']}. Review in Launch LMS: {result['editor_url']}"
         )
+    if (text := coach_mcp.summary(name, result)) is not None:
+        return text
     if (text := goal_mcp.summary(name, result)) is not None:
         return text
     if name in {"save_plan_template", "create_plan_template"}:

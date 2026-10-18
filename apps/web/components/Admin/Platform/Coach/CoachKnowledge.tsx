@@ -86,7 +86,7 @@ function PlaybookEditor({ uuid, initial, onDone }: { uuid?: string; initial: Coa
   }
 
   async function remove() {
-    if (!uuid || !window.confirm(`Delete the ${initial.title} playbook? Coach stops reading it straight away.`)) return
+    if (!uuid || !window.confirm(`Delete the ${initial.title} playbook? It leaves the draft; learners keep it until the next release.`)) return
     setBusy('delete')
     try {
       await coachAdminApi.deletePlaybook(uuid, token)

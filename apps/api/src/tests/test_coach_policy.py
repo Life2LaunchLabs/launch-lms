@@ -12,6 +12,7 @@ from src.db.coach import (
     CoachPolicy,
     CoachPolicyUpdate,
     CoachProviderKey,
+    CoachRelease,
     CoachRoutine,
     CoachRoutineWrite,
     CoachTierUpdate,
@@ -24,7 +25,7 @@ from src.services.coach.policy import DEFAULT_METHOD, CoachRuntime
 def _db() -> Session:
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     SQLModel.metadata.create_all(engine, tables=[
-        User.__table__, CoachPolicy.__table__, CoachProviderKey.__table__, CoachPlaybook.__table__, CoachRoutine.__table__,
+        User.__table__, CoachRelease.__table__, CoachPolicy.__table__, CoachProviderKey.__table__, CoachPlaybook.__table__, CoachRoutine.__table__,
     ])
     return Session(engine)
 

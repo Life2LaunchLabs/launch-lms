@@ -1,15 +1,15 @@
-"""Platform › Coach: the coaching policy, provider keys, playbooks, routines and conversation starters."""
+"""Platform › Coach: the coaching policy, its releases, provider keys, playbooks, routines and conversation starters."""
 
 from fastapi import APIRouter, Depends
 from sqlmodel import Session
 
 from src.core.events.database import get_db_session
-from src.db.coach import CoachKeyCreate, CoachKeyUpdate, CoachOrder, CoachPlaybookWrite, CoachPolicyUpdate, CoachRoutineWrite
+from src.db.coach import CoachKeyCreate, CoachKeyUpdate, CoachOrder, CoachPlaybookWrite, CoachPolicyUpdate, CoachReleaseCreate, CoachRoutineWrite
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
 from src.security.superadmin import require_superadmin
 from src.services import hub_launch
-from src.services.coach import keys, policy
+from src.services.coach import keys, policy, releases
 from src.services.hub_launch import HubLaunchCardsUpdate
 
 router = APIRouter(dependencies=[Depends(require_superadmin)])
@@ -83,6 +83,30 @@ def update_coach_routine(routine_uuid: str, payload: CoachRoutineWrite, current_
 @router.delete("/routines/{routine_uuid}", status_code=204)
 def delete_coach_routine(routine_uuid: str, db_session: Session = Depends(get_db_session)):
     policy.delete_routine(db_session, routine_uuid)
+
+
+@router.get("/releases")
+def list_coach_releases(db_session: Session = Depends(get_db_session)):
+    return releases.releases_view(db_session)
+
+
+@router.post("/releases")
+def release_coach_draft(payload: CoachReleaseCreate, current_user: PublicUser = Depends(get_current_user), db_session: Session = Depends(get_db_session)):
+    releases.release(db_session, current_user, payload.note)
+    return releases.releases_view(db_session)
+
+
+@router.post("/releases/discard-draft")
+def discard_coach_draft(current_user: PublicUser = Depends(get_current_user), db_session: Session = Depends(get_db_session)):
+    """Put the draft back to the live release."""
+    releases.discard_draft(db_session, current_user)
+    return releases.releases_view(db_session)
+
+
+@router.post("/releases/{release_uuid}/roll-back")
+def roll_back_coach_release(release_uuid: str, current_user: PublicUser = Depends(get_current_user), db_session: Session = Depends(get_db_session)):
+    releases.roll_back(db_session, current_user, release_uuid)
+    return releases.releases_view(db_session)
 
 
 @router.get("/launch-cards")

@@ -35,8 +35,14 @@ export type CoachPolicy = {
   routines: CoachRoutine[]
   playbooks: CoachPlaybook[]
   built_in_rules: { title: string; text: string }[]
+  release: CoachDraftSummary
   updated_at: string | null
 }
+
+// Edits on every tab change the draft; learners get the live release.
+export type CoachDraftSummary = { live_number: number | null; draft_changes: string[] }
+export type CoachRelease = { release_uuid: string; number: number; note: string; changes: string[]; released_at: string; released_by: string; live: boolean }
+export type CoachReleases = CoachDraftSummary & { releases: CoachRelease[] }
 
 export type CoachPolicyUpdate = {
   enabled?: boolean
@@ -77,6 +83,11 @@ export const coachAdminApi = {
   updateRoutine: (uuid: string, payload: CoachRoutineWrite, token?: string) => call<CoachRoutine>(`/routines/${uuid}`, token, 'PUT', payload),
   deleteRoutine: (uuid: string, token?: string) => call<void>(`/routines/${uuid}`, token, 'DELETE'),
   orderRoutines: (uuids: string[], token?: string) => call<CoachRoutine[]>('/routines/order', token, 'PUT', { uuids }),
+
+  releases: (token?: string) => call<CoachReleases>('/releases', token),
+  release: (note: string, token?: string) => call<CoachReleases>('/releases', token, 'POST', { note }),
+  rollBack: (releaseUuid: string, token?: string) => call<CoachReleases>(`/releases/${releaseUuid}/roll-back`, token, 'POST'),
+  discardDraft: (token?: string) => call<CoachReleases>('/releases/discard-draft', token, 'POST'),
 
   launchCards: (token?: string) => call<HubLaunchCardsSettings>('/launch-cards', token),
   // Passing null restores the platform defaults.
