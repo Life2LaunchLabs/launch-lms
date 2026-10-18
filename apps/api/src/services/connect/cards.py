@@ -1,4 +1,4 @@
-"""Cards the app posts into chats for people, such as "3 comments on Earn a nursing degree"."""
+"""Cards the app posts into chats for people, such as "3 comments on your portfolio"."""
 
 from __future__ import annotations
 
@@ -7,12 +7,9 @@ from typing import Callable
 from sqlmodel import Session, select
 
 from src.db.conversations import ConversationMember, ConversationMessage
-from src.db.goal_comments import GoalComment
-from src.db.goals import Goal
 from src.services.connect import chats
 from src.services.goals.sharing_roles import _stamp
 
-GOAL_COMMENTS = "goal_comments"
 PORTFOLIO_COMMENTS = "portfolio_comments"
 PORTFOLIO_SHARED = "portfolio_shared"
 
@@ -69,15 +66,6 @@ def _gather(db: Session, author_id: int | None, recipient_id: int, same: Callabl
             return last  # type: ignore[return-value]
     fresh = {**card, "count": 1, "comment_uuids": [card.get("comment_uuid")], "mentioned_user_ids": mentioned_ids}
     return chats.post(db, conversation, int(author_id), _summary(fresh, school), kind="card", card=fresh)
-
-
-def goal_comment(db: Session, goal: Goal, comment: GoalComment, recipient_id: int, mentioned: bool = False) -> ConversationMessage | None:
-    """Tell someone about a comment on a goal, in their chat with its author."""
-    card = {
-        "type": GOAL_COMMENTS, "goal_uuid": goal.goal_uuid, "goal_title": goal.title, "mentioned": mentioned,
-        "comment_uuid": comment.comment_uuid, "step_uuid": comment.step_uuid, "excerpt": comment.body[:140],
-    }
-    return _gather(db, comment.author_user_id, recipient_id, lambda last: last.get("goal_uuid") == goal.goal_uuid, card)
 
 
 def portfolio_comment(db: Session, username: str, item_title: str, comment_uuid: str, body: str, author_id: int, recipient_id: int) -> ConversationMessage | None:

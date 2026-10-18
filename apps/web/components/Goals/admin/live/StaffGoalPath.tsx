@@ -7,7 +7,7 @@ import { useSWRConfig } from 'swr'
 import { Button } from '@components/ui/button'
 import { canMoveStages, ScheduleNotes, useMoveToStage } from '@components/Goals/learner/GoalStages'
 import { AddStageButton, AddStepButton, GoalEditingProvider, StageMenu, StepMenu, useGoalEditing } from '@components/Goals/edit/GoalEditing'
-import { GoalCommentsProvider } from '@components/Goals/comments/GoalComments'
+import { GoalChatProvider } from '@components/Goals/chat/GoalChat'
 import { GoalStepRow, type PathViewer } from '@components/Goals/learner/GoalStepRow'
 import useGoalColors from '@components/Goals/learner/useGoalColors'
 import { planVars } from '@components/Goals/planColors'
@@ -21,9 +21,9 @@ export default function StaffGoalPath({ goal, orgslug, orgId, token, viewerUserI
   const { getGoalColor, setGoalColor } = useGoalColors(React.useMemo(() => [goal], [goal]), viewerUserId)
   const color = getGoalColor(goal.goal_uuid)
   return <GoalEditingProvider goal={goal} token={token} color={color} setColor={(next: string) => setGoalColor(goal.goal_uuid, next)}>
-    <GoalCommentsProvider goal={goal} token={token} color={color}>
+    <GoalChatProvider goal={goal} token={token} orgslug={orgslug} staffOrgId={orgId}>
       <StaffPath goal={goal} orgslug={orgslug} orgId={orgId} token={token} viewerUserId={viewerUserId} color={color} />
-    </GoalCommentsProvider>
+    </GoalChatProvider>
   </GoalEditingProvider>
 }
 

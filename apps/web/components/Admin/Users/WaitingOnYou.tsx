@@ -35,7 +35,7 @@ export default function WaitingOnYou({ orgId, orgslug, token }: { orgId: number;
             <PersonAvatar user={row.student as any} size="md" />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-gray-900">{row.student.name}</p>
-              <p className="truncate text-xs text-gray-500">{row.last_message ? `${row.last_message.sender?.name ? `${row.last_message.sender.name}: ` : ''}${row.last_message.body}` : `@${row.student.username}`}</p>
+              <p className="truncate text-xs text-gray-500">{row.last_message ? `${row.last_message.sender?.name ? `${row.last_message.sender.name}: ` : ''}${row.last_message.preview || row.last_message.body}` : `@${row.student.username}`}</p>
             </div>
             <div className="flex shrink-0 items-center gap-2 text-xs font-semibold">
               {row.mentions ? <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-amber-700"><AtSign size={12} />{row.mentions}</span> : null}

@@ -5,10 +5,8 @@ from fastapi import HTTPException
 from sqlmodel import select
 
 from src.db.conversations import ChatReportCreate, ConversationReport, DirectChatOpen
-from src.db.goal_comments import GoalCommentCreate
 from src.db.users import User
 from src.services.connect import chats, people
-from src.services.goals import comments
 from src.tests.test_goal_sharing import OTHER_EMAIL, _join, _personal, _session
 from src.tests.test_goals import ADMIN, LEARNER, OTHER, _user
 
@@ -129,23 +127,6 @@ def test_reports_keep_a_copy_of_the_message_and_block_by_default():
         with pytest.raises(HTTPException) as outsider:
             chats.get_chat(db, _user(ADMIN), chat["conversation_uuid"])
         assert outsider.value.status_code == 404
-
-
-def test_comments_arrive_as_one_card_that_gathers_until_read():
-    with _session() as db:
-        uuid = _personal(db)["goal_uuid"]
-        _join(db, uuid, OTHER, OTHER_EMAIL, "commenter")
-        for body in ("Love this", "What about @lee's budget?", "One more idea"):
-            comments.add_comment(db, _user(OTHER), uuid, GoalCommentCreate(body=body))
-        chat = _chat_with(db, LEARNER)
-        card = chat["last_message"]
-        assert card["kind"] == "card" and card["body"] == "3 comments on Earn a nursing degree, and mentioned you"
-        assert card["card"]["goal_uuid"] == uuid and card["card"]["excerpt"] == "One more idea"
-        assert chat["unread"] == 1
-        chats.mark_read(db, _user(LEARNER), chat["conversation_uuid"])
-        comments.add_comment(db, _user(OTHER), uuid, GoalCommentCreate(body="Fresh thought"))
-        messages = chats.get_chat(db, _user(LEARNER), chat["conversation_uuid"])["messages"]
-        assert [item["body"] for item in messages] == ["3 comments on Earn a nursing degree, and mentioned you", "Commented on Earn a nursing degree"]
 
 
 def test_settings_live_on_the_user():

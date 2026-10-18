@@ -7,7 +7,7 @@ import toast from 'react-hot-toast'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
 import { useGoalEditing } from '@components/Goals/edit/GoalEditing'
 import GoalShareDialog from '@components/Goals/share/GoalShareDialog'
-import { GoalCommentsChip } from '@components/Goals/comments/GoalComments'
+import { GoalChatChip } from '@components/Goals/chat/GoalChat'
 import { getUriWithOrg } from '@services/config/config'
 import { goalUrl, isGoalsKey } from '@services/goals/goals'
 import { goalLifecycleApi } from '@services/goals/lifecycle'
@@ -62,7 +62,7 @@ export default function GoalHeaderActions({ orgslug, goal, badge, token, onBack,
       {others.length ? <span className="flex -space-x-2" aria-hidden="true">{others.slice(0, 3).map((person, index) => <span key={person.collaborator_uuid || `owner-${index}`} className="rounded-full ring-2 ring-[var(--plan-deep)]"><Avatar user={person.user} /></span>)}</span> : <UserPlus size={15} aria-hidden="true" />}
       <span className="max-w-40 truncate">{label}</span>
     </button>
-    <GoalCommentsChip className={chip} />
+    <GoalChatChip className={chip} />
     <span className="flex-1" />
     {coachWorking ? <span className="flex min-h-10 items-center gap-1.5 px-1 text-xs font-bold text-[var(--plan-deep-ink)]" title="Coach’s suggestions show on the goal; ones you haven’t reviewed stay after the session ends">
       <Sparkles size={14} aria-hidden="true" className="animate-pulse motion-reduce:animate-none" />Coach is working with you

@@ -1,11 +1,9 @@
-"""Who works on a goal: roles, invitations, collaborators, comments, attachments and the activity log; plus goal lifecycle."""
+"""Who works on a goal: roles, invitations, collaborators, attachments and the activity log; plus goal lifecycle."""
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
 from sqlmodel import Session
 
 from src.core.events.database import get_db_session
-from src.db.goal_comments import GoalCommentCreate, GoalCommentUpdate
 from src.db.goals import GoalFinish
 from src.db.planning import (
     OrganizationPlanRoleCreate,
@@ -21,7 +19,7 @@ from src.db.planning import (
 )
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
-from src.services.goals import comments, lifecycle, sharing, sharing_log, sharing_roles
+from src.services.goals import lifecycle, sharing, sharing_log, sharing_roles
 
 router = APIRouter()
 DB = Depends(get_db_session)
@@ -124,45 +122,11 @@ def api_transfer_ownership(goal_uuid: str, payload: PlanOwnershipTransfer, db: S
     return sharing.transfer_ownership(db, user, goal_uuid, payload)
 
 
-# Activity log, comments and attachments ---------------------------------------------------------
+# Activity log and attachments ---------------------------------------------------------
 
 @router.get("/{goal_uuid}/activity")
 def api_activity(goal_uuid: str, db: Session = DB, user: PublicUser = USER):
     return sharing_log.list_activity(db, user, goal_uuid)
-
-
-class ThreadResolve(BaseModel):
-    resolved: bool = True
-
-
-@router.get("/{goal_uuid}/comments")
-def api_comments(goal_uuid: str, db: Session = DB, user: PublicUser = USER):
-    return comments.list_comments(db, user, goal_uuid)
-
-
-@router.post("/{goal_uuid}/comments")
-def api_add_comment(goal_uuid: str, payload: GoalCommentCreate, db: Session = DB, user: PublicUser = USER):
-    return comments.add_comment(db, user, goal_uuid, payload)
-
-
-@router.patch("/{goal_uuid}/comments/{comment_uuid}")
-def api_update_comment(goal_uuid: str, comment_uuid: str, payload: GoalCommentUpdate, db: Session = DB, user: PublicUser = USER):
-    return comments.update_comment(db, user, goal_uuid, comment_uuid, payload)
-
-
-@router.delete("/{goal_uuid}/comments/{comment_uuid}")
-def api_delete_comment(goal_uuid: str, comment_uuid: str, db: Session = DB, user: PublicUser = USER):
-    return comments.delete_comment(db, user, goal_uuid, comment_uuid)
-
-
-@router.post("/{goal_uuid}/comments/{comment_uuid}/resolve")
-def api_resolve_thread(goal_uuid: str, comment_uuid: str, payload: ThreadResolve, db: Session = DB, user: PublicUser = USER):
-    return comments.resolve_thread(db, user, goal_uuid, comment_uuid, payload.resolved)
-
-
-@router.get("/{goal_uuid}/mention-candidates")
-def api_mention_candidates(goal_uuid: str, q: str = "", db: Session = DB, user: PublicUser = USER):
-    return comments.mention_candidates(db, user, goal_uuid, q)
 
 
 @router.get("/{goal_uuid}/attachments")

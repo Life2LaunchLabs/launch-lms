@@ -18,7 +18,7 @@ from src.db.conversations import (
 )
 from src.db.users import PublicUser, User
 from src.services.connect import people
-from src.services.goals.sharing_roles import _stamp
+from src.services.goals.sharing_roles import _stamp, org_summary
 
 PAGE = 60
 # Statuses that keep a chat in someone's list.
@@ -94,11 +94,11 @@ def ensure_direct(db: Session, a: int, b: int) -> Conversation | None:
     return conversation
 
 
-def post(db: Session, conversation: Conversation, sender_id: int | None, body: str, kind: str = "text", card: dict | None = None) -> ConversationMessage:
+def post(db: Session, conversation: Conversation, sender_id: int | None, body: str, kind: str = "text", card: dict | None = None, refs: list[dict] | None = None) -> ConversationMessage:
     now = _stamp()
     message = ConversationMessage(
         message_uuid=f"chat_message_{uuid4()}", conversation_id=int(conversation.id), sender_user_id=sender_id,  # type: ignore[arg-type]
-        kind=kind, body=body, card=card, creation_date=now, update_date=now,
+        kind=kind, body=body, card=card, refs=refs or None, creation_date=now, update_date=now,
     )
     conversation.last_message_at, conversation.update_date = now, now
     db.add(message)
@@ -130,9 +130,13 @@ def _last(db: Session, conversation: Conversation) -> ConversationMessage | None
     )).first()
 
 
-def _message_dict(db: Session, message: ConversationMessage, viewer_id: int) -> dict:
+def _message_dict(db: Session, message: ConversationMessage, viewer_id: int, cache: dict | None = None) -> dict:
+    from src.services.connect import workspace
+
+    refs = workspace.resolve(db, message.refs, {} if cache is None else cache)
     return {
-        "message_uuid": message.message_uuid, "kind": message.kind, "body": message.body, "card": message.card,
+        "message_uuid": message.message_uuid, "kind": message.kind, "body": message.body, "card": message.card, "refs": refs,
+        "preview": workspace.plain(db, message.body, message.refs) if message.refs else message.body,
         "sender": people.person(db, message.sender_user_id), "mine": message.sender_user_id == viewer_id,
         "creation_date": message.creation_date, "update_date": message.update_date,
     }
@@ -155,6 +159,8 @@ def _chat_dict(db: Session, conversation: Conversation, member: ConversationMemb
         "unread": _unread(db, conversation, member) if member.status in LISTED else 0,
         "last_message": _message_dict(db, last, member.user_id) if last else None,
         "last_message_at": conversation.last_message_at,
+        # An organization's chat with a learner names the organization, so it can be tagged.
+        "org": org_summary(db, conversation.org_id) if conversation.kind == "school" else None,
     }
 
 
@@ -176,16 +182,31 @@ def counts(db: Session, current_user: PublicUser) -> dict:
     return {"unread": listed["unread"], "requests": listed["requests"]}
 
 
-def get_chat(db: Session, current_user: PublicUser, conversation_uuid: str, before: str | None = None) -> dict:
-    conversation, member = _membership(db, conversation_uuid, current_user.id)
+def messages_of(db: Session, conversation: Conversation, viewer_id: int, before: str | None = None, goal_uuid: str | None = None, step_uuid: str | None = None) -> dict:
+    """A page of a chat's messages, newest last, narrowed to one plan or step when asked."""
+    from src.services.connect import workspace
+
     query = select(ConversationMessage).where(ConversationMessage.conversation_id == conversation.id)
+    if goal_uuid:
+        query = workspace.filtered(query, db, conversation, goal_uuid, step_uuid)
     if before:
         query = query.where(ConversationMessage.creation_date < before)
     messages = list(reversed(db.exec(query.order_by(col(ConversationMessage.creation_date).desc(), col(ConversationMessage.id).desc()).limit(PAGE)).all()))
+    cache: dict = {}
     return {
-        **_chat_dict(db, conversation, member),
-        "messages": [_message_dict(db, message, current_user.id) for message in messages],
-        "has_more": len(messages) == PAGE,
+        "messages": [_message_dict(db, message, viewer_id, cache) for message in messages], "has_more": len(messages) == PAGE,
+        # A shared workspace: the plans it's about, to filter by and to tag.
+        "topics": workspace.topics(db, conversation) if conversation.kind in workspace.KINDS else [],
+    }
+
+
+def get_chat(db: Session, current_user: PublicUser, conversation_uuid: str, before: str | None = None, goal_uuid: str | None = None, step_uuid: str | None = None) -> dict:
+    from src.services.connect import workspace
+
+    conversation, member = _membership(db, conversation_uuid, current_user.id)
+    return {
+        **_chat_dict(db, conversation, member), "can_post": workspace.can_post(db, conversation, current_user.id),
+        **messages_of(db, conversation, current_user.id, before, goal_uuid, step_uuid),
     }
 
 
@@ -221,10 +242,14 @@ def open_direct(db: Session, current_user: PublicUser, payload: DirectChatOpen) 
 
 
 def send(db: Session, current_user: PublicUser, conversation_uuid: str, body: str) -> dict:
+    from src.services.connect import workspace
+
     conversation, member = _membership(db, conversation_uuid, current_user.id)
-    text = (body or "").strip()
+    text, refs, rows = workspace.prepare(db, conversation, body or "")
     if not text:
         raise HTTPException(status_code=422, detail="Write a message first")
+    if not workspace.can_post(db, conversation, current_user.id):
+        raise HTTPException(status_code=403, detail="You can read this chat, but only people who can comment write in it")
     if member.status == "request":
         raise HTTPException(status_code=409, detail="Accept the request to reply")
     if member.status != "active":
@@ -237,9 +262,11 @@ def send(db: Session, current_user: PublicUser, conversation_uuid: str, body: st
             ConversationMessage.conversation_id == conversation.id, ConversationMessage.sender_user_id == current_user.id,
         )).first():
             raise HTTPException(status_code=409, detail="You can send more once they accept your request")
-    message = post(db, conversation, current_user.id, text)
+    message = post(db, conversation, current_user.id, text, refs=refs)
+    workspace.attach(db, message, rows)
+    outcomes = workspace.after_send(db, current_user, conversation, message)
     db.commit()
-    return _message_dict(db, message, current_user.id)
+    return {**_message_dict(db, message, current_user.id), "mentions": outcomes}
 
 
 def mark_read(db: Session, current_user: PublicUser, conversation_uuid: str) -> dict:

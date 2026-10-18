@@ -81,3 +81,9 @@
   .hub-shell .org-layout-shell { height: auto !important; min-height: 0; overflow: visible !important; border: 0 !important; border-radius: 0; box-shadow: none; }
   .hub-shell .org-page-body { overflow: visible !important; }
 }
+
+/* A plan's chat docks beside the page like Coach does, and the page narrows for it (components/Goals/chat/GoalChat.tsx). */
+:root { --side-chat-width: min(420px, calc(100vw - 24px)); }
+@media (min-width: 768px) {
+  .hub-shell[data-side-chat] { padding-right: calc(var(--side-chat-width) + 24px); }
+}

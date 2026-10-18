@@ -34,7 +34,7 @@ function preview(chat: ChatSummary) {
   const last = chat.last_message
   if (!last) return ''
   if (chat.status === 'request') return 'Wants to chat with you'
-  return `${last.mine ? 'You: ' : ''}${last.body}`
+  return `${last.mine ? 'You: ' : ''}${last.preview || last.body}`
 }
 
 /** Connect: everyone you chat with in one list, finding someone by @handle, and the open chat beside it. */

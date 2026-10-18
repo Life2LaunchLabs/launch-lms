@@ -16,7 +16,7 @@ from src.db.usergroups import UserGroup
 from src.db.users import PublicUser, User
 from src.security.org_auth import is_org_admin
 from src.services.connect import chats, people
-from src.services.goals.sharing_roles import _stamp
+from src.services.goals.sharing_roles import _stamp, org_summary
 from src.services.school import chats as school_chats
 
 ROLE_NAMES = {"viewer": "Viewer", "commenter": "Commenter", "editor": "Editor"}
@@ -50,24 +50,26 @@ def _notes(db: Session, current_user: PublicUser, org_id: int, student_id: int) 
              "can_delete": admin or row.author_user_id == current_user.id} for row in rows]
 
 
-def student(db: Session, current_user: PublicUser, org_id: int, student_id: int) -> dict:
-    """The student's school team, their school chat (to read, and to write in if you're on the team) and staff notes."""
+def student_chat(db: Session, current_user: PublicUser, org_id: int, student_id: int, before: str | None = None, goal_uuid: str | None = None, step_uuid: str | None = None) -> dict:
+    """The learner's chat with the organization: to read, filtered by plan or step, and to write in if you're in it."""
     _require(db, current_user, org_id, student_id)
     conversation = school_chats.school_chat(db, org_id, student_id)
     db.commit()
     member = db.exec(select(ConversationMember).where(ConversationMember.conversation_id == conversation.id, ConversationMember.user_id == current_user.id)).first()
     if member:
-        chat = chats.get_chat(db, current_user, conversation.conversation_uuid)
-    else:
-        # Admins who aren't on the team can read the chat but don't post in it.
-        messages = db.exec(select(ConversationMessage).where(ConversationMessage.conversation_id == conversation.id)
-                           .order_by(col(ConversationMessage.creation_date).desc(), col(ConversationMessage.id).desc()).limit(chats.PAGE)).all()
-        chat = {"conversation_uuid": conversation.conversation_uuid, "kind": conversation.kind, "title": conversation.title,
-                "messages": [chats._message_dict(db, item, current_user.id) for item in reversed(messages)]}
-    return {
-        "student": people.person(db, student_id), "team": team_of(db, org_id, student_id),
-        "chat": {**chat, "can_post": member is not None}, "notes": _notes(db, current_user, org_id, student_id),
-    }
+        return chats.get_chat(db, current_user, conversation.conversation_uuid, before, goal_uuid, step_uuid)
+    # Admins who aren't in the chat can read it but don't post in it.
+    return {"conversation_uuid": conversation.conversation_uuid, "kind": conversation.kind, "title": conversation.title,
+            "people": [item for item in (people.person(db, row.user_id) for row in db.exec(select(ConversationMember).where(ConversationMember.conversation_id == conversation.id)).all()) if item],
+            "status": "active", "accepted": True, "waiting_for_them": False, "unavailable": False, "unread": 0, "last_message": None,
+            "last_message_at": conversation.last_message_at, "can_post": False, "org": org_summary(db, org_id),
+            **chats.messages_of(db, conversation, current_user.id, before, goal_uuid, step_uuid)}
+
+
+def student(db: Session, current_user: PublicUser, org_id: int, student_id: int) -> dict:
+    """The student's team and staff notes. Their chat comes from student_chat."""
+    _require(db, current_user, org_id, student_id)
+    return {"student": people.person(db, student_id), "team": team_of(db, org_id, student_id), "notes": _notes(db, current_user, org_id, student_id)}
 
 
 def add_note(db: Session, current_user: PublicUser, org_id: int, student_id: int, body: str) -> list[dict]:
@@ -126,16 +128,19 @@ def waiting(db: Session, current_user: PublicUser, org_id: int, mine: bool = Tru
         # Students in every group that has staff.
         groups = list(set(db.exec(select(UserGroupStaff.usergroup_id).where(UserGroupStaff.org_id == org_id)).all()))
         students = {int(item) for item in db.exec(select(UserGroupUser.user_id).where(col(UserGroupUser.usergroup_id).in_(groups)).distinct()).all()} if groups else set()
+    me = current_user.user_uuid
     rows = []
     for student_id in sorted(students):
         conversation = school_chats.find(db, org_id, student_id)
         member = db.exec(select(ConversationMember).where(ConversationMember.conversation_id == conversation.id, ConversationMember.user_id == current_user.id)).first() if conversation else None
-        unread = chats._unread(db, conversation, member) if conversation and member else _unanswered(db, conversation, student_id) if conversation and not mine else 0
+        unread = _unanswered(db, conversation, student_id) if conversation and not mine else chats._unread(db, conversation, member) if conversation and member else 0
         mentions = 0
         if conversation and member:
-            for card in db.exec(select(ConversationMessage.card).where(ConversationMessage.conversation_id == conversation.id, ConversationMessage.kind == "card",
-                                                                      ConversationMessage.update_date > (member.last_read_at or ""))).all():
-                mentions += int(current_user.id in ((card or {}).get("mentioned_user_ids") or []))
+            for card, refs in db.exec(select(ConversationMessage.card, ConversationMessage.refs).where(
+                ConversationMessage.conversation_id == conversation.id, ConversationMessage.update_date > (member.last_read_at or ""),
+            )).all():
+                tagged = current_user.id in ((card or {}).get("mentioned_user_ids") or []) or any(ref.get("user_uuid") == me for ref in refs or [])
+                mentions += int(tagged)
         reviews = _reviews(db, org_id, student_id, current_user.id if mine else None)
         if unread or mentions or reviews:
             last = chats._last(db, conversation) if conversation else None

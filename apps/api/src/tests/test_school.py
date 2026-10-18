@@ -5,14 +5,13 @@ from fastapi import HTTPException
 from sqlmodel import select
 
 from src.db.conversations import DirectChatOpen
-from src.db.goal_comments import GoalCommentCreate
 from src.db.goals import Goal, GoalAssignmentCreate
 from src.db.planning import PlanCollaborator
 from src.db.school import GroupStaffSet
 from src.db.user_organizations import UserOrganization
 from src.db.users import User
 from src.services.connect import chats
-from src.services.goals import access, assignments, comments
+from src.services.goals import access, assignments
 from src.services.school import chats as school_chats, staff, views
 from src.tests.test_goal_sharing import _session as _goal_session
 from src.tests.test_goals import ADMIN, LEARNER, NOW, OTHER, _published, _user
@@ -57,7 +56,7 @@ def test_group_staff_join_the_goals_they_cover_and_each_students_school_chat():
         granted = access.capabilities(db, _goal(db, LEARNER, first), TEACHER)
         assert "comment" in granted and "edit_structure" not in granted
         chat = school_chats.find(db, 1, LEARNER)
-        assert chat.title == "Studio" and {member["username"] for member in chats.get_chat(db, _user(TEACHER), chat.conversation_uuid)["people"]} == {"lee"}
+        assert chat.title == "Studio" and {member["username"] for member in chats.get_chat(db, _user(TEACHER), chat.conversation_uuid)["people"]} == {"lee", "teacher"}
         # Narrowed to one goal: they come off the other.
         _staff(db, role_key="editor", assignment_uuids=[first])
         assert "edit_schedule" in access.capabilities(db, _goal(db, OTHER, first), TEACHER)
@@ -91,9 +90,9 @@ def test_staff_and_students_talk_in_the_school_chat_and_mentions_wait_on_staff()
         opened = chats.open_direct(db, _user(TEACHER), DirectChatOpen(handle="lee"))
         assert opened["kind"] == "school" and opened["conversation_uuid"] == school_chats.find(db, 1, LEARNER).conversation_uuid
         goal = _goal(db, LEARNER, uuid)
-        comments.add_comment(db, _user(LEARNER), goal.goal_uuid, GoalCommentCreate(body="@teach is my plan ok?"))
+        chats.send(db, _user(LEARNER), opened["conversation_uuid"], f"<user:user_4> is <plan:{goal.goal_uuid}> ok?")
         school = chats.get_chat(db, _user(TEACHER), opened["conversation_uuid"])
-        assert school["last_message"]["body"] == "Commented on College ready"
+        assert school["last_message"]["preview"] == "@Tess Teacher is College ready ok?"
         waiting = views.waiting(db, _user(TEACHER), 1)
         assert [(row["student"]["username"], row["unread"], row["mentions"]) for row in waiting["students"]] == [("lee", 1, 1)]
         chats.mark_read(db, _user(TEACHER), opened["conversation_uuid"])
@@ -101,7 +100,7 @@ def test_staff_and_students_talk_in_the_school_chat_and_mentions_wait_on_staff()
         # Admins looking across staff see students whose messages nobody on staff has answered.
         chats.send(db, _user(LEARNER), opened["conversation_uuid"], "Hello?")
         everyone_rows = views.waiting(db, _user(ADMIN), 1, mine=False)["students"]
-        assert [(row["student"]["username"], row["unread"]) for row in everyone_rows] == [("lee", 1)]
+        assert [(row["student"]["username"], row["unread"]) for row in everyone_rows] == [("lee", 2)]
         chats.send(db, _user(TEACHER), opened["conversation_uuid"], "Hi Lee")
         assert views.waiting(db, _user(ADMIN), 1, mine=False)["students"] == []
         with pytest.raises(HTTPException) as everyone:
@@ -117,8 +116,10 @@ def test_a_students_page_shows_their_team_chat_and_staff_only_notes():
         assert [note["body"] for note in notes] == ["Talked about nursing programs"]
         seen = views.student(db, _user(ADMIN), 1, LEARNER)
         assert [(item["user"]["username"], item["groups"][0]["role"]) for item in seen["team"]] == [("teach", "Commenter")]
-        assert seen["chat"]["can_post"] is False and seen["notes"][0]["can_delete"]
-        assert views.student(db, _user(TEACHER), 1, LEARNER)["chat"]["can_post"] is True
+        assert seen["notes"][0]["can_delete"]
+        # Admins with a role on the student's plans are in their chat; other admins only read it.
+        assert views.student_chat(db, _user(ADMIN), 1, LEARNER)["can_post"] is True
+        assert views.student_chat(db, _user(TEACHER), 1, LEARNER)["can_post"] is True
         with pytest.raises(HTTPException) as classmate:
             views.student(db, _user(OTHER), 1, LEARNER)
         assert classmate.value.status_code == 404
