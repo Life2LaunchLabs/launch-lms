@@ -1,4 +1,4 @@
-"""Who someone may chat with: people they share a goal with, and people who chose to be findable."""
+"""Who someone may chat with: people they share a goal or a portfolio with, and people who chose to be findable."""
 
 from __future__ import annotations
 
@@ -8,6 +8,8 @@ from sqlmodel import Session, col, select
 from src.db.conversations import UserBlock
 from src.db.goals import Goal
 from src.db.planning import PlanCollaborator
+from src.db.portfolio import Portfolio
+from src.db.portfolio_people import PortfolioPerson
 from src.db.users import PublicUser, User
 from src.services.goals.sharing_roles import user_summary
 
@@ -77,8 +79,20 @@ def goal_people(db: Session, user_id: int) -> set[int]:
     return people
 
 
-def shares_a_goal(db: Session, a: int, b: int) -> bool:
-    return bool(_goal_ids(db, a) & _goal_ids(db, b))
+def _portfolio_people(db: Session, user_id: int) -> set[int]:
+    """People on this person's portfolio, and the owners of portfolios they're on."""
+    added = db.exec(select(PortfolioPerson.user_id).join(Portfolio, Portfolio.id == PortfolioPerson.portfolio_id).where(Portfolio.user_id == user_id)).all()
+    owners = db.exec(select(Portfolio.user_id).join(PortfolioPerson, PortfolioPerson.portfolio_id == Portfolio.id).where(PortfolioPerson.user_id == user_id)).all()
+    return {int(item) for item in [*added, *owners] if item}
+
+
+def known_people(db: Session, user_id: int) -> set[int]:
+    """Everyone this person already works with: on a goal or a portfolio."""
+    return (goal_people(db, user_id) | _portfolio_people(db, user_id)) - {user_id}
+
+
+def knows(db: Session, a: int, b: int) -> bool:
+    return bool(_goal_ids(db, a) & _goal_ids(db, b)) or b in _portfolio_people(db, a)
 
 
 def search(db: Session, current_user: PublicUser, query: str) -> list[dict]:
@@ -87,7 +101,7 @@ def search(db: Session, current_user: PublicUser, query: str) -> list[dict]:
     if len(needle) < MIN_SEARCH:
         return []
     hidden = blocked_by_me(db, current_user.id) | {current_user.id}
-    known = goal_people(db, current_user.id) - hidden
+    known = known_people(db, current_user.id) - hidden
     rows: list[dict] = []
     for summary in (person(db, user_id) for user_id in known):
         if summary and (needle in summary["username"].lower() or needle in summary["name"].lower()):

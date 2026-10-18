@@ -7,7 +7,7 @@ from src.core.events.database import get_db_session
 from src.db.conversations import ChatMessageCreate, ChatReportCreate, ConnectSettingsUpdate, DirectChatOpen
 from src.db.users import PublicUser
 from src.security.auth import get_authenticated_user
-from src.services.connect import chats, people
+from src.services.connect import chats, people, profile
 
 router = APIRouter()
 DB = Depends(get_db_session)
@@ -77,6 +77,11 @@ async def unblock(user_uuid: str, current_user: PublicUser = USER, db_session: S
 @router.get("/search")
 async def search_people(q: str = "", current_user: PublicUser = USER, db_session: Session = DB):
     return people.search(db_session, current_user, q)
+
+
+@router.get("/people/{username}")
+async def person_profile(username: str, current_user: PublicUser = USER, db_session: Session = DB):
+    return profile.profile(db_session, current_user, username)
 
 
 @router.get("/settings")

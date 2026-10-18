@@ -22,11 +22,22 @@ export interface GoalCommentsCard {
   excerpt: string
 }
 
+/** Portfolio news: someone was added to it, or comments landed on it. */
+export interface PortfolioCard {
+  type: 'portfolio_shared' | 'portfolio_comments'
+  username: string
+  role?: string
+  item_title?: string
+  count?: number
+  comment_uuid?: string
+  excerpt?: string
+}
+
 export interface ChatMessage {
   message_uuid: string
   kind: 'text' | 'card'
   body: string
-  card: GoalCommentsCard | null
+  card: GoalCommentsCard | PortfolioCard | null
   sender: PersonSummary | null
   mine: boolean
   creation_date: string

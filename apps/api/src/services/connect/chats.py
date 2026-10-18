@@ -201,7 +201,7 @@ def open_direct(db: Session, current_user: PublicUser, payload: DirectChatOpen) 
         raise HTTPException(status_code=404, detail="No one goes by that handle")
     conversation = _direct(db, current_user.id, target_id)
     if not conversation:
-        known = people.shares_a_goal(db, current_user.id, target_id)
+        known = people.knows(db, current_user.id, target_id)
         if not known and not people.discoverable(target):
             raise HTTPException(status_code=404, detail="No one goes by that handle")
         conversation = _create_direct(db, current_user.id, target_id, "active" if known else "request")

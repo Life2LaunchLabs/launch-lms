@@ -19,6 +19,8 @@ import { TimelineView, type TimelineEntry } from './Timeline'
 import { EXPERIENCE_TYPES, ExperienceEditorDialog } from './ExperienceEditor'
 import { ProjectEditorDialog } from './ProjectEditorDialog'
 import { PortfolioShareButton } from './PortfolioShareDialog'
+import { PortfolioPeopleButton } from './PortfolioPeople'
+import { PortfolioVisitorBar } from './PortfolioVisitorBar'
 import PortfolioSettingsMenu from './PortfolioSettingsMenu'
 import Overview from './PortfolioOverview'
 import { BadgesView } from './PortfolioBadges'
@@ -203,8 +205,9 @@ export function PortfolioShell({ initialShell, orgslug, username, owner = false,
               <Button variant="surface" size="sm" onClick={() => setEditingIdentity(true)}><Pencil className="h-4 w-4" />Edit</Button>
               <Button asChild variant="surface" size="sm"><Link href={getUriWithOrg(orgslug, '/portfolio/preview')}><Eye className="h-4 w-4" />Preview</Link></Button>
               <PortfolioShareButton orgslug={orgslug} username={username} displayName={displayName} published={Boolean(shell.portfolio.published_at)} onPublish={publish} busy={busy} />
+              <PortfolioPeopleButton token={token} />
               {publishControl}
-            </div> : null}
+            </div> : !owner && !preview && username ? <PortfolioVisitorBar orgslug={orgslug} username={username} token={token} shell={shell} /> : null}
           </div>
         </header>
         {editing && showLaunchGuide ? <div className="mt-6"><ChecklistBanner checklist={shell.checklist} orgslug={orgslug} onPublish={publish} busy={busy} /></div> : null}

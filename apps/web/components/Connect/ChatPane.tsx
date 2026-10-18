@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import useSWR, { useSWRConfig } from 'swr'
 import toast from 'react-hot-toast'
-import { ArrowLeft, Ban, Flag, Loader2, MessageCircle, MoreHorizontal, Send } from 'lucide-react'
+import { ArrowLeft, Ban, Flag, Loader2, MessageCircle, MoreHorizontal, Send, UserRound } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@components/ui/button'
 import { Checkbox } from '@components/ui/checkbox'
@@ -103,7 +103,7 @@ export default function ChatPane({ orgslug, chatUuid }: { orgslug: string; chatU
       <Link href={listHref} aria-label="Back to Connect" className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-foreground/[0.06] md:hidden"><ArrowLeft size={18} /></Link>
       <PersonAvatar user={person as any} size="md" />
       <div className="min-w-0 flex-1">
-        <h2 className="truncate font-black leading-tight">{chat.title}</h2>
+        {person && chat.kind === 'direct' ? <Link href={getUriWithOrg(orgslug, `/user/${encodeURIComponent(person.username)}`)} className="block truncate font-black leading-tight hover:underline">{chat.title}</Link> : <h2 className="truncate font-black leading-tight">{chat.title}</h2>}
         {person ? <p className="truncate text-xs text-muted-foreground">@{person.username}</p> : null}
       </div>
       {chat.kind === 'direct' ? <DropdownMenu modal={false}>
@@ -154,6 +154,17 @@ function Bubble({ message, orgslug, links, first }: { message: ChatMessage; orgs
         <span className="mt-1 block font-black leading-snug">{message.body}</span>
         {card.excerpt ? <span className="mt-1 line-clamp-2 block text-sm text-muted-foreground">&ldquo;{card.excerpt}&rdquo;</span> : null}
         <span className="mt-2 flex items-center justify-between text-xs text-muted-foreground"><span className="font-semibold text-foreground">Open goal &rarr;</span>{time}</span>
+      </Link>
+    </li>
+  }
+  if (message.kind === 'card' && (message.card?.type === 'portfolio_shared' || message.card?.type === 'portfolio_comments')) {
+    const card = message.card
+    return <li className={cn('flex', message.mine ? 'justify-end' : 'justify-start', first && 'mt-2')}>
+      <Link href={getUriWithOrg(orgslug, `/user/${encodeURIComponent(card.username)}`)} className="block w-full max-w-[340px] rounded-3xl border border-border bg-background p-3.5 transition-transform hover:-translate-y-0.5 hover:shadow-md">
+        <span className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-[var(--org-primary-color)]"><UserRound size={14} />Portfolio</span>
+        <span className="mt-1 block font-black leading-snug">{message.body}</span>
+        {card.excerpt ? <span className="mt-1 line-clamp-2 block text-sm text-muted-foreground">&ldquo;{card.excerpt}&rdquo;</span> : null}
+        <span className="mt-2 flex items-center justify-between text-xs text-muted-foreground"><span className="font-semibold text-foreground">Open portfolio &rarr;</span>{time}</span>
       </Link>
     </li>
   }

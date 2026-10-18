@@ -6,8 +6,14 @@ export async function getMyPortfolio(token: string, preview = false) {
   return normalizeTimelineProjects(await errorHandling(response))
 }
 
-export async function getPublicPortfolio(orgId: number, username: string) {
-  const response = await fetch(`${getAPIUrl()}public/portfolio/${orgId}/${encodeURIComponent(username)}`, { cache: 'no-store' })
+/**
+ * Someone's portfolio. Signed in, it's fetched as the viewer: people they added see it even while
+ * it's private, and the shell says what they can do (``access``). Signed out, only a published one.
+ */
+export async function getPublicPortfolio(orgId: number, username: string, token?: string | null) {
+  const shared = token ? await fetch(`${getAPIUrl()}portfolio/shared/${orgId}/${encodeURIComponent(username)}`, RequestBodyWithAuthHeader('GET', null, { revalidate: 0 }, token)) : null
+  // A stale sign-in still shows what everyone can see.
+  const response = shared && shared.status !== 401 ? shared : await fetch(`${getAPIUrl()}public/portfolio/${orgId}/${encodeURIComponent(username)}`, { cache: 'no-store' })
   return normalizeTimelineProjects(await errorHandling(response))
 }
 
@@ -17,12 +23,24 @@ function normalizeTimelineProjects<T extends { timeline?: Array<Record<string, a
   return shell
 }
 
-export async function getPublicPortfolioProject(orgId: number, username: string, slug: string) {
+export async function getPublicPortfolioProject(orgId: number, username: string, slug: string, token?: string | null) {
+  if (token) {
+    const shell = await getPublicPortfolio(orgId, username, token)
+    const project = shell.projects?.find((item: any) => item.slug === slug)
+    if (!project) throw new Error('Project item not found')
+    return { portfolio: shell.portfolio, project }
+  }
   const response = await fetch(`${getAPIUrl()}public/portfolio/${orgId}/${encodeURIComponent(username)}/projects/${encodeURIComponent(slug)}`, { cache: 'no-store' })
   return errorHandling(response)
 }
 
-export async function getPublicPortfolioTimeline(orgId: number, username: string, slug: string) {
+export async function getPublicPortfolioTimeline(orgId: number, username: string, slug: string, token?: string | null) {
+  if (token) {
+    const shell = await getPublicPortfolio(orgId, username, token)
+    const timeline = shell.timeline?.find((item: any) => item.slug === slug)
+    if (!timeline) throw new Error('Timeline experience not found')
+    return { portfolio: shell.portfolio, timeline }
+  }
   const response = await fetch(`${getAPIUrl()}public/portfolio/${orgId}/${encodeURIComponent(username)}/timeline/${encodeURIComponent(slug)}`, { cache: 'no-store' })
   return normalizeTimelineProjects(await errorHandling(response))
 }
