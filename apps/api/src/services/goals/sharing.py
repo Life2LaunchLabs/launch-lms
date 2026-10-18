@@ -33,6 +33,7 @@ from src.db.users import PublicUser, User
 from src.services.goals import access
 from src.services.goals.sharing_roles import (
     _aware,
+    _invitation_label,
     _now,
     _require_grantable,
     _role,
@@ -66,6 +67,20 @@ def _invitation_message(db: Session, goal: Goal, invitation: PlanInvitation, rol
     )
 
 
+def _recipient(db: Session, raw: str) -> tuple[str, User | None]:
+    """Who an invitation or request is for: an email address, or an @handle on this platform."""
+    value = (raw or "").strip()
+    if value.startswith("@") or (value and "@" not in value):
+        handle = value.lstrip("@")
+        user = db.exec(select(User).where(User.username == handle)).first()
+        if not user:
+            raise HTTPException(status_code=404, detail=f"No one goes by @{handle}")
+        return user.email, user
+    if "@" not in value:
+        raise HTTPException(status_code=422, detail="A valid email is required")
+    return value, db.exec(select(User).where(User.email == value)).first() or db.exec(select(User).where(User.email == value.lower())).first()
+
+
 def create_invitation(db: Session, current_user: PublicUser, goal_uuid: str, payload: PlanInvitationCreate) -> dict:
     goal = access.goal_or_404(db, goal_uuid)
     access.require(db, goal, current_user.id, "manage_collaborators")
@@ -75,11 +90,8 @@ def create_invitation(db: Session, current_user: PublicUser, goal_uuid: str, pay
     if not role:
         raise HTTPException(status_code=404, detail="Goal role not found")
     _require_grantable(db, goal, current_user.id, role)
-    email = payload.email.strip()
+    email, target = _recipient(db, payload.email)
     normalized = email.lower()
-    if not email or "@" not in email:
-        raise HTTPException(status_code=422, detail="A valid email is required")
-    target = db.exec(select(User).where(User.email == email)).first() or db.exec(select(User).where(User.email == normalized)).first()
     if target and (target.id == goal.owner_user_id or access.membership(db, goal, int(target.id))):  # type: ignore[arg-type]
         raise HTTPException(status_code=409, detail="This person is already a collaborator")
     if db.exec(select(PlanInvitation).where(PlanInvitation.goal_id == goal.id, PlanInvitation.email_normalized == normalized, PlanInvitation.status == PlanInvitationStatus.PENDING)).first():
@@ -94,7 +106,7 @@ def create_invitation(db: Session, current_user: PublicUser, goal_uuid: str, pay
     _invitation_message(db, goal, invitation, role.name)
     access.log(db, goal, current_user.id, "invitation.created", {"kind": _value(payload.kind), "role_key": role.key})
     db.commit()
-    return {"invitation_uuid": invitation.invitation_uuid, "status": "pending", "email": email, "kind": _value(payload.kind), "role": role.name}
+    return {"invitation_uuid": invitation.invitation_uuid, "status": "pending", "email": _invitation_label(db, invitation), "kind": _value(payload.kind), "role": role.name}
 
 
 def _resolve_messages(db: Session, invitation: PlanInvitation, status: str) -> None:
@@ -191,8 +203,10 @@ def respond_to_invitation(db: Session, current_user: PublicUser, invitation_uuid
 # Collaborator requests -------------------------------------------------------------------
 
 def _request_dict(db: Session, item: PlanCollaboratorRequest) -> dict:
+    # Someone already here shows by handle, so asking for them doesn't hand out their email.
+    member = db.exec(select(User).where(User.email == item.email)).first()
     return {
-        "request_uuid": item.request_uuid, "email": item.email, "role_key": item.role_key, "message": item.message,
+        "request_uuid": item.request_uuid, "email": f"@{member.username}" if member else item.email, "role_key": item.role_key, "message": item.message,
         "status": _value(item.status), "requested_by": user_summary(db, item.requested_by_user_id),
         "resolved_by": user_summary(db, item.resolved_by_user_id), "creation_date": item.creation_date, "responded_at": item.responded_at,
     }
@@ -201,13 +215,11 @@ def _request_dict(db: Session, item: PlanCollaboratorRequest) -> dict:
 def create_collaborator_request(db: Session, current_user: PublicUser, goal_uuid: str, payload: PlanCollaboratorRequestCreate) -> dict:
     goal = access.goal_or_404(db, goal_uuid)
     access.require(db, goal, current_user.id, "request_collaborators")
-    role = db.exec(select(PlanRole).where(PlanRole.goal_id == goal.id, PlanRole.key == payload.role_key)).first()
+    role = _role(db, goal, payload.role_key)
     if not role:
         raise HTTPException(status_code=404, detail="Goal role not found")
-    email = payload.email.strip()
+    email, _ = _recipient(db, payload.email)
     normalized = email.lower()
-    if not email or "@" not in email:
-        raise HTTPException(status_code=422, detail="A valid email is required")
     if db.exec(select(PlanCollaboratorRequest).where(
         PlanCollaboratorRequest.goal_id == goal.id, PlanCollaboratorRequest.email_normalized == normalized,
         PlanCollaboratorRequest.status == PlanCollaboratorRequestStatus.PENDING,

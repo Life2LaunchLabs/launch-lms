@@ -12,12 +12,6 @@ import type { Goal } from '@services/goals/types'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { PersonAvatar } from './PersonAvatar'
 
-const ROLE_HINTS: Record<string, string> = {
-  viewer: 'Sees the goal and how it’s going.',
-  reviewer: 'Can comment, help with steps, and sign them off.',
-  plan_admin: 'Can also change the goal and who it’s shared with.',
-}
-
 const ownerFirst = (a: GoalCollaborator, b: GoalCollaborator) => Number(b.is_owner) - Number(a.is_owner) || Number(b.is_subject) - Number(a.is_subject)
 
 // eslint-disable-next-line no-unused-vars
@@ -36,11 +30,16 @@ export default function GoalShareDialog({ goal, token, open, setOpen, onLeft }: 
   const members = (people?.collaborators || []).slice().sort(ownerFirst)
   const me = members.find((person) => person.user?.id === viewerId)
   const isAdmin = Boolean(people?.is_owner || me?.role.key === 'plan_admin')
-  const roles = (people?.roles || []).filter((role) => role.key !== 'subject' && (role.key !== 'plan_admin' || isAdmin))
+  // Viewer, Commenter and Editor; someone already on another role (a school's reviewer, a goal admin) keeps it in their list.
+  const choices = React.useMemo(() => people?.choices || [], [people])
+  const roleOptions = (current?: string) => {
+    const extra = current && !choices.some((choice) => choice.key === current) ? (people?.roles || []).filter((role) => role.key === current && (role.key !== 'plan_admin' || isAdmin)) : []
+    return [...choices, ...extra.map((role) => ({ key: role.key, name: role.name, hint: '' }))]
+  }
   const [email, setEmail] = React.useState('')
-  const [roleKey, setRoleKey] = React.useState('reviewer')
+  const [roleKey, setRoleKey] = React.useState('commenter')
   const [busy, setBusy] = React.useState<string | null>(null)
-  React.useEffect(() => { if (roles.length && !roles.some((role) => role.key === roleKey)) setRoleKey(roles[0].key) }, [roles, roleKey])
+  React.useEffect(() => { if (choices.length && !choices.some((choice) => choice.key === roleKey)) setRoleKey(choices[0].key) }, [choices, roleKey])
 
   const pending = (people?.invitations || []).filter((item) => item.status === 'pending' && item.kind === 'collaborator')
   const waiting = requests.filter((item) => item.status === 'pending')
@@ -60,7 +59,7 @@ export default function GoalShareDialog({ goal, token, open, setOpen, onLeft }: 
       if (canManage) await goalSharingApi.invite(g, { email: address, role_key: roleKey, kind: 'collaborator' }, token)
       else await goalSharingApi.requestCollaborator(g, { email: address, role_key: roleKey }, token)
       setEmail('')
-    }, canManage ? `Invited ${address}.` : 'Sent. Your school will approve it.')
+    }, canManage ? `Invited ${address}.` : 'Sent. It needs an approval first.')
   }
   const leave = () => {
     if (!window.confirm('Leave this goal? You’ll lose access to it.')) return
@@ -72,18 +71,18 @@ export default function GoalShareDialog({ goal, token, open, setOpen, onLeft }: 
   }
   // eslint-disable-next-line no-unused-vars
   const roleSelect = (value: string, onChange: (key: string) => void, label: string, disabled = false, small = false) => <label><span className="sr-only">{label}</span>
-    <select value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)} className={small ? 'h-8 rounded-lg border border-border bg-background px-1.5 text-[11px] font-bold' : 'h-10 rounded-lg border border-border bg-background px-2 text-xs font-bold'}>{roles.map((role) => <option key={role.key} value={role.key}>{role.name}</option>)}</select>
+    <select value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)} className={small ? 'h-8 rounded-lg border border-border bg-background px-1.5 text-[11px] font-bold' : 'h-10 rounded-lg border border-border bg-background px-2 text-xs font-bold'}>{roleOptions(value).map((role) => <option key={role.key} value={role.key}>{role.name}</option>)}</select>
   </label>
   const removeButton = (label: string, disabled: boolean, onClick: () => void) => <button type="button" aria-label={label} disabled={disabled} onClick={onClick} className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-red-50 hover:text-red-700"><X size={14} /></button>
 
-  return <Modal isDialogOpen={open} onOpenChange={setOpen} minHeight="no-min" minWidth="md" dialogTitle={`Share “${goal.title}”`} dialogDescription={canManage ? 'Invite people by email. They get a message and a link to accept.' : canRequest ? 'Your school approves who joins goals it handed out.' : 'People who can see this goal.'} dialogContent={<div className="space-y-5 p-2">
+  return <Modal isDialogOpen={open} onOpenChange={setOpen} minHeight="no-min" minWidth="md" dialogTitle={`Share “${goal.title}”`} dialogDescription={canManage ? 'Add people by @handle or email. They get a message to accept.' : canRequest ? 'Ask to add someone. The goal’s admins approve it.' : 'People who can see this goal.'} dialogContent={<div className="space-y-5 p-2">
     {canManage || canRequest ? <div className="space-y-2">
       <div className="flex gap-2">
-        <label className="min-w-0 flex-1"><span className="sr-only">Email</span><input autoFocus type="email" value={email} onChange={(event) => setEmail(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') share() }} placeholder="name@example.com" className="h-10 w-full rounded-lg border border-border px-3 text-sm" /></label>
+        <label className="min-w-0 flex-1"><span className="sr-only">Handle or email</span><input autoFocus type="text" autoCapitalize="none" autoCorrect="off" value={email} onChange={(event) => setEmail(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') share() }} placeholder="@handle or email" className="h-10 w-full rounded-lg border border-border px-3 text-sm" /></label>
         {roleSelect(roleKey, setRoleKey, 'Access')}
         <button type="button" disabled={busy === 'share' || !email.trim()} onClick={share} className="flex h-10 items-center gap-1.5 rounded-lg bg-foreground px-4 text-xs font-black text-background disabled:opacity-40">{busy === 'share' ? <Loader2 size={14} className="animate-spin" /> : null}{canManage ? 'Invite' : 'Ask'}</button>
       </div>
-      {ROLE_HINTS[roleKey] ? <p className="text-[11px] text-muted-foreground">{roles.find((role) => role.key === roleKey)?.name}: {ROLE_HINTS[roleKey]}</p> : null}
+      {choices.find((choice) => choice.key === roleKey)?.hint ? <p className="text-[11px] text-muted-foreground">{choices.find((choice) => choice.key === roleKey)?.name}: {choices.find((choice) => choice.key === roleKey)?.hint}</p> : null}
     </div> : null}
 
     {waiting.length ? <section>
