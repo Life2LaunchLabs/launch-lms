@@ -9,7 +9,7 @@ import { getUriWithOrg, routePaths } from '@services/config/config'
 import type { AssignmentSummary, Cohort, ManagedUser } from '@services/goals/admin'
 import { cn } from '@/lib/utils'
 import CohortMatrix from './CohortMatrix'
-import { personName } from './ui'
+import { PersonAvatar, personName } from './ui'
 
 /** A group's goal templates as chips, with the chosen one's learner × step matrix. */
 export function CohortGoals({ orgslug, orgId, token, groupId, cohort, refresh }: { orgslug: string; orgId: number; token?: string; groupId: number; cohort: Cohort; refresh: () => Promise<unknown> }) {
@@ -40,8 +40,8 @@ export function ManagedUserGoals({ orgslug, userId, data, refresh, compact = fal
   const assignedGoals = new Set(assigned.map((item) => item.goal.goal_uuid))
   const others = (data?.goals || []).filter((goal) => !assignedGoals.has(goal.goal_uuid))
   const rows = [
-    ...assigned.map((item) => ({ key: item.goal.goal_uuid, href: hrefFor(orgslug, item), title: item.template_title, detail: item.cohort?.name ? `Through ${item.cohort.name}` : 'Assigned directly', progress: item.goal.progress })),
-    ...others.map((goal) => ({ key: goal.goal_uuid, href: getUriWithOrg(orgslug, routePaths.org.dash.livePlan(goal.goal_uuid)), title: goal.title, detail: goal.status === 'finished' ? 'Finished' : 'Shared with staff', progress: goal.progress })),
+    ...assigned.map((item) => ({ key: item.goal.goal_uuid, href: hrefFor(orgslug, item), title: item.template_title, detail: item.cohort?.name ? `Through ${item.cohort.name}` : 'Assigned directly', progress: item.goal.progress, people: item.goal.people || [] })),
+    ...others.map((goal) => ({ key: goal.goal_uuid, href: getUriWithOrg(orgslug, routePaths.org.dash.livePlan(goal.goal_uuid)), title: goal.title, detail: goal.status === 'finished' ? 'Finished' : 'Shared with staff', progress: goal.progress, people: goal.people || [] })),
   ]
   return <section className="rounded-xl border border-gray-100 bg-white p-5 nice-shadow">
     <div className="flex items-center justify-between gap-4">
@@ -53,6 +53,10 @@ export function ManagedUserGoals({ orgslug, userId, data, refresh, compact = fal
       return <Link key={row.key} href={row.href} className="group rounded-lg border border-gray-200 p-4 transition hover:border-blue-300">
         <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-black text-gray-900 group-hover:text-blue-700">{row.title}</p><p className="mt-1 text-xs text-gray-500">{row.detail}</p></div><ChevronRight size={16} className="text-gray-300 group-hover:text-blue-600" /></div>
         <div className="mt-3 flex items-center gap-3"><div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-100"><div className="h-full rounded-full bg-blue-600" style={{ width: `${percent}%` }} /></div><span className="text-[10px] font-black text-gray-500">{percent}%</span></div>
+        {row.people.length ? <div className="mt-3 flex items-center gap-2" title={row.people.map((item) => `${personName(item)}, ${item.role}`).join('\n')}>
+          <div className="flex -space-x-1.5">{row.people.slice(0, 4).map((item) => <span key={item.id} className="rounded-full ring-2 ring-white"><PersonAvatar person={item} size={22} /></span>)}</div>
+          <span className="truncate text-[11px] text-gray-500">{row.people.length === 1 ? `${personName(row.people[0])} · ${row.people[0].role}` : `${row.people.length} people helping`}</span>
+        </div> : null}
       </Link>
     })}</div> : <div className="mt-4 rounded-lg border border-dashed border-gray-200 py-8 text-center text-xs font-semibold text-gray-400">No goal templates handed to them yet.</div>}
   </section>
