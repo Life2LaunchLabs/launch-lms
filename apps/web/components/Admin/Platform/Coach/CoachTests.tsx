@@ -43,7 +43,7 @@ export default function CoachTests({ policy }: { policy: CoachPolicy }) {
   return (
     <div className="space-y-4">
       <p className="text-sm leading-6 text-gray-600">
-        Each test is one moment with a made-up learner and what a good response must and should do. A run sends every test through Coach exactly as a real learner&apos;s message would go, {data.runs_per_test} times on the draft{comparing ? ` and on live release ${live}` : ''}, and a separate model grades each response line by line without knowing which version wrote it. Results guide you; they never block a release.
+        Each test is one moment with a made-up learner and what a good response must and should do. A run sends every test through Coach exactly as a real learner&apos;s message would go (in a conversation, another model plays the learner), {data.runs_per_test} times on the draft{comparing ? ` and on live release ${live}` : ''}, and a separate model grades each response line by line without knowing which version wrote it. Results guide you; they never block a release.
       </p>
       <Panel
         title="Run"
@@ -85,7 +85,7 @@ export default function CoachTests({ policy }: { policy: CoachPolicy }) {
                     {!test.enabled ? <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-bold text-gray-600">Off</span> : null}
                   </span>
                   <span className="mt-0.5 block truncate text-xs text-gray-500">
-                    {test.moment === 'goal_created' ? `Creates a goal: ${test.goal.title}` : `Says: “${test.message}”`} · {test.rubric.filter((line) => line.kind === 'must').length} must, {test.rubric.filter((line) => line.kind === 'should').length} should
+                    {test.moment === 'goal_created' ? `Creates a goal: ${test.goal.title}` : test.moment === 'conversation' ? `Talks for ${test.turns} replies: “${test.message}”` : `Says: “${test.message}”`} · {test.rubric.filter((line) => line.kind === 'must').length} must, {test.rubric.filter((line) => line.kind === 'should').length} should
                   </span>
                 </span>
               </button>

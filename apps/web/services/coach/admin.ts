@@ -44,7 +44,7 @@ export type CoachDraftSummary = { live_number: number | null; draft_changes: str
 export type CoachRelease = { release_uuid: string; number: number; note: string; changes: string[]; released_at: string; released_by: string; live: boolean; tests: CoachTestRun | null }
 export type CoachReleases = CoachDraftSummary & { releases: CoachRelease[]; draft_tests: CoachTestRun | null }
 
-export type CoachTestMoment = 'learner_message' | 'goal_created'
+export type CoachTestMoment = 'learner_message' | 'goal_created' | 'conversation'
 export type CoachRubricLine = { id: string; kind: 'must' | 'should'; text: string }
 export type CoachTestLearner = {
   headline: string
@@ -56,7 +56,7 @@ export type CoachTestLearner = {
   goals: { title: string; why: string; next_steps: string[] }[]
 }
 export type CoachTestGoal = { title: string; why: string; target_date: string; steps: string[] }
-export type CoachTestWrite = { title: string; moment: CoachTestMoment; learner: CoachTestLearner; message: string; goal: CoachTestGoal; rubric: CoachRubricLine[]; enabled: boolean }
+export type CoachTestWrite = { title: string; moment: CoachTestMoment; learner: CoachTestLearner; message: string; persona: string; turns: number; goal: CoachTestGoal; rubric: CoachRubricLine[]; enabled: boolean }
 export type CoachTest = CoachTestWrite & { test_uuid: string; updated_at: string }
 export type CoachTestSample = { response: string; checks: { id: string; pass: boolean; evidence: string }[]; error?: string }
 export type CoachTestSide = { samples: CoachTestSample[]; lines: Record<string, [number, number]> }

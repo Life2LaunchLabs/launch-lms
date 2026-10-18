@@ -3974,7 +3974,7 @@
               "kind": "code",
               "path": "apps/api/src/services/coach/scenarios.py",
               "symbol": "execute",
-              "responsibility": "Coach tests: run each scenario several times through Coach's real path on the draft and the live release, graded line by line by a blind judge model"
+              "responsibility": "Coach tests: run each scenario (a message, a new goal, or a conversation with a simulated learner) several times through Coach's real path on the draft and the live release, graded line by line by a blind judge model"
             },
             {
               "kind": "code",

@@ -112,12 +112,15 @@ class CoachTest(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     test_uuid: str = Field(sa_column=Column(String, nullable=False, unique=True, index=True))
     title: str = Field(sa_column=Column(String(200), nullable=False))
-    # learner_message or goal_created.
+    # learner_message, goal_created or conversation.
     moment: str = Field(sa_column=Column(String(60), nullable=False))
     # {"headline", "bio", "strengths": [], "values": [], "now": [], "goals": [{"title", "why", "next_steps": []}]}
     learner: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False, server_default="{}"))
-    # learner_message: what the learner says.
+    # learner_message: what the learner says; conversation: how they open it.
     message: str = Field(default="", sa_column=Column(Text, nullable=False, server_default=""))
+    # conversation: how the simulated learner behaves (Coach never sees it), and how many replies Coach gives.
+    persona: str = Field(default="", sa_column=Column(Text, nullable=False, server_default=""))
+    turns: int = Field(default=0, sa_column=Column(Integer, nullable=False, server_default="0"))
     # goal_created: {"title", "why", "target_date", "steps": []}
     goal: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False, server_default="{}"))
     # [{"id", "kind": "must" | "should", "text"}]
@@ -211,9 +214,11 @@ class CoachTestLearner(BaseModel):
 
 class CoachTestWrite(BaseModel):
     title: str = PydanticField(min_length=1, max_length=200)
-    moment: Literal["learner_message", "goal_created"]
+    moment: Literal["learner_message", "goal_created", "conversation"]
     learner: CoachTestLearner = PydanticField(default_factory=CoachTestLearner)
     message: str = PydanticField(default="", max_length=2_000)
+    persona: str = PydanticField(default="", max_length=1_500)
+    turns: int = PydanticField(default=3, ge=2, le=4)
     goal: CoachTestGoal = PydanticField(default_factory=CoachTestGoal)
     rubric: list[CoachRubricLine] = PydanticField(min_length=1, max_length=12)
     enabled: bool = True
