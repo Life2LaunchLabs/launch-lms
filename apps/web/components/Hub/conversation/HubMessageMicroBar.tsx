@@ -3,13 +3,14 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
-import { Check, CircleHelp, Copy, Lightbulb } from 'lucide-react'
+import { Check, CircleHelp, Copy, Flag, Lightbulb } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import { useHub } from '@components/Hub/HubContext'
 import { Popover, PopoverContent, PopoverTrigger } from '@components/ui/popover'
 import type { HubMemory, HubPageReceipt } from '@services/hub/advisor'
 import { hubTimestampDate } from '@services/hub/timestamp'
 import HubMemoryItems from './HubMemoryItems'
+import HubReportDialog from './HubReportDialog'
 
 type Props = {
   role: 'user' | 'assistant'
@@ -19,14 +20,17 @@ type Props = {
   pageContext?: HubPageReceipt | null
   orgId: number
   accessToken: string
+  /** The server's id for one of Coach's replies, which the learner can report. */
+  reportableId?: string
 }
 
-export default function HubMessageMicroBar({ role, content, createdAt, memories = [], pageContext, orgId, accessToken }: Props) {
+export default function HubMessageMicroBar({ role, content, createdAt, memories = [], pageContext, orgId, accessToken, reportableId }: Props) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const workspace = useHub()
   const [items, setItems] = useState(memories)
   const [copied, setCopied] = useState(false)
+  const [reporting, setReporting] = useState(false)
   const source = pageContext?.status === 'ready' ? pageContext.sources[0] : undefined
   const label = role === 'assistant' ? 'What informed this answer?' : 'Memory updated by this message'
   const currentQuery = searchParams.toString()
@@ -65,6 +69,12 @@ export default function HubMessageMicroBar({ role, content, createdAt, memories 
           </PopoverContent>
         </Popover>
       )}
+      {reportableId ? <>
+        <Button type="button" size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground" onClick={() => setReporting(true)} aria-label="Report this reply" title="Report this reply">
+          <Flag className="h-3.5 w-3.5" />
+        </Button>
+        <HubReportDialog open={reporting} onOpenChange={setReporting} messageId={reportableId} orgId={orgId} accessToken={accessToken} />
+      </> : null}
       {(sourceTitle || createdAt) && <span className="ml-1 flex min-w-0 items-center gap-1 text-[11px] text-muted-foreground">
         {sourceTitle ? <>{sourceIsElsewhere && sourcePath ? <Link href={sourcePath} onClick={() => workspace?.open()} className="max-w-48 truncate underline decoration-border underline-offset-2 hover:text-foreground">in {sourceTitle}</Link> : <span className="max-w-48 truncate">in {sourceTitle}</span>}</> : null}
         {sourceTitle && createdAt ? <span aria-hidden="true">·</span> : null}

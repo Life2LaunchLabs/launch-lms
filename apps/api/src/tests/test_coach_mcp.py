@@ -81,3 +81,12 @@ def test_a_model_writes_tests_and_runs_them(db, monkeypatch):
     assert "Still running" in progress["content"][0]["text"]
     refused = _call(db, "run_coach_tests", {}, _ctx(superadmin=False))
     assert refused["isError"]
+
+
+def test_a_model_reads_reports_to_draft_tests(db, monkeypatch):
+    from src.services.coach import reports
+
+    monkeypatch.setattr(reports, "reports_view", lambda _db: [])
+    listed = _call(db, "list_coach_reports", {})
+    assert listed["content"][0]["text"] == "No learner has reported a Coach reply yet."
+    assert _call(db, "list_coach_reports", {}, _ctx(superadmin=False))["isError"]

@@ -125,6 +125,16 @@ COACH_TOOLS = [
         platform=True,
     ),
     Tool(
+        "list_coach_reports",
+        "List Coach replies learners reported",
+        "Platform admins only. Coach replies learners reported as harmful, wrong or unhelpful, new first, without their names: the reason, their note, the conversation up to the reported reply, what Coach knew about the learner, and a test drafted from each. Remove names and identifying details from a draft, finish its title, persona and rubric, and save it with save_coach_test.",
+        {"properties": {}},
+        coach_mcp.list_coach_reports,
+        scope="coach:read",
+        org_scoped=False,
+        platform=True,
+    ),
+    Tool(
         "get_coach_test_run",
         "Get a Coach test run",
         "Platform admins only. A test run's progress, or its scores, every response, and the judge's evidence for each rubric line.",

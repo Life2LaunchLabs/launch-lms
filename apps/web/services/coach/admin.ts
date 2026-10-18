@@ -73,6 +73,18 @@ export type CoachTestRun = {
   finished_at: string | null
   results?: { test_uuid: string; title: string; moment: CoachTestMoment; rubric: CoachRubricLine[]; sides: { draft?: CoachTestSide; live?: CoachTestSide } }[]
 }
+export type CoachReport = {
+  report_uuid: string
+  created_at: string
+  reason: 'harmful' | 'wrong' | 'unhelpful' | 'other'
+  reason_label: string
+  note: string
+  status: 'new' | 'reviewed'
+  reviewed_at: string | null
+  messages: { role: 'user' | 'assistant'; content: string }[]
+  learner: CoachTestLearner
+  draft_test: CoachTestWrite
+}
 export type CoachTests = {
   moments: { key: CoachTestMoment; label: string }[]
   runs_per_test: number
@@ -132,6 +144,8 @@ export const coachAdminApi = {
   updateTest: (uuid: string, payload: CoachTestWrite, token?: string) => call<CoachTest>(`/tests/${uuid}`, token, 'PUT', payload),
   deleteTest: (uuid: string, token?: string) => call<void>(`/tests/${uuid}`, token, 'DELETE'),
   runTests: (token?: string) => call<CoachTestRun>('/tests/runs', token, 'POST'),
+  reports: (token?: string) => call<CoachReport[]>('/reports', token),
+  reviewReport: (uuid: string, token?: string) => call<unknown>(`/reports/${uuid}/review`, token, 'POST'),
 
   launchCards: (token?: string) => call<HubLaunchCardsSettings>('/launch-cards', token),
   // Passing null restores the platform defaults.

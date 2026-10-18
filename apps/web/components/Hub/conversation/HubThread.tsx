@@ -54,7 +54,7 @@ export default function HubThread({ messages, timelineSlots, editRun, editObject
       ? <HubSessionBoundary key={entry.id} event={entry.events[0]} run={editRun} onRestore={onRestore} />
       : <HubLearnerSessionEvent key={entry.id} events={entry.events} onPoint={onPoint} />)
   const microBar = (message: HubConversationMessage, content = message.content) => accessToken && orgId
-    ? <HubMessageMicroBar role={message.role === 'user' ? 'user' : 'assistant'} content={content} createdAt={message.createdAt} memories={message.memories} pageContext={message.page_context} orgId={orgId} accessToken={accessToken} />
+    ? <HubMessageMicroBar role={message.role === 'user' ? 'user' : 'assistant'} content={content} createdAt={message.createdAt} memories={message.memories} pageContext={message.page_context} orgId={orgId} accessToken={accessToken} reportableId={message.role === 'assistant' && !message.searchQuery ? message.id : undefined} />
     : null
   const carousel = (message: HubConversationMessage) => <HubResourceCarousel resources={message.resources || []} inChat={inChat} label={message.resourceLabel === 'Suggested' ? 'Coach suggested' : message.resourceLabel} onOpen={onOpenResource} />
 

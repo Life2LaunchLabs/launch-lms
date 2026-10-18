@@ -153,6 +153,32 @@ class CoachTestRun(SQLModel, table=True):
     finished_at: datetime | None = None
 
 
+class CoachReport(SQLModel, table=True):
+    """A learner's report that a Coach reply went wrong, for the coaching team to review and maybe turn into a test.
+
+    A copy without the learner's name: the conversation up to the reported reply, and what Coach knew
+    about them. Deleting the conversation removes its reports.
+    """
+
+    __tablename__ = "coach_report"
+
+    id: int | None = Field(default=None, primary_key=True)
+    report_uuid: str = Field(sa_column=Column(String, nullable=False, unique=True, index=True))
+    conversation_id: int = Field(sa_column=Column(Integer, ForeignKey("hubconversation.id", ondelete="CASCADE"), nullable=False, index=True))
+    message_uuid: str = Field(sa_column=Column(String, nullable=False))
+    # harmful, wrong, unhelpful or other.
+    reason: str = Field(sa_column=Column(String(20), nullable=False))
+    note: str = Field(default="", sa_column=Column(Text, nullable=False, server_default=""))
+    # [{"role": "user" | "assistant", "content"}], ending with the reported reply.
+    messages: list = Field(default_factory=list, sa_column=Column(JSON, nullable=False, server_default="[]"))
+    # In the shape of a test's learner (see CoachTestLearner).
+    learner: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False, server_default="{}"))
+    # new or reviewed.
+    status: str = Field(default="new", sa_column=Column(String(20), nullable=False, server_default="new"))
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    reviewed_at: datetime | None = None
+
+
 class CoachModelSettings(BaseModel):
     max_output_tokens: int = PydanticField(default=700, ge=128, le=4_000)
     # OpenAI
@@ -179,6 +205,11 @@ class CoachPolicyUpdate(BaseModel):
 
 class CoachReleaseCreate(BaseModel):
     note: str = PydanticField(default="", max_length=2_000)
+
+
+class CoachReportCreate(BaseModel):
+    reason: Literal["harmful", "wrong", "unhelpful", "other"]
+    note: str = PydanticField(default="", max_length=1_000)
 
 
 class CoachRubricLine(BaseModel):
