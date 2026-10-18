@@ -2,71 +2,22 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Awaitable, Callable
-
-from fastapi import Request
-from sqlmodel import Session
-
-from src.services.coach import mcp as coach_mcp
 from src.services.goals import mcp_library as goal_library
 from src.services.goals import mcp_templates as goal_templates
 from src.services.mcp import handlers
-from src.services.mcp.app_shell import PREVIEW_APP_URI
-from src.services.oauth.server import AccessContext
-
-Handler = Callable[[Request, Session, AccessContext, dict], Awaitable[dict]]
+from src.services.mcp.coach_tools import COACH_TOOLS
+from src.services.mcp.tool import Handler, Tool  # noqa: F401  (re-exported)
 
 _DOCUMENT = {"type": "object", "description": "An Activity Document (format 'launch-lms.activity', format_version 1). See get_activity_schema."}
 _TEMPLATE_DOCUMENT = {"type": "object", "description": "A Goal Template Document (format 'launch-lms.goal-template', format_version 1): template details and stages of typed steps. See get_plan_template_schema."}
 _FRAMEWORK_DOCUMENT = {"type": "object", "description": "A Requirement Framework Document (format 'launch-lms.requirement-framework', format_version 1). See get_requirement_framework_schema."}
 _BADGE_DOCUMENT = {"type": "object", "description": "A Badge Document (format 'launch-lms.badge', format_version 1). See get_badge_schema."}
-_ORG = {
-    "type": "string",
-    "description": "Slug of the organization to act in (see list_organizations). Omit to use the organization chosen when connecting.",
-}
 _LIBRARY_KIND = {"type": "string", "enum": ["plan_template", "requirement_framework"]}
 _PERSONA = {
     "type": "object",
     "description": "Optional learner variables to preview with, e.g. {\"user.first_name\": \"Sam\", \"user.details.variables.grade\": \"9\"}.",
     "additionalProperties": True,
 }
-
-
-@dataclass(frozen=True)
-class Tool:
-    name: str
-    title: str
-    description: str
-    input_schema: dict
-    handler: Handler
-    scope: str = "activities:read"
-    read_only: bool = True
-    ui: bool = False
-    org_scoped: bool = True
-    # Platform tools (Coach) are listed only to platform admins.
-    platform: bool = False
-
-    def definition(self) -> dict:
-        input_schema = {"type": "object", **self.input_schema}
-        if self.org_scoped:
-            input_schema["properties"] = {**input_schema.get("properties", {}), "org": _ORG}
-        definition = {
-            "name": self.name,
-            "title": self.title,
-            "description": self.description,
-            "inputSchema": input_schema,
-            "annotations": {
-                "title": self.title,
-                "readOnlyHint": self.read_only,
-                "destructiveHint": False,
-                "idempotentHint": self.read_only,
-                "openWorldHint": False,
-            },
-        }
-        if self.ui:
-            definition["_meta"] = {"ui": {"resourceUri": PREVIEW_APP_URI}, "ui/resourceUri": PREVIEW_APP_URI}
-        return definition
 
 
 TOOLS = [
@@ -437,57 +388,6 @@ TOOLS = [
         scope="plans:write",
         read_only=False,
     ),
-    Tool(
-        "get_coach_policy",
-        "Read the Coach policy",
-        "Platform admins only. The draft coaching policy every learner's Coach runs on: the method, knowledge playbooks, routines, triggers, abilities, the fixed rules Launch LMS adds, and what the draft changes compared with the live release. Read it before writing knowledge.",
-        {"properties": {}},
-        coach_mcp.get_coach_policy,
-        scope="coach:read",
-        org_scoped=False,
-        platform=True,
-    ),
-    Tool(
-        "preview_coach_knowledge",
-        "Preview Coach's knowledge for a message",
-        "Platform admins only. Which playbooks the draft would give Coach for a learner message, and the knowledge text Coach would read. Use it to check a playbook's used_when matches the messages it is meant for.",
-        {"properties": {"message": {"type": "string", "description": "A learner message, in a learner's own words."}}, "required": ["message"]},
-        coach_mcp.preview_coach_knowledge,
-        scope="coach:read",
-        org_scoped=False,
-        platform=True,
-    ),
-    Tool(
-        "save_coach_playbook",
-        "Save a Coach playbook",
-        "Platform admins only. Add a knowledge playbook to the Coach draft, or replace one (pass playbook_uuid). Learners get it only when a person releases the draft on Platform › Coach › Releases.",
-        {
-            "properties": {
-                "playbook_uuid": {"type": "string", "description": "Omit to add a new playbook."},
-                "title": {"type": "string", "maxLength": 200},
-                "used_when": {"type": "string", "maxLength": 2000, "description": "When Coach should read it, in the words learners use; matched against their message."},
-                "body": {"type": "string", "maxLength": 60000, "description": "Markdown guidance to Coach."},
-                "always": {"type": "boolean", "description": "Read on every call, like Safety. Use sparingly."},
-                "enabled": {"type": "boolean"},
-            },
-            "required": ["title", "body"],
-        },
-        coach_mcp.save_coach_playbook,
-        scope="coach:write",
-        read_only=False,
-        org_scoped=False,
-        platform=True,
-    ),
-    Tool(
-        "delete_coach_playbook",
-        "Delete a Coach playbook",
-        "Platform admins only. Remove a playbook from the Coach draft. Learners keep it until the draft is released; discarding the draft brings it back.",
-        {"properties": {"playbook_uuid": {"type": "string"}}, "required": ["playbook_uuid"]},
-        coach_mcp.delete_coach_playbook,
-        scope="coach:write",
-        read_only=False,
-        org_scoped=False,
-        platform=True,
-    ),
+    *COACH_TOOLS,
 ]
 TOOLS_BY_NAME = {tool.name: tool for tool in TOOLS}

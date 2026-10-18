@@ -104,6 +104,52 @@ class CoachRelease(SQLModel, table=True):
     released_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class CoachTest(SQLModel, table=True):
+    """A coaching scenario: a made-up learner, a moment, and what a good response must and should do."""
+
+    __tablename__ = "coach_test"
+
+    id: int | None = Field(default=None, primary_key=True)
+    test_uuid: str = Field(sa_column=Column(String, nullable=False, unique=True, index=True))
+    title: str = Field(sa_column=Column(String(200), nullable=False))
+    # learner_message or goal_created.
+    moment: str = Field(sa_column=Column(String(60), nullable=False))
+    # {"headline", "bio", "strengths": [], "values": [], "now": [], "goals": [{"title", "why", "next_steps": []}]}
+    learner: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False, server_default="{}"))
+    # learner_message: what the learner says.
+    message: str = Field(default="", sa_column=Column(Text, nullable=False, server_default=""))
+    # goal_created: {"title", "why", "target_date", "steps": []}
+    goal: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False, server_default="{}"))
+    # [{"id", "kind": "must" | "should", "text"}]
+    rubric: list = Field(default_factory=list, sa_column=Column(JSON, nullable=False, server_default="[]"))
+    enabled: bool = Field(default=True, sa_column=Column(Boolean, nullable=False, server_default="true"))
+    position: int = Field(default=0, sa_column=Column(Integer, nullable=False, server_default="0"))
+    updated_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class CoachTestRun(SQLModel, table=True):
+    """One run of every test on the draft, beside the live release, graded by a judge model."""
+
+    __tablename__ = "coach_test_run"
+
+    id: int | None = Field(default=None, primary_key=True)
+    run_uuid: str = Field(sa_column=Column(String, nullable=False, unique=True, index=True))
+    status: str = Field(default="running", sa_column=Column(String(20), nullable=False, server_default="running"))
+    # Which draft this ran on; a release carries the results of the run on its snapshot.
+    snapshot_hash: str = Field(sa_column=Column(String(64), nullable=False, index=True))
+    live_number: int | None = Field(default=None, sa_column=Column(Integer, nullable=True))
+    calls: int = Field(default=0, sa_column=Column(Integer, nullable=False, server_default="0"))
+    done_calls: int = Field(default=0, sa_column=Column(Integer, nullable=False, server_default="0"))
+    results: list = Field(default_factory=list, sa_column=Column(JSON, nullable=False, server_default="[]"))
+    summary: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False, server_default="{}"))
+    error: str = Field(default="", sa_column=Column(Text, nullable=False, server_default=""))
+    started_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
+    started_at: datetime = Field(default_factory=datetime.utcnow)
+    finished_at: datetime | None = None
+
+
 class CoachModelSettings(BaseModel):
     max_output_tokens: int = PydanticField(default=700, ge=128, le=4_000)
     # OpenAI
@@ -130,6 +176,47 @@ class CoachPolicyUpdate(BaseModel):
 
 class CoachReleaseCreate(BaseModel):
     note: str = PydanticField(default="", max_length=2_000)
+
+
+class CoachRubricLine(BaseModel):
+    id: str = PydanticField(default="", max_length=40)
+    kind: Literal["must", "should"] = "should"
+    text: str = PydanticField(min_length=1, max_length=500)
+
+
+class CoachTestGoal(BaseModel):
+    title: str = PydanticField(default="", max_length=200)
+    why: str = PydanticField(default="", max_length=1_000)
+    target_date: str = PydanticField(default="", max_length=10)
+    steps: list[str] = PydanticField(default_factory=list, max_length=20)
+
+
+class CoachTestLearnerGoal(BaseModel):
+    title: str = PydanticField(min_length=1, max_length=200)
+    why: str = PydanticField(default="", max_length=500)
+    next_steps: list[str] = PydanticField(default_factory=list, max_length=5)
+
+
+class CoachTestLearner(BaseModel):
+    """Written like a real portfolio, in the shape Coach sees for a real learner."""
+
+    headline: str = PydanticField(default="", max_length=200)
+    bio: str = PydanticField(default="", max_length=800)
+    location: str = PydanticField(default="", max_length=80)
+    strengths: list[str] = PydanticField(default_factory=list, max_length=8)
+    values: list[str] = PydanticField(default_factory=list, max_length=8)
+    now: list[str] = PydanticField(default_factory=list, max_length=4)
+    goals: list[CoachTestLearnerGoal] = PydanticField(default_factory=list, max_length=8)
+
+
+class CoachTestWrite(BaseModel):
+    title: str = PydanticField(min_length=1, max_length=200)
+    moment: Literal["learner_message", "goal_created"]
+    learner: CoachTestLearner = PydanticField(default_factory=CoachTestLearner)
+    message: str = PydanticField(default="", max_length=2_000)
+    goal: CoachTestGoal = PydanticField(default_factory=CoachTestGoal)
+    rubric: list[CoachRubricLine] = PydanticField(min_length=1, max_length=12)
+    enabled: bool = True
 
 
 class CoachKeyCreate(BaseModel):

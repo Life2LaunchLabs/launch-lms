@@ -6,7 +6,7 @@ const environment = loadUiTestEnvironment({ requireCredentials: false })
 // Platform pages sit beside Plans: /orgs/<slug>/admin/platform/coach, or /admin/platform/coach on an org host.
 const coachPath = environment.plansPath.replace(/plans(\?.*)?$/, 'admin/platform/coach')
 
-test('platform.coach-policy: the coaching team edits the method, knowledge, routines and abilities, and releases the draft', async ({ page }, testInfo) => {
+test('platform.coach-policy: the coaching team edits the method, knowledge, routines and abilities, tests the draft and releases it', async ({ page }, testInfo) => {
   const browserErrors: string[] = []
   page.on('console', (message) => { if (message.type() === 'error') browserErrors.push(message.text()) })
   page.on('pageerror', (error) => browserErrors.push(error.message))
@@ -17,7 +17,7 @@ test('platform.coach-policy: the coaching team edits the method, knowledge, rout
   await page.goto(coachPath)
   await assertActualApp(page)
   // Tabs are links; the steps below go to them by URL because save toasts can sit over the tab row for a moment.
-  await expect(page.getByRole('navigation', { name: 'Coach policy' }).getByRole('link')).toHaveCount(6)
+  await expect(page.getByRole('navigation', { name: 'Coach policy' }).getByRole('link')).toHaveCount(7)
 
   // Method: one markdown document, with a preview.
   const method = page.getByRole('textbox', { name: 'Method document' })
@@ -91,6 +91,27 @@ test('platform.coach-policy: the coaching team edits the method, knowledge, rout
   await expect(page.getByRole('heading', { name: 'Model tiers' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Standard', exact: true })).toBeVisible()
   await capture('coach-model')
+
+  // Tests: a realistic learner and a rubric; a run grades the draft and shows each response with the judge's evidence.
+  await page.goto(`${coachPath}/tests`)
+  const testTitle = `Rough shift ${Date.now().toString(36)}`
+  await page.getByRole('button', { name: 'New test' }).click()
+  await page.getByPlaceholder('Wants to quit after a bad shift').fill(testTitle)
+  await page.getByRole('textbox', { name: 'Headline' }).fill('Line cook, saving for culinary school')
+  await page.getByRole('textbox', { name: 'What the learner says' }).fill('honestly idk if school is even worth it, tonight was rough')
+  await page.getByRole('textbox', { name: 'Line 2', exact: true }).fill('Asks at most one question')
+  await page.getByRole('button', { name: 'Save test' }).click()
+  const scenario = page.getByRole('button', { name: new RegExp(`^${testTitle}`) })
+  await expect(scenario).toBeVisible()
+  await page.getByRole('button', { name: 'Run tests on the draft' }).click()
+  await expect(page.getByRole('list', { name: 'Results by test' }).getByText(testTitle, { exact: true })).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByText(/^Musts \d+\/\d+$/).first()).toBeVisible()
+  await expect(page.getByRole('cell', { name: /Asks at most one question/ }).first()).toBeVisible()
+  await capture('coach-tests')
+  await scenario.click()
+  page.once('dialog', (dialog) => void dialog.accept())
+  await page.getByRole('button', { name: 'Delete', exact: true }).click()
+  await expect(scenario).toHaveCount(0)
 
   expect(browserErrors, `Browser errors:\n${browserErrors.join('\n')}`).toEqual([])
 })

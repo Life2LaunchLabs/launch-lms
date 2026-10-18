@@ -1,15 +1,15 @@
-"""Platform › Coach: the coaching policy, its releases, provider keys, playbooks, routines and conversation starters."""
+"""Platform › Coach: the coaching policy, its releases, tests, provider keys, playbooks, routines and conversation starters."""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends
 from sqlmodel import Session
 
 from src.core.events.database import get_db_session
-from src.db.coach import CoachKeyCreate, CoachKeyUpdate, CoachOrder, CoachPlaybookWrite, CoachPolicyUpdate, CoachReleaseCreate, CoachRoutineWrite
+from src.db.coach import CoachKeyCreate, CoachKeyUpdate, CoachOrder, CoachPlaybookWrite, CoachPolicyUpdate, CoachReleaseCreate, CoachRoutineWrite, CoachTestWrite
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
 from src.security.superadmin import require_superadmin
 from src.services import hub_launch
-from src.services.coach import keys, policy, releases
+from src.services.coach import keys, policy, releases, scenarios
 from src.services.hub_launch import HubLaunchCardsUpdate
 
 router = APIRouter(dependencies=[Depends(require_superadmin)])
@@ -107,6 +107,39 @@ def discard_coach_draft(current_user: PublicUser = Depends(get_current_user), db
 def roll_back_coach_release(release_uuid: str, current_user: PublicUser = Depends(get_current_user), db_session: Session = Depends(get_db_session)):
     releases.roll_back(db_session, current_user, release_uuid)
     return releases.releases_view(db_session)
+
+
+@router.get("/tests")
+def list_coach_tests(db_session: Session = Depends(get_db_session)):
+    return scenarios.tests_view(db_session)
+
+
+@router.post("/tests")
+def create_coach_test(payload: CoachTestWrite, current_user: PublicUser = Depends(get_current_user), db_session: Session = Depends(get_db_session)):
+    return scenarios.save_test(db_session, current_user, payload)
+
+
+@router.put("/tests/{test_uuid}")
+def update_coach_test(test_uuid: str, payload: CoachTestWrite, current_user: PublicUser = Depends(get_current_user), db_session: Session = Depends(get_db_session)):
+    return scenarios.save_test(db_session, current_user, payload, test_uuid)
+
+
+@router.delete("/tests/{test_uuid}", status_code=204)
+def delete_coach_test(test_uuid: str, db_session: Session = Depends(get_db_session)):
+    scenarios.delete_test(db_session, test_uuid)
+
+
+@router.post("/tests/runs")
+def run_coach_tests(background: BackgroundTasks, current_user: PublicUser = Depends(get_current_user), db_session: Session = Depends(get_db_session)):
+    """Run every test on the draft and the live release; poll the run for results."""
+    run, arguments = scenarios.begin(db_session, current_user)
+    background.add_task(scenarios.execute, **arguments)
+    return scenarios.run_dict(run)
+
+
+@router.get("/tests/runs/{run_uuid}")
+def get_coach_test_run(run_uuid: str, db_session: Session = Depends(get_db_session)):
+    return scenarios.get_run(db_session, run_uuid)
 
 
 @router.get("/launch-cards")

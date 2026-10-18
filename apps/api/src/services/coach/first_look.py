@@ -162,6 +162,15 @@ def _read(text: str) -> dict | None:
     return {"title": title[:80], "body": body[:280], "prompt": prompt[:300], "steps": [item for item in data.get("steps") or [] if isinstance(item, dict)][:MAX_STEPS]}
 
 
+async def ask(policy, outline: dict, learner: dict, safety_identifier: str, provider=None) -> tuple[dict | None, str]:
+    """Coach's first look at a goal outline: the note and suggested steps it returns, and the model that wrote them."""
+    from src.services.hub_advisor import AdvisorMessage
+
+    prompt = json.dumps({"goal": outline, **({"learner": learner} if learner else {}), "today": date.today().isoformat()}, ensure_ascii=False, default=str)
+    result = await (provider or _provider(policy)).respond([AdvisorMessage(role="user", content=prompt)], safety_identifier)
+    return _read(result.text), result.model or ""
+
+
 async def take(db: Session, org_id: int, goal: Goal, user_id: int, provider=None, now: datetime | None = None) -> CoachNote | None:
     """Take (or retake) the first look when it is due. Returns the new note, or None when nothing was written."""
     from src.services.coach.learner import for_policy
@@ -176,15 +185,12 @@ async def take(db: Session, org_id: int, goal: Goal, user_id: int, provider=None
         return None
     key = fingerprint(db, goal)
     learner = for_policy(db, goal.org_id if goal.org_id is not None else org_id, user_id, policy)
-    prompt = json.dumps({"goal": json.loads(goal_outline(db, goal.goal_uuid, user_id) or "{}"), **({"learner": learner} if learner else {}), "today": date.today().isoformat()}, ensure_ascii=False, default=str)
-    from src.services.hub_advisor import AdvisorMessage
-
+    outline = json.loads(goal_outline(db, goal.goal_uuid, user_id) or "{}")
     try:
-        result = await (provider or _provider(policy)).respond([AdvisorMessage(role="user", content=prompt)], advisor_safety_identifier(user_id))
+        look, model = await ask(policy, outline, learner, advisor_safety_identifier(user_id), provider)
     except Exception:
         logger.warning("Coach first look failed goal=%s", goal.goal_uuid, exc_info=True)
         return None
-    look = _read(result.text)
     # The goal may have changed, or another tab taken the look, while the model ran.
     db.refresh(goal)
     if look is None or fingerprint(db, goal) != key or not due(db, goal, user_id, policy, now):
@@ -196,7 +202,7 @@ async def take(db: Session, org_id: int, goal: Goal, user_id: int, provider=None
         record_goal_proposals(db, run["run_uuid"], [_operation("add_goal_steps", "step", _plural(len(steps), "step"), steps=steps)])
     note = CoachNote(
         note_uuid=f"coach_note_{uuid4()}", goal_id=int(goal.id), user_id=user_id, kind=KIND, signal_key=key,  # type: ignore[arg-type]
-        title=look["title"], body=look["body"], source="event", model=result.model or "",
+        title=look["title"], body=look["body"], source="event", model=model,
         actions=[{"id": "a1", "kind": "session", "label": "Talk it through", "prompt": look["prompt"]}, {"id": "a2", "kind": "dismiss", "label": "Not now"}],
         expires_at=now + timedelta(days=NOTE_DAYS), created_at=now,
     )

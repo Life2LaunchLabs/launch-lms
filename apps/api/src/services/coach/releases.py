@@ -176,4 +176,14 @@ def releases_view(db: Session) -> dict:
     users = db.exec(select(User).where(User.id.in_(ids))).all() if ids else []  # type: ignore[union-attr]
     names = {int(user.id): " ".join(part for part in (user.first_name, user.last_name) if part) or user.username for user in users if user.id}  # type: ignore[arg-type]
     live = _live(db)
-    return {**summary(db), "releases": [_release_dict(row, live.id if live else None, names) for row in rows]}
+    from src.services.coach import scenarios
+
+    def tests(snapshot: dict) -> dict | None:
+        """The newest finished test run on this exact snapshot, if there is one."""
+        run = scenarios.latest_run(db, snapshot, finished=True)
+        return scenarios.run_dict(run) if run else None
+
+    return {
+        **summary(db), "draft_tests": tests(coach_policy.draft_snapshot(db)),
+        "releases": [{**_release_dict(row, live.id if live else None, names), "tests": tests(row.snapshot)} for row in rows],
+    }

@@ -95,7 +95,10 @@ def for_policy(db: Session, org_id: int | None, user_id: int, policy) -> dict:
 
 def ground_learner_context(messages, db: Session, org_id: int, user_id: int, policy):
     """Add the learner layer to the last learner message, as page context and memories are."""
-    context = for_policy(db, org_id, user_id, policy)
+    return with_learner_context(messages, for_policy(db, org_id, user_id, policy))
+
+
+def with_learner_context(messages, context: dict):
     if not context:
         return messages
     block = (

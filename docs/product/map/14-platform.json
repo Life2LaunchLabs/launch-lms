@@ -3950,7 +3950,7 @@
               "kind": "code",
               "path": "apps/web/components/Admin/Platform/Coach/CoachShell.tsx",
               "symbol": "CoachShell",
-              "responsibility": "Platform › Coach: Method, Knowledge, Routines, Abilities, Model and Releases tabs, with the draft's unreleased changes on every tab"
+              "responsibility": "Platform › Coach: Method, Knowledge, Routines, Abilities, Model, Tests and Releases tabs, with the draft's unreleased changes on every tab"
             },
             {
               "kind": "code",
@@ -3962,13 +3962,25 @@
               "kind": "code",
               "path": "apps/web/components/Admin/Platform/Coach/CoachReleases.tsx",
               "symbol": "CoachReleases",
-              "responsibility": "Releases tab: the draft's changes, release with a note, discard the draft, and roll back to an earlier release"
+              "responsibility": "Releases tab: the draft's changes and its test scores, release with a note, discard the draft, and roll back to an earlier release"
             },
             {
               "kind": "code",
               "path": "apps/api/src/services/coach/mcp.py",
               "symbol": "save_coach_playbook",
-              "responsibility": "MCP tools for platform admins: read the Coach policy, preview matched knowledge, and write playbooks into the draft"
+              "responsibility": "MCP tools for platform admins: read the Coach policy, preview matched knowledge, write playbooks into the draft, and write and run Coach tests"
+            },
+            {
+              "kind": "code",
+              "path": "apps/api/src/services/coach/scenarios.py",
+              "symbol": "execute",
+              "responsibility": "Coach tests: run each scenario several times through Coach's real path on the draft and the live release, graded line by line by a blind judge model"
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/components/Admin/Platform/Coach/CoachTests.tsx",
+              "symbol": "CoachTests",
+              "responsibility": "Tests tab: write scenarios with a realistic learner and a must/should rubric, run them on the draft, and read scores, responses and evidence"
             },
             {
               "kind": "test",
@@ -3987,6 +3999,12 @@
               "path": "apps/api/src/tests/test_coach_mcp.py",
               "symbol": null,
               "responsibility": "Coach MCP tools only change the draft, and only platform admins with the coach scopes see and use them"
+            },
+            {
+              "kind": "test",
+              "path": "apps/api/src/tests/test_coach_tests.py",
+              "symbol": null,
+              "responsibility": "Tests reach Coach with nothing that says test, both versions are graded, failures stay per response, and releases keep their run's results"
             }
           ],
           "relationships": []

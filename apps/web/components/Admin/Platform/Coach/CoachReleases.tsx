@@ -9,6 +9,7 @@ import { Textarea } from '@components/ui/textarea'
 import { formatDateTime } from '@components/Admin/Platform/shared'
 import { COACH_POLICY_PATH, coachAdminApi, type CoachRelease, type CoachReleases as Releases } from '@services/coach/admin'
 import { Panel, errorMessage, useCoachPolicy } from './CoachShell'
+import { RunBadge, RunScores } from './CoachTestResults'
 
 export default function CoachReleases() {
   const { mutate: mutatePolicy, token } = useCoachPolicy()
@@ -61,6 +62,7 @@ export default function CoachReleases() {
         {changes.length ? (
           <div className="space-y-4">
             <ChangeList changes={changes} />
+            {data.draft_tests ? <div><p className="mb-2 text-sm font-bold text-gray-950">Tests on this draft</p><RunScores run={data.draft_tests} /></div> : <p className="text-xs text-gray-500">No test run on this exact draft yet. You can run the tests on the Tests tab first.</p>}
             <div>
               <label htmlFor="coach-release-note" className="text-sm font-bold text-gray-950">Release note</label>
               <Textarea id="coach-release-note" className="mt-2" rows={2} maxLength={2000} value={note} onChange={(event) => setNote(event.target.value)} placeholder="What this release is for, in a sentence (optional)" />
@@ -80,6 +82,7 @@ export default function CoachReleases() {
                   <p className="flex flex-wrap items-center gap-2 text-sm font-bold text-gray-950">
                     Release {item.number}
                     {item.live ? <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-800">Live</span> : null}
+                    {item.tests ? <RunBadge run={item.tests} /> : null}
                   </p>
                   <p className="mt-0.5 text-xs text-gray-500">{formatDateTime(item.released_at)}{item.released_by ? ` · ${item.released_by}` : ''}</p>
                   {item.note ? <p className="mt-2 text-sm text-gray-800">{item.note}</p> : null}
