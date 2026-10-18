@@ -8,6 +8,7 @@ from typing import Awaitable, Callable
 from fastapi import Request
 from sqlmodel import Session
 
+from src.services.coach import mcp as coach_mcp
 from src.services.goals import mcp_library as goal_library
 from src.services.goals import mcp_templates as goal_templates
 from src.services.mcp import handlers
@@ -43,6 +44,8 @@ class Tool:
     read_only: bool = True
     ui: bool = False
     org_scoped: bool = True
+    # Platform tools (Coach) are listed only to platform admins.
+    platform: bool = False
 
     def definition(self) -> dict:
         input_schema = {"type": "object", **self.input_schema}
@@ -433,6 +436,58 @@ TOOLS = [
         goal_library.publish_to_library,
         scope="plans:write",
         read_only=False,
+    ),
+    Tool(
+        "get_coach_policy",
+        "Read the Coach policy",
+        "Platform admins only. The draft coaching policy every learner's Coach runs on: the method, knowledge playbooks, routines, triggers, abilities, the fixed rules Launch LMS adds, and what the draft changes compared with the live release. Read it before writing knowledge.",
+        {"properties": {}},
+        coach_mcp.get_coach_policy,
+        scope="coach:read",
+        org_scoped=False,
+        platform=True,
+    ),
+    Tool(
+        "preview_coach_knowledge",
+        "Preview Coach's knowledge for a message",
+        "Platform admins only. Which playbooks the draft would give Coach for a learner message, and the knowledge text Coach would read. Use it to check a playbook's used_when matches the messages it is meant for.",
+        {"properties": {"message": {"type": "string", "description": "A learner message, in a learner's own words."}}, "required": ["message"]},
+        coach_mcp.preview_coach_knowledge,
+        scope="coach:read",
+        org_scoped=False,
+        platform=True,
+    ),
+    Tool(
+        "save_coach_playbook",
+        "Save a Coach playbook",
+        "Platform admins only. Add a knowledge playbook to the Coach draft, or replace one (pass playbook_uuid). Learners get it only when a person releases the draft on Platform › Coach › Releases.",
+        {
+            "properties": {
+                "playbook_uuid": {"type": "string", "description": "Omit to add a new playbook."},
+                "title": {"type": "string", "maxLength": 200},
+                "used_when": {"type": "string", "maxLength": 2000, "description": "When Coach should read it, in the words learners use; matched against their message."},
+                "body": {"type": "string", "maxLength": 60000, "description": "Markdown guidance to Coach."},
+                "always": {"type": "boolean", "description": "Read on every call, like Safety. Use sparingly."},
+                "enabled": {"type": "boolean"},
+            },
+            "required": ["title", "body"],
+        },
+        coach_mcp.save_coach_playbook,
+        scope="coach:write",
+        read_only=False,
+        org_scoped=False,
+        platform=True,
+    ),
+    Tool(
+        "delete_coach_playbook",
+        "Delete a Coach playbook",
+        "Platform admins only. Remove a playbook from the Coach draft. Learners keep it until the draft is released; discarding the draft brings it back.",
+        {"properties": {"playbook_uuid": {"type": "string"}}, "required": ["playbook_uuid"]},
+        coach_mcp.delete_coach_playbook,
+        scope="coach:write",
+        read_only=False,
+        org_scoped=False,
+        platform=True,
     ),
 ]
 TOOLS_BY_NAME = {tool.name: tool for tool in TOOLS}

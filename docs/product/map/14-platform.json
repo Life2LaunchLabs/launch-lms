@@ -3965,6 +3965,12 @@
               "responsibility": "Releases tab: the draft's changes, release with a note, discard the draft, and roll back to an earlier release"
             },
             {
+              "kind": "code",
+              "path": "apps/api/src/services/coach/mcp.py",
+              "symbol": "save_coach_playbook",
+              "responsibility": "MCP tools for platform admins: read the Coach policy, preview matched knowledge, and write playbooks into the draft"
+            },
+            {
               "kind": "test",
               "path": "apps/api/src/tests/test_coach_policy.py",
               "symbol": null,
@@ -3975,6 +3981,12 @@
               "path": "apps/api/src/tests/test_coach_releases.py",
               "symbol": null,
               "responsibility": "Edits wait in the draft, releasing makes them live, rollback and discard, and Coach stays runnable across releases and keys"
+            },
+            {
+              "kind": "test",
+              "path": "apps/api/src/tests/test_coach_mcp.py",
+              "symbol": null,
+              "responsibility": "Coach MCP tools only change the draft, and only platform admins with the coach scopes see and use them"
             }
           ],
           "relationships": []
