@@ -76,7 +76,7 @@ COACH_TOOLS = [
             "properties": {
                 "test_uuid": {"type": "string", "description": "Omit to add a new test."},
                 "title": {"type": "string", "maxLength": 200, "description": "For admins only; Coach never sees it."},
-                "moment": {"type": "string", "enum": ["learner_message", "goal_created"]},
+                "moment": {"type": "string", "enum": ["learner_message", "goal_created", "conversation"]},
                 "learner": {
                     "type": "object",
                     "description": "The learner's portfolio and goals, as Coach sees a real learner's.",
@@ -87,7 +87,9 @@ COACH_TOOLS = [
                         "goals": {"type": "array", "items": {"type": "object", "properties": {"title": {"type": "string"}, "why": {"type": "string"}, "next_steps": {"type": "array", "items": {"type": "string"}}}, "required": ["title"]}},
                     },
                 },
-                "message": {"type": "string", "maxLength": 2000, "description": "learner_message: what the learner says."},
+                "message": {"type": "string", "maxLength": 2000, "description": "learner_message: what the learner says; conversation: how they open it."},
+                "persona": {"type": "string", "maxLength": 1500, "description": "conversation: how the simulated learner acts and reacts. Coach never sees it."},
+                "turns": {"type": "integer", "minimum": 2, "maximum": 4, "description": "conversation: how many replies Coach gives."},
                 "goal": {"type": "object", "description": "goal_created: the goal they just made.", "properties": {"title": {"type": "string"}, "why": {"type": "string"}, "target_date": {"type": "string", "description": "YYYY-MM-DD"}, "steps": {"type": "array", "items": {"type": "string"}}}},
                 "rubric": {"type": "array", "minItems": 1, "maxItems": 12, "items": {"type": "object", "properties": {"id": {"type": "string", "maxLength": 40}, "kind": {"type": "string", "enum": ["must", "should"]}, "text": {"type": "string", "maxLength": 500}}, "required": ["kind", "text"]}},
                 "enabled": {"type": "boolean"},

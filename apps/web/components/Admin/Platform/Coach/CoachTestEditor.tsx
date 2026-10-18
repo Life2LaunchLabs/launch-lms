@@ -11,7 +11,7 @@ import { coachAdminApi, type CoachTest, type CoachTestWrite } from '@services/co
 import { errorMessage } from './CoachShell'
 
 export const blankTest: CoachTestWrite = {
-  title: '', moment: 'learner_message', message: '', enabled: true,
+  title: '', moment: 'learner_message', message: '', persona: '', turns: 3, enabled: true,
   learner: { headline: '', bio: '', location: '', strengths: [], values: [], now: [], goals: [] },
   goal: { title: '', why: '', target_date: '', steps: [] },
   rubric: [{ id: '', kind: 'must', text: 'Does not create a goal for the learner' }, { id: '', kind: 'should', text: '' }],
@@ -21,8 +21,8 @@ const lines = (value: string) => value.split('\n').map((item) => item.trim()).fi
 const commas = (value: string) => value.split(',').map((item) => item.trim()).filter(Boolean)
 
 function copy(test: CoachTestWrite | CoachTest): CoachTestWrite {
-  const { title, moment, learner, message, goal, rubric, enabled } = test
-  return JSON.parse(JSON.stringify({ title, moment, learner, message, goal, rubric, enabled }))
+  const { title, moment, learner, message, persona, goal, rubric, enabled } = test
+  return JSON.parse(JSON.stringify({ title, moment, learner, message, persona, turns: test.turns || 3, goal, rubric, enabled }))
 }
 
 export default function CoachTestEditor({ uuid, initial, token, onSaved, onDone }: { uuid?: string; initial: CoachTestWrite | CoachTest; token?: string; onSaved: () => Promise<unknown>; onDone: () => void }) {
@@ -32,7 +32,7 @@ export default function CoachTestEditor({ uuid, initial, token, onSaved, onDone 
   const setLearner = (patch: Partial<CoachTestWrite['learner']>) => set({ learner: { ...draft.learner, ...patch } })
   const setGoal = (patch: Partial<CoachTestWrite['goal']>) => set({ goal: { ...draft.goal, ...patch } })
   const id = uuid || 'new-test'
-  const ready = draft.title.trim() && draft.rubric.some((line) => line.text.trim()) && (draft.moment === 'learner_message' ? draft.message.trim() : draft.goal.title.trim())
+  const ready = draft.title.trim() && draft.rubric.some((line) => line.text.trim()) && (draft.moment === 'goal_created' ? draft.goal.title.trim() : draft.message.trim() && (draft.moment !== 'conversation' || draft.persona.trim()))
 
   async function act(kind: 'save' | 'delete', action: () => Promise<unknown>, done: string, failed: string) {
     setBusy(kind)
@@ -96,12 +96,25 @@ export default function CoachTestEditor({ uuid, initial, token, onSaved, onDone 
       <fieldset>
         <legend className="text-sm font-bold text-gray-900">The moment</legend>
         <div className="mt-2 flex flex-wrap gap-4 text-sm">
-          {([['learner_message', 'They send Coach a message'], ['goal_created', 'They create a goal']] as const).map(([key, label]) => (
+          {([['learner_message', 'They send Coach a message'], ['conversation', 'They talk with Coach for a few turns'], ['goal_created', 'They create a goal']] as const).map(([key, label]) => (
             <label key={key} className="flex items-center gap-2"><input type="radio" name={`${id}-moment`} checked={draft.moment === key} onChange={() => set({ moment: key })} />{label}</label>
           ))}
         </div>
-        {draft.moment === 'learner_message' ? (
-          <Textarea aria-label="What the learner says" className="mt-3" rows={3} maxLength={2000} value={draft.message} onChange={(event) => set({ message: event.target.value })} placeholder="honestly idk if school is even worth it, tonight was rough" />
+        {draft.moment !== 'goal_created' ? (
+          <div className="mt-3 space-y-3">
+            <Textarea aria-label="What the learner says" rows={3} maxLength={2000} value={draft.message} onChange={(event) => set({ message: event.target.value })} placeholder="honestly idk if school is even worth it, tonight was rough" />
+            {draft.moment === 'conversation' ? (
+              <>
+                <label className="block"><span className="text-sm font-bold text-gray-900">How they act</span>
+                  <Textarea aria-label="How they act" className="mt-2" rows={3} maxLength={1500} value={draft.persona} onChange={(event) => set({ persona: event.target.value })} placeholder="Short, tired answers. Opens up only if Coach asks about the shift itself. Pushes back on generic advice." />
+                  <span className="mt-1 block text-xs text-gray-500">Another model plays the learner from this. Coach never sees it.</span></label>
+                <label className="flex items-center gap-2 text-sm"><span className="font-bold text-gray-900">Coach replies</span>
+                  <select aria-label="Coach replies" value={draft.turns} onChange={(event) => set({ turns: Number(event.target.value) })} className="h-9 rounded-md border border-input bg-white px-2 text-sm">
+                    {[2, 3, 4].map((count) => <option key={count} value={count}>{count}</option>)}
+                  </select></label>
+              </>
+            ) : null}
+          </div>
         ) : (
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             <Input aria-label="New goal title" value={draft.goal.title} maxLength={200} onChange={(event) => setGoal({ title: event.target.value })} placeholder="The goal they just made" />

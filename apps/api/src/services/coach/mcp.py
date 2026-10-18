@@ -27,7 +27,8 @@ KNOWLEDGE_GUIDE = (
 )
 
 TEST_GUIDE = (
-    "A test is one moment with a made-up learner: they send a message, or they create a goal. Coach answers it exactly as it "
+    "A test is one moment with a made-up learner: they send a message, create a goal, or talk with Coach for a few turns while "
+    "another model plays them from a persona you write (how they act and react; Coach never sees it). Coach answers exactly as it "
     "would a real learner, through the same prompt and context, so write the learner and their words the way real learners write: "
     "a filled-in portfolio, goals with real next steps, a message with typos or hedging if that's how people talk. Never mention "
     "tests, scenarios, evaluation or the rubric in what the learner says or in their portfolio. Rubric lines are graded one at a "

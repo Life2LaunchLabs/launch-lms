@@ -78,10 +78,29 @@ def test_a_release_and_the_draft_it_came_from_are_the_same_version():
     assert scenarios.snapshot_hash({"method": "m", "abilities": {"remember": False}}) != scenarios.snapshot_hash({"method": "m", "abilities": {}})
 
 
+def test_a_conversation_plays_the_learner_for_a_few_turns_and_grades_the_whole_exchange():
+    with _db() as db:
+        saved = scenarios.save_test(db, _admin(), _write(moment="conversation", persona="Gives one-word answers until Coach asks something specific.", turns=3))
+        assert scenarios.calls_for(saved) == 6 and scenarios.estimate(db) == 6 * scenarios.RUNS
+        coach, learner = Recorder("What happened tonight?"), Recorder("idk  just\nslammed")
+        transcript = asyncio.run(scenarios.respond(policy.runtime(db), saved, "safety", coach, learner=learner))
+        assert transcript.count("Coach: What happened tonight?") == 3 and transcript.count("Learner: idk just slammed") == 2
+        # Coach sees the real history, with the learner layer and reply rules only on the newest message.
+        last = coach.messages[-1]
+        assert [message.role for message in last] == ["user", "assistant", "user", "assistant", "user"]
+        assert last[-1].content.endswith(REPLY_RULES) and "launch_learner_context" in last[-1].content
+        assert "launch_learner_context" not in last[0].content and "one-word" not in json.dumps([m.content for m in last])
+        # The simulated learner gets the persona; Coach never does.
+        played = json.loads(learner.messages[0][0].content)
+        assert played["how_you_act"].startswith("Gives one-word") and played["conversation"] == ["Learner: " + saved["message"], "Coach: What happened tonight?"]
+
+
 def test_tests_need_what_their_moment_needs():
     with _db() as db:
         with pytest.raises(HTTPException, match="what the learner says"):
             scenarios.save_test(db, _admin(), _write(message=" "))
+        with pytest.raises(HTTPException, match="how the learner acts"):
+            scenarios.save_test(db, _admin(), _write(moment="conversation"))
         with pytest.raises(HTTPException, match="new goal a title"):
             scenarios.save_test(db, _admin(), _write(moment="goal_created", message=""))
         saved = scenarios.save_test(db, _admin(), _write(rubric=[{"id": "a", "kind": "must", "text": "x"}, {"id": "a", "kind": "should", "text": "y"}]))
@@ -103,7 +122,7 @@ def test_a_run_grades_the_draft_beside_the_live_release_and_the_release_keeps_th
         policy.update_policy(db, _admin(), CoachPolicyUpdate(method="# Be brief"))
         assert scenarios.estimate(db) == 1 * scenarios.RUNS * 2 * 2
 
-        async def respond(runtime, test, safety_identifier, provider=None):
+        async def respond(runtime, test, safety_identifier, provider=None, **_):
             return "Short." if "Be brief" in runtime.method else "A very long reply."
 
         class Judge:
@@ -145,7 +164,7 @@ def test_a_failed_call_is_reported_on_its_response_not_as_a_crash(monkeypatch):
         scenarios.save_test(db, _admin(), _write())
         monkeypatch.setattr(scenarios, "_fixture_mode", lambda: True)
 
-        async def respond(runtime, test, safety_identifier, provider=None):
+        async def respond(runtime, test, safety_identifier, provider=None, **_):
             raise RuntimeError("provider down")
 
         monkeypatch.setattr(scenarios, "respond", respond)
