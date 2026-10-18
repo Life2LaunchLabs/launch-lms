@@ -55,7 +55,7 @@ def _goal(db: Session, title: str, user_id=LEARNER, org_id: int | None = 1, stat
 
 
 def _runtime(**abilities) -> CoachRuntime:
-    return CoachRuntime(enabled=True, method="", abilities=abilities, tiers={})
+    return CoachRuntime(enabled=True, abilities=abilities, tiers={})
 
 
 def test_who_reads_the_portfolio_without_archived_or_past_entries():

@@ -33,12 +33,12 @@ def _call(db, name, args, ctx=None):
 
 def test_a_model_writes_knowledge_into_the_draft_only(db):
     read = _call(db, "get_coach_policy", {})
-    assert not read.get("isError") and [book["title"] for book in read["structuredContent"]["playbooks"]] == ["Safety"]
+    assert not read.get("isError") and [book["title"] for book in read["structuredContent"]["playbooks"]] == ["Method", "Safety"]
     saved = _call(db, "save_coach_playbook", {"title": "Long-shot careers", "used_when": "pro gamer athlete influencer dream career", "body": "Take the dream seriously."})
     assert "to the draft" in saved["content"][0]["text"] and "1 unreleased change" in saved["content"][0]["text"]
     assert "Long-shot careers" not in policy.runtime(db).knowledge("I want to be a pro gamer")
     preview = _call(db, "preview_coach_knowledge", {"message": "I want to be a pro gamer"})
-    assert preview["structuredContent"]["playbooks"] == ["Safety", "Long-shot careers"]
+    assert preview["structuredContent"]["playbooks"] == ["Method", "Safety", "Long-shot careers"]
     uuid = saved["structuredContent"]["playbook"]["playbook_uuid"]
     _call(db, "save_coach_playbook", {"playbook_uuid": uuid, "title": "Long-shot careers", "used_when": "pro gamer", "body": "Find the first real step."})
     assert [book["body"] for book in policy.policy_view(db)["playbooks"] if book["playbook_uuid"] == uuid] == ["Find the first real step."]

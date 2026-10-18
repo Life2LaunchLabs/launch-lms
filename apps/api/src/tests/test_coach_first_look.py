@@ -40,7 +40,7 @@ class Model:
 @pytest.fixture
 def db(monkeypatch):
     abilities = {"read_portfolio": False}
-    monkeypatch.setattr(coach_policy, "runtime", lambda *_args: CoachRuntime(True, "Coach well.", abilities, {}))
+    monkeypatch.setattr(coach_policy, "runtime", lambda *_args: CoachRuntime(True, abilities, {}))
     with _session() as session:
         SQLModel.metadata.create_all(session.get_bind(), tables=[
             HubConversation.__table__, HubConversationMessage.__table__, HubEditRun.__table__, HubEditRunEvent.__table__, HubEditObjectState.__table__,

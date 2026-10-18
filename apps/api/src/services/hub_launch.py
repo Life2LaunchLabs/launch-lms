@@ -13,7 +13,7 @@ from sqlmodel import Session
 
 from src.db.coach import CoachPolicy
 from src.db.users import PublicUser
-from src.services.coach.policy import DEFAULT_METHOD, POLICY_ID
+from src.services.coach.policy import POLICY_ID
 from src.services.demo.providers import platform_read
 
 MAX_CARDS = 6
@@ -66,7 +66,7 @@ def save_launch_cards(db_session: Session, current_user: PublicUser, cards: list
             raise HTTPException(status_code=422, detail=f"Use between 1 and {MAX_CARDS} cards.")
     record = db_session.get(CoachPolicy, POLICY_ID)
     if record is None:
-        record = CoachPolicy(id=POLICY_ID, method=DEFAULT_METHOD)
+        record = CoachPolicy(id=POLICY_ID)
     record.launch_cards = [c.model_dump() for c in cards] if cards is not None else None
     record.updated_by_user_id = current_user.id
     record.updated_at = datetime.utcnow()

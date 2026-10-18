@@ -1,6 +1,6 @@
 """Coach releases: admins edit a draft of the coaching policy and release it when it's ready.
 
-Every tab on Platform › Coach edits the draft. Releasing freezes the draft's method, abilities,
+Every tab on Platform › Coach edits the draft. Releasing freezes the draft's abilities,
 models, playbooks and routines into a numbered release, and learners get the release that is
 live. Rolling back releases an earlier version again under a new number, so the history only
 grows. Turning Coach on or off, provider keys and the conversation starters apply at once.
@@ -14,7 +14,7 @@ from uuid import uuid4
 from fastapi import HTTPException
 from sqlmodel import Session, select
 
-from src.db.coach import CoachPlaybook, CoachPolicy, CoachRelease, CoachRoutine
+from src.db.coach import CoachPlaybook, CoachPolicy, CoachRelease
 from src.db.users import PublicUser, User
 from src.services.coach import policy as coach_policy
 
@@ -50,11 +50,14 @@ def changes(old: dict | None, new: dict) -> list[str]:
     """What differs between two snapshots, in words an admin recognizes."""
     if old is None:
         return ["The first release"]
-    found = []
-    if (old.get("method") or "").strip() != (new.get("method") or "").strip():
-        found.append("Edited the method")
-    found += _list_changes(old.get("playbooks") or [], new.get("playbooks") or [], "playbook_uuid", "title", "playbook")
-    found += _list_changes(old.get("routines") or [], new.get("routines") or [], "routine_uuid", "name", "routine")
+    found = _list_changes(old.get("playbooks") or [], new.get("playbooks") or [], "playbook_uuid", "title", "playbook")
+    old_routines, new_routines = coach_policy.routines_of(old.get("routines") or {}), coach_policy.routines_of(new.get("routines") or {})
+    for trigger, value in coach_policy.TRIGGERS.items():
+        was, now = old_routines[trigger], new_routines[trigger]
+        if was["instructions"] != now["instructions"]:
+            found.append(f"Edited the routine for “{value['label']}”")
+        if was["tier"] != now["tier"]:
+            found.append(f"“{value['label']}” now runs on {now['tier'].capitalize()}")
     old_abilities, new_abilities = old.get("abilities") or {}, new.get("abilities") or {}
     for key, label in ABILITY_LABELS.items():
         was, now = old_abilities.get(key, True), new_abilities.get(key, True)
@@ -91,7 +94,7 @@ def _check_runnable(db: Session, policy: CoachPolicy, snapshot: dict) -> None:
 
 
 def _make_live(db: Session, current_user: PublicUser | None, snapshot: dict, note: str) -> CoachRelease:
-    policy = db.get(CoachPolicy, coach_policy.POLICY_ID) or CoachPolicy(id=coach_policy.POLICY_ID, method=coach_policy.DEFAULT_METHOD)
+    policy = db.get(CoachPolicy, coach_policy.POLICY_ID) or CoachPolicy(id=coach_policy.POLICY_ID)
     _check_runnable(db, policy, snapshot)
     live = _live(db)
     number = (db.exec(select(CoachRelease.number).order_by(CoachRelease.number.desc())).first() or 0) + 1  # type: ignore[attr-defined]
@@ -135,31 +138,29 @@ def roll_back(db: Session, current_user: PublicUser, release_uuid: str) -> Coach
 
 
 def discard_draft(db: Session, current_user: PublicUser) -> None:
-    """Put the draft back to the live release: method, abilities, models, playbooks and routines."""
+    """Put the draft back to the live release: abilities, models, playbooks and routines."""
     live = _live(db)
     if live is None:
         raise HTTPException(status_code=422, detail="There is no release to go back to yet.")
     snapshot, now = live.snapshot, datetime.utcnow()
     policy = db.get(CoachPolicy, coach_policy.POLICY_ID)
     assert policy is not None
-    policy.method, policy.abilities, policy.tiers = snapshot.get("method") or "", dict(snapshot.get("abilities") or {}), dict(snapshot.get("tiers") or {})
+    policy.abilities, policy.tiers = dict(snapshot.get("abilities") or {}), dict(snapshot.get("tiers") or {})
+    policy.routines = coach_policy.routines_of(snapshot.get("routines") or {})
     policy.updated_by_user_id, policy.updated_at = current_user.id, now
     db.add(policy)
-    for model, uuid_key, fields, items in (
-        (CoachPlaybook, "playbook_uuid", ("title", "used_when", "body", "always", "enabled"), snapshot.get("playbooks") or []),
-        (CoachRoutine, "routine_uuid", ("name", "trigger", "instructions", "tier", "enabled"), snapshot.get("routines") or []),
-    ):
-        rows = {getattr(row, uuid_key): row for row in db.exec(select(model)).all()}
-        wanted = {item[uuid_key] for item in items}
-        for uuid, row in rows.items():
-            if uuid not in wanted:
-                db.delete(row)
-        for position, item in enumerate(items):
-            row = rows.get(item[uuid_key]) or model(**{uuid_key: item[uuid_key]}, created_at=now)
-            for name in fields:
-                setattr(row, name, item[name])
-            row.position, row.updated_by_user_id, row.updated_at = position, current_user.id, now
-            db.add(row)
+    items = snapshot.get("playbooks") or []
+    rows = {row.playbook_uuid: row for row in db.exec(select(CoachPlaybook)).all()}
+    wanted = {item["playbook_uuid"] for item in items}
+    for uuid, row in rows.items():
+        if uuid not in wanted:
+            db.delete(row)
+    for position, item in enumerate(items):
+        row = rows.get(item["playbook_uuid"]) or CoachPlaybook(playbook_uuid=item["playbook_uuid"], created_at=now)
+        for name in ("title", "used_when", "body", "always", "enabled"):
+            setattr(row, name, item[name])
+        row.position, row.updated_by_user_id, row.updated_at = position, current_user.id, now
+        db.add(row)
     db.commit()
 
 

@@ -9,7 +9,7 @@ COACH_TOOLS = [
     Tool(
         "get_coach_policy",
         "Read the Coach policy",
-        "Platform admins only. The draft coaching policy every learner's Coach runs on: the method, knowledge playbooks, routines, triggers, abilities, the fixed rules Launch LMS adds, and what the draft changes compared with the live release. Read it before writing knowledge.",
+        "Platform admins only. The draft coaching policy every learner's Coach runs on: knowledge playbooks (the method is one), the routine for each trigger, abilities, the fixed rules Launch LMS adds, and what the draft changes compared with the live release. Read it before writing knowledge.",
         {"properties": {}},
         coach_mcp.get_coach_policy,
         scope="coach:read",

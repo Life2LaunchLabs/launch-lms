@@ -19,10 +19,11 @@ from src.services.oauth.config import frontend_url
 from src.services.oauth.server import AccessContext
 
 KNOWLEDGE_GUIDE = (
-    "Coach reads the method on every call. Playbooks marked always are added to every call; the others are matched by "
+    "Playbooks marked always (such as the coaching team's method) are added to every call; the others are matched by "
     f"words they share (title and used_when) with the learner's message or the moment, at most {coach_policy.MATCHED_PLAYBOOKS} "
-    f"per call, and all knowledge together is capped at {coach_policy.MAX_KNOWLEDGE_CHARS} characters. Routines add "
-    "instructions when a trigger happens. Write playbooks as guidance to Coach, in the coaching team's voice; give used_when "
+    f"per call, and all knowledge together is capped at {coach_policy.MAX_KNOWLEDGE_CHARS} characters. Each trigger has "
+    "one routine: instructions added when it happens, and the tier it runs on. Write playbooks as guidance to Coach, in the "
+    "coaching team's voice; give used_when "
     "the words a learner would actually use. Changes go to the draft; learners get them only when a person releases the draft."
 )
 
@@ -57,9 +58,8 @@ async def get_coach_policy(request: Request, db: Session, ctx: AccessContext, ar
     view = coach_policy.policy_view(db)
     return {
         "guide": KNOWLEDGE_GUIDE,
-        "method": view["method"],
         "playbooks": [_book(book) for book in view["playbooks"]],
-        "routines": [{key: item[key] for key in ("routine_uuid", "name", "trigger", "instructions", "tier", "enabled")} for item in view["routines"]],
+        "routines": view["routines"],
         "triggers": [{"key": item["key"], "label": item["label"], "detail": item["detail"]} for item in view["triggers"]],
         "abilities": [{"key": item["key"], "label": item["label"], "enabled": item["enabled"]} for item in view["abilities"]],
         "built_in_rules": view["built_in_rules"],

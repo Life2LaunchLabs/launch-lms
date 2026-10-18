@@ -22,12 +22,12 @@ class CoachPolicy(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     enabled: bool = Field(default=False, sa_column=Column(Boolean, nullable=False, server_default="false"))
-    # The coaching team's own document: approach, voice, standards. Markdown.
-    method: str = Field(default="", sa_column=Column(Text, nullable=False, server_default=""))
     # {ability_key: bool}; a key that's missing uses the ability's default.
     abilities: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False, server_default="{}"))
     # {tier: {"key_uuid", "model", "settings": CoachModelSettings}}.
     tiers: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False, server_default="{}"))
+    # One routine per trigger: {trigger: {"instructions", "tier"}}; a trigger that's missing has no instructions and its default tier.
+    routines: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False, server_default="{}"))
     # Conversation-starter cards on Coach home; NULL means the code defaults.
     launch_cards: list | None = Field(default=None, sa_column=Column(JSON, nullable=True))
     # The release learners get. Edits on the tabs change the draft; NULL (no release yet) means Coach runs the draft.
@@ -70,26 +70,8 @@ class CoachPlaybook(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
-class CoachRoutine(SQLModel, table=True):
-    """When a trigger happens, Coach gets these instructions."""
-
-    __tablename__ = "coach_routine"
-
-    id: int | None = Field(default=None, primary_key=True)
-    routine_uuid: str = Field(sa_column=Column(String, nullable=False, unique=True, index=True))
-    name: str = Field(sa_column=Column(String(200), nullable=False))
-    trigger: str = Field(sa_column=Column(String(60), nullable=False, index=True))
-    instructions: str = Field(default="", sa_column=Column(Text, nullable=False, server_default=""))
-    tier: str = Field(default="standard", sa_column=Column(String(20), nullable=False, server_default="standard"))
-    enabled: bool = Field(default=True, sa_column=Column(Boolean, nullable=False, server_default="true"))
-    position: int = Field(default=0, sa_column=Column(Integer, nullable=False, server_default="0"))
-    updated_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
-
-
 class CoachRelease(SQLModel, table=True):
-    """A numbered, frozen copy of the draft: method, abilities, models, playbooks and routines."""
+    """A numbered, frozen copy of the draft: abilities, models, playbooks and routines."""
 
     __tablename__ = "coach_release"
 
@@ -194,13 +176,19 @@ class CoachTierUpdate(BaseModel):
     settings: CoachModelSettings = PydanticField(default_factory=CoachModelSettings)
 
 
+class CoachRoutineWrite(BaseModel):
+    instructions: str = PydanticField(default="", max_length=20_000)
+    tier: Tier = "standard"
+
+
 class CoachPolicyUpdate(BaseModel):
     """Any field left out stays as it is."""
 
     enabled: bool | None = None
-    method: str | None = PydanticField(default=None, max_length=60_000)
     abilities: dict[str, bool] | None = None
     tiers: dict[Tier, CoachTierUpdate] | None = None
+    # Routines to replace, by trigger; triggers left out stay as they are.
+    routines: dict[str, CoachRoutineWrite] | None = None
 
 
 class CoachReleaseCreate(BaseModel):
@@ -271,14 +259,6 @@ class CoachPlaybookWrite(BaseModel):
     used_when: str = PydanticField(default="", max_length=2_000)
     body: str = PydanticField(default="", max_length=60_000)
     always: bool = False
-    enabled: bool = True
-
-
-class CoachRoutineWrite(BaseModel):
-    name: str = PydanticField(min_length=1, max_length=200)
-    trigger: str = PydanticField(min_length=1, max_length=60)
-    instructions: str = PydanticField(default="", max_length=20_000)
-    tier: Tier = "standard"
     enabled: bool = True
 
 

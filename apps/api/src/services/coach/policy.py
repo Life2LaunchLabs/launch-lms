@@ -1,4 +1,4 @@
-"""Coach's platform policy: method, knowledge, routines, abilities and models.
+"""Coach's platform policy: knowledge, routines, abilities and models.
 
 Admins edit it on Platform › Coach. Everything Coach runs reads it through ``runtime()``, which
 returns a plain snapshot (from the control database in a demo, since demos never copy platform
@@ -18,13 +18,14 @@ from sqlmodel import Session, select
 
 from src.db.coach import (
     TIERS, CoachOrder, CoachPlaybook, CoachPlaybookWrite, CoachPolicy, CoachPolicyUpdate, CoachProviderKey, CoachRelease,
-    CoachRoutine, CoachRoutineWrite, CoachModelSettings,
+    CoachModelSettings,
 )
 from src.db.users import PublicUser
 from src.services.coach.keys import decrypt_api_key, key_dict, list_keys
 
 POLICY_ID = 1
 
+# The playbooks a new platform starts with. The method is an always-on playbook like any other.
 DEFAULT_METHOD = """# How Coach coaches
 
 You are Coach, the Launch LMS learning coach. Help a learner clarify goals, consider realistic next steps, and reflect on tradeoffs.
@@ -44,11 +45,13 @@ Don't claim to have searched Launch LMS resources, accessed private data, rememb
 
 SAFETY_PLAYBOOK = """Don't present medical, legal, financial, or crisis guidance as professional advice. Encourage the learner to reach appropriate qualified or emergency help when they need it, and a trusted adult when something feels unsafe."""
 
-# Routines a new platform starts with: the voice the note and story writers used before routines existed.
-SEED_ROUTINES = (
-    ("Check-in notes", "goal_check_in", 'Write in a warm, plain voice, speaking to the learner as "you". Notice; never nag, guilt or pressure.'),
-    ("Finish story", "goal_finished", "Plain words; no exclamation marks, no clichés."),
-)
+SEED_PLAYBOOKS = (("Method", DEFAULT_METHOD), ("Safety", SAFETY_PLAYBOOK))
+
+# Routine instructions a new platform starts with: the voice the note and story writers used before routines existed.
+SEED_ROUTINES = {
+    "goal_check_in": 'Write in a warm, plain voice, speaking to the learner as "you". Notice; never nag, guilt or pressure.',
+    "goal_finished": "Plain words; no exclamation marks, no clichés.",
+}
 
 # (key, group, label, detail); every ability starts on. Groups read top to bottom on the Abilities tab.
 ABILITY_GROUPS = (
@@ -72,7 +75,7 @@ ABILITIES = (
 )
 ABILITY_KEYS = {item[0] for item in ABILITIES}
 
-# Moments Coach acts on. A routine attaches instructions to one; the output each moment produces is fixed in code.
+# Moments Coach acts on. Each has one routine: instructions and a tier. The output each moment produces is fixed in code.
 TRIGGERS = {
     "learner_message": {"label": "The learner sends a message", "detail": "Added to every reply in the Coach chat.", "tier": "standard"},
     "planning_session": {"label": "The learner plans a goal with Coach", "detail": "Added while Coach and the learner plan a goal together on the goal page.", "tier": "standard"},
@@ -106,12 +109,12 @@ class CoachRuntime:
     """The policy as Coach uses it, detached from any database session."""
 
     enabled: bool
-    method: str
     abilities: dict[str, bool]
     tiers: dict[str, dict]
     keys: dict[str, tuple[str, str]] = field(default_factory=dict)
     playbooks: tuple[dict, ...] = ()
-    routines: tuple[dict, ...] = ()
+    # {trigger: {"instructions", "tier"}} for every trigger.
+    routines: dict[str, dict] = field(default_factory=dict)
 
     def can(self, ability: str) -> bool:
         return bool(self.abilities.get(ability, True))
@@ -126,13 +129,9 @@ class CoachRuntime:
                 return CoachModel(provider, decrypt_api_key(ciphertext), config["model"].strip(), {**CoachModelSettings().model_dump(), **(config.get("settings") or {})})
         raise RuntimeError("Coach is not configured or enabled.")
 
-    def routines_for(self, trigger: str) -> list[dict]:
-        return [routine for routine in self.routines if routine["trigger"] == trigger]
-
     def tier_for(self, trigger: str) -> str:
-        """The highest tier among the trigger's routines, or the trigger's default."""
-        tiers = [routine["tier"] for routine in self.routines_for(trigger) if routine["tier"] in TIER_ORDER]
-        return max(tiers, key=TIER_ORDER.__getitem__) if tiers else TRIGGERS[trigger]["tier"]
+        """The tier the trigger's routine runs on."""
+        return (self.routines.get(trigger) or {}).get("tier") or TRIGGERS[trigger]["tier"]
 
     def knowledge(self, query: str = "") -> str:
         """Playbooks marked always, then up to two whose title or "used when" share the most words with the query."""
@@ -153,15 +152,15 @@ class CoachRuntime:
         return "\n\n".join(parts)
 
     def instructions(self, *triggers: str, query: str = "", contract: str = "") -> str:
-        """Coach's system instructions: the method, matching knowledge, the triggers' routines, then any fixed output contract."""
-        parts = [self.method.strip() or DEFAULT_METHOD.strip()]
+        """Coach's system instructions: matching knowledge, the triggers' routines, then any fixed output contract."""
+        parts = []
         knowledge = self.knowledge(query)
         if knowledge:
             parts.append(f"<coach_knowledge>\nPlaybooks from the coaching team. Follow them where they apply.\n\n{knowledge}\n</coach_knowledge>")
         for trigger in triggers:
-            for routine in self.routines_for(trigger):
-                if routine["instructions"].strip():
-                    parts.append(f"<coach_routine name=\"{routine['name']}\" when=\"{TRIGGERS[trigger]['label']}\">\n{routine['instructions'].strip()}\n</coach_routine>")
+            instructions = ((self.routines.get(trigger) or {}).get("instructions") or "").strip()
+            if instructions:
+                parts.append(f"<coach_routine when=\"{TRIGGERS[trigger]['label']}\">\n{instructions}\n</coach_routine>")
         if contract.strip():
             parts.append(contract.strip())
         return "\n\n".join(parts)
@@ -171,12 +170,21 @@ def draft_snapshot(db: Session, policy: CoachPolicy | None = None) -> dict:
     """The draft as admins left it on the tabs: what the next release will freeze."""
     policy = policy or db.get(CoachPolicy, POLICY_ID)
     return {
-        "method": policy.method if policy else DEFAULT_METHOD,
         "abilities": _abilities(policy),
         "tiers": dict((policy.tiers if policy else None) or {}),
         "playbooks": [{key: value for key, value in _playbook_dict(book).items() if key != "updated_at"} for book in _playbooks(db)],
-        "routines": [{key: value for key, value in _routine_dict(item).items() if key != "updated_at"} for item in _routines(db)],
+        "routines": routines_of((policy.routines if policy else None) or {}),
     }
+
+
+def routines_of(saved: dict) -> dict[str, dict]:
+    """Every trigger's routine, with the trigger's default tier where none is saved."""
+    routines = {}
+    for trigger, value in TRIGGERS.items():
+        item = saved.get(trigger) or {}
+        tier = item.get("tier") if item.get("tier") in TIER_ORDER else value["tier"]
+        routines[trigger] = {"instructions": (item.get("instructions") or "").strip(), "tier": tier}
+    return routines
 
 
 def live_snapshot(db: Session, policy: CoachPolicy | None = None) -> dict:
@@ -187,11 +195,9 @@ def live_snapshot(db: Session, policy: CoachPolicy | None = None) -> dict:
 
 
 def runtime_from(db: Session, snapshot: dict, enabled: bool) -> CoachRuntime:
-    method = snapshot.get("method") or ""
     saved = snapshot.get("abilities") or {}
     return CoachRuntime(
         enabled=enabled,
-        method=method if method.strip() else DEFAULT_METHOD,
         abilities={key: bool(saved.get(key, True)) for key in ABILITY_KEYS},
         tiers=dict(snapshot.get("tiers") or {}),
         keys={key.key_uuid: (key.provider, key.ciphertext) for key in db.exec(select(CoachProviderKey)).all()},
@@ -199,10 +205,7 @@ def runtime_from(db: Session, snapshot: dict, enabled: bool) -> CoachRuntime:
             {"title": book["title"], "used_when": book["used_when"], "body": book["body"], "always": book["always"]}
             for book in snapshot.get("playbooks") or [] if book.get("enabled", True)
         ),
-        routines=tuple(
-            {"name": item["name"], "trigger": item["trigger"], "instructions": item["instructions"], "tier": item["tier"]}
-            for item in snapshot.get("routines") or [] if item.get("enabled", True) and item.get("trigger") in TRIGGERS
-        ),
+        routines=routines_of(snapshot.get("routines") or {}),
     )
 
 
@@ -232,13 +235,12 @@ def _abilities(policy: CoachPolicy | None) -> dict[str, bool]:
 
 
 def seed_defaults(db: Session) -> None:
-    """Give a new platform the starting method, the Safety playbook and the seed routines. Existing platforms got them from their migration."""
+    """Give a new platform the starting playbooks and routines. Existing platforms got them from their migrations."""
     if db.get(CoachPolicy, POLICY_ID) is not None:
         return
-    db.add(CoachPolicy(id=POLICY_ID, method=DEFAULT_METHOD))
-    db.add(CoachPlaybook(playbook_uuid=f"coach_playbook_{uuid4().hex}", title="Safety", used_when="Every conversation", body=SAFETY_PLAYBOOK, always=True))
-    for position, (name, trigger, instructions) in enumerate(SEED_ROUTINES):
-        db.add(CoachRoutine(routine_uuid=f"coach_routine_{uuid4().hex}", name=name, trigger=trigger, instructions=instructions, position=position))
+    db.add(CoachPolicy(id=POLICY_ID, routines={trigger: {"instructions": text} for trigger, text in SEED_ROUTINES.items()}))
+    for position, (title, body) in enumerate(SEED_PLAYBOOKS):
+        db.add(CoachPlaybook(playbook_uuid=f"coach_playbook_{uuid4().hex}", title=title, used_when="Every conversation", body=body, always=True, position=position))
     db.commit()
     from src.services.coach.releases import release
 
@@ -248,7 +250,7 @@ def seed_defaults(db: Session) -> None:
 def _policy(db: Session) -> CoachPolicy:
     policy = db.get(CoachPolicy, POLICY_ID)
     if policy is None:
-        policy = CoachPolicy(id=POLICY_ID, method=DEFAULT_METHOD)
+        policy = CoachPolicy(id=POLICY_ID)
     return policy
 
 
@@ -280,13 +282,6 @@ def _tiers_view(db: Session, policy: CoachPolicy) -> dict:
     return view
 
 
-def _routine_dict(routine: CoachRoutine) -> dict:
-    return {
-        "routine_uuid": routine.routine_uuid, "name": routine.name, "trigger": routine.trigger, "instructions": routine.instructions,
-        "tier": routine.tier, "enabled": routine.enabled, "updated_at": routine.updated_at,
-    }
-
-
 def _playbook_dict(book: CoachPlaybook) -> dict:
     return {
         "playbook_uuid": book.playbook_uuid, "title": book.title, "used_when": book.used_when, "body": book.body,
@@ -301,14 +296,13 @@ def policy_view(db: Session) -> dict:
     abilities = _abilities(policy)
     return {
         "enabled": policy.enabled,
-        "method": policy.method if policy.method.strip() else DEFAULT_METHOD,
         "ability_groups": [{"key": key, "label": label} for key, label in ABILITY_GROUPS],
         "abilities": [{"key": key, "group": group, "label": label, "detail": detail, "enabled": abilities[key]} for key, group, label, detail in ABILITIES],
         "tiers": _tiers_view(db, policy),
         "tier_uses": _tier_uses(db),
         "keys": [key_dict(key) for key in list_keys(db)],
         "triggers": [{"key": key, **value} for key, value in TRIGGERS.items()],
-        "routines": [_routine_dict(item) for item in _routines(db)],
+        "routines": routines_of(policy.routines or {}),
         "playbooks": [_playbook_dict(item) for item in _playbooks(db)],
         "built_in_rules": built_in_rules(),
         "release": releases.summary(db),
@@ -329,8 +323,11 @@ def _tier_uses(db: Session) -> dict[str, list[str]]:
 
 def update_policy(db: Session, current_user: PublicUser, payload: CoachPolicyUpdate) -> dict:
     policy = _policy(db)
-    if payload.method is not None:
-        policy.method = payload.method.strip()
+    if payload.routines is not None:
+        unknown = set(payload.routines) - set(TRIGGERS)
+        if unknown:
+            raise HTTPException(status_code=422, detail=f"Unknown triggers: {', '.join(sorted(unknown))}.")
+        policy.routines = {**(policy.routines or {}), **{trigger: {"instructions": value.instructions.strip(), "tier": value.tier} for trigger, value in payload.routines.items()}}
     if payload.abilities is not None:
         unknown = set(payload.abilities) - ABILITY_KEYS
         if unknown:
@@ -365,10 +362,6 @@ def _playbooks(db: Session) -> list[CoachPlaybook]:
     return list(db.exec(select(CoachPlaybook).order_by(CoachPlaybook.position, CoachPlaybook.id)).all())
 
 
-def _routines(db: Session) -> list[CoachRoutine]:
-    return list(db.exec(select(CoachRoutine).order_by(CoachRoutine.position, CoachRoutine.id)).all())
-
-
 def _find(db: Session, model, column, value: str, label: str):
     row = db.exec(select(model).where(column == value)).first()
     if row is None:
@@ -395,38 +388,14 @@ def delete_playbook(db: Session, playbook_uuid: str) -> None:
     db.commit()
 
 
-def save_routine(db: Session, current_user: PublicUser, payload: CoachRoutineWrite, routine_uuid: str | None = None) -> dict:
-    if payload.trigger not in TRIGGERS:
-        raise HTTPException(status_code=422, detail="Choose one of the listed triggers.")
-    if routine_uuid:
-        routine = _find(db, CoachRoutine, CoachRoutine.routine_uuid, routine_uuid, "Routine")
-    else:
-        routine = CoachRoutine(routine_uuid=f"coach_routine_{uuid4().hex}", name="", trigger=payload.trigger, position=len(_routines(db)))
-    routine.name, routine.trigger, routine.instructions = payload.name.strip(), payload.trigger, payload.instructions.strip()
-    routine.tier, routine.enabled = payload.tier, payload.enabled
-    routine.updated_by_user_id, routine.updated_at = current_user.id, datetime.utcnow()
-    db.add(routine)
-    db.commit()
-    db.refresh(routine)
-    return _routine_dict(routine)
-
-
-def delete_routine(db: Session, routine_uuid: str) -> None:
-    db.delete(_find(db, CoachRoutine, CoachRoutine.routine_uuid, routine_uuid, "Routine"))
-    db.commit()
-
-
-def reorder(db: Session, kind: str, payload: CoachOrder) -> list[dict]:
-    column, rows, view = (
-        ("playbook_uuid", _playbooks(db), _playbook_dict) if kind == "playbooks"
-        else ("routine_uuid", _routines(db), _routine_dict)
-    )
-    by_uuid = {getattr(row, column): row for row in rows}
+def reorder_playbooks(db: Session, payload: CoachOrder) -> list[dict]:
+    rows = _playbooks(db)
+    by_uuid = {row.playbook_uuid: row for row in rows}
     ordered = [by_uuid[uuid] for uuid in payload.uuids if uuid in by_uuid]
     ordered += [row for row in rows if row not in ordered]
     for position, row in enumerate(ordered):
         row.position = position
         db.add(row)
     db.commit()
-    return [view(row) for row in ordered]
+    return [_playbook_dict(row) for row in ordered]
 

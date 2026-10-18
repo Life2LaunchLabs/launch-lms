@@ -6,7 +6,7 @@ const environment = loadUiTestEnvironment({ requireCredentials: false })
 // Platform pages sit beside Plans: /orgs/<slug>/admin/platform/coach, or /admin/platform/coach on an org host.
 const coachPath = environment.plansPath.replace(/plans(\?.*)?$/, 'admin/platform/coach')
 
-test('platform.coach-policy: the coaching team edits the method, knowledge, routines and abilities, tests the draft and releases it', async ({ page }, testInfo) => {
+test('platform.coach-policy: the coaching team edits knowledge, routines and abilities, tests the draft and releases it', async ({ page }, testInfo) => {
   const browserErrors: string[] = []
   page.on('console', (message) => { if (message.type() === 'error') browserErrors.push(message.text()) })
   page.on('pageerror', (error) => browserErrors.push(error.message))
@@ -17,23 +17,11 @@ test('platform.coach-policy: the coaching team edits the method, knowledge, rout
   await page.goto(coachPath)
   await assertActualApp(page)
   // Tabs are links; the steps below go to them by URL because save toasts can sit over the tab row for a moment.
-  await expect(page.getByRole('navigation', { name: 'Coach policy' }).getByRole('link')).toHaveCount(7)
+  await expect(page.getByRole('navigation', { name: 'Coach policy' }).getByRole('link')).toHaveCount(6)
 
-  // Method: one markdown document, with a preview.
-  const method = page.getByRole('textbox', { name: 'Method document' })
-  await expect(method).toHaveValue(/# How Coach coaches/)
-  const original = await method.inputValue()
-  const heading = `Effort ${Date.now().toString(36)}`
-  await method.fill(`${original}\n\n## ${heading}\n\nNotice effort before results.`)
-  await page.getByRole('button', { name: 'Preview' }).click()
-  await expect(page.getByRole('heading', { name: heading })).toBeVisible()
-  await capture('coach-method')
-  await page.getByRole('button', { name: 'Save method' }).click()
-  await expect(page.getByText('Method saved.')).toBeVisible()
-
-  // Knowledge: Safety is an always-on playbook; a new one is matched by "used when".
-  await page.goto(`${coachPath}/knowledge`)
-  await expect(page.getByRole('button', { name: /Safety\s*Always/ })).toBeVisible()
+  // Knowledge: the method and Safety are always-on playbooks like any other; a new one is matched by "used when".
+  await expect(page.getByRole('button', { name: /^Method\s*Always/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^Safety\s*Always/ })).toBeVisible()
   const title = `Big dreams ${Date.now().toString(36)}`
   await page.getByRole('button', { name: 'New playbook' }).click()
   await page.getByPlaceholder('Big career dreams').fill(title)
@@ -49,11 +37,23 @@ test('platform.coach-policy: the coaching team edits the method, knowledge, rout
   await page.getByRole('button', { name: 'Delete', exact: true }).click()
   await expect(playbook).toHaveCount(0)
 
-  // Releases: the method edit waits in the draft until it is released; rolling back makes the earlier release live again.
+  // Routines: one per moment, with its instructions and a tier.
+  await page.goto(`${coachPath}/routines`)
+  const checkIn = page.locator('section').filter({ has: page.getByRole('heading', { name: 'When the learner comes back and a check-in is due' }) })
+  const instructions = checkIn.getByRole('textbox', { name: 'Instructions' })
+  await expect(instructions).toHaveValue(/warm, plain voice/)
+  await expect(checkIn.getByRole('combobox', { name: /Model tier/ })).toHaveText('Standard')
+  const original = await instructions.inputValue()
+  await instructions.fill(`${original} Mention one win ${Date.now().toString(36)}.`)
+  await checkIn.getByRole('button', { name: 'Save' }).click()
+  await expect(page.getByText('Routine saved.')).toBeVisible()
+  await capture('coach-routines')
+
+  // Releases: the routine edit waits in the draft until it is released; rolling back makes the earlier release live again.
   await expect(page.getByRole('status').filter({ hasText: '1 change in the draft' })).toBeVisible()
   await page.goto(`${coachPath}/releases`)
-  await expect(page.getByText('Edited the method', { exact: true }).first()).toBeVisible()
-  await page.getByRole('textbox', { name: 'Release note' }).fill('Notice effort first')
+  await expect(page.getByText('Edited the routine for “The learner comes back and a check-in is due”', { exact: true }).first()).toBeVisible()
+  await page.getByRole('textbox', { name: 'Release note' }).fill('Mention one win')
   await page.getByRole('button', { name: 'Release to learners' }).click()
   await expect(page.getByText(/^Release \d+ is live\.$/)).toBeVisible()
   await expect(page.getByText(/The draft is the same as release \d+\./)).toBeVisible()
@@ -63,16 +63,10 @@ test('platform.coach-policy: the coaching team edits the method, knowledge, rout
   await expect(page.getByText(/^Release \d+ is live again\.$/)).toBeVisible()
   await expect(page.getByText(/^Rolled back to release \d+$/).first()).toBeVisible()
 
-  await page.goto(coachPath)
-  await method.fill(original)
-  await page.getByRole('button', { name: 'Save method' }).click()
-  await expect(page.getByText('Method saved.').first()).toBeVisible()
-
-  // Routines: grouped by the moment they run on; the seeded voice routines are there.
   await page.goto(`${coachPath}/routines`)
-  await expect(page.getByRole('heading', { name: 'When the learner comes back and a check-in is due' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Edit Check-in notes' })).toBeVisible()
-  await capture('coach-routines')
+  await instructions.fill(original)
+  await checkIn.getByRole('button', { name: 'Save' }).click()
+  await expect(page.getByText('Routine saved.').first()).toBeVisible()
 
   // Abilities: plain switches in three groups, with the fixed rules shown read-only.
   await page.goto(`${coachPath}/abilities`)

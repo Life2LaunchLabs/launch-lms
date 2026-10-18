@@ -1,8 +1,8 @@
 'use client'
 
 import CoachShell from '@components/Admin/Platform/Coach/CoachShell'
-import CoachMethod from '@components/Admin/Platform/Coach/CoachMethod'
+import CoachKnowledge from '@components/Admin/Platform/Coach/CoachKnowledge'
 
-export default function CoachMethodPage() {
-  return <CoachShell active="method">{(policy) => <CoachMethod policy={policy} />}</CoachShell>
+export default function CoachKnowledgeHomePage() {
+  return <CoachShell active="knowledge">{(policy) => <CoachKnowledge policy={policy} />}</CoachShell>
 }
