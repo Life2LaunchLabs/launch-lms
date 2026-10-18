@@ -61,7 +61,7 @@
     "apps/web/components/Dashboard/Pages/Payments/PaymentsCustomersPage.tsx": 530,
     "apps/web/components/Dashboard/Pages/Podcast/EditPodcastEpisodes/EditPodcastEpisodes.tsx": 640,
     "apps/web/components/Dashboard/Pages/UserAccount/UserProfile/UserProfileBuilder.tsx": 1345,
-    "apps/web/components/Dashboard/Pages/Users/OrgUsers/OrgUsers.tsx": 648,
+    "apps/web/components/Dashboard/Pages/Users/OrgUsers/OrgUsers.tsx": 615,
     "apps/web/components/Learning/AdminBadgeCollection.tsx": 709,
     "apps/web/components/Learning/AdminBadgeShell.tsx": 1200,
     "apps/web/components/Learning/BadgeCertificatePreview.tsx": 634,

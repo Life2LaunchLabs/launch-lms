@@ -113,7 +113,7 @@ export interface AssignmentMatrix {
   learners: MatrixLearner[]
 }
 export interface Cohort { cohort: { id: number; uuid: string; name: string; description: string; thumbnail_image: string }; learner_count: number; assignments: AssignmentSummary[]; completed_assignments: AssignmentSummary[] }
-export interface ManagedGoal { goal_uuid: string; title: string; status: GoalStatus; source: string; target_date: string | null; progress: { done: number; total: number } }
+export interface ManagedGoal { goal_uuid: string; title: string; status: GoalStatus; source: string; target_date: string | null; progress: { done: number; total: number }; people?: Array<StaffPerson & { role: string }> }
 export interface ManagedUser { user: StaffPerson; assignments: Array<AssignmentSummary & { goal: ManagedGoal }>; goals: ManagedGoal[] }
 export type BulkResult = { user_id: number | null; goal_uuid: string; step_uuid: string; status: StepStatus | 'skipped'; reason?: string }
 

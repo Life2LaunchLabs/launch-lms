@@ -3,7 +3,8 @@ from fastapi import HTTPException
 
 from src.db.goal_admin import StepProgressBulk
 from src.db.goals import StepCreate, StepStatus, StepSubmission
-from src.services.goals import goals, staff_views, structure
+from src.services.goals import access, goals, staff_views, structure
+from src.services.goals.sharing_roles import _role
 from src.tests.test_goal_review import _assigned, _goal
 from src.tests.test_goals import ADMIN, LEARNER, OTHER, _session, _status, _step, _user
 
@@ -94,5 +95,13 @@ def test_reviews_cohorts_and_managed_learners():
         managed = staff_views.managed_user(db, _user(ADMIN), 1, LEARNER)
         assert managed["user"]["id"] == LEARNER and managed["assignments"][0]["goal"]["goal_uuid"] == goal_uuid
         assert managed["goals"][0]["progress"] == {"done": 0, "total": 2, "percent": 0}
+        assert managed["goals"][0]["people"] == []
         outsider = staff_views.managed_user(db, _user(OTHER), 1, LEARNER)
         assert outsider["assignments"] == [] and outsider["goals"] == []
+
+        # Goal cards show who helps, with their role.
+        goal = _goal(db, LEARNER)
+        access.add_member(db, goal, OTHER, _role(db, goal, "commenter"))
+        db.commit()
+        helpers = staff_views.managed_user(db, _user(ADMIN), 1, LEARNER)["goals"][0]["people"]
+        assert [(item["id"], item["role"]) for item in helpers] == [(OTHER, "Commenter")]

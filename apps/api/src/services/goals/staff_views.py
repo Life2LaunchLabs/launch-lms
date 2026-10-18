@@ -22,6 +22,7 @@ from src.db.goals import (
     StepProgress,
     StepStatus,
 )
+from src.db.planning import PlanCollaborator, PlanRole
 from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup
 from src.db.users import PublicUser, User
@@ -286,6 +287,21 @@ def cohort(db: Session, current_user: PublicUser, org_id: int, usergroup_id: int
     }
 
 
+def _people(db: Session, goal_ids: list[int], learner_id: int) -> dict[int, list[dict]]:
+    """Who helps on each goal besides the learner, with their role, for the goal cards."""
+    if not goal_ids:
+        return {}
+    rows = db.exec(select(PlanCollaborator, PlanRole).join(PlanRole, PlanRole.id == PlanCollaborator.role_id)  # type: ignore[arg-type]
+                   .where(PlanCollaborator.goal_id.in_(goal_ids), PlanCollaborator.active == True, PlanCollaborator.user_id != learner_id)  # type: ignore[union-attr]  # noqa: E712
+                   .order_by(PlanCollaborator.id)).all()
+    found: dict[int, list[dict]] = {}
+    for collaborator, role in rows:
+        who = person(db.get(User, collaborator.user_id))
+        if who:
+            found.setdefault(int(collaborator.goal_id), []).append({**who, "role": role.name})  # type: ignore[arg-type]
+    return found
+
+
 def managed_user(db: Session, current_user: PublicUser, org_id: int, user_id: int) -> dict:
     """One learner's assignments (that the viewer staffs or administers) and the org goals the viewer can see."""
     require_org_membership(current_user.id, org_id, db)
@@ -295,10 +311,11 @@ def managed_user(db: Session, current_user: PublicUser, org_id: int, user_id: in
     goals = list(db.exec(select(Goal).where(Goal.org_id == org_id, Goal.subject_user_id == user_id).order_by(Goal.id)).all())  # type: ignore[arg-type]
     steps, progress = _loaded(db, goals)
     assignments, visible = [], []
+    helpers = _people(db, [int(goal.id) for goal in goals], user_id)  # type: ignore[arg-type]
     for goal in goals:
         assignment = db.get(GoalAssignment, goal.assignment_id) if goal.assignment_id else None
         summary = {"goal_uuid": goal.goal_uuid, "title": goal.title, "status": _value(goal.status), "source": _value(goal.source),
-                   "target_date": goal.target_date, "progress": _goal_progress(steps.get(int(goal.id), []), progress)}  # type: ignore[arg-type]
+                   "target_date": goal.target_date, "progress": _goal_progress(steps.get(int(goal.id), []), progress), "people": helpers.get(int(goal.id), [])}  # type: ignore[arg-type]
         if assignment and _is_staff(db, current_user, org_id, assignment):
             assignments.append({**assignment_summary(db, assignment), "goal": summary})
         if "view_plan" in access.capabilities(db, goal, current_user.id):
