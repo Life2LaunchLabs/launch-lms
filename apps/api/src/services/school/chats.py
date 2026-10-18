@@ -1,4 +1,8 @@
-"""Each student's school chat: the student and the staff of their groups, named after the organization."""
+"""Each learner's chat with an organization: them, the staff of their groups, and the people on their plans with it.
+
+It's named after the organization, and each learner has one per organization they work with
+(see services/connect/workspace.py for how plans talk in it).
+"""
 
 from __future__ import annotations
 
@@ -53,7 +57,9 @@ def find(db: Session, org_id: int, student_id: int) -> Conversation | None:
 
 
 def school_chat(db: Session, org_id: int, student_id: int) -> Conversation:
-    """The student's school chat, created if needed, with its members brought up to date."""
+    """The learner's chat with an organization, created if needed, with its members brought up to date."""
+    from src.services.connect.workspace import plan_people
+
     conversation = find(db, org_id, student_id)
     now = _stamp()
     if not conversation:
@@ -64,7 +70,7 @@ def school_chat(db: Session, org_id: int, student_id: int) -> Conversation:
         )
         db.add(conversation)
         db.flush()
-    wanted = {student_id, *(row.user_id for row in team(db, org_id, student_id))}
+    wanted = {student_id, *(row.user_id for row in team(db, org_id, student_id)), *plan_people(db, org_id, student_id)}
     current = {member.user_id: member for member in db.exec(select(ConversationMember).where(ConversationMember.conversation_id == conversation.id)).all()}
     for user_id in wanted - set(current):
         db.add(ConversationMember(conversation_id=int(conversation.id), user_id=user_id, status="active", creation_date=now, update_date=now))  # type: ignore[arg-type]

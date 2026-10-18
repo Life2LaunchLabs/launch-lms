@@ -1,0 +1,14 @@
+/* A plan's chat docks beside the page the way Coach does, on the same outside surface, and the
+   page narrows into a card for it (GoalChat.tsx). Outside the learner frame
+   (staff pages) it floats as a card of its own. */
+:root { --side-chat-width: min(420px, calc(100vw - 24px)); }
+.side-chat-panel { position: fixed; inset: var(--hub-top, 0px) 0 0 0; z-index: calc(var(--z-nav) + 3); display: flex; flex-direction: column; overflow: hidden; background: hsl(var(--shell)); color: hsl(var(--foreground)); }
+@media (min-width: 768px) {
+  .side-chat-panel { top: calc(var(--hub-top, 0px) + 12px); bottom: 12px; right: 12px; left: auto; width: var(--side-chat-width); border: 1px solid hsl(var(--border)); border-radius: 24px; box-shadow: 0 24px 48px -12px rgb(0 0 0 / .25); }
+  .hub-shell .side-chat-panel { width: var(--hub-pane-width); border: 0; border-radius: 0; box-shadow: none; }
+  .hub-shell[data-side-chat] { padding-right: calc(var(--hub-pane-width) + 24px); }
+  .hub-shell[data-side-chat] .org-layout-shell { height: calc(100dvh - var(--hub-top)); min-height: 0; overflow: hidden; border-right: 1px solid hsl(var(--border) / .7); border-radius: 0 24px 24px 0; }
+  .hub-shell[data-side-chat] .org-page-body { overflow-y: auto; overscroll-behavior: contain; }
+  .hub-shell[data-side-chat] .org-page-content { flex: 1; }
+}
+@media print { .side-chat-panel { display: none; } }

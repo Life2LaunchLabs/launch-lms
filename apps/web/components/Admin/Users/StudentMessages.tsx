@@ -3,14 +3,14 @@
 import React from 'react'
 import useSWR from 'swr'
 import toast from 'react-hot-toast'
-import { Loader2, Lock, Send, Trash2 } from 'lucide-react'
-import { Bubble } from '@components/Connect/ChatPane'
+import { Loader2, Lock, Trash2 } from 'lucide-react'
 import { chatTime } from '@components/Connect/ConnectView'
 import { PersonAvatar } from '@components/Goals/share/PersonAvatar'
-import { connectApi } from '@services/connect/connect'
+import ChatWorkspace from '@components/Connect/workspace/ChatWorkspace'
+import { getUriWithOrg } from '@services/config/config'
 import { schoolApi, schoolKeys, type StaffNote } from '@services/school/school'
 
-const REFRESH_MS = 10_000
+const REFRESH_MS = 30_000
 
 function useStudent(orgId: number, userId: number, token?: string, refresh = false) {
   return useSWR(orgId && token ? schoolKeys.student(orgId, userId) : null, () => schoolApi.student(orgId, userId, token),
@@ -31,59 +31,25 @@ export function SchoolTeam({ orgId, userId, token }: { orgId: number; userId: nu
   )
 }
 
-/** A student's school chat next to the staff-only notes about them. */
+/** Where a step opens for staff: the learner's plan as staff work it, at that step. */
+export const staffStepHref = (orgslug: string) => (goalUuid: string, stepUuid: string) => getUriWithOrg(orgslug, `/admin/plans/live/${encodeURIComponent(goalUuid)}/steps#step-${stepUuid}`)
+
+/** A learner's chat with the organization, filtered by plan and step, next to the staff-only notes about them. */
 export default function StudentMessages({ orgId, userId, orgslug, token }: { orgId: number; userId: number; orgslug: string; token?: string }) {
   const { data, error, mutate } = useStudent(orgId, userId, token, true)
-  const [draft, setDraft] = React.useState('')
-  const [sending, setSending] = React.useState(false)
-  const scroller = React.useRef<HTMLDivElement>(null)
-  const chat = data?.chat
-  const count = chat?.messages.length || 0
-
-  React.useEffect(() => { scroller.current?.scrollTo({ top: scroller.current.scrollHeight }) }, [count])
-  React.useEffect(() => {
-    if (chat?.can_post && count) void connectApi.read(chat.conversation_uuid, token).catch(() => undefined)
-  }, [chat?.can_post, chat?.conversation_uuid, count, token])
 
   if (error) return <p className="rounded-xl border border-gray-100 bg-white p-10 text-center text-sm text-gray-500 nice-shadow">Only this student&rsquo;s school team and admins can see their messages.</p>
-  if (!data || !chat) return <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-
-  const send = async (event?: React.FormEvent) => {
-    event?.preventDefault()
-    if (!draft.trim() || sending) return
-    setSending(true)
-    try {
-      await connectApi.send(chat.conversation_uuid, draft.trim(), token)
-      setDraft('')
-      await mutate()
-    } catch (problem: any) {
-      toast.error(problem?.message || 'Could not send.')
-    } finally {
-      setSending(false)
-    }
-  }
+  if (!data) return <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
 
   return (
-    <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,1fr)]">
-      <section className="flex h-[min(70vh,720px)] flex-col overflow-hidden rounded-xl border border-gray-100 bg-white nice-shadow">
-        <header className="border-b border-gray-100 px-5 py-3">
-          <h2 className="text-sm font-bold text-gray-900">{chat.title}</h2>
-          <p className="text-xs text-gray-500">{data.student.name} and their school team. Comments on their goals land here too.</p>
-        </header>
-        <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-          {chat.messages.length ? <ol className="flex flex-col gap-1.5">
-            {chat.messages.map((message, index) => <Bubble key={message.message_uuid} message={message} orgslug={orgslug} links names
-              first={index === 0 || chat.messages[index - 1].sender?.id !== message.sender?.id} />)}
-          </ol> : <p className="m-auto max-w-xs pt-16 text-center text-sm text-gray-500">{data.team.length ? 'No messages yet.' : 'Add staff to one of this student’s groups to start their school chat.'}</p>}
-        </div>
-        {chat.can_post ? <form onSubmit={send} className="flex items-end gap-2 border-t border-gray-100 p-3">
-          <textarea value={draft} onChange={(event) => setDraft(event.target.value)} rows={1} maxLength={4000} aria-label="Message" placeholder={`Message ${data.student.name} and the team`}
-            onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void send() } }}
-            className="max-h-32 min-h-11 flex-1 resize-none rounded-3xl border border-gray-200 px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-[var(--org-primary-color)]" />
-          <button type="submit" disabled={!draft.trim() || sending} aria-label="Send" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--org-primary-color)] text-white disabled:opacity-40">
-            {sending ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
-          </button>
-        </form> : <p className="border-t border-gray-100 px-5 py-3 text-xs text-gray-500">You can read this chat as an admin. Only the student&rsquo;s school team writes in it.</p>}
+    <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(300px,1fr)]">
+      <section className="flex h-[min(76vh,780px)] flex-col overflow-hidden rounded-xl border border-gray-100 bg-white nice-shadow">
+        <ChatWorkspace source={{ orgId, userId }} orgslug={orgslug} token={token} stepHref={staffStepHref(orgslug)}
+          empty={data.team.length ? 'No messages yet.' : 'Add staff to one of this student’s groups to start their chat.'}
+          header={(chat) => <header className="border-b border-gray-100 px-5 py-3">
+            <h2 className="text-sm font-bold text-gray-900">{chat?.title || 'Messages'}</h2>
+            <p className="text-xs text-gray-500">{data.student.name} and everyone on their plans here. {chat && !chat.can_post ? 'You read along as an admin.' : 'Pick a plan or step to see just what’s about it.'}</p>
+          </header>} />
       </section>
       <div className="space-y-5">
         <section className="rounded-xl border border-gray-100 bg-white p-5 nice-shadow">

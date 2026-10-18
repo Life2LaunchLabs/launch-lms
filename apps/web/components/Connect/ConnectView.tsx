@@ -34,7 +34,7 @@ function preview(chat: ChatSummary) {
   const last = chat.last_message
   if (!last) return ''
   if (chat.status === 'request') return 'Wants to chat with you'
-  return `${last.mine ? 'You: ' : ''}${last.body}`
+  return `${last.mine ? 'You: ' : ''}${last.preview || last.body}`
 }
 
 /** Connect: everyone you chat with in one list, finding someone by @handle, and the open chat beside it. */
@@ -65,7 +65,7 @@ export default function ConnectView({ orgslug, chatUuid }: { orgslug: string; ch
           : <EmptyList />}
       </div>
     </section>
-    <section aria-label="Chat" className={cn('min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-border bg-card', chatUuid ? 'flex' : 'hidden md:flex')}>
+    <section aria-label="Chat" className={cn('min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-border bg-shell', chatUuid ? 'flex' : 'hidden md:flex')}>
       {chatUuid ? <ChatPane key={chatUuid} orgslug={orgslug} chatUuid={chatUuid} />
         : <div className="m-auto max-w-xs p-8 text-center text-muted-foreground"><MessageCircle className="mx-auto mb-3" size={36} /><p className="text-sm">Pick a chat, or search for someone you know by their @handle.</p></div>}
     </section>

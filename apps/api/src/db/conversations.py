@@ -1,7 +1,8 @@
 """Chats between people: direct conversations and groups, their members and messages.
 
 A message is either text someone wrote or a card the app posts for them, such as
-"3 comments on Earn a nursing degree". A member's status says whether the chat is in
+"3 comments on Earn a nursing degree". Text can tag a plan, a step, a person or an
+organization inline; each plan or step it tags gets a ref row, so a chat filters by them. A member's status says whether the chat is in
 their list (active), waiting for them to accept (request), or hidden (declined, blocked).
 """
 
@@ -50,8 +51,23 @@ class ConversationMessage(SQLModel, table=True):
     kind: str = Field(default="text", sa_column=Column(String, nullable=False))
     body: str = Field(sa_column=Column(Text, nullable=False))
     card: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
+    # What the message tags, in order: [{"kind": "plan"|"step"|"user"|"org", ...ids}].
+    refs: list | None = Field(default=None, sa_column=Column(JSON, nullable=True))
     creation_date: str = ""
     update_date: str = ""
+
+
+class ConversationMessageRef(SQLModel, table=True):
+    """A plan, or one of its steps, that a message is about."""
+
+    __tablename__ = "conversationmessageref"
+    __table_args__ = (Index("ix_conversationmessageref_filter", "conversation_id", "goal_id", "step_uuid"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    message_id: int = Field(sa_column=Column(Integer, ForeignKey("conversationmessage.id", ondelete="CASCADE"), nullable=False, index=True))
+    conversation_id: int = Field(sa_column=Column(Integer, ForeignKey("conversation.id", ondelete="CASCADE"), nullable=False))
+    goal_id: int = Field(sa_column=Column(Integer, ForeignKey("goal.id", ondelete="CASCADE"), nullable=False))
+    step_uuid: str | None = Field(default=None, sa_column=Column(String, nullable=True))
 
 
 class UserBlock(SQLModel, table=True):

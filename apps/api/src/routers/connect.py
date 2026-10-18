@@ -7,7 +7,7 @@ from src.core.events.database import get_db_session
 from src.db.conversations import ChatMessageCreate, ChatReportCreate, ConnectSettingsUpdate, DirectChatOpen
 from src.db.users import PublicUser
 from src.security.auth import get_authenticated_user
-from src.services.connect import chats, people, profile
+from src.services.connect import chats, people, profile, workspace
 
 router = APIRouter()
 DB = Depends(get_db_session)
@@ -30,8 +30,13 @@ async def open_direct_chat(payload: DirectChatOpen, current_user: PublicUser = U
 
 
 @router.get("/chats/{conversation_uuid}")
-async def get_chat(conversation_uuid: str, before: str | None = None, current_user: PublicUser = USER, db_session: Session = DB):
-    return chats.get_chat(db_session, current_user, conversation_uuid, before)
+async def get_chat(conversation_uuid: str, before: str | None = None, goal_uuid: str | None = None, step_uuid: str | None = None, current_user: PublicUser = USER, db_session: Session = DB):
+    return chats.get_chat(db_session, current_user, conversation_uuid, before, goal_uuid, step_uuid)
+
+
+@router.get("/goals/{goal_uuid}/chat")
+async def goal_chat(goal_uuid: str, current_user: PublicUser = USER, db_session: Session = DB):
+    return workspace.goal_chat(db_session, current_user, goal_uuid)
 
 
 @router.post("/chats/{conversation_uuid}/messages")

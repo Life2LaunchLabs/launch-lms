@@ -5,7 +5,10 @@ from sqlmodel import Field, SQLModel
 
 
 class GoalComment(SQLModel, table=True):
-    """A comment on a goal or one of its steps. Replies point at the thread's first comment."""
+    """A comment on a goal or one of its steps, from before plans talked in chats.
+
+    Each goal's comments move into its chat the first time it's opened (services/connect/workspace.py).
+    """
 
     __tablename__ = "goalcomment"
     __table_args__ = (UniqueConstraint("comment_uuid"),)
@@ -22,14 +25,3 @@ class GoalComment(SQLModel, table=True):
     resolved_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
     creation_date: str = ""
     update_date: str = ""
-
-
-class GoalCommentCreate(SQLModel):
-    body: str
-    step_uuid: str | None = None
-    # Set to reply in an existing thread.
-    parent_uuid: str | None = None
-
-
-class GoalCommentUpdate(SQLModel):
-    body: str

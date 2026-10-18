@@ -34,6 +34,12 @@ async def student(org_id: int, user_id: int, current_user: PublicUser = USER, db
     return views.student(db_session, current_user, org_id, user_id)
 
 
+@router.get("/orgs/{org_id}/students/{user_id}/chat")
+async def student_chat(org_id: int, user_id: int, before: str | None = None, goal_uuid: str | None = None, step_uuid: str | None = None,
+                       current_user: PublicUser = USER, db_session: Session = DB):
+    return views.student_chat(db_session, current_user, org_id, user_id, before, goal_uuid, step_uuid)
+
+
 @router.post("/orgs/{org_id}/students/{user_id}/notes")
 async def add_note(org_id: int, user_id: int, payload: StaffNoteCreate, current_user: PublicUser = USER, db_session: Session = DB):
     return views.add_note(db_session, current_user, org_id, user_id, payload.body)

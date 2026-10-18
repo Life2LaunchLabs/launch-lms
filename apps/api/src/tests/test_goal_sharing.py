@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from sqlmodel import SQLModel, Session, select
 
 from src.db.conversations import Conversation, ConversationMember, ConversationMessage, ConversationReport, UserBlock
-from src.db.goal_comments import GoalComment, GoalCommentCreate
+from src.db.goal_comments import GoalComment
 from src.db.portfolio_people import PortfolioComment, PortfolioPerson
 from src.db.school import StaffNote, UserGroupStaff
 from src.db.goals import Goal, GoalAssignmentCreate, GoalCreate
@@ -27,7 +27,7 @@ from src.db.planning import (
     PlanRole,
     PlanRoleUpdate,
 )
-from src.services.goals import assignments, comments, goals, lifecycle, sharing, sharing_log, sharing_roles
+from src.services.goals import assignments, goals, lifecycle, sharing, sharing_log, sharing_roles
 from src.tests.test_goals import ADMIN, LEARNER, NOW, OTHER, _issue, _published, _session as _goal_session, _user
 
 LEARNER_EMAIL, OTHER_EMAIL = "l@example.com", "s@example.com"
@@ -144,9 +144,6 @@ def test_comments_activity_and_goal_scoped_attachments():
         ))
         db.commit()
         uuid = created["goal_uuid"]
-        comments.add_comment(db, _user(LEARNER), uuid, GoalCommentCreate(body="  Useful context  "))
-        logged = next(item for item in sharing_log.list_activity(db, _user(LEARNER), uuid) if item["action"] == "comment.added")
-        assert logged["payload"]["body"] == "Useful context"
         assert sharing_log.add_attachment(db, _user(LEARNER), uuid, PlanAttachmentCreate(asset_uuid="asset_evidence"))["mime_type"] == "image/png"
         with pytest.raises(HTTPException) as foreign:
             sharing_log.add_attachment(db, _user(LEARNER), uuid, PlanAttachmentCreate(asset_uuid="asset_other"))
@@ -154,7 +151,7 @@ def test_comments_activity_and_goal_scoped_attachments():
         assert [item["asset_uuid"] for item in sharing_log.list_attachments(db, _user(LEARNER), uuid)] == ["asset_evidence"]
         assert sharing_log.remove_attachment(db, _user(LEARNER), uuid, "asset_evidence")["removed"] is True
         actions = {item["action"] for item in sharing_log.list_activity(db, _user(LEARNER), uuid)}
-        assert {"goal.created", "comment.added", "attachment.added", "attachment.removed"} <= actions
+        assert {"goal.created", "attachment.added", "attachment.removed"} <= actions
 
 
 def test_learner_role_can_request_but_not_directly_invite_a_collaborator():

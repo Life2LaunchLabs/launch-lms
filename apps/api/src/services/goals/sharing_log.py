@@ -1,4 +1,4 @@
-"""A goal's activity log and attachments (ported from ``services/planning.py``). Comments live in ``comments``."""
+"""A goal's activity log and attachments (ported from ``services/planning.py``). Comments are chat messages (services/connect/workspace.py)."""
 
 from __future__ import annotations
 
