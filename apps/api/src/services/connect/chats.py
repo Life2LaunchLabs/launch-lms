@@ -199,6 +199,13 @@ def open_direct(db: Session, current_user: PublicUser, payload: DirectChatOpen) 
         raise HTTPException(status_code=409, detail=f"You blocked @{target.username}. Unblock them to chat.")
     if people.blocked(db, current_user.id, target_id):
         raise HTTPException(status_code=404, detail="No one goes by that handle")
+    from src.services.school import chats as school_chats
+
+    school = school_chats.for_pair(db, current_user.id, target_id)
+    if school:
+        # Staff and their students talk in the student's school chat, never one to one.
+        db.commit()
+        return get_chat(db, current_user, school.conversation_uuid)
     conversation = _direct(db, current_user.id, target_id)
     if not conversation:
         known = people.knows(db, current_user.id, target_id)

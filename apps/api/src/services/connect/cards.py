@@ -17,37 +17,58 @@ PORTFOLIO_COMMENTS = "portfolio_comments"
 PORTFOLIO_SHARED = "portfolio_shared"
 
 
-def _summary(card: dict) -> str:
+def _summary(card: dict, school: bool = False) -> str:
     title = card.get("goal_title") or card.get("item_title") or "your portfolio"
+    # In a school chat everyone reads the same card, so "mentioned you" would be wrong for most of them.
+    mentioned = bool(card.get("mentioned")) and not school
     if card["count"] == 1:
-        return f"{'Mentioned you' if card.get('mentioned') else 'Commented'} on {title}"
-    return f"{card['count']} comments on {title}" + (", and mentioned you" if card.get("mentioned") else "")
+        return f"{'Mentioned you' if mentioned else 'Commented'} on {title}"
+    return f"{card['count']} comments on {title}" + (", and mentioned you" if mentioned else "")
 
 
 def _gather(db: Session, author_id: int | None, recipient_id: int, same: Callable[[dict], bool], card: dict) -> ConversationMessage | None:
-    """Post a comment card in the author's chat with the recipient.
+    """Post a comment card where the author and recipient talk.
 
-    Comments that pile up before the recipient looks are gathered into one card, so a burst
-    of comments reads as "3 comments on X" rather than three rows.
+    That's their direct chat, or the student's school chat when one of them is the other's
+    staff. Comments that pile up before the recipient looks are gathered into one card, so a
+    burst of comments reads as "3 comments on X" rather than three rows; in a school chat each
+    comment is counted once however many staff hear about it.
     """
-    conversation = chats.ensure_direct(db, int(author_id), recipient_id) if author_id else None
+    from src.services.school import chats as school_chats
+
+    if not author_id:
+        return None
+    conversation = school_chats.for_pair(db, int(author_id), recipient_id) or chats.ensure_direct(db, int(author_id), recipient_id)
     if not conversation:
         return None
+    school = conversation.kind == school_chats.SCHOOL
+    mentioned_ids = [recipient_id] if card.get("mentioned") else []
     reader = db.exec(select(ConversationMember).where(
         ConversationMember.conversation_id == conversation.id, ConversationMember.user_id == recipient_id,
     )).first()
     last = chats._last(db, conversation)
-    unseen = last and (not reader or not reader.last_read_at or reader.last_read_at < last.update_date)
-    if unseen and last.kind == "card" and last.sender_user_id == author_id and last.card and last.card.get("type") == card["type"] and same(last.card):  # type: ignore[union-attr]
-        merged = {**last.card, **card, "count": int(last.card.get("count") or 1) + 1, "mentioned": bool(last.card.get("mentioned")) or bool(card.get("mentioned"))}  # type: ignore[union-attr]
-        now = _stamp()
-        last.card, last.body, last.update_date = merged, _summary(merged), now  # type: ignore[union-attr]
-        conversation.last_message_at, conversation.update_date = now, now
-        db.add(last)
-        db.add(conversation)
-        db.flush()
-        return last  # type: ignore[return-value]
-    return chats.post(db, conversation, int(author_id), _summary({**card, "count": 1}), kind="card", card={**card, "count": 1})  # type: ignore[arg-type]
+    similar = last and last.kind == "card" and last.sender_user_id == author_id and last.card and last.card.get("type") == card["type"] and same(last.card)
+    if similar:
+        previous = dict(last.card)  # type: ignore[union-attr, arg-type]
+        seen_comments = list(previous.get("comment_uuids") or [previous.get("comment_uuid")])
+        repeat = card.get("comment_uuid") in seen_comments
+        unseen = not reader or not reader.last_read_at or reader.last_read_at < last.update_date  # type: ignore[union-attr]
+        if repeat or unseen:
+            merged = {**previous, **card, "comment_uuids": seen_comments if repeat else [*seen_comments, card.get("comment_uuid")],
+                      "mentioned": bool(previous.get("mentioned")) or bool(card.get("mentioned")),
+                      "mentioned_user_ids": sorted({*(previous.get("mentioned_user_ids") or []), *mentioned_ids})}
+            merged["count"] = len(merged["comment_uuids"])
+            now = _stamp()
+            last.card, last.body = merged, _summary(merged, school)  # type: ignore[union-attr]
+            if not repeat:
+                last.update_date = now  # type: ignore[union-attr]
+                conversation.last_message_at, conversation.update_date = now, now
+                db.add(conversation)
+            db.add(last)
+            db.flush()
+            return last  # type: ignore[return-value]
+    fresh = {**card, "count": 1, "comment_uuids": [card.get("comment_uuid")], "mentioned_user_ids": mentioned_ids}
+    return chats.post(db, conversation, int(author_id), _summary(fresh, school), kind="card", card=fresh)
 
 
 def goal_comment(db: Session, goal: Goal, comment: GoalComment, recipient_id: int, mentioned: bool = False) -> ConversationMessage | None:

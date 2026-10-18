@@ -104,7 +104,7 @@ export default function ChatPane({ orgslug, chatUuid }: { orgslug: string; chatU
       <PersonAvatar user={person as any} size="md" />
       <div className="min-w-0 flex-1">
         {person && chat.kind === 'direct' ? <Link href={getUriWithOrg(orgslug, `/user/${encodeURIComponent(person.username)}`)} className="block truncate font-black leading-tight hover:underline">{chat.title}</Link> : <h2 className="truncate font-black leading-tight">{chat.title}</h2>}
-        {person ? <p className="truncate text-xs text-muted-foreground">@{person.username}</p> : null}
+        {chat.kind === 'school' ? <p className="truncate text-xs text-muted-foreground">{chat.people.map((item) => item.name).join(', ')}</p> : person ? <p className="truncate text-xs text-muted-foreground">@{person.username}</p> : null}
       </div>
       {chat.kind === 'direct' ? <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild><button type="button" aria-label="Chat options" className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-foreground/[0.06]"><MoreHorizontal size={18} /></button></DropdownMenuTrigger>
@@ -117,8 +117,9 @@ export default function ChatPane({ orgslug, chatUuid }: { orgslug: string; chatU
     <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto px-3 py-4 md:px-5">
       {chat.messages.length ? <ol className="flex flex-col gap-1.5">
         {chat.messages.map((message, index) => <Bubble key={message.message_uuid} message={message} orgslug={orgslug} links={chat.accepted}
-          first={index === 0 || chat.messages[index - 1].mine !== message.mine} />)}
-      </ol> : <p className="m-auto max-w-xs pt-16 text-center text-sm text-muted-foreground">Say hi to {person?.name || 'them'}. They&rsquo;ll see your first message as a request unless you already share a goal.</p>}
+          names={chat.kind === 'school'}
+          first={index === 0 || chat.messages[index - 1].sender?.id !== message.sender?.id} />)}
+      </ol> : <p className="m-auto max-w-xs pt-16 text-center text-sm text-muted-foreground">{chat.kind === 'school' ? 'Everyone here works with you on your goals. Comments on your goals land here too.' : <>Say hi to {person?.name || 'them'}. They&rsquo;ll see your first message as a request unless you already share a goal.</>}</p>}
     </div>
     {isRequest ? <div className="border-t border-border bg-background/60 px-4 py-3">
       <p className="text-sm"><b>{person?.name || 'Someone'}</b> wants to chat. Links stay off until you accept, and they won&rsquo;t know you&rsquo;ve seen this.</p>
@@ -143,7 +144,8 @@ export default function ChatPane({ orgslug, chatUuid }: { orgslug: string; chatU
   </>
 }
 
-function Bubble({ message, orgslug, links, first }: { message: ChatMessage; orgslug: string; links: boolean; first: boolean }) {
+/** One message. In a school chat several people talk, so each run of someone else's messages starts with their name. */
+export function Bubble({ message, orgslug, links, first, names = false }: { message: ChatMessage; orgslug: string; links: boolean; first: boolean; names?: boolean }) {
   const time = new Date(message.update_date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
   if (message.kind === 'card' && message.card?.type === 'goal_comments') {
     const card = message.card
@@ -168,7 +170,8 @@ function Bubble({ message, orgslug, links, first }: { message: ChatMessage; orgs
       </Link>
     </li>
   }
-  return <li className={cn('flex', message.mine ? 'justify-end' : 'justify-start', first && 'mt-2')}>
+  return <li className={cn('flex flex-col', message.mine ? 'items-end' : 'items-start', first && 'mt-2')}>
+    {names && first && !message.mine && message.sender ? <span className="mb-0.5 px-3 text-xs font-semibold text-muted-foreground">{message.sender.name}</span> : null}
     <div className={cn('max-w-[78%] whitespace-pre-wrap break-words rounded-3xl px-4 py-2 text-[15px] leading-snug',
       message.mine ? 'rounded-br-lg bg-[var(--org-primary-color)] text-white' : 'rounded-bl-lg bg-foreground/[0.07] text-foreground')}>
       <MessageText body={message.body} links={links} />

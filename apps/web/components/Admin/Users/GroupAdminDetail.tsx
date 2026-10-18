@@ -9,6 +9,7 @@ import toast from 'react-hot-toast'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import { EditableDetailHeader } from '@components/Learning/AdminBadgeCollection'
 import ManageUsers from '@components/Objects/Modals/Dash/OrgUserGroups/ManageUsers'
+import GroupStaffPanel from './GroupStaffPanel'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { deleteUserGroup, updateUserGroup } from '@services/usergroups/usergroups'
@@ -21,7 +22,7 @@ import { CohortGoals } from '@components/Goals/admin/live/CohortGoals'
 const tabs = [
   { id: 'plans', label: 'Goals', icon: Layers3 },
   { id: 'requirements', label: 'Requirements', icon: ClipboardCheck },
-  { id: 'members', label: 'Members', icon: Users },
+  { id: 'members', label: 'People', icon: Users },
   { id: 'settings', label: 'Settings', icon: Settings },
 ] as const
 
@@ -61,7 +62,7 @@ export default function GroupAdminDetail({ orgslug, groupId, subpage = 'plans' }
           orgId={Number(org.id)}
           canEdit
           entityName="Group"
-          fallbackDescription="Goals, requirements and members for this group."
+          fallbackDescription="Goals, requirements, staff and students for this group."
           fallbackIcon={<Users size={32} strokeWidth={1.5} />}
           metadata={<><Users size={14} />{data.learner_count} member{data.learner_count === 1 ? '' : 's'}</>}
           updateItem={updateGroup}
@@ -84,7 +85,10 @@ export default function GroupAdminDetail({ orgslug, groupId, subpage = 'plans' }
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.1 }}>
         {activeSubpage === 'plans' ? <CohortGoals orgslug={orgslug} orgId={Number(org.id)} token={accessToken} groupId={groupId} cohort={data} refresh={() => mutate()} /> : null}
         {activeSubpage === 'requirements' ? <div className="px-10 pb-10"><GroupRequirementsGrid orgslug={orgslug} orgId={Number(org.id)} token={accessToken} groupId={groupId} /></div> : null}
-        {activeSubpage === 'members' ? <div className="px-10 pb-10"><section className="rounded-xl bg-card p-6 shadow-xs"><ManageUsers usergroup_id={groupId} embedded /></section></div> : null}
+        {activeSubpage === 'members' ? <div className="space-y-5 px-10 pb-10">
+          <GroupStaffPanel orgId={Number(org.id)} groupId={groupId} token={accessToken} />
+          <section className="rounded-xl bg-card p-6 shadow-xs"><h2 className="mb-4 text-lg font-bold">Students</h2><ManageUsers usergroup_id={groupId} embedded /></section>
+        </div> : null}
         {activeSubpage === 'settings' ? <GroupSettings orgslug={orgslug} group={group} /> : null}
       </motion.div>
     </div>

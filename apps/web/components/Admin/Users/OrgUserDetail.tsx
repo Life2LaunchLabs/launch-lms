@@ -4,7 +4,7 @@ import Link from 'next/link'
 import React from 'react'
 import useSWR from 'swr'
 import toast from 'react-hot-toast'
-import { Award, CalendarDays, ClipboardCheck, Layers3, Loader2, Mail, Shield, UserRound, Users } from 'lucide-react'
+import { Award, CalendarDays, ClipboardCheck, Layers3, Loader2, Mail, MessageCircle, Shield, UserRound, Users } from 'lucide-react'
 import PageLoading from '@components/Objects/Loaders/PageLoading'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
@@ -18,13 +18,14 @@ import { cn } from '@/lib/utils'
 import { LearnerGaps, LearnerRequirementTree } from '@components/Goals/admin/live/LearnerRequirements'
 import { ManagedUserGoals } from '@components/Goals/admin/live/CohortGoals'
 import { goalAdminApi, managedUserKey } from '@services/goals/admin'
+import StudentMessages, { SchoolTeam } from './StudentMessages'
 
 function formatDate(value?: string | null) {
   if (!value) return '—'
   return new Date(value).toLocaleDateString(undefined, { dateStyle: 'medium' })
 }
 
-export type UserSubpage = 'overview' | 'plans' | 'requirements'
+export type UserSubpage = 'overview' | 'plans' | 'requirements' | 'messages'
 
 export default function OrgUserDetail({ username, orgslug, activeSubpage = 'overview' }: { username: string; orgslug: string; activeSubpage?: UserSubpage }) {
   const org = useOrg() as any
@@ -43,10 +44,11 @@ export default function OrgUserDetail({ username, orgslug, activeSubpage = 'over
 
   return (
     <div className="flex h-full w-full flex-col bg-[#f8f8f8]">
-      {user ? <div className="relative z-10 bg-[#fcfbfc] px-10 tracking-tight nice-shadow"><div className="pb-4 pt-6"><Breadcrumbs items={[{ label: 'Users', href: getUriWithOrg(orgslug, routePaths.org.dash.users.users()) }, { label: [user.first_name, user.last_name].filter(Boolean).join(' ') || user.username }]} /></div><div className="flex items-center gap-4 pb-5"><UserAvatar userUuid={user.user_uuid} avatarImage={user.avatar_image} size={56} /><div><h1 className="text-2xl font-black text-gray-950">{[user.first_name, user.last_name].filter(Boolean).join(' ') || user.username}</h1><p className="text-sm text-gray-500">@{user.username}</p></div></div><nav className="flex space-x-1 text-sm font-black">{[
+      {user ? <div className="relative z-10 bg-[#fcfbfc] px-10 tracking-tight nice-shadow"><div className="pb-4 pt-6"><Breadcrumbs items={[{ label: 'Users', href: getUriWithOrg(orgslug, routePaths.org.dash.users.users()) }, { label: [user.first_name, user.last_name].filter(Boolean).join(' ') || user.username }]} /></div><div className="flex items-center gap-4 pb-5"><UserAvatar userUuid={user.user_uuid} avatarImage={user.avatar_image} size={56} /><div><h1 className="text-2xl font-black text-gray-950">{[user.first_name, user.last_name].filter(Boolean).join(' ') || user.username}</h1><p className="text-sm text-gray-500">@{user.username}</p></div><SchoolTeam orgId={Number(org.id)} userId={user.id} token={accessToken} /></div><nav className="flex space-x-1 text-sm font-black">{[
         { id: 'overview', label: 'Overview', icon: Users },
         { id: 'plans', label: 'Goals', icon: Layers3 },
         { id: 'requirements', label: 'Requirements', icon: ClipboardCheck },
+        { id: 'messages', label: 'Messages', icon: MessageCircle },
       ].map((tab: any) => { const Icon = tab.icon; return <Link key={tab.id} href={getUriWithOrg(orgslug, routePaths.org.dash.users.userPage(username, tab.id))} className={cn('flex items-center gap-2 border-black px-3 py-2 transition', activeSubpage === tab.id ? 'border-b-4' : 'opacity-50 hover:opacity-75')}><Icon size={16} />{tab.label}</Link> })}</nav></div> : null}
       <main className="flex-1 overflow-y-auto px-8 py-6">
         {!user ? (
@@ -71,6 +73,7 @@ export default function OrgUserDetail({ username, orgslug, activeSubpage = 'over
             </div> : null}
             {activeSubpage === 'plans' ? <UserGoalsPanel userId={user.id} orgId={Number(org.id)} orgslug={orgslug} accessToken={accessToken} /> : null}
             {activeSubpage === 'requirements' ? <LearnerRequirementTree orgId={Number(org.id)} userId={user.id} token={accessToken} /> : null}
+            {activeSubpage === 'messages' ? <StudentMessages orgId={Number(org.id)} userId={user.id} orgslug={orgslug} token={accessToken} /> : null}
           </div>
         )}
       </main>

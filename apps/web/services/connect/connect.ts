@@ -46,7 +46,8 @@ export interface ChatMessage {
 
 export interface ChatSummary {
   conversation_uuid: string
-  kind: 'direct' | 'group'
+  /** school: a student and the staff of their groups, named after the organization. */
+  kind: 'direct' | 'group' | 'school'
   title: string
   people: PersonSummary[]
   /** Yours: active, or request while someone you don't know waits for your answer. */

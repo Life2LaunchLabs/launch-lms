@@ -14,6 +14,7 @@ import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import InviteUsersDialog from '@components/Dashboard/Pages/Users/OrgUsersAdd/InviteUsersDialog'
 import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
 import { swrFetcher } from '@services/utils/ts/requests'
+import WaitingOnYou from './WaitingOnYou'
 
 type GroupOverview = {
   id: number
@@ -117,6 +118,7 @@ export default function UsersOverview({ hasUserGroups }: { hasUserGroups: boolea
 
   return (
     <div className="mx-auto w-full max-w-[1600px] space-y-8 px-8 py-6">
+      {org?.id ? <WaitingOnYou orgId={Number(org.id)} orgslug={org.slug} token={token} /> : null}
       <section className="rounded-xl border border-border bg-card p-4 nice-shadow">
         <div>
           <label className="relative block w-full">

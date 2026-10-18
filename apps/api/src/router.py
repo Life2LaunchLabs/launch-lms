@@ -40,6 +40,7 @@ from src.routers import (
     template_versions,
     portfolio,
     portfolio_people,
+    school,
     programs,
     roles,
     search,
@@ -319,6 +320,12 @@ v1_router.include_router(
     messages.router,
     prefix="/messages",
     tags=["messages"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
+v1_router.include_router(
+    school.router,
+    prefix="/school",
+    tags=["school"],
     dependencies=[Depends(get_non_api_token_user)],
 )
 v1_router.include_router(
