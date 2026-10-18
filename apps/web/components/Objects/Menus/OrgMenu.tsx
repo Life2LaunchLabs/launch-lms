@@ -311,6 +311,7 @@ function SettingsSidebarLink({ orgslug, isExpanded, active }: { orgslug: string;
   const link = (
     <Link
       href={getUriWithOrg(orgslug, routePaths.owner.account.root())}
+      aria-label="Settings"
       aria-current={active ? 'page' : undefined}
       className={cn(
         'relative flex h-11 items-center rounded-2xl transition-colors',
