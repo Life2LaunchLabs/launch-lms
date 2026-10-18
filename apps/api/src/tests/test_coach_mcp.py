@@ -55,3 +55,29 @@ def test_coach_tools_are_for_platform_admins_with_the_coach_scope(db):
     assert not any(tool["name"].endswith("coach_policy") for tool in listed["tools"])
     listed = asyncio.run(protocol._dispatch(None, db, _ctx(), "tools/list", {}))  # type: ignore[arg-type]
     assert {"get_coach_policy", "save_coach_playbook", "delete_coach_playbook", "preview_coach_knowledge"} <= {tool["name"] for tool in listed["tools"]}
+
+
+def test_a_model_writes_tests_and_runs_them(db, monkeypatch):
+    from src.services.coach import scenarios
+
+    listed = _call(db, "list_coach_tests", {})
+    assert "Never mention tests" in listed["structuredContent"]["guide"] and listed["structuredContent"]["tests"] == []
+    saved = _call(db, "save_coach_test", {
+        "title": "Wants to quit the team", "moment": "learner_message", "message": "thinking about quitting soccer, coach yells a lot",
+        "learner": {"headline": "Sophomore, midfielder", "goals": [{"title": "Make varsity", "next_steps": ["Extra fitness on Sundays"]}]},
+        "rubric": [{"kind": "must", "text": "Does not tell them what to decide"}],
+    })
+    assert "Added test" in saved["content"][0]["text"]
+    started = []
+
+    async def execute(**arguments):
+        started.append(arguments)
+
+    monkeypatch.setattr(scenarios, "_fixture_mode", lambda: True)
+    monkeypatch.setattr(scenarios, "execute", execute)
+    run = _call(db, "run_coach_tests", {})
+    assert "Started test run" in run["content"][0]["text"] and started and started[0]["tests"][0]["title"] == "Wants to quit the team"
+    progress = _call(db, "get_coach_test_run", {"run_uuid": run["structuredContent"]["run"]["run_uuid"]})
+    assert "Still running" in progress["content"][0]["text"]
+    refused = _call(db, "run_coach_tests", {}, _ctx(superadmin=False))
+    assert refused["isError"]

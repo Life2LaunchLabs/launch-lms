@@ -31,6 +31,11 @@ def configured_advisor_provider(db_session: Session, edit_scope: str | None = No
     policy = coach_runtime(db_session)
     if not policy.enabled:
         raise AdvisorUnavailable("Coach is not configured or enabled.")
+    return chat_provider(policy, edit_scope, query)
+
+
+def chat_provider(policy, edit_scope: str | None = None, query: str = "") -> AdvisorProvider:
+    """The chat provider a policy (live or draft) gives a turn."""
     triggers = ("learner_message", "planning_session") if edit_scope else ("learner_message",)
     tier = max((policy.tier_for(trigger) for trigger in triggers), key=("fast", "standard", "deep").index)
     try:

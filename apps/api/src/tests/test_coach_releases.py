@@ -6,7 +6,7 @@ from sqlmodel import Session, SQLModel, create_engine, select
 
 from src.db.coach import (
     CoachKeyCreate, CoachPlaybook, CoachPlaybookWrite, CoachPolicy, CoachPolicyUpdate, CoachProviderKey, CoachRelease,
-    CoachRoutine, CoachRoutineWrite, CoachTierUpdate,
+    CoachRoutine, CoachRoutineWrite, CoachTest, CoachTestRun, CoachTierUpdate,
 )
 from src.db.users import PublicUser, User
 from src.services.coach import keys, policy, releases
@@ -16,6 +16,7 @@ def _db() -> Session:
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     SQLModel.metadata.create_all(engine, tables=[
         User.__table__, CoachRelease.__table__, CoachPolicy.__table__, CoachProviderKey.__table__, CoachPlaybook.__table__, CoachRoutine.__table__,
+        CoachTest.__table__, CoachTestRun.__table__,
     ])
     db = Session(engine)
     db.add(User(id=7, user_uuid="user_7", username="admin", email="admin@example.com", first_name="Pat", last_name="Admin"))

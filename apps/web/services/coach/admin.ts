@@ -41,8 +41,46 @@ export type CoachPolicy = {
 
 // Edits on every tab change the draft; learners get the live release.
 export type CoachDraftSummary = { live_number: number | null; draft_changes: string[] }
-export type CoachRelease = { release_uuid: string; number: number; note: string; changes: string[]; released_at: string; released_by: string; live: boolean }
-export type CoachReleases = CoachDraftSummary & { releases: CoachRelease[] }
+export type CoachRelease = { release_uuid: string; number: number; note: string; changes: string[]; released_at: string; released_by: string; live: boolean; tests: CoachTestRun | null }
+export type CoachReleases = CoachDraftSummary & { releases: CoachRelease[]; draft_tests: CoachTestRun | null }
+
+export type CoachTestMoment = 'learner_message' | 'goal_created'
+export type CoachRubricLine = { id: string; kind: 'must' | 'should'; text: string }
+export type CoachTestLearner = {
+  headline: string
+  bio: string
+  location: string
+  strengths: string[]
+  values: string[]
+  now: string[]
+  goals: { title: string; why: string; next_steps: string[] }[]
+}
+export type CoachTestGoal = { title: string; why: string; target_date: string; steps: string[] }
+export type CoachTestWrite = { title: string; moment: CoachTestMoment; learner: CoachTestLearner; message: string; goal: CoachTestGoal; rubric: CoachRubricLine[]; enabled: boolean }
+export type CoachTest = CoachTestWrite & { test_uuid: string; updated_at: string }
+export type CoachTestSample = { response: string; checks: { id: string; pass: boolean; evidence: string }[]; error?: string }
+export type CoachTestSide = { samples: CoachTestSample[]; lines: Record<string, [number, number]> }
+export type CoachTestScore = { must: [number, number]; should: [number, number]; failed_musts: { test: string; line: string; passed: number; total: number }[] }
+export type CoachTestRun = {
+  run_uuid: string
+  status: 'running' | 'done' | 'failed'
+  live_number: number | null
+  calls: number
+  done_calls: number
+  summary: { draft?: CoachTestScore; live?: CoachTestScore }
+  error: string
+  started_at: string
+  finished_at: string | null
+  results?: { test_uuid: string; title: string; moment: CoachTestMoment; rubric: CoachRubricLine[]; sides: { draft?: CoachTestSide; live?: CoachTestSide } }[]
+}
+export type CoachTests = {
+  moments: { key: CoachTestMoment; label: string }[]
+  runs_per_test: number
+  estimate: number
+  tests: CoachTest[]
+  latest_run: CoachTestRun | null
+  latest_run_is_on_draft: boolean
+}
 
 export type CoachPolicyUpdate = {
   enabled?: boolean
@@ -88,6 +126,12 @@ export const coachAdminApi = {
   release: (note: string, token?: string) => call<CoachReleases>('/releases', token, 'POST', { note }),
   rollBack: (releaseUuid: string, token?: string) => call<CoachReleases>(`/releases/${releaseUuid}/roll-back`, token, 'POST'),
   discardDraft: (token?: string) => call<CoachReleases>('/releases/discard-draft', token, 'POST'),
+
+  tests: (token?: string) => call<CoachTests>('/tests', token),
+  createTest: (payload: CoachTestWrite, token?: string) => call<CoachTest>('/tests', token, 'POST', payload),
+  updateTest: (uuid: string, payload: CoachTestWrite, token?: string) => call<CoachTest>(`/tests/${uuid}`, token, 'PUT', payload),
+  deleteTest: (uuid: string, token?: string) => call<void>(`/tests/${uuid}`, token, 'DELETE'),
+  runTests: (token?: string) => call<CoachTestRun>('/tests/runs', token, 'POST'),
 
   launchCards: (token?: string) => call<HubLaunchCardsSettings>('/launch-cards', token),
   // Passing null restores the platform defaults.

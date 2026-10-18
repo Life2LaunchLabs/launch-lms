@@ -9,7 +9,7 @@ import { useOrg } from '@components/Contexts/OrgContext'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { COACH_POLICY_PATH, coachAdminApi, type CoachPolicy } from '@services/coach/admin'
 
-export type CoachTab = 'method' | 'knowledge' | 'routines' | 'abilities' | 'model' | 'releases'
+export type CoachTab = 'method' | 'knowledge' | 'routines' | 'abilities' | 'model' | 'tests' | 'releases'
 
 const TABS: { id: CoachTab; label: string; path: string }[] = [
   { id: 'method', label: 'Method', path: '' },
@@ -17,6 +17,7 @@ const TABS: { id: CoachTab; label: string; path: string }[] = [
   { id: 'routines', label: 'Routines', path: '/routines' },
   { id: 'abilities', label: 'Abilities', path: '/abilities' },
   { id: 'model', label: 'Model', path: '/model' },
+  { id: 'tests', label: 'Tests', path: '/tests' },
   { id: 'releases', label: 'Releases', path: '/releases' },
 ]
 

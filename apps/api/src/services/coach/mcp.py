@@ -1,4 +1,4 @@
-"""Coach tools for the Launch LMS MCP server: read the coaching policy and write the draft's knowledge.
+"""Coach tools for the Launch LMS MCP server: read the coaching policy, write the draft's knowledge and tests, run tests.
 
 Platform admins only. Tools change the draft, never what learners get: a person releases the draft
 on Platform › Coach › Releases.
@@ -6,13 +6,15 @@ on Platform › Coach › Releases.
 
 from __future__ import annotations
 
+import asyncio
+
 from fastapi import HTTPException, Request
 from sqlmodel import Session
 
-from src.db.coach import CoachPlaybookWrite
+from src.db.coach import CoachPlaybookWrite, CoachTestWrite
 from src.services import learning
 from src.services.coach import policy as coach_policy
-from src.services.coach import releases
+from src.services.coach import releases, scenarios
 from src.services.oauth.config import frontend_url
 from src.services.oauth.server import AccessContext
 
@@ -24,6 +26,16 @@ KNOWLEDGE_GUIDE = (
     "the words a learner would actually use. Changes go to the draft; learners get them only when a person releases the draft."
 )
 
+TEST_GUIDE = (
+    "A test is one moment with a made-up learner: they send a message, or they create a goal. Coach answers it exactly as it "
+    "would a real learner, through the same prompt and context, so write the learner and their words the way real learners write: "
+    "a filled-in portfolio, goals with real next steps, a message with typos or hedging if that's how people talk. Never mention "
+    "tests, scenarios, evaluation or the rubric in what the learner says or in their portfolio. Rubric lines are graded one at a "
+    "time by a separate model that sees only the response, so make each one observable in a single reply (\"asks at most one "
+    "question\", not \"builds rapport\"). Use must for rules (safety, never creating a goal, staying within 1,600 characters) "
+    f"and should for coaching judgment. Each test runs {scenarios.RUNS} times on the draft and on the live release."
+)
+_running: set[asyncio.Task] = set()
 
 def _require_platform_admin(ctx: AccessContext) -> None:
     if not getattr(ctx.user, "is_superadmin", False):
@@ -79,6 +91,52 @@ async def delete_coach_playbook(request: Request, db: Session, ctx: AccessContex
     return {"deleted": args["playbook_uuid"], "release": releases.summary(db), "editor_url": _coach_url(db, ctx, "/knowledge")}
 
 
+def _brief_run(run: dict | None) -> dict | None:
+    """A run without every response, for listing."""
+    return {key: value for key, value in run.items() if key != "results"} if run else None
+
+
+async def list_coach_tests(request: Request, db: Session, ctx: AccessContext, args: dict) -> dict:
+    _require_platform_admin(ctx)
+    view = scenarios.tests_view(db)
+    return {
+        "guide": TEST_GUIDE, "moments": view["moments"], "tests": view["tests"], "calls_per_run": view["estimate"],
+        "latest_run": _brief_run(view["latest_run"]), "editor_url": _coach_url(db, ctx, "/tests"),
+    }
+
+
+async def save_coach_test(request: Request, db: Session, ctx: AccessContext, args: dict) -> dict:
+    _require_platform_admin(ctx)
+    uuid = args.pop("test_uuid", None) or None
+    test = scenarios.save_test(db, ctx.user, CoachTestWrite(**args), uuid)
+    return {"test": test, "created": uuid is None, "editor_url": _coach_url(db, ctx, "/tests")}
+
+
+async def delete_coach_test(request: Request, db: Session, ctx: AccessContext, args: dict) -> dict:
+    _require_platform_admin(ctx)
+    scenarios.delete_test(db, str(args["test_uuid"]))
+    return {"deleted": args["test_uuid"], "editor_url": _coach_url(db, ctx, "/tests")}
+
+
+async def run_coach_tests(request: Request, db: Session, ctx: AccessContext, args: dict) -> dict:
+    """Start a run in the background; get_coach_test_run reports it."""
+    _require_platform_admin(ctx)
+    run, arguments = scenarios.begin(db, ctx.user)
+    task = asyncio.create_task(scenarios.execute(**arguments))
+    _running.add(task)
+    task.add_done_callback(_running.discard)
+    return {"run": scenarios.run_dict(run), "editor_url": _coach_url(db, ctx, "/tests")}
+
+
+async def get_coach_test_run(request: Request, db: Session, ctx: AccessContext, args: dict) -> dict:
+    _require_platform_admin(ctx)
+    return {"run": scenarios.get_run(db, str(args["run_uuid"])), "editor_url": _coach_url(db, ctx, "/tests")}
+
+
+def _score(side: dict) -> str:
+    return f"musts {side['must'][0]}/{side['must'][1]}, shoulds {side['should'][0]}/{side['should'][1]}"
+
+
 def summary(name: str, result: dict) -> str | None:
     release = result.get("release") or {}
     pending = len(release.get("draft_changes") or [])
@@ -88,6 +146,27 @@ def summary(name: str, result: dict) -> str | None:
         return f"{'Added' if result['created'] else 'Saved'} playbook \"{book['title']}\" ({book['playbook_uuid']}) to the draft.{waiting}"
     if name == "delete_coach_playbook":
         return f"Deleted playbook {result['deleted']} from the draft.{waiting}"
+    if name == "save_coach_test":
+        test = result["test"]
+        return f"{'Added' if result['created'] else 'Saved'} test \"{test['title']}\" ({test['test_uuid']}). Run it with run_coach_tests."
+    if name == "delete_coach_test":
+        return f"Deleted test {result['deleted']}."
+    if name == "run_coach_tests":
+        run = result["run"]
+        return f"Started test run {run['run_uuid']} ({run['calls']} model calls). Check it with get_coach_test_run; results also show at {result['editor_url']}."
+    if name == "get_coach_test_run":
+        run = result["run"]
+        if run["status"] == "running":
+            return f"Still running: {run['done_calls']} of {run['calls']} model calls done."
+        if run["status"] == "failed":
+            return f"The run failed: {run['error']}"
+        sides = run["summary"]
+        lines = [f"Draft: {_score(sides['draft'])}."] if "draft" in sides else []
+        if "live" in sides:
+            lines.append(f"Live release {run['live_number']}: {_score(sides['live'])}.")
+        failed = (sides.get("draft") or {}).get("failed_musts") or []
+        lines += [f"Draft missed a must in \"{item['test']}\" ({item['passed']}/{item['total']}): {item['line']}" for item in failed]
+        return "\n".join(lines) + "\n\nEach response and the judge's evidence are in the structured result."
     if name == "preview_coach_knowledge":
         return f"The draft gives Coach: {', '.join(result['playbooks']) or 'no playbooks'}.\n\n{result['knowledge']}"
     return None
