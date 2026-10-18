@@ -1,4 +1,4 @@
-"""A goal's activity log, comments and attachments (ported from ``services/planning.py``)."""
+"""A goal's activity log and attachments (ported from ``services/planning.py``). Comments live in ``comments``."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from sqlmodel import Session, select
 
 from src.db.goals import Goal, GoalOwnership
 from src.db.media import MediaAsset, MediaOwnerType
-from src.db.planning import PlanActivity, PlanAttachment, PlanAttachmentCreate, PlanCommentCreate
+from src.db.planning import PlanActivity, PlanAttachment, PlanAttachmentCreate
 from src.db.users import PublicUser
 from src.services.goals import access
 from src.services.goals.sharing_roles import _stamp, _value, user_summary
@@ -24,17 +24,6 @@ def list_activity(db: Session, current_user: PublicUser, goal_uuid: str) -> list
     access.require(db, goal, current_user.id, "view_plan")
     rows = db.exec(select(PlanActivity).where(PlanActivity.goal_id == goal.id).order_by(PlanActivity.id.desc())).all()  # type: ignore[union-attr]
     return [_activity_dict(db, item) for item in rows]
-
-
-def add_comment(db: Session, current_user: PublicUser, goal_uuid: str, payload: PlanCommentCreate) -> dict:
-    goal = access.goal_or_404(db, goal_uuid)
-    access.require(db, goal, current_user.id, "comment")
-    body = payload.body.strip()
-    if not body:
-        raise HTTPException(status_code=422, detail="Comment is required")
-    access.log(db, goal, current_user.id, "comment.added", {"body": body})
-    db.commit()
-    return list_activity(db, current_user, goal_uuid)[0]
 
 
 def _attachment_dict(asset: MediaAsset, attachment: PlanAttachment) -> dict:

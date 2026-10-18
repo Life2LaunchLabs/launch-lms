@@ -50,6 +50,8 @@ export interface GoalPeople {
   roles: GoalRole[]
   available_capabilities: string[]
   can_manage_organization_roles: boolean
+  /** The roles people pick from when sharing: Viewer, Commenter and Editor. */
+  choices: { key: string; name: string; hint: string }[]
 }
 
 export interface CollaboratorRequest {

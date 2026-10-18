@@ -15,6 +15,7 @@ import { Reveal, Skeleton } from '@components/ui/skeleton'
 import GoalsHome from '@components/Goals/home/GoalsHome'
 import useGoalCoachSession from '@components/Goals/edit/useGoalCoachSession'
 import { GoalEditingProvider } from '@components/Goals/edit/GoalEditing'
+import { GoalCommentsProvider } from '@components/Goals/comments/GoalComments'
 import { GoalCoachBar, useCoachCatchUp } from '@components/Goals/coach/CoachNotes'
 import { planVars } from '@components/Goals/planColors'
 import { getUriWithOrg } from '@services/config/config'
@@ -218,6 +219,7 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
         : <h1 className="pb-4 pt-2 text-3xl font-extrabold tracking-tight">Overview</h1>}
       <LayoutGroup id="plans">
         <GoalEditingProvider goal={goal} token={token} color={color} setColor={isSubject && goal ? (next: string) => setGoalColor(goal.goal_uuid, next) : undefined}>
+        <GoalCommentsProvider goal={goal} token={token} color={color}>
         {strip}
         {goal && goal.ownership === 'personal' && goal.status === 'active' && viewerUserId !== undefined && goal.owner?.id === viewerUserId && !celebrating ? <GoalCoachBar goalUuid={goal.goal_uuid} token={token} /> : null}
         <div className="relative mt-8 overflow-x-clip">
@@ -227,6 +229,7 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
             </motion.div>
           </AnimatePresence>
         </div>
+        </GoalCommentsProvider>
         </GoalEditingProvider>
       </LayoutGroup>
     </main>

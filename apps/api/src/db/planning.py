@@ -83,7 +83,19 @@ DEFAULT_ROLE_DEFINITIONS = (
         ],
     },
     {"key": "viewer", "name": "Viewer", "capabilities": ["view_plan"]},
+    {"key": "commenter", "name": "Commenter", "capabilities": ["view_plan", "comment"]},
+    {
+        "key": "editor",
+        "name": "Editor",
+        "capabilities": [
+            "view_plan", "comment", "contribute_fields", "update_progress",
+            "contribute_restricted_fields", "complete_restricted_objectives", "review_badge_submissions",
+            "edit_plan_details", "edit_structure", "edit_schedule",
+        ],
+    },
 )
+# The roles people pick when sharing a goal; the others stay for staff and older goals.
+SHARING_ROLE_KEYS = ("viewer", "commenter", "editor")
 
 
 class OrganizationPlanRole(SQLModel, table=True):

@@ -25,6 +25,7 @@ from src.db.planning import (
     PlanInvitation,
     PlanRole,
     PlanRoleUpdate,
+    SHARING_ROLE_KEYS,
 )
 from src.db.users import PublicUser, User
 from src.security.org_auth import is_org_admin, require_org_admin
@@ -85,7 +86,24 @@ def _role(db: Session, goal: Goal, key: str) -> PlanRole | None:
     if not role and goal.org_id:
         org_role = db.exec(select(OrganizationPlanRole).where(OrganizationPlanRole.org_id == goal.org_id, OrganizationPlanRole.key == key)).first()
         role = _materialize(db, goal, org_role) if org_role else None
+    if not role and key in SHARING_ROLE_KEYS:
+        # Goals from before these roles (or from a template's own roles) get them on first use.
+        default = next(item for item in DEFAULT_ROLE_DEFINITIONS if item["key"] == key)
+        role = _materialize(db, goal, OrganizationPlanRole(role_uuid="", org_id=0, key=key, name=default["name"], capabilities=list(default["capabilities"])))
     return role
+
+
+ROLE_HINTS = {
+    "viewer": "Sees the goal and how it's going.",
+    "commenter": "Can also comment and @mention people.",
+    "editor": "Can also help with steps and change the goal.",
+}
+
+
+def sharing_choices() -> list[dict]:
+    """The roles people pick from when sharing a goal."""
+    names = {item["key"]: item["name"] for item in DEFAULT_ROLE_DEFINITIONS}
+    return [{"key": key, "name": names[key], "hint": ROLE_HINTS[key]} for key in SHARING_ROLE_KEYS]
 
 
 def _require_grantable(db: Session, goal: Goal, user_id: int, role: PlanRole) -> None:
@@ -95,6 +113,12 @@ def _require_grantable(db: Session, goal: Goal, user_id: int, role: PlanRole) ->
 
 
 # People ------------------------------------------------------------------------------
+
+def _invitation_label(db: Session, invitation: PlanInvitation) -> str:
+    """A sent invitation by handle when it went to someone here, so their email stays theirs."""
+    target = db.get(User, invitation.target_user_id) if invitation.target_user_id else None
+    return f"@{target.username}" if target else invitation.email
+
 
 def people(db: Session, current_user: PublicUser, goal_uuid: str) -> dict:
     goal = access.goal_or_404(db, goal_uuid)
@@ -122,7 +146,7 @@ def people(db: Session, current_user: PublicUser, goal_uuid: str) -> dict:
     invitations = []
     if "manage_collaborators" in granted:
         invitations = [{
-            "invitation_uuid": item.invitation_uuid, "email": item.email, "kind": _value(item.kind), "status": _value(item.status),
+            "invitation_uuid": item.invitation_uuid, "email": _invitation_label(db, item), "kind": _value(item.kind), "status": _value(item.status),
             "role": ({"key": role_by_id[item.role_id].key, "name": role_by_id[item.role_id].name} if item.role_id in role_by_id else None),
             "creation_date": item.creation_date,
         } for item in db.exec(select(PlanInvitation).where(PlanInvitation.goal_id == goal.id).order_by(PlanInvitation.id.desc())).all()]  # type: ignore[union-attr]
@@ -137,6 +161,7 @@ def people(db: Session, current_user: PublicUser, goal_uuid: str) -> dict:
         } for role in roles],
         "available_capabilities": sorted(effective(db, goal, current_user.id, set(ALL_CAPABILITIES))),
         "can_manage_organization_roles": bool(goal.org_id and "manage_roles" in granted and is_org_admin(current_user.id, int(goal.org_id), db)),
+        "choices": sharing_choices(),
     }
 
 

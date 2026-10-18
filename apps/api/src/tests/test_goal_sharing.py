@@ -6,6 +6,7 @@ import pytest
 from fastapi import HTTPException
 from sqlmodel import SQLModel, Session, select
 
+from src.db.goal_comments import GoalComment, GoalCommentCreate
 from src.db.goals import Goal, GoalAssignmentCreate, GoalCreate
 from src.db.media import MediaAsset, MediaOwnerType, MediaSourceType, MediaType
 from src.db.messages import InboxMessage
@@ -17,14 +18,13 @@ from src.db.planning import (
     PlanCollaboratorRequest,
     PlanCollaboratorRequestCreate,
     PlanCollaboratorUpdate,
-    PlanCommentCreate,
     PlanInvitation,
     PlanInvitationCreate,
     PlanOwnershipTransfer,
     PlanRole,
     PlanRoleUpdate,
 )
-from src.services.goals import assignments, goals, lifecycle, sharing, sharing_log, sharing_roles
+from src.services.goals import assignments, comments, goals, lifecycle, sharing, sharing_log, sharing_roles
 from src.tests.test_goals import ADMIN, LEARNER, NOW, OTHER, _issue, _published, _session as _goal_session, _user
 
 LEARNER_EMAIL, OTHER_EMAIL = "l@example.com", "s@example.com"
@@ -33,7 +33,7 @@ LEARNER_EMAIL, OTHER_EMAIL = "l@example.com", "s@example.com"
 def _session() -> Session:
     db = _goal_session()
     SQLModel.metadata.create_all(db.get_bind(), tables=[
-        PlanInvitation.__table__, PlanCollaboratorRequest.__table__, PlanAttachment.__table__, InboxMessage.__table__,  # type: ignore[attr-defined]
+        PlanInvitation.__table__, PlanCollaboratorRequest.__table__, PlanAttachment.__table__, InboxMessage.__table__, GoalComment.__table__,  # type: ignore[attr-defined]
     ])
     return db
 
@@ -139,8 +139,9 @@ def test_comments_activity_and_goal_scoped_attachments():
         ))
         db.commit()
         uuid = created["goal_uuid"]
-        comment = sharing_log.add_comment(db, _user(LEARNER), uuid, PlanCommentCreate(body="  Useful context  "))
-        assert comment["action"] == "comment.added" and comment["payload"]["body"] == "Useful context"
+        comments.add_comment(db, _user(LEARNER), uuid, GoalCommentCreate(body="  Useful context  "))
+        logged = next(item for item in sharing_log.list_activity(db, _user(LEARNER), uuid) if item["action"] == "comment.added")
+        assert logged["payload"]["body"] == "Useful context"
         assert sharing_log.add_attachment(db, _user(LEARNER), uuid, PlanAttachmentCreate(asset_uuid="asset_evidence"))["mime_type"] == "image/png"
         with pytest.raises(HTTPException) as foreign:
             sharing_log.add_attachment(db, _user(LEARNER), uuid, PlanAttachmentCreate(asset_uuid="asset_other"))
