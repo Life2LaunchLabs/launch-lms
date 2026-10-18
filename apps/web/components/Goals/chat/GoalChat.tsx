@@ -3,13 +3,16 @@
 import React from 'react'
 import Link from 'next/link'
 import useSWR from 'swr'
-import { MessageCircle, MessageSquarePlus, X } from 'lucide-react'
+import { ArrowUpRight, ChevronRight, MessageCircle, MessageSquarePlus, MoreHorizontal, X } from 'lucide-react'
+import { Button } from '@components/ui/button'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import { useHub } from '@components/Hub/HubContext'
 import ChatWorkspace, { type ChatSource } from '@components/Connect/workspace/ChatWorkspace'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { connectApi, connectKeys, type GoalChat as GoalChatData } from '@services/connect/connect'
 import { can, type Goal, type Step } from '@services/goals/types'
+import './side-chat.css'
 
 type GoalChatValue = {
   goal: Goal
@@ -56,7 +59,7 @@ export function GoalChatProvider({ goal, token, orgslug, staffOrgId, children }:
   </GoalChatContext.Provider>
 }
 
-/** The plan's chat docked beside the page, like Coach: the page narrows while it's open. */
+/** The plan's chat docked beside the page: Coach's panel, header and all, with the chat's name where Coach's would be. */
 function GoalChatPanel({ goal, chat, source, stepUuid, token, orgslug, onClose }: {
   goal: Goal; chat: GoalChatData; source: ChatSource; stepUuid: string | null; token?: string; orgslug: string; onClose: () => void
 }) {
@@ -70,21 +73,29 @@ function GoalChatPanel({ goal, chat, source, stepUuid, token, orgslug, onClose }
     return () => shell?.removeAttribute('data-side-chat')
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
   React.useEffect(() => {
-    const close = (event: KeyboardEvent) => { if (event.key === 'Escape' && !(event.target as HTMLElement)?.closest?.('[role="textbox"]')) onClose() }
+    const close = (event: KeyboardEvent) => { if (event.key === 'Escape' && !(event.target as HTMLElement)?.closest?.('[role="textbox"], [role="menu"]')) onClose() }
     window.addEventListener('keydown', close)
     return () => window.removeEventListener('keydown', close)
   }, [onClose])
-  return <aside aria-label={`${chat.title || 'Chat'} about ${goal.title}`}
-    className="goal-side-chat fixed inset-0 z-[calc(var(--z-nav)+3)] flex flex-col overflow-hidden bg-background md:inset-auto md:bottom-3 md:right-3 md:top-[calc(var(--candidate-experience-height,0px)+var(--demo-bar-height,0px)+12px)] md:w-[var(--side-chat-width,min(420px,calc(100vw-24px)))] md:rounded-3xl md:border md:border-border md:shadow-2xl">
+  const elsewhere = 'chatUuid' in source ? { href: getUriWithOrg(orgslug, routePaths.org.chat(source.chatUuid)), label: 'Open in Connect' }
+    : goal.subject?.username ? { href: getUriWithOrg(orgslug, routePaths.org.dash.users.userPage(goal.subject.username, 'messages')), label: `All messages with ${goal.subject.name}` } : null
+  return <aside aria-label={`${chat.title || 'Chat'} about ${goal.title}`} className="side-chat-panel">
     <ChatWorkspace key={`${goal.goal_uuid}:${stepUuid || ''}`} source={source} orgslug={orgslug} token={token} initialFilter={{ goal_uuid: goal.goal_uuid, step_uuid: stepUuid || undefined }}
-      header={(loaded) => <header className="flex items-center gap-3 border-b border-border px-4 py-3">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--org-primary-color)] text-white"><MessageCircle size={18} /></span>
-        <div className="min-w-0 flex-1">
-          <h2 className="truncate font-black leading-tight">{loaded?.title || chat.title}</h2>
-          <p className="truncate text-xs text-muted-foreground">{loaded ? loaded.people.map((person) => person.name).join(', ') : 'Loading…'}</p>
-        </div>
-        {'chatUuid' in source ? <Link href={getUriWithOrg(orgslug, routePaths.org.chat(source.chatUuid))} className="shrink-0 rounded-lg px-2 py-1 text-xs font-bold text-muted-foreground hover:bg-muted hover:text-foreground">Open in Connect</Link> : null}
-        <button type="button" onClick={onClose} aria-label="Close chat" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full hover:bg-muted"><X size={18} /></button>
+      header={(loaded) => <header className="flex h-14 shrink-0 items-center gap-0.5 px-3 sm:px-4" aria-label="Chat navigation">
+        <Button type="button" size="icon" variant="ghost" className="h-9 w-9 shrink-0" onClick={onClose} aria-label="Show the page"><ChevronRight className="h-4 w-4" /></Button>
+        <span className="flex min-w-0 items-center gap-1.5 px-1.5 text-sm font-medium" title={loaded?.people.map((person) => person.name).join(', ')}>
+          <span className="truncate">{loaded?.title || chat.title}</span>
+        </span>
+        <div className="flex-1" />
+        {elsewhere ? <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label="Chat options"><MoreHorizontal className="h-4 w-4" /></Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuItem asChild><Link href={elsewhere.href}><ArrowUpRight /> {elsewhere.label}</Link></DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu> : null}
+        <Button type="button" variant="ghost" size="icon" className="h-9 w-9" onClick={onClose} aria-label="Close chat"><X className="h-4 w-4" /></Button>
       </header>} />
   </aside>
 }

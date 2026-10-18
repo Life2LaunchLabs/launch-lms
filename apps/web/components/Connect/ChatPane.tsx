@@ -81,7 +81,7 @@ export default function ChatPane({ orgslug, chatUuid }: { orgslug: string; chatU
 function ChatHeader({ chat, orgslug, listHref, onSheet }: { chat: Chat; orgslug: string; listHref: string; onSheet: (sheet: 'block' | 'report') => void }) {
   const person = chat.people[0]
   const group = chat.kind === 'school' || chat.kind === 'goal'
-  return <header className="flex items-center gap-3 border-b border-border px-3 py-2.5 md:px-4">
+  return <header className="flex shrink-0 items-center gap-3 px-3 py-2.5 md:px-4">
     <Link href={listHref} aria-label="Back to Connect" className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-foreground/[0.06] md:hidden"><ArrowLeft size={18} /></Link>
     {chat.kind === 'school' ? <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white"><Building2 size={18} /></span>
       : chat.kind === 'goal' ? <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--org-primary-color)] text-white"><Flag size={18} /></span>

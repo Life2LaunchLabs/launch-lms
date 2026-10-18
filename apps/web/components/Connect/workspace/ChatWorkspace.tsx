@@ -103,16 +103,16 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
   return <>
     {header?.(chat, mutate)}
     {topics.length ? <TopicFilters topics={topics} filter={filter} onChange={setFilter} stepLink={plan && step && stepHref ? stepHref(plan.goal_uuid, step.step_uuid) : undefined} /> : null}
-    <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto px-3 py-4 md:px-5">
+    <div ref={scroller} className="scrollbar-subtle min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-4 sm:px-4">
       {error ? <p className="m-auto max-w-xs pt-16 text-center text-sm text-muted-foreground">This chat didn&rsquo;t load.</p>
         : !chat ? null
-        : chat.messages.length ? <ol className="flex flex-col gap-1.5">
+        : chat.messages.length ? <ol className="mx-auto flex w-full max-w-[50rem] flex-col gap-1.5 pb-4">
           {chat.messages.map((message, index) => <Message key={message.message_uuid} message={message} orgslug={orgslug} links={chat.accepted} names={names}
             topics={topics} inPlan={plan?.goal_uuid} onTag={openTag} first={index === 0 || chat.messages[index - 1].sender?.id !== message.sender?.id || chat.messages[index - 1].kind === 'card'} />)}
         </ol>
         : <p className="m-auto max-w-xs pt-16 text-center text-sm text-muted-foreground">{step ? `Nothing about ${step.title} yet. Anything you write here is tagged with it.` : plan ? `Nothing about ${plan.title} yet.` : empty}</p>}
     </div>
-    {chat ? <div className="px-3 pb-3 md:px-4">
+    {chat ? <div className="mx-auto w-full max-w-[50rem] shrink-0 px-3 pb-3 sm:px-4 sm:pb-4">
       <TagComposer ref={composer} topics={topics} people={chat.people} orgs={orgs} token={token} scopeGoal={filter.goal_uuid}
         placeholder={step ? `Comment on ${step.title}` : `Message ${chat.title}`} disabled={reason || undefined} onSend={send} />
     </div> : null}
@@ -125,15 +125,16 @@ function TopicFilters({ topics, filter, onChange, stepLink }: { topics: ChatTopi
   const steps = React.useRef<HTMLDivElement>(null)
   // A step opened from elsewhere may sit past the edge of its row: bring it into view.
   React.useEffect(() => { steps.current?.querySelector('[aria-pressed="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' }) }, [filter.step_uuid])
-  const button = (on: boolean) => cn('flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition-colors', on ? 'border-foreground bg-foreground text-background' : 'border-border bg-card hover:bg-muted')
-  return <div className="border-b border-border">
-    <div role="group" aria-label="Show messages about" className="flex gap-1.5 overflow-x-auto px-3 py-2 md:px-4">
+  // Quiet like Coach's chrome: the chosen plan or step sits on the raised surface, the rest are text.
+  const button = (on: boolean) => cn('flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors', on ? 'bg-[hsl(var(--raised))] text-foreground' : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground')
+  return <div className="shrink-0">
+    <div role="group" aria-label="Show messages about" className="flex gap-1 overflow-x-auto px-3 pb-1 sm:px-4">
       <button type="button" aria-pressed={!plan} onClick={() => onChange({})} className={button(!plan)}>Everything</button>
       {topics.map((item) => <button key={item.goal_uuid} type="button" aria-pressed={plan?.goal_uuid === item.goal_uuid} onClick={() => onChange({ goal_uuid: item.goal_uuid })} className={button(plan?.goal_uuid === item.goal_uuid)}>
         <Flag size={12} aria-hidden="true" />{item.title}{item.count ? <span className="opacity-60">{item.count}</span> : null}
       </button>)}
     </div>
-    {plan ? <div ref={steps} role="group" aria-label={`Steps in ${plan.title}`} className="flex items-center gap-1.5 overflow-x-auto px-3 pb-2 md:px-4">
+    {plan ? <div ref={steps} role="group" aria-label={`Steps in ${plan.title}`} className="flex items-center gap-1 overflow-x-auto px-3 pb-1 sm:px-4">
       <button type="button" aria-pressed={!filter.step_uuid} onClick={() => onChange({ goal_uuid: plan.goal_uuid })} className={button(!filter.step_uuid)}>All steps</button>
       {plan.steps.map((item) => <button key={item.step_uuid} type="button" aria-pressed={filter.step_uuid === item.step_uuid} onClick={() => onChange({ goal_uuid: plan.goal_uuid, step_uuid: item.step_uuid })}
         className={button(filter.step_uuid === item.step_uuid)}>
@@ -152,11 +153,11 @@ function Message({ message, orgslug, links, first, names, topics, inPlan, onTag 
   const time = new Date(message.update_date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
   const card = message.card
   const who = message.sender?.name || 'Someone'
-  if (message.kind === 'card' && card?.type === 'plan_progress') return <li className="my-2 flex justify-center">
+  if (message.kind === 'card' && card?.type === 'plan_progress') return <li className="my-3 flex">
     <ProgressView card={card} who={message.mine ? 'You' : who} time={time} topic={topics.find((item) => item.goal_uuid === card.goal_uuid)} onTag={onTag} />
   </li>
   if (message.kind === 'card' && card?.type === 'org_mention') return <li className={cn('flex', message.mine ? 'justify-end' : 'justify-start', 'mt-2')}>
-    <div className="w-full max-w-[360px] rounded-3xl border border-border bg-background p-3.5">
+    <div className="w-full max-w-[360px] rounded-2xl bg-background p-3.5">
       <span className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-emerald-700 dark:text-emerald-400"><Building2 size={14} />Shared with you</span>
       <span className="mt-1 block font-bold leading-snug">{message.mine ? message.body : `${who} ${message.body.charAt(0).toLowerCase()}${message.body.slice(1)}`}</span>
       {card.excerpt ? <span className="mt-1 line-clamp-3 block text-sm text-muted-foreground">&ldquo;{card.excerpt}&rdquo;</span> : null}
@@ -167,7 +168,7 @@ function Message({ message, orgslug, links, first, names, topics, inPlan, onTag 
     const goal = card.type === 'goal_comments'
     const href = goal ? getUriWithOrg(orgslug, routePaths.org.plan(card.goal_uuid)) : getUriWithOrg(orgslug, `/user/${encodeURIComponent(card.username)}`)
     return <li className={cn('flex', message.mine ? 'justify-end' : 'justify-start', first && 'mt-2')}>
-      <Link href={href} className="block w-full max-w-[340px] rounded-3xl border border-border bg-background p-3.5 transition-transform hover:-translate-y-0.5 hover:shadow-md">
+      <Link href={href} className="block w-full max-w-[340px] rounded-2xl bg-background p-3.5 transition-colors hover:bg-muted/60">
         <span className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-[var(--org-primary-color)]">{goal ? <MessageCircle size={14} /> : <UserRound size={14} />}{goal ? 'Comments' : 'Portfolio'}</span>
         <span className="mt-1 block font-black leading-snug">{message.body}</span>
         {card.excerpt ? <span className="mt-1 line-clamp-2 block text-sm text-muted-foreground">&ldquo;{card.excerpt}&rdquo;</span> : null}
@@ -177,8 +178,9 @@ function Message({ message, orgslug, links, first, names, topics, inPlan, onTag 
   }
   return <li className={cn('flex flex-col', message.mine ? 'items-end' : 'items-start', first && 'mt-2')}>
     {names && first && !message.mine && message.sender ? <span className="mb-0.5 px-3 text-xs font-semibold text-muted-foreground">{message.sender.name}</span> : null}
-    <div className={cn('max-w-[85%] whitespace-pre-wrap break-words rounded-2xl px-4 py-2.5 text-[15px] leading-relaxed',
-      message.mine ? 'rounded-br-md bg-[hsl(var(--raised))] text-foreground' : 'rounded-bl-md border border-border bg-card text-foreground')}>
+    {/* Coach's bubbles: yours on the raised surface as in Coach; other people's a shade apart. Only Coach goes without one. */}
+    <div className={cn('max-w-[85%] whitespace-pre-wrap break-words rounded-2xl px-4 py-2.5 text-sm leading-6 text-foreground',
+      message.mine ? 'hub-user-message rounded-br-md' : 'rounded-bl-md bg-[hsl(var(--raised)/0.55)]')}>
       <MessageText body={message.body} refs={message.refs || []} links={links} inPlan={inPlan} onTag={onTag} />
       <span className="ml-2 inline-block align-bottom text-[10px] text-muted-foreground">{time}</span>
     </div>
@@ -190,7 +192,8 @@ function Message({ message, orgslug, links, first, names, topics, inPlan, onTag 
 function ProgressView({ card, who, time, topic, onTag }: { card: ProgressCard; who: string; time: string; topic?: ChatTopic; onTag: (ref: MessageRef) => void }) {
   const progress = topic?.progress
   const statuses = topic?.steps.map((item) => item.status === 'completed' || item.status === 'excused' ? 'done' : item.status === 'submitted' ? 'review' : item.behind ? 'behind' : 'todo') || []
-  return <div className="w-full max-w-[460px] rounded-2xl border border-border bg-card p-3.5">
+  // The app's own note, so it sits on the surface without a bubble, as Coach's replies do.
+  return <div className="w-full max-w-[460px] py-0.5">
     <div className="flex items-center gap-2 text-xs text-muted-foreground">
       <PlanTag title={card.goal_title} onClick={() => onTag({ kind: 'plan', key: `plan:${card.goal_uuid}`, goal_uuid: card.goal_uuid, title: card.goal_title })} />
       <span className="ml-auto">{time}</span>
