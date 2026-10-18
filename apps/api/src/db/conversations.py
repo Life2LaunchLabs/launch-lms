@@ -1,0 +1,101 @@
+"""Chats between people: direct conversations and groups, their members and messages.
+
+A message is either text someone wrote or a card the app posts for them, such as
+"3 comments on Earn a nursing degree". A member's status says whether the chat is in
+their list (active), waiting for them to accept (request), or hidden (declined, blocked).
+"""
+
+from pydantic import BaseModel, Field as PydanticField
+from sqlalchemy import JSON, Column, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlmodel import Field, SQLModel
+
+
+class Conversation(SQLModel, table=True):
+    __tablename__ = "conversation"
+
+    id: int | None = Field(default=None, primary_key=True)
+    conversation_uuid: str = Field(index=True, unique=True)
+    kind: str = Field(default="direct", sa_column=Column(String, nullable=False))
+    # "low:high" user ids, so two people share one direct chat.
+    direct_key: str | None = Field(default=None, sa_column=Column(String, nullable=True, unique=True))
+    title: str | None = None
+    org_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), nullable=True, index=True))
+    created_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
+    last_message_at: str | None = Field(default=None, index=True)
+    creation_date: str = ""
+    update_date: str = ""
+
+
+class ConversationMember(SQLModel, table=True):
+    __tablename__ = "conversationmember"
+    __table_args__ = (UniqueConstraint("conversation_id", "user_id", name="uq_conversationmember_conversation_user"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    conversation_id: int = Field(sa_column=Column(Integer, ForeignKey("conversation.id", ondelete="CASCADE"), nullable=False, index=True))
+    user_id: int = Field(sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True))
+    status: str = Field(default="active", sa_column=Column(String, nullable=False))
+    last_read_at: str | None = None
+    creation_date: str = ""
+    update_date: str = ""
+
+
+class ConversationMessage(SQLModel, table=True):
+    __tablename__ = "conversationmessage"
+    __table_args__ = (Index("ix_conversationmessage_conversation_created", "conversation_id", "creation_date"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    message_uuid: str = Field(index=True, unique=True)
+    conversation_id: int = Field(sa_column=Column(Integer, ForeignKey("conversation.id", ondelete="CASCADE"), nullable=False))
+    sender_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True, index=True))
+    kind: str = Field(default="text", sa_column=Column(String, nullable=False))
+    body: str = Field(sa_column=Column(Text, nullable=False))
+    card: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
+    creation_date: str = ""
+    update_date: str = ""
+
+
+class UserBlock(SQLModel, table=True):
+    __tablename__ = "userblock"
+    __table_args__ = (UniqueConstraint("blocker_user_id", "blocked_user_id", name="uq_userblock_pair"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    blocker_user_id: int = Field(sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True))
+    blocked_user_id: int = Field(sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True))
+    creation_date: str = ""
+
+
+class ConversationReport(SQLModel, table=True):
+    __tablename__ = "conversationreport"
+
+    id: int | None = Field(default=None, primary_key=True)
+    report_uuid: str = Field(index=True, unique=True)
+    conversation_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("conversation.id", ondelete="SET NULL"), nullable=True, index=True))
+    message_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("conversationmessage.id", ondelete="SET NULL"), nullable=True))
+    reporter_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
+    reported_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True, index=True))
+    reason: str = Field(sa_column=Column(Text, nullable=False))
+    # A copy of the reported message, so the report survives the message being deleted.
+    excerpt: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
+    status: str = Field(default="open", sa_column=Column(String, nullable=False, index=True))
+    creation_date: str = ""
+
+
+class DirectChatOpen(BaseModel):
+    """Someone to chat with, by @handle or user uuid."""
+
+    handle: str | None = None
+    user_uuid: str | None = None
+
+
+class ChatMessageCreate(BaseModel):
+    body: str = PydanticField(min_length=1, max_length=4000)
+
+
+class ChatReportCreate(BaseModel):
+    reason: str = PydanticField(min_length=1, max_length=2000)
+    message_uuid: str | None = None
+    block: bool = True
+
+
+class ConnectSettingsUpdate(BaseModel):
+    discoverable: bool

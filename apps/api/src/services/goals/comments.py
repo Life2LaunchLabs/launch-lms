@@ -1,9 +1,9 @@
 """Comments on a goal and its steps, Google Docs style.
 
 A thread starts on the goal or on one step; replies point at the thread's first comment and the
-thread can be resolved. An @handle in a comment notifies that person if they can see the goal,
-and otherwise brings them in as a Commenter: invited directly by people who manage the goal's
-people, or asked for from the goal's admins by everyone else who may ask.
+thread can be resolved. An @handle in a comment tells that person, in their chat with the author,
+if they can see the goal, and otherwise brings them in as a Commenter: invited directly by people
+who manage the goal's people, or asked for from the goal's admins by everyone else who may ask.
 """
 
 from __future__ import annotations
@@ -22,9 +22,9 @@ from src.db.planning import (
     PlanInvitationCreate,
 )
 from src.db.users import PublicUser, User
+from src.services.connect import cards
 from src.services.goals import access, sharing
 from src.services.goals.sharing_roles import _stamp, user_summary
-from src.services.messages import create_inbox_message
 
 MENTION = re.compile(r"(?<![\w.@])@([A-Za-z0-9_][A-Za-z0-9_.-]*)")
 MAX_BODY = 5000
@@ -104,18 +104,9 @@ def _can_see(db: Session, goal: Goal, user_id: int) -> bool:
     return "view_plan" in access.capabilities(db, goal, user_id)
 
 
-def _name(db: Session, user_id: int) -> str:
-    return (user_summary(db, user_id) or {}).get("name") or "Someone"
-
-
-def _notify(db: Session, goal: Goal, comment: GoalComment, recipient_id: int, subject: str) -> None:
-    create_inbox_message(
-        db, recipient_user_id=recipient_id, sender_user_id=comment.author_user_id, message_type="goal_comment",
-        subject=subject, body=comment.body[:500],
-        action_url=f"/goals/{goal.goal_uuid}?comment={comment.comment_uuid}", action_kind="goal_comment",
-        action_data={"goal_uuid": goal.goal_uuid, "goal_title": goal.title, "comment_uuid": comment.comment_uuid, "step_uuid": comment.step_uuid},
-        dedupe_key=f"goal_comment:{comment.comment_uuid}:{recipient_id}",
-    )
+def _notify(db: Session, goal: Goal, comment: GoalComment, recipient_id: int, mentioned: bool = False) -> None:
+    """A card in the recipient's chat with the comment's author."""
+    cards.goal_comment(db, goal, comment, recipient_id, mentioned=mentioned)
 
 
 def _bring_in(db: Session, current_user: PublicUser, goal: Goal, granted: set[str], target: User, body: str) -> str:
@@ -161,12 +152,11 @@ def add_comment(db: Session, current_user: PublicUser, goal_uuid: str, payload: 
     access.log(db, goal, current_user.id, "comment.added", {"comment_uuid": comment.comment_uuid, "step_uuid": step_uuid, "body": body[:500]})
     db.flush()
 
-    author = _name(db, current_user.id)
     outcomes: list[dict] = []
     told: set[int] = {current_user.id}
     for user in mentioned:
         if _can_see(db, goal, int(user.id)):  # type: ignore[arg-type]
-            _notify(db, goal, comment, int(user.id), f"{author} mentioned you on {goal.title}")  # type: ignore[arg-type]
+            _notify(db, goal, comment, int(user.id), mentioned=True)  # type: ignore[arg-type]
             status = "notified"
         else:
             status = _bring_in(db, current_user, goal, granted, user, body)
@@ -178,13 +168,11 @@ def add_comment(db: Session, current_user: PublicUser, goal_uuid: str, payload: 
     if parent:
         earlier = db.exec(select(GoalComment.author_user_id).where((GoalComment.id == parent.id) | (GoalComment.parent_id == parent.id))).all()
         audience = [int(user_id) for user_id in earlier if user_id]
-        subject = f"{author} replied on {goal.title}"
     else:
         audience = [int(user_id) for user_id in (goal.subject_user_id, goal.owner_user_id) if user_id]
-        subject = f"{author} commented on {goal.title}"
     for user_id in dict.fromkeys(audience):
         if user_id not in told and _can_see(db, goal, user_id):
-            _notify(db, goal, comment, user_id, subject)
+            _notify(db, goal, comment, user_id)
             told.add(user_id)
     db.commit()
     thread = parent or comment

@@ -7,6 +7,7 @@ from src.routers import (
     candidate_feedback,
     feedback_connection,
     code_execution,
+    connect,
     dev,
     demo,
     goal_admin,
@@ -306,6 +307,12 @@ v1_router.include_router(
     prefix="/media",
     tags=["media"],
     dependencies=[Depends(get_non_api_token_user)]
+)
+v1_router.include_router(
+    connect.router,
+    prefix="/connect",
+    tags=["connect"],
+    dependencies=[Depends(get_non_api_token_user)],
 )
 v1_router.include_router(
     messages.router,

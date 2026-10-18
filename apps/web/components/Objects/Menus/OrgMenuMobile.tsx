@@ -35,7 +35,7 @@ export default function OrgMenuMobile({ items, orgslug, hidden, unreadCount }: {
     style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 0px)' }}
   >
     <div className="pointer-events-auto flex h-16 w-full max-w-screen-sm items-center justify-around gap-1">
-      {items.map((item) => <NavItemControl key={item.href || item.label} item={item} orgslug={orgslug} dot={unreadCount > 0 && item.href === '/portfolio'} className={cn('flex h-11 w-14 items-center justify-center rounded-2xl transition-colors', item.active ? NAV_ACTIVE_CLASS : 'text-muted-foreground hover:bg-foreground/[0.08] hover:text-foreground')}>{item.icon}</NavItemControl>)}
+      {items.map((item) => <NavItemControl key={item.href || item.label} item={item} orgslug={orgslug} dot={item.dot || (unreadCount > 0 && item.href === '/portfolio')} className={cn('flex h-11 w-14 items-center justify-center rounded-2xl transition-colors', item.active ? NAV_ACTIVE_CLASS : 'text-muted-foreground hover:bg-foreground/[0.08] hover:text-foreground')}>{item.icon}</NavItemControl>)}
     </div>
   </nav>
 }
