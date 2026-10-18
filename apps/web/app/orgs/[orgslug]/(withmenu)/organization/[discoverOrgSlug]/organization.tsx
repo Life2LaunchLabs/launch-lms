@@ -3,7 +3,8 @@
 import React from 'react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
-import { ArrowLeft, Building2, Check, ChevronRight, Globe2, Layers3, Loader2, Mail, Users, X } from 'lucide-react'
+import { ArrowLeft, Building2, Check, ChevronRight, Globe2, Layers3, Loader2, Mail, MessageCircle, Users, X } from 'lucide-react'
+import { useChatList } from '@components/Connect/useConnect'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
 import OrganizationMembershipActions from '@components/Organizations/OrganizationMembershipActions'
 import {
@@ -32,6 +33,9 @@ export default function OrganizationDetailClient({
   const { goals: orgGoals, isLoading: goalsLoading, respond } = useGoalInvitations()
   const [busy, setBusy] = React.useState<string | null>(null)
   const organizationGoals = orgGoals.filter((item) => item.organization.slug === organization.slug)
+  // Your chat with the organization, there once one of its plans is yours.
+  const { data: chatList } = useChatList()
+  const chat = chatList?.chats.find((item) => item.kind === 'school' && item.org?.slug === organization.slug)
   const canAdmin = Array.isArray(adminOrganizations) && adminOrganizations.some((item: any) => item.slug === organization.slug)
   const heroImage = organization.thumbnail_image
     ? getOrgThumbnailMediaDirectory(organization.org_uuid, organization.thumbnail_image)
@@ -56,11 +60,11 @@ export default function OrganizationDetailClient({
     <GeneralWrapperStyled>
       <div className="space-y-6">
         <Link
-          href={getUriWithOrg(currentOrgslug, '/account/organizations')}
+          href={getUriWithOrg(currentOrgslug, routePaths.org.connect())}
           className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to organizations
+          Connect
         </Link>
 
         <div className="overflow-hidden rounded-[28px] border border-border bg-card nice-shadow">
@@ -136,6 +140,7 @@ export default function OrganizationDetailClient({
                         ? 'You can join this organization right away.'
                         : 'This organization currently requires an invite to join.'}
                   </p>
+                  {chat ? <Link href={getUriWithOrg(currentOrgslug, routePaths.org.chat(chat.conversation_uuid))} className="mb-2 flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-foreground px-4 text-sm font-bold text-background"><MessageCircle size={16} />Message</Link> : null}
                   <OrganizationMembershipActions
                     organization={organization}
                     currentOrgslug={currentOrgslug}

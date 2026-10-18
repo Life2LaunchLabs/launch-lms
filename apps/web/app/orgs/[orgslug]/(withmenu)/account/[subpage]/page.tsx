@@ -11,16 +11,14 @@ type MetadataProps = {
 
 const LEGACY_ACCOUNT_SUBPAGES = ['security', 'purchases', 'general']
 const PROFILE_SUBPAGES = ['profile', 'badges']
-const ACCOUNT_TABS = new Set<AccountPageTab>(['messages', 'organizations', 'memory', 'preferences'])
+const ACCOUNT_TABS = new Set<AccountPageTab>(['memory', 'preferences'])
 
 const getSubpageTitle = (subpage: string): string => {
   const titles: Record<string, string> = {
-    'messages': 'Messages',
-    'organizations': 'Organizations',
     'memory': 'Memory',
     'preferences': 'Appearance',
   }
-  return titles[subpage] || 'Account'
+  return titles[subpage] || 'Settings'
 }
 
 export async function generateMetadata(props: MetadataProps): Promise<Metadata> {
@@ -44,6 +42,10 @@ const AccountSubPage = async (props: { params: Promise<{ orgslug: string; subpag
     return <AccountRoute orgslug={params.orgslug} tab={params.subpage as AccountPageTab} />
   }
 
+  // Messages and organizations moved to Connect.
+  if (params.subpage === 'messages') redirect(getUriWithOrg(params.orgslug, routePaths.org.connectUpdates()))
+  if (params.subpage === 'organizations') redirect(getUriWithOrg(params.orgslug, routePaths.org.connect()))
+
   if (PROFILE_SUBPAGES.includes(params.subpage)) {
     redirect(getUriWithOrg(params.orgslug, routePaths.org.portfolioEdit()))
   }
@@ -52,9 +54,7 @@ const AccountSubPage = async (props: { params: Promise<{ orgslug: string; subpag
     redirect(getUriWithOrg(params.orgslug, routePaths.owner.account.root()))
   }
 
-  if (params.subpage === 'org-admin') {
-    redirect(getUriWithOrg(params.orgslug, routePaths.owner.account.organizations()))
-  }
+  if (params.subpage === 'org-admin') redirect(getUriWithOrg(params.orgslug, routePaths.org.connect()))
 
   redirect(getUriWithOrg(params.orgslug, routePaths.owner.account.root()))
 }

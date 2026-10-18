@@ -103,15 +103,15 @@ async function popoverColor(page: Page) {
   })
 }
 
-test('feedback opens from the sidebar above the account, follows the theme, and dismisses back to its trigger', async ({ page }, testInfo) => {
+test('feedback opens from the sidebar above settings, follows the theme, and dismisses back to its trigger', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1280, height: 551 })
   await page.goto('/plans?coach=open')
   await page.getByRole('button', { name: 'Done', exact: true }).click({ force: true })
   // Feedback lives in the navigation, not the unstable tester bar.
   await expect(page.getByRole('button', { name: /^Feedback/ })).toHaveCount(0)
   const feedbackTrigger = page.getByRole('button', { name: 'Send feedback' })
-  const [triggerBox, accountBox] = await Promise.all([feedbackTrigger.boundingBox(), page.getByRole('button', { name: 'Account' }).boundingBox()])
-  expect(triggerBox!.y + triggerBox!.height).toBeLessThanOrEqual(accountBox!.y)
+  const [triggerBox, settingsBox] = await Promise.all([feedbackTrigger.boundingBox(), page.getByRole('link', { name: 'Settings', exact: true }).boundingBox()])
+  expect(triggerBox!.y + triggerBox!.height).toBeLessThanOrEqual(settingsBox!.y)
   await feedbackTrigger.click()
   const dialog = page.getByRole('dialog', { name: 'Feedback' })
   await expect(dialog).toBeVisible()
@@ -121,12 +121,8 @@ test('feedback opens from the sidebar above the account, follows the theme, and 
   await page.keyboard.press('Escape')
   await expect(dialog).toHaveCount(0)
   await expect(feedbackTrigger).toBeFocused()
-  // The account menu no longer carries a duplicate Help & feedback entry.
-  await page.getByRole('button', { name: 'Account' }).focus()
-  await page.keyboard.press('Enter')
-  await expect(page.getByRole('menuitem', { name: 'Account' })).toBeVisible()
-  await expect(page.getByRole('menuitem', { name: /feedback/i })).toHaveCount(0)
-  await page.keyboard.press('Escape')
+  // Settings sits right under Feedback, as a plain link like it.
+  await expect(page.getByRole('link', { name: 'Settings', exact: true })).toHaveAttribute('href', /\/account$/)
 
   for (const theme of ['light', 'dark']) {
     // next-themes follows storage events, so the theme flips without a reload.
