@@ -3938,7 +3938,7 @@
               "kind": "code",
               "path": "apps/api/src/services/coach/policy.py",
               "symbol": "CoachRuntime",
-              "responsibility": "The platform coaching policy: method, playbooks, routines, abilities and per-tier models, assembled into Coach's instructions"
+              "responsibility": "The platform coaching policy: playbooks (the method is one), one routine per trigger, abilities and per-tier models, assembled into Coach's instructions"
             },
             {
               "kind": "code",

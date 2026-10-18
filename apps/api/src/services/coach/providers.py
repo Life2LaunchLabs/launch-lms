@@ -24,7 +24,7 @@ def provider_for(model: CoachModel, **options) -> "AdvisorProvider":
 
 
 def configured_advisor_provider(db_session: Session, edit_scope: str | None = None, query: str = "") -> AdvisorProvider:
-    """Coach for a chat turn: the policy's method, matching knowledge and routines, on the trigger's tier."""
+    """Coach for a chat turn: matching knowledge and the trigger's routine, on the routine's tier."""
     fixture = _ui_test_provider(edit_scope=edit_scope)
     if fixture:
         return fixture

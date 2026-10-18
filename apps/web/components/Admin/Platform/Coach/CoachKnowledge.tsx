@@ -32,7 +32,7 @@ export default function CoachKnowledge({ policy }: { policy: CoachPolicy }) {
   return (
     <Panel
       title="Knowledge"
-      description="Playbooks from the coaching team. Coach always reads the ones marked Always, and the two whose title and “used when” best match the conversation."
+      description="Playbooks from the coaching team, your method among them. Coach always reads the ones marked Always, in this order, and the two whose title and “used when” best match the conversation."
       actions={<Button type="button" variant="outline" onClick={() => { setAdding(true); setOpen(null) }} disabled={adding}><Plus size={15} />New playbook</Button>}
     >
       <ol className="space-y-3">
@@ -58,7 +58,7 @@ export default function CoachKnowledge({ policy }: { policy: CoachPolicy }) {
           </li>
         ))}
       </ol>
-      {!books.length && !adding ? <p className="text-sm text-gray-500">No playbooks yet. Coach works from the Method alone.</p> : null}
+      {!books.length && !adding ? <p className="text-sm text-gray-500">No playbooks yet. Coach works from the built-in rules alone.</p> : null}
     </Panel>
   )
 }

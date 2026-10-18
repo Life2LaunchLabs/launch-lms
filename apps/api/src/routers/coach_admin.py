@@ -4,7 +4,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends
 from sqlmodel import Session
 
 from src.core.events.database import get_db_session
-from src.db.coach import CoachKeyCreate, CoachKeyUpdate, CoachOrder, CoachPlaybookWrite, CoachPolicyUpdate, CoachReleaseCreate, CoachRoutineWrite, CoachTestWrite
+from src.db.coach import CoachKeyCreate, CoachKeyUpdate, CoachOrder, CoachPlaybookWrite, CoachPolicyUpdate, CoachReleaseCreate, CoachTestWrite
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
 from src.security.superadmin import require_superadmin
@@ -52,7 +52,7 @@ def create_coach_playbook(payload: CoachPlaybookWrite, current_user: PublicUser 
 
 @router.put("/playbooks/order")
 def order_coach_playbooks(payload: CoachOrder, db_session: Session = Depends(get_db_session)):
-    return policy.reorder(db_session, "playbooks", payload)
+    return policy.reorder_playbooks(db_session, payload)
 
 
 @router.put("/playbooks/{playbook_uuid}")
@@ -63,26 +63,6 @@ def update_coach_playbook(playbook_uuid: str, payload: CoachPlaybookWrite, curre
 @router.delete("/playbooks/{playbook_uuid}", status_code=204)
 def delete_coach_playbook(playbook_uuid: str, db_session: Session = Depends(get_db_session)):
     policy.delete_playbook(db_session, playbook_uuid)
-
-
-@router.post("/routines")
-def create_coach_routine(payload: CoachRoutineWrite, current_user: PublicUser = Depends(get_current_user), db_session: Session = Depends(get_db_session)):
-    return policy.save_routine(db_session, current_user, payload)
-
-
-@router.put("/routines/order")
-def order_coach_routines(payload: CoachOrder, db_session: Session = Depends(get_db_session)):
-    return policy.reorder(db_session, "routines", payload)
-
-
-@router.put("/routines/{routine_uuid}")
-def update_coach_routine(routine_uuid: str, payload: CoachRoutineWrite, current_user: PublicUser = Depends(get_current_user), db_session: Session = Depends(get_db_session)):
-    return policy.save_routine(db_session, current_user, payload, routine_uuid)
-
-
-@router.delete("/routines/{routine_uuid}", status_code=204)
-def delete_coach_routine(routine_uuid: str, db_session: Session = Depends(get_db_session)):
-    policy.delete_routine(db_session, routine_uuid)
 
 
 @router.get("/releases")

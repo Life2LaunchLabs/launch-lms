@@ -6,7 +6,7 @@ import json
 import pytest
 from fastapi import HTTPException
 
-from src.db.coach import CoachKeyCreate, CoachPolicyUpdate, CoachTestWrite, CoachTierUpdate
+from src.db.coach import CoachKeyCreate, CoachPlaybookWrite, CoachPolicyUpdate, CoachTestWrite, CoachTierUpdate
 from src.services.coach import keys, policy, releases, scenarios
 from src.services.hub_advisor import REPLY_RULES, AdvisorResult
 from src.tests.test_coach_releases import _admin, _db
@@ -74,8 +74,9 @@ def test_a_new_goal_gets_the_same_first_look_a_real_goal_does():
 
 
 def test_a_release_and_the_draft_it_came_from_are_the_same_version():
-    assert scenarios.snapshot_hash({"method": "m", "abilities": {"remember": True}}) == scenarios.snapshot_hash({"method": "m", "abilities": {}})
-    assert scenarios.snapshot_hash({"method": "m", "abilities": {"remember": False}}) != scenarios.snapshot_hash({"method": "m", "abilities": {}})
+    assert scenarios.snapshot_hash({"abilities": {"remember": True}, "routines": {}}) == scenarios.snapshot_hash({"abilities": {}})
+    assert scenarios.snapshot_hash({"abilities": {"remember": False}}) != scenarios.snapshot_hash({"abilities": {}})
+    assert scenarios.snapshot_hash({"routines": {"goal_finished": {"instructions": "x"}}}) != scenarios.snapshot_hash({})
 
 
 def test_a_conversation_plays_the_learner_for_a_few_turns_and_grades_the_whole_exchange():
@@ -119,11 +120,11 @@ def test_a_run_grades_the_draft_beside_the_live_release_and_the_release_keeps_th
         releases.release(db, _admin())
         scenarios.save_test(db, _admin(), _write())
         assert scenarios.estimate(db) == 1 * scenarios.RUNS * 1 * 2  # Draft equals live: only the draft runs.
-        policy.update_policy(db, _admin(), CoachPolicyUpdate(method="# Be brief"))
+        policy.save_playbook(db, _admin(), CoachPlaybookWrite(title="Brevity", body="# Be brief", always=True))
         assert scenarios.estimate(db) == 1 * scenarios.RUNS * 2 * 2
 
         async def respond(runtime, test, safety_identifier, provider=None, **_):
-            return "Short." if "Be brief" in runtime.method else "A very long reply."
+            return "Short." if "Be brief" in runtime.knowledge() else "A very long reply."
 
         class Judge:
             async def respond(self, messages, safety_identifier):
@@ -154,7 +155,7 @@ def test_a_run_grades_the_draft_beside_the_live_release_and_the_release_keeps_th
         releases.release(db, _admin())
         view = releases.releases_view(db)
         assert view["releases"][0]["tests"]["run_uuid"] == run.run_uuid and view["releases"][1]["tests"] is None
-        policy.update_policy(db, _admin(), CoachPolicyUpdate(method="# Changed again"))
+        policy.save_playbook(db, _admin(), CoachPlaybookWrite(title="Another", body="# Changed again", always=True))
         assert releases.releases_view(db)["draft_tests"] is None
         assert not scenarios.tests_view(db)["latest_run_is_on_draft"]
 

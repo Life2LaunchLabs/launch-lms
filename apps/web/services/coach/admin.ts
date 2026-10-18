@@ -21,18 +21,18 @@ export type CoachKey = { key_uuid: string; provider: CoachProvider; label: strin
 export type CoachAbility = { key: string; group: string; label: string; detail: string; enabled: boolean }
 export type CoachTrigger = { key: string; label: string; detail: string; tier: CoachTier }
 export type CoachPlaybook = { playbook_uuid: string; title: string; used_when: string; body: string; always: boolean; enabled: boolean; updated_at: string }
-export type CoachRoutine = { routine_uuid: string; name: string; trigger: string; instructions: string; tier: CoachTier; enabled: boolean; updated_at: string }
+// One per trigger: what Coach gets when it happens, and the tier it runs on.
+export type CoachRoutine = { instructions: string; tier: CoachTier }
 
 export type CoachPolicy = {
   enabled: boolean
-  method: string
   ability_groups: { key: string; label: string }[]
   abilities: CoachAbility[]
   tiers: Record<CoachTier, CoachTierConfig>
   tier_uses: Record<CoachTier, string[]>
   keys: CoachKey[]
   triggers: CoachTrigger[]
-  routines: CoachRoutine[]
+  routines: Record<string, CoachRoutine>
   playbooks: CoachPlaybook[]
   built_in_rules: { title: string; text: string }[]
   release: CoachDraftSummary
@@ -96,16 +96,15 @@ export type CoachTests = {
 
 export type CoachPolicyUpdate = {
   enabled?: boolean
-  method?: string
   abilities?: Record<string, boolean>
   tiers?: Partial<Record<CoachTier, { key_uuid: string; model: string; settings: CoachModelSettings }>>
+  routines?: Record<string, CoachRoutine>
 }
 
 export type CoachModelOption = { id: string; name: string; description: string; available: boolean | null }
 export type CoachModelCatalog = { provider: CoachProvider; source: 'curated' | 'live'; models: CoachModelOption[] }
 
 export type CoachPlaybookWrite = Pick<CoachPlaybook, 'title' | 'used_when' | 'body' | 'always' | 'enabled'>
-export type CoachRoutineWrite = Pick<CoachRoutine, 'name' | 'trigger' | 'instructions' | 'tier' | 'enabled'>
 
 export const COACH_POLICY_PATH = 'superadmin/coach'
 
@@ -129,10 +128,6 @@ export const coachAdminApi = {
   deletePlaybook: (uuid: string, token?: string) => call<void>(`/playbooks/${uuid}`, token, 'DELETE'),
   orderPlaybooks: (uuids: string[], token?: string) => call<CoachPlaybook[]>('/playbooks/order', token, 'PUT', { uuids }),
 
-  createRoutine: (payload: CoachRoutineWrite, token?: string) => call<CoachRoutine>('/routines', token, 'POST', payload),
-  updateRoutine: (uuid: string, payload: CoachRoutineWrite, token?: string) => call<CoachRoutine>(`/routines/${uuid}`, token, 'PUT', payload),
-  deleteRoutine: (uuid: string, token?: string) => call<void>(`/routines/${uuid}`, token, 'DELETE'),
-  orderRoutines: (uuids: string[], token?: string) => call<CoachRoutine[]>('/routines/order', token, 'PUT', { uuids }),
 
   releases: (token?: string) => call<CoachReleases>('/releases', token),
   release: (note: string, token?: string) => call<CoachReleases>('/releases', token, 'POST', { note }),

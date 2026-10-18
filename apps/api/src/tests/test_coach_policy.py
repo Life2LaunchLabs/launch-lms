@@ -13,7 +13,6 @@ from src.db.coach import (
     CoachPolicyUpdate,
     CoachProviderKey,
     CoachRelease,
-    CoachRoutine,
     CoachRoutineWrite,
     CoachTierUpdate,
 )
@@ -25,7 +24,7 @@ from src.services.coach.policy import DEFAULT_METHOD, CoachRuntime
 def _db() -> Session:
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     SQLModel.metadata.create_all(engine, tables=[
-        User.__table__, CoachRelease.__table__, CoachPolicy.__table__, CoachProviderKey.__table__, CoachPlaybook.__table__, CoachRoutine.__table__,
+        User.__table__, CoachRelease.__table__, CoachPolicy.__table__, CoachProviderKey.__table__, CoachPlaybook.__table__,
     ])
     return Session(engine)
 
@@ -100,10 +99,10 @@ def test_tiers_run_on_their_own_provider_and_fall_back_to_standard():
         assert (fast.provider, fast.api_key, fast.model) == ("openai", "sk-openai-secret-value-0001", "gpt-test")
 
 
-def test_unconfigured_runtime_raises_and_uses_the_default_method():
+def test_unconfigured_runtime_raises():
     with _db() as db:
         runtime = policy._load(db)
-        assert runtime.enabled is False and runtime.method == DEFAULT_METHOD
+        assert runtime.enabled is False and runtime.instructions() == ""
         with pytest.raises(RuntimeError, match="not configured"):
             runtime.model("standard")
 
@@ -119,7 +118,7 @@ def test_abilities_default_on_and_reject_unknown_keys():
 
 
 def _runtime(**overrides) -> CoachRuntime:
-    values = {"enabled": True, "method": "Coach well.", "abilities": {}, "tiers": {}}
+    values = {"enabled": True, "abilities": {}, "tiers": {}}
     return CoachRuntime(**{**values, **overrides})
 
 
@@ -147,35 +146,34 @@ def test_knowledge_stays_within_its_budget():
     assert "x" * 100 not in knowledge and "ok" in knowledge
 
 
-def test_instructions_layer_method_knowledge_routines_and_contract():
+def test_instructions_layer_knowledge_the_routine_and_contract():
     runtime = _runtime(
-        playbooks=(_book("Safety", body="Be safe.", always=True),),
-        routines=(
-            {"name": "Warm notes", "trigger": "goal_check_in", "instructions": "Be warm.", "tier": "deep"},
-            {"name": "Chat", "trigger": "learner_message", "instructions": "Chat rule.", "tier": "fast"},
-        ),
+        playbooks=(_book("Method", body="Coach well.", always=True), _book("Safety", body="Be safe.", always=True)),
+        routines=policy.routines_of({"goal_check_in": {"instructions": "Be warm.", "tier": "deep"}, "learner_message": {"instructions": "Chat rule.", "tier": "fast"}}),
     )
     text = runtime.instructions("goal_check_in", contract="Return JSON.")
     assert text.index("Coach well.") < text.index("Be safe.") < text.index("Be warm.") < text.index("Return JSON.")
-    assert "Chat rule." not in text
+    assert '<coach_routine when="The learner comes back and a check-in is due">' in text and "Chat rule." not in text
     assert runtime.tier_for("goal_check_in") == "deep" and runtime.tier_for("goal_finished") == "standard"
 
 
-def test_playbooks_and_routines_are_saved_ordered_and_validated():
+def test_playbooks_and_routines_are_saved_and_validated():
     with _db() as db:
         first = policy.save_playbook(db, _admin(), CoachPlaybookWrite(title="One", body="1"))
         second = policy.save_playbook(db, _admin(), CoachPlaybookWrite(title="Two", body="2"))
-        ordered = policy.reorder(db, "playbooks", CoachOrder(uuids=[second["playbook_uuid"], first["playbook_uuid"]]))
+        ordered = policy.reorder_playbooks(db, CoachOrder(uuids=[second["playbook_uuid"], first["playbook_uuid"]]))
         assert [item["title"] for item in ordered] == ["Two", "One"]
         policy.save_playbook(db, _admin(), CoachPlaybookWrite(title="One", body="1", enabled=False), first["playbook_uuid"])
         assert [book["title"] for book in policy._load(db).playbooks] == ["Two"]
 
-        with pytest.raises(HTTPException):
-            policy.save_routine(db, _admin(), CoachRoutineWrite(name="Nope", trigger="every_hour"))
-        routine = policy.save_routine(db, _admin(), CoachRoutineWrite(name="Notes", trigger="goal_check_in", instructions="Warm.", tier="deep"))
+        with pytest.raises(HTTPException, match="Unknown triggers"):
+            policy.update_policy(db, _admin(), CoachPolicyUpdate(routines={"every_hour": CoachRoutineWrite()}))
+        view = policy.update_policy(db, _admin(), CoachPolicyUpdate(routines={"goal_check_in": CoachRoutineWrite(instructions=" Warm. ", tier="deep")}))
+        assert view["routines"]["goal_check_in"] == {"instructions": "Warm.", "tier": "deep"}
+        assert view["routines"]["goal_finished"] == {"instructions": "", "tier": "standard"}
         assert policy._load(db).tier_for("goal_check_in") == "deep"
-        policy.delete_routine(db, routine["routine_uuid"])
-        assert policy._load(db).routines == ()
+        policy.update_policy(db, _admin(), CoachPolicyUpdate(routines={"goal_check_in": CoachRoutineWrite()}))
+        assert policy._load(db).tier_for("goal_check_in") == "standard" and policy._load(db).instructions("goal_check_in") == ""
         policy.delete_playbook(db, second["playbook_uuid"])
         assert len(policy.policy_view(db)["playbooks"]) == 1
 
@@ -196,7 +194,7 @@ def test_coach_admin_routes_are_superadmin_only():
 
     assert any(dep.dependency is require_superadmin for dep in router.dependencies)
     paths = {route.path for route in v1_router.routes}
-    assert {"/api/v1/superadmin/coach", "/api/v1/superadmin/coach/keys", "/api/v1/superadmin/coach/routines/order"} <= paths
+    assert {"/api/v1/superadmin/coach", "/api/v1/superadmin/coach/keys", "/api/v1/superadmin/coach/playbooks/order"} <= paths
 
 
 def test_chat_runs_on_the_triggers_tier_with_only_the_allowed_tools(monkeypatch):
@@ -209,7 +207,7 @@ def test_chat_runs_on_the_triggers_tier_with_only_the_allowed_tools(monkeypatch)
             "standard": CoachTierUpdate(key_uuid=standard, model="gpt-test"),
             "deep": CoachTierUpdate(key_uuid=deep, model="claude-test"),
         }))
-        policy.save_routine(db, _admin(), CoachRoutineWrite(name="Plan deeply", trigger="planning_session", instructions="Think it through.", tier="deep"))
+        policy.update_policy(db, _admin(), CoachPolicyUpdate(routines={"planning_session": CoachRoutineWrite(instructions="Think it through.", tier="deep")}))
         snapshot = policy._load(db)
     monkeypatch.setattr(providers, "coach_runtime", lambda *_args: snapshot)
     monkeypatch.setattr(providers, "_ui_test_provider", lambda **_kwargs: None)
@@ -222,11 +220,12 @@ def test_chat_runs_on_the_triggers_tier_with_only_the_allowed_tools(monkeypatch)
     assert isinstance(planning, providers.AnthropicMessagesProvider) and "Think it through." in planning.instructions
 
 
-def test_a_new_platform_starts_with_the_safety_playbook_and_seed_routines():
+def test_a_new_platform_starts_with_the_method_and_safety_playbooks_and_seed_routines():
     with _db() as db:
         policy.seed_defaults(db)
         policy.seed_defaults(db)
         runtime = policy._load(db)
-        assert runtime.method == DEFAULT_METHOD and runtime.enabled is False
-        assert [(book["title"], book["always"]) for book in runtime.playbooks] == [("Safety", True)]
-        assert [routine["trigger"] for routine in runtime.routines] == ["goal_check_in", "goal_finished"]
+        assert runtime.enabled is False
+        assert [(book["title"], book["always"]) for book in runtime.playbooks] == [("Method", True), ("Safety", True)]
+        assert DEFAULT_METHOD.strip() in runtime.knowledge()
+        assert [trigger for trigger, routine in runtime.routines.items() if routine["instructions"]] == ["goal_check_in", "goal_finished"]

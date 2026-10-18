@@ -49,9 +49,12 @@ Return only JSON: {"checks": [{"id": "<rubric line id>", "pass": true | false,
 
 
 def snapshot_hash(snapshot: dict) -> str:
-    """Identifies what a snapshot gives learners. Abilities may be stored sparsely (missing means on), so they're filled in first."""
+    """Identifies what a snapshot gives learners. Abilities and routines may be stored sparsely, so they're filled in first."""
     abilities = snapshot.get("abilities") or {}
-    normal = {**snapshot, "abilities": {key: bool(abilities.get(key, True)) for key, *_rest in coach_policy.ABILITIES}}
+    normal = {
+        **snapshot, "abilities": {key: bool(abilities.get(key, True)) for key, *_rest in coach_policy.ABILITIES},
+        "routines": coach_policy.routines_of(snapshot.get("routines") or {}),
+    }
     return hashlib.sha256(json.dumps(normal, sort_keys=True, default=str).encode()).hexdigest()
 
 

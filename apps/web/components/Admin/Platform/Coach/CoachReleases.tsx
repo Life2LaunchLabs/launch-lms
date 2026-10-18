@@ -53,7 +53,7 @@ export default function CoachReleases() {
   const changes = data.draft_changes
   return (
     <div className="space-y-4">
-      <p className="text-sm leading-6 text-gray-600">Edits on every tab change the draft. Releasing freezes the draft&apos;s method, knowledge, routines, abilities and models into a numbered release, and learners get the live one from their next conversation. Turning Coach on or off, keys and conversation starters apply at once.</p>
+      <p className="text-sm leading-6 text-gray-600">Edits on every tab change the draft. Releasing freezes the draft&apos;s knowledge, routines, abilities and models into a numbered release, and learners get the live one from their next conversation. Turning Coach on or off, keys and conversation starters apply at once.</p>
       <Panel
         title="Draft"
         description={changes.length ? `What changes for learners when you release it${data.live_number ? `, compared with release ${data.live_number}` : ''}.` : `The draft is the same as release ${data.live_number}.`}
