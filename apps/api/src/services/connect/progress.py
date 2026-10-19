@@ -12,12 +12,14 @@ from sqlmodel import Session, select
 
 from src.db.conversations import Conversation, ConversationMessageRef
 from src.db.goals import Goal, GoalStatus, StepStatus
-from src.services.connect import chats
+from src.services.connect import chats, cohort
 from src.services.connect.workspace import PROGRESS, _external, _step, _value, attach, chat_for_goal, sync_goal
 from src.services.goals.sharing_roles import _stamp
 
 # Progress from one person on one plan gathers into one card while it keeps coming.
 GATHER_WINDOW = timedelta(hours=6)
+# A learner joins or leaves their assignment's whole-group chat with these.
+COHORT_EVENTS = ("goal.issued", "goal.accepted", "goal.declined", "goal.archived", "goal.reopened", "invitation.accepted")
 
 
 def _progress_body(card: dict) -> str:
@@ -74,7 +76,9 @@ def _post_progress(db: Session, conversation: Conversation, goal: Goal, sender_i
 
 
 def on_goal_event(db: Session, goal: Goal, actor_id: int | None, action: str, payload: dict) -> None:
-    """Keep a plan's chat in step with what happens on the plan."""
+    """Keep a plan's chat in step with what happens on the plan, and its assignment's cohort chats with who's learning."""
+    if goal.assignment_id and action in COHORT_EVENTS:
+        cohort.sync_for_goal(db, goal)
     if action in ("goal.issued", "goal.accepted", "invitation.accepted") and _external(goal) and _value(goal.status) == GoalStatus.ACTIVE.value:
         conversation = chat_for_goal(db, goal)
         if conversation and not db.exec(select(ConversationMessageRef.id).where(ConversationMessageRef.conversation_id == conversation.id, ConversationMessageRef.goal_id == goal.id)).first():
