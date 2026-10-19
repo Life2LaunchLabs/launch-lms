@@ -6,6 +6,7 @@ import useSWR from 'swr'
 import { CalendarDays, ChevronRight, Loader2, Mail, User, Users } from 'lucide-react'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { templateKeys, templatesApi, type GoalAssignmentSummary } from '@services/goals/templates'
+import AssignmentVersionBanner from '@components/Goals/admin/versions/AssignmentVersionBanner'
 
 /** Where an assignment is looked after now: its group's goals tab, the learner, or the one live goal. */
 export function assignmentPath(assignment: GoalAssignmentSummary) {
@@ -34,18 +35,19 @@ export default function TemplateAssignments({ orgslug, orgId, token, templateUui
   const active = assignments.filter((item) => item.status !== 'ended')
   const past = assignments.filter((item) => item.status === 'ended')
   return <div className="px-10 pb-10 pt-6"><div className="mx-auto max-w-5xl">
-    {active.length ? <AssignmentSection title="Active" assignments={active} orgslug={orgslug} /> : <div className="rounded-xl border border-dashed border-border bg-card py-12 text-center"><Users className="mx-auto text-gray-300" size={34} /><p className="mt-3 text-sm font-semibold text-muted-foreground">Not handed out yet. Use Assign to give it to a group or a learner.</p></div>}
-    {past.length ? <div className="mt-8"><AssignmentSection title="Past" assignments={past} orgslug={orgslug} /></div> : null}
+    {active.length ? <AssignmentSection title="Active" assignments={active} orgslug={orgslug} orgId={orgId} token={token} /> : <div className="rounded-xl border border-dashed border-border bg-card py-12 text-center"><Users className="mx-auto text-gray-300" size={34} /><p className="mt-3 text-sm font-semibold text-muted-foreground">Not handed out yet. Use Assign to give it to a group or a learner.</p></div>}
+    {past.length ? <div className="mt-8"><AssignmentSection title="Past" assignments={past} orgslug={orgslug} orgId={orgId} token={token} /></div> : null}
   </div></div>
 }
 
-function AssignmentSection({ title, assignments, orgslug }: { title: string; assignments: GoalAssignmentSummary[]; orgslug: string }) {
+/** Assignments as rows; each says when its template has a newer version or its badge no longer accepts its version. */
+export function AssignmentSection({ title, assignments, orgslug, orgId, token }: { title: string; assignments: GoalAssignmentSummary[]; orgslug: string; orgId: number; token?: string }) {
   return <section>
     <div className="mb-2 border-b border-border pb-2"><h2 className="text-sm font-black uppercase tracking-wider text-muted-foreground">{title}</h2></div>
     <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-xs">
       {assignments.map((assignment) => {
         const Icon = assignment.assignment_type === 'group' ? Users : assignment.assignment_type === 'external' ? Mail : User
-        return <Link key={assignment.assignment_uuid} href={getUriWithOrg(orgslug, assignmentPath(assignment))} className="flex items-center gap-3 p-4 transition hover:bg-muted/50">
+        return <div key={assignment.assignment_uuid}><Link href={getUriWithOrg(orgslug, assignmentPath(assignment))} className="flex items-center gap-3 p-4 transition hover:bg-muted/50">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600"><Icon size={18} /></div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
@@ -63,7 +65,7 @@ function AssignmentSection({ title, assignments, orgslug }: { title: string; ass
             </div>
           </div>
           <ChevronRight size={16} className="text-muted-foreground" />
-        </Link>
+        </Link><AssignmentVersionBanner orgId={orgId} token={token} assignment={assignment} compact className="mx-4 mb-3" /></div>
       })}
     </div>
   </section>

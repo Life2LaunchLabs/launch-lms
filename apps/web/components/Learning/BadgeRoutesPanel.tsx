@@ -10,6 +10,7 @@ import { badgeRoutesApi } from '@services/learning/badgeRoutes'
 import { templatesApi } from '@services/goals/templates'
 import type { GoalTemplate } from '@services/goals/types'
 import { getUriWithOrg } from '@services/config/config'
+import type { EligibilityRule } from '@services/goals/versions'
 
 /** The badge creator chooses which goal templates earn the badge and which one learners see first. */
 export default function BadgeRoutesPanel({ badge, orgslug }: { badge: any; orgslug: string }) {
@@ -22,6 +23,10 @@ export default function BadgeRoutesPanel({ badge, orgslug }: { badge: any; orgsl
   const save = async (next: { template_uuid: string; recommended: boolean }[]) => {
     setSaving(true)
     try { await mutate(await badgeRoutesApi.set(badge.badge_uuid, next, token), false) } catch (error: any) { toast.error(error?.message || 'Could not save the ways to earn this badge.') } finally { setSaving(false) }
+  }
+  const saveEligibility = async (routeUuid: string, rule: EligibilityRule, fromVersion: number | null) => {
+    setSaving(true)
+    try { await mutate(await badgeRoutesApi.setEligibility(badge.badge_uuid, routeUuid, rule, fromVersion, token), false) } catch (error: any) { toast.error(error?.message || 'Could not save which versions earn this badge.') } finally { setSaving(false) }
   }
   const current = routes.map((route) => ({ template_uuid: route.template_uuid, recommended: route.recommended }))
   const available = (Array.isArray(templates) ? templates : []).filter((template: GoalTemplate) => !template.system_type && template.status !== 'archived' && !routes.some((route) => route.template_uuid === template.template_uuid))
@@ -42,6 +47,7 @@ export default function BadgeRoutesPanel({ badge, orgslug }: { badge: any; orgsl
           <Link href={getUriWithOrg(orgslug, `/admin/plans/${encodeURIComponent(route.template_uuid)}`)} className="text-sm font-black hover:underline">{route.name}</Link>
           <p className="text-xs text-muted-foreground">{route.step_count} step{route.step_count === 1 ? '' : 's'}{route.activity_count ? ` · ${route.activity_count} activit${route.activity_count === 1 ? 'y' : 'ies'}` : ''}{route.recommended ? ' · Recommended' : ''}</p>
         </div>
+        <RouteEligibility route={route} disabled={saving} onChange={(rule, fromVersion) => void saveEligibility(route.route_uuid, rule, fromVersion)} />
         <button type="button" disabled={saving} onClick={() => save(current.filter((_, i) => i !== index))} aria-label={`Remove ${route.name}`} className="rounded-lg p-2 text-muted-foreground hover:bg-red-50 hover:text-red-700"><Trash2 size={15} /></button>
       </div>)}
       {!routes.length ? <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
@@ -56,4 +62,25 @@ export default function BadgeRoutesPanel({ badge, orgslug }: { badge: any; orgsl
       </label> : null}
     </div>}
   </section>
+}
+
+type EligibilityProps = {
+  route: any
+  disabled: boolean
+  // eslint-disable-next-line no-unused-vars
+  onChange: (rule: EligibilityRule, fromVersion: number | null) => void
+}
+
+/** Which versions of the route's template earn the badge. Organizations running it decide when to move their assignments. */
+function RouteEligibility({ route, disabled, onChange }: EligibilityProps) {
+  const latest = Number(route.published_version || 0)
+  const rule: EligibilityRule = route.eligible_versions?.rule || 'any'
+  const value = rule === 'from' ? `from:${route.eligible_versions?.from_version}` : rule
+  const pick = (next: string) => next.startsWith('from:') ? onChange('from', Number(next.slice(5))) : onChange(next as EligibilityRule, null)
+  return <select aria-label={`Versions of ${route.name} that earn the badge`} value={value} disabled={disabled || !latest} onChange={(event) => pick(event.target.value)}
+    title="Which versions of this template earn the badge" className="h-9 rounded-lg border border-border bg-background px-2 text-xs font-bold">
+    <option value="any">Every version earns it</option>
+    <option value="latest">Only the newest version</option>
+    {Array.from({ length: Math.max(latest - 1, 0) }, (_, i) => i + 2).map((number) => <option key={number} value={`from:${number}`}>Version {number} and later</option>)}
+  </select>
 }

@@ -14,6 +14,7 @@ import { getUriWithOrg, routePaths } from '@services/config/config'
 import { isTemplatesKey, templateKeys, templatesApi } from '@services/goals/templates'
 import type { GoalTemplate } from '@services/goals/types'
 import { cn } from '@/lib/utils'
+import BadgeTemplatesSection from '@components/Goals/admin/versions/BadgeTemplatesSection'
 
 const templatePage = (orgslug: string, uuid: string) => getUriWithOrg(orgslug, routePaths.org.admin.templatePage(uuid, 'overview'))
 
@@ -65,7 +66,7 @@ export default function TemplateList({ orgslug, orgId, token }: { orgslug: strin
         </button>}
       </div>)}
     </div> : <div className="flex items-center justify-center rounded-xl border-2 border-dashed border-border py-16 text-center"><div><Layers3 size={36} className="mx-auto mb-3 text-gray-300" /><p className="text-sm text-muted-foreground">Create a goal template to hand the same stages and steps to many learners.</p></div></div>}
-  </section></div>
+  </section><BadgeTemplatesSection orgslug={orgslug} orgId={orgId} token={token} /></div>
 }
 
 function NewTemplateModal({ orgslug, orgId, token }: { orgslug: string; orgId: number; token?: string }) {
