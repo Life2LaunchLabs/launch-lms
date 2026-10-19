@@ -55,10 +55,32 @@ export interface OrgMentionCard {
   excerpt: string
 }
 
+/** An invitation from an organization or a person, answered right in the chat. */
+export interface InvitationCard {
+  type: 'invitation'
+  /** goal: a plan an organization assigned you. inbox: joining an organization, or helping on a plan. */
+  source: 'goal' | 'inbox'
+  inbox_uuid?: string
+  action_kind?: string
+  goal_uuid?: string | null
+  subject: string
+  text: string
+  state: 'pending' | 'accepted' | 'declined' | 'expired' | string
+  /** Whether it's yours to answer; others in the chat see who it's for. */
+  for_me: boolean
+  for_name?: string | null
+}
+
+/** A notice an organization sent, such as a welcome. */
+export interface NoticeCard { type: 'notice'; subject: string; text: string }
+
+/** Plan tags say whether they're the chat's quiet scope, a plan from outside the chat, or one you can't see. */
+type PlanRefFlags = { scope?: boolean; outside?: boolean; hidden?: boolean }
+
 /** A plan, step, person or organization a message tags inline, as the reader sees it now. */
 export type MessageRef =
-  | { kind: 'plan'; key: string; goal_uuid: string; title: string }
-  | { kind: 'step'; key: string; goal_uuid: string; step_uuid: string; title: string; plan_title: string; status: string }
+  | ({ kind: 'plan'; key: string; goal_uuid: string; title: string } & PlanRefFlags)
+  | ({ kind: 'step'; key: string; goal_uuid: string; step_uuid: string; title: string; plan_title: string; status: string } & PlanRefFlags)
   | ({ kind: 'user'; key: string } & PersonSummary)
   | { kind: 'org'; key: string; id: number; org_uuid: string; name: string; slug: string; logo_image?: string | null }
 
@@ -70,7 +92,7 @@ export interface ChatMessage {
   /** The text with tags written out as names. */
   preview: string
   refs: MessageRef[]
-  card: GoalCommentsCard | PortfolioCard | ProgressCard | OrgMentionCard | null
+  card: GoalCommentsCard | PortfolioCard | ProgressCard | OrgMentionCard | InvitationCard | NoticeCard | null
   sender: PersonSummary | null
   mine: boolean
   creation_date: string
@@ -115,6 +137,8 @@ export interface ChatTopic {
   count: number
   progress: { done: number; total: number; submitted: number; behind: number }
   steps: TopicStep[]
+  /** For your plans from elsewhere: the organization it's with. */
+  org_name?: string | null
 }
 
 export interface Chat extends ChatSummary {
@@ -140,7 +164,17 @@ export interface GoalChat {
 }
 
 export type MentionOutcome = { user: PersonSummary; status: 'notified' | 'invited' | 'requested' | 'no_access' | 'not_here' }
-export type SentMessage = ChatMessage & { mentions: MentionOutcome[] }
+export type SentMessage = ChatMessage & { mentions: MentionOutcome[]; shared?: Record<string, 'shared' | 'requested' | 'none'> }
+
+/** A plan you tagged from elsewhere that people here can't see yet. */
+export interface BlindPlan { goal_uuid: string; title: string; how: 'share' | 'request' | 'none'; people: PersonSummary[] }
+
+export interface SendOptions {
+  /** The plan, or step, the chat is filtered to: the message is about it. */
+  scope?: ChatFilter
+  /** Who to share each of your tagged plans with. {} sends without sharing. */
+  share?: Record<string, string[]>
+}
 
 export interface ChatCounts { unread: number; requests: number }
 export interface ChatList extends ChatCounts { chats: ChatSummary[] }
@@ -152,6 +186,7 @@ export const connectKeys = {
   chat: (uuid: string, filter: ChatFilter = {}) => connectUrl(`/chats/${q(uuid)}${filterQuery(filter)}`),
   goalChat: (goalUuid: string) => connectUrl(`/goals/${q(goalUuid)}/chat`),
   settings: () => connectUrl('/settings'),
+  plans: () => connectUrl('/plans'),
   blocked: () => connectUrl('/blocked'),
 }
 
@@ -161,7 +196,10 @@ export const connectApi = {
   chat: (uuid: string, token?: string, filter: ChatFilter = {}) => request<Chat>(connectKeys.chat(uuid, filter), token),
   goalChat: (goalUuid: string, token?: string) => request<GoalChat>(connectKeys.goalChat(goalUuid), token),
   openDirect: (target: { handle?: string; user_uuid?: string }, token?: string) => request<Chat>(connectUrl('/chats/direct'), token, 'POST', target),
-  send: (uuid: string, body: string, token?: string) => request<SentMessage>(connectUrl(`/chats/${q(uuid)}/messages`), token, 'POST', { body }),
+  send: (uuid: string, body: string, token?: string, options: SendOptions = {}) => request<SentMessage>(connectUrl(`/chats/${q(uuid)}/messages`), token, 'POST', {
+    body, goal_uuid: options.scope?.goal_uuid, step_uuid: options.scope?.goal_uuid ? options.scope.step_uuid : undefined, share: options.share,
+  }),
+  plans: (token?: string) => request<ChatTopic[]>(connectKeys.plans(), token),
   read: (uuid: string, token?: string) => request<ChatCounts>(connectUrl(`/chats/${q(uuid)}/read`), token, 'POST'),
   accept: (uuid: string, token?: string) => request<Chat>(connectUrl(`/chats/${q(uuid)}/accept`), token, 'POST'),
   decline: (uuid: string, token?: string) => request<ChatCounts>(connectUrl(`/chats/${q(uuid)}/decline`), token, 'POST'),

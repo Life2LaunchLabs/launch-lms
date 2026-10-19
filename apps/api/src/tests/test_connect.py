@@ -46,12 +46,12 @@ def test_people_who_share_a_goal_chat_freely_and_unread_counts_follow_reads():
         assert [item["username"] for item in people.search(db, _user(LEARNER), "Sam O")] == ["sam"]
         chat = _open(db, LEARNER, "sam")
         assert chat["accepted"] and chat["messages"] == []
-        # An empty chat doesn't show up for either of them.
-        assert chats.list_chats(db, _user(OTHER))["chats"] == []
+        # The invitation to the plan is the first message in their chat.
+        assert [item["last_message"]["card"]["type"] for item in chats.list_chats(db, _user(OTHER))["chats"]] == ["invitation"]
         _send(db, LEARNER, chat, "Hi! Can you look at my plan?")
         _send(db, LEARNER, chat, "No rush")
         listed = chats.list_chats(db, _user(OTHER))
-        assert listed["unread"] == 2 and listed["chats"][0]["status"] == "active" and listed["chats"][0]["title"] == "Lee Arner"
+        assert listed["unread"] == 3 and listed["chats"][0]["status"] == "active" and listed["chats"][0]["title"] == "Lee Arner"
         assert chats.mark_read(db, _user(OTHER), chat["conversation_uuid"]) == {"unread": 0, "requests": 0}
         reply = _send(db, OTHER, chat, "Sure thing")
         assert reply["mine"] and chats.counts(db, _user(LEARNER))["unread"] == 1

@@ -98,7 +98,6 @@ export const routePaths = {
     connect: () => '/connect',
     chat: (conversationUuid: string) => `/connect/${encodeURIComponent(conversationUuid)}`,
     /** Invitations and notices from organizations, listed in Connect. */
-    connectUpdates: () => '/connect/updates',
     portfolioProjects: () => '/portfolio/projects',
     portfolioProjectsNew: () => '/portfolio/projects/new',
     portfolioProjectDetail: (projectUuid: string) => `/portfolio/projects/${encodeURIComponent(projectUuid)}`,

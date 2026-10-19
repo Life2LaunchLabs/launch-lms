@@ -1,7 +1,8 @@
-import ConnectView from '@components/Connect/ConnectView'
+import { redirect } from 'next/navigation'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 
-/** Invitations and notices from organizations, open beside the list like a chat. */
+/** Updates are now messages in the chat with whoever sent them. */
 export default async function ConnectUpdatesPage({ params }: { params: Promise<{ orgslug: string }> }) {
   const { orgslug } = await params
-  return <ConnectView orgslug={orgslug} pane="updates" />
+  redirect(getUriWithOrg(orgslug, routePaths.org.connect()))
 }
