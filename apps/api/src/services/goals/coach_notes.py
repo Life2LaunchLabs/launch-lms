@@ -14,7 +14,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlmodel import Session, select
 
-from src.db.goals import CoachNote, CoachNoteStatus, Goal, GoalStatus
+from src.db.coach_notes import CoachNote, CoachNoteStatus
+from src.db.goals import Goal, GoalStatus
 from src.db.users import PublicUser
 from src.services.goals import access, check_ins
 from src.services.goals.check_ins import CADENCE

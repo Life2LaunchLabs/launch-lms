@@ -64,7 +64,7 @@ export interface GoalAssignmentSummary {
   owner: AssignmentPerson | null
   start_date: string | null
   due_date: string | null
-  active: boolean
+  status: 'active' | 'paused' | 'ended'
   creation_date: string
   cohort: { id: number; uuid: string; name: string } | null
   user: AssignmentPerson | null

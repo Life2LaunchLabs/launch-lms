@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import HTTPException
 from sqlmodel import Session, col, select
 
-from src.db.goals import Goal, GoalAssignment
+from src.db.goals import CURRENT_ASSIGNMENT_STATUSES, Goal, GoalAssignment
 from src.db.planning import PlanCollaborator
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
@@ -28,7 +28,7 @@ def _group(db: Session, org_id: int, group_id: int) -> UserGroup:
 
 
 def _assignments(db: Session, group_id: int) -> list[GoalAssignment]:
-    return list(db.exec(select(GoalAssignment).where(GoalAssignment.usergroup_id == group_id, GoalAssignment.active == True)  # noqa: E712
+    return list(db.exec(select(GoalAssignment).where(GoalAssignment.usergroup_id == group_id, col(GoalAssignment.status).in_(CURRENT_ASSIGNMENT_STATUSES))
                         .order_by(col(GoalAssignment.id))).all())
 
 

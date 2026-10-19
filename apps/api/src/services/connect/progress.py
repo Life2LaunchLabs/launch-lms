@@ -86,5 +86,7 @@ def on_goal_event(db: Session, goal: Goal, actor_id: int | None, action: str, pa
         step = _step(db, goal, payload.get("step_uuid"))
         conversation = chat_for_goal(db, goal, create=False) if event and step else None
         if conversation and step:
-            entry = {"step_uuid": step.step_uuid, "title": step.title, "event": event, "at": _stamp()}
+            entry = {"step_uuid": step.step_uuid, "title": step.title, "event": event, "at": _stamp(),
+                     # What the reviewer wrote to the learner, shown under the step on the card.
+                     **({"note": str(payload["note"])[:2000]} if payload.get("note") else {})}
             _post_progress(db, conversation, goal, actor_id or goal.subject_user_id, entry)

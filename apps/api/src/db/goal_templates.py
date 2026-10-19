@@ -37,3 +37,29 @@ class GoalAssignmentRequest(GoalAssignmentCreate):
     collaborators: list[AssignmentCollaborator] = Field(default_factory=list)
     owner_user_id: int | None = None
     schedule: AssignmentSchedule | None = None
+
+
+class GoalAssignmentUpdate(SQLModel):
+    """Edit an assignment: only the fields sent change (see services/goals/assignments.update)."""
+
+    welcome_message: str | None = Field(default=None, max_length=10000)
+    start_date: date | None = None
+    due_date: date | None = None
+    # Replaces the whole schedule: stage start dates and step close dates.
+    schedule: AssignmentSchedule | None = None
+    # Replaces the staff: each person with a role of the template.
+    collaborators: list[AssignmentCollaborator] | None = None
+
+
+class StepRemind(SQLModel):
+    """Remind learners who haven't handed a step in. No user_uuids: everyone it's waiting on."""
+
+    user_uuids: list[str] = Field(default_factory=list, max_length=1000)
+    message: str = Field(default="", max_length=2000)
+
+
+class StepSettle(SQLModel):
+    """Mark a staff-confirmed step done for everyone in the assignment except these learners."""
+
+    except_user_uuids: list[str] = Field(default_factory=list, max_length=1000)
+    message: str = Field(default="", max_length=10000)

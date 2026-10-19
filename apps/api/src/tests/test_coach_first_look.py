@@ -7,7 +7,8 @@ from datetime import datetime, timedelta
 import pytest
 from sqlmodel import SQLModel, select
 
-from src.db.goals import CoachNote, Goal, GoalCreate, GoalUpdate
+from src.db.coach_notes import CoachNote
+from src.db.goals import Goal, GoalCreate, GoalUpdate
 from src.db.hub import HubConversation, HubConversationMessage, HubEditObjectState, HubEditRun, HubEditRunEvent
 from src.services.coach import first_look
 from src.services.coach import policy as coach_policy

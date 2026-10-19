@@ -19,7 +19,8 @@ from uuid import uuid4
 
 from sqlmodel import Session, select
 
-from src.db.goals import CoachNote, CoachNoteStatus, Goal, GoalOwnership, GoalStage, GoalStatus, GoalStep
+from src.db.coach_notes import CoachNote, CoachNoteStatus
+from src.db.goals import Goal, GoalOwnership, GoalStage, GoalStatus, GoalStep
 from src.db.hub import HubConversation, HubConversationMessage, HubEditObjectState, HubEditRun, HubEditRunEvent
 
 logger = logging.getLogger(__name__)

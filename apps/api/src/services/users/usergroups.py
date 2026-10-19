@@ -518,12 +518,10 @@ async def add_users_to_usergroup(
 
     db_session.flush()
     if linked_user_ids:
-        # Active cohort programs automatically invite newly added learners. Their
-        # canonical objective progress is intentionally stored outside the cohort,
-        # so leaving and rejoining never erases completed work.
-        from src.services.programs import ensure_group_participants
+        # New members get the plans of the group's active assignments, and their chat with the organization.
+        from src.services.goals.assignments import sync_group_members
 
-        ensure_group_participants(db_session, usergroup_id, linked_user_ids)
+        sync_group_members(db_session, usergroup, linked_user_ids, current_user.id if isinstance(current_user, PublicUser) else None)
     db_session.commit()
 
     return "Users added to UserGroup successfully"
