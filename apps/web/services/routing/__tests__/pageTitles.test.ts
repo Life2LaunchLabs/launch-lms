@@ -16,7 +16,17 @@ test('covers learner routes without exposing dynamic identifiers', () => {
   assert.deepEqual(resolveAppPageTitle('/orgs/acme/account/notifications'), { section: 'Account', detail: 'Notifications' })
 })
 
-test('covers admin route families from the same resolver', () => {
-  assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/plans/reporting'), { section: 'Admin', detail: 'Plans · Reporting' })
-  assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/users'), { section: 'Admin', detail: 'Users' })
+test('titles admin pages by the registry tab that owns them', () => {
+  assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin'), { section: 'Admin', detail: 'Home' })
+  assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/plans'), { section: 'Admin', detail: 'Assignments' })
+  assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/plans/review'), { section: 'Admin', detail: 'Assignments' })
+  assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/plans/template_1/settings'), { section: 'Admin', detail: 'Plan templates' })
+  assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/plans/requirements/fw_1/spec'), { section: 'Admin', detail: 'Insights' })
+  assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/users'), { section: 'Admin', detail: 'People' })
+  assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/podcasts/podcast/p1/general'), { section: 'Admin', detail: 'Content · Podcasts' })
+  assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/org/settings/branding'), { section: 'Admin', detail: 'Organization · Branding' })
+})
+
+test('keeps admin pages outside the tabs on the segment labels', () => {
+  assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/platform/users'), { section: 'Admin', detail: 'Platform · Users' })
 })

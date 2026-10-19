@@ -14,6 +14,7 @@ import { createJoinLink, inviteBatchUsers, previewBatchUsers, revokeJoinLink } f
 import { swrFetcher } from '@services/utils/ts/requests'
 import { usePlan } from '@components/Hooks/usePlan'
 import { PlanLevel, planMeetsRequirement } from '@services/plans/plans'
+import { useFeatures } from '@components/Hooks/useFeatures'
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const splitRecipients = (value: string) => value.split(/[\s,;]+/).map((email) => email.trim()).filter(Boolean)
@@ -27,8 +28,8 @@ export default function InviteUsersDialog({ open: isOpen, onOpenChange, onInvite
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
   const currentPlan = usePlan()
-  const groupsEnabled = planMeetsRequirement(currentPlan, 'full')
-    && (org?.config?.config?.resolved_features?.usergroups?.enabled ?? true)
+  const features = useFeatures()
+  const groupsEnabled = features.planAtLeast('full') && features.has('usergroups')
   const [recipients, setRecipients] = React.useState<string[]>([])
   const [method, setMethod] = React.useState<'manual' | 'csv' | 'link'>('manual')
   const [previewResults, setPreviewResults] = React.useState<any[]>([])

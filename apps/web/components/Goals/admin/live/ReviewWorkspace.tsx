@@ -26,7 +26,7 @@ export default function ReviewWorkspace({ orgslug }: { orgslug: string }) {
   const orgId = Number(org?.id)
   const assignment = params.get('assignment') || ''
   const activity = params.get('activity')
-  const backHref = getUriWithOrg(orgslug, routePaths.org.dash.plans())
+  const backHref = getUriWithOrg(orgslug, routePaths.org.admin.assignments())
   if (!assignment) return <div className="p-10"><EmptyState title="Nothing to review" detail="Open a review from the Inbox." /></div>
   if (activity) return <ActivityGrading orgId={orgId} token={token} assignment={assignment} activity={activity} backHref={backHref} orgslug={orgslug} />
   return <StepQueue orgId={orgId} token={token} assignment={assignment} stepKey={params.get('step_key')} stepUuid={params.get('step')} focus={params.get('focus')} backHref={backHref} orgslug={orgslug} />
@@ -125,7 +125,7 @@ function StepQueue({ orgId, token, assignment, stepKey, stepUuid, focus, backHre
           <div className="flex items-center gap-3">
             <PersonAvatar person={item.user} size={36} />
             <div className="min-w-0 flex-1"><p className="truncate text-sm font-black text-gray-950">{personName(item.user)}</p><p className="text-xs text-gray-500">Attempt {item.attempt} · {timeAgo(item.submitted_at)}</p></div>
-            <Link href={getUriWithOrg(orgslug, routePaths.org.dash.livePlan(item.goal_uuid, 'steps'))} className="text-xs font-bold text-gray-900 hover:text-blue-700">Goal</Link>
+            <Link href={getUriWithOrg(orgslug, routePaths.org.admin.livePlan(item.goal_uuid, 'steps'))} className="text-xs font-bold text-gray-900 hover:text-blue-700">Goal</Link>
           </div>
           {state ? <StatusPill tone={state === 'confirm' ? 'green' : 'amber'}>{state === 'confirm' ? 'Approved' : 'Sent back'}</StatusPill> : null}
           {item.learner_note ? <Block title="From the learner"><p className="whitespace-pre-wrap rounded-lg bg-gray-50 px-3 py-2.5 text-sm leading-6 text-gray-800">{item.learner_note}</p></Block> : null}
@@ -179,7 +179,7 @@ function ActivityGrading({ orgId, token, assignment, activity, backHref, orgslug
         {reviews.map((item) => <button key={item.review_id} type="button" onClick={() => setCurrent(item.review_id)} className={cn('flex min-h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-[13px]', item.review_id === review.review_id ? 'bg-gray-100 font-bold' : 'font-medium hover:bg-gray-50')}><span className="h-2 w-2 rounded-full bg-gray-300" />{personName(item.user)}</button>)}
       </nav>
       <section className="min-w-0 flex-1 p-6">
-        <div className="mb-4 flex items-center gap-3"><PersonAvatar person={review.user} size={32} /><p className="text-sm font-black">{personName(review.user)}</p><Link href={getUriWithOrg(orgslug, routePaths.org.dash.livePlan(review.goal_uuid, 'steps'))} className="text-xs font-bold text-gray-700">Goal</Link></div>
+        <div className="mb-4 flex items-center gap-3"><PersonAvatar person={review.user} size={32} /><p className="text-sm font-black">{personName(review.user)}</p><Link href={getUriWithOrg(orgslug, routePaths.org.admin.livePlan(review.goal_uuid, 'steps'))} className="text-xs font-bold text-gray-700">Goal</Link></div>
         <div className="rounded-xl border border-gray-100 bg-white nice-shadow"><GradeActivity key={review.review_id} review={review} token={token} onDone={done} /></div>
       </section>
     </div>}

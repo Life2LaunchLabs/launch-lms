@@ -8,9 +8,9 @@ import OrgEditGeneral from '@components/Dashboard/Pages/Org/OrgEditGeneral/OrgEd
 import OrgEditBranding from '@components/Dashboard/Pages/Org/OrgEditBranding/OrgEditBranding'
 import OrgEditSSO from '@components/Dashboard/Pages/Org/OrgEditSSO/OrgEditSSO'
 import OrgEditPlan from '@components/Dashboard/Pages/Org/OrgEditPlan/OrgEditPlan'
-import { useTranslation } from 'react-i18next'
-import { getOrganizationAdminPages } from '@components/Admin/adminFeaturePages'
-import { useOrg } from '@components/Contexts/OrgContext'
+import { useFeatures } from '@components/Hooks/useFeatures'
+import { ADMIN_NAV_ICONS } from '@components/Admin/adminNavIcons'
+import { adminTab } from '@/lib/admin/registry'
 
 export type OrgParams = {
   subpage: string
@@ -18,14 +18,15 @@ export type OrgParams = {
 }
 
 function OrgPage(props: { params: Promise<OrgParams> }) {
-  const { t } = useTranslation()
   const params = use(props.params);
   const router = useRouter()
-  const org = useOrg() as any
-  const hasSso = org?.config?.config?.resolved_features?.sso?.enabled === true
+  const features = useFeatures()
+  // The Organization tab's settings pages; payments has its own page.
   const SETTING_TABS = React.useMemo(
-    () => getOrganizationAdminPages(t, { hasSso }),
-    [hasSso, t]
+    () => (adminTab('organization').children || []).filter((tab) =>
+      tab.href.startsWith('/admin/org/settings/') && features.visibility(tab.requires).state === 'open'
+    ),
+    [features]
   )
   const enabledSubpages = React.useMemo(
     () => new Set(SETTING_TABS.map((tab) => tab.id)),
@@ -34,22 +35,22 @@ function OrgPage(props: { params: Promise<OrgParams> }) {
 
   useEffect(() => {
     if (!enabledSubpages.has(params.subpage)) {
-      router.replace(getUriWithOrg(params.orgslug, routePaths.org.dash.orgSettings.general()))
+      router.replace(getUriWithOrg(params.orgslug, routePaths.org.admin.organization.general()))
       return
     }
-  }, [enabledSubpages, params.subpage, params.orgslug, router, t])
+  }, [enabledSubpages, params.subpage, params.orgslug, router])
 
   return (
     <div className="h-full w-full bg-[#f8f8f8] flex flex-col">
       <AdminFeatureHeader
-        feature={t('common.organization')}
+        feature={adminTab('organization').label}
         activeTab={params.subpage}
         tabs={SETTING_TABS.map((tab) => {
-          const Icon = tab.icon
+          const Icon = ADMIN_NAV_ICONS[tab.id]
           return {
             id: tab.id,
             label: tab.label,
-            icon: Icon ? <Icon size={16} /> : undefined,
+            icon: <Icon size={16} />,
             href: getUriWithOrg(params.orgslug, tab.href),
           }
         })}

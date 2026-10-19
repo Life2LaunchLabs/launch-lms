@@ -108,7 +108,7 @@ export default function CohortMatrix({ orgslug, orgId, token, assignmentUuid }: 
       </div>
       {learners.map((learner) => <div key={learner.goal_uuid} className="grid items-center gap-1 border-b border-gray-50 px-3 py-1" style={grid}>
         <span className="flex min-w-0 items-center gap-2 pr-2">
-          <Link href={getUriWithOrg(orgslug, routePaths.org.dash.livePlan(learner.goal_uuid))} className="truncate text-[13px] font-bold text-gray-900 hover:text-blue-700">{personName(learner)}</Link>
+          <Link href={getUriWithOrg(orgslug, routePaths.org.admin.livePlan(learner.goal_uuid))} className="truncate text-[13px] font-bold text-gray-900 hover:text-blue-700">{personName(learner)}</Link>
           {learner.custom_steps.length ? <span title={learner.custom_steps.map((item) => item.title).join(', ')} className="shrink-0 rounded-full bg-blue-50 px-1.5 text-[10px] font-bold text-blue-700">+{learner.custom_steps.length}</span> : null}
           {learner.status === 'pending' ? <span className="shrink-0 text-[10px] text-gray-400">invited</span> : null}
         </span>

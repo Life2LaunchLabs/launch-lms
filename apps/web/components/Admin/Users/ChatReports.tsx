@@ -62,7 +62,7 @@ export default function ChatReports({ orgId, orgslug, token }: { orgId: number; 
 function PersonName({ person, inOrg, orgslug }: { person: ChatReport['reporter']; inOrg: boolean; orgslug: string }) {
   if (!person) return <span className="font-semibold text-gray-900">Someone</span>
   if (!inOrg) return <span className="font-semibold text-gray-900">{person.name}</span>
-  return <Link href={getUriWithOrg(orgslug, routePaths.org.dash.users.userPage(person.username, 'messages'))} className="font-semibold text-gray-900 underline-offset-2 hover:underline">{person.name}</Link>
+  return <Link href={getUriWithOrg(orgslug, routePaths.org.admin.people.userPage(person.username, 'messages'))} className="font-semibold text-gray-900 underline-offset-2 hover:underline">{person.name}</Link>
 }
 
 function ReportRow({ report, orgslug, onReview }: { report: ChatReport; orgslug: string; onReview: (next: ReportStatus) => void }) { // eslint-disable-line no-unused-vars

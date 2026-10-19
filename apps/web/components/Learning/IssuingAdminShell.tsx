@@ -27,7 +27,7 @@ import {
   type LearnerAccess,
 } from '@services/learning/marketplace'
 import AdminBadgesHome from '@components/Learning/AdminBadgesHome'
-import { BADGE_ADMIN_PAGES } from '@components/Admin/adminFeaturePages'
+import { adminTabWithIcons } from '@components/Admin/adminNavIcons'
 const statusStyles: Record<string, string> = {
   queued: 'bg-violet-100 text-violet-800',
   requested: 'bg-amber-100 text-amber-800',
@@ -66,11 +66,11 @@ export default function IssuingAdminShell({
   return (
     <div className="min-h-full w-full bg-[#f8f8f8]">
       <AdminFeatureHeader
-        feature="Badges"
+        feature={adminTabWithIcons('badges').label}
         actions={<Button asChild variant="outline" size="sm"><Link href={getUriWithOrg(orgslug, '/admin/badges/discover')}>Discover carousel</Link></Button>}
         activeTab={activeTab}
-        tabs={BADGE_ADMIN_PAGES.map((tab) => {
-          const Icon = tab.icon
+        tabs={adminTabWithIcons('badges').children.map((tab) => {
+          const Icon = tab.Icon
           return {
             id: tab.id,
             label: tab.label,

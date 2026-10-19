@@ -119,7 +119,7 @@ export default function NewsPostForm({
         await createNewsArticle(orgId, payload, accessToken)
       }
       toast.success(articleUuid ? 'Post updated' : 'Post created')
-      router.push(getUriWithOrg(orgslug, routePaths.org.dash.news()))
+      router.push(getUriWithOrg(orgslug, routePaths.owner.platform.news()))
     } catch {
       toast.error('Unable to save post')
     } finally {
@@ -139,7 +139,7 @@ export default function NewsPostForm({
     return (
       <main className="w-full bg-[#f8f8f8] px-6 py-6 lg:px-10">
         <Link
-          href={getUriWithOrg(orgslug, routePaths.org.dash.news())}
+          href={getUriWithOrg(orgslug, routePaths.owner.platform.news())}
           className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-gray-950"
         >
           <ArrowLeft size={14} />
@@ -155,7 +155,7 @@ export default function NewsPostForm({
   return (
     <main className="w-full bg-[#f8f8f8] px-6 py-6 lg:px-10">
       <Link
-        href={getUriWithOrg(orgslug, routePaths.org.dash.news())}
+        href={getUriWithOrg(orgslug, routePaths.owner.platform.news())}
         className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-gray-950"
       >
         <ArrowLeft size={14} />

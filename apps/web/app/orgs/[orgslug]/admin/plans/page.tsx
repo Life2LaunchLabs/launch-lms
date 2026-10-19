@@ -1,6 +1,6 @@
-import GoalsAdminRoot from '@components/Goals/admin/templates/GoalsAdminRoot'
+import { AssignmentsPage } from '@components/Goals/admin/GoalsAdminPages'
 
-export default async function GoalsInboxPage({ params }: { params: Promise<{ orgslug: string }> }) {
+export default async function GoalAssignmentsPage({ params }: { params: Promise<{ orgslug: string }> }) {
   const { orgslug } = await params
-  return <GoalsAdminRoot orgslug={orgslug} tab="inbox" />
+  return <AssignmentsPage orgslug={orgslug} />
 }

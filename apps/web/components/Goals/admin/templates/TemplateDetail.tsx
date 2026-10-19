@@ -6,7 +6,7 @@ import { Check, ClipboardList, LayoutGrid, Layers3, Loader2, Pencil, Plus, Setti
 import { motion } from 'motion/react'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import { SafeImage } from '@components/Objects/SafeImage'
-import { EmptyState } from '@components/Admin/Plans/shared'
+import { EmptyState } from '@components/Goals/admin/live/ui'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { getUriWithOrg, routePaths } from '@services/config/config'
@@ -41,11 +41,11 @@ export default function TemplateDetail({ orgslug, templateUuid, subpage = 'overv
   const template = editing.template
   if (editing.error && !template) return <div className="p-10"><EmptyState title="Template not found" detail="It may have been removed, or you can't manage templates in this organization." /></div>
   if (!template) return <div className="flex min-h-full w-full items-center justify-center bg-[#f8f8f8]"><Loader2 className="animate-spin text-muted-foreground" /></div>
-  const page = (key: TemplateSubpage) => getUriWithOrg(orgslug, routePaths.org.dash.programPage(templateUuid, key))
+  const page = (key: TemplateSubpage) => getUriWithOrg(orgslug, routePaths.org.admin.templatePage(templateUuid, key))
   return <div className="min-h-full w-full bg-[#f8f8f8]">
     <div className="relative z-10 bg-[#fcfbfc] pl-10 pr-10 text-sm tracking-tight nice-shadow">
       <div className="pb-4 pt-6">
-        <Breadcrumbs items={[{ label: 'Goals', href: getUriWithOrg(orgslug, routePaths.org.dash.plans()) }, { label: 'Templates', href: getUriWithOrg(orgslug, routePaths.org.dash.programs()) }, { label: template.title }]} />
+        <Breadcrumbs items={[{ label: 'Goals', href: getUriWithOrg(orgslug, routePaths.org.admin.assignments()) }, { label: 'Templates', href: getUriWithOrg(orgslug, routePaths.org.admin.templates()) }, { label: template.title }]} />
         <p className="mt-3 text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">Template · edits are a draft until you publish; goals already handed out keep their version</p>
       </div>
       <div className="flex flex-wrap items-start justify-between gap-4">

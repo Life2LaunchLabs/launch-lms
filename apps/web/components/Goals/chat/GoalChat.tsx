@@ -79,7 +79,7 @@ function GoalChatPanel({ goal, chat, source, stepUuid, token, orgslug, onClose }
     return () => window.removeEventListener('keydown', close)
   }, [onClose])
   const elsewhere = 'chatUuid' in source ? { href: getUriWithOrg(orgslug, routePaths.org.chat(source.chatUuid)), label: 'Open in Connect' }
-    : goal.subject?.username ? { href: getUriWithOrg(orgslug, routePaths.org.dash.users.userPage(goal.subject.username, 'messages')), label: `All messages with ${goal.subject.name}` } : null
+    : goal.subject?.username ? { href: getUriWithOrg(orgslug, routePaths.org.admin.people.userPage(goal.subject.username, 'messages')), label: `All messages with ${goal.subject.name}` } : null
   // The learner page slides on phones (a transform), which would pin a fixed panel to the page
   // instead of the screen, so the panel lives on the shell, next to Coach's.
   const [home, setHome] = React.useState<Element | null>(null)

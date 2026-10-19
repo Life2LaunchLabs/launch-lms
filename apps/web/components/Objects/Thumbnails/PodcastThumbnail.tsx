@@ -81,7 +81,7 @@ function PodcastThumbnail({ podcast, orgslug, customLink, isDashboard = false }:
   const podcastLink = customLink
     ? customLink
     : isDashboard
-      ? getUriWithOrg(orgslug, routePaths.org.dash.podcastSettings(removePodcastPrefix(podcast.podcast_uuid), 'general'))
+      ? getUriWithOrg(orgslug, routePaths.org.admin.content.podcast(removePodcastPrefix(podcast.podcast_uuid), 'general'))
       : getUriWithOrg(orgslug, routePaths.org.podcast(removePodcastPrefix(podcast.podcast_uuid)))
 
   return (
@@ -218,12 +218,12 @@ const AdminEditOptions = ({ podcast, orgSlug, deletePodcast, isDashboard = false
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">
             <DropdownMenuItem asChild>
-              <Link prefetch href={getUriWithOrg(orgSlug, routePaths.org.dash.podcastSettings(removePodcastPrefix(podcast.podcast_uuid), 'content'))} className="flex items-center cursor-pointer">
+              <Link prefetch href={getUriWithOrg(orgSlug, routePaths.org.admin.content.podcast(removePodcastPrefix(podcast.podcast_uuid), 'content'))} className="flex items-center cursor-pointer">
                 <FilePenLine className="mr-2 h-4 w-4" /> {t('podcasts.edit_content')}
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link prefetch href={getUriWithOrg(orgSlug, routePaths.org.dash.podcastSettings(removePodcastPrefix(podcast.podcast_uuid), 'general'))} className="flex items-center cursor-pointer">
+              <Link prefetch href={getUriWithOrg(orgSlug, routePaths.org.admin.content.podcast(removePodcastPrefix(podcast.podcast_uuid), 'general'))} className="flex items-center cursor-pointer">
                 <Settings2 className="mr-2 h-4 w-4" /> {t('common.settings')}
               </Link>
             </DropdownMenuItem>

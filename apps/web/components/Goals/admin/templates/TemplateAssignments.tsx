@@ -9,10 +9,10 @@ import { templateKeys, templatesApi, type GoalAssignmentSummary } from '@service
 
 /** Where an assignment is looked after now: its group's goals tab, the learner, or the one live goal. */
 export function assignmentPath(assignment: GoalAssignmentSummary) {
-  if (assignment.cohort) return routePaths.org.dash.users.groupPlans(assignment.cohort.id, assignment.assignment_uuid)
-  if (assignment.user?.username) return routePaths.org.dash.users.userPage(assignment.user.username, 'plans')
-  if (assignment.goal_uuid) return routePaths.org.dash.livePlan(assignment.goal_uuid)
-  return routePaths.org.dash.plans()
+  if (assignment.cohort) return routePaths.org.admin.people.groupPlans(assignment.cohort.id, assignment.assignment_uuid)
+  if (assignment.user?.username) return routePaths.org.admin.people.userPage(assignment.user.username, 'plans')
+  if (assignment.goal_uuid) return routePaths.org.admin.livePlan(assignment.goal_uuid)
+  return routePaths.org.admin.assignments()
 }
 
 export function assignmentLabel(assignment: GoalAssignmentSummary) {
