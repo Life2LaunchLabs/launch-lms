@@ -8,6 +8,7 @@ import ChatReports from '@components/Admin/Users/ChatReports'
 import WaitingOnYou from '@components/Admin/Users/WaitingOnYou'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { peopleKeys } from '@services/school/people'
+import type { GroupView } from '@services/routing/paths'
 import PeopleList from './PeopleList'
 import PersonProfile from './PersonProfile'
 import GroupPane from './GroupPane'
@@ -15,7 +16,7 @@ import HelperRequestsPanel from './HelperRequests'
 import { usePeopleContext } from './usePeople'
 
 /** What's open beside the list: nothing yet, a chat, someone's profile, or a group's chat. */
-export type PeopleSelection = { kind: 'none' } | { kind: 'chat'; uuid: string } | { kind: 'person'; username: string } | { kind: 'group'; id: number }
+export type PeopleSelection = { kind: 'none' } | { kind: 'chat'; uuid: string } | { kind: 'person'; username: string } | { kind: 'group'; id: number; view?: GroupView }
 
 /**
  * People: the organization's people and your chats with them in one list, the way a learner's
@@ -39,7 +40,7 @@ export default function PeopleView({ orgslug, selection }: { orgslug: string; se
     <section aria-label={selection.kind === 'person' ? 'Profile' : 'Chat'} className={cn('min-h-0 min-w-0 flex-1 flex-col overflow-hidden', open ? 'flex' : 'hidden md:flex')}>
       {selection.kind === 'chat' ? <ChatPane key={selection.uuid} orgslug={orgslug} chatUuid={selection.uuid} listHref={listHref} personHref={personHref} onChanged={refreshList} />
         : selection.kind === 'person' ? <PersonProfile key={selection.username} orgslug={orgslug} username={selection.username} />
-        : selection.kind === 'group' ? <GroupPane key={selection.id} orgslug={orgslug} groupId={selection.id} />
+        : selection.kind === 'group' ? <GroupPane key={selection.id} orgslug={orgslug} groupId={selection.id} view={selection.view} />
         : <PeopleOverview orgslug={orgslug} />}
     </section>
   </div>

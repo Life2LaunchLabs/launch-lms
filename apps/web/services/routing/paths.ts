@@ -1,3 +1,6 @@
+/** What a group in People shows beside the list besides its chat. */
+export type GroupView = 'plans' | 'requirements'
+
 export type QueryParamValue =
   | string
   | number
@@ -159,7 +162,9 @@ export const routePaths = {
         root: () => '/admin/users',
         chat: (conversationUuid: string) => `/admin/users/chat/${encodeURIComponent(conversationUuid)}`,
         user: (username: string) => `/admin/users/user/${encodeURIComponent(username)}`,
-        group: (groupId: string | number) => `/admin/users/groups/${encodeURIComponent(String(groupId))}`,
+        /** A group: its chat, or its plans (one assignment's grid) or requirements beside it. */
+        group: (groupId: string | number, view?: GroupView, assignment?: string | null) =>
+          withQuery(`/admin/users/groups/${encodeURIComponent(String(groupId))}`, { view, assignment: view === 'plans' ? assignment : null }),
       },
       templates: () => '/admin/plans/templates',
       // Template uuids kept their old program uuids.

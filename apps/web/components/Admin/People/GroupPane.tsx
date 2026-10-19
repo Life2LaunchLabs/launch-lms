@@ -13,12 +13,21 @@ import ManageUsers from '@components/Objects/Modals/Dash/OrgUserGroups/ManageUse
 import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
 import { deleteUserGroup, updateUserGroup } from '@services/usergroups/usergroups'
 import { peopleApi, peopleKeys } from '@services/school/people'
+import type { GroupView } from '@services/routing/paths'
+import GroupWork, { GroupTabs } from './GroupWork'
 import { useOrgGroups, usePeopleContext } from './usePeople'
 
 const people = routePaths.org.admin.people
 
-/** A group in People: its chat with its staff, and for admins, who's in it and its name. */
-export default function GroupPane({ orgslug, groupId }: { orgslug: string; groupId: number }) {
+/** A group in People: its chat with its staff, its plans and requirements, and for admins, who's in it and its name. */
+export default function GroupPane({ orgslug, groupId, view }: { orgslug: string; groupId: number; view?: GroupView }) {
+  return <div className="flex min-h-0 flex-1 flex-col">
+    <GroupTabs orgslug={orgslug} groupId={groupId} view={view} />
+    {view ? <GroupWork orgslug={orgslug} groupId={groupId} view={view} /> : <GroupChat orgslug={orgslug} groupId={groupId} />}
+  </div>
+}
+
+function GroupChat({ orgslug, groupId }: { orgslug: string; groupId: number }) {
   const { orgId, token, isAdmin } = usePeopleContext()
   const { mutate } = useSWRConfig()
   const [managing, setManaging] = React.useState(false)

@@ -1,4 +1,4 @@
-import { routePaths } from './paths.ts'
+import { routePaths, type GroupView } from './paths.ts'
 
 const admin = routePaths.org.admin
 const decode = (segment: string) => {
@@ -13,7 +13,7 @@ const decode = (segment: string) => {
 const OLD_PEOPLE_TABS = new Set(['new', 'groups', 'grading', 'roles', 'signups', 'audit-logs', 'user', 'settings', 'cohorts', 'chat'])
 
 function legacyAdminPath(parts: string[]): string | null {
-  const [area, a, b, c] = parts
+  const [area, a, b, c, d] = parts
   const n = parts.length
   if (n === 0) return null
 
@@ -44,8 +44,10 @@ function legacyAdminPath(parts: string[]): string | null {
     if (n === 2) return OLD_PEOPLE_TABS.has(a) ? admin.people.root() : admin.people.user(decode(a))
     if (a === 'settings') return admin.people.root()
     if (a === 'user' && n === 4) return admin.people.user(decode(b))
-    if (a === 'cohorts' && n >= 3) return admin.people.group(decode(b))
-    if (a === 'groups' && n >= 4) return admin.people.group(decode(b))
+    const group = (view?: GroupView, assignment?: string) => admin.people.group(decode(b), view, assignment && decode(assignment))
+    if ((a === 'cohorts' || a === 'groups') && c === 'programs' && d) return group('plans', d)
+    if (a === 'cohorts' && n >= 3) return group()
+    if (a === 'groups' && n >= 4) return c === 'plans' || c === 'requirements' ? group(c) : c === 'reports' ? group('requirements') : group()
     return null
   }
 

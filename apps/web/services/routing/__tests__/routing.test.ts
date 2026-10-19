@@ -156,6 +156,8 @@ test('route manifest builds admin tab and owner routes', () => {
   assert.equal(admin.people.root(), '/admin/users')
   assert.equal(admin.people.user('learner'), '/admin/users/user/learner')
   assert.equal(admin.people.group(2), '/admin/users/groups/2')
+  assert.equal(admin.people.group(2, 'plans', 'assignment_1'), '/admin/users/groups/2?view=plans&assignment=assignment_1')
+  assert.equal(admin.people.group(2, 'requirements', 'assignment_1'), '/admin/users/groups/2?view=requirements')
   assert.equal(admin.people.chat('chat_1'), '/admin/users/chat/chat_1')
   assert.equal(admin.learnerFeed('plan_1'), '/admin/plans/live/plan_1?chat=plan')
   assert.equal(admin.templates(), '/admin/plans/templates')
@@ -337,10 +339,12 @@ test('old admin and dashboard URLs redirect once, in one place, keeping their qu
     ['/admin/users/roles', '', '/admin/users'],
     ['/admin/users/user/jane/overview', '', '/admin/users/user/jane'],
     ['/admin/users/user/jane/messages', '', '/admin/users/user/jane'],
-    ['/admin/users/cohorts/3/programs/assignment_1', '', '/admin/users/groups/3'],
-    ['/admin/users/groups/3/plans', '', '/admin/users/groups/3'],
+    ['/admin/users/cohorts/3/programs/assignment_1', '', '/admin/users/groups/3?view=plans&assignment=assignment_1'],
+    ['/admin/users/cohorts/3', '', '/admin/users/groups/3'],
+    ['/admin/users/groups/3/plans', '?assignment=assignment_1', '/admin/users/groups/3?view=plans&assignment=assignment_1'],
+    ['/admin/users/groups/3/requirements', '', '/admin/users/groups/3?view=requirements'],
     ['/admin/users/groups/3/members', '', '/admin/users/groups/3'],
-    ['/admin/users/groups/3/programs/assignment_1/learners', '', '/admin/users/groups/3'],
+    ['/admin/users/groups/3/programs/assignment_1/learners', '', '/admin/users/groups/3?view=plans&assignment=assignment_1'],
     ['/admin/badges/marketplace', '', '/admin/badges?tab=marketplace'],
     ['/admin/badges/badge/abc', '', '/admin/badges/badge/abc/analytics'],
     ['/admin/badges/collection/c1', '', '/admin/badges/collection/c1/badges'],

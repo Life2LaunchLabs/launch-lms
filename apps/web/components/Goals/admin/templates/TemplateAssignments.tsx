@@ -7,9 +7,9 @@ import { CalendarDays, ChevronRight, Loader2, Mail, User, Users } from 'lucide-r
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { templateKeys, templatesApi, type GoalAssignmentSummary } from '@services/goals/templates'
 
-/** Where an assignment is looked after now: Assignments for a group's, the learner in People, or the one live goal. */
+/** Where an assignment is looked after now: its group's plans in People, the learner in People, or the one live goal. */
 export function assignmentPath(assignment: GoalAssignmentSummary) {
-  if (assignment.cohort) return routePaths.org.admin.assignments()
+  if (assignment.cohort) return routePaths.org.admin.people.group(assignment.cohort.id, 'plans', assignment.assignment_uuid)
   if (assignment.user?.username) return routePaths.org.admin.people.user(assignment.user.username)
   if (assignment.goal_uuid) return routePaths.org.admin.livePlan(assignment.goal_uuid)
   return routePaths.org.admin.assignments()
