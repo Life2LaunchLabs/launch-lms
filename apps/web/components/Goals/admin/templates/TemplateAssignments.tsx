@@ -31,8 +31,8 @@ const formatDate = (value?: string | null) => { if (!value) return ''; const dat
 export default function TemplateAssignments({ orgslug, orgId, token, templateUuid }: { orgslug: string; orgId: number; token?: string; templateUuid: string }) {
   const { data: assignments = [], isLoading } = useTemplateAssignments(orgId, templateUuid, token)
   if (isLoading) return <div className="flex justify-center py-16"><Loader2 className="animate-spin text-muted-foreground" /></div>
-  const active = assignments.filter((item) => item.active)
-  const past = assignments.filter((item) => !item.active)
+  const active = assignments.filter((item) => item.status !== 'ended')
+  const past = assignments.filter((item) => item.status === 'ended')
   return <div className="px-10 pb-10 pt-6"><div className="mx-auto max-w-5xl">
     {active.length ? <AssignmentSection title="Active" assignments={active} orgslug={orgslug} /> : <div className="rounded-xl border border-dashed border-border bg-card py-12 text-center"><Users className="mx-auto text-gray-300" size={34} /><p className="mt-3 text-sm font-semibold text-muted-foreground">Not handed out yet. Use Assign to give it to a group or a learner.</p></div>}
     {past.length ? <div className="mt-8"><AssignmentSection title="Past" assignments={past} orgslug={orgslug} /></div> : null}
@@ -52,7 +52,7 @@ function AssignmentSection({ title, assignments, orgslug }: { title: string; ass
               <h3 className="truncate text-sm font-black">{assignmentLabel(assignment)}</h3>
               <span className="rounded-full bg-muted px-2 py-0.5 text-[9px] font-black uppercase text-muted-foreground">{assignment.assignment_type === 'group' ? 'Group' : assignment.assignment_type === 'external' ? 'By email' : 'Individual'}</span>
               {assignment.version ? <span className="rounded-full bg-muted px-2 py-0.5 text-[9px] font-black uppercase text-muted-foreground">v{assignment.version}</span> : null}
-              <span className={assignment.active ? 'rounded-full bg-green-50 px-2 py-0.5 text-[9px] font-black uppercase text-green-700' : 'rounded-full bg-gray-100 px-2 py-0.5 text-[9px] font-black uppercase text-gray-600'}>{assignment.active ? 'Active' : 'Ended'}</span>
+              <span className={assignment.status !== 'ended' ? 'rounded-full bg-green-50 px-2 py-0.5 text-[9px] font-black uppercase text-green-700' : 'rounded-full bg-gray-100 px-2 py-0.5 text-[9px] font-black uppercase text-gray-600'}>{assignment.status === 'paused' ? 'Paused' : assignment.status === 'ended' ? 'Ended' : 'Active'}</span>
             </div>
             <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
               <span>{assignment.learner_count} learner{assignment.learner_count === 1 ? '' : 's'}</span>

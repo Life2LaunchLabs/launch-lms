@@ -94,7 +94,7 @@ export interface OrgGoalInvitation {
   organization: OrgRef
   template: { template_uuid: string; title: string; description?: string | null; thumbnail_image?: string | null } | null
   group?: { id: number; name: string } | null
-  assignment: { assignment_uuid: string; welcome_message?: string; start_date?: string | null; due_date?: string | null; active: boolean }
+  assignment: { assignment_uuid: string; welcome_message?: string; start_date?: string | null; due_date?: string | null; status: 'active' | 'paused' | 'ended' }
 }
 
 export const peopleKey = (goalUuid: string) => goalUrl(goalUuid, '/people')

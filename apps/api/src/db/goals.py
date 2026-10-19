@@ -58,6 +58,18 @@ class StepStatus(str, Enum):
 DONE_STEP_STATUSES = {StepStatus.COMPLETED.value, StepStatus.EXCUSED.value}
 
 
+class AssignmentStatus(str, Enum):
+    """Where an assignment stands. See services/goals/assignments.py for what pausing and ending do."""
+
+    ACTIVE = "active"
+    PAUSED = "paused"
+    ENDED = "ended"
+
+
+# Assignments staff still run: listed, staffed and shown with their learners.
+CURRENT_ASSIGNMENT_STATUSES = (AssignmentStatus.ACTIVE.value, AssignmentStatus.PAUSED.value)
+
+
 class StepCompleter(str, Enum):
     LEARNER = "learner"
     STAFF = "staff"
@@ -141,7 +153,10 @@ class GoalAssignment(SQLModel, table=True):
     step_dates: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False, server_default="{}"))
     # [{"user_id", "role_key"}]: people added to each issued goal with a role.
     collaborators: list[dict] = Field(default_factory=list, sa_column=Column(JSON, nullable=False, server_default="[]"))
-    active: bool = True
+    status: AssignmentStatus = Field(default=AssignmentStatus.ACTIVE, sa_column=Column(String, nullable=False, index=True, server_default="active"))
+    paused_at: str | None = Field(default=None, sa_column=Column(String, nullable=True))
+    ended_at: str | None = Field(default=None, sa_column=Column(String, nullable=True))
+    ended_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
     owner_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True, index=True))
     created_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
     creation_date: str = ""
@@ -263,6 +278,8 @@ class StepProgress(SQLModel, table=True):
     completed_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
     completion_method: CompletionMethod | None = Field(default=None, sa_column=Column(String, nullable=True))
     updated_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
+    # When staff last reminded the learner about this step; reminders wait out a cooldown.
+    last_reminded_at: str | None = Field(default=None, sa_column=Column(String, nullable=True))
     creation_date: str = ""
     update_date: str = ""
 
@@ -321,39 +338,6 @@ class GoalStory(SQLModel, table=True):
     error: str = ""
     creation_date: str = ""
     update_date: str = ""
-
-
-class CoachNoteStatus(str, Enum):
-    OPEN = "open"
-    ACTED = "acted"
-    DISMISSED = "dismissed"
-    EXPIRED = "expired"
-
-
-class CoachNote(SQLModel, table=True):
-    """Something Coach noticed on one goal at a check-in, with one to three things to do about it."""
-
-    __tablename__ = "coach_note"
-    __table_args__ = (UniqueConstraint("note_uuid"),)
-
-    id: int | None = Field(default=None, primary_key=True)
-    note_uuid: str = Field(index=True)
-    goal_id: int = Field(sa_column=Column(Integer, ForeignKey("goal.id", ondelete="CASCADE"), index=True))
-    user_id: int = Field(sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), index=True))
-    # The signal that raised it ("stalled", "plan_stage", ...) and its key, so one signal raises one note.
-    kind: str = Field(sa_column=Column(String, nullable=False))
-    signal_key: str = Field(sa_column=Column(String, nullable=False, index=True))
-    title: str
-    body: str = ""
-    # [{"id", "kind": "ask"|"session"|"step"|"dismiss", "label", "prompt"?, "step_uuid"?}].
-    actions: list[dict] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
-    status: CoachNoteStatus = Field(default=CoachNoteStatus.OPEN, sa_column=Column(String, nullable=False, index=True))
-    # "check_in" (scheduled) or "event" (the goal was created or a stage finished).
-    source: str = "check_in"
-    model: str = ""
-    expires_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
-    created_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(DateTime, nullable=False))
-    acted_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
 
 
 # Requests ----------------------------------------------------------------------

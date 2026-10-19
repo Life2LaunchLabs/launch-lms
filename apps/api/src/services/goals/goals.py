@@ -173,12 +173,12 @@ def _percent(done: int, total: int) -> int:
 
 def _group_rows(db: Session, user_id: int, include_finished: bool) -> list[dict]:
     """One row per active group assignment the user staffs, summarising its learners' goals."""
-    from src.db.goals import GoalAssignment, GoalTemplate
+    from src.db.goals import CURRENT_ASSIGNMENT_STATUSES, GoalAssignment, GoalTemplate
     from src.db.usergroups import UserGroup
 
     org_ids = select(UserOrganization.org_id).where(UserOrganization.user_id == user_id)
     assignments = [item for item in db.exec(select(GoalAssignment).where(
-        GoalAssignment.active == True, GoalAssignment.usergroup_id.is_not(None), GoalAssignment.org_id.in_(org_ids),  # type: ignore[union-attr, attr-defined]  # noqa: E712
+        GoalAssignment.status.in_(CURRENT_ASSIGNMENT_STATUSES), GoalAssignment.usergroup_id.is_not(None), GoalAssignment.org_id.in_(org_ids),  # type: ignore[union-attr, attr-defined]
     )).all() if item.owner_user_id == user_id or user_id in (item.staff_user_ids or [])]
     rows = []
     for assignment in assignments:
