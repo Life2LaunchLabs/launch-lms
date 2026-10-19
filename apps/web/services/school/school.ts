@@ -28,12 +28,28 @@ export interface StudentView { student: PersonSummary; team: TeamMember[]; notes
 export interface WaitingStudent { student: PersonSummary; unread: number; mentions: number; reviews: number; last_message: ChatMessage | null }
 export interface Waiting { mine: boolean; can_see_everyone: boolean; students: WaitingStudent[] }
 
+export type ReportStatus = 'open' | 'resolved' | 'dismissed'
+export interface ReportMessage { message_uuid: string; sender: PersonSummary | null; kind: string; body: string; creation_date: string; reported: boolean }
+export interface ChatReport {
+  report_uuid: string; reason: string; status: ReportStatus; creation_date: string
+  reporter: PersonSummary | null; reported: PersonSummary | null; reporter_in_org: boolean; reported_in_org: boolean
+  chat: { kind: string; title: string | null } | null
+  /** The reported message as it was, when it has since been deleted. */
+  excerpt: string | null
+  /** The last few messages up to the reported one. */
+  messages: ReportMessage[]
+  reviewed_by: PersonSummary | null; review_date: string | null
+}
+/** total counts every report the organization can see, in any status. */
+export interface ChatReports { status: ReportStatus; open: number; total: number; reports: ChatReport[] }
+
 export const schoolKeys = {
   groupStaff: (orgId: number, groupId: number) => base(orgId, `/groups/${groupId}/staff`),
   student: (orgId: number, userId: number) => base(orgId, `/students/${userId}`),
   /** The learner's chat with the organization; admins who aren't in it read along (can_post false). */
   studentChat: (orgId: number, userId: number, filter: ChatFilter = {}) => base(orgId, `/students/${userId}/chat${filterQuery(filter)}`),
   waiting: (orgId: number, mine: boolean) => base(orgId, `/waiting?mine=${mine}`),
+  reports: (orgId: number, status: ReportStatus = 'open') => base(orgId, `/reports?status=${status}`),
 }
 
 export const schoolApi = {
@@ -46,4 +62,7 @@ export const schoolApi = {
   addNote: (orgId: number, userId: number, body: string, token?: string) => request<StaffNote[]>(`${schoolKeys.student(orgId, userId)}/notes`, token, 'POST', { body }),
   deleteNote: (orgId: number, userId: number, noteUuid: string, token?: string) => request<StaffNote[]>(`${schoolKeys.student(orgId, userId)}/notes/${q(noteUuid)}`, token, 'DELETE'),
   waiting: (orgId: number, mine: boolean, token?: string) => request<Waiting>(schoolKeys.waiting(orgId, mine), token),
+  reports: (orgId: number, status: ReportStatus, token?: string) => request<ChatReports>(schoolKeys.reports(orgId, status), token),
+  reviewReport: (orgId: number, reportUuid: string, status: ReportStatus, token?: string) =>
+    request<ChatReport>(`${base(orgId, '/reports')}/${q(reportUuid)}`, token, 'PUT', { status }),
 }
