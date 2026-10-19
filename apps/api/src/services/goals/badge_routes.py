@@ -19,6 +19,7 @@ from src.db.goals import DONE_STEP_STATUSES, Goal, GoalStep, GoalTemplate, StepP
 from src.db.learning import LearningBadge
 from src.db.users import PublicUser
 from src.services.goals import templates
+from src.services.goals.badge_authority import rule_of
 from src.services.goals.badges import active_badge_goal, badge_routes, start_badge_goal
 from src.services.goals.document import iter_steps
 from src.services.learning.lookups import _get_badge
@@ -69,6 +70,7 @@ def route_summary(db: Session, template: GoalTemplate) -> dict:
         "template_uuid": template.template_uuid, "name": template.title,
         "description": template.description or "",
         "steps": steps, "step_count": len(steps), "activity_count": sum(step["kind"] == "activity" for step in steps),
+        "published_version": live.number if live else None,
     }
 
 
@@ -90,7 +92,8 @@ def list_routes(db: Session, current_user: PublicUser | None, badge_uuid: str) -
     for route, template in badge_routes(db, badge):
         uuids[route.id] = route.route_uuid
         issuers = [{**visible[org_id], "is_creator": org_id == badge.org_id} for org_id in visible if offers(offered_routes, org_id, route)]
-        routes.append({**route_summary(db, template), "route_uuid": route.route_uuid, "recommended": route.recommended, "issuers": issuers})
+        routes.append({**route_summary(db, template), "route_uuid": route.route_uuid, "recommended": route.recommended, "issuers": issuers,
+                       "eligible_versions": rule_of(route)})
     routes.sort(key=lambda item: not item["recommended"])
     goal = active_badge_goal(db, badge, user_id) if user_id else None
     return {

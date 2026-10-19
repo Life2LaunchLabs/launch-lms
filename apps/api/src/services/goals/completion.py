@@ -199,7 +199,7 @@ def finish_if_complete(db: Session, goal: Goal) -> None:
     values = [statuses.get(int(step.id), StepStatus.NOT_STARTED.value) for step in steps]  # type: ignore[arg-type]
     if any(value not in DONE_STEP_STATUSES for value in values) or StepStatus.COMPLETED.value not in values:
         return
-    badge = db.get(LearningBadge, goal.badge_id) if _value(goal.source) == GoalSource.BADGE.value and goal.badge_id else None
+    badge = db.get(LearningBadge, goal.badge_id) if goal.badge_id and _earns_badge(db, goal) else None
     if badge:
         from src.services.goals.badges import award_badge
 
@@ -212,6 +212,19 @@ def finish_if_complete(db: Session, goal: Goal) -> None:
     db.commit()
     if badge:
         on_badge_awarded(db, int(goal.subject_user_id), int(badge.id))  # type: ignore[arg-type]
+
+
+def _earns_badge(db: Session, goal: Goal) -> bool:
+    """Badge plans earn their badge; an assignment's plans only on a version the badge's owner accepts."""
+    if _value(goal.source) == GoalSource.BADGE.value:
+        return True
+    if _value(goal.source) != GoalSource.ASSIGNMENT.value or not goal.assignment_id:
+        return False
+    from src.db.goals import GoalAssignment, GoalTemplateVersion
+    from src.services.goals.badge_authority import finishing_earns_badge
+
+    assignment = db.get(GoalAssignment, goal.assignment_id)
+    return finishing_earns_badge(db, assignment, db.get(GoalTemplateVersion, goal.version_id) if goal.version_id else None)
 
 
 # Automatic completion -----------------------------------------------------------

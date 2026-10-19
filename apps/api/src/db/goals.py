@@ -158,6 +158,8 @@ class GoalAssignment(SQLModel, table=True):
     ended_at: str | None = Field(default=None, sa_column=Column(String, nullable=True))
     ended_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
     owner_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True, index=True))
+    # The badge its learners earn by finishing: another org's badge route it is authorized to run (services/goals/badge_authority.py).
+    badge_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningbadge.id", ondelete="SET NULL"), nullable=True, index=True))
     created_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
     creation_date: str = ""
     update_date: str = ""

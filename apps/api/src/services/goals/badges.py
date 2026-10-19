@@ -29,6 +29,8 @@ from src.services.goals import templates
 from src.services.goals.issue import issue_goal
 
 LIVE = (GoalStatus.ACTIVE, GoalStatus.FINISHED)
+# A learner's plan for a badge: one they started, or one an organization running the badge assigned them.
+BADGE_SOURCES = (GoalSource.BADGE, GoalSource.ASSIGNMENT)
 
 
 def _value(item) -> str:
@@ -37,7 +39,7 @@ def _value(item) -> str:
 
 def active_badge_goal(db: Session, badge: LearningBadge, user_id: int) -> Goal | None:
     return db.exec(select(Goal).where(
-        Goal.badge_id == badge.id, Goal.subject_user_id == user_id, Goal.source == GoalSource.BADGE, Goal.status.in_(LIVE),  # type: ignore[attr-defined]
+        Goal.badge_id == badge.id, Goal.subject_user_id == user_id, Goal.source.in_(BADGE_SOURCES), Goal.status.in_(LIVE),  # type: ignore[attr-defined]
     ).order_by(Goal.id.desc())).first()  # type: ignore[union-attr]
 
 
@@ -51,7 +53,7 @@ def badge_routes(db: Session, badge: LearningBadge) -> list[tuple[BadgeRoute, Go
 
 def start_badge_goal(db: Session, user: PublicUser, badge: LearningBadge, template_uuid: str | None, issuer_org_id: int | None, commit: bool = True) -> Goal:
     """The learner's goal for a badge: their existing one, or a new one from the chosen route (committed unless ``commit`` is false)."""
-    from src.services.goals.badge_routes import offered, offers
+    from src.services.goals import badge_authority
     from src.services.learning_issuers import validate_issuer_start
 
     user_id = int(user.id)
@@ -69,7 +71,9 @@ def start_badge_goal(db: Session, user: PublicUser, badge: LearningBadge, templa
         raise HTTPException(status_code=404, detail="This goal template is not a way to earn this badge")
     route, template = chosen
     issuer = issuer_org_id or int(badge.org_id)
-    if not offers(offered(db, badge), issuer, route):
+    if not badge_authority.authorized(db, badge, issuer):
+        raise HTTPException(status_code=403, detail="This organization is not issuing this badge")
+    if not badge_authority.may_run(db, badge, issuer, route):
         raise HTTPException(status_code=403, detail="This organization doesn't offer that way of earning the badge")
     version = templates.issuable_version(db, template)
     link = validate_issuer_start(db, badge, issuer, user_id, set())
@@ -90,7 +94,7 @@ def goal_summaries(db: Session, user_id: int | None, badge_ids: list[int]) -> di
     if not user_id or not badge_ids:
         return {}
     goals = db.exec(select(Goal).where(
-        Goal.subject_user_id == user_id, Goal.source == GoalSource.BADGE, Goal.badge_id.in_(badge_ids), Goal.status == GoalStatus.ACTIVE,  # type: ignore[union-attr]
+        Goal.subject_user_id == user_id, Goal.source.in_(BADGE_SOURCES), Goal.badge_id.in_(badge_ids), Goal.status == GoalStatus.ACTIVE,  # type: ignore[union-attr]
     ).order_by(Goal.id)).all()  # type: ignore[arg-type]
     by_badge = {int(goal.badge_id): goal for goal in goals}  # type: ignore[arg-type]
     rows = db.exec(
