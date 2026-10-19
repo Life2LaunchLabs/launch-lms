@@ -8,7 +8,7 @@ import { usePeopleContext } from '@components/Admin/People/usePeople'
 import { peopleApi, peopleKeys, type MessagingPolicy } from '@services/school/people'
 
 const SETTINGS: Array<{ key: keyof MessagingPolicy; title: string; hint: string }> = [
-  { key: 'staff_dm_learners', title: 'Staff can message learners directly', hint: 'Off keeps every staff and learner conversation in a plan feed, where other staff can see it.' },
+  { key: 'staff_dm_learners', title: 'Staff can message learners directly', hint: 'On by default. Off keeps every staff and learner conversation in a plan feed, where other staff can see it. Staff on a learner’s group always talk with them in their plan feed.' },
   { key: 'min_two_staff_on_feeds', title: 'At least two staff on every plan feed', hint: 'A learner’s plan feed takes messages only once a second staff member is on their group or plan.' },
   { key: 'helper_approval', title: 'Approve helpers on your plans', hint: 'When a learner asks for a helper, such as a parent, on a plan you gave them, the helper joins only after an admin approves.' },
 ]

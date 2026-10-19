@@ -57,26 +57,37 @@ def _open(db, by: int, to: str) -> dict:
 
 def test_the_policy_lives_in_the_org_config_and_only_admins_change_it():
     with _session() as db:
-        assert messaging.get_policy(db, _user(TEACHER), 1) == {"staff_dm_learners": False, "min_two_staff_on_feeds": False, "helper_approval": False}
+        assert messaging.get_policy(db, _user(TEACHER), 1) == {"staff_dm_learners": True, "min_two_staff_on_feeds": False, "helper_approval": False}
         with pytest.raises(HTTPException) as learner:
             messaging.get_policy(db, _user(LEARNER), 1)
         assert learner.value.status_code == 403
         with pytest.raises(HTTPException):
             messaging.update_policy(db, _user(TEACHER), 1, MessagingPolicy(staff_dm_learners=True))
-        messaging.update_policy(db, _user(ADMIN), 1, MessagingPolicy(staff_dm_learners=True, helper_approval=True))
+        messaging.update_policy(db, _user(ADMIN), 1, MessagingPolicy(staff_dm_learners=False, helper_approval=True))
         stored = db.exec(select(OrganizationConfig)).one().config
-        assert stored["plan"] == "full" and stored["messaging"]["staff_dm_learners"] and stored["messaging"]["helper_approval"]
+        assert stored["plan"] == "full" and stored["messaging"]["staff_dm_learners"] is False and stored["messaging"]["helper_approval"]
+
+
+def test_a_fresh_org_lets_staff_message_learners_directly():
+    with _session() as db:
+        # An organization whose config has no messaging block yet keeps today's behaviour.
+        row = db.exec(select(OrganizationConfig)).one()
+        row.config = {key: value for key, value in row.config.items() if key != "messaging"}
+        db.add(row)
+        db.commit()
+        assert messaging.policy(db, 1) == MessagingPolicy(staff_dm_learners=True, min_two_staff_on_feeds=False, helper_approval=False)
+        people.update_settings(db, _user(LEARNER), True)
+        direct = _open(db, TEACHER, "lee")
+        assert direct["kind"] == "direct" and direct["policy_block"] is None
+        chats.send(db, _user(TEACHER), direct["conversation_uuid"], "Hi Lee")
 
 
 def test_staff_message_learners_directly_only_when_the_org_allows_it():
-    with _session() as db:
+    with _session(staff_dm_learners=False) as db:
         people.update_settings(db, _user(LEARNER), True)
         with pytest.raises(HTTPException) as kept_in_feeds:
             _open(db, TEACHER, "lee")
         assert kept_in_feeds.value.status_code == 403 and "plan feeds" in kept_in_feeds.value.detail
-        # Staff of the learner's group are pointed at the learner's chat with the organization instead.
-        staff.set_staff(db, _user(ADMIN), 1, 1, GroupStaffSet(user_id=TEACHER))
-        assert _open(db, TEACHER, "lee")["kind"] == "school"
         messaging.update_policy(db, _user(ADMIN), 1, MessagingPolicy(staff_dm_learners=True))
         direct = _open(db, TEACHER, "lee")
         assert direct["kind"] == "direct" and direct["policy_block"] is None
@@ -87,6 +98,11 @@ def test_staff_message_learners_directly_only_when_the_org_allows_it():
         with pytest.raises(HTTPException) as stopped:
             chats.send(db, _user(TEACHER), direct["conversation_uuid"], "Still there?")
         assert stopped.value.status_code == 403
+        # Staff of the learner's group always talk with them in the learner's chat with the organization, whatever the policy.
+        staff.set_staff(db, _user(ADMIN), 1, 1, GroupStaffSet(user_id=TEACHER))
+        assert _open(db, TEACHER, "lee")["kind"] == "school"
+        messaging.update_policy(db, _user(ADMIN), 1, MessagingPolicy(staff_dm_learners=True))
+        assert _open(db, TEACHER, "lee")["kind"] == "school"
         # Learners still talk among themselves.
         people.update_settings(db, _user(OTHER), True)
         assert _open(db, LEARNER, "sam")["kind"] == "direct"
@@ -183,7 +199,7 @@ def test_group_chats_come_with_the_groups_package():
 
 
 def test_the_directory_labels_everyone_and_profiles_follow_the_policy():
-    with _session() as db:
+    with _session(staff_dm_learners=False) as db:
         goal = _goal(db, LEARNER, _assigned(db))
         _add_helper(db, goal)
         listed = directory.directory(db, _user(TEACHER), 1)

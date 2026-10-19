@@ -241,8 +241,8 @@ def open_direct(db: Session, current_user: PublicUser, payload: DirectChatOpen) 
     from src.services.school import chats as school_chats, messaging
 
     found = school_chats.relation(db, current_user.id, target_id)
-    if found and not messaging.staff_dm_allowed(db, found[0]):
-        # Unless the organization allows direct messages, staff and their students talk in the student's chat with it.
+    if found:
+        # Staff and their own students talk in the student's chat with the organization, as before the policy.
         school = school_chats.school_chat(db, *found)
         db.commit()
         return get_chat(db, current_user, school.conversation_uuid)

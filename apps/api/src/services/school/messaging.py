@@ -88,10 +88,6 @@ def direct_block(db: Session, a: int, b: int) -> str | None:
     return None
 
 
-def staff_dm_allowed(db: Session, org_id: int) -> bool:
-    return policy(db, org_id).staff_dm_learners
-
-
 def feed_block(db: Session, conversation: Conversation) -> str | None:
     """Why a learner's plan feed can't take messages yet: with the two-staff rule on, it needs a second staff member."""
     from src.services.school.chats import SCHOOL

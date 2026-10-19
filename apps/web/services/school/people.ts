@@ -64,7 +64,7 @@ export interface Profile {
 }
 
 export interface MessagingPolicy {
-  /** Staff and learners may chat one to one. Off keeps those conversations in plan feeds. */
+  /** Staff and learners may chat one to one (on by default). Off keeps those conversations in plan feeds. */
   staff_dm_learners: boolean
   /** A learner's plan feed takes messages once at least two staff are on it. */
   min_two_staff_on_feeds: boolean
