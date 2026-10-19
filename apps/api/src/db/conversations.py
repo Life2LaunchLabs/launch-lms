@@ -92,7 +92,10 @@ class ConversationReport(SQLModel, table=True):
     reason: str = Field(sa_column=Column(Text, nullable=False))
     # A copy of the reported message, so the report survives the message being deleted.
     excerpt: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
+    # open, then resolved (someone acted) or dismissed (nothing to do), by an admin of an organization either person is in.
     status: str = Field(default="open", sa_column=Column(String, nullable=False, index=True))
+    reviewed_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
+    review_date: str | None = None
     creation_date: str = ""
 
 
@@ -116,6 +119,10 @@ class ChatReportCreate(BaseModel):
     reason: str = PydanticField(min_length=1, max_length=2000)
     message_uuid: str | None = None
     block: bool = True
+
+
+class ChatReportReview(BaseModel):
+    status: str = PydanticField(pattern="^(open|resolved|dismissed)$")
 
 
 class ConnectSettingsUpdate(BaseModel):

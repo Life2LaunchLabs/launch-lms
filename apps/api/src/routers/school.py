@@ -1,13 +1,14 @@
-"""The school side of collaborators, used from Users: group staff, a student's team, chat and notes, and who's waiting."""
+"""The school side of collaborators, used from Users: group staff, a student's team, chat and notes, who's waiting, and chat reports."""
 
 from fastapi import APIRouter, Depends
 from sqlmodel import Session
 
 from src.core.events.database import get_db_session
+from src.db.conversations import ChatReportReview
 from src.db.school import GroupStaffSet, StaffNoteCreate
 from src.db.users import PublicUser
 from src.security.auth import get_authenticated_user
-from src.services.school import staff, views
+from src.services.school import reports, staff, views
 
 router = APIRouter()
 DB = Depends(get_db_session)
@@ -53,3 +54,13 @@ async def delete_note(org_id: int, user_id: int, note_uuid: str, current_user: P
 @router.get("/orgs/{org_id}/waiting")
 async def waiting(org_id: int, mine: bool = True, current_user: PublicUser = USER, db_session: Session = DB):
     return views.waiting(db_session, current_user, org_id, mine)
+
+
+@router.get("/orgs/{org_id}/reports")
+async def list_reports(org_id: int, status: str = "open", current_user: PublicUser = USER, db_session: Session = DB):
+    return reports.list_reports(db_session, current_user, org_id, status)
+
+
+@router.put("/orgs/{org_id}/reports/{report_uuid}")
+async def review_report(org_id: int, report_uuid: str, payload: ChatReportReview, current_user: PublicUser = USER, db_session: Session = DB):
+    return reports.review(db_session, current_user, org_id, report_uuid, payload.status)

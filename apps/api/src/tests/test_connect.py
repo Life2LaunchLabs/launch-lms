@@ -134,3 +134,31 @@ def test_settings_live_on_the_user():
         assert people.get_settings(db, _user(LEARNER)) == {"discoverable": False}
         _findable(db, LEARNER)
         assert db.get(User, LEARNER).details["connect"] == {"discoverable": True}
+
+
+def test_admins_review_reports_with_the_messages_before_it():
+    from src.services.school import reports
+
+    with _session() as db:
+        _findable(db, LEARNER)
+        chat = _open(db, OTHER, "lee")
+        _send(db, OTHER, chat, "hey")
+        chats.accept(db, _user(LEARNER), chat["conversation_uuid"])
+        message = _send(db, OTHER, chat, "something unkind")
+        _send(db, OTHER, chat, "after the report")
+        chats.report(db, _user(LEARNER), chat["conversation_uuid"], ChatReportCreate(reason="Bullying", message_uuid=message["message_uuid"]))
+        with pytest.raises(HTTPException) as learner:
+            reports.list_reports(db, _user(LEARNER), 1)
+        assert learner.value.status_code == 403
+        listed = reports.list_reports(db, _user(ADMIN), 1)
+        assert listed["open"] == 1
+        report = listed["reports"][0]
+        assert (report["reporter"]["username"], report["reported"]["username"], report["reported_in_org"]) == ("lee", "sam", True)
+        assert [(item["body"], item["reported"]) for item in report["messages"]] == [("hey", False), ("something unkind", True)]
+        assert reports.list_reports(db, _user(ADMIN), 2)["reports"] == []
+        reviewed = reports.review(db, _user(ADMIN), 1, report["report_uuid"], "resolved")
+        assert (reviewed["status"], reviewed["reviewed_by"]["username"]) == ("resolved", "teacher")
+        assert {key: value for key, value in reports.list_reports(db, _user(ADMIN), 1).items() if key in ("open", "total")} == {"open": 0, "total": 1}
+        assert len(reports.list_reports(db, _user(ADMIN), 1, "resolved")["reports"]) == 1
+        reopened = reports.review(db, _user(ADMIN), 1, report["report_uuid"], "open")
+        assert (reopened["status"], reopened["reviewed_by"]) == ("open", None)
