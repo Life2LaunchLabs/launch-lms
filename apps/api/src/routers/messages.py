@@ -46,14 +46,8 @@ async def respond_to_message(
             result = decline_my_organization_invitation(
                 request, invitation_uuid, current_user, db_session
             )
-    elif message.action_kind == "plan_invitation":
-        from src.services.planning import respond_to_invitation
-
-        invitation_uuid = str(action_data.get("invitation_uuid") or "")
-        result = respond_to_invitation(
-            db_session, current_user, invitation_uuid, payload.accept
-        )
-    elif message.action_kind == "goal_invitation":
+    elif message.action_kind in {"goal_invitation", "plan_invitation"}:
+        # Plan invitations sent before goals point at the same invitation rows.
         from src.services.goals.sharing import respond_to_invitation as respond_to_goal_invitation
 
         invitation_uuid = str(action_data.get("invitation_uuid") or "")

@@ -9,7 +9,7 @@ from sqlmodel import Session, col, func, select
 
 from src.db.conversations import ConversationMember, ConversationMessage
 from src.db.goals import Goal, GoalStep, StepProgress, StepStatus
-from src.db.planning import PlanCollaborator
+from src.db.goal_sharing import PlanCollaborator
 from src.db.school import StaffNote, UserGroupStaff
 from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup

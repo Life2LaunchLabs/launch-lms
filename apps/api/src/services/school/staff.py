@@ -6,7 +6,7 @@ from fastapi import HTTPException
 from sqlmodel import Session, col, select
 
 from src.db.goals import Goal, GoalAssignment
-from src.db.planning import PlanCollaborator
+from src.db.goal_sharing import PlanCollaborator
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
 from src.db.school import GroupStaffSet, UserGroupStaff

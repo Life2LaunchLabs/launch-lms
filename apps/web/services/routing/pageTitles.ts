@@ -11,7 +11,7 @@ const labels: Record<string, string> = {
   boards: 'Boards', communities: 'Communities', community: 'Communities', connect: 'Connect', discover: 'Discover', edit: 'Edit',
   journal: 'Journal', marketplace: 'Marketplace', organization: 'Organizations',
   organizations: 'Organizations', payments: 'Payments', plans: 'Plans', platform: 'Platform', playground: 'Playgrounds',
-  playgrounds: 'Playgrounds', podcast: 'Podcasts', podcasts: 'Podcasts', portfolio: 'Portfolio', programs: 'Programs',
+  playgrounds: 'Playgrounds', podcast: 'Podcasts', podcasts: 'Podcasts', portfolio: 'Portfolio',
   projects: 'Projects', reporting: 'Reporting', requirements: 'Requirements', resource: 'Resources', resources: 'Resources',
   notifications: 'Notifications', profile: 'Profile', resume: 'Résumé', search: 'Search', settings: 'Settings', store: 'Store', tags: 'Tags', timeline: 'Timeline', users: 'Users',
 }

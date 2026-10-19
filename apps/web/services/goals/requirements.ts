@@ -11,7 +11,7 @@ async function request<T = any>(url: string, token?: string, method = 'GET', bod
 }
 
 // Framework CRUD stays on its own API (not plan-based).
-const frameworks = (path: string) => `${getAPIUrl()}planning/requirements${path}`
+const frameworks = (path: string) => `${getAPIUrl()}requirement-frameworks${path}`
 
 export interface RequirementNode { node_uuid: string; parent_node_uuid?: string | null; code?: string; title: string; description?: string; position?: number; metadata?: Record<string, unknown> }
 export type RequirementState = 'met' | 'planned' | 'gap'

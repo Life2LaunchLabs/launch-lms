@@ -195,11 +195,7 @@
             },
             {
               "kind": "code",
-              "path": "apps/api/src/services/plan_home.py"
-            },
-            {
-              "kind": "code",
-              "path": "apps/web/components/Goals/home/GoalsHome.tsx"
+              "path": "apps/api/src/services/goals/home.py"
             }
           ],
           "relationships": []
@@ -381,7 +377,7 @@
             },
             {
               "kind": "code",
-              "path": "apps/api/src/services/plan_permissions.py"
+              "path": "apps/api/src/services/goals/access.py"
             }
           ],
           "relationships": []
@@ -948,12 +944,12 @@
             },
             {
               "kind": "code",
-              "path": "apps/api/src/services/plan_availability.py",
-              "symbol": "plan_availability"
+              "path": "apps/api/src/services/goals/availability.py",
+              "symbol": "availability"
             },
             {
               "kind": "test",
-              "path": "apps/api/src/tests/test_planning.py"
+              "path": "apps/api/src/tests/test_goals.py"
             }
           ],
           "relationships": []
@@ -1949,7 +1945,7 @@
           "references": [
             {
               "kind": "code",
-              "path": "apps/api/src/services/plan_home.py",
+              "path": "apps/api/src/services/goals/home_week.py",
               "responsibility": "Weekly picks, Pull 3 more, and the My plans timeline"
             },
             {
@@ -1958,7 +1954,7 @@
             },
             {
               "kind": "test",
-              "path": "apps/api/src/tests/test_plan_home.py"
+              "path": "apps/api/src/tests/test_goal_home.py"
             }
           ],
           "relationships": [],
@@ -2652,9 +2648,8 @@
           "references": [
             {
               "kind": "code",
-              "path": "apps/api/src/services/planning.py",
-              "symbol": "add_comment, list_attachments, add_attachment, remove_attachment",
-              "responsibility": "Enforces live-plan access for discussion and shared resources and records attachment activity."
+              "path": "apps/api/src/services/goals/sharing_log.py",
+              "responsibility": "Enforces goal access for discussion and shared files and records attachment activity."
             },
             {
               "kind": "code",
@@ -3113,9 +3108,8 @@
           "references": [
             {
               "kind": "code",
-              "path": "apps/api/src/services/planning.py",
-              "symbol": "update_plan, update_objective",
-              "responsibility": "Applies capability-gated changes to one materialized live plan and records objective changes."
+              "path": "apps/api/src/services/goals/structure.py",
+              "responsibility": "Applies capability-gated changes to one learner's goal and records step changes."
             },
             {
               "kind": "code",
@@ -3462,9 +3456,9 @@
               "references": [
                 {
                   "kind": "code",
-                  "path": "apps/api/src/services/programs.py",
-                  "symbol": "_validated_suggested_due_week,_validated_schedule",
-                  "responsibility": "Bounds and clips phase-relative objective due weeks and resolves them into assignment dates."
+                  "path": "apps/api/src/services/goals/assignments.py",
+                  "symbol": "_schedule",
+                  "responsibility": "Resolves stage dates and per-step due rules into assignment dates."
                 },
                 {
                   "kind": "code",
@@ -3579,9 +3573,9 @@
           "references": [
             {
               "kind": "code",
-              "path": "apps/api/src/services/programs.py",
-              "symbol": "publish_program_to_library,list_program_library,copy_program_from_library",
-              "responsibility": "Freezes owner-org plan template snapshots and creates independent tenant-owned copies from the searchable global library."
+              "path": "apps/api/src/services/goals/library.py",
+              "symbol": "publish_to_library,list_library,copy_from_library",
+              "responsibility": "Freezes owner-org goal template snapshots and creates independent tenant-owned copies from the searchable global library."
             },
             {
               "kind": "code",
@@ -3597,8 +3591,8 @@
             },
             {
               "kind": "test",
-              "path": "apps/api/src/tests/test_programs.py",
-              "symbol": "test_owner_can_publish_searchable_template_and_other_org_gets_independent_copy",
+              "path": "apps/api/src/tests/test_goal_templates_extra.py",
+              "symbol": "test_owner_publishes_to_the_library_and_other_orgs_get_independent_copies_with_their_own_activities",
               "responsibility": "Covers owner publication, cross-tenant search, deep copy, and edit isolation."
             }
           ],
@@ -4694,7 +4688,7 @@
               "references": [
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Admin/Programs/RequirementsAdmin.tsx",
+                  "path": "apps/web/components/Goals/admin/RequirementsAdmin.tsx",
                   "symbol": "CreateFramework",
                   "responsibility": "Offers searchable library and blank paths from the new-framework action."
                 }
@@ -4720,7 +4714,7 @@
               "references": [
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Admin/Programs/RequirementsAdmin.tsx",
+                  "path": "apps/web/components/Goals/admin/RequirementsAdmin.tsx",
                   "symbol": "FrameworkLevels",
                   "responsibility": "Defines ordered levels and configurable metadata fields."
                 }
@@ -4748,13 +4742,13 @@
               "references": [
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Admin/Programs/RequirementsAdmin.tsx",
+                  "path": "apps/web/components/Goals/admin/RequirementsAdmin.tsx",
                   "symbol": "FrameworkLevels",
                   "responsibility": "Lets administrators select the generated code format for each hierarchy level."
                 },
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Admin/Programs/RequirementsAdmin.tsx",
+                  "path": "apps/web/components/Goals/admin/RequirementsAdmin.tsx",
                   "symbol": "FrameworkSpec",
                   "responsibility": "Adds root and child nodes from the tree and edits the selected node in a detail panel."
                 },
@@ -4809,7 +4803,7 @@
               "references": [
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Admin/Programs/RequirementsAdmin.tsx",
+                  "path": "apps/web/components/Goals/admin/RequirementsAdmin.tsx",
                   "symbol": "FrameworkSpec",
                   "responsibility": "Shows connected tree branches, terminal add rows, generated codes, and node details."
                 },
@@ -4895,13 +4889,13 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Admin/Programs/RequirementsAdmin.tsx",
+              "path": "apps/web/components/Goals/admin/RequirementsAdmin.tsx",
               "symbol": "RequirementsAdmin",
               "responsibility": "Provides the framework list and draft/publish editor."
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Admin/Programs/RequirementsAdmin.tsx",
+              "path": "apps/web/components/Goals/admin/RequirementsAdmin.tsx",
               "symbol": "RequirementsAdmin, RequirementFrameworkDetail, FrameworkLevels, FrameworkSpec",
               "responsibility": "Provides list/detail navigation, configurable hierarchy levels, and the MUI X tree-based specification editor."
             },
@@ -4920,7 +4914,7 @@
             {
               "kind": "test",
               "path": "apps/api/src/tests/test_requirements.py",
-              "symbol": "test_verified_mapped_objective_satisfies_requirement_and_protects_completed_version",
+              "symbol": "test_verified_completion_satisfies_requirement_and_protects_completed_version",
               "responsibility": "Covers publishing, version creation, and preservation of completed snapshots."
             }
           ],
@@ -5105,15 +5099,15 @@
           "references": [
             {
               "kind": "code",
-              "path": "apps/api/src/services/programs.py",
-              "symbol": "review_objective_submission, update_progress",
-              "responsibility": "Synchronizes attainment when objective progress changes."
+              "path": "apps/api/src/services/goals/credit.py",
+              "symbol": "sync_step_progress",
+              "responsibility": "Synchronizes attainment when step progress changes."
             },
             {
               "kind": "code",
               "path": "apps/api/src/services/requirements.py",
-              "symbol": "update_mappings, sync_live_progress, sync_legacy_progress",
-              "responsibility": "Stores mappings and converts verified objective progress into revocable attainment sources."
+              "symbol": "_upsert_source, _recompute_enrollment",
+              "responsibility": "Converts verified step progress into revocable attainment sources and recomputes enrollment status."
             },
             {
               "kind": "code",
@@ -5129,9 +5123,8 @@
             },
             {
               "kind": "test",
-              "path": "apps/api/src/tests/test_requirements.py",
-              "symbol": "test_verified_mapped_objective_satisfies_requirement_and_protects_completed_version",
-              "responsibility": "Covers mapping and attainment from verified objective completion."
+              "path": "apps/api/src/tests/test_goal_requirements.py",
+              "responsibility": "Covers mapping and attainment from verified step completion."
             }
           ],
           "relationships": [
@@ -5322,7 +5315,7 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Admin/Programs/RequirementsAdmin.tsx",
+              "path": "apps/web/components/Goals/admin/RequirementsAdmin.tsx",
               "symbol": "AssignmentPanel",
               "responsibility": "Provides direct learner and group assignment controls and version migration prompt."
             },
@@ -5335,7 +5328,7 @@
             {
               "kind": "test",
               "path": "apps/api/src/tests/test_requirements.py",
-              "symbol": "test_verified_mapped_objective_satisfies_requirement_and_protects_completed_version",
+              "symbol": "test_verified_completion_satisfies_requirement_and_protects_completed_version",
               "responsibility": "Covers protection of completed enrollments during version migration."
             }
           ],
@@ -5536,7 +5529,7 @@
               "references": [
                 {
                   "kind": "code",
-                  "path": "apps/api/src/services/requirement_evidence.py"
+                  "path": "apps/api/src/services/goals/requirement_evidence.py"
                 },
                 {
                   "kind": "code",
@@ -5544,7 +5537,7 @@
                 },
                 {
                   "kind": "test",
-                  "path": "apps/api/src/tests/test_requirement_evidence.py"
+                  "path": "apps/api/src/tests/test_goal_requirements.py"
                 },
                 {
                   "kind": "test",
@@ -5570,7 +5563,7 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Admin/Programs/RequirementsAdmin.tsx",
+              "path": "apps/web/components/Goals/admin/RequirementsAdmin.tsx",
               "symbol": "RequirementsReporting",
               "responsibility": "Provides version, group, node, and status filters plus evidence detail."
             },
@@ -6264,9 +6257,9 @@
             },
             {
               "kind": "code",
-              "path": "apps/api/src/services/hub_context.py",
+              "path": "apps/api/src/services/goals/coach_context.py",
               "symbol": null,
-              "responsibility": "Resolves bounded saved plan and objective context server-side, revalidates access, and produces source receipts."
+              "responsibility": "Resolves bounded goal and step context server-side, revalidates access, and produces source receipts."
             },
             {
               "kind": "code",
@@ -6306,9 +6299,9 @@
             },
             {
               "kind": "test",
-              "path": "apps/api/src/tests/test_hub_context.py",
+              "path": "apps/api/src/tests/test_goal_coach.py",
               "symbol": null,
-              "responsibility": "Verifies current saved definitions, forged target rejection, receipt revalidation, and exclusion of private progress fields."
+              "responsibility": "Verifies goal context, forged target rejection, receipt revalidation, and exclusion of private progress fields."
             },
             {
               "kind": "test",

@@ -33,7 +33,7 @@ from src.db.learning import BadgeIssuerLearnerLink, LearningActivity, LearningRe
 from src.db.media import MediaAsset
 from src.db.organizations import Organization
 from src.db.portfolio import Portfolio
-from src.db.planning import OrganizationPlanRole, Plan, PlanActivity, PlanCollaborator, PlanRole
+from src.db.goal_sharing import OrganizationPlanRole, PlanActivity, PlanCollaborator, PlanRole
 from src.db.roles import Role
 from src.db.school import UserGroupStaff
 from src.db.user_organizations import UserOrganization
@@ -55,7 +55,7 @@ def _session() -> Session:
         LearningBadge.__table__, LearningBadgeVersion.__table__, LearningBadgeAward.__table__, BadgeIssuerLearnerLink.__table__, MediaAsset.__table__,
         PlanRole.__table__, PlanCollaborator.__table__, PlanActivity.__table__, OrganizationPlanRole.__table__,
         GoalTemplate.__table__, GoalTemplateVersion.__table__, GoalAssignment.__table__, Goal.__table__, GoalStage.__table__,
-        GoalStep.__table__, StepProgress.__table__, StepEntry.__table__, GoalStory.__table__, CoachNote.__table__, Portfolio.__table__, Plan.__table__,
+        GoalStep.__table__, StepProgress.__table__, StepEntry.__table__, GoalStory.__table__, CoachNote.__table__, Portfolio.__table__,
         CoachPolicy.__table__, CoachProviderKey.__table__, CoachPlaybook.__table__, UserGroupStaff.__table__,
         # Goals keep their chats in step (services/connect/workspace.py).
         Conversation.__table__, ConversationMember.__table__, ConversationMessage.__table__, ConversationMessageRef.__table__,
@@ -189,6 +189,30 @@ def test_assigning_to_a_group_issues_pending_goals_that_learners_accept():
         # Syncing again issues nothing new; a new group member gets theirs.
         assignment = db.exec(select(GoalAssignment)).one()
         assert assignments.sync_assignment(db, assignment) == []
+
+
+async def test_joining_a_group_issues_its_assigned_goals_and_opens_the_school_chat(monkeypatch):
+    from src.db.conversations import Conversation, ConversationMember
+    from src.services.users import usergroups
+
+    async def allow(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(usergroups, "rbac_check", allow)
+    with _session() as db:
+        template = _published(db, {"type": "task", "title": "Visit a campus"})
+        assignments.assign(db, _user(ADMIN), 1, template.template_uuid, GoalAssignmentCreate(usergroup_id=1, staff_user_ids=[ADMIN]))
+        db.add(User(id=4, user_uuid="user_4", username="kai", email="k@example.com", first_name="Kai", last_name="Late", creation_date=NOW, update_date=NOW))
+        db.add(UserOrganization(user_id=4, org_id=1, role_id=4, creation_date=NOW, update_date=NOW))
+        db.add(UserGroupStaff(usergroup_id=1, user_id=ADMIN, org_id=1, creation_date=NOW, update_date=NOW))
+        db.commit()
+
+        await usergroups.add_users_to_usergroup(None, db, _user(ADMIN), 1, "4")  # type: ignore[arg-type]
+
+        assert [item["status"] for item in goals.list_my_goals(db, _user(4))] == ["pending"]
+        chat = db.exec(select(Conversation).where(Conversation.direct_key == "school:1:4")).one()
+        members = {row.user_id for row in db.exec(select(ConversationMember).where(ConversationMember.conversation_id == chat.id)).all()}
+        assert {4, ADMIN} <= members
 
 
 def test_unpublished_or_archived_templates_cannot_be_handed_out():
@@ -387,7 +411,7 @@ def test_badge_goals_award_their_badge_and_badge_steps_follow_awards():
 
 
 def test_activity_steps_finish_from_the_learners_run():
-    from src.services.plan_activities import sync_objective_from_run
+    from src.services.goals.completion import on_run_changed
 
     with _session() as db:
         goal = _issue(db, _published(db, {"type": "activity", "title": "Interest quiz"}))
@@ -402,7 +426,8 @@ def test_activity_steps_finish_from_the_learners_run():
         run.status = LearningRunStatus.COMPLETED
         db.add(run)
         db.commit()
-        sync_objective_from_run(db, run)
+        on_run_changed(db, run)
+        db.commit()
         view = goals.get_goal(db, _user(LEARNER), goal.goal_uuid)
         assert _step(view, "Interest quiz")["state"] == "done" and view["status"] == "finished"
 

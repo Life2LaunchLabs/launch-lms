@@ -1,7 +1,7 @@
 """Goal people and roles: who is on a goal, goal roles and organization roles.
 
-Ported from ``services/planning.py``, keyed by ``goal_id`` on the shared plan
-collaboration tables. Invitations and members live in ``sharing``.
+Keyed by ``goal_id`` on the shared collaboration tables (``db/goal_sharing``).
+Invitations and members live in ``sharing``.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from sqlmodel import Session, select
 
 from src.db.goals import Goal, GoalAssignment, GoalSource
 from src.db.organizations import Organization
-from src.db.planning import (
+from src.db.goal_sharing import (
     ALL_CAPABILITIES,
     DEFAULT_ROLE_DEFINITIONS,
     OrganizationPlanRole,

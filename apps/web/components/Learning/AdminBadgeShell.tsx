@@ -250,7 +250,7 @@ function IssuerBadgeAnalyticsPanel({ badge, issuerOrgId, orgslug }: { badge: any
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-bold text-foreground">Your organization’s activity</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Issuance and program usage for this badge in your organization only.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Issuance and goal template usage for this badge in your organization only.</p>
           </div>
           <Button variant="outline" onClick={() => void load()} disabled={loading} className="gap-2 bg-card">
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <BarChart3 className="h-4 w-4" />}
@@ -264,25 +264,25 @@ function IssuerBadgeAnalyticsPanel({ badge, issuerOrgId, orgslug }: { badge: any
           <>
             <div className="mt-6 grid gap-4 sm:grid-cols-3">
               <AnalyticsStat label="Issued by your org" value={String(metrics?.issued_count || 0)} />
-              <AnalyticsStat label="Used in programs" value={String(metrics?.programs?.length || 0)} />
+              <AnalyticsStat label="Used in templates" value={String(metrics?.templates?.length || 0)} />
               <AnalyticsStat label="Learner access" value={learnerAccessLabel(metrics?.authorization?.learner_access)} />
             </div>
 
             <div className="mt-8">
-              <h3 className="text-sm font-bold text-foreground">Programs using this badge</h3>
+              <h3 className="text-sm font-bold text-foreground">Goal templates using this badge</h3>
               <div className="mt-3 space-y-3">
-                {metrics?.programs?.length ? metrics.programs.map((program: any) => (
-                  <Link key={program.program_uuid} href={getUriWithOrg(orgslug, routePaths.org.dash.program(program.program_uuid))} className="flex items-center justify-between gap-4 rounded-lg border border-border p-4 transition hover:border-foreground/30 hover:bg-muted/30">
+                {metrics?.templates?.length ? metrics.templates.map((template: any) => (
+                  <Link key={template.template_uuid} href={getUriWithOrg(orgslug, routePaths.org.dash.goalTemplate(template.template_uuid))} className="flex items-center justify-between gap-4 rounded-lg border border-border p-4 transition hover:border-foreground/30 hover:bg-muted/30">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-bold text-foreground">{program.name}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">{program.assignment_count} {program.assignment_count === 1 ? 'assignment' : 'assignments'}</p>
+                      <p className="truncate text-sm font-bold text-foreground">{template.title}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{template.assignment_count} {template.assignment_count === 1 ? 'assignment' : 'assignments'}</p>
                     </div>
-                    <span className="rounded-full bg-muted px-3 py-1 text-xs font-bold capitalize text-muted-foreground">{program.status}</span>
+                    <span className="rounded-full bg-muted px-3 py-1 text-xs font-bold capitalize text-muted-foreground">{template.status}</span>
                   </Link>
                 )) : (
                   <div className="rounded-lg border border-dashed border-border py-10 text-center">
-                    <p className="text-sm font-semibold text-muted-foreground">Not used in any programs</p>
-                    <p className="mt-1 text-xs text-muted-foreground">Add this badge as a program objective when you’re ready to use it.</p>
+                    <p className="text-sm font-semibold text-muted-foreground">Not used in any goal templates</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Add a badge step to a goal template when you’re ready to use it.</p>
                   </div>
                 )}
               </div>

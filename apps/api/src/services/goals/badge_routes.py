@@ -11,7 +11,6 @@ from datetime import datetime
 from uuid import uuid4
 
 from fastapi import HTTPException
-from sqlalchemy import inspect
 from sqlmodel import Field, Session, SQLModel, select
 
 from src.db.badge_routes import BadgeRoute, BadgeRouteOffer, BadgeRouteOffersUpdate
@@ -25,13 +24,8 @@ from src.services.learning.lookups import _get_badge
 
 
 class GoalBadgeRouteInput(SQLModel):
-    template_uuid: str = ""
-    program_uuid: str = Field(default="", description="Legacy name for template_uuid (same uuid).")
+    template_uuid: str
     recommended: bool = False
-
-    @property
-    def uuid(self) -> str:
-        return self.template_uuid or self.program_uuid
 
 
 class GoalBadgeRoutesUpdate(SQLModel):
@@ -40,7 +34,6 @@ class GoalBadgeRoutesUpdate(SQLModel):
 
 class GoalBadgeStart(SQLModel):
     template_uuid: str | None = Field(default=None, description="The route to earn it by; defaults to the recommended route.")
-    program_uuid: str | None = Field(default=None, description="Legacy name for template_uuid.")
     issuer_org_id: int | None = Field(default=None, description="The organization to earn it with; defaults to the badge's creator.")
 
 
@@ -84,7 +77,7 @@ def list_routes(db: Session, current_user: PublicUser | None, badge_uuid: str) -
 
     badge = _get_badge(db, badge_uuid)
     user_id = int(current_user.id) if current_user and getattr(current_user, "id", None) else None
-    visible = {option["org"]["id"]: option for option in issuer_options(db, badge, user_id, set())["issuers"]}
+    visible = {option["org"]["id"]: option for option in issuer_options(db, badge, user_id)["issuers"]}
     offered_routes = offered(db, badge)
     routes, uuids = [], {}
     for route, template in badge_routes(db, badge):
@@ -100,15 +93,6 @@ def list_routes(db: Session, current_user: PublicUser | None, badge_uuid: str) -
     }
 
 
-def _legacy_program_id(db: Session, template_uuid: str) -> int | None:
-    """Routes keep pointing at the legacy template with the same uuid until the plan tables are dropped."""
-    if not inspect(db.get_bind()).has_table("program"):
-        return None
-    from src.db.programs import Program
-
-    return db.exec(select(Program.id).where(Program.program_uuid == template_uuid)).first()
-
-
 def set_routes(db: Session, current_user: PublicUser, badge_uuid: str, payload: GoalBadgeRoutesUpdate) -> dict:
     """The creator chooses which of its goal templates earn the badge, and which one is recommended."""
     from src.security.org_auth import require_org_admin
@@ -117,7 +101,7 @@ def set_routes(db: Session, current_user: PublicUser, badge_uuid: str, payload: 
     require_org_admin(current_user.id, badge.org_id, db)
     chosen: list[tuple[GoalTemplate, bool]] = []
     for item in payload.routes:
-        template = db.exec(select(GoalTemplate).where(GoalTemplate.template_uuid == item.uuid, GoalTemplate.org_id == badge.org_id)).first()
+        template = db.exec(select(GoalTemplate).where(GoalTemplate.template_uuid == item.template_uuid, GoalTemplate.org_id == badge.org_id)).first()
         if not template:
             raise HTTPException(status_code=422, detail="Routes must be goal templates of the badge's organization")
         chosen.append((template, item.recommended))
@@ -129,8 +113,7 @@ def set_routes(db: Session, current_user: PublicUser, badge_uuid: str, payload: 
     now = datetime.now().isoformat()
     for position, (template, recommended) in enumerate(chosen):
         route = existing.pop(template.id, None) or BadgeRoute(
-            route_uuid=f"badge_route_{uuid4()}", badge_id=badge.id, goal_template_id=template.id,  # type: ignore[arg-type]
-            program_id=_legacy_program_id(db, template.template_uuid), creation_date=now,
+            route_uuid=f"badge_route_{uuid4()}", badge_id=badge.id, goal_template_id=template.id, creation_date=now,  # type: ignore[arg-type]
         )
         route.recommended = recommended and not any(other for _, other in chosen[:position])
         route.position = position
@@ -166,5 +149,5 @@ def set_offered_routes(db: Session, current_user: PublicUser, badge_uuid: str, i
 def start(db: Session, current_user: PublicUser, badge_uuid: str, payload: GoalBadgeStart) -> dict:
     """Start earning a badge: the learner's goal summary (an existing one, or a new one from the chosen route)."""
     badge = _get_badge(db, badge_uuid)
-    goal = start_badge_goal(db, current_user, badge, payload.template_uuid or payload.program_uuid, payload.issuer_org_id)
+    goal = start_badge_goal(db, current_user, badge, payload.template_uuid, payload.issuer_org_id)
     return goal_progress(db, goal)

@@ -6,9 +6,10 @@ Revises: g0c1d2e3f4a5
 Runs ``src.services.goals.migration.run`` in the migration's transaction. It
 checks its own result and raises if any template, assignment, plan, progress
 status or requirement source didn't carry over, which rolls the whole move
-back. Badge routes are then pointed at the templates they earn through. The plan tables stay as they are (read-only from the cutover release on)
-until the cleanup release drops them; that release also turns this migration
-into a no-op, since the code it runs goes with the plan tables.
+back. Badge routes are then pointed at the templates they earn through. The
+plan tables stay as they are until g2c3d4e5f6a7 drops them; the move reads
+them through its own frozen definitions (``goals.migration.legacy_tables``),
+so an install upgrading from an older revision still moves its plans.
 
 Downgrade empties the goal tables and clears the goal columns on shared
 tables. Goals created after the move are lost, so a real rollback restores the

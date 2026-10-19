@@ -7,7 +7,7 @@ import type { TemplateDocument, TemplateRole } from '@services/goals/types'
 import { cn } from '@/lib/utils'
 import type { TemplateEditing } from './useTemplate'
 
-// The goal capabilities a role can hold (apps/api/src/db/planning.py ALL_CAPABILITIES), grouped for the checklist.
+// The goal capabilities a role can hold (apps/api/src/db/goal_sharing.py ALL_CAPABILITIES), grouped for the checklist.
 const CAPABILITY_GROUPS: Array<{ label: string; items: Array<[string, string]> }> = [
   { label: 'Working on the goal', items: [['view_plan', 'See the goal'], ['comment', 'Comment'], ['contribute_fields', 'Fill in steps'], ['update_progress', 'Mark steps done'], ['request_collaborators', 'Ask others to join']] },
   { label: 'Staff', items: [['contribute_restricted_fields', 'Fill in staff steps'], ['complete_restricted_objectives', 'Sign off staff steps'], ['review_badge_submissions', 'Review badge submissions']] },

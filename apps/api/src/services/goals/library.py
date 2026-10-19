@@ -112,7 +112,7 @@ def copy_from_library(db: Session, current_user: PublicUser, org_id: int, templa
         config = step.setdefault("config", {})
         activity = db.exec(select(LearningActivity).where(LearningActivity.activity_uuid == config.get("activity_uuid"))).first()
         if activity:
-            copy = copy_activity(db, activity, goal_template_id=copied.id, org_id=org_id, objective_id=None, frozen_from_id=None, frozen_hash=None)
+            copy = copy_activity(db, activity, goal_template_id=copied.id, org_id=org_id, frozen_from_id=None, frozen_hash=None)
             for page in db.exec(select(LearningPage).where(LearningPage.activity_id == copy.id)).all():
                 page.org_id = org_id
                 db.add(page)

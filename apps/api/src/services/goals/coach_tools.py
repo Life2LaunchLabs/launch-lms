@@ -1,8 +1,7 @@
 """Coach's goal editing tools: typed proposals the learner reviews and saves one by one.
 
-Goal-model replacements for ``services/hub_plan_tools``: the same functions and
-operation envelope (operation_id, type, object_type, object_uuid, object_label),
-with stages and typed steps instead of phases and objectives. Every proposed
+Each proposal carries one operation envelope (operation_id, type, object_type,
+object_uuid, object_label) over stages and typed steps. Every proposed
 step's config is checked by the step registry, so Coach can't propose a step
 the goal would refuse.
 """

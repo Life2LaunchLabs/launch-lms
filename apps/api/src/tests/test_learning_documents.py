@@ -9,7 +9,6 @@ from sqlmodel import Session, create_engine, select
 from src.db.goals import GoalAssignment, GoalTemplate, GoalTemplateVersion
 from src.db.learning import LearningActivity, LearningPage, LearningPageType
 from src.db.learning_previews import LearningActivityPreview
-from src.db.programs import Objective, ObjectiveKind, Program, ProgramObjective, ProgramPhase
 from src.services.learning_documents import store
 from src.services.learning_documents.document import prepare_document
 from src.services.learning_documents.models import (
@@ -63,11 +62,12 @@ def _flow(made: str = P2, other: str = P3, entry: str = P1) -> dict:
     }
 
 
-def _goal_template(session: Session, template_id: int, template_uuid: str, org_id: int, title: str, activity_id: int, activity_uuid: str, step_key: str) -> None:
-    """The goal template an activity belongs to (moved plans keep their uuids: template = program, step key = objective)."""
+def _goal_template(session: Session, template_id: int, template_uuid: str, org_id: int, title: str, activity_id: int, activity_uuid: str, step_key: str,
+                   system_type: str | None = None) -> None:
+    """The goal template an activity belongs to, with the activity as its one step."""
     for model in (GoalTemplate, GoalTemplateVersion, GoalAssignment):
         model.__table__.create(session.get_bind(), checkfirst=True)
-    session.add(GoalTemplate(id=template_id, template_uuid=template_uuid, org_id=org_id, title=title, document={
+    session.add(GoalTemplate(id=template_id, template_uuid=template_uuid, org_id=org_id, title=title, system_type=system_type, document={
         "format": "launch-lms.goal-template", "format_version": 1, "template": {"title": title},
         "stages": [{"key": f"stage_{template_id}", "title": "Explore", "steps": [{"key": step_key, "type": "activity", "title": "Career interests", "config": {"activity_uuid": activity_uuid}}]}],
     }))
@@ -77,21 +77,14 @@ def _goal_template(session: Session, template_id: int, template_uuid: str, org_i
 
 
 def _world(system_type: str | None = None):
-    """Org 1's plan template "Career Ready" with one activity objective whose activity has three branching pages."""
+    """Org 1's goal template "Career Ready" with one activity step whose activity has three branching pages."""
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     _create_tables(engine)
     LearningActivityPreview.__table__.create(engine)
     session = Session(engine)
     _, _, alice, bob, carol, badge = _setup(session)
-    session.add(Program(
-        id=50, program_uuid="program_template", slug="career-ready", org_id=1, name="Career Ready",
-        system_type=system_type, creation_date=NOW, update_date=NOW,
-    ))
-    session.add(ProgramPhase(id=50, phase_uuid="phase_template", program_id=50, name="Explore", creation_date=NOW, update_date=NOW))
-    session.add(Objective(id=50, objective_uuid="objective_activity", org_id=1, title="Career interests", kind=ObjectiveKind.ACTIVITY, creation_date=NOW, update_date=NOW))
-    session.add(ProgramObjective(program_id=50, phase_id=50, objective_id=50, position=0, creation_date=NOW, update_date=NOW))
     session.add(LearningActivity(
-        id=50, activity_uuid="learning_activity_draft", objective_id=50, org_id=1,
+        id=50, activity_uuid="learning_activity_draft", org_id=1,
         title="Career interests", settings={"flow": _flow(), "grading": {"minimum_score_percent": 60}},
         creation_date=NOW, update_date=NOW,
     ))
@@ -105,6 +98,7 @@ def _world(system_type: str | None = None):
             page_uuid=page_uuid, creation_date=NOW, update_date=NOW,
         ))
     session.commit()
+    _goal_template(session, 50, "goal_template_career", 1, "Career Ready", 50, "learning_activity_draft", "career_interests", system_type)
     return session, alice, carol
 
 
@@ -117,7 +111,7 @@ async def test_export_round_trips_losslessly_with_template_context():
     first = await _read(session, alice)
     document = first["document"]
     assert first["context"] == {
-        "activity_uuid": "learning_activity_draft", "org_id": 1, "template_uuid": "program_template", "template_name": "Career Ready",
+        "activity_uuid": "learning_activity_draft", "org_id": 1, "template_uuid": "goal_template_career", "template_name": "Career Ready",
     }
     assert document["activity"]["settings"] == {"flow": _flow(), "grading": {"minimum_score_percent": 60}}
     assert "required" not in document["activity"]

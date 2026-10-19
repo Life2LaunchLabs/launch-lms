@@ -16,16 +16,16 @@ CONTENT = frozenset(
     """
 organization organizationconfig role badgecollection learningbadge
 learningbadgeversion badgeroute badgerouteoffer learningactivity learningpage learningvariable
-badgeissuerauthorization program programobjective programphase objective
+badgeissuerauthorization goal_template goal_template_version
 organizationplanrole requirementframework requirementframeworkversion requirementnode
-programobjectiverequirement resourcetag resourcetaglink resource resourcesearchdocument
+resourcetag resourcetaglink resource resourcesearchdocument
 resourcechannel resourcechannelresource resourceauthor podcast podcastepisode
 usergroup usergroupresource board community playground newsarticle
 """.split()
 )
 PERSONAL = frozenset(
     """
-userorganization usergroupuser programparticipant objectiveprogress learningrun
+userorganization usergroupuser learningrun
 learningresponseattempt learningbadgeaward badgeissuerlearnerlink
 requirementenrollment usersavedresource userresourcechannel resourcenoteblock
 portfolio hubconversation hubmemorypreference hubmemory hubeditrun
@@ -39,7 +39,7 @@ CHILDREN = frozenset(
     """
 learningpageprogress usersavedresourcechannel portfoliosection
 projectitem projectitemblock timelineentry timelineentryblock timelineprojectlink
-portfoliolink profiletrait planrole planphase planobjective planobjectiveprogress
+portfoliolink profiletrait planrole goal_stage goal_step step_progress step_entry goal_story
 planattachment planactivity hubconversationmessage hubconversationmessageresource
 hubconversationresource hubmemorysource hubconversationmessagememory hubeditrunevent
 hubeditobjectstate requirementattainmentsource
@@ -50,7 +50,7 @@ ANCHORS = {
     "learningbadgeversion": "badge_id",
     "badgeroute": "badge_id",
     "badgerouteoffer": "route_id",
-    "learningactivity": "objective_id",
+    "learningactivity": "goal_template_id",
     "learningpage": "activity_id",
     "learningvariable": "org_id",
     "learningpageprogress": "run_id",
@@ -63,14 +63,16 @@ ANCHORS = {
     "timelineprojectlink": "timeline_entry_id",
     "portfoliolink": "portfolio_id",
     "profiletrait": "portfolio_id",
-    "planrole": "plan_id",
-    "planphase": "plan_id",
-    "planobjective": "plan_id",
-    "planobjectiveprogress": "plan_objective_id",
-    "planattachment": "plan_id",
-    "planactivity": "plan_id",
-    "planinvitation": "plan_id",
-    "plancollaboratorrequest": "plan_id",
+    "planrole": "goal_id",
+    "goal_stage": "goal_id",
+    "goal_step": "goal_id",
+    "step_progress": "step_id",
+    "step_entry": "step_id",
+    "goal_story": "goal_id",
+    "planattachment": "goal_id",
+    "planactivity": "goal_id",
+    "planinvitation": "goal_id",
+    "plancollaboratorrequest": "goal_id",
     "hubconversationmessage": "conversation_id",
     "hubconversationmessageresource": "message_id",
     "hubconversationresource": "conversation_id",
@@ -79,11 +81,9 @@ ANCHORS = {
     "hubeditrunevent": "run_id",
     "hubeditobjectstate": "run_id",
     "requirementattainmentsource": "enrollment_id",
-    "programobjective": "program_id",
-    "programphase": "program_id",
+    "goal_template_version": "template_id",
     "requirementframeworkversion": "framework_id",
     "requirementnode": "version_id",
-    "programobjectiverequirement": "program_objective_id",
     "resourcetaglink": "resource_id",
     "resourcechannelresource": "channel_id",
 }
@@ -154,34 +154,34 @@ def capture(db: Session, main_org_id: int, user_ids: set[int]) -> dict:
             if "org_id" in table.c and name not in CATALOG_PERSONAL:
                 condition &= table.c.org_id.in_(org_ids)
             add(name, read(name, condition))
-    plan = tables["plan"]
+    goal = tables["goal"]
     collaborators = read(
         "plancollaborator", tables["plancollaborator"].c.user_id.in_(user_ids)
     )
-    plan_ids = {record["plan_id"] for record in collaborators}
+    goal_ids = {record["goal_id"] for record in collaborators}
     add(
-        "plan",
+        "goal",
         read(
-            "plan",
+            "goal",
             or_(
-                plan.c.subject_user_id.in_(user_ids),
-                plan.c.owner_user_id.in_(user_ids),
-                plan.c.id.in_(plan_ids),
+                goal.c.subject_user_id.in_(user_ids),
+                goal.c.owner_user_id.in_(user_ids),
+                goal.c.id.in_(goal_ids),
             ),
         ),
     )
-    rows["plan"] = {
+    rows["goal"] = {
         key: record
-        for key, record in rows["plan"].items()
-        if record["source_org_id"] is None or record["source_org_id"] in org_ids
+        for key, record in rows["goal"].items()
+        if record["org_id"] is None or record["org_id"] in org_ids
     }
-    # Include collaborators only on this learner's plans, never their other work.
+    # Include collaborators only on this learner's goals, never their other work.
     add(
         "plancollaborator",
         read(
             "plancollaborator",
-            tables["plancollaborator"].c.plan_id.in_(
-                [record["id"] for record in rows["plan"].values()]
+            tables["plancollaborator"].c.goal_id.in_(
+                [record["id"] for record in rows["goal"].values()]
             ),
         ),
     )
@@ -225,7 +225,7 @@ def capture(db: Session, main_org_id: int, user_ids: set[int]) -> dict:
             "resource",
             read("resource", tables["resource"].c.resource_uuid.in_(resource_uuids)),
         )
-    for name in ("programassignment", "requirementassignmentbatch"):
+    for name in ("goal_assignment", "requirementassignmentbatch"):
         add(name, read(name, tables[name].c.org_id.in_(org_ids)))
     # Iterate to a fixed point; never follow private peer state or credential tables.
     scenario_tables = set(
@@ -245,9 +245,9 @@ def capture(db: Session, main_org_id: int, user_ids: set[int]) -> dict:
         | CHILDREN
         | {
             "user",
-            "plan",
+            "goal",
             "plancollaborator",
-            "programassignment",
+            "goal_assignment",
             "requirementassignmentbatch",
         }
     )

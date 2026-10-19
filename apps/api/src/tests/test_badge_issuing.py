@@ -30,12 +30,12 @@ def _world():
 
 
 def _options(session: Session, badge, learner) -> dict:
-    return issuer_options(session, badge, learner.id, set())
+    return issuer_options(session, badge, learner.id)
 
 
 def _start(session: Session, badge, learner, issuer_org_id: int):
     """What starting a badge plan checks (and records) about the chosen issuer."""
-    return validate_issuer_start(session, badge, issuer_org_id, learner.id, set())
+    return validate_issuer_start(session, badge, issuer_org_id, learner.id)
 
 
 async def _access(session: Session, authorization_uuid: str, access: str, admin) -> None:

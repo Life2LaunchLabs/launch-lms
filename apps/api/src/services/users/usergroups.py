@@ -8,7 +8,7 @@ from sqlmodel import Session, select
 from src.db.organizations import Organization
 from src.db.usergroup_resources import UserGroupResource
 from src.db.learning import LearningBadge, LearningBadgeStatus
-from src.db.programs import ProgramAssignment
+from src.db.goals import GoalAssignment
 from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup, UserGroupCreate, UserGroupRead, UserGroupUpdate
 from src.db.users import (
@@ -278,10 +278,10 @@ async def read_usergroup_overview(
     for membership in memberships:
         member_counts[membership.usergroup_id] = member_counts.get(membership.usergroup_id, 0) + 1
 
-    assignments = db_session.exec(select(ProgramAssignment).where(
-        ProgramAssignment.org_id == org_id,
-        ProgramAssignment.usergroup_id.in_(group_ids),  # type: ignore[union-attr]
-        ProgramAssignment.active == True,  # noqa: E712
+    assignments = db_session.exec(select(GoalAssignment).where(
+        GoalAssignment.org_id == org_id,
+        GoalAssignment.usergroup_id.in_(group_ids),  # type: ignore[union-attr]
+        GoalAssignment.active == True,  # noqa: E712
     )).all()
     active_group_ids = {assignment.usergroup_id for assignment in assignments}
     assigned_group_ids = {
@@ -518,12 +518,12 @@ async def add_users_to_usergroup(
 
     db_session.flush()
     if linked_user_ids:
-        # Active cohort programs automatically invite newly added learners. Their
-        # canonical objective progress is intentionally stored outside the cohort,
-        # so leaving and rejoining never erases completed work.
-        from src.services.programs import ensure_group_participants
-
-        ensure_group_participants(db_session, usergroup_id, linked_user_ids)
+        # New members get the group's assigned goals (a rejoining learner keeps theirs) and the group's staff in their school chat.
+        from src.services.goals.assignments import sync_group
+        from src.services.school.chats import school_chat
+        sync_group(db_session, usergroup_id)
+        for user_id in linked_user_ids:
+            school_chat(db_session, int(usergroup.org_id), user_id)
     db_session.commit()
 
     return "Users added to UserGroup successfully"

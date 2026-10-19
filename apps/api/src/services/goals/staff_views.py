@@ -22,7 +22,7 @@ from src.db.goals import (
     StepProgress,
     StepStatus,
 )
-from src.db.planning import PlanCollaborator, PlanRole
+from src.db.goal_sharing import PlanCollaborator, PlanRole
 from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup
 from src.db.users import PublicUser, User

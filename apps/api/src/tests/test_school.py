@@ -6,7 +6,7 @@ from sqlmodel import select
 
 from src.db.conversations import DirectChatOpen
 from src.db.goals import Goal, GoalAssignmentCreate
-from src.db.planning import PlanCollaborator
+from src.db.goal_sharing import PlanCollaborator
 from src.db.school import GroupStaffSet
 from src.db.user_organizations import UserOrganization
 from src.db.users import User

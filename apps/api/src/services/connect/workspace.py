@@ -21,7 +21,7 @@ from sqlmodel import Session, col, func, select
 from src.db.conversations import Conversation, ConversationMember, ConversationMessage, ConversationMessageRef
 from src.db.goals import DONE_STEP_STATUSES, Goal, GoalOwnership, GoalSource, GoalStage, GoalStatus, GoalStep, StepProgress, StepStatus
 from src.db.organizations import Organization
-from src.db.planning import PlanCollaborator, PlanCollaboratorRequestCreate, PlanInvitationCreate, PlanRole
+from src.db.goal_sharing import PlanCollaborator, PlanCollaboratorRequestCreate, PlanInvitationCreate, PlanRole
 from src.db.users import PublicUser, User
 from src.services.connect import chats, people
 from src.services.goals import access
