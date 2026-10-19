@@ -9,22 +9,6 @@ from src.services import messages as messages_service
 router = APIRouter()
 
 
-@router.get("/me")
-async def list_my_messages(
-    current_user: PublicUser = Depends(get_authenticated_user),
-    db_session: Session = Depends(get_db_session),
-):
-    return messages_service.list_my_messages(current_user, db_session)
-
-
-@router.post("/me/viewed")
-async def mark_my_messages_viewed(
-    current_user: PublicUser = Depends(get_authenticated_user),
-    db_session: Session = Depends(get_db_session),
-):
-    return messages_service.mark_my_messages_viewed(current_user, db_session)
-
-
 @router.post("/me/{message_uuid}/respond")
 async def respond_to_message(
     request: Request,
