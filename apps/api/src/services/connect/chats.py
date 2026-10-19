@@ -36,8 +36,11 @@ def _members(db: Session, conversation: Conversation) -> list[ConversationMember
 
 
 def _membership(db: Session, conversation_uuid: str, user_id: int) -> tuple[Conversation, ConversationMember]:
+    from src.services.connect import cohort
+
     conversation = db.exec(select(Conversation).where(Conversation.conversation_uuid == conversation_uuid)).first()
-    member = db.exec(select(ConversationMember).where(
+    # A cohort chat's readers are settled as they open it: its staff, the org's admins as they are now, its learners.
+    member = cohort.member(db, conversation, user_id) if conversation and conversation.kind == cohort.COHORT else db.exec(select(ConversationMember).where(
         ConversationMember.conversation_id == conversation.id, ConversationMember.user_id == user_id,
     )).first() if conversation else None
     if not conversation or not member:

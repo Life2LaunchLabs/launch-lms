@@ -3,8 +3,9 @@
 An assignment has up to two chats, found by ``Conversation.assignment_id`` and ``channel``:
 
 - ``group_staff`` (Staff only): the assignment's staff, meaning the people it was assigned
-  with as staff and the group's staff who cover it. Learners never see it.
-- ``group_all`` (Whole group): those staff and the group's learners with a plan from it. Only
+  with as staff, the group's staff who cover it, and the organization's admins. Learners
+  never see it.
+- ``group_all`` (Whole group): those people and the group's learners with a plan from it. Only
   group assignments have one. A person assignment's learner already talks with its staff in
   their chat with the organization.
 
@@ -16,6 +17,8 @@ Those refs carry ``"cohort": True`` and their ref rows have no goal.
 
 Members follow the assignment: ``sync`` runs when its staff change, when its group's
 membership or staff change, and when its learners' plans are issued, accepted or archived.
+Admins are settled when someone opens a chat (``member``): nothing hooks org role changes, so a
+new admin joins on opening it and a former admin loses it at once.
 """
 
 from __future__ import annotations
@@ -25,12 +28,15 @@ from uuid import uuid4
 from fastapi import HTTPException
 from sqlmodel import Session, col, func, select
 
-from src.db.conversations import Conversation, ConversationMessage, ConversationMessageRef
+from src.db.conversations import Conversation, ConversationMember, ConversationMessage, ConversationMessageRef
 from src.db.goals import AssignmentStatus, Goal, GoalAssignment, GoalStatus, GoalTemplate, GoalTemplateVersion, StepStatus
 from src.db.school import UserGroupStaff
+from src.db.user_organizations import UserOrganization
 from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup
 from src.db.users import PublicUser
+from src.security.org_auth import is_org_admin
+from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
 from src.services.goals.document import iter_steps
 from src.services.goals.sharing_roles import _stamp
 from src.services.school.staff import covers
@@ -67,8 +73,38 @@ def learner_ids(db: Session, assignment: GoalAssignment) -> set[int]:
     return {int(user_id) for user_id in subjects & members if user_id}
 
 
+def admin_ids(db: Session, org_id: int) -> set[int]:
+    """The organization's admins, the people goal-admin routes treat as org admins (see org_auth.is_org_admin)."""
+    return {int(user_id) for user_id in db.exec(select(UserOrganization.user_id).where(
+        UserOrganization.org_id == org_id, col(UserOrganization.role_id).in_(ADMIN_OR_MAINTAINER_ROLE_IDS),
+    )).all()}
+
+
 def members_of(db: Session, assignment: GoalAssignment, channel: str) -> set[int]:
-    return staff_ids(db, assignment) | (learner_ids(db, assignment) if channel == GROUP else set())
+    """Staff only: the staff and the org's admins. Whole group: those and the group's learners."""
+    return staff_ids(db, assignment) | admin_ids(db, assignment.org_id) | (learner_ids(db, assignment) if channel == GROUP else set())
+
+
+def allowed(db: Session, assignment: GoalAssignment, channel: str, user_id: int) -> bool:
+    """Whether someone reads this channel now. Admins are checked as they are now, so a role change counts at once."""
+    return user_id in members_of(db, assignment, channel) or is_org_admin(user_id, assignment.org_id, db)
+
+
+def member(db: Session, conversation: Conversation, user_id: int) -> ConversationMember | None:
+    """Someone's membership of a cohort chat, settled when they open it: joined if they belong, dropped if they no longer do."""
+    assignment = assignment_of(db, conversation)
+    row = db.exec(select(ConversationMember).where(ConversationMember.conversation_id == conversation.id, ConversationMember.user_id == user_id)).first()
+    if not assignment or not allowed(db, assignment, str(conversation.channel), user_id):
+        if row:
+            db.delete(row)
+            db.flush()
+        return None
+    if not row:
+        now = _stamp()
+        row = ConversationMember(conversation_id=int(conversation.id), user_id=user_id, status="active", creation_date=now, update_date=now)  # type: ignore[arg-type]
+        db.add(row)
+        db.flush()
+    return row
 
 
 def channels(assignment: GoalAssignment) -> tuple[str, ...]:
@@ -248,9 +284,11 @@ def cohort_chat(db: Session, current_user: PublicUser, org_id: int, assignment_u
         raise HTTPException(status_code=404, detail="Assignment not found")
     if channel not in channels(assignment):
         raise HTTPException(status_code=404, detail="Only group assignments have a chat with the whole group")
-    if current_user.id not in members_of(db, assignment, channel):
+    if not allowed(db, assignment, channel, current_user.id):
         raise HTTPException(status_code=403, detail="Only the assignment's staff can read this chat" if channel == STAFF else "Only the group and its staff can read this chat")
     conversation = chat(db, assignment, channel)
+    # A superadmin from outside the organization reads along too.
+    member(db, conversation, current_user.id)
     db.commit()
     by_step, total = counts(db, conversation)
     return {
