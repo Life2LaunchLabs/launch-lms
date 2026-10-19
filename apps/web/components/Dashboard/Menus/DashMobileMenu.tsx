@@ -11,7 +11,8 @@ import { usePathname } from 'next/navigation'
 import { platformSections } from '@components/Admin/Platform/platformSections'
 import React, { useEffect, useState } from 'react'
 import { useFeatures } from '@components/Hooks/useFeatures'
-import { adminTabForPath, type VisibleNavItem } from '@/lib/admin/registry'
+import { adminLabel, adminTabForPath, type VisibleNavItem } from '@/lib/admin/registry'
+import { useTranslation } from 'react-i18next'
 import RequestAccessButton from '@components/Admin/RequestAccessButton'
 import { ADMIN_NAV_ICONS, PLATFORM_NAV_ICONS } from '@components/Admin/adminNavIcons'
 
@@ -136,14 +137,15 @@ function DashMobileMenu() {
 }
 
 function MobileTab({ tab, isActive, onNavigate }: { tab: VisibleNavItem; isActive: boolean; onNavigate: () => void }) {
+  const { t } = useTranslation()
   const children = tab.children && tab.children.length > 1 ? tab.children : []
   return (
     <div>
-      <MobileMenuLink href={tab.href} icon={ADMIN_NAV_ICONS[tab.id]} label={tab.label} onClick={onNavigate} item={tab} className={isActive ? 'bg-white/[0.08] text-white' : undefined} />
+      <MobileMenuLink href={tab.href} icon={ADMIN_NAV_ICONS[tab.id]} label={adminLabel(t, tab)} onClick={onNavigate} item={tab} className={isActive ? 'bg-white/[0.08] text-white' : undefined} />
       {children.length > 0 && (
         <div className="ml-8 space-y-0.5 border-l border-white/[0.08] pl-2">
           {children.map((child) => (
-            <MobileMenuLink key={child.id} href={child.href} icon={ADMIN_NAV_ICONS[child.id]} label={child.label} onClick={onNavigate} item={child} className="py-2 text-[13px]" />
+            <MobileMenuLink key={child.id} href={child.href} icon={ADMIN_NAV_ICONS[child.id]} label={adminLabel(t, child)} onClick={onNavigate} item={child} className="py-2 text-[13px]" />
           ))}
         </div>
       )}

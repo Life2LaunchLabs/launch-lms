@@ -3,6 +3,7 @@ import test from 'node:test'
 import type { PlanLevel } from '../../services/plans/plans.ts'
 import {
   ADMIN_HOME_WIDGETS,
+  adminLabel,
   adminTabForPath,
   adminVisibility,
   featureUnlock,
@@ -59,12 +60,20 @@ test('an admin gets every tab in job order, with each tab opening its first avai
   assert.deepEqual(ids(organization.children!), ['general', 'branding', 'sso', 'plan'])
 })
 
-test('plan-gated tabs show locked with the plan to request; superadmins pass every right', () => {
-  const free = access({ plan: 'free', superadmin: true, features: { managed_plans: { enabled: false, required_plan: 'full' } } })
+test('a free org gets every job tab open; plan-gated pages show locked with the plan to request', () => {
+  const free = access({ plan: 'free', superadmin: true, features: { managed_plans: { enabled: false, required_plan: 'full' }, sso: { enabled: false, required_plan: 'enterprise' } } })
   const tabs = visibleAdminTabs(free)
-  const assignments = tabs.find((tab) => tab.id === 'assignments')!
-  assert.deepEqual(assignments.visibility, { state: 'locked', request: { type: 'plan_upgrade', value: 'full' } })
-  assert.equal(tabs.find((tab) => tab.id === 'home')!.visibility.state, 'open')
+  for (const id of ['home', 'assignments', 'people', 'templates', 'insights']) {
+    assert.equal(tabs.find((tab) => tab.id === id)!.visibility.state, 'open', id)
+  }
+  const sso = tabs.find((tab) => tab.id === 'organization')!.children!.find((child) => child.id === 'sso')!
+  assert.deepEqual(sso.visibility, { state: 'locked', request: { type: 'plan_upgrade', value: 'enterprise' } })
+})
+
+test('labels translate through their existing keys and fall back to English', () => {
+  const t = (key: string, { defaultValue }: { defaultValue: string }) => (key === 'dashboard.organization.settings.tabs.general' ? 'Allgemein' : defaultValue)
+  const organization = visibleAdminTabs(access({ rights: ADMIN_RIGHTS, features: FULL_FEATURES })).find((tab) => tab.id === 'organization')!
+  assert.deepEqual(organization.children!.map((child) => adminLabel(t, child)), ['Allgemein', 'Branding', 'Single Sign-On', 'Plan & Packages'])
 })
 
 test('package features ask for their package, and a feature switched off is hidden rather than requested', () => {

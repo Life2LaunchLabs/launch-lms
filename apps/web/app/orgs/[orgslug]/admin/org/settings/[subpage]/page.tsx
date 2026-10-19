@@ -10,7 +10,8 @@ import OrgEditSSO from '@components/Dashboard/Pages/Org/OrgEditSSO/OrgEditSSO'
 import OrgEditPlan from '@components/Dashboard/Pages/Org/OrgEditPlan/OrgEditPlan'
 import { useFeatures } from '@components/Hooks/useFeatures'
 import { ADMIN_NAV_ICONS } from '@components/Admin/adminNavIcons'
-import { adminTab } from '@/lib/admin/registry'
+import { adminLabel, adminTab } from '@/lib/admin/registry'
+import { useTranslation } from 'react-i18next'
 
 export type OrgParams = {
   subpage: string
@@ -18,6 +19,7 @@ export type OrgParams = {
 }
 
 function OrgPage(props: { params: Promise<OrgParams> }) {
+  const { t } = useTranslation()
   const params = use(props.params);
   const router = useRouter()
   const features = useFeatures()
@@ -43,13 +45,13 @@ function OrgPage(props: { params: Promise<OrgParams> }) {
   return (
     <div className="h-full w-full bg-[#f8f8f8] flex flex-col">
       <AdminFeatureHeader
-        feature={adminTab('organization').label}
+        feature={adminLabel(t, adminTab('organization'))}
         activeTab={params.subpage}
         tabs={SETTING_TABS.map((tab) => {
           const Icon = ADMIN_NAV_ICONS[tab.id]
           return {
             id: tab.id,
-            label: tab.label,
+            label: adminLabel(t, tab),
             icon: <Icon size={16} />,
             href: getUriWithOrg(params.orgslug, tab.href),
           }

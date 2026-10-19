@@ -50,7 +50,7 @@ import DashFeedbackButton from './DashFeedbackButton'
 import { ADMIN_NAV_ICONS, PLATFORM_NAV_ICONS } from '@components/Admin/adminNavIcons'
 import RequestAccessButton, { accessRequestLabel } from '@components/Admin/RequestAccessButton'
 import { AVAILABLE_LANGUAGES } from '@/lib/languages'
-import { adminTabForPath, type VisibleNavItem } from '@/lib/admin/registry'
+import { adminLabel, adminTabForPath, type VisibleNavItem } from '@/lib/admin/registry'
 import { getOrgLogoMediaDirectory } from '@services/media/media'
 import { cn } from '@/lib/utils'
 import useSWR from 'swr'
@@ -284,6 +284,8 @@ function DashLeftMenu() {
 
 /** One tab: a link, a hover menu when it has more than one page, or a locked row with its Request action. */
 function NavEntry({ item, isActive, isCollapsed, orgId }: { item: VisibleNavItem; isActive: boolean; isCollapsed: boolean; orgId: number }) {
+  const { t } = useTranslation()
+  const label = adminLabel(t, item)
   const Icon = ADMIN_NAV_ICONS[item.id]
   const locked = item.visibility.state === 'locked' ? item.visibility.request : null
   const hasMenu = !locked && (item.children?.length ?? 0) > 1
@@ -302,13 +304,13 @@ function NavEntry({ item, isActive, isCollapsed, orgId }: { item: VisibleNavItem
         </span>
         {!isCollapsed && (
           <>
-            <span className="text-sm font-medium flex-1 text-left">{item.label}</span>
+            <span className="text-sm font-medium flex-1 text-left">{label}</span>
             <RequestAccessButton request={locked} tone="dark" />
           </>
         )}
       </div>
     )
-    return isCollapsed ? <WithTooltip label={`${item.label} · requires ${accessRequestLabel(locked)}`}>{row}</WithTooltip> : row
+    return isCollapsed ? <WithTooltip label={`${label} · requires ${accessRequestLabel(locked)}`}>{row}</WithTooltip> : row
   }
 
   const content = (
@@ -319,21 +321,21 @@ function NavEntry({ item, isActive, isCollapsed, orgId }: { item: VisibleNavItem
       </span>
       {!isCollapsed && (
         <>
-          <span className="text-sm font-medium flex-1 text-left">{item.label}</span>
+          <span className="text-sm font-medium flex-1 text-left">{label}</span>
           {hasMenu && <CaretDown aria-hidden="true" size={14} weight="bold" className="text-white/40" />}
         </>
       )}
     </>
   )
-  const link = <Link aria-label={item.label} href={item.href} className={rowClass}>{content}</Link>
+  const link = <Link aria-label={label} href={item.href} className={rowClass}>{content}</Link>
 
-  if (!hasMenu) return isCollapsed ? <WithTooltip label={item.label}>{link}</WithTooltip> : link
+  if (!hasMenu) return isCollapsed ? <WithTooltip label={label}>{link}</WithTooltip> : link
 
   return (
     <HoverMenu
       content={
         <HoverMenuContent className="w-64">
-          <HoverMenuLabel className="text-white/70 font-medium">{item.label}</HoverMenuLabel>
+          <HoverMenuLabel className="text-white/70 font-medium">{label}</HoverMenuLabel>
           <HoverMenuSeparator />
           {item.children!.map((child) => {
             const ChildIcon = ADMIN_NAV_ICONS[child.id]
@@ -341,14 +343,14 @@ function NavEntry({ item, isActive, isCollapsed, orgId }: { item: VisibleNavItem
             return request ? (
               <div key={child.id} className="flex items-center gap-2 px-3 py-2 text-sm text-white/30">
                 <ChildIcon size={16} weight="fill" />
-                <span className="flex-1">{child.label}</span>
+                <span className="flex-1">{adminLabel(t, child)}</span>
                 <RequestAccessButton request={request} tone="dark" />
               </div>
             ) : (
               <HoverMenuItem key={child.id} asChild>
                 <Link href={child.href} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
                   <ChildIcon size={16} weight="fill" />
-                  <span>{child.label}</span>
+                  <span>{adminLabel(t, child)}</span>
                 </Link>
               </HoverMenuItem>
             )

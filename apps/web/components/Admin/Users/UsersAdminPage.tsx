@@ -7,7 +7,7 @@ import { useMediaQuery } from 'usehooks-ts'
 import AdminFeatureHeader from '@components/Admin/AdminFeatureHeader'
 import UsersOverview from '@components/Admin/Users/UsersOverview'
 import { useFeatures } from '@components/Hooks/useFeatures'
-import { adminTab } from '@/lib/admin/registry'
+import { adminLabel, adminTab } from '@/lib/admin/registry'
 
 export default function UsersAdminPage({ section }: { orgslug: string; section: string }) {
   const { t } = useTranslation()
@@ -31,7 +31,7 @@ export default function UsersAdminPage({ section }: { orgslug: string; section: 
   return (
     <div className="grid h-screen w-full grid-rows-[auto_1fr] bg-[#f8f8f8]">
       <AdminFeatureHeader
-        feature={adminTab('people').label}
+        feature={adminLabel(t, adminTab('people'))}
         activeTab={section}
         tabs={[]}
       />

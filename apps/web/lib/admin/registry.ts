@@ -12,7 +12,10 @@ export type AdminTabId = 'home' | 'assignments' | 'people' | 'templates' | 'badg
 
 export type AdminNavItem = {
   id: string
+  /** English label; used as the fallback and by page titles. */
   label: string
+  /** Existing i18n key for the label, when there is one. Render with `adminLabel(t, item)`. */
+  labelKey?: string
   href: string
   requires: AdminRequirement
   /**
@@ -31,13 +34,15 @@ const admin = routePaths.org.admin
 const STAFF = 'dashboard.action_access'
 
 export const ADMIN_TABS: AdminTab[] = [
-  { id: 'home', label: 'Home', href: admin.root(), match: [admin.root()], exact: true, requires: { right: STAFF } },
+  { id: 'home', label: 'Home', labelKey: 'common.home', href: admin.root(), match: [admin.root()], exact: true, requires: { right: STAFF } },
   {
     id: 'assignments',
     label: 'Assignments',
+    labelKey: 'common.assignments',
     href: admin.assignments(),
     match: [admin.assignments(), '/admin/plans/review', '/admin/plans/live'],
-    requires: { right: STAFF, feature: 'managed_plans' },
+    // Every org, free included, can assign its templates (a solo coach assigning to a client).
+    requires: { right: STAFF },
   },
   { id: 'people', label: 'People', href: admin.people.root(), match: [admin.people.root()], requires: { right: STAFF } },
   {
@@ -64,7 +69,7 @@ export const ADMIN_TABS: AdminTab[] = [
     label: 'Insights',
     href: admin.insights(),
     match: [admin.insights()],
-    requires: { right: 'users.action_read', feature: 'managed_plans' },
+    requires: { right: 'users.action_read' },
   },
   {
     id: 'content',
@@ -73,26 +78,36 @@ export const ADMIN_TABS: AdminTab[] = [
     match: [],
     requires: { right: 'organizations.action_read' },
     children: [
-      { id: 'resources', label: 'Resources', href: admin.content.resources(), match: [admin.content.resources()], requires: { feature: 'resources' } },
-      { id: 'podcasts', label: 'Podcasts', href: admin.content.podcasts(), match: [admin.content.podcasts()], requires: { feature: 'podcasts' } },
-      { id: 'playgrounds', label: 'Playgrounds', href: admin.content.playgrounds(), match: [admin.content.playgrounds()], requires: { feature: 'playgrounds' } },
+      { id: 'resources', label: 'Resources', labelKey: 'common.resources', href: admin.content.resources(), match: [admin.content.resources()], requires: { feature: 'resources' } },
+      { id: 'podcasts', label: 'Podcasts', labelKey: 'podcasts.podcasts', href: admin.content.podcasts(), match: [admin.content.podcasts()], requires: { feature: 'podcasts' } },
+      { id: 'playgrounds', label: 'Playgrounds', labelKey: 'common.playgrounds', href: admin.content.playgrounds(), match: [admin.content.playgrounds()], requires: { feature: 'playgrounds' } },
     ],
   },
   {
     id: 'organization',
     label: 'Organization',
+    labelKey: 'common.organization',
     href: admin.organization.general(),
     match: ['/admin/org/'],
     requires: { right: 'organizations.action_read' },
     children: [
-      { id: 'general', label: 'General', href: admin.organization.general(), match: [admin.organization.general()], requires: {} },
-      { id: 'branding', label: 'Branding', href: admin.organization.branding(), match: [admin.organization.branding()], requires: {} },
-      { id: 'sso', label: 'Single Sign-On', href: admin.organization.sso(), match: [admin.organization.sso()], requires: { feature: 'sso' } },
+      { id: 'general', label: 'General', labelKey: 'dashboard.organization.settings.tabs.general', href: admin.organization.general(), match: [admin.organization.general()], requires: {} },
+      { id: 'branding', label: 'Branding', labelKey: 'dashboard.organization.settings.tabs.branding', href: admin.organization.branding(), match: [admin.organization.branding()], requires: {} },
+      { id: 'sso', label: 'Single Sign-On', labelKey: 'dashboard.organization.settings.tabs.sso', href: admin.organization.sso(), match: [admin.organization.sso()], requires: { feature: 'sso' } },
       { id: 'plan', label: 'Plan & Packages', href: admin.organization.plan(), match: [admin.organization.plan()], requires: {} },
-      { id: 'payments', label: 'Payments', href: admin.payments.overview(), match: ['/admin/payments'], requires: { feature: 'payments', plan: 'full' } },
+      { id: 'payments', label: 'Payments', labelKey: 'common.payments', href: admin.payments.overview(), match: ['/admin/payments'], requires: { feature: 'payments', plan: 'full' } },
     ],
   },
 ]
+
+/* eslint-disable no-unused-vars -- parameter names in a type document the callback */
+type Translate = (key: string, options: { defaultValue: string }) => string
+/* eslint-enable no-unused-vars */
+
+/** The entry's label in the viewer's language, falling back to the English label. */
+export function adminLabel(t: Translate, item: Pick<AdminNavItem, 'label' | 'labelKey'>): string {
+  return item.labelKey ? t(item.labelKey, { defaultValue: item.label }) : item.label
+}
 
 export function adminTab(id: AdminTabId): AdminTab {
   return ADMIN_TABS.find((tab) => tab.id === id)!
