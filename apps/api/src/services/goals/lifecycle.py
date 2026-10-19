@@ -126,7 +126,7 @@ def org_invitations(db: Session, current_user: PublicUser) -> list[dict]:
             "group": {"id": group.id, "name": group.name} if group else None,
             "assignment": {
                 "assignment_uuid": assignment.assignment_uuid, "welcome_message": assignment.welcome_message,
-                "start_date": assignment.start_date, "due_date": assignment.due_date, "active": assignment.active,
+                "start_date": assignment.start_date, "due_date": assignment.due_date, "status": getattr(assignment.status, "value", assignment.status),
             },
         })
     return result

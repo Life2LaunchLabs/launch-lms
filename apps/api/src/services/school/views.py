@@ -55,7 +55,13 @@ def student_chat(db: Session, current_user: PublicUser, org_id: int, student_id:
     _require(db, current_user, org_id, student_id)
     conversation = school_chats.school_chat(db, org_id, student_id)
     db.commit()
-    member = db.exec(select(ConversationMember).where(ConversationMember.conversation_id == conversation.id, ConversationMember.user_id == current_user.id)).first()
+    if not conversation:
+        # Fewer than two staff on the learner's plans: they talk one to one, so there's no shared chat yet.
+        org = org_summary(db, org_id)
+        return {"conversation_uuid": None, "kind": school_chats.SCHOOL, "title": org["name"] if org else "School", "people": [], "status": "active", "accepted": True,
+                "waiting_for_them": False, "unavailable": False, "unread": 0, "last_message": None, "last_message_at": None,
+                "can_post": False, "org": org, "messages": [], "has_more": False, "topics": []}
+    member =db.exec(select(ConversationMember).where(ConversationMember.conversation_id == conversation.id, ConversationMember.user_id == current_user.id)).first()
     if member:
         return chats.get_chat(db, current_user, conversation.conversation_uuid, before, goal_uuid, step_uuid)
     # Admins who aren't in the chat can read it but don't post in it.

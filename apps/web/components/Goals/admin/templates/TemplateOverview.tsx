@@ -24,7 +24,7 @@ export default function TemplateOverview({ orgslug, orgId, token, template }: { 
   const stages = document.stages
   const stepCount = documentSteps(document).length
   const weeks = stages.reduce((sum, stage) => sum + (Number(stage.duration_weeks) || 0), 0)
-  const assignments = allAssignments.filter((item) => item.active)
+  const assignments = allAssignments.filter((item) => item.status !== 'ended')
   const learners = assignments.reduce((sum, item) => sum + Number(item.learner_count || 0), 0)
   const linked = new Set(documentSteps(document).flatMap(({ step }) => step.requirement_node_uuids || []))
   const coverage = frameworks.map((framework) => {

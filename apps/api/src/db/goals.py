@@ -58,6 +58,18 @@ class StepStatus(str, Enum):
 DONE_STEP_STATUSES = {StepStatus.COMPLETED.value, StepStatus.EXCUSED.value}
 
 
+class AssignmentStatus(str, Enum):
+    """Where an assignment stands. See services/goals/assignments.py for what pausing and ending do."""
+
+    ACTIVE = "active"
+    PAUSED = "paused"
+    ENDED = "ended"
+
+
+# Assignments staff still run: listed, staffed and shown with their learners.
+CURRENT_ASSIGNMENT_STATUSES = (AssignmentStatus.ACTIVE.value, AssignmentStatus.PAUSED.value)
+
+
 class StepCompleter(str, Enum):
     LEARNER = "learner"
     STAFF = "staff"
@@ -141,7 +153,10 @@ class GoalAssignment(SQLModel, table=True):
     step_dates: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False, server_default="{}"))
     # [{"user_id", "role_key"}]: people added to each issued goal with a role.
     collaborators: list[dict] = Field(default_factory=list, sa_column=Column(JSON, nullable=False, server_default="[]"))
-    active: bool = True
+    status: AssignmentStatus = Field(default=AssignmentStatus.ACTIVE, sa_column=Column(String, nullable=False, index=True, server_default="active"))
+    paused_at: str | None = Field(default=None, sa_column=Column(String, nullable=True))
+    ended_at: str | None = Field(default=None, sa_column=Column(String, nullable=True))
+    ended_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
     owner_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True, index=True))
     created_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
     creation_date: str = ""
@@ -263,6 +278,8 @@ class StepProgress(SQLModel, table=True):
     completed_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
     completion_method: CompletionMethod | None = Field(default=None, sa_column=Column(String, nullable=True))
     updated_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
+    # When staff last reminded the learner about this step; reminders wait out a cooldown.
+    last_reminded_at: str | None = Field(default=None, sa_column=Column(String, nullable=True))
     creation_date: str = ""
     update_date: str = ""
 

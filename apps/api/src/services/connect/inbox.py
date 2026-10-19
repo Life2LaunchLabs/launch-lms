@@ -32,9 +32,10 @@ def _stamp(value: datetime | str | None) -> str:
 
 
 def _where(db: Session, user_id: int, org_id: int | None, sender_id: int | None) -> Conversation | None:
-    """An organization's chat with you, or your chat with the person who sent it."""
-    if org_id:
-        return school_chats.school_chat(db, org_id, user_id)
+    """An organization's chat with you, or (while it has too few staff to start) your chat with the person who sent it."""
+    conversation = school_chats.school_chat(db, org_id, user_id) if org_id else None
+    if conversation:
+        return conversation
     if sender_id and sender_id != user_id:
         return chats.ensure_direct(db, sender_id, user_id)
     return None
@@ -71,6 +72,9 @@ def deliver(db: Session, current_user: PublicUser) -> None:
     )).all():
         body, card = _goal_card(db, goal)
         wanted[f"chat_message_invite_{goal.goal_uuid}_{user_id}"] = (goal.org_id, None, _stamp(goal.creation_date), body, card)
+        # Without an organization chat yet, the invitation waits in your chat with whoever assigned it.
+        if not school_chats.find(db, int(goal.org_id), user_id) and goal.owner_user_id != user_id:  # type: ignore[arg-type]
+            wanted[f"chat_message_invite_{goal.goal_uuid}_{user_id}"] = (goal.org_id, goal.owner_user_id, _stamp(goal.creation_date), body, card)
     if not wanted:
         return
     have = set(db.exec(select(ConversationMessage.message_uuid).where(col(ConversationMessage.message_uuid).in_(list(wanted)))).all())

@@ -1,7 +1,10 @@
 """Each learner's chat with an organization: them, the staff of their groups, and the people on their plans with it.
 
 It's named after the organization, and each learner has one per organization they work with
-(see services/connect/workspace.py for how plans talk in it).
+(see services/connect/workspace.py for how plans talk in it). It's the learner's plan feed, so it
+only starts once at least two staff are on the learner's plans with the organization: with one,
+the learner and that person talk in their direct chat. Once started it stays, its members kept
+up to date.
 """
 
 from __future__ import annotations
@@ -17,6 +20,8 @@ from src.db.usergroup_user import UserGroupUser
 from src.services.goals.sharing_roles import _stamp
 
 SCHOOL = "school"
+# Staff (group staff and the people on the learner's plans) it takes to start the chat.
+MIN_STAFF = 2
 
 
 def _key(org_id: int, student_id: int) -> str:
@@ -56,13 +61,19 @@ def find(db: Session, org_id: int, student_id: int) -> Conversation | None:
     return db.exec(select(Conversation).where(Conversation.direct_key == _key(org_id, student_id))).first()
 
 
-def school_chat(db: Session, org_id: int, student_id: int) -> Conversation:
-    """The learner's chat with an organization, created if needed, with its members brought up to date."""
+def school_chat(db: Session, org_id: int, student_id: int) -> Conversation | None:
+    """The learner's chat with an organization, with its members brought up to date.
+
+    Created when needed once at least ``MIN_STAFF`` staff are on it; None until then.
+    """
     from src.services.connect.workspace import plan_people
 
     conversation = find(db, org_id, student_id)
     now = _stamp()
+    wanted = {student_id, *(row.user_id for row in team(db, org_id, student_id)), *plan_people(db, org_id, student_id)}
     if not conversation:
+        if len(wanted - {student_id}) < MIN_STAFF:
+            return None
         org = db.get(Organization, org_id)
         conversation = Conversation(
             conversation_uuid=f"chat_{uuid4()}", kind=SCHOOL, direct_key=_key(org_id, student_id), title=org.name if org else "School",
@@ -70,7 +81,6 @@ def school_chat(db: Session, org_id: int, student_id: int) -> Conversation:
         )
         db.add(conversation)
         db.flush()
-    wanted = {student_id, *(row.user_id for row in team(db, org_id, student_id)), *plan_people(db, org_id, student_id)}
     current = {member.user_id: member for member in db.exec(select(ConversationMember).where(ConversationMember.conversation_id == conversation.id)).all()}
     for user_id in wanted - set(current):
         db.add(ConversationMember(conversation_id=int(conversation.id), user_id=user_id, status="active", creation_date=now, update_date=now))  # type: ignore[arg-type]
