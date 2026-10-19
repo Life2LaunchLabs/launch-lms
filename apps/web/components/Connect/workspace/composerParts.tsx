@@ -102,10 +102,12 @@ export function optionsFor(draft: Draft | null, topics: ChatTopic[], mine: ChatT
     // The whole plan leads until you start typing; then the steps you're narrowing to do.
     return (needle ? [...steps, whole] : [whole, ...steps]).slice(0, 12)
   }
+  // Only plans under way, the ones on your Plans page: nothing finished, nothing still an invitation.
+  const live = (plans: ChatTopic[]) => plans.filter((plan) => plan.status === 'active')
   const here = new Set(topics.map((plan) => plan.goal_uuid))
   return [
-    ...rank(topics, (plan) => plan.title).map((plan) => ({ type: 'plan' as const, plan })),
-    ...rank(mine.filter((plan) => !here.has(plan.goal_uuid)), (plan) => plan.title).map((plan) => ({ type: 'plan' as const, plan, outside: true })),
+    ...rank(live(topics), (plan) => plan.title).map((plan) => ({ type: 'plan' as const, plan })),
+    ...rank(live(mine).filter((plan) => !here.has(plan.goal_uuid)), (plan) => plan.title).map((plan) => ({ type: 'plan' as const, plan, outside: true })),
   ].slice(0, 12)
 }
 

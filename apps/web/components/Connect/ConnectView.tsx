@@ -51,19 +51,20 @@ export default function ConnectView({ orgslug, chatUuid }: { orgslug: string; ch
   const searching = query.trim().replace(/^@/, '').length >= 2
   const open = Boolean(chatUuid)
 
-  return <div className="mx-auto flex h-[calc(100dvh-var(--candidate-experience-height,0px)-var(--demo-bar-height,0px)-4rem)] w-full max-w-[1200px] gap-4 p-3 md:h-[calc(100dvh-var(--candidate-experience-height,0px)-var(--demo-bar-height,0px))] md:p-6" data-connect>
-    <section aria-label="Chats" className={cn('flex min-h-0 w-full flex-col md:w-[360px] md:shrink-0', open && 'hidden md:flex')}>
-      <div className="flex items-center justify-between gap-2 px-1 pb-3">
-        <h1 className="text-3xl font-black tracking-tight">Connect</h1>
-        <button type="button" onClick={() => setSettingsOpen(true)} aria-label="Connect settings" className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground"><Settings2 size={20} /></button>
+  // One surface: the list and the open chat side by side, their headers on one line.
+  return <div className="flex h-[calc(100dvh-var(--candidate-experience-height,0px)-var(--demo-bar-height,0px)-4rem)] w-full overflow-hidden md:h-[calc(100dvh-var(--candidate-experience-height,0px)-var(--demo-bar-height,0px))] md:border-l md:border-border" data-connect>
+    <section aria-label="Chats" className={cn('flex min-h-0 w-full flex-col md:w-[340px] md:shrink-0 md:border-r md:border-border', open && 'hidden md:flex')}>
+      <div className="flex h-16 shrink-0 items-center justify-between gap-2 px-4 md:border-b md:border-border md:px-5">
+        <h1 className="text-2xl font-black tracking-tight md:text-xl">Connect</h1>
+        <button type="button" onClick={() => setSettingsOpen(true)} aria-label="Connect settings" className="flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground"><Settings2 size={19} /></button>
       </div>
-      <label className="relative mb-3 block">
+      <label className="relative mx-3 mb-2 mt-1 block md:mt-3">
         <Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
         <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search people and organizations" aria-label="Search for someone by @handle or name, or an organization"
-          className="h-11 w-full rounded-full border border-border bg-card pl-10 pr-10 text-sm outline-none focus:ring-2 focus:ring-[var(--org-primary-color)]" />
+          className="h-11 w-full rounded-xl border border-transparent bg-muted/60 pl-10 pr-10 text-sm outline-none focus:border-border focus:ring-2 focus:ring-[var(--org-primary-color)]" />
         {query ? <button type="button" onClick={() => setQuery('')} aria-label="Clear search" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"><X size={16} /></button> : null}
       </label>
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
         {searching ? <><OrganizationResults orgslug={orgslug} query={query} /><PeopleResults orgslug={orgslug} query={query} onOpened={() => setQuery('')} /></>
           : isLoading ? <ListSkeleton />
           : error ? <p className="px-2 py-8 text-center text-sm text-muted-foreground">Chats didn&rsquo;t load. <button type="button" className="font-semibold underline" onClick={() => mutate()}>Try again</button></p>
@@ -72,7 +73,7 @@ export default function ConnectView({ orgslug, chatUuid }: { orgslug: string; ch
           </ul> : <EmptyList />}
       </div>
     </section>
-    <section aria-label="Chat" className={cn('min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-border bg-shell', open ? 'flex' : 'hidden md:flex')}>
+    <section aria-label="Chat" className={cn('min-h-0 min-w-0 flex-1 flex-col overflow-hidden', open ? 'flex' : 'hidden md:flex')}>
       {chatUuid ? <ChatPane key={chatUuid} orgslug={orgslug} chatUuid={chatUuid} />
         : <div className="m-auto max-w-xs p-8 text-center text-muted-foreground"><MessageCircle className="mx-auto mb-3" size={36} /><p className="text-sm">Pick a chat, or search for someone by their @handle or an organization by name.</p></div>}
     </section>
@@ -84,7 +85,7 @@ function ChatRow({ chat, orgslug, active }: { chat: ChatSummary; orgslug: string
   const unread = chat.unread > 0 || chat.status === 'request'
   return <li>
     <Link href={getUriWithOrg(orgslug, routePaths.org.chat(chat.conversation_uuid))} aria-current={active ? 'page' : undefined}
-      className={cn('flex items-center gap-3 rounded-2xl px-2.5 py-2.5 transition-colors hover:bg-foreground/[0.05]', active && 'bg-foreground/[0.07]')}>
+      className={cn('flex items-center gap-3 rounded-2xl px-2.5 py-2.5 transition-colors hover:bg-foreground/[0.05]', active && 'bg-[var(--org-primary-color)]/15 hover:bg-[var(--org-primary-color)]/20')}>
       {chat.kind === 'school' ? <OrgMark org={chat.org} /> : <PersonAvatar user={chat.people[0] as any} size="md" />}
       <span className="min-w-0 flex-1">
         <span className="flex items-baseline gap-2">

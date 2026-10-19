@@ -77,23 +77,26 @@ export default function ChatPane({ orgslug, chatUuid }: { orgslug: string; chatU
   </>
 }
 
-/** Who the chat is with: a person, an organization and the people on your plans with it, or a plan's people. */
+/** Who the chat is with, on the same line as Connect's own header: a person, or an organization and its people. */
 // eslint-disable-next-line no-unused-vars
 function ChatHeader({ chat, orgslug, listHref, onSheet }: { chat: Chat; orgslug: string; listHref: string; onSheet: (sheet: 'block' | 'report') => void }) {
   const person = chat.people[0]
   const group = chat.kind === 'school' || chat.kind === 'goal'
-  return <header className="flex shrink-0 items-center gap-3 px-3 py-2.5 md:px-4">
-    <Link href={listHref} aria-label="Back to Connect" className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-foreground/[0.06] md:hidden"><ArrowLeft size={18} /></Link>
-    {chat.kind === 'school' ? <OrgMark org={chat.org} />
-      : chat.kind === 'goal' ? <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--org-primary-color)] text-white"><Flag size={18} /></span>
-      : <PersonAvatar user={person as any} size="md" />}
-    <div className="min-w-0 flex-1">
-      {person && chat.kind === 'direct' ? <Link href={getUriWithOrg(orgslug, `/user/${encodeURIComponent(person.username)}`)} className="block truncate font-black leading-tight hover:underline">{chat.title}</Link>
-        : chat.kind === 'school' && chat.org ? <Link href={getUriWithOrg(orgslug, routePaths.org.organization(chat.org.slug))} className="block truncate font-black leading-tight hover:underline">{chat.title}</Link> : <h2 className="truncate font-black leading-tight">{chat.title}</h2>}
-      {group ? <p className="truncate text-xs text-muted-foreground">{chat.people.map((item) => item.name).join(', ')}</p> : person ? <p className="truncate text-xs text-muted-foreground">@{person.username}</p> : null}
-    </div>
+  const profile = person && chat.kind === 'direct' ? { href: getUriWithOrg(orgslug, `/user/${encodeURIComponent(person.username)}`), label: 'View profile' }
+    : chat.kind === 'school' && chat.org ? { href: getUriWithOrg(orgslug, routePaths.org.organization(chat.org.slug)), label: 'View organization' } : null
+  const mark = chat.kind === 'school' ? <OrgMark org={chat.org} />
+    : chat.kind === 'goal' ? <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--org-primary-color)] text-white"><Flag size={18} /></span>
+    : <PersonAvatar user={person as any} size="md" />
+  const who = <span className="min-w-0 flex-1">
+    <span className="block truncate font-black leading-tight">{chat.title}</span>
+    {group ? <span className="block truncate text-xs text-muted-foreground">{chat.people.map((item) => item.name).join(', ')}</span> : person ? <span className="block truncate text-xs text-muted-foreground">@{person.username}</span> : null}
+  </span>
+  return <header className="flex h-16 shrink-0 items-center gap-2 border-b border-border px-2 md:gap-3 md:px-6">
+    <Link href={listHref} aria-label="Back to Connect" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full hover:bg-foreground/[0.06] md:hidden"><ArrowLeft size={20} /></Link>
+    {profile ? <Link href={profile.href} className="flex min-w-0 flex-1 items-center gap-3 rounded-xl hover:opacity-90">{mark}{who}</Link> : <div className="flex min-w-0 flex-1 items-center gap-3">{mark}{who}</div>}
+    {profile ? <Link href={profile.href} className="hidden h-9 shrink-0 items-center rounded-xl bg-muted/70 px-3.5 text-sm font-semibold hover:bg-muted md:flex">{profile.label}</Link> : null}
     {chat.kind === 'direct' ? <DropdownMenu modal={false}>
-      <DropdownMenuTrigger asChild><button type="button" aria-label="Chat options" className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-foreground/[0.06]"><MoreHorizontal size={18} /></button></DropdownMenuTrigger>
+      <DropdownMenuTrigger asChild><button type="button" aria-label="Chat options" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-foreground/[0.06]"><MoreHorizontal size={18} /></button></DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem onSelect={() => onSheet('report')}><Flag size={14} className="mr-2" />Report</DropdownMenuItem>
         <DropdownMenuItem onSelect={() => onSheet('block')}><Ban size={14} className="mr-2" />Block</DropdownMenuItem>
