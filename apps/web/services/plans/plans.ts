@@ -12,7 +12,9 @@
 
 import { getCoreCapabilities } from '@services/config/config'
 
-export type PlanLevel = 'free' | 'full' | 'enterprise'
+// 'master' is the internal top tier the API gives an install's first org. It
+// clears every requirement but is never offered as an upgrade.
+export type PlanLevel = 'free' | 'full' | 'enterprise' | 'master'
 
 export const PLAN_HIERARCHY: PlanLevel[] = ['free', 'full', 'enterprise']
 
@@ -20,6 +22,7 @@ export const PLAN_LABELS: Record<PlanLevel, string> = {
   free: 'Free',
   full: 'Full',
   enterprise: 'Enterprise',
+  master: 'Master',
 }
 
 /**
@@ -30,6 +33,7 @@ export function planMeetsRequirement(
   currentPlan: PlanLevel,
   requiredPlan: PlanLevel
 ): boolean {
+  if (currentPlan === 'master') return true
   const currentIndex = PLAN_HIERARCHY.indexOf(currentPlan)
   const requiredIndex = PLAN_HIERARCHY.indexOf(requiredPlan)
   return currentIndex >= requiredIndex
