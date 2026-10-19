@@ -78,6 +78,7 @@ const PLAN_FEATURES: Record<PlanLevel, string[]> = {
     'SSO',
     'Audit logs',
   ],
+  master: ['All enterprise features', 'No usage limits'],
 }
 
 function StatusBadge({ status }: { status: string }) {
