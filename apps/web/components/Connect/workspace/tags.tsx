@@ -23,15 +23,16 @@ export function StepMark({ status, behind = false, className }: { status: string
   return <span className={cn(base, 'border-2', behind ? 'border-red-400' : 'border-muted-foreground/40', className)} />
 }
 
-const chip = 'mx-0.5 inline-flex max-w-full items-center gap-1 whitespace-nowrap rounded-md border border-border bg-card py-px pl-1 pr-1.5 align-baseline text-[0.92em] font-semibold leading-snug text-foreground no-underline transition-colors'
+// Plan tags wrap with the text on narrow screens rather than cutting a name short.
+const chip = 'mx-0.5 inline rounded-md border border-border bg-card py-px pl-1 pr-1.5 text-left text-[0.92em] font-semibold leading-snug text-foreground no-underline transition-colors [-webkit-box-decoration-break:clone] [box-decoration-break:clone]'
 const pill = 'mx-0.5 inline-flex max-w-full items-center gap-1 whitespace-nowrap rounded-full py-px pl-0.5 pr-2 align-baseline text-[0.92em] font-bold leading-snug'
 
 /** A plan or one of its steps, inline: a rounded square with the plan's flag, Confluence style. */
 export function PlanTag({ title, planTitle, onClick }: { title: string; planTitle?: string; onClick?: () => void }) {
   const inner = <>
-    <span className="relative top-px flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-[4px] bg-[var(--org-primary-color)] text-white"><Flag size={9} strokeWidth={3} /></span>
-    {planTitle ? <span className="truncate font-medium text-muted-foreground">{planTitle} ›</span> : null}
-    <span className="truncate">{title}</span>
+    <span className="relative -top-px mr-1 inline-flex h-3.5 w-3.5 items-center justify-center rounded-[4px] bg-[var(--org-primary-color)] align-middle text-white"><Flag size={9} strokeWidth={3} /></span>
+    {planTitle ? <span className="font-medium text-muted-foreground">{planTitle} › </span> : null}
+    <span>{title}</span>
   </>
   return onClick
     ? <button type="button" onClick={onClick} className={cn(chip, 'hover:border-[var(--org-primary-color)]')}>{inner}</button>

@@ -10,6 +10,9 @@ import { cn } from '@/lib/utils'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { connectApi, connectKeys, type BlindPlan, type Chat, type ChatFilter, type ChatMessage, type ChatTopic, type MessageRef } from '@services/connect/connect'
 import { isGoalsKey } from '@services/goals/goals'
+import { useLHSession } from '@components/Contexts/LHSessionContext'
+import useGoalColors from '@components/Goals/learner/useGoalColors'
+import { planPalette } from '@components/Goals/planColors'
 import { schoolApi, schoolKeys } from '@services/school/school'
 import { useChatList } from '../useConnect'
 import TagComposer, { type TagComposerHandle, type TagOrg } from './TagComposer'
@@ -60,7 +63,11 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
   const composer = React.useRef<TagComposerHandle>(null)
   const scroller = React.useRef<HTMLDivElement>(null)
   const [asking, setAsking] = React.useState<{ body: string; plans: BlindPlan[] } | null>(null)
-  const topics = chat?.topics || []
+  const topics = React.useMemo(() => chat?.topics || [], [chat?.topics])
+  // Only plans under way: the ones on the Plans page, not finished ones or invitations.
+  const live = React.useMemo(() => topics.filter((item) => item.status === 'active'), [topics])
+  const session = useLHSession() as any
+  const { getGoalColor } = useGoalColors(live, session?.data?.user?.id)
   const plan = topics.find((item) => item.goal_uuid === filter.goal_uuid)
   const step = plan?.steps.find((item) => item.step_uuid === filter.step_uuid)
 
@@ -121,19 +128,19 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
   const names = chat ? chat.kind !== 'direct' : false
   return <>
     {header?.(chat, mutate)}
-    {topics.length ? <TopicFilters topics={topics} filter={filter} onChange={setFilter} stepLink={plan && step && stepHref ? stepHref(plan.goal_uuid, step.step_uuid) : undefined} /> : null}
-    <div ref={scroller} className="scrollbar-subtle min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-4 sm:px-4">
+    {live.length || plan ? <TopicFilters topics={live} plan={plan} filter={filter} onChange={setFilter} color={getGoalColor} stepLink={plan && step && stepHref ? stepHref(plan.goal_uuid, step.step_uuid) : undefined} /> : null}
+    <div ref={scroller} className="scrollbar-subtle min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-4 sm:px-6">
       {error ? <p className="m-auto max-w-xs pt-16 text-center text-sm text-muted-foreground">This chat didn&rsquo;t load.</p>
         : !chat ? null
-        : chat.messages.length ? <ol className="mx-auto flex w-full max-w-[50rem] flex-col gap-1.5 pb-4">
+        : chat.messages.length ? <ol className="mx-auto flex w-full max-w-[46rem] flex-col gap-1.5 pb-4">
           {chat.messages.map((message, index) => <Message key={message.message_uuid} message={message} orgslug={orgslug} token={token} links={chat.accepted} names={names}
             topics={topics} filter={filter} onTag={openTag} onAnswered={answered}
             first={index === 0 || chat.messages[index - 1].sender?.id !== message.sender?.id || chat.messages[index - 1].kind === 'card'} />)}
         </ol>
         : <p className="m-auto max-w-xs pt-16 text-center text-sm text-muted-foreground">{step ? `Nothing about ${step.title} yet. Anything you write here is about it.` : plan ? `Nothing about ${plan.title} yet. Anything you write here is about it.` : empty}</p>}
     </div>
-    {chat ? <div className="mx-auto w-full max-w-[50rem] shrink-0 px-3 pb-3 sm:px-4 sm:pb-4">
-      <TagComposer ref={composer} topics={topics} people={chat.people} orgs={orgs} token={token}
+    {chat ? <div className="mx-auto w-full max-w-[47.5rem] shrink-0 px-3 pb-3 sm:px-6 sm:pb-5">
+      <TagComposer ref={composer} topics={live} people={chat.people} orgs={orgs} token={token}
         placeholder={step ? `Comment on ${step.title}` : plan ? `Message about ${plan.title}` : `Message ${chat.title}`} disabled={reason || undefined} onSend={(body) => send(body)} />
     </div> : null}
     <ShareSheet asking={asking} onClose={() => setAsking(null)}
@@ -142,39 +149,45 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
 }
 
 /**
- * Plans to filter by. Picking one swaps the row for that plan, with an x to go back to
- * everything, and the steps people have talked about.
+ * Plans to filter by, each in its color from the Plans page. Picking one swaps the row for that
+ * plan, with an x to go back to everything, and the steps people have talked about.
  */
-function TopicFilters({ topics, filter, onChange, stepLink }: { topics: ChatTopic[]; filter: ChatFilter; onChange: React.Dispatch<React.SetStateAction<ChatFilter>>; stepLink?: string }) {
-  const plan = topics.find((item) => item.goal_uuid === filter.goal_uuid)
+function TopicFilters({ topics, plan, filter, onChange, color, stepLink }: {
+  topics: ChatTopic[]
+  plan?: ChatTopic
+  filter: ChatFilter
+  onChange: React.Dispatch<React.SetStateAction<ChatFilter>>
+  // eslint-disable-next-line no-unused-vars
+  color: (goalUuid?: string) => string
+  stepLink?: string
+}) {
   const row = React.useRef<HTMLDivElement>(null)
   // A step opened from elsewhere may sit past the edge of its row: bring it into view.
   React.useEffect(() => { row.current?.querySelector('[aria-pressed="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' }) }, [filter.step_uuid])
-  // Quiet like Coach's chrome: the chosen plan or step sits on the raised surface, the rest are text.
-  const button = (on: boolean) => cn('flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors', on ? 'bg-[hsl(var(--raised))] text-foreground' : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground')
-  if (!plan) return <div className="shrink-0">
-    <div role="group" aria-label="Show messages about" className="flex gap-1 overflow-x-auto px-3 pb-1 sm:px-4">
-      <button type="button" aria-pressed="true" onClick={() => onChange({})} className={button(true)}>Everything</button>
-      {/* A plan you've only been invited to stays out until there's something to show for it. */}
-      {topics.filter((item) => item.count || item.status !== 'pending').map((item) => <button key={item.goal_uuid} type="button" aria-pressed="false" onClick={() => onChange({ goal_uuid: item.goal_uuid })} className={button(false)}>
-        <Flag size={12} aria-hidden="true" />{item.title}{item.count ? <span className="opacity-60">{item.count}</span> : null}
-      </button>)}
-    </div>
+  const chip = (on: boolean) => cn('flex h-9 shrink-0 items-center gap-2 rounded-full border px-3.5 text-sm font-semibold transition-colors',
+    on ? 'border-foreground bg-foreground text-background' : 'border-border text-foreground/85 hover:bg-muted/60 hover:text-foreground')
+  const dot = (goalUuid: string) => <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full" style={{ background: color(goalUuid) }} />
+  const shell = 'flex shrink-0 items-center gap-2 overflow-x-auto border-b border-border px-3 py-2.5 [scrollbar-width:none] sm:px-6'
+  if (!plan) return <div role="group" aria-label="Show messages about" className={shell}>
+    <button type="button" aria-pressed="true" onClick={() => onChange({})} className={chip(true)}>Everything</button>
+    {topics.map((item) => <button key={item.goal_uuid} type="button" aria-pressed="false" onClick={() => onChange({ goal_uuid: item.goal_uuid })} className={chip(false)}>
+      {dot(item.goal_uuid)}{item.title}{item.count ? <span className="font-medium text-muted-foreground">{item.count}</span> : null}
+    </button>)}
   </div>
+  const face = planPalette(color(plan.goal_uuid))
   const talked = plan.steps.filter((item) => item.count > 0 || item.step_uuid === filter.step_uuid)
-  return <div className="shrink-0">
-    <div ref={row} role="group" aria-label={`Show messages about ${plan.title}`} className="flex items-center gap-1 overflow-x-auto px-3 pb-1 sm:px-4">
-      <button type="button" onClick={() => onChange({})} aria-label="Show everything" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted/60 hover:text-foreground"><X size={15} /></button>
-      <button type="button" aria-pressed={!filter.step_uuid} onClick={() => onChange({ goal_uuid: plan.goal_uuid })} className={button(!filter.step_uuid)}>
-        <Flag size={12} aria-hidden="true" />{plan.title}<ChevronRight size={13} className="-mx-0.5 opacity-60" aria-hidden="true" />
-      </button>
-      {talked.map((item) => <button key={item.step_uuid} type="button" aria-pressed={filter.step_uuid === item.step_uuid}
-        onClick={() => onChange(filter.step_uuid === item.step_uuid ? { goal_uuid: plan.goal_uuid } : { goal_uuid: plan.goal_uuid, step_uuid: item.step_uuid })}
-        className={button(filter.step_uuid === item.step_uuid)}>
-        <StepMark status={item.status} behind={item.behind} className="h-3.5 w-3.5" /><span className="max-w-40 truncate">{item.title}</span>{item.count ? <span className="opacity-60">{item.count}</span> : null}
-      </button>)}
-      {stepLink ? <Link href={stepLink} className="ml-auto flex h-8 shrink-0 items-center gap-1 px-1 text-xs font-bold text-[var(--org-primary-color)] hover:underline">Open step<ArrowUpRight size={13} /></Link> : null}
-    </div>
+  return <div ref={row} role="group" aria-label={`Show messages about ${plan.title}`} className={shell}>
+    <button type="button" onClick={() => onChange({})} aria-label="Show everything" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted/70 text-muted-foreground hover:text-foreground"><X size={16} /></button>
+    <button type="button" aria-pressed={!filter.step_uuid} onClick={() => onChange({ goal_uuid: plan.goal_uuid })}
+      className="flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm font-bold transition-opacity" style={{ background: face.deep, color: face.deepInk, opacity: filter.step_uuid ? 0.75 : 1 }}>
+      <Flag size={13} aria-hidden="true" />{plan.title}<ChevronRight size={14} className="-mr-1 opacity-80" aria-hidden="true" />
+    </button>
+    {talked.map((item) => <button key={item.step_uuid} type="button" aria-pressed={filter.step_uuid === item.step_uuid}
+      onClick={() => onChange(filter.step_uuid === item.step_uuid ? { goal_uuid: plan.goal_uuid } : { goal_uuid: plan.goal_uuid, step_uuid: item.step_uuid })}
+      className={chip(filter.step_uuid === item.step_uuid)}>
+      <StepMark status={item.status} behind={item.behind} className="h-3.5 w-3.5" /><span className="max-w-48 truncate">{item.title}</span>{item.count ? <span className="font-medium opacity-60">{item.count}</span> : null}
+    </button>)}
+    {stepLink ? <Link href={stepLink} className="ml-auto flex h-9 shrink-0 items-center gap-1 px-1 text-sm font-bold text-[var(--org-primary-color)] hover:underline">Open step<ArrowUpRight size={14} /></Link> : null}
   </div>
 }
 

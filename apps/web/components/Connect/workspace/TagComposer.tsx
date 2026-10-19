@@ -267,7 +267,7 @@ const TagComposer = React.forwardRef<TagComposerHandle, {
             <DropdownMenuItem onSelect={() => setTimeout(() => begin('@'), 0)}><AtSign /> Tag a person or organization</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <span className="hidden min-w-0 flex-1 truncate text-xs text-muted-foreground sm:block"><b className="font-semibold">/</b> plans and steps · <b className="font-semibold">@</b> people</span>
+        <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground"><b className="font-semibold">/</b> plans<span className="hidden sm:inline"> and steps</span> · <b className="font-semibold">@</b> people</span>
         <Button type="button" size="icon" className="h-9 w-9 rounded-xl" disabled={empty || sending || Boolean(disabled)} aria-label="Send message" onMouseDown={(event) => event.preventDefault()} onClick={() => void send()}>
           {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </Button>
