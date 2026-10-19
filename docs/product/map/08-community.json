@@ -698,10 +698,6 @@
                 "responsibility": "Existing desktop and mobile unread indicators."
               },
               {
-                "path": "apps/web/components/Hooks/useInboxMessages.ts",
-                "responsibility": "Shared feed, unread count, read transition, and response behavior."
-              },
-              {
                 "path": "apps/api/src/db/messages.py",
                 "responsibility": "Durable message, sender, action, recipient, and read-state model."
               },
@@ -906,12 +902,6 @@
               "path": "apps/api/src/routers/messages.py",
               "symbol": null,
               "responsibility": "Authenticated inbox, read, and invitation-response API."
-            },
-            {
-              "kind": "code",
-              "path": "apps/web/components/Hooks/useInboxMessages.ts",
-              "symbol": null,
-              "responsibility": "Shared feed, unread count, read transition, and response behavior."
             },
             {
               "kind": "code",

@@ -1,10 +1,8 @@
 'use client'
 import React from 'react'
-import Link from 'next/link'
-import { Plus, Settings, MessageCircle } from 'lucide-react'
+import { Plus, MessageCircle } from 'lucide-react'
 import { Community } from '@services/communities/communities'
 import { useCommunityRights } from '@components/Hooks/useCommunityRights'
-import { getUriWithOrg, routePaths } from '@services/config/config'
 
 interface CommunityActionsMobileProps {
   community: Community
@@ -14,10 +12,9 @@ interface CommunityActionsMobileProps {
 
 export function CommunityActionsMobile({
   community,
-  orgslug,
   onCreateDiscussion,
 }: CommunityActionsMobileProps) {
-  const { canManageCommunity, canCreateDiscussion } = useCommunityRights(community.community_uuid)
+  const { canCreateDiscussion } = useCommunityRights(community.community_uuid)
 
   return (
     <nav aria-label="Community mobile actions" className="fixed bottom-0 left-0 right-0 z-50 md:hidden">
@@ -38,15 +35,6 @@ export function CommunityActionsMobile({
 
           {/* Action Buttons */}
           <div className="flex items-center gap-2">
-            {canManageCommunity && (
-              <Link
-                href={getUriWithOrg(orgslug, routePaths.org.dash.communities())}
-                className="p-2 bg-muted hover:bg-muted rounded-lg transition-colors"
-                aria-label="Manage community"
-              >
-                <Settings size={16} className="text-muted-foreground" />
-              </Link>
-            )}
             {canCreateDiscussion && onCreateDiscussion && (
               <button
                 onClick={onCreateDiscussion}

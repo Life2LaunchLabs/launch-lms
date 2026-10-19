@@ -39,7 +39,6 @@ const CommunitiesClient = ({ communities, orgslug, org_id }: CommunitiesClientPr
                 community={community}
                 orgslug={orgslug}
                 org_id={org_id}
-                variant="public"
               />
             </div>
           ))}
