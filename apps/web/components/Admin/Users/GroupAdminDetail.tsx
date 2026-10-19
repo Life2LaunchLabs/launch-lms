@@ -17,10 +17,10 @@ import { getUriWithOrg, routePaths } from '@services/config/config'
 import { cohortKey, goalAdminApi } from '@services/goals/admin'
 import React from 'react'
 import GroupRequirementsGrid from '@components/Goals/admin/live/GroupRequirementsGrid'
-import { CohortGoals } from '@components/Goals/admin/live/CohortGoals'
+import { GroupAssignments } from '@components/Goals/admin/assignments/AssignmentsList'
 
 const tabs = [
-  { id: 'plans', label: 'Goals', icon: Layers3 },
+  { id: 'plans', label: 'Plans', icon: Layers3 },
   { id: 'requirements', label: 'Requirements', icon: ClipboardCheck },
   { id: 'members', label: 'People', icon: Users },
   { id: 'settings', label: 'Settings', icon: Settings },
@@ -83,7 +83,7 @@ export default function GroupAdminDetail({ orgslug, groupId, subpage = 'plans' }
       </div>
       <div className="h-6" />
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.1 }}>
-        {activeSubpage === 'plans' ? <CohortGoals orgslug={orgslug} orgId={Number(org.id)} token={accessToken} groupId={groupId} cohort={data} refresh={() => mutate()} /> : null}
+        {activeSubpage === 'plans' ? <GroupAssignments orgslug={orgslug} groupId={groupId} cohort={data} refresh={() => mutate()} /> : null}
         {activeSubpage === 'requirements' ? <div className="px-10 pb-10"><GroupRequirementsGrid orgslug={orgslug} orgId={Number(org.id)} token={accessToken} groupId={groupId} /></div> : null}
         {activeSubpage === 'members' ? <div className="space-y-5 px-10 pb-10">
           <GroupStaffPanel orgId={Number(org.id)} groupId={groupId} token={accessToken} />

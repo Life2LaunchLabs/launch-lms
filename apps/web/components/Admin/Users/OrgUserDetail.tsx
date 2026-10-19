@@ -16,7 +16,7 @@ import { conferLearningBadge, getLearningBadgeCollections } from '@services/lear
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import { cn } from '@/lib/utils'
 import { LearnerGaps, LearnerRequirementTree } from '@components/Goals/admin/live/LearnerRequirements'
-import { ManagedUserGoals } from '@components/Goals/admin/live/CohortGoals'
+import ManagedUserGoals from '@components/Goals/admin/assignments/ManagedUserGoals'
 import { goalAdminApi, managedUserKey } from '@services/goals/admin'
 import StudentMessages, { SchoolTeam } from './StudentMessages'
 

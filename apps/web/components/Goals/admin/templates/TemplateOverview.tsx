@@ -10,7 +10,7 @@ import type { TemplateDetail } from '@services/goals/templates'
 import type { TemplateStep } from '@services/goals/types'
 import { documentSteps } from './documentOps'
 import { leafNodes, useRequirementFrameworks } from './StepRequirementLinks'
-import { assignmentLabel, assignmentPath, useTemplateAssignments } from './TemplateAssignments'
+import { assignmentHref, assignmentLabel, useTemplateAssignments } from '../assignments/shared'
 import { TemplateStatusChip } from './TemplateList'
 
 /** What staff do with a step once a learner reaches it. */
@@ -59,9 +59,9 @@ export default function TemplateOverview({ orgslug, orgId, token, template }: { 
     </section>
 
     <div className="flex w-full shrink-0 flex-col gap-4 xl:w-80">
-      <SectionCard title="Handed out" action={<span className="text-xs text-gray-500">{learners} learner{learners === 1 ? '' : 's'}</span>}>
+      <SectionCard title="Assignments" action={<span className="text-xs text-gray-500">{learners} learner{learners === 1 ? '' : 's'}</span>}>
         {assignments.length ? <ul className="-my-1 divide-y divide-gray-50">
-          {assignments.slice(0, 6).map((assignment) => <li key={assignment.assignment_uuid}><Link href={getUriWithOrg(orgslug, assignmentPath(assignment))} className="flex items-center gap-3 py-2.5">
+          {assignments.slice(0, 6).map((assignment) => <li key={assignment.assignment_uuid}><Link href={getUriWithOrg(orgslug, assignmentHref(assignment))} className="flex items-center gap-3 py-2.5">
             <span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold text-gray-900">{assignmentLabel(assignment)}</span><span className="block text-xs text-gray-500">{assignment.learner_count} learner{assignment.learner_count === 1 ? '' : 's'}{assignment.ready_for_review_count ? ` · ${assignment.ready_for_review_count} to review` : ''}</span></span>
             <span className="text-xs font-bold text-gray-700">{assignment.progress_percent}%</span>
             <ChevronRight size={14} className="text-gray-300" />

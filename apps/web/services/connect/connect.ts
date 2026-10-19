@@ -45,7 +45,8 @@ export interface ProgressCard {
   goal_uuid: string
   goal_title: string
   started: boolean
-  events: { step_uuid: string; title: string; event: 'finished' | 'turned_in' | 'approved' | 'changes' | 'marked_done' | 'excused'; at: string }[]
+  /** note: what staff wrote with a review or a step they marked done. */
+  events: { step_uuid: string; title: string; event: 'finished' | 'turned_in' | 'approved' | 'changes' | 'marked_done' | 'excused'; at: string; note?: string }[]
 }
 
 /** A learner tagged this organization in another chat. */
@@ -74,6 +75,18 @@ export interface InvitationCard {
 /** A notice an organization sent, such as a welcome. */
 export interface NoticeCard { type: 'notice'; subject: string; text: string }
 
+/** Staff reminded the learner about a step they haven't handed in. */
+export interface StepReminderCard {
+  type: 'step_reminder'
+  goal_uuid: string
+  goal_title: string
+  step_uuid: string
+  step_title: string
+  due_date: string | null
+  /** What staff wrote with it, if anything. */
+  message: string | null
+}
+
 /** Plan tags say whether they're the chat's quiet scope, a plan from outside the chat, or one you can't see. */
 type PlanRefFlags = { scope?: boolean; outside?: boolean; hidden?: boolean }
 
@@ -92,7 +105,7 @@ export interface ChatMessage {
   /** The text with tags written out as names. */
   preview: string
   refs: MessageRef[]
-  card: GoalCommentsCard | PortfolioCard | ProgressCard | OrgMentionCard | InvitationCard | NoticeCard | null
+  card: GoalCommentsCard | PortfolioCard | ProgressCard | OrgMentionCard | InvitationCard | NoticeCard | StepReminderCard | null
   sender: PersonSummary | null
   mine: boolean
   creation_date: string

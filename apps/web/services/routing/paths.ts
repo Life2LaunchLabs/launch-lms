@@ -148,16 +148,20 @@ export const routePaths = {
       analytics: () => '/admin',
       badges: () => '/admin/badges',
       plans: () => '/admin/plans',
-      planReview: (params: { assignment: string; objective?: string | null; planObjective?: string | null; activity?: string | null; focus?: string | null }) =>
-        withQuery('/admin/plans/review', { assignment: params.assignment, objective: params.objective, step: params.planObjective, activity: params.activity, focus: params.focus }),
+      // The grading stack; from 'assignment' goes back to the assignment rather than the Inbox.
+      planReview: (params: { assignment: string; objective?: string | null; planObjective?: string | null; activity?: string | null; focus?: string | null; from?: 'assignment' | null }) =>
+        withQuery('/admin/plans/review', { assignment: params.assignment, objective: params.objective, step: params.planObjective, activity: params.activity, focus: params.focus, from: params.from }),
       programs: () => '/admin/plans/templates',
       program: (programUuid: string) => `/admin/plans/${encodeURIComponent(programUuid)}`,
       programPage: (programUuid: string, subpage: string) => `/admin/plans/${encodeURIComponent(programUuid)}/${encodeURIComponent(subpage)}`,
       planRequirements: () => '/admin/plans/requirements',
       planRequirement: (frameworkUuid: string, subpage = 'details') => `/admin/plans/requirements/${encodeURIComponent(frameworkUuid)}/${encodeURIComponent(subpage)}`,
-      // Resolves an assignment to the page that now shows it: its group's Plans tab or the learner.
-      planAssignment: (assignmentUuid: string) => `/admin/plans/assignments/${encodeURIComponent(assignmentUuid)}`,
-      livePlan: (planUuid: string, subpage = 'overview') => subpage === 'overview' ? `/admin/plans/live/${encodeURIComponent(planUuid)}` : `/admin/plans/live/${encodeURIComponent(planUuid)}/${encodeURIComponent(subpage)}`,
+      planAssignments: () => '/admin/plans/assignments',
+      // One assignment (a template handed to a group or a person): its plan, or its learners.
+      planAssignment: (assignmentUuid: string, subpage: 'plan' | 'learners' = 'plan') => subpage === 'plan'
+        ? `/admin/plans/assignments/${encodeURIComponent(assignmentUuid)}` : `/admin/plans/assignments/${encodeURIComponent(assignmentUuid)}/${subpage}`,
+      // One learner's plan from the staff side; ?chat=plan opens its feed beside it.
+      livePlan: (planUuid: string) => `/admin/plans/live/${encodeURIComponent(planUuid)}`,
       news: () => '/admin/news',
       feedback: () => '/admin/feedback',
       newsNewPost: () => '/admin/news/new-post',
@@ -200,8 +204,7 @@ export const routePaths = {
         group: (groupId: string | number, subpage?: string) => subpage
           ? `/admin/users/groups/${encodeURIComponent(String(groupId))}/${encodeURIComponent(subpage)}`
           : `/admin/users/groups/${encodeURIComponent(String(groupId))}`,
-        groupPlans: (groupId: string | number, assignmentUuid?: string | null) =>
-          withQuery(`/admin/users/groups/${encodeURIComponent(String(groupId))}/plans`, { assignment: assignmentUuid }),
+        groupPlans: (groupId: string | number) => `/admin/users/groups/${encodeURIComponent(String(groupId))}/plans`,
       },
       orgSettings: {
         general: () => '/admin/org/settings/general',
