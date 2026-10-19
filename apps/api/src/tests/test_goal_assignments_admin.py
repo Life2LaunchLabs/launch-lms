@@ -155,8 +155,6 @@ def test_editing_staff_adds_and_removes_them_on_every_plan():
         # The owner always stays on.
         assert updated["staff_user_ids"] == [ADMIN, COACH]
         assert "complete_restricted_objectives" in access.capabilities(db, goal, COACH)
-        # Two staff now: the learner's chat with the organization starts.
-        assert school_chats.find(db, 1, LEARNER) is not None
         assignments.update(db, _user(ADMIN), 1, uuid, GoalAssignmentUpdate(collaborators=[]))
         assert access.capabilities(db, goal, COACH) == set()
         assert not db.exec(select(PlanCollaborator).where(PlanCollaborator.user_id == COACH, PlanCollaborator.active == True)).all()  # noqa: E712
@@ -248,16 +246,6 @@ def test_reminders_reach_who_hasnt_handed_in_in_their_plan_feed_once_per_cooldow
         with pytest.raises(HTTPException) as paused:
             assignment_steps.remind(db, _user(ADMIN), 1, uuid, "essay", StepRemind())
         assert paused.value.status_code == 409
-
-
-def test_with_one_staff_member_a_reminder_goes_to_their_direct_chat():
-    with _session() as db:
-        uuid = _assign(db, ESSAY)["assignment_uuid"]
-        sent = assignment_steps.remind(db, _user(ADMIN), 1, uuid, "essay", StepRemind(user_uuids=["user_2"]))
-        assert [item["user"]["id"] for item in sent["reminded"]] == [LEARNER] and sent["skipped"] == []
-        assert school_chats.find(db, 1, LEARNER) is None
-        message = db.exec(select(ConversationMessage).where(ConversationMessage.kind == "card")).all()[-1]
-        assert message.body == "Reminder: Essay"
 
 
 # Grading ---------------------------------------------------------------------------------

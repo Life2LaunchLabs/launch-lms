@@ -74,11 +74,11 @@ def _learner(db: Session, goal: Goal) -> dict | None:
     return person(db.get(User, goal.subject_user_id)) if goal.subject_user_id else None
 
 
-def _chat(db: Session, sender_id: int, goal: Goal):
-    """The learner's plan feed; while there's none (one staff member), their direct chat with the sender."""
-    from src.services.connect import chats, workspace
+def _chat(db: Session, goal: Goal):
+    """The learner's plan feed: the chat their plan talks in."""
+    from src.services.connect import workspace
 
-    return workspace.chat_for_goal(db, goal) or (chats.ensure_direct(db, sender_id, int(goal.subject_user_id)) if goal.subject_user_id else None)
+    return workspace.chat_for_goal(db, goal)
 
 
 def remind(db: Session, current_user: PublicUser, org_id: int, assignment_uuid: str, step_key: str, payload: StepRemind) -> dict:
@@ -106,7 +106,7 @@ def remind(db: Session, current_user: PublicUser, org_id: int, assignment_uuid: 
         base = {"user": learner, "goal_uuid": goal.goal_uuid, "step_uuid": step.step_uuid}
         reason = ("not_waiting" if kind != "not_handed_in" else "no_account" if not learner
                   else "recently_reminded" if progress.last_reminded_at and progress.last_reminded_at > cutoff else None)
-        conversation = None if reason else _chat(db, current_user.id, goal)
+        conversation = None if reason else _chat(db, goal)
         if not reason and not conversation:
             reason = "no_chat"
         if reason:
