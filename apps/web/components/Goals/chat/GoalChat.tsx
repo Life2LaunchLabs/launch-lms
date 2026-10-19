@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import useSWR from 'swr'
 import { ArrowUpRight, ChevronRight, MessageCircle, MessageSquarePlus, MoreHorizontal, X } from 'lucide-react'
@@ -79,7 +80,12 @@ function GoalChatPanel({ goal, chat, source, stepUuid, token, orgslug, onClose }
   }, [onClose])
   const elsewhere = 'chatUuid' in source ? { href: getUriWithOrg(orgslug, routePaths.org.chat(source.chatUuid)), label: 'Open in Connect' }
     : goal.subject?.username ? { href: getUriWithOrg(orgslug, routePaths.org.dash.users.userPage(goal.subject.username, 'messages')), label: `All messages with ${goal.subject.name}` } : null
-  return <aside aria-label={`${chat.title || 'Chat'} about ${goal.title}`} className="side-chat-panel">
+  // The learner page slides on phones (a transform), which would pin a fixed panel to the page
+  // instead of the screen, so the panel lives on the shell, next to Coach's.
+  const [home, setHome] = React.useState<Element | null>(null)
+  React.useEffect(() => setHome(document.querySelector('.hub-shell') || document.body), [])
+  if (!home) return null
+  return createPortal(<aside aria-label={`${chat.title || 'Chat'} about ${goal.title}`} className="side-chat-panel">
     <ChatWorkspace key={`${goal.goal_uuid}:${stepUuid || ''}`} source={source} orgslug={orgslug} token={token} initialFilter={{ goal_uuid: goal.goal_uuid, step_uuid: stepUuid || undefined }}
       header={(loaded) => <header className="flex h-14 shrink-0 items-center gap-0.5 px-3 sm:px-4" aria-label="Chat navigation">
         <Button type="button" size="icon" variant="ghost" className="h-9 w-9 shrink-0" onClick={onClose} aria-label="Show the page"><ChevronRight className="h-4 w-4" /></Button>
@@ -97,7 +103,7 @@ function GoalChatPanel({ goal, chat, source, stepUuid, token, orgslug, onClose }
         </DropdownMenu> : null}
         <Button type="button" variant="ghost" size="icon" className="h-9 w-9" onClick={onClose} aria-label="Close chat"><X className="h-4 w-4" /></Button>
       </header>} />
-  </aside>
+  </aside>, home)
 }
 
 /** The plan's chat on its header card, with how much has been said about it. */
