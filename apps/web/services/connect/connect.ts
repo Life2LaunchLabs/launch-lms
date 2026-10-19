@@ -163,6 +163,23 @@ export interface GoalChat {
   count: number
 }
 
+/** Who an assignment's chat is with: its staff alone, or staff and the whole group. */
+export type ChatAudience = 'staff' | 'group'
+
+/** An assignment's chat, for its chat buttons, with the plan's template steps to filter by. */
+export interface CohortChat {
+  assignment_uuid: string
+  audience: ChatAudience
+  conversation_uuid: string | null
+  title: string | null
+  can_post: boolean
+  /** Messages per template step. */
+  counts: Record<string, number>
+  count: number
+  /** The assignment's plan as a chat topic, keyed by the assignment, its steps the template's. */
+  topic: ChatTopic
+}
+
 export type MentionOutcome = { user: PersonSummary; status: 'notified' | 'invited' | 'requested' | 'no_access' | 'not_here' }
 export type SentMessage = ChatMessage & { mentions: MentionOutcome[]; shared?: Record<string, 'shared' | 'requested' | 'none'> }
 
@@ -185,6 +202,7 @@ export const connectKeys = {
   counts: () => connectUrl('/counts'),
   chat: (uuid: string, filter: ChatFilter = {}) => connectUrl(`/chats/${q(uuid)}${filterQuery(filter)}`),
   goalChat: (goalUuid: string) => connectUrl(`/goals/${q(goalUuid)}/chat`),
+  cohortChat: (orgId: number, assignmentUuid: string, audience: ChatAudience) => connectUrl(`/orgs/${orgId}/assignments/${q(assignmentUuid)}/chat?audience=${audience}`),
   settings: () => connectUrl('/settings'),
   plans: () => connectUrl('/plans'),
   blocked: () => connectUrl('/blocked'),
@@ -195,6 +213,14 @@ export const connectApi = {
   counts: (token?: string) => request<ChatCounts>(connectKeys.counts(), token),
   chat: (uuid: string, token?: string, filter: ChatFilter = {}) => request<Chat>(connectKeys.chat(uuid, filter), token),
   goalChat: (goalUuid: string, token?: string) => request<GoalChat>(connectKeys.goalChat(goalUuid), token),
+  /**
+   * An assignment's chat for its staff or its whole group. The API doesn't serve these yet, so
+   * this fails and no cohort chat button shows until it does.
+   */
+  // eslint-disable-next-line no-unused-vars
+  cohortChat: async (orgId: number, assignmentUuid: string, audience: ChatAudience, token?: string): Promise<CohortChat> => {
+    throw new Error('Assignment chats aren’t available yet')
+  },
   openDirect: (target: { handle?: string; user_uuid?: string }, token?: string) => request<Chat>(connectUrl('/chats/direct'), token, 'POST', target),
   send: (uuid: string, body: string, token?: string, options: SendOptions = {}) => request<SentMessage>(connectUrl(`/chats/${q(uuid)}/messages`), token, 'POST', {
     body, goal_uuid: options.scope?.goal_uuid, step_uuid: options.scope?.goal_uuid ? options.scope.step_uuid : undefined, share: options.share,

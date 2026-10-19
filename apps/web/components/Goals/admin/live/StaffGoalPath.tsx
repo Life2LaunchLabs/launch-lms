@@ -4,61 +4,52 @@ import React from 'react'
 import toast from 'react-hot-toast'
 import { Loader2, Lock, Settings2 } from 'lucide-react'
 import { useSWRConfig } from 'swr'
+import { useRouter } from 'next/navigation'
 import { Button } from '@components/ui/button'
-import { canMoveStages, ScheduleNotes, useMoveToStage } from '@components/Goals/learner/GoalStages'
-import { AddStageButton, AddStepButton, GoalEditingProvider, StageMenu, StepMenu, useGoalEditing } from '@components/Goals/edit/GoalEditing'
+import { GoalEditingProvider, useGoalEditing } from '@components/Goals/edit/GoalEditing'
 import { GoalChatProvider } from '@components/Goals/chat/GoalChat'
-import { GoalStepRow, type PathViewer } from '@components/Goals/learner/GoalStepRow'
+import GoalPath from '@components/Goals/learner/GoalPath'
 import useGoalColors from '@components/Goals/learner/useGoalColors'
-import { planVars } from '@components/Goals/planColors'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import { goalAdminApi, type StaffNoteView } from '@services/goals/admin'
 import { goalUrl } from '@services/goals/goals'
-import { goalSteps, type Goal, type Step } from '@services/goals/types'
+import { can, type Goal, type Step } from '@services/goals/types'
 import { dateTime, personName, REVIEW_CAPABILITY } from './ui'
 
-/** The learner's path as staff work it: cards open in place, staff notes under each, and each step and stage edited from its own menu. */
+/** The learner's path as staff work it: the learner's own view of it, with staff controls on each card, staff notes under the open one, and each step and stage edited from its own menu. */
 export default function StaffGoalPath({ goal, orgslug, orgId, token, viewerUserId }: { goal: Goal; orgslug: string; orgId: number; token?: string; viewerUserId?: number }) {
+  const router = useRouter()
   const { getGoalColor, setGoalColor } = useGoalColors(React.useMemo(() => [goal], [goal]), viewerUserId)
   const color = getGoalColor(goal.goal_uuid)
+  // A plan tagged in the chat opens here too, from the staff side.
+  const openPlan = (goalUuid: string, stepUuid?: string) => router.push(`${getUriWithOrg(orgslug, routePaths.org.dash.livePlan(goalUuid, 'steps'))}${stepUuid ? `#step-${stepUuid}` : ''}`)
   return <GoalEditingProvider goal={goal} token={token} color={color} setColor={(next: string) => setGoalColor(goal.goal_uuid, next)}>
-    <GoalChatProvider goal={goal} token={token} orgslug={orgslug} staffOrgId={orgId}>
+    <GoalChatProvider scope={{ goal }} token={token} orgslug={orgslug} staffOrgId={orgId} onOpenPlan={openPlan}>
       <StaffPath goal={goal} orgslug={orgslug} orgId={orgId} token={token} viewerUserId={viewerUserId} color={color} />
     </GoalChatProvider>
   </GoalEditingProvider>
 }
 
+/**
+ * The learner's path from the staff side: the same GoalPath they see, opened at the step they'd
+ * do next, with staff notes under the open step for whoever reviews the goal.
+ */
 function StaffPath({ goal, orgslug, orgId, token, viewerUserId, color }: { goal: Goal; orgslug: string; orgId: number; token?: string; viewerUserId?: number; color: string }) {
-  const [selected, setSelected] = React.useState<string | null>(null)
+  const [selected, setSelected] = React.useState('')
   const editing = useGoalEditing()
-  const mover = useMoveToStage(goal, token, color)
-  const movable = canMoveStages(goal)
   React.useEffect(() => {
-    const hash = typeof window !== 'undefined' ? window.location.hash.replace('#step-', '') : ''
+    const hash = window.location.hash.replace('#step-', '')
     if (hash) setSelected(hash)
   }, [])
-  const reviewer = goal.capabilities.includes(REVIEW_CAPABILITY)
-  const viewer: PathViewer = { orgslug, token, viewerUserId, canWork: false, staff: reviewer }
-  const goTo = (stepUuid: string) => { setSelected(stepUuid); document.getElementById(`step-${stepUuid}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }) }
-  const openActivity = () => toast('Activities open in the learner’s own view. Grade their answers from Reviews.')
-
-  const groups = [...goal.stages.map((stage, index) => ({ key: stage.stage_uuid, stage, index, title: stage.title, steps: stage.steps })), ...(goal.unstaged_steps.length ? [{ key: 'unstaged', stage: null, index: goal.stages.length, title: goal.stages.length ? 'Other steps' : '', steps: goal.unstaged_steps }] : [])]
-  return <div data-plan="" style={planVars(color)} className="mx-auto max-w-3xl space-y-6">
+  const reviewer = can(goal, REVIEW_CAPABILITY)
+  return <div className="mx-auto max-w-3xl space-y-6">
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div><h2 className="text-lg font-black text-gray-950">Steps</h2><p className="mt-1 text-sm text-gray-500">The same path the learner sees. Open a step to review it, sign it off or leave a staff note; change one from its menu.</p></div>
       {editing ? <Button type="button" variant="surface" onClick={() => editing.open({ kind: 'settings' })}><Settings2 size={15} aria-hidden="true" />Goal settings</Button> : null}
     </div>
-    {!goalSteps(goal).length && !editing?.structure ? <p className="rounded-xl border border-dashed border-gray-200 bg-white p-10 text-center text-sm text-gray-500">This goal has no steps yet.</p> : null}
-    {groups.map((group) => <section key={group.key} className="space-y-2">
-      {group.title ? <div className="flex items-end gap-3"><h3 className="text-sm font-black uppercase tracking-[0.12em]">{group.title}</h3>{group.stage && group.stage.stage_uuid === goal.current_stage_uuid ? <span className="text-xs font-extrabold uppercase tracking-wider text-[var(--plan-accent)]">Now</span> : null}<p className="flex-1 text-xs text-muted-foreground">{group.steps.length} step{group.steps.length === 1 ? '' : 's'}</p>{group.stage ? <StageMenu stage={group.stage} index={group.index} onMakeCurrent={movable && group.stage.stage_uuid !== goal.current_stage_uuid ? () => mover.ask(group.stage!) : undefined} /> : null}</div> : null}
-      {group.stage ? <ScheduleNotes goal={goal} stageUuid={group.stage.stage_uuid} /> : null}
-      <ol className="flex flex-col">{group.steps.map((step, index) => <React.Fragment key={step.step_uuid}>
-        <GoalStepRow goal={goal} step={step} viewer={viewer} selected={selected === step.step_uuid} last={index === group.steps.length - 1} onSelect={() => setSelected(selected === step.step_uuid ? null : step.step_uuid)} onGoTo={goTo} onOpenActivity={openActivity} menu={<StepMenu step={step} />} after={<ScheduleNotes goal={goal} stepUuid={step.step_uuid} className="pb-1" />} />
-        {selected === step.step_uuid && reviewer ? <li className="mb-4 ml-[72px]"><StaffNotes goal={goal} step={step} orgId={orgId} token={token} /></li> : null}
-      </React.Fragment>)}</ol>
-      <AddStepButton stageUuid={group.stage?.stage_uuid ?? null} />
-    </section>)}
-    <AddStageButton />
-    {mover.sheet}
+    <GoalPath goal={goal} color={color} perspective="staff" viewer={{ orgslug, token, viewerUserId }} selectedUuid={selected} onSelect={setSelected}
+      onOpenActivity={() => toast('Activities open in the learner’s own view. Grade their answers from Reviews.')}
+      rowExtra={reviewer ? (step, row) => row.selected ? <div className="mt-3"><StaffNotes goal={goal} step={step} orgId={orgId} token={token} /></div> : null : undefined} />
   </div>
 }
 

@@ -24,10 +24,10 @@ function renderPath(goal: Goal, viewerUserId: number, selectedUuid = '') {
   const html = renderToStaticMarkup(<AppRouterContext.Provider value={router as never}>
     <SWRConfig value={{ provider: () => new Map(), fallback: { [connectKeys.goalChat(goal.goal_uuid)]: goalChat } }}>
       <GoalEditingProvider goal={goal} token="token" color="#3b82f6">
-        <GoalChatProvider goal={goal} token="token" orgslug="school">
+        <GoalChatProvider scope={{ goal }} token="token" orgslug="school">
           <GoalPath goal={goal} color="#3b82f6" selectedUuid={selectedUuid} onSelect={() => {}}
-            own={goal.ownership === 'personal' && can(goal, 'delete_plan')}
-            viewer={{ orgslug: 'school', token: 'token', viewerUserId, canWork: isSubject && can(goal, 'update_progress'), staff: !isSubject && can(goal, 'complete_restricted_objectives') }} />
+            own={goal.ownership === 'personal' && can(goal, 'delete_plan')} viewer={{ orgslug: 'school', token: 'token', viewerUserId }}
+            perspective={!isSubject && can(goal, 'complete_restricted_objectives') ? 'staff' : 'learner'} />
         </GoalChatProvider>
       </GoalEditingProvider>
     </SWRConfig>

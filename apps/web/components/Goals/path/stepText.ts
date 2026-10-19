@@ -1,4 +1,5 @@
-import type { Step } from '@services/goals/types'
+import type { StepAggregate } from '@services/goals/admin'
+import type { NodeState, Step } from '@services/goals/types'
 import { stepDefinition } from '../steps'
 
 const DAY = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' })
@@ -37,4 +38,20 @@ export function statusLine(step: Step) {
   const due = step.due_date ? `Closes ${shortDate(step.due_date)}` : ''
   if (own) return due ? `${own} · ${due.toLowerCase()}` : own
   return due || 'Any time'
+}
+
+/** A step's line across a cohort: how many are done, then whatever is left for staff. */
+export function aggregateLine(aggregate: StepAggregate) {
+  const parts = [`${aggregate.done} of ${aggregate.total} done`]
+  if (aggregate.to_grade) parts.push(`${aggregate.to_grade} to grade`)
+  else if (aggregate.handed_in) parts.push(`${aggregate.handed_in} handed in`)
+  if (aggregate.not_handed_in) parts.push(`${aggregate.not_handed_in} not handed in`)
+  if (aggregate.to_settle) parts.push(`${aggregate.to_settle} to settle`)
+  return parts.join(' · ')
+}
+
+/** A cohort's step as a node: done once everyone is, started once anyone has, its ring as far as how many are done. */
+export function aggregateNode(aggregate: StepAggregate): { state: NodeState; fraction: number } {
+  if (aggregate.total && aggregate.done >= aggregate.total) return { state: 'done', fraction: 1 }
+  return { state: aggregate.done || aggregate.handed_in ? 'started' : 'open', fraction: aggregate.total ? aggregate.done / aggregate.total : 0 }
 }
