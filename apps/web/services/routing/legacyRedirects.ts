@@ -11,7 +11,9 @@ const decode = (segment: string) => {
 
 // /admin/users/<segment> used to hold settings tabs and bare usernames. These were tabs, not people.
 const OLD_PEOPLE_TABS = new Set(['new', 'groups', 'grading', 'roles', 'signups', 'audit-logs', 'user', 'settings', 'cohorts'])
-const RENAMED_GROUP_TABS: Record<string, string> = { programs: 'plans', users: 'members', reports: 'requirements' }
+const RENAMED_GROUP_TABS: Record<string, string> = { programs: 'plans', users: 'members' }
+// A group's requirement report (once "reports") moved to Insights.
+const GROUP_EVIDENCE_TABS = new Set(['requirements', 'reports'])
 const RENAMED_USER_TABS: Record<string, string> = { assignments: 'plans', review: 'overview' }
 
 function legacyAdminPath(parts: string[]): string | null {
@@ -36,7 +38,10 @@ function legacyAdminPath(parts: string[]): string | null {
     if (a === 'reporting' && n === 2) return admin.insights()
     // Assignments now live in the Assignments tab; their old pages resolved them one by one.
     if (a === 'assignments') return admin.assignments()
+    // Requirements moved to Insights.
+    if (a === 'requirements' && n === 2) return admin.insights()
     if (a === 'requirements' && n === 3) return admin.requirementFramework(decode(b), 'details')
+    if (a === 'requirements' && n === 4) return admin.requirementFramework(decode(b), decode(c))
     if (b === 'assignments' && c === 'new' && n === 4) return admin.templatePage(decode(a), 'overview')
     return null
   }
@@ -49,6 +54,7 @@ function legacyAdminPath(parts: string[]): string | null {
     if (a === 'cohorts' && n === 3) return admin.people.group(decode(b))
     if (a === 'cohorts' && c === 'programs' && d) return admin.people.groupPlans(decode(b), decode(d))
     if (a === 'groups' && n === 3) return admin.people.group(decode(b))
+    if (a === 'groups' && n === 4 && GROUP_EVIDENCE_TABS.has(c)) return admin.insightsEvidence(decode(b))
     if (a === 'groups' && n === 4 && RENAMED_GROUP_TABS[c]) return admin.people.group(decode(b), RENAMED_GROUP_TABS[c])
     if (a === 'groups' && c === 'programs' && d) return admin.people.groupPlans(decode(b), decode(d))
     return null

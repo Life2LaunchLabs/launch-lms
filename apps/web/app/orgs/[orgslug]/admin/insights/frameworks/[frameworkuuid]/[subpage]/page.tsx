@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { RequirementFrameworkPage } from '@components/Goals/admin/GoalsAdminPages'
+import { RequirementFrameworkPage } from '@components/Goals/admin/insights/InsightsPages'
 
 const subpages = new Set(['details', 'levels', 'spec'])
 

@@ -1,5 +1,6 @@
 import type { PlanLevel } from '../../services/plans/plans.ts'
 import { routePaths } from '../../services/routing/paths.ts'
+import type { HomeWidgetId } from '../../services/goals/adminHome.ts'
 
 /**
  * The one list of admin tabs and Home widgets. The sidebar, the mobile menu, page titles and the
@@ -20,7 +21,7 @@ export type AdminNavItem = {
   requires: AdminRequirement
   /**
    * Paths this entry owns, matched on whole segments; a trailing slash claims everything below.
-   * The longest match wins, so `/admin/plans/requirements` beats `/admin/plans/`.
+   * The longest match wins, so `/admin/plans/review` beats `/admin/plans/`.
    */
   match: string[]
   /** Match the paths exactly, not the pages below them. */
@@ -113,14 +114,25 @@ export function adminTab(id: AdminTabId): AdminTab {
   return ADMIN_TABS.find((tab) => tab.id === id)!
 }
 
-export type AdminWidgetId = 'content-overview' | 'recent-badges' | 'recent-members'
-export type AdminWidget = { id: AdminWidgetId; label: string; requires: AdminRequirement }
+export type AdminWidgetId = HomeWidgetId
+export type AdminWidget = { id: AdminWidgetId; label: string; description: string; requires: AdminRequirement }
 
-/** Home widgets, in page order. */
+/**
+ * Home widgets, in default page order. `GET /goal-admin/home` says which ones a viewer gets (by what
+ * they staff and what the org makes) and carries their data; these requirements hide or lock them
+ * like the tabs. Each member reorders and hides them for themselves.
+ */
 export const ADMIN_HOME_WIDGETS: AdminWidget[] = [
-  { id: 'content-overview', label: 'Overview', requires: { right: 'organizations.action_read' } },
-  { id: 'recent-badges', label: 'Recent badges', requires: { right: 'badges.action_update' } },
-  { id: 'recent-members', label: 'Recent members', requires: { right: 'users.action_read' } },
+  { id: 'waiting', label: 'Waiting on you', description: 'Work to review, grade or confirm, and chat reports.', requires: { right: STAFF } },
+  { id: 'today', label: 'Today and upcoming', description: 'Steps closing and stages opening this week in the assignments you staff.', requires: { right: STAFF } },
+  { id: 'messages', label: 'Recent messages', description: 'Your latest chats in this organization.', requires: { right: STAFF } },
+  { id: 'attention', label: 'Assignments needing attention', description: 'Learners behind, overdue steps and work waiting on staff.', requires: { right: STAFF } },
+  {
+    id: 'creator',
+    label: 'How your templates and badges do',
+    description: 'Starts, completions and recent edits of what your org makes.',
+    requires: { right: 'learning_activities.action_update', feature: 'analytics' },
+  },
 ]
 
 // Mirrors PACKAGE_FEATURE_MAP in apps/api/src/security/features_utils/packs.py: the package to request per feature.

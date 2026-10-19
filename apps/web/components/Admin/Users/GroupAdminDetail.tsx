@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ClipboardCheck, Layers3, Loader2, Settings, Trash2, Users } from 'lucide-react'
+import { Layers3, Loader2, Settings, Trash2, Users } from 'lucide-react'
 import { motion } from 'motion/react'
 import useSWR from 'swr'
 import toast from 'react-hot-toast'
@@ -16,12 +16,10 @@ import { deleteUserGroup, updateUserGroup } from '@services/usergroups/usergroup
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { cohortKey, goalAdminApi } from '@services/goals/admin'
 import React from 'react'
-import GroupRequirementsGrid from '@components/Goals/admin/live/GroupRequirementsGrid'
 import { CohortGoals } from '@components/Goals/admin/live/CohortGoals'
 
 const tabs = [
   { id: 'plans', label: 'Goals', icon: Layers3 },
-  { id: 'requirements', label: 'Requirements', icon: ClipboardCheck },
   { id: 'members', label: 'People', icon: Users },
   { id: 'settings', label: 'Settings', icon: Settings },
 ] as const
@@ -62,7 +60,7 @@ export default function GroupAdminDetail({ orgslug, groupId, subpage = 'plans' }
           orgId={Number(org.id)}
           canEdit
           entityName="Group"
-          fallbackDescription="Goals, requirements, staff and students for this group."
+          fallbackDescription="Goals, staff and students for this group."
           fallbackIcon={<Users size={32} strokeWidth={1.5} />}
           metadata={<><Users size={14} />{data.learner_count} member{data.learner_count === 1 ? '' : 's'}</>}
           updateItem={updateGroup}
@@ -84,7 +82,6 @@ export default function GroupAdminDetail({ orgslug, groupId, subpage = 'plans' }
       <div className="h-6" />
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.1 }}>
         {activeSubpage === 'plans' ? <CohortGoals orgslug={orgslug} orgId={Number(org.id)} token={accessToken} groupId={groupId} cohort={data} refresh={() => mutate()} /> : null}
-        {activeSubpage === 'requirements' ? <div className="px-10 pb-10"><GroupRequirementsGrid orgslug={orgslug} orgId={Number(org.id)} token={accessToken} groupId={groupId} /></div> : null}
         {activeSubpage === 'members' ? <div className="space-y-5 px-10 pb-10">
           <GroupStaffPanel orgId={Number(org.id)} groupId={groupId} token={accessToken} />
           <section className="rounded-xl bg-card p-6 shadow-xs"><h2 className="mb-4 text-lg font-bold">Students</h2><ManageUsers usergroup_id={groupId} embedded /></section>
