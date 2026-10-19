@@ -2,16 +2,20 @@
 
 import React from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import useSWR, { useSWRConfig, type KeyedMutator } from 'swr'
 import toast from 'react-hot-toast'
-import { ArrowUpRight, Building2, Flag, MessageCircle, UserRound } from 'lucide-react'
+import { ArrowUpRight, ChevronRight, Flag, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import { connectApi, connectKeys, type Chat, type ChatFilter, type ChatMessage, type ChatTopic, type MessageRef, type ProgressCard } from '@services/connect/connect'
+import { connectApi, connectKeys, type BlindPlan, type Chat, type ChatFilter, type ChatMessage, type ChatTopic, type MessageRef } from '@services/connect/connect'
+import { isGoalsKey } from '@services/goals/goals'
 import { schoolApi, schoolKeys } from '@services/school/school'
 import { useChatList } from '../useConnect'
 import TagComposer, { type TagComposerHandle, type TagOrg } from './TagComposer'
-import { MessageText, PlanTag, StepMark } from './tags'
+import { CardMessage } from './ChatCards'
+import ShareSheet from './ShareSheet'
+import { MessageText, StepMark } from './tags'
 
 const CHAT_REFRESH_MS = 5_000
 
@@ -26,8 +30,9 @@ function useWorkspaceChat(source: ChatSource, filter: ChatFilter, token?: string
 
 /**
  * A chat as the shared workspace on someone's plans: filter by plan and then by step, read the
- * talk and the app's progress cards together, and write with plans, steps and people tagged.
- * A step's comments are this chat filtered to the step, wherever it's opened from.
+ * talk and the app's cards together, and write with plans, steps and people tagged. What you
+ * write while filtered is about that plan or step without a tag saying so. A step's comments are
+ * this chat filtered to the step, wherever it's opened from.
  */
 export default function ChatWorkspace({ source, orgslug, token, initialFilter = {}, header, blocked, empty, stepHref, onChat }: {
   source: ChatSource
@@ -51,8 +56,10 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
   const { data: chat, error, mutate } = useWorkspaceChat(source, filter, token)
   const { data: list } = useChatList()
   const { mutate: mutateGlobal } = useSWRConfig()
+  const router = useRouter()
   const composer = React.useRef<TagComposerHandle>(null)
   const scroller = React.useRef<HTMLDivElement>(null)
+  const [asking, setAsking] = React.useState<{ body: string; plans: BlindPlan[] } | null>(null)
   const topics = chat?.topics || []
   const plan = topics.find((item) => item.goal_uuid === filter.goal_uuid)
   const step = plan?.steps.find((item) => item.step_uuid === filter.step_uuid)
@@ -67,8 +74,6 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
     if (!token || !unread || !uuid || chat?.status !== 'active') return
     void connectApi.read(uuid, token).then(() => { void mutateGlobal(connectKeys.chats()); void mutateGlobal(connectKeys.counts()) })
   }, [token, uuid, unread, chat?.status, mutateGlobal])
-  // Looking at a step or a plan, a new message starts out tagged with it.
-  React.useEffect(() => { composer.current?.prefill(plan ? { plan, step } : null) }, [plan?.goal_uuid, step?.step_uuid]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const orgs = React.useMemo<TagOrg[]>(() => {
     const seen = new Map<string, TagOrg>()
@@ -77,25 +82,39 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
   }, [chat, list])
 
   const openTag = (ref: MessageRef) => {
-    if (ref.kind === 'plan') setFilter({ goal_uuid: ref.goal_uuid })
-    else if (ref.kind === 'step') setFilter({ goal_uuid: ref.goal_uuid, step_uuid: ref.step_uuid })
+    if (ref.kind !== 'plan' && ref.kind !== 'step') return
+    if (ref.hidden) return
+    // A plan from outside this chat opens where it lives.
+    if (ref.outside) router.push(ref.kind === 'step' ? `${getUriWithOrg(orgslug, routePaths.org.plan(ref.goal_uuid))}?step=${encodeURIComponent(ref.step_uuid)}` : getUriWithOrg(orgslug, routePaths.org.plan(ref.goal_uuid)))
+    else setFilter(ref.kind === 'plan' ? { goal_uuid: ref.goal_uuid } : { goal_uuid: ref.goal_uuid, step_uuid: ref.step_uuid })
   }
-  const send = async (body: string) => {
+  const send = async (body: string, share?: Record<string, string[]>) => {
     if (!chat) return false
     try {
-      const sent = await connectApi.send(chat.conversation_uuid, body, token)
+      const sent = await connectApi.send(chat.conversation_uuid, body, token, { scope: filter, share })
       for (const outcome of sent.mentions || []) {
         if (outcome.status === 'invited') toast.success(`Invited ${outcome.user.name} as a commenter`)
         else if (outcome.status === 'requested') toast.success(`Asked the plan’s admins to add ${outcome.user.name}`)
         else if (outcome.status === 'no_access' || outcome.status === 'not_here') toast(`${outcome.user.name} isn’t in this chat`)
       }
+      if (Object.values(sent.shared || {}).includes('requested')) toast.success('Asked the plan’s admins to share it')
       await mutate()
       void mutateGlobal(connectKeys.chats())
       return true
     } catch (sendError: any) {
+      // Your plan from elsewhere: first ask who here should be able to see it.
+      if (sendError?.status === 409 && sendError?.detail?.code === 'needs_access') {
+        setAsking({ body, plans: sendError.detail.plans })
+        return false
+      }
       toast.error(sendError?.message || 'That message didn’t send')
       return false
     }
+  }
+  const answered = () => {
+    void mutate()
+    void mutateGlobal(connectKeys.chats())
+    void mutateGlobal(isGoalsKey)
   }
 
   const reason = chat ? (blocked?.(chat) || (chat.can_post ? '' : 'You can read along here')) : ''
@@ -107,115 +126,83 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
       {error ? <p className="m-auto max-w-xs pt-16 text-center text-sm text-muted-foreground">This chat didn&rsquo;t load.</p>
         : !chat ? null
         : chat.messages.length ? <ol className="mx-auto flex w-full max-w-[50rem] flex-col gap-1.5 pb-4">
-          {chat.messages.map((message, index) => <Message key={message.message_uuid} message={message} orgslug={orgslug} links={chat.accepted} names={names}
-            topics={topics} inPlan={plan?.goal_uuid} onTag={openTag} first={index === 0 || chat.messages[index - 1].sender?.id !== message.sender?.id || chat.messages[index - 1].kind === 'card'} />)}
+          {chat.messages.map((message, index) => <Message key={message.message_uuid} message={message} orgslug={orgslug} token={token} links={chat.accepted} names={names}
+            topics={topics} filter={filter} onTag={openTag} onAnswered={answered}
+            first={index === 0 || chat.messages[index - 1].sender?.id !== message.sender?.id || chat.messages[index - 1].kind === 'card'} />)}
         </ol>
-        : <p className="m-auto max-w-xs pt-16 text-center text-sm text-muted-foreground">{step ? `Nothing about ${step.title} yet. Anything you write here is tagged with it.` : plan ? `Nothing about ${plan.title} yet.` : empty}</p>}
+        : <p className="m-auto max-w-xs pt-16 text-center text-sm text-muted-foreground">{step ? `Nothing about ${step.title} yet. Anything you write here is about it.` : plan ? `Nothing about ${plan.title} yet. Anything you write here is about it.` : empty}</p>}
     </div>
     {chat ? <div className="mx-auto w-full max-w-[50rem] shrink-0 px-3 pb-3 sm:px-4 sm:pb-4">
-      <TagComposer ref={composer} topics={topics} people={chat.people} orgs={orgs} token={token} scopeGoal={filter.goal_uuid}
-        placeholder={step ? `Comment on ${step.title}` : `Message ${chat.title}`} disabled={reason || undefined} onSend={send} />
+      <TagComposer ref={composer} topics={topics} people={chat.people} orgs={orgs} token={token}
+        placeholder={step ? `Comment on ${step.title}` : plan ? `Message about ${plan.title}` : `Message ${chat.title}`} disabled={reason || undefined} onSend={(body) => send(body)} />
     </div> : null}
+    <ShareSheet asking={asking} onClose={() => setAsking(null)}
+      onSend={async (share) => { if (asking && await send(asking.body, share)) { composer.current?.clear(); setAsking(null) } }} />
   </>
 }
 
-/** Plans to filter by, and once one is picked, its steps. */
+/**
+ * Plans to filter by. Picking one swaps the row for that plan, with an x to go back to
+ * everything, and the steps people have talked about.
+ */
 function TopicFilters({ topics, filter, onChange, stepLink }: { topics: ChatTopic[]; filter: ChatFilter; onChange: React.Dispatch<React.SetStateAction<ChatFilter>>; stepLink?: string }) {
   const plan = topics.find((item) => item.goal_uuid === filter.goal_uuid)
-  const steps = React.useRef<HTMLDivElement>(null)
+  const row = React.useRef<HTMLDivElement>(null)
   // A step opened from elsewhere may sit past the edge of its row: bring it into view.
-  React.useEffect(() => { steps.current?.querySelector('[aria-pressed="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' }) }, [filter.step_uuid])
+  React.useEffect(() => { row.current?.querySelector('[aria-pressed="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' }) }, [filter.step_uuid])
   // Quiet like Coach's chrome: the chosen plan or step sits on the raised surface, the rest are text.
   const button = (on: boolean) => cn('flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors', on ? 'bg-[hsl(var(--raised))] text-foreground' : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground')
-  return <div className="shrink-0">
+  if (!plan) return <div className="shrink-0">
     <div role="group" aria-label="Show messages about" className="flex gap-1 overflow-x-auto px-3 pb-1 sm:px-4">
-      <button type="button" aria-pressed={!plan} onClick={() => onChange({})} className={button(!plan)}>Everything</button>
-      {topics.map((item) => <button key={item.goal_uuid} type="button" aria-pressed={plan?.goal_uuid === item.goal_uuid} onClick={() => onChange({ goal_uuid: item.goal_uuid })} className={button(plan?.goal_uuid === item.goal_uuid)}>
+      <button type="button" aria-pressed="true" onClick={() => onChange({})} className={button(true)}>Everything</button>
+      {/* A plan you've only been invited to stays out until there's something to show for it. */}
+      {topics.filter((item) => item.count || item.status !== 'pending').map((item) => <button key={item.goal_uuid} type="button" aria-pressed="false" onClick={() => onChange({ goal_uuid: item.goal_uuid })} className={button(false)}>
         <Flag size={12} aria-hidden="true" />{item.title}{item.count ? <span className="opacity-60">{item.count}</span> : null}
       </button>)}
     </div>
-    {plan ? <div ref={steps} role="group" aria-label={`Steps in ${plan.title}`} className="flex items-center gap-1 overflow-x-auto px-3 pb-1 sm:px-4">
-      <button type="button" aria-pressed={!filter.step_uuid} onClick={() => onChange({ goal_uuid: plan.goal_uuid })} className={button(!filter.step_uuid)}>All steps</button>
-      {plan.steps.map((item) => <button key={item.step_uuid} type="button" aria-pressed={filter.step_uuid === item.step_uuid} onClick={() => onChange({ goal_uuid: plan.goal_uuid, step_uuid: item.step_uuid })}
+  </div>
+  const talked = plan.steps.filter((item) => item.count > 0 || item.step_uuid === filter.step_uuid)
+  return <div className="shrink-0">
+    <div ref={row} role="group" aria-label={`Show messages about ${plan.title}`} className="flex items-center gap-1 overflow-x-auto px-3 pb-1 sm:px-4">
+      <button type="button" onClick={() => onChange({})} aria-label="Show everything" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted/60 hover:text-foreground"><X size={15} /></button>
+      <button type="button" aria-pressed={!filter.step_uuid} onClick={() => onChange({ goal_uuid: plan.goal_uuid })} className={button(!filter.step_uuid)}>
+        <Flag size={12} aria-hidden="true" />{plan.title}<ChevronRight size={13} className="-mx-0.5 opacity-60" aria-hidden="true" />
+      </button>
+      {talked.map((item) => <button key={item.step_uuid} type="button" aria-pressed={filter.step_uuid === item.step_uuid}
+        onClick={() => onChange(filter.step_uuid === item.step_uuid ? { goal_uuid: plan.goal_uuid } : { goal_uuid: plan.goal_uuid, step_uuid: item.step_uuid })}
         className={button(filter.step_uuid === item.step_uuid)}>
         <StepMark status={item.status} behind={item.behind} className="h-3.5 w-3.5" /><span className="max-w-40 truncate">{item.title}</span>{item.count ? <span className="opacity-60">{item.count}</span> : null}
       </button>)}
       {stepLink ? <Link href={stepLink} className="ml-auto flex h-8 shrink-0 items-center gap-1 px-1 text-xs font-bold text-[var(--org-primary-color)] hover:underline">Open step<ArrowUpRight size={13} /></Link> : null}
-    </div> : null}
+    </div>
   </div>
 }
 
-const VERBS: Record<string, string> = { finished: 'Finished', turned_in: 'Turned in', approved: 'Approved', changes: 'Asked for changes', marked_done: 'Marked done', excused: 'Excused' }
+/** Where a message sent while filtered belongs, shown under it when you're looking wider. */
+function scopeLabel(message: ChatMessage, filter: ChatFilter) {
+  const scope = message.refs?.find((ref) => (ref.kind === 'plan' || ref.kind === 'step') && ref.scope)
+  if (!scope || (scope.kind !== 'plan' && scope.kind !== 'step')) return null
+  if (!filter.goal_uuid) return { ref: scope, text: scope.kind === 'step' ? `${scope.plan_title} › ${scope.title}` : scope.title }
+  if (filter.goal_uuid === scope.goal_uuid && !filter.step_uuid && scope.kind === 'step') return { ref: scope, text: scope.title }
+  return null
+}
 
 /** One message: text with its tags, or a card the app posted. */
 // eslint-disable-next-line no-unused-vars
-function Message({ message, orgslug, links, first, names, topics, inPlan, onTag }: { message: ChatMessage; orgslug: string; links: boolean; first: boolean; names: boolean; topics: ChatTopic[]; inPlan?: string; onTag: (ref: MessageRef) => void }) {
+function Message({ message, orgslug, token, links, first, names, topics, filter, onTag, onAnswered }: { message: ChatMessage; orgslug: string; token?: string; links: boolean; first: boolean; names: boolean; topics: ChatTopic[]; filter: ChatFilter; onTag: (ref: MessageRef) => void; onAnswered: () => void }) {
   const time = new Date(message.update_date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-  const card = message.card
-  const who = message.sender?.name || 'Someone'
-  if (message.kind === 'card' && card?.type === 'plan_progress') return <li className="my-3 flex">
-    <ProgressView card={card} who={message.mine ? 'You' : who} time={time} topic={topics.find((item) => item.goal_uuid === card.goal_uuid)} onTag={onTag} />
-  </li>
-  if (message.kind === 'card' && card?.type === 'org_mention') return <li className={cn('flex', message.mine ? 'justify-end' : 'justify-start', 'mt-2')}>
-    <div className="w-full max-w-[360px] rounded-2xl bg-background p-3.5">
-      <span className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-emerald-700 dark:text-emerald-400"><Building2 size={14} />Shared with you</span>
-      <span className="mt-1 block font-bold leading-snug">{message.mine ? message.body : `${who} ${message.body.charAt(0).toLowerCase()}${message.body.slice(1)}`}</span>
-      {card.excerpt ? <span className="mt-1 line-clamp-3 block text-sm text-muted-foreground">&ldquo;{card.excerpt}&rdquo;</span> : null}
-      <span className="mt-2 block text-right text-xs text-muted-foreground">{time}</span>
-    </div>
-  </li>
-  if (message.kind === 'card' && card && (card.type === 'goal_comments' || card.type === 'portfolio_shared' || card.type === 'portfolio_comments')) {
-    const goal = card.type === 'goal_comments'
-    const href = goal ? getUriWithOrg(orgslug, routePaths.org.plan(card.goal_uuid)) : getUriWithOrg(orgslug, `/user/${encodeURIComponent(card.username)}`)
-    return <li className={cn('flex', message.mine ? 'justify-end' : 'justify-start', first && 'mt-2')}>
-      <Link href={href} className="block w-full max-w-[340px] rounded-2xl bg-background p-3.5 transition-colors hover:bg-muted/60">
-        <span className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-[var(--org-primary-color)]">{goal ? <MessageCircle size={14} /> : <UserRound size={14} />}{goal ? 'Comments' : 'Portfolio'}</span>
-        <span className="mt-1 block font-black leading-snug">{message.body}</span>
-        {card.excerpt ? <span className="mt-1 line-clamp-2 block text-sm text-muted-foreground">&ldquo;{card.excerpt}&rdquo;</span> : null}
-        <span className="mt-2 flex items-center justify-between text-xs text-muted-foreground"><span className="font-semibold text-foreground">{goal ? 'Open goal' : 'Open portfolio'} &rarr;</span>{time}</span>
-      </Link>
-    </li>
-  }
+  if (message.kind === 'card' && message.card) return <CardMessage message={message} orgslug={orgslug} token={token} topics={topics} time={time} first={first} onTag={onTag} onAnswered={onAnswered} />
+  const scope = scopeLabel(message, filter)
   return <li className={cn('flex flex-col', message.mine ? 'items-end' : 'items-start', first && 'mt-2')}>
     {names && first && !message.mine && message.sender ? <span className="mb-0.5 px-3 text-xs font-semibold text-muted-foreground">{message.sender.name}</span> : null}
     {/* Coach's bubbles: yours on the raised surface as in Coach; other people's a shade apart. Only Coach goes without one. */}
     <div className={cn('max-w-[85%] whitespace-pre-wrap break-words rounded-2xl px-4 py-2.5 text-sm leading-6 text-foreground',
       message.mine ? 'hub-user-message rounded-br-md' : 'rounded-bl-md bg-[hsl(var(--raised)/0.55)]')}>
-      <MessageText body={message.body} refs={message.refs || []} links={links} inPlan={inPlan} onTag={onTag} />
+      <MessageText body={message.body} refs={message.refs || []} links={links} inPlan={filter.goal_uuid} onTag={onTag} />
       <span className="ml-2 inline-block align-bottom text-[10px] text-muted-foreground">{time}</span>
     </div>
+    {scope ? <button type="button" onClick={() => onTag(scope.ref)} className="mt-0.5 flex max-w-[85%] items-center gap-1 px-3 text-[11px] text-muted-foreground hover:text-foreground hover:underline">
+      <Flag size={10} aria-hidden="true" /><span className="truncate">in {scope.text}</span>
+    </button> : null}
   </li>
-}
-
-/** What happened on a plan, and where it stands now. */
-// eslint-disable-next-line no-unused-vars
-function ProgressView({ card, who, time, topic, onTag }: { card: ProgressCard; who: string; time: string; topic?: ChatTopic; onTag: (ref: MessageRef) => void }) {
-  const progress = topic?.progress
-  const statuses = topic?.steps.map((item) => item.status === 'completed' || item.status === 'excused' ? 'done' : item.status === 'submitted' ? 'review' : item.behind ? 'behind' : 'todo') || []
-  // The app's own note, so it sits on the surface without a bubble, as Coach's replies do.
-  return <div className="w-full max-w-[460px] py-0.5">
-    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-      <PlanTag title={card.goal_title} onClick={() => onTag({ kind: 'plan', key: `plan:${card.goal_uuid}`, goal_uuid: card.goal_uuid, title: card.goal_title })} />
-      <span className="ml-auto">{time}</span>
-    </div>
-    <p className="mt-2 text-sm font-bold">{card.started && !card.events.length ? `${who} started ${card.goal_title}` : `${who} ${card.events.length === 1 ? VERBS[card.events[0].event].toLowerCase() : 'made progress'}`}</p>
-    {card.events.length ? <ul className="mt-1.5 space-y-1">{card.events.map((event) => {
-      const status = topic?.steps.find((item) => item.step_uuid === event.step_uuid)?.status || (event.event === 'turned_in' ? 'submitted' : event.event === 'changes' ? 'changes_requested' : 'completed')
-      return <li key={event.step_uuid} className="flex items-center gap-2 text-sm">
-        <StepMark status={status} className="h-4 w-4" />
-        <button type="button" onClick={() => onTag({ kind: 'step', key: `step:${card.goal_uuid}/${event.step_uuid}`, goal_uuid: card.goal_uuid, step_uuid: event.step_uuid, title: event.title, plan_title: card.goal_title, status })}
-          className="min-w-0 truncate text-left hover:underline">{event.title}</button>
-        {card.events.length > 1 ? <span className="shrink-0 text-xs text-muted-foreground">{VERBS[event.event]}</span> : null}
-        {status === 'submitted' ? <span className="ml-auto shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">Awaiting review</span> : null}
-      </li>
-    })}</ul> : null}
-    {progress && progress.total ? <div className="mt-3 space-y-1.5">
-      <div className="flex gap-0.5" aria-hidden="true">{statuses.map((status, index) => <span key={index} className={cn('h-1.5 flex-1 rounded-full', status === 'done' ? 'bg-emerald-600' : status === 'review' ? 'bg-amber-500' : status === 'behind' ? 'bg-red-500' : 'bg-muted')} />)}</div>
-      <p className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
-        <span><b className="text-foreground">{progress.done}</b> of {progress.total} done</span>
-        {progress.submitted ? <span><b className="text-foreground">{progress.submitted}</b> awaiting review</span> : null}
-        {progress.behind ? <span><b className="text-foreground">{progress.behind}</b> behind</span> : null}
-      </p>
-    </div> : null}
-  </div>
 }

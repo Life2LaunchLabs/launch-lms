@@ -43,7 +43,7 @@ const AccountSubPage = async (props: { params: Promise<{ orgslug: string; subpag
   }
 
   // Messages and organizations moved to Connect.
-  if (params.subpage === 'messages') redirect(getUriWithOrg(params.orgslug, routePaths.org.connectUpdates()))
+  if (params.subpage === 'messages') redirect(getUriWithOrg(params.orgslug, routePaths.org.connect()))
   if (params.subpage === 'organizations') redirect(getUriWithOrg(params.orgslug, routePaths.org.connect()))
 
   if (PROFILE_SUBPAGES.includes(params.subpage)) {

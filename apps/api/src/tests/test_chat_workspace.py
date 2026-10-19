@@ -6,11 +6,12 @@ from sqlmodel import select
 
 from src.db.conversations import ConversationMember, DirectChatOpen
 from src.db.goal_comments import GoalComment
-from src.db.goals import Goal, GoalStep, StepStatus, StepStatusChange
+from src.db.goals import Goal, GoalStatus, GoalStep, StepStatus, StepStatusChange
 from src.db.organizations import Organization
 from src.db.planning import PlanInvitation
 from src.services.connect import chats, workspace
 from src.services.goals import goals, sharing
+from src.services.messages import create_inbox_message
 from src.services.school import chats as school_chats, views
 from src.tests.test_goal_sharing import OTHER_EMAIL, _join, _personal, _session
 from src.tests.test_goals import ADMIN, LEARNER, NOW, OTHER, _issue, _published, _user
@@ -171,3 +172,76 @@ def test_admins_read_a_students_chat_by_plan_without_being_in_it():
         seen = views.student_chat(db, _user(ADMIN), 1, LEARNER, goal_uuid=goal.goal_uuid)
         assert seen["can_post"] is False and seen["conversation_uuid"] == conversation.conversation_uuid
         assert [item["body"] for item in seen["messages"]] == ["Started College ready"]
+
+
+def test_a_message_sent_while_filtered_is_about_that_step_without_saying_so():
+    with _session() as db:
+        goal = _plan(db)
+        steps = _steps(db, goal)
+        uuid = _org_chat(db)["conversation_uuid"]
+        sent = chats.send(db, _user(LEARNER), uuid, "which campus first?", {"goal_uuid": goal.goal_uuid, "step_uuid": steps["Visit a campus"]})
+        assert sent["body"] == "which campus first?" and sent["preview"] == "which campus first?"
+        assert [(ref["kind"], ref["title"], ref.get("scope")) for ref in sent["refs"]] == [("step", "Visit a campus", True)]
+        on_step = chats.get_chat(db, _user(ADMIN), uuid, goal_uuid=goal.goal_uuid, step_uuid=steps["Visit a campus"])["messages"]
+        assert [item["body"] for item in on_step] == ["which campus first?"]
+
+
+def test_tagging_your_plan_from_elsewhere_asks_before_sharing_it_with_the_chat():
+    with _session() as db:
+        _plan(db)
+        mine = _personal(db, LEARNER, "Personality assessment")["goal_uuid"]
+        uuid = _org_chat(db)["conversation_uuid"]
+        assert mine in [plan["goal_uuid"] for plan in chats_plans(db)]
+        with pytest.raises(HTTPException) as asked:
+            chats.send(db, _user(LEARNER), uuid, f"<plan:{mine}> would this count?")
+        detail = asked.value.detail
+        assert asked.value.status_code == 409 and detail["code"] == "needs_access"
+        assert [(plan["title"], plan["how"], [person["username"] for person in plan["people"]]) for plan in detail["plans"]] == [("Personality assessment", "share", ["teacher"])]
+        # Sent without sharing, the teacher sees that it's a private plan.
+        chats.send(db, _user(LEARNER), uuid, f"<plan:{mine}> would this count?", share={})
+        hidden = chats.get_chat(db, _user(ADMIN), uuid)["messages"][-1]
+        assert hidden["refs"][0]["hidden"] and hidden["preview"] == "Private plan would this count?"
+        sent = chats.send(db, _user(LEARNER), uuid, f"<plan:{mine}> here it is", share={mine: ["user_1"]})
+        assert sent["shared"] == {mine: "shared"}
+        shown = chats.get_chat(db, _user(ADMIN), uuid)["messages"]
+        assert [item["preview"] for item in shown[-2:]] == ["Personality assessment would this count?", "Personality assessment here it is"]
+        # Once shared, tagging it again needs no question, and it never becomes one of the chat's plans.
+        chats.send(db, _user(LEARNER), uuid, f"<plan:{mine}> again")
+        assert mine not in [topic["goal_uuid"] for topic in chats.get_chat(db, _user(LEARNER), uuid)["topics"]]
+
+
+def chats_plans(db):
+    from src.services.connect import linking
+
+    return linking.my_plans(db, _user(LEARNER))
+
+
+def test_an_assigned_plan_waiting_for_a_yes_is_an_invitation_in_the_organizations_chat():
+    with _session() as db:
+        goal = _issue(db, _published(db, {"key": "visit", "type": "task", "title": "Visit a campus"}), status=GoalStatus.PENDING)
+        chat = _org_chat(db)
+        card = chat["last_message"]["card"]
+        assert (card["type"], card["state"], card["for_me"]) == ("invitation", "pending", True)
+        assert chat["last_message"]["body"] == "Studio invited you to start College ready"
+        staff = chats.get_chat(db, _user(ADMIN), chat["conversation_uuid"])["messages"][-1]["card"]
+        assert staff["for_me"] is False and staff["for_name"]
+        goals.respond(db, _user(LEARNER), goal.goal_uuid, True)
+        listed = chats.list_chats(db, _user(LEARNER))["chats"]
+        messages = chats.get_chat(db, _user(LEARNER), listed[0]["conversation_uuid"])["messages"]
+        assert [item["card"]["type"] for item in messages] == ["invitation", workspace.PROGRESS]
+        assert messages[0]["card"]["state"] == "accepted"
+
+
+def test_an_organizations_notice_is_a_message_from_it():
+    with _session() as db:
+        org = db.exec(select(Organization)).first()
+        create_inbox_message(db, recipient_user_id=LEARNER, sender_org_id=org.id, message_type="invitation", subject=f"Invitation to join {org.name}",
+                             body=f"{org.name} invited you to join as Learner.", action_kind="organization_invitation", action_data={"invitation_uuid": "x"})
+        create_inbox_message(db, recipient_user_id=LEARNER, sender_org_id=org.id, message_type="welcome", subject="Welcome", body="Glad you're here")
+        db.commit()
+        chat = _org_chat(db)
+        messages = chats.get_chat(db, _user(LEARNER), chat["conversation_uuid"])["messages"]
+        assert [(item["card"]["type"], item["card"].get("state")) for item in messages] == [("invitation", "pending"), ("notice", None)]
+        # Delivered once, however often the list loads.
+        chats.list_chats(db, _user(LEARNER))
+        assert len(chats.get_chat(db, _user(LEARNER), chat["conversation_uuid"])["messages"]) == 2

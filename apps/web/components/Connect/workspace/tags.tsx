@@ -78,6 +78,8 @@ export function MessageText({ body, refs, links = true, inPlan, onTag }: {
 
 // eslint-disable-next-line no-unused-vars
 export function Tag({ tag, inPlan, onTag }: { tag: MessageRef; inPlan?: string; onTag?: (ref: MessageRef) => void }) {
+  // A plan from outside the chat that isn't shared with you: it's there, but private.
+  if ((tag.kind === 'plan' || tag.kind === 'step') && tag.hidden) return <PlanTag title="Private plan" />
   if (tag.kind === 'plan') return <PlanTag title={tag.title} onClick={onTag ? () => onTag(tag) : undefined} />
   if (tag.kind === 'step') return <PlanTag title={tag.title} planTitle={tag.goal_uuid === inPlan ? undefined : tag.plan_title} onClick={onTag ? () => onTag(tag) : undefined} />
   if (tag.kind === 'user') return <PersonTag person={tag} />

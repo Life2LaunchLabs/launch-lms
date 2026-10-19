@@ -105,6 +105,11 @@ class DirectChatOpen(BaseModel):
 
 class ChatMessageCreate(BaseModel):
     body: str = PydanticField(min_length=1, max_length=4000)
+    # The plan, or plan and step, the chat is filtered to: the message is about it.
+    goal_uuid: str | None = None
+    step_uuid: str | None = None
+    # For each of your plans from elsewhere that you tagged, who here to share it with. {} sends without sharing.
+    share: dict[str, list[str]] | None = None
 
 
 class ChatReportCreate(BaseModel):

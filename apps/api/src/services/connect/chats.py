@@ -131,12 +131,12 @@ def _last(db: Session, conversation: Conversation) -> ConversationMessage | None
 
 
 def _message_dict(db: Session, message: ConversationMessage, viewer_id: int, cache: dict | None = None) -> dict:
-    from src.services.connect import workspace
+    from src.services.connect import inbox, workspace
 
-    refs = workspace.resolve(db, message.refs, {} if cache is None else cache)
+    refs = workspace.resolve(db, message.refs, {} if cache is None else cache, viewer_id)
     return {
-        "message_uuid": message.message_uuid, "kind": message.kind, "body": message.body, "card": message.card, "refs": refs,
-        "preview": workspace.plain(db, message.body, message.refs) if message.refs else message.body,
+        "message_uuid": message.message_uuid, "kind": message.kind, "body": message.body, "card": inbox.live(db, message.card, viewer_id), "refs": refs,
+        "preview": workspace.plain(db, message.body, message.refs, viewer_id) if message.refs else message.body,
         "sender": people.person(db, message.sender_user_id), "mine": message.sender_user_id == viewer_id,
         "creation_date": message.creation_date, "update_date": message.update_date,
     }
@@ -165,6 +165,10 @@ def _chat_dict(db: Session, conversation: Conversation, member: ConversationMemb
 
 
 def list_chats(db: Session, current_user: PublicUser) -> dict:
+    from src.services.connect import inbox
+
+    # Invitations and notices are messages from whoever sent them.
+    inbox.deliver(db, current_user)
     rows = db.exec(select(Conversation, ConversationMember).join(ConversationMember, ConversationMember.conversation_id == Conversation.id).where(
         ConversationMember.user_id == current_user.id, col(ConversationMember.status).in_(LISTED),
         col(Conversation.last_message_at).is_not(None),
@@ -241,11 +245,12 @@ def open_direct(db: Session, current_user: PublicUser, payload: DirectChatOpen) 
     return get_chat(db, current_user, conversation.conversation_uuid)
 
 
-def send(db: Session, current_user: PublicUser, conversation_uuid: str, body: str) -> dict:
-    from src.services.connect import workspace
+def send(db: Session, current_user: PublicUser, conversation_uuid: str, body: str, scope: dict | None = None, share: dict[str, list[str]] | None = None) -> dict:
+    """Send a message. Tagging your plan from elsewhere asks first whether to share it with the people here who can't see it."""
+    from src.services.connect import linking, workspace
 
     conversation, member = _membership(db, conversation_uuid, current_user.id)
-    text, refs, rows = workspace.prepare(db, conversation, body or "")
+    text, refs, rows = workspace.prepare(db, conversation, body or "", current_user.id, scope)
     if not text:
         raise HTTPException(status_code=422, detail="Write a message first")
     if not workspace.can_post(db, conversation, current_user.id):
@@ -262,11 +267,16 @@ def send(db: Session, current_user: PublicUser, conversation_uuid: str, body: st
             ConversationMessage.conversation_id == conversation.id, ConversationMessage.sender_user_id == current_user.id,
         )).first():
             raise HTTPException(status_code=409, detail="You can send more once they accept your request")
+    blind = linking.missing(db, conversation, refs, current_user.id)
+    if blind and share is None:
+        raise HTTPException(status_code=409, detail={"code": "needs_access", "plans": blind})
+    shared = {item["goal_uuid"]: linking.share(db, current_user, conversation, item["goal_uuid"], (share or {}).get(item["goal_uuid"]) or [])
+              for item in blind if (share or {}).get(item["goal_uuid"])}
     message = post(db, conversation, current_user.id, text, refs=refs)
     workspace.attach(db, message, rows)
     outcomes = workspace.after_send(db, current_user, conversation, message)
     db.commit()
-    return {**_message_dict(db, message, current_user.id), "mentions": outcomes}
+    return {**_message_dict(db, message, current_user.id), "mentions": outcomes, "shared": shared}
 
 
 def mark_read(db: Session, current_user: PublicUser, conversation_uuid: str) -> dict:

@@ -21,8 +21,6 @@ import { getPrimaryOrgMenuItems, OrgMenuNavItem } from './OrgMenuLinks'
 import OrgMenuMobile, { NavItemControl, NAV_ACTIVE_CLASS } from './OrgMenuMobile'
 import { useHub } from '@components/Hub/HubContext'
 import { cn } from '@/lib/utils'
-import useInboxMessages from '@components/Hooks/useInboxMessages'
-import useGoalInvitations from '@components/Hooks/useGoalInvitations'
 import { useConnectCounts } from '@components/Connect/useConnect'
 
 const DESKTOP_NAV_COLLAPSED_WIDTH = '44px'
@@ -41,8 +39,6 @@ export const OrgMenu = (props: { orgslug: string; compact?: boolean }) => {
   })
   const { isVisible: isJoinBannerVisible } = useJoinBannerVisible()
   // Invitations and notices from organizations arrive in Connect now.
-  const { unreadCount } = useInboxMessages()
-  const invitations = useGoalInvitations()
   const connect = useConnectCounts()
   const topOffset = isJoinBannerVisible ? JOIN_BANNER_HEIGHT : 0
   const config = org?.config?.config
@@ -62,7 +58,8 @@ export const OrgMenu = (props: { orgslug: string; compact?: boolean }) => {
     pathname,
     resolvedFeatures,
     hubOpen: hub?.state === 'open',
-    connectWaiting: connect.unread + connect.requests + unreadCount + invitations.unreadCount > 0,
+    // Invitations and notices arrive as chat messages, so unread chats cover them.
+    connectWaiting: connect.unread + connect.requests > 0,
   }).filter((item) => item.show)
 
   const isDesktopNavExpanded = isDesktopExpanded && !props.compact

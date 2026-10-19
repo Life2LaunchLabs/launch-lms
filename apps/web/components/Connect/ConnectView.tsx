@@ -15,7 +15,7 @@ import { PersonAvatar } from '@components/Goals/share/PersonAvatar'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { connectApi, connectKeys, connectUrl, type ChatSummary, type FoundPerson } from '@services/connect/connect'
 import ChatPane from './ChatPane'
-import { InvitationRows, OrganizationResults, OrganizationRows, OrgMark, UpdatesPane, UpdatesRow } from './ConnectInbox'
+import { OrganizationResults, OrgMark } from './ConnectOrgs'
 import { useChatList, useConnectToken } from './useConnect'
 
 export const CONNECT_COLOR = '#7cc4ff'
@@ -39,16 +39,17 @@ function preview(chat: ChatSummary) {
 }
 
 /**
- * Connect: invitations waiting on you, everyone you chat with, and your organizations in one
- * list; finding someone by @handle or an organization by name; and the open chat beside it.
+ * Connect: your connections, the organizations and people you talk with, in one stack. Their
+ * invitations and notices are messages in those chats. Find someone by @handle or an
+ * organization by name, and the open chat sits beside the list.
  */
-export default function ConnectView({ orgslug, chatUuid, pane }: { orgslug: string; chatUuid?: string; pane?: 'updates' }) {
+export default function ConnectView({ orgslug, chatUuid }: { orgslug: string; chatUuid?: string }) {
   const { data, isLoading, error, mutate } = useChatList()
   const [query, setQuery] = React.useState('')
   const [settingsOpen, setSettingsOpen] = React.useState(false)
   const chats = data?.chats || []
   const searching = query.trim().replace(/^@/, '').length >= 2
-  const open = Boolean(chatUuid || pane)
+  const open = Boolean(chatUuid)
 
   return <div className="mx-auto flex h-[calc(100dvh-var(--candidate-experience-height,0px)-var(--demo-bar-height,0px)-4rem)] w-full max-w-[1200px] gap-4 p-3 md:h-[calc(100dvh-var(--candidate-experience-height,0px)-var(--demo-bar-height,0px))] md:p-6" data-connect>
     <section aria-label="Chats" className={cn('flex min-h-0 w-full flex-col md:w-[360px] md:shrink-0', open && 'hidden md:flex')}>
@@ -66,20 +67,13 @@ export default function ConnectView({ orgslug, chatUuid, pane }: { orgslug: stri
         {searching ? <><OrganizationResults orgslug={orgslug} query={query} /><PeopleResults orgslug={orgslug} query={query} onOpened={() => setQuery('')} /></>
           : isLoading ? <ListSkeleton />
           : error ? <p className="px-2 py-8 text-center text-sm text-muted-foreground">Chats didn&rsquo;t load. <button type="button" className="font-semibold underline" onClick={() => mutate()}>Try again</button></p>
-          : <>
-            <InvitationRows orgslug={orgslug} />
-            <ul className="flex flex-col gap-0.5">
-              <UpdatesRow orgslug={orgslug} active={pane === 'updates'} />
-              {chats.map((chat) => <ChatRow key={chat.conversation_uuid} chat={chat} orgslug={orgslug} active={chat.conversation_uuid === chatUuid} />)}
-            </ul>
-            {chats.length ? null : <EmptyList />}
-            <OrganizationRows orgslug={orgslug} />
-          </>}
+          : chats.length ? <ul className="flex flex-col gap-0.5">
+            {chats.map((chat) => <ChatRow key={chat.conversation_uuid} chat={chat} orgslug={orgslug} active={chat.conversation_uuid === chatUuid} />)}
+          </ul> : <EmptyList />}
       </div>
     </section>
     <section aria-label="Chat" className={cn('min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-border bg-shell', open ? 'flex' : 'hidden md:flex')}>
-      {pane === 'updates' ? <UpdatesPane orgslug={orgslug} />
-        : chatUuid ? <ChatPane key={chatUuid} orgslug={orgslug} chatUuid={chatUuid} />
+      {chatUuid ? <ChatPane key={chatUuid} orgslug={orgslug} chatUuid={chatUuid} />
         : <div className="m-auto max-w-xs p-8 text-center text-muted-foreground"><MessageCircle className="mx-auto mb-3" size={36} /><p className="text-sm">Pick a chat, or search for someone by their @handle or an organization by name.</p></div>}
     </section>
     <ConnectSettings open={settingsOpen} onOpenChange={setSettingsOpen} />
@@ -149,7 +143,7 @@ function EmptyList() {
   return <div className="px-4 py-10 text-center">
     <MessageCircle className="mx-auto mb-3 text-muted-foreground" size={32} />
     <p className="font-bold">No chats yet</p>
-    <p className="mt-1 text-sm leading-6 text-muted-foreground">Search for someone you share a goal with. Comments on your goals show up here too.</p>
+    <p className="mt-1 text-sm leading-6 text-muted-foreground">Organizations and people you work with show up here, along with their invitations. Search for someone you share a goal with.</p>
   </div>
 }
 

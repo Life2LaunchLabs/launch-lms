@@ -142,10 +142,10 @@ def add_member(db: Session, goal: Goal, user_id: int, role: PlanRole) -> PlanCol
 
 def log(db: Session, goal: Goal, actor_user_id: int | None, action: str, payload: dict | None = None) -> None:
     """Record what happened on a goal, and keep its chat in step (progress cards, who's in it)."""
-    from src.services.connect import workspace
+    from src.services.connect import progress
 
     db.add(PlanActivity(
         activity_uuid=f"plan_activity_{uuid4()}", goal_id=goal.id, actor_user_id=actor_user_id,
         action=action, payload=payload or {}, creation_date=_now(),
     ))
-    workspace.on_goal_event(db, goal, actor_user_id, action, payload or {})
+    progress.on_goal_event(db, goal, actor_user_id, action, payload or {})

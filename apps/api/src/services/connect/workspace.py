@@ -5,14 +5,14 @@ assignment, a badge) talks in the learner's chat with that organization, alongsi
 plans with it; a personal plan talks in a chat of its own once someone else is on it. A message
 tags plans, steps, people and organizations inline as tokens (``<step:goal_uuid/step_uuid>``),
 so the chat filters by plan and then by step: a comment on a step is just a message that tags
-it. The app posts each plan's progress there as cards, and older goal comments move in the
+it. The app posts each plan's progress there as cards (see progress.py), and older goal comments move in the
 first time their plan's chat is opened.
 """
 
 from __future__ import annotations
 
 import re
-from datetime import date, datetime, timedelta, timezone
+from datetime import date
 from uuid import uuid4
 
 from fastapi import HTTPException
@@ -36,8 +36,6 @@ ORG_MENTION = "org_mention"
 TOKEN = re.compile(r"<(plan|step|user|org):([A-Za-z0-9_.-]+)(?:/([A-Za-z0-9_.-]+))?>")
 # Plans a chat is about: waiting to be accepted, under way, or finished.
 LIVE = (GoalStatus.PENDING.value, GoalStatus.ACTIVE.value, GoalStatus.FINISHED.value)
-# Progress from one person on one plan gathers into one card while it keeps coming.
-GATHER_WINDOW = timedelta(hours=6)
 INVITE_ROLE = "commenter"
 ORG_SOURCES = (GoalSource.ASSIGNMENT.value, GoalSource.BADGE.value)
 
@@ -164,34 +162,49 @@ def _step(db: Session, goal: Goal, step_uuid: str | None) -> GoalStep | None:
     return db.exec(select(GoalStep).where(GoalStep.goal_id == goal.id, GoalStep.step_uuid == step_uuid)).first() if step_uuid else None
 
 
-def prepare(db: Session, conversation: Conversation, body: str) -> tuple[str, list[dict], list[tuple[int, str | None]]]:
-    """A message's text with only the tags that resolve here kept, what it tags, and the plan rows to filter it by."""
+def _taggable(db: Session, goal_uuid: str, sender_id: int | None) -> Goal | None:
+    """A plan from outside the chat that its sender can see, so they can point to it here."""
+    goal = db.exec(select(Goal).where(Goal.goal_uuid == goal_uuid)).first() if sender_id else None
+    return goal if goal and _value(goal.status) in LIVE and "view_plan" in access.capabilities(db, goal, int(sender_id)) else None  # type: ignore[arg-type]
+
+
+def prepare(db: Session, conversation: Conversation, body: str, sender_id: int | None = None, scope: dict | None = None) -> tuple[str, list[dict], list[tuple[int, str | None]]]:
+    """A message's text with only the tags that resolve here kept, what it tags, and the plan rows to filter it by.
+
+    Plans outside the chat stay tagged when their sender can see them. ``scope`` is the plan or
+    step the chat was filtered to: the message is about it without saying so in its text.
+    """
     goals = {goal.goal_uuid: goal for goal in goals_in(db, conversation)}
     refs: list[dict] = []
     rows: list[tuple[int, str | None]] = []
+
+    def add(ref: dict, goal: Goal | None = None, step_uuid: str | None = None) -> None:
+        if not any({**item, "scope": False} == {**ref, "scope": False} for item in refs):
+            refs.append(ref)
+        row = (int(goal.id), step_uuid) if goal and goal.goal_uuid in goals else None  # type: ignore[arg-type]
+        if row and row not in rows:
+            rows.append(row)
 
     def keep(match: re.Match) -> str:
         kind, first, second = match.groups()
         ref: dict | None = None
         if kind in ("plan", "step"):
-            goal = goals.get(first)
+            goal = goals.get(first) or _taggable(db, first, sender_id)
             step = _step(db, goal, second) if goal and kind == "step" else None
             if goal and (kind == "plan" or step):
-                ref = {"kind": kind, "goal_uuid": first, **({"step_uuid": second} if step else {})}
-                row = (int(goal.id), second if step else None)  # type: ignore[arg-type]
-                if row not in rows:
-                    rows.append(row)
+                ref = {"kind": kind, "goal_uuid": first, **({"step_uuid": second} if step else {}), **({} if first in goals else {"outside": True})}
+                add(ref, goal, second if step else None)
         elif kind == "user" and db.exec(select(User.id).where(User.user_uuid == first)).first():
-            ref = {"kind": "user", "user_uuid": first}
+            add(ref := {"kind": "user", "user_uuid": first})
         elif kind == "org" and db.exec(select(Organization.id).where(Organization.org_uuid == first)).first():
-            ref = {"kind": "org", "org_uuid": first}
-        if not ref:
-            return ""
-        if ref not in refs:
-            refs.append(ref)
-        return match.group(0)
+            add(ref := {"kind": "org", "org_uuid": first})
+        return match.group(0) if ref else ""
 
     text = re.sub(r"[ \t]{2,}", " ", TOKEN.sub(keep, body)).strip()
+    goal = goals.get((scope or {}).get("goal_uuid") or "")
+    step = _step(db, goal, (scope or {}).get("step_uuid")) if goal else None
+    if goal:
+        add({"kind": "step" if step else "plan", "goal_uuid": goal.goal_uuid, **({"step_uuid": step.step_uuid} if step else {}), "scope": True}, goal, step.step_uuid if step else None)
     return text, refs, rows
 
 
@@ -206,16 +219,24 @@ def _step_status(db: Session, step: GoalStep) -> str:
     return _value(progress) if progress else StepStatus.NOT_STARTED.value
 
 
-def resolve(db: Session, refs: list[dict] | None, cache: dict) -> list[dict]:
-    """Tags as the reader sees them now: current titles, names and states. Gone things drop out."""
+def resolve(db: Session, refs: list[dict] | None, cache: dict, viewer_id: int | None = None) -> list[dict]:
+    """Tags as the reader sees them now: current titles, names and states. Gone things drop out.
+
+    A plan from outside the chat shows only to readers it's shared with; others see that it's private.
+    """
     resolved: list[dict] = []
     for ref in refs or []:
         kind = ref.get("kind")
         key = f"{kind}:{ref.get('goal_uuid') or ref.get('user_uuid') or ref.get('org_uuid')}" + (f"/{ref['step_uuid']}" if ref.get("step_uuid") else "")
         if key not in cache:
-            cache[key] = _resolve_one(db, ref)
+            found = _resolve_one(db, ref)
+            if found and ref.get("outside"):
+                goal = db.exec(select(Goal).where(Goal.goal_uuid == ref["goal_uuid"])).first()
+                shown = bool(goal and viewer_id and "view_plan" in access.capabilities(db, goal, viewer_id))
+                found = {**found, "outside": True} if shown else {"kind": kind, "goal_uuid": ref["goal_uuid"], "title": "Private plan", "hidden": True, "outside": True}
+            cache[key] = found
         if cache[key]:
-            resolved.append({**cache[key], "key": key})
+            resolved.append({**cache[key], "key": key, **({"scope": True} if ref.get("scope") else {})})
     return resolved
 
 
@@ -241,9 +262,9 @@ def _resolve_one(db: Session, ref: dict) -> dict | None:
     return None
 
 
-def plain(db: Session, body: str, refs: list[dict] | None) -> str:
+def plain(db: Session, body: str, refs: list[dict] | None, viewer_id: int | None = None) -> str:
     """A message with its tags written out as their names, for previews."""
-    names = {item["key"]: item for item in resolve(db, refs, {})}
+    names = {item["key"]: item for item in resolve(db, refs, {}, viewer_id)}
 
     def name(match: re.Match) -> str:
         kind, first, second = match.groups()
@@ -280,6 +301,27 @@ def _ordered_steps(db: Session, goal: Goal) -> list[GoalStep]:
     return sorted(steps, key=lambda step: (stages.get(int(step.stage_id or 0), -1), step.position, int(step.id)))  # type: ignore[arg-type]
 
 
+def topic(db: Session, goal: Goal, by_step: dict | None = None, count: int = 0) -> dict:
+    """One plan to filter by or tag: its steps, where they stand, and how many messages tag each."""
+    today = date.today()
+    steps = _ordered_steps(db, goal)
+    statuses = {int(step_id): _value(status) for step_id, status in db.exec(
+        select(StepProgress.step_id, StepProgress.status).where(col(StepProgress.step_id).in_([step.id for step in steps]))
+    ).all()} if steps else {}
+    rows = []
+    for step in steps:
+        status = statuses.get(int(step.id), StepStatus.NOT_STARTED.value)  # type: ignore[arg-type]
+        rows.append({"step_uuid": step.step_uuid, "title": step.title, "status": status, "due_date": step.due_date,
+                     "behind": bool(step.due_date and step.due_date < today and status not in DONE_STEP_STATUSES),
+                     "count": (by_step or {}).get((int(goal.id), step.step_uuid), 0)})  # type: ignore[arg-type]
+    return {
+        "goal_uuid": goal.goal_uuid, "title": goal.title, "status": _value(goal.status), "source": _value(goal.source), "count": count,
+        "progress": {"done": sum(row["status"] in DONE_STEP_STATUSES for row in rows), "total": len(rows),
+                     "submitted": sum(row["status"] == StepStatus.SUBMITTED.value for row in rows), "behind": sum(row["behind"] for row in rows)},
+        "steps": rows,
+    }
+
+
 def topics(db: Session, conversation: Conversation) -> list[dict]:
     """The plans this chat is about, each with its steps, where they stand, and how many messages tag them."""
     goals = goals_in(db, conversation)
@@ -293,27 +335,7 @@ def topics(db: Session, conversation: Conversation) -> list[dict]:
         select(ConversationMessageRef.goal_id, func.count(func.distinct(ConversationMessageRef.message_id)))
         .where(ConversationMessageRef.conversation_id == conversation.id).group_by(ConversationMessageRef.goal_id)
     ).all()}
-    today = date.today()
-    plans = []
-    for goal in goals:
-        steps = _ordered_steps(db, goal)
-        statuses = {int(step_id): _value(status) for step_id, status in db.exec(
-            select(StepProgress.step_id, StepProgress.status).where(col(StepProgress.step_id).in_([step.id for step in steps]))
-        ).all()} if steps else {}
-        rows = []
-        for step in steps:
-            status = statuses.get(int(step.id), StepStatus.NOT_STARTED.value)  # type: ignore[arg-type]
-            rows.append({"step_uuid": step.step_uuid, "title": step.title, "status": status, "due_date": step.due_date,
-                         "behind": bool(step.due_date and step.due_date < today and status not in DONE_STEP_STATUSES),
-                         "count": by_step.get((int(goal.id), step.step_uuid), 0)})  # type: ignore[arg-type]
-        plans.append({
-            "goal_uuid": goal.goal_uuid, "title": goal.title, "status": _value(goal.status), "source": _value(goal.source),
-            "count": by_goal.get(int(goal.id), 0),  # type: ignore[arg-type]
-            "progress": {"done": sum(row["status"] in DONE_STEP_STATUSES for row in rows), "total": len(rows),
-                         "submitted": sum(row["status"] == StepStatus.SUBMITTED.value for row in rows), "behind": sum(row["behind"] for row in rows)},
-            "steps": rows,
-        })
-    return plans
+    return [topic(db, goal, by_step, by_goal.get(int(goal.id), 0)) for goal in goals]  # type: ignore[arg-type]
 
 
 def goal_chat(db: Session, current_user: PublicUser, goal_uuid: str) -> dict:
@@ -388,79 +410,6 @@ def _tell_org(db: Session, current_user: PublicUser, conversation: Conversation,
     ).all()) if item)
     card = {"type": ORG_MENTION, "from_chat": where, "excerpt": plain(db, message.body, message.refs)[:280]}
     chats.post(db, target, current_user.id, f"Tagged {org.name} in a chat with {where}" if where else f"Tagged {org.name}", kind="card", card=card)  # type: ignore[union-attr]
-
-
-# Progress cards
-
-
-def _progress_body(card: dict) -> str:
-    if card.get("started") and not card.get("events"):
-        return f"Started {card['goal_title']}"
-    verbs = {"finished": "Finished", "turned_in": "Turned in", "approved": "Approved", "changes": "Asked for changes on", "marked_done": "Marked done", "excused": "Excused"}
-    events = card.get("events") or []
-    if len(events) == 1:
-        return f"{verbs[events[0]['event']]} {events[0]['title']}"
-    counts: dict[str, int] = {}
-    for event in events:
-        counts[event["event"]] = counts.get(event["event"], 0) + 1
-    parts = [f"{verbs[name].lower()} {count} step{'s' if count != 1 else ''}" for name, count in counts.items()]
-    text = ", ".join(parts[:-1]) + (" and " if len(parts) > 1 else "") + parts[-1]
-    return text[0].upper() + text[1:]
-
-
-def _event(goal: Goal, actor_id: int | None, previous: str, current: str) -> str | None:
-    learner = actor_id in (None, goal.subject_user_id)
-    if current == StepStatus.COMPLETED.value:
-        return "finished" if learner else "approved" if previous == StepStatus.SUBMITTED.value else "marked_done"
-    if current == StepStatus.SUBMITTED.value:
-        return "turned_in"
-    if current == StepStatus.CHANGES_REQUESTED.value:
-        return "changes"
-    if current == StepStatus.EXCUSED.value:
-        return "excused"
-    return None
-
-
-def _post_progress(db: Session, conversation: Conversation, goal: Goal, sender_id: int | None, entry: dict | None) -> None:
-    last = chats._last(db, conversation)
-    card = last.card if last and last.kind == "card" else None
-    recent = bool(last and last.creation_date > (datetime.now(timezone.utc) - GATHER_WINDOW).isoformat())
-    if entry and card and card.get("type") == PROGRESS and not card.get("started") and card.get("goal_uuid") == goal.goal_uuid and last.sender_user_id == sender_id and recent:  # type: ignore[union-attr]
-        events = [item for item in card.get("events") or [] if item["step_uuid"] != entry["step_uuid"]] + [entry]
-        merged = {**card, "events": events, "goal_title": goal.title}
-        now = _stamp()
-        last.card, last.body, last.update_date = merged, _progress_body(merged), now  # type: ignore[union-attr]
-        refs = list(last.refs or [])  # type: ignore[union-attr]
-        step_ref = {"kind": "step", "goal_uuid": goal.goal_uuid, "step_uuid": entry["step_uuid"]}
-        if step_ref not in refs:
-            last.refs = [*refs, step_ref]  # type: ignore[union-attr]
-            attach(db, last, [(int(goal.id), entry["step_uuid"])])  # type: ignore[arg-type]
-        conversation.last_message_at, conversation.update_date = now, now
-        db.add(last)
-        db.add(conversation)
-        db.flush()
-        return
-    fresh = {"type": PROGRESS, "goal_uuid": goal.goal_uuid, "goal_title": goal.title, "started": entry is None, "events": [entry] if entry else []}
-    refs = [{"kind": "plan", "goal_uuid": goal.goal_uuid}, *([{"kind": "step", "goal_uuid": goal.goal_uuid, "step_uuid": entry["step_uuid"]}] if entry else [])]
-    message = chats.post(db, conversation, sender_id, _progress_body(fresh), kind="card", card=fresh, refs=refs)
-    attach(db, message, [(int(goal.id), entry["step_uuid"] if entry else None)])  # type: ignore[arg-type]
-
-
-def on_goal_event(db: Session, goal: Goal, actor_id: int | None, action: str, payload: dict) -> None:
-    """Keep a plan's chat in step with what happens on the plan."""
-    if action in ("goal.issued", "goal.accepted", "invitation.accepted") and _external(goal) and _value(goal.status) == GoalStatus.ACTIVE.value:
-        conversation = chat_for_goal(db, goal)
-        if conversation and not db.exec(select(ConversationMessageRef.id).where(ConversationMessageRef.conversation_id == conversation.id, ConversationMessageRef.goal_id == goal.id)).first():
-            _post_progress(db, conversation, goal, goal.subject_user_id, None)
-    elif action in ("invitation.accepted", "collaborator.removed", "collaborator.left", "collaborator.role_changed", "collaborator.request_resolved", "ownership.transferred", "goal.updated"):
-        sync_goal(db, goal)
-    elif action == "step.status":
-        event = _event(goal, actor_id, str(payload.get("from") or ""), str(payload.get("to") or ""))
-        step = _step(db, goal, payload.get("step_uuid"))
-        conversation = chat_for_goal(db, goal, create=False) if event and step else None
-        if conversation and step:
-            entry = {"step_uuid": step.step_uuid, "title": step.title, "event": event, "at": _stamp()}
-            _post_progress(db, conversation, goal, actor_id or goal.subject_user_id, entry)
 
 
 # Older goal comments

@@ -2,38 +2,28 @@
 
 import React from 'react'
 import useSWR from 'swr'
-import { AtSign, Building2, Flag, Loader2, Plus, Send, Slash } from 'lucide-react'
+import { AtSign, Loader2, Plus, Send, Slash } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
-import { PersonAvatar } from '@components/Goals/share/PersonAvatar'
-import { connectApi, connectUrl, type ChatTopic, type FoundPerson, type TopicStep } from '@services/connect/connect'
+import { connectApi, connectKeys, connectUrl, type ChatTopic, type FoundPerson } from '@services/connect/connect'
 import type { PersonSummary } from '@services/goals/types'
-import { StepMark, orgToken, planToken, stepToken, userToken } from './tags'
+import { OptionIcon, ZWSP, chipFor, detail, ghostFor, label, optionsFor, paintDraft, type Draft, type Option, type TagOrg } from './composerParts'
 
-export type TagOrg = { org_uuid: string; name: string }
-
-type Option =
-  | { type: 'plan'; plan: ChatTopic }
-  | { type: 'step'; plan: ChatTopic; step: TopicStep }
-  | { type: 'person'; person: PersonSummary }
-  | { type: 'org'; org: TagOrg }
-
-type Trigger = { node: Text; start: number; end: number; char: '/' | '@'; query: string; afterPlan: HTMLElement | null }
-
-const ZWSP = '\u200b'
-const STATUS: Record<string, string> = { completed: 'Done', excused: 'Excused', submitted: 'Waiting on review', changes_requested: 'Changes asked for', in_progress: 'Started', not_started: 'Not started' }
+export type { TagOrg }
 
 export type TagComposerHandle = {
-  /** Start the message with a tag, such as the step being looked at. Only while it's empty. */
-  // eslint-disable-next-line no-unused-vars
-  prefill: (option: { plan: ChatTopic; step?: TopicStep } | null) => void
   focus: () => void
+  clear: () => void
 }
 
+const SPACE = /[\s\u00a0\u200b]/
+
 /**
- * Coach's composer for people: type / for a plan and / again for one of its steps, @ for a
- * person or an organization, or use +. Tags sit inline as chips and go out as tokens.
+ * Coach's composer for people. Typing / makes a plan tag right away and fills in the best match
+ * as you type; picking a plan keeps the tag open with › for one of its steps (Tab, or space after
+ * the ›, keeps the whole plan). @ and a letter does the same for people and organizations. The + button
+ * starts either. Tags sit inline as chips and go out as tokens.
  */
 const TagComposer = React.forwardRef<TagComposerHandle, {
   topics: ChatTopic[]
@@ -42,86 +32,27 @@ const TagComposer = React.forwardRef<TagComposerHandle, {
   placeholder: string
   disabled?: string
   token?: string
-  /** The plan being looked at: / offers its steps first. */
-  scopeGoal?: string
   // eslint-disable-next-line no-unused-vars
   onSend: (body: string) => Promise<boolean>
-}>(function TagComposer({ topics, people, orgs, placeholder, disabled, token, scopeGoal, onSend }, ref) {
+}>(function TagComposer({ topics, people, orgs, placeholder, disabled, token, onSend }, ref) {
   const editor = React.useRef<HTMLDivElement>(null)
   const [empty, setEmpty] = React.useState(true)
-  const prefilled = React.useRef<string | null>(null)
   const [sending, setSending] = React.useState(false)
-  const [trigger, setTrigger] = React.useState<Trigger | null>(null)
+  const [draft, setDraftState] = React.useState<Draft | null>(null)
+  const current = React.useRef<Draft | null>(null)
   const [active, setActive] = React.useState(0)
-  const query = trigger?.char === '@' ? trigger.query : ''
+  const setDraft = (next: Draft | null) => { current.current = next; setDraftState(next); setActive(0) }
+  const query = draft?.stage === 'person' ? draft.query : ''
   const { data: found = [] } = useSWR<FoundPerson[]>(token && query.length >= 2 ? connectUrl(`/search?q=${encodeURIComponent(query)}`) : null, () => connectApi.search(query, token), { keepPreviousData: true })
-
-  const options = React.useMemo<Option[]>(() => {
-    if (!trigger) return []
-    const needle = trigger.query.toLowerCase()
-    const has = (text: string) => text.toLowerCase().includes(needle)
-    if (trigger.char === '@') {
-      const known = new Set(people.map((person) => person.user_uuid))
-      return [
-        ...orgs.filter((org) => has(org.name)).map((org) => ({ type: 'org' as const, org })),
-        ...people.filter((person) => has(person.name) || has(person.username)).map((person) => ({ type: 'person' as const, person })),
-        ...found.filter((person) => !known.has(person.user_uuid)).map((person) => ({ type: 'person' as const, person })),
-      ].slice(0, 8)
-    }
-    const planOf = trigger.afterPlan ? topics.find((plan) => plan.goal_uuid === trigger.afterPlan?.dataset.goal) : null
-    if (planOf) return planOf.steps.filter((step) => has(step.title)).map((step) => ({ type: 'step' as const, plan: planOf, step }))
-    const scoped = scopeGoal ? topics.find((plan) => plan.goal_uuid === scopeGoal) : null
-    const plans = topics.filter((plan) => has(plan.title)).map((plan) => ({ type: 'plan' as const, plan }))
-    return scoped ? [...scoped.steps.filter((step) => has(step.title)).map((step) => ({ type: 'step' as const, plan: scoped, step })), ...plans].slice(0, 12) : plans
-  }, [trigger, topics, people, orgs, found, scopeGoal])
+  // Your plans from elsewhere, to point to from this chat.
+  const { data: mine = [] } = useSWR<ChatTopic[]>(token ? connectKeys.plans() : null, () => connectApi.plans(token), { revalidateOnFocus: false })
+  const options = React.useMemo(() => optionsFor(draft, topics, mine, people, orgs, found), [draft, topics, mine, people, orgs, found])
+  const top = options[Math.min(active, options.length - 1)]
+  React.useEffect(() => { if (draft) paintDraft(draft, ghostFor(draft.query, top)) }, [draft, top])
 
   const sync = () => {
     const node = editor.current
-    setEmpty(!node || (!node.textContent?.replace(new RegExp(ZWSP, 'g'), '').trim() && !node.querySelector('[data-token]')))
-  }
-
-  const caret = (): Trigger | null => {
-    const selection = window.getSelection()
-    const node = selection?.anchorNode
-    if (!selection?.rangeCount || !node || node.nodeType !== Node.TEXT_NODE || !editor.current?.contains(node)) return null
-    const before = (node.textContent || '').slice(0, selection.anchorOffset)
-    const match = before.match(/(^|[\s\u00a0\u200b])([@/])([^\s\u00a0\u200b@/]*)$/)
-    if (!match) return null
-    const start = selection.anchorOffset - match[2].length - match[3].length
-    // "/" right after a plan's chip narrows to that plan's steps.
-    const previous = node.previousSibling as HTMLElement | null
-    const afterPlan = match[2] === '/' && /^[\s\u00a0\u200b]*$/.test(before.slice(0, start)) && previous?.dataset?.kind === 'plan' ? previous : null
-    return { node: node as Text, start, end: selection.anchorOffset, char: match[2] as '/' | '@', query: match[3], afterPlan }
-  }
-
-  const chipFor = (option: Option): HTMLElement => {
-    const span = document.createElement('span')
-    span.contentEditable = 'false'
-    if (option.type === 'plan' || option.type === 'step') {
-      span.dataset.kind = option.type
-      span.dataset.goal = option.plan.goal_uuid
-      span.dataset.token = option.type === 'plan' ? planToken(option.plan.goal_uuid) : stepToken(option.plan.goal_uuid, option.step.step_uuid)
-      span.className = 'mx-0.5 inline-flex items-center gap-1 whitespace-nowrap rounded-md border border-border bg-card py-px pl-1 pr-1.5 align-baseline text-[0.92em] font-semibold leading-snug'
-      const mark = document.createElement('span')
-      mark.className = 'relative top-px flex h-3.5 w-3.5 items-center justify-center rounded-[4px] bg-[var(--org-primary-color)] text-[8px] text-white'
-      mark.textContent = '⚑'
-      span.append(mark)
-      if (option.type === 'step') {
-        const crumb = document.createElement('span')
-        crumb.className = 'font-medium text-muted-foreground'
-        crumb.textContent = `${option.plan.title} ›`
-        span.append(crumb)
-      }
-      span.append(document.createTextNode(option.type === 'step' ? option.step.title : option.plan.title))
-    } else {
-      const org = option.type === 'org'
-      span.dataset.kind = option.type
-      span.dataset.token = org ? orgToken(option.org.org_uuid) : userToken(option.person.user_uuid || '')
-      span.className = cn('mx-0.5 inline-flex items-center whitespace-nowrap rounded-full px-2 py-px align-baseline text-[0.92em] font-bold leading-snug',
-        org ? 'bg-emerald-600/10 text-emerald-700 dark:text-emerald-400' : 'bg-[var(--org-primary-color)]/10 text-[var(--org-primary-color)]')
-      span.textContent = `@${org ? option.org.name : option.person.name}`
-    }
-    return span
+    setEmpty(!node || (!node.textContent?.replace(new RegExp(ZWSP, 'g'), '').trim() && !node.querySelector('[data-token],[data-draft]')))
   }
 
   const place = (node: Node, offset: number) => {
@@ -133,20 +64,102 @@ const TagComposer = React.forwardRef<TagComposerHandle, {
     selection?.addRange(range)
   }
 
-  const pick = (option: Option | undefined) => {
-    if (!option || !trigger) return
-    const { node, start, end, afterPlan } = trigger
-    const chip = chipFor(option)
-    const rest = node.splitText(start)
-    rest.textContent = (rest.textContent || '').slice(end - start)
-    if (afterPlan && option.type === 'step') afterPlan.replaceWith(chip)
-    else node.parentNode?.insertBefore(chip, rest)
-    // After a plan the caret waits right beside it, so another / picks one of its steps.
-    const after = document.createTextNode(option.type === 'plan' ? ZWSP : '\u00a0')
-    chip.after(after)
-    place(after, after.length)
-    setTrigger(null)
+  /** Open a tag at the caret, taking out the characters that started it. */
+  const open = (char: '/' | '@', typed: string, node: Text, start: number, end: number) => {
+    const text = node.textContent || ''
+    node.textContent = text.slice(0, start) + text.slice(end)
+    const after = node.splitText(start)
+    const chip = document.createElement('span')
+    chip.contentEditable = 'false'
+    chip.dataset.draft = 'true'
+    node.parentNode?.insertBefore(chip, after)
+    if (!after.textContent) after.textContent = ZWSP
+    place(after, after.textContent.startsWith(ZWSP) ? 1 : 0)
+    setDraft({ el: chip, char, stage: char === '@' ? 'person' : 'plan', query: typed })
     sync()
+  }
+
+  /** Close the open tag as a finished chip, or put back what was typed as plain text. */
+  const close = (option: Option | null) => {
+    const tag = current.current
+    if (!tag) return
+    const next: Node = option ? chipFor(option) : document.createTextNode(`${tag.char}${tag.query}`)
+    tag.el.replaceWith(next)
+    let after = next.nextSibling
+    if (option) {
+      const spacer = document.createTextNode('\u00a0')
+      next.parentNode?.insertBefore(spacer, after)
+      after = spacer
+      place(spacer, 1)
+    } else if (after && after.nodeType === Node.TEXT_NODE) place(after, (after.textContent || '').startsWith(ZWSP) ? 1 : 0)
+    else place(next, (next.textContent || '').length)
+    setDraft(null)
+    sync()
+  }
+
+  const wholePlan = (tag: Draft): Option | null => tag.plan ? { type: 'plan', plan: tag.plan, outside: tag.outside } : null
+
+  const pick = (option: Option | undefined) => {
+    const tag = current.current
+    if (!tag || !option) return
+    if (tag.stage === 'plan' && option.type === 'plan') {
+      // Keep going: › and the plan's steps, with the whole plan on top.
+      setDraft({ ...tag, stage: 'step', plan: option.plan, outside: option.outside, query: '' })
+      return
+    }
+    close(option)
+  }
+
+  /** Done with the tag: the whole plan once one's picked, otherwise back to plain text. */
+  const settle = () => {
+    const tag = current.current
+    if (tag) close(tag.stage === 'step' ? wholePlan(tag) : null)
+  }
+
+  const typeInto = (text: string) => {
+    for (const char of text) {
+      const tag = current.current
+      if (!tag) { document.execCommand('insertText', false, char); continue }
+      if (char === ' ' && tag.stage === 'step' && !tag.query) { close(wholePlan(tag)); continue }
+      if (char === '/' && tag.stage === 'plan' && tag.query) { pick(optionsFor(tag, topics, mine, people, orgs, found)[0]); continue }
+      setDraft({ ...tag, query: tag.query + char })
+    }
+  }
+
+  const backspace = () => {
+    const tag = current.current
+    if (!tag) return
+    if (tag.query) setDraft({ ...tag, query: tag.query.slice(0, -1) })
+    else if (tag.stage === 'step') setDraft({ ...tag, stage: 'plan', plan: undefined, query: tag.plan?.title || '' })
+    else { tag.el.remove(); setDraft(null); sync() }
+  }
+
+  // While a tag is open, everything typed goes into it (this also covers phone keyboards).
+  React.useEffect(() => {
+    const node = editor.current
+    if (!node) return
+    const onBeforeInput = (event: InputEvent) => {
+      if (!current.current) return
+      event.preventDefault()
+      if (event.inputType === 'deleteContentBackward') backspace()
+      else if (event.inputType === 'insertParagraph' || event.inputType === 'insertLineBreak') settle()
+      else if (event.data) typeInto(event.data)
+    }
+    node.addEventListener('beforeinput', onBeforeInput)
+    return () => node.removeEventListener('beforeinput', onBeforeInput)
+  })
+
+  /** After typing: "/" or "@" and a letter at the start of a word opens a tag. */
+  const watch = () => {
+    sync()
+    const selection = window.getSelection()
+    const node = selection?.anchorNode
+    if (current.current || !selection?.rangeCount || !node || node.nodeType !== Node.TEXT_NODE || !editor.current?.contains(node)) return
+    const before = (node.textContent || '').slice(0, selection.anchorOffset)
+    const slash = before.match(/(^|[\s\u00a0\u200b])\/$/)
+    const at = before.match(/(^|[\s\u00a0\u200b])@([^\s\u00a0\u200b@/])$/)
+    if (slash) open('/', '', node as Text, selection.anchorOffset - 1, selection.anchorOffset)
+    else if (at) open('@', at[2], node as Text, selection.anchorOffset - 2, selection.anchorOffset)
   }
 
   const serialize = () => {
@@ -155,6 +168,7 @@ const TagComposer = React.forwardRef<TagComposerHandle, {
       if (node.nodeType === Node.TEXT_NODE) { text += (node.textContent || '').replace(new RegExp(ZWSP, 'g'), '').replace(/\u00a0/g, ' '); return }
       const element = node as HTMLElement
       if (element.dataset?.token) { text += element.dataset.token; return }
+      if (element.dataset?.draft) return
       if (element.tagName === 'BR') { text += '\n'; return }
       if (element.tagName === 'DIV' && text && !text.endsWith('\n')) text += '\n'
       element.childNodes.forEach(walk)
@@ -163,53 +177,52 @@ const TagComposer = React.forwardRef<TagComposerHandle, {
     return text.trim()
   }
 
+  const clear = () => {
+    if (editor.current) editor.current.innerHTML = ''
+    setDraft(null)
+    sync()
+  }
+
   const send = async () => {
+    settle()
     const body = serialize()
     if (!body || sending || disabled) return
     setSending(true)
     try {
-      if (await onSend(body) && editor.current) {
-        editor.current.innerHTML = ''
-        sync()
-      }
+      if (await onSend(body)) clear()
     } finally {
       setSending(false)
     }
   }
 
+  /** From the + menu: open a tag where the caret is, or at the end. */
   const begin = (char: '/' | '@') => {
     const node = editor.current
     if (!node) return
     node.focus()
+    settle()
     const selection = window.getSelection()
-    if (!selection?.rangeCount || !node.contains(selection.anchorNode)) place(node, node.childNodes.length)
-    const text = node.textContent || ''
-    document.execCommand('insertText', false, `${text && !/[\s\u00a0\u200b]$/.test(text) ? ' ' : ''}${char}`)
+    let anchor = selection?.anchorNode
+    if (!selection?.rangeCount || !anchor || !node.contains(anchor) || anchor.nodeType !== Node.TEXT_NODE) {
+      anchor = document.createTextNode('')
+      node.append(anchor)
+      place(anchor, 0)
+    }
+    const text = anchor as Text
+    const offset = window.getSelection()?.anchorOffset || 0
+    const before = (text.textContent || '').slice(0, offset)
+    const lead = before && !SPACE.test(before.slice(-1)) ? ' ' : ''
+    text.insertData(offset, `${lead}${char}`)
+    open(char, '', text, offset + lead.length, offset + lead.length + 1)
   }
 
-  React.useImperativeHandle(ref, () => ({
-    focus: () => editor.current?.focus(),
-    prefill: (target) => {
-      const node = editor.current
-      // Only swap out the tag this put here: anything the person typed stays.
-      const current = serialize().trim()
-      if (!node || (current && current !== prefilled.current)) return
-      node.innerHTML = ''
-      if (target) {
-        const chip = chipFor(target.step ? { type: 'step', plan: target.plan, step: target.step } : { type: 'plan', plan: target.plan })
-        node.append(chip, document.createTextNode('\u00a0'))
-      }
-      prefilled.current = serialize().trim() || null
-      sync()
-    },
-  }))
+  React.useImperativeHandle(ref, () => ({ focus: () => editor.current?.focus(), clear }))
 
+  const heading = draft?.stage === 'person' ? 'People and organizations' : draft?.stage === 'step' ? `In ${draft.plan?.title || 'this plan'}` : 'Plans'
   return <div className="relative">
-    {trigger ? <div role="listbox" aria-label={trigger.char === '@' ? 'People and organizations' : 'Plans and steps'}
+    {draft ? <div role="listbox" aria-label={heading}
       className="absolute bottom-full left-0 z-20 mb-2 max-h-72 w-[min(22rem,100%)] overflow-y-auto rounded-2xl border border-border bg-popover p-1.5 shadow-xl">
-      <p className="px-2 pb-1 pt-1.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-        {trigger.char === '@' ? 'People and organizations' : trigger.afterPlan ? `Steps in ${topics.find((plan) => plan.goal_uuid === trigger.afterPlan?.dataset.goal)?.title || 'this plan'}` : 'Plans and steps'}
-      </p>
+      <p className="px-2 pb-1 pt-1.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{heading}</p>
       {options.length ? options.map((option, index) => <button key={index} type="button" role="option" aria-selected={index === active}
         onMouseDown={(event) => { event.preventDefault(); pick(option) }} onMouseEnter={() => setActive(index)}
         className={cn('flex w-full items-center gap-2.5 rounded-xl px-2 py-1.5 text-left', index === active && 'bg-muted')}>
@@ -218,24 +231,29 @@ const TagComposer = React.forwardRef<TagComposerHandle, {
           <span className="block truncate text-sm font-semibold">{label(option)}</span>
           <span className="block truncate text-xs text-muted-foreground">{detail(option)}</span>
         </span>
-      </button>) : <p className="px-2 py-2 text-sm text-muted-foreground">{trigger.char === '@' ? 'No one by that name' : topics.length ? 'Nothing matches' : 'No plans in this chat yet'}</p>}
+      </button>) : <p className="px-2 py-2 text-sm text-muted-foreground">{draft.stage === 'person' ? 'No one by that name' : 'Nothing matches'}</p>}
     </div> : null}
     <div className="hub-composer-shell rounded-[1.4rem] p-2">
       <div className="relative">
         {empty ? <span aria-hidden="true" className="pointer-events-none absolute left-3 top-2.5 text-base leading-6 text-muted-foreground">{disabled || placeholder}</span> : null}
         <div ref={editor} role="textbox" aria-multiline="true" aria-label="Message" contentEditable={!disabled && !sending} suppressContentEditableWarning
-          className="max-h-48 min-h-11 overflow-y-auto whitespace-pre-wrap break-words px-3 py-2.5 text-base leading-6 outline-none"
-          onInput={() => { sync(); const next = caret(); setTrigger(next); setActive(0) }}
-          onKeyUp={(event) => { if (event.key.startsWith('Arrow') && !trigger) return; if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) setTrigger(caret()) }}
-          onBlur={() => setTimeout(() => setTrigger(null), 120)}
-          onPaste={(event) => { event.preventDefault(); document.execCommand('insertText', false, event.clipboardData.getData('text/plain')) }}
+          className={cn('max-h-48 min-h-11 overflow-y-auto whitespace-pre-wrap break-words px-3 py-2.5 text-base leading-6 outline-none', draft && 'caret-transparent')}
+          onInput={watch}
+          onBlur={() => setTimeout(() => { if (document.activeElement !== editor.current) settle() }, 120)}
+          onPaste={(event) => { event.preventDefault(); const text = event.clipboardData.getData('text/plain'); if (current.current) typeInto(text); else document.execCommand('insertText', false, text) }}
           onKeyDown={(event) => {
-            if (trigger && options.length) {
-              if (event.key === 'ArrowDown') { event.preventDefault(); setActive((active + 1) % options.length); return }
-              if (event.key === 'ArrowUp') { event.preventDefault(); setActive((active - 1 + options.length) % options.length); return }
-              if (event.key === 'Enter' || event.key === 'Tab') { event.preventDefault(); pick(options[active]); return }
+            if (current.current) {
+              const tag = current.current
+              const count = options.length
+              if (event.key === 'ArrowDown' && count) { event.preventDefault(); setActive((active + 1) % count); return }
+              if (event.key === 'ArrowUp' && count) { event.preventDefault(); setActive((active - 1 + count) % count); return }
+              if (event.key === 'Enter') { event.preventDefault(); if (top) pick(top); else settle(); return }
+              if (event.key === 'Tab') { event.preventDefault(); if (tag.stage === 'step' && !tag.query) close(wholePlan(tag)); else if (tag.stage === 'plan' && top?.type === 'plan') close(top); else pick(top); return }
+              if (event.key === 'Escape') { event.preventDefault(); settle(); return }
+              if (event.key === 'Backspace') { event.preventDefault(); backspace(); return }
+              if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) { event.preventDefault(); return }
+              return
             }
-            if (event.key === 'Escape') { setTrigger(null); return }
             if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void send() }
           }} />
       </div>
@@ -250,7 +268,7 @@ const TagComposer = React.forwardRef<TagComposerHandle, {
           </DropdownMenuContent>
         </DropdownMenu>
         <span className="hidden min-w-0 flex-1 truncate text-xs text-muted-foreground sm:block"><b className="font-semibold">/</b> plans and steps · <b className="font-semibold">@</b> people</span>
-        <Button type="button" size="icon" className="h-9 w-9 rounded-xl" disabled={empty || sending || Boolean(disabled)} aria-label="Send message" onClick={() => void send()}>
+        <Button type="button" size="icon" className="h-9 w-9 rounded-xl" disabled={empty || sending || Boolean(disabled)} aria-label="Send message" onMouseDown={(event) => event.preventDefault()} onClick={() => void send()}>
           {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </Button>
       </div>
@@ -259,24 +277,3 @@ const TagComposer = React.forwardRef<TagComposerHandle, {
 })
 
 export default TagComposer
-
-function OptionIcon({ option }: { option: Option }) {
-  if (option.type === 'person') return <PersonAvatar user={option.person as any} size="sm" />
-  if (option.type === 'org') return <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white"><Building2 size={14} /></span>
-  if (option.type === 'plan') return <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[var(--org-primary-color)] text-white"><Flag size={14} /></span>
-  return <span className="flex h-7 w-7 shrink-0 items-center justify-center"><StepMark status={option.step.status} behind={option.step.behind} className="h-4 w-4" /></span>
-}
-
-function label(option: Option) {
-  if (option.type === 'person') return option.person.name
-  if (option.type === 'org') return option.org.name
-  if (option.type === 'plan') return option.plan.title
-  return option.step.title
-}
-
-function detail(option: Option) {
-  if (option.type === 'person') return `@${option.person.username}`
-  if (option.type === 'org') return 'Organization'
-  if (option.type === 'plan') return `${option.plan.progress.done} of ${option.plan.progress.total} done · type / again for a step`
-  return `${STATUS[option.step.status] || 'Not started'}${option.step.behind ? ', behind' : ''} · ${option.plan.title}`
-}

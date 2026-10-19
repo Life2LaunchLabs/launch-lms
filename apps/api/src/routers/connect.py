@@ -7,7 +7,7 @@ from src.core.events.database import get_db_session
 from src.db.conversations import ChatMessageCreate, ChatReportCreate, ConnectSettingsUpdate, DirectChatOpen
 from src.db.users import PublicUser
 from src.security.auth import get_authenticated_user
-from src.services.connect import chats, people, profile, workspace
+from src.services.connect import chats, linking, people, profile, workspace
 
 router = APIRouter()
 DB = Depends(get_db_session)
@@ -41,7 +41,8 @@ async def goal_chat(goal_uuid: str, current_user: PublicUser = USER, db_session:
 
 @router.post("/chats/{conversation_uuid}/messages")
 async def send_message(conversation_uuid: str, payload: ChatMessageCreate, current_user: PublicUser = USER, db_session: Session = DB):
-    return chats.send(db_session, current_user, conversation_uuid, payload.body)
+    scope = {"goal_uuid": payload.goal_uuid, "step_uuid": payload.step_uuid} if payload.goal_uuid else None
+    return chats.send(db_session, current_user, conversation_uuid, payload.body, scope, payload.share)
 
 
 @router.post("/chats/{conversation_uuid}/read")
@@ -77,6 +78,12 @@ async def list_blocked(current_user: PublicUser = USER, db_session: Session = DB
 @router.delete("/blocked/{user_uuid}")
 async def unblock(user_uuid: str, current_user: PublicUser = USER, db_session: Session = DB):
     return chats.unblock(db_session, current_user, user_uuid)
+
+
+@router.get("/plans")
+async def taggable_plans(current_user: PublicUser = USER, db_session: Session = DB):
+    """Your plans, to tag from any chat."""
+    return linking.my_plans(db_session, current_user)
 
 
 @router.get("/search")

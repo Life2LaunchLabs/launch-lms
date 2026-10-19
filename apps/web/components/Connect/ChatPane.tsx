@@ -15,7 +15,7 @@ import { PersonAvatar } from '@components/Goals/share/PersonAvatar'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { connectApi, connectKeys, type Chat } from '@services/connect/connect'
 import { useConnectToken } from './useConnect'
-import { OrgMark } from './ConnectInbox'
+import { OrgMark } from './ConnectOrgs'
 import ChatWorkspace from './workspace/ChatWorkspace'
 
 /** Where a step opens for its learner: their plan, at that step. */
