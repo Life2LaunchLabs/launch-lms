@@ -6,10 +6,11 @@ from __future__ import annotations
 from datetime import date
 
 from fastapi import HTTPException
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from src.db.goal_admin import StepProgressBulk
 from src.db.goals import (
+    CURRENT_ASSIGNMENT_STATUSES,
     DONE_STEP_STATUSES,
     CompletionMethod,
     Goal,
@@ -19,6 +20,7 @@ from src.db.goals import (
     GoalTemplate,
     GoalTemplateVersion,
     StepEntry,
+    StepCompleter,
     StepProgress,
     StepStatus,
 )
@@ -27,8 +29,9 @@ from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup
 from src.db.users import PublicUser, User
 from src.security.org_auth import is_org_admin, require_org_admin, require_org_membership
-from src.services.goals import access, completion
+from src.services.goals import access, completion, schedule
 from src.services.goals.activity_reviews import activity_reviews
+from src.services.goals.assignment_summary import status_fields
 from src.services.goals.availability import availability
 from src.services.goals.document import iter_steps
 from src.services.goals.issue import stage_schedule
@@ -74,7 +77,8 @@ def _goal_progress(steps: list[GoalStep], progress: dict[int, StepProgress]) -> 
 
 
 def _short(user: User | None) -> dict | None:
-    return {"id": user.id, "username": user.username, "first_name": user.first_name, "last_name": user.last_name, "avatar_image": user.avatar_image} if user else None
+    return {"id": user.id, "user_uuid": user.user_uuid, "username": user.username, "first_name": user.first_name, "last_name": user.last_name,
+            "avatar_image": user.avatar_image} if user else None
 
 
 def assignment_summary(db: Session, assignment: GoalAssignment) -> dict:
@@ -98,7 +102,7 @@ def assignment_summary(db: Session, assignment: GoalAssignment) -> dict:
         "staff_user_ids": assignment.staff_user_ids or [], "staff": [_short(user) for user in staff],
         "owner": _short(db.get(User, assignment.owner_user_id) if assignment.owner_user_id else None),
         "start_date": assignment.start_date, "due_date": assignment.due_date, "stage_dates": assignment.stage_dates or {},
-        "active": assignment.active, "creation_date": assignment.creation_date,
+        **status_fields(assignment), "creation_date": assignment.creation_date,
         "cohort": {"id": group.id, "uuid": group.usergroup_uuid, "name": group.name} if group else None,
         "user": _short(db.get(User, assignment.user_id) if assignment.user_id else None),
         "learner_count": len(goals), "goal_uuid": goals[0].goal_uuid if len(goals) == 1 else None,
@@ -114,17 +118,49 @@ def assignment_summary(db: Session, assignment: GoalAssignment) -> dict:
 def list_assignments(db: Session, current_user: PublicUser, org_id: int) -> list[dict]:
     """Active assignments in the org: all of them for admins, the ones they staff for everyone else."""
     require_org_membership(current_user.id, org_id, db)
-    rows = db.exec(select(GoalAssignment).where(GoalAssignment.org_id == org_id, GoalAssignment.active == True)  # noqa: E712
+    rows = db.exec(select(GoalAssignment).where(GoalAssignment.org_id == org_id, col(GoalAssignment.status).in_(CURRENT_ASSIGNMENT_STATUSES))
                    .order_by(GoalAssignment.creation_date.desc(), GoalAssignment.id.desc())).all()  # type: ignore[union-attr, attr-defined]
     return [assignment_summary(db, row) for row in rows if _is_staff(db, current_user, org_id, row)]
 
 
 # Matrix --------------------------------------------------------------------------------
 
-def _cell(step: GoalStep, row: StepProgress, entries: list[StepEntry], lock: dict) -> dict:
+# What's left for staff on a step, per learner. Every learner on a step is in at most one bucket.
+BUCKETS = ("done", "handed_in", "to_grade", "not_handed_in", "needs_settle")
+OPEN = {StepStatus.NOT_STARTED.value, StepStatus.IN_PROGRESS.value, StepStatus.CHANGES_REQUESTED.value}
+
+
+def bucket(step: GoalStep, status: str, started: bool, to_grade: bool, today: date | None = None) -> str | None:
+    """Where one learner's step stands for staff.
+
+    - ``done``: completed or excused.
+    - ``to_grade``: activity answers wait on a grade.
+    - ``handed_in``: turned in, waiting on review.
+    - ``not_handed_in``: a learner step still open once its stage has started or its close date has passed (not held).
+    - ``needs_settle``: a step staff confirm (an event), not done, once its stage has started (not held).
+    - None: nothing to do yet (its stage hasn't started).
+    """
+    today = today or date.today()
+    if status in DONE_STEP_STATUSES:
+        return "done"
+    if to_grade:
+        return "to_grade"
+    if status == StepStatus.SUBMITTED.value:
+        return "handed_in"
+    if step.held:
+        return None
+    if _value(step.completed_by) == StepCompleter.STAFF.value:
+        return "needs_settle" if started else None
+    if status in OPEN and (started or bool(step.due_date and step.due_date < today)):
+        return "not_handed_in"
+    return None
+
+
+def _cell(step: GoalStep, row: StepProgress, entries: list[StepEntry], lock: dict, kind: str | None = None) -> dict:
     status = _value(row.status)
     fraction = 1.0 if status in DONE_STEP_STATUSES else step_type(step.type).fraction(StepState(step, row, entries))
     return {
+        "bucket": kind, "last_reminded_at": row.last_reminded_at,
         "step_uuid": step.step_uuid, "status": status, "locked": lock["locked"], "locked_reason": lock["reason"],
         "held": step.held, "due_date": step.due_date, "fraction": round(fraction, 3), "learner_note": row.learner_note,
         "reviewer_note": row.reviewer_note, "feedback_history": row.feedback_history or [], "completed_at": row.completed_at,
@@ -132,11 +168,26 @@ def _cell(step: GoalStep, row: StepProgress, entries: list[StepEntry], lock: dic
     }
 
 
-def _aggregate(cells: list[dict], learner_count: int) -> dict:
+def _aggregate(cells: list[dict], learner_count: int, learners: list[dict] | None = None) -> dict:
+    """A step across learners: counts by status, and what's left for staff, with who is in each bucket.
+
+    ``learners`` lines up with ``cells`` (each cell's learner); the buckets list their user uuids,
+    so a screen can say "Noah and Aisha". Learners invited by email without an account are counted
+    but not listed.
+    """
     today = date.today()
     statuses = [cell["status"] for cell in cells]
     percents = [round(cell["fraction"] * 100) for cell in cells]
+    who: dict[str, list[str]] = {name: [] for name in BUCKETS}
+    counts = {name: 0 for name in BUCKETS}
+    for index, cell in enumerate(cells):
+        if cell.get("bucket") in counts:
+            counts[cell["bucket"]] += 1
+            uuid = (learners[index] if learners else {}).get("user_uuid")
+            if uuid:
+                who[cell["bucket"]].append(uuid)
     return {
+        **{f"{name}_count": counts[name] for name in BUCKETS}, "buckets": who,
         "learner_count": learner_count, "completed_count": statuses.count("completed"), "excused_count": statuses.count("excused"),
         "review_count": statuses.count("submitted"), "held_count": sum(cell["held"] for cell in cells),
         "locked_count": sum(cell["locked"] for cell in cells),
@@ -162,16 +213,19 @@ def assignment_matrix(db: Session, current_user: PublicUser, org_id: int, assign
     for entry in (db.exec(select(StepEntry).where(StepEntry.step_id.in_(step_ids)).order_by(StepEntry.position, StepEntry.id)).all() if step_ids else []):  # type: ignore[union-attr, arg-type]
         entries.setdefault(int(entry.step_id), []).append(entry)
     template_keys = [step["key"] for _, step in iter_steps(document)]
+    grading = {review["step_uuid"] for review in activity_reviews(db, visible)}
     learners = []
     for goal in visible:
         goal_steps = steps.get(int(goal.id), [])  # type: ignore[arg-type]
         stages = list(db.exec(select(GoalStage).where(GoalStage.goal_id == goal.id)).all())
         locks = availability(goal, stages, goal_steps, {int(step.id): _status(progress, step) for step in goal_steps})  # type: ignore[arg-type]
+        started = schedule.started_stage_ids(stages)
         cells, custom = {}, []
         for step in goal_steps:
             row = progress.get(int(step.id)) or completion.progress_view(db, step)  # type: ignore[arg-type]
             if step.template_key and step.template_key in template_keys and step.template_key not in cells:
-                cells[step.template_key] = _cell(step, row, entries.get(int(step.id), []), locks[int(step.id)])  # type: ignore[arg-type]
+                kind = bucket(step, _value(row.status), step.stage_id is None or int(step.stage_id) in started, step.step_uuid in grading)
+                cells[step.template_key] = _cell(step, row, entries.get(int(step.id), []), locks[int(step.id)], kind)  # type: ignore[arg-type]
             else:
                 custom.append({"step_uuid": step.step_uuid, "title": step.title, "type": step.type, "status": _value(row.status)})
         user = db.get(User, goal.subject_user_id) if goal.subject_user_id else None
@@ -182,23 +236,24 @@ def assignment_matrix(db: Session, current_user: PublicUser, org_id: int, assign
             "progress_percent": round(done * 100 / len(template_keys)) if template_keys else 0,
             "capabilities": sorted(granted[int(goal.id)]), "custom_steps": custom, "cells": cells,  # type: ignore[arg-type]
         })
-    schedule = stage_schedule(document, assignment.start_date, assignment.stage_dates)
+    dates = stage_schedule(document, assignment.start_date, assignment.stage_dates)
     stages_out = []
     for position, stage in enumerate(document.get("stages") or []):
         columns = []
         for spec in stage.get("steps") or []:
-            cells = [learner["cells"][spec["key"]] for learner in learners if spec["key"] in learner["cells"]]
+            on_step = [learner for learner in learners if spec["key"] in learner["cells"]]
+            cells = [learner["cells"][spec["key"]] for learner in on_step]
             columns.append({
                 "template_key": spec["key"], "title": spec.get("title"), "type": spec.get("type"), "description": spec.get("description") or "",
                 "completed_by": spec.get("completed_by") or "learner", "review_required": bool(spec.get("review_required")),
-                "aggregate": _aggregate(cells, len(learners)),
+                "aggregate": _aggregate(cells, len(learners), on_step),
             })
-        start, due = schedule.get(stage["key"], (None, None))
+        start, due = dates.get(stage["key"], (None, None))
         stages_out.append({"stage_key": stage["key"], "title": stage.get("title"), "position": position, "start_date": start, "due_date": due, "steps": columns})
     siblings = []
     if assignment.usergroup_id:
         siblings = [assignment_summary(db, row) for row in db.exec(select(GoalAssignment).where(
-            GoalAssignment.usergroup_id == assignment.usergroup_id, GoalAssignment.active == True)).all()]  # noqa: E712
+            GoalAssignment.usergroup_id == assignment.usergroup_id, col(GoalAssignment.status).in_(CURRENT_ASSIGNMENT_STATUSES))).all()]
     group = db.get(UserGroup, assignment.usergroup_id) if assignment.usergroup_id else None
     return {
         "assignment": assignment_summary(db, assignment), "assignments": siblings,
@@ -282,8 +337,8 @@ def cohort(db: Session, current_user: PublicUser, org_id: int, usergroup_id: int
     return {
         "cohort": {"id": group.id, "uuid": group.usergroup_uuid, "name": group.name, "description": group.description, "thumbnail_image": group.thumbnail_image},
         "learner_count": learner_count,
-        "assignments": [assignment_summary(db, row) for row in rows if row.active],
-        "completed_assignments": [assignment_summary(db, row) for row in rows if not row.active],
+        "assignments": [assignment_summary(db, row) for row in rows if _value(row.status) in CURRENT_ASSIGNMENT_STATUSES],
+        "completed_assignments": [assignment_summary(db, row) for row in rows if _value(row.status) not in CURRENT_ASSIGNMENT_STATUSES],
     }
 
 

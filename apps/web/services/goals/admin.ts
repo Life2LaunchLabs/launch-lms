@@ -88,7 +88,7 @@ export interface AssignmentSummary {
   staff: StaffPerson[]
   start_date: string | null
   due_date: string | null
-  active: boolean
+  status: 'active' | 'paused' | 'ended'
   cohort: { id: number; uuid: string; name: string } | null
   user: StaffPerson | null
   learner_count: number
