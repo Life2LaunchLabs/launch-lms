@@ -65,7 +65,7 @@ export default function StaffGoalDetail({ orgslug, goalUuid, activeSubpage = 'ov
   return <main className="min-h-full w-full bg-[#f8f8f8]">
     <header className="relative z-10 bg-[#fcfbfc] px-6 tracking-tight nice-shadow lg:px-10">
       <div className="pb-4 pt-6">
-        <Breadcrumbs items={[{ label: 'Users', href: getUriWithOrg(orgslug, routePaths.org.admin.people.root()) }, ...(subject?.username ? [{ label: subject.name || subject.username, href: getUriWithOrg(orgslug, routePaths.org.admin.people.userPage(subject.username, 'plans')) }] : []), { label: goal.title }]} />
+        <Breadcrumbs items={[{ label: 'People', href: getUriWithOrg(orgslug, routePaths.org.admin.people.root()) }, ...(subject?.username ? [{ label: subject.name || subject.username, href: getUriWithOrg(orgslug, routePaths.org.admin.people.user(subject.username)) }] : []), { label: goal.title }]} />
         <p className="mt-3 text-[10px] font-black uppercase tracking-[0.14em] text-gray-500">Learner goal · their own progress and changes</p>
       </div>
       <div className="flex flex-col gap-5 pb-5 lg:flex-row lg:items-center lg:justify-between">

@@ -2,7 +2,7 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { CalendarDays, ChevronRight, Layers3, Plus } from 'lucide-react'
 import GoalAssignmentModal from '@components/Goals/admin/templates/GoalAssignmentModal'
 import { getUriWithOrg, routePaths } from '@services/config/config'
@@ -18,7 +18,8 @@ export function CohortGoals({ orgslug, orgId, token, groupId, cohort, refresh }:
   const all = [...cohort.assignments, ...cohort.completed_assignments]
   const requested = params.get('assignment')
   const current = all.find((item) => item.assignment_uuid === requested) || cohort.assignments[0] || cohort.completed_assignments[0]
-  const choose = (uuid: string) => router.replace(getUriWithOrg(orgslug, routePaths.org.admin.people.groupPlans(groupId, uuid)))
+  const pathname = usePathname()
+  const choose = (uuid: string) => router.replace(`${pathname}?assignment=${encodeURIComponent(uuid)}`)
   const assign = <GoalAssignmentModal initialGroupIds={[groupId]} onAssigned={() => void refresh()} trigger={<button type="button" className="inline-flex h-9 items-center gap-2 rounded-full border border-gray-200 bg-white px-4 text-sm font-medium hover:bg-gray-50"><Plus size={15} />Assign a goal template</button>} />
   if (!current) return <div className="px-10 pb-10"><div className="rounded-xl border-2 border-dashed border-border bg-card py-16 text-center"><Layers3 className="mx-auto h-9 w-9 text-gray-300" /><p className="mt-3 text-sm text-muted-foreground">No goal templates are assigned to this group yet.</p><div className="mt-4 flex justify-center">{assign}</div></div></div>
   return <div className="space-y-4 px-10 pb-10">
@@ -32,7 +33,7 @@ export function CohortGoals({ orgslug, orgId, token, groupId, cohort, refresh }:
   </div>
 }
 
-const hrefFor = (orgslug: string, item: AssignmentSummary & { goal: { goal_uuid: string } }) => getUriWithOrg(orgslug, item.cohort ? routePaths.org.admin.people.groupPlans(item.cohort.id, item.assignment_uuid) : routePaths.org.admin.livePlan(item.goal.goal_uuid))
+const hrefFor = (orgslug: string, item: AssignmentSummary & { goal: { goal_uuid: string } }) => getUriWithOrg(orgslug, item.cohort ? routePaths.org.admin.assignments() :routePaths.org.admin.livePlan(item.goal.goal_uuid))
 
 /** One learner's goals for staff: the templates handed to them, and other goals staff can see. */
 export function ManagedUserGoals({ orgslug, userId, data, refresh, compact = false }: { orgslug: string; userId: number; data?: ManagedUser; refresh: () => Promise<unknown>; compact?: boolean }) {

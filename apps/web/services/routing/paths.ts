@@ -152,13 +152,14 @@ export const routePaths = {
       planReview: (params: { assignment: string; objective?: string | null; planObjective?: string | null; activity?: string | null; focus?: string | null }) =>
         withQuery('/admin/plans/review', { assignment: params.assignment, objective: params.objective, step: params.planObjective, activity: params.activity, focus: params.focus }),
       livePlan: (planUuid: string, subpage = 'overview') => subpage === 'overview' ? `/admin/plans/live/${encodeURIComponent(planUuid)}` : `/admin/plans/live/${encodeURIComponent(planUuid)}/${encodeURIComponent(subpage)}`,
+      /** A learner's plan feed: their plan from the staff side, its chat open. People's "Open feed" lands here. */
+      learnerFeed: (planUuid: string) => `/admin/plans/live/${encodeURIComponent(planUuid)}?chat=plan`,
+      /** People: one list of the organization's people and your chats with them, with a chat, a person or a group open beside it. */
       people: {
         root: () => '/admin/users',
-        user: (username: string) => `/admin/users/user/${encodeURIComponent(username)}/overview`,
-        userPage: (username: string, subpage: string) => `/admin/users/user/${encodeURIComponent(username)}/${encodeURIComponent(subpage)}`,
-        group: (groupId: string | number, subpage = 'plans') => `/admin/users/groups/${encodeURIComponent(String(groupId))}/${encodeURIComponent(subpage)}`,
-        groupPlans: (groupId: string | number, assignmentUuid?: string | null) =>
-          withQuery(`/admin/users/groups/${encodeURIComponent(String(groupId))}/plans`, { assignment: assignmentUuid }),
+        chat: (conversationUuid: string) => `/admin/users/chat/${encodeURIComponent(conversationUuid)}`,
+        user: (username: string) => `/admin/users/user/${encodeURIComponent(username)}`,
+        group: (groupId: string | number) => `/admin/users/groups/${encodeURIComponent(String(groupId))}`,
       },
       templates: () => '/admin/plans/templates',
       // Template uuids kept their old program uuids.
@@ -182,6 +183,7 @@ export const routePaths = {
         general: () => '/admin/org/settings/general',
         branding: () => '/admin/org/settings/branding',
         sso: () => '/admin/org/settings/sso',
+        messaging: () => '/admin/org/settings/messaging',
         plan: () => '/admin/org/settings/plan',
       },
       payments: {
