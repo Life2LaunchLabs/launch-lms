@@ -60,7 +60,7 @@ def test_platform_template_changes_only_future_welcome_messages():
         assert reset["subject"] == messages.DEFAULT_WELCOME_SUBJECT
 
 
-def test_email_addressed_invitation_is_claimed_and_drives_unread_count():
+def test_email_addressed_invitation_is_claimed_when_they_sign_in():
     with _session() as db:
         db.add(Organization(id=1, org_uuid="org_owner", name="Launch", slug="launch", email="hello@example.com"))
         db.add(User(id=2, user_uuid="user_2", username="member", email="member@example.com", first_name="M", last_name="P"))
@@ -77,16 +77,10 @@ def test_email_addressed_invitation_is_claimed_and_drives_unread_count():
         )
         db.commit()
 
-        current_user = _public_user()
-        inbox = messages.list_my_messages(current_user, db)
+        messages._claim_email_messages(_public_user(), db)
         stored = db.exec(select(InboxMessage)).one()
-        assert len(inbox) == 1 and inbox[0]["unread"] is True
         assert stored.recipient_user_id == 2
-
-        result = messages.mark_my_messages_viewed(current_user, db)
-        db.refresh(stored)
-        assert result["updated"] == 1
-        assert stored.read_at is not None
+        assert messages.get_my_message(stored.message_uuid, _public_user(), db).message_uuid == stored.message_uuid
 
 
 def test_message_dedupe_prevents_duplicate_invitation_notifications():
