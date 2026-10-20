@@ -258,18 +258,18 @@ def _framework(db: Session, org_id: int, framework_uuid: str) -> RequirementFram
 
 
 def get_framework_document(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     return _envelope(db, _framework(db, org_id, framework_uuid))
 
 
 def validate_framework_document(db: Session, current_user: PublicUser, org_id: int, raw, framework_uuid: str | None = None) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     framework = _framework(db, org_id, framework_uuid) if framework_uuid else None
     return _check(db, raw, framework)[1]
 
 
 def save_framework_document(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str, raw, base_etag: str) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     framework = _framework(db, org_id, framework_uuid)
     current = _envelope(db, framework)
     if base_etag != current["etag"]:
@@ -295,7 +295,7 @@ def save_framework_document(db: Session, current_user: PublicUser, org_id: int, 
 
 
 def create_framework_from_document(db: Session, current_user: PublicUser, org_id: int, raw) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     document, report, prepared = _check(db, raw, None)
     if document is None or not report["valid"]:
         raise _reject(report)

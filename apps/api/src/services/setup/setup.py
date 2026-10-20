@@ -307,8 +307,8 @@ def install_default_elements(db_session: Session):
     )
 
     role_global_maintainer = Role(
-        name="Maintainer",
-        description="Mid-level manager, wide permissions but no platform control",
+        name="Staff",
+        description="Staff: what each one may do is set by an admin",
         id=2,
         role_type=RoleTypeEnum.TYPE_GLOBAL,
         role_uuid="role_global_maintainer",
@@ -423,125 +423,8 @@ def install_default_elements(db_session: Session):
         update_date=str(datetime.now()),
     )
 
-    role_global_instructor = Role(
-        name="Instructor",
-        description="Can manage their own content",
-        id=3,
-        role_type=RoleTypeEnum.TYPE_GLOBAL,
-        role_uuid="role_global_instructor",
-        rights=Rights(
-            badges=PermissionsWithOwn(
-                action_create=True,
-                action_read=True,
-                action_read_own=True,
-                action_update=False,
-                action_update_own=True,
-                action_delete=False,
-                action_delete_own=True,
-            ),
-            users=Permission(
-                action_create=False,
-                action_read=False,
-                action_update=False,
-                action_delete=False,
-            ),
-            usergroups=Permission(
-                action_create=False,
-                action_read=True,
-                action_update=False,
-                action_delete=False,
-            ),
-            badge_collections=Permission(
-                action_create=True,
-                action_read=True,
-                action_update=False,
-                action_delete=False,
-            ),
-            organizations=Permission(
-                action_create=False,
-                action_read=False,
-                action_update=False,
-                action_delete=False,
-            ),
-            learning_activities=Permission(
-                action_create=True,
-                action_read=True,
-                action_update=False,
-                action_delete=False,
-            ),
-            roles=Permission(
-                action_create=False,
-                action_read=False,
-                action_update=False,
-                action_delete=False,
-            ),
-            dashboard=DashboardPermission(
-                action_access=True,
-            ),
-            communities=Permission(
-                action_create=False,
-                action_read=True,
-                action_update=False,
-                action_delete=False,
-            ),
-            discussions=PermissionsWithOwn(
-                action_create=True,
-                action_read=True,
-                action_read_own=True,
-                action_update=False,
-                action_update_own=True,
-                action_delete=False,
-                action_delete_own=True,
-            ),
-            podcasts=PermissionsWithOwn(
-                action_create=True,
-                action_read=True,
-                action_read_own=True,
-                action_update=False,
-                action_update_own=True,
-                action_delete=False,
-                action_delete_own=True,
-            ),
-            boards=PermissionsWithOwn(
-                action_create=True,
-                action_read=True,
-                action_read_own=True,
-                action_update=False,
-                action_update_own=True,
-                action_delete=False,
-                action_delete_own=True,
-            ),
-            playgrounds=PermissionsWithOwn(
-                action_create=True,
-                action_read=True,
-                action_read_own=True,
-                action_update=False,
-                action_update_own=True,
-                action_delete=False,
-                action_delete_own=True,
-            ),
-            resources=PermissionsWithOwn(
-                action_create=True,
-                action_read=True,
-                action_read_own=True,
-                action_update=False,
-                action_update_own=True,
-                action_delete=False,
-                action_delete_own=True,
-            ),
-            resource_channels=Permission(
-                action_create=True,
-                action_read=True,
-                action_update=False,
-                action_delete=False,
-            ),
-        ),
-        creation_date=str(datetime.now()),
-        update_date=str(datetime.now()),
-    )
-
     role_global_user = Role(
-        name="User",
+        name="Learner",
         description="Read-Only Learner",
         role_type=RoleTypeEnum.TYPE_GLOBAL,
         role_uuid="role_global_user",
@@ -658,7 +541,8 @@ def install_default_elements(db_session: Session):
     )
 
     # Serialize rights to JSON
-    desired_roles = [role_global_admin, role_global_maintainer, role_global_instructor, role_global_user]
+    # The retired Instructor role (id 3) is no longer seeded; its members became staff (migration d5e2b8f3c1a6).
+    desired_roles = [role_global_admin, role_global_maintainer, role_global_user]
     for role in desired_roles:
         role.rights = role.rights.model_dump()  # type: ignore
 

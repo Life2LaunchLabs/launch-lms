@@ -309,7 +309,7 @@ def envelope(db: Session, badge: LearningBadge) -> dict:
 
 
 def list_badges(db: Session, current_user: PublicUser, org_id: int, query: str = "") -> list[dict]:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     badges = db.exec(select(LearningBadge).where(LearningBadge.org_id == org_id, LearningBadge.deleted_at.is_(None)).order_by(LearningBadge.name.asc())).all()  # type: ignore[union-attr]
     route_counts = dict(db.exec(
         select(BadgeRoute.badge_id, func.count(BadgeRoute.id)).where(BadgeRoute.badge_id.in_([badge.id for badge in badges] or [0])).group_by(BadgeRoute.badge_id)  # type: ignore[arg-type, union-attr]
@@ -334,18 +334,18 @@ def list_badges(db: Session, current_user: PublicUser, org_id: int, query: str =
 
 
 def get_badge_document(db: Session, current_user: PublicUser, org_id: int, badge_uuid: str) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     return envelope(db, _badge(db, org_id, badge_uuid))
 
 
 def validate_badge_document(db: Session, current_user: PublicUser, org_id: int, raw) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     _, report, _ = _check(db, org_id, raw)
     return report
 
 
 async def create_badge_from_document(db: Session, current_user: PublicUser, org_id: int, raw) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     document, report, prepared = _check(db, org_id, raw)
     if document is None or not report["valid"]:
         raise _reject(report)
@@ -366,7 +366,7 @@ async def create_badge_from_document(db: Session, current_user: PublicUser, org_
 
 
 def save_badge_document(db: Session, current_user: PublicUser, org_id: int, badge_uuid: str, raw, base_etag: str) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     badge = _badge(db, org_id, badge_uuid)
     current = envelope(db, badge)
     if base_etag != current["etag"]:
@@ -431,7 +431,7 @@ def _templates_on_older_major(db: Session, badge: LearningBadge, major: int) -> 
 
 
 async def publish_badge(db: Session, current_user: PublicUser, org_id: int, badge_uuid: str, semantic_version: str | None, release_title: str | None, release_notes: str | None) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     badge = _badge(db, org_id, badge_uuid)
     draft = _draft(db, badge)
     if draft is None:
@@ -457,7 +457,7 @@ async def publish_badge(db: Session, current_user: PublicUser, org_id: int, badg
 
 
 def set_badge_routes(db: Session, current_user: PublicUser, org_id: int, badge_uuid: str, routes: list[dict]) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     badge = _badge(db, org_id, badge_uuid)
     from src.services.goals import badge_routes as goal_badge_routes
 

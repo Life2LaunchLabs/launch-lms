@@ -188,7 +188,7 @@ def list_templates(db: Session, current_user: PublicUser, org_id: int, include_a
 
 
 def create_template(db: Session, current_user: PublicUser, org_id: int, document: dict | None = None, title: str = "") -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     raw = document or empty_document(title.strip() or "Untitled template")
     now = _now()
     template = GoalTemplate(
@@ -221,7 +221,7 @@ def get_template(db: Session, current_user: PublicUser, org_id: int, template_uu
 
 def save_template(db: Session, current_user: PublicUser, org_id: int, template_uuid: str, document: dict, expected_etag: str | None = None) -> dict:
     """Replace the draft. With ``expected_etag``, refuse if someone saved since it was read."""
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     template = template_or_404(db, org_id, template_uuid)
     if template.system_type:
         raise HTTPException(status_code=409, detail="System templates are updated with each release")
@@ -234,7 +234,7 @@ def save_template(db: Session, current_user: PublicUser, org_id: int, template_u
 
 
 def set_status(db: Session, current_user: PublicUser, org_id: int, template_uuid: str, status: TemplateStatus) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     template = template_or_404(db, org_id, template_uuid)
     template.status = status
     template.update_date = _now()
@@ -288,7 +288,7 @@ def publish_draft(db: Session, template: GoalTemplate, user_id: int | None, note
 
 
 def publish(db: Session, current_user: PublicUser, org_id: int, template_uuid: str, note: str = "") -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     template = template_or_404(db, org_id, template_uuid)
     if template.system_type:
         raise HTTPException(status_code=409, detail="System templates are published with each release")
@@ -300,7 +300,7 @@ def publish(db: Session, current_user: PublicUser, org_id: int, template_uuid: s
 
 def restore(db: Session, current_user: PublicUser, org_id: int, template_uuid: str, number: int, note: str = "") -> dict:
     """Publish an earlier version again, and make it the draft too."""
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     template = template_or_404(db, org_id, template_uuid)
     earlier = db.exec(select(GoalTemplateVersion).where(
         GoalTemplateVersion.template_id == template.id, GoalTemplateVersion.number == number, GoalTemplateVersion.private == False,  # noqa: E712
@@ -337,7 +337,7 @@ def template_activity(db: Session, current_user: PublicUser, org_id: int, templa
     from src.db.learning import LearningPage
     from src.services.learning import lookups
 
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     template = template_or_404(db, org_id, template_uuid)
     activity = db.exec(select(LearningActivity).where(LearningActivity.activity_uuid == activity_uuid)).first()
     if not activity or activity.goal_template_id != template.id or activity.frozen_from_id is not None:

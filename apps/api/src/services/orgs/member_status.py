@@ -64,7 +64,7 @@ def member_status_dict(row: UserOrganization) -> dict:
 
 
 def set_member_status(db: Session, current_user: PublicUser, org_id: int, user_id: int, status: Status) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "manage_learners")
     membership = db.exec(select(UserOrganization).where(UserOrganization.org_id == org_id, UserOrganization.user_id == user_id)).first()
     if not membership:
         raise HTTPException(status_code=404, detail="User is not connected to this organization")
@@ -77,7 +77,7 @@ def set_member_status(db: Session, current_user: PublicUser, org_id: int, user_i
 
 def set_group_status(db: Session, current_user: PublicUser, org_id: int, group_id: int, status: Status) -> dict:
     """Mark every learner in a group active or alumni, e.g. a class at the end of its year."""
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "manage_learners")
     if not db.exec(select(UserGroup.id).where(UserGroup.id == group_id, UserGroup.org_id == org_id)).first():
         raise HTTPException(status_code=404, detail="Group not found")
     user_ids = [int(user_id) for user_id in db.exec(select(UserGroupUser.user_id).where(UserGroupUser.usergroup_id == group_id)).all()]

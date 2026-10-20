@@ -49,7 +49,7 @@ def _candidates(db: Session, org_id: int, taken: set[int]) -> list[dict]:
 
 
 def list_staff(db: Session, current_user: PublicUser, org_id: int, group_id: int) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "manage_learners")
     _group(db, org_id, group_id)
     assignments = _assignments(db, group_id)
     rows = db.exec(select(UserGroupStaff).where(UserGroupStaff.usergroup_id == group_id).order_by(col(UserGroupStaff.id))).all()
@@ -96,7 +96,7 @@ def set_staff(db: Session, current_user: PublicUser, org_id: int, group_id: int,
     from src.services.connect import cohort
     from src.services.school import group_chats
 
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "manage_learners")
     group = _group(db, org_id, group_id)
     if payload.role_key not in SHARING_ROLE_KEYS:
         raise HTTPException(status_code=422, detail="Choose Viewer, Commenter or Editor")
@@ -124,7 +124,7 @@ def remove_staff(db: Session, current_user: PublicUser, org_id: int, group_id: i
     from src.services.connect import cohort
     from src.services.school import group_chats
 
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "manage_learners")
     group = _group(db, org_id, group_id)
     row = db.exec(select(UserGroupStaff).where(UserGroupStaff.usergroup_id == group_id, UserGroupStaff.user_id == user_id, UserGroupStaff.org_id == org_id)).first()
     if not row:

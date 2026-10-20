@@ -14,5 +14,7 @@ class UserOrganization(SQLModel, table=True):
     # Set by the organization: only active learners count toward its limit (see services/orgs/member_status.py).
     status: str = Field(default="active", sa_column=Column(String, nullable=False, server_default="active", index=True))
     status_since: str | None = None
+    # Staff only: the permissions the admin gave them (security/org_auth.STAFF_PERMISSIONS); None means the defaults.
+    permissions: list[str] | None = Field(default=None, sa_column=Column(JSON, nullable=True))
     creation_date: str
     update_date: str

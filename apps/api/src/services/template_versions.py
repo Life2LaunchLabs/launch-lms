@@ -216,13 +216,13 @@ def version_status(db: Session, program: Program) -> dict:
 
 
 def list_versions(db: Session, current_user: PublicUser, org_id: int, template_uuid: str) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     program = _program(db, org_id, template_uuid)
     return {"template_uuid": program.program_uuid, **version_status(db, program)}
 
 
 def publish(db: Session, current_user: PublicUser, org_id: int, template_uuid: str, note: str = "") -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     program = _program(db, org_id, template_uuid)
     current = published_version(db, program)
     if current is not None and current.content_hash == draft_fingerprint(db, program):
@@ -235,7 +235,7 @@ def publish(db: Session, current_user: PublicUser, org_id: int, template_uuid: s
 
 def restore(db: Session, current_user: PublicUser, org_id: int, template_uuid: str, number: int, note: str = "") -> dict:
     """Roll back: publish an earlier version's snapshot again as the newest version. Issued plans are unchanged."""
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     program = _program(db, org_id, template_uuid)
     source = db.exec(select(ProgramTemplateVersion).where(ProgramTemplateVersion.program_id == program.id, ProgramTemplateVersion.number == number)).first()
     if source is None:

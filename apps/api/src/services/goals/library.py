@@ -58,7 +58,7 @@ def library_status(template: GoalTemplate) -> dict:
 
 def publish_to_library(db: Session, current_user: PublicUser, org_id: int, template_uuid: str) -> dict:
     """Share the template's current draft in the library (plan publishers only); publishing again replaces it."""
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     ensure_feature(org_id, "plan_publishing", db)
     template = templates.template_or_404(db, org_id, template_uuid)
     if template.system_type:
@@ -85,7 +85,7 @@ def list_library(db: Session, current_user: PublicUser, org_id: int, query: str 
 
 def copy_from_library(db: Session, current_user: PublicUser, org_id: int, template_uuid: str) -> dict:
     """A draft template of the organization's own from a library template, with copies of its activities."""
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     source = db.exec(_published().where(GoalTemplate.template_uuid == template_uuid)).first()
     if not source or not source.library_document or not _publisher_orgs(db, {source.org_id}):
         raise HTTPException(status_code=404, detail="Library template not found")

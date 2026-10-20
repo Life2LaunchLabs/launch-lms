@@ -24,7 +24,7 @@ async def update_badge(
     version_uuid: str | None = None,
 ) -> LearningBadgeRead:
     badge = lookups._get_badge(db_session, badge_uuid)
-    access_rules._require_org_admin(db_session, current_user, badge.org_id)
+    access_rules._require_org_admin(db_session, current_user, badge.org_id, "build_plans")
     version = lookups._get_badge_version(db_session, badge, version_uuid)
     definition = deepcopy(version.definition or {})
     patch = data.model_dump(exclude_unset=True)
@@ -99,7 +99,7 @@ async def delete_badge(
     db_session: Session,
 ) -> dict:
     badge = lookups._get_badge(db_session, badge_uuid)
-    access_rules._require_org_admin(db_session, current_user, badge.org_id)
+    access_rules._require_org_admin(db_session, current_user, badge.org_id, "build_plans")
     badge.deleted_at = datetime.utcnow()
     badge.update_date = access_rules._now()
     db_session.add(badge)
@@ -108,7 +108,7 @@ async def delete_badge(
 
 
 async def list_deleted_badges(request: Request, org_id: int, current_user, db_session: Session) -> list[LearningBadgeRead]:
-    access_rules._require_org_admin(db_session, current_user, org_id)
+    access_rules._require_org_admin(db_session, current_user, org_id, "build_plans")
     cutoff = datetime.utcnow() - timedelta(days=14)
     badges = db_session.exec(select(LearningBadge).where(
         LearningBadge.org_id == org_id,
@@ -133,7 +133,7 @@ async def restore_badge(request: Request, badge_uuid: str, current_user, db_sess
     )).first()
     if not badge:
         raise HTTPException(status_code=404, detail="Badge not found in trash")
-    access_rules._require_org_admin(db_session, current_user, badge.org_id)
+    access_rules._require_org_admin(db_session, current_user, badge.org_id, "build_plans")
     if badge.deleted_at < datetime.utcnow() - timedelta(days=14):
         raise HTTPException(status_code=410, detail="The 14-day restore period has expired")
     if badge.collection_id is not None:

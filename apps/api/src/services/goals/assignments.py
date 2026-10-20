@@ -249,7 +249,7 @@ def _schedule(document: dict, schedule: AssignmentSchedule | None, stage_dates: 
 
 
 def assign(db: Session, current_user: PublicUser, org_id: int, template_uuid: str, payload: GoalAssignmentCreate) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "run_assignments")
     if not isinstance(payload, GoalAssignmentRequest):
         payload = GoalAssignmentRequest(**payload.model_dump())
     email = (payload.subject_email or "").strip().lower() or None
@@ -334,7 +334,7 @@ def sync_group_members(db: Session, group: UserGroup, user_ids: Iterable[int], a
 # Running an assignment: edit, pause, resume, end ------------------------------------------
 
 def _managed(db: Session, current_user: PublicUser, org_id: int, assignment_uuid: str) -> GoalAssignment:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "run_assignments")
     assignment = db.exec(select(GoalAssignment).where(GoalAssignment.assignment_uuid == assignment_uuid, GoalAssignment.org_id == org_id)).first()
     if not assignment:
         raise HTTPException(status_code=404, detail="Assignment not found")

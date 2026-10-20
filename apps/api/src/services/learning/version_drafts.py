@@ -49,14 +49,14 @@ def _version_change_sections(previous: dict, current: dict) -> dict:
 
 async def list_badge_versions(request: Request, badge_uuid: str, current_user, db_session: Session) -> list[dict]:
     badge = lookups._get_badge(db_session, badge_uuid)
-    access_rules._require_org_admin(db_session, current_user, badge.org_id)
+    access_rules._require_org_admin(db_session, current_user, badge.org_id, "build_plans")
     versions = db_session.exec(select(LearningBadgeVersion).where(LearningBadgeVersion.badge_id == badge.id).order_by(LearningBadgeVersion.update_date.desc())).all()  # type: ignore
     return [lookups._version_summary(item, badge.active_version_id) for item in versions]
 
 
 async def create_badge_version_draft(request: Request, badge_uuid: str, data: LearningBadgeVersionCreate, current_user, db_session: Session) -> dict:
     badge = lookups._get_badge(db_session, badge_uuid)
-    access_rules._require_org_admin(db_session, current_user, badge.org_id)
+    access_rules._require_org_admin(db_session, current_user, badge.org_id, "build_plans")
     title = data.title.strip()
     if not title:
         raise HTTPException(status_code=422, detail="Draft title is required")
@@ -76,7 +76,7 @@ async def create_badge_version_draft(request: Request, badge_uuid: str, data: Le
 
 async def update_badge_version_draft(request: Request, badge_uuid: str, version_uuid: str, data: LearningBadgeVersionUpdate, current_user, db_session: Session) -> dict:
     badge = lookups._get_badge(db_session, badge_uuid)
-    access_rules._require_org_admin(db_session, current_user, badge.org_id)
+    access_rules._require_org_admin(db_session, current_user, badge.org_id, "build_plans")
     version = lookups._get_badge_version(db_session, badge, version_uuid)
     lookups._ensure_draft(version)
     if data.expected_revision is not None and data.expected_revision != version.revision:
@@ -92,7 +92,7 @@ async def update_badge_version_draft(request: Request, badge_uuid: str, version_
 
 async def get_badge_version_diff(request: Request, badge_uuid: str, version_uuid: str, current_user, db_session: Session) -> dict:
     badge = lookups._get_badge(db_session, badge_uuid)
-    access_rules._require_org_admin(db_session, current_user, badge.org_id)
+    access_rules._require_org_admin(db_session, current_user, badge.org_id, "build_plans")
     version = lookups._get_badge_version(db_session, badge, version_uuid)
     current = version.definition or {}
     base = db_session.get(LearningBadgeVersion, version.based_on_version_id) if version.based_on_version_id else None
@@ -113,7 +113,7 @@ def _parse_semver(value: str) -> tuple[int, int, int]:
 
 async def publish_badge_version(request: Request, badge_uuid: str, version_uuid: str, data: LearningBadgeVersionPublish, current_user, db_session: Session) -> dict:
     badge = lookups._get_badge(db_session, badge_uuid)
-    admin = access_rules._require_org_admin(db_session, current_user, badge.org_id)
+    admin = access_rules._require_org_admin(db_session, current_user, badge.org_id, "build_plans")
     version = lookups._get_badge_version(db_session, badge, version_uuid)
     lookups._ensure_draft(version)
     if data.expected_revision is not None and data.expected_revision != version.revision:
@@ -154,7 +154,7 @@ async def publish_badge_version(request: Request, badge_uuid: str, version_uuid:
 
 async def activate_badge_version(request: Request, badge_uuid: str, version_uuid: str, current_user, db_session: Session) -> dict:
     badge = lookups._get_badge(db_session, badge_uuid)
-    access_rules._require_org_admin(db_session, current_user, badge.org_id)
+    access_rules._require_org_admin(db_session, current_user, badge.org_id, "build_plans")
     version = lookups._get_badge_version(db_session, badge, version_uuid, require_published=True)
     badge.active_version_id = version.id
     for key in lookups.VERSIONED_BADGE_FIELDS:
@@ -169,7 +169,7 @@ async def activate_badge_version(request: Request, badge_uuid: str, version_uuid
 
 async def deactivate_badge_version(request: Request, badge_uuid: str, version_uuid: str, current_user, db_session: Session) -> dict:
     badge = lookups._get_badge(db_session, badge_uuid)
-    access_rules._require_org_admin(db_session, current_user, badge.org_id)
+    access_rules._require_org_admin(db_session, current_user, badge.org_id, "build_plans")
     version = lookups._get_badge_version(db_session, badge, version_uuid, require_published=True)
     if badge.active_version_id != version.id:
         raise HTTPException(status_code=409, detail="This version is not active")
@@ -183,7 +183,7 @@ async def deactivate_badge_version(request: Request, badge_uuid: str, version_uu
 
 async def delete_badge_version_draft(request: Request, badge_uuid: str, version_uuid: str, current_user, db_session: Session) -> dict:
     badge = lookups._get_badge(db_session, badge_uuid)
-    access_rules._require_org_admin(db_session, current_user, badge.org_id)
+    access_rules._require_org_admin(db_session, current_user, badge.org_id, "build_plans")
     version = lookups._get_badge_version(db_session, badge, version_uuid)
     lookups._ensure_draft(version)
     db_session.delete(version)

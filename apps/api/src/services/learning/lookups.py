@@ -94,7 +94,7 @@ def _bump_version(version: LearningBadgeVersion, db_session: Session | None = No
 
 def _require_activity_editor(db_session: Session, user, activity: LearningActivity) -> None:
     """Activities belong to templates; their organization's admins edit them."""
-    access_rules._require_org_admin(db_session, user, activity.org_id)
+    access_rules._require_org_admin(db_session, user, activity.org_id, "build_plans")
 
 
 def _ensure_editable(db_session: Session, activity: LearningActivity) -> None:

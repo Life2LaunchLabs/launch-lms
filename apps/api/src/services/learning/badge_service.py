@@ -23,7 +23,7 @@ async def create_badge(
     current_user: PublicUser | AnonymousUser,
     db_session: Session,
 ) -> LearningBadgeRead:
-    access_rules._require_org_admin(db_session, current_user, data.org_id)
+    access_rules._require_org_admin(db_session, current_user, data.org_id, "build_plans")
     _require_badge_creation_access(db_session, current_user, data.org_id)
     now = access_rules._now()
     badge = LearningBadge(

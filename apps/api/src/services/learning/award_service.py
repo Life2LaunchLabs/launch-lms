@@ -39,7 +39,7 @@ async def confer_award(
         data.issuing_org_id if data.issuing_org_id != badge.org_id else None
     )
     if issuing_org_id is not None:
-        admin = access_rules._require_org_admin(db_session, current_user, issuing_org_id)
+        admin = access_rules._require_org_admin(db_session, current_user, issuing_org_id, "review_work")
         from src.services.learning_issuers import active_issuers
 
         if issuing_org_id not in {org_id for org_id, _access, _authorization in active_issuers(db_session, badge)}:
@@ -48,7 +48,7 @@ async def confer_award(
                 detail="Your organization is not authorized to issue this badge",
             )
     else:
-        admin = access_rules._require_org_admin(db_session, current_user, badge.org_id)
+        admin = access_rules._require_org_admin(db_session, current_user, badge.org_id, "review_work")
     if not badge.direct_conferral_enabled:
         raise HTTPException(
             status_code=422, detail="Direct conferral is disabled for this badge"

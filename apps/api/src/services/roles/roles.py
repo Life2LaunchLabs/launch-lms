@@ -4,11 +4,12 @@ from uuid import uuid4
 
 from fastapi import HTTPException, Request
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import Session, select, text
+from sqlmodel import Session, col, select, text
 from src.db.organizations import Organization
 from src.db.roles import Role, RoleCreate, RoleRead, RoleTypeEnum, RoleUpdate
 from src.db.users import AnonymousUser, PublicUser
 from src.security.org_auth import get_user_org_role, require_org_role_permission
+from src.security.rbac.constants import ORG_ROLE_UUIDS
 from src.security.rbac.rbac import (
     authorization_verify_based_on_roles_and_authorship,
     authorization_verify_if_user_is_anon,
@@ -292,22 +293,12 @@ async def get_roles_by_organization(
     # GET ROLES: Fetch all roles for the organization AND global roles
     # ============================================================================
     # Get global roles first
+    # Only the three roles an organization assigns: Admin, Staff and Learner (custom roles are retired).
     global_roles_statement = select(Role).where(
-        Role.role_type == RoleTypeEnum.TYPE_GLOBAL
+        Role.role_type == RoleTypeEnum.TYPE_GLOBAL, col(Role.role_uuid).in_(ORG_ROLE_UUIDS),
     ).order_by(Role.id)  # type: ignore
-    
-    global_roles = list(db_session.exec(global_roles_statement).all())
-    
-    # Get organization-specific roles
-    org_roles_statement = select(Role).where(
-        Role.org_id == org_id,
-        Role.role_type == RoleTypeEnum.TYPE_ORGANIZATION
-    ).order_by(Role.id)  # type: ignore
-    
-    org_roles = list(db_session.exec(org_roles_statement).all())
-    
-    # Combine lists with global roles first, then organization roles
-    all_roles = global_roles + org_roles
+
+    all_roles = list(db_session.exec(global_roles_statement).all())
     
     # Convert to RoleRead objects
     role_reads = []
