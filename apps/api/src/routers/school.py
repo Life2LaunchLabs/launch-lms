@@ -1,14 +1,15 @@
-"""The school side of collaborators, used from Users: group staff, a student's team, chat and notes, who's waiting, and chat reports."""
+"""The school side, used from People: the people list and profiles, group chats and staff, a student's team, chat and notes, who's waiting, chat reports and the messaging policy."""
 
 from fastapi import APIRouter, Depends
 from sqlmodel import Session
 
 from src.core.events.database import get_db_session
 from src.db.conversations import ChatReportReview
+from src.db.organization_config import MessagingPolicy
 from src.db.school import GroupStaffSet, StaffNoteCreate
 from src.db.users import PublicUser
 from src.security.auth import get_authenticated_user
-from src.services.school import reports, staff, views
+from src.services.school import directory, group_chats, messaging, profile, reports, staff, views
 
 router = APIRouter()
 DB = Depends(get_db_session)
@@ -64,3 +65,33 @@ async def list_reports(org_id: int, status: str = "open", current_user: PublicUs
 @router.put("/orgs/{org_id}/reports/{report_uuid}")
 async def review_report(org_id: int, report_uuid: str, payload: ChatReportReview, current_user: PublicUser = USER, db_session: Session = DB):
     return reports.review(db_session, current_user, org_id, report_uuid, payload.status)
+
+
+@router.get("/orgs/{org_id}/people")
+async def people_directory(org_id: int, q: str = "", offset: int = 0, limit: int = directory.PAGE, current_user: PublicUser = USER, db_session: Session = DB):
+    return directory.directory(db_session, current_user, org_id, q, offset, limit)
+
+
+@router.get("/orgs/{org_id}/people/{username}")
+async def person_profile(org_id: int, username: str, current_user: PublicUser = USER, db_session: Session = DB):
+    return profile.profile(db_session, current_user, org_id, username)
+
+
+@router.get("/orgs/{org_id}/chats")
+async def people_chats(org_id: int, current_user: PublicUser = USER, db_session: Session = DB):
+    return directory.chat_list(db_session, current_user, org_id)
+
+
+@router.post("/orgs/{org_id}/groups/{group_id}/chat")
+async def open_group_chat(org_id: int, group_id: int, current_user: PublicUser = USER, db_session: Session = DB):
+    return group_chats.open_group_chat(db_session, current_user, org_id, group_id)
+
+
+@router.get("/orgs/{org_id}/messaging")
+async def get_messaging_policy(org_id: int, current_user: PublicUser = USER, db_session: Session = DB):
+    return messaging.get_policy(db_session, current_user, org_id)
+
+
+@router.put("/orgs/{org_id}/messaging")
+async def update_messaging_policy(org_id: int, payload: MessagingPolicy, current_user: PublicUser = USER, db_session: Session = DB):
+    return messaging.update_policy(db_session, current_user, org_id, payload)

@@ -270,10 +270,10 @@ export function resolveRequestRouting(
 
   const legacyTarget = legacyRedirectPath(pathname)
   if (legacyTarget) {
-    return {
-      action: 'redirect',
-      destination: new URL(legacyTarget.includes('?') ? legacyTarget : `${legacyTarget}${search}`, input.requestUrl).toString(),
-    }
+    // The request's own query carries over; the new path's query wins where both name a parameter.
+    const destination = new URL(legacyTarget, input.requestUrl)
+    new URLSearchParams(search).forEach((value, key) => { if (!destination.searchParams.has(key)) destination.searchParams.set(key, value) })
+    return { action: 'redirect', destination: destination.toString() }
   }
 
   if (isPodcastFeedPath(pathname)) {

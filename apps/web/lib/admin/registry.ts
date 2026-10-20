@@ -94,6 +94,7 @@ export const ADMIN_TABS: AdminTab[] = [
     children: [
       { id: 'general', label: 'General', labelKey: 'dashboard.organization.settings.tabs.general', href: admin.organization.general(), match: [admin.organization.general()], requires: {} },
       { id: 'branding', label: 'Branding', labelKey: 'dashboard.organization.settings.tabs.branding', href: admin.organization.branding(), match: [admin.organization.branding()], requires: {} },
+      { id: 'messaging', label: 'Messaging', href: admin.organization.messaging(), match: [admin.organization.messaging()], requires: {} },
       { id: 'sso', label: 'Single Sign-On', labelKey: 'dashboard.organization.settings.tabs.sso', href: admin.organization.sso(), match: [admin.organization.sso()], requires: { feature: 'sso' } },
       { id: 'plan', label: 'Plan & Packages', href: admin.organization.plan(), match: [admin.organization.plan()], requires: {} },
       { id: 'payments', label: 'Payments', labelKey: 'common.payments', href: admin.payments.overview(), match: ['/admin/payments'], requires: { feature: 'payments', plan: 'full' } },

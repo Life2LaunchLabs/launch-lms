@@ -3,7 +3,6 @@ import { readFileSync } from 'node:fs'
 import { assertActualApp } from './auth'
 
 const fixture = JSON.parse(readFileSync('.playwright/requirement-evidence.json', 'utf8'))
-const groupPath = `/orgs/${fixture.org_slug}/admin/users/groups/${fixture.group_id}`
 const insightsPath = `/orgs/${fixture.org_slug}/admin/insights`
 
 async function capture(page: Page, info: TestInfo, name: string, fullPage = true) {
@@ -12,7 +11,7 @@ async function capture(page: Page, info: TestInfo, name: string, fullPage = true
 }
 
 test('requirements.export: assignment filters learners and downloads real reviewed evidence', async ({ page }, testInfo) => {
-  await page.goto(`${groupPath}/plans?assignment=${fixture.assignment_uuid}`)
+  await page.goto(`/orgs/${fixture.org_slug}/admin/plans/assignments/${fixture.assignment_uuid}/learners`)
   await assertActualApp(page)
   await page.getByRole('textbox', { name: 'Search learners' }).fill('Alex')
   const action = page.getByRole('button', { name: 'Export evidence CSV for 1 filtered learner', exact: true })
@@ -77,7 +76,7 @@ test('requirements.long-codes: explorer and learner tree preserve readable code 
   test.setTimeout(60_000)
   for (const [path, prefix] of [
     [insightsPath, 'explorer'],
-    [`/orgs/${fixture.org_slug}/admin/users/user/${fixture.approved_username}/requirements`, 'learner'],
+    [`/orgs/${fixture.org_slug}/admin/users/user/${fixture.approved_username}`, 'learner'],
   ]) {
     await page.goto(path)
     await assertActualApp(page)

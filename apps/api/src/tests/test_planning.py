@@ -856,7 +856,7 @@ def test_group_sourced_plan_rejects_individual_definition_changes_with_workspace
             planning.update_plan(db, _user(1), plan.slug, PlanUpdate(name="Private divergence"))
         assert conflict.value.status_code == 409
         assert conflict.value.detail["assignment_uuid"] == assignment.assignment_uuid
-        assert conflict.value.detail["group_workspace"].endswith("/plans?assignment=assignment_group_lock")
+        assert conflict.value.detail["group_workspace"].endswith("/admin/plans/assignments/assignment_group_lock")
 
 
 def test_assignment_materialization_is_idempotent_and_preserves_states_owner_roles_and_requirement_links():

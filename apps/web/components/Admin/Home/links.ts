@@ -12,7 +12,7 @@ const admin = routePaths.org.admin
  */
 export const homeLinks = {
   assignments: () => admin.assignments(),
-  assignment: (row: Pick<HomeAssignment, 'goal_uuid'>) => (row.goal_uuid ? admin.livePlan(row.goal_uuid) : admin.assignments()),
+  assignment: (row: Pick<HomeAssignment, 'assignment_uuid'>) => admin.planAssignment(row.assignment_uuid),
   /** The review queue for an inbox group; stalled learners have no step to review, so they open the Assignments inbox. */
   waiting: (group: Pick<InboxGroup, 'kind' | 'assignment_uuid' | 'step_key' | 'step_uuid' | 'activity_uuid'>) => group.kind === 'nudge'
     ? admin.assignments()

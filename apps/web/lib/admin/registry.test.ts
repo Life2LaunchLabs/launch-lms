@@ -57,7 +57,7 @@ test('an admin gets every tab in job order, with each tab opening its first avai
   assert.equal(content.href, '/admin/resources')
   assert.deepEqual(content.children![1].visibility, { state: 'locked', request: { type: 'plan_upgrade', value: 'enterprise' } })
   const organization = tabs.find((tab) => tab.id === 'organization')!
-  assert.deepEqual(ids(organization.children!), ['general', 'branding', 'sso', 'plan'])
+  assert.deepEqual(ids(organization.children!), ['general', 'branding', 'messaging', 'sso', 'plan'])
 })
 
 test('a free org gets every job tab open; plan-gated pages show locked with the plan to request', () => {
@@ -73,7 +73,7 @@ test('a free org gets every job tab open; plan-gated pages show locked with the 
 test('labels translate through their existing keys and fall back to English', () => {
   const t = (key: string, { defaultValue }: { defaultValue: string }) => (key === 'dashboard.organization.settings.tabs.general' ? 'Allgemein' : defaultValue)
   const organization = visibleAdminTabs(access({ rights: ADMIN_RIGHTS, features: FULL_FEATURES })).find((tab) => tab.id === 'organization')!
-  assert.deepEqual(organization.children!.map((child) => adminLabel(t, child)), ['Allgemein', 'Branding', 'Single Sign-On', 'Plan & Packages'])
+  assert.deepEqual(organization.children!.map((child) => adminLabel(t, child)), ['Allgemein', 'Branding', 'Messaging', 'Single Sign-On', 'Plan & Packages'])
 })
 
 test('package features ask for their package, and a feature switched off is hidden rather than requested', () => {

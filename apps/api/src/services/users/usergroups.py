@@ -25,6 +25,7 @@ from src.security.features_utils.usage import (
 )
 from src.security.org_auth import require_org_role_permission
 from src.security.rbac.config import get_resource_config
+from src.services.school import group_chats
 from src.security.rbac.rbac import (
     authorization_verify_based_on_roles_and_authorship,
     authorization_verify_based_on_roles_and_authorship_or_api_token,
@@ -446,9 +447,8 @@ async def delete_usergroup_by_id(
         org_id=usergroup.org_id,
     )
 
-    # Feature usage
     increase_feature_usage("usergroups", usergroup.org_id, db_session)
-
+    group_chats.drop(db_session, int(usergroup_id))
     db_session.delete(usergroup)
     db_session.commit()
 
@@ -518,10 +518,10 @@ async def add_users_to_usergroup(
 
     db_session.flush()
     if linked_user_ids:
-        # New members get the plans of the group's active assignments, and their chat with the organization.
+        # New members get the plans of the group's active assignments, their chat with the organization, and the group's chat.
         from src.services.goals.assignments import sync_group_members
-
         sync_group_members(db_session, usergroup, linked_user_ids, current_user.id if isinstance(current_user, PublicUser) else None)
+        group_chats.sync(db_session, usergroup)
     db_session.commit()
 
     return "Users added to UserGroup successfully"
@@ -534,7 +534,6 @@ async def remove_users_from_usergroup(
     usergroup_id: int,
     user_ids: str,
 ) -> str:
-
     statement = select(UserGroup).where(UserGroup.id == usergroup_id)
     usergroup = db_session.exec(statement).first()
 
@@ -566,7 +565,10 @@ async def remove_users_from_usergroup(
             db_session.delete(usergroup_user)
         else:
             logging.error(f"User with id {user_id} not found in UserGroup")
-
+    db_session.flush()
+    group_chats.members_left(db_session, usergroup, user_ids_array)
+    from src.services.connect.cohort import sync_group  # People who left leave its assignments' whole-group chats.
+    sync_group(db_session, usergroup_id)
     db_session.commit()
 
     return "Users removed from UserGroup successfully"

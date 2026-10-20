@@ -1,4 +1,4 @@
-import { routePaths } from './paths.ts'
+import { routePaths, type GroupView } from './paths.ts'
 
 const admin = routePaths.org.admin
 const decode = (segment: string) => {
@@ -10,11 +10,9 @@ const decode = (segment: string) => {
 }
 
 // /admin/users/<segment> used to hold settings tabs and bare usernames. These were tabs, not people.
-const OLD_PEOPLE_TABS = new Set(['new', 'groups', 'grading', 'roles', 'signups', 'audit-logs', 'user', 'settings', 'cohorts'])
-const RENAMED_GROUP_TABS: Record<string, string> = { programs: 'plans', users: 'members' }
+const OLD_PEOPLE_TABS = new Set(['new', 'groups', 'grading', 'roles', 'signups', 'audit-logs', 'user', 'settings', 'cohorts', 'chat'])
 // A group's requirement report (once "reports") moved to Insights.
 const GROUP_EVIDENCE_TABS = new Set(['requirements', 'reports'])
-const RENAMED_USER_TABS: Record<string, string> = { assignments: 'plans', review: 'overview' }
 
 function legacyAdminPath(parts: string[]): string | null {
   const [area, a, b, c, d] = parts
@@ -36,8 +34,8 @@ function legacyAdminPath(parts: string[]): string | null {
 
   if (area === 'plans') {
     if (a === 'reporting' && n === 2) return admin.insights()
-    // Assignments now live in the Assignments tab; their old pages resolved them one by one.
-    if (a === 'assignments') return admin.assignments()
+    // The old assignments list is the Assignments tab; one assignment keeps its own page.
+    if (a === 'assignments' && n === 2) return admin.assignments()
     // Requirements moved to Insights.
     if (a === 'requirements' && n === 2) return admin.insights()
     if (a === 'requirements' && n === 3) return admin.requirementFramework(decode(b), 'details')
@@ -47,16 +45,15 @@ function legacyAdminPath(parts: string[]): string | null {
   }
 
   if (area === 'users') {
+    // People is one page: a person, a group or a chat opens beside the list, with no tabs of its own.
     if (n === 2) return OLD_PEOPLE_TABS.has(a) ? admin.people.root() : admin.people.user(decode(a))
     if (a === 'settings') return admin.people.root()
-    if (a === 'user' && n === 3) return admin.people.user(decode(b))
-    if (a === 'user' && n === 4 && RENAMED_USER_TABS[c]) return admin.people.userPage(decode(b), RENAMED_USER_TABS[c])
-    if (a === 'cohorts' && n === 3) return admin.people.group(decode(b))
-    if (a === 'cohorts' && c === 'programs' && d) return admin.people.groupPlans(decode(b), decode(d))
-    if (a === 'groups' && n === 3) return admin.people.group(decode(b))
+    if (a === 'user' && n === 4) return admin.people.user(decode(b))
+    const group = (view?: GroupView, assignment?: string) => admin.people.group(decode(b), view, assignment && decode(assignment))
+    if ((a === 'cohorts' || a === 'groups') && c === 'programs' && d) return group('plans', d)
+    if (a === 'cohorts' && n >= 3) return group()
     if (a === 'groups' && n === 4 && GROUP_EVIDENCE_TABS.has(c)) return admin.insightsEvidence(decode(b))
-    if (a === 'groups' && n === 4 && RENAMED_GROUP_TABS[c]) return admin.people.group(decode(b), RENAMED_GROUP_TABS[c])
-    if (a === 'groups' && c === 'programs' && d) return admin.people.groupPlans(decode(b), decode(d))
+    if (a === 'groups' && n >= 4) return c === 'plans' ? group('plans') : group()
     return null
   }
 

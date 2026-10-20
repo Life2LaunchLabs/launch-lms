@@ -1,7 +1,7 @@
 """user organizations: per-member preferences (the admin Home layout)
 
 Revision ID: 25170766ef96
-Revises: acf6145ca175
+Revises: 294d6b067aa5
 """
 from typing import Sequence, Union
 
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 revision: str = '25170766ef96'
-down_revision: Union[str, None] = 'acf6145ca175'
+down_revision: Union[str, None] = '294d6b067aa5'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

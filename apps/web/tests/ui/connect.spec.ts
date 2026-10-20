@@ -60,8 +60,8 @@ test('connect.tagging: / lists only active plans, and a tagged message files und
   await expect(filters.getByRole('button', { name: new RegExp(PENDING_PLAN) })).toHaveCount(0)
 })
 
-test('connect.reports: admins review a chat report in Users and can reopen it', async ({ page }, info) => {
-  test.skip(info.project.name !== 'chromium-desktop', 'Users is desktop only')
+test('connect.reports: admins review a chat report in People and can reopen it', async ({ page }, info) => {
+  test.skip(info.project.name !== 'chromium-desktop', 'People shows reports beside the list on desktop')
   // Start from an open report even if an earlier browser or attempt stopped after resolving it.
   const listed = page.waitForResponse((response) => response.url().includes('/reports?status=open'))
   await page.goto(`${orgPath}/admin/users`)

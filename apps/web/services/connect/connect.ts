@@ -45,7 +45,8 @@ export interface ProgressCard {
   goal_uuid: string
   goal_title: string
   started: boolean
-  events: { step_uuid: string; title: string; event: 'finished' | 'turned_in' | 'approved' | 'changes' | 'marked_done' | 'excused'; at: string }[]
+  /** note: what staff wrote with a review or a step they marked done. */
+  events: { step_uuid: string; title: string; event: 'finished' | 'turned_in' | 'approved' | 'changes' | 'marked_done' | 'excused'; at: string; note?: string }[]
 }
 
 /** A learner tagged this organization in another chat. */
@@ -74,6 +75,18 @@ export interface InvitationCard {
 /** A notice an organization sent, such as a welcome. */
 export interface NoticeCard { type: 'notice'; subject: string; text: string }
 
+/** Staff reminded the learner about a step they haven't handed in. */
+export interface StepReminderCard {
+  type: 'step_reminder'
+  goal_uuid: string
+  goal_title: string
+  step_uuid: string
+  step_title: string
+  due_date: string | null
+  /** What staff wrote with it, if anything. */
+  message: string | null
+}
+
 /** Plan tags say whether they're the chat's quiet scope, a plan from outside the chat, or one you can't see. */
 type PlanRefFlags = { scope?: boolean; outside?: boolean; hidden?: boolean }
 
@@ -92,7 +105,7 @@ export interface ChatMessage {
   /** The text with tags written out as names. */
   preview: string
   refs: MessageRef[]
-  card: GoalCommentsCard | PortfolioCard | ProgressCard | OrgMentionCard | InvitationCard | NoticeCard | null
+  card: GoalCommentsCard | PortfolioCard | ProgressCard | OrgMentionCard | InvitationCard | NoticeCard | StepReminderCard | null
   sender: PersonSummary | null
   mine: boolean
   creation_date: string
@@ -101,8 +114,8 @@ export interface ChatMessage {
 
 export interface ChatSummary {
   conversation_uuid: string
-  /** school: a learner and an organization's people on their plans, named after it. goal: a personal plan's people. */
-  kind: 'direct' | 'group' | 'school' | 'goal'
+  /** school: a learner and an organization's people on their plans, named after it. goal: a plan's own people. group: a group and its staff. cohort: an assignment's staff, or its whole group. */
+  kind: 'direct' | 'group' | 'school' | 'goal' | 'cohort'
   title: string
   people: PersonSummary[]
   /** Yours: active, or request while someone you don't know waits for your answer. */
@@ -146,6 +159,8 @@ export interface Chat extends ChatSummary {
   has_more: boolean
   /** Whether you write here; people who can only view a plan read along. */
   can_post: boolean
+  /** Why the organization's messaging policy keeps you from writing here, if it does. */
+  policy_block?: string | null
   topics: ChatTopic[]
 }
 
@@ -161,6 +176,23 @@ export interface GoalChat {
   /** Messages per step. */
   counts: Record<string, number>
   count: number
+}
+
+/** Who an assignment's chat is with: its staff alone, or staff and the whole group. */
+export type ChatAudience = 'staff' | 'group'
+
+/** An assignment's chat, for its chat buttons, with the plan's template steps to filter by. */
+export interface CohortChat {
+  assignment_uuid: string
+  audience: ChatAudience
+  conversation_uuid: string | null
+  title: string | null
+  can_post: boolean
+  /** Messages per template step. */
+  counts: Record<string, number>
+  count: number
+  /** The assignment's plan as a chat topic, keyed by the assignment, its steps the template's. */
+  topic: ChatTopic
 }
 
 export type MentionOutcome = { user: PersonSummary; status: 'notified' | 'invited' | 'requested' | 'no_access' | 'not_here' }
@@ -185,6 +217,7 @@ export const connectKeys = {
   counts: () => connectUrl('/counts'),
   chat: (uuid: string, filter: ChatFilter = {}) => connectUrl(`/chats/${q(uuid)}${filterQuery(filter)}`),
   goalChat: (goalUuid: string) => connectUrl(`/goals/${q(goalUuid)}/chat`),
+  cohortChat: (orgId: number, assignmentUuid: string, audience: ChatAudience) => connectUrl(`/orgs/${orgId}/assignments/${q(assignmentUuid)}/chat?audience=${audience}`),
   settings: () => connectUrl('/settings'),
   plans: () => connectUrl('/plans'),
   blocked: () => connectUrl('/blocked'),
@@ -195,6 +228,12 @@ export const connectApi = {
   counts: (token?: string) => request<ChatCounts>(connectKeys.counts(), token),
   chat: (uuid: string, token?: string, filter: ChatFilter = {}) => request<Chat>(connectKeys.chat(uuid, filter), token),
   goalChat: (goalUuid: string, token?: string) => request<GoalChat>(connectKeys.goalChat(goalUuid), token),
+  /**
+   * An assignment's chat for its staff or its whole group, started if needed. Only its staff get
+   * the staff chat, and only group assignments have one with the whole group: anyone else gets an
+   * error and no chat button. Its messages are read, filtered and sent like any other chat's.
+   */
+  cohortChat: (orgId: number, assignmentUuid: string, audience: ChatAudience, token?: string) => request<CohortChat>(connectKeys.cohortChat(orgId, assignmentUuid, audience), token),
   openDirect: (target: { handle?: string; user_uuid?: string }, token?: string) => request<Chat>(connectUrl('/chats/direct'), token, 'POST', target),
   send: (uuid: string, body: string, token?: string, options: SendOptions = {}) => request<SentMessage>(connectUrl(`/chats/${q(uuid)}/messages`), token, 'POST', {
     body, goal_uuid: options.scope?.goal_uuid, step_uuid: options.scope?.goal_uuid ? options.scope.step_uuid : undefined, share: options.share,

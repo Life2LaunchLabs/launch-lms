@@ -169,7 +169,17 @@ def sync_assignment(db: Session, assignment: GoalAssignment, actor_user_id: int 
     learners = _learners(db, assignment)
     if external and not learners:
         return [_issue(db, assignment, template, version, None, actor_user_id)]
-    return [_issue(db, assignment, template, version, user_id, actor_user_id) for user_id in learners if user_id not in have]
+    issued = [_issue(db, assignment, template, version, user_id, actor_user_id) for user_id in learners if user_id not in have]
+    if issued:
+        _sync_chats(db, assignment)
+    return issued
+
+
+def _sync_chats(db: Session, assignment: GoalAssignment) -> None:
+    """The assignment's staff and whole-group chats, after its staff or learners change."""
+    from src.services.connect import cohort
+
+    cohort.sync(db, assignment)
 
 
 def _can_manage(db: Session, org_id: int, user_ids: list[int]) -> set[int]:
@@ -397,6 +407,8 @@ def update(db: Session, current_user: PublicUser, org_id: int, assignment_uuid: 
         db.flush()
         # Keeps the goal's chat in step with who's on it.
         access.log(db, goal, current_user.id, "goal.updated", {"assignment_uuid": assignment.assignment_uuid, "fields": sorted(sent)})
+    if "collaborators" in sent:
+        _sync_chats(db, assignment)
     db.commit()
     return assignment_dict(db, assignment)
 

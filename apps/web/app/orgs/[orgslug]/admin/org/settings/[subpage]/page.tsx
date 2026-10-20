@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import OrgEditGeneral from '@components/Dashboard/Pages/Org/OrgEditGeneral/OrgEditGeneral'
 import OrgEditBranding from '@components/Dashboard/Pages/Org/OrgEditBranding/OrgEditBranding'
 import OrgEditSSO from '@components/Dashboard/Pages/Org/OrgEditSSO/OrgEditSSO'
+import OrgEditMessaging from '@components/Dashboard/Pages/Org/OrgEditMessaging/OrgEditMessaging'
 import OrgEditPlan from '@components/Dashboard/Pages/Org/OrgEditPlan/OrgEditPlan'
 import { useFeatures } from '@components/Hooks/useFeatures'
 import { ADMIN_NAV_ICONS } from '@components/Admin/adminNavIcons'
@@ -67,6 +68,7 @@ function OrgPage(props: { params: Promise<OrgParams> }) {
       >
         {params.subpage == 'general' ? <OrgEditGeneral /> : ''}
         {params.subpage == 'branding' ? <OrgEditBranding /> : ''}
+        {params.subpage == 'messaging' ? <OrgEditMessaging /> : ''}
         {params.subpage == 'sso' ? <OrgEditSSO /> : ''}
         {params.subpage == 'plan' ? <OrgEditPlan orgslug={params.orgslug} /> : ''}
       </motion.div>

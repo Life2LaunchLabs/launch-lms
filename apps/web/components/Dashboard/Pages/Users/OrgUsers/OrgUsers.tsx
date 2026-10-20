@@ -31,20 +31,12 @@ import { useFeatures } from '@components/Hooks/useFeatures'
 
 const ITEMS_PER_PAGE = 10
 
-export type OrgUsersOverviewFilters = {
-  search: string
-  roleId: string
-  verified: 'all' | 'verified' | 'unverified'
-  active: 'all' | 'active' | 'inactive'
-  assignedToMe: boolean
-}
-
 // Probabilistic revalidateOnFocus — revalidate ~50% of the time
 function shouldRevalidate() {
   return Math.random() < 0.5
 }
 
-function OrgUsers({ overviewFilters }: { overviewFilters?: OrgUsersOverviewFilters } = {}) {
+function OrgUsers() {
   const { t } = useTranslation()
   const org = useOrg() as any
   const session = useLHSession() as any
@@ -63,12 +55,6 @@ function OrgUsers({ overviewFilters }: { overviewFilters?: OrgUsersOverviewFilte
   const [showInviteDialog, setShowInviteDialog] = useState(false)
   const [showInvitationHistory, setShowInvitationHistory] = useState(false)
 
-  React.useEffect(() => {
-    if (!overviewFilters) return
-    setPage(1)
-    setSelectedUserIds(new Set())
-  }, [overviewFilters])
-
   // Track whether revalidation on focus is allowed
   const revalidateRef = useRef(shouldRevalidate)
 
@@ -77,16 +63,9 @@ function OrgUsers({ overviewFilters }: { overviewFilters?: OrgUsersOverviewFilte
     params.append('page', page.toString())
     params.append('limit', ITEMS_PER_PAGE.toString())
     params.append('sort_order', sortOrder)
-    const effectiveSearch = overviewFilters?.search ?? searchValue
-    const effectiveRole = overviewFilters?.roleId ?? filterRole
-    const effectiveStatus = overviewFilters?.verified === 'all' ? '' : (overviewFilters?.verified ?? filterStatus)
-    if (effectiveSearch) params.append('search', effectiveSearch)
-    if (effectiveRole) params.append('role_id', effectiveRole)
-    if (effectiveStatus) params.append('status', effectiveStatus)
-    if (overviewFilters?.active !== undefined && overviewFilters.active !== 'all') {
-      params.append('active', String(overviewFilters.active === 'active'))
-    }
-    if (overviewFilters?.assignedToMe) params.append('assigned_to_me', 'true')
+    if (searchValue) params.append('search', searchValue)
+    if (filterRole) params.append('role_id', filterRole)
+    if (filterStatus) params.append('status', filterStatus)
     if (filterGroupId) {
       params.append('usergroup_id', filterGroupId)
       params.append('usergroup_filter', 'in_group')
@@ -141,13 +120,10 @@ function OrgUsers({ overviewFilters }: { overviewFilters?: OrgUsersOverviewFilte
 
   const orgUsers = data?.items || []
   const filteredInvites = (invitedUsers || []).filter((invite: any) => {
-    const effectiveSearch = (overviewFilters?.search ?? searchValue).trim().toLowerCase()
-    const effectiveRole = overviewFilters?.roleId ?? filterRole
-    const effectiveStatus = overviewFilters?.verified === 'all' ? '' : (overviewFilters?.verified ?? filterStatus)
-    if (effectiveSearch && !String(invite.email).toLowerCase().includes(effectiveSearch)) return false
-    if (effectiveRole && String(invite.role?.id) !== effectiveRole) return false
-    if (effectiveStatus) return false
-    if (overviewFilters?.assignedToMe) return false
+    const search = searchValue.trim().toLowerCase()
+    if (search && !String(invite.email).toLowerCase().includes(search)) return false
+    if (filterRole && String(invite.role?.id) !== filterRole) return false
+    if (filterStatus) return false
     if (filterGroupId && String(invite.usergroup?.id) !== filterGroupId) return false
     return true
   })
@@ -160,9 +136,7 @@ function OrgUsers({ overviewFilters }: { overviewFilters?: OrgUsersOverviewFilte
   const visibleUserIds: number[] = orgUsers.map((u: any) => u.user.id)
   const allVisibleSelected = visibleUserIds.length > 0 && visibleUserIds.every((id: number) => selectedUserIds.has(id))
 
-  const hasActiveFilters = overviewFilters
-    ? Boolean(overviewFilters.search || overviewFilters.roleId || overviewFilters.verified !== 'all' || overviewFilters.active !== 'all' || overviewFilters.assignedToMe)
-    : Boolean(filterRole || filterStatus || (hasUserGroups && filterGroupId))
+  const hasActiveFilters = Boolean(filterRole || filterStatus || (hasUserGroups && filterGroupId))
 
   const toggleSelectAll = () => {
     setSelectedUserIds((prev) => {
@@ -278,15 +252,15 @@ function OrgUsers({ overviewFilters }: { overviewFilters?: OrgUsersOverviewFilte
     <div>
       <Toast></Toast>
       <AdminDataTable
-        className={overviewFilters ? '' : 'mx-8 my-6'}
-        search={overviewFilters ? undefined : { value: searchValue, onChange: handleSearchChange, placeholder: t('dashboard.users.active_users.search_placeholder') || 'Search users...' }}
-        filters={overviewFilters ? [] : [
+        className="mx-8 my-6"
+        search={{ value: searchValue, onChange: handleSearchChange, placeholder: t('dashboard.users.active_users.search_placeholder') || 'Search users...' }}
+        filters={[
           { id: 'role', label: 'Role', value: filterRole || 'all', options: [{ value: 'all', label: 'All' }, ...(roles || []).map((role: any) => ({ value: String(role.id), label: role.name }))], onChange: handleFilterChange(setFilterRole) },
           { id: 'status', label: 'Status', value: filterStatus || 'all', options: [{ value: 'all', label: 'All' }, { value: 'verified', label: 'Verified' }, { value: 'unverified', label: 'Unverified' }], onChange: handleFilterChange(setFilterStatus) },
           ...(hasUserGroups ? [{ id: 'group', label: 'Groups', value: filterGroupId || 'all', options: [{ value: 'all', label: 'All' }, ...(usergroups || []).map((group: any) => ({ value: String(group.id), label: group.name }))], onChange: handleFilterChange(setFilterGroupId) }] : []),
         ]}
         resultLabel={`${total + displayedInvites.length} record${total + displayedInvites.length !== 1 ? 's' : ''}`}
-        actions={!overviewFilters ? (
+        actions={(
           <div className="flex items-center gap-2">
             {hasActiveFilters && <button onClick={resetFilters} className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-black"><X className="h-3 w-3" />Clear</button>}
             <button onClick={() => setShowInvitationHistory((current) => !current)} className={`rounded-lg border px-3 py-1.5 text-[13px] font-medium ${showInvitationHistory ? 'border-indigo-200 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-600'}`}>{showInvitationHistory ? 'Pending only' : 'Invitation history'}</button>
@@ -298,7 +272,7 @@ function OrgUsers({ overviewFilters }: { overviewFilters?: OrgUsersOverviewFilte
               Add users
             </button>
           </div>
-        ) : undefined}
+        )}
       >
 
             {/* Selection Action Bar */}
@@ -344,7 +318,7 @@ function OrgUsers({ overviewFilters }: { overviewFilters?: OrgUsersOverviewFilte
                       <User className="w-8 h-8 text-gray-400" />
                     </div>
                     <p className="text-gray-400 text-sm font-medium">
-                      {(overviewFilters?.search ?? searchValue) || hasActiveFilters
+                      {searchValue || hasActiveFilters
                         ? t('dashboard.users.active_users.no_results') || 'No users found matching your filters'
                         : t('dashboard.users.active_users.no_users') || 'No users in this organization yet'
                       }

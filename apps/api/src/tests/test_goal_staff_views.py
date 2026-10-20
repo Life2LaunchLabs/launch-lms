@@ -8,7 +8,7 @@ from src.services.goals.sharing_roles import _role
 from src.tests.test_goal_review import _assigned, _goal
 from src.tests.test_goals import ADMIN, LEARNER, OTHER, _session, _status, _step, _user
 
-ESSAY = {"key": "essay", "type": "write", "title": "Essay", "review_required": True}
+ESSAY = {"key": "essay", "type": "write", "title": "Essay", "review_required": True, "reviewer_guidance": "Look for a thesis", "config": {"prompt": "Why?"}}
 FAIR = {"key": "fair", "type": "task", "title": "Career Fair", "completed_by": "staff"}
 
 
@@ -42,6 +42,13 @@ def test_assignments_list_and_matrix_show_each_learner_by_template_step():
         assert rows[LEARNER]["cells"]["essay"]["status"] == "submitted" and rows[LEARNER]["cells"]["fair"]["locked"] is False
         assert rows[LEARNER]["goal_uuid"] == _goal(db, LEARNER).goal_uuid and rows[LEARNER]["custom_steps"] == []
         assert [item["title"] for item in rows[OTHER]["custom_steps"]] == ["Extra"]
+        # What staff prepare from, and who else is on each learner's plan.
+        assert essay_column["reviewer_guidance"] == "Look for a thesis" and essay_column["config"] == {"prompt": "Why?"} and essay_column["materials"] == []
+        assert rows[LEARNER]["people"] == []
+        access.add_member(db, _goal(db, LEARNER), OTHER, _role(db, _goal(db, LEARNER), "commenter"))
+        db.commit()
+        rows = {row["id"]: row for row in staff_views.assignment_matrix(db, _user(ADMIN), 1, assignment["assignment_uuid"])["learners"]}
+        assert [(person["id"], person["role"]) for person in rows[LEARNER]["people"]] == [(OTHER, "Commenter")] and rows[OTHER]["people"] == []
         # Rows follow goal access: a learner sees only their own.
         assert [row["id"] for row in staff_views.assignment_matrix(db, _user(LEARNER), 1, assignment["assignment_uuid"])["learners"]] == [LEARNER]
 
