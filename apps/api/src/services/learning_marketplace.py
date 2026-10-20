@@ -41,6 +41,7 @@ from src.services.learning import (
     _get_org,
     _now,
     _require_org_admin,
+    _require_org_staff,
     _require_user,
 )
 
@@ -840,8 +841,7 @@ async def issuer_badge_metrics(
 ) -> dict:
     """Issuance and program usage for one authorized issuer and badge."""
     from src.db.learning import LearningBadgeAward
-
-    _require_org_admin(db_session, current_user, org_id)
+    _require_org_staff(db_session, current_user, org_id)  # a read: staff see it on the badge page too
     badge = _get_badge(db_session, badge_uuid)
     authorization = db_session.exec(
         select(BadgeIssuerAuthorization).where(

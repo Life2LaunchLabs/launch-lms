@@ -1012,3 +1012,85 @@ def test_standard_page_rejects_unsafe_display_binding_path():
         _validate_page_payload(LearningPageType.STANDARD, {"version": 2, "blocks": [
             {"id": "image", "type": "image", "content": {"binding": {"source": "answer", "path": "../../private"}}},
         ]})
+
+
+# Plans › Badges: staff read the organization's badges (read-only); learners don't -------------
+
+ADMIN_ID, STAFF_ID, LEARNER_ID, PARTNER_STAFF_ID, STAFF_ROLE_ID = 1, 2, 3, 4, 7
+
+
+def _badge_world():
+    from sqlmodel import Session, SQLModel, create_engine
+    from src.db.learning import BadgeCollection, BadgeIssuerAuthorization, BadgeIssuerAuthorizationStatus
+    from src.db.programs import Objective, Program, ProgramAssignment, ProgramObjective
+    from src.db.roles import Role
+    from src.db.user_organizations import UserOrganization
+
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    SQLModel.metadata.create_all(engine, tables=[
+        Organization.__table__, User.__table__, Role.__table__, UserOrganization.__table__, BadgeCollection.__table__,
+        LearningBadge.__table__, LearningBadgeVersion.__table__, BadgeIssuerAuthorization.__table__, LearningBadgeAward.__table__,
+        Program.__table__, ProgramObjective.__table__, Objective.__table__, ProgramAssignment.__table__,
+    ])
+    db = Session(engine)
+    now = "2026-01-01T00:00:00"
+    db.add(_org())
+    db.add(Organization(id=2, org_uuid="org_2", name="Partner School", slug="partner", email="p@example.com", creation_date=now, update_date=now))
+    db.add(Role(id=STAFF_ROLE_ID, role_uuid="role_teacher", name="Teacher", rights={"dashboard": {"action_access": True}, "learning_activities": {"action_update": True}}))
+    for user_id, name in ((ADMIN_ID, "admin"), (STAFF_ID, "staff"), (LEARNER_ID, "learner"), (PARTNER_STAFF_ID, "partner")):
+        db.add(User(id=user_id, user_uuid=f"user_{user_id}", username=name, email=f"{name}@example.com", first_name=name, last_name="X", creation_date=now, update_date=now))
+    for user_id, org_id, role_id in ((ADMIN_ID, 1, 1), (STAFF_ID, 1, STAFF_ROLE_ID), (LEARNER_ID, 1, 4), (PARTNER_STAFF_ID, 2, STAFF_ROLE_ID)):
+        db.add(UserOrganization(user_id=user_id, org_id=org_id, role_id=role_id, creation_date=now, update_date=now))
+    db.add(BadgeCollection(id=1, collection_uuid="badge_collection_1", org_id=1, name="Readiness", description="", public=True, creation_date=now, update_date=now))
+    # Private and a draft, so only the organization (and issuers it authorized) can read it.
+    db.add(LearningBadge(id=10, org_id=1, collection_id=1, badge_uuid="badge_ready", name="Career Ready", public=False, status=LearningBadgeStatus.DRAFT, creation_date=now, update_date=now))
+    db.add(BadgeIssuerAuthorization(authorization_uuid="auth_1", badge_id=10, creator_org_id=1, issuer_org_id=2, status=BadgeIssuerAuthorizationStatus.APPROVED,
+                                    creation_date=now, update_date=now))
+    db.commit()
+    return db
+
+
+def _as(user_id: int):
+    from src.db.users import PublicUser
+
+    return PublicUser(id=user_id, user_uuid=f"user_{user_id}", username=f"u{user_id}", email=f"u{user_id}@example.com", first_name="U", last_name=str(user_id))
+
+
+@pytest.mark.asyncio
+async def test_staff_read_badges_and_collections_read_only_and_learners_are_refused():
+    from src.db.learning import LearningBadgeUpdate
+    from src.services.learning.badge_admin import get_badge, list_badges, update_badge
+    from src.services.learning.collection_service import list_collections
+
+    with _badge_world() as db:
+        assert [badge.name for badge in await list_badges(_request(), 1, _as(STAFF_ID), db, admin=True)] == ["Career Ready"]
+        staff_view = await get_badge(_request(), "badge_ready", _as(STAFF_ID), db)
+        assert staff_view.can_edit is False and staff_view.creator_org == {"id": 1, "name": "Launch Academy", "slug": "academy"}
+        assert (await get_badge(_request(), "badge_ready", _as(ADMIN_ID), db)).can_edit is True
+        # Staff of an organization authorized to issue it read it too, without edit rights.
+        assert (await get_badge(_request(), "badge_ready", _as(PARTNER_STAFF_ID), db)).can_edit is False
+        # ...and see their organization's activity with it on the badge page.
+        from src.services.learning_marketplace import issuer_badge_metrics
+
+        assert (await issuer_badge_metrics(_request(), 2, "badge_ready", _as(PARTNER_STAFF_ID), db))["issued_count"] == 0
+        with pytest.raises(HTTPException) as refused:
+            await issuer_badge_metrics(_request(), 1, "badge_ready", _as(LEARNER_ID), db)
+        assert refused.value.status_code == 403
+
+        collections = await list_collections(_request(), 1, _as(STAFF_ID), db, admin=True)
+        assert [(item.can_edit, [badge.can_edit for badge in item.badges]) for item in collections] == [(False, [False])]
+        collections = await list_collections(_request(), 1, _as(ADMIN_ID), db, admin=True)
+        assert [(item.can_edit, [badge.can_edit for badge in item.badges]) for item in collections] == [(True, [True])]
+
+        # Writes stay with admins; learners read nothing.
+        with pytest.raises(HTTPException) as refused:
+            await update_badge(_request(), "badge_ready", LearningBadgeUpdate(public=True), _as(STAFF_ID), db)
+        assert refused.value.status_code == 403
+        for call in (
+            lambda: list_badges(_request(), 1, _as(LEARNER_ID), db, admin=True),
+            lambda: list_collections(_request(), 1, _as(LEARNER_ID), db, admin=True),
+            lambda: get_badge(_request(), "badge_ready", _as(LEARNER_ID), db),
+        ):
+            with pytest.raises(HTTPException) as refused:
+                await call()
+            assert refused.value.status_code == 403

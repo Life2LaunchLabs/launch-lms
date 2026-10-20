@@ -131,6 +131,7 @@ class LearningBadgeRead(LearningBadgeBase):
     versions: list[dict] = Field(default_factory=list)
     can_edit: bool | None = None
     access_type: str | None = None
+    creator_org: dict | None = None  # {id, name, slug} of the badge's maker, on the admin detail read
 
 
 class LearningBadgeVersion(SQLModel, table=True):
@@ -237,8 +238,7 @@ class BadgeIssuerAuthorization(SQLModel, table=True):
     creator_org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
     issuer_org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
     status: BadgeIssuerAuthorizationStatus = Field(default=BadgeIssuerAuthorizationStatus.REQUESTED, sa_column=Column(String, nullable=False))
-    # How learners join: "open" (start now), "request" (issuer accepts) or "invite"; open_to_all mirrors open|request.
-    open_to_all: bool = False
+    open_to_all: bool = False  # mirrors learner_access open|request; learner_access is "open", "request" or "invite"
     learner_access: str = Field(default="invite", sa_column=Column(String, nullable=False, server_default="invite"))
     message: str | None = ""
     requested_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
