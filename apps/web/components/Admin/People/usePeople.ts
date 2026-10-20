@@ -1,12 +1,13 @@
 'use client'
 
-import useSWR from 'swr'
+import React from 'react'
+import useSWR, { useSWRConfig } from 'swr'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { LIST_REFRESH_MS } from '@components/Connect/useConnect'
 import { getAPIUrl } from '@services/config/config'
 import { getUserGroups } from '@services/usergroups/usergroups'
-import { peopleApi, peopleKeys, type Directory, type HelperRequests, type PeopleChats, type Profile } from '@services/school/people'
+import { peopleApi, peopleKeys, type Directory, type GroupDetail, type PeopleChats, type PeopleFeed, type PersonActivity, type Profile } from '@services/school/people'
 
 // Role ids the API treats as organization admins (admin and maintainer), as in security/org_auth.py.
 const ADMIN_ROLE_IDS = new Set([1, 2])
@@ -26,6 +27,37 @@ export function usePeopleChats() {
   return useSWR<PeopleChats>(orgId && token ? peopleKeys.chats(orgId) : null, () => peopleApi.chats(orgId, token), { refreshInterval: LIST_REFRESH_MS, revalidateOnFocus: true })
 }
 
+/** People's list: who has something for you on top (refreshed like a chat list), then everyone else A to Z, a page at a time. */
+export function usePeopleFeed(query: string, offset = 0) {
+  const { orgId, token } = usePeopleContext()
+  return useSWR<PeopleFeed>(orgId && token ? peopleKeys.feed(orgId, query, offset) : null, () => peopleApi.feed(orgId, query, token, offset),
+    { keepPreviousData: true, refreshInterval: offset ? 0 : LIST_REFRESH_MS, revalidateOnFocus: offset === 0 })
+}
+
+/** Refresh People's list (every page and search) and the chats behind it, after something about someone changes. */
+export function useRefreshPeople() {
+  const { orgId } = usePeopleContext()
+  const { mutate } = useSWRConfig()
+  return React.useCallback(() => {
+    if (!orgId) return Promise.resolve()
+    const feed = peopleKeys.feed(orgId).split('?')[0]
+    return mutate((key) => typeof key === 'string' && (key.startsWith(`${feed}?`) || key === peopleKeys.chats(orgId)))
+  }, [mutate, orgId])
+}
+
+/** What waits on you about someone: helpers to approve and steps they turned in. */
+export function usePersonActivity(username: string) {
+  const { orgId, token } = usePeopleContext()
+  return useSWR<PersonActivity>(orgId && token && username ? peopleKeys.activity(orgId, username) : null, () => peopleApi.activity(orgId, username, token),
+    { refreshInterval: 60_000, revalidateOnFocus: true, shouldRetryOnError: false })
+}
+
+/** A group's name and people, staff first, for its header. */
+export function useGroupDetail(groupId: number) {
+  const { orgId, token } = usePeopleContext()
+  return useSWR<GroupDetail>(orgId && token ? peopleKeys.group(orgId, groupId) : null, () => peopleApi.group(orgId, groupId, token), { revalidateOnFocus: false, shouldRetryOnError: false })
+}
+
 export function useDirectory(query: string, offset = 0) {
   const { orgId, token } = usePeopleContext()
   return useSWR<Directory>(orgId && token ? peopleKeys.directory(orgId, query, offset) : null, () => peopleApi.directory(orgId, query, token, offset), { keepPreviousData: true, revalidateOnFocus: false })
@@ -36,11 +68,6 @@ export function useProfile(username: string) {
   return useSWR<Profile>(orgId && token && username ? peopleKeys.profile(orgId, username) : null, () => peopleApi.profile(orgId, username, token), { revalidateOnFocus: false, shouldRetryOnError: false })
 }
 
-/** Helpers waiting on an admin; admins only, so others get nothing. */
-export function useHelperRequests() {
-  const { orgId, token, isAdmin } = usePeopleContext()
-  return useSWR<HelperRequests>(orgId && token && isAdmin ? peopleKeys.helperRequests(orgId) : null, () => peopleApi.helperRequests(orgId, token), { refreshInterval: 60_000, shouldRetryOnError: false })
-}
 
 export type OrgGroup = { id: number; name: string; description?: string }
 

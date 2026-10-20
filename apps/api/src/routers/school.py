@@ -1,4 +1,4 @@
-"""The school side, used from People: the people list and profiles, group chats and staff, a student's team, chat and notes, who's waiting, chat reports and the messaging policy."""
+"""The school side, used from People: the people list (one feed, most relevant first) and profiles, group chats and staff, a student's team, chat and notes, who's waiting, chat reports and the messaging policy."""
 
 from fastapi import APIRouter, Depends
 from sqlmodel import Session
@@ -9,7 +9,7 @@ from src.db.organization_config import MessagingPolicy
 from src.db.school import GroupStaffSet, StaffNoteCreate
 from src.db.users import PublicUser
 from src.security.auth import get_authenticated_user
-from src.services.school import directory, group_chats, messaging, profile, reports, staff, views
+from src.services.school import directory, feed, group_chats, messaging, profile, reports, staff, views
 
 router = APIRouter()
 DB = Depends(get_db_session)
@@ -70,6 +70,21 @@ async def review_report(org_id: int, report_uuid: str, payload: ChatReportReview
 @router.get("/orgs/{org_id}/people")
 async def people_directory(org_id: int, q: str = "", offset: int = 0, limit: int = directory.PAGE, current_user: PublicUser = USER, db_session: Session = DB):
     return directory.directory(db_session, current_user, org_id, q, offset, limit)
+
+
+@router.get("/orgs/{org_id}/people/feed")
+async def people_feed(org_id: int, q: str = "", offset: int = 0, limit: int = feed.PAGE, current_user: PublicUser = USER, db_session: Session = DB):
+    return feed.people_feed(db_session, current_user, org_id, q, offset, limit)
+
+
+@router.get("/orgs/{org_id}/people/{username}/activity")
+async def person_activity(org_id: int, username: str, current_user: PublicUser = USER, db_session: Session = DB):
+    return feed.person_activity(db_session, current_user, org_id, username)
+
+
+@router.get("/orgs/{org_id}/groups/{group_id}")
+async def group_detail(org_id: int, group_id: int, current_user: PublicUser = USER, db_session: Session = DB):
+    return feed.group_detail(db_session, current_user, org_id, group_id)
 
 
 @router.get("/orgs/{org_id}/people/{username}")

@@ -80,6 +80,11 @@ def _message(db: Session, viewer_id: int, user_id: int, role: str | None) -> dic
     """Whether the viewer can message them from People, and if not, why."""
     if viewer_id == user_id:
         return {"can_message": False, "note": None, "chat_uuid": None}
+    related = school_chats.relation(db, viewer_id, user_id)
+    if related:
+        # Staff and their own students talk in the student's chat with the organization, whatever the policy (as open_direct does).
+        school = school_chats.find(db, *related)
+        return {"can_message": True, "note": None, "chat_uuid": school.conversation_uuid if school else None}
     reason = messaging.direct_block(db, viewer_id, user_id)
     if not reason and role == "helper":
         reason = messaging.HELPER_DM

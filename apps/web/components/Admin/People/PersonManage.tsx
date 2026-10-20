@@ -10,7 +10,7 @@ import { removeUserFromOrg, updateUserRole } from '@services/organizations/orgs'
 import { linkUserToUserGroup, unLinkUserToUserGroup } from '@services/usergroups/usergroups'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { peopleKeys, type Profile } from '@services/school/people'
-import { useOrgGroups, usePeopleContext } from './usePeople'
+import { useOrgGroups, usePeopleContext, useRefreshPeople } from './usePeople'
 
 const SELECT = 'h-9 rounded-lg border border-gray-200 bg-white px-2.5 text-sm font-medium text-gray-900 disabled:opacity-50'
 
@@ -19,6 +19,7 @@ export default function PersonManage({ orgslug, profile, refresh }: { orgslug: s
   const { orgId, token } = usePeopleContext()
   const router = useRouter()
   const { mutate } = useSWRConfig()
+  const refreshList = useRefreshPeople()
   const { user, manage } = profile
   const [busy, setBusy] = React.useState(false)
   const { data: roles } = useSWR(manage.change_role && token ? `${getAPIUrl()}roles/org/${orgId}` : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: false })
@@ -29,7 +30,7 @@ export default function PersonManage({ orgslug, profile, refresh }: { orgslug: s
   if (!manage.change_role && !manage.remove && !manage.groups) return null
 
   const refreshAll = async () => {
-    await Promise.all([refresh(), mutate((key) => typeof key === 'string' && (key.startsWith(peopleKeys.directory(orgId).split('?')[0]) || key === peopleKeys.chats(orgId)))])
+    await Promise.all([refresh(), refreshList(), mutate((key) => typeof key === 'string' && key.startsWith(peopleKeys.directory(orgId).split('?')[0]))])
   }
   const run = async (work: () => Promise<{ success: boolean; data: any }>, done: string) => {
     if (!token || busy) return false

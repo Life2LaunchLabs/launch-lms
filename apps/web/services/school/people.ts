@@ -85,10 +85,67 @@ export interface HelperRequest {
 }
 export interface HelperRequests { requests: HelperRequest[]; total: number }
 
+/** One row of People's list: a person or a group, with what's new for you about them when they're on top. */
+export interface FeedRow {
+  key: string
+  kind: 'person' | 'group'
+  person: PersonSummary | null
+  role: OrgRole | null
+  role_name?: string
+  groups?: Array<{ id: number; name: string }>
+  helping_on?: HelpingOn[]
+  group: { id: number; name: string; member_count: number; staff_count?: number } | null
+  /** Only on rows in the top section. */
+  counts?: { messages: number; turn_ins: number; approvals: number }
+  total?: number
+  preview?: string
+  at?: string
+  chat_uuid?: string | null
+}
+/** People's list: who has something for you (newest first, capped, first page only), then everyone else A to Z, paged. */
+export interface PeopleFeed {
+  active: FeedRow[]
+  rest: FeedRow[]
+  total: number
+  offset: number
+  limit: number
+  groups_enabled: boolean
+  is_admin: boolean
+}
+
+export interface TurnIn {
+  goal_uuid: string
+  plan_title: string
+  step_uuid: string
+  step_key: string | null
+  step_title: string
+  assignment_uuid: string | null
+  submitted_at: string
+}
+/** What waits on you about someone, shown as cards in their conversation. */
+export interface PersonActivity { approvals: HelperRequest[]; turn_ins: TurnIn[]; can_approve: boolean }
+
+export interface GroupPerson { user: PersonSummary; as: 'member' | 'staff'; role: OrgRole }
+/** A group for People's header: its people, staff first. */
+export interface GroupDetail {
+  id: number
+  name: string
+  description: string | null
+  people: GroupPerson[]
+  learner_count: number
+  staff_count: number
+  can_manage: boolean
+  in_chat: boolean
+  groups_enabled: boolean
+}
+
 const helperBase = (path = '') => `${getAPIUrl()}goal-admin/helper-requests${path}`
 
 export const peopleKeys = {
   directory: (orgId: number, query = '', offset = 0) => base(orgId, `/people?q=${q(query)}&offset=${offset}`),
+  feed: (orgId: number, query = '', offset = 0) => base(orgId, `/people/feed?q=${q(query)}&offset=${offset}`),
+  activity: (orgId: number, username: string) => base(orgId, `/people/${q(username)}/activity`),
+  group: (orgId: number, groupId: number) => base(orgId, `/groups/${groupId}`),
   profile: (orgId: number, username: string) => base(orgId, `/people/${q(username)}`),
   chats: (orgId: number) => base(orgId, '/chats'),
   messaging: (orgId: number) => base(orgId, '/messaging'),
@@ -98,6 +155,9 @@ export const peopleKeys = {
 export const peopleApi = {
   directory: (orgId: number, query: string, token?: string, offset = 0) => request<Directory>(peopleKeys.directory(orgId, query, offset), token),
   profile: (orgId: number, username: string, token?: string) => request<Profile>(peopleKeys.profile(orgId, username), token),
+  feed: (orgId: number, query: string, token?: string, offset = 0) => request<PeopleFeed>(peopleKeys.feed(orgId, query, offset), token),
+  activity: (orgId: number, username: string, token?: string) => request<PersonActivity>(peopleKeys.activity(orgId, username), token),
+  group: (orgId: number, groupId: number, token?: string) => request<GroupDetail>(peopleKeys.group(orgId, groupId), token),
   chats: (orgId: number, token?: string) => request<PeopleChats>(peopleKeys.chats(orgId), token),
   /** A group's chat, for its members and staff. */
   groupChat: (orgId: number, groupId: number, token?: string) => request<Chat>(base(orgId, `/groups/${groupId}/chat`), token, 'POST'),
