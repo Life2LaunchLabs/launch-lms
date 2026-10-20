@@ -43,6 +43,16 @@ export function feedEntries(messages: ChatMessage[], notes: StaffNote[]) {
   return entries.sort((a, b) => a.at - b.at)
 }
 
+/** Something shown in the timeline beside the messages, at its time: People's cards for what waits on you about someone. */
+export interface TimelineItem { key: string; at: string; node: React.ReactNode }
+
+/** A feed's entries with timeline cards slotted in by time (stable, so entries keep their order among themselves). */
+export function withTimeline<T extends { at: number }>(entries: T[], timeline: TimelineItem[]) {
+  type Entry = T | { kind: 'card'; item: TimelineItem; at: number }
+  if (!timeline.length) return entries as Entry[]
+  return [...entries, ...timeline.map((item) => ({ kind: 'card' as const, item, at: stamp(item.at) }))].sort((a, b) => a.at - b.at) as Entry[]
+}
+
 /** A staff note in the feed: set apart, marked as staff only. */
 export function NoteEntry({ note, onRemove }: { note: StaffNote; onRemove: (noteUuid: string) => Promise<void> }) { // eslint-disable-line no-unused-vars
   const time = new Date(stamp(note.creation_date)).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
