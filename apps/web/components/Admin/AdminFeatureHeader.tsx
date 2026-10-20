@@ -133,7 +133,7 @@ export default function AdminFeatureHeader({
 function TabCount({ count, label }: { count?: number | null; label?: string }) {
   if (!count) return null
   return (
-    <span title={label} className="inline-grid h-[19px] min-w-[19px] place-items-center rounded-full bg-red-600 px-1.5 text-[11px] font-bold leading-none text-white tabular-nums">
+    <span title={label} className="relative inline-grid h-[19px] min-w-[19px] place-items-center rounded-full bg-red-600 px-1.5 text-[11px] font-bold leading-none text-white tabular-nums">
       <span aria-hidden={label ? true : undefined}>{count > 99 ? '99+' : count}</span>
       {label ? <span className="sr-only">{label}</span> : null}
     </span>

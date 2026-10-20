@@ -7,6 +7,7 @@ import { Archive, ArchiveRestore, BookCopy, Loader2 } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import { getDefaultOrg } from '@services/config/config'
 import { isTemplatesKey, templatesApi } from '@services/goals/templates'
+import TemplateMarketplaceListing from '@components/Admin/Marketplace/TemplateMarketplaceListing'
 import TemplateRoles from './TemplateRoles'
 import type { TemplateEditing } from './useTemplate'
 
@@ -40,6 +41,7 @@ export default function TemplateSettings({ orgslug, orgId, token, editing }: { o
       <button type="button" onClick={() => void setMeta({ instructions }, 'Instructions saved.')} disabled={editing.saving || editing.stale} className="mt-3 inline-flex items-center gap-2 rounded-lg bg-black px-5 py-2 text-xs font-bold text-white disabled:opacity-50">{editing.saving ? <Loader2 size={15} className="animate-spin" /> : null}Save instructions</button>
     </section>
     <TemplateRoles editing={editing} />
+    <TemplateMarketplaceListing orgId={orgId} token={token} template={template} />
     {orgslug === getDefaultOrg() && !template.system_type ? <section className="rounded-xl border border-blue-200 bg-card p-6 shadow-xs">
       <h2 className="text-lg font-bold">Global template library</h2><p className="mt-1 text-sm text-muted-foreground">Share a snapshot of the draft that any organization can copy. Later edits stay private until you share again.</p>
       <Button variant="brand" className="mt-5" onClick={() => void publishToLibrary()} disabled={busy !== null}>{busy === 'library' ? <Loader2 className="animate-spin" /> : <BookCopy />}{template.published_to_library ? 'Update library copy' : 'Publish to library'}</Button>

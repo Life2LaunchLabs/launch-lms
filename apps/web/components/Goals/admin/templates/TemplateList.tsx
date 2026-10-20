@@ -5,16 +5,22 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import useSWR, { mutate } from 'swr'
 import toast from 'react-hot-toast'
-import { Archive, ArchiveRestore, BookCopy, Layers3, Loader2, Plus } from 'lucide-react'
+import { Archive, ArchiveRestore, Award, ChevronRight, Layers3, ListTree, Loader2, Plus } from 'lucide-react'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { SafeImage } from '@components/Objects/SafeImage'
 import { Button } from '@components/ui/button'
 import { Input } from '@components/ui/input'
+import FilterBar from '@components/Admin/Filters/FilterBar'
+import { useFilters } from '@components/Admin/Filters/useFilters'
+import OwnershipChip from '@components/Admin/Plans/OwnershipChip'
+import { AddFromMarketplace, primaryActionClass } from '@components/Admin/Plans/PlansActions'
+import { useCanEditPlans } from '@components/Admin/Plans/useCanEditPlans'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import { isTemplatesKey, templateKeys, templatesApi } from '@services/goals/templates'
+import { isTemplatesKey, templateKeys, templatesApi, type IssuerBadgeRoute, type TemplateBadgeRef, type TemplateListItem } from '@services/goals/templates'
 import type { GoalTemplate } from '@services/goals/types'
+import { eligibilityLabel } from '@services/goals/versions'
+import { isOn, matchesSearch, type FilterSpec } from '@/lib/admin/filters'
 import { cn } from '@/lib/utils'
-import BadgeTemplatesSection from '@components/Goals/admin/versions/BadgeTemplatesSection'
 
 const templatePage = (orgslug: string, uuid: string) => getUriWithOrg(orgslug, routePaths.org.admin.templatePage(uuid, 'overview'))
 
@@ -27,13 +33,97 @@ export function TemplateStatusChip({ template, className }: { template: Pick<Goa
   return <span className={cn('inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[9px] font-black uppercase', tone, className)}>{label}</span>
 }
 
-/** The organization's goal templates: open one, start a new one (blank or from the library), archive. */
+/** One row of the list: the organization's own template, or another organization's it runs with permission. */
+type Row = {
+  uuid: string
+  title: string
+  description: string
+  thumbnail: string | null
+  owned: boolean
+  canEdit: boolean
+  ownerName: string | null
+  status: Pick<GoalTemplate, 'status' | 'published_version' | 'has_unpublished_changes'>
+  system: boolean
+  stageCount: number | null
+  stepCount: number | null
+  activeAssignments: number | null
+  /** On another organization's template: which of its versions earn each badge here. */
+  rules: string[]
+  badges: TemplateBadgeRef[]
+  frameworks: NonNullable<TemplateListItem['frameworks']>
+  template?: TemplateListItem
+}
+
+function ownRow(template: TemplateListItem, canEdit: boolean): Row {
+  return {
+    uuid: template.template_uuid, title: template.title, description: template.description, thumbnail: template.thumbnail_image || null,
+    owned: true, canEdit: canEdit && !template.read_only, ownerName: null, status: template, system: !!template.system_type,
+    stageCount: template.stage_count ?? null, stepCount: template.step_count ?? null, activeAssignments: null, rules: [],
+    badges: template.badges || [], frameworks: template.frameworks || [], template,
+  }
+}
+
+/** Other organizations' templates this one runs: one row per template, with every badge it earns here. */
+function routeRows(routes: IssuerBadgeRoute[]): Row[] {
+  const rows = new Map<string, Row>()
+  for (const route of routes) {
+    const existing = rows.get(route.template.template_uuid)
+    const active = route.assignments.filter((item) => item.status !== 'ended').length
+    if (existing) {
+      if (!existing.badges.some((badge) => badge.badge_uuid === route.badge.badge_uuid)) {
+        existing.badges.push(route.badge)
+        existing.rules.push(`${route.badge.name}: ${eligibilityLabel(route.rule, route.from_version)}`)
+      }
+      existing.activeAssignments = (existing.activeAssignments || 0) + active
+      continue
+    }
+    rows.set(route.template.template_uuid, {
+      uuid: route.template.template_uuid, title: route.template.title, description: route.template.description, thumbnail: route.template.thumbnail_image,
+      owned: false, canEdit: false, ownerName: route.badge.owner_org?.name || null,
+      status: { status: 'active', published_version: route.template.published_version, has_unpublished_changes: false }, system: false,
+      stageCount: null, stepCount: null, activeAssignments: active, badges: [route.badge], frameworks: [],
+      rules: [`${route.badge.name}: ${eligibilityLabel(route.rule, route.from_version)}`],
+    })
+  }
+  return [...rows.values()]
+}
+
+/**
+ * Plans › Templates: the organization's templates and the ones it runs with another organization's
+ * permission, as rows with search and filters; Create (blank) and Add from marketplace for admins.
+ */
 export default function TemplateList({ orgslug, orgId, token }: { orgslug: string; orgId: number; token?: string }) {
-  const [showArchived, setShowArchived] = React.useState(false)
+  const canEdit = useCanEditPlans() === true
+  const [specsFrom, setSpecsFrom] = React.useState<Array<{ value: string; label: string }>>([])
+  const specs = React.useMemo<FilterSpec[]>(() => [
+    { key: 'source', label: 'Made by', options: [{ value: '', label: 'Anyone' }, { value: 'mine', label: 'Your org' }, { value: 'others', label: 'Other orgs' }] },
+    { key: 'fw', label: 'Maps to', options: [{ value: '', label: 'Any framework' }, ...specsFrom] },
+    { key: 'badge', label: 'Earns a badge', bool: true },
+    { key: 'archived', label: 'Show archived', bool: true },
+  ], [specsFrom])
+  const filters = useFilters(specs)
+  const showArchived = isOn(filters.values, 'archived')
   const key = orgId && token ? templateKeys.list(orgId, showArchived) : null
-  const { data: templates, isLoading } = useSWR<GoalTemplate[]>(key, () => templatesApi.list(orgId, token, showArchived))
+  const { data: templates, isLoading } = useSWR<TemplateListItem[]>(key, () => templatesApi.list(orgId, token, showArchived))
+  const { data: routes = [] } = useSWR<IssuerBadgeRoute[]>(orgId && token ? templateKeys.badgeRoutes(orgId) : null, () => templatesApi.badgeRoutes(orgId, token))
   const [busy, setBusy] = React.useState<string | null>(null)
-  const toggleArchived = async (template: GoalTemplate) => {
+
+  const rows = React.useMemo(() => [...(templates || []).map((template) => ownRow(template, canEdit)), ...routeRows(routes)], [templates, routes, canEdit])
+  const frameworkOptions = React.useMemo(() => {
+    const seen = new Map<string, string>()
+    rows.forEach((row) => row.frameworks.forEach((framework) => seen.set(framework.framework_uuid, framework.name)))
+    return [...seen].map(([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label))
+  }, [rows])
+  if (frameworkOptions.map((item) => item.value).join() !== specsFrom.map((item) => item.value).join()) setSpecsFrom(frameworkOptions)
+
+  const { source, fw } = filters.values
+  const shown = rows.filter((row) => (!source || (source === 'mine') === row.owned)
+    && (!fw || row.frameworks.some((framework) => framework.framework_uuid === fw))
+    && (!isOn(filters.values, 'badge') || row.badges.length > 0)
+    && matchesSearch(filters.query, row.title, row.description, row.ownerName, ...row.badges.map((badge) => badge.name), ...row.frameworks.map((framework) => framework.name)))
+  const hidden = rows.length - shown.length
+
+  const toggleArchived = async (template: TemplateListItem) => {
     setBusy(template.template_uuid)
     try {
       if (template.status === 'archived') await templatesApi.unarchive(orgId, template.template_uuid, token)
@@ -42,67 +132,72 @@ export default function TemplateList({ orgslug, orgId, token }: { orgslug: strin
       toast.success(template.status === 'archived' ? 'Template restored.' : 'Template archived. Goals already handed out keep working.')
     } catch (error: any) { toast.error(error?.message || 'Could not change the template.') } finally { setBusy(null) }
   }
-  return <div className="px-10 pb-10 pt-6"><section className="rounded-xl bg-card p-6 shadow-xs">
-    <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-      <div><h2 className="text-lg font-bold text-foreground">Goal templates</h2><p className="mt-1 text-sm text-muted-foreground">Reusable stages and steps you hand out to learners as goals.</p></div>
-      <div className="flex items-center gap-3">
-        <label className="flex items-center gap-2 whitespace-nowrap text-xs font-bold text-muted-foreground"><input type="checkbox" checked={showArchived} onChange={(event) => setShowArchived(event.target.checked)} />Show archived</label>
-        <NewTemplateModal orgslug={orgslug} orgId={orgId} token={token} />
-      </div>
-    </div>
-    {isLoading ? <div className="flex justify-center py-20"><Loader2 className="animate-spin text-muted-foreground" /></div> : templates?.length ? <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      {templates.map((template) => <div key={template.template_uuid} className={cn('group relative flex w-full flex-col overflow-hidden rounded-xl bg-card nice-shadow transition-all duration-300 hover:scale-[1.01]', template.status === 'archived' && 'opacity-70')}>
-        <Link href={templatePage(orgslug, template.template_uuid)} className="flex flex-1 flex-col">
-          <div className="relative flex aspect-video items-center justify-center overflow-hidden bg-muted text-blue-500">{template.thumbnail_image ? <SafeImage src={template.thumbnail_image} alt="" className="h-full w-full object-cover" /> : <Layers3 size={42} strokeWidth={1.4} />}</div>
-          <div className="flex flex-1 flex-col space-y-1.5 p-3">
-            <h2 className="line-clamp-1 text-base font-bold leading-tight text-foreground">{template.title}</h2>
-            <p className="min-h-[1.5rem] line-clamp-2 text-[11px] text-muted-foreground">{template.description || 'Stages and steps to hand out as goals.'}</p>
-            <div className="flex items-center justify-between border-t border-border pt-1.5"><TemplateStatusChip template={template} /><span className="text-[10px] text-muted-foreground">{template.system_type ? 'System' : ''}</span></div>
-          </div>
-        </Link>
-        {template.system_type ? null : <button type="button" disabled={busy === template.template_uuid} onClick={() => void toggleArchived(template)} title={template.status === 'archived' ? 'Restore' : 'Archive'} aria-label={`${template.status === 'archived' ? 'Restore' : 'Archive'} ${template.title}`}
-          className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-lg bg-card/90 text-muted-foreground opacity-0 shadow-sm transition-opacity hover:text-foreground focus:opacity-100 group-hover:opacity-100">
-          {busy === template.template_uuid ? <Loader2 size={14} className="animate-spin" /> : template.status === 'archived' ? <ArchiveRestore size={14} /> : <Archive size={14} />}
-        </button>}
-      </div>)}
-    </div> : <div className="flex items-center justify-center rounded-xl border-2 border-dashed border-border py-16 text-center"><div><Layers3 size={36} className="mx-auto mb-3 text-gray-300" /><p className="text-sm text-muted-foreground">Create a goal template to hand the same stages and steps to many learners.</p></div></div>}
-  </section><BadgeTemplatesSection orgslug={orgslug} orgId={orgId} token={token} /></div>
+
+  return <div className="px-4 pb-10 pt-6 sm:px-10"><div className="mx-auto flex max-w-5xl flex-col gap-4">
+    <FilterBar filters={filters} placeholder="Search templates"
+      actions={<>{canEdit ? <NewTemplateModal orgslug={orgslug} orgId={orgId} token={token} /> : null}<AddFromMarketplace type="templates" /></>}
+      summary={isLoading ? null : `${rows.length} template${rows.length === 1 ? '' : 's'} in your library${hidden ? ` · ${hidden} hidden by filters` : ''}`} />
+    {isLoading ? <div className="flex justify-center py-20"><Loader2 className="animate-spin text-muted-foreground" /></div>
+      : shown.length ? <ul className="overflow-hidden rounded-2xl border border-gray-200 bg-white" aria-label="Templates">
+        {shown.map((row) => <TemplateRow key={row.uuid} row={row} orgslug={orgslug} busy={busy === row.uuid} onArchive={row.template && row.canEdit && !row.system ? () => void toggleArchived(row.template!) : undefined} />)}
+      </ul>
+        : <div className="flex items-center justify-center rounded-2xl border-2 border-dashed border-border px-4 py-16 text-center"><div>
+          <Layers3 size={36} className="mx-auto mb-3 text-gray-300" />
+          <p className="text-sm text-muted-foreground">{rows.length ? 'No templates match your search or filters.' : 'Create a template to hand the same stages and steps to many learners, or add one from the marketplace.'}</p>
+        </div></div>}
+  </div></div>
 }
 
+function TemplateRow({ row, orgslug, busy, onArchive }: { row: Row; orgslug: string; busy: boolean; onArchive?: () => void }) {
+  const counts = [
+    row.stageCount !== null ? `${row.stageCount} stage${row.stageCount === 1 ? '' : 's'}` : null,
+    row.stepCount !== null ? `${row.stepCount} step${row.stepCount === 1 ? '' : 's'}` : null,
+    row.activeAssignments !== null ? `${row.activeAssignments} active assignment${row.activeAssignments === 1 ? '' : 's'}` : null,
+    row.system ? 'System' : null,
+  ].filter(Boolean).join(' · ')
+  return <li className={cn('group relative border-b border-gray-100 last:border-b-0', row.status.status === 'archived' && 'opacity-70')}>
+    <Link href={templatePage(orgslug, row.uuid)} className="flex items-center gap-4 px-4 py-4 transition-colors hover:bg-gray-50 sm:px-5">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-violet-100 text-violet-700">
+        {row.thumbnail ? <SafeImage src={row.thumbnail} alt="" className="h-full w-full object-cover" /> : <Layers3 size={20} aria-hidden="true" />}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex flex-wrap items-center gap-2"><span className="min-w-0 break-words text-[15px] font-semibold text-gray-950">{row.title}</span><TemplateStatusChip template={row.status} /></span>
+        {counts ? <span className="mt-0.5 block text-[13px] text-gray-500">{counts}</span> : null}
+        {row.rules.length ? <span className="mt-0.5 block text-xs font-semibold text-gray-500">{row.rules.join(' · ')}</span> : null}
+        <span className="mt-2 flex flex-wrap gap-1.5">
+          <OwnershipChip owned={row.owned} canEdit={row.canEdit} ownerName={row.ownerName} />
+          {row.badges.map((badge) => <span key={badge.badge_uuid} className="inline-flex max-w-full items-center gap-1.5 truncate rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-900"><Award size={12} aria-hidden="true" className="shrink-0" /><span className="truncate">{badge.name}</span></span>)}
+          {row.frameworks.map((framework) => <span key={framework.framework_uuid} className="inline-flex max-w-full items-center gap-1.5 truncate rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-700"><ListTree size={12} aria-hidden="true" className="shrink-0" /><span className="truncate">{framework.name} · {framework.node_count}</span></span>)}
+        </span>
+      </span>
+      <ChevronRight size={18} aria-hidden="true" className="shrink-0 text-gray-400" />
+    </Link>
+    {onArchive ? <button type="button" disabled={busy} onClick={onArchive} title={row.status.status === 'archived' ? 'Restore' : 'Archive'} aria-label={`${row.status.status === 'archived' ? 'Restore' : 'Archive'} ${row.title}`}
+      className="absolute right-12 top-4 flex h-8 w-8 items-center justify-center rounded-lg bg-white text-muted-foreground opacity-0 shadow-sm transition-opacity hover:text-foreground focus:opacity-100 group-hover:opacity-100">
+      {busy ? <Loader2 size={14} className="animate-spin" /> : row.status.status === 'archived' ? <ArchiveRestore size={14} /> : <Archive size={14} />}
+    </button> : null}
+  </li>
+}
+
+/** Create a blank template. (Copies from the library are added from Plans › Marketplace.) */
 function NewTemplateModal({ orgslug, orgId, token }: { orgslug: string; orgId: number; token?: string }) {
   const router = useRouter()
   const [open, setOpen] = React.useState(false)
   const [saving, setSaving] = React.useState(false)
   const [title, setTitle] = React.useState('')
-  const [query, setQuery] = React.useState('')
-  const { data: library = [], isLoading } = useSWR(open && orgId && token ? ['goal-template-library', orgId, query] : null, () => templatesApi.library(orgId, query, token), { revalidateOnFocus: false })
-  const run = async (make: () => Promise<{ template_uuid: string }>, failure: string) => {
+  const create = async () => {
     setSaving(true)
     try {
-      const template = await make()
+      const template = await templatesApi.create(orgId, { title: title.trim() }, token)
       await mutate(isTemplatesKey)
       setOpen(false)
       router.push(templatePage(orgslug, template.template_uuid))
-    } catch (error: any) { toast.error(error?.message || failure) } finally { setSaving(false) }
+    } catch (error: any) { toast.error(error?.message || 'Could not create the template.') } finally { setSaving(false) }
   }
-  return <Modal isDialogOpen={open} onOpenChange={setOpen} minHeight="no-min" minWidth="md" dialogTitle="New goal template" dialogDescription="Start blank or copy a template from the global library."
-    dialogTrigger={<Button variant="brand"><Plus className="h-4 w-4" />New template</Button>}
-    dialogContent={<div className="space-y-6 p-2">
-      <section className="space-y-3">
-        <div><p className="text-sm font-black">Start from the global library</p><p className="text-xs text-muted-foreground">You&apos;ll get your own editable copy, activities included.</p></div>
-        <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search the library" aria-label="Search the template library" />
-        {isLoading ? <Loader2 className="mx-auto animate-spin text-muted-foreground" /> : <div className="max-h-56 space-y-2 overflow-y-auto">
-          {library.map((item) => <button key={item.template_uuid} type="button" disabled={saving} onClick={() => void run(() => templatesApi.copyFromLibrary(orgId, item.template_uuid, token), 'Could not copy the library template.')}
-            className="flex w-full items-center justify-between gap-3 rounded-lg border border-border p-3 text-left hover:border-blue-300 hover:bg-blue-50/30 disabled:opacity-50">
-            <span><span className="block text-sm font-black">{item.title}</span><span className="line-clamp-1 text-xs text-muted-foreground">{item.description || `${item.step_count} steps · ${item.stage_count} stages`}</span></span><BookCopy size={16} />
-          </button>)}
-          {!library.length ? <p className="rounded-lg border border-dashed border-border py-5 text-center text-xs text-muted-foreground">No library templates match.</p> : null}
-        </div>}
-      </section>
-      <section className="space-y-3 border-t border-border pt-5">
-        <p className="text-sm font-black">Or start blank</p>
-        <Input autoFocus value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Template name" aria-label="Template name" />
-        <Button onClick={() => void run(() => templatesApi.create(orgId, { title: title.trim() }, token), 'Could not create the template.')} disabled={saving || !title.trim()} className="ml-auto flex">{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}Create blank template</Button>
-      </section>
-    </div>} />
+  return <Modal isDialogOpen={open} onOpenChange={setOpen} minHeight="no-min" minWidth="md" dialogTitle="Create template" dialogDescription="Start a blank template, then add its stages and steps."
+    dialogTrigger={<button type="button" className={primaryActionClass}><Plus size={16} aria-hidden="true" />Create template</button>}
+    dialogContent={<form className="space-y-3 p-2" onSubmit={(event) => { event.preventDefault(); if (title.trim() && !saving) void create() }}>
+      <Input autoFocus value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Template name" aria-label="Template name" />
+      <Button type="submit" disabled={saving || !title.trim()} className="ml-auto flex">{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}Create blank template</Button>
+    </form>} />
 }

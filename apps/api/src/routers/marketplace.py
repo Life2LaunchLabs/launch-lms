@@ -7,8 +7,10 @@ from src.db.learning import (
     IssuerLearnerRequestCreate,
     IssuerLearnerRequestDecision,
 )
+from src.db.template_marketplace import TemplateAuthorizationRequest, TemplateListingUpdate
 from src.security.auth import get_current_user
 from src.services import learning_marketplace as marketplace_service
+from src.services.goals import template_marketplace
 from src.services.learning_issuers import BadgeIssuerAuthorizationAccessRead, BadgeIssuingSettingsUpdate, IssuerAccessUpdate
 
 router = APIRouter()
@@ -232,3 +234,78 @@ async def api_issuer_badge_metrics(
     return await marketplace_service.issuer_badge_metrics(
         request, org_id, badge_uuid, current_user, db_session
     )
+
+
+# Plan templates: listings, permission to use them, copies (see services/goals/template_marketplace) ------------
+
+@router.get("/requests/summary")
+def api_requests_summary(org_id: int = Query(...), current_user=Depends(get_current_user), db_session=Depends(get_db_session)) -> dict:
+    """Counts for the Marketplace tab: requests waiting on this organization and its own pending ones (badges + templates)."""
+    return template_marketplace.requests_summary(db_session, current_user, org_id)
+
+
+@router.get("/templates")
+def api_browse_templates(
+    org_id: int = Query(...),
+    q: str = Query(""),
+    creator_org_id: int | None = Query(None),
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> list[dict]:
+    """Templates listed in the marketplace, each with this organization's permission to use it."""
+    return template_marketplace.browse(db_session, current_user, org_id, q, creator_org_id)
+
+
+@router.get("/templates/{template_uuid}/listing")
+def api_template_listing(template_uuid: str, org_id: int = Query(...), current_user=Depends(get_current_user), db_session=Depends(get_db_session)) -> dict:
+    return template_marketplace.get_listing(db_session, current_user, org_id, template_uuid)
+
+
+@router.put("/templates/{template_uuid}/listing")
+def api_set_template_listing(
+    template_uuid: str,
+    payload: TemplateListingUpdate,
+    org_id: int = Query(...),
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> dict:
+    """The creator lists a template: locked (run as-is) or open (copy and change), with open or request access."""
+    return template_marketplace.set_listing(db_session, current_user, org_id, template_uuid, payload)
+
+
+@router.post("/templates/{template_uuid}/copy")
+def api_copy_marketplace_template(template_uuid: str, org_id: int = Query(...), current_user=Depends(get_current_user), db_session=Depends(get_db_session)) -> dict:
+    """Copy an open template into a draft of this organization's own ("Based on <plan> by <org>")."""
+    return template_marketplace.copy_template(db_session, current_user, org_id, template_uuid)
+
+
+@router.get("/template-authorizations")
+def api_template_authorizations(
+    org_id: int = Query(...),
+    perspective: str = Query("issuer"),
+    status: str | None = Query(None),
+    current_user=Depends(get_current_user),
+    db_session=Depends(get_db_session),
+) -> list[dict]:
+    return template_marketplace.list_authorizations(db_session, current_user, org_id, perspective, status)
+
+
+@router.post("/template-authorizations")
+def api_request_template(payload: TemplateAuthorizationRequest, current_user=Depends(get_current_user), db_session=Depends(get_db_session)) -> dict:
+    """Ask to use a listed template (approved at once when its access is open)."""
+    return template_marketplace.request_use(db_session, current_user, payload)
+
+
+@router.post("/template-authorizations/{authorization_uuid}/approve")
+def api_approve_template(authorization_uuid: str, current_user=Depends(get_current_user), db_session=Depends(get_db_session)) -> dict:
+    return template_marketplace.decide(db_session, current_user, authorization_uuid, True)
+
+
+@router.post("/template-authorizations/{authorization_uuid}/reject")
+def api_reject_template(authorization_uuid: str, current_user=Depends(get_current_user), db_session=Depends(get_db_session)) -> dict:
+    return template_marketplace.decide(db_session, current_user, authorization_uuid, False)
+
+
+@router.post("/template-authorizations/{authorization_uuid}/revoke")
+def api_revoke_template(authorization_uuid: str, current_user=Depends(get_current_user), db_session=Depends(get_db_session)) -> dict:
+    return template_marketplace.revoke(db_session, current_user, authorization_uuid)

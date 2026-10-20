@@ -352,7 +352,9 @@ def publish_framework_to_library(db: Session, current_user: PublicUser, org_id: 
 
 
 def list_framework_library(db: Session, current_user: PublicUser, org_id: int, query: str = "") -> list[dict]:
-    require_org_admin(current_user.id, org_id, db)
+    from src.services.goals.template_marketplace import require_reader
+
+    require_reader(db, current_user, org_id)  # staff browse the marketplace too; copying stays admin only
     owner = _owner_org(db)
     items = db.exec(select(RequirementFramework).where(
         RequirementFramework.org_id == owner.id,

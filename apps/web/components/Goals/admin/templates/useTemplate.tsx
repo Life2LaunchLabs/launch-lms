@@ -20,7 +20,8 @@ export function useTemplate(orgId: number, templateUuid: string, token?: string)
 
   // eslint-disable-next-line no-unused-vars
   const save = async (change: (document: TemplateDocument) => TemplateDocument, done?: string) => {
-    if (!template || stale) return false
+    // A read-only template (another organization's, or staff viewing) is never saved; the API would refuse it.
+    if (!template || stale || template.read_only) return false
     setSaving(true)
     try {
       const saved = await templatesApi.save(orgId, templateUuid, change(structuredClone(template.document)), template.etag, token)

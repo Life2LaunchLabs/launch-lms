@@ -1,8 +1,6 @@
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import PeopleView from '@components/Admin/People/PeopleView'
-import type { GroupView } from '@services/routing/paths'
-
-const VIEWS = new Set<GroupView>(['plans', 'requirements'])
+import { routePaths } from '@services/config/config'
 
 export default async function GroupPage({ params, searchParams }: {
   params: Promise<{ orgslug: string; groupid: string }>
@@ -12,5 +10,7 @@ export default async function GroupPage({ params, searchParams }: {
   const { view } = await searchParams
   const id = Number(groupid)
   if (!Number.isInteger(id) || id <= 0) notFound()
-  return <PeopleView orgslug={orgslug} selection={{ kind: 'group', id, view: VIEWS.has(view as GroupView) ? view as GroupView : undefined }} />
+  // A group's requirements report moved to Insights.
+  if (view === 'requirements') redirect(routePaths.org.admin.insightsEvidence(id))
+  return <PeopleView orgslug={orgslug} selection={{ kind: 'group', id, view: view === 'plans' ? 'plans' : undefined }} />
 }

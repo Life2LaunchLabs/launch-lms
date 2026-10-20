@@ -1,18 +1,22 @@
 'use client'
 
 import React from 'react'
-import Link from 'next/link'
 import useSWR from 'swr'
-import { ChevronRight, Loader2, Mail, Plus, User, Users } from 'lucide-react'
+import { Loader2, Plus, Users } from 'lucide-react'
 import { Button } from '@components/ui/button'
-import { cn } from '@/lib/utils'
+import FilterBar from '@components/Admin/Filters/FilterBar'
+import { useFilters } from '@components/Admin/Filters/useFilters'
 import GoalAssignmentModal from '@components/Goals/admin/templates/GoalAssignmentModal'
-import { getUriWithOrg } from '@services/config/config'
-import { assignmentsKey, goalAdminApi, inboxKey, type Cohort, type Inbox } from '@services/goals/admin'
+import { goalAdminApi, inboxKey, plansKey, type Cohort, type Inbox } from '@services/goals/admin'
 import { EmptyState } from '../live/ui'
 import AssignmentActions from './AssignmentActions'
 import AssignmentVersionBanner from '@components/Goals/admin/versions/AssignmentVersionBanner'
-import { assignmentHref, assignmentLabel, Chip, datesLine, StatusChip, useStaff, useTemplateAssignments, type AssignmentRow } from './shared'
+import { AssignmentListRow } from './AssignmentListRow'
+import PlanCard from './PlanCard'
+import { planFilterSpecs, shownPlans, stackSummary } from './planStack'
+import { useStaff, useTemplateAssignments, type AssignmentRow } from './shared'
+
+export { AssignmentListRow }
 
 /** What waits on the viewer in each assignment, from their review inbox: hand-ins to grade, staff steps to settle. */
 export type Needs = Record<string, { grade: number; settle: number }>
@@ -70,49 +74,37 @@ export default function AssignmentsList({ rows, loading, orgslug, needs = {}, on
   </div>
 }
 
-function AssignmentListRow({ assignment, orgslug, showTemplate, need, actions, banner }: { assignment: AssignmentRow; orgslug: string; showTemplate: boolean; need?: { grade: number; settle: number }; actions: React.ReactNode; banner?: React.ReactNode }) {
-  const Icon = assignment.assignment_type === 'group' ? Users : assignment.assignment_type === 'external' ? Mail : User
-  const who = assignmentLabel(assignment)
-  const waiting = Boolean(need?.grade || need?.settle)
-  // On a phone the title and its details get the full width; what waits on you and the menu go on a line of their own.
-  return <li className="relative flex flex-wrap items-center gap-3 p-4 transition hover:bg-muted/50 sm:flex-nowrap">
-    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600"><Icon size={18} aria-hidden="true" /></span>
-    <div className="min-w-0 flex-1">
-      <div className="flex flex-wrap items-center gap-2">
-        <Link href={getUriWithOrg(orgslug, assignmentHref(assignment))} className="min-w-0 text-sm font-black after:absolute after:inset-0 focus-visible:outline-none sm:truncate">
-          {showTemplate ? `${assignment.template_title} · ${who}` : who}
-        </Link>
-        <StatusChip status={assignment.status} />
-        {assignment.version ? <span className="text-[11px] font-semibold text-muted-foreground">v{assignment.version}</span> : null}
-      </div>
-      <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-        <span>{assignment.learner_count} learner{assignment.learner_count === 1 ? '' : 's'}{assignment.assignment_type === 'group' ? ' · people who join the group get it too' : ''}</span>
-        <span>{datesLine(assignment)}</span>
-        {assignment.staff.length ? <span>Staff: {assignment.staff.map((person) => [person.first_name, person.last_name].filter(Boolean).join(' ') || person.username).join(', ')}</span> : null}
-      </p>
-      {banner ? <div className="relative z-10">{banner}</div> : null}
-    </div>
-    <div className={cn('order-last w-full items-center justify-between gap-3 pl-[52px] sm:order-none sm:flex sm:w-auto sm:justify-end sm:pl-0', waiting || actions ? 'flex' : 'hidden')}>
-      <span className="flex shrink-0 flex-wrap gap-1.5 sm:justify-end" aria-label="Waiting on you">
-        {need?.grade ? <Chip tone="blue">{need.grade} to grade</Chip> : null}
-        {need?.settle ? <Chip tone="amber">{need.settle} to settle</Chip> : null}
-      </span>
-      {actions ? <span className="relative z-10 shrink-0">{actions}</span> : null}
-    </div>
-    <ChevronRight size={16} className="shrink-0 text-muted-foreground" aria-hidden="true" />
-  </li>
-}
-
-/** Every assignment the viewer runs: all of them for admins, the ones they staff for everyone else. */
+/**
+ * Plans › Assignments: one card per plan the viewer runs (all of the org's for admins, the ones they staff
+ * for everyone else), each with its assignments here, under the tab's search and filters. Admins assign
+ * from each plan's card; there's no general Assign button.
+ */
 export function OrgAssignments({ orgslug }: { orgslug: string }) {
   const { orgId, token, admin } = useStaff()
-  const { data = [], isLoading, mutate } = useSWR(orgId && token ? assignmentsKey(orgId) : null, () => goalAdminApi.assignments(orgId, token))
+  const { data, error, isLoading, mutate } = useSWR(orgId && token ? plansKey(orgId) : null, () => goalAdminApi.plans(orgId, token))
   const needs = useNeeds(orgId, token)
-  return <div className="px-4 pb-10 pt-6 sm:px-6 lg:px-10"><div className="mx-auto max-w-5xl">
-    <p className="mb-6 text-sm text-muted-foreground">{admin ? 'Every plan template your organization has handed out, one row per group or person.' : 'The plan templates you help run, one row per group or person.'}</p>
-    <AssignmentsList rows={data} loading={isLoading} orgslug={orgslug} needs={needs} onChanged={() => mutate()}
-      empty={admin ? 'Assign a plan template to a group or a learner to see it here.' : 'Nothing you staff yet.'}
-      assign={admin ? <GoalAssignmentModal onAssigned={() => void mutate()} trigger={<Button type="button" size="sm"><Plus size={14} />Assign a template</Button>} /> : null} />
+  const specs = React.useMemo(() => planFilterSpecs(data, { admin }), [data, admin])
+  const filters = useFilters(specs)
+  const shown = React.useMemo(() => shownPlans(data, filters.values, { admin }), [data, filters.values, admin])
+  const creator = admin && Boolean(data?.plans.some((plan) => plan.authorized_orgs.length))
+  const summary = data ? [stackSummary(shown), admin ? '' : 'Showing plans you help run', creator ? 'Your own runs, plus orgs you authorized to run each plan' : ''].filter(Boolean).join(' · ') : null
+  const refresh = () => mutate()
+  const clear = () => { filters.clearAll(); filters.setQuery('') }
+
+  let body: React.ReactNode
+  if (isLoading || (!data && !error)) body = <div className="flex justify-center py-16"><Loader2 className="animate-spin text-muted-foreground" /></div>
+  else if (error || !data) body = <EmptyState icon={<Users size={34} />} title="Plans unavailable" detail={error?.message || 'Try again in a moment.'} />
+  else if (!data.plans.length) body = <EmptyState icon={<Users size={34} />} title="No plans yet"
+    detail={admin ? 'Publish a template, or add one from the marketplace, to assign it to a group or a learner here.' : 'Nothing you staff yet.'} />
+  else if (!shown.cards.length) body = <div className="rounded-2xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
+    No plans match these filters. <button type="button" onClick={clear} className="font-bold text-violet-700 underline underline-offset-2">Clear filters</button>
+  </div>
+  else body = <div className="space-y-5">{shown.cards.map((card) => <PlanCard key={card.plan.template.template_uuid} {...card} orgslug={orgslug} orgId={orgId} token={token}
+    admin={admin} needs={needs} onChanged={refresh} onShowEnded={() => filters.set('status', 'all')} />)}</div>
+
+  return <div className="px-4 pb-10 pt-6 sm:px-6 lg:px-10"><div className="mx-auto max-w-5xl space-y-5">
+    <FilterBar filters={filters} placeholder="Search plans, badges, requirements or people" summary={summary} />
+    {body}
   </div></div>
 }
 

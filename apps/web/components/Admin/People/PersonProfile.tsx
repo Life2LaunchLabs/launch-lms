@@ -2,32 +2,47 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { useSWRConfig } from 'swr'
 import toast from 'react-hot-toast'
-import { ArrowLeft, Loader2, MessageCircle, UserRound, X } from 'lucide-react'
+import { ArrowLeft, Layers3, Loader2, MessageCircle, SlidersHorizontal, UserRound, Users, X } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import ChatPane from '@components/Connect/ChatPane'
+import EditSheet from '@components/Goals/edit/EditSheet'
 import { PersonAvatar } from '@components/Goals/share/PersonAvatar'
 import { LearnerRequirementTree } from '@components/Goals/admin/live/LearnerRequirements'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { connectApi } from '@services/connect/connect'
 import { goalSharingApi } from '@services/goals/sharing'
-import { peopleKeys, type Profile, type ProfilePlan } from '@services/school/people'
+import type { Profile, ProfilePlan } from '@services/school/people'
 import IssueBadge from './IssueBadge'
 import LearnerTeam from './LearnerTeam'
 import PersonManage from './PersonManage'
 import { RoleTag } from './PeopleList'
-import { usePeopleContext, useProfile } from './usePeople'
+import { usePersonTimeline } from './PersonActivity'
+import { usePeopleContext, useProfile, useRefreshPeople } from './usePeople'
 
 const admin = routePaths.org.admin
+
+export type PersonTab = 'message' | 'plans'
 
 function formatDate(value?: string | null) {
   return value ? new Date(value).toLocaleDateString(undefined, { dateStyle: 'medium' }) : '—'
 }
 
-/** Someone's page in People: who they are here, their plans and the feed for each, who helps them, and what admins can change. */
-export default function PersonProfile({ orgslug, username }: { orgslug: string; username: string }) {
+/** A person's page with a tab open: Message (the default) or Plans. */
+export function personTabHref(orgslug: string, username: string, tab: PersonTab = 'message') {
+  const href = admin.people.user(username)
+  return getUriWithOrg(orgslug, tab === 'plans' ? `${href}?tab=plans` : href)
+}
+
+/**
+ * Someone in People: who they are here (with their groups, and Manage for admins or Details for
+ * staff, which hold their role, groups, helpers, school team and staff notes), then their
+ * conversation with you, where what waits on you about them shows as cards, and their plans.
+ */
+export default function PersonProfile({ orgslug, username, tab = 'message' }: { orgslug: string; username: string; tab?: PersonTab }) {
   const { orgId, token } = usePeopleContext()
   const { data: profile, error, isLoading, mutate } = useProfile(username)
+  const [details, setDetails] = React.useState(false)
   const listHref = getUriWithOrg(orgslug, admin.people.root())
 
   if (isLoading) return <div className="m-auto"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
@@ -39,72 +54,105 @@ export default function PersonProfile({ orgslug, username }: { orgslug: string; 
 
   const { user } = profile
   const learner = profile.role === 'learner'
-  return <div className="min-h-0 flex-1 overflow-y-auto bg-[#f8f8f8]">
-    <header className="flex flex-wrap items-center gap-3 border-b border-border bg-background px-4 py-4 md:px-6">
-      <Link href={listHref} aria-label="Back to People" className="flex h-9 w-9 items-center justify-center rounded-xl hover:bg-muted md:hidden"><ArrowLeft size={18} /></Link>
-      <PersonAvatar user={user as any} size="md" />
-      <div className="min-w-0 flex-1">
-        <h1 className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xl font-black tracking-tight"><span className="min-w-0 max-w-full truncate">{user.name}</span><RoleTag role={profile.role} /></h1>
-        <p className="truncate text-sm text-muted-foreground">@{user.username}{profile.role_name ? ` · ${profile.role_name}` : ''}</p>
+  const canManage = profile.manage.change_role || profile.manage.remove || profile.manage.groups || profile.manage.remove_helper
+  const planCount = profile.role === 'helper' ? profile.helping_on.length : profile.plans.length
+  const subtitle = [`@${user.username}`, profile.role_name && profile.role !== 'helper' ? profile.role_name : '', user.email || ''].filter(Boolean).join(' · ')
+  return <div className="flex min-h-0 flex-1 flex-col">
+    <header className="shrink-0 border-b border-border bg-background px-4 pt-4 md:px-6">
+      <div className="flex items-start gap-3">
+        <Link href={listHref} aria-label="Back to People" className="-ml-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl hover:bg-muted md:hidden"><ArrowLeft size={18} /></Link>
+        <PersonAvatar user={user as any} size="lg" />
+        <div className="min-w-0 flex-1">
+          <h1 className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xl font-black tracking-tight"><span className="min-w-0 max-w-full truncate">{user.name}</span><RoleTag role={profile.role} /></h1>
+          <p className="truncate text-sm text-muted-foreground">{subtitle}</p>
+          {profile.groups.length ? <div className="mt-2 flex flex-wrap gap-1.5">{profile.groups.map((group) => <Link key={`${group.as}-${group.id}`} href={getUriWithOrg(orgslug, admin.people.group(group.id))}
+            className="inline-flex h-7 items-center gap-1 rounded-full border border-border px-2.5 text-xs font-semibold hover:bg-muted"><Users size={12} />{group.name}{group.as === 'staff' ? <span className="font-normal text-muted-foreground">· staff</span> : null}</Link>)}</div> : null}
+        </div>
+        <button type="button" onClick={() => setDetails(true)} aria-haspopup="dialog" className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-border px-3 text-sm font-semibold hover:bg-muted">
+          <SlidersHorizontal size={15} /><span className="hidden sm:inline">{canManage ? 'Manage' : 'Details'}</span><span className="sr-only sm:hidden">{canManage ? 'Manage' : 'Details'}</span>
+        </button>
       </div>
-      <MessageButton orgslug={orgslug} profile={profile} />
+      <nav aria-label={`${user.name}`} className="mt-3 flex gap-1">
+        <TabLink href={personTabHref(orgslug, user.username)} current={tab === 'message'} icon={<MessageCircle size={15} />}>Message</TabLink>
+        <TabLink href={personTabHref(orgslug, user.username, 'plans')} current={tab === 'plans'} icon={<Layers3 size={15} />}>Plans · {planCount}</TabLink>
+      </nav>
     </header>
-    <div className="grid items-start gap-5 p-4 md:p-6 xl:grid-cols-[minmax(0,1.5fr)_minmax(300px,1fr)]">
-      <div className="space-y-5">
-        {profile.role !== 'helper' ? <Plans orgslug={orgslug} plans={profile.plans} /> : null}
-        {learner ? <section aria-label="Requirements" className="space-y-2"><h2 className="px-1 text-sm font-bold text-gray-900">Requirements</h2><LearnerRequirementTree orgId={orgId} userId={user.id} token={token} /></section> : null}
-        {profile.helping_on.length ? <section className="rounded-xl border border-gray-100 bg-white p-5 nice-shadow">
-          <h2 className="text-sm font-bold text-gray-900">Helping on</h2>
-          <p className="mt-1 text-xs text-gray-500">A learner brought them onto these plans. They see only these plans, and are reached only in each plan&rsquo;s feed.</p>
-          <ul className="mt-3 space-y-2">{profile.helping_on.map((item) => <li key={item.collaborator_uuid} className="flex items-center justify-between gap-3 text-sm">
-            <span className="min-w-0 truncate"><span className="font-semibold">{item.title}</span>{item.learner ? <span className="text-gray-500"> · {item.learner.name}</span> : null}</span>
-            <Link href={getUriWithOrg(orgslug, admin.learnerFeed(item.goal_uuid))} className="shrink-0 text-xs font-bold underline">Open feed</Link>
-          </li>)}</ul>
-        </section> : null}
-        {profile.helpers.length ? <Helpers profile={profile} refresh={mutate} /> : null}
-      </div>
-      <div className="space-y-5">
-        <section className="grid gap-3 rounded-xl border border-gray-100 bg-white p-5 nice-shadow sm:grid-cols-2">
-          {user.email ? <Detail label="Email" value={user.email} /> : null}
-          <Detail label="Role" value={profile.org_role?.name || (profile.role === 'helper' ? 'Helper on a plan' : '—')} />
-          <Detail label="Joined" value={formatDate(profile.joined_at)} />
-          {profile.groups.length ? <Detail label="Groups" value={profile.groups.map((group) => group.as === 'staff' ? `${group.name} (staff)` : group.name).join(', ')} /> : null}
-        </section>
-        <PersonManage orgslug={orgslug} profile={profile} refresh={mutate} />
-        {learner ? <LearnerTeam orgId={orgId} userId={user.id} token={token} /> : null}
-        {profile.role !== 'helper' && profile.manage.change_role ? <IssueBadge user={user} orgId={orgId} token={token} /> : null}
+    {tab === 'plans' ? <div className="min-h-0 flex-1 space-y-5 overflow-y-auto bg-[#f8f8f8] p-4 dark:bg-background md:p-6">
+      {profile.role === 'helper' ? <HelpingOn orgslug={orgslug} profile={profile} /> : <Plans orgslug={orgslug} plans={profile.plans} staff={!learner} />}
+      {learner ? <section aria-label="Requirements" className="space-y-2"><h2 className="px-1 text-sm font-bold text-gray-900">Requirements</h2><LearnerRequirementTree orgId={orgId} userId={user.id} token={token} /></section> : null}
+    </div> : <PersonMessage key={user.username} orgslug={orgslug} profile={profile} />}
+    <EditSheet open={details} onOpenChange={setDetails} color="#7cc4ff" title={user.name} description={canManage ? 'Their details, and what you can change about them here.' : 'Their details, school team and staff notes.'}>
+      <section className="grid gap-3 rounded-xl border border-gray-100 bg-white p-5 nice-shadow sm:grid-cols-2">
+        {user.email ? <Detail label="Email" value={user.email} /> : null}
+        <Detail label="Role" value={profile.org_role?.name || (profile.role === 'helper' ? 'Helper on a plan' : '—')} />
+        <Detail label="Joined" value={formatDate(profile.joined_at)} />
+        {profile.groups.length ? <Detail label="Groups" value={profile.groups.map((group) => group.as === 'staff' ? `${group.name} (staff)` : group.name).join(', ')} /> : null}
+      </section>
+      <PersonManage orgslug={orgslug} profile={profile} refresh={mutate} />
+      {profile.helpers.length ? <Helpers profile={profile} refresh={mutate} /> : null}
+      {learner ? <LearnerTeam orgId={orgId} userId={user.id} token={token} /> : null}
+      {profile.role !== 'helper' && profile.manage.change_role ? <div><IssueBadge user={user} orgId={orgId} token={token} /></div> : null}
+    </EditSheet>
+  </div>
+}
+
+function TabLink({ href, current, icon, children }: { href: string; current: boolean; icon: React.ReactNode; children: React.ReactNode }) {
+  return <Link href={href} aria-current={current ? 'page' : undefined}
+    className={cn('-mb-px inline-flex h-11 items-center gap-1.5 border-b-2 px-3 text-sm font-semibold', current ? 'border-foreground text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground')}>
+    {icon}{children}
+  </Link>
+}
+
+/**
+ * Your conversation with them: the chat Message opens for them (their chat with the organization
+ * if you staff their group, else a direct chat), with helpers to approve and steps they turned in
+ * as cards by time. Before there's a chat, the cards show alone with a way to start one.
+ */
+function PersonMessage({ orgslug, profile }: { orgslug: string; profile: Profile }) {
+  const { token } = usePeopleContext()
+  const refreshList = useRefreshPeople()
+  const { user } = profile
+  const firstName = user.name?.split(' ')[0]
+  const { items } = usePersonTimeline(orgslug, user.username, firstName)
+  const [chatUuid, setChatUuid] = React.useState(profile.chat_uuid)
+  const [opening, setOpening] = React.useState(false)
+  const personHref = React.useCallback((person: { username: string }) => getUriWithOrg(orgslug, admin.people.user(person.username)), [orgslug])
+  React.useEffect(() => setChatUuid(profile.chat_uuid), [profile.chat_uuid])
+
+  if (chatUuid) return <ChatPane key={chatUuid} bare orgslug={orgslug} chatUuid={chatUuid} listHref={getUriWithOrg(orgslug, admin.people.root())} personHref={personHref}
+    onChanged={() => void refreshList()} timeline={items} />
+
+  const start = async () => {
+    setOpening(true)
+    try {
+      const chat = await connectApi.openDirect({ user_uuid: user.user_uuid }, token)
+      void refreshList()
+      setChatUuid(chat.conversation_uuid)
+    } catch (error: any) {
+      toast.error(error?.message || 'That chat couldn’t open')
+    } finally {
+      setOpening(false)
+    }
+  }
+  const sorted = [...items].sort((a, b) => (a.at || '').localeCompare(b.at || ''))
+  return <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-6">
+    <div className="mx-auto flex w-full max-w-[46rem] flex-col gap-3">
+      {sorted.map((item) => <div key={item.key}>{item.node}</div>)}
+      <div className="mt-6 text-center">
+        {profile.can_message ? <>
+          <p className="text-sm text-muted-foreground">{sorted.length ? `No messages with ${firstName || 'them'} yet.` : `Nothing here yet. Say hi to ${firstName || 'them'}.`}</p>
+          <button type="button" onClick={() => void start()} disabled={opening} className="mt-3 inline-flex h-10 items-center gap-2 rounded-xl bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-60">
+            {opening ? <Loader2 size={15} className="animate-spin" /> : <MessageCircle size={15} />}Message {firstName || 'them'}
+          </button>
+        </> : <p className="mx-auto max-w-sm text-sm text-muted-foreground">{profile.note || (sorted.length ? '' : 'Nothing waiting on you about them.')}</p>}
       </div>
     </div>
   </div>
 }
 
-function MessageButton({ orgslug, profile }: { orgslug: string; profile: Profile }) {
-  const { token, orgId } = usePeopleContext()
-  const router = useRouter()
-  const { mutate } = useSWRConfig()
-  const [opening, setOpening] = React.useState(false)
-  if (!profile.can_message) return profile.note ? <p className="w-full text-xs text-muted-foreground md:w-auto md:max-w-xs md:text-right">{profile.note}</p> : null
-  const open = async () => {
-    if (profile.chat_uuid) return router.push(getUriWithOrg(orgslug, admin.people.chat(profile.chat_uuid)))
-    setOpening(true)
-    try {
-      const chat = await connectApi.openDirect({ user_uuid: profile.user.user_uuid }, token)
-      void mutate(peopleKeys.chats(orgId))
-      router.push(getUriWithOrg(orgslug, admin.people.chat(chat.conversation_uuid)))
-    } catch (error: any) {
-      toast.error(error?.message || 'That chat couldn’t open')
-      setOpening(false)
-    }
-  }
-  // On a phone the button is just its icon, so the name keeps the row.
-  return <button type="button" onClick={() => void open()} disabled={opening} aria-label="Message" className="inline-flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-foreground text-sm font-semibold text-background disabled:opacity-60 sm:h-9 sm:w-auto sm:px-3.5">
-    {opening ? <Loader2 size={15} className="animate-spin" /> : <MessageCircle size={15} />}<span className="hidden sm:inline">Message</span>
-  </button>
-}
-
 const STATUS: Record<string, string> = { draft: 'Being set up', pending: 'Not accepted yet', active: 'Active', finished: 'Finished', archived: 'Archived' }
 
-function Plans({ orgslug, plans }: { orgslug: string; plans: ProfilePlan[] }) {
+function Plans({ orgslug, plans, staff }: { orgslug: string; plans: ProfilePlan[]; staff?: boolean }) {
   return <section aria-label="Plans" className="rounded-xl border border-gray-100 bg-white p-5 nice-shadow">
     <h2 className="text-sm font-bold text-gray-900">Plans</h2>
     {plans.length ? <ul className="mt-3 divide-y divide-gray-100">{plans.map((plan) => {
@@ -121,7 +169,18 @@ function Plans({ orgslug, plans }: { orgslug: string; plans: ProfilePlan[] }) {
         </div>
         <Link href={getUriWithOrg(orgslug, admin.learnerFeed(plan.goal_uuid))} className="shrink-0 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-bold text-gray-800 hover:bg-gray-50">Open feed</Link>
       </li>
-    })}</ul> : <p className="mt-2 text-xs text-gray-500">No plans here yet. Plans are given out from Assignments.</p>}
+    })}</ul> : <p className="mt-2 text-xs text-gray-500">{staff ? 'Plans belong to learners. The plans they staff are in Plans.' : 'No plans here yet. Plans are given out from Plans.'}</p>}
+  </section>
+}
+
+function HelpingOn({ orgslug, profile }: { orgslug: string; profile: Profile }) {
+  return <section aria-label="Helping on" className="rounded-xl border border-gray-100 bg-white p-5 nice-shadow">
+    <h2 className="text-sm font-bold text-gray-900">Helping on</h2>
+    <p className="mt-1 text-xs text-gray-500">A learner brought them onto these plans. They see only these plans, and are reached only in each plan&rsquo;s feed.</p>
+    {profile.helping_on.length ? <ul className="mt-3 space-y-2">{profile.helping_on.map((item) => <li key={item.collaborator_uuid} className="flex items-center justify-between gap-3 text-sm">
+      <span className="min-w-0 truncate"><span className="font-semibold">{item.title}</span>{item.learner ? <span className="text-gray-500"> · {item.learner.name}</span> : null}</span>
+      <Link href={getUriWithOrg(orgslug, admin.learnerFeed(item.goal_uuid))} className="shrink-0 text-xs font-bold underline">Open feed</Link>
+    </li>)}</ul> : <p className="mt-2 text-xs text-gray-500">Not on any plan yet.</p>}
   </section>
 }
 
