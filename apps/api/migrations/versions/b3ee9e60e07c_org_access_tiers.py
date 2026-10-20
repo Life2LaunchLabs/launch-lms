@@ -16,7 +16,7 @@ Plan requests are renamed to the new kinds and queued badge issuer requests move
 to the creator, since issuing needs no package any more. Each org's change is logged.
 
 Revision ID: b3ee9e60e07c
-Revises: e8f3b66b5434
+Revises: f4a7c2d9e1b3
 """
 import json
 import logging
@@ -28,7 +28,7 @@ import sqlalchemy as sa
 
 
 revision: str = 'b3ee9e60e07c'
-down_revision: Union[str, None] = 'e8f3b66b5434'
+down_revision: Union[str, None] = 'f4a7c2d9e1b3'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
