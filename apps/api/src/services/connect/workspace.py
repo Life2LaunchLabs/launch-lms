@@ -24,13 +24,15 @@ from src.db.goals import DONE_STEP_STATUSES, Goal, GoalOwnership, GoalSource, Go
 from src.db.organizations import Organization
 from src.db.planning import PlanCollaborator, PlanCollaboratorRequestCreate, PlanInvitationCreate, PlanRole
 from src.db.users import PublicUser, User
-from src.services.connect import chats, people
+from src.services.connect import chats, cohort, people
 from src.services.goals import access
 from src.services.goals.sharing_roles import _stamp, org_summary
 from src.services.school import chats as school_chats, roles
 
 GOAL = "goal"
 KINDS = (school_chats.SCHOOL, GOAL)
+# Chats with plans to filter by: a learner's and a plan's, and an assignment's cohort chats.
+TOPIC_KINDS = (*KINDS, cohort.COHORT)
 PROGRESS = "plan_progress"
 ORG_MENTION = "org_mention"
 TOKEN = re.compile(r"<(plan|step|user|org):([A-Za-z0-9_.-]+)(?:/([A-Za-z0-9_.-]+))?>")
@@ -170,6 +172,8 @@ def sync_goal(db: Session, goal: Goal) -> None:
 
 def can_post(db: Session, conversation: Conversation, user_id: int) -> bool:
     """Whether a member may write here: everyone in an organization chat, and commenters on a personal plan."""
+    if conversation.kind == cohort.COHORT:
+        return cohort.can_post(db, conversation)
     if conversation.kind != GOAL:
         return True
     return any("comment" in access.capabilities(db, goal, user_id) for goal in goals_in(db, conversation))
@@ -188,27 +192,31 @@ def _taggable(db: Session, goal_uuid: str, sender_id: int | None) -> Goal | None
     return goal if goal and _value(goal.status) in LIVE and "view_plan" in access.capabilities(db, goal, int(sender_id)) else None  # type: ignore[arg-type]
 
 
-def prepare(db: Session, conversation: Conversation, body: str, sender_id: int | None = None, scope: dict | None = None) -> tuple[str, list[dict], list[tuple[int, str | None]]]:
+def prepare(db: Session, conversation: Conversation, body: str, sender_id: int | None = None, scope: dict | None = None) -> tuple[str, list[dict], list[tuple[int | None, str | None]]]:
     """A message's text with only the tags that resolve here kept, what it tags, and the plan rows to filter it by.
 
     Plans outside the chat stay tagged when their sender can see them. ``scope`` is the plan or
-    step the chat was filtered to: the message is about it without saying so in its text.
+    step the chat was filtered to: the message is about it without saying so in its text. A
+    cohort chat's plan is its assignment, and its steps are the template's (see cohort.py).
     """
     goals = {goal.goal_uuid: goal for goal in goals_in(db, conversation)}
+    in_cohort = conversation.kind == cohort.COHORT
     refs: list[dict] = []
-    rows: list[tuple[int, str | None]] = []
+    rows: list[tuple[int | None, str | None]] = []
 
     def add(ref: dict, goal: Goal | None = None, step_uuid: str | None = None) -> None:
         if not any({**item, "scope": False} == {**ref, "scope": False} for item in refs):
             refs.append(ref)
-        row = (int(goal.id), step_uuid) if goal and goal.goal_uuid in goals else None  # type: ignore[arg-type]
+        row = (int(goal.id), step_uuid) if goal and goal.goal_uuid in goals else (None, step_uuid) if ref.get("cohort") and step_uuid else None  # type: ignore[arg-type]
         if row and row not in rows:
             rows.append(row)
 
     def keep(match: re.Match) -> str:
         kind, first, second = match.groups()
         ref: dict | None = None
-        if kind in ("plan", "step"):
+        if kind in ("plan", "step") and in_cohort and (ref := cohort.tag(db, conversation, kind, first, second)):
+            add(ref, step_uuid=ref.get("step_uuid"))
+        elif kind in ("plan", "step"):
             goal = goals.get(first) or _taggable(db, first, sender_id)
             step = _step(db, goal, second) if goal and kind == "step" else None
             if goal and (kind == "plan" or step):
@@ -225,10 +233,14 @@ def prepare(db: Session, conversation: Conversation, body: str, sender_id: int |
     step = _step(db, goal, (scope or {}).get("step_uuid")) if goal else None
     if goal:
         add({"kind": "step" if step else "plan", "goal_uuid": goal.goal_uuid, **({"step_uuid": step.step_uuid} if step else {}), "scope": True}, goal, step.step_uuid if step else None)
+    # A cohort chat is all about its assignment's plan, so only a step needs saying.
+    scoped = cohort.tag(db, conversation, "step", scope["goal_uuid"], scope.get("step_uuid")) if in_cohort and scope and scope.get("goal_uuid") and scope.get("step_uuid") else None
+    if scoped:
+        add({**scoped, "scope": True}, step_uuid=scoped["step_uuid"])
     return text, refs, rows
 
 
-def attach(db: Session, message: ConversationMessage, rows: list[tuple[int, str | None]]) -> None:
+def attach(db: Session, message: ConversationMessage, rows: list[tuple[int | None, str | None]]) -> None:
     for goal_id, step_uuid in rows:
         db.add(ConversationMessageRef(message_id=int(message.id), conversation_id=message.conversation_id, goal_id=goal_id, step_uuid=step_uuid))  # type: ignore[arg-type]
     db.flush()
@@ -262,6 +274,8 @@ def resolve(db: Session, refs: list[dict] | None, cache: dict, viewer_id: int | 
 
 def _resolve_one(db: Session, ref: dict) -> dict | None:
     kind = ref.get("kind")
+    if kind in ("plan", "step") and ref.get("cohort"):
+        return cohort.resolve_one(db, ref)
     if kind in ("plan", "step"):
         goal = db.exec(select(Goal).where(Goal.goal_uuid == ref.get("goal_uuid"))).first()
         if not goal:
@@ -306,6 +320,8 @@ def mentioned(db: Session, refs: list[dict] | None) -> set[int]:
 
 def filtered(query, db: Session, conversation: Conversation, goal_uuid: str | None, step_uuid: str | None):
     """Narrow a chat's messages to the ones about a plan, or one of its steps."""
+    if conversation.kind == cohort.COHORT:
+        return cohort.filtered(query, db, conversation, goal_uuid, step_uuid)
     goal = next((item for item in goals_in(db, conversation) if item.goal_uuid == goal_uuid), None)
     if not goal:
         raise HTTPException(status_code=404, detail="That plan isn't in this chat")
@@ -344,6 +360,8 @@ def topic(db: Session, goal: Goal, by_step: dict | None = None, count: int = 0) 
 
 def topics(db: Session, conversation: Conversation) -> list[dict]:
     """The plans this chat is about, each with its steps, where they stand, and how many messages tag them."""
+    if conversation.kind == cohort.COHORT:
+        return [item for item in [cohort.topic(db, conversation)] if item]
     goals = goals_in(db, conversation)
     if not goals:
         return []

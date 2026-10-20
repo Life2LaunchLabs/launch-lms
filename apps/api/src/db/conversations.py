@@ -13,6 +13,7 @@ from sqlmodel import Field, SQLModel
 
 class Conversation(SQLModel, table=True):
     __tablename__ = "conversation"
+    __table_args__ = (UniqueConstraint("assignment_id", "channel", name="uq_conversation_assignment_channel"),)
 
     id: int | None = Field(default=None, primary_key=True)
     conversation_uuid: str = Field(index=True, unique=True)
@@ -22,6 +23,9 @@ class Conversation(SQLModel, table=True):
     title: str | None = None
     org_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), nullable=True, index=True))
     created_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
+    # A cohort chat: the assignment it's about, and who reads it (see services/connect/cohort.py).
+    assignment_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("goal_assignment.id", ondelete="CASCADE"), nullable=True, index=True))
+    channel: str | None = Field(default=None, sa_column=Column(String, nullable=True))
     last_message_at: str | None = Field(default=None, index=True)
     creation_date: str = ""
     update_date: str = ""
@@ -58,7 +62,7 @@ class ConversationMessage(SQLModel, table=True):
 
 
 class ConversationMessageRef(SQLModel, table=True):
-    """A plan, or one of its steps, that a message is about."""
+    """A plan, or one of its steps, that a message is about. In a cohort chat: a template step, with no goal."""
 
     __tablename__ = "conversationmessageref"
     __table_args__ = (Index("ix_conversationmessageref_filter", "conversation_id", "goal_id", "step_uuid"),)
@@ -66,7 +70,7 @@ class ConversationMessageRef(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     message_id: int = Field(sa_column=Column(Integer, ForeignKey("conversationmessage.id", ondelete="CASCADE"), nullable=False, index=True))
     conversation_id: int = Field(sa_column=Column(Integer, ForeignKey("conversation.id", ondelete="CASCADE"), nullable=False))
-    goal_id: int = Field(sa_column=Column(Integer, ForeignKey("goal.id", ondelete="CASCADE"), nullable=False))
+    goal_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("goal.id", ondelete="CASCADE"), nullable=True))
     step_uuid: str | None = Field(default=None, sa_column=Column(String, nullable=True))
 
 

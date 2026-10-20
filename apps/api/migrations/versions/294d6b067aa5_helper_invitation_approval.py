@@ -5,7 +5,7 @@ when the organization's messaging policy asks for it. The status is a string col
 ``awaiting_approval`` value needs no type change; these columns record who reviewed it and when.
 
 Revision ID: 294d6b067aa5
-Revises: acf6145ca175
+Revises: 4cfa894fc16d
 """
 from typing import Sequence, Union
 
@@ -14,7 +14,7 @@ import sqlalchemy as sa
 
 
 revision: str = '294d6b067aa5'
-down_revision: Union[str, None] = 'acf6145ca175'
+down_revision: Union[str, None] = '4cfa894fc16d'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

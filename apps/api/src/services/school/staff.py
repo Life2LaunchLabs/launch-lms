@@ -93,6 +93,7 @@ def _sync_goals(db: Session, row: UserGroupStaff | None, group_id: int, user_id:
 
 def set_staff(db: Session, current_user: PublicUser, org_id: int, group_id: int, payload: GroupStaffSet) -> dict:
     from src.services.goals.assignments import _can_manage
+    from src.services.connect import cohort
     from src.services.school import group_chats
 
     require_org_admin(current_user.id, org_id, db)
@@ -114,11 +115,13 @@ def set_staff(db: Session, current_user: PublicUser, org_id: int, group_id: int,
     db.flush()
     _sync_goals(db, row, group_id, payload.user_id)
     group_chats.sync(db, group)
+    cohort.sync_group(db, group_id)
     db.commit()
     return list_staff(db, current_user, org_id, group_id)
 
 
 def remove_staff(db: Session, current_user: PublicUser, org_id: int, group_id: int, user_id: int) -> dict:
+    from src.services.connect import cohort
     from src.services.school import group_chats
 
     require_org_admin(current_user.id, org_id, db)
@@ -130,6 +133,7 @@ def remove_staff(db: Session, current_user: PublicUser, org_id: int, group_id: i
     db.flush()
     _sync_goals(db, None, group_id, user_id)
     group_chats.sync(db, group)
+    cohort.sync_group(db, group_id)
     db.commit()
     return list_staff(db, current_user, org_id, group_id)
 

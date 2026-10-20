@@ -32,8 +32,8 @@ function legacyAdminPath(parts: string[]): string | null {
 
   if (area === 'plans') {
     if (a === 'reporting' && n === 2) return admin.insights()
-    // Assignments now live in the Assignments tab; their old pages resolved them one by one.
-    if (a === 'assignments') return admin.assignments()
+    // The old assignments list is the Assignments tab; one assignment keeps its own page.
+    if (a === 'assignments' && n === 2) return admin.assignments()
     if (a === 'requirements' && n === 3) return admin.requirementFramework(decode(b), 'details')
     if (b === 'assignments' && c === 'new' && n === 4) return admin.templatePage(decode(a), 'overview')
     return null

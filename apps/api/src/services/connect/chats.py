@@ -36,8 +36,11 @@ def _members(db: Session, conversation: Conversation) -> list[ConversationMember
 
 
 def _membership(db: Session, conversation_uuid: str, user_id: int) -> tuple[Conversation, ConversationMember]:
+    from src.services.connect import cohort
+
     conversation = db.exec(select(Conversation).where(Conversation.conversation_uuid == conversation_uuid)).first()
-    member = db.exec(select(ConversationMember).where(
+    # A cohort chat's readers are settled as they open it: its staff, the org's admins as they are now, its learners.
+    member = cohort.member(db, conversation, user_id) if conversation and conversation.kind == cohort.COHORT else db.exec(select(ConversationMember).where(
         ConversationMember.conversation_id == conversation.id, ConversationMember.user_id == user_id,
     )).first() if conversation else None
     if not conversation or not member:
@@ -200,7 +203,7 @@ def messages_of(db: Session, conversation: Conversation, viewer_id: int, before:
     return {
         "messages": [_message_dict(db, message, viewer_id, cache) for message in messages], "has_more": len(messages) == PAGE,
         # A shared workspace: the plans it's about, to filter by and to tag.
-        "topics": workspace.topics(db, conversation) if conversation.kind in workspace.KINDS else [],
+        "topics": workspace.topics(db, conversation) if conversation.kind in workspace.TOPIC_KINDS else [],
     }
 
 
@@ -288,7 +291,8 @@ def send(db: Session, current_user: PublicUser, conversation_uuid: str, body: st
             ConversationMessage.conversation_id == conversation.id, ConversationMessage.sender_user_id == current_user.id,
         )).first():
             raise HTTPException(status_code=409, detail="You can send more once they accept your request")
-    blind = linking.missing(db, conversation, refs, current_user.id)
+    # A cohort chat never offers to share a learner's plan with the group: it stays private to whoever can't see it.
+    blind = [] if conversation.kind == workspace.cohort.COHORT else linking.missing(db, conversation, refs, current_user.id)
     if blind and share is None:
         raise HTTPException(status_code=409, detail={"code": "needs_access", "plans": blind})
     shared = {item["goal_uuid"]: linking.share(db, current_user, conversation, item["goal_uuid"], (share or {}).get(item["goal_uuid"]) or [])

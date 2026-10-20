@@ -11,7 +11,7 @@ async function capture(page: Page, info: TestInfo, name: string, fullPage = true
 }
 
 test('requirements.export: assignment filters learners and downloads real reviewed evidence', async ({ page }, testInfo) => {
-  await page.goto(`${groupPath}?view=plans&assignment=${fixture.assignment_uuid}`)
+  await page.goto(`/orgs/${fixture.org_slug}/admin/plans/assignments/${fixture.assignment_uuid}/learners`)
   await assertActualApp(page)
   await page.getByRole('textbox', { name: 'Search learners' }).fill('Alex')
   const action = page.getByRole('button', { name: 'Export evidence CSV for 1 filtered learner', exact: true })

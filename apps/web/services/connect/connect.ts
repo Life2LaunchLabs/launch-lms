@@ -45,7 +45,8 @@ export interface ProgressCard {
   goal_uuid: string
   goal_title: string
   started: boolean
-  events: { step_uuid: string; title: string; event: 'finished' | 'turned_in' | 'approved' | 'changes' | 'marked_done' | 'excused'; at: string }[]
+  /** note: what staff wrote with a review or a step they marked done. */
+  events: { step_uuid: string; title: string; event: 'finished' | 'turned_in' | 'approved' | 'changes' | 'marked_done' | 'excused'; at: string; note?: string }[]
 }
 
 /** A learner tagged this organization in another chat. */
@@ -74,6 +75,18 @@ export interface InvitationCard {
 /** A notice an organization sent, such as a welcome. */
 export interface NoticeCard { type: 'notice'; subject: string; text: string }
 
+/** Staff reminded the learner about a step they haven't handed in. */
+export interface StepReminderCard {
+  type: 'step_reminder'
+  goal_uuid: string
+  goal_title: string
+  step_uuid: string
+  step_title: string
+  due_date: string | null
+  /** What staff wrote with it, if anything. */
+  message: string | null
+}
+
 /** Plan tags say whether they're the chat's quiet scope, a plan from outside the chat, or one you can't see. */
 type PlanRefFlags = { scope?: boolean; outside?: boolean; hidden?: boolean }
 
@@ -92,7 +105,7 @@ export interface ChatMessage {
   /** The text with tags written out as names. */
   preview: string
   refs: MessageRef[]
-  card: GoalCommentsCard | PortfolioCard | ProgressCard | OrgMentionCard | InvitationCard | NoticeCard | null
+  card: GoalCommentsCard | PortfolioCard | ProgressCard | OrgMentionCard | InvitationCard | NoticeCard | StepReminderCard | null
   sender: PersonSummary | null
   mine: boolean
   creation_date: string
@@ -101,8 +114,8 @@ export interface ChatMessage {
 
 export interface ChatSummary {
   conversation_uuid: string
-  /** school: a learner and an organization's people on their plans, named after it. goal: a plan's own people. group: a group and its staff. */
-  kind: 'direct' | 'group' | 'school' | 'goal'
+  /** school: a learner and an organization's people on their plans, named after it. goal: a plan's own people. group: a group and its staff. cohort: an assignment's staff, or its whole group. */
+  kind: 'direct' | 'group' | 'school' | 'goal' | 'cohort'
   title: string
   people: PersonSummary[]
   /** Yours: active, or request while someone you don't know waits for your answer. */
@@ -216,13 +229,11 @@ export const connectApi = {
   chat: (uuid: string, token?: string, filter: ChatFilter = {}) => request<Chat>(connectKeys.chat(uuid, filter), token),
   goalChat: (goalUuid: string, token?: string) => request<GoalChat>(connectKeys.goalChat(goalUuid), token),
   /**
-   * An assignment's chat for its staff or its whole group. The API doesn't serve these yet, so
-   * this fails and no cohort chat button shows until it does.
+   * An assignment's chat for its staff or its whole group, started if needed. Only its staff get
+   * the staff chat, and only group assignments have one with the whole group: anyone else gets an
+   * error and no chat button. Its messages are read, filtered and sent like any other chat's.
    */
-  // eslint-disable-next-line no-unused-vars
-  cohortChat: async (orgId: number, assignmentUuid: string, audience: ChatAudience, token?: string): Promise<CohortChat> => {
-    throw new Error('Assignment chats aren’t available yet')
-  },
+  cohortChat: (orgId: number, assignmentUuid: string, audience: ChatAudience, token?: string) => request<CohortChat>(connectKeys.cohortChat(orgId, assignmentUuid, audience), token),
   openDirect: (target: { handle?: string; user_uuid?: string }, token?: string) => request<Chat>(connectUrl('/chats/direct'), token, 'POST', target),
   send: (uuid: string, body: string, token?: string, options: SendOptions = {}) => request<SentMessage>(connectUrl(`/chats/${q(uuid)}/messages`), token, 'POST', {
     body, goal_uuid: options.scope?.goal_uuid, step_uuid: options.scope?.goal_uuid ? options.scope.step_uuid : undefined, share: options.share,

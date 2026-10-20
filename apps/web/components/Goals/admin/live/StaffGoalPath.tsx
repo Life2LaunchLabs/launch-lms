@@ -17,15 +17,20 @@ import { can, type Goal, type Step } from '@services/goals/types'
 import { dateTime, personName, REVIEW_CAPABILITY } from './ui'
 
 /** The learner's path as staff work it: the learner's own view of it, with staff controls on each card, staff notes under the open one, and each step and stage edited from its own menu. */
-export default function StaffGoalPath({ goal, orgslug, orgId, token, viewerUserId }: { goal: Goal; orgslug: string; orgId: number; token?: string; viewerUserId?: number }) {
+export default function StaffGoalPath({ goal, orgslug, orgId, token, viewerUserId, header }: {
+  goal: Goal; orgslug: string; orgId: number; token?: string; viewerUserId?: number
+  /** Above the path, inside its editing and chat: the plan's header card. */
+  header?: (color: string) => React.ReactNode // eslint-disable-line no-unused-vars
+}) {
   const router = useRouter()
   const { getGoalColor, setGoalColor } = useGoalColors(React.useMemo(() => [goal], [goal]), viewerUserId)
   const color = getGoalColor(goal.goal_uuid)
   // A plan tagged in the chat opens here too, from the staff side.
-  const openPlan = (goalUuid: string, stepUuid?: string) => router.push(`${getUriWithOrg(orgslug, routePaths.org.admin.livePlan(goalUuid, 'steps'))}${stepUuid ? `#step-${stepUuid}` : ''}`)
+  const openPlan = (goalUuid: string, stepUuid?: string) => router.push(`${getUriWithOrg(orgslug, routePaths.org.admin.livePlan(goalUuid))}${stepUuid ? `#step-${stepUuid}` : ''}`)
   return <GoalEditingProvider goal={goal} token={token} color={color} setColor={(next: string) => setGoalColor(goal.goal_uuid, next)}>
     <GoalChatProvider scope={{ goal }} token={token} orgslug={orgslug} staffOrgId={orgId} onOpenPlan={openPlan}>
-      <StaffPath goal={goal} orgslug={orgslug} orgId={orgId} token={token} viewerUserId={viewerUserId} color={color} />
+      {header?.(color)}
+      <StaffPath goal={goal} orgslug={orgslug} orgId={orgId} token={token} viewerUserId={viewerUserId} color={color} intro={!header} />
     </GoalChatProvider>
   </GoalEditingProvider>
 }
@@ -34,7 +39,7 @@ export default function StaffGoalPath({ goal, orgslug, orgId, token, viewerUserI
  * The learner's path from the staff side: the same GoalPath they see, opened at the step they'd
  * do next, with staff notes under the open step for whoever reviews the goal.
  */
-function StaffPath({ goal, orgslug, orgId, token, viewerUserId, color }: { goal: Goal; orgslug: string; orgId: number; token?: string; viewerUserId?: number; color: string }) {
+function StaffPath({ goal, orgslug, orgId, token, viewerUserId, color, intro }: { goal: Goal; orgslug: string; orgId: number; token?: string; viewerUserId?: number; color: string; intro: boolean }) {
   const [selected, setSelected] = React.useState('')
   const editing = useGoalEditing()
   React.useEffect(() => {
@@ -43,10 +48,10 @@ function StaffPath({ goal, orgslug, orgId, token, viewerUserId, color }: { goal:
   }, [])
   const reviewer = can(goal, REVIEW_CAPABILITY)
   return <div className="mx-auto max-w-3xl space-y-6">
-    <div className="flex flex-wrap items-end justify-between gap-3">
+    {intro ? <div className="flex flex-wrap items-end justify-between gap-3">
       <div><h2 className="text-lg font-black text-gray-950">Steps</h2><p className="mt-1 text-sm text-gray-500">The same path the learner sees. Open a step to review it, sign it off or leave a staff note; change one from its menu.</p></div>
       {editing ? <Button type="button" variant="surface" onClick={() => editing.open({ kind: 'settings' })}><Settings2 size={15} aria-hidden="true" />Goal settings</Button> : null}
-    </div>
+    </div> : null}
     <GoalPath goal={goal} color={color} perspective="staff" viewer={{ orgslug, token, viewerUserId }} selectedUuid={selected} onSelect={setSelected}
       onOpenActivity={() => toast('Activities open in the learner’s own view. Grade their answers from Reviews.')}
       rowExtra={reviewer ? (step, row) => row.selected ? <div className="mt-3"><StaffNotes goal={goal} step={step} orgId={orgId} token={token} /></div> : null : undefined} />

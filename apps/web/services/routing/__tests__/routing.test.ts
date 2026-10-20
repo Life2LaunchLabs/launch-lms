@@ -152,6 +152,8 @@ test('route manifest builds admin tab and owner routes', () => {
   assert.equal(admin.assignments(), '/admin/plans')
   assert.equal(admin.planReview({ assignment: 'assignment_1', objective: 'objective_1' }), '/admin/plans/review?assignment=assignment_1&objective=objective_1')
   assert.equal(admin.livePlan('plan_1'), '/admin/plans/live/plan_1')
+  assert.equal(admin.planAssignment('assignment_1'), '/admin/plans/assignments/assignment_1')
+  assert.equal(admin.planAssignment('assignment_1', 'learners'), '/admin/plans/assignments/assignment_1/learners')
   assert.equal(admin.livePlan('plan_1', 'reviews'), '/admin/plans/live/plan_1/reviews')
   assert.equal(admin.people.root(), '/admin/users')
   assert.equal(admin.people.user('learner'), '/admin/users/user/learner')
@@ -176,7 +178,7 @@ test('route manifest builds admin tab and owner routes', () => {
 
 test('dead dashboard builders are gone with the dash namespace', () => {
   assert.equal('dash' in routePaths.org, false)
-  for (const name of ['analytics', 'feedback', 'boards', 'communities', 'communitySettings', 'planAssignment', 'programs']) {
+  for (const name of ['analytics', 'feedback', 'boards', 'communities', 'communitySettings', 'programs']) {
     assert.equal(name in routePaths.org.admin, false, name)
   }
   for (const name of ['roles', 'userPage', 'groupPlans']) assert.equal(name in routePaths.org.admin.people, false, name)
@@ -332,7 +334,7 @@ test('old admin and dashboard URLs redirect once, in one place, keeping their qu
     ['/admin/programs/program_1/assignments', '', '/admin/plans/program_1/overview'],
     ['/admin/programs/program_1/settings', '', '/admin/plans/program_1/settings'],
     ['/admin/plans/reporting', '', '/admin/plans/requirements'],
-    ['/admin/plans/assignments/assignment_1/learners', '', '/admin/plans'],
+    ['/admin/plans/assignments', '', '/admin/plans'],
     ['/admin/plans/template_1/assignments/new', '', '/admin/plans/template_1/overview'],
     ['/admin/plans/requirements/fw_1', '', '/admin/plans/requirements/fw_1/details'],
     ['/admin/users/jane', '', '/admin/users/user/jane'],

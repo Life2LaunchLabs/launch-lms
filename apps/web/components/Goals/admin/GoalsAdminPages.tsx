@@ -2,7 +2,7 @@
 
 import React from 'react'
 import AdminTabPage from '@components/Admin/AdminTabPage'
-import ReviewInbox from '@components/Goals/admin/live/ReviewInbox'
+import { OrgAssignments } from '@components/Goals/admin/assignments/AssignmentsList'
 import RequirementsExplorer from '@components/Goals/admin/live/RequirementsExplorer'
 import TemplateList from '@components/Goals/admin/templates/TemplateList'
 import { RequirementFrameworkDetail } from '@components/Admin/Programs/RequirementsAdmin'
@@ -18,8 +18,8 @@ function useOrgAndToken() {
 // The plan pages each admin tab opens on until its own screen lands: Assignments is the review inbox, Insights the requirement explorer.
 
 export function AssignmentsPage({ orgslug }: { orgslug: string }) {
-  const { orgId, token } = useOrgAndToken()
-  return <AdminTabPage tab="assignments"><ReviewInbox orgslug={orgslug} orgId={orgId} token={token} /></AdminTabPage>
+  // The Assignments tab shows the staff assignments list.
+  return <AdminTabPage tab="assignments"><OrgAssignments orgslug={orgslug} /></AdminTabPage>
 }
 
 export function TemplatesPage({ orgslug }: { orgslug: string }) {

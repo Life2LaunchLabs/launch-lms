@@ -8,6 +8,7 @@ declare module 'bun:test' {
     toEqual(expected: unknown): void
     toContain(expected: unknown): void
     toHaveLength(length: number): void
+    toBeLessThan(expected: number): void
     toMatchSnapshot(): void
   }
   export function test(name: string, body: Body): void
