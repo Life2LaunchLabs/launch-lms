@@ -169,7 +169,21 @@ test('route manifest builds admin tab and owner routes', () => {
   assert.equal(admin.insights(), '/admin/insights')
   assert.equal(admin.insightsEvidence(), '/admin/insights/evidence')
   assert.equal(admin.insightsEvidence(3), '/admin/insights/evidence?group=3')
-  assert.equal(admin.requirementFramework('framework 1', 'levels'), '/admin/insights/frameworks/framework%201/levels')
+  assert.equal(admin.requirementFramework('framework 1', 'levels'), '/admin/plans/requirements/framework%201/levels')
+  assert.equal(admin.requirementFrameworkPlans('fw_1'), '/admin/plans/requirements/fw_1/details')
+  assert.equal(admin.requirementFrameworkPlans('fw_1', 'plans'), '/admin/plans/requirements/fw_1/plans')
+  assert.equal(admin.plans(), '/admin/plans')
+  assert.deepEqual((['assignments', 'templates', 'badges', 'requirements', 'marketplace'] as const).map((tab) => admin.plans(tab)), ['/admin/plans', '/admin/plans/templates', '/admin/badges', '/admin/plans/requirements', '/admin/plans/marketplace'])
+  assert.equal(admin.requirements(), '/admin/plans/requirements')
+  assert.equal(admin.marketplace(), '/admin/plans/marketplace')
+  assert.equal(admin.marketplace({ type: 'templates' }), '/admin/plans/marketplace?type=templates')
+  assert.equal(admin.marketplace({ creator: 12, view: 'browse' }), '/admin/plans/marketplace?creator=12')
+  assert.equal(admin.marketplace({ view: 'requests' }), '/admin/plans/marketplace?view=requests')
+  assert.equal(admin.badgeMarketplace(), '/admin/plans/marketplace?type=badges')
+  assert.equal(admin.insightsReport(3), '/admin/insights?group=3')
+  assert.equal(admin.insightsReport(3, ['fw_1', 'fw_2']), '/admin/insights?group=3&fw=fw_1%2Cfw_2')
+  assert.equal(admin.insightsReport(null, 'all'), '/admin/insights?fw=all')
+  assert.equal(admin.insightsReportPrint(3, 'all'), '/admin/insights/reports/3/print?fw=all')
   assert.equal(admin.content.resourceChannel('channel_1', 'general'), '/admin/resources/channel_1/general')
   assert.equal(admin.organization.general(), '/admin/org/settings/general')
   assert.equal(admin.payments.overview(), '/admin/payments/overview')
@@ -336,13 +350,14 @@ test('old admin and dashboard URLs redirect once, in one place, keeping their qu
     ['/admin/programs/program_1/assignments', '', '/admin/plans/program_1/overview'],
     ['/admin/programs/program_1/settings', '', '/admin/plans/program_1/settings'],
     ['/admin/plans/reporting', '', '/admin/insights'],
-    ['/admin/plans/requirements', '', '/admin/insights'],
-    ['/admin/plans/requirements/fw_1/spec', '', '/admin/insights/frameworks/fw_1/spec'],
+    ['/admin/insights/frameworks', '', '/admin/plans/requirements'],
+    ['/admin/insights/frameworks/fw_1/spec', '', '/admin/plans/requirements/fw_1/spec'],
+    ['/admin/insights/frameworks/fw_1', '', '/admin/plans/requirements/fw_1/details'],
     ['/admin/users/groups/3/requirements', '', '/admin/insights/evidence?group=3'],
     ['/admin/users/groups/3/reports', '', '/admin/insights/evidence?group=3'],
     ['/admin/plans/assignments', '', '/admin/plans'],
     ['/admin/plans/template_1/assignments/new', '', '/admin/plans/template_1/overview'],
-    ['/admin/plans/requirements/fw_1', '', '/admin/insights/frameworks/fw_1/details'],
+    ['/admin/plans/requirements/fw_1', '', '/admin/plans/requirements/fw_1/details'],
     ['/admin/users/jane', '', '/admin/users/user/jane'],
     ['/admin/users/roles', '', '/admin/users'],
     ['/admin/users/user/jane/overview', '', '/admin/users/user/jane'],
@@ -352,7 +367,7 @@ test('old admin and dashboard URLs redirect once, in one place, keeping their qu
     ['/admin/users/groups/3/plans', '?assignment=assignment_1', '/admin/users/groups/3?view=plans&assignment=assignment_1'],
     ['/admin/users/groups/3/members', '', '/admin/users/groups/3'],
     ['/admin/users/groups/3/programs/assignment_1/learners', '', '/admin/users/groups/3?view=plans&assignment=assignment_1'],
-    ['/admin/badges/marketplace', '', '/admin/badges?tab=marketplace'],
+    ['/admin/badges/marketplace', '', '/admin/plans/marketplace?type=badges'],
     ['/admin/badges/badge/abc', '', '/admin/badges/badge/abc/analytics'],
     ['/admin/badges/collection/c1', '', '/admin/badges/collection/c1/badges'],
     ['/admin/resources/channel_1', '', '/admin/resources/channel_1/general'],
@@ -375,7 +390,7 @@ test('old admin and dashboard URLs redirect once, in one place, keeping their qu
 })
 
 test('live admin pages are not caught by the legacy redirects', () => {
-  for (const pathname of ['/admin', '/admin/plans', '/admin/plans/template_1/assignments', '/admin/insights', '/admin/insights/evidence', '/admin/insights/frameworks/fw_1/spec', '/admin/resources/tags', '/admin/users/groups/3', '/admin/users/user/jane', '/admin/users/chat/chat_1', '/admin/badges/badge/abc/routes', '/plans/sb3']) {
+  for (const pathname of ['/admin', '/admin/plans', '/admin/plans/template_1/assignments', '/admin/insights', '/admin/insights/evidence', '/admin/plans/requirements', '/admin/plans/requirements/fw_1/spec', '/admin/plans/marketplace', '/admin/badges', '/admin/resources/tags', '/admin/users/groups/3', '/admin/users/user/jane', '/admin/users/chat/chat_1', '/admin/badges/badge/abc/routes', '/plans/sb3']) {
     const decision = resolveRequestRouting({
       requestUrl: `https://acme.launchlms.test${pathname}`,
       pathname,

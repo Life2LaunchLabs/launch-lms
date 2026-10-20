@@ -6,7 +6,7 @@ import pytest
 from fastapi import HTTPException
 from sqlmodel import SQLModel, select
 
-from src.db.goal_admin import AdminHomeLayout
+from src.db.goal_admin import AdminHomeLayout, PlansTabsOrder
 from src.db.goals import StepStatus, StepSubmission
 from src.db.organization_config import OrganizationConfig
 from src.db.roles import Role
@@ -14,7 +14,7 @@ from src.db.user_organizations import UserOrganization
 from src.services.goals import admin_home, goals
 from src.tests.test_goal_assignments_admin import ESSAY, NEWCOMER, VISIT, _assign, _goal, _goal_step
 from src.tests.test_goal_assignments_admin import _session as _base_session
-from src.tests.test_goals import ADMIN, LEARNER, NOW, OTHER, _status, _user
+from src.tests.test_goals import ADMIN, LEARNER, NOW, OTHER, _published, _status, _user
 
 TODAY = date.today()
 
@@ -109,3 +109,43 @@ def test_creator_metrics_for_admins_of_an_org_that_makes_templates_locked_withou
         assert _goal(db, OTHER, uuid).status == "active"
         assert creator["badges"] == {"count": 0, "starts": 0, "recent_starts": 0, "completions": 0, "active": 0, "awards": 0, "recent_awards": 0}
         assert creator["recent_edits"][0]["kind"] == "template" and creator["recent_edits"][0]["status"] == "published"
+
+
+def test_plans_tab_order_defaults_by_what_the_org_does_and_is_kept_per_member():
+    with _session() as db:
+        # Nothing made yet: Assignments first.
+        assert admin_home.get_plans_tabs(db, _user(NEWCOMER), 1) == {
+            "order": ["assignments", "templates", "badges", "requirements", "marketplace"],
+            "default": ["assignments", "templates", "badges", "requirements", "marketplace"],
+            "saved": False,
+        }
+        # An org that makes templates but runs none itself starts on Badges, then Templates.
+        _published(db, VISIT)
+        creator = admin_home.get_plans_tabs(db, _user(NEWCOMER), 1)
+        assert creator["order"] == creator["default"] == ["badges", "templates", "assignments", "requirements", "marketplace"]
+        # Once it runs an assignment, it starts on Assignments again.
+        _assign(db, VISIT, staff=(ADMIN,), start_date=TODAY)
+        assert admin_home.get_plans_tabs(db, _user(NEWCOMER), 1)["default"][0] == "assignments"
+
+        saved = admin_home.save_plans_tabs(db, _user(NEWCOMER), 1, PlansTabsOrder(order=["marketplace", "badges", "marketplace"]))
+        assert saved["order"] == ["marketplace", "badges", "assignments", "templates", "requirements"] and saved["saved"] is True
+        membership = db.exec(select(UserOrganization).where(UserOrganization.user_id == NEWCOMER)).one()
+        assert membership.preferences["plans_tabs"] == ["marketplace", "badges"]
+        assert admin_home.get_plans_tabs(db, _user(NEWCOMER), 1)["order"] == saved["order"]
+        # Another member's order is their own, and saving the Home layout on the same row keeps it.
+        assert admin_home.get_plans_tabs(db, _user(ADMIN), 1)["saved"] is False
+        admin_home.save_layout(db, _user(NEWCOMER), 1, AdminHomeLayout(hidden=["messages"]))
+        assert admin_home.get_plans_tabs(db, _user(NEWCOMER), 1)["order"][0] == "marketplace"
+
+        # Reset: an empty order drops the saved one and leaves the rest of the preferences alone.
+        reset = admin_home.save_plans_tabs(db, _user(NEWCOMER), 1, PlansTabsOrder(order=[]))
+        assert reset["order"] == reset["default"] and reset["saved"] is False
+        db.refresh(membership)
+        assert "plans_tabs" not in membership.preferences and membership.preferences["admin_home"]["hidden"] == ["messages"]
+
+        with pytest.raises(HTTPException) as unknown:
+            admin_home.save_plans_tabs(db, _user(NEWCOMER), 1, PlansTabsOrder(order=["weather"]))
+        assert unknown.value.status_code == 422
+        with pytest.raises(HTTPException) as outsider:
+            admin_home.get_plans_tabs(db, _user(LEARNER), 2)
+        assert outsider.value.status_code == 403

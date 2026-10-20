@@ -1,4 +1,4 @@
-import { routePaths, type GroupView } from './paths.ts'
+import { routePaths, type FrameworkSubpage, type GroupView } from './paths.ts'
 
 const admin = routePaths.org.admin
 const decode = (segment: string) => {
@@ -36,11 +36,17 @@ function legacyAdminPath(parts: string[]): string | null {
     if (a === 'reporting' && n === 2) return admin.insights()
     // The old assignments list is the Assignments tab; one assignment keeps its own page.
     if (a === 'assignments' && n === 2) return admin.assignments()
-    // Requirements moved to Insights.
-    if (a === 'requirements' && n === 2) return admin.insights()
-    if (a === 'requirements' && n === 3) return admin.requirementFramework(decode(b), 'details')
-    if (a === 'requirements' && n === 4) return admin.requirementFramework(decode(b), decode(c))
+    // Requirements live under Plans again: a framework opens on its details.
+    if (a === 'requirements' && n === 3) return admin.requirementFrameworkPlans(decode(b), 'details')
     if (b === 'assignments' && c === 'new' && n === 4) return admin.templatePage(decode(a), 'overview')
+    return null
+  }
+
+  if (area === 'insights') {
+    // Requirement frameworks moved from Insights to Plans › Requirements.
+    if (a === 'frameworks' && n === 2) return admin.requirements()
+    if (a === 'frameworks' && n === 3) return admin.requirementFrameworkPlans(decode(b), 'details')
+    if (a === 'frameworks' && n === 4) return admin.requirementFrameworkPlans(decode(b), decode(c) as FrameworkSubpage)
     return null
   }
 
