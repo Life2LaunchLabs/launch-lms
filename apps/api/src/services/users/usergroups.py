@@ -19,10 +19,6 @@ from src.db.users import (
     User,
     UserRead,
 )
-from src.security.features_utils.usage import (
-    check_limits_with_usage,
-    increase_feature_usage,
-)
 from src.security.org_auth import require_org_role_permission
 from src.security.rbac.config import get_resource_config
 from src.services.school import group_chats
@@ -147,9 +143,6 @@ async def create_usergroup(
             detail="Organization does not exist",
         )
 
-    # Usage check
-    check_limits_with_usage("usergroups", org.id, db_session)
-
     # Complete the object
     usergroup.usergroup_uuid = f"usergroup_{uuid4()}"
     usergroup.creation_date = str(datetime.now())
@@ -159,9 +152,6 @@ async def create_usergroup(
     db_session.add(usergroup)
     db_session.commit()
     db_session.refresh(usergroup)
-
-    # Feature usage
-    increase_feature_usage("usergroups", org.id, db_session)
 
     usergroup = UserGroupRead.model_validate(usergroup)
 
@@ -447,7 +437,6 @@ async def delete_usergroup_by_id(
         org_id=usergroup.org_id,
     )
 
-    increase_feature_usage("usergroups", usergroup.org_id, db_session)
     group_chats.drop(db_session, int(usergroup_id))
     db_session.delete(usergroup)
     db_session.commit()

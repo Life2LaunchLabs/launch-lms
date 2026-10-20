@@ -2,15 +2,12 @@
 
 import React from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { Compass } from 'lucide-react'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import FeatureDisabledView from '@components/Dashboard/Shared/FeatureDisabled/FeatureDisabledView'
 import GeneralWrapper from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
 import DiscoverFeed from './DiscoverFeed'
 import DiscoverResults from './DiscoverResults'
 import DiscoverSearchBar, { filtersApplied, type DiscoverFilters } from './DiscoverSearchBar'
-import { useFeatures } from '@components/Hooks/useFeatures'
 
 /**
  * Discover: badges to earn and resources to use, searchable from the top. With no search
@@ -22,9 +19,9 @@ export default function DiscoverPage({ orgslug }: { orgslug: string }) {
   const router = useRouter()
   const pathname = usePathname()
   const params = useSearchParams()
-  const features = useFeatures()
-  const showBadges = !org || features.has('badges')
-  const showResources = Boolean(org) && features.has('resources')
+  // Badges and resources are open to every learner; only publishing them is gated.
+  const showBadges = true
+  const showResources = Boolean(org)
   const query = params.get('q') || ''
   const filters: DiscoverFilters = React.useMemo(() => ({
     type: params.get('type') === 'badges' || params.get('type') === 'resources' ? params.get('type') as DiscoverFilters['type'] : '',
@@ -50,6 +47,5 @@ export default function DiscoverPage({ orgslug }: { orgslug: string }) {
         : <DiscoverFeed orgslug={orgslug} showBadges={showBadges} showResources={showResources} />}
     </main>
   </GeneralWrapper>
-  if (org && !showBadges && !showResources) return <FeatureDisabledView featureName="badges" orgslug={orgslug} icon={Compass} context="public">{content}</FeatureDisabledView>
   return content
 }

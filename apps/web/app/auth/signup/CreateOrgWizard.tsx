@@ -27,14 +27,6 @@ import LoginClient from '../login/login'
 import OpenSignUpComponent from './OpenSignup'
 import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
 
-const packageOptions = [
-  { id: 'analytics', label: 'Analytics' },
-  { id: 'credentials', label: 'Credentials' },
-  { id: 'ai', label: 'AI features' },
-  { id: 'advanced_user_management', label: 'Advanced users' },
-  { id: 'badge_creation', label: 'Badge publishing' },
-]
-
 type PlanChoice = 'free' | 'full' | 'enterprise'
 
 interface CreateOrgWizardProps {
@@ -63,7 +55,6 @@ export default function CreateOrgWizard({ ownerOrg }: CreateOrgWizardProps) {
     x: '',
     plan: 'free' as PlanChoice,
     message: '',
-    packages: [] as string[],
   })
 
   React.useEffect(() => {
@@ -101,15 +92,6 @@ export default function CreateOrgWizard({ ownerOrg }: CreateOrgWizardProps) {
       return
     }
     setStep((current) => Math.max(current - 1, 0))
-  }
-
-  const togglePackage = (packageId: string) => {
-    setForm((current) => ({
-      ...current,
-      packages: current.packages.includes(packageId)
-        ? current.packages.filter((id) => id !== packageId)
-        : [...current.packages, packageId],
-    }))
   }
 
   const handleSubmit = async () => {
@@ -170,22 +152,10 @@ export default function CreateOrgWizard({ ownerOrg }: CreateOrgWizardProps) {
       if (form.plan !== 'free') {
         await submitPlanRequest(
           organization.slug,
-          'plan_upgrade',
+          'tier_upgrade',
           form.plan,
           form.message.trim() || null,
           accessToken
-        )
-
-        await Promise.all(
-          form.packages.map((packageId) =>
-            submitPlanRequest(
-              organization.slug,
-              'package_add',
-              packageId,
-              form.message.trim() || null,
-              accessToken
-            )
-          )
         )
       }
 
@@ -337,7 +307,7 @@ export default function CreateOrgWizard({ ownerOrg }: CreateOrgWizardProps) {
             <div className="space-y-5">
               <StepHeader
                 icon={<Check className="h-5 w-5" />}
-                title="Choose a starting plan"
+                title="Choose a starting tier"
                 description="New organizations start on free. You can also request an upgrade now."
               />
               <div className="grid gap-3 sm:grid-cols-3">
@@ -362,25 +332,6 @@ export default function CreateOrgWizard({ ownerOrg }: CreateOrgWizardProps) {
 
               {form.plan !== 'free' && (
                 <>
-                  <div>
-                    <p className="mb-2 text-sm font-semibold text-gray-800">Packages</p>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {packageOptions.map((option) => (
-                        <label
-                          key={option.id}
-                          className="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={form.packages.includes(option.id)}
-                            onChange={() => togglePackage(option.id)}
-                            className="h-4 w-4 rounded border-gray-300"
-                          />
-                          <span>{option.label}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
                   <label className="block">
                     <span className="text-sm font-semibold text-gray-800">Upgrade note</span>
                     <textarea

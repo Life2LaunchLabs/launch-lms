@@ -14,7 +14,7 @@ from src.db.user_organizations import UserOrganization
 from src.services.goals import admin_home, goals
 from src.tests.test_goal_assignments_admin import ESSAY, NEWCOMER, VISIT, _assign, _goal, _goal_step
 from src.tests.test_goal_assignments_admin import _session as _base_session
-from src.tests.test_goals import ADMIN, LEARNER, NOW, OTHER, _published, _status, _user
+from src.tests.test_goals import ADMIN, LEARNER, OTHER, _published, _status, _user
 
 TODAY = date.today()
 
@@ -92,17 +92,15 @@ def test_layout_is_kept_per_member_and_hidden_widgets_are_not_built():
         assert outsider.value.status_code == 403
 
 
-def test_creator_metrics_for_admins_of_an_org_that_makes_templates_locked_without_analytics():
+def test_creator_metrics_for_admins_of_an_org_that_makes_templates():
     with _session() as db:
         uuid = _assign(db, VISIT, staff=(ADMIN,), start_date=TODAY)["assignment_uuid"]
         assert "creator" not in admin_home.home(db, _user(NEWCOMER), 1)["widgets"]
 
-        locked = admin_home.home(db, _user(ADMIN), 1)
-        assert locked["widgets"][-1] == "creator" and locked["locked"] == ["creator"] and "creator" not in locked
-
-        db.add(OrganizationConfig(org_id=1, config={"config_version": "2.0", "plan": "full", "packages": ["analytics"]}, creation_date=NOW, update_date=NOW))
-        db.commit()
-        creator = admin_home.home(db, _user(ADMIN), 1)["creator"]
+        # Reporting on the org's own work is open at every tier.
+        shown = admin_home.home(db, _user(ADMIN), 1)
+        assert shown["widgets"][-1] == "creator" and shown["locked"] == []
+        creator = shown["creator"]
         templates = creator["templates"]
         # Both learners accepted: two starts, both still going, from a template no other org copied.
         assert (templates["count"], templates["starts"], templates["recent_starts"], templates["active"], templates["completions"], templates["orgs_using"]) == (1, 2, 2, 2, 0, 0)

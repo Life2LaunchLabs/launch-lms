@@ -5,17 +5,12 @@ import toast from 'react-hot-toast'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getOrgPlanRequests, submitPlanRequest, type PlanRequest } from '@services/plans/plan_requests'
-import { PLAN_LABELS, type PlanLevel } from '@services/plans/plans'
-import { PACKAGE_LABELS, type AccessRequest } from '@/lib/admin/registry'
+import { accessRequestLabel, type AccessRequest } from '@services/plans/plans'
 import { cn } from '@/lib/utils'
 
-export function accessRequestLabel(request: AccessRequest) {
-  return request.type === 'plan_upgrade'
-    ? `${PLAN_LABELS[request.value as PlanLevel] ?? request.value} plan`
-    : PACKAGE_LABELS[request.value] ?? request.value
-}
+export { accessRequestLabel }
 
-/** Plans and packages are request-only: this files the request (the same one Plan & Packages files) and then shows it pending. */
+/** Tiers, partner programs and on-request features are request-only: this files the request (the same one Plan & access files) and then shows it pending. */
 export default function RequestAccessButton({ request, tone = 'light', className }: { request: AccessRequest; tone?: 'light' | 'dark'; className?: string }) {
   const org = useOrg() as any
   const session = useLHSession() as any

@@ -25,21 +25,15 @@ import {
 // Badges page's old marketplace tabs (IssuingAdminShell).
 
 export const statusStyles: Record<string, string> = {
-  queued: 'bg-violet-100 text-violet-800',
   requested: 'bg-amber-100 text-amber-800',
   invited: 'bg-blue-100 text-blue-800',
   approved: 'bg-lime-100 text-lime-800',
   rejected: 'bg-red-100 text-red-700',
   revoked: 'bg-gray-200 text-gray-600',
-  package_denied: 'bg-red-100 text-red-700',
-}
-export const statusLabels: Record<string, string> = {
-  queued: 'Waiting for package approval',
-  package_denied: 'Package request denied',
 }
 
 export function StatusPill({ status }: { status: string }) {
-  return <span className={`rounded-full px-3 py-1 text-xs font-bold capitalize ${statusStyles[status] || 'bg-gray-100 text-gray-600'}`}>{statusLabels[status] || status}</span>
+  return <span className={`rounded-full px-3 py-1 text-xs font-bold capitalize ${statusStyles[status] || 'bg-gray-100 text-gray-600'}`}>{status}</span>
 }
 
 /** A marketplace badge's request flow: request to issue, accept an invite, or ask again. Admins only. */
@@ -49,14 +43,12 @@ export function BadgeMarketplaceActions({ item, orgId, onChange }: { item: any; 
   const [acting, setActing] = React.useState(false)
   const badge = item.badge
   const authorization = item.authorization
-  const canRequest = item.issuing_access === 'active' || item.issuing_access === 'pending'
-  const requestLabel = item.issuing_access === 'pending' ? 'Queue request' : 'Request to issue'
 
   const request = async () => {
     setActing(true)
     try {
-      const result = await requestIssuerAuthorization({ badge_uuid: badge.badge_uuid, issuer_org_id: orgId }, accessToken)
-      toast.success(result?.status === 'queued' ? 'Request queued. We’ll send it when your issuing package is approved.' : 'Authorization requested.')
+      await requestIssuerAuthorization({ badge_uuid: badge.badge_uuid, issuer_org_id: orgId }, accessToken)
+      toast.success('Authorization requested.')
       onChange()
     } catch (error: any) {
       toast.error(error?.message || 'Failed to request authorization.')
@@ -83,16 +75,16 @@ export function BadgeMarketplaceActions({ item, orgId, onChange }: { item: any; 
     return <div className="flex flex-wrap items-center justify-end gap-2">
       <StatusPill status={authorization.status} />
       {authorization.status === 'invited' ? <Button size="sm" onClick={() => void accept()} disabled={acting} className="gap-1"><Check className="h-4 w-4" /> Accept invite</Button> : null}
-      {authorization.status === 'rejected' || authorization.status === 'revoked' || authorization.status === 'package_denied' ? (
-        <Button size="sm" variant="outline" onClick={() => void request()} disabled={!canRequest || acting} title={canRequest ? undefined : 'Request the Badge Issuing package to continue'} className="gap-1 bg-card">
-          <Plus className="h-4 w-4" /> {item.issuing_access === 'pending' ? 'Queue again' : 'Request again'}
+      {authorization.status === 'rejected' || authorization.status === 'revoked' ? (
+        <Button size="sm" variant="outline" onClick={() => void request()} disabled={acting} className="gap-1 bg-card">
+          <Plus className="h-4 w-4" /> Request again
         </Button>
       ) : null}
     </div>
   }
-  return <Button size="sm" onClick={() => void request()} disabled={!canRequest || acting} title={canRequest ? undefined : 'Request the Badge Issuing package to continue'} className="gap-1">
+  return <Button size="sm" onClick={() => void request()} disabled={acting} className="gap-1">
     {acting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-    {canRequest ? requestLabel : 'Issuing package required'}
+    Request to issue
   </Button>
 }
 

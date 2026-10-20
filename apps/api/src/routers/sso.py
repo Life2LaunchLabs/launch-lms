@@ -6,11 +6,10 @@ Provides endpoints for SSO configuration (admin) and authentication (public).
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel
-from sqlmodel import Session, select
+from sqlmodel import Session
 from src.core.events.database import get_db_session
-from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
 from src.db.sso import (
     SSOAuthorizationResponse,
@@ -28,6 +27,7 @@ from src.security.auth import (
     get_current_user,
 )
 from src.security.cookies import get_cookie_domain_for_request, is_request_secure
+from src.security.access.access import ensure_feature
 from src.services.orgs.orgs import rbac_check
 from src.services.sso import (
     check_sso_enabled,
@@ -48,14 +48,14 @@ router = APIRouter()
 # Helper functions
 # ============================================================================
 
-async def verify_org_admin_and_enterprise_plan(
+async def verify_org_admin_and_sso(
     org_id: int,
     request: Request,
     current_user: PublicUser,
     session: Session
 ):
     """
-    Verify user has admin access and organization has enterprise plan.
+    Verify user has admin access and the organization has single sign-on.
 
     Args:
         org_id: Organization ID
@@ -64,28 +64,14 @@ async def verify_org_admin_and_enterprise_plan(
         session: Database session
 
     Raises:
-        HTTPException: If access denied or wrong plan
+        HTTPException: If access denied or SSO is not included
     """
     # Get organization to get uuid
     org = session.get(Organization, org_id)
     if not org:
         raise HTTPException(status_code=404, detail="Organization not found")
 
-    # Check plan
-    statement = select(OrganizationConfig).where(OrganizationConfig.org_id == org.id)
-    org_config = session.exec(statement).first()
-
-    if not org_config:
-        raise HTTPException(status_code=403, detail="Organization configuration not found")
-
-    config_dict = org_config.config or {}
-    version = config_dict.get("config_version", "1.0")
-    plan = config_dict.get("plan", "free") if version.startswith("2") else config_dict.get("cloud", {}).get("plan", "free")
-    if plan != "enterprise":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="SSO is only available on the Enterprise plan"
-        )
+    ensure_feature(org.id, "sso", session)
 
     # RBAC check for admin status
     await rbac_check(request, org.org_uuid, current_user, "update", session)
@@ -172,7 +158,7 @@ def _get_idp_error_message(error_code: str) -> str:
 
 
 # ============================================================================
-# Admin endpoints (require enterprise plan + admin role)
+# Admin endpoints (require SSO access + admin role)
 # ============================================================================
 
 @router.get("/providers", response_model=list[SSOProviderInfo])
@@ -188,7 +174,7 @@ async def list_sso_providers(
 
     Returns list of all supported SSO providers with their configuration details.
     """
-    await verify_org_admin_and_enterprise_plan(org_id, request, current_user, session)
+    await verify_org_admin_and_sso(org_id, request, current_user, session)
     return get_available_providers()
 
 
@@ -205,7 +191,7 @@ async def get_sso_config(
 
     Returns the current SSO configuration or null if not configured.
     """
-    await verify_org_admin_and_enterprise_plan(org_id, request, current_user, session)
+    await verify_org_admin_and_sso(org_id, request, current_user, session)
 
     connection = await get_sso_connection(org_id, session)
     if not connection:
@@ -228,7 +214,7 @@ async def create_sso_config(
 
     Sets up SSO with the specified provider and configuration.
     """
-    await verify_org_admin_and_enterprise_plan(org_id, request, current_user, session)
+    await verify_org_admin_and_sso(org_id, request, current_user, session)
 
     connection = await create_sso_connection(org_id, data, session)
     return SSOConnectionRead.model_validate(connection)
@@ -248,7 +234,7 @@ async def update_sso_config(
 
     Modifies existing SSO settings.
     """
-    await verify_org_admin_and_enterprise_plan(org_id, request, current_user, session)
+    await verify_org_admin_and_sso(org_id, request, current_user, session)
 
     connection = await update_sso_connection(org_id, data, session)
     return SSOConnectionRead.model_validate(connection)
@@ -267,7 +253,7 @@ async def delete_sso_config(
 
     Disables SSO for the organization.
     """
-    await verify_org_admin_and_enterprise_plan(org_id, request, current_user, session)
+    await verify_org_admin_and_sso(org_id, request, current_user, session)
 
     deleted = await delete_sso_connection(org_id, session)
     if not deleted:
@@ -294,7 +280,7 @@ async def get_setup_url(
     Returns the admin portal URL for configuring the identity provider.
     Only available for providers that support this feature (e.g., WorkOS).
     """
-    await verify_org_admin_and_enterprise_plan(org_id, request, current_user, session)
+    await verify_org_admin_and_sso(org_id, request, current_user, session)
 
     setup_url = await get_provider_setup_url(org_id, return_url, session)
     if not setup_url:

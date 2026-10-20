@@ -17,7 +17,7 @@ import { revalidateTags } from '@services/utils/ts/requests'
 import { mutate } from 'swr'
 import { getAPIUrl } from '@services/config/config'
 import UnsplashImagePicker from '@components/Objects/Media/UnsplashImagePicker'
-import { usePlan } from '@components/Hooks/usePlan'
+import { useFeatures } from '@components/Hooks/useFeatures'
 import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
 
 const SUPPORTED_FILES = constructAcceptValue(['png', 'jpg', 'webp'])
@@ -34,10 +34,9 @@ export default function AuthBrandingTab() {
 
   const existingConfig = org?.config?.config?.customization?.auth_branding || org?.config?.config?.general?.auth_branding || {}
 
-  // Check if org has enterprise plan - hide Launch LMS branding for enterprise users
-  // In OSS mode, always show branding regardless of plan
-  const plan = usePlan()
-  const isEnterprise = plan === 'enterprise'
+  // Enterprise orgs hide the Launch LMS branding.
+  const { access } = useFeatures()
+  const isEnterprise = access.tier === 'enterprise'
 
   const [welcomeMessage, setWelcomeMessage] = useState<string>(existingConfig.welcome_message || '')
   const [backgroundType, setBackgroundType] = useState<BackgroundType>(existingConfig.background_type || 'gradient')

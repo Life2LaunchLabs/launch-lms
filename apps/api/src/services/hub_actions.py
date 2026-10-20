@@ -10,9 +10,8 @@ from fastapi import HTTPException
 from sqlmodel import Session, select
 
 from src.db.hub import HubConversation, HubConversationMessage
-from src.db.organization_config import OrganizationConfig
 from src.security.org_auth import require_org_membership
-from src.security.features_utils.resolve import resolve_feature
+from src.security.access.access import org_access
 
 ACTION_SCHEMA_VERSION = 1
 MAX_MESSAGE_ACTIONS = 2
@@ -51,8 +50,8 @@ NAVIGATION_DESTINATIONS = {
         NavigationDestination("portfolio", "Open portfolio", "/portfolio", "Review the learner's portfolio and its readiness."),
         NavigationDestination("add_timeline", "Add to Timeline", "/portfolio/timeline?experience=work_career", "Record a meaningful job, learning, volunteer, or life experience in the portfolio Timeline."),
         NavigationDestination("add_project", "Add a project", "/portfolio/projects?newProject=1", "Add a concrete project or body of work to the portfolio."),
-        NavigationDestination("badges", "Explore Discover", "/discover", "Find badges to earn and resources to use.", "badges"),
-        NavigationDestination("communities", "Open communities", "/communities", "Find learner communities and ongoing discussions."),
+        NavigationDestination("badges", "Explore Discover", "/discover", "Find badges to earn and resources to use."),
+        NavigationDestination("communities", "Open communities", "/communities", "Find learner communities and ongoing discussions.", "communities"),
         NavigationDestination("organizations", "Explore organizations", "/organizations", "Review organizations the learner can discover or join."),
         NavigationDestination("account", "Open account settings", "/account", "Manage the learner's account, preferences, messages, or Coach memory."),
     )
@@ -78,19 +77,12 @@ def decorate_navigation_action(action: dict) -> dict:
     }
 
 
-def _org_config(db_session: Session, org_id: int) -> dict:
-    row = db_session.exec(
-        select(OrganizationConfig).where(OrganizationConfig.org_id == org_id)
-    ).first()
-    return row.config if row and row.config else {}
-
-
 def available_navigation_destinations(db_session: Session, org_id: int) -> dict[str, NavigationDestination]:
-    config = _org_config(db_session, org_id)
+    access = org_access(org_id, db_session)
     return {
         key: destination
         for key, destination in NAVIGATION_DESTINATIONS.items()
-        if not destination.feature or resolve_feature(destination.feature, config, org_id).get("enabled")
+        if not destination.feature or access.has(destination.feature)
     }
 
 

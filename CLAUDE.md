@@ -93,18 +93,18 @@ launch-lms/
 | `/audit_logs` | Audit log queries |
 | `/news` | Platform news articles |
 | `/users` | User profile, settings |
-| `/orgs` | Organization CRUD, custom domains, packs |
+| `/orgs` | Organization CRUD, usage |
 | `/roles` | RBAC role definitions |
 | `/usergroups` | User groups & resource access |
-| `/api_tokens` | API token management (pro plan) |
+| `/api_tokens` | API token management (Enterprise tier) |
 | `/courses` | Course CRUD, publishing, thumbnails |
 | `/courses/.../chapters` | Chapter management |
 | `/courses/.../activities` | Activity/lesson content |
 | `/courses/.../assignments` | Tasks + submissions |
 | `/courses/.../certifications` | Certificates (pro plan) |
 | `/courses/.../collections` | Course collections |
-| `/boards` | Collaborative whiteboards (pro plan) |
-| `/playgrounds` | Interactive playground elements (pro plan) |
+| `/boards` | Collaborative whiteboards (legacy, switched off) |
+| `/playgrounds` | Interactive playground elements (legacy, switched off) |
 | `/podcasts` | Podcast + episode management |
 | `/communities` | Community forums |
 | `/discussions` | Discussion threads |
@@ -125,7 +125,7 @@ launch-lms/
 - IP-based rate limiting on login, refresh, email verification
 - CSRF protection
 - RBAC via dependency injection (`Depends(...)`)
-- Plan-based feature gating via dependency injection
+- Org access gating via `require_feature(...)` / `ensure_feature(...)` (security/access)
 - All file uploads validated for size and MIME type
 
 ---
@@ -369,10 +369,11 @@ Alternatively, switch to S3 storage (`LAUNCHLMS_CONTENT_DELIVERY_TYPE=s3api`).
 
 ## Business Domain Concepts
 
-### Plans
-`free` → `personal` → `standard` → `pro` → `enterprise`
+### Org access (tiers, partner programs, grants)
+Tiers: `free` (25 active learners, 2 staff seats) → `full` (200 / 12, groups, bulk invites) → `enterprise` (unlimited, SSO, audit logs, API tokens, advanced reports).
+Partner programs (applied for, approved by a superadmin): `badge_publisher`, `plan_publisher`, `resource_partner`. Payments is granted on request. No fees; upgrades are requests.
 
-Plan gating is done via FastAPI dependency injection in route handlers.
+The only definition is `apps/api/src/security/access/catalog.py`; every check goes through `security/access/access.py` (`org_access(...).has/limit`, `ensure_feature`, `require_feature` route dependency, `require_capacity`). The owner org (lowest id) has everything. Legacy features (AI, boards, playgrounds, podcasts, communities, SCORM, custom domains, custom roles) are off for everyone. The web reads `org.config.config.access` through `useFeatures()`.
 
 ### Multi-Tenancy
 Every resource belongs to an `Organization`. Orgs have:

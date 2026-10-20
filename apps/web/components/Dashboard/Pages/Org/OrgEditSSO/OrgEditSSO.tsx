@@ -16,8 +16,7 @@ import {
   SelectValue,
 } from '@components/ui/select'
 import { useTranslation } from 'react-i18next'
-import PlanRestrictedFeature from '@components/Dashboard/Shared/PlanRestricted/PlanRestrictedFeature'
-import { PlanLevel } from '@services/plans/plans'
+import FeatureGate from '@components/Dashboard/Shared/FeatureGate/FeatureGate'
 import {
   getSSOConfig,
   createSSOConfig,
@@ -69,7 +68,6 @@ const OrgEditSSO: React.FC = () => {
   const [scopes, setScopes] = useState('openid email profile')
 
   const features = useFeatures()
-  const currentPlan = features.plan
   const ssoEnabled = features.has('sso')
 
   // Load SSO configuration and providers
@@ -229,13 +227,7 @@ const OrgEditSSO: React.FC = () => {
   }
 
   return (
-    <PlanRestrictedFeature
-      currentPlan={currentPlan}
-      requiredPlan={(features.resolved.sso?.required_plan || 'enterprise') as PlanLevel}
-      icon={Shield}
-      titleKey="common.plans.feature_restricted.sso.title"
-      descriptionKey="common.plans.feature_restricted.sso.description"
-    >
+    <FeatureGate feature="sso" icon={Shield} description="Let your people sign in with your organization's identity provider.">
       <div className="sm:mx-10 mx-0 bg-white rounded-xl nice-shadow pt-3">
         <div className="flex flex-col gap-0">
           {/* Header */}
@@ -495,7 +487,7 @@ const OrgEditSSO: React.FC = () => {
           </div>
         </div>
       </div>
-    </PlanRestrictedFeature>
+    </FeatureGate>
   )
 }
 

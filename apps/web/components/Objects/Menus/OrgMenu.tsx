@@ -43,7 +43,6 @@ export const OrgMenu = (props: { orgslug: string; compact?: boolean }) => {
   const connect = useConnectCounts()
   const topOffset = isJoinBannerVisible ? JOIN_BANNER_HEIGHT : 0
   const config = org?.config?.config
-  const resolvedFeatures = config?.resolved_features
   const hideOrgName = config?.customization?.general?.hide_org_name || config?.general?.hide_org_name || false
   const isActivityPage = pathname?.includes('/activity/')
   const isCoursePage = /^\/course\/[^/]+$/.test(pathname || '')
@@ -57,7 +56,6 @@ export const OrgMenu = (props: { orgslug: string; compact?: boolean }) => {
 
   const primaryNavItems = getPrimaryOrgMenuItems({
     pathname,
-    resolvedFeatures,
     hubOpen: hub?.state === 'open',
     // Invitations and notices arrive as chat messages, so unread chats cover them.
     connectWaiting: connect.unread + connect.requests > 0,

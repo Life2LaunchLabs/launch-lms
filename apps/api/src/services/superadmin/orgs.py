@@ -14,14 +14,14 @@ from sqlalchemy.orm.attributes import flag_modified
 from sqlmodel import Session, func, select
 from src.db.custom_domains import CustomDomain
 from src.db.learning import LearningBadge
-from src.db.organization_config import OrganizationConfig, OrganizationConfigV2Base
+from src.db.organization_config import OrganizationConfig, OrganizationConfigDocument
 from src.db.organizations import Organization, OrganizationCreate
 from src.db.plan_requests import PlanRequest, PlanRequestUpdate
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
-from src.security.features_utils.packs import AVAILABLE_PACKAGES
-from src.security.features_utils.plans import plan_meets_requirement
+from src.security.access.access import access_from_config, config_tier
+from src.security.access.catalog import FEATURES, LIMITS, PARTNER_PROGRAMS, Tier
 from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
 
 logger = logging.getLogger(__name__)
@@ -36,8 +36,11 @@ class OrgConfigUpdateRequest(BaseModel):
     config: dict
 
 
-class OrgPlanUpdateRequest(BaseModel):
-    plan: str
+class OrgAccessUpdateRequest(BaseModel):
+    """Fields left out are kept. Grants map a feature to {"enabled": bool} or a limit to {"extra": int}."""
+    tier: Tier | None = None
+    partners: list[str] | None = None
+    grants: dict[str, dict] | None = None
 
 
 class OrgSettingsUpdateRequest(BaseModel):
@@ -45,10 +48,6 @@ class OrgSettingsUpdateRequest(BaseModel):
     slug: str | None = None
     email: str | None = None
     description: str | None = None
-
-
-class OrgPackagesUpdateRequest(BaseModel):
-    packages: list[str] = []
 
 
 # ============================================================================
@@ -65,13 +64,25 @@ def _parse_datetime(value: str | None) -> datetime:
         return datetime.min.replace(tzinfo=timezone.utc)
 
 
-def _org_plan(org_config: OrganizationConfig | None) -> str:
-    if not org_config:
-        return "free"
-    config = org_config.config or {}
-    if str(config.get("config_version", "1.0")).startswith("2"):
-        return config.get("plan", "free")
-    return config.get("cloud", {}).get("plan", "free")
+def _org_tier(org_config: OrganizationConfig | None) -> str:
+    return config_tier(org_config.config if org_config else None)
+
+
+def _clean_grants(grants: dict[str, dict]) -> dict[str, dict]:
+    cleaned: dict[str, dict] = {}
+    for key, grant in grants.items():
+        if key in LIMITS:
+            extra = int((grant or {}).get("extra", 0))
+            if extra < 0:
+                raise HTTPException(status_code=422, detail=f"Extra {key} can't be negative")
+            if extra:
+                cleaned[key] = {"extra": extra}
+        elif key in FEATURES and not FEATURES[key].off:
+            if (grant or {}).get("enabled"):
+                cleaned[key] = {"enabled": True}
+        else:
+            raise HTTPException(status_code=422, detail=f"Unknown feature or limit: {key}")
+    return cleaned
 
 
 def _get_org_config_rows(org_id: int, db_session: Session) -> list[OrganizationConfig]:
@@ -103,26 +114,26 @@ def _get_single_org_config(org_id: int, db_session: Session) -> OrganizationConf
     return rows[0]
 
 
-def _verify_persisted_org_plan(
+def _verify_persisted_org_tier(
     org_config: OrganizationConfig,
-    expected_plan: str,
+    expected_tier: str,
     db_session: Session,
 ) -> None:
     db_session.refresh(org_config)
-    persisted_plan = _org_plan(org_config)
-    if persisted_plan != expected_plan:
+    persisted_tier = _org_tier(org_config)
+    if persisted_tier != expected_tier:
         logger.error(
-            "Organization plan write verification failed for org_id=%s: expected=%s actual=%s config_id=%s",
+            "Organization tier write verification failed for org_id=%s: expected=%s actual=%s config_id=%s",
             org_config.org_id,
-            expected_plan,
-            persisted_plan,
+            expected_tier,
+            persisted_tier,
             org_config.id,
         )
         raise HTTPException(
             status_code=500,
             detail=(
-                "Organization plan update could not be verified after commit. "
-                f"expected={expected_plan}, actual={persisted_plan}"
+                "Organization tier update could not be verified after commit. "
+                f"expected={expected_tier}, actual={persisted_tier}"
             ),
         )
 
@@ -222,7 +233,7 @@ def list_organizations(
     limit: int = 20,
     sort: str = "id",
     search: str = "",
-    plan: str = "all",
+    tier: str = "all",
 ) -> dict:
     orgs = db_session.exec(select(Organization)).all()
 
@@ -241,8 +252,8 @@ def list_organizations(
 
     items = []
     for org in orgs:
-        org_plan = _org_plan(org_configs.get(org.id))
-        if plan != "all" and org_plan != plan:
+        org_tier = _org_tier(org_configs.get(org.id))
+        if tier != "all" and org_tier != tier:
             continue
         if search and search.lower() not in f"{org.name} {org.slug} {org.email}".lower():
             continue
@@ -254,7 +265,7 @@ def list_organizations(
                 # Backward-compatible alias for older platform clients.
                 "course_count": badge_counts.get(org.id, 0),
                 "pending_request_count": pending_counts.get(org.id, 0),
-                "plan": org_plan,
+                "tier": org_tier,
                 "custom_domains": domains_by_org.get(org.id, []),
                 "admin_users": admins_by_org.get(org.id, []),
             }
@@ -290,10 +301,12 @@ def get_organization(db_session: Session, org_id: int) -> dict:
         select(CustomDomain).where(CustomDomain.org_id == org.id)
     ).all()
     owner_org = _get_owner_org(db_session)
+    is_owner = bool(owner_org and owner_org.id == org.id)
     return {
         **org.model_dump(),
         "config": org_config.config if org_config else {},
-        "plan": _org_plan(org_config),
+        "tier": _org_tier(org_config),
+        "access": access_from_config(org_config.config if org_config else None, owner=is_owner).to_dict(),
         "user_count": user_count,
         "badge_count": badge_count,
         # Backward-compatible alias for older platform clients.
@@ -301,7 +314,7 @@ def get_organization(db_session: Session, org_id: int) -> dict:
         "pending_request_count": pending_request_count,
         "custom_domains": [domain.domain for domain in domains],
         "admin_users": _admin_users_for_org(org.id, db_session),
-        "is_owner_org": bool(owner_org and owner_org.id == org.id),
+        "is_owner_org": is_owner,
         "config_row_count": len(org_config_rows),
         "config_row_ids": [cfg.id for cfg in org_config_rows],
     }
@@ -340,7 +353,7 @@ def create_organization(
     )
     db_session.add(membership)
 
-    org_config = OrganizationConfigV2Base(config_version="2.0", plan="free")
+    org_config = OrganizationConfigDocument()
     db_session.add(
         OrganizationConfig(
             org_id=int(organization.id or 0),
@@ -372,22 +385,32 @@ def update_org_settings(
     return {"success": True}
 
 
-def update_org_plan(
-    db_session: Session, org_id: int, payload: OrgPlanUpdateRequest
-) -> dict:
-    org_config = _get_single_org_config(org_id, db_session)
-    config = dict(org_config.config or {})
-    if str(config.get("config_version", "1.0")).startswith("2"):
-        config["plan"] = payload.plan
-    else:
-        config.setdefault("cloud", {})
-        config["cloud"]["plan"] = payload.plan
+def _save_config(org_config: OrganizationConfig, config: dict, db_session: Session) -> None:
     org_config.config = config
     org_config.update_date = datetime.now(timezone.utc).isoformat()
     flag_modified(org_config, "config")
     db_session.add(org_config)
+
+
+def update_org_access(
+    db_session: Session, org_id: int, payload: OrgAccessUpdateRequest
+) -> dict:
+    """Set an org's tier, partner programs and grants directly."""
+    org_config = _get_single_org_config(org_id, db_session)
+    config = dict(org_config.config or {})
+    if payload.tier is not None:
+        config["tier"] = payload.tier
+    if payload.partners is not None:
+        unknown = set(payload.partners) - set(PARTNER_PROGRAMS)
+        if unknown:
+            raise HTTPException(status_code=422, detail=f"Unknown partner program: {', '.join(sorted(unknown))}")
+        config["partners"] = sorted(set(payload.partners))
+    if payload.grants is not None:
+        config["grants"] = _clean_grants(payload.grants)
+    _save_config(org_config, config, db_session)
     db_session.commit()
-    _verify_persisted_org_plan(org_config, payload.plan, db_session)
+    if payload.tier is not None:
+        _verify_persisted_org_tier(org_config, payload.tier, db_session)
     return {"success": True}
 
 
@@ -400,35 +423,6 @@ def update_org_config(
     org_config.update_date = datetime.now().isoformat()
     flag_modified(org_config, "config")
     db_session.add(org_config)
-    db_session.commit()
-    return {"success": True}
-
-
-def update_org_packages(
-    db_session: Session, org_id: int, payload: OrgPackagesUpdateRequest
-) -> dict:
-    org_config = _get_single_org_config(org_id, db_session)
-    config = dict(org_config.config or {})
-    current_packages = set(config.get("packages") or [])
-    for package_id in set(payload.packages) - current_packages:
-        package = AVAILABLE_PACKAGES.get(package_id)
-        if not package:
-            raise HTTPException(status_code=422, detail=f"Unknown package: {package_id}")
-        current_plan = _org_plan(org_config)
-        if not plan_meets_requirement(current_plan, package["min_plan"]):
-            raise HTTPException(
-                status_code=409,
-                detail=f"{package['label']} requires the {package['min_plan']} plan or higher. Approve the plan upgrade first.",
-            )
-    config["packages"] = payload.packages
-    org_config.config = config
-    org_config.update_date = datetime.now(timezone.utc).isoformat()
-    flag_modified(org_config, "config")
-    db_session.add(org_config)
-    if "badge_issuing" in payload.packages:
-        from src.services.learning_marketplace import transition_queued_authorizations
-
-        transition_queued_authorizations(db_session, org_id)
     db_session.commit()
     return {"success": True}
 
@@ -502,7 +496,7 @@ def list_org_plan_requests(db_session: Session, org_id: int) -> list[PlanRequest
 def update_plan_request(
     db_session: Session, request_uuid: str, body: PlanRequestUpdate
 ) -> PlanRequest:
-    """Approve or deny a plan/package request. Approval applies the change immediately."""
+    """Approve or deny a request. Approval applies the tier, partner program or feature immediately."""
     req = db_session.exec(
         select(PlanRequest).where(PlanRequest.request_uuid == request_uuid)
     ).first()
@@ -510,54 +504,26 @@ def update_plan_request(
         raise HTTPException(status_code=404, detail="Plan request not found")
 
     org_config = None
-    if body.status == "approved":
+    if body.status == "approved" and req.status != "approved":
         org_config = _get_single_org_config(req.org_id, db_session)
         config = dict(org_config.config or {})
-        if req.request_type == "package_add":
-            package = AVAILABLE_PACKAGES.get(req.requested_value)
-            if not package:
-                raise HTTPException(status_code=422, detail=f"Unknown package: {req.requested_value}")
-            current_plan = _org_plan(org_config)
-            if not plan_meets_requirement(current_plan, package["min_plan"]):
-                raise HTTPException(
-                    status_code=409,
-                    detail=f"{package['label']} requires the {package['min_plan']} plan or higher. Approve the plan upgrade first.",
-                )
-        if req.request_type == "plan_upgrade":
-            if str(config.get("config_version", "1.0")).startswith("2"):
-                config["plan"] = req.requested_value
-            else:
-                config.setdefault("cloud", {})
-                config["cloud"]["plan"] = req.requested_value
-        elif req.request_type == "package_add":
-            packages = list(config.get("packages") or [])
-            if req.requested_value not in packages:
-                packages.append(req.requested_value)
-            config["packages"] = packages
-        org_config.config = config
-        org_config.update_date = datetime.now(timezone.utc).isoformat()
-        flag_modified(org_config, "config")
-        db_session.add(org_config)
+        if req.request_type == "tier_upgrade":
+            config["tier"] = req.requested_value
+        elif req.request_type == "partner_application":
+            config["partners"] = sorted(set(config.get("partners") or []) | {req.requested_value})
+        elif req.request_type == "feature_request":
+            config["grants"] = {**(config.get("grants") or {}), req.requested_value: {"enabled": True}}
+        else:
+            raise HTTPException(status_code=422, detail=f"Unknown request type: {req.request_type}")
+        _save_config(org_config, config, db_session)
 
     req.status = body.status
     if body.message is not None:
         req.message = body.message
     req.update_date = datetime.now(timezone.utc).isoformat()
     db_session.add(req)
-    if body.status in ("approved", "denied"):
-        from src.services.learning_marketplace import transition_queued_authorizations
-
-        transition_queued_authorizations(
-            db_session,
-            req.org_id,
-            package_denied=(
-                body.status == "denied"
-                and req.request_type == "package_add"
-                and req.requested_value == "badge_issuing"
-            ),
-        )
     db_session.commit()
-    if body.status == "approved" and req.request_type == "plan_upgrade" and org_config:
-        _verify_persisted_org_plan(org_config, req.requested_value, db_session)
+    if org_config and req.request_type == "tier_upgrade":
+        _verify_persisted_org_tier(org_config, req.requested_value, db_session)
     db_session.refresh(req)
     return req

@@ -3,7 +3,6 @@ from uuid import uuid4
 
 from fastapi import HTTPException, Request, UploadFile, status
 from sqlmodel import Session, and_, func, or_, select
-from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
 from src.db.podcasts.episodes import PodcastEpisode
 from src.db.podcasts.podcasts import (
@@ -24,12 +23,7 @@ from src.db.user_organizations import UserOrganization
 from src.db.usergroup_resources import UserGroupResource
 from src.db.usergroup_user import UserGroupUser
 from src.db.users import AnonymousUser, APITokenUser, PublicUser, User, UserRead
-from src.security.features_utils.usage import (
-    check_feature_access,
-    check_limits_with_usage,
-    decrease_feature_usage,
-    increase_feature_usage,
-)
+from src.security.access.access import ensure_feature, org_access
 from src.security.rbac import (
     AccessAction,
     check_resource_access,
@@ -43,17 +37,8 @@ from src.services.podcasts.thumbnails import upload_podcast_thumbnail
 
 
 def _is_podcasts_feature_enabled(org_id: int, db_session: Session) -> bool:
-    """Check if podcasts feature is enabled for the organization."""
-    from src.security.features_utils.resolve import resolve_feature
-
-    statement = select(OrganizationConfig).where(OrganizationConfig.org_id == org_id)
-    org_config = db_session.exec(statement).first()
-
-    if org_config is None:
-        return False
-
-    resolved = resolve_feature("podcasts", org_config.config or {}, org_id)
-    return resolved["enabled"]
+    """Podcasts are legacy and off for every organization."""
+    return org_access(org_id, db_session).has("podcasts")
 
 
 async def _user_can_view_unpublished_podcast(
@@ -465,11 +450,7 @@ async def create_podcast(
     # SECURITY: Check if user has permission to create podcasts
     await check_resource_access(request, db_session, current_user, "podcast_x", AccessAction.CREATE)
 
-    # Check plan access (podcasts require standard+ plan)
-    check_feature_access("podcasts", org_id, db_session)
-
-    # Usage check (also checks if feature is enabled)
-    check_limits_with_usage("podcasts", org_id, db_session)
+    ensure_feature(org_id, "podcasts", db_session)
 
     # Complete podcast object
     podcast.org_id = org_id
@@ -538,7 +519,6 @@ async def create_podcast(
     ]
 
     # Feature usage
-    increase_feature_usage("podcasts", podcast.org_id, db_session)
 
     podcast_data = {key: getattr(podcast, key) for key in podcast.model_fields}
     return PodcastRead.model_validate({**podcast_data, "authors": authors})
@@ -724,7 +704,6 @@ async def delete_podcast(
     await check_resource_access(request, db_session, current_user, podcast.podcast_uuid, AccessAction.DELETE)
 
     # Feature usage
-    decrease_feature_usage("podcasts", podcast.org_id, db_session)
 
     # Clean up content files from storage
     from src.db.organizations import Organization

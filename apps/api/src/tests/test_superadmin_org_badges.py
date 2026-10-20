@@ -36,7 +36,7 @@ def _create_org(session: Session, *, org_id: int, slug: str) -> Organization:
     session.add(
         OrganizationConfig(
             org_id=org_id,
-            config={"config_version": "2.0", "plan": "free"},
+            config={"config_version": "3.0", "tier": "free"},
             creation_date="2026-01-01T00:00:00+00:00",
             update_date="2026-01-01T00:00:00+00:00",
         )

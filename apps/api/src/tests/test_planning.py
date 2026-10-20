@@ -520,8 +520,8 @@ def test_subject_can_request_but_not_directly_invite_a_collaborator():
 def test_group_plan_entitlement_applies_to_planning_and_legacy_adapters():
     with _session() as db:
         db.add_all([
-            OrganizationConfig(id=1, org_id=10, config={"config_version": "2.0", "plan": "free"}, creation_date=NOW, update_date=NOW),
-            OrganizationConfig(id=2, org_id=20, config={"config_version": "2.0", "plan": "full"}, creation_date=NOW, update_date=NOW),
+            OrganizationConfig(id=1, org_id=10, config={"config_version": "3.0", "tier": "free"}, creation_date=NOW, update_date=NOW),
+            OrganizationConfig(id=2, org_id=20, config={"config_version": "3.0", "tier": "full"}, creation_date=NOW, update_date=NOW),
         ])
         db.commit()
         for require in (require_planning_managed,):
@@ -547,7 +547,7 @@ def test_free_org_can_create_templates(monkeypatch):
 
 def test_free_org_can_assign_individuals_but_not_groups(monkeypatch):
     with _session() as db:
-        db.add(OrganizationConfig(id=1, org_id=10, config={"config_version": "2.0", "plan": "free"}, creation_date=NOW, update_date=NOW))
+        db.add(OrganizationConfig(id=1, org_id=10, config={"config_version": "3.0", "tier": "free"}, creation_date=NOW, update_date=NOW))
         db.commit()
         calls = []
 
@@ -573,7 +573,7 @@ def test_free_org_can_assign_individuals_but_not_groups(monkeypatch):
 
 def test_free_org_can_manage_direct_assignments_but_not_group_assignments():
     with _session() as db:
-        db.add(OrganizationConfig(id=1, org_id=10, config={"config_version": "2.0", "plan": "free"}, creation_date=NOW, update_date=NOW))
+        db.add(OrganizationConfig(id=1, org_id=10, config={"config_version": "3.0", "tier": "free"}, creation_date=NOW, update_date=NOW))
         program = Program(program_uuid="program_access", slug="program-access", org_id=10, name="Access test", creation_date=NOW, update_date=NOW)
         db.add(program)
         db.flush()

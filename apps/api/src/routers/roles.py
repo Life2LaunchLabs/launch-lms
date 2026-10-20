@@ -5,7 +5,7 @@ from src.core.events.database import get_db_session
 from src.db.roles import RoleCreate, RoleRead, RoleUpdate
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
-from src.security.features_utils.plan_check import require_plan
+from src.security.access.access import require_feature
 from src.services.roles.roles import (
     create_role,
     delete_role,
@@ -17,7 +17,7 @@ from src.services.roles.roles import (
 router = APIRouter()
 
 
-@router.post("/org/{org_id}", dependencies=[Depends(require_plan("pro", "Create Role"))])
+@router.post("/org/{org_id}", dependencies=[Depends(require_feature("custom_roles"))])
 async def api_create_role(
     request: Request,
     org_id: int,

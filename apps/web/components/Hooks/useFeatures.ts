@@ -2,15 +2,13 @@
 import { useMemo } from 'react'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { usePlan } from '@components/Hooks/usePlan'
-import { isFeatureAvailable, planMeetsRequirement, type PlanLevel } from '@services/plans/plans'
+import { NO_ACCESS, type OrgAccess } from '@services/plans/plans'
 import {
   adminVisibility,
   featureUnlock,
   visibleAdminTabs,
   type AdminAccess,
   type AdminRequirement,
-  type ResolvedFeature,
 } from '@/lib/admin/registry'
 
 type RoleRights = Record<string, Record<string, boolean | undefined> | undefined>
@@ -32,42 +30,39 @@ function mergeRights(roles: unknown, orgId?: number): RoleRights {
 }
 
 /**
- * The one place the web reads what the current org and viewer may use: the org's resolved
- * features (`org.config.config.resolved_features[f].enabled`, which already folds in plan,
- * overrides, packages and admin toggles), its plan and packages, and the viewer's role rights.
+ * The one place the web reads what the current org and viewer may use: the org's access
+ * (`org.config.config.access`, worked out by the API from its tier, partner programs and grants)
+ * and the viewer's role rights.
  */
 export function useFeatures() {
   const org = useOrg() as any
   const session = useLHSession() as any
-  const plan = usePlan()
   const roles = session?.data?.roles
   const isSuperadmin = session?.data?.user?.is_superadmin === true
-  const config = org?.config?.config
+  const orgAccess: OrgAccess = org?.config?.config?.access || NO_ACCESS
 
   return useMemo(() => {
-    const resolved: Record<string, ResolvedFeature> = config?.resolved_features || {}
-    const packages: string[] = config?.packages || []
     const rights = mergeRights(roles, org?.id)
-    const planAtLeast = (required: PlanLevel) => planMeetsRequirement(plan, required)
-    const has = (feature: string) => isFeatureAvailable(feature) && resolved[feature]?.enabled === true
+    const has = (feature: string) => orgAccess.features[feature]?.enabled === true
     const can = (right: string) => {
       if (isSuperadmin) return true
       const [resource, action] = right.split('.')
       return rights[resource]?.[action] === true
     }
-    const unlockFor = (feature: string) => isFeatureAvailable(feature) ? featureUnlock(feature, resolved[feature], packages, planAtLeast) : null
-    const access: AdminAccess = { planAtLeast, can, has, unlockFor }
+    const unlockFor = (feature: string) => featureUnlock(orgAccess.features[feature])
+    const access: AdminAccess = { can, has, unlockFor }
     return {
       ...access,
-      plan,
-      resolved,
-      packages,
+      tier: orgAccess.tier,
+      access: orgAccess,
+      /** A counted limit (learners, staff_seats, ...); 0 means unlimited. */
+      limit: (name: string) => orgAccess.limits[name] ?? 0,
       rights,
       isSuperadmin,
       visibility: (requires: AdminRequirement) => adminVisibility(requires, access),
       adminTabs: () => visibleAdminTabs(access),
     }
-  }, [config, roles, org?.id, plan, isSuperadmin])
+  }, [orgAccess, roles, org?.id, isSuperadmin])
 }
 
 export type Features = ReturnType<typeof useFeatures>

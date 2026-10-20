@@ -17,8 +17,8 @@ from src.db.users import AnonymousUser, PublicUser
 from src.services.learning import lookups
 
 FEATURED_COUNT = 5
-# The feature an owner organization needs (the Badge Publishing package, approved per organization) for Discover to list its badges.
-PUBLISHING = "marketplace_publishing"
+# The feature an owner organization needs (the verified badge publisher program) for Discover to list its badges.
+PUBLISHING = "badge_publishing"
 
 
 def _user_id(current_user: PublicUser | AnonymousUser | None) -> int | None:
@@ -42,13 +42,11 @@ def _publishers(db: Session, org_ids: set[int]) -> set[int]:
     """The organizations approved to publish badges beyond their own learners."""
     from sqlalchemy import inspect
 
-    from src.db.organization_config import OrganizationConfig
-    from src.security.features_utils.resolve import resolve_feature
+    from src.security.access.access import orgs_with_feature
 
     if not org_ids or not inspect(db.connection()).has_table("organizationconfig"):
         return set()
-    configs = {row.org_id: row.config or {} for row in db.exec(select(OrganizationConfig).where(col(OrganizationConfig.org_id).in_(org_ids))).all()}
-    return {org_id for org_id in org_ids if resolve_feature(PUBLISHING, configs.get(org_id, {}), org_id).get("enabled")}
+    return orgs_with_feature(org_ids, PUBLISHING, db)
 
 
 def _offered_to(db: Session, org_ids: set[int]) -> set[int]:

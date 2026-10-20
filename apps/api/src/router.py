@@ -66,7 +66,7 @@ from src.routers.boards import boards as boards_router_module
 from src.routers.boards import boards_playground
 from src.routers.communities import communities as communities_router_module
 from src.routers.communities import discussions as discussions_router_module
-from src.routers.orgs import ai_credits, custom_domains, packs
+from src.routers.orgs import custom_domains
 from src.routers.plan_requests import router as plan_requests_router
 from src.routers.playgrounds import playgrounds as playgrounds_router_module
 from src.routers.playgrounds import (
@@ -80,14 +80,7 @@ from src.routers.coach_reports import router as coach_reports_router
 from src.routers.utils import router as utils_router
 from src.security.api_token_utils import require_non_api_token_user
 from src.security.auth import get_current_user
-from src.security.features_utils.plan_check import (
-    require_plan,
-    require_plan_for_boards,
-    require_plan_for_community,
-    require_plan_for_playgrounds,
-    require_plan_for_resources,
-    require_plan_for_usergroups,
-)
+from src.security.access.access import require_feature
 from src.services.dev.dev import isDevModeEnabledOrRaise
 
 v1_router = APIRouter(prefix="/api/v1")
@@ -110,7 +103,7 @@ v1_router.include_router(
     usergroups.router,
     prefix="/usergroups",
     tags=["usergroups"],
-    dependencies=[Depends(require_plan_for_usergroups("full", "User Groups"))]
+    dependencies=[Depends(require_feature("groups"))]
 )
 # Fixed paths under /goals (home, invitations) register before /goals/{goal_uuid}.
 for module in (goal_home, goal_sharing, goal_coach_notes, goal_launch, goal_story):
@@ -228,12 +221,6 @@ v1_router.include_router(
     dependencies=[Depends(get_non_api_token_user)]
 )
 v1_router.include_router(
-    ai_credits.router,
-    prefix="/orgs",
-    tags=["ai-credits"],
-    dependencies=[Depends(get_non_api_token_user)]
-)
-v1_router.include_router(
     roles.router,
     prefix="/roles",
     tags=["roles"],
@@ -243,13 +230,13 @@ v1_router.include_router(
     api_tokens.router,
     prefix="/orgs",
     tags=["api-tokens"],
-    dependencies=[Depends(get_non_api_token_user), Depends(require_plan("full", "API Access"))]
+    dependencies=[Depends(get_non_api_token_user), Depends(require_feature("api_tokens"))]
 )
 v1_router.include_router(
     custom_domains.router,
     prefix="/orgs",
     tags=["custom-domains"],
-    dependencies=[Depends(get_non_api_token_user), Depends(require_plan("enterprise", "Custom Domains"))]
+    dependencies=[Depends(get_non_api_token_user), Depends(require_feature("custom_domains"))]
 )
 # Public domain resolution endpoint (no auth required)
 v1_router.include_router(
@@ -262,19 +249,6 @@ v1_router.include_router(
     custom_domains.internal_router,
     prefix="/internal",
     tags=["custom-domains-internal"],
-)
-# Internal packs endpoint (protected by platform key)
-v1_router.include_router(
-    packs.internal_router,
-    prefix="/internal/packs",
-    tags=["packs-internal"],
-)
-# Org-facing packs endpoint (user auth, admin only)
-v1_router.include_router(
-    packs.router,
-    prefix="/orgs",
-    tags=["packs"],
-    dependencies=[Depends(get_non_api_token_user)],
 )
 v1_router.include_router(search.router, prefix="/search", tags=["search"])
 v1_router.include_router(badge_discover_router_module.router, prefix="/badges", tags=["learning-badges"])
@@ -298,13 +272,12 @@ v1_router.include_router(
     communities_router_module.router,
     prefix="/communities",
     tags=["communities"],
-    dependencies=[Depends(require_plan_for_community("full", "Communities"))]
+    dependencies=[Depends(require_feature("communities"))]
 )
 v1_router.include_router(
     resources_router_module.router,
     prefix="/resources",
     tags=["resources"],
-    dependencies=[Depends(require_plan_for_resources("full", "Resources"))]
 )
 v1_router.include_router(
     media.router,
@@ -355,23 +328,25 @@ v1_router.include_router(
 v1_router.include_router(
     discussions_router_module.router,
     tags=["discussions"],
-    dependencies=[Depends(require_plan_for_community("full", "Communities"))]
+    dependencies=[Depends(require_feature("communities"))]
 )
 v1_router.include_router(
     podcasts_router_module.router,
     prefix="/podcasts",
-    tags=["podcasts"]
+    tags=["podcasts"],
+    dependencies=[Depends(require_feature("podcasts"))],
 )
 v1_router.include_router(
     episodes_router_module.router,
     prefix="/podcasts",
-    tags=["podcasts", "episodes"]
+    tags=["podcasts", "episodes"],
+    dependencies=[Depends(require_feature("podcasts"))],
 )
 v1_router.include_router(
     boards_router_module.router,
     prefix="/boards",
     tags=["boards"],
-    dependencies=[Depends(get_non_api_token_user), Depends(require_plan_for_boards("enterprise", "Boards"))]
+    dependencies=[Depends(get_non_api_token_user), Depends(require_feature("boards"))]
 )
 v1_router.include_router(
     boards_router_module.internal_router,
@@ -382,19 +357,19 @@ v1_router.include_router(
     boards_playground.router,
     prefix="/boards",
     tags=["boards", "boards-playground"],
-    dependencies=[Depends(get_non_api_token_user), Depends(require_plan_for_boards("enterprise", "Boards"))]
+    dependencies=[Depends(get_non_api_token_user), Depends(require_feature("boards"))]
 )
 v1_router.include_router(
     playgrounds_router_module.router,
     prefix="/playgrounds",
     tags=["playgrounds"],
-    dependencies=[Depends(get_non_api_token_user), Depends(require_plan_for_playgrounds("enterprise", "Playgrounds"))]
+    dependencies=[Depends(get_non_api_token_user), Depends(require_feature("playgrounds"))]
 )
 v1_router.include_router(
     playgrounds_generator_router.router,
     prefix="/playgrounds",
     tags=["playgrounds", "playgrounds-generator"],
-    dependencies=[Depends(get_non_api_token_user), Depends(require_plan_for_playgrounds("enterprise", "Playgrounds"))]
+    dependencies=[Depends(get_non_api_token_user), Depends(require_feature("playgrounds"))]
 )
 
 v1_router.include_router(
@@ -417,14 +392,14 @@ v1_router.include_router(trending_router_module.router, tags=["trending"])
 # Instance info (public, no auth)
 v1_router.include_router(instance.router, prefix="/instance", tags=["instance"])
 
-# Plan limits (public, no auth — used by frontend pricing pages)
+# Tiers and partner programs (public, no auth)
 v1_router.include_router(plans.router, prefix="/plans", tags=["plans"])
 
 v1_router.include_router(
     audit_logs_router,
     prefix="/audit_logs",
     tags=["audit-logs"],
-    dependencies=[Depends(get_non_api_token_user)],
+    dependencies=[Depends(get_non_api_token_user), Depends(require_feature("audit_logs"))],
 )
 
 v1_router.include_router(
@@ -481,7 +456,7 @@ v1_router.include_router(
     payments_router_module.router,
     prefix="/payments",
     tags=["payments"],
-    dependencies=[Depends(require_plan("full", "payments"))],
+    dependencies=[Depends(require_feature("payments"))],
 )
 
 # SSO - admin endpoints require authentication, auth endpoints are public

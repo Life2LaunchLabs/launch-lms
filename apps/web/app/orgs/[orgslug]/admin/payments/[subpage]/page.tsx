@@ -10,7 +10,7 @@ import PaymentsConfigurationPage from '@components/Dashboard/Pages/Payments/Paym
 import PaymentsCustomersPage from '@components/Dashboard/Pages/Payments/PaymentsCustomersPage'
 import PaymentsOffersPage from '@components/Dashboard/Pages/Payments/PaymentsOffersPage'
 import PaymentsGroupsPage from '@components/Dashboard/Pages/Payments/PaymentsGroupsPage'
-import PlanRestrictedFeature from '@components/Dashboard/Shared/PlanRestricted/PlanRestrictedFeature'
+import FeatureGate from '@components/Dashboard/Shared/FeatureGate/FeatureGate'
 import FeatureDisabledView from '@components/Dashboard/Shared/FeatureDisabled/FeatureDisabledView'
 import { BadgeDollarSign } from 'lucide-react'
 import { useFeatures } from '@components/Hooks/useFeatures'
@@ -24,7 +24,6 @@ function PaymentsPage(props: { params: Promise<PaymentsParams> }) {
   const params = use(props.params);
   const subpage = params.subpage || 'overview'
   const features = useFeatures()
-  const currentPlan = features.plan
 
   const getPageTitle = () => {
     switch (subpage) {
@@ -59,16 +58,8 @@ function PaymentsPage(props: { params: Promise<PaymentsParams> }) {
   const { h1, h2 } = getPageTitle()
   const paymentsEnabled = features.has('payments')
 
-  // Plan-based restriction (standard required)
   return (
-    <PlanRestrictedFeature
-      currentPlan={currentPlan}
-      requiredPlan="full"
-      icon={BadgeDollarSign}
-      titleKey="common.plans.feature_restricted.payments.title"
-      descriptionKey="common.plans.feature_restricted.payments.description"
-      fullScreen
-    >
+    <FeatureGate feature="payments" icon={BadgeDollarSign} description="Sell offers and take payments through Stripe." fullScreen>
     <FeatureDisabledView featureName="payments" orgslug={params.orgslug} context="dashboard">
     <div className="h-screen w-full bg-[#f8f8f8] flex flex-col">
       <div className="pl-10 pr-10 tracking-tight bg-[#fcfbfc] z-10 nice-shadow flex-shrink-0 relative">
@@ -152,7 +143,7 @@ function PaymentsPage(props: { params: Promise<PaymentsParams> }) {
       </motion.div>
     </div>
     </FeatureDisabledView>
-    </PlanRestrictedFeature>
+    </FeatureGate>
   )
 }
 

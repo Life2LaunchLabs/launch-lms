@@ -13,7 +13,7 @@ from fastapi import HTTPException
 from sqlmodel import Session, select
 from src.db.organization_config import (
     OrganizationConfig,
-    OrganizationConfigV2Base,
+    OrganizationConfigDocument,
 )
 from src.db.organizations import Organization, OrganizationCreate
 from src.db.roles import (
@@ -697,12 +697,7 @@ def install_create_organization(org_object: OrganizationCreate, db_session: Sess
     db_session.commit()
     db_session.refresh(org)
 
-    # Org Config (v2 format)
-    org_plan = "master" if is_first_org else "free"
-    org_config = OrganizationConfigV2Base(
-        config_version="2.0",
-        plan=org_plan,
-    )
+    org_config = OrganizationConfigDocument(tier="enterprise" if is_first_org else "free")
 
     org_config = json.loads(org_config.model_dump_json())
 

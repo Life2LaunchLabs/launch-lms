@@ -9,6 +9,7 @@ from fastapi import HTTPException, Request
 
 from src.db.resources import ResourceAccessModeEnum, ResourceTypeEnum
 from src.services import hub_advisor
+from src.security.access.access import access_from_config
 from src.services import hub_actions
 from src.services import hub_questions
 from src.routers import hub as hub_router
@@ -371,7 +372,7 @@ async def test_advisor_requires_membership_and_applies_user_rate_limit(monkeypat
     membership = []
     monkeypatch.setattr(hub_advisor, "require_org_membership", lambda user_id, org_id, _db: membership.append((user_id, org_id)))
     monkeypatch.setattr(hub_advisor, "check_rate_limit", lambda *args: (True, 1, 60))
-    monkeypatch.setattr(hub_actions, "_org_config", lambda *_args: {})
+    monkeypatch.setattr(hub_actions, "org_access", lambda *_args: access_from_config({}))
     monkeypatch.setattr(hub_questions, "question_context", lambda *_args: "")
     request = Request({"type": "http", "headers": [], "client": ("127.0.0.1", 1234)})
 

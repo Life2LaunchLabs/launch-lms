@@ -126,7 +126,9 @@ def test_a_students_page_shows_their_team_chat_and_staff_only_notes():
         assert views.delete_note(db, _user(ADMIN), 1, LEARNER, notes[0]["note_uuid"]) == []
 
 
-def test_what_waits_on_staff_is_the_top_of_their_people_feed():
+def test_what_waits_on_staff_is_the_top_of_their_people_feed(monkeypatch):
+    # A free org that isn't the owner org, so groups (and their chats) are off.
+    monkeypatch.setattr("src.security.access.access.owner_org_id", lambda *_args: None)
     with _session() as db:
         _assign(db)
         _staff(db, role_key="commenter")

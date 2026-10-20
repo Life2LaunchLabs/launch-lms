@@ -9,10 +9,6 @@ from src.db.organizations import Organization
 from src.db.playgrounds import Playground
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
-from src.security.features_utils.dependencies import require_playgrounds_feature
-from src.security.features_utils.plan_check import get_org_plan
-from src.security.features_utils.plans import plan_meets_requirement
-from src.security.features_utils.usage import check_ai_credits, deduct_ai_credit
 from src.services.playgrounds.playgrounds_generator import (
     MAX_ITERATIONS,
     create_playground_session,
@@ -26,7 +22,7 @@ from src.services.playgrounds.schemas.playgrounds_generator import (
     StartPlaygroundSession,
 )
 
-router = APIRouter(dependencies=[Depends(require_playgrounds_feature)])
+router = APIRouter()
 
 
 async def event_generator(generator, session_uuid: str):
@@ -41,13 +37,8 @@ async def event_generator(generator, session_uuid: str):
 
 
 def get_org_ai_model(org_id: int, db_session: Session) -> str:
-    try:
-        current_plan = get_org_plan(org_id, db_session)
-        if plan_meets_requirement(current_plan, "pro"):
-            return "gemini-3-flash-preview"
-        return "gemini-2.5-flash-lite"
-    except Exception:
-        return "gemini-2.5-flash-lite"
+    # Legacy feature, off for every organization (see the access catalog).
+    return "gemini-2.5-flash-lite"
 
 
 @router.post("/generate/start")
@@ -81,8 +72,6 @@ async def start_playground_session(
     if not can_edit:
         raise HTTPException(status_code=403, detail="Insufficient permissions to generate content")
 
-    check_ai_credits(org.id, db_session)
-    deduct_ai_credit(org.id, db_session, amount=3)
 
     ai_model = get_org_ai_model(org.id, db_session)
 
@@ -154,8 +143,6 @@ async def iterate_playground_session(
     if not can_edit:
         raise HTTPException(status_code=403, detail="Insufficient permissions")
 
-    check_ai_credits(org.id, db_session)
-    deduct_ai_credit(org.id, db_session, amount=3)
 
     ai_model = get_org_ai_model(org.id, db_session)
 

@@ -8,6 +8,7 @@ import { swrFetcher } from '@services/utils/ts/requests'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { updatePlanRequest } from '@services/platform/platform'
+import { REQUEST_KINDS, accessRequestLabel } from '@services/plans/plans'
 import {
   EmptyState,
   FilterSelect,
@@ -113,9 +114,9 @@ export default function RequestsQueue() {
                       </Link>
                     </td>
                     <td className="px-4 py-3 text-gray-600">
-                      {req.request_type === 'plan_upgrade' ? 'Plan upgrade' : 'Package'}
+                      {REQUEST_KINDS[req.request_type] ?? req.request_type}
                     </td>
-                    <td className="px-4 py-3 font-medium text-gray-900">{req.requested_value}</td>
+                    <td className="px-4 py-3 font-medium text-gray-900">{accessRequestLabel({ type: req.request_type, value: req.requested_value })}</td>
                     <td className="px-4 py-3 text-gray-400 text-xs max-w-[220px] truncate">
                       {req.message || '—'}
                     </td>

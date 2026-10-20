@@ -7,7 +7,7 @@ import { useFeatures } from '@components/Hooks/useFeatures'
 import { adminLabel, adminTab, type AdminTabId } from '@/lib/admin/registry'
 import { useTranslation } from 'react-i18next'
 
-/** A registry tab's page: its header, then its content, or the request to unlock it when the org's plan or packages lack it. */
+/** A registry tab's page: its header, then its content, or the request to unlock it when the org's access lacks it. */
 export default function AdminTabPage({ tab, tabs = [], activeTab, actions, variant, children }: {
   tab: AdminTabId
   tabs?: AdminFeatureTab[]

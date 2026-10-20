@@ -261,8 +261,5 @@ def home(db: Session, current_user: PublicUser, org_id: int) -> dict:
     if "messages" in shown:
         result["messages"] = messages(db, current_user, org_id)
     if "creator" in shown:
-        if admin_home_creator.unlocked(db, org_id):
-            result["creator"] = admin_home_creator.metrics(db, org_id)
-        else:
-            result["locked"].append("creator")
+        result["creator"] = admin_home_creator.metrics(db, org_id)
     return result

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import type { PlanLevel } from '../../services/plans/plans.ts'
+import type { FeatureAccess } from '../../services/plans/plans.ts'
 import {
   ADMIN_HOME_WIDGETS,
   adminLabel,
@@ -9,36 +9,32 @@ import {
   featureUnlock,
   visibleAdminTabs,
   type AdminAccess,
-  type ResolvedFeature,
 } from './registry.ts'
 
-const ORDER: PlanLevel[] = ['free', 'full', 'enterprise']
+const on: FeatureAccess = { enabled: true, unlock: null }
+const tier = (value: string): FeatureAccess => ({ enabled: false, unlock: { type: 'tier_upgrade', value } })
+const partner = (value: string): FeatureAccess => ({ enabled: false, unlock: { type: 'partner_application', value } })
 
-function access({ plan = 'full', rights = [], features = {}, packages = [], superadmin = false }: {
-  plan?: PlanLevel
+// Legacy features never reach the web, so a missing feature is one nobody can turn on.
+function access({ rights = [], features = {}, superadmin = false }: {
   rights?: string[]
-  features?: Record<string, ResolvedFeature>
-  packages?: string[]
+  features?: Record<string, FeatureAccess>
   superadmin?: boolean
 }): AdminAccess {
-  const planAtLeast = (required: PlanLevel) => plan === 'master' || ORDER.indexOf(plan) >= ORDER.indexOf(required)
   return {
-    planAtLeast,
     can: (right) => superadmin || rights.includes(right),
     has: (feature) => features[feature]?.enabled === true,
-    unlockFor: (feature) => featureUnlock(feature, features[feature], packages, planAtLeast),
+    unlockFor: (feature) => featureUnlock(features[feature]),
   }
 }
 
 const STAFF = 'dashboard.action_access'
 const ADMIN_RIGHTS = [STAFF, 'learning_activities.action_update', 'badges.action_update', 'users.action_read', 'organizations.action_read']
-const FULL_FEATURES: Record<string, ResolvedFeature> = {
-  managed_plans: { enabled: true },
-  resources: { enabled: true },
-  podcasts: { enabled: false },
-  playgrounds: { enabled: false, required_plan: 'enterprise' },
-  sso: { enabled: false, required_plan: 'enterprise' },
-  payments: { enabled: false },
+const FULL_FEATURES: Record<string, FeatureAccess> = {
+  groups: on,
+  resource_publishing: partner('resource_partner'),
+  sso: tier('enterprise'),
+  payments: { enabled: false, unlock: { type: 'feature_request', value: 'payments' } },
 }
 const ids = (items: { id: string }[]) => items.map((item) => item.id)
 
@@ -53,50 +49,42 @@ test('a teacher (staff without admin rights) gets Home, Plans (all five tabs) an
   assert.deepEqual(ids(ADMIN_HOME_WIDGETS.filter((widget) => adminVisibility(widget.requires, access({ rights: [STAFF] })).state !== 'hidden')), ['waiting', 'today', 'messages', 'attention'])
 })
 
-test('an admin gets every tab in job order, with each tab opening its first available page', () => {
+test('an admin gets every tab in job order; legacy content is hidden and gated pages show what to request', () => {
   const tabs = visibleAdminTabs(access({ rights: ADMIN_RIGHTS, features: FULL_FEATURES }))
   assert.deepEqual(ids(tabs), ['home', 'plans', 'people', 'insights', 'content', 'organization'])
   const content = tabs.find((tab) => tab.id === 'content')!
-  // Podcasts are off with nothing to request; playgrounds need a plan the org can ask for.
-  assert.deepEqual(ids(content.children!), ['resources', 'playgrounds'])
-  assert.equal(content.href, '/admin/resources')
-  assert.deepEqual(content.children![1].visibility, { state: 'locked', request: { type: 'plan_upgrade', value: 'enterprise' } })
+  // Podcasts and playgrounds are legacy: nothing to request, so they are hidden.
+  assert.deepEqual(ids(content.children!), ['resources'])
+  assert.deepEqual(content.visibility, { state: 'locked', request: { type: 'partner_application', value: 'resource_partner' } })
   const organization = tabs.find((tab) => tab.id === 'organization')!
-  assert.deepEqual(ids(organization.children!), ['general', 'branding', 'messaging', 'sso', 'plan'])
+  assert.deepEqual(ids(organization.children!), ['general', 'branding', 'messaging', 'sso', 'plan', 'payments'])
+  assert.deepEqual(organization.children!.find((child) => child.id === 'sso')!.visibility, { state: 'locked', request: { type: 'tier_upgrade', value: 'enterprise' } })
+  assert.deepEqual(organization.children!.find((child) => child.id === 'payments')!.visibility, { state: 'locked', request: { type: 'feature_request', value: 'payments' } })
 })
 
-test('a free org gets every job tab open; plan-gated pages show locked with the plan to request', () => {
-  const free = access({ plan: 'free', superadmin: true, features: { managed_plans: { enabled: false, required_plan: 'full' }, sso: { enabled: false, required_plan: 'enterprise' } } })
-  const tabs = visibleAdminTabs(free)
+test('a free org gets every job tab open', () => {
+  const tabs = visibleAdminTabs(access({ superadmin: true, features: { groups: tier('full'), sso: tier('enterprise') } }))
   for (const id of ['home', 'plans', 'people', 'insights']) {
     assert.equal(tabs.find((tab) => tab.id === id)!.visibility.state, 'open', id)
   }
-  const sso = tabs.find((tab) => tab.id === 'organization')!.children!.find((child) => child.id === 'sso')!
-  assert.deepEqual(sso.visibility, { state: 'locked', request: { type: 'plan_upgrade', value: 'enterprise' } })
 })
 
 test('labels translate through their existing keys and fall back to English', () => {
   const t = (key: string, { defaultValue }: { defaultValue: string }) => (key === 'dashboard.organization.settings.tabs.general' ? 'Allgemein' : defaultValue)
-  const organization = visibleAdminTabs(access({ rights: ADMIN_RIGHTS, features: FULL_FEATURES })).find((tab) => tab.id === 'organization')!
-  assert.deepEqual(organization.children!.map((child) => adminLabel(t, child)), ['Allgemein', 'Branding', 'Messaging', 'Single Sign-On', 'Plan & Packages'])
+  const organization = visibleAdminTabs(access({ rights: ADMIN_RIGHTS, features: { ...FULL_FEATURES, payments: on } })).find((tab) => tab.id === 'organization')!
+  assert.deepEqual(organization.children!.map((child) => adminLabel(t, child)), ['Allgemein', 'Branding', 'Messaging', 'Single Sign-On', 'Plan & access', 'Payments'])
 })
 
-test('package features ask for their package, and a feature switched off is hidden rather than requested', () => {
-  const full = (packages: string[]) => access({ rights: ADMIN_RIGHTS, packages, features: { analytics: { enabled: false, required_plan: 'full' }, communities: { enabled: false } } })
-  assert.deepEqual(adminVisibility({ feature: 'analytics' }, full([])), { state: 'locked', request: { type: 'package_add', value: 'analytics' } })
-  // The package is on but an admin turned analytics off: nothing to request.
-  assert.deepEqual(adminVisibility({ feature: 'analytics' }, full(['analytics'])), { state: 'hidden' })
-  assert.deepEqual(adminVisibility({ feature: 'communities' }, full([])), { state: 'hidden' })
-  // A plan requirement never resurrects a feature nobody can request.
-  assert.deepEqual(adminVisibility({ feature: 'payments', plan: 'enterprise' }, access({ features: { payments: { enabled: false } } })), { state: 'hidden' })
+test('an enabled feature opens, and one nobody can turn on is hidden rather than requested', () => {
+  assert.deepEqual(adminVisibility({ feature: 'groups' }, access({ features: FULL_FEATURES })), { state: 'open' })
+  assert.deepEqual(adminVisibility({ feature: 'communities' }, access({ features: FULL_FEATURES })), { state: 'hidden' })
+  assert.equal(featureUnlock(on), null)
 })
 
-test('creator metrics are an admin widget that asks for the analytics package when the org lacks it', () => {
+test('creator metrics are an admin widget open at every tier', () => {
   const creator = ADMIN_HOME_WIDGETS.find((widget) => widget.id === 'creator')!
-  const admin = (analytics: boolean) => access({ rights: ADMIN_RIGHTS, features: { analytics: { enabled: analytics, required_plan: 'full' } } })
-  assert.deepEqual(adminVisibility(creator.requires, admin(false)), { state: 'locked', request: { type: 'package_add', value: 'analytics' } })
-  assert.deepEqual(adminVisibility(creator.requires, admin(true)), { state: 'open' })
-  assert.deepEqual(adminVisibility(creator.requires, access({ rights: [STAFF], features: { analytics: { enabled: true } } })), { state: 'hidden' })
+  assert.deepEqual(adminVisibility(creator.requires, access({ rights: ADMIN_RIGHTS })), { state: 'open' })
+  assert.deepEqual(adminVisibility(creator.requires, access({ rights: [STAFF] })), { state: 'hidden' })
 })
 
 test('paths resolve to the tab that owns them, by longest match', () => {

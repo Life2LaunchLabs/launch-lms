@@ -26,13 +26,13 @@ HELPER_EMAIL = "parent@example.com"
 STAFF_ROLE = 5
 
 
-def _session(packages: list[str] | None = None, **policy):
+def _session(tier: str = "full", **policy):
     """The school session, with the teacher on a custom staff role (not a maintainer, so not an admin) and a parent to invite."""
     db = _school_session()
     db.add(Role(id=STAFF_ROLE, org_id=1, name="Counselor", role_uuid="role_counselor", rights={"dashboard": {"action_access": True}, "learning_activities": {"action_update": True}}))
     db.exec(select(UserOrganization).where(UserOrganization.user_id == TEACHER)).one().role_id = STAFF_ROLE
     db.add(User(id=HELPER, user_uuid="user_5", username="parent", email=HELPER_EMAIL, first_name="Pat", last_name="Parent", creation_date=NOW, update_date=NOW))
-    db.add(OrganizationConfig(org_id=1, config={"config_version": "2.0", "plan": "full", "packages": packages or [], "messaging": MessagingPolicy(**policy).model_dump()}))
+    db.add(OrganizationConfig(org_id=1, config={"config_version": "3.0", "tier": tier, "messaging": MessagingPolicy(**policy).model_dump()}))
     db.commit()
     return db
 
@@ -65,7 +65,7 @@ def test_the_policy_lives_in_the_org_config_and_only_admins_change_it():
             messaging.update_policy(db, _user(TEACHER), 1, MessagingPolicy(staff_dm_learners=True))
         messaging.update_policy(db, _user(ADMIN), 1, MessagingPolicy(staff_dm_learners=False, helper_approval=True))
         stored = db.exec(select(OrganizationConfig)).one().config
-        assert stored["plan"] == "full" and stored["messaging"]["staff_dm_learners"] is False and stored["messaging"]["helper_approval"]
+        assert stored["tier"] == "full" and stored["messaging"]["staff_dm_learners"] is False and stored["messaging"]["helper_approval"]
 
 
 def test_a_fresh_org_lets_staff_message_learners_directly():
@@ -175,14 +175,16 @@ def test_a_plan_feed_takes_messages_once_two_staff_are_on_it_when_the_org_asks()
         assert chats.send(db, _user(ADMIN), uuid, "Welcome")["body"] == "Welcome"
 
 
-def test_group_chats_come_with_the_groups_package():
-    with _session() as db:
+def test_group_chats_come_with_the_full_tier(monkeypatch):
+    # Not the owner org, which has every feature.
+    monkeypatch.setattr("src.security.access.access.owner_org_id", lambda *_args: None)
+    with _session("free") as db:
         staff.set_staff(db, _user(ADMIN), 1, 1, GroupStaffSet(user_id=TEACHER))
         assert directory.chat_list(db, _user(TEACHER), 1)["groups_enabled"] is False
         with pytest.raises(HTTPException) as no_package:
             group_chats.open_group_chat(db, _user(TEACHER), 1, 1)
         assert no_package.value.status_code == 403
-    with _session(["advanced_user_management"]) as db:
+    with _session() as db:
         staff.set_staff(db, _user(ADMIN), 1, 1, GroupStaffSet(user_id=TEACHER))
         listed = directory.chat_list(db, _user(TEACHER), 1)
         group = next(chat for chat in listed["chats"] if chat["kind"] == "group")
@@ -220,7 +222,7 @@ def test_the_directory_labels_everyone_and_profiles_follow_the_policy():
 
 
 def test_leaving_the_org_takes_someone_off_its_groups_chats_and_plans():
-    with _session(["advanced_user_management"]) as db:
+    with _session() as db:
         goal = _goal(db, LEARNER, _assigned(db))
         staff.set_staff(db, _user(ADMIN), 1, 1, GroupStaffSet(user_id=TEACHER))
         group_chats.open_group_chat(db, _user(TEACHER), 1, 1)

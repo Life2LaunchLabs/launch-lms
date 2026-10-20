@@ -45,7 +45,7 @@ export interface AdminHome {
   /** The widgets this viewer gets, by role and what the org does. */
   widgets: HomeWidgetId[]
   layout: HomeLayout
-  /** Widgets the org's plan or packages don't include; they show with a request. */
+  /** Widgets the org's access doesn't include; they show with a request. */
   locked: HomeWidgetId[]
   waiting?: HomeWaiting
   today?: { days: number; items: HomeTodayItem[]; total: number }

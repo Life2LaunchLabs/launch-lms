@@ -124,7 +124,7 @@ def set_listing(db: Session, current_user: PublicUser, org_id: int, template_uui
     require_org_admin(current_user.id, org_id, db)
     template = templates.template_or_404(db, org_id, template_uuid)
     if payload.listed:
-        require_org_feature(db, current_user, org_id, "marketplace_publishing", "Marketplace publishing")
+        require_org_feature(db, current_user, org_id, "plan_publishing")
         if template.system_type:
             raise HTTPException(status_code=409, detail="System templates can't be listed in the marketplace")
         if templates.published_version(db, template) is None:
@@ -316,13 +316,8 @@ def _learners_running(db: Session, authorization: GoalTemplateAuthorization) -> 
 def requests_summary(db: Session, current_user: PublicUser, org_id: int) -> dict:
     """Counts for the Marketplace tab: requests waiting on this organization, and its own still pending (badges and templates)."""
     from src.db.learning import BadgeIssuerAuthorization, BadgeIssuerAuthorizationStatus
-    from src.services.learning_marketplace import transition_queued_authorizations
 
     require_org_admin(current_user.id, org_id, db)
-    queued = db.exec(select(BadgeIssuerAuthorization.issuer_org_id).where(
-        BadgeIssuerAuthorization.creator_org_id == org_id, BadgeIssuerAuthorization.status == BadgeIssuerAuthorizationStatus.QUEUED)).all()
-    if sum(transition_queued_authorizations(db, issuer) for issuer in set(queued)):
-        db.commit()
 
     def count(model, *where) -> int:
         return int(db.exec(select(func.count()).select_from(model).where(*where)).one() or 0)
@@ -330,7 +325,7 @@ def requests_summary(db: Session, current_user: PublicUser, org_id: int) -> dict
     badge_in = count(BadgeIssuerAuthorization, BadgeIssuerAuthorization.creator_org_id == org_id, BadgeIssuerAuthorization.issuer_org_id != org_id,
                      BadgeIssuerAuthorization.status == BadgeIssuerAuthorizationStatus.REQUESTED)
     badge_out = count(BadgeIssuerAuthorization, BadgeIssuerAuthorization.issuer_org_id == org_id, BadgeIssuerAuthorization.creator_org_id != org_id,
-                      col(BadgeIssuerAuthorization.status).in_([BadgeIssuerAuthorizationStatus.REQUESTED, BadgeIssuerAuthorizationStatus.QUEUED]))
+                      BadgeIssuerAuthorization.status == BadgeIssuerAuthorizationStatus.REQUESTED)
     template_in = count(GoalTemplateAuthorization, GoalTemplateAuthorization.creator_org_id == org_id, GoalTemplateAuthorization.status == REQUESTED)
     template_out = count(GoalTemplateAuthorization, GoalTemplateAuthorization.issuer_org_id == org_id, GoalTemplateAuthorization.status == REQUESTED)
     return {"incoming_requested": badge_in + template_in, "outgoing_pending": badge_out + template_out,
