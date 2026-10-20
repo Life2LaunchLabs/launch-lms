@@ -1,6 +1,7 @@
 import { RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/requests'
 import { getAPIUrl } from '@services/config/config'
 import type { GoalStatus, StepCompleter, StepResult, StepStatus, StepTypeKey } from './types'
+import type { AssignmentVersionStatus } from './versionStatus'
 
 const q = encodeURIComponent
 
@@ -202,6 +203,38 @@ export const managedUserKey = (userId: number, orgId: number) => goalAdminUrl(`/
 export const assignmentsKey = (orgId: number) => goalAdminUrl('/assignments', orgId)
 export const matrixKey = (assignmentUuid: string, orgId: number) => goalAdminUrl(`/assignments/${q(assignmentUuid)}/matrix`, orgId)
 export const assignmentReviewsKey = (assignmentUuid: string, orgId: number) => goalAdminUrl(`/assignments/${q(assignmentUuid)}/reviews`, orgId)
+export const plansKey = (orgId: number) => goalAdminUrl('/plans', orgId)
+
+// Plans › Assignments: one card per plan template (apps/api/src/services/goals/plan_cards.py) -------------
+
+export interface OrgRef { id: number; name: string; slug: string }
+/** One assignment on a plan card: the assignment summary, its learners' ids and its version status. */
+export interface PlanAssignment extends AssignmentSummary, AssignmentVersionStatus {
+  learner_ids: number[]
+}
+export interface PlanCardData {
+  template: {
+    template_uuid: string
+    title: string
+    status: string
+    /** The published version. */
+    version: number | null
+    stage_count: number
+    step_count: number
+    owner_org: OrgRef | null
+    /** Made by this organization. */
+    own: boolean
+    /** Another organization's template this one runs with its permission (a badge route). */
+    run_with_permission: boolean
+  }
+  badges: Array<{ badge_uuid: string; name: string; thumbnail_image: string; org_id: number; owner_org: OrgRef | null }>
+  frameworks: Array<{ framework_uuid: string; name: string; org_id: number; node_count: number }>
+  /** This organization's assignments of the plan, ended ones too, newest first. */
+  assignments: PlanAssignment[]
+  /** On the org's own plans, for admins: other organizations running it now, counts only. */
+  authorized_orgs: Array<{ org: OrgRef | null; assignment_count: number; learner_count: number; since: string }>
+}
+export interface PlansStack { plans: PlanCardData[]; learners: StaffPerson[] }
 
 /** Staff views across goals (/goal-admin). */
 export const goalAdminApi = {
@@ -217,6 +250,8 @@ export const goalAdminApi = {
   addStaffNote: (orgId: number, stepUuid: string, message: string, token?: string) => request<{ step_uuid: string; staff_notes: StaffNoteView[] }>(goalAdminUrl('/inbox/staff-notes', orgId), token, 'POST', { step_uuid: stepUuid, message }),
 
   assignments: (orgId: number, token?: string) => request<AssignmentSummary[]>(assignmentsKey(orgId), token),
+  /** Plans › Assignments: each plan with its assignments here (staff: only plans they staff). */
+  plans: (orgId: number, token?: string) => request<PlansStack>(plansKey(orgId), token),
   matrix: (orgId: number, assignmentUuid: string, token?: string) => request<AssignmentMatrix>(matrixKey(assignmentUuid, orgId), token),
   updateProgress: (orgId: number, data: { template_key: string; assignment_uuid?: string; goal_uuids?: string[]; user_ids?: number[]; status: StepStatus; staff_note?: string }, token?: string) => request<BulkResult[]>(goalAdminUrl('/assignments/progress', orgId), token, 'POST', data),
   assignmentReviews: (orgId: number, assignmentUuid: string, token?: string) => request<ReviewList & { assignment_uuid: string }>(assignmentReviewsKey(assignmentUuid, orgId), token),

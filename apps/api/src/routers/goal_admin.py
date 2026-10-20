@@ -10,7 +10,7 @@ from src.db.goals import GoalAssignment
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
 from src.security.access.access import org_access
-from src.services.goals import admin_home, assignment_steps, assignment_versions, assignments, review, staff_views
+from src.services.goals import admin_home, assignment_steps, assignment_versions, assignments, plan_cards, review, staff_views
 
 router = APIRouter()
 GROUPS_NEED = "Group goal assignments need the Full tier"
@@ -171,3 +171,11 @@ def api_cohort(usergroup_id: int, org_id: int, db: Session = Depends(get_db_sess
 @router.get("/managed-users/{user_id}")
 def api_managed_user(user_id: int, org_id: int, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
     return staff_views.managed_user(db, user, org_id, user_id)
+
+
+# Plans › Assignments ----------------------------------------------------------------------
+
+@router.get("/plans")
+def api_plans(org_id: int, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    """The org's plans, each with its assignments here; staff get only the plans they staff."""
+    return plan_cards.list_plans(db, user, org_id)
