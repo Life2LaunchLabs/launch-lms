@@ -47,8 +47,11 @@ export default function BadgeRoutesPanel({ badge, orgslug }: { badge: any; orgsl
           <Link href={getUriWithOrg(orgslug, `/admin/plans/${encodeURIComponent(route.template_uuid)}`)} className="text-sm font-black hover:underline">{route.name}</Link>
           <p className="text-xs text-muted-foreground">{route.step_count} step{route.step_count === 1 ? '' : 's'}{route.activity_count ? ` · ${route.activity_count} activit${route.activity_count === 1 ? 'y' : 'ies'}` : ''}{route.recommended ? ' · Recommended' : ''}</p>
         </div>
-        <RouteEligibility route={route} disabled={saving} onChange={(rule, fromVersion) => void saveEligibility(route.route_uuid, rule, fromVersion)} />
-        <button type="button" disabled={saving} onClick={() => save(current.filter((_, i) => i !== index))} aria-label={`Remove ${route.name}`} className="rounded-lg p-2 text-muted-foreground hover:bg-red-50 hover:text-red-700"><Trash2 size={15} /></button>
+        {/* On a phone the template's name keeps its line; which versions earn the badge goes under it. */}
+        <div className="order-last w-full pl-11 sm:order-none sm:w-auto sm:pl-0 [&>select]:w-full sm:[&>select]:w-auto">
+          <RouteEligibility route={route} disabled={saving} onChange={(rule, fromVersion) => void saveEligibility(route.route_uuid, rule, fromVersion)} />
+        </div>
+        <button type="button" disabled={saving} onClick={() => save(current.filter((_, i) => i !== index))} aria-label={`Remove ${route.name}`} className="shrink-0 rounded-lg p-2 text-muted-foreground hover:bg-red-50 hover:text-red-700"><Trash2 size={15} /></button>
       </div>)}
       {!routes.length ? <div className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">
         No ways to earn this badge yet. Add a goal template learners can follow to earn it.

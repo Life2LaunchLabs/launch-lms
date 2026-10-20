@@ -46,7 +46,7 @@ export default function TemplateList({ orgslug, orgId, token }: { orgslug: strin
     <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div><h2 className="text-lg font-bold text-foreground">Goal templates</h2><p className="mt-1 text-sm text-muted-foreground">Reusable stages and steps you hand out to learners as goals.</p></div>
       <div className="flex items-center gap-3">
-        <label className="flex items-center gap-2 text-xs font-bold text-muted-foreground"><input type="checkbox" checked={showArchived} onChange={(event) => setShowArchived(event.target.checked)} />Show archived</label>
+        <label className="flex items-center gap-2 whitespace-nowrap text-xs font-bold text-muted-foreground"><input type="checkbox" checked={showArchived} onChange={(event) => setShowArchived(event.target.checked)} />Show archived</label>
         <NewTemplateModal orgslug={orgslug} orgId={orgId} token={token} />
       </div>
     </div>

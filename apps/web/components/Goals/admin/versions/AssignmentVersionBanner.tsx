@@ -31,8 +31,8 @@ export default function AssignmentVersionBanner({ orgId, token, assignment, comp
   const Icon = ineligible ? AlertTriangle : Sparkles
   return <div className={cn('flex flex-wrap items-center gap-2 rounded-lg px-3 py-2 text-xs', ineligible ? 'bg-red-50 text-red-800' : 'bg-amber-50 text-amber-900', className)} role="status">
     <Icon size={14} className="shrink-0" />
-    <span className="min-w-0 flex-1 font-semibold">{message}{compact ? '' : ' Nothing changes for learners until you apply it.'}</span>
-    {assignment.update_available ? <button type="button" onClick={() => setOpen(true)} className="shrink-0 rounded-md bg-white/80 px-2.5 py-1 font-black text-foreground shadow-xs hover:bg-white">Review changes</button> : null}
+    <span className="min-w-0 flex-[1_1_12rem] font-semibold">{message}{compact ? '' : ' Nothing changes for learners until you apply it.'}</span>
+    {assignment.update_available ? <button type="button" onClick={() => setOpen(true)} className="min-h-10 shrink-0 rounded-md bg-white/80 px-2.5 py-1 font-black text-foreground shadow-xs hover:bg-white md:min-h-0">Review changes</button> : null}
     {open ? <VersionReviewModal orgId={orgId} token={token} assignmentUuid={assignment.assignment_uuid} open={open} onOpenChange={setOpen} onApplied={onApplied} /> : null}
   </div>
 }

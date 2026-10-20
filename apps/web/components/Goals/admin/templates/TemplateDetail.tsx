@@ -43,22 +43,23 @@ export default function TemplateDetail({ orgslug, templateUuid, subpage = 'overv
   if (!template) return <div className="flex min-h-full w-full items-center justify-center bg-[#f8f8f8]"><Loader2 className="animate-spin text-muted-foreground" /></div>
   const page = (key: TemplateSubpage) => getUriWithOrg(orgslug, routePaths.org.admin.templatePage(templateUuid, key))
   return <div className="min-h-full w-full bg-[#f8f8f8]">
-    <div className="relative z-10 bg-[#fcfbfc] pl-10 pr-10 text-sm tracking-tight nice-shadow">
+    <div className="relative z-10 bg-[#fcfbfc] px-4 text-sm tracking-tight nice-shadow sm:px-10">
       <div className="pb-4 pt-6">
         <Breadcrumbs items={[{ label: 'Goals', href: getUriWithOrg(orgslug, routePaths.org.admin.assignments()) }, { label: 'Templates', href: getUriWithOrg(orgslug, routePaths.org.admin.templates()) }, { label: template.title }]} />
         <p className="mt-3 text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">Template · edits are a draft until you publish; goals already handed out keep their version</p>
       </div>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 flex-1"><TemplateHeader template={template} editing={editing} /></div>
-        <div className="flex shrink-0 flex-wrap justify-end gap-2 pt-1">
+        <div className="flex max-w-full flex-wrap gap-2 pt-1 sm:shrink-0 sm:justify-end">
           <TemplateVersionBar orgId={orgId} token={token} editing={editing} />
           <Link href={page('objectives')} className="inline-flex h-9 items-center rounded-full border border-border bg-card px-4 text-sm font-medium hover:bg-muted">Edit steps</Link>
           {template.status === 'archived' ? null : <GoalAssignmentModal initialTemplateUuid={template.template_uuid} trigger={<button type="button" className="inline-flex h-9 items-center gap-2 rounded-full bg-black px-4 text-sm font-medium text-white hover:bg-black/85"><Plus size={15} />Assign</button>} />}
         </div>
       </div>
-      <div className="flex space-x-3 text-sm font-black">{TABS.map((tab) => {
+      {/* On a phone the tabs scroll sideways inside their row instead of widening the page. */}
+      <div className="-mx-4 flex space-x-3 overflow-x-auto px-4 text-sm font-black [scrollbar-width:none] sm:mx-0 sm:overflow-visible sm:px-0">{TABS.map((tab) => {
         const Icon = tab.icon
-        return <Link key={tab.key} href={page(tab.key)} aria-current={subpage === tab.key ? 'page' : undefined}><div className={cn('flex w-fit cursor-pointer space-x-4 border-black py-2 text-center transition-all ease-linear', subpage === tab.key ? 'border-b-4' : 'opacity-50 hover:opacity-75')}><div className="mx-2 flex items-center space-x-2.5"><Icon size={16} /><div>{tab.label}</div></div></div></Link>
+        return <Link key={tab.key} href={page(tab.key)} aria-current={subpage === tab.key ? 'page' : undefined} className="shrink-0 whitespace-nowrap"><div className={cn('flex w-fit cursor-pointer space-x-4 border-black py-2 text-center transition-all ease-linear', subpage === tab.key ? 'border-b-4' : 'opacity-50 hover:opacity-75')}><div className="mx-2 flex items-center space-x-2.5"><Icon size={16} /><div>{tab.label}</div></div></div></Link>
       })}</div>
     </div>
     <StaleTemplateBanner editing={editing} />
