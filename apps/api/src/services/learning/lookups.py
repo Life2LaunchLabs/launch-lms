@@ -188,7 +188,7 @@ def _can_read_badge(
     if isinstance(current_user, AnonymousUser):
         return False
     try:
-        access_rules._require_org_admin(db_session, current_user, badge.org_id)
+        access_rules._require_org_staff(db_session, current_user, badge.org_id)
         return True
     except HTTPException:
         pass
@@ -200,7 +200,7 @@ def _can_read_badge(
     ).all()
     for issuer_org_id in authorized_issuer_org_ids:
         try:
-            access_rules._require_org_admin(db_session, current_user, issuer_org_id)
+            access_rules._require_org_staff(db_session, current_user, issuer_org_id)
             return True
         except HTTPException:
             continue
