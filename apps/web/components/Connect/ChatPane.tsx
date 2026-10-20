@@ -17,7 +17,7 @@ import { connectApi, connectKeys, type Chat } from '@services/connect/connect'
 import type { PersonSummary } from '@services/goals/types'
 import { useConnectToken } from './useConnect'
 import { OrgMark } from './ConnectOrgs'
-import ChatWorkspace from './workspace/ChatWorkspace'
+import ChatWorkspace, { type TimelineItem } from './workspace/ChatWorkspace'
 
 /** Where a step opens for its learner: their plan, at that step. */
 export const learnerStepHref = (orgslug: string) => (goalUuid: string, stepUuid: string) => `${getUriWithOrg(orgslug, routePaths.org.plan(goalUuid))}?step=${encodeURIComponent(stepUuid)}`
@@ -26,7 +26,7 @@ export const learnerStepHref = (orgslug: string) => (goalUuid: string, stepUuid:
  * One chat beside its list. Connect and People both use it: People passes its own list to go back
  * to, where a person's profile opens, and what else to refresh when the chat changes.
  */
-export default function ChatPane({ orgslug, chatUuid, listHref: list, personHref, onChanged, actions }: {
+export default function ChatPane({ orgslug, chatUuid, listHref: list, personHref, onChanged, actions, timeline, bare }: {
   orgslug: string
   chatUuid: string
   listHref?: string
@@ -34,6 +34,10 @@ export default function ChatPane({ orgslug, chatUuid, listHref: list, personHref
   onChanged?: () => void
   /** Extra controls in the header, such as managing a group. */
   actions?: React.ReactNode
+  /** Cards between the messages by time, such as People's approvals and turned-in steps. */
+  timeline?: TimelineItem[]
+  /** Inside a page that already says who the chat is with (People's person and group views): no header of its own. */
+  bare?: boolean
 }) {
   const token = useConnectToken()
   const router = useRouter()
@@ -75,11 +79,12 @@ export default function ChatPane({ orgslug, chatUuid, listHref: list, personHref
   }
 
   return <>
-    <ChatWorkspace source={{ chatUuid }} orgslug={orgslug} token={token} onChat={onChat} blocked={blocked} stepHref={learnerStepHref(orgslug)}
+    <ChatWorkspace source={{ chatUuid }} orgslug={orgslug} token={token} onChat={onChat} blocked={blocked} stepHref={learnerStepHref(orgslug)} timeline={timeline}
       empty={opened?.kind === 'direct' ? person ? <>Say hi to {person.name}. They&rsquo;ll see your first message as a request unless you already share a goal.</> : null
         : opened ? <>Nothing here yet. Say hi to {opened.title || 'the group'}: everyone in this chat sees what you send.</> : null}
       header={(chat, mutate) => chat ? <>
-        <ChatHeader chat={chat} orgslug={orgslug} listHref={listHref} onSheet={setSheet} personHref={personHref} actions={actions} />
+        {/* Bare, a direct chat keeps its options, floating at the top corner of the messages. */}
+        {bare ? chat.kind === 'direct' ? <div className="relative h-0"><div className="absolute right-2 top-1 z-10"><ChatOptions onSheet={setSheet} /></div></div> : null : <ChatHeader chat={chat} orgslug={orgslug} listHref={listHref} onSheet={setSheet} personHref={personHref} actions={actions} />}
         {chat.status === 'request' ? <div className="border-b border-border bg-background/60 px-4 py-3">
           <p className="text-sm"><b>{chat.people[0]?.name || 'Someone'}</b> wants to chat. Links stay off until you accept, and they won&rsquo;t know you&rsquo;ve seen this.</p>
           <div className="mt-3 flex flex-wrap gap-2">
@@ -88,7 +93,7 @@ export default function ChatPane({ orgslug, chatUuid, listHref: list, personHref
             <Button size="sm" variant="ghost" onClick={() => answer('decline', mutate)}>Delete</Button>
           </div>
         </div> : chat.waiting_for_them && !chat.unavailable ? <p className="border-b border-border px-4 py-2 text-xs text-muted-foreground">Waiting for {chat.people[0]?.name || 'them'} to accept your request.</p> : null}
-      </> : <ChatSkeleton />} />
+      </> : bare ? null : <ChatSkeleton />} />
     <BlockSheet open={sheet === 'block'} onClose={() => setSheet(null)} chatUuid={chatUuid} name={person?.name} onDone={leave} />
     <ReportSheet open={sheet === 'report'} onClose={() => setSheet(null)} chatUuid={chatUuid} name={person?.name} onDone={(blocked) => blocked ? leave() : setSheet(null)} />
   </>
@@ -118,14 +123,19 @@ function ChatHeader({ chat, orgslug, listHref, onSheet, personHref, actions }: {
     {profile ? <Link href={profile.href} className="flex min-w-0 flex-1 items-center gap-3 rounded-xl hover:opacity-90">{mark}{who}</Link> : <div className="flex min-w-0 flex-1 items-center gap-3">{mark}{who}</div>}
     {profile ? <Link href={profile.href} className="hidden h-9 shrink-0 items-center rounded-xl bg-muted/70 px-3.5 text-sm font-semibold hover:bg-muted md:flex">{profile.label}</Link> : null}
     {actions}
-    {chat.kind === 'direct' ? <DropdownMenu modal={false}>
-      <DropdownMenuTrigger asChild><button type="button" aria-label="Chat options" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-foreground/[0.06]"><MoreHorizontal size={18} /></button></DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onSelect={() => onSheet('report')}><Flag size={14} className="mr-2" />Report</DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => onSheet('block')}><Ban size={14} className="mr-2" />Block</DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu> : null}
+    {chat.kind === 'direct' ? <ChatOptions onSheet={onSheet} /> : null}
   </header>
+}
+
+/** Report or block the other person in a direct chat. */
+function ChatOptions({ onSheet }: { onSheet: (sheet: 'block' | 'report') => void }) { // eslint-disable-line no-unused-vars
+  return <DropdownMenu modal={false}>
+    <DropdownMenuTrigger asChild><button type="button" aria-label="Chat options" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-foreground/[0.06]"><MoreHorizontal size={18} /></button></DropdownMenuTrigger>
+    <DropdownMenuContent align="end">
+      <DropdownMenuItem onSelect={() => onSheet('report')}><Flag size={14} className="mr-2" />Report</DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => onSheet('block')}><Ban size={14} className="mr-2" />Block</DropdownMenuItem>
+    </DropdownMenuContent>
+  </DropdownMenu>
 }
 
 /** A group chat's mark: its people, not one face. */
