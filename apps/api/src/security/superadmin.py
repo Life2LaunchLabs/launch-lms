@@ -20,7 +20,7 @@ def is_user_superadmin(user_id: int, db_session: Session) -> bool:
 
 
 def is_user_owner_org_admin(user_id: int, db_session: Session) -> bool:
-    """Allow default-org admins to access platform tools until superadmin is fully rolled out."""
+    """True for an admin of the first (owner) org. Platform tools ignore this; see require_superadmin."""
     from src.services.demo.context import current_demo
 
     if current_demo.get():
@@ -53,11 +53,9 @@ async def require_superadmin(
     current_user: PublicUser = Depends(_get_current_user_lazy),
     db_session: Session = Depends(get_db_session),
 ) -> PublicUser:
-    """FastAPI dependency for platform tools.
+    """FastAPI dependency for platform tools: only users flagged `is_superadmin` pass.
 
-    For now this allows either:
-    - true superadmins
-    - admins of the owner/default organization
+    Admins of the owner org are ordinary org admins here; their org role grants nothing platform-wide.
     """
     from src.db.users import AnonymousUser
 
@@ -67,10 +65,7 @@ async def require_superadmin(
             detail="Authentication required",
         )
 
-    if not (
-        is_user_superadmin(current_user.id, db_session)
-        or is_user_owner_org_admin(current_user.id, db_session)
-    ):
+    if not is_user_superadmin(current_user.id, db_session):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Platform admin access required",

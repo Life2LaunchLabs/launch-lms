@@ -27,8 +27,7 @@ import {
 import InviteRow, { formatShortDate } from './InviteRow'
 import { MessagesCell, useMessageCounts } from './MessagesCell'
 import InviteUsersDialog from '@components/Dashboard/Pages/Users/OrgUsersAdd/InviteUsersDialog'
-import { usePlan } from '@components/Hooks/usePlan'
-import { planMeetsRequirement } from '@services/plans/plans'
+import { useFeatures } from '@components/Hooks/useFeatures'
 
 const ITEMS_PER_PAGE = 10
 
@@ -50,9 +49,8 @@ function OrgUsers({ overviewFilters }: { overviewFilters?: OrgUsersOverviewFilte
   const org = useOrg() as any
   const session = useLHSession() as any
   const access_token = session?.data?.tokens?.access_token;
-  const currentPlan = usePlan()
-  const hasUserGroups = planMeetsRequirement(currentPlan, 'full')
-    && (org?.config?.config?.resolved_features?.usergroups?.enabled ?? true)
+  const features = useFeatures()
+  const hasUserGroups = features.planAtLeast('full') && features.has('usergroups')
   const messageCounts = useMessageCounts(hasUserGroups ? Number(org?.id) : 0, access_token)
 
   const [page, setPage] = useState(1)
@@ -431,7 +429,7 @@ function OrgUsers({ overviewFilters }: { overviewFilters?: OrgUsersOverviewFilte
 
                         {/* User Info */}
                         <td className="px-6 py-4">
-                          <Link href={getUriWithOrg(org.slug, routePaths.org.dash.users.user(user.user.username))} className="group flex items-center gap-3">
+                          <Link href={getUriWithOrg(org.slug, routePaths.org.admin.people.user(user.user.username))} className="group flex items-center gap-3">
                             <UserAvatar
                               width={40}
                               userId={user.user.id?.toString()}

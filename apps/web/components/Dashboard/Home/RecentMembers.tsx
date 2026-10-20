@@ -39,7 +39,7 @@ export default function RecentMembers() {
           )}
         </div>
         <Link
-          href={routePaths.org.dash.users.users()}
+          href={routePaths.org.admin.people.root()}
           className="text-[11px] font-medium text-gray-400 hover:text-gray-600 transition-colors"
         >
           View All &rarr;

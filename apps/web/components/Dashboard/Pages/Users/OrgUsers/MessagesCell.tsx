@@ -23,7 +23,7 @@ export function MessagesCell({ orgslug, username, counts }: { orgslug: string; u
   if (!counts || !(counts.unread || counts.mentions || counts.reviews)) return <span className="text-xs text-gray-400">—</span>
   const subpage = counts.reviews && !counts.unread && !counts.mentions ? 'plans' : 'messages'
   return (
-    <Link href={getUriWithOrg(orgslug, routePaths.org.dash.users.userPage(username, subpage))} className="inline-flex items-center gap-1.5 text-xs font-semibold">
+    <Link href={getUriWithOrg(orgslug, routePaths.org.admin.people.userPage(username, subpage))} className="inline-flex items-center gap-1.5 text-xs font-semibold">
       {counts.mentions ? <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-1 text-amber-700"><AtSign size={12} />{counts.mentions}</span> : null}
       {counts.unread ? <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-1 text-blue-700"><MessageCircle size={12} />{counts.unread}</span> : null}
       {counts.reviews ? <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-emerald-700"><ClipboardCheck size={12} />{counts.reviews}</span> : null}

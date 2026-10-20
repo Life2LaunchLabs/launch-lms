@@ -145,8 +145,8 @@ export default function ResourcesDashClient({ orgslug }: { orgslug: string }) {
           feature="Resources"
           activeTab="channels"
           tabs={[
-            { id: 'channels', label: 'Channels', href: getUriWithOrg(orgslug, routePaths.org.dash.resources()) },
-            { id: 'tags', label: 'Tags', href: getUriWithOrg(orgslug, routePaths.org.dash.resourceTags()) },
+            { id: 'channels', label: 'Channels', href: getUriWithOrg(orgslug, routePaths.org.admin.content.resources()) },
+            { id: 'tags', label: 'Tags', href: getUriWithOrg(orgslug, routePaths.org.admin.content.resourceTags()) },
           ]}
           actions={<Button onClick={() => setIsCreateModalOpen(true)} className="h-8 bg-black px-3 text-xs text-white hover:bg-black/90"><Plus className="h-4 w-4" />Add Channel</Button>}
         />

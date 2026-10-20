@@ -9,11 +9,18 @@ import {
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { routePaths } from '@services/config/config'
-import AdminAuthorization from '@components/Security/AdminAuthorization'
-import { usePlan } from '@components/Hooks/usePlan'
+import { useFeatures } from '@components/Hooks/useFeatures'
+import RequestAccessButton from '@components/Admin/RequestAccessButton'
+import { ADMIN_HOME_WIDGETS, adminTab, type AdminTabId, type AdminWidgetId } from '@/lib/admin/registry'
 import RecentCourses from './RecentCourses'
 import RecentMembers from './RecentMembers'
 import ContentOverview from './ContentOverview'
+
+const WIDGETS: Record<AdminWidgetId, React.ComponentType> = {
+  'content-overview': ContentOverview,
+  'recent-badges': RecentCourses,
+  'recent-members': RecentMembers,
+}
 
 const PLAN_COLORS: Record<string, { bg: string; text: string }> = {
   free: { bg: 'bg-gray-100', text: 'text-gray-600' },
@@ -28,7 +35,9 @@ export default function DashboardHome() {
 
   const username = session?.data?.user?.username || ''
 
-  const plan = usePlan()
+  const features = useFeatures()
+  const plan = features.plan
+  const opens = (tab: AdminTabId) => features.visibility(adminTab(tab).requires).state === 'open'
   const planStyle = PLAN_COLORS[plan] || PLAN_COLORS.free
 
   return (
@@ -53,42 +62,47 @@ export default function DashboardHome() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Link
-                href={routePaths.org.dash.badges() + '?new=true'}
+              {opens('badges') && <Link
+                href={routePaths.org.admin.badges() + '?new=true'}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-800 transition-colors"
               >
                 <PlusCircle size={14} weight="bold" />
                 Create Badge
-              </Link>
-              <Link
-                href={routePaths.org.dash.users.users()}
+              </Link>}
+              {opens('people') && <Link
+                href={routePaths.org.admin.people.root()}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-gray-600 bg-white rounded-lg nice-shadow hover:bg-gray-50 transition-colors"
               >
                 <Users size={14} weight="bold" />
                 Members
-              </Link>
-              <Link
-                href={routePaths.org.dash.orgSettings.general()}
+              </Link>}
+              {opens('organization') && <Link
+                href={routePaths.org.admin.organization.general()}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium text-gray-600 bg-white rounded-lg nice-shadow hover:bg-gray-50 transition-colors"
               >
                 <GearSix size={14} weight="bold" />
                 Settings
-              </Link>
+              </Link>}
             </div>
           </div>
 
-          <AdminAuthorization authorizationMode="component">
-            <div className="space-y-6">
-              {/* Content counts row */}
-              <ContentOverview />
-
-              {/* Recent content */}
-              <div className="space-y-6">
-                <RecentCourses />
-                <RecentMembers />
-              </div>
-            </div>
-          </AdminAuthorization>
+          {/* Home widgets come from the admin registry, gated like the tabs. */}
+          <div className="space-y-6">
+            {ADMIN_HOME_WIDGETS.map((widget) => {
+              const visibility = features.visibility(widget.requires)
+              if (visibility.state === 'hidden') return null
+              if (visibility.state === 'locked') {
+                return (
+                  <div key={widget.id} className="flex items-center justify-between gap-3 rounded-xl bg-white px-5 py-4 nice-shadow">
+                    <span className="text-sm font-semibold text-gray-400">{widget.label}</span>
+                    <RequestAccessButton request={visibility.request} />
+                  </div>
+                )
+              }
+              const Widget = WIDGETS[widget.id]
+              return <Widget key={widget.id} />
+            })}
+          </div>
         </div>
       </div>
     </div>

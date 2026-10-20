@@ -38,12 +38,12 @@ export default function StaffPlan({ orgslug, goalUuid }: { orgslug: string; goal
       <Shield className="mx-auto text-muted-foreground" size={38} aria-hidden="true" />
       <h1 className="mt-3 text-lg font-black">Plan unavailable</h1>
       <p className="mt-1 text-sm text-muted-foreground">You need access to this plan to view it.</p>
-      <Link href={getUriWithOrg(orgslug, routePaths.org.dash.plans())} className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-blue-700"><ArrowLeft size={14} />Back to the Inbox</Link>
+      <Link href={getUriWithOrg(orgslug, routePaths.org.admin.assignments())} className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-blue-700"><ArrowLeft size={14} />Back to the Inbox</Link>
     </div>
   </main>
 
   const subject = goal.subject
-  const learnerPage = subject?.username ? routePaths.org.dash.users.userPage(subject.username, 'plans') : routePaths.org.dash.plans()
+  const learnerPage = subject?.username ? routePaths.org.admin.people.userPage(subject.username, 'plans') : routePaths.org.admin.assignments()
   const back = () => router.push(getUriWithOrg(orgslug, learnerPage))
   // Staff see someone else's plan: the card says whose it is, not "Your goal".
   const viewerId = session?.data?.user?.id
@@ -51,7 +51,7 @@ export default function StaffPlan({ orgslug, goalUuid }: { orgslug: string; goal
   return <main className="min-h-full w-full bg-background px-4 pb-12 pt-6 sm:px-6 lg:px-10">
     <div className="mx-auto max-w-3xl space-y-6">
       <Breadcrumbs items={[
-        { label: 'People', href: getUriWithOrg(orgslug, routePaths.org.dash.users.users()) },
+        { label: 'People', href: getUriWithOrg(orgslug, routePaths.org.admin.people.root()) },
         ...(subject?.username ? [{ label: subject.name || subject.username, href: getUriWithOrg(orgslug, learnerPage) }] : []),
         { label: goal.title },
       ]} />

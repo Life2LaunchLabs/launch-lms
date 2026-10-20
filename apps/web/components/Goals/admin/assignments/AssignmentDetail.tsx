@@ -22,7 +22,7 @@ export type AssignmentTab = 'plan' | 'learners'
 export default function AssignmentDetail({ orgslug, assignmentUuid, tab = 'plan' }: { orgslug: string; assignmentUuid: string; tab?: AssignmentTab }) {
   const { orgId, token, viewerId, admin } = useStaff()
   const { data: matrix, error, isLoading, mutate } = useSWR(orgId && token ? matrixKey(assignmentUuid, orgId) : null, () => goalAdminApi.matrix(orgId, assignmentUuid, token), { revalidateOnFocus: false })
-  const back = getUriWithOrg(orgslug, routePaths.org.dash.planAssignments())
+  const back = getUriWithOrg(orgslug, routePaths.org.admin.assignments())
 
   if (isLoading || (!matrix && !error)) return <PageLoader tall />
   if (error || !matrix) return <main className="flex min-h-[70vh] items-center justify-center px-4">
@@ -55,7 +55,7 @@ export default function AssignmentDetail({ orgslug, assignmentUuid, tab = 'plan'
           {admin ? <AssignmentActions assignment={assignment} orgId={orgId} token={token} onChanged={() => mutate()} /> : null}
         </div>
         <nav className="mt-5 flex gap-1 text-sm font-black" aria-label="Assignment">
-          {tabs.map((item) => <Link key={item.id} href={getUriWithOrg(orgslug, routePaths.org.dash.planAssignment(assignmentUuid, item.id))} aria-current={tab === item.id ? 'page' : undefined}
+          {tabs.map((item) => <Link key={item.id} href={getUriWithOrg(orgslug, routePaths.org.admin.planAssignment(assignmentUuid, item.id))} aria-current={tab === item.id ? 'page' : undefined}
             className={cn('border-b-4 px-3 py-2 transition', tab === item.id ? 'border-foreground' : 'border-transparent opacity-60 hover:opacity-90')}>{item.label}</Link>)}
         </nav>
       </div>

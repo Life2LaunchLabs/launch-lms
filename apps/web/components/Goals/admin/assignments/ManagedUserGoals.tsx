@@ -15,8 +15,8 @@ export default function ManagedUserGoals({ orgslug, userId, data, refresh, compa
   const assignedGoals = new Set(assigned.map((item) => item.goal.goal_uuid))
   const others = (data?.goals || []).filter((goal) => !assignedGoals.has(goal.goal_uuid))
   const rows = [
-    ...assigned.map((item) => ({ key: item.goal.goal_uuid, href: getUriWithOrg(orgslug, routePaths.org.dash.livePlan(item.goal.goal_uuid)), title: item.template_title, detail: item.cohort?.name ? `Through ${item.cohort.name}` : 'Assigned directly', progress: item.goal.progress, people: item.goal.people || [] })),
-    ...others.map((goal) => ({ key: goal.goal_uuid, href: getUriWithOrg(orgslug, routePaths.org.dash.livePlan(goal.goal_uuid)), title: goal.title, detail: goal.status === 'finished' ? 'Finished' : 'Shared with staff', progress: goal.progress, people: goal.people || [] })),
+    ...assigned.map((item) => ({ key: item.goal.goal_uuid, href: getUriWithOrg(orgslug, routePaths.org.admin.livePlan(item.goal.goal_uuid)), title: item.template_title, detail: item.cohort?.name ? `Through ${item.cohort.name}` : 'Assigned directly', progress: item.goal.progress, people: item.goal.people || [] })),
+    ...others.map((goal) => ({ key: goal.goal_uuid, href: getUriWithOrg(orgslug, routePaths.org.admin.livePlan(goal.goal_uuid)), title: goal.title, detail: goal.status === 'finished' ? 'Finished' : 'Shared with staff', progress: goal.progress, people: goal.people || [] })),
   ]
   return <section className="rounded-xl border border-gray-100 bg-white p-5 nice-shadow">
     <div className="flex items-center justify-between gap-4">

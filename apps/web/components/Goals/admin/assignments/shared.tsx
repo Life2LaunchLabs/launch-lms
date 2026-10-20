@@ -20,7 +20,7 @@ export function assignmentLabel(assignment: Pick<AssignmentRow, 'cohort' | 'user
   return assignment.cohort?.name || (assignment.user ? personName(assignment.user) : '') || assignment.subject_email || 'Learner'
 }
 
-export const assignmentHref = (assignment: Pick<AssignmentRow, 'assignment_uuid'>) => routePaths.org.dash.planAssignment(assignment.assignment_uuid)
+export const assignmentHref = (assignment: Pick<AssignmentRow, 'assignment_uuid'>) => routePaths.org.admin.planAssignment(assignment.assignment_uuid)
 
 /** A template's assignments, ended ones too, shared by its overview and its Assignments tab. */
 export function useTemplateAssignments(orgId: number, templateUuid: string, token?: string) {

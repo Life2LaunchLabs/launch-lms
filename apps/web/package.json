@@ -12,7 +12,7 @@
     "lint:raw": "eslint .",
     "lint:fix": "eslint --fix . && python3 ../../scripts/frontend-lint.py check",
     "typecheck": "next typegen && tsc --noEmit --pretty false",
-    "test:unit": "node --test --experimental-strip-types lib/auth/*.test.ts services/goals/__tests__/*.test.ts services/hub/__tests__/*.test.ts services/routing/__tests__/*.test.ts && bun test components",
+    "test:unit": "node --test --experimental-strip-types lib/auth/*.test.ts lib/admin/*.test.ts services/goals/__tests__/*.test.ts services/hub/__tests__/*.test.ts services/routing/__tests__/*.test.ts && bun test components",
     "test:routing": "node --test --experimental-strip-types services/routing/__tests__/*.test.ts && bun test components",
     "test:ui:install": "playwright install chromium webkit",
     "test:ui:doctor": "bun tests/ui/doctor.ts",

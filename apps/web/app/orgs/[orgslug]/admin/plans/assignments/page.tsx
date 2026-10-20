@@ -1,6 +1,6 @@
-import GoalsAdminRoot from '@components/Goals/admin/templates/GoalsAdminRoot'
+import { redirect } from 'next/navigation'
 
-export default async function GoalAssignmentsPage({ params }: { params: Promise<{ orgslug: string }> }) {
-  const { orgslug } = await params
-  return <GoalsAdminRoot orgslug={orgslug} tab="assignments" />
+// The Assignments list lives at /admin/plans in the admin shell; one assignment keeps its own page below.
+export default async function GoalAssignmentsRedirect() {
+  redirect('/admin/plans')
 }

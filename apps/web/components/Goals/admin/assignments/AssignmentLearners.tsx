@@ -105,11 +105,11 @@ function LearnerRow({ learner, matrix, today, staffIds, selected, onOpen }: { le
 /** One learner's plan feed, docked beside the list: their chat about the plan, with staff notes. */
 function LearnerFeed({ goalUuid, orgslug, orgId, token, onClose }: { goalUuid: string; orgslug: string; orgId: number; token?: string; onClose: () => void }) {
   const { data: goal, error } = useSWR<Goal>(token ? goalUrl(goalUuid) : null, () => goalsApi.get(goalUuid, token), { revalidateOnFocus: false })
-  if (error) return <p role="status" className="text-sm text-red-700">That learner’s plan didn’t load. <Link className="font-bold underline" href={getUriWithOrg(orgslug, routePaths.org.dash.livePlan(goalUuid))}>Open it</Link></p>
+  if (error) return <p role="status" className="text-sm text-red-700">That learner’s plan didn’t load. <Link className="font-bold underline" href={getUriWithOrg(orgslug, routePaths.org.admin.livePlan(goalUuid))}>Open it</Link></p>
   if (!goal) return <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 size={14} className="animate-spin" />Opening their feed…</p>
   return <GoalChatProvider scope={{ goal }} token={token} orgslug={orgslug} staffOrgId={orgId} onClose={onClose}
-    onOpenPlan={(uuid, step) => window.location.assign(`${getUriWithOrg(orgslug, routePaths.org.dash.livePlan(uuid))}${step ? `#step-${step}` : ''}`)}>
-    <OpenWhenReady planHref={getUriWithOrg(orgslug, routePaths.org.dash.livePlan(goalUuid))} />
+    onOpenPlan={(uuid, step) => window.location.assign(`${getUriWithOrg(orgslug, routePaths.org.admin.livePlan(uuid))}${step ? `#step-${step}` : ''}`)}>
+    <OpenWhenReady planHref={getUriWithOrg(orgslug, routePaths.org.admin.livePlan(goalUuid))} />
   </GoalChatProvider>
 }
 
