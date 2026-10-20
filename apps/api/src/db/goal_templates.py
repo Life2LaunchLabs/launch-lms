@@ -39,6 +39,8 @@ class GoalAssignmentRequest(GoalAssignmentCreate):
     schedule: AssignmentSchedule | None = None
     # The badge its learners earn: required to run another organization's badge route; optional for your own.
     badge_uuid: str | None = None
+    # Handing a plan to an alumnus makes them active again only when this says so (services/orgs/member_status.py).
+    reactivate: bool = False
 
 
 class ApplyVersion(SQLModel):

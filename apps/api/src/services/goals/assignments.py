@@ -24,6 +24,7 @@ from typing import Iterable
 from uuid import uuid4
 
 from fastapi import HTTPException
+from sqlalchemy import and_, or_
 from sqlmodel import Session, col, select
 
 from src.db.goal_templates import AssignmentSchedule, GoalAssignmentRequest, GoalAssignmentUpdate
@@ -50,6 +51,7 @@ from src.db.users import PublicUser, User
 from src.security.org_auth import require_org_admin
 from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
 from src.services.goals import access, badge_authority, templates
+from src.services.orgs import member_status
 from src.services.goals.assignment_summary import assignment_dict, collaborators_of
 from src.services.school import staff as group_staff
 from src.services.goals.document import iter_steps
@@ -71,7 +73,12 @@ def _learners(db: Session, assignment: GoalAssignment) -> list[int]:
     if assignment.user_id:
         return [int(assignment.user_id)]
     if assignment.usergroup_id:
-        return [int(user_id) for user_id in db.exec(select(UserGroupUser.user_id).where(UserGroupUser.usergroup_id == assignment.usergroup_id)).all()]
+        # Alumni in the group (a class that moved on) don't get the group's new plans.
+        return [int(user_id) for user_id in db.exec(select(UserGroupUser.user_id).join(UserOrganization, and_(
+            UserOrganization.user_id == UserGroupUser.user_id, UserOrganization.org_id == assignment.org_id,
+        ), isouter=True).where(UserGroupUser.usergroup_id == assignment.usergroup_id, or_(
+            col(UserOrganization.status).is_(None), UserOrganization.status != "alumni",
+        ))).all()]
     user = _email_user(db, assignment.subject_email)
     return [int(user.id)] if user else []  # type: ignore[arg-type]
 
@@ -256,6 +263,13 @@ def assign(db: Session, current_user: PublicUser, org_id: int, template_uuid: st
         raise HTTPException(status_code=404, detail="User is not connected to this organization")
     if email is not None and ("@" not in email or len(email) < 3):
         raise HTTPException(status_code=422, detail="A valid email address is required")
+    subject = payload.user_id or (getattr(_email_user(db, email), "id", None) if email else None)
+    alumni = member_status.alumni_ids(db, org_id, [int(subject)]) if subject else []
+    if alumni and not payload.reactivate:
+        raise HTTPException(status_code=409, detail={"code": "alumni", "user_ids": alumni,
+                                                     "message": "This learner is alumni. Make them active again to hand them a plan."})
+    if alumni:
+        member_status.reactivate(db, org_id, alumni)
     owner_id = payload.owner_user_id or int(current_user.id)
     if not _member(db, org_id, owner_id):
         raise HTTPException(status_code=422, detail="The goal owner must belong to this organization")

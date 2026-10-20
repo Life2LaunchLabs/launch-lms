@@ -1,4 +1,4 @@
-from sqlalchemy import JSON, Column, ForeignKey, Integer
+from sqlalchemy import JSON, Column, ForeignKey, Integer, String
 from sqlmodel import Field, SQLModel
 
 
@@ -11,5 +11,8 @@ class UserOrganization(SQLModel, table=True):
     role_id: int = Field(default=None, foreign_key="role.id")
     # This member's own settings in this org, e.g. {"admin_home": {"order": [...], "hidden": [...]}}.
     preferences: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False, server_default="{}"))
+    # Set by the organization: only active learners count toward its limit (see services/orgs/member_status.py).
+    status: str = Field(default="active", sa_column=Column(String, nullable=False, server_default="active", index=True))
+    status_since: str | None = None
     creation_date: str
     update_date: str

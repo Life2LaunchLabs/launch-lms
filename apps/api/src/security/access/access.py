@@ -149,7 +149,7 @@ def _staff_role_ids(org_id: int, db_session: Session) -> list[int]:
 
 
 def count_usage(name: str, org_id: int, db_session: Session) -> int:
-    """Members plus pending, unexpired invitations; learners also count reserved join-link spots."""
+    """Members plus pending, unexpired invitations; learners count only active members, plus reserved join-link spots."""
     now = datetime.utcnow()
     staff_ids = _staff_role_ids(org_id, db_session)
     staff = name == "staff_seats"
@@ -159,7 +159,10 @@ def count_usage(name: str, org_id: int, db_session: Session) -> int:
             return column.in_(staff_ids) if staff_ids else False
         return column.not_in(staff_ids) if staff_ids else True
 
-    members = db_session.exec(select(func.count()).where(UserOrganization.org_id == org_id, role_filter(UserOrganization.role_id))).one()
+    members_query = select(func.count()).where(UserOrganization.org_id == org_id, role_filter(UserOrganization.role_id))
+    if not staff:
+        members_query = members_query.where(UserOrganization.status == "active")
+    members = db_session.exec(members_query).one()
     invitations = db_session.exec(select(func.count()).where(
         OrganizationInvitation.org_id == org_id,
         OrganizationInvitation.status == "pending",
@@ -192,7 +195,9 @@ def require_capacity(name: str, org_id: int, db_session: Session, adding: int = 
         limit = org_access(org_id, db_session).limit(name)
         raise HTTPException(
             status_code=403,
-            detail=f"This organization has reached its limit of {limit} {LIMIT_LABELS[name]}",
+            detail=f"This organization has reached its limit of {limit} {LIMIT_LABELS[name]}" + (
+                ". Mark learners who have moved on as alumni in People, or request a higher tier." if name == "learners" else ""
+            ),
         )
 
 
