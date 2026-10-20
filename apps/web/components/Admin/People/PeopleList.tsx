@@ -15,6 +15,7 @@ import InviteUsersDialog from '@components/Dashboard/Pages/Users/OrgUsersAdd/Inv
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { ROLE_LABELS, peopleKeys, type DirectoryPerson, type OrgRole, type PeopleChat } from '@services/school/people'
 import PendingInvites from './PendingInvites'
+import PeopleOverview from './PeopleOverview'
 import type { PeopleSelection } from './PeopleView'
 import { useDirectory, useOrgGroups, usePeopleChats, usePeopleContext } from './usePeople'
 
@@ -68,7 +69,9 @@ export default function PeopleList({ orgslug, selection }: { orgslug: string; se
       {isLoading ? <ListSkeleton />
         : error ? <p className="px-2 py-8 text-center text-sm text-muted-foreground">People didn&rsquo;t load. <button type="button" className="font-semibold underline" onClick={() => mutate()}>Try again</button></p>
         : <>
-          {chats.length ? <ul aria-label="Chats" className="flex flex-col gap-0.5">{chats.map((chat) => <ChatRow key={chat.conversation_uuid} chat={chat} orgslug={orgslug} selection={selection} />)}</ul>
+          {/* On a phone there's no pane beside the list, so what's waiting on you sits at its top. */}
+          {filter === 'all' && !needle ? <PeopleOverview orgslug={orgslug} className="mb-4 space-y-3 px-1 pt-1 md:hidden" /> : null}
+          {chats.length ?<ul aria-label="Chats" className="flex flex-col gap-0.5">{chats.map((chat) => <ChatRow key={chat.conversation_uuid} chat={chat} orgslug={orgslug} selection={selection} />)}</ul>
             : filter !== 'all' && !otherGroups.length ? <p className="px-3 py-8 text-center text-sm text-muted-foreground">{filter === 'groups' ? 'No group chats yet. A group’s chat appears once you’re one of its members or staff.' : 'No direct chats yet. Open someone’s profile to message them.'}</p> : null}
           {otherGroups.length ? <>
             <h2 className="mt-4 px-2.5 pb-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">Groups you&rsquo;re not in</h2>

@@ -44,7 +44,7 @@ export default function PersonProfile({ orgslug, username }: { orgslug: string; 
       <Link href={listHref} aria-label="Back to People" className="flex h-9 w-9 items-center justify-center rounded-xl hover:bg-muted md:hidden"><ArrowLeft size={18} /></Link>
       <PersonAvatar user={user as any} size="md" />
       <div className="min-w-0 flex-1">
-        <h1 className="flex items-center gap-2 text-xl font-black tracking-tight"><span className="truncate">{user.name}</span><RoleTag role={profile.role} /></h1>
+        <h1 className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xl font-black tracking-tight"><span className="min-w-0 max-w-full truncate">{user.name}</span><RoleTag role={profile.role} /></h1>
         <p className="truncate text-sm text-muted-foreground">@{user.username}{profile.role_name ? ` · ${profile.role_name}` : ''}</p>
       </div>
       <MessageButton orgslug={orgslug} profile={profile} />
@@ -96,8 +96,9 @@ function MessageButton({ orgslug, profile }: { orgslug: string; profile: Profile
       setOpening(false)
     }
   }
-  return <button type="button" onClick={() => void open()} disabled={opening} className="inline-flex h-9 items-center gap-2 rounded-xl bg-foreground px-3.5 text-sm font-semibold text-background disabled:opacity-60">
-    {opening ? <Loader2 size={15} className="animate-spin" /> : <MessageCircle size={15} />}Message
+  // On a phone the button is just its icon, so the name keeps the row.
+  return <button type="button" onClick={() => void open()} disabled={opening} aria-label="Message" className="inline-flex h-10 w-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-foreground text-sm font-semibold text-background disabled:opacity-60 sm:h-9 sm:w-auto sm:px-3.5">
+    {opening ? <Loader2 size={15} className="animate-spin" /> : <MessageCircle size={15} />}<span className="hidden sm:inline">Message</span>
   </button>
 }
 
@@ -147,7 +148,7 @@ function Helpers({ profile, refresh }: { profile: Profile; refresh: () => Promis
       <PersonAvatar user={helper.user as any} size="sm" />
       <span className="min-w-0 flex-1 truncate text-sm"><span className="font-semibold">{helper.user?.name || 'Someone'}</span><span className="text-gray-500"> · {helper.role} on {helper.goal_title}</span></span>
       {profile.manage.remove_helper ? <button type="button" onClick={() => void remove(helper.goal_uuid, helper.collaborator_uuid, helper.user?.name || 'them')} disabled={Boolean(busy)}
-        aria-label={`Take ${helper.user?.name || 'them'} off ${helper.goal_title}`} className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-900">{busy === helper.collaborator_uuid ? <Loader2 size={14} className="animate-spin" /> : <X size={14} />}</button> : null}
+        aria-label={`Take ${helper.user?.name || 'them'} off ${helper.goal_title}`} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-900 md:h-auto md:w-auto md:p-1.5">{busy === helper.collaborator_uuid ? <Loader2 size={14} className="animate-spin" /> : <X size={14} />}</button> : null}
     </li>)}</ul>
   </section>
 }

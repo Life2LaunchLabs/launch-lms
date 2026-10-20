@@ -42,7 +42,8 @@ export default function OrgEditMessaging() {
             <span className="mt-1 block text-sm text-gray-500">{setting.hint}</span>
           </label>
           <Switch id={`messaging-${setting.key}`} checked={Boolean(data?.[setting.key])} disabled={!data || !isAdmin}
-            onCheckedChange={(value) => void toggle(setting.key, value)} aria-label={setting.title} />
+            onCheckedChange={(value) => void toggle(setting.key, value)} aria-label={setting.title}
+            className="relative after:absolute after:-inset-x-2 after:-inset-y-3 after:content-[''] md:after:hidden" />
         </li>)}
       </ul>
       {!isAdmin ? <p className="px-5 pb-5 text-xs text-gray-500">Only admins change these.</p> : null}

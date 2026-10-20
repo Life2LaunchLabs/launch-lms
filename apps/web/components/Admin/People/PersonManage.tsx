@@ -72,7 +72,7 @@ export default function PersonManage({ orgslug, profile, refresh }: { orgslug: s
       <p className="text-sm font-semibold text-gray-700">Groups</p>
       {profile.groups.length ? <ul className="flex flex-wrap gap-1.5">{profile.groups.map((group) => <li key={`${group.as}-${group.id}`} className="inline-flex items-center gap-1 rounded-full bg-gray-100 py-1 pl-3 pr-1 text-xs font-semibold text-gray-800">
         {group.name}{group.as === 'staff' ? <span className="font-normal text-gray-500">· staff</span> : null}
-        {group.as === 'member' ? <button type="button" onClick={() => leaveGroup(group.id, group.name)} disabled={busy} aria-label={`Take out of ${group.name}`} className="rounded-full p-0.5 hover:bg-gray-200"><X size={12} /></button> : <span className="w-1" />}
+        {group.as === 'member' ? <button type="button" onClick={() => leaveGroup(group.id, group.name)} disabled={busy} aria-label={`Take out of ${group.name}`} className="-my-2 flex h-10 w-10 items-center justify-center rounded-full hover:bg-gray-200 md:my-0 md:h-auto md:w-auto md:p-0.5"><X size={12} /></button> : <span className="w-1" />}
       </li>)}</ul> : <p className="text-xs text-gray-500">Not in any group.</p>}
       {addable.length ? <div className="flex gap-2">
         <select aria-label="Add to a group" className={`${SELECT} flex-1`} value={adding} onChange={(event) => setAdding(event.target.value)} disabled={busy}>

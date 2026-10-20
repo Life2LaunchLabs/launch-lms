@@ -39,14 +39,15 @@ export default function ChatPane({ orgslug, chatUuid, listHref: list, personHref
   const router = useRouter()
   const { mutate: mutateGlobal } = useSWRConfig()
   const [sheet, setSheet] = React.useState<'block' | 'report' | null>(null)
-  const [person, setPerson] = React.useState<Chat['people'][number] | undefined>()
+  const [opened, setOpened] = React.useState<Chat | undefined>()
   const listHref = list || getUriWithOrg(orgslug, routePaths.org.connect())
   const refreshLists = React.useCallback(() => {
     void mutateGlobal(connectKeys.chats())
     void mutateGlobal(connectKeys.counts())
     onChanged?.()
   }, [mutateGlobal, onChanged])
-  const onChat = React.useCallback((chat: Chat) => setPerson(chat.people[0]), [])
+  const onChat = React.useCallback((chat: Chat) => setOpened(chat), [])
+  const person = opened?.people[0]
 
   const answer = async (choice: 'accept' | 'decline', mutate: KeyedMutator<Chat>) => {
     try {
@@ -75,7 +76,8 @@ export default function ChatPane({ orgslug, chatUuid, listHref: list, personHref
 
   return <>
     <ChatWorkspace source={{ chatUuid }} orgslug={orgslug} token={token} onChat={onChat} blocked={blocked} stepHref={learnerStepHref(orgslug)}
-      empty={person ? <>Say hi to {person.name}. They&rsquo;ll see your first message as a request unless you already share a goal.</> : null}
+      empty={opened?.kind === 'direct' ? person ? <>Say hi to {person.name}. They&rsquo;ll see your first message as a request unless you already share a goal.</> : null
+        : opened ? <>Nothing here yet. Say hi to {opened.title || 'the group'}: everyone in this chat sees what you send.</> : null}
       header={(chat, mutate) => chat ? <>
         <ChatHeader chat={chat} orgslug={orgslug} listHref={listHref} onSheet={setSheet} personHref={personHref} actions={actions} />
         {chat.status === 'request' ? <div className="border-b border-border bg-background/60 px-4 py-3">
