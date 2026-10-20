@@ -15,7 +15,7 @@ export function WidgetCard({ title, count, more, children, className }: { title:
           <span className="truncate">{title}</span>
           {count ? <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-bold text-blue-700">{count}</span> : null}
         </h2>
-        {more ? <Link href={more.href} className="shrink-0 text-xs font-semibold text-gray-500 hover:text-gray-900">{more.label || 'See all'}</Link> : null}
+        {more ? <Link href={more.href} className="-my-3 inline-flex min-h-10 shrink-0 items-center text-xs font-semibold text-gray-500 hover:text-gray-900 md:my-0 md:min-h-0">{more.label || 'See all'}</Link> : null}
       </div>
       <div className="min-w-0 flex-1">{children}</div>
     </section>
