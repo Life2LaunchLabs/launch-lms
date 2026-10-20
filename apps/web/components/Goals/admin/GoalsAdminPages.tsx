@@ -34,8 +34,13 @@ export function TemplatesPage({ orgslug }: { orgslug: string }) {
 
 /** Badges: the org's badge collections, with the Discover carousel settings beside them. */
 export function BadgesPage({ orgslug, orgId, collections }: { orgslug: string; orgId: number; collections: any[] }) {
-  const discover = <Link href={getUriWithOrg(orgslug, '/admin/badges/discover')} className="inline-flex h-9 items-center rounded-full border border-gray-200 bg-white px-3 text-sm font-medium hover:bg-gray-50">Discover carousel</Link>
-  return <PlansShell active="badges" actions={discover}><AdminBadgesHome orgslug={orgslug} orgId={orgId} collections={collections} /></PlansShell>
+  const href = getUriWithOrg(orgslug, '/admin/badges/discover')
+  const button = 'h-9 items-center rounded-full border border-gray-200 bg-white px-3 text-sm font-medium hover:bg-gray-50'
+  // In the tab bar on wider screens; on a phone it sits above the list so the tabs keep the full width.
+  return <PlansShell active="badges" actions={<Link href={href} className={`hidden sm:inline-flex ${button}`}>Discover carousel</Link>}>
+    <div className="flex justify-end px-4 pt-4 sm:hidden"><Link href={href} className={`inline-flex ${button}`}>Discover carousel</Link></div>
+    <AdminBadgesHome orgslug={orgslug} orgId={orgId} collections={collections} />
+  </PlansShell>
 }
 
 /** Requirements: the org's frameworks and how its templates cover them. */
