@@ -214,14 +214,15 @@ function TopicFilters({ topics, plan, filter, onChange, color, stepLink }: {
   const talked = plan.steps.filter((item) => item.count > 0 || item.step_uuid === filter.step_uuid)
   return <div ref={row} role="group" aria-label={`Show messages about ${plan.title}`} className={shell}>
     <button type="button" onClick={() => onChange({})} aria-label="Show everything" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted/70 text-muted-foreground hover:text-foreground"><X size={16} /></button>
-    <button type="button" aria-pressed={!filter.step_uuid} onClick={() => onChange({ goal_uuid: plan.goal_uuid })}
+    {/* With a step picked, a phone shows the plan as its flag so the step beside it fits without cutting the plan off. */}
+    <button type="button" aria-pressed={!filter.step_uuid} onClick={() => onChange({ goal_uuid: plan.goal_uuid })} aria-label={plan.title} title={plan.title}
       className="flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm font-bold transition-opacity" style={{ background: face.deep, color: face.deepInk, opacity: filter.step_uuid ? 0.75 : 1 }}>
-      <Flag size={13} aria-hidden="true" />{plan.title}<ChevronRight size={14} className="-mr-1 opacity-80" aria-hidden="true" />
+      <Flag size={13} aria-hidden="true" /><span className={cn(filter.step_uuid && 'hidden sm:inline')}>{plan.title}</span><ChevronRight size={14} className="-mr-1 opacity-80" aria-hidden="true" />
     </button>
     {talked.map((item) => <button key={item.step_uuid} type="button" aria-pressed={filter.step_uuid === item.step_uuid}
       onClick={() => onChange(filter.step_uuid === item.step_uuid ? { goal_uuid: plan.goal_uuid } : { goal_uuid: plan.goal_uuid, step_uuid: item.step_uuid })}
       className={chip(filter.step_uuid === item.step_uuid)}>
-      <StepMark status={item.status} behind={item.behind} className="h-3.5 w-3.5" /><span className="max-w-48 truncate">{item.title}</span>{item.count ? <span className="font-medium opacity-60">{item.count}</span> : null}
+      <StepMark status={item.status} behind={item.behind} className="h-3.5 w-3.5" /><span className="max-w-40 truncate sm:max-w-48">{item.title}</span>{item.count ? <span className="font-medium opacity-60">{item.count}</span> : null}
     </button>)}
     {stepLink ? <Link href={stepLink} className="ml-auto flex h-9 shrink-0 items-center gap-1 px-1 text-sm font-bold text-[var(--org-primary-color)] hover:underline">Open step<ArrowUpRight size={14} /></Link> : null}
   </div>

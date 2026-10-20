@@ -235,7 +235,7 @@ const TagComposer = React.forwardRef<TagComposerHandle, {
     </div> : null}
     <div className="hub-composer-shell rounded-[1.4rem] p-2">
       <div className="relative">
-        {empty ? <span aria-hidden="true" className="pointer-events-none absolute left-3 top-2.5 text-base leading-6 text-muted-foreground">{disabled || placeholder}</span> : null}
+        {empty ? <span aria-hidden="true" className="pointer-events-none absolute left-3 right-3 top-2.5 truncate text-base leading-6 text-muted-foreground">{disabled || placeholder}</span> : null}
         <div ref={editor} role="textbox" aria-multiline="true" aria-label="Message" contentEditable={!disabled && !sending} suppressContentEditableWarning
           className={cn('max-h-48 min-h-11 overflow-y-auto whitespace-pre-wrap break-words px-3 py-2.5 text-base leading-6 outline-none', draft && 'caret-transparent')}
           onInput={watch}
