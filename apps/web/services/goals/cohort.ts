@@ -3,7 +3,8 @@
  * what's left for staff on each step, and where each learner stands. Pure, so screens and tests
  * share it; everything comes from the assignment matrix (goal-admin/assignments/{a}/matrix).
  */
-import type { AssignmentMatrix, MatrixCell, MatrixColumn, MatrixLearner, MatrixStage, StepAggregate } from './admin'
+import type { ChatAudience } from '../connect/connect'
+import type { AssignmentMatrix, AssignmentSummary, MatrixCell, MatrixColumn, MatrixLearner, MatrixStage, StepAggregate } from './admin'
 import type { Goal, NodeState, Stage, Step } from './types'
 
 /** A reminder goes out to the same learner at most this often (the API's REMIND_COOLDOWN). */
@@ -185,4 +186,13 @@ export function byNeed(learners: MatrixLearner[], stages: MatrixStage[], today: 
 /** Who else is on a learner's plan, leaving out the assignment's own staff. */
 export function helpersOf(learner: MatrixLearner, staffIds: number[]) {
   return (learner.people || []).filter((person) => !staffIds.includes(person.id))
+}
+
+/**
+ * The chats an assignment's plan talks in: Staff only for every assignment, and Whole group for
+ * a group's (groups come with the Full plan's user management). One person's assignment has no
+ * group to talk with: its learner talks with staff in their own chat with the organization.
+ */
+export function cohortAudiences(assignment: Pick<AssignmentSummary, 'assignment_type'>): ChatAudience[] {
+  return assignment.assignment_type === 'group' ? ['staff', 'group'] : ['staff']
 }

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { attentionOf, byNeed, closeDate, cohortAggregates, cohortPlan, dotOf, firstToDo, helpersOf, paceLabel, paceOf, stepTodo, upcomingStep } from '../cohort.ts'
+import { attentionOf, byNeed, closeDate, cohortAggregates, cohortAudiences, cohortPlan, dotOf, firstToDo, helpersOf, paceLabel, paceOf, stepTodo, upcomingStep } from '../cohort.ts'
 import { cell, matrix } from './cohortFixture.ts'
 
 const TODAY = '2026-10-19'
@@ -66,4 +66,10 @@ test('each learner’s steps as dots, their pace, and what needs attention', () 
 
   assert.deepEqual(byNeed(data.learners, data.stages, TODAY, (item) => String(item.first_name)).map((item) => item.id), [3, 1, 2])
   assert.deepEqual(helpersOf(ben, [9]).map((person) => person.role), ['Guardian'])
+})
+
+test('a group’s assignment talks with its staff and its whole group; one person’s only with its staff', () => {
+  assert.deepEqual(cohortAudiences({ assignment_type: 'group' }), ['staff', 'group'])
+  assert.deepEqual(cohortAudiences({ assignment_type: 'individual' }), ['staff'])
+  assert.deepEqual(cohortAudiences({ assignment_type: 'external' }), ['staff'])
 })

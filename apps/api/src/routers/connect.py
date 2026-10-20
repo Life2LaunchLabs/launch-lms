@@ -7,7 +7,7 @@ from src.core.events.database import get_db_session
 from src.db.conversations import ChatMessageCreate, ChatReportCreate, ConnectSettingsUpdate, DirectChatOpen
 from src.db.users import PublicUser
 from src.security.auth import get_authenticated_user
-from src.services.connect import chats, linking, people, profile, workspace
+from src.services.connect import chats, cohort, linking, people, profile, workspace
 
 router = APIRouter()
 DB = Depends(get_db_session)
@@ -37,6 +37,19 @@ async def get_chat(conversation_uuid: str, before: str | None = None, goal_uuid:
 @router.get("/goals/{goal_uuid}/chat")
 async def goal_chat(goal_uuid: str, current_user: PublicUser = USER, db_session: Session = DB):
     return workspace.goal_chat(db_session, current_user, goal_uuid)
+
+
+def _group_plan(org_id: int, assignment_uuid: str, db_session: Session = DB) -> None:
+    """Groups are a Full-plan feature: so are a group assignment's chats."""
+    from src.routers.goal_admin import _require_assignment_plan
+
+    _require_assignment_plan(org_id, assignment_uuid, db_session)
+
+
+@router.get("/orgs/{org_id}/assignments/{assignment_uuid}/chat", dependencies=[Depends(_group_plan)])
+async def cohort_chat(org_id: int, assignment_uuid: str, audience: str = "staff", current_user: PublicUser = USER, db_session: Session = DB):
+    """An assignment's chat with its staff (audience=staff) or its whole group (audience=group). Read and post it as any chat."""
+    return cohort.cohort_chat(db_session, current_user, org_id, assignment_uuid, audience)
 
 
 @router.post("/chats/{conversation_uuid}/messages")

@@ -567,6 +567,8 @@ async def remove_users_from_usergroup(
         else:
             logging.error(f"User with id {user_id} not found in UserGroup")
 
+    from src.services.connect.cohort import sync_group  # People who left leave its assignments' whole-group chats.
+    sync_group(db_session, usergroup_id)
     db_session.commit()
 
     return "Users removed from UserGroup successfully"

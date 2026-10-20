@@ -75,7 +75,7 @@ export function GoalStepRow({ goal, step, viewer, perspective, selected, last, o
           <span className={cn('max-w-full font-bold leading-snug', selected ? 'text-lg' : 'truncate text-base', (done || locked) && !selected && 'text-muted-foreground')}>{step.title}</span>
           <span className="text-xs font-semibold text-muted-foreground">{status}</span>
         </button>
-        <span className="-mt-1 shrink-0"><StepChatButton step={step} quiet={!selected} /></span>
+        <span className="-mt-1 shrink-0"><StepChatButton step={step} quiet={!selected} label={perspective === 'cohort' ? 'Discuss' : undefined} /></span>
         {menu ? <span className={cn('shrink-0', selected ? '-mr-2 -mt-1' : '-mt-1')}>{menu}</span> : null}
       </div>
       {!selected && RowResult && step.result ? <div className="mt-2"><RowResult step={step as never} /></div> : null}
