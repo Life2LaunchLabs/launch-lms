@@ -88,6 +88,10 @@ test('requirements.long-codes: explorer and learner tree preserve readable code 
         await selector.selectOption(fixture.framework_uuid)
         await expect(selector).toHaveValue(fixture.framework_uuid)
       }
+    } else {
+      // A person opens on Message; their requirement tree lives under Plans.
+      await page.getByRole('link', { name: /^Plans · \d+$/ }).click()
+      await expect(page).toHaveURL(/[?&]tab=plans/)
     }
     const code = page.getByText('HS.HECPS', { exact: true }).first()
     const title = page.getByText('Higher Education and Career Path Skills', { exact: true }).first()
