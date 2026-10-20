@@ -9,7 +9,7 @@ import TemplateList from '@components/Goals/admin/templates/TemplateList'
 import { RequirementFrameworkDetail } from '@components/Goals/admin/insights/RequirementFrameworkEditor'
 import RequirementsExplorer from '@components/Goals/admin/insights/RequirementsExplorer'
 import AdminBadgesHome from '@components/Learning/AdminBadgesHome'
-import { MarketplaceBrowsePanel } from '@components/Learning/IssuingAdminShell'
+import Marketplace from '@components/Admin/Marketplace/Marketplace'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { getUriWithOrg } from '@services/config/config'
@@ -44,10 +44,9 @@ export function RequirementsPage({ orgslug }: { orgslug: string }) {
   return <PlansShell active="requirements"><RequirementsExplorer orgslug={orgslug} orgId={orgId} token={token} /></PlansShell>
 }
 
-/** Marketplace: badges other orgs share, to request to run. */
+/** Marketplace: templates, badges and frameworks other orgs share (Browse), and requests both ways (Requests). */
 export function MarketplacePage() {
-  const { orgId } = useOrgAndToken()
-  return <PlansShell active="marketplace">{orgId ? <MarketplaceBrowsePanel orgId={orgId} /> : null}</PlansShell>
+  return <PlansShell active="marketplace"><Marketplace /></PlansShell>
 }
 
 /** One requirement framework, under Plans › Requirements. */

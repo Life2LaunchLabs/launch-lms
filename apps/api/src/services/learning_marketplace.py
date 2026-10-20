@@ -199,7 +199,10 @@ async def browse_marketplace_badges(
     authorizations_by_badge_id: dict[int, BadgeIssuerAuthorization] = {}
     issuing_access: str | None = None
     if issuer_org_id is not None:
-        _require_org_admin(db_session, current_user, issuer_org_id)
+        # Staff browse read-only; requesting, approving and copying stay admin only.
+        from src.services.goals.template_marketplace import require_reader
+
+        require_reader(db_session, _require_user(current_user), issuer_org_id)
         if (
             isinstance(current_user, PublicUser)
             and is_user_superadmin(current_user.id, db_session)

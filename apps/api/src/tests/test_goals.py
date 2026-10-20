@@ -38,6 +38,7 @@ from src.db.portfolio import Portfolio
 from src.db.planning import OrganizationPlanRole, Plan, PlanActivity, PlanCollaborator, PlanRole
 from src.db.roles import Role
 from src.db.school import UserGroupStaff
+from src.db.template_marketplace import GoalTemplateAuthorization, GoalTemplateListing
 from src.db.user_organizations import UserOrganization
 from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup
@@ -61,6 +62,8 @@ def _session() -> Session:
         CoachPolicy.__table__, CoachProviderKey.__table__, CoachPlaybook.__table__, UserGroupStaff.__table__, OrganizationConfig.__table__,
         # Goals keep their chats in step (services/connect/workspace.py).
         Conversation.__table__, ConversationMember.__table__, ConversationMessage.__table__, ConversationMessageRef.__table__, GoalComment.__table__,
+        # Marketplace permission to use another organization's template (services/goals/template_marketplace.py).
+        GoalTemplateListing.__table__, GoalTemplateAuthorization.__table__,
     ])
     db = Session(engine)
     db.add(Organization(id=1, org_uuid="org_1", name="Studio", slug="studio", email="studio@example.com", creation_date=NOW, update_date=NOW))
