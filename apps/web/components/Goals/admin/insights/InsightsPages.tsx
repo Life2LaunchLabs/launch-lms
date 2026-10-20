@@ -3,18 +3,21 @@
 import React from 'react'
 import { useRouter } from 'next/navigation'
 import useSWR from 'swr'
-import { ClipboardCheck, ListTree, Users } from 'lucide-react'
+import { BarChart3, ClipboardCheck, ListTree, MessageCircle, Users } from 'lucide-react'
 import AdminTabPage from '@components/Admin/AdminTabPage'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { getUserGroups } from '@services/usergroups/usergroups'
 import { EmptyState, PageLoader } from '../live/ui'
+import GroupReport from './GroupReport'
+import GroupReportPrint from './GroupReportPrint'
 import GroupRequirementsGrid from './GroupRequirementsGrid'
 import { RequirementFrameworkDetail } from './RequirementFrameworkEditor'
 import RequirementsExplorer from './RequirementsExplorer'
+import { insightsRoutes } from './reportRoutes'
 
-type InsightsView = 'coverage' | 'evidence'
+type InsightsView = 'reports' | 'engagement' | 'coverage' | 'evidence'
 
 function useOrgAndToken() {
   const org = useOrg() as { id?: number } | null
@@ -22,13 +25,38 @@ function useOrgAndToken() {
   return { orgId: Number(org?.id), token: session?.data?.tokens?.access_token }
 }
 
-/** Insights: how the org's templates cover its requirement frameworks, and how learners meet them, with the evidence to export. */
+/**
+ * Insights: reports by group (print or send them), engagement (not designed yet), and, until they move
+ * into Plans → Requirements, how templates cover requirement frameworks and each group's learner evidence.
+ */
 function InsightsTabs({ orgslug, view, children }: { orgslug: string; view: InsightsView; children: React.ReactNode }) {
   const tabs = [
-    { id: 'coverage', label: 'Coverage', icon: <ListTree size={15} />, href: getUriWithOrg(orgslug, routePaths.org.admin.insights()) },
+    { id: 'reports', label: 'Reports', icon: <BarChart3 size={15} />, href: getUriWithOrg(orgslug, routePaths.org.admin.insights()) },
+    { id: 'engagement', label: 'Engagement', icon: <MessageCircle size={15} />, href: getUriWithOrg(orgslug, insightsRoutes.engagement()) },
+    { id: 'coverage', label: 'Coverage', icon: <ListTree size={15} />, href: getUriWithOrg(orgslug, insightsRoutes.coverage()) },
     { id: 'evidence', label: 'Learner evidence', icon: <ClipboardCheck size={15} />, href: getUriWithOrg(orgslug, routePaths.org.admin.insightsEvidence()) },
   ]
   return <AdminTabPage tab="insights" tabs={tabs} activeTab={view}>{children}</AdminTabPage>
+}
+
+/** Reports by group: plans and badges, who's behind and what's left, optional frameworks; print or send. */
+export function InsightsReportsPage({ orgslug, groupId, frameworks }: { orgslug: string; groupId: number | null; frameworks: string[] }) {
+  return <InsightsTabs orgslug={orgslug} view="reports"><GroupReport orgslug={orgslug} groupId={groupId} frameworks={frameworks} /></InsightsTabs>
+}
+
+/** One group's report on its own, laid out for paper. */
+export function InsightsReportPrintPage({ orgslug, groupId, frameworks }: { orgslug: string; groupId: number; frameworks: string[] }) {
+  return <GroupReportPrint orgslug={orgslug} groupId={groupId} frameworks={frameworks} />
+}
+
+/** Engagement by group. Not designed yet. */
+export function InsightsEngagementPage({ orgslug }: { orgslug: string }) {
+  return <InsightsTabs orgslug={orgslug} view="engagement">
+    <div className="px-4 pb-10 pt-6 sm:px-10"><section className="max-w-[640px] rounded-xl border border-gray-100 bg-white p-5 nice-shadow">
+      <b className="text-sm text-gray-900">Engagement</b>
+      <p className="mt-1 text-[13px] text-gray-500">Coming later: messages, logins and how groups respond to reminders. Group progress is under Reports.</p>
+    </section></div>
+  </InsightsTabs>
 }
 
 export function InsightsCoveragePage({ orgslug }: { orgslug: string }) {
