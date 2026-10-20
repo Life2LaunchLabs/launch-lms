@@ -58,7 +58,7 @@
     "apps/web/components/Dashboard/Pages/UserAccount/UserProfile/UserProfileBuilder.tsx": 1345,
     "apps/web/components/Dashboard/Pages/Users/OrgUsers/OrgUsers.tsx": 587,
     "apps/web/components/Learning/AdminBadgeCollection.tsx": 708,
-    "apps/web/components/Learning/AdminBadgeShell.tsx": 1200,
+    "apps/web/components/Learning/AdminBadgeShell.tsx": 1166,
     "apps/web/components/Learning/BadgeCertificatePreview.tsx": 634,
     "apps/web/components/Learning/IssuingAdminShell.tsx": 591,
     "apps/web/components/Learning/LearningBadgeViews.tsx": 917,
