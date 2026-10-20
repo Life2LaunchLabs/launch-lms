@@ -386,8 +386,8 @@ def api_managed_user_plans(user_id: int, org_id: int, db: Session = Depends(get_
 
 
 @router.get("/requirements")
-def api_list_requirement_frameworks(org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    return requirement_service.list_frameworks(db, current_user, org_id)
+def api_list_requirement_frameworks(org_id: int, with_coverage: bool = False, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
+    return requirement_service.list_frameworks(db, current_user, org_id, with_coverage)
 
 
 @router.post("/requirements")

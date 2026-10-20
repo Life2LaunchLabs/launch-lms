@@ -7,7 +7,7 @@ import PlansShell from '@components/Admin/Plans/PlansShell'
 import { OrgAssignments } from '@components/Goals/admin/assignments/AssignmentsList'
 import TemplateList from '@components/Goals/admin/templates/TemplateList'
 import { RequirementFrameworkDetail } from '@components/Goals/admin/insights/RequirementFrameworkEditor'
-import RequirementsExplorer from '@components/Goals/admin/insights/RequirementsExplorer'
+import FrameworkList from '@components/Goals/admin/requirements/FrameworkList'
 import AdminBadgesHome from '@components/Learning/AdminBadgesHome'
 import Marketplace from '@components/Admin/Marketplace/Marketplace'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
@@ -43,10 +43,10 @@ export function BadgesPage({ orgslug, orgId, collections }: { orgslug: string; o
   </PlansShell>
 }
 
-/** Requirements: the org's frameworks and how its templates cover them. */
+/** Requirements: the org's frameworks, each with how much of it the org's templates cover. */
 export function RequirementsPage({ orgslug }: { orgslug: string }) {
   const { orgId, token } = useOrgAndToken()
-  return <PlansShell active="requirements"><RequirementsExplorer orgslug={orgslug} orgId={orgId} token={token} /></PlansShell>
+  return <PlansShell active="requirements"><FrameworkList orgslug={orgslug} orgId={orgId} token={token} /></PlansShell>
 }
 
 /** Marketplace: templates, badges and frameworks other orgs share (Browse), and requests both ways (Requests). */
@@ -54,8 +54,8 @@ export function MarketplacePage() {
   return <PlansShell active="marketplace"><Marketplace /></PlansShell>
 }
 
-/** One requirement framework, under Plans › Requirements. */
-export function RequirementFrameworkPlansPage({ orgslug, frameworkUuid, subpage }: { orgslug: string; frameworkUuid: string; subpage: Exclude<FrameworkSubpage, 'plans'> }) {
+/** One requirement framework, under Plans › Requirements: coverage by plan, details, levels and spec. */
+export function RequirementFrameworkPlansPage({ orgslug, frameworkUuid, subpage }: { orgslug: string; frameworkUuid: string; subpage: FrameworkSubpage }) {
   const { orgId, token } = useOrgAndToken()
   return <AdminTabPage tab="plans"><RequirementFrameworkDetail orgslug={orgslug} orgId={orgId} token={token} frameworkUuid={frameworkUuid} activeSubpage={subpage} /></AdminTabPage>
 }
