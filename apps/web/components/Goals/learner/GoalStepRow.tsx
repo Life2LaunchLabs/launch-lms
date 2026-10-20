@@ -5,20 +5,40 @@ import { cn } from '@/lib/utils'
 import { Button } from '@components/ui/button'
 import { Skeleton } from '@components/ui/skeleton'
 import { PathNode } from '@components/Goals/path/PathNode'
-import { lockedSentence, statusLine } from '@components/Goals/path/stepText'
+import { aggregateLine, aggregateNode, lockedSentence, statusLine } from '@components/Goals/path/stepText'
 import { stepDefinition } from '@components/Goals/steps'
 import StepBody from '@components/Goals/steps/StepBody'
 import { useStepActions } from '@components/Goals/useGoalActions'
 import { StepChatButton } from '@components/Goals/chat/GoalChat'
-import type { Goal, Step } from '@services/goals/types'
+import type { StepAggregate } from '@services/goals/admin'
+import { can, type Goal, type Step } from '@services/goals/types'
 
-/** Who is looking at the path, and what they can do on it. */
-export type PathViewer = { orgslug: string; token?: string; viewerUserId?: number; canWork: boolean; staff: boolean }
+/** Who is looking at the path. */
+export type PathViewer = { orgslug: string; token?: string; viewerUserId?: number }
+
+/**
+ * Where the path is seen from: the learner on their own plan, staff over one learner's
+ * shoulder, or staff on an assignment's plan across its cohort.
+ */
+export type PathPerspective = 'learner' | 'staff' | 'cohort'
+
+/**
+ * What a step's card lets the viewer do: the learner works their own steps; staff who review
+ * the goal approve, send back or mark done for them. Nobody works a step from a cohort's plan.
+ */
+export function stepAccess(goal: Goal, perspective: PathPerspective, viewerUserId?: number) {
+  const subject = viewerUserId !== undefined && goal.subject?.id === viewerUserId
+  return {
+    canWork: perspective === 'learner' && subject && can(goal, 'update_progress'),
+    staff: perspective !== 'learner' && can(goal, 'complete_restricted_objectives'),
+  }
+}
 
 type RowProps = {
   goal: Goal
   step: Step
   viewer: PathViewer
+  perspective: PathPerspective
   selected: boolean
   last: boolean
   onSelect: () => void
@@ -30,19 +50,24 @@ type RowProps = {
   menu?: React.ReactNode
   /** Lines under the row, such as Coach's suggested changes to it. */
   after?: React.ReactNode
+  /** The step across a cohort: its node and status line count learners instead of one learner's progress. */
+  aggregate?: StepAggregate
+  /** What opens in place of the step's card when it's selected, such as staff's to-dos on it. */
+  body?: React.ReactNode
 }
 
 /** A step on the goal's path: its node, title and status; selected, its card opens in place. */
-export function GoalStepRow({ goal, step, viewer, selected, last, onSelect, onGoTo, onOpenActivity, onAsk, menu, after }: RowProps) {
+export function GoalStepRow({ goal, step, viewer, perspective, selected, last, onSelect, onGoTo, onOpenActivity, onAsk, menu, after, aggregate, body }: RowProps) {
   const definition = stepDefinition(step.type)
-  const RowResult = definition.RowResult
-  const status = statusLine(step)
+  const RowResult = aggregate ? undefined : definition.RowResult
+  const status = aggregate ? aggregateLine(aggregate) : statusLine(step)
+  const node = aggregate ? aggregateNode(aggregate) : step
   const locked = step.state === 'locked'
-  const done = step.state === 'done'
+  const done = node.state === 'done'
   return <li id={`step-${step.step_uuid}`} data-step-shell={step.step_uuid} className="relative flex items-start gap-4 pb-4 scroll-mt-24">
     {!last ? <span aria-hidden="true" className={cn('absolute left-[28px] top-12 bottom-0 w-[3px] -translate-x-1/2 rounded-full', done ? 'bg-[var(--plan-face)]/60' : 'bg-border')} /> : null}
     <button type="button" onClick={onSelect} aria-label={`${step.title}, ${status}`} aria-expanded={selected} className="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
-      <PathNode state={step.state} fraction={step.fraction} icon={definition.icon} selected={selected} />
+      <PathNode state={node.state} fraction={node.fraction} icon={definition.icon} selected={selected} />
     </button>
     <div className={cn('min-w-0 flex-1', selected ? 'rounded-2xl border-2 bg-card p-4 shadow-[0_4px_0_hsl(var(--edge))]' : 'pt-2', selected && (locked ? 'border-border' : 'border-[var(--plan-face)]'))}>
       <div className="flex items-start gap-1">
@@ -55,7 +80,7 @@ export function GoalStepRow({ goal, step, viewer, selected, last, onSelect, onGo
       </div>
       {!selected && RowResult && step.result ? <div className="mt-2"><RowResult step={step as never} /></div> : null}
       {selected ? <div className="mt-3 flex flex-col gap-3">
-        {locked ? <LockedBody step={step} onGoTo={onGoTo} /> : <StepCard goal={goal} step={step} viewer={viewer} onOpenActivity={onOpenActivity} onAsk={onAsk && !done && step.state !== 'waiting' ? onAsk : undefined} />}
+        {body !== undefined ? body : locked ? <LockedBody step={step} onGoTo={onGoTo} /> : <StepCard goal={goal} step={step} viewer={viewer} perspective={perspective} onOpenActivity={onOpenActivity} onAsk={onAsk && !done && step.state !== 'waiting' ? onAsk : undefined} />}
       </div> : null}
       {after}
     </div>
@@ -73,9 +98,10 @@ function LockedBody({ step, onGoTo }: { step: Step; onGoTo: (stepUuid: string) =
 }
 
 /** The selected step's card body from the registry, worked on in place. */
-function StepCard({ goal, step, viewer, onOpenActivity, onAsk }: { goal: Goal; step: Step; viewer: PathViewer; onOpenActivity: () => void; onAsk?: () => void }) {
+function StepCard({ goal, step, viewer, perspective, onOpenActivity, onAsk }: { goal: Goal; step: Step; viewer: PathViewer; perspective: PathPerspective; onOpenActivity: () => void; onAsk?: () => void }) {
   const actions = useStepActions(goal, step, viewer.token, onOpenActivity, onAsk)
-  return <StepBody goal={goal} step={step} actions={actions} canWork={viewer.canWork} staff={viewer.staff} orgslug={viewer.orgslug} token={viewer.token} viewerUserId={viewer.viewerUserId} />
+  const { canWork, staff } = stepAccess(goal, perspective, viewer.viewerUserId)
+  return <StepBody goal={goal} step={step} actions={actions} canWork={canWork} staff={staff} orgslug={viewer.orgslug} token={viewer.token} viewerUserId={viewer.viewerUserId} />
 }
 
 /** A path of steps while they load: nodes on the line, a title and a status line beside each. */

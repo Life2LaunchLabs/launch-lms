@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { useHub } from '@components/Hub/HubContext'
 import { planVars } from '@components/Goals/planColors'
 import { getUriWithOrg } from '@services/config/config'
+import type { StepAggregate } from '@services/goals/admin'
 import { goalSteps, type Goal, type Stage, type Step } from '@services/goals/types'
 import { AddStageButton, AddStepButton, StageMenu, StepMenu, useGoalEditing } from '@components/Goals/edit/GoalEditing'
 import { GoalChangeLine, StageChangeLine, StepChangeLine, SuggestedStageLine, SuggestedStepLine } from '@components/Goals/edit/GoalProposals'
@@ -15,7 +16,7 @@ import { cn } from '@/lib/utils'
 import { shortDate } from '../path/stepText'
 import { canMoveStages, FinishSection, MoveOnLine, ScheduleNotes, useMoveToStage } from './GoalStages'
 import type { GoalBadge } from './GoalHeader'
-import { GoalStepRow, type PathViewer } from './GoalStepRow'
+import { GoalStepRow, type PathPerspective, type PathViewer } from './GoalStepRow'
 
 type Section = { key: string; title: string; stage?: Stage; index: number; steps: Step[] }
 
@@ -52,20 +53,32 @@ type GoalPathProps = {
   color: string
   badge?: GoalBadge
   viewer: PathViewer
+  perspective: PathPerspective
   selectedUuid: string
   // eslint-disable-next-line no-unused-vars
   onSelect: (stepUuid: string) => void
   /** Coach's suggestions on this goal show in place (the learner's own goal). */
-  token?: string
   own?: boolean
+  /** Where an activity step opens; by default the learner's player. */
+  // eslint-disable-next-line no-unused-vars
+  onOpenActivity?: (step: Step) => void
+  /** Under each step, for whoever looks from outside the learner's seat: staff's notes or to-dos on it. */
+  // eslint-disable-next-line no-unused-vars
+  rowExtra?: (step: Step, row: { selected: boolean }) => React.ReactNode
+  /** A cohort's counts per step, by step uuid. */
+  aggregates?: Record<string, StepAggregate>
+  /** What opens in place of a step's card, when there's something else to show there. */
+  // eslint-disable-next-line no-unused-vars
+  stepBody?: (step: Step) => React.ReactNode
 }
 
 /**
  * A goal below its header: its stages as sections of steps, opened at the next step. Whoever
  * can edit the goal does it object by object, from each step's and stage's menu, and Coach's
- * suggestions sit where they would go. Staff see the same path.
+ * suggestions sit where they would go. Staff see the same path, with their own lines under
+ * each step; a cohort's path is its plan template, without one learner's schedule or finish.
  */
-export default function GoalPath({ goal, color, badge, viewer, selectedUuid, onSelect, own = false }: GoalPathProps) {
+export default function GoalPath({ goal, color, badge, viewer, perspective, selectedUuid, onSelect, own = false, onOpenActivity, rowExtra, aggregates, stepBody }: GoalPathProps) {
   const router = useRouter()
   const hub = useHub()
   const editing = useGoalEditing()
@@ -76,7 +89,10 @@ export default function GoalPath({ goal, color, badge, viewer, selectedUuid, onS
   const selected = selectedUuid || nextUuid || ''
   const current = goal.current_stage_uuid
   const mover = useMoveToStage(goal, viewer.token, color)
-  const movable = canMoveStages(goal) && !viewer.staff
+  const learner = perspective === 'learner'
+  const cohort = perspective === 'cohort'
+  // Staff over a learner's shoulder move stages when the goal lets them; a cohort has no stage it's on.
+  const movable = canMoveStages(goal) && !cohort
 
   // Open at the step asked for, else the one to do next, like a path that starts where you left off.
   React.useEffect(() => {
@@ -92,8 +108,8 @@ export default function GoalPath({ goal, color, badge, viewer, selectedUuid, onS
   }, [goal.goal_uuid])
 
   const goTo = (stepUuid: string) => { onSelect(stepUuid); document.getElementById(`step-${stepUuid}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }) }
-  const openActivity = (step: Step) => router.push(getUriWithOrg(viewer.orgslug, `/plans/${encodeURIComponent(goal.goal_uuid)}/steps/${encodeURIComponent(step.step_uuid)}/activity`))
-  const ask = hub && !viewer.staff ? (step: Step) => hub.open({ prompt: `Help me with “${step.title}” in my goal “${goal.title}”.` }) : undefined
+  const openActivity = onOpenActivity || ((step: Step) => router.push(getUriWithOrg(viewer.orgslug, `/plans/${encodeURIComponent(goal.goal_uuid)}/steps/${encodeURIComponent(step.step_uuid)}/activity`)))
+  const ask = hub && learner ? (step: Step) => hub.open({ prompt: `Help me with “${step.title}” in my goal “${goal.title}”.` }) : undefined
   const looseSuggestions = proposals.steps.filter((item) => !item.stageUuid)
 
   const currentIndex = goal.stages.findIndex((stage) => stage.stage_uuid === current)
@@ -114,19 +130,19 @@ export default function GoalPath({ goal, color, badge, viewer, selectedUuid, onS
           <div className="min-w-0">
             <h2 className={cn('text-xl font-extrabold tracking-tight', place === 'past' && 'text-foreground/70')}>{section.title}</h2>
             {when ? <p className="text-sm font-semibold text-muted-foreground">{when}</p> : null}
-            <ScheduleNotes goal={goal} stageUuid={section.stage?.stage_uuid} className="mt-1" />
+            {!cohort ? <ScheduleNotes goal={goal} stageUuid={section.stage?.stage_uuid} className="mt-1" /> : null}
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            {section.steps.length ? <span className="text-xs font-bold text-muted-foreground">{sectionDone} of {section.steps.length}</span> : null}
+            {section.steps.length && !cohort ? <span className="text-xs font-bold text-muted-foreground">{sectionDone} of {section.steps.length}</span> : null}
             {section.stage ? <StageMenu stage={section.stage} index={section.index} onMakeCurrent={movable && !active ? () => mover.ask(section.stage!) : undefined} /> : null}
           </div>
         </div> : null}
         {section.stage ? proposals.stageChanges.filter((item) => item.change.stage_uuid === section.stage!.stage_uuid).map((item) => <StageChangeLine key={item.change.local_id} goal={goal} item={item} token={viewer.token} onSettled={proposals.settle} />) : null}
         {section.steps.length ? <ol className="flex flex-col">
-          {section.steps.map((step, index) => <GoalStepRow key={step.step_uuid} goal={goal} step={step} viewer={viewer} selected={step.step_uuid === selected} last={index === section.steps.length - 1}
+          {section.steps.map((step, index) => <GoalStepRow key={step.step_uuid} goal={goal} step={step} viewer={viewer} perspective={perspective} selected={step.step_uuid === selected} last={index === section.steps.length - 1}
             onSelect={() => onSelect(step.step_uuid)} onGoTo={goTo} onOpenActivity={() => openActivity(step)} onAsk={ask ? () => ask(step) : undefined}
-            menu={<StepMenu step={step} />}
-            after={<><ScheduleNotes goal={goal} stepUuid={step.step_uuid} className="pb-1" />{proposals.stepChanges.filter((item) => item.change.step_uuid === step.step_uuid).map((item) => <StepChangeLine key={item.change.local_id} goal={goal} item={item} token={viewer.token} onSettled={proposals.settle} />)}</>} />)}
+            menu={<StepMenu step={step} />} aggregate={aggregates?.[step.step_uuid]} body={stepBody?.(step)}
+            after={<>{!cohort ? <ScheduleNotes goal={goal} stepUuid={step.step_uuid} className="pb-1" /> : null}{proposals.stepChanges.filter((item) => item.change.step_uuid === step.step_uuid).map((item) => <StepChangeLine key={item.change.local_id} goal={goal} item={item} token={viewer.token} onSettled={proposals.settle} />)}{rowExtra?.(step, { selected: step.step_uuid === selected })}</>} />)}
         </ol> : <p className="ml-[72px] text-sm text-muted-foreground">No steps here yet.</p>}
         {active && movable ? <MoveOnLine stage={section.stage!} next={goal.stages[section.index + 1]} onMove={() => mover.ask(goal.stages[section.index + 1])} /> : null}
         {suggested.length ? <ul aria-label="Suggested steps" className="flex flex-col">
@@ -145,6 +161,6 @@ export default function GoalPath({ goal, color, badge, viewer, selectedUuid, onS
     {proposals.stages.map((item) => <SuggestedStageLine key={item.stage.local_id} goal={goal} item={item} token={viewer.token} onSettled={proposals.settle} />)}
     <AddStageButton />
     {mover.sheet}
-    <FinishSection goal={goal} token={viewer.token} color={color} orgslug={viewer.orgslug} badge={badge} />
+    {!cohort ? <FinishSection goal={goal} token={viewer.token} color={color} orgslug={viewer.orgslug} badge={badge} /> : null}
   </div>
 }
