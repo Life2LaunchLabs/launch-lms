@@ -41,14 +41,28 @@ export interface Coverage {
   nodes: Array<RequirementNode & { covered_by: Array<{ template_uuid: string; step_key: string; title: string; step_types: StepTypeKey[] }> }>
 }
 
+/** How much of a framework's requirements (leaf nodes) the org's published templates cover. */
+export interface FrameworkCoverageSummary { covered: number; total: number; gaps: number; template_count: number; percent: number }
+/** Who publishes a framework: the org a library copy came from, or the org itself (`yours`). */
+export interface FrameworkPublisher { org_id: number; name: string; yours: boolean }
+/** A framework as the list reads it (`?with_coverage=1`). */
+export interface FrameworkListItem {
+  framework_uuid: string; org_id: number; name: string; description?: string; version: number; status: string
+  source_framework_uuid?: string | null; nodes: RequirementNode[]; enrollment_count: number
+  publisher: FrameworkPublisher; can_edit: boolean; coverage?: FrameworkCoverageSummary
+}
+
 export type EvidenceExportScope = { user_ids: number[]; assignment_uuid?: string; usergroup_id?: number; framework_uuid?: string; course_name?: string; course_code?: string; section?: string; term?: string }
 
 export const frameworksKey = (orgId: number) => frameworks(`?org_id=${orgId}`)
+export const frameworksCoverageKey = (orgId: number) => frameworks(`?org_id=${orgId}&with_coverage=true`)
 export const learnerRequirementsKey = (orgId: number, userId: number) => goalAdminUrl(`/managed-users/${userId}/requirements`, orgId)
 
 /** Requirement frameworks, and where learners stand on them as read from goal steps. */
 export const requirementsApi = {
   list: (orgId: number, token?: string) => request<any[]>(frameworksKey(orgId), token),
+  /** The list with each framework's coverage summary, for Plans › Requirements. */
+  listWithCoverage: (orgId: number, token?: string) => request<FrameworkListItem[]>(frameworksCoverageKey(orgId), token),
   get: (orgId: number, uuid: string, token?: string, version?: number) => request(frameworks(`/${q(uuid)}?org_id=${orgId}${version ? `&version=${version}` : ''}`), token),
   create: (orgId: number, data: any, token?: string) => request(frameworks(''), token, 'POST', { ...data, org_id: orgId }),
   library: (orgId: number, query = '', token?: string) => request<any[]>(frameworks(`/library?org_id=${orgId}&q=${q(query)}`), token),

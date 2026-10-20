@@ -31,7 +31,9 @@ from src.db.user_organizations import UserOrganization
 from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup
 from src.db.users import PublicUser, User
-from src.security.org_auth import require_org_admin
+from src.security.org_auth import is_org_admin, require_org_admin
+from src.security.superadmin import is_user_superadmin
+from src.services.school.roles import is_staff
 
 
 REQUIREMENT_CODE_STYLES = {
@@ -69,6 +71,23 @@ def _require_owner_org_admin(db: Session, current_user: PublicUser, org_id: int)
     if _owner_org(db).id != org_id:
         raise HTTPException(status_code=403, detail="Only the owner organization can publish to the global library")
     require_org_admin(current_user.id, org_id, db)
+
+
+def _require_staff(db: Session, current_user: PublicUser, org_id: int) -> None:
+    """Reading frameworks is for the organization's staff; changing them stays with its admins."""
+    if is_user_superadmin(current_user.id, db) or is_org_admin(current_user.id, org_id, db) or is_staff(db, org_id, current_user.id):
+        return
+    raise HTTPException(status_code=403, detail="Only the organization's staff can see its requirement frameworks")
+
+
+def _publisher(db: Session, framework: RequirementFramework) -> dict:
+    """Who publishes a framework: the org it was copied from (the global library), or its own org."""
+    source = db.exec(select(RequirementFramework).where(
+        RequirementFramework.framework_uuid == framework.source_framework_uuid,
+    )).first() if framework.source_framework_uuid else None
+    org_id = source.org_id if source else framework.org_id
+    org = db.get(Organization, org_id)
+    return {"org_id": org_id, "name": org.name if org else "", "yours": org_id == framework.org_id}
 
 
 def _available(db: Session) -> bool:
@@ -292,13 +311,30 @@ def _framework_dict(db: Session, framework: RequirementFramework, version_number
     }
 
 
-def list_frameworks(db: Session, current_user: PublicUser, org_id: int) -> list[dict]:
-    require_org_admin(current_user.id, org_id, db)
+def _reader_view(db: Session, current_user: PublicUser, framework: RequirementFramework, version_number: int | None = None) -> dict:
+    """A framework as staff read it: who publishes it, and whether this viewer can change it."""
+    return {
+        **_framework_dict(db, framework, version_number),
+        "publisher": _publisher(db, framework),
+        "can_edit": is_org_admin(current_user.id, framework.org_id, db),
+    }
+
+
+def list_frameworks(db: Session, current_user: PublicUser, org_id: int, with_coverage: bool = False) -> list[dict]:
+    """The org's frameworks; with `with_coverage`, each also says how much of it the org's published templates cover."""
+    _require_staff(db, current_user, org_id)
     items = db.exec(select(RequirementFramework).where(
         RequirementFramework.org_id == org_id,
         RequirementFramework.archived == False,  # noqa: E712
     ).order_by(RequirementFramework.name)).all()
-    return [_framework_dict(db, item) for item in items]
+    views = [_reader_view(db, current_user, item) for item in items]
+    if with_coverage:
+        from src.services.goals.requirements import coverage_summaries
+
+        summaries = coverage_summaries(db, org_id, views)
+        for view in views:
+            view["coverage"] = summaries[view["framework_uuid"]]
+    return views
 
 
 def publish_framework_to_library(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str) -> dict:
@@ -388,8 +424,8 @@ def create_framework(db: Session, current_user: PublicUser, payload: Requirement
 
 
 def get_framework(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str, version: int | None = None) -> dict:
-    require_org_admin(current_user.id, org_id, db)
-    return _framework_dict(db, _framework_or_404(db, org_id, framework_uuid), version)
+    _require_staff(db, current_user, org_id)
+    return _reader_view(db, current_user, _framework_or_404(db, org_id, framework_uuid), version)
 
 
 def update_framework(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str, payload: RequirementFrameworkUpdate) -> dict:

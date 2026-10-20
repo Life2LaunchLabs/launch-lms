@@ -93,6 +93,11 @@ def test_learner_requirements_show_gaps_and_staff_plan_a_makeup_or_credit_it(wor
     covered = {node["title"]: [(item["title"], item["step_key"], item["step_types"]) for item in node["covered_by"]] for node in report["nodes"]}
     assert covered == {"Experiences": [], "Resume": [("Your first resume", "resume", ["upload"])], "Workplace experience": []}
     assert report["templates"] == [{"template_uuid": template_uuid, "title": "College ready", "mapped": True}]
+    # Staff read the same coverage; a learner can't.
+    assert service.coverage(db, _user(TEACHER), 1, framework["framework_uuid"])["nodes"] == report["nodes"]
+    with pytest.raises(HTTPException) as learner_coverage:
+        service.coverage(db, _user(LEARNER), 1, framework["framework_uuid"])
+    assert learner_coverage.value.status_code == 403
 
     options = service.makeup_options(db, admin, 1, LEARNER, nodes["Resume"])
     assert [(item["step_key"], item["template"]["title"]) for item in options] == [("resume", "College ready")]
@@ -131,6 +136,26 @@ def test_learner_requirements_show_gaps_and_staff_plan_a_makeup_or_credit_it(wor
     with pytest.raises(HTTPException) as not_staff:
         service.group_requirements(db, _user(OTHER), 1, 1)
     assert not_staff.value.status_code == 403
+
+
+def test_framework_list_summarizes_coverage_for_staff(world):
+    db, _, template_uuid, framework, nodes = world
+    for actor in (_user(ADMIN), _user(TEACHER)):
+        listed = requirements.list_frameworks(db, actor, 1, with_coverage=True)
+        assert [item["framework_uuid"] for item in listed] == [framework["framework_uuid"]]
+        # Two requirements (the leaves under Experiences); one template's resume step covers one of them.
+        assert listed[0]["coverage"] == {"covered": 1, "total": 2, "gaps": 1, "template_count": 1, "percent": 50}
+    assert "coverage" not in requirements.list_frameworks(db, _user(ADMIN), 1)[0]
+
+    # A second framework nothing maps to yet is all gaps, and doesn't borrow the first one's templates.
+    empty = requirements.create_framework(db, _user(ADMIN), RequirementFrameworkCreate(org_id=1, name="Work hours", nodes=[RequirementNodeInput(title="Forty hours")]))
+    summaries = {item["name"]: item["coverage"] for item in requirements.list_frameworks(db, _user(TEACHER), 1, with_coverage=True)}
+    assert summaries["Work hours"] == {"covered": 0, "total": 1, "gaps": 1, "template_count": 0, "percent": 0}
+    assert empty["framework_uuid"]
+
+    with pytest.raises(HTTPException) as learner:
+        requirements.list_frameworks(db, _user(LEARNER), 1, with_coverage=True)
+    assert learner.value.status_code == 403
 
 
 def test_makeup_from_a_template_step_goes_into_the_stage_with_open_work(world):

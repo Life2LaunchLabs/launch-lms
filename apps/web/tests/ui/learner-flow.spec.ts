@@ -81,6 +81,33 @@ test('framework.generated: deliberate level conversion can be canceled and gener
   expect(preserved.nodes.map((node: any) => node.code)).toEqual(['HS.HECPS', 'HS.HECPS.D', 'HS.HECPS.D.2'])
 })
 
+test('framework.list: Requirements lists frameworks with coverage and opens coverage by plan', async ({ page }, info) => {
+  test.setTimeout(60_000)
+  const listed = page.waitForResponse((response) => response.url().includes('/planning/requirements?') && response.url().includes('with_coverage=true') && response.request().method() === 'GET')
+  await page.goto(`${orgPath}/admin/plans/requirements`)
+  await assertActualApp(page)
+  expect((await listed).ok()).toBe(true)
+  await expect(page.getByRole('link', { name: 'Add from marketplace' })).toHaveAttribute('href', /\/admin\/plans\/marketplace\?type=frameworks$/)
+  await expect(page.getByRole('button', { name: 'Create framework' })).toBeVisible()
+  const row = page.getByRole('list', { name: 'Requirement frameworks' }).getByRole('link').filter({ hasText: 'Manual code editor test' }).first()
+  await expect(row).toContainText(/\d+ of \d+ covered by \d+ templates?/)
+  await expect(row).toContainText('Yours · you can edit')
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true)
+  await capture(page, info, 'requirements-list.png')
+
+  await page.getByRole('searchbox', { name: 'Search frameworks' }).fill('no framework is called this')
+  await expect(page.getByText('No frameworks match.')).toBeVisible()
+  await page.getByRole('button', { name: 'Clear search' }).click()
+
+  await row.click()
+  await expect(page).toHaveURL(new RegExp(`/admin/plans/requirements/${fixture.framework_uuid}/plans$`))
+  await expect(page.getByRole('link', { name: 'Coverage by plan' })).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByRole('button', { name: 'All plans' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('tree', { name: 'Requirements' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Create framework' })).toHaveCount(0)
+  await capture(page, info, 'framework-coverage-by-plan.png')
+})
+
 test('goals.invitation: organization and personal inviter are visible with the role', async ({ page }, info) => {
   test.setTimeout(60_000)
   await page.goto(`${orgPath}/plans`)
