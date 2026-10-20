@@ -46,7 +46,7 @@ export default function AssignmentDetail({ orgslug, assignmentUuid, tab = 'plan'
   return <main className="min-h-full w-full bg-background">
     <header className="border-b border-border px-4 pt-6 sm:px-6 lg:px-10">
       <div className="mx-auto max-w-5xl">
-        <Link href={back} className="inline-flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground"><ArrowLeft size={14} />Assignments</Link>
+        <Link href={back} className="inline-flex min-h-10 items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground md:min-h-0"><ArrowLeft size={14} />Assignments</Link>
         <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2"><h1 className="text-2xl font-black tracking-tight">{assignment.template_title}</h1><StatusChip status={assignment.status} /></div>

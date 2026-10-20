@@ -134,7 +134,7 @@ function StepQueue({ orgId, token, assignment, stepKey, stepUuid, focus, back, o
           <div className="flex items-center gap-3">
             <PersonAvatar person={item.user} size={36} />
             <div className="min-w-0 flex-1"><p className="truncate text-sm font-black text-gray-950">{personName(item.user)}</p><p className="text-xs text-gray-500">Attempt {item.attempt} · {timeAgo(item.submitted_at)}</p></div>
-            <Link href={getUriWithOrg(orgslug, routePaths.org.dash.livePlan(item.goal_uuid))} className="text-xs font-bold text-gray-900 hover:text-blue-700">Plan</Link>
+            <Link href={getUriWithOrg(orgslug, routePaths.org.dash.livePlan(item.goal_uuid))} className="-mr-2 inline-flex min-h-10 min-w-10 items-center justify-center px-2 text-xs font-bold text-gray-900 hover:text-blue-700 md:mr-0 md:min-h-0 md:min-w-0 md:px-0">Plan</Link>
           </div>
           {state ? <StatusPill tone={state === 'confirm' ? 'green' : 'amber'}>{state === 'confirm' ? 'Approved' : 'Sent back'}</StatusPill> : null}
           {item.learner_note ? <Block title="From the learner"><p className="whitespace-pre-wrap rounded-lg bg-gray-50 px-3 py-2.5 text-sm leading-6 text-gray-800">{item.learner_note}</p></Block> : null}
@@ -188,7 +188,7 @@ function ActivityGrading({ orgId, token, assignment, activity, back, orgslug }: 
         {reviews.map((item) => <button key={item.review_id} type="button" onClick={() => setCurrent(item.review_id)} className={cn('flex min-h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-[13px]', item.review_id === review.review_id ? 'bg-gray-100 font-bold' : 'font-medium hover:bg-gray-50')}><span className="h-2 w-2 rounded-full bg-gray-300" />{personName(item.user)}</button>)}
       </nav>
       <section className="min-w-0 flex-1 p-6">
-        <div className="mb-4 flex items-center gap-3"><PersonAvatar person={review.user} size={32} /><p className="text-sm font-black">{personName(review.user)}</p><Link href={getUriWithOrg(orgslug, routePaths.org.dash.livePlan(review.goal_uuid))} className="text-xs font-bold text-gray-700">Plan</Link></div>
+        <div className="mb-4 flex items-center gap-3"><PersonAvatar person={review.user} size={32} /><p className="text-sm font-black">{personName(review.user)}</p><Link href={getUriWithOrg(orgslug, routePaths.org.dash.livePlan(review.goal_uuid))} className="inline-flex min-h-10 min-w-10 items-center justify-center text-xs font-bold text-gray-700 md:min-h-0 md:min-w-0">Plan</Link></div>
         <div className="rounded-xl border border-gray-100 bg-white nice-shadow"><GradeActivity key={review.review_id} review={review} token={token} onDone={done} /></div>
       </section>
     </div>}

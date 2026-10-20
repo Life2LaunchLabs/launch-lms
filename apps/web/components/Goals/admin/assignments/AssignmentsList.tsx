@@ -5,6 +5,7 @@ import Link from 'next/link'
 import useSWR from 'swr'
 import { ChevronRight, Loader2, Mail, Plus, User, Users } from 'lucide-react'
 import { Button } from '@components/ui/button'
+import { cn } from '@/lib/utils'
 import GoalAssignmentModal from '@components/Goals/admin/templates/GoalAssignmentModal'
 import { getUriWithOrg } from '@services/config/config'
 import { assignmentsKey, goalAdminApi, inboxKey, type Cohort, type Inbox } from '@services/goals/admin'
@@ -70,11 +71,13 @@ export default function AssignmentsList({ rows, loading, orgslug, needs = {}, on
 function AssignmentListRow({ assignment, orgslug, showTemplate, need, actions }: { assignment: AssignmentRow; orgslug: string; showTemplate: boolean; need?: { grade: number; settle: number }; actions: React.ReactNode }) {
   const Icon = assignment.assignment_type === 'group' ? Users : assignment.assignment_type === 'external' ? Mail : User
   const who = assignmentLabel(assignment)
-  return <li className="relative flex items-center gap-3 p-4 transition hover:bg-muted/50">
+  const waiting = Boolean(need?.grade || need?.settle)
+  // On a phone the title and its details get the full width; what waits on you and the menu go on a line of their own.
+  return <li className="relative flex flex-wrap items-center gap-3 p-4 transition hover:bg-muted/50 sm:flex-nowrap">
     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600"><Icon size={18} aria-hidden="true" /></span>
     <div className="min-w-0 flex-1">
       <div className="flex flex-wrap items-center gap-2">
-        <Link href={getUriWithOrg(orgslug, assignmentHref(assignment))} className="truncate text-sm font-black after:absolute after:inset-0 focus-visible:outline-none">
+        <Link href={getUriWithOrg(orgslug, assignmentHref(assignment))} className="min-w-0 text-sm font-black after:absolute after:inset-0 focus-visible:outline-none sm:truncate">
           {showTemplate ? `${assignment.template_title} · ${who}` : who}
         </Link>
         <StatusChip status={assignment.status} />
@@ -86,11 +89,13 @@ function AssignmentListRow({ assignment, orgslug, showTemplate, need, actions }:
         {assignment.staff.length ? <span>Staff: {assignment.staff.map((person) => [person.first_name, person.last_name].filter(Boolean).join(' ') || person.username).join(', ')}</span> : null}
       </p>
     </div>
-    <span className="flex shrink-0 flex-wrap justify-end gap-1.5" aria-label="Waiting on you">
-      {need?.grade ? <Chip tone="blue">{need.grade} to grade</Chip> : null}
-      {need?.settle ? <Chip tone="amber">{need.settle} to settle</Chip> : null}
-    </span>
-    {actions ? <span className="relative z-10 shrink-0">{actions}</span> : null}
+    <div className={cn('order-last w-full items-center justify-between gap-3 pl-[52px] sm:order-none sm:flex sm:w-auto sm:justify-end sm:pl-0', waiting || actions ? 'flex' : 'hidden')}>
+      <span className="flex shrink-0 flex-wrap gap-1.5 sm:justify-end" aria-label="Waiting on you">
+        {need?.grade ? <Chip tone="blue">{need.grade} to grade</Chip> : null}
+        {need?.settle ? <Chip tone="amber">{need.settle} to settle</Chip> : null}
+      </span>
+      {actions ? <span className="relative z-10 shrink-0">{actions}</span> : null}
+    </div>
     <ChevronRight size={16} className="shrink-0 text-muted-foreground" aria-hidden="true" />
   </li>
 }
@@ -100,7 +105,7 @@ export function OrgAssignments({ orgslug }: { orgslug: string }) {
   const { orgId, token, admin } = useStaff()
   const { data = [], isLoading, mutate } = useSWR(orgId && token ? assignmentsKey(orgId) : null, () => goalAdminApi.assignments(orgId, token))
   const needs = useNeeds(orgId, token)
-  return <div className="px-6 pb-10 pt-6 lg:px-10"><div className="mx-auto max-w-5xl">
+  return <div className="px-4 pb-10 pt-6 sm:px-6 lg:px-10"><div className="mx-auto max-w-5xl">
     <p className="mb-6 text-sm text-muted-foreground">{admin ? 'Every plan template your organization has handed out, one row per group or person.' : 'The plan templates you help run, one row per group or person.'}</p>
     <AssignmentsList rows={data} loading={isLoading} orgslug={orgslug} needs={needs} onChanged={() => mutate()}
       empty={admin ? 'Assign a plan template to a group or a learner to see it here.' : 'Nothing you staff yet.'}
@@ -113,7 +118,7 @@ export function TemplateAssignments({ orgslug, templateUuid }: { orgslug: string
   const { orgId, token } = useStaff()
   const { data = [], isLoading, mutate } = useTemplateAssignments(orgId, templateUuid, token)
   const needs = useNeeds(orgId, token)
-  return <div className="px-10 pb-10 pt-6"><div className="mx-auto max-w-5xl">
+  return <div className="px-4 pb-10 pt-6 sm:px-10"><div className="mx-auto max-w-5xl">
     <AssignmentsList rows={data} loading={isLoading} orgslug={orgslug} needs={needs} showTemplate={false} onChanged={() => mutate()} empty="Not handed out yet. Use Assign to give it to a group or a learner." />
   </div></div>
 }
@@ -123,7 +128,7 @@ export function GroupAssignments({ orgslug, groupId, cohort, refresh }: { orgslu
   const { orgId, token, admin } = useStaff()
   const needs = useNeeds(orgId, token)
   const rows = [...cohort.assignments, ...cohort.completed_assignments]
-  return <div className="px-10 pb-10"><div className="mx-auto max-w-5xl">
+  return <div className="px-4 pb-10 sm:px-10"><div className="mx-auto max-w-5xl">
     <AssignmentsList rows={rows} orgslug={orgslug} needs={needs} showTemplate onChanged={refresh}
       empty="No plan templates are assigned to this group yet."
       assign={admin ? <GoalAssignmentModal initialGroupIds={[groupId]} onAssigned={() => void refresh()} trigger={<Button type="button" size="sm"><Plus size={14} />Assign a template</Button>} /> : null} />
