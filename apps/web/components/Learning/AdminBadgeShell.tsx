@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import React from 'react'
-import { ArrowDown, ArrowLeftRight, ArrowUp, Award, BarChart3, Check, Eye, GalleryVerticalEnd, Handshake, Image as ImageIcon, Loader2, Megaphone, Pencil, Plus, Settings, Trash2, X } from 'lucide-react'
+import { ArrowDown, ArrowLeftRight, ArrowUp, Award, BarChart3, Check, Eye, GalleryVerticalEnd, Handshake, Image as ImageIcon, Loader2, Megaphone, Plus, Settings, Trash2, X } from 'lucide-react'
 import { motion } from 'motion/react'
 import toast from 'react-hot-toast'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
@@ -20,8 +20,9 @@ import CertificatePreview from '@components/Learning/BadgeCertificatePreview'
 import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import BadgeVersionToolbar from '@components/Learning/BadgeVersionToolbar'; import BadgeRoutesPanel from '@components/Learning/BadgeRoutesPanel'
-import OwnershipChip, { ReadOnlyNote } from '@components/Admin/Plans/OwnershipChip'
-import { useCanEditPlans } from '@components/Admin/Plans/useCanEditPlans'
+import EditableHeaderField from '@components/Learning/BadgeHeaderField'
+import OwnershipChip from '@components/Admin/Plans/OwnershipChip'
+import { BadgeReadOnlyNote, useBadgeOwnership } from '@components/Learning/BadgeOwnership'
 
 const tabs = [
   { key: 'analytics', label: 'Analytics', icon: BarChart3 },
@@ -48,13 +49,7 @@ export default function AdminBadgeShell({
   const router = useRouter()
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
-  const org = useOrg() as any
-  const viewerIsEditor = useCanEditPlans() === true
-  // Owned by this organization; editable only by its admins (the API says so with `can_edit`). Staff and
-  // other organizations running it see every detail read-only.
-  const owned = Number(org?.id) === Number(initialBadge.org_id)
-  const canEdit = owned && initialBadge.can_edit !== false
-  const ownerName = owned ? org?.name : initialBadge.creator_org?.name
+  const { org, owned, canEdit, ownerName, viewerIsEditor, showsTab } = useBadgeOwnership(initialBadge)
   const [badge, setBadge] = React.useState(initialBadge)
   const [editingField, setEditingField] = React.useState<'name' | null>(null)
   const [draftName, setDraftName] = React.useState(initialBadge.name || '')
@@ -109,13 +104,7 @@ export default function AdminBadgeShell({
   const publicBadgeHref = getUriWithOrg(orgslug, `/badges/${cleanBadgeId(badge.badge_uuid)}`)
   const imageUrl = badge.thumbnail_image
   const isDraft = badge.selected_version?.state === 'draft'
-  // Owners' admins: every tab. Staff of the owner: everything but Issuers and Settings, read-only. Another
-  // organization running it: what it does, its ways to earn and its definition, plus its own issuer settings for admins.
-  const visibleTabs = canEdit
-    ? tabs
-    : owned
-      ? tabs.filter((tab) => ['analytics', 'routes', 'definition', 'marketing'].includes(tab.key))
-      : tabs.filter((tab) => ['analytics', 'routes', 'definition', 'marketing'].includes(tab.key) || (tab.key === 'settings' && viewerIsEditor))
+  const visibleTabs = tabs.filter((tab) => showsTab(tab.key))
 
   return (
     <div className="min-h-full w-full bg-[#f8f8f8]">
@@ -181,9 +170,7 @@ export default function AdminBadgeShell({
           </div>
         </div>
 
-        {canEdit ? null : <ReadOnlyNote className="mb-4">{owned
-          ? 'You can see everything about this badge here. Your organization’s admins change, publish and share it.'
-          : `${ownerName || 'Another organization'} owns this badge. You award it through the templates under Ways to earn; only ${ownerName || 'its owner'} can change it.`}</ReadOnlyNote>}
+        {canEdit ? null : <BadgeReadOnlyNote owned={owned} ownerName={ownerName} />}
 
         <div className="-mx-4 flex space-x-3 overflow-x-auto px-4 text-sm font-black [scrollbar-width:none] sm:mx-0 sm:overflow-visible sm:px-0">
           {visibleTabs.map((tab) => {
@@ -1151,49 +1138,6 @@ function SettingRow({ title, description, checked, disabled, onChange }: { title
         <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">{description}</p>
       </div>
       <Switch checked={checked} onCheckedChange={onChange} />
-    </div>
-  )
-}
-
-function EditableHeaderField({
-  field,
-  isEditing,
-  value,
-  onChange,
-  onEdit,
-  onSave,
-  isSaving,
-  editable = true,
-}: {
-  field: 'name' | 'description'
-  isEditing: boolean
-  value: string
-  onChange: (value: string) => void
-  onEdit: () => void
-  onSave: () => void
-  isSaving: boolean
-  /** False hides the pencil (a badge the viewer can't change). */
-  editable?: boolean
-}) {
-  const isTitle = field === 'name'
-
-  return (
-    <div className={`group flex min-w-0 items-start gap-2 ${isTitle ? 'mb-2' : ''}`}>
-      {isEditing ? (
-        isTitle ? (
-          <input autoFocus value={value} maxLength={100} onChange={(event) => onChange(event.target.value)} className="min-w-0 flex-1 rounded-md border border-border bg-card px-3 py-2 text-3xl font-bold tracking-tight text-foreground outline-none focus:ring-2 focus:ring-black" />
-        ) : (
-          <textarea autoFocus value={value} maxLength={1000} onChange={(event) => onChange(event.target.value)} rows={2} placeholder="Describe this badge..." className="min-w-0 flex-1 resize-none rounded-md border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground outline-none focus:ring-2 focus:ring-black" />
-        )
-      ) : isTitle ? (
-        <h1 className="min-w-0 break-words text-4xl font-bold tracking-tight text-foreground">{value}</h1>
-      ) : (
-        <p className="min-w-0 break-words text-sm font-medium text-muted-foreground">{value || 'No description yet.'}</p>
-      )}
-
-      {editable || isEditing ? <Button type="button" size="icon" variant={isEditing ? 'default' : 'ghost'} disabled={isSaving} className={`mt-1 h-7 w-7 shrink-0 ${isEditing ? 'bg-green-600 text-white hover:bg-green-700' : 'opacity-0 transition-opacity group-hover:opacity-100'}`} onClick={isEditing ? onSave : onEdit} title={isEditing ? 'Save' : 'Edit'}>
-        {isSaving ? <Loader2 className="animate-spin" /> : isEditing ? <Check /> : <Pencil />}
-      </Button> : null}
     </div>
   )
 }

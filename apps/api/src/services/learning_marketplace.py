@@ -41,6 +41,7 @@ from src.services.learning import (
     _get_org,
     _now,
     _require_org_admin,
+    _require_org_staff,
     _require_user,
 )
 
@@ -199,10 +200,7 @@ async def browse_marketplace_badges(
     authorizations_by_badge_id: dict[int, BadgeIssuerAuthorization] = {}
     issuing_access: str | None = None
     if issuer_org_id is not None:
-        # Staff browse read-only; requesting, approving and copying stay admin only.
-        from src.services.goals.template_marketplace import require_reader
-
-        require_reader(db_session, _require_user(current_user), issuer_org_id)
+        _require_org_staff(db_session, current_user, issuer_org_id)  # staff browse; requesting, approving and copying stay admin only
         if (
             isinstance(current_user, PublicUser)
             and is_user_superadmin(current_user.id, db_session)
@@ -843,8 +841,6 @@ async def issuer_badge_metrics(
 ) -> dict:
     """Issuance and program usage for one authorized issuer and badge."""
     from src.db.learning import LearningBadgeAward
-    from src.services.learning.access_rules import _require_org_staff
-
     _require_org_staff(db_session, current_user, org_id)  # a read: staff see it on the badge page too
     badge = _get_badge(db_session, badge_uuid)
     authorization = db_session.exec(
