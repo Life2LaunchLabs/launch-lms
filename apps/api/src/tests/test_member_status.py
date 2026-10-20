@@ -13,7 +13,7 @@ from src.db.user_organizations import UserOrganization
 from src.security.access.access import count_usage
 from src.services.goals import assignments
 from src.services.orgs import member_status
-from src.services.school import directory
+from src.services.school import directory, feed, profile
 from src.tests.test_goals import ADMIN, LEARNER, OTHER, _published, _user
 from src.tests.test_school import TEACHER, _session as _school_session
 
@@ -107,3 +107,25 @@ def test_the_learner_sees_their_relationship(db):
     with pytest.raises(HTTPException) as stranger:
         member_status.relationship(db, _user(99), 1)
     assert stranger.value.status_code == 404
+
+
+def test_people_pages_show_status_and_who_may_change_it(db):
+    member_status.set_member_status(db, _user(ADMIN), 1, OTHER, "alumni")
+    sam = profile.profile(db, _user(ADMIN), 1, "sam")
+    assert (sam["status"], sam["manage"]["status"], sam["manage"]["permissions"]) == ("alumni", True, False) and sam["status_since"]
+    tess = profile.profile(db, _user(ADMIN), 1, "teach")
+    assert tess["permissions"] == ["review_work", "run_assignments"] and tess["manage"]["permissions"] and not tess["manage"]["status"]
+    # Staff without manage_learners see the status but can't change it.
+    assert profile.profile(db, _user(TEACHER), 1, "sam")["manage"]["status"] is False
+    group = feed.group_detail(db, _user(ADMIN), 1, 1)
+    assert (group["alumni_count"], group["can_set_status"]) == (1, True)
+
+
+def test_the_people_feed_hides_alumni_unless_asked(db):
+    member_status.set_member_status(db, _user(ADMIN), 1, OTHER, "alumni")
+    names = lambda rows: {row["person"]["username"] for row in rows if row["kind"] == "person"}  # noqa: E731
+    default = feed.people_feed(db, _user(ADMIN), 1)
+    assert "sam" not in names(default["active"] + default["rest"])
+    alumni = feed.people_feed(db, _user(ADMIN), 1, status="alumni")
+    assert alumni["active"] == [] and names(alumni["rest"]) == {"sam"} and alumni["rest"][0]["status"] == "alumni"
+    assert "sam" in names(feed.people_feed(db, _user(ADMIN), 1, status="all")["rest"])

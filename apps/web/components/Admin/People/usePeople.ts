@@ -7,7 +7,7 @@ import { useOrg } from '@components/Contexts/OrgContext'
 import { LIST_REFRESH_MS } from '@components/Connect/useConnect'
 import { getAPIUrl } from '@services/config/config'
 import { getUserGroups } from '@services/usergroups/usergroups'
-import { peopleApi, peopleKeys, type Directory, type GroupDetail, type PeopleChats, type PeopleFeed, type PersonActivity, type Profile } from '@services/school/people'
+import { peopleApi, peopleKeys, type Directory, type GroupDetail, type PeopleChats, type PeopleFeed, type PeopleStatusFilter, type PersonActivity, type Profile } from '@services/school/people'
 
 // Role ids the API treats as organization admins (admin and maintainer), as in security/org_auth.py.
 const ADMIN_ROLE_IDS = new Set([1, 2])
@@ -28,9 +28,9 @@ export function usePeopleChats() {
 }
 
 /** People's list: who has something for you on top (refreshed like a chat list), then everyone else A to Z, a page at a time. */
-export function usePeopleFeed(query: string, offset = 0) {
+export function usePeopleFeed(query: string, offset = 0, status: PeopleStatusFilter = 'active') {
   const { orgId, token } = usePeopleContext()
-  return useSWR<PeopleFeed>(orgId && token ? peopleKeys.feed(orgId, query, offset) : null, () => peopleApi.feed(orgId, query, token, offset),
+  return useSWR<PeopleFeed>(orgId && token ? peopleKeys.feed(orgId, query, offset, status) : null, () => peopleApi.feed(orgId, query, token, offset, status),
     { keepPreviousData: true, refreshInterval: offset ? 0 : LIST_REFRESH_MS, revalidateOnFocus: offset === 0 })
 }
 

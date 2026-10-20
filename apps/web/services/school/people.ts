@@ -2,6 +2,7 @@ import { getAPIUrl } from '@services/config/config'
 import { RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/requests'
 import type { Chat, ChatSummary } from '@services/connect/connect'
 import type { PersonSummary } from '@services/goals/types'
+import type { MemberStatus, StaffPermission } from '@services/organizations/membership'
 
 const q = encodeURIComponent
 const base = (orgId: number, path: string) => `${getAPIUrl()}school/orgs/${orgId}${path}`
@@ -13,6 +14,8 @@ async function request<T = any>(url: string, token?: string, method = 'GET', bod
 
 /** What someone is to the organization. Helpers aren't members: a learner brought them onto one plan. */
 export type OrgRole = 'admin' | 'staff' | 'learner' | 'helper'
+/** People hides alumni unless asked. */
+export type PeopleStatusFilter = 'active' | 'alumni' | 'all'
 
 export interface HelpingOn { goal_uuid: string; title: string; collaborator_uuid: string; learner: PersonSummary | null }
 
@@ -22,6 +25,7 @@ export interface DirectoryPerson {
   /** The organization role's own name, such as "Counselor". */
   role_name: string
   groups: Array<{ id: number; name: string }>
+  status?: MemberStatus
   helping_on?: HelpingOn[]
 }
 export interface Directory { people: DirectoryPerson[]; total: number; offset: number; limit: number }
@@ -51,6 +55,11 @@ export interface Profile {
   role_name: string
   org_role: { id: number; role_uuid: string; name: string } | null
   joined_at: string | null
+  /** Members only: the status the organization set, and when. */
+  status: MemberStatus | null
+  status_since: string | null
+  /** Staff and admins: what they may do (admins have every permission). */
+  permissions: StaffPermission[]
   groups: Array<{ id: number; name: string; as: 'member' | 'staff' }>
   plans: ProfilePlan[]
   helpers: Array<{ user: PersonSummary | null; collaborator_uuid: string; role: string; goal_uuid: string; goal_title: string }>
@@ -60,7 +69,7 @@ export interface Profile {
   note: string | null
   /** Your direct chat with them, when there is one. */
   chat_uuid: string | null
-  manage: { change_role: boolean; remove: boolean; groups: boolean; remove_helper: boolean }
+  manage: { change_role: boolean; remove: boolean; groups: boolean; remove_helper: boolean; status: boolean; permissions: boolean }
 }
 
 export interface MessagingPolicy {
@@ -93,6 +102,7 @@ export interface FeedRow {
   role: OrgRole | null
   role_name?: string
   groups?: Array<{ id: number; name: string }>
+  status?: MemberStatus
   helping_on?: HelpingOn[]
   group: { id: number; name: string; member_count: number; staff_count?: number } | null
   /** Only on rows in the top section. */
@@ -125,7 +135,7 @@ export interface TurnIn {
 /** What waits on you about someone, shown as cards in their conversation. */
 export interface PersonActivity { approvals: HelperRequest[]; turn_ins: TurnIn[]; can_approve: boolean }
 
-export interface GroupPerson { user: PersonSummary; as: 'member' | 'staff'; role: OrgRole }
+export interface GroupPerson { user: PersonSummary; as: 'member' | 'staff'; role: OrgRole; status?: MemberStatus }
 /** A group for People's header: its people, staff first. */
 export interface GroupDetail {
   id: number
@@ -133,8 +143,11 @@ export interface GroupDetail {
   description: string | null
   people: GroupPerson[]
   learner_count: number
+  alumni_count: number
   staff_count: number
   can_manage: boolean
+  /** Whether the viewer may mark the group's learners active or alumni. */
+  can_set_status: boolean
   in_chat: boolean
   groups_enabled: boolean
 }
@@ -142,8 +155,10 @@ export interface GroupDetail {
 const helperBase = (path = '') => `${getAPIUrl()}goal-admin/helper-requests${path}`
 
 export const peopleKeys = {
-  directory: (orgId: number, query = '', offset = 0) => base(orgId, `/people?q=${q(query)}&offset=${offset}`),
-  feed: (orgId: number, query = '', offset = 0) => base(orgId, `/people/feed?q=${q(query)}&offset=${offset}`),
+  directory: (orgId: number, query = '', offset = 0, status: PeopleStatusFilter = 'active') =>
+    base(orgId, `/people?q=${q(query)}&offset=${offset}${status === 'active' ? '' : `&status=${status}`}`),
+  feed: (orgId: number, query = '', offset = 0, status: PeopleStatusFilter = 'active') =>
+    base(orgId, `/people/feed?q=${q(query)}&offset=${offset}${status === 'active' ? '' : `&status=${status}`}`),
   activity: (orgId: number, username: string) => base(orgId, `/people/${q(username)}/activity`),
   group: (orgId: number, groupId: number) => base(orgId, `/groups/${groupId}`),
   profile: (orgId: number, username: string) => base(orgId, `/people/${q(username)}`),
@@ -153,9 +168,11 @@ export const peopleKeys = {
 }
 
 export const peopleApi = {
-  directory: (orgId: number, query: string, token?: string, offset = 0) => request<Directory>(peopleKeys.directory(orgId, query, offset), token),
+  directory: (orgId: number, query: string, token?: string, offset = 0, status: PeopleStatusFilter = 'active') =>
+    request<Directory>(peopleKeys.directory(orgId, query, offset, status), token),
   profile: (orgId: number, username: string, token?: string) => request<Profile>(peopleKeys.profile(orgId, username), token),
-  feed: (orgId: number, query: string, token?: string, offset = 0) => request<PeopleFeed>(peopleKeys.feed(orgId, query, offset), token),
+  feed: (orgId: number, query: string, token?: string, offset = 0, status: PeopleStatusFilter = 'active') =>
+    request<PeopleFeed>(peopleKeys.feed(orgId, query, offset, status), token),
   activity: (orgId: number, username: string, token?: string) => request<PersonActivity>(peopleKeys.activity(orgId, username), token),
   group: (orgId: number, groupId: number, token?: string) => request<GroupDetail>(peopleKeys.group(orgId, groupId), token),
   chats: (orgId: number, token?: string) => request<PeopleChats>(peopleKeys.chats(orgId), token),

@@ -13,7 +13,7 @@ import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import AddUserGroup from '@components/Objects/Modals/Dash/OrgUserGroups/AddUserGroup'
 import InviteUsersDialog from '@components/Dashboard/Pages/Users/OrgUsersAdd/InviteUsersDialog'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import { ROLE_LABELS, peopleKeys, type FeedRow, type OrgRole } from '@services/school/people'
+import { ROLE_LABELS, peopleKeys, type FeedRow, type OrgRole, type PeopleStatusFilter } from '@services/school/people'
 import PendingInvites from './PendingInvites'
 import type { PeopleSelection } from './PeopleView'
 import { usePeopleContext, usePeopleFeed, useRefreshPeople } from './usePeople'
@@ -43,7 +43,8 @@ export default function PeopleList({ orgslug, selection }: { orgslug: string; se
   const refresh = useRefreshPeople()
   const [query, setQuery] = React.useState('')
   const needle = query.trim().replace(/^@/, '').toLowerCase()
-  const { data, isLoading, error, mutate } = usePeopleFeed(needle, 0)
+  const [status, setStatus] = React.useState<PeopleStatusFilter>('active')
+  const { data, isLoading, error, mutate } = usePeopleFeed(needle, 0, status)
   const [inviting, setInviting] = React.useState(false)
   const [creatingGroup, setCreatingGroup] = React.useState(false)
   const groupsEnabled = Boolean(data?.groups_enabled)
@@ -66,6 +67,7 @@ export default function PeopleList({ orgslug, selection }: { orgslug: string; se
         className="h-11 w-full rounded-xl border border-transparent bg-muted/60 pl-10 pr-10 text-sm outline-none focus:border-border focus:ring-2 focus:ring-[var(--org-primary-color)]" />
       {query ? <button type="button" onClick={() => setQuery('')} aria-label="Clear search" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"><X size={16} /></button> : null}
     </label>
+    <StatusFilter value={status} onChange={setStatus} />
     <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
       {isLoading && !data ? <ListSkeleton />
         : error && !data ? <p className="px-2 py-8 text-center text-sm text-muted-foreground">People didn&rsquo;t load. <button type="button" className="font-semibold underline" onClick={() => mutate()}>Try again</button></p>
@@ -74,8 +76,8 @@ export default function PeopleList({ orgslug, selection }: { orgslug: string; se
           {data.rest.length ? <>
             <h2 className={cn('px-2.5 pb-1 text-xs font-bold uppercase tracking-wide text-muted-foreground', active.length ? 'mt-4' : 'mt-1')}>{active.length ? 'Everyone else · A–Z' : 'Everyone · A–Z'}</h2>
             <RestRows rows={data.rest} orgslug={orgslug} selection={selection} label={active.length ? 'Everyone else' : 'Everyone'} />
-            <MoreRows orgslug={orgslug} query={needle} next={data.offset + data.rest.length} total={data.total} selection={selection} />
-          </> : !active.length ? <p className="px-3 py-6 text-center text-sm text-muted-foreground">{needle ? 'Nobody matches that.' : 'Nobody here yet. Add people to get started.'}</p> : null}
+            <MoreRows orgslug={orgslug} query={needle} status={status} next={data.offset + data.rest.length} total={data.total} selection={selection} />
+          </> : !active.length ? <p className="px-3 py-6 text-center text-sm text-muted-foreground">{needle ? 'Nobody matches that.' : status === 'alumni' ? 'No alumni yet. Mark learners who have moved on as alumni from their page or their group.' : 'Nobody here yet. Add people to get started.'}</p> : null}
           {isAdmin && !needle ? <PendingInvites /> : null}
         </> : null}
     </div>
@@ -122,22 +124,32 @@ function RestRows({ rows, orgslug, selection, label }: { rows: FeedRow[]; orgslu
 }
 
 /** The next page of everyone else, once asked for; its last page offers the one after. */
-function MoreRows({ orgslug, query, next, total, selection }: { orgslug: string; query: string; next: number; total: number; selection: PeopleSelection }) {
+function MoreRows({ orgslug, query, status, next, total, selection }: { orgslug: string; query: string; status: PeopleStatusFilter; next: number; total: number; selection: PeopleSelection }) {
   const [open, setOpen] = React.useState(false)
-  React.useEffect(() => setOpen(false), [query])
+  React.useEffect(() => setOpen(false), [query, status])
   if (next >= total) return null
   if (!open) return <button type="button" onClick={() => setOpen(true)} className="mx-2.5 mt-1 text-sm font-semibold text-muted-foreground hover:text-foreground">Show more ({total - next})</button>
-  return <RestPage orgslug={orgslug} query={query} offset={next} selection={selection} />
+  return <RestPage orgslug={orgslug} query={query} status={status} offset={next} selection={selection} />
 }
 
-function RestPage({ orgslug, query, offset, selection }: { orgslug: string; query: string; offset: number; selection: PeopleSelection }) {
-  const { data, isLoading, error } = usePeopleFeed(query, offset)
+function RestPage({ orgslug, query, status, offset, selection }: { orgslug: string; query: string; status: PeopleStatusFilter; offset: number; selection: PeopleSelection }) {
+  const { data, isLoading, error } = usePeopleFeed(query, offset, status)
   if (isLoading && !data) return <ListSkeleton />
   if (error || !data) return <p className="px-3 py-4 text-sm text-muted-foreground">{error?.message || 'People didn’t load.'}</p>
   return <>
     <RestRows rows={data.rest} orgslug={orgslug} selection={selection} />
-    <MoreRows orgslug={orgslug} query={query} next={data.offset + data.rest.length} total={data.total} selection={selection} />
+    <MoreRows orgslug={orgslug} query={query} status={status} next={data.offset + data.rest.length} total={data.total} selection={selection} />
   </>
+}
+
+const STATUS_FILTERS: Array<{ value: PeopleStatusFilter; label: string }> = [{ value: 'active', label: 'Active' }, { value: 'alumni', label: 'Alumni' }, { value: 'all', label: 'All' }]
+
+/** People hides alumni (learners who have moved on) unless asked. */
+function StatusFilter({ value, onChange }: { value: PeopleStatusFilter; onChange: React.Dispatch<React.SetStateAction<PeopleStatusFilter>> }) {
+  return <div role="group" aria-label="Show" className="mx-3 mb-2 flex gap-1">
+    {STATUS_FILTERS.map((item) => <button key={item.value} type="button" aria-pressed={value === item.value} onClick={() => onChange(item.value)}
+      className={cn('rounded-full px-3 py-1 text-xs font-bold', value === item.value ? 'bg-foreground text-background' : 'text-muted-foreground hover:bg-foreground/[0.06]')}>{item.label}</button>)}
+  </div>
 }
 
 function PersonRow({ row, orgslug, selection }: { row: FeedRow; orgslug: string; selection: PeopleSelection }) {
@@ -145,7 +157,7 @@ function PersonRow({ row, orgslug, selection }: { row: FeedRow; orgslug: string;
   const role = row.role || 'learner'
   const detail = role === 'helper'
     ? `Helping ${(row.helping_on || []).map((item) => item.learner?.name).filter(Boolean).join(', ') || 'on a plan'}`
-    : [row.role_name && row.role_name !== ROLE_LABELS[role] ? row.role_name : '', ...(row.groups || []).map((group) => group.name)].filter(Boolean).join(' · ') || `@${row.person?.username}`
+    : [row.status === 'alumni' ? 'Alumni' : '', row.role_name && row.role_name !== ROLE_LABELS[role] ? row.role_name : '', ...(row.groups || []).map((group) => group.name)].filter(Boolean).join(' · ') || `@${row.person?.username}`
   return <li>
     <Link href={rowHref(orgslug, row)} aria-current={active ? 'page' : undefined}
       className={cn('flex items-center gap-3 rounded-2xl px-2.5 py-2 transition-colors hover:bg-foreground/[0.05]', active && 'bg-[var(--org-primary-color)]/15 hover:bg-[var(--org-primary-color)]/20')}>

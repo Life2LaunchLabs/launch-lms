@@ -10,11 +10,12 @@ import { removeUserFromOrg, updateUserRole } from '@services/organizations/orgs'
 import { linkUserToUserGroup, unLinkUserToUserGroup } from '@services/usergroups/usergroups'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { peopleKeys, type Profile } from '@services/school/people'
+import { STATUS_LABELS, membershipKeys, setMemberStatus, setStaffPermissions, statusLine, type MemberStatus, type StaffPermission, type StaffPermissionInfo } from '@services/organizations/membership'
 import { useOrgGroups, usePeopleContext, useRefreshPeople } from './usePeople'
 
 const SELECT = 'h-9 rounded-lg border border-gray-200 bg-white px-2.5 text-sm font-medium text-gray-900 disabled:opacity-50'
 
-/** What admins change about someone: their role, their groups, and whether they're in the organization at all. */
+/** What admins change about someone: their role and permissions, their status, their groups, and whether they're in the organization at all. */
 export default function PersonManage({ orgslug, profile, refresh }: { orgslug: string; profile: Profile; refresh: () => Promise<unknown> }) {
   const { orgId, token } = usePeopleContext()
   const router = useRouter()
@@ -26,8 +27,10 @@ export default function PersonManage({ orgslug, profile, refresh }: { orgslug: s
   const { data: groups } = useOrgGroups(manage.groups)
   const memberOf = new Set(profile.groups.filter((group) => group.as === 'member').map((group) => group.id))
   const addable = (groups || []).filter((group) => !memberOf.has(group.id))
+  const { data: catalog } = useSWR<{ permissions: StaffPermissionInfo[] }>(manage.permissions && token ? membershipKeys.staffPermissions(orgId) : null,
+    (url: string) => swrFetcher(url, token), { revalidateOnFocus: false })
   const [adding, setAdding] = React.useState('')
-  if (!manage.change_role && !manage.remove && !manage.groups) return null
+  if (!manage.change_role && !manage.remove && !manage.groups && !manage.status && !manage.permissions) return null
 
   const refreshAll = async () => {
     await Promise.all([refresh(), refreshList(), mutate((key) => typeof key === 'string' && key.startsWith(peopleKeys.directory(orgId).split('?')[0]))])
@@ -49,6 +52,12 @@ export default function PersonManage({ orgslug, profile, refresh }: { orgslug: s
     }
   }
   const changeRole = (roleUuid: string) => void run(() => updateUserRole(orgId, user.id, roleUuid, token as string), 'Role changed')
+  const changeStatus = (status: MemberStatus) => void run(() => setMemberStatus(orgId, user.id, status, token as string),
+    status === 'alumni' ? `${user.name} is now alumni` : `${user.name} is active again`)
+  const togglePermission = (key: StaffPermission, on: boolean) => {
+    const next = on ? [...profile.permissions, key] : profile.permissions.filter((item) => item !== key)
+    void run(() => setStaffPermissions(orgId, user.id, next, token as string), 'Permissions saved')
+  }
   const addToGroup = async () => {
     if (await run(() => linkUserToUserGroup(Number(adding), user.id, orgId, token as string), 'Added to the group')) setAdding('')
   }
@@ -67,6 +76,22 @@ export default function PersonManage({ orgslug, profile, refresh }: { orgslug: s
       <select aria-label="Role" className={SELECT} value={profile.org_role?.role_uuid || ''} disabled={busy || !roles} onChange={(event) => changeRole(event.target.value)}>
         {!profile.org_role ? <option value="">—</option> : null}
         {(roles || []).map((role: any) => <option key={role.role_uuid} value={role.role_uuid}>{role.name}</option>)}
+      </select>
+    </label> : null}
+    {manage.permissions ? <fieldset className="space-y-2">
+      <legend className="text-sm font-semibold text-gray-700">What they may do</legend>
+      {(catalog?.permissions || []).map((item) => <label key={item.key} className="flex items-center gap-2 text-sm text-gray-800">
+        <input type="checkbox" className="h-4 w-4" checked={profile.permissions.includes(item.key)} disabled={busy} onChange={(event) => togglePermission(item.key, event.target.checked)} />
+        {item.label}
+      </label>)}
+    </fieldset> : null}
+    {manage.status ? <label className="flex items-center justify-between gap-4 text-sm">
+      <span>
+        <span className="block font-semibold text-gray-700">Status</span>
+        <span className="block text-xs text-gray-500">{profile.status === 'alumni' ? statusLine('alumni', profile.status_since) + '. Alumni don’t count toward your learner limit.' : 'Mark learners who have moved on as alumni to free their place.'}</span>
+      </span>
+      <select aria-label="Status" className={SELECT} value={profile.status || 'active'} disabled={busy} onChange={(event) => changeStatus(event.target.value as MemberStatus)}>
+        {(Object.keys(STATUS_LABELS) as MemberStatus[]).map((status) => <option key={status} value={status}>{STATUS_LABELS[status]}</option>)}
       </select>
     </label> : null}
     {manage.groups ? <div className="space-y-2">
