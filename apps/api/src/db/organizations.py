@@ -80,6 +80,8 @@ class OrganizationUser(BaseModel):
     joined_at: str | None = None
     membership_status: str = "active"
     membership_status_since: str | None = None
+    # Staff only: what they may do (security/org_auth.STAFF_PERMISSIONS); admins have every permission.
+    permissions: list[str] = []
 
 
 # Rebuild models to resolve forward references after all classes are defined

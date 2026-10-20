@@ -50,7 +50,7 @@ async def list_learning_variables(
     current_user: PublicUser | AnonymousUser,
     db_session: Session,
 ) -> list[LearningVariableRead]:
-    access_rules._require_org_admin(db_session, current_user, org_id)
+    access_rules._require_org_admin(db_session, current_user, org_id, "build_plans")
     variables = db_session.exec(
         select(LearningVariable)
         .where(LearningVariable.org_id == org_id)
@@ -65,7 +65,7 @@ async def create_learning_variable(
     current_user: PublicUser | AnonymousUser,
     db_session: Session,
 ) -> LearningVariableRead:
-    access_rules._require_org_admin(db_session, current_user, data.org_id)
+    access_rules._require_org_admin(db_session, current_user, data.org_id, "build_plans")
     key = _validate_variable_key(data.key)
     existing = db_session.exec(
         select(LearningVariable).where(
@@ -97,7 +97,7 @@ async def update_learning_variable(
     db_session: Session,
 ) -> LearningVariableRead:
     variable = _get_variable(db_session, variable_uuid)
-    access_rules._require_org_admin(db_session, current_user, variable.org_id)
+    access_rules._require_org_admin(db_session, current_user, variable.org_id, "build_plans")
     for key, value in data.model_dump(exclude_unset=True).items():
         setattr(variable, key, value)
     variable.update_date = access_rules._now()
@@ -114,7 +114,7 @@ async def delete_learning_variable(
     db_session: Session,
 ) -> dict:
     variable = _get_variable(db_session, variable_uuid)
-    access_rules._require_org_admin(db_session, current_user, variable.org_id)
+    access_rules._require_org_admin(db_session, current_user, variable.org_id, "build_plans")
     db_session.delete(variable)
     db_session.commit()
     return {"detail": "Learning variable deleted"}

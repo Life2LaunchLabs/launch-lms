@@ -27,7 +27,7 @@ async def create_collection(
     current_user: PublicUser | AnonymousUser,
     db_session: Session,
 ) -> BadgeCollectionRead:
-    access_rules._require_org_admin(db_session, current_user, data.org_id)
+    access_rules._require_org_admin(db_session, current_user, data.org_id, "build_plans")
     now = access_rules._now()
     collection = BadgeCollection(
         **data.model_dump(),
@@ -56,7 +56,7 @@ async def update_collection(
     ).first()
     if not collection:
         raise HTTPException(status_code=404, detail="Badge collection not found")
-    access_rules._require_org_admin(db_session, current_user, collection.org_id)
+    access_rules._require_org_admin(db_session, current_user, collection.org_id, "build_plans")
     for key, value in data.model_dump(exclude_unset=True).items():
         setattr(collection, key, value)
     collection.update_date = access_rules._now()
@@ -87,7 +87,7 @@ async def update_collection_thumbnail(
     ).first()
     if not collection:
         raise HTTPException(status_code=404, detail="Badge collection not found")
-    access_rules._require_org_admin(db_session, current_user, collection.org_id)
+    access_rules._require_org_admin(db_session, current_user, collection.org_id, "build_plans")
     org = access_rules._get_org(db_session, collection.org_id)
 
     if not thumbnail_file or not thumbnail_file.filename:
@@ -130,7 +130,7 @@ async def delete_collection(
     ).first()
     if not collection:
         raise HTTPException(status_code=404, detail="Badge collection not found")
-    access_rules._require_org_admin(db_session, current_user, collection.org_id)
+    access_rules._require_org_admin(db_session, current_user, collection.org_id, "build_plans")
     badges = db_session.exec(
         select(LearningBadge).where(LearningBadge.collection_id == collection.id)
     ).all()
@@ -148,7 +148,7 @@ async def delete_collection(
 
 
 async def list_deleted_collections(request: Request, org_id: int, current_user, db_session: Session) -> list[BadgeCollectionRead]:
-    access_rules._require_org_admin(db_session, current_user, org_id)
+    access_rules._require_org_admin(db_session, current_user, org_id, "build_plans")
     cutoff = datetime.utcnow() - timedelta(days=14)
     collections = db_session.exec(select(BadgeCollection).where(
         BadgeCollection.org_id == org_id,
@@ -165,7 +165,7 @@ async def restore_collection(request: Request, collection_uuid: str, current_use
     )).first()
     if not collection:
         raise HTTPException(status_code=404, detail="Badge collection not found in trash")
-    access_rules._require_org_admin(db_session, current_user, collection.org_id)
+    access_rules._require_org_admin(db_session, current_user, collection.org_id, "build_plans")
     if collection.deleted_at < datetime.utcnow() - timedelta(days=14):
         raise HTTPException(status_code=410, detail="The 14-day restore period has expired")
     deleted_at = collection.deleted_at

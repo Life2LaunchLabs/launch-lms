@@ -46,7 +46,7 @@ def _dict(db: Session, invitation: PlanInvitation, goal: Goal) -> dict:
 
 def list_requests(db: Session, current_user: PublicUser, org_id: int) -> dict:
     """Helper invitations waiting on this organization's admins, oldest first."""
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "review_work")
     rows = db.exec(select(PlanInvitation, Goal).join(Goal, Goal.id == PlanInvitation.goal_id).where(
         Goal.org_id == org_id, PlanInvitation.status == AWAITING,
     ).order_by(col(PlanInvitation.id))).all()
@@ -69,7 +69,7 @@ def decide(db: Session, current_user: PublicUser, org_id: int, invitation_uuid: 
     """Approve (the invitation goes out) or decline (it never does) a helper waiting on an admin."""
     from src.services.goals.sharing import _invitation_message
 
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "review_work")
     invitation, goal = _waiting(db, org_id, invitation_uuid)
     invitation.status = PlanInvitationStatus.PENDING if approve else PlanInvitationStatus.DECLINED
     invitation.reviewed_by_user_id, invitation.reviewed_at, invitation.update_date = current_user.id, _now(), _stamp()

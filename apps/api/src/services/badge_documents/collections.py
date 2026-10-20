@@ -26,13 +26,13 @@ def _collection_entry(db: Session, collection: BadgeCollection) -> dict:
 
 
 def list_collections(db: Session, current_user: PublicUser, org_id: int) -> list[dict]:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     collections = db.exec(select(BadgeCollection).where(BadgeCollection.org_id == org_id, BadgeCollection.deleted_at.is_(None)).order_by(BadgeCollection.name.asc())).all()  # type: ignore[union-attr]
     return [_collection_entry(db, item) for item in collections]
 
 
 def save_collection(db: Session, current_user: PublicUser, org_id: int, args: dict) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     now = access_rules._now()
     if args.get("collection_uuid"):
         collection = _collection(db, org_id, str(args["collection_uuid"]))

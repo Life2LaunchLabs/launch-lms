@@ -6,7 +6,7 @@ from fastapi import HTTPException, Request
 from pydantic import EmailStr, TypeAdapter, ValidationError
 from sqlalchemy import or_
 from sqlalchemy.orm import aliased
-from sqlmodel import Session, func, select
+from sqlmodel import Session, col, func, select
 from src.db.organization_invitations import (
     InvitePreviewResponse,
     InviteRecipientResult,
@@ -29,8 +29,8 @@ from src.db.usergroups import UserGroup, UserGroupRead
 from src.db.users import AnonymousUser, PublicUser, User, UserRead
 from src.security.access.access import is_staff_role, org_access, require_role_capacity
 from src.security.access.catalog import LIMITS
-from src.security.org_auth import get_user_org, is_org_member
-from src.security.rbac.constants import ADMIN_ROLE_ID
+from src.security.org_auth import get_user_org, is_org_member, require_org_owner_admin, staff_permissions
+from src.security.rbac.constants import ADMIN_ROLE_ID, ORG_ROLE_UUIDS
 from src.services.email.utils import get_base_url_from_request
 from src.services.orgs.invites import send_direct_invitation_email
 from src.services.orgs.membership import assigned_user_ids as learners_on_plans, cleanup_after_removal
@@ -469,6 +469,7 @@ async def get_organization_users(
                 joined_at=user_org.creation_date,
                 membership_status=user_org.status or "active",
                 membership_status_since=user_org.status_since,
+                permissions=sorted(staff_permissions(user_org)),
             )
 
             org_users_list.append(org_user)
@@ -681,6 +682,8 @@ async def update_user_role(
             status_code=404,
             detail="Role not found",
         )
+    if role.role_uuid not in ORG_ROLE_UUIDS:
+        raise HTTPException(status_code=422, detail="Choose Admin, Staff or Learner")
 
     role_id = role.id
 
@@ -695,8 +698,9 @@ async def update_user_role(
             detail="Organization not found",
         )
 
-    # RBAC check
+    # RBAC check; only admins change roles
     await rbac_check(request, org.org_uuid, current_user, "update", db_session)
+    require_org_owner_admin(current_user.id, org.id, db_session)
 
     # Check if user is the last admin and if the new role is not admin
     statement = select(UserOrganization).where(
@@ -734,8 +738,12 @@ async def update_user_role(
             detail="User not found",
         )
 
-    if role_id is not None:
+    if role_id is not None and role_id != user_org.role_id:
+        if is_staff_role(role) != is_staff_role(db_session.get(Role, user_org.role_id)):
+            require_role_capacity(role, org.id, db_session)
         user_org.role_id = role_id
+        # A new staff member starts with the default permissions (security/org_auth.py).
+        user_org.permissions = None
 
     db_session.add(user_org)
     db_session.commit()
@@ -767,7 +775,7 @@ async def preview_batch_users(
         raise HTTPException(status_code=400, detail=f"This plan allows {policy['batch']} recipients per batch")
     role = db_session.exec(select(Role).where(
         Role.id == invite_request.role_id,
-        or_(Role.org_id == org.id, Role.org_id.is_(None)),
+        col(Role.role_uuid).in_(ORG_ROLE_UUIDS),
     )).first()
     if not role:
         raise HTTPException(status_code=400, detail="Role is not available in this organization")
@@ -881,7 +889,7 @@ async def invite_batch_users(
     role = db_session.exec(
         select(Role).where(
             Role.id == invite_request.role_id,
-            or_(Role.org_id == org.id, Role.org_id.is_(None)),
+            col(Role.role_uuid).in_(ORG_ROLE_UUIDS),
         )
     ).first()
     if not role:

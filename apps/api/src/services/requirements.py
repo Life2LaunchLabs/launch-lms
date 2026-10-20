@@ -55,7 +55,7 @@ def _owner_org(db: Session) -> Organization:
 def _require_owner_org_admin(db: Session, current_user: PublicUser, org_id: int) -> None:
     if _owner_org(db).id != org_id:
         raise HTTPException(status_code=403, detail="Only the owner organization can publish to the global library")
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
 
 
 def _require_staff(db: Session, current_user: PublicUser, org_id: int) -> None:
@@ -298,7 +298,7 @@ def list_framework_library(db: Session, current_user: PublicUser, org_id: int, q
 
 
 def copy_framework_from_library(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     owner = _owner_org(db)
     source = db.exec(select(RequirementFramework).where(
         RequirementFramework.framework_uuid == framework_uuid,
@@ -318,7 +318,7 @@ def copy_framework_from_library(db: Session, current_user: PublicUser, org_id: i
 
 
 def create_framework(db: Session, current_user: PublicUser, payload: RequirementFrameworkCreate) -> dict:
-    require_org_admin(current_user.id, payload.org_id, db)
+    require_org_admin(current_user.id, payload.org_id, db, "build_plans")
     if not payload.name.strip():
         raise HTTPException(status_code=422, detail="Framework name is required")
     now = _now_string()
@@ -351,7 +351,7 @@ def get_framework(db: Session, current_user: PublicUser, org_id: int, framework_
 
 
 def update_framework(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str, payload: RequirementFrameworkUpdate) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     framework = _framework_or_404(db, org_id, framework_uuid)
     current = _version(db, framework)
     now = _now_string()
@@ -401,7 +401,7 @@ def update_framework(db: Session, current_user: PublicUser, org_id: int, framewo
 
 
 def publish_framework(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     framework = _framework_or_404(db, org_id, framework_uuid)
     version = _version(db, framework)
     if version.status == RequirementVersionStatus.PUBLISHED:
@@ -561,7 +561,7 @@ def _backfill(db: Session, enrollment: RequirementEnrollment) -> None:
 
 
 def assign_framework(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str, payload: RequirementAssignmentCreate) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "run_assignments")
     framework = _framework_or_404(db, org_id, framework_uuid)
     if not framework.published_version:
         raise HTTPException(status_code=409, detail="Publish this framework before assigning it")
@@ -635,7 +635,7 @@ def sync_group_batches(db: Session, org_id: int, framework_id: int | None = None
 
 
 def migrate_enrollments(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str, payload: RequirementEnrollmentMigrate) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     framework = _framework_or_404(db, org_id, framework_uuid)
     if not framework.published_version:
         raise HTTPException(status_code=409, detail="No published version is available")
@@ -677,7 +677,7 @@ def parent_node_uuids(db: Session, org_id: int) -> set[str]:
 
 
 def update_mappings(db: Session, current_user: PublicUser, org_id: int, relation: ProgramObjective, node_uuids: list[str]) -> list[dict]:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     valid = mappable_nodes(db, org_id)
     requested = list(dict.fromkeys(node_uuids))
     if set(requested) - set(valid):
@@ -715,7 +715,7 @@ def mappings_for_relation(db: Session, relation: ProgramObjective) -> list[dict]
 
 
 def report(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str | None = None, version_number: int | None = None, usergroup_id: int | None = None, node_uuid: str | None = None, status: str | None = None) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "see_reports")
     framework = _framework_or_404(db, org_id, framework_uuid) if framework_uuid else None
     sync_group_batches(db, org_id, int(framework.id) if framework else None)
     statement = select(RequirementEnrollment).where(

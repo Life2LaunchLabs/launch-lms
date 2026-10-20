@@ -181,7 +181,7 @@ def send_report(db: Session, current_user: PublicUser, org_id: int, usergroup_id
     """Post the report as a card in each recipient's direct chat with the sender. Recipients must be in the organization."""
     from src.services.connect import cards
 
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "see_reports")
     recipients = list(dict.fromkeys(int(item) for item in payload.recipient_user_ids))
     if not recipients:
         raise HTTPException(status_code=422, detail="Choose who gets the report")

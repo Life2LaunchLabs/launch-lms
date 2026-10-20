@@ -394,7 +394,7 @@ Organization
 ```
 
 ### Access Control
-- **Roles** define permissions per org
+- **Roles**: an org has three, Admin (1), Staff (2) and Learner (4). Admins can do everything; each staff member has permissions the admin sets (`build_plans`, `run_assignments`, `review_work`, `manage_learners`, `see_reports`; defaults are run_assignments and review_work), stored on `UserOrganization.permissions`. Service checks pass the permission: `require_org_admin(user_id, org_id, db, "build_plans")`; admin-only actions use `require_org_owner_admin`. The Instructor role and custom roles are retired.
 - **UserGroups** grant bulk access to courses/resources
 - **UserRoleWithOrg** links a user to a role within a specific org
 
