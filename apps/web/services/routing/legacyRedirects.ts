@@ -11,6 +11,8 @@ const decode = (segment: string) => {
 
 // /admin/users/<segment> used to hold settings tabs and bare usernames. These were tabs, not people.
 const OLD_PEOPLE_TABS = new Set(['new', 'groups', 'grading', 'roles', 'signups', 'audit-logs', 'user', 'settings', 'cohorts', 'chat'])
+// A group's requirement report (once "reports") moved to Insights.
+const GROUP_EVIDENCE_TABS = new Set(['requirements', 'reports'])
 
 function legacyAdminPath(parts: string[]): string | null {
   const [area, a, b, c, d] = parts
@@ -34,7 +36,10 @@ function legacyAdminPath(parts: string[]): string | null {
     if (a === 'reporting' && n === 2) return admin.insights()
     // The old assignments list is the Assignments tab; one assignment keeps its own page.
     if (a === 'assignments' && n === 2) return admin.assignments()
+    // Requirements moved to Insights.
+    if (a === 'requirements' && n === 2) return admin.insights()
     if (a === 'requirements' && n === 3) return admin.requirementFramework(decode(b), 'details')
+    if (a === 'requirements' && n === 4) return admin.requirementFramework(decode(b), decode(c))
     if (b === 'assignments' && c === 'new' && n === 4) return admin.templatePage(decode(a), 'overview')
     return null
   }
@@ -47,7 +52,8 @@ function legacyAdminPath(parts: string[]): string | null {
     const group = (view?: GroupView, assignment?: string) => admin.people.group(decode(b), view, assignment && decode(assignment))
     if ((a === 'cohorts' || a === 'groups') && c === 'programs' && d) return group('plans', d)
     if (a === 'cohorts' && n >= 3) return group()
-    if (a === 'groups' && n >= 4) return c === 'plans' || c === 'requirements' ? group(c) : c === 'reports' ? group('requirements') : group()
+    if (a === 'groups' && n === 4 && GROUP_EVIDENCE_TABS.has(c)) return admin.insightsEvidence(decode(b))
+    if (a === 'groups' && n >= 4) return c === 'plans' ? group('plans') : group()
     return null
   }
 

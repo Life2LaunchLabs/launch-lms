@@ -178,8 +178,10 @@ export const routePaths = {
       badgeMarketplace: () => '/admin/badges?tab=marketplace',
       badgeCollection: (collectionUuid: string, subpage: string) => `/admin/badges/collection/${encodeURIComponent(collectionUuid)}/${encodeURIComponent(subpage)}`,
       badge: (badgeUuid: string, subpage: string) => `/admin/badges/badge/${encodeURIComponent(badgeUuid.replace(/^badge_/, ''))}/${encodeURIComponent(subpage)}`,
-      insights: () => '/admin/plans/requirements',
-      requirementFramework: (frameworkUuid: string, subpage = 'details') => `/admin/plans/requirements/${encodeURIComponent(frameworkUuid)}/${encodeURIComponent(subpage)}`,
+      // Insights: requirement coverage by templates, learners' evidence by group, and the framework editor.
+      insights: () => '/admin/insights',
+      insightsEvidence: (groupId?: string | number | null) => withQuery('/admin/insights/evidence', { group: groupId == null ? null : String(groupId) }),
+      requirementFramework: (frameworkUuid: string, subpage = 'details') => `/admin/insights/frameworks/${encodeURIComponent(frameworkUuid)}/${encodeURIComponent(subpage)}`,
       content: {
         resources: () => '/admin/resources',
         resourceTags: () => '/admin/resources/tags',

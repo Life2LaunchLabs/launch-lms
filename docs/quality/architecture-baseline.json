@@ -21,7 +21,7 @@
       "apps/web/components/Pages/Portfolio/PortfolioShareDialog.tsx": 1
     },
     "component-direct-mui": {
-      "apps/web/components/Admin/Programs/RequirementsAdmin.tsx": 2
+      "apps/web/components/Goals/admin/insights/RequirementFrameworkEditor.tsx": 2
     },
     "web-service-imports-ui": {},
     "web-unstructured-console": {

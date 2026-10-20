@@ -11,7 +11,7 @@ import { useOrg } from '@components/Contexts/OrgContext'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { assignmentReviewsKey, goalAdminApi, inboxKey, type ActivityReview, type StaffNoteView } from '@services/goals/admin'
 import { cn } from '@/lib/utils'
-import { ActivityAggregateGradeForm } from '@components/Admin/Programs/ActivityGrading'
+import { ActivityAggregateGradeForm } from '@components/Goals/admin/live/ActivityGrading'
 import ReviewEvidence from './ReviewEvidence'
 import { EmptyState, gradeActivityReview, PageLoader, PersonAvatar, pendingScores, personName, StatusPill, timeAgo } from './ui'
 

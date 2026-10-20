@@ -3,9 +3,7 @@
 import React from 'react'
 import AdminTabPage from '@components/Admin/AdminTabPage'
 import { OrgAssignments } from '@components/Goals/admin/assignments/AssignmentsList'
-import RequirementsExplorer from '@components/Goals/admin/live/RequirementsExplorer'
 import TemplateList from '@components/Goals/admin/templates/TemplateList'
-import { RequirementFrameworkDetail } from '@components/Admin/Programs/RequirementsAdmin'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 
@@ -15,7 +13,7 @@ function useOrgAndToken() {
   return { orgId: Number(org?.id), token: session?.data?.tokens?.access_token }
 }
 
-// The plan pages each admin tab opens on until its own screen lands: Assignments is the review inbox, Insights the requirement explorer.
+// The plan pages each admin tab opens on until its own screen lands: Assignments is the review inbox.
 
 export function AssignmentsPage({ orgslug }: { orgslug: string }) {
   // The Assignments tab shows the staff assignments list.
@@ -25,14 +23,4 @@ export function AssignmentsPage({ orgslug }: { orgslug: string }) {
 export function TemplatesPage({ orgslug }: { orgslug: string }) {
   const { orgId, token } = useOrgAndToken()
   return <AdminTabPage tab="templates"><TemplateList orgslug={orgslug} orgId={orgId} token={token} /></AdminTabPage>
-}
-
-export function InsightsPage({ orgslug }: { orgslug: string }) {
-  const { orgId, token } = useOrgAndToken()
-  return <AdminTabPage tab="insights"><RequirementsExplorer orgslug={orgslug} orgId={orgId} token={token} /></AdminTabPage>
-}
-
-export function RequirementFrameworkPage({ orgslug, frameworkUuid, subpage }: { orgslug: string; frameworkUuid: string; subpage: 'details' | 'levels' | 'spec' }) {
-  const { orgId, token } = useOrgAndToken()
-  return <AdminTabPage tab="insights"><RequirementFrameworkDetail orgslug={orgslug} orgId={orgId} token={token} frameworkUuid={frameworkUuid} activeSubpage={subpage} /></AdminTabPage>
 }

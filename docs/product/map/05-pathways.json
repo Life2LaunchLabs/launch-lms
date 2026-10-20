@@ -4694,7 +4694,7 @@
               "references": [
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Admin/Programs/RequirementsAdmin.tsx",
+                  "path": "apps/web/components/Goals/admin/insights/RequirementFrameworkEditor.tsx",
                   "symbol": "CreateFramework",
                   "responsibility": "Offers searchable library and blank paths from the new-framework action."
                 }
@@ -4720,7 +4720,7 @@
               "references": [
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Admin/Programs/RequirementsAdmin.tsx",
+                  "path": "apps/web/components/Goals/admin/insights/RequirementFrameworkEditor.tsx",
                   "symbol": "FrameworkLevels",
                   "responsibility": "Defines ordered levels and configurable metadata fields."
                 }
@@ -4748,13 +4748,13 @@
               "references": [
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Admin/Programs/RequirementsAdmin.tsx",
+                  "path": "apps/web/components/Goals/admin/insights/RequirementFrameworkEditor.tsx",
                   "symbol": "FrameworkLevels",
                   "responsibility": "Lets administrators select the generated code format for each hierarchy level."
                 },
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Admin/Programs/RequirementsAdmin.tsx",
+                  "path": "apps/web/components/Goals/admin/insights/RequirementFrameworkEditor.tsx",
                   "symbol": "FrameworkSpec",
                   "responsibility": "Adds root and child nodes from the tree and edits the selected node in a detail panel."
                 },
@@ -4809,7 +4809,7 @@
               "references": [
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Admin/Programs/RequirementsAdmin.tsx",
+                  "path": "apps/web/components/Goals/admin/insights/RequirementFrameworkEditor.tsx",
                   "symbol": "FrameworkSpec",
                   "responsibility": "Shows connected tree branches, terminal add rows, generated codes, and node details."
                 },
@@ -4895,13 +4895,13 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Admin/Programs/RequirementsAdmin.tsx",
+              "path": "apps/web/components/Goals/admin/insights/RequirementFrameworkEditor.tsx",
               "symbol": "RequirementsAdmin",
               "responsibility": "Provides the framework list and draft/publish editor."
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Admin/Programs/RequirementsAdmin.tsx",
+              "path": "apps/web/components/Goals/admin/insights/RequirementFrameworkEditor.tsx",
               "symbol": "RequirementsAdmin, RequirementFrameworkDetail, FrameworkLevels, FrameworkSpec",
               "responsibility": "Provides list/detail navigation, configurable hierarchy levels, and the MUI X tree-based specification editor."
             },
@@ -5322,7 +5322,7 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Admin/Programs/RequirementsAdmin.tsx",
+              "path": "apps/web/components/Goals/admin/insights/RequirementFrameworkEditor.tsx",
               "symbol": "AssignmentPanel",
               "responsibility": "Provides direct learner and group assignment controls and version migration prompt."
             },
@@ -5570,7 +5570,7 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Admin/Programs/RequirementsAdmin.tsx",
+              "path": "apps/web/components/Goals/admin/insights/RequirementFrameworkEditor.tsx",
               "symbol": "RequirementsReporting",
               "responsibility": "Provides version, group, node, and status filters plus evidence detail."
             },

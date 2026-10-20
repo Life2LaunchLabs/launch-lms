@@ -5,12 +5,12 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import useSWR, { mutate } from 'swr'
 import { ChevronRight, ClipboardCheck, Search } from 'lucide-react'
-import { CreateFramework } from '@components/Admin/Programs/RequirementsAdmin'
+import { CreateFramework } from './RequirementFrameworkEditor'
 import { stepDefinition } from '@components/Goals/steps'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { frameworksKey, requirementsApi, type Coverage } from '@services/goals/requirements'
 import { cn } from '@/lib/utils'
-import { EmptyState, PageLoader, Segmented, StatusPill } from './ui'
+import { EmptyState, PageLoader, Segmented, StatusPill } from '../live/ui'
 
 const COLORS = ['#171717', '#2563EB']
 const BOTH = `repeating-linear-gradient(135deg, ${COLORS[0]} 0 3px, ${COLORS[1]} 3px 6px)`

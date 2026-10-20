@@ -7,8 +7,8 @@ import { Check, ChevronRight, Search } from 'lucide-react'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { requirementsApi, type GroupRequirements } from '@services/goals/requirements'
 import { cn } from '@/lib/utils'
-import { EmptyState, Legend, PageLoader, personName, Segmented } from './ui'
-import RequirementEvidenceExport from './RequirementEvidenceExport'
+import { EmptyState, Legend, PageLoader, personName, Segmented } from '../live/ui'
+import RequirementEvidenceExport from '../live/RequirementEvidenceExport'
 
 type Learner = GroupRequirements['learners'][number]
 
@@ -41,7 +41,7 @@ export default function GroupRequirementsGrid({ orgslug, orgId, token, groupId }
   const [gapsOnly, setGapsOnly] = React.useState(false)
   const categories = React.useMemo(() => categoriesOf(data?.nodes || [], data?.leaf_node_uuids || []), [data])
   if (isLoading && !data) return <PageLoader />
-  if (!data?.framework_uuid) return <EmptyState title="No requirements assigned to this group" detail="Assign a framework to the group from Goals › Requirements to track it here." />
+  if (!data?.framework_uuid) return <EmptyState title="No requirements assigned to this group" detail="Assign a requirement framework to this group from the framework’s page to track it here." />
 
   const all: Learner[] = data.learners || []
   const learners = all.filter((learner) => personName(learner).toLowerCase().includes(query.trim().toLowerCase()) && (!gapsOnly || learner.gaps > 0))

@@ -4,14 +4,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
 from src.core.events.database import get_db_session
-from src.db.goal_admin import StaffNote, StepConfirmMany, StepDecision, StepProgressBulk
+from src.db.goal_admin import AdminHomeLayout, StaffNote, StepConfirmMany, StepDecision, StepProgressBulk
 from src.db.goal_templates import GoalAssignmentUpdate, StepRemind, StepSettle
 from src.db.goals import GoalAssignment
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
 from src.security.features_utils.plan_check import get_org_plan
 from src.security.features_utils.plans import plan_meets_requirement
-from src.services.goals import assignment_steps, assignments, review, staff_views
+from src.services.goals import admin_home, assignment_steps, assignments, review, staff_views
 
 router = APIRouter()
 GROUPS_NEED = "Group goal assignments require a Full plan or higher"
@@ -28,6 +28,18 @@ def _require_assignment_plan(org_id: int, assignment_uuid: str, db: Session) -> 
     group = db.exec(select(GoalAssignment.usergroup_id).where(GoalAssignment.org_id == org_id, GoalAssignment.assignment_uuid == assignment_uuid)).first()
     if group:
         raise HTTPException(status_code=403, detail=GROUPS_NEED)
+
+
+# Home -----------------------------------------------------------------------------------
+
+@router.get("/home")
+def api_home(org_id: int, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    return admin_home.home(db, user, org_id)
+
+
+@router.put("/home/layout")
+def api_home_layout(org_id: int, payload: AdminHomeLayout, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    return admin_home.save_layout(db, user, org_id, payload)
 
 
 # Review inbox ---------------------------------------------------------------------------
