@@ -5,7 +5,7 @@ import useSWR from 'swr'
 import { Award, Plus } from 'lucide-react'
 import { SafeImage } from '@components/Objects/SafeImage'
 import GoalAssignmentModal from '@components/Goals/admin/templates/GoalAssignmentModal'
-import { AssignmentSection } from '@components/Goals/admin/templates/TemplateAssignments'
+import { AssignmentSection } from './AssignmentSection'
 import { templateKeys, templatesApi, type IssuerBadgeRoute } from '@services/goals/templates'
 import { eligibilityLabel } from '@services/goals/versions'
 

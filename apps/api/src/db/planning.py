@@ -29,6 +29,8 @@ class PlanInvitationKind(str, Enum):
 
 
 class PlanInvitationStatus(str, Enum):
+    # A helper a learner invited to a plan their organization gave them, waiting on an admin (see MessagingPolicy.helper_approval).
+    AWAITING_APPROVAL = "awaiting_approval"
     PENDING = "pending"
     ACCEPTED = "accepted"
     DECLINED = "declined"
@@ -249,6 +251,9 @@ class PlanInvitation(SQLModel, table=True):
     role_id: int = Field(sa_column=Column(Integer, ForeignKey("planrole.id", ondelete="CASCADE"), index=True))
     status: PlanInvitationStatus = Field(default=PlanInvitationStatus.PENDING, sa_column=Column(String, nullable=False, index=True))
     invited_by_user_id: int = Field(sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), index=True))
+    # The organization admin who let an invitation awaiting approval through, or turned it down, and when.
+    reviewed_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
+    reviewed_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
     viewed_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
     responded_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
     expires_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))

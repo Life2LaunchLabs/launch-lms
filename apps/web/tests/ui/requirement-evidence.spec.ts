@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { assertActualApp } from './auth'
 
 const fixture = JSON.parse(readFileSync('.playwright/requirement-evidence.json', 'utf8'))
-const groupPath = `/orgs/${fixture.org_slug}/admin/users/groups/${fixture.group_id}`
+const insightsPath = `/orgs/${fixture.org_slug}/admin/insights`
 
 async function capture(page: Page, info: TestInfo, name: string, fullPage = true) {
   const screenshot = await page.screenshot({ path: info.outputPath(name), fullPage })
@@ -11,7 +11,7 @@ async function capture(page: Page, info: TestInfo, name: string, fullPage = true
 }
 
 test('requirements.export: assignment filters learners and downloads real reviewed evidence', async ({ page }, testInfo) => {
-  await page.goto(`${groupPath}/plans?assignment=${fixture.assignment_uuid}`)
+  await page.goto(`/orgs/${fixture.org_slug}/admin/plans/assignments/${fixture.assignment_uuid}/learners`)
   await assertActualApp(page)
   await page.getByRole('textbox', { name: 'Search learners' }).fill('Alex')
   const action = page.getByRole('button', { name: 'Export evidence CSV for 1 filtered learner', exact: true })
@@ -50,9 +50,10 @@ test('requirements.export: assignment filters learners and downloads real review
   await expect(page.getByRole('button', { name: 'Export evidence CSV for 0 filtered learners' })).toBeDisabled()
 })
 
-test('requirements.export: group report keeps pending evidence and shows server failures', async ({ page }, testInfo) => {
-  await page.goto(`${groupPath}/requirements`)
+test('requirements.export: Insights group evidence keeps pending evidence and shows server failures', async ({ page }, testInfo) => {
+  await page.goto(`${insightsPath}/evidence?group=${fixture.group_id}`)
   await assertActualApp(page)
+  await expect(page.getByRole('combobox', { name: 'Group' })).toHaveValue(String(fixture.group_id))
   await page.getByRole('button', { name: 'Export evidence CSV for 2 filtered learners' }).click()
   const downloadPromise = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Download CSV', exact: true }).click()
@@ -74,8 +75,8 @@ test('requirements.long-codes: explorer and learner tree preserve readable code 
   // This scenario visits two routes; local Next dev can compile both from cold.
   test.setTimeout(60_000)
   for (const [path, prefix] of [
-    [`/orgs/${fixture.org_slug}/admin/plans/requirements`, 'explorer'],
-    [`/orgs/${fixture.org_slug}/admin/users/user/${fixture.approved_username}/requirements`, 'learner'],
+    [insightsPath, 'explorer'],
+    [`/orgs/${fixture.org_slug}/admin/users/user/${fixture.approved_username}`, 'learner'],
   ]) {
     await page.goto(path)
     await assertActualApp(page)

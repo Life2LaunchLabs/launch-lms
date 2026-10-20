@@ -1,7 +1,7 @@
 """goals: the badge an assignment earns, and which template versions of a badge route earn it
 
 Revision ID: e8f3b66b5434
-Revises: acf6145ca175
+Revises: 25170766ef96
 """
 from typing import Sequence, Union
 
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 revision: str = 'e8f3b66b5434'
-down_revision: Union[str, None] = 'acf6145ca175'
+down_revision: Union[str, None] = '25170766ef96'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

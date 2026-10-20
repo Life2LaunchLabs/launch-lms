@@ -14,7 +14,7 @@ import type { TemplateDetail as Template } from '@services/goals/templates'
 import { cn } from '@/lib/utils'
 import { documentSteps } from './documentOps'
 import GoalAssignmentModal from './GoalAssignmentModal'
-import TemplateAssignments from './TemplateAssignments'
+import { TemplateAssignments } from '../assignments/AssignmentsList'
 import TemplateOverview from './TemplateOverview'
 import TemplateSettings from './TemplateSettings'
 import TemplateSteps from './TemplateSteps'
@@ -27,7 +27,7 @@ export type TemplateSubpage = 'overview' | 'objectives' | 'assignments' | 'setti
 const TABS = [
   { key: 'overview' as const, label: 'Overview', icon: LayoutGrid },
   { key: 'objectives' as const, label: 'Steps', icon: ClipboardList },
-  { key: 'assignments' as const, label: 'Handed out', icon: Users },
+  { key: 'assignments' as const, label: 'Assignments', icon: Users },
   { key: 'settings' as const, label: 'Settings', icon: Settings },
 ]
 
@@ -66,7 +66,7 @@ export default function TemplateDetail({ orgslug, templateUuid, subpage = 'overv
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.1 }}>
       {subpage === 'overview' && <TemplateOverview orgslug={orgslug} orgId={orgId} token={token} template={template} />}
       {subpage === 'objectives' && <TemplateSteps orgslug={orgslug} orgId={orgId} token={token} editing={editing} />}
-      {subpage === 'assignments' && <TemplateAssignments orgslug={orgslug} orgId={orgId} token={token} templateUuid={templateUuid} />}
+      {subpage === 'assignments' && <TemplateAssignments orgslug={orgslug} templateUuid={templateUuid} />}
       {subpage === 'settings' && <TemplateSettings orgslug={orgslug} orgId={orgId} token={token} editing={editing} />}
     </motion.div>
   </div>

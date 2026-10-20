@@ -23,7 +23,6 @@ from src.db.organizations import (
 )
 from src.db.roles import Role, RoleRead
 from src.db.learning import LearningBadge, LearningBadgeStatus
-from src.db.programs import ProgramAssignment, ProgramParticipant
 from src.db.user_organizations import UserOrganization
 from src.db.usergroup_resources import UserGroupResource
 from src.db.usergroup_user import UserGroupUser
@@ -41,6 +40,7 @@ from src.security.org_auth import get_user_org, is_org_member
 from src.security.rbac.constants import ADMIN_ROLE_ID
 from src.services.email.utils import get_base_url_from_request
 from src.services.orgs.invites import send_direct_invitation_email
+from src.services.orgs.membership import assigned_user_ids as learners_on_plans, cleanup_after_removal
 from src.services.orgs.orgs import rbac_check
 from src.services.messages import create_inbox_message, resolve_action_by_dedupe
 from src.services.users.usergroups import create_usergroup
@@ -334,44 +334,10 @@ async def get_organization_users(
     elif status == "unverified":
         base_statement = base_statement.where(User.email_verified == False)
 
-    # Active means an active program or a published badge is currently assigned.
-    # Staff ownership lives on program assignments, so "assigned to me" narrows
-    # the result to learners on programs owned by the current staff member.
+    # Active means an open plan from the organization or a published badge is assigned.
+    # "Assigned to me" narrows to learners on the plans the current staff member staffs.
     if active is not None or assigned_to_me:
-        active_assignments = db_session.exec(
-            select(ProgramAssignment).where(
-                ProgramAssignment.org_id == int(org_id),
-                ProgramAssignment.active == True,  # noqa: E712
-            )
-        ).all()
-        relevant_assignments = [
-            assignment for assignment in active_assignments
-            if not assigned_to_me or current_user.id in (assignment.staff_user_ids or [])
-        ]
-        assignment_ids = [assignment.id for assignment in relevant_assignments if assignment.id is not None]
-        assigned_user_ids: set[int] = {
-            int(assignment.user_id)
-            for assignment in relevant_assignments
-            if assignment.user_id is not None
-        }
-        assigned_group_ids = {
-            int(assignment.usergroup_id)
-            for assignment in relevant_assignments
-            if assignment.usergroup_id is not None
-        }
-        if assignment_ids:
-            assigned_user_ids.update(db_session.exec(
-                select(ProgramParticipant.user_id).where(
-                    ProgramParticipant.assignment_id.in_(assignment_ids)  # type: ignore[union-attr]
-                )
-            ).all())
-        if assigned_group_ids:
-            assigned_user_ids.update(db_session.exec(
-                select(UserGroupUser.user_id).where(
-                    UserGroupUser.usergroup_id.in_(assigned_group_ids)  # type: ignore[union-attr]
-                )
-            ).all())
-
+        assigned_user_ids = learners_on_plans(db_session, int(org_id), current_user.id if assigned_to_me else None)
         if active is not None and not assigned_to_me:
             badge_group_ids = set(db_session.exec(
                 select(UserGroupResource.usergroup_id)
@@ -571,6 +537,8 @@ async def leave_current_user_from_org(
         )
 
     db_session.delete(user_org)
+    db_session.flush()
+    cleanup_after_removal(db_session, int(org.id), current_user.id)
     db_session.commit()
 
     from src.routers.users import _invalidate_session_cache
@@ -631,6 +599,8 @@ async def remove_user_from_org(
         )
 
     db_session.delete(user_org)
+    db_session.flush()
+    cleanup_after_removal(db_session, int(org.id), user_id)
     db_session.commit()
 
     from src.routers.users import _invalidate_session_cache
@@ -688,6 +658,8 @@ async def remove_batch_users_from_org(
 
         if user_org:
             db_session.delete(user_org)
+            db_session.flush()
+            cleanup_after_removal(db_session, int(org.id), int(user_id))
             removed_count += 1
 
     db_session.commit()

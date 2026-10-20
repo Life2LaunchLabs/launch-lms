@@ -2658,9 +2658,9 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Goals/admin/live/StaffGoalDetail.tsx",
-              "symbol": "ActivityAndFiles",
-              "responsibility": "Presents plan discussion, audit history, and shared files in the individual live-plan workspace."
+              "path": "apps/web/components/Connect/workspace/ChatWorkspace.tsx",
+              "symbol": "ChatWorkspace",
+              "responsibility": "The learner's plan feed: discussion and the app's cards, with staff notes about the learner between the messages for staff."
             }
           ],
           "relationships": []
@@ -3119,9 +3119,9 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Goals/admin/live/StaffGoalDetail.tsx",
-              "symbol": "Objectives, PlanSettings",
-              "responsibility": "Lets authorized staff update learner-specific objective definitions, plan details, priority, and schedule."
+              "path": "apps/web/components/Goals/admin/live/StaffGoalPath.tsx",
+              "symbol": "StaffGoalPath",
+              "responsibility": "Lets authorized staff update learner-specific steps from each step's menu and the plan's details and schedule from its settings."
             }
           ],
           "relationships": [
@@ -4139,15 +4139,15 @@
           "references": [
             {
               "kind": "code",
-              "path": "apps/web/components/Goals/admin/live/StaffGoalDetail.tsx",
-              "symbol": "AdminLivePlanDetail",
-              "responsibility": "Labels learner-specific live plans and preserves navigation back through their source assignment."
+              "path": "apps/web/components/Goals/admin/live/StaffPlan.tsx",
+              "symbol": "StaffPlan",
+              "responsibility": "One learner's live plan from the staff side: its header card, people and feed over the path the learner sees."
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Goals/admin/live/CohortMatrix.tsx",
-              "symbol": "GroupPlansGrid",
-              "responsibility": "The group's Plans tab: learners by steps grouped into chapters, with bulk mark done or excuse and review cells that open the review queue."
+              "path": "apps/web/components/Goals/admin/assignments/AssignmentLearners.tsx",
+              "symbol": "AssignmentLearners",
+              "responsibility": "An assignment's Learners tab: each learner's steps as dots by stage, pace and what needs attention, opening their plan feed."
             }
           ],
           "relationships": [
@@ -4694,7 +4694,7 @@
               "references": [
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Admin/Programs/RequirementsAdmin.tsx",
+                  "path": "apps/web/components/Goals/admin/insights/RequirementFrameworkEditor.tsx",
                   "symbol": "CreateFramework",
                   "responsibility": "Offers searchable library and blank paths from the new-framework action."
                 }
@@ -4720,7 +4720,7 @@
               "references": [
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Admin/Programs/RequirementsAdmin.tsx",
+                  "path": "apps/web/components/Goals/admin/insights/RequirementFrameworkEditor.tsx",
                   "symbol": "FrameworkLevels",
                   "responsibility": "Defines ordered levels and configurable metadata fields."
                 }
@@ -4748,13 +4748,13 @@
               "references": [
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Admin/Programs/RequirementsAdmin.tsx",
+                  "path": "apps/web/components/Goals/admin/insights/RequirementFrameworkEditor.tsx",
                   "symbol": "FrameworkLevels",
                   "responsibility": "Lets administrators select the generated code format for each hierarchy level."
                 },
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Admin/Programs/RequirementsAdmin.tsx",
+                  "path": "apps/web/components/Goals/admin/insights/RequirementFrameworkEditor.tsx",
                   "symbol": "FrameworkSpec",
                   "responsibility": "Adds root and child nodes from the tree and edits the selected node in a detail panel."
                 },
@@ -4809,7 +4809,7 @@
               "references": [
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Admin/Programs/RequirementsAdmin.tsx",
+                  "path": "apps/web/components/Goals/admin/insights/RequirementFrameworkEditor.tsx",
                   "symbol": "FrameworkSpec",
                   "responsibility": "Shows connected tree branches, terminal add rows, generated codes, and node details."
                 },
@@ -4895,13 +4895,13 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Admin/Programs/RequirementsAdmin.tsx",
+              "path": "apps/web/components/Goals/admin/insights/RequirementFrameworkEditor.tsx",
               "symbol": "RequirementsAdmin",
               "responsibility": "Provides the framework list and draft/publish editor."
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Admin/Programs/RequirementsAdmin.tsx",
+              "path": "apps/web/components/Goals/admin/insights/RequirementFrameworkEditor.tsx",
               "symbol": "RequirementsAdmin, RequirementFrameworkDetail, FrameworkLevels, FrameworkSpec",
               "responsibility": "Provides list/detail navigation, configurable hierarchy levels, and the MUI X tree-based specification editor."
             },
@@ -5322,7 +5322,7 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Admin/Programs/RequirementsAdmin.tsx",
+              "path": "apps/web/components/Goals/admin/insights/RequirementFrameworkEditor.tsx",
               "symbol": "AssignmentPanel",
               "responsibility": "Provides direct learner and group assignment controls and version migration prompt."
             },
@@ -5570,7 +5570,7 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Admin/Programs/RequirementsAdmin.tsx",
+              "path": "apps/web/components/Goals/admin/insights/RequirementFrameworkEditor.tsx",
               "symbol": "RequirementsReporting",
               "responsibility": "Provides version, group, node, and status filters plus evidence detail."
             },

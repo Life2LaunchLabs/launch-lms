@@ -50,7 +50,7 @@ export function PageLoader({ tall = false }: { tall?: boolean }) {
   return <div className={cn('flex items-center justify-center', tall ? 'min-h-[70vh] bg-[#f8f8f8]' : 'min-h-[320px]')}><Loader2 className="h-6 w-6 animate-spin text-gray-400" /></div>
 }
 
-export function EmptyState({ icon, title, detail }: { icon?: React.ReactNode; title: string; detail?: string }) {
+export function EmptyState({ icon, title, detail }: { icon?: React.ReactNode; title: string; detail?: React.ReactNode }) {
   return <div className="rounded-xl border border-dashed border-gray-200 bg-white px-6 py-14 text-center">{icon ? <div className="mx-auto mb-3 flex justify-center text-gray-300">{icon}</div> : null}<p className="text-sm font-black text-gray-800">{title}</p>{detail ? <p className="mt-1 text-xs text-gray-500">{detail}</p> : null}</div>
 }
 
@@ -79,13 +79,14 @@ export function humanize(value: string) {
 }
 
 /** The review queue for one step of an assignment (or the activity grading list). */
-export function reviewHref(params: { assignment: string | null; stepKey?: string | null; stepUuid?: string | null; activity?: string | null; focus?: string | null }) {
+export function reviewHref(params: { assignment: string | null; stepKey?: string | null; stepUuid?: string | null; activity?: string | null; focus?: string | null; from?: 'assignment' }) {
   const query = new URLSearchParams()
   if (params.assignment) query.set('assignment', params.assignment)
   if (params.stepKey) query.set('step_key', params.stepKey)
   if (params.stepUuid) query.set('step', params.stepUuid)
   if (params.activity) query.set('activity', params.activity)
   if (params.focus) query.set('focus', params.focus)
+  if (params.from) query.set('from', params.from)
   return `${routePaths.org.admin.assignments()}/review?${query}`
 }
 

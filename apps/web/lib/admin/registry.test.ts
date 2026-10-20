@@ -45,7 +45,7 @@ const ids = (items: { id: string }[]) => items.map((item) => item.id)
 test('a teacher (staff without admin rights) gets Home, Assignments and People only', () => {
   const tabs = visibleAdminTabs(access({ rights: [STAFF], features: FULL_FEATURES }))
   assert.deepEqual(ids(tabs), ['home', 'assignments', 'people'])
-  assert.deepEqual(ids(ADMIN_HOME_WIDGETS.filter((widget) => adminVisibility(widget.requires, access({ rights: [STAFF] })).state !== 'hidden')), [])
+  assert.deepEqual(ids(ADMIN_HOME_WIDGETS.filter((widget) => adminVisibility(widget.requires, access({ rights: [STAFF] })).state !== 'hidden')), ['waiting', 'today', 'messages', 'attention'])
 })
 
 test('an admin gets every tab in job order, with each tab opening its first available page', () => {
@@ -57,7 +57,7 @@ test('an admin gets every tab in job order, with each tab opening its first avai
   assert.equal(content.href, '/admin/resources')
   assert.deepEqual(content.children![1].visibility, { state: 'locked', request: { type: 'plan_upgrade', value: 'enterprise' } })
   const organization = tabs.find((tab) => tab.id === 'organization')!
-  assert.deepEqual(ids(organization.children!), ['general', 'branding', 'sso', 'plan'])
+  assert.deepEqual(ids(organization.children!), ['general', 'branding', 'messaging', 'sso', 'plan'])
 })
 
 test('a free org gets every job tab open; plan-gated pages show locked with the plan to request', () => {
@@ -73,7 +73,7 @@ test('a free org gets every job tab open; plan-gated pages show locked with the 
 test('labels translate through their existing keys and fall back to English', () => {
   const t = (key: string, { defaultValue }: { defaultValue: string }) => (key === 'dashboard.organization.settings.tabs.general' ? 'Allgemein' : defaultValue)
   const organization = visibleAdminTabs(access({ rights: ADMIN_RIGHTS, features: FULL_FEATURES })).find((tab) => tab.id === 'organization')!
-  assert.deepEqual(organization.children!.map((child) => adminLabel(t, child)), ['Allgemein', 'Branding', 'Single Sign-On', 'Plan & Packages'])
+  assert.deepEqual(organization.children!.map((child) => adminLabel(t, child)), ['Allgemein', 'Branding', 'Messaging', 'Single Sign-On', 'Plan & Packages'])
 })
 
 test('package features ask for their package, and a feature switched off is hidden rather than requested', () => {
@@ -84,6 +84,14 @@ test('package features ask for their package, and a feature switched off is hidd
   assert.deepEqual(adminVisibility({ feature: 'communities' }, full([])), { state: 'hidden' })
   // A plan requirement never resurrects a feature nobody can request.
   assert.deepEqual(adminVisibility({ feature: 'payments', plan: 'enterprise' }, access({ features: { payments: { enabled: false } } })), { state: 'hidden' })
+})
+
+test('creator metrics are an admin widget that asks for the analytics package when the org lacks it', () => {
+  const creator = ADMIN_HOME_WIDGETS.find((widget) => widget.id === 'creator')!
+  const admin = (analytics: boolean) => access({ rights: ADMIN_RIGHTS, features: { analytics: { enabled: analytics, required_plan: 'full' } } })
+  assert.deepEqual(adminVisibility(creator.requires, admin(false)), { state: 'locked', request: { type: 'package_add', value: 'analytics' } })
+  assert.deepEqual(adminVisibility(creator.requires, admin(true)), { state: 'open' })
+  assert.deepEqual(adminVisibility(creator.requires, access({ rights: [STAFF], features: { analytics: { enabled: true } } })), { state: 'hidden' })
 })
 
 test('paths resolve to the tab that owns them, by longest match', () => {
@@ -97,7 +105,8 @@ test('paths resolve to the tab that owns them, by longest match', () => {
   assert.equal(owner('/admin/plans/live/goal_1/reviews'), 'assignments')
   assert.equal(owner('/admin/plans/templates'), 'templates')
   assert.equal(owner('/admin/plans/template_1/activity/a1'), 'templates')
-  assert.equal(owner('/admin/plans/requirements/fw_1/spec'), 'insights')
+  assert.equal(owner('/admin/insights/frameworks/fw_1/spec'), 'insights')
+  assert.equal(owner('/admin/insights/evidence'), 'insights')
   assert.equal(owner('/admin/users/groups/2/members'), 'people')
   assert.equal(owner('/admin/badges/collection/c1/badges'), 'badges')
   assert.equal(owner('/admin/resources/tags'), 'content/resources')

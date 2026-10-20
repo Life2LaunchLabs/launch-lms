@@ -216,6 +216,21 @@ class CustomizationConfig(BaseModel):
 
 
 # ============================================================================
+# v2 Messaging policy
+# ============================================================================
+
+class MessagingPolicy(BaseModel):
+    """Who may message whom in an organization. Helpers are never messaged directly: only in their plan's feed."""
+
+    # Staff and learners may open one-to-one chats (on by default, as before the policy). Off keeps every staff-learner conversation in a plan feed.
+    staff_dm_learners: bool = True
+    # A learner's plan feed takes messages only once at least two staff are on it.
+    min_two_staff_on_feeds: bool = False
+    # A helper a learner invites to a plan the organization gave them joins only after an admin approves.
+    helper_approval: bool = False
+
+
+# ============================================================================
 # v1 General & Cloud (kept for backward compat)
 # ============================================================================
 
@@ -257,6 +272,7 @@ class OrganizationConfigV2Base(BaseModel):
     admin_toggles: AdminToggles = AdminToggles()
     overrides: dict = Field(default_factory=dict)
     customization: CustomizationConfig = CustomizationConfig()
+    messaging: MessagingPolicy = MessagingPolicy()
 
 
 # ============================================================================
