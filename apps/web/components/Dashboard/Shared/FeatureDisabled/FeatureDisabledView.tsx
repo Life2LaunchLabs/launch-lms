@@ -3,9 +3,9 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { Ban, Settings, AlertTriangle } from 'lucide-react'
-import { useOrg } from '@components/Contexts/OrgContext'
 import Link from 'next/link'
 import { getUriWithOrg, routePaths } from '@services/config/config'
+import { useFeatures } from '@components/Hooks/useFeatures'
 
 interface FeatureDisabledViewProps {
   /** The feature name to check (e.g., 'courses', 'collections', 'communities') */
@@ -30,11 +30,7 @@ export const FeatureDisabledBanner: React.FC<{
   orgslug: string
 }> = ({ featureName, orgslug }) => {
   const { t } = useTranslation()
-  const org = useOrg() as any
-
-  const resolved = org?.config?.config?.resolved_features?.[featureName]
-  const featureConfig = org?.config?.config?.features?.[featureName]
-  const isFeatureEnabled = resolved ? resolved.enabled : featureConfig?.enabled !== false
+  const isFeatureEnabled = useFeatures().has(featureName)
 
   if (isFeatureEnabled) {
     return null
@@ -51,7 +47,7 @@ export const FeatureDisabledBanner: React.FC<{
         </span>
       </div>
       <Link
-        href={getUriWithOrg(orgslug, routePaths.org.dash.orgSettings.features())}
+        href={getUriWithOrg(orgslug, routePaths.org.admin.organization.general())}
         className="flex items-center gap-2 px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-colors shrink-0"
       >
         <Settings size={16} />
@@ -75,13 +71,7 @@ const FeatureDisabledView: React.FC<FeatureDisabledViewProps> = ({
   children,
 }) => {
   const { t } = useTranslation()
-  const org = useOrg() as any
-
-  // Check if the feature is enabled
-  // Default to true if not explicitly set to false (for backward compatibility)
-  const resolved = org?.config?.config?.resolved_features?.[featureName]
-  const featureConfig = org?.config?.config?.features?.[featureName]
-  const isFeatureEnabled = resolved ? resolved.enabled : featureConfig?.enabled !== false
+  const isFeatureEnabled = useFeatures().has(featureName)
 
   if (isFeatureEnabled) {
     return <>{children}</>
@@ -113,7 +103,7 @@ const FeatureDisabledView: React.FC<FeatureDisabledViewProps> = ({
               </p>
 
               <Link
-                href={getUriWithOrg(orgslug, routePaths.org.dash.orgSettings.features())}
+                href={getUriWithOrg(orgslug, routePaths.org.admin.organization.general())}
                 className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors"
               >
                 <Settings size={16} />

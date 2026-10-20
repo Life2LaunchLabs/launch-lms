@@ -30,7 +30,7 @@ export function SchoolTeam({ orgId, userId, token }: { orgId: number; userId: nu
 }
 
 /** Where a step opens for staff: the learner's plan as staff work it, at that step. */
-export const staffStepHref = (orgslug: string) => (goalUuid: string, stepUuid: string) => getUriWithOrg(orgslug, `${routePaths.org.dash.livePlan(goalUuid)}#step-${stepUuid}`)
+export const staffStepHref = (orgslug: string) => (goalUuid: string, stepUuid: string) => getUriWithOrg(orgslug, `${routePaths.org.admin.livePlan(goalUuid)}#step-${stepUuid}`)
 
 /** A learner's chat with the organization, filtered by plan and step, with staff notes about them between the messages. */
 export default function StudentMessages({ orgId, userId, orgslug, token }: { orgId: number; userId: number; orgslug: string; token?: string }) {

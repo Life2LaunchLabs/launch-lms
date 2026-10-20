@@ -29,7 +29,6 @@ import {
   SSOProviderInfo,
   SSOProvider,
 } from '@services/auth/sso'
-import { usePlan } from '@components/Hooks/usePlan'
 import {
   Shield,
   Settings2,
@@ -40,6 +39,7 @@ import {
   CheckCircle2,
   Info,
 } from 'lucide-react'
+import { useFeatures } from '@components/Hooks/useFeatures'
 
 const OrgEditSSO: React.FC = () => {
   const { t } = useTranslation()
@@ -68,9 +68,9 @@ const OrgEditSSO: React.FC = () => {
   const [clientSecret, setClientSecret] = useState('')
   const [scopes, setScopes] = useState('openid email profile')
 
-  const currentPlan = usePlan()
-  const rf = org?.config?.config?.resolved_features
-  const ssoEnabled = rf?.sso?.enabled === true
+  const features = useFeatures()
+  const currentPlan = features.plan
+  const ssoEnabled = features.has('sso')
 
   // Load SSO configuration and providers
   useEffect(() => {
@@ -231,7 +231,7 @@ const OrgEditSSO: React.FC = () => {
   return (
     <PlanRestrictedFeature
       currentPlan={currentPlan}
-      requiredPlan={(rf?.sso?.required_plan || 'enterprise') as PlanLevel}
+      requiredPlan={(features.resolved.sso?.required_plan || 'enterprise') as PlanLevel}
       icon={Shield}
       titleKey="common.plans.feature_restricted.sso.title"
       descriptionKey="common.plans.feature_restricted.sso.description"

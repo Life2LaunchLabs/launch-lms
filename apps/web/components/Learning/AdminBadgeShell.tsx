@@ -272,7 +272,7 @@ function IssuerBadgeAnalyticsPanel({ badge, issuerOrgId, orgslug }: { badge: any
               <h3 className="text-sm font-bold text-foreground">Programs using this badge</h3>
               <div className="mt-3 space-y-3">
                 {metrics?.programs?.length ? metrics.programs.map((program: any) => (
-                  <Link key={program.program_uuid} href={getUriWithOrg(orgslug, routePaths.org.dash.program(program.program_uuid))} className="flex items-center justify-between gap-4 rounded-lg border border-border p-4 transition hover:border-foreground/30 hover:bg-muted/30">
+                  <Link key={program.program_uuid} href={getUriWithOrg(orgslug, routePaths.org.admin.template(program.program_uuid))} className="flex items-center justify-between gap-4 rounded-lg border border-border p-4 transition hover:border-foreground/30 hover:bg-muted/30">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-bold text-foreground">{program.name}</p>
                       <p className="mt-1 text-xs text-muted-foreground">{program.assignment_count} {program.assignment_count === 1 ? 'assignment' : 'assignments'}</p>
@@ -746,7 +746,7 @@ function IssuerBadgeSettingsPanel({ orgslug, badge, issuerOrgId }: { orgslug: st
     try {
       await revokeIssuerAuthorization(authorization.authorization_uuid, accessToken)
       toast.success('Badge authorization released.')
-      router.push(getUriWithOrg(orgslug, routePaths.org.dash.badges()))
+      router.push(getUriWithOrg(orgslug, routePaths.org.admin.badges()))
       router.refresh()
     } catch (error: any) {
       toast.error(error?.message || 'Failed to release badge authorization.')

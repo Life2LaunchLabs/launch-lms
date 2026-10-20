@@ -331,7 +331,7 @@ width instead of a hard viewport breakpoint.
 ```ts
 routePaths.org.course(courseUuid)
 routePaths.org.courseActivity(courseUuid, activityId)
-routePaths.org.dash.courseSettings(courseUuid, 'general')
+routePaths.org.admin.templatePage(templateUuid, 'overview')
 routePaths.org.communityDiscussion(communityUuid, discussionUuid)
 routePaths.org.store.offer(offerUuid)
 ```

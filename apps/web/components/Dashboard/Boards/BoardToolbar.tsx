@@ -89,7 +89,7 @@ export default function BoardToolbar({
       }}
     >
       {/* Logo */}
-      <Link href={routePaths.org.dash.boards()}>
+      <Link href={routePaths.org.admin.root()}>
         <div className="bg-black rounded-md w-[25px] h-[25px] flex items-center justify-center hover:opacity-80 transition-opacity">
           <Image
             src="/logo-icon.svg"

@@ -30,7 +30,7 @@ export default function WaitingOnYou({ orgId, orgslug, token }: { orgId: number;
       </div>
       {data.students.length ? <ul className="divide-y divide-gray-100">
         {data.students.map((row) => <li key={row.student.id}>
-          <Link href={getUriWithOrg(orgslug, routePaths.org.dash.users.userPage(row.student.username, row.reviews && !row.unread && !row.mentions ? 'plans' : 'messages'))}
+          <Link href={getUriWithOrg(orgslug, routePaths.org.admin.people.userPage(row.student.username, row.reviews && !row.unread && !row.mentions ? 'plans' : 'messages'))}
             className="flex items-center gap-3 px-5 py-3 transition hover:bg-gray-50">
             <PersonAvatar user={row.student as any} size="md" />
             <div className="min-w-0 flex-1">

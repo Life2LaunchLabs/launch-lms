@@ -15,7 +15,7 @@ import { isTemplatesKey, templateKeys, templatesApi } from '@services/goals/temp
 import type { GoalTemplate } from '@services/goals/types'
 import { cn } from '@/lib/utils'
 
-const templatePage = (orgslug: string, uuid: string) => getUriWithOrg(orgslug, routePaths.org.dash.programPage(uuid, 'overview'))
+const templatePage = (orgslug: string, uuid: string) => getUriWithOrg(orgslug, routePaths.org.admin.templatePage(uuid, 'overview'))
 
 /** Where a template stands: archived, never published, or its live version and whether the draft moved on. */
 export function TemplateStatusChip({ template, className }: { template: Pick<GoalTemplate, 'status' | 'published_version' | 'has_unpublished_changes'>; className?: string }) {

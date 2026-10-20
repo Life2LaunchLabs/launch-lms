@@ -10,8 +10,7 @@ import GeneralWrapper from '@components/Objects/StyledElements/Wrappers/GeneralW
 import DiscoverFeed from './DiscoverFeed'
 import DiscoverResults from './DiscoverResults'
 import DiscoverSearchBar, { filtersApplied, type DiscoverFilters } from './DiscoverSearchBar'
-
-const enabled = (org: any, feature: string) => org?.config?.config?.resolved_features?.[feature]?.enabled === true
+import { useFeatures } from '@components/Hooks/useFeatures'
 
 /**
  * Discover: badges to earn and resources to use, searchable from the top. With no search
@@ -23,8 +22,9 @@ export default function DiscoverPage({ orgslug }: { orgslug: string }) {
   const router = useRouter()
   const pathname = usePathname()
   const params = useSearchParams()
-  const showBadges = !org || enabled(org, 'badges')
-  const showResources = Boolean(org) && enabled(org, 'resources')
+  const features = useFeatures()
+  const showBadges = !org || features.has('badges')
+  const showResources = Boolean(org) && features.has('resources')
   const query = params.get('q') || ''
   const filters: DiscoverFilters = React.useMemo(() => ({
     type: params.get('type') === 'badges' || params.get('type') === 'resources' ? params.get('type') as DiscoverFilters['type'] : '',

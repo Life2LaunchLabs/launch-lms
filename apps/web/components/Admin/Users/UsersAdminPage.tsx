@@ -6,25 +6,14 @@ import { useTranslation } from 'react-i18next'
 import { useMediaQuery } from 'usehooks-ts'
 import AdminFeatureHeader from '@components/Admin/AdminFeatureHeader'
 import UsersOverview from '@components/Admin/Users/UsersOverview'
-import { usePlan } from '@components/Hooks/usePlan'
-import { planMeetsRequirement } from '@services/plans/plans'
-import { useOrg } from '@components/Contexts/OrgContext'
-import { getUriWithOrg } from '@services/config/config'
-import { getUserAdminPages } from '@components/Admin/adminFeaturePages'
+import { useFeatures } from '@components/Hooks/useFeatures'
+import { adminLabel, adminTab } from '@/lib/admin/registry'
 
-export default function UsersAdminPage({ orgslug, section }: { orgslug: string; section: string }) {
+export default function UsersAdminPage({ section }: { orgslug: string; section: string }) {
   const { t } = useTranslation()
-  const currentPlan = usePlan()
-  const org = useOrg() as any
-  const resolvedFeatures = org?.config?.config?.resolved_features
+  const features = useFeatures()
   const isMobile = useMediaQuery('(max-width: 767px)')
-  const hasUserGroups =
-    planMeetsRequirement(currentPlan, 'full')
-    && (resolvedFeatures?.usergroups?.enabled ?? true)
-  const tabs = getUserAdminPages().map((tab) => {
-    const Icon = tab.icon
-    return { ...tab, icon: <Icon size={16} />, href: getUriWithOrg(orgslug, tab.href) }
-  })
+  const hasUserGroups = features.planAtLeast('full') && features.has('usergroups')
 
   if (isMobile) {
     return (
@@ -42,9 +31,9 @@ export default function UsersAdminPage({ orgslug, section }: { orgslug: string; 
   return (
     <div className="grid h-screen w-full grid-rows-[auto_1fr] bg-[#f8f8f8]">
       <AdminFeatureHeader
-        feature={t('common.users')}
+        feature={adminLabel(t, adminTab('people'))}
         activeTab={section}
-        tabs={tabs}
+        tabs={[]}
       />
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 overflow-y-auto">
         {section === 'overview' && <UsersOverview hasUserGroups={hasUserGroups} />}

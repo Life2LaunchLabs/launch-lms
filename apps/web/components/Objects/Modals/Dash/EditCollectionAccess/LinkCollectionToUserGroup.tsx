@@ -69,7 +69,7 @@ function LinkCollectionToUserGroup({ setUserGroupModal }: Props) {
             <Link
               className="px-3 text-blue-700 font-bold rounded-full py-1 bg-blue-100 mx-1"
               target="_blank"
-              href={getUriWithOrg(org.slug, routePaths.org.dash.users.usergroups())}
+              href={getUriWithOrg(org.slug, routePaths.org.admin.people.root())}
             >
               Create a group
             </Link>

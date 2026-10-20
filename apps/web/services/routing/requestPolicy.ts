@@ -9,6 +9,7 @@ import {
   isAuthenticatedAuthRedirectPath,
   isPodcastFeedPath,
 } from './routeAccess.ts'
+import { legacyRedirectPath } from './legacyRedirects.ts'
 
 export interface RequestInstanceInfo {
   multi_org_enabled: boolean
@@ -264,6 +265,14 @@ export function resolveRequestRouting(
     return {
       action: 'rewrite',
       destination: `/auth/redirect${search}`,
+    }
+  }
+
+  const legacyTarget = legacyRedirectPath(pathname)
+  if (legacyTarget) {
+    return {
+      action: 'redirect',
+      destination: new URL(legacyTarget.includes('?') ? legacyTarget : `${legacyTarget}${search}`, input.requestUrl).toString(),
     }
   }
 

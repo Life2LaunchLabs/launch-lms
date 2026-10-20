@@ -173,7 +173,7 @@ export default function UsersOverview({ hasUserGroups }: { hasUserGroups: boolea
               {visibleGroups.map((group) => (
                 <Link
                   key={group.id}
-                  href={getUriWithOrg(org.slug, routePaths.org.dash.users.group(group.id))}
+                  href={getUriWithOrg(org.slug, routePaths.org.admin.people.group(group.id))}
                   className="group rounded-xl border border-gray-100 bg-white p-5 nice-shadow transition hover:-translate-y-0.5 hover:border-indigo-200"
                 >
                   <div className="flex items-start justify-between gap-3">
