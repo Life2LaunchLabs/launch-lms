@@ -156,14 +156,16 @@ def set_status(
     progress.update_date = _now()
     db.add(progress)
     db.flush()
-    _after_change(db, goal, step, progress, actor_user_id, method, current)
+    # A staff note (a grader's feedback) travels with the change to the learner's progress card.
+    _after_change(db, goal, step, progress, actor_user_id, method, current, note if method == CompletionMethod.STAFF else None)
     db.commit()
     db.refresh(progress)
     finish_if_complete(db, goal)
     return progress
 
 
-def _after_change(db: Session, goal: Goal, step: GoalStep, progress: StepProgress, actor_user_id: int | None, method: CompletionMethod, previous: str) -> None:
+def _after_change(db: Session, goal: Goal, step: GoalStep, progress: StepProgress, actor_user_id: int | None, method: CompletionMethod, previous: str,
+                  note: str | None = None) -> None:
     from src.services.goals.credit import sync_step_progress
 
     state = state_of(db, step, progress)
@@ -171,6 +173,7 @@ def _after_change(db: Session, goal: Goal, step: GoalStep, progress: StepProgres
     sync_step_progress(db, progress, step, goal, evidence)
     access.log(db, goal, actor_user_id, "step.status", {
         "step_uuid": step.step_uuid, "from": previous, "to": _value(progress.status), "method": _value(method),
+        **({"note": note} if note else {}),
     })
     if step.stage_id is not None and _value(progress.status) in DONE_STEP_STATUSES and previous not in DONE_STEP_STATUSES:
         # Finishing a stage brings Coach's next check-in forward.

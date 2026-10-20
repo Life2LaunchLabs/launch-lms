@@ -88,7 +88,7 @@ export interface AssignmentSummary {
   staff: StaffPerson[]
   start_date: string | null
   due_date: string | null
-  active: boolean
+  status: 'active' | 'paused' | 'ended'
   cohort: { id: number; uuid: string; name: string } | null
   user: StaffPerson | null
   learner_count: number
@@ -105,6 +105,21 @@ export interface AssignmentSummary {
 export interface MatrixCell { step_uuid: string; status: StepStatus; locked: boolean; locked_reason: unknown; held: boolean; due_date: string | null; fraction: number; learner_note: string; completed_at: string | null }
 export interface MatrixLearner extends StaffPerson { goal_uuid: string; status: GoalStatus; progress_percent: number; capabilities: string[]; custom_steps: Array<{ step_uuid: string; title: string; type: StepTypeKey; status: StepStatus }>; cells: Record<string, MatrixCell> }
 export interface MatrixColumn { template_key: string; title: string; type: StepTypeKey; description: string; completed_by: StepCompleter; review_required: boolean; aggregate: { learner_count: number; completed_count: number; excused_count: number; review_count: number } }
+/** One step across an assignment's learners, for staff on its plan: how many are where. */
+export interface StepAggregate {
+  /** Learners the step is on. */
+  total: number
+  /** Done or excused. */
+  done: number
+  /** Handed in and not done yet, graded or not. */
+  handed_in: number
+  /** Handed in and waiting on staff to grade. */
+  to_grade: number
+  /** Closed with nothing handed in. */
+  not_handed_in: number
+  /** A step staff confirm, such as an event, that is past and not settled for everyone. */
+  to_settle: number
+}
 export interface AssignmentMatrix {
   assignment: AssignmentSummary
   assignments: AssignmentSummary[]

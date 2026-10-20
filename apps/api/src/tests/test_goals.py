@@ -7,8 +7,8 @@ from sqlmodel import SQLModel, Session, create_engine, select
 from src.db.coach import CoachPlaybook, CoachPolicy, CoachProviderKey
 from src.db.conversations import Conversation, ConversationMember, ConversationMessage, ConversationMessageRef
 from src.db.goal_comments import GoalComment
+from src.db.coach_notes import CoachNote
 from src.db.goals import (
-    CoachNote,
     Goal,
     GoalAssignment,
     GoalAssignmentCreate,

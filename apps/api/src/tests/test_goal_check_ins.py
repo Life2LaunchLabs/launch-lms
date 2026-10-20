@@ -6,7 +6,8 @@ import pytest
 from fastapi import HTTPException
 from sqlmodel import select
 
-from src.db.goals import CoachNote, Goal, GoalCreate, GoalStep, StageCreate, StageUpdate, StepCreate, StepStatusChange
+from src.db.coach_notes import CoachNote
+from src.db.goals import Goal, GoalCreate, GoalStep, StageCreate, StageUpdate, StepCreate, StepStatusChange
 from src.services.goals import check_ins, entries, goals, schedule, structure
 from src.services.goals.coach_notes import NoteAction, act, goal_notes
 from src.services.goals.next_actions import next_actions
