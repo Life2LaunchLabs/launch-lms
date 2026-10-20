@@ -250,6 +250,7 @@ async def get_organization_users(
     status: str | None = None,
     active: bool | None = None,
     assigned_to_me: bool = False,
+    membership: str | None = None,
 ):
     """
     Get paginated list of users in an organization.
@@ -321,6 +322,10 @@ async def get_organization_users(
         base_statement = base_statement.where(User.email_verified == True)
     elif status == "unverified":
         base_statement = base_statement.where(User.email_verified == False)
+
+    # Membership status the organization set (active or alumni).
+    if membership is not None:
+        base_statement = base_statement.where(UserOrganization.status == membership)
 
     # Active means an open plan from the organization or a published badge is assigned.
     # "Assigned to me" narrows to learners on the plans the current staff member staffs.
@@ -462,6 +467,8 @@ async def get_organization_users(
                 role=role_read,
                 usergroups=usergroups,
                 joined_at=user_org.creation_date,
+                membership_status=user_org.status or "active",
+                membership_status_since=user_org.status_since,
             )
 
             org_users_list.append(org_user)

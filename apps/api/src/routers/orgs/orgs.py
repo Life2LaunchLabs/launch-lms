@@ -23,6 +23,7 @@ from src.services.orgs.invites import (
     get_invite_code,
     get_invite_codes,
 )
+from src.services.orgs import member_status
 from src.services.orgs.join import JoinOrg, join_org
 from src.services.orgs.orgs import (
     create_org,
@@ -187,6 +188,7 @@ async def api_get_org_users(
     status: Literal["verified", "unverified"] | None = Query(default=None, description="Filter by verification status"),
     active: bool | None = Query(default=None, description="Filter by an active program or badge assignment"),
     assigned_to_me: bool = Query(default=False, description="Only include learners on programs assigned to the current staff user"),
+    membership: Literal["active", "alumni"] | None = Query(default=None, description="Filter by the membership status the organization set"),
     current_user: PublicUser = Depends(get_authenticated_user),
     db_session: Session = Depends(get_db_session),
 ):
@@ -201,7 +203,7 @@ async def api_get_org_users(
     return await get_organization_users(
         request, org_id, db_session, current_user, page, limit, search,
         usergroup_id, usergroup_filter, sort_order or "desc", role_id, status,
-        active, assigned_to_me,
+        active, assigned_to_me, membership,
     )
 
 
@@ -233,6 +235,40 @@ async def api_update_user_role(
     return await update_user_role(
         request, org_id, user_id, role_uuid, db_session, current_user
     )
+
+
+@router.put("/{org_id}/users/{user_id}/status")
+async def api_set_member_status(
+    org_id: int,
+    user_id: int,
+    payload: member_status.StatusUpdate,
+    current_user: PublicUser = Depends(get_authenticated_user),
+    db_session: Session = Depends(get_db_session),
+):
+    """Mark a learner active or alumni; only active learners count toward the limit."""
+    return member_status.set_member_status(db_session, current_user, org_id, user_id, payload.status)
+
+
+@router.put("/{org_id}/usergroups/{group_id}/status")
+async def api_set_group_status(
+    org_id: int,
+    group_id: int,
+    payload: member_status.StatusUpdate,
+    current_user: PublicUser = Depends(get_authenticated_user),
+    db_session: Session = Depends(get_db_session),
+):
+    """Mark every learner in a group active or alumni."""
+    return member_status.set_group_status(db_session, current_user, org_id, group_id, payload.status)
+
+
+@router.get("/{org_id}/relationship")
+async def api_my_relationship(
+    org_id: int,
+    current_user: PublicUser = Depends(get_authenticated_user),
+    db_session: Session = Depends(get_db_session),
+):
+    """The current user's relationship with the organization: status, plans and staff."""
+    return member_status.relationship(db_session, current_user, org_id)
 
 
 @router.delete("/{org_id}/users/batch/remove")

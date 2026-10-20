@@ -62,12 +62,17 @@ def _helping_on(db: Session, org_id: int, helper_ids: list[int]) -> dict[int, li
     return found
 
 
-def directory(db: Session, current_user: PublicUser, org_id: int, query: str = "", offset: int = 0, limit: int = PAGE) -> dict:
-    """The organization's people, by name, each with their role; helpers too when searching."""
+def directory(db: Session, current_user: PublicUser, org_id: int, query: str = "", offset: int = 0, limit: int = PAGE, status: str = "active") -> dict:
+    """The organization's people, by name, each with their role; helpers too when searching.
+
+    Alumni are left out unless ``status`` is "alumni" (only them) or "all".
+    """
     roles.require_staff(db, current_user.id, org_id)
     needle = (query or "").strip().lstrip("@")
     limit = max(1, min(limit, 100))
     members = select(User, UserOrganization.role_id).join(UserOrganization, UserOrganization.user_id == User.id).where(UserOrganization.org_id == org_id)
+    if status in ("active", "alumni"):
+        members = members.where(UserOrganization.status == status)
     if needle:
         members = _like(members, needle)
     total = int(db.exec(select(func.count()).select_from(members.subquery())).one())
@@ -82,8 +87,11 @@ def person_rows(db: Session, org_id: int, rows: list[tuple[User, int]]) -> list[
     staff_roles = roles.staff_role_ids(db, org_id)
     role_names = {int(role.id): role.name for role in db.exec(select(Role).where(col(Role.id).in_({int(role_id) for _, role_id in rows}))).all()} if rows else {}  # type: ignore[arg-type]
     groups = _groups_by_user(db, org_id, [int(user.id) for user, _ in rows])  # type: ignore[arg-type]
+    statuses = dict(db.exec(select(UserOrganization.user_id, UserOrganization.status).where(
+        UserOrganization.org_id == org_id, col(UserOrganization.user_id).in_([int(user.id) for user, _ in rows]),  # type: ignore[arg-type]
+    )).all()) if rows else {}
     return [{"user": people.person(db, user.id), "role": _label(int(role_id), staff_roles), "role_name": role_names.get(int(role_id), ""),
-             "groups": groups.get(int(user.id), [])} for user, role_id in rows]  # type: ignore[arg-type]
+             "groups": groups.get(int(user.id), []), "status": statuses.get(int(user.id)) or "active"} for user, role_id in rows]  # type: ignore[arg-type]
 
 
 def matching_helpers(db: Session, org_id: int, needle: str) -> list[dict]:

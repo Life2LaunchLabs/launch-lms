@@ -1,5 +1,7 @@
 """The school side, used from People: the people list (one feed, most relevant first) and profiles, group chats and staff, a student's team, chat and notes, who's waiting, chat reports and the messaging policy."""
 
+from typing import Literal
+
 from fastapi import APIRouter, Depends
 from sqlmodel import Session
 
@@ -68,8 +70,9 @@ async def review_report(org_id: int, report_uuid: str, payload: ChatReportReview
 
 
 @router.get("/orgs/{org_id}/people")
-async def people_directory(org_id: int, q: str = "", offset: int = 0, limit: int = directory.PAGE, current_user: PublicUser = USER, db_session: Session = DB):
-    return directory.directory(db_session, current_user, org_id, q, offset, limit)
+async def people_directory(org_id: int, q: str = "", offset: int = 0, limit: int = directory.PAGE, status: Literal["active", "alumni", "all"] = "active",
+                           current_user: PublicUser = USER, db_session: Session = DB):
+    return directory.directory(db_session, current_user, org_id, q, offset, limit, status)
 
 
 @router.get("/orgs/{org_id}/people/feed")

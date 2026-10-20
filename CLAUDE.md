@@ -375,6 +375,8 @@ Partner programs (applied for, approved by a superadmin): `badge_publisher`, `pl
 
 The only definition is `apps/api/src/security/access/catalog.py`; every check goes through `security/access/access.py` (`org_access(...).has/limit`, `ensure_feature`, `require_feature` route dependency, `require_capacity`). The owner org (lowest id) has everything. Legacy features (AI, boards, playgrounds, podcasts, communities, SCORM, custom domains, custom roles) are off for everyone. The web reads `org.config.config.access` through `useFeatures()`.
 
+Learner status: each membership has a `status` the org sets (`active` or `alumni`, per learner or per group; `services/orgs/member_status.py`). Only active learners count toward the learner limit; alumni are left out of group plans and the default People list, and handing an alumnus a plan needs `reactivate`. Staff are always active and count toward staff seats.
+
 ### Multi-Tenancy
 Every resource belongs to an `Organization`. Orgs have:
 - A unique slug (used in URLs)
