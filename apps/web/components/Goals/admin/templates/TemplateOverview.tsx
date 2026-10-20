@@ -3,7 +3,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { ChevronRight } from 'lucide-react'
-import { SectionCard } from '@components/Admin/Plans/shared'
+import { SectionCard } from '@components/Goals/admin/live/ui'
 import { stepDefinition } from '@components/Goals/steps'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import type { TemplateDetail } from '@services/goals/templates'
@@ -67,14 +67,14 @@ export default function TemplateOverview({ orgslug, orgId, token, template }: { 
             <ChevronRight size={14} className="text-gray-300" />
           </Link></li>)}
         </ul> : <p className="text-sm text-gray-500">Not handed out yet.</p>}
-        {assignments.length > 6 ? <Link href={getUriWithOrg(orgslug, routePaths.org.dash.programPage(template.template_uuid, 'assignments'))} className="mt-2 block text-xs font-bold text-gray-900">All {assignments.length}</Link> : null}
+        {assignments.length > 6 ? <Link href={getUriWithOrg(orgslug, routePaths.org.admin.templatePage(template.template_uuid, 'assignments'))} className="mt-2 block text-xs font-bold text-gray-900">All {assignments.length}</Link> : null}
       </SectionCard>
       <SectionCard title="Requirements it meets">
         {coverage.length ? <div className="space-y-3">{coverage.map((framework) => <div key={framework.framework_uuid}>
           <div className="mb-1 flex justify-between gap-2 text-[13px]"><span className="truncate font-semibold text-gray-900">{framework.name}</span><span className="shrink-0 text-gray-500">{framework.covered} of {framework.total}</span></div>
           <div className="h-1.5 overflow-hidden rounded-full bg-gray-100"><div className="h-full rounded-full bg-black" style={{ width: `${framework.total ? framework.covered / framework.total * 100 : 0}%` }} /></div>
         </div>)}</div> : <p className="text-sm text-gray-500">No steps are linked to a requirement yet.</p>}
-        <Link href={getUriWithOrg(orgslug, routePaths.org.dash.planRequirements())} className="mt-3 block text-xs font-bold text-gray-900 hover:text-blue-700">See coverage</Link>
+        <Link href={getUriWithOrg(orgslug, routePaths.org.admin.insights())} className="mt-3 block text-xs font-bold text-gray-900 hover:text-blue-700">See coverage</Link>
       </SectionCard>
       <SectionCard title="When it’s handed out">
         <dl className="space-y-2 text-[13px]">

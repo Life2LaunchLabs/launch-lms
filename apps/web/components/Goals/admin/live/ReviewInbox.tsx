@@ -37,7 +37,7 @@ export default function ReviewInbox({ orgslug, orgId, token }: { orgslug: string
     } catch (error: any) { toast.error(error?.message || 'Could not confirm these.') } finally { setBusy(null) }
   }
   const href = (group: InboxGroup, focus?: string) => getUriWithOrg(orgslug, reviewHref({ assignment: group.assignment_uuid, stepKey: group.step_key, stepUuid: group.step_uuid, activity: group.activity_uuid, focus }))
-  const entryHref = (group: InboxGroup, entry: InboxItem) => group.kind === 'nudge' ? getUriWithOrg(orgslug, routePaths.org.dash.livePlan(entry.goal_uuid)) : href(group, entry.step_uuid)
+  const entryHref = (group: InboxGroup, entry: InboxItem) => group.kind === 'nudge' ? getUriWithOrg(orgslug, routePaths.org.admin.livePlan(entry.goal_uuid)) : href(group, entry.step_uuid)
 
   return <div className="px-10 pb-10 pt-6">
     <div className="mb-4 flex flex-wrap items-center justify-between gap-3">

@@ -1,3 +1,5 @@
+import { adminTabForPath } from '../../lib/admin/registry.ts'
+
 export type AppPageTitle = { section: string; detail?: string }
 
 // Change title order, separator, or length here rather than route by route.
@@ -46,6 +48,9 @@ export function resolveAppPageTitle(pathname: string): AppPageTitle {
   if (!route.length) return { section: 'Home' }
 
   if (route[0] === 'admin') {
+    // Admin pages are titled by the tab (and page) that owns them in the admin registry.
+    const owner = adminTabForPath(`/${route.join('/')}`)
+    if (owner) return { section: 'Admin', detail: owner.child && owner.child.label !== owner.tab.label ? `${owner.tab.label} · ${owner.child.label}` : owner.tab.label }
     const feature = label(route[1]) || 'Dashboard'
     const staticDetail = route.slice(2).find(part => labels[part.toLowerCase()])
     return { section: 'Admin', detail: staticDetail ? `${feature} · ${label(staticDetail)}` : feature }

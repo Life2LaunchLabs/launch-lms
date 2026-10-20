@@ -190,7 +190,7 @@ export default function CreateOrgWizard({ ownerOrg }: CreateOrgWizardProps) {
       }
 
       await session?.update?.(true)
-      window.location.href = authenticatedOrgHref(getUriWithOrg(organization.slug, routePaths.org.dash.root()), true)
+      window.location.href = authenticatedOrgHref(getUriWithOrg(organization.slug, routePaths.org.admin.root()), true)
     } catch (err: any) {
       setError(err?.detail || err?.message || 'Failed to create organization.')
       setIsSubmitting(false)

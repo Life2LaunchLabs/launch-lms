@@ -27,7 +27,7 @@ import {
   type LearnerAccess,
 } from '@services/learning/marketplace'
 import AdminBadgesHome from '@components/Learning/AdminBadgesHome'
-import { BADGE_ADMIN_PAGES } from '@components/Admin/adminFeaturePages'
+import { adminTabWithIcons } from '@components/Admin/adminNavIcons'; import { adminLabel } from '@/lib/admin/registry'; import { useTranslation } from 'react-i18next'
 const statusStyles: Record<string, string> = {
   queued: 'bg-violet-100 text-violet-800',
   requested: 'bg-amber-100 text-amber-800',
@@ -55,6 +55,7 @@ export default function IssuingAdminShell({
   collections: any[]
   initialTab?: BadgeAdminTab
 }) {
+  const { t } = useTranslation()
   const [activeTab, setActiveTab] = React.useState<BadgeAdminTab>(initialTab)
 
   const selectTab = (tab: BadgeAdminTab) => {
@@ -66,15 +67,14 @@ export default function IssuingAdminShell({
   return (
     <div className="min-h-full w-full bg-[#f8f8f8]">
       <AdminFeatureHeader
-        feature="Badges"
+        feature={adminLabel(t, adminTabWithIcons('badges'))}
         actions={<Button asChild variant="outline" size="sm"><Link href={getUriWithOrg(orgslug, '/admin/badges/discover')}>Discover carousel</Link></Button>}
         activeTab={activeTab}
-        tabs={BADGE_ADMIN_PAGES.map((tab) => {
-          const Icon = tab.icon
+        tabs={adminTabWithIcons('badges').children.map((tab) => {
           return {
             id: tab.id,
-            label: tab.label,
-            icon: <Icon size={16} />,
+            label: adminLabel(t, tab),
+            icon: <tab.Icon size={16} />,
             onClick: () => selectTab(tab.id as BadgeAdminTab),
           }
         })}

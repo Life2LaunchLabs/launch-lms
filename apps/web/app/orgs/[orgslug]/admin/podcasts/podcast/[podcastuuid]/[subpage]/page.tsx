@@ -32,19 +32,19 @@ function PodcastOverviewPage(props: { params: Promise<PodcastOverviewParams> }) 
       key: 'general',
       label: t('podcasts.dashboard.tabs.general'),
       icon: Info,
-      href: routePaths.org.dash.podcastSettings(params.podcastuuid, 'general'),
+      href: routePaths.org.admin.content.podcast(params.podcastuuid, 'general'),
     },
     {
       key: 'content',
       label: t('podcasts.dashboard.tabs.episodes'),
       icon: ListMusic,
-      href: routePaths.org.dash.podcastSettings(params.podcastuuid, 'content'),
+      href: routePaths.org.admin.content.podcast(params.podcastuuid, 'content'),
     },
     {
       key: 'distribution',
       label: 'Distribution',
       icon: Rss,
-      href: routePaths.org.dash.podcastSettings(params.podcastuuid, 'distribution'),
+      href: routePaths.org.admin.content.podcast(params.podcastuuid, 'distribution'),
     },
   ]
 
@@ -93,19 +93,19 @@ function PodcastOverviewHeader({
           items={[
             {
               label: t('podcasts.podcasts'),
-              href: routePaths.org.dash.podcasts(),
+              href: routePaths.org.admin.content.podcasts(),
               icon: <Headphones size={14} />,
             },
             {
               label: isLoading ? '...' : podcast?.name || 'Podcast',
-              href: routePaths.org.dash.podcastSettings(params.podcastuuid, 'general'),
+              href: routePaths.org.admin.content.podcast(params.podcastuuid, 'general'),
             },
           ]}
         />
         <div className="flex items-center justify-between mt-4">
           <div className="flex items-center space-x-4">
             <Link
-              href={getUriWithOrg(params.orgslug, routePaths.org.dash.podcasts())}
+              href={getUriWithOrg(params.orgslug, routePaths.org.admin.content.podcasts())}
               className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
             >
               <ArrowLeft size={20} />

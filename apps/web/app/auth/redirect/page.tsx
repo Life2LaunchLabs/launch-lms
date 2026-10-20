@@ -39,7 +39,7 @@ export default function AuthRedirectPage() {
     if (preference.side === 'admin') {
       const target = adminOrgs.find((organization: any) => organization.slug === preference.orgslug) || adminOrgs[0]
       if (target) {
-        window.location.href = authenticatedOrgHref(getUriWithOrg(target.slug, routePaths.org.dash.root()), true)
+        window.location.href = authenticatedOrgHref(getUriWithOrg(target.slug, routePaths.org.admin.root()), true)
         return
       }
     }

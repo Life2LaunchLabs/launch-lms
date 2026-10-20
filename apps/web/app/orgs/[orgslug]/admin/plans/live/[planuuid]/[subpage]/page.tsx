@@ -8,7 +8,7 @@ const STAFF_GOAL_SUBPAGES: StaffGoalSubpage[] = ['overview', 'steps', 'reviews',
 export default async function StaffGoalSubpageRoute({ params }: { params: Promise<{ orgslug: string; planuuid: string; subpage: string }> }) {
   const { orgslug, planuuid, subpage } = await params
   const goalUuid = decodeURIComponent(planuuid)
-  if (subpage === 'objectives') redirect(getUriWithOrg(orgslug, routePaths.org.dash.livePlan(goalUuid, 'steps')))
+  if (subpage === 'objectives') redirect(getUriWithOrg(orgslug, routePaths.org.admin.livePlan(goalUuid, 'steps')))
   if (!STAFF_GOAL_SUBPAGES.includes(subpage as StaffGoalSubpage) || subpage === 'overview') notFound()
   return <StaffGoalDetail orgslug={orgslug} goalUuid={goalUuid} activeSubpage={subpage as StaffGoalSubpage} />
 }

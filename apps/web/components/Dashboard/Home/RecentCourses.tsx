@@ -47,7 +47,7 @@ export default function RecentCourses() {
           )}
         </div>
         <Link
-          href={routePaths.org.dash.badges()}
+          href={routePaths.org.admin.badges()}
           className="text-[11px] font-medium text-gray-400 hover:text-gray-600 transition-colors"
         >
           View All &rarr;
@@ -78,7 +78,7 @@ export default function RecentCourses() {
             </div>
             <p className="text-xs text-gray-400 mb-3">No badges yet</p>
             <Link
-              href={routePaths.org.dash.badges()}
+              href={routePaths.org.admin.badges()}
               className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700"
             >
               <PlusCircle size={14} weight="bold" />
@@ -100,7 +100,7 @@ export default function RecentCourses() {
             return (
               <Link
                 key={badge.badge_uuid}
-                href={`${routePaths.org.dash.badges()}/badge/${badgeId}/routes`}
+                href={`${routePaths.org.admin.badges()}/badge/${badgeId}/routes`}
                 className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors group"
               >
                 <div className="w-10 h-10 rounded-lg bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center">

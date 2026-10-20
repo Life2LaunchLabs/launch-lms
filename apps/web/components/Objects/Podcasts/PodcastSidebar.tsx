@@ -145,7 +145,7 @@ export function PodcastSidebar({ podcast, episodeCount, orgslug }: PodcastSideba
         >
           <div className="pt-2">
             <Link
-              href={getUriWithOrg(orgslug, routePaths.org.dash.podcastSettings(removePodcastPrefix(podcast.podcast_uuid), 'general'))}
+              href={getUriWithOrg(orgslug, routePaths.org.admin.content.podcast(removePodcastPrefix(podcast.podcast_uuid), 'general'))}
               className="flex items-center justify-center gap-2 w-full px-4 py-2 bg-muted hover:bg-muted text-muted-foreground rounded-lg text-sm font-medium transition-colors"
             >
               <Settings size={16} />

@@ -86,7 +86,7 @@ export function reviewHref(params: { assignment: string | null; stepKey?: string
   if (params.stepUuid) query.set('step', params.stepUuid)
   if (params.activity) query.set('activity', params.activity)
   if (params.focus) query.set('focus', params.focus)
-  return `${routePaths.org.dash.plans()}/review?${query}`
+  return `${routePaths.org.admin.assignments()}/review?${query}`
 }
 
 /** The manual scores still needed for an activity review, blank. */

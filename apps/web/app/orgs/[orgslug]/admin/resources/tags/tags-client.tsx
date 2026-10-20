@@ -88,8 +88,8 @@ export default function ResourcesTagsClient({ orgslug }: { orgslug: string }) {
           feature="Resources"
           activeTab="tags"
           tabs={[
-            { id: 'channels', label: 'Channels', href: getUriWithOrg(orgslug, routePaths.org.dash.resources()) },
-            { id: 'tags', label: 'Tags', href: getUriWithOrg(orgslug, routePaths.org.dash.resourceTags()) },
+            { id: 'channels', label: 'Channels', href: getUriWithOrg(orgslug, routePaths.org.admin.content.resources()) },
+            { id: 'tags', label: 'Tags', href: getUriWithOrg(orgslug, routePaths.org.admin.content.resourceTags()) },
           ]}
         />
         <div className="px-10 py-6">

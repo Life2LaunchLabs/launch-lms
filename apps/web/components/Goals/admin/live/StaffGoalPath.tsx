@@ -22,7 +22,7 @@ export default function StaffGoalPath({ goal, orgslug, orgId, token, viewerUserI
   const { getGoalColor, setGoalColor } = useGoalColors(React.useMemo(() => [goal], [goal]), viewerUserId)
   const color = getGoalColor(goal.goal_uuid)
   // A plan tagged in the chat opens here too, from the staff side.
-  const openPlan = (goalUuid: string, stepUuid?: string) => router.push(`${getUriWithOrg(orgslug, routePaths.org.dash.livePlan(goalUuid, 'steps'))}${stepUuid ? `#step-${stepUuid}` : ''}`)
+  const openPlan = (goalUuid: string, stepUuid?: string) => router.push(`${getUriWithOrg(orgslug, routePaths.org.admin.livePlan(goalUuid, 'steps'))}${stepUuid ? `#step-${stepUuid}` : ''}`)
   return <GoalEditingProvider goal={goal} token={token} color={color} setColor={(next: string) => setGoalColor(goal.goal_uuid, next)}>
     <GoalChatProvider scope={{ goal }} token={token} orgslug={orgslug} staffOrgId={orgId} onOpenPlan={openPlan}>
       <StaffPath goal={goal} orgslug={orgslug} orgId={orgId} token={token} viewerUserId={viewerUserId} color={color} />

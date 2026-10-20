@@ -85,7 +85,7 @@ export default function NewsDashClient({
           </p>
         </div>
         <Button asChild className="gap-2 rounded-[6px]">
-          <Link href={getUriWithOrg(orgslug, routePaths.org.dash.newsNewPost())}>
+          <Link href={getUriWithOrg(orgslug, routePaths.owner.platform.newsNewPost())}>
             <Plus size={16} />
             New post
           </Link>
@@ -160,7 +160,7 @@ export default function NewsDashClient({
                       {article.featured ? 'Unfeature' : 'Feature'}
                     </Button>
                     <Button asChild type="button" variant="outline" className="h-9 gap-2 rounded-[6px]">
-                      <Link href={getUriWithOrg(orgslug, routePaths.org.dash.newsPost(article.article_uuid))}>
+                      <Link href={getUriWithOrg(orgslug, routePaths.owner.platform.newsPost(article.article_uuid))}>
                         <Edit3 size={14} />
                         Edit
                       </Link>

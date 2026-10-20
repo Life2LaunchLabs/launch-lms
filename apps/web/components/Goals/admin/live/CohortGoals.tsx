@@ -18,7 +18,7 @@ export function CohortGoals({ orgslug, orgId, token, groupId, cohort, refresh }:
   const all = [...cohort.assignments, ...cohort.completed_assignments]
   const requested = params.get('assignment')
   const current = all.find((item) => item.assignment_uuid === requested) || cohort.assignments[0] || cohort.completed_assignments[0]
-  const choose = (uuid: string) => router.replace(getUriWithOrg(orgslug, routePaths.org.dash.users.groupPlans(groupId, uuid)))
+  const choose = (uuid: string) => router.replace(getUriWithOrg(orgslug, routePaths.org.admin.people.groupPlans(groupId, uuid)))
   const assign = <GoalAssignmentModal initialGroupIds={[groupId]} onAssigned={() => void refresh()} trigger={<button type="button" className="inline-flex h-9 items-center gap-2 rounded-full border border-gray-200 bg-white px-4 text-sm font-medium hover:bg-gray-50"><Plus size={15} />Assign a goal template</button>} />
   if (!current) return <div className="px-10 pb-10"><div className="rounded-xl border-2 border-dashed border-border bg-card py-16 text-center"><Layers3 className="mx-auto h-9 w-9 text-gray-300" /><p className="mt-3 text-sm text-muted-foreground">No goal templates are assigned to this group yet.</p><div className="mt-4 flex justify-center">{assign}</div></div></div>
   return <div className="space-y-4 px-10 pb-10">
@@ -32,7 +32,7 @@ export function CohortGoals({ orgslug, orgId, token, groupId, cohort, refresh }:
   </div>
 }
 
-const hrefFor = (orgslug: string, item: AssignmentSummary & { goal: { goal_uuid: string } }) => getUriWithOrg(orgslug, item.cohort ? routePaths.org.dash.users.groupPlans(item.cohort.id, item.assignment_uuid) : routePaths.org.dash.livePlan(item.goal.goal_uuid))
+const hrefFor = (orgslug: string, item: AssignmentSummary & { goal: { goal_uuid: string } }) => getUriWithOrg(orgslug, item.cohort ? routePaths.org.admin.people.groupPlans(item.cohort.id, item.assignment_uuid) : routePaths.org.admin.livePlan(item.goal.goal_uuid))
 
 /** One learner's goals for staff: the templates handed to them, and other goals staff can see. */
 export function ManagedUserGoals({ orgslug, userId, data, refresh, compact = false }: { orgslug: string; userId: number; data?: ManagedUser; refresh: () => Promise<unknown>; compact?: boolean }) {
@@ -41,7 +41,7 @@ export function ManagedUserGoals({ orgslug, userId, data, refresh, compact = fal
   const others = (data?.goals || []).filter((goal) => !assignedGoals.has(goal.goal_uuid))
   const rows = [
     ...assigned.map((item) => ({ key: item.goal.goal_uuid, href: hrefFor(orgslug, item), title: item.template_title, detail: item.cohort?.name ? `Through ${item.cohort.name}` : 'Assigned directly', progress: item.goal.progress, people: item.goal.people || [] })),
-    ...others.map((goal) => ({ key: goal.goal_uuid, href: getUriWithOrg(orgslug, routePaths.org.dash.livePlan(goal.goal_uuid)), title: goal.title, detail: goal.status === 'finished' ? 'Finished' : 'Shared with staff', progress: goal.progress, people: goal.people || [] })),
+    ...others.map((goal) => ({ key: goal.goal_uuid, href: getUriWithOrg(orgslug, routePaths.org.admin.livePlan(goal.goal_uuid)), title: goal.title, detail: goal.status === 'finished' ? 'Finished' : 'Shared with staff', progress: goal.progress, people: goal.people || [] })),
   ]
   return <section className="rounded-xl border border-gray-100 bg-white p-5 nice-shadow">
     <div className="flex items-center justify-between gap-4">

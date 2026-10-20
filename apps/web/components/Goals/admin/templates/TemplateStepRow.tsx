@@ -17,7 +17,7 @@ type Choices = Array<{ id: string; title: string }>
 
 /** The admin activity editor for a template's activity step. */
 export const templateActivityHref = (orgslug: string, templateUuid: string, activityUuid: string) =>
-  getUriWithOrg(orgslug, `${routePaths.org.dash.program(templateUuid)}/activity/${encodeURIComponent(activityUuid.replace(/^learning_activity_/, ''))}`)
+  getUriWithOrg(orgslug, `${routePaths.org.admin.template(templateUuid)}/activity/${encodeURIComponent(activityUuid.replace(/^learning_activity_/, ''))}`)
 
 function StepSummary({ step, stage }: { step: TemplateStep; stage: TemplateStage }) {
   const definition = stepDefinition(step.type)

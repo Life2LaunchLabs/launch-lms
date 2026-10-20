@@ -53,7 +53,7 @@ export default function GroupAdminDetail({ orgslug, groupId, subpage = 'plans' }
       <div className="relative z-10 bg-[#fcfbfc] pl-10 pr-10 tracking-tight nice-shadow">
         <div className="pb-4 pt-6">
           <Breadcrumbs items={[
-            { label: 'Users', href: getUriWithOrg(orgslug, routePaths.org.dash.users.users()), icon: <Users size={14} /> },
+            { label: 'Users', href: getUriWithOrg(orgslug, routePaths.org.admin.people.root()), icon: <Users size={14} /> },
             { label: group.name },
           ]} />
         </div>
@@ -72,7 +72,7 @@ export default function GroupAdminDetail({ orgslug, groupId, subpage = 'plans' }
             const Icon = tab.icon
             const isActive = activeSubpage === tab.id
             return (
-              <Link key={tab.id} href={getUriWithOrg(orgslug, routePaths.org.dash.users.group(groupId, tab.id))} replace>
+              <Link key={tab.id} href={getUriWithOrg(orgslug, routePaths.org.admin.people.group(groupId, tab.id))} replace>
                 <div className={`w-fit cursor-pointer border-black py-2 text-center transition-all ease-linear ${isActive ? 'border-b-4' : 'opacity-50'}`}>
                   <div className="mx-2.5 flex items-center space-x-2.5"><Icon size={16} /><div>{tab.label}</div></div>
                 </div>
@@ -108,7 +108,7 @@ function GroupSettings({ orgslug, group }: { orgslug: string; group: any }) {
     const response = await deleteUserGroup(group.id, org.id, accessToken)
     if (response.status === 200) {
       toast.success('Group deleted.')
-      router.push(getUriWithOrg(orgslug, routePaths.org.dash.users.usergroups()))
+      router.push(getUriWithOrg(orgslug, routePaths.org.admin.people.root()))
       router.refresh()
       return
     }

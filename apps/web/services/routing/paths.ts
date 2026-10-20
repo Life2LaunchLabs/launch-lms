@@ -84,6 +84,8 @@ export const routePaths = {
       coach: () => '/admin/platform/coach',
       settings: () => '/admin/platform/settings',
       news: () => '/admin/news',
+      newsNewPost: () => '/admin/news/new-post',
+      newsPost: (articleUuid: string) => `/admin/news/${articleUuid}`,
       analytics: () => '/admin/platform',
       organization: (orgId: string | number) => `/admin/platform/orgs/${orgId}`,
     },
@@ -143,92 +145,50 @@ export const routePaths = {
       root: () => '/account',
       page: (subpage: string) => `/account/${subpage}`,
     },
-    dash: {
+    /** The org admin side, by tab: Home, Assignments, People, Plan templates, Badges, Insights, Content, Organization. */
+    admin: {
       root: () => '/admin',
-      analytics: () => '/admin',
-      badges: () => '/admin/badges',
-      plans: () => '/admin/plans',
+      assignments: () => '/admin/plans',
       planReview: (params: { assignment: string; objective?: string | null; planObjective?: string | null; activity?: string | null; focus?: string | null }) =>
         withQuery('/admin/plans/review', { assignment: params.assignment, objective: params.objective, step: params.planObjective, activity: params.activity, focus: params.focus }),
-      programs: () => '/admin/plans/templates',
-      program: (programUuid: string) => `/admin/plans/${encodeURIComponent(programUuid)}`,
-      programPage: (programUuid: string, subpage: string) => `/admin/plans/${encodeURIComponent(programUuid)}/${encodeURIComponent(subpage)}`,
-      planRequirements: () => '/admin/plans/requirements',
-      planRequirement: (frameworkUuid: string, subpage = 'details') => `/admin/plans/requirements/${encodeURIComponent(frameworkUuid)}/${encodeURIComponent(subpage)}`,
-      // Resolves an assignment to the page that now shows it: its group's Plans tab or the learner.
-      planAssignment: (assignmentUuid: string) => `/admin/plans/assignments/${encodeURIComponent(assignmentUuid)}`,
       livePlan: (planUuid: string, subpage = 'overview') => subpage === 'overview' ? `/admin/plans/live/${encodeURIComponent(planUuid)}` : `/admin/plans/live/${encodeURIComponent(planUuid)}/${encodeURIComponent(subpage)}`,
-      news: () => '/admin/news',
-      feedback: () => '/admin/feedback',
-      newsNewPost: () => '/admin/news/new-post',
-      newsPost: (articleUuid: string) => `/admin/news/${articleUuid}`,
-      communities: () => '/admin/communities',
-      resources: () => '/admin/resources',
-      resourceTags: () => '/admin/resources/tags',
-      podcasts: () => '/admin/podcasts',
-      boards: () => '/admin',
-      playgrounds: () => '/admin/playgrounds',
-      paymentsOverview: () => '/admin/payments/overview',
-      paymentsOffers: () => '/admin/payments/offers',
-      paymentsGroups: () => '/admin/payments/groups',
-      paymentsConfiguration: () => '/admin/payments/configuration',
-      boardSettings: (boardUuid: string, subpage: string) => {
-        void boardUuid
-        void subpage
-        return '/admin'
-      },
-      boardRoot: (boardUuid: string) => {
-        void boardUuid
-        return '/admin'
-      },
-      resourceChannelSettings: (channelUuid: string, subpage: string) =>
-        `/admin/resources/${channelUuid}/${subpage}`,
-      podcastSettings: (podcastUuid: string, subpage: string) =>
-        `/admin/podcasts/podcast/${podcastUuid}/${subpage}`,
-      communitySettings: (communityUuid: string, subpage: string) =>
-        `/admin/communities/${communityUuid}/${subpage}`,
-      users: {
-        users: () => '/admin/users',
-        grading: () => '/admin/users/grading',
-        user: (username: string) => `/admin/users/user/${encodeURIComponent(username)}`,
+      people: {
+        root: () => '/admin/users',
+        user: (username: string) => `/admin/users/user/${encodeURIComponent(username)}/overview`,
         userPage: (username: string, subpage: string) => `/admin/users/user/${encodeURIComponent(username)}/${encodeURIComponent(subpage)}`,
-        usergroups: () => '/admin/users',
-        roles: () => '/admin/users/roles',
-        signups: () => '/admin/users/signups',
-        add: () => '/admin/users/new',
-        auditLogs: () => '/admin/users/audit-logs',
-        group: (groupId: string | number, subpage?: string) => subpage
-          ? `/admin/users/groups/${encodeURIComponent(String(groupId))}/${encodeURIComponent(subpage)}`
-          : `/admin/users/groups/${encodeURIComponent(String(groupId))}`,
+        group: (groupId: string | number, subpage = 'plans') => `/admin/users/groups/${encodeURIComponent(String(groupId))}/${encodeURIComponent(subpage)}`,
         groupPlans: (groupId: string | number, assignmentUuid?: string | null) =>
           withQuery(`/admin/users/groups/${encodeURIComponent(String(groupId))}/plans`, { assignment: assignmentUuid }),
       },
-      orgSettings: {
+      templates: () => '/admin/plans/templates',
+      // Template uuids kept their old program uuids.
+      template: (templateUuid: string) => `/admin/plans/${encodeURIComponent(templateUuid)}`,
+      templatePage: (templateUuid: string, subpage: string) => `/admin/plans/${encodeURIComponent(templateUuid)}/${encodeURIComponent(subpage)}`,
+      badges: () => '/admin/badges',
+      badgeMarketplace: () => '/admin/badges?tab=marketplace',
+      badgeCollection: (collectionUuid: string, subpage: string) => `/admin/badges/collection/${encodeURIComponent(collectionUuid)}/${encodeURIComponent(subpage)}`,
+      badge: (badgeUuid: string, subpage: string) => `/admin/badges/badge/${encodeURIComponent(badgeUuid.replace(/^badge_/, ''))}/${encodeURIComponent(subpage)}`,
+      insights: () => '/admin/plans/requirements',
+      requirementFramework: (frameworkUuid: string, subpage = 'details') => `/admin/plans/requirements/${encodeURIComponent(frameworkUuid)}/${encodeURIComponent(subpage)}`,
+      content: {
+        resources: () => '/admin/resources',
+        resourceTags: () => '/admin/resources/tags',
+        resourceChannel: (channelUuid: string, subpage: string) => `/admin/resources/${channelUuid}/${subpage}`,
+        podcasts: () => '/admin/podcasts',
+        podcast: (podcastUuid: string, subpage: string) => `/admin/podcasts/podcast/${podcastUuid}/${subpage}`,
+        playgrounds: () => '/admin/playgrounds',
+      },
+      organization: {
         general: () => '/admin/org/settings/general',
         branding: () => '/admin/org/settings/branding',
-        features: () => '/admin/org/settings/general',
-        landing: () => '/admin/org/settings/general',
-        seo: () => '/admin/org/settings/general',
-        ai: () => '/admin/org/settings/general',
-        domains: () => '/admin/org/settings/general',
-        api: () => '/admin/org/settings/general',
         sso: () => '/admin/org/settings/sso',
-        usage: () => '/admin/org/settings/general',
         plan: () => '/admin/org/settings/plan',
-        other: () => '/admin/org/settings/general',
       },
-      platform: {
-        overview: () => '/admin/platform',
-        organizations: () => '/admin/platform/orgs',
-        users: () => '/admin/platform/users',
-        user: (username: string) => `/admin/platform/users/${encodeURIComponent(username)}`,
-        requests: () => '/admin/platform/requests',
-        feedback: () => '/admin/platform/feedback',
-        coach: () => '/admin/platform/coach',
-        settings: () => '/admin/platform/settings',
-        news: () => '/admin/news',
-        analytics: () => '/admin/platform',
-        organization: (orgId: string | number) => `/admin/platform/orgs/${orgId}`,
+      payments: {
+        overview: () => '/admin/payments/overview',
+        offers: () => '/admin/payments/offers',
+        groups: () => '/admin/payments/groups',
+        configuration: () => '/admin/payments/configuration',
       },
     },
   },

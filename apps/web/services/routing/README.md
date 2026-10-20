@@ -22,6 +22,10 @@ baseline, see [`apps/web/README.md`](../../README.md).
 - [`routeAccess.ts`](./routeAccess.ts)
   Public/protected/auth/internal route classification
 
+- [`legacyRedirects.ts`](./legacyRedirects.ts)
+  Old `/dash` and admin URLs mapped to their current pages, kept for one
+  release instead of stub pages
+
 - [`__tests__/routing.test.ts`](./__tests__/routing.test.ts)
   Unit tests for routing behavior
 
@@ -106,6 +110,7 @@ that is usually a sign a builder should exist.
 - auth page rewriting
 - guest/public access exceptions
 - internal `/orgs/[orgslug]/...` canonicalization
+- legacy admin and `/dash` redirects (via `legacyRedirects.ts`)
 - editor rewrites
 - sitemap, robots, and feed rewrites
 - custom-domain rewriting to internal org routes

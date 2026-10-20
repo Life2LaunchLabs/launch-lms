@@ -56,7 +56,7 @@ export default function StaffGoalDetail({ orgslug, goalUuid, activeSubpage = 'ov
   const { data: goal, isLoading, error } = useSWR<Goal>(token ? goalUrl(goalUuid) : null, () => goalsApi.get(goalUuid, token), { revalidateOnFocus: false })
 
   if (isLoading) return <PageLoader tall />
-  if (error || !goal) return <main className="flex min-h-[70vh] items-center justify-center bg-[#f8f8f8]"><div className="rounded-xl border border-gray-200 bg-white p-10 text-center"><Shield className="mx-auto text-gray-300" size={38} /><h1 className="mt-3 text-lg font-black">Goal unavailable</h1><p className="mt-1 text-sm text-gray-500">You need access to this goal to view it.</p><Link href={getUriWithOrg(orgslug, routePaths.org.dash.plans())} className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-blue-700"><ArrowLeft size={14} />Back to the Inbox</Link></div></main>
+  if (error || !goal) return <main className="flex min-h-[70vh] items-center justify-center bg-[#f8f8f8]"><div className="rounded-xl border border-gray-200 bg-white p-10 text-center"><Shield className="mx-auto text-gray-300" size={38} /><h1 className="mt-3 text-lg font-black">Goal unavailable</h1><p className="mt-1 text-sm text-gray-500">You need access to this goal to view it.</p><Link href={getUriWithOrg(orgslug, routePaths.org.admin.assignments())} className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-blue-700"><ArrowLeft size={14} />Back to the Inbox</Link></div></main>
 
   const reviewer = goal.capabilities.includes(REVIEW_CAPABILITY)
   const waiting = goalSteps(goal).filter(waitingOnStaff).length
@@ -65,7 +65,7 @@ export default function StaffGoalDetail({ orgslug, goalUuid, activeSubpage = 'ov
   return <main className="min-h-full w-full bg-[#f8f8f8]">
     <header className="relative z-10 bg-[#fcfbfc] px-6 tracking-tight nice-shadow lg:px-10">
       <div className="pb-4 pt-6">
-        <Breadcrumbs items={[{ label: 'Users', href: getUriWithOrg(orgslug, routePaths.org.dash.users.users()) }, ...(subject?.username ? [{ label: subject.name || subject.username, href: getUriWithOrg(orgslug, routePaths.org.dash.users.userPage(subject.username, 'plans')) }] : []), { label: goal.title }]} />
+        <Breadcrumbs items={[{ label: 'Users', href: getUriWithOrg(orgslug, routePaths.org.admin.people.root()) }, ...(subject?.username ? [{ label: subject.name || subject.username, href: getUriWithOrg(orgslug, routePaths.org.admin.people.userPage(subject.username, 'plans')) }] : []), { label: goal.title }]} />
         <p className="mt-3 text-[10px] font-black uppercase tracking-[0.14em] text-gray-500">Learner goal · their own progress and changes</p>
       </div>
       <div className="flex flex-col gap-5 pb-5 lg:flex-row lg:items-center lg:justify-between">
@@ -81,7 +81,7 @@ export default function StaffGoalDetail({ orgslug, goalUuid, activeSubpage = 'ov
       </div>
       <nav className="flex overflow-x-auto text-sm font-black" aria-label="Goal administration">{tabs.map((tab) => {
         const Icon = tab.icon
-        return <Link key={tab.id} href={getUriWithOrg(orgslug, routePaths.org.dash.livePlan(goal.goal_uuid, tab.id))} className={cn('flex shrink-0 items-center gap-2 border-black px-3 py-2 transition', activeSubpage === tab.id ? 'border-b-4' : 'opacity-50 hover:opacity-75')}>
+        return <Link key={tab.id} href={getUriWithOrg(orgslug, routePaths.org.admin.livePlan(goal.goal_uuid, tab.id))} className={cn('flex shrink-0 items-center gap-2 border-black px-3 py-2 transition', activeSubpage === tab.id ? 'border-b-4' : 'opacity-50 hover:opacity-75')}>
           <Icon size={16} />{tab.label}{tab.id === 'reviews' && waiting ? <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800">{waiting}</span> : null}
         </Link>
       })}</nav>
@@ -116,9 +116,9 @@ function Overview({ goal, orgslug }: { goal: Goal; orgslug: string }) {
     </section>
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,0.7fr)]">
       <section className="rounded-xl border border-gray-100 bg-white nice-shadow">
-        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4"><div><h2 className="font-black text-gray-900">What’s coming next</h2><p className="mt-1 text-xs text-gray-500">The next open steps on this learner’s goal.</p></div><Link href={getUriWithOrg(orgslug, routePaths.org.dash.livePlan(goal.goal_uuid, 'steps'))} className="text-xs font-black text-blue-700">All steps</Link></div>
+        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4"><div><h2 className="font-black text-gray-900">What’s coming next</h2><p className="mt-1 text-xs text-gray-500">The next open steps on this learner’s goal.</p></div><Link href={getUriWithOrg(orgslug, routePaths.org.admin.livePlan(goal.goal_uuid, 'steps'))} className="text-xs font-black text-blue-700">All steps</Link></div>
         <div className="divide-y divide-gray-100">
-          {list.map((step) => <Link key={step.step_uuid} href={`${getUriWithOrg(orgslug, routePaths.org.dash.livePlan(goal.goal_uuid, 'steps'))}#step-${step.step_uuid}`} className="flex items-center gap-3 p-4 hover:bg-gray-50">
+          {list.map((step) => <Link key={step.step_uuid} href={`${getUriWithOrg(orgslug, routePaths.org.admin.livePlan(goal.goal_uuid, 'steps'))}#step-${step.step_uuid}`} className="flex items-center gap-3 p-4 hover:bg-gray-50">
             <PathNode state={step.state} fraction={step.fraction} icon={stepDefinition(step.type).icon} size={34} />
             <span className="min-w-0 flex-1"><span className="block truncate text-sm font-black text-gray-900">{step.title}</span><span className={cn('mt-0.5 block text-[11px] font-semibold', overdue(step) ? 'text-red-700' : 'text-gray-500')}>{[stageOf(step), overdue(step) ? `Overdue · ${statusLine(step)}` : statusLine(step)].filter(Boolean).join(' · ')}</span></span>
           </Link>)}
