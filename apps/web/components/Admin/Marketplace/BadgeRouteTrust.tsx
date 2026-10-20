@@ -21,13 +21,15 @@ type Props = {
   routes: Route[]
   // eslint-disable-next-line no-unused-vars
   onSaved: (next: any) => void
+  /** Show the settings without changing them (staff, or a viewer who cannot edit the badge). */
+  readOnly?: boolean
 }
 
-export default function BadgeRouteTrust({ badge, routes, onSaved }: Props) {
+export default function BadgeRouteTrust({ badge, routes, onSaved, readOnly = false }: Props) {
   const session = useLHSession() as any
   const token = session?.data?.tokens?.access_token
   const org = useOrg() as { id?: number } | null
-  const owner = Number(org?.id) === Number(badge.org_id)
+  const owner = !readOnly && Number(org?.id) === Number(badge.org_id)
   const { data: issuers = [] } = useSWR(owner && token ? ['marketplace', 'badge-issuers', badge.badge_uuid, token] : null, async () => {
     const response: any = await getIssuerAuthorizations(badge.org_id, 'creator', token, badge.badge_uuid, 'approved')
     const data = response?.success ? response.data : []

@@ -192,13 +192,16 @@ async def list_collections(
     db_session: Session,
     admin: bool = False,
 ) -> list[BadgeCollectionRead]:
+    viewer_edits = False
     if admin:
         if org_id is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="org_id is required for admin badge collection listing",
             )
-        access_rules._require_org_admin(db_session, current_user, org_id)
+        # Staff see the list; only admins may change it (``can_edit`` below).
+        access_rules._require_org_staff(db_session, current_user, org_id)
+        viewer_edits = access_rules._is_org_admin(db_session, current_user, org_id)
         owned_badges = db_session.exec(
             select(LearningBadge).where(
                 LearningBadge.org_id == org_id, LearningBadge.deleted_at.is_(None)
@@ -263,12 +266,12 @@ async def list_collections(
             badges=[
                 LearningBadgeRead(
                     **badge.model_dump(),
-                    can_edit=(badge.org_id == org_id) if admin else None,
+                    can_edit=(badge.org_id == org_id and viewer_edits) if admin else None,
                     access_type=("owned" if badge.org_id == org_id else "authorized") if admin else None,
                 )
                 for badge in badges_by_collection.get(collection.id or 0, [])
             ],
-            can_edit=(collection.org_id == org_id) if admin else None,
+            can_edit=(collection.org_id == org_id and viewer_edits) if admin else None,
             access_type=("owned" if collection.org_id == org_id else "authorized") if admin else None,
             creator_org=(
                 {

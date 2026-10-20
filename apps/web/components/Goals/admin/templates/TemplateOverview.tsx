@@ -12,6 +12,7 @@ import { documentSteps } from './documentOps'
 import { leafNodes, useRequirementFrameworks } from './StepRequirementLinks'
 import { assignmentHref, assignmentLabel, useTemplateAssignments } from '../assignments/shared'
 import { TemplateStatusChip } from './TemplateList'
+import { insightsRoutes } from '../insights/reportRoutes'
 
 /** What staff do with a step once a learner reaches it. */
 const reviewKind = (step: TemplateStep) => step.completed_by === 'staff' ? 'sign-off' : step.review_required ? 'review' : null
@@ -74,7 +75,7 @@ export default function TemplateOverview({ orgslug, orgId, token, template }: { 
           <div className="mb-1 flex justify-between gap-2 text-[13px]"><span className="truncate font-semibold text-gray-900">{framework.name}</span><span className="shrink-0 text-gray-500">{framework.covered} of {framework.total}</span></div>
           <div className="h-1.5 overflow-hidden rounded-full bg-gray-100"><div className="h-full rounded-full bg-black" style={{ width: `${framework.total ? framework.covered / framework.total * 100 : 0}%` }} /></div>
         </div>)}</div> : <p className="text-sm text-gray-500">No steps are linked to a requirement yet.</p>}
-        <Link href={getUriWithOrg(orgslug, routePaths.org.admin.insights())} className="mt-3 block text-xs font-bold text-gray-900 hover:text-blue-700">See coverage</Link>
+        <Link href={getUriWithOrg(orgslug, insightsRoutes.coverage())} className="mt-3 block text-xs font-bold text-gray-900 hover:text-blue-700">See coverage</Link>
       </SectionCard>
       <SectionCard title="When it’s handed out">
         <dl className="space-y-2 text-[13px]">

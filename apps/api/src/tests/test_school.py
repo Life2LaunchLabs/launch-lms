@@ -12,7 +12,7 @@ from src.db.user_organizations import UserOrganization
 from src.db.users import User
 from src.services.connect import chats
 from src.services.goals import access, assignments
-from src.services.school import chats as school_chats, staff, views
+from src.services.school import chats as school_chats, feed, staff, views
 from src.tests.test_goal_sharing import _session as _goal_session
 from src.tests.test_goals import ADMIN, LEARNER, NOW, OTHER, _published, _user
 
@@ -124,3 +124,18 @@ def test_a_students_page_shows_their_team_chat_and_staff_only_notes():
             views.student(db, _user(OTHER), 1, LEARNER)
         assert classmate.value.status_code == 404
         assert views.delete_note(db, _user(ADMIN), 1, LEARNER, notes[0]["note_uuid"]) == []
+
+
+def test_what_waits_on_staff_is_the_top_of_their_people_feed():
+    with _session() as db:
+        _assign(db)
+        _staff(db, role_key="commenter")
+        opened = chats.open_direct(db, _user(TEACHER), DirectChatOpen(handle="lee"))
+        chats.send(db, _user(LEARNER), opened["conversation_uuid"], "<user:user_4> can you look at this?")
+        waiting = views.waiting(db, _user(TEACHER), 1)["students"]
+        top = feed.people_feed(db, _user(TEACHER), 1)["active"]
+        # The same students, with the same new messages, and a preview of the latest.
+        assert [(row["student"]["id"], row["unread"]) for row in waiting] == [(row["person"]["id"], row["counts"]["messages"]) for row in top if row["total"]]
+        assert top[0]["preview"].startswith("Lee Arner: @Tess Teacher")
+        chats.mark_read(db, _user(TEACHER), opened["conversation_uuid"])
+        assert [row["total"] for row in feed.people_feed(db, _user(TEACHER), 1)["active"]] == [0]

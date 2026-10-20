@@ -31,9 +31,9 @@ function categoriesOf(nodes: Node[], leafIds: string[]): Category[] {
   return (children.get('') || []).map((node) => ({ node, leaves: collect(node) })).filter((category) => category.leaves.length)
 }
 
-/** Learners × requirements for one group, one framework at a time: met, still in a goal, or a gap. */
-export default function GroupRequirementsGrid({ orgslug, orgId, token, groupId }: { orgslug: string; orgId: number; token?: string; groupId: number }) {
-  const [frameworkUuid, setFrameworkUuid] = React.useState<string | null>(null)
+/** Learners × requirements for one group, one framework at a time: met, still in a goal, or a gap. `framework` pins it to one framework (a report section). */
+export default function GroupRequirementsGrid({ orgslug, orgId, token, groupId, framework }: { orgslug: string; orgId: number; token?: string; groupId: number; framework?: string }) {
+  const [frameworkUuid, setFrameworkUuid] = React.useState<string | null>(framework || null)
   const key = orgId && token ? ['group-requirements', orgId, groupId, frameworkUuid] : null
   const { data, isLoading } = useSWR(key, () => requirementsApi.group(orgId, groupId, frameworkUuid, token), { revalidateOnFocus: false, keepPreviousData: true })
   const [closed, setClosed] = React.useState<Record<string, boolean>>({})
@@ -56,7 +56,7 @@ export default function GroupRequirementsGrid({ orgslug, orgId, token, groupId }
 
   return <div className="space-y-3">
     <div className="flex flex-wrap items-center gap-3">
-      {data.frameworks.length > 1 ? <Segmented<string> label="Framework" value={data.framework_uuid} onChange={(value: string) => setFrameworkUuid(value)} options={data.frameworks.map((item) => ({ value: item.framework_uuid, label: item.name }))} /> : <span className="text-sm font-black text-gray-900">{data.frameworks[0]?.name}</span>}
+      {framework ? null : data.frameworks.length > 1 ? <Segmented<string> label="Framework" value={data.framework_uuid} onChange={(value: string) => setFrameworkUuid(value)} options={data.frameworks.map((item) => ({ value: item.framework_uuid, label: item.name }))} /> : <span className="text-sm font-black text-gray-900">{data.frameworks[0]?.name}</span>}
       <label className="relative flex items-center"><span className="sr-only">Search learners</span><Search size={14} className="absolute left-2.5 text-gray-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${all.length} learners`} className="h-9 w-56 rounded-lg border border-gray-200 bg-white pl-8 pr-3 text-[13px]" /></label>
       <label className="inline-flex items-center gap-2 text-[13px] font-semibold text-gray-700"><input type="checkbox" checked={gapsOnly} onChange={(event) => setGapsOnly(event.target.checked)} />Only learners with gaps</label>
       <span className="flex-1" />

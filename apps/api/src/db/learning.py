@@ -131,6 +131,8 @@ class LearningBadgeRead(LearningBadgeBase):
     versions: list[dict] = Field(default_factory=list)
     can_edit: bool | None = None
     access_type: str | None = None
+    # The organization that made the badge ({id, name, slug}), on the admin detail read.
+    creator_org: dict | None = None
 
 
 class LearningBadgeVersion(SQLModel, table=True):

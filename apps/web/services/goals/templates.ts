@@ -37,9 +37,34 @@ export interface TemplateDetail extends GoalTemplate {
   library_published_at?: string | null
   source_template_uuid?: string | null
   outdated_badge_steps?: OutdatedBadgeStep[]
-  /** Another organization's badge template this one runs: the published version, not editable here. */
+  /**
+   * Not editable by this viewer: another organization's template this one runs (its published version),
+   * or the organization's own template seen by staff who aren't admins.
+   */
   read_only?: boolean
   badge?: AssignmentBadge | null
+  /** The badges this template earns (it is one of their ways to earn). */
+  badges?: TemplateBadgeRef[]
+  /** Who made it, on another organization's template. */
+  owner_org?: { id: number; name: string; slug: string } | null
+}
+
+/** A badge a template earns, as template lists and pages show it. */
+export interface TemplateBadgeRef {
+  badge_uuid: string
+  name: string
+  thumbnail_image: string
+  org_id?: number
+  owner_org?: { id: number; name: string; slug: string } | null
+}
+
+/** One row of the organization's template list: its size, badges and the frameworks its steps map to. */
+export interface TemplateListItem extends GoalTemplate {
+  read_only?: boolean
+  stage_count?: number
+  step_count?: number
+  badges?: TemplateBadgeRef[]
+  frameworks?: Array<{ framework_uuid: string; name: string; node_count: number }>
 }
 
 export interface LibraryTemplate {
@@ -122,7 +147,7 @@ export const templateKeys = {
 }
 
 export const templatesApi = {
-  list: (orgId: number, token?: string, includeArchived = false) => request<GoalTemplate[]>(templateKeys.list(orgId, includeArchived), token),
+  list: (orgId: number, token?: string, includeArchived = false) => request<TemplateListItem[]>(templateKeys.list(orgId, includeArchived), token),
   get: (orgId: number, templateUuid: string, token?: string) => request<TemplateDetail>(templateKeys.one(orgId, templateUuid), token),
   create: (orgId: number, data: { title?: string; document?: TemplateDocument }, token?: string) => request<TemplateDetail>(withOrg(templatesUrl(), orgId), token, 'POST', data),
   save: (orgId: number, templateUuid: string, document: TemplateDocument, etag: string | null, token?: string) => request<TemplateDetail>(templateKeys.one(orgId, templateUuid), token, 'PUT', { document, etag }),

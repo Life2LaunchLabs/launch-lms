@@ -20,6 +20,8 @@ import CertificatePreview from '@components/Learning/BadgeCertificatePreview'
 import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import BadgeVersionToolbar from '@components/Learning/BadgeVersionToolbar'; import BadgeRoutesPanel from '@components/Learning/BadgeRoutesPanel'
+import OwnershipChip, { ReadOnlyNote } from '@components/Admin/Plans/OwnershipChip'
+import { useCanEditPlans } from '@components/Admin/Plans/useCanEditPlans'
 
 const tabs = [
   { key: 'analytics', label: 'Analytics', icon: BarChart3 },
@@ -47,7 +49,12 @@ export default function AdminBadgeShell({
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
   const org = useOrg() as any
-  const canEdit = Number(org?.id) === Number(initialBadge.org_id)
+  const viewerIsEditor = useCanEditPlans() === true
+  // Owned by this organization; editable only by its admins (the API says so with `can_edit`). Staff and
+  // other organizations running it see every detail read-only.
+  const owned = Number(org?.id) === Number(initialBadge.org_id)
+  const canEdit = owned && initialBadge.can_edit !== false
+  const ownerName = owned ? org?.name : initialBadge.creator_org?.name
   const [badge, setBadge] = React.useState(initialBadge)
   const [editingField, setEditingField] = React.useState<'name' | null>(null)
   const [draftName, setDraftName] = React.useState(initialBadge.name || '')
@@ -102,16 +109,21 @@ export default function AdminBadgeShell({
   const publicBadgeHref = getUriWithOrg(orgslug, `/badges/${cleanBadgeId(badge.badge_uuid)}`)
   const imageUrl = badge.thumbnail_image
   const isDraft = badge.selected_version?.state === 'draft'
+  // Owners' admins: every tab. Staff of the owner: everything but Issuers and Settings, read-only. Another
+  // organization running it: what it does, its ways to earn and its definition, plus its own issuer settings for admins.
   const visibleTabs = canEdit
     ? tabs
-    : tabs.filter((tab) => ['analytics', 'definition', 'settings'].includes(tab.key))
+    : owned
+      ? tabs.filter((tab) => ['analytics', 'routes', 'definition', 'marketing'].includes(tab.key))
+      : tabs.filter((tab) => ['analytics', 'routes', 'definition', 'marketing'].includes(tab.key) || (tab.key === 'settings' && viewerIsEditor))
 
   return (
     <div className="min-h-full w-full bg-[#f8f8f8]">
       <div className="relative z-10 bg-[#fcfbfc] px-4 text-sm tracking-tight nice-shadow sm:px-10">
         <div className="pb-4 pt-6">
           <Breadcrumbs items={[
-            { label: 'Badges', href: '/admin/badges' },
+            { label: 'Plans', href: getUriWithOrg(orgslug, routePaths.org.admin.plans()) },
+            { label: 'Badges', href: getUriWithOrg(orgslug, routePaths.org.admin.plans('badges')) },
             { label: badge.name },
           ]} />
         </div>
@@ -149,10 +161,13 @@ export default function AdminBadgeShell({
               onEdit={() => isDraft && canEdit && setEditingField('name')}
               onSave={saveName}
               isSaving={savingField === 'name'}
+              editable={canEdit && isDraft}
             />
+            {ownerName ? <p className="text-sm text-muted-foreground">Created and issued by <span className="font-semibold text-foreground">{ownerName}</span></p> : null}
             <p className="mt-2 text-xs font-medium text-muted-foreground">
               {getBadgeDateLine(badge)}
             </p>
+            <div className="mt-3 flex justify-center md:justify-start"><OwnershipChip owned={owned} canEdit={canEdit} ownerName={ownerName} /></div>
 
             <div className="mt-4 flex flex-wrap items-center justify-center gap-2 md:justify-start">
               {canEdit ? <BadgeVersionToolbar badge={badge} /> : null}
@@ -165,6 +180,10 @@ export default function AdminBadgeShell({
             </div>
           </div>
         </div>
+
+        {canEdit ? null : <ReadOnlyNote className="mb-4">{owned
+          ? 'You can see everything about this badge here. Your organization’s admins change, publish and share it.'
+          : `${ownerName || 'Another organization'} owns this badge. You award it through the templates under Ways to earn; only ${ownerName || 'its owner'} can change it.`}</ReadOnlyNote>}
 
         <div className="-mx-4 flex space-x-3 overflow-x-auto px-4 text-sm font-black [scrollbar-width:none] sm:mx-0 sm:overflow-visible sm:px-0">
           {visibleTabs.map((tab) => {
@@ -185,13 +204,13 @@ export default function AdminBadgeShell({
       </div>
 
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.1 }} className="overflow-x-hidden">
-        {normalizedSubpage === 'analytics' ? <BadgeAnalyticsPanel badge={badge} canEdit={canEdit} issuerOrgId={Number(org?.id)} orgslug={orgslug} /> : null}
-        {normalizedSubpage === 'routes' && canEdit ? <BadgeRoutesPanel badge={badge} orgslug={orgslug} /> : null}
+        {normalizedSubpage === 'analytics' ? <BadgeAnalyticsPanel badge={badge} canEdit={owned} issuerOrgId={Number(org?.id)} orgslug={orgslug} /> : null}
+        {normalizedSubpage === 'routes' ? <div className="px-4 pt-6 sm:px-10"><div className="max-w-4xl"><BadgeRoutesPanel badge={badge} orgslug={orgslug} readOnly={!canEdit} /></div></div> : null}
         {normalizedSubpage === 'issuers' && canEdit ? <BadgeIssuersPanel badge={badge} onPatch={patchBadge} /> : null}
-        {normalizedSubpage === 'marketing' && canEdit ? <fieldset disabled={!isDraft}><BadgeAboutPanel badge={badge} onPatch={patchBadge} /></fieldset> : null}
+        {normalizedSubpage === 'marketing' ? <fieldset disabled={!isDraft || !canEdit}><BadgeAboutPanel badge={badge} onPatch={patchBadge} /></fieldset> : null}
         {normalizedSubpage === 'settings' ? (canEdit
           ? <BadgeSettingsPanel orgslug={orgslug} badge={badge} onPatch={patchBadge} isDraft={isDraft} />
-          : <IssuerBadgeSettingsPanel orgslug={orgslug} badge={badge} issuerOrgId={Number(org?.id)} />) : null}
+          : !owned && viewerIsEditor ? <IssuerBadgeSettingsPanel orgslug={orgslug} badge={badge} issuerOrgId={Number(org?.id)} /> : null) : null}
         {normalizedSubpage === 'definition' ? <BadgeCertificationPanel badge={badge} onPatch={patchBadge} readOnly={!isDraft || !canEdit} /> : null}
       </motion.div>
     </div>
@@ -1144,6 +1163,7 @@ function EditableHeaderField({
   onEdit,
   onSave,
   isSaving,
+  editable = true,
 }: {
   field: 'name' | 'description'
   isEditing: boolean
@@ -1152,6 +1172,8 @@ function EditableHeaderField({
   onEdit: () => void
   onSave: () => void
   isSaving: boolean
+  /** False hides the pencil (a badge the viewer can't change). */
+  editable?: boolean
 }) {
   const isTitle = field === 'name'
 
@@ -1169,9 +1191,9 @@ function EditableHeaderField({
         <p className="min-w-0 break-words text-sm font-medium text-muted-foreground">{value || 'No description yet.'}</p>
       )}
 
-      <Button type="button" size="icon" variant={isEditing ? 'default' : 'ghost'} disabled={isSaving} className={`mt-1 h-7 w-7 shrink-0 ${isEditing ? 'bg-green-600 text-white hover:bg-green-700' : 'opacity-0 transition-opacity group-hover:opacity-100'}`} onClick={isEditing ? onSave : onEdit} title={isEditing ? 'Save' : 'Edit'}>
+      {editable || isEditing ? <Button type="button" size="icon" variant={isEditing ? 'default' : 'ghost'} disabled={isSaving} className={`mt-1 h-7 w-7 shrink-0 ${isEditing ? 'bg-green-600 text-white hover:bg-green-700' : 'opacity-0 transition-opacity group-hover:opacity-100'}`} onClick={isEditing ? onSave : onEdit} title={isEditing ? 'Save' : 'Edit'}>
         {isSaving ? <Loader2 className="animate-spin" /> : isEditing ? <Check /> : <Pencil />}
-      </Button>
+      </Button> : null}
     </div>
   )
 }

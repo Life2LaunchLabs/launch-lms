@@ -5,7 +5,7 @@ from fastapi import HTTPException
 from sqlmodel import select
 
 from src.db.conversations import ConversationMember, DirectChatOpen
-from src.db.goals import GoalAssignmentCreate
+from src.db.goals import GoalAssignmentCreate, StepStatus
 from src.db.organization_config import MessagingPolicy, OrganizationConfig
 from src.db.planning import PlanCollaborator, PlanCollaboratorRequestCreate, PlanInvitation, PlanInvitationCreate, PlanRole
 from src.db.roles import Role
@@ -15,10 +15,10 @@ from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup
 from src.db.users import User
 from src.services.connect import chats, people, workspace
-from src.services.goals import assignments, helper_requests, sharing
+from src.services.goals import assignments, goals, helper_requests, sharing
 from src.services.orgs.membership import assigned_user_ids, cleanup_after_removal
-from src.services.school import chats as school_chats, directory, group_chats, messaging, profile, staff
-from src.tests.test_goals import ADMIN, LEARNER, NOW, OTHER, _published, _user
+from src.services.school import chats as school_chats, directory, feed, group_chats, messaging, profile, staff
+from src.tests.test_goals import ADMIN, LEARNER, NOW, OTHER, _published, _status, _step, _user
 from src.tests.test_school import TEACHER, _goal, _session as _school_session
 
 HELPER = 5
@@ -239,3 +239,112 @@ def test_leaving_the_org_takes_someone_off_its_groups_chats_and_plans():
         db.flush()
         cleanup_after_removal(db, 1, OTHER)
         assert not db.exec(select(UserGroupUser).where(UserGroupUser.user_id == OTHER)).all()
+
+
+ESSAY = {"key": "essay", "type": "task", "title": "Write an essay", "review_required": True}
+
+
+def _awaiting_helper(db, goal) -> PlanInvitation:
+    """The learner invites their parent onto an organization's plan, and it waits for an admin."""
+    subject = db.exec(select(PlanRole).where(PlanRole.goal_id == goal.id, PlanRole.key == "subject")).one()
+    subject.capabilities = [*subject.capabilities, "manage_collaborators"]
+    subject.grantable_role_keys = ["commenter"]
+    db.add(subject)
+    db.commit()
+    sharing.create_invitation(db, _user(LEARNER), goal.goal_uuid, PlanInvitationCreate(email=HELPER_EMAIL, role_key="commenter"))
+    return db.exec(select(PlanInvitation).where(PlanInvitation.goal_id == goal.id)).one()
+
+
+def _turn_in(db, goal) -> str:
+    goals.respond(db, _user(LEARNER), goal.goal_uuid, True)
+    step = _step(goals.get_goal(db, _user(LEARNER), goal.goal_uuid), ESSAY["title"])
+    _status(db, LEARNER, goal, step, StepStatus.COMPLETED)
+    return step["step_uuid"]
+
+
+def _essay(db) -> str:
+    template = _published(db, ESSAY)
+    return assignments.assign(db, _user(ADMIN), 1, template.template_uuid, GoalAssignmentCreate(usergroup_id=1, staff_user_ids=[ADMIN]))["assignment_uuid"]
+
+
+def test_the_people_feed_puts_whoever_has_something_new_on_top_and_everyone_else_a_to_z():
+    with _session(["advanced_user_management"], helper_approval=True) as db:
+        goal = _goal(db, LEARNER, _essay(db))
+        _awaiting_helper(db, goal)
+        _turn_in(db, goal)
+        people.update_settings(db, _user(ADMIN), True)
+        direct = _open(db, TEACHER, "teacher")
+        chats.send(db, _user(TEACHER), direct["conversation_uuid"], "Can we talk about Lee?")
+
+        listed = feed.people_feed(db, _user(ADMIN), 1)
+        top = {row["key"]: row for row in listed["active"]}
+        lee = top[f"person:{LEARNER}"]
+        assert lee["counts"] == {"messages": 0, "turn_ins": 1, "approvals": 1} and lee["total"] == 2 and lee["role"] == "learner"
+        assert lee["preview"] == "Turned in “Write an essay” · Pat Parent asks to help on “College ready”"
+        teach = top[f"person:{TEACHER}"]
+        assert teach["counts"]["messages"] == 1 and teach["preview"] == "Can we talk about Lee?" and teach["chat_uuid"] == direct["conversation_uuid"]
+        assert all(row["total"] for row in listed["active"])
+        # Everyone else, people and groups mixed A to Z, without the viewer or anyone already on top.
+        assert [(row["kind"], (row["person"] or row["group"])["id"]) for row in listed["rest"]] == [("group", 1), ("person", OTHER)]
+        assert listed["rest"][0]["group"]["member_count"] == 2 and listed["rest"][1]["role"] == "learner"
+        assert listed["total"] == 2 and listed["groups_enabled"] and listed["is_admin"]
+        # Paged: the top stays put and later pages skip it.
+        second = feed.people_feed(db, _user(ADMIN), 1, offset=1, limit=1)
+        assert second["active"] == [] and [row["key"] for row in second["rest"]] == [f"person:{OTHER}"]
+        # Search covers both halves; helpers turn up when searched for.
+        assert [row["key"] for row in feed.people_feed(db, _user(ADMIN), 1, "lee")["active"]] == [f"person:{LEARNER}"]
+        assert feed.people_feed(db, _user(ADMIN), 1, "fal")["rest"][0]["key"] == "group:1"
+        # Answering and reading the chat clears its count; it stays near the top as a recent conversation.
+        chats.accept(db, _user(ADMIN), direct["conversation_uuid"])
+        chats.mark_read(db, _user(ADMIN), direct["conversation_uuid"])
+        again = {row["key"]: row for row in feed.people_feed(db, _user(ADMIN), 1)["active"]}
+        assert again[f"person:{TEACHER}"]["total"] == 0 and list(again)[0] == f"person:{LEARNER}"
+        # Staff who don't review the plan or approve helpers see none of it; learners can't open People.
+        assert f"person:{LEARNER}" not in {row["key"] for row in feed.people_feed(db, _user(TEACHER), 1)["active"]}
+        with pytest.raises(HTTPException) as learner:
+            feed.people_feed(db, _user(LEARNER), 1)
+        assert learner.value.status_code == 403
+
+
+def test_group_staff_see_their_students_new_messages_in_the_feed():
+    with _session() as db:
+        _assigned(db)
+        staff.set_staff(db, _user(ADMIN), 1, 1, GroupStaffSet(user_id=TEACHER))
+        school = _open(db, TEACHER, "lee")
+        assert school["kind"] == "school" and profile.profile(db, _user(TEACHER), 1, "lee")["chat_uuid"] == school["conversation_uuid"]
+        chats.send(db, _user(LEARNER), school["conversation_uuid"], "Is my essay ok?")
+        row = next(row for row in feed.people_feed(db, _user(TEACHER), 1)["active"] if row["key"] == f"person:{LEARNER}")
+        assert row["counts"]["messages"] == 1 and row["chat_uuid"] == school["conversation_uuid"] and row["preview"] == "Lee Arner: Is my essay ok?"
+
+
+def test_a_persons_activity_cards_are_their_helper_requests_and_steps_waiting_on_you():
+    with _session(helper_approval=True) as db:
+        goal = _goal(db, LEARNER, _essay(db))
+        invitation = _awaiting_helper(db, goal)
+        step_uuid = _turn_in(db, goal)
+        cards = feed.person_activity(db, _user(ADMIN), 1, "lee")
+        assert cards["can_approve"] and [item["invitation_uuid"] for item in cards["approvals"]] == [invitation.invitation_uuid]
+        assert [(item["step_uuid"], item["step_key"], item["plan_title"]) for item in cards["turn_ins"]] == [(step_uuid, "essay", goal.title)]
+        assert cards["turn_ins"][0]["assignment_uuid"]
+        # Staff who don't review it see no cards; learners can't ask.
+        assert feed.person_activity(db, _user(TEACHER), 1, "lee") == {"approvals": [], "turn_ins": [], "can_approve": False}
+        with pytest.raises(HTTPException) as learner:
+            feed.person_activity(db, _user(OTHER), 1, "lee")
+        assert learner.value.status_code == 403
+        # Approving through the existing endpoint clears the card.
+        helper_requests.decide(db, _user(ADMIN), 1, invitation.invitation_uuid, approve=True)
+        assert feed.person_activity(db, _user(ADMIN), 1, "lee")["approvals"] == []
+
+
+def test_a_groups_header_lists_its_staff_first_for_admins_and_its_own_people():
+    with _session(["advanced_user_management"]) as db:
+        with pytest.raises(HTTPException) as outside:
+            feed.group_detail(db, _user(TEACHER), 1, 1)
+        assert outside.value.status_code == 404
+        staff.set_staff(db, _user(ADMIN), 1, 1, GroupStaffSet(user_id=TEACHER))
+        group = feed.group_detail(db, _user(TEACHER), 1, 1)
+        assert [(item["user"]["username"], item["as"]) for item in group["people"]] == [("teach", "staff"), ("lee", "member"), ("sam", "member")]
+        assert (group["learner_count"], group["staff_count"], group["can_manage"], group["in_chat"]) == (2, 1, False, True)
+        assert feed.group_detail(db, _user(ADMIN), 1, 1)["can_manage"]
+        with pytest.raises(HTTPException):
+            feed.group_detail(db, _user(LEARNER), 1, 1)

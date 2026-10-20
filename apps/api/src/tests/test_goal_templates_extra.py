@@ -7,12 +7,15 @@ from fastapi import HTTPException
 from sqlmodel import Session, select
 
 from src.db.goal_templates import AssignmentCollaborator, AssignmentSchedule, GoalAssignmentRequest, StageSchedule, StepSchedule
-from src.db.goals import Goal, GoalStep, GoalTemplate, StepStatus, StepStatusChange
+from src.db.goals import Goal, GoalStep, GoalTemplate, StepStatus, StepStatusChange, TemplateStatus
 from src.db.learning import LearningActivity, LearningBadge, LearningBadgeAward, LearningBadgeVersion, LearningPage
 from src.db.messages import InboxMessage
 from src.db.organizations import Organization
 from src.db.planning import PlanCollaborator, PlanInvitation, PlanRole
-from src.services.goals import assignments, badge_versions, goals, library, templates
+from src.db.roles import Role
+from src.db.user_organizations import UserOrganization
+from src.db.users import User
+from src.services.goals import assignments, badge_templates, badge_versions, goals, library, templates
 from src.tests.test_goals import ADMIN, LEARNER, NOW, OTHER, _document, _published, _session as _goal_session, _user
 
 
@@ -214,3 +217,74 @@ def test_assignment_schedule_staff_roles_and_progress_summary():
         assert summary["step_count"] == 2 and summary["ready_for_review_count"] == 0
         assert [item["assignment_uuid"] for item in assignments.list_org_assignments(db, _user(OTHER), 1)] == [summary["assignment_uuid"]]
         assert assignments.list_org_assignments(db, _user(LEARNER), 1) == []
+
+
+# Staff read templates (Plans › Templates); only admins change them ------------------------------
+
+STAFF, STAFF_ROLE = 7, 7
+
+
+def _add_staff(db: Session, org_id: int = 1) -> None:
+    """A staff member through a custom role (dashboard access + activity updates), not an admin or maintainer."""
+    if not db.get(Role, STAFF_ROLE):
+        db.add(Role(id=STAFF_ROLE, role_uuid="role_teacher", name="Teacher", org_id=None,
+                    rights={"dashboard": {"action_access": True}, "learning_activities": {"action_update": True}}))
+    if not db.get(User, STAFF):
+        db.add(User(id=STAFF, user_uuid="user_7", username="morgan", email="m@example.com", first_name="Morgan", last_name="Lee", creation_date=NOW, update_date=NOW))
+    db.add(UserOrganization(user_id=STAFF, org_id=org_id, role_id=STAFF_ROLE, creation_date=NOW, update_date=NOW))
+    db.commit()
+
+
+def _refused(call) -> int:
+    with pytest.raises(HTTPException) as refused:
+        call()
+    return refused.value.status_code
+
+
+def test_staff_read_templates_read_only_and_learners_are_refused():
+    with _session() as db:
+        _add_staff(db)
+        created = templates.create_template(db, _user(ADMIN), 1, _two_stages())
+
+        listed = templates.list_templates(db, _user(STAFF), 1)
+        assert [(item["title"], item["read_only"], item["stage_count"], item["step_count"], item["badges"], item["frameworks"]) for item in listed] == [
+            ("Career launch", True, 2, 2, [], [])]
+        assert templates.list_templates(db, _user(ADMIN), 1)[0]["read_only"] is False
+
+        detail = templates.get_template(db, _user(STAFF), 1, created["template_uuid"])
+        assert detail["read_only"] is True and [stage["title"] for stage in detail["document"]["stages"]] == ["Explore", "Apply"]
+        assert templates.get_template(db, _user(ADMIN), 1, created["template_uuid"])["read_only"] is False
+        # Staff see a template's assignments, but only the ones they staff.
+        templates.publish(db, _user(ADMIN), 1, created["template_uuid"])
+        assignments.assign(db, _user(ADMIN), 1, created["template_uuid"], GoalAssignmentRequest(user_id=LEARNER))
+        assert len(assignments.list_assignments(db, _user(ADMIN), 1, created["template_uuid"])) == 1
+        assert assignments.list_assignments(db, _user(STAFF), 1, created["template_uuid"]) == []
+
+        # Writes stay with admins.
+        assert _refused(lambda: templates.save_template(db, _user(STAFF), 1, created["template_uuid"], detail["document"])) == 403
+        assert _refused(lambda: templates.publish(db, _user(STAFF), 1, created["template_uuid"])) == 403
+        assert _refused(lambda: templates.create_template(db, _user(STAFF), 1, title="Mine")) == 403
+        assert _refused(lambda: templates.set_status(db, _user(STAFF), 1, created["template_uuid"], TemplateStatus.ARCHIVED)) == 403
+
+        # Learners read nothing.
+        assert _refused(lambda: templates.list_templates(db, _user(LEARNER), 1)) == 403
+        assert _refused(lambda: templates.get_template(db, _user(LEARNER), 1, created["template_uuid"])) == 403
+        assert _refused(lambda: assignments.list_assignments(db, _user(LEARNER), 1, created["template_uuid"])) == 403
+
+
+def test_staff_see_another_orgs_badge_template_read_only_and_the_list_shows_what_each_template_earns():
+    from src.tests.test_goal_badge_authority import PARTNER, _world
+
+    db, routes = _world()
+    with db:
+        _add_staff(db, PARTNER)
+        # The owner's list names the badge each template earns.
+        assert [item["badges"][0]["name"] for item in templates.list_templates(db, _user(ADMIN), 1)] == ["Adaptability", "Adaptability"]
+
+        ran = badge_templates.issuer_routes(db, _user(STAFF), PARTNER)
+        assert {item["template"]["template_uuid"] for item in ran} == {template.template_uuid for template in routes}
+        view = badge_templates.template_view(db, _user(STAFF), PARTNER, routes[0].template_uuid)
+        assert view["read_only"] is True and view["owner_org"]["name"] == "Studio" and [badge["name"] for badge in view["badges"]] == ["Adaptability"]
+
+        assert _refused(lambda: badge_templates.issuer_routes(db, _user(LEARNER), PARTNER)) == 403
+        assert _refused(lambda: badge_templates.template_view(db, _user(LEARNER), PARTNER, routes[0].template_uuid)) == 403

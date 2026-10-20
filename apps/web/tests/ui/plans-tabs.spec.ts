@@ -58,6 +58,33 @@ test('plans.tabs: Plans holds five tabs, and the order a member sets is kept aft
   await expect.poll(() => tabOrder(page)).toEqual(start)
 })
 
+test('plans.templates-badges: each list has search, Create and Add from marketplace, and a template opens under Plans', async ({ page }) => {
+  await page.goto(`${orgPath}/admin/plans/templates`)
+  await assertActualApp(page)
+  await expect(page.getByRole('searchbox', { name: 'Search templates' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Create template' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Add from marketplace' })).toHaveAttribute('href', /\/admin\/plans\/marketplace\?type=templates$/)
+  // Create is blank only: library copies come from the marketplace.
+  await page.getByRole('button', { name: 'Create template' }).click()
+  await expect(page.getByRole('textbox', { name: 'Template name' })).toBeVisible()
+  await expect(page.getByText('Start from the global library')).toHaveCount(0)
+  await page.keyboard.press('Escape')
+
+  const first = page.getByRole('list', { name: 'Templates' }).getByRole('link').first()
+  if (await first.count()) {
+    await first.click()
+    await expect(page).toHaveURL(/\/admin\/plans\/[^/]+\/overview$/)
+    // Breadcrumbs: Plans › Templates › the template.
+    await expect(page.locator('a[href$="/admin/plans/templates"]', { hasText: 'Templates' }).filter({ visible: true }).first()).toBeVisible()
+  }
+
+  await page.goto(`${orgPath}/admin/badges`)
+  await expect(page.getByRole('searchbox', { name: 'Search badges' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Create badge' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Add from marketplace' })).toHaveAttribute('href', /\/admin\/plans\/marketplace\?type=badges$/)
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true)
+})
+
 test('plans.redirects: the old badge marketplace and framework URLs land in Plans', async ({ page }) => {
   await page.goto(`${orgPath}/admin/badges?tab=marketplace`)
   await assertActualApp(page)

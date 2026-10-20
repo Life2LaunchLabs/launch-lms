@@ -12,8 +12,8 @@ from sqlmodel import Session, col, select
 
 from src.db.goals import GoalAssignment, GoalTemplate
 from src.db.learning import BadgeIssuerAuthorization, BadgeIssuerAuthorizationStatus, LearningBadge
+from src.db.organizations import Organization
 from src.db.users import PublicUser
-from src.security.org_auth import require_org_admin
 from src.services.goals import badge_authority, templates
 from src.services.goals.assignment_summary import assignment_dict
 from src.services.goals.badges import badge_routes
@@ -30,7 +30,9 @@ def _template_ref(db: Session, template: GoalTemplate) -> dict:
 
 def issuer_routes(db: Session, current_user: PublicUser, org_id: int) -> list[dict]:
     """Badge routes of other organizations this one may run, each with its assignments here."""
-    require_org_admin(current_user.id, org_id, db)
+    templates.require_reader(db, current_user, org_id)
+    # Staff who aren't admins see only the assignments they staff, as on the Assignments list.
+    sees_all = templates.can_edit(db, current_user, org_id)
     badges = db.exec(
         select(LearningBadge).join(BadgeIssuerAuthorization, BadgeIssuerAuthorization.badge_id == LearningBadge.id)
         .where(BadgeIssuerAuthorization.issuer_org_id == org_id, BadgeIssuerAuthorization.status == BadgeIssuerAuthorizationStatus.APPROVED,
@@ -44,6 +46,8 @@ def issuer_routes(db: Session, current_user: PublicUser, org_id: int) -> list[di
                 continue
             rows = db.exec(select(GoalAssignment).where(GoalAssignment.org_id == org_id, GoalAssignment.template_id == template.id,
                                                         GoalAssignment.badge_id == badge.id).order_by(col(GoalAssignment.id).desc())).all()
+            if not sees_all:
+                rows = [row for row in rows if current_user.id in (row.staff_user_ids or [])]
             result.append({
                 "route_uuid": route.route_uuid, "badge": badge_authority.badge_ref(db, badge), **badge_authority.rule_of(route),
                 "template": _template_ref(db, template), "assignments": [assignment_dict(db, row) for row in rows],
@@ -53,15 +57,18 @@ def issuer_routes(db: Session, current_user: PublicUser, org_id: int) -> list[di
 
 def template_view(db: Session, current_user: PublicUser, org_id: int, template_uuid: str) -> dict:
     """Another organization's badge template as this one may read it: the published version, read-only."""
-    require_org_admin(current_user.id, org_id, db)
+    templates.require_reader(db, current_user, org_id)
     template, badge = badge_authority.runnable(db, org_id, template_uuid)
     live = templates.published_version(db, template)
     route = badge_authority.route_for(db, badge.id if badge else None, template.id)
+    owner = db.get(Organization, template.org_id)
+    badge_view = {**badge_authority.badge_ref(db, badge), **(badge_authority.rule_of(route) if route else {})} if badge else None
     return {
         **_template_ref(db, template), "org_id": template.org_id, "status": getattr(template.status, "value", template.status),
         "system_type": None, "etag": "", "has_unpublished_changes": False, "read_only": True,
         "document": (live.document if live else None) or {"template": {"title": template.title}, "stages": []},
-        "versions": [], "badge": {**badge_authority.badge_ref(db, badge), **(badge_authority.rule_of(route) if route else {})} if badge else None,
+        "versions": [], "badge": badge_view, "badges": [badge_view] if badge_view else [],
+        "owner_org": {"id": owner.id, "name": owner.name, "slug": owner.slug} if owner else None,
     }
 
 

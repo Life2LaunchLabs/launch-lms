@@ -4,60 +4,103 @@ import React from 'react'
 import { useRouter } from 'next/navigation'
 import useSWR, { useSWRConfig } from 'swr'
 import toast from 'react-hot-toast'
-import { ArrowLeft, Loader2, Settings2, Trash2, Users } from 'lucide-react'
+import { ArrowLeft, Layers3, Loader2, MessageCircle, SlidersHorizontal, Trash2, Users } from 'lucide-react'
 import Link from 'next/link'
+import { cn } from '@/lib/utils'
 import ChatPane from '@components/Connect/ChatPane'
 import EditSheet from '@components/Goals/edit/EditSheet'
+import { PersonAvatar } from '@components/Goals/share/PersonAvatar'
 import GroupStaffPanel from '@components/Admin/Users/GroupStaffPanel'
 import ManageUsers from '@components/Objects/Modals/Dash/OrgUserGroups/ManageUsers'
 import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
 import { deleteUserGroup, updateUserGroup } from '@services/usergroups/usergroups'
-import { peopleApi, peopleKeys } from '@services/school/people'
+import { cohortKey, goalAdminApi } from '@services/goals/admin'
+import { peopleApi, peopleKeys, type GroupDetail } from '@services/school/people'
 import type { GroupView } from '@services/routing/paths'
-import GroupWork, { GroupTabs } from './GroupWork'
-import { useOrgGroups, usePeopleContext } from './usePeople'
+import GroupWork from './GroupWork'
+import { useGroupDetail, useOrgGroups, usePeopleContext, useRefreshPeople } from './usePeople'
 
 const people = routePaths.org.admin.people
+const MAX_FACES = 12
 
-/** A group in People: its chat with its staff, its plans and requirements, and for admins, who's in it and its name. */
+/**
+ * A group in People, laid out like a person: its name and people (staff first) with Manage for
+ * admins, then its chat with its staff (Message) and the plans handed to it (Plans).
+ */
 export default function GroupPane({ orgslug, groupId, view }: { orgslug: string; groupId: number; view?: GroupView }) {
+  const { orgId, token, isAdmin } = usePeopleContext()
+  const { data: group, error } = useGroupDetail(groupId)
+  const [managing, setManaging] = React.useState(false)
+  const { data: cohort } = useSWR(orgId && token ? cohortKey(groupId, orgId) : null, () => goalAdminApi.cohort(orgId, groupId, token), { revalidateOnFocus: false, shouldRetryOnError: false })
+  const planCount = cohort ? cohort.assignments.length + cohort.completed_assignments.length : null
+  const canManage = Boolean(group?.can_manage || isAdmin)
+  const listHref = getUriWithOrg(orgslug, people.root())
+  const plans = view === 'plans'
+
   return <div className="flex min-h-0 flex-1 flex-col">
-    <GroupTabs orgslug={orgslug} groupId={groupId} view={view} />
-    {view ? <GroupWork orgslug={orgslug} groupId={groupId} view={view} /> : <GroupChat orgslug={orgslug} groupId={groupId} />}
+    <header className="shrink-0 border-b border-border bg-background px-4 pt-4 md:px-6">
+      <div className="flex items-start gap-3">
+        <Link href={listHref} aria-label="Back to People" className="-ml-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl hover:bg-muted md:hidden"><ArrowLeft size={18} /></Link>
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted text-foreground"><Users size={22} /></span>
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-xl font-black tracking-tight">{group?.name || (error ? 'Group' : '…')}</h1>
+          {group ? <p className="truncate text-sm text-muted-foreground">Group · {group.learner_count} {group.learner_count === 1 ? 'learner' : 'learners'} · {group.staff_count} staff</p>
+            : error ? <p className="truncate text-sm text-muted-foreground">{error.message || 'This group didn’t load.'}</p> : null}
+          {group?.people.length ? <Faces group={group} orgslug={orgslug} /> : null}
+        </div>
+        {canManage ? <button type="button" onClick={() => setManaging(true)} aria-haspopup="dialog" className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-border px-3 text-sm font-semibold hover:bg-muted">
+          <SlidersHorizontal size={15} /><span className="hidden sm:inline">Manage</span><span className="sr-only sm:hidden">Manage group</span>
+        </button> : null}
+      </div>
+      <nav aria-label="Group" className="mt-3 flex gap-1">
+        <TabLink href={getUriWithOrg(orgslug, people.group(groupId))} current={!plans} icon={<MessageCircle size={15} />}>Message</TabLink>
+        <TabLink href={getUriWithOrg(orgslug, people.group(groupId, 'plans'))} current={plans} icon={<Layers3 size={15} />}>Plans{planCount === null ? '' : ` · ${planCount}`}</TabLink>
+      </nav>
+    </header>
+    {plans ? <GroupWork orgslug={orgslug} groupId={groupId} /> : <GroupChat orgslug={orgslug} groupId={groupId} onManage={canManage ? () => setManaging(true) : undefined} />}
+    {canManage ? <ManageGroup orgslug={orgslug} groupId={groupId} open={managing} onOpenChange={setManaging} /> : null}
   </div>
 }
 
-function GroupChat({ orgslug, groupId }: { orgslug: string; groupId: number }) {
-  const { orgId, token, isAdmin } = usePeopleContext()
-  const { mutate } = useSWRConfig()
-  const [managing, setManaging] = React.useState(false)
+function TabLink({ href, current, icon, children }: { href: string; current: boolean; icon: React.ReactNode; children: React.ReactNode }) {
+  return <Link href={href} aria-current={current ? 'page' : undefined}
+    className={cn('-mb-px inline-flex h-11 items-center gap-1.5 border-b-2 px-3 text-sm font-semibold', current ? 'border-foreground text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground')}>
+    {icon}{children}
+  </Link>
+}
+
+/** The group's people as faces, staff first, each opening their page. */
+function Faces({ group, orgslug }: { group: GroupDetail; orgslug: string }) {
+  const shown = group.people.slice(0, MAX_FACES)
+  const more = group.people.length - shown.length
+  return <div className="mt-2 flex items-center gap-2">
+    <ul aria-label="People in this group, staff first" className="flex -space-x-1.5">
+      {shown.map((item) => <li key={`${item.as}-${item.user.id}`}>
+        <Link href={getUriWithOrg(orgslug, people.user(item.user.username))} title={`${item.user.name}${item.as === 'staff' ? ' (staff)' : ''}`} aria-label={item.user.name}
+          className={cn('block rounded-full ring-2 ring-background', item.role === 'learner' && item.as === 'member' && 'opacity-80')}>
+          <PersonAvatar user={item.user as any} size="sm" />
+        </Link>
+      </li>)}
+    </ul>
+    {more > 0 ? <span className="text-xs font-semibold text-muted-foreground">+{more}</span> : null}
+    <span className="text-xs text-muted-foreground">Staff first</span>
+  </div>
+}
+
+function GroupChat({ orgslug, groupId, onManage }: { orgslug: string; groupId: number; onManage?: () => void }) {
+  const { orgId, token } = usePeopleContext()
+  const refreshList = useRefreshPeople()
   const { data: chat, error, isLoading } = useSWR(orgId && token ? `${peopleKeys.chats(orgId)}#group-${groupId}` : null,
     () => peopleApi.groupChat(orgId, groupId, token), { revalidateOnFocus: false, shouldRetryOnError: false })
   const listHref = getUriWithOrg(orgslug, people.root())
   const personHref = React.useCallback((person: { username: string }) => getUriWithOrg(orgslug, people.user(person.username)), [orgslug])
-  const manage = isAdmin ? <button type="button" onClick={() => setManaging(true)} aria-label="Manage group" title="Manage group"
-    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground"><Settings2 size={18} /></button> : null
-  const sheet = isAdmin ? <ManageGroup orgslug={orgslug} groupId={groupId} open={managing} onOpenChange={setManaging} /> : null
 
   if (isLoading) return <div className="m-auto"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-  if (error || !chat) {
-    return <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex h-16 shrink-0 items-center gap-2 border-b border-border px-3">
-        <Link href={listHref} aria-label="Back to People" className="flex h-9 w-9 items-center justify-center rounded-xl hover:bg-muted md:hidden"><ArrowLeft size={18} /></Link>
-        <Users size={18} className="text-muted-foreground" /><span className="font-bold">Group</span><span className="ml-auto">{manage}</span>
-      </div>
-      <div className="m-auto max-w-sm p-8 text-center">
-        <p className="text-sm text-muted-foreground">{error?.message || 'This group’s chat didn’t open.'}</p>
-        {isAdmin ? <button type="button" onClick={() => setManaging(true)} className="mt-4 rounded-lg bg-black px-4 py-2 text-xs font-bold text-white">Manage group</button> : null}
-      </div>
-      {sheet}
-    </div>
-  }
-  return <>
-    <ChatPane orgslug={orgslug} chatUuid={chat.conversation_uuid} listHref={listHref} personHref={personHref} actions={manage}
-      onChanged={() => void mutate(peopleKeys.chats(orgId))} />
-    {sheet}
-  </>
+  if (error || !chat) return <div className="m-auto max-w-sm p-8 text-center">
+    <p className="text-sm text-muted-foreground">{error?.message || 'This group’s chat didn’t open.'}</p>
+    {onManage ? <button type="button" onClick={onManage} className="mt-4 rounded-lg bg-black px-4 py-2 text-xs font-bold text-white">Manage group</button> : null}
+  </div>
+  return <ChatPane bare orgslug={orgslug} chatUuid={chat.conversation_uuid} listHref={listHref} personHref={personHref} onChanged={() => void refreshList()} />
 }
 
 /* eslint-disable no-unused-vars */
@@ -66,6 +109,7 @@ function ManageGroup({ orgslug, groupId, open, onOpenChange }: { orgslug: string
   const { orgId, token } = usePeopleContext()
   const router = useRouter()
   const { mutate } = useSWRConfig()
+  const refreshList = useRefreshPeople()
   const { data: groups, mutate: refreshGroups } = useOrgGroups()
   const group = groups?.find((item) => item.id === groupId)
   const [name, setName] = React.useState('')
@@ -73,7 +117,7 @@ function ManageGroup({ orgslug, groupId, open, onOpenChange }: { orgslug: string
   React.useEffect(() => { if (group) setName(group.name) }, [group])
 
   const refresh = async () => {
-    await Promise.all([refreshGroups(), mutate(peopleKeys.chats(orgId)), mutate(`${peopleKeys.chats(orgId)}#group-${groupId}`), mutate(`${getAPIUrl()}usergroups/org/${orgId}/overview`)])
+    await Promise.all([refreshGroups(), refreshList(), mutate(peopleKeys.group(orgId, groupId)), mutate(`${peopleKeys.chats(orgId)}#group-${groupId}`), mutate(`${getAPIUrl()}usergroups/org/${orgId}/overview`)])
   }
   const rename = async (event: React.FormEvent) => {
     event.preventDefault()
