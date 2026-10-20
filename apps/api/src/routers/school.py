@@ -76,8 +76,9 @@ async def people_directory(org_id: int, q: str = "", offset: int = 0, limit: int
 
 
 @router.get("/orgs/{org_id}/people/feed")
-async def people_feed(org_id: int, q: str = "", offset: int = 0, limit: int = feed.PAGE, current_user: PublicUser = USER, db_session: Session = DB):
-    return feed.people_feed(db_session, current_user, org_id, q, offset, limit)
+async def people_feed(org_id: int, q: str = "", offset: int = 0, limit: int = feed.PAGE, status: Literal["active", "alumni", "all"] = "active",
+                      current_user: PublicUser = USER, db_session: Session = DB):
+    return feed.people_feed(db_session, current_user, org_id, q, offset, limit, status)
 
 
 @router.get("/orgs/{org_id}/people/{username}/activity")

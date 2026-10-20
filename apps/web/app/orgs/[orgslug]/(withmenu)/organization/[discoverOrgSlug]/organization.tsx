@@ -7,6 +7,7 @@ import { ArrowLeft, Building2, Check, ChevronRight, Globe2, Layers3, Loader2, Ma
 import { useChatList } from '@components/Connect/useConnect'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
 import OrganizationMembershipActions from '@components/Organizations/OrganizationMembershipActions'
+import YourRelationship from '@components/Organizations/YourRelationship'
 import {
   getOrgLogoMediaDirectory,
   getOrgThumbnailMediaDirectory,
@@ -133,13 +134,11 @@ export default function OrganizationDetailClient({
               <div className="w-full md:w-auto md:min-w-[260px]">
                 <div className="rounded-2xl border border-border bg-muted/80 p-4">
                   <p className="mb-3 text-sm font-medium text-muted-foreground">Membership</p>
-                  <p className="mb-4 text-sm text-muted-foreground">
-                    {organization.is_member
-                      ? 'You are enrolled in this organization.'
-                      : organization.signup_mode === 'open'
-                        ? 'You can join this organization right away.'
-                        : 'This organization currently requires an invite to join.'}
-                  </p>
+                  {organization.is_member ? <YourRelationship orgId={organization.id} token={token} /> : <p className="mb-4 text-sm text-muted-foreground">
+                    {organization.signup_mode === 'open'
+                      ? 'You can join this organization right away.'
+                      : 'This organization currently requires an invite to join.'}
+                  </p>}
                   {chat ? <Link href={getUriWithOrg(currentOrgslug, routePaths.org.chat(chat.conversation_uuid))} className="mb-2 flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-foreground px-4 text-sm font-bold text-background"><MessageCircle size={16} />Message</Link> : null}
                   <OrganizationMembershipActions
                     organization={organization}

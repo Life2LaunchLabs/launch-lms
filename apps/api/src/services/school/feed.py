@@ -243,17 +243,22 @@ def _group_rows(db: Session, groups: list[UserGroup]) -> list[dict]:
 
 
 def everyone_else(db: Session, current_user: PublicUser, org_id: int, needle: str, skip: set[str], groups_on: bool, admin: bool,
-                  offset: int = 0, limit: int = PAGE) -> dict:
-    """The organization's people and groups A to Z, without the viewer and whoever is already on top, one page at a time."""
+                  offset: int = 0, limit: int = PAGE, status: str = "active") -> dict:
+    """The organization's people and groups A to Z, without the viewer and whoever is already on top, one page at a time.
+
+    Alumni are left out unless ``status`` is "alumni" (only them, and no groups) or "all".
+    """
     viewer = int(current_user.id)  # type: ignore[arg-type]
     skip_people = [int(key.split(":")[1]) for key in skip if key.startswith("person:")] + [viewer]
     skip_groups = [int(key.split(":")[1]) for key in skip if key.startswith("group:")]
     members = select(User.id.label("id"), literal("person", String).label("kind"), func.lower(func.coalesce(User.first_name, User.username)).label("sort")).join(  # type: ignore[union-attr]
         UserOrganization, UserOrganization.user_id == User.id).where(UserOrganization.org_id == org_id, col(User.id).not_in(skip_people))
+    if status in ("active", "alumni"):
+        members = members.where(UserOrganization.status == status)
     if needle:
         members = directory._like(members, needle)
     parts = [members]
-    if groups_on:
+    if groups_on and status != "alumni":
         groups = select(UserGroup.id.label("id"), literal("group", String).label("kind"), func.lower(UserGroup.name).label("sort")).where(  # type: ignore[union-attr]
             UserGroup.org_id == org_id, col(UserGroup.id).not_in(skip_groups or [0]))
         if not admin:
@@ -274,24 +279,30 @@ def everyone_else(db: Session, current_user: PublicUser, org_id: int, needle: st
     for kind, item_id in page:
         if kind == "person" and int(item_id) in person_rows:
             item = person_rows[int(item_id)]
-            rest.append({"key": f"person:{item_id}", "kind": "person", "person": item["user"], "role": item["role"], "role_name": item["role_name"], "groups": item["groups"], "group": None})
+            rest.append({"key": f"person:{item_id}", "kind": "person", "person": item["user"], "role": item["role"], "role_name": item["role_name"], "groups": item["groups"],
+                         "status": item["status"], "group": None})
         elif kind == "group" and int(item_id) in group_rows:
             rest.append(group_rows[int(item_id)])
-    if needle and offset == 0:
+    if needle and offset == 0 and status != "alumni":
         rest.extend({"key": f"person:{item['user']['id']}", "kind": "person", "person": item["user"], "role": "helper", "role_name": "Helper", "groups": [],
                      "helping_on": item["helping_on"], "group": None} for item in directory.matching_helpers(db, org_id, needle) if f"person:{item['user']['id']}" not in skip)
     return {"rest": rest, "total": total, "offset": offset, "limit": limit}
 
 
-def people_feed(db: Session, current_user: PublicUser, org_id: int, query: str = "", offset: int = 0, limit: int = PAGE) -> dict:
-    """People's list: ``active`` (who has something for you, on the first page only) and ``rest`` (everyone else A to Z, paged)."""
+def people_feed(db: Session, current_user: PublicUser, org_id: int, query: str = "", offset: int = 0, limit: int = PAGE, status: str = "active") -> dict:
+    """People's list: ``active`` (who has something for you, on the first page only) and ``rest`` (everyone else A to Z, paged).
+
+    ``status`` "alumni" lists only alumni (A to Z, nothing on top); "all" lists alumni with everyone else.
+    """
     roles.require_staff(db, current_user.id, org_id)
     needle = (query or "").strip().lstrip("@").lower()
     limit = max(1, min(limit, 100))
     admin = _admin(db, int(current_user.id), org_id)  # type: ignore[arg-type]
     # The top doesn't move between pages, so later pages skip the same people.
     active, groups_on = active_rows(db, current_user, org_id, needle, admin)
-    rest = everyone_else(db, current_user, org_id, needle, {item["key"] for item in active}, groups_on, admin, offset, limit)
+    if status == "alumni":
+        active = []
+    rest = everyone_else(db, current_user, org_id, needle, {item["key"] for item in active}, groups_on, admin, offset, limit, status)
     return {"active": active if offset == 0 else [], **rest, "groups_enabled": groups_on, "is_admin": admin}
 
 
@@ -335,14 +346,17 @@ def group_detail(db: Session, current_user: PublicUser, org_id: int, group_id: i
         raise HTTPException(status_code=404, detail="Group not found")
     staff_ids = [int(item) for item in db.exec(select(UserGroupStaff.user_id).where(UserGroupStaff.usergroup_id == group_id).order_by(col(UserGroupStaff.id))).all()]
     member_ids = [int(item) for item in db.exec(select(UserGroupUser.user_id).where(UserGroupUser.usergroup_id == group_id).order_by(col(UserGroupUser.id))).all()]
-    org_roles = {int(user_id): int(role_id) for user_id, role_id in db.exec(select(UserOrganization.user_id, UserOrganization.role_id).where(
-        UserOrganization.org_id == org_id, col(UserOrganization.user_id).in_([*staff_ids, *member_ids] or [0]))).all()}
+    memberships = db.exec(select(UserOrganization.user_id, UserOrganization.role_id, UserOrganization.status).where(
+        UserOrganization.org_id == org_id, col(UserOrganization.user_id).in_([*staff_ids, *member_ids] or [0]))).all()
+    org_roles = {int(user_id): int(role_id) for user_id, role_id, _ in memberships}
+    statuses = {int(user_id): status or "active" for user_id, _, status in memberships}
     staff_roles = roles.staff_role_ids(db, org_id)
 
     def entry(user_id: int, as_: str) -> dict | None:
         person = people.person(db, user_id)
         role_id = org_roles.get(user_id)
-        return {"user": person, "as": as_, "role": directory._label(role_id, staff_roles) if role_id is not None else "learner"} if person else None
+        return {"user": person, "as": as_, "role": directory._label(role_id, staff_roles) if role_id is not None else "learner",
+                "status": statuses.get(user_id, "active")} if person else None
 
     staff = [item for item in (entry(user_id, "staff") for user_id in staff_ids) if item]
     seen = set(staff_ids)
@@ -350,6 +364,8 @@ def group_detail(db: Session, current_user: PublicUser, org_id: int, group_id: i
     # Staff first: group staff, then members whose org role is staff, then learners.
     members.sort(key=lambda item: item["role"] not in roles.STAFF_ROLES)
     learners = sum(1 for item in members if item["role"] == "learner")
+    alumni = sum(1 for item in members if item["role"] == "learner" and item["status"] == "alumni")
     return {"id": group.id, "name": group.name, "description": group.description, "people": [*staff, *members],
-            "learner_count": learners, "staff_count": len(staff) + len(members) - learners,
-            "can_manage": admin, "in_chat": inside, "groups_enabled": group_chats.enabled(db, org_id)}
+            "learner_count": learners, "alumni_count": alumni, "staff_count": len(staff) + len(members) - learners,
+            "can_manage": admin, "can_set_status": is_org_admin(viewer, org_id, db, "manage_learners"),
+            "in_chat": inside, "groups_enabled": group_chats.enabled(db, org_id)}

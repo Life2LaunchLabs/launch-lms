@@ -17,7 +17,8 @@ from src.db.user_organizations import UserOrganization
 from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup
 from src.db.users import PublicUser, User
-from src.security.org_auth import is_org_admin
+from src.security.org_auth import is_org_admin, is_org_owner_admin, staff_permissions
+from src.security.rbac.constants import STAFF_ROLE_ID
 from src.security.superadmin import is_user_superadmin
 from src.services.connect import chats, people
 from src.services.goals import access
@@ -100,6 +101,7 @@ def profile(db: Session, current_user: PublicUser, org_id: int, username: str) -
     if not role:
         raise HTTPException(status_code=404, detail="Person not found")
     admin = is_org_admin(current_user.id, org_id, db) or is_user_superadmin(current_user.id, db)
+    owner_admin = is_org_owner_admin(current_user.id, org_id, db)
     membership = db.exec(select(UserOrganization).where(UserOrganization.org_id == org_id, UserOrganization.user_id == user_id)).first()
     org_role = db.get(Role, membership.role_id) if membership else None
     summary = people.person(db, user_id) or {}
@@ -110,11 +112,16 @@ def profile(db: Session, current_user: PublicUser, org_id: int, username: str) -
         "role": role, "role_name": org_role.name if org_role else "Helper",
         "org_role": {"id": org_role.id, "role_uuid": org_role.role_uuid, "name": org_role.name} if org_role else None,
         "joined_at": membership.creation_date if membership else None,
+        "status": (membership.status or "active") if membership else None,
+        "status_since": membership.status_since if membership else None,
+        "permissions": sorted(staff_permissions(membership)) if role in roles.STAFF_ROLES else [],
         "groups": _groups(db, org_id, user_id), "plans": plans, "helpers": _helpers(db, org_id, [plan["goal_uuid"] for plan in plans]),
         "helping_on": helping,
         **_message(db, current_user.id, user_id, role),
         "manage": {
-            "change_role": admin and membership is not None and user_id != current_user.id,
+            "change_role": owner_admin and membership is not None and user_id != current_user.id,
+            "status": membership is not None and role == "learner" and is_org_admin(current_user.id, org_id, db, "manage_learners"),
+            "permissions": owner_admin and membership is not None and membership.role_id == STAFF_ROLE_ID and user_id != current_user.id,
             "remove": admin and membership is not None and user_id != current_user.id,
             "groups": admin and membership is not None and group_chats.enabled(db, org_id),
             "remove_helper": admin and role == "helper",
