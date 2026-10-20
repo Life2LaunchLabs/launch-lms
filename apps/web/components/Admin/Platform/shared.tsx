@@ -162,22 +162,20 @@ export function formatDateTime(value?: string | null): string {
 // Badges
 // ============================================================================
 
-const PLAN_STYLES: Record<string, string> = {
+const TIER_STYLES: Record<string, string> = {
   free: 'bg-gray-100 text-gray-600',
-  personal: 'bg-sky-50 text-sky-700',
-  standard: 'bg-blue-50 text-blue-700',
-  pro: 'bg-violet-50 text-violet-700',
+  full: 'bg-blue-50 text-blue-700',
   enterprise: 'bg-amber-50 text-amber-700',
 }
 
-export function PlanBadge({ plan }: { plan: string }) {
+export function TierBadge({ tier }: { tier: string }) {
   return (
     <span
       className={`inline-flex text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded ${
-        PLAN_STYLES[plan] || 'bg-gray-100 text-gray-600'
+        TIER_STYLES[tier] || 'bg-gray-100 text-gray-600'
       }`}
     >
-      {plan}
+      {tier}
     </span>
   )
 }

@@ -56,7 +56,7 @@ import { usePlansNavTabs } from '@components/Admin/Plans/usePlansNavTabs'
 import { getOrgLogoMediaDirectory } from '@services/media/media'
 import { cn } from '@/lib/utils'
 import { useFeatures } from '@components/Hooks/useFeatures'
-import { PLAN_LABELS } from '@services/plans/plans'
+import { tierLabel } from '@services/plans/plans'
 
 const TOOLTIP_CLASS = "z-tooltip bg-[#1a1a1b] border-white/10 text-white text-xs px-2 py-1 shadow-lg shadow-black/20"
 const COLLAPSED_KEY = 'dash-menu-collapsed'
@@ -138,7 +138,7 @@ function DashLeftMenu() {
               {logo}
               <div className="flex flex-col min-w-0">
                 <span className="font-semibold text-sm text-white truncate">{org.name}</span>
-                <span className="text-[9px] font-medium uppercase tracking-wider text-green-400">{PLAN_LABELS[features.plan] ?? features.plan}</span>
+                <span className="text-[9px] font-medium uppercase tracking-wider text-green-400">{tierLabel(features.tier)}</span>
               </div>
             </ExperienceSwitcher>
             <button

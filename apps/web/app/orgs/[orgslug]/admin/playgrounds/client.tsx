@@ -31,9 +31,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import AuthenticatedClientElement from '@components/Security/AuthenticatedClientElement'
-import PlanRestrictedFeature from '@components/Dashboard/Shared/PlanRestricted/PlanRestrictedFeature'
+import FeatureGate from '@components/Dashboard/Shared/FeatureGate/FeatureGate'
 import FeatureDisabledView from '@components/Dashboard/Shared/FeatureDisabled/FeatureDisabledView'
-import { usePlan } from '@components/Hooks/usePlan'
 
 interface PlaygroundsListClientProps {
   org_id: number
@@ -44,7 +43,6 @@ export default function PlaygroundsListClient({ org_id, orgslug }: PlaygroundsLi
   const org = useOrg() as any
   const session = useLHSession() as any
   const access_token = session?.data?.tokens?.access_token
-  const plan = usePlan()
   const router = useRouter()
 
   const [searchQuery, setSearchQuery] = useState('')
@@ -187,12 +185,7 @@ export default function PlaygroundsListClient({ org_id, orgslug }: PlaygroundsLi
   const hasSelection = selectedUuids.size > 0
 
   return (
-    <PlanRestrictedFeature
-      currentPlan={plan}
-      requiredPlan="enterprise"
-      titleKey="Playgrounds"
-      descriptionKey="Create interactive AI-generated experiences for your learners."
-    >
+    <FeatureGate feature="playgrounds" description="Create interactive AI-generated experiences for your learners.">
       <FeatureDisabledView featureName="playgrounds" orgslug={orgslug} context="dashboard">
         <div className="h-full w-full bg-[#f8f8f8] pl-10 pr-10">
 
@@ -459,7 +452,7 @@ export default function PlaygroundsListClient({ org_id, orgslug }: PlaygroundsLi
           </div>
         </div>
       )}
-    </PlanRestrictedFeature>
+    </FeatureGate>
   )
 }
 

@@ -42,7 +42,7 @@ function OrgUsers() {
   const session = useLHSession() as any
   const access_token = session?.data?.tokens?.access_token;
   const features = useFeatures()
-  const hasUserGroups = features.planAtLeast('full') && features.has('usergroups')
+  const hasUserGroups = features.has('groups')
   const messageCounts = useMessageCounts(hasUserGroups ? Number(org?.id) : 0, access_token)
 
   const [page, setPage] = useState(1)

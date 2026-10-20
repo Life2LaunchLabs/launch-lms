@@ -49,7 +49,7 @@ export function Chip({ tone = 'gray', children }: { tone?: 'gray' | 'blue' | 'am
   return <span className={cn('inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-1', tones[tone])}>{children}</span>
 }
 
-/** A widget the org's plan or packages don't include, with the request that unlocks it. */
+/** A widget the org's access doesn't include, with the request that unlocks it. */
 export function LockedWidget({ title, description, request }: { title: string; description: string; request: AccessRequest }) {
   return (
     <WidgetCard title={title}>

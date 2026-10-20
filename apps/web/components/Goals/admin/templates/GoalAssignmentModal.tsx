@@ -7,12 +7,11 @@ import { Layers3, Loader2, Mail, Plus, Send, User, Users } from 'lucide-react'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
-import { usePlan } from '@components/Hooks/usePlan'
+import { useFeatures } from '@components/Hooks/useFeatures'
 import { getAPIUrl } from '@services/config/config'
 import { isGoalsKey } from '@services/goals/goals'
 import { isTemplatesKey, templateKeys, templatesApi, type GoalAssignmentRequest } from '@services/goals/templates'
 import type { GoalTemplate } from '@services/goals/types'
-import { planMeetsRequirement } from '@services/plans/plans'
 import { swrFetcher } from '@services/utils/ts/requests'
 import { cn } from '@/lib/utils'
 import { Count, Empty, Loading, PickerRow, PickerSection, ScheduleStep, SearchInput, StepNumber, canStaff, defaultSchedule, memberOf, personName, scheduleProblem, today, type Membership, type StageDate, type StepRule } from './AssignmentParts'
@@ -35,7 +34,7 @@ export default function GoalAssignmentModal({ trigger, initialTemplateUuid = '',
   const session = useLHSession() as { data?: { tokens?: { access_token?: string }; user?: { id?: number } } }
   const token = session?.data?.tokens?.access_token
   const orgId = Number(org?.id)
-  const canUseGroups = planMeetsRequirement(usePlan(), 'full')
+  const canUseGroups = useFeatures().has('groups')
   const currentUserId = Number(session?.data?.user?.id || 0)
   const initialTargets = React.useCallback(() => [...initialUserIds.map((id) => ({ type: 'user' as const, id })), ...(canUseGroups ? initialGroupIds.map((id) => ({ type: 'group' as const, id })) : [])], [canUseGroups, initialGroupIds, initialUserIds])
   const [open, setOpen] = React.useState(false)

@@ -139,7 +139,7 @@ export default function ResourcesDashClient({ orgslug }: { orgslug: string }) {
   const channels = data?.channels || []
 
   return (
-    <FeatureDisabledView featureName="resources" orgslug={orgslug} context="dashboard">
+    <FeatureDisabledView featureName="resource_publishing" orgslug={orgslug} context="dashboard">
       <div className="h-full w-full bg-[#f8f8f8]">
         <AdminFeatureHeader
           feature="Resources"

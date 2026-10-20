@@ -181,26 +181,22 @@ export async function updatePlatformOrgSettings(
   return getResponseMetadata(result)
 }
 
-export async function updatePlatformOrgPlan(
-  org_id: number,
-  plan: string,
-  access_token: string
-) {
-  const result = await fetch(
-    `${getAPIUrl()}superadmin/organizations/${org_id}/plan`,
-    RequestBodyWithAuthHeader('PUT', { plan }, null, access_token)
-  )
-  return getResponseMetadata(result)
+export type PlatformOrgAccessUpdate = {
+  tier?: string
+  partners?: string[]
+  /** {"payments": {"enabled": true}, "learners": {"extra": 40}} */
+  grants?: Record<string, { enabled?: boolean; extra?: number }>
 }
 
-export async function updatePlatformOrgPackages(
+/** Set an org's tier, partner programs or grants directly; fields left out are kept. */
+export async function updatePlatformOrgAccess(
   org_id: number,
-  packages: string[],
+  update: PlatformOrgAccessUpdate,
   access_token: string
 ) {
   const result = await fetch(
-    `${getAPIUrl()}superadmin/organizations/${org_id}/packages`,
-    RequestBodyWithAuthHeader('PUT', { packages }, null, access_token)
+    `${getAPIUrl()}superadmin/organizations/${org_id}/access`,
+    RequestBodyWithAuthHeader('PUT', update, null, access_token)
   )
   return getResponseMetadata(result)
 }

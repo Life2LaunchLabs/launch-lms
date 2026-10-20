@@ -8,6 +8,7 @@ import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { Card, OrgLogo, StatCard, UserAvatar, formatDate } from './shared'
 import { ArrowRight, Tray } from '@phosphor-icons/react'
+import { accessRequestLabel } from '@services/plans/plans'
 
 export default function PlatformOverview() {
   const session = useLHSession() as any
@@ -68,8 +69,7 @@ export default function PlatformOverview() {
                   <p className="text-sm text-gray-800 truncate">
                     <span className="font-medium">{req.org_name}</span>{' '}
                     requests{' '}
-                    {req.request_type === 'plan_upgrade' ? 'plan upgrade to' : 'package'}{' '}
-                    <span className="font-medium">{req.requested_value}</span>
+                    <span className="font-medium">{accessRequestLabel({ type: req.request_type, value: req.requested_value })}</span>
                   </p>
                   {req.message && (
                     <p className="text-xs text-gray-400 truncate">{req.message}</p>

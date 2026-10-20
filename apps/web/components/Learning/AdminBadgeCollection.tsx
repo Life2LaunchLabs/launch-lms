@@ -284,7 +284,7 @@ export function EditableDetailHeader({
 function CollectionBadges({ orgslug, orgId, collection, canEdit }: { orgslug: string; orgId: number; collection: any; canEdit: boolean }) {
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
-  const canCreateBadges = useFeatures().has('marketplace_publishing')
+  const canCreateBadges = useFeatures().has('badge_publishing')
   const [search, setSearch] = React.useState('')
   const [modalOpen, setModalOpen] = React.useState(false)
   const [name, setName] = React.useState('')

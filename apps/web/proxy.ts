@@ -151,14 +151,8 @@ async function getOrgSubdomainAccess(orgSlug: string): Promise<OrgSubdomainAcces
 
     if (res.ok) {
       const data = await res.json()
-      const config = data?.config?.config ?? {}
-      const resolved = config?.resolved_features?.custom_domains
-      const access = {
-        user_site_enabled:
-          typeof resolved?.enabled === 'boolean'
-            ? resolved.enabled
-            : config?.cloud?.custom_domain === true,
-      }
+      // Custom domains are switched off, so no org has its own user site for now.
+      const access = { user_site_enabled: data?.config?.config?.access?.features?.custom_domains?.enabled === true }
       orgAccessCache.set(orgSlug, { data: access, ts: Date.now() })
       return access
     }

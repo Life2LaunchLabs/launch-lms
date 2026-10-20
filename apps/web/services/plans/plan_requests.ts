@@ -1,6 +1,6 @@
 import { getAPIUrl } from '@services/config/config'
 
-export type PlanRequestType = 'plan_upgrade' | 'package_add'
+export type PlanRequestType = 'tier_upgrade' | 'partner_application' | 'feature_request'
 export type PlanRequestStatus = 'pending' | 'approved' | 'denied'
 
 export interface PlanRequest {
