@@ -24,7 +24,8 @@ from uuid import uuid4
 from sqlalchemy import or_
 from sqlmodel import Session, select
 
-from src.db.goals import CoachNote, CoachNoteStatus, Goal, GoalOwnership, GoalStatus
+from src.db.coach_notes import CoachNote, CoachNoteStatus
+from src.db.goals import Goal, GoalOwnership, GoalStatus
 from src.services.goals.check_in_signals import FIRST_CHECK_IN, signals  # noqa: F401 (FIRST_CHECK_IN is used by goal creation and the dev route)
 from src.services.goals.home_week import goal_entries
 

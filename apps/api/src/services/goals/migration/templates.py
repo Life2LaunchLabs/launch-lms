@@ -15,7 +15,7 @@ from datetime import date, datetime
 
 from sqlmodel import Session, func, select
 
-from src.db.goals import GoalAssignment, GoalTemplate, GoalTemplateVersion, TemplateStatus
+from src.db.goals import AssignmentStatus, GoalAssignment, GoalTemplate, GoalTemplateVersion, TemplateStatus
 from src.db.learning import LearningActivity
 from src.db.programs import FrozenActivity, Program, ProgramAssignment, ProgramTemplateVersion
 from src.services.goals import templates as template_service
@@ -196,7 +196,7 @@ def migrate_assignment(db: Session, assignment: ProgramAssignment, maps: Templat
         welcome_message=assignment.welcome_message or "", staff_user_ids=list(assignment.staff_user_ids or []),
         start_date=_date(assignment.start_date), due_date=_date(assignment.due_date), stage_dates=_stage_dates(assignment.schedule),
         step_dates=_step_dates(assignment.schedule), collaborators=[dict(item) for item in assignment.collaborators or [] if item.get("user_id")],
-        active=assignment.active, owner_user_id=assignment.owner_user_id, created_by_user_id=assignment.created_by_user_id,
+        status=AssignmentStatus.ACTIVE if assignment.active else AssignmentStatus.ENDED, owner_user_id=assignment.owner_user_id, created_by_user_id=assignment.created_by_user_id,
         creation_date=assignment.creation_date, update_date=assignment.update_date,
     )
     db.add(row)

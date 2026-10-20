@@ -5,12 +5,13 @@ from sqlmodel import Session, select
 
 from src.core.events.database import get_db_session
 from src.db.goal_admin import StaffNote, StepConfirmMany, StepDecision, StepProgressBulk
+from src.db.goal_templates import GoalAssignmentUpdate, StepRemind, StepSettle
 from src.db.goals import GoalAssignment
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
 from src.security.features_utils.plan_check import get_org_plan
 from src.security.features_utils.plans import plan_meets_requirement
-from src.services.goals import review, staff_views
+from src.services.goals import assignment_steps, assignments, review, staff_views
 
 router = APIRouter()
 GROUPS_NEED = "Group goal assignments require a Full plan or higher"
@@ -67,6 +68,44 @@ def api_assignments(org_id: int, db: Session = Depends(get_db_session), user: Pu
 @router.post("/assignments/progress")
 def api_assignment_progress(org_id: int, payload: StepProgressBulk, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
     return staff_views.update_progress(db, user, org_id, payload)
+
+
+@router.patch("/assignments/{assignment_uuid}")
+def api_assignment_update(assignment_uuid: str, org_id: int, payload: GoalAssignmentUpdate, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    _require_assignment_plan(org_id, assignment_uuid, db)
+    return assignments.update(db, user, org_id, assignment_uuid, payload)
+
+
+@router.post("/assignments/{assignment_uuid}/pause")
+def api_assignment_pause(assignment_uuid: str, org_id: int, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    _require_assignment_plan(org_id, assignment_uuid, db)
+    return assignments.pause(db, user, org_id, assignment_uuid)
+
+
+@router.post("/assignments/{assignment_uuid}/resume")
+def api_assignment_resume(assignment_uuid: str, org_id: int, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    _require_assignment_plan(org_id, assignment_uuid, db)
+    return assignments.resume(db, user, org_id, assignment_uuid)
+
+
+@router.post("/assignments/{assignment_uuid}/end")
+def api_assignment_end(assignment_uuid: str, org_id: int, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    _require_assignment_plan(org_id, assignment_uuid, db)
+    return assignments.end(db, user, org_id, assignment_uuid)
+
+
+@router.post("/assignments/{assignment_uuid}/steps/{step_key}/remind")
+def api_assignment_step_remind(assignment_uuid: str, step_key: str, org_id: int, payload: StepRemind,
+                               db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    _require_assignment_plan(org_id, assignment_uuid, db)
+    return assignment_steps.remind(db, user, org_id, assignment_uuid, step_key, payload)
+
+
+@router.post("/assignments/{assignment_uuid}/steps/{step_key}/settle")
+def api_assignment_step_settle(assignment_uuid: str, step_key: str, org_id: int, payload: StepSettle,
+                               db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    _require_assignment_plan(org_id, assignment_uuid, db)
+    return assignment_steps.settle(db, user, org_id, assignment_uuid, step_key, payload)
 
 
 @router.get("/assignments/{assignment_uuid}/matrix")

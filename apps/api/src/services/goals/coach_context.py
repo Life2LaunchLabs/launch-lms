@@ -153,7 +153,7 @@ def group_facts(db: Session, assignment: GoalAssignment) -> tuple[dict, dict]:
         "goal_id": f"group:{assignment.assignment_uuid}", "title": title[:200],
         "template": ((document.get("template") or {}).get("title") or (template.title if template else ""))[:200],
         "description": str((document.get("template") or {}).get("description") or "")[:1600],
-        "due_date": str(assignment.due_date or ""), "status": "active" if assignment.active else "completed", "learner_count": len(goals),
+        "due_date": str(assignment.due_date or ""), "status": "completed" if getattr(assignment.status, "value", assignment.status) == "ended" else "active", "learner_count": len(goals),
         "steps": [
             {"id": step.get("key"), "type": step.get("type"), "title": str(step.get("title") or "Step")[:200],
              "description": str(step.get("description") or "")[:1200], "stage": str(stage.get("title") or "")[:200],

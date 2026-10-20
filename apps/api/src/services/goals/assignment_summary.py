@@ -16,6 +16,11 @@ def _value(item) -> str:
     return getattr(item, "value", item)
 
 
+def status_fields(assignment: GoalAssignment) -> dict:
+    """Where an assignment stands: active, paused or ended, and since when."""
+    return {"status": _value(assignment.status), "paused_at": assignment.paused_at, "ended_at": assignment.ended_at}
+
+
 def collaborators_of(assignment: GoalAssignment) -> list[dict]:
     return list(assignment.collaborators or []) or [{"user_id": user_id, "role_key": None} for user_id in assignment.staff_user_ids or []]
 
@@ -66,7 +71,7 @@ def assignment_dict(db: Session, assignment: GoalAssignment) -> dict:
             "stages": [{"stage_key": key, **value} for key, value in (assignment.stage_dates or {}).items()],
             "steps": [{"step_key": key, **value} for key, value in (assignment.step_dates or {}).items()],
         },
-        "start_date": assignment.start_date, "due_date": assignment.due_date, "active": assignment.active, "creation_date": assignment.creation_date,
+        "start_date": assignment.start_date, "due_date": assignment.due_date, **status_fields(assignment), "creation_date": assignment.creation_date,
         "cohort": {"id": group.id, "uuid": group.usergroup_uuid, "name": group.name} if group else None,
         "user": _person(db.get(User, assignment.user_id) if assignment.user_id else None),
         "assignment_type": "group" if group else ("external" if external else "individual"),

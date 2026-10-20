@@ -39,6 +39,13 @@ def current_index(stages: list[GoalStage], today: date | None = None) -> int | N
     return max((index for index, stage in enumerate(stages) if stage.start_date and stage.start_date <= today), default=0)
 
 
+def started_stage_ids(stages: list[GoalStage], today: date | None = None) -> set[int]:
+    """The stages the goal has reached: the one it's on and every stage before it."""
+    order = ordered(stages)
+    current = current_index(order, today)
+    return {int(stage.id) for index, stage in enumerate(order) if current is not None and index <= current}  # type: ignore[arg-type]
+
+
 def current_stage(stages: list[GoalStage], today: date | None = None) -> str | None:
     """The uuid of the stage the goal is on now, or None when it has no stages."""
     order = ordered(stages)
