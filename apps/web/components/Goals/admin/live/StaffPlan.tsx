@@ -43,7 +43,7 @@ export default function StaffPlan({ orgslug, goalUuid }: { orgslug: string; goal
   </main>
 
   const subject = goal.subject
-  const learnerPage = subject?.username ? routePaths.org.admin.people.userPage(subject.username, 'plans') : routePaths.org.admin.assignments()
+  const learnerPage = subject?.username ? routePaths.org.admin.people.user(subject.username) : routePaths.org.admin.assignments()
   const back = () => router.push(getUriWithOrg(orgslug, learnerPage))
   // Staff see someone else's plan: the card says whose it is, not "Your goal".
   const viewerId = session?.data?.user?.id

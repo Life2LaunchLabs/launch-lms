@@ -114,7 +114,7 @@ export interface ChatMessage {
 
 export interface ChatSummary {
   conversation_uuid: string
-  /** school: a learner and an organization's people on their plans, named after it. goal: a personal plan's people. cohort: an assignment's staff, or its whole group. */
+  /** school: a learner and an organization's people on their plans, named after it. goal: a plan's own people. group: a group and its staff. cohort: an assignment's staff, or its whole group. */
   kind: 'direct' | 'group' | 'school' | 'goal' | 'cohort'
   title: string
   people: PersonSummary[]
@@ -159,6 +159,8 @@ export interface Chat extends ChatSummary {
   has_more: boolean
   /** Whether you write here; people who can only view a plan read along. */
   can_post: boolean
+  /** Why the organization's messaging policy keeps you from writing here, if it does. */
+  policy_block?: string | null
   topics: ChatTopic[]
 }
 

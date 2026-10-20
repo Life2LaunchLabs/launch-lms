@@ -125,7 +125,7 @@ function useGoalScopeChat(goal: Goal | null, token: string | undefined, orgslug:
       : staffOrgId && subject?.id && goal.ownership === 'external' && data.title ? { orgId: staffOrgId, userId: subject.id } : null
     if (!source) return null
     const elsewhere = 'chatUuid' in source ? { href: getUriWithOrg(orgslug, routePaths.org.chat(source.chatUuid)), label: 'Open in Connect' }
-      : subject?.username ? { href: getUriWithOrg(orgslug, routePaths.org.admin.people.userPage(subject.username, 'messages')), label: `All messages with ${subject.name}` } : null
+      : subject?.username ? { href: getUriWithOrg(orgslug, routePaths.org.admin.people.user(subject.username)), label: `See ${subject.name} in People` } : null
     const staffNotes = staffOrgId && subject?.id && goal.ownership === 'external' ? { orgId: staffOrgId, userId: subject.id } : undefined
     return { key: goal.goal_uuid, chat: data, source, about: goal.title, topicUuid: goal.goal_uuid, elsewhere, staffNotes }
   }, [goal, data, staffOrgId, orgslug])

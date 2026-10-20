@@ -207,12 +207,26 @@ def messages_of(db: Session, conversation: Conversation, viewer_id: int, before:
     }
 
 
+def policy_block(db: Session, conversation: Conversation, user_id: int) -> str | None:
+    """Why the organization's messaging policy keeps this person from writing here, or None."""
+    from src.services.school import group_chats, messaging
+
+    if conversation.kind == "direct":
+        others = [item.user_id for item in _members(db, conversation) if item.user_id != user_id]
+        return next((reason for reason in (messaging.direct_block(db, user_id, other) for other in others) if reason), None)
+    if conversation.kind == group_chats.GROUP:
+        return None if group_chats.enabled(db, int(conversation.org_id or 0)) else group_chats.DISABLED
+    return messaging.feed_block_message(db, conversation) if messaging.feed_block(db, conversation) else None
+
+
 def get_chat(db: Session, current_user: PublicUser, conversation_uuid: str, before: str | None = None, goal_uuid: str | None = None, step_uuid: str | None = None) -> dict:
     from src.services.connect import workspace
 
     conversation, member = _membership(db, conversation_uuid, current_user.id)
+    blocked_by = policy_block(db, conversation, current_user.id)
     return {
-        **_chat_dict(db, conversation, member), "can_post": workspace.can_post(db, conversation, current_user.id),
+        **_chat_dict(db, conversation, member), "can_post": workspace.can_post(db, conversation, current_user.id) and not blocked_by,
+        "policy_block": blocked_by,
         **messages_of(db, conversation, current_user.id, before, goal_uuid, step_uuid),
     }
 
@@ -227,13 +241,17 @@ def open_direct(db: Session, current_user: PublicUser, payload: DirectChatOpen) 
         raise HTTPException(status_code=409, detail=f"You blocked @{target.username}. Unblock them to chat.")
     if people.blocked(db, current_user.id, target_id):
         raise HTTPException(status_code=404, detail="No one goes by that handle")
-    from src.services.school import chats as school_chats
+    from src.services.school import chats as school_chats, messaging
 
-    school = school_chats.for_pair(db, current_user.id, target_id)
-    if school:
-        # Staff and their students talk in the student's school chat, never one to one.
+    found = school_chats.relation(db, current_user.id, target_id)
+    if found:
+        # Staff and their own students talk in the student's chat with the organization, as before the policy.
+        school = school_chats.school_chat(db, *found)
         db.commit()
         return get_chat(db, current_user, school.conversation_uuid)
+    reason = messaging.direct_block(db, current_user.id, target_id)
+    if reason:
+        raise HTTPException(status_code=403, detail=reason)
     conversation = _direct(db, current_user.id, target_id)
     if not conversation:
         known = people.knows(db, current_user.id, target_id)
@@ -262,6 +280,9 @@ def send(db: Session, current_user: PublicUser, conversation_uuid: str, body: st
         raise HTTPException(status_code=409, detail="Accept the request to reply")
     if member.status != "active":
         raise HTTPException(status_code=403, detail=UNAVAILABLE)
+    blocked_by = policy_block(db, conversation, current_user.id)
+    if blocked_by:
+        raise HTTPException(status_code=403, detail=blocked_by)
     others = [item for item in _members(db, conversation) if item.user_id != current_user.id]
     if conversation.kind == "direct":
         if any(people.blocked(db, current_user.id, item.user_id) for item in others):

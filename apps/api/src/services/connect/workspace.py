@@ -27,7 +27,7 @@ from src.db.users import PublicUser, User
 from src.services.connect import chats, cohort, people
 from src.services.goals import access
 from src.services.goals.sharing_roles import _stamp, org_summary
-from src.services.school import chats as school_chats
+from src.services.school import chats as school_chats, roles
 
 GOAL = "goal"
 KINDS = (school_chats.SCHOOL, GOAL)
@@ -75,7 +75,8 @@ def plan_people(db: Session, org_id: int, student_id: int) -> set[int]:
         col(PlanCollaborator.goal_id).in_([goal.id for goal in goals]), PlanCollaborator.active == True,  # noqa: E712
     )).all()
     commenters = {int(user_id) for user_id, key, granted in rows if key == "plan_admin" or "comment" in access.normalized(granted)}
-    return (commenters | {int(goal.owner_user_id) for goal in goals}) - {student_id}
+    # Only the organization's staff: helpers the learner brought in talk in that plan's own chat (see helper_chat).
+    return ((commenters | {int(goal.owner_user_id) for goal in goals}) & roles.staff_ids(db, org_id)) - {student_id}
 
 
 def _goal_people(db: Session, goal: Goal) -> set[int]:
@@ -116,11 +117,29 @@ def _goal_chat(db: Session, goal: Goal, create: bool) -> Conversation | None:
     return conversation
 
 
-def chat_for_goal(db: Session, goal: Goal, create: bool = True) -> Conversation | None:
-    """The chat a plan talks in, with its people brought up to date. None while nobody else is on it."""
+def helpers_on(db: Session, goal: Goal) -> set[int]:
+    """People a learner brought onto a plan an organization gave them, such as a parent: not its staff."""
+    return roles.helper_ids(db, int(goal.org_id), [int(goal.id)]) if _external(goal) else set()  # type: ignore[arg-type]
+
+
+def helper_chat(db: Session, goal: Goal, create: bool = True) -> Conversation | None:
+    """The plan's own chat, for an organization's plan with helpers on it: the learner, the helpers and the plan's staff.
+
+    Helpers only ever talk here, so they never see the learner's other plans or their chat with the organization.
+    """
+    return _goal_chat(db, goal, create and bool(helpers_on(db, goal)))
+
+
+def chat_for_goal(db: Session, goal: Goal, create: bool = True, viewer_id: int | None = None) -> Conversation | None:
+    """The chat a plan talks in, with its people brought up to date. None while nobody else is on it.
+
+    A helper on an organization's plan gets that plan's own chat; everyone else gets the learner's chat with the organization.
+    """
     if _external(goal):
         if _value(goal.status) not in LIVE:
             return None
+        if viewer_id is not None and viewer_id in helpers_on(db, goal):
+            return helper_chat(db, goal, create)
         conversation = school_chats.school_chat(db, int(goal.org_id), int(goal.subject_user_id)) if create else school_chats.find(db, int(goal.org_id), int(goal.subject_user_id))  # type: ignore[arg-type]
     else:
         conversation = _goal_chat(db, goal, create)
@@ -146,6 +165,7 @@ def sync_goal(db: Session, goal: Goal) -> None:
     if _external(goal):
         if school_chats.find(db, int(goal.org_id), int(goal.subject_user_id)) or _value(goal.status) in LIVE:  # type: ignore[arg-type]
             school_chats.school_chat(db, int(goal.org_id), int(goal.subject_user_id))  # type: ignore[arg-type]
+        helper_chat(db, goal, create=False)
     else:
         _goal_chat(db, goal, create=False)
 
@@ -360,7 +380,7 @@ def goal_chat(db: Session, current_user: PublicUser, goal_uuid: str) -> dict:
     """Where a plan talks, for its chat button: the chat, or nothing yet while nobody else is on it."""
     goal = access.goal_or_404(db, goal_uuid)
     access.require(db, goal, current_user.id, "view_plan")
-    conversation = chat_for_goal(db, goal)
+    conversation = chat_for_goal(db, goal, viewer_id=current_user.id)
     db.commit()
     member = db.exec(select(ConversationMember).where(ConversationMember.conversation_id == conversation.id, ConversationMember.user_id == current_user.id)).first() if conversation else None
     topic = next((item for item in topics(db, conversation) if item["goal_uuid"] == goal_uuid), None) if conversation else None

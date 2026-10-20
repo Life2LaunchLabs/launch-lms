@@ -52,7 +52,7 @@ export default function GroupRequirementsGrid({ orgslug, orgId, token, groupId }
     const cells = rows.flatMap((learner) => leaves.map((leaf) => learner.cells?.[leaf.node_uuid]).filter(Boolean))
     return cells.length ? Math.round(cells.filter((cell) => cell === 'met').length * 100 / cells.length) : 0
   }
-  const learnerHref = (learner: Learner) => getUriWithOrg(orgslug, routePaths.org.admin.people.userPage(learner.username || '', 'requirements'))
+  const learnerHref = (learner: Learner) => getUriWithOrg(orgslug, routePaths.org.admin.people.user(learner.username || ''))
 
   return <div className="space-y-3">
     <div className="flex flex-wrap items-center gap-3">

@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from uuid import uuid4
 
 from fastapi import HTTPException
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from src.db.goals import Goal, GoalStatus
 from src.db.messages import InboxMessage
@@ -81,7 +81,8 @@ def _recipient(db: Session, raw: str) -> tuple[str, User | None]:
     return value, db.exec(select(User).where(User.email == value)).first() or db.exec(select(User).where(User.email == value.lower())).first()
 
 
-def create_invitation(db: Session, current_user: PublicUser, goal_uuid: str, payload: PlanInvitationCreate) -> dict:
+def create_invitation(db: Session, current_user: PublicUser, goal_uuid: str, payload: PlanInvitationCreate, requested_by: int | None = None) -> dict:
+    """Invite someone onto a goal. ``requested_by`` is who asked for them, when this answers a collaborator request."""
     goal = access.goal_or_404(db, goal_uuid)
     access.require(db, goal, current_user.id, "manage_collaborators")
     if payload.kind == PlanInvitationKind.SUBJECT and goal.subject_user_id:
@@ -94,19 +95,26 @@ def create_invitation(db: Session, current_user: PublicUser, goal_uuid: str, pay
     normalized = email.lower()
     if target and (target.id == goal.owner_user_id or access.membership(db, goal, int(target.id))):  # type: ignore[arg-type]
         raise HTTPException(status_code=409, detail="This person is already a collaborator")
-    if db.exec(select(PlanInvitation).where(PlanInvitation.goal_id == goal.id, PlanInvitation.email_normalized == normalized, PlanInvitation.status == PlanInvitationStatus.PENDING)).first():
+    waiting = (PlanInvitationStatus.PENDING.value, PlanInvitationStatus.AWAITING_APPROVAL.value)
+    if db.exec(select(PlanInvitation).where(PlanInvitation.goal_id == goal.id, PlanInvitation.email_normalized == normalized, col(PlanInvitation.status).in_(waiting))).first():
         raise HTTPException(status_code=409, detail="This person already has an invitation waiting")
+    from src.services.goals import helper_requests
+
+    held = payload.kind == PlanInvitationKind.COLLABORATOR and helper_requests.needs_approval(db, goal, current_user.id, requested_by)
     now = _stamp()
     invitation = PlanInvitation(
         invitation_uuid=f"plan_invitation_{uuid4()}", goal_id=goal.id, kind=payload.kind, email=email, email_normalized=normalized,
         target_user_id=target.id if target else None, role_id=int(role.id), invited_by_user_id=current_user.id,  # type: ignore[arg-type]
+        status=PlanInvitationStatus.AWAITING_APPROVAL if held else PlanInvitationStatus.PENDING,
         expires_at=_now() + timedelta(days=30), creation_date=now, update_date=now,
     )
     db.add(invitation)
-    _invitation_message(db, goal, invitation, role.name)
-    access.log(db, goal, current_user.id, "invitation.created", {"kind": _value(payload.kind), "role_key": role.key})
+    if not held:
+        # A helper waiting on an admin hears nothing until they approve.
+        _invitation_message(db, goal, invitation, role.name)
+    access.log(db, goal, current_user.id, "invitation.created", {"kind": _value(payload.kind), "role_key": role.key, **({"awaiting_approval": True} if held else {})})
     db.commit()
-    return {"invitation_uuid": invitation.invitation_uuid, "status": "pending", "email": _invitation_label(db, invitation), "kind": _value(payload.kind), "role": role.name}
+    return {"invitation_uuid": invitation.invitation_uuid, "status": _value(invitation.status), "email": _invitation_label(db, invitation), "kind": _value(payload.kind), "role": role.name}
 
 
 def _resolve_messages(db: Session, invitation: PlanInvitation, status: str) -> None:
@@ -127,7 +135,7 @@ def revoke_invitation(db: Session, current_user: PublicUser, goal_uuid: str, inv
     invitation = db.exec(select(PlanInvitation).where(PlanInvitation.goal_id == goal.id, PlanInvitation.invitation_uuid == invitation_uuid)).first()
     if not invitation:
         raise HTTPException(status_code=404, detail="Invitation not found")
-    if _value(invitation.status) != PlanInvitationStatus.PENDING.value:
+    if _value(invitation.status) not in (PlanInvitationStatus.PENDING.value, PlanInvitationStatus.AWAITING_APPROVAL.value):
         raise HTTPException(status_code=409, detail="This invitation was already answered")
     invitation.status = PlanInvitationStatus.REVOKED
     invitation.update_date = _stamp()
@@ -254,7 +262,7 @@ def respond_to_collaborator_request(db: Session, current_user: PublicUser, goal_
     )).first()
     if not item:
         raise HTTPException(status_code=404, detail="Pending collaborator request not found")
-    invitation = create_invitation(db, current_user, goal_uuid, PlanInvitationCreate(email=item.email, role_key=item.role_key)) if approve else None
+    invitation = create_invitation(db, current_user, goal_uuid, PlanInvitationCreate(email=item.email, role_key=item.role_key), item.requested_by_user_id) if approve else None
     item.status = PlanCollaboratorRequestStatus.APPROVED if approve else PlanCollaboratorRequestStatus.DECLINED
     item.resolved_by_user_id = current_user.id
     item.responded_at = _now()

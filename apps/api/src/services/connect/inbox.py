@@ -16,6 +16,7 @@ from src.db.goals import Goal, GoalOwnership, GoalStatus
 from src.db.messages import InboxMessage
 from src.db.organizations import Organization
 from src.db.users import PublicUser
+from src.security.org_auth import is_org_member
 from src.services.connect import chats, people
 from src.services.connect.workspace import ORG_SOURCES, _value
 from src.services.school import chats as school_chats
@@ -31,9 +32,13 @@ def _stamp(value: datetime | str | None) -> str:
     return (value if value.tzinfo else value.replace(tzinfo=timezone.utc)).isoformat()
 
 
-def _where(db: Session, user_id: int, org_id: int | None, sender_id: int | None) -> Conversation | None:
-    """An organization's chat with you, or your chat with the person who sent it."""
-    if org_id:
+def _where(db: Session, user_id: int, org_id: int | None, sender_id: int | None, helper: bool = False) -> Conversation | None:
+    """An organization's chat with you, or your chat with the person who sent it.
+
+    Someone invited to help on a learner's plan isn't one of the organization's people, so their
+    invitation waits in their chat with whoever sent it, never in a chat with the organization.
+    """
+    if org_id and not helper:
         return school_chats.school_chat(db, org_id, user_id)
     if sender_id and sender_id != user_id:
         return chats.ensure_direct(db, sender_id, user_id)
@@ -61,22 +66,23 @@ def deliver(db: Session, current_user: PublicUser) -> None:
 
     _claim_email_messages(current_user, db)
     user_id = int(current_user.id)
-    wanted: dict[str, tuple[int | None, int | None, str, str, dict]] = {}
+    wanted: dict[str, tuple[int | None, int | None, str, str, dict, bool]] = {}
     for message in db.exec(select(InboxMessage).where(InboxMessage.recipient_user_id == user_id)).all():
         body, card = _inbox_card(message)
-        wanted[f"chat_message_inbox_{message.message_uuid}"] = (message.sender_org_id, message.sender_user_id, _stamp(message.created_at), body, card)
+        helper = message.action_kind == "goal_invitation" and bool(message.sender_org_id) and not is_org_member(user_id, int(message.sender_org_id), db)  # type: ignore[arg-type]
+        wanted[f"chat_message_inbox_{message.message_uuid}"] = (message.sender_org_id, message.sender_user_id, _stamp(message.created_at), body, card, helper)
     # A plan an organization assigned you waits for your yes in your chat with it.
     for goal in db.exec(select(Goal).where(
         Goal.subject_user_id == user_id, Goal.ownership == GoalOwnership.EXTERNAL.value, col(Goal.source).in_(ORG_SOURCES), Goal.status == GoalStatus.PENDING.value,
     )).all():
         body, card = _goal_card(db, goal)
-        wanted[f"chat_message_invite_{goal.goal_uuid}_{user_id}"] = (goal.org_id, None, _stamp(goal.creation_date), body, card)
+        wanted[f"chat_message_invite_{goal.goal_uuid}_{user_id}"] = (goal.org_id, None, _stamp(goal.creation_date), body, card, False)
     if not wanted:
         return
     have = set(db.exec(select(ConversationMessage.message_uuid).where(col(ConversationMessage.message_uuid).in_(list(wanted)))).all())
     placed = False
-    for uuid, (org_id, sender_id, stamp, body, card) in wanted.items():
-        conversation = None if uuid in have else _where(db, user_id, org_id, sender_id)
+    for uuid, (org_id, sender_id, stamp, body, card, helper) in wanted.items():
+        conversation = None if uuid in have else _where(db, user_id, org_id, sender_id, helper)
         if not conversation:
             continue
         db.add(ConversationMessage(message_uuid=uuid, conversation_id=int(conversation.id), sender_user_id=sender_id, kind="card",  # type: ignore[arg-type]

@@ -51,7 +51,7 @@ test('requirements.export: assignment filters learners and downloads real review
 })
 
 test('requirements.export: group report keeps pending evidence and shows server failures', async ({ page }, testInfo) => {
-  await page.goto(`${groupPath}/requirements`)
+  await page.goto(`${groupPath}?view=requirements`)
   await assertActualApp(page)
   await page.getByRole('button', { name: 'Export evidence CSV for 2 filtered learners' }).click()
   const downloadPromise = page.waitForEvent('download')
@@ -75,7 +75,7 @@ test('requirements.long-codes: explorer and learner tree preserve readable code 
   test.setTimeout(60_000)
   for (const [path, prefix] of [
     [`/orgs/${fixture.org_slug}/admin/plans/requirements`, 'explorer'],
-    [`/orgs/${fixture.org_slug}/admin/users/user/${fixture.approved_username}/requirements`, 'learner'],
+    [`/orgs/${fixture.org_slug}/admin/users/user/${fixture.approved_username}`, 'learner'],
   ]) {
     await page.goto(path)
     await assertActualApp(page)
