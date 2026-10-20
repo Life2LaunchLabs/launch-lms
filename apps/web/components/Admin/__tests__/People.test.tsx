@@ -30,8 +30,8 @@ describe('People', () => {
   test('people and groups in the list open their own page', () => {
     const person = { key: 'person:2', kind: 'person', person: { id: 2, username: 'lee', name: 'Lee Arner' }, role: 'learner', group: null } as FeedRow
     const group = { key: 'group:1', kind: 'group', person: null, role: null, group: { id: 1, name: 'Fall', member_count: 2 } } as FeedRow
-    expect(rowHref('north', person)).toEndWith('/admin/users/user/lee')
-    expect(rowHref('north', group)).toEndWith('/admin/users/groups/1')
+    expect(rowHref('north', person).endsWith('/admin/users/user/lee')).toBe(true)
+    expect(rowHref('north', group).endsWith('/admin/users/groups/1')).toBe(true)
   })
 
   test('a turned-in step opens the review workspace at that step', () => {

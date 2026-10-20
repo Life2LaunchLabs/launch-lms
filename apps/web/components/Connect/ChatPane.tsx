@@ -83,8 +83,8 @@ export default function ChatPane({ orgslug, chatUuid, listHref: list, personHref
       empty={opened?.kind === 'direct' ? person ? <>Say hi to {person.name}. They&rsquo;ll see your first message as a request unless you already share a goal.</> : null
         : opened ? <>Nothing here yet. Say hi to {opened.title || 'the group'}: everyone in this chat sees what you send.</> : null}
       header={(chat, mutate) => chat ? <>
-        {/* Bare, a direct chat keeps its options, floating at the top corner of the messages. */}
-        {bare ? chat.kind === 'direct' ? <div className="relative h-0"><div className="absolute right-2 top-1 z-10"><ChatOptions onSheet={setSheet} /></div></div> : null : <ChatHeader chat={chat} orgslug={orgslug} listHref={listHref} onSheet={setSheet} personHref={personHref} actions={actions} />}
+        {/* Bare, a direct chat keeps its options in a slim row above the messages. */}
+        {bare ? chat.kind === 'direct' ? <div className="flex shrink-0 justify-end px-2 pt-1 sm:px-4"><ChatOptions onSheet={setSheet} /></div> : null : <ChatHeader chat={chat} orgslug={orgslug} listHref={listHref} onSheet={setSheet} personHref={personHref} actions={actions} />}
         {chat.status === 'request' ? <div className="border-b border-border bg-background/60 px-4 py-3">
           <p className="text-sm"><b>{chat.people[0]?.name || 'Someone'}</b> wants to chat. Links stay off until you accept, and they won&rsquo;t know you&rsquo;ve seen this.</p>
           <div className="mt-3 flex flex-wrap gap-2">
