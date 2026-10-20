@@ -19,7 +19,7 @@ import TagComposer, { type TagComposerHandle, type TagOrg } from './TagComposer'
 import { CardMessage } from './ChatCards'
 import ShareSheet from './ShareSheet'
 import { MessageText, StepMark } from './tags'
-import { ComposeModeToggle, feedEntries, NoteComposer, NoteEntry, useStaffNotes, type ComposeMode, type StaffNotesTarget } from './staffNotes'
+import { ComposeModeToggle, feedEntries, NoteComposer, NoteEntry, useStaffNotes, withTimeline, type ComposeMode, type StaffNotesTarget, type TimelineItem } from './staffNotes'
 
 const CHAT_REFRESH_MS = 5_000
 
@@ -28,6 +28,8 @@ const CHAT_REFRESH_MS = 5_000
  * assignment's chat says who reads it: its staff alone, or the whole group.
  */
 export type ChatSource = ({ chatUuid: string } | { orgId: number; userId: number }) & { audience?: ChatAudience }
+
+export type { TimelineItem }
 
 const AUDIENCE: Record<ChatAudience, { icon: React.ElementType; text: string }> = {
   staff: { icon: Lock, text: 'Staff only · learners never see this' },
@@ -46,7 +48,7 @@ function useWorkspaceChat(source: ChatSource, filter: ChatFilter, token?: string
  * write while filtered is about that plan or step without a tag saying so. A step's comments are
  * this chat filtered to the step, wherever it's opened from.
  */
-export default function ChatWorkspace({ source, orgslug, token, initialFilter = {}, header, blocked, empty, stepHref, steps, onOpenPlan, onChat, staffNotes }: {
+export default function ChatWorkspace({ source, orgslug, token, initialFilter = {}, header, blocked, empty, stepHref, steps, onOpenPlan, onChat, staffNotes, timeline }: {
   source: ChatSource
   orgslug: string
   token?: string
@@ -70,6 +72,8 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
   onChat?: (chat: Chat) => void
   /** Staff on a learner's feed: their notes about the learner show between the messages, and the composer can write one. */
   staffNotes?: StaffNotesTarget
+  /** Cards between the messages, by time, in the unfiltered feed. */
+  timeline?: TimelineItem[]
 }) {
   const [filter, setFilter] = React.useState<ChatFilter>(initialFilter)
   const { data: chat, error, mutate } = useWorkspaceChat(source, filter, token)
@@ -92,9 +96,11 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
   const shownNotes = notes.available && !filter.goal_uuid ? notes.notes : []
   const noting = notes.available && mode === 'note'
 
+  const shownTimeline = React.useMemo(() => filter.goal_uuid ? [] : timeline || [], [filter.goal_uuid, timeline])
   const lastStamp = chat?.messages.at(-1)?.update_date
   const lastNote = shownNotes.at(-1)?.note_uuid
-  React.useEffect(() => { scroller.current?.scrollTo({ top: scroller.current.scrollHeight }) }, [lastStamp, lastNote, filter.goal_uuid, filter.step_uuid])
+  const cards = shownTimeline.map((item) => item.key).join()
+  React.useEffect(() => { scroller.current?.scrollTo({ top: scroller.current.scrollHeight }) }, [lastStamp, lastNote, cards, filter.goal_uuid, filter.step_uuid])
   React.useEffect(() => { if (chat) onChat?.(chat) }, [chat, onChat])
   // Reading the chat clears its unread count, but a request stays unanswered until accepted.
   const unread = chat?.unread || 0
@@ -155,14 +161,15 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
     <div ref={scroller} className="scrollbar-subtle min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-4 sm:px-6">
       {error ? <p className="m-auto max-w-xs pt-16 text-center text-sm text-muted-foreground">This chat didn&rsquo;t load.</p>
         : !chat ? null
-        : chat.messages.length || shownNotes.length ? <ol className="mx-auto flex w-full max-w-[46rem] flex-col gap-1.5 pb-4">
-          {feedEntries(chat.messages, shownNotes).map((entry, position, entries) => {
+        : chat.messages.length || shownNotes.length || shownTimeline.length ? <ol className="mx-auto flex w-full max-w-[46rem] flex-col gap-1.5 pb-4">
+          {withTimeline(feedEntries(chat.messages, shownNotes), shownTimeline).map((entry, position, entries) => {
+            if (entry.kind === 'card') return <li key={entry.item.key} className="my-2">{entry.item.node}</li>
             if (entry.kind === 'note') return <NoteEntry key={entry.note.note_uuid} note={entry.note} onRemove={notes.remove} />
             const { message } = entry
             const before = entries[position - 1]
             return <Message key={message.message_uuid} message={message} orgslug={orgslug} token={token} links={chat.accepted} names={names}
               topics={topics} filter={filter} onTag={openTag} onAnswered={answered}
-              first={!before || before.kind === 'note' || before.message.sender?.id !== message.sender?.id || before.message.kind === 'card'} />
+              first={!before || before.kind !== 'message' || before.message.sender?.id !== message.sender?.id || before.message.kind === 'card'} />
           })}
         </ol>
         : <p className="m-auto max-w-xs pt-16 text-center text-sm text-muted-foreground">{step ? `Nothing about ${step.title} yet. Anything you write here is about it.` : plan ? `Nothing about ${plan.title} yet. Anything you write here is about it.` : empty}</p>}

@@ -8,7 +8,10 @@ import AssignmentLearners from '@components/Goals/admin/assignments/AssignmentLe
 import { needsOf } from '@components/Goals/admin/assignments/AssignmentsList'
 import { feedEntries } from '@components/Connect/workspace/staffNotes'
 import type { ChatMessage } from '@services/connect/connect'
-import type { Inbox } from '@services/goals/admin'
+import PlanCard from '@components/Goals/admin/assignments/PlanCard'
+import { planFilterSpecs, shownPlans, stackSummary } from '@components/Goals/admin/assignments/planStack'
+import { readFilters } from '@/lib/admin/filters'
+import type { Inbox, PlanAssignment, PlansStack } from '@services/goals/admin'
 import { matrix } from '@services/goals/__tests__/cohortFixture'
 
 const router = { back() {}, forward() {}, refresh() {}, push() {}, replace() {}, prefetch() {} }
@@ -67,6 +70,92 @@ describe('what an assignment list says waits on staff', () => {
       { assignment_uuid: 'a1', kind: 'confirm', count: 3 }, { assignment_uuid: 'a2', kind: 'nudge', count: 4 },
     ] } as unknown as Inbox
     expect(needsOf(inbox)).toEqual({ a1: { grade: 3, settle: 3 } })
+  })
+})
+
+function planAssignment(uuid: string, extra: Partial<PlanAssignment> = {}): PlanAssignment {
+  return {
+    assignment_uuid: uuid, template_uuid: 'goal_template_ccr', template_title: 'College & Career Readiness', version: 1, usergroup_id: null, user_id: 2,
+    subject_email: null, welcome_message: '', staff_user_ids: [9], staff: [{ id: 9, first_name: 'Jo', last_name: 'Park' }], start_date: '2026-09-29', due_date: '2027-01-07',
+    status: 'active', paused_at: null, ended_at: null, creation_date: '2026-09-29', cohort: null, user: { id: 2, first_name: 'Priya', last_name: 'Shah' },
+    learner_count: 1, goal_uuid: 'g1', assignment_type: 'individual', step_count: 9, completed_count: 3, review_count: 1,
+    progress_percent: 33, min_progress_percent: 33, max_progress_percent: 33, learner_ids: [2], ...extra,
+  }
+}
+
+function stack(): PlansStack {
+  const group = planAssignment('a-group', { cohort: { id: 7, uuid: 'ug7', name: 'Advisory B' }, user: null, user_id: null, usergroup_id: 7, assignment_type: 'group', learner_count: 2, learner_ids: [2, 3], progress_percent: 16 })
+  return {
+    learners: [{ id: 2, first_name: 'Priya', last_name: 'Shah' }, { id: 3, first_name: 'Diego', last_name: 'Alvarez' }],
+    plans: [
+      {
+        template: { template_uuid: 'goal_template_ccr', title: 'College & Career Readiness', status: 'active', version: 2, stage_count: 3, step_count: 9, owner_org: { id: 5, name: 'Life2Launch', slug: 'l2l' }, own: false, run_with_permission: true },
+        badges: [{ badge_uuid: 'badge_cr', name: 'Career Ready', thumbnail_image: '', org_id: 5, owner_org: { id: 5, name: 'Life2Launch', slug: 'l2l' } }],
+        frameworks: [{ framework_uuid: 'fw_ccr', name: 'State CCR Standards', org_id: 1, node_count: 8 }],
+        assignments: [group, planAssignment('a-priya'), planAssignment('a-old', { status: 'ended', user: { id: 3, first_name: 'Diego', last_name: 'Alvarez' }, user_id: 3, learner_ids: [3] })],
+        authorized_orgs: [],
+      },
+      {
+        template: { template_uuid: 'goal_template_capstone', title: 'Senior Capstone', status: 'active', version: 3, stage_count: 3, step_count: 7, owner_org: { id: 1, name: 'Northside', slug: 'school' }, own: true, run_with_permission: false },
+        badges: [], frameworks: [], assignments: [],
+        authorized_orgs: [{ org: { id: 8, name: 'Lakeview Charter', slug: 'lakeview' }, assignment_count: 2, learner_count: 112, since: '2026-03-02' }],
+      },
+    ],
+  }
+}
+
+describe('the plan card stack', () => {
+  test('filters: current rows by default, ended ones counted for Show them; partners for admins only', () => {
+    const shown = shownPlans(stack(), readFilters(planFilterSpecs(stack(), { admin: true }), {}), { admin: true })
+    expect(shown.cards.map((card) => card.plan.template.title)).toEqual(['College & Career Readiness', 'Senior Capstone'])
+    expect(shown.cards[0].rows.map((row) => row.assignment_uuid)).toEqual(['a-group', 'a-priya'])
+    expect(shown.cards[0].endedHidden).toBe(1)
+    expect(shown.cards[1].partners.map((item) => item.learner_count)).toEqual([112])
+    expect(stackSummary(shown)).toBe('2 plans · 2 assignments')
+    // Staff don't see other organizations' runs.
+    expect(shownPlans(stack(), {}, { admin: false }).cards[1].partners).toEqual([])
+  })
+
+  test('search reaches badges, requirements and people; row filters hide plans with nothing left', () => {
+    const specs = planFilterSpecs(stack(), { admin: true })
+    expect(specs.map((spec) => spec.key)).toEqual(['status', 'scope', 'group', 'learner', 'staff', 'badge', 'req'])
+    const by = (params: Record<string, string>) => shownPlans(stack(), readFilters(specs, params), { admin: true })
+    expect(by({ q: 'ccr standards' }).cards.map((card) => card.rows.length)).toEqual([2])
+    expect(by({ q: 'diego', status: 'all' }).cards[0].rows.map((row) => row.assignment_uuid)).toEqual(['a-group', 'a-old'])
+    expect(by({ learner: '2' }).cards[0].rows.map((row) => row.assignment_uuid)).toEqual(['a-group', 'a-priya'])
+    expect(by({ group: '7' }).hidden).toBe(1)
+    expect(by({ badge: '1' }).cards.map((card) => card.plan.template.title)).toEqual(['College & Career Readiness'])
+    expect(by({ scope: 'orgs' }).cards.map((card) => card.plan.template.title)).toEqual(['Senior Capstone'])
+  })
+
+  test('a card shows the plan, its badge and requirements, then its rows with staff, progress and what waits on you', () => {
+    const [card] = shownPlans(stack(), {}, { admin: true }).cards
+    const html = render(<PlanCard {...card} orgslug="school" orgId={1} token="token" admin={false} needs={{ 'a-group': { grade: 3, settle: 4 } }} onChanged={() => undefined} onShowEnded={() => undefined} />)
+    expect(html).toContain('3 stages · 9 steps · From Life2Launch · you run it with their permission')
+    expect(html).toContain('Earns Career Ready')
+    expect(html).toContain('/admin/badges/badge/cr/definition')
+    expect(html).toContain('State CCR Standards · 8')
+    expect(html).toContain('/admin/plans/requirements/fw_ccr')
+    expect(html).toContain('Open plan')
+    expect(html).toContain('Advisory B')
+    expect(html).toContain('3 to grade')
+    expect(html).toContain('4 to settle')
+    expect(html).toContain('All clear')
+    expect(html).toContain('Progress 16%')
+    expect(html).toContain('Staff: Jo Park')
+    expect(html).toContain('1 ended assignment hidden.')
+    // Staff don't assign.
+    expect(html).not.toContain('>Assign<')
+  })
+
+  test('a creator’s own plan lists the organizations running it, counts only', () => {
+    const card = shownPlans(stack(), {}, { admin: true }).cards[1]
+    const html = render(<PlanCard {...card} orgslug="school" orgId={1} token="token" admin needs={{}} onChanged={() => undefined} onShowEnded={() => undefined} />)
+    expect(html).toContain('Made by Northside')
+    expect(html).toContain('No badge')
+    expect(html).toContain('Run by authorized orgs · 1')
+    expect(html).toContain('Authorized · 112 learners')
+    expect(html).toContain('Not assigned yet.')
   })
 })
 

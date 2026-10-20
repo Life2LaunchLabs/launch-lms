@@ -72,19 +72,27 @@ def directory(db: Session, current_user: PublicUser, org_id: int, query: str = "
         members = _like(members, needle)
     total = int(db.exec(select(func.count()).select_from(members.subquery())).one())
     rows = db.exec(members.order_by(func.lower(func.coalesce(User.first_name, User.username)), col(User.id)).offset(max(offset, 0)).limit(limit)).all()
+    found = person_rows(db, org_id, list(rows))  # type: ignore[arg-type]
+    helpers = matching_helpers(db, org_id, needle) if needle and offset == 0 else []
+    return {"people": [*found, *helpers], "total": total + len(helpers), "offset": offset, "limit": limit}
+
+
+def person_rows(db: Session, org_id: int, rows: list[tuple[User, int]]) -> list[dict]:
+    """Members as People lists them: who, their role label and role name, and their groups."""
     staff_roles = roles.staff_role_ids(db, org_id)
     role_names = {int(role.id): role.name for role in db.exec(select(Role).where(col(Role.id).in_({int(role_id) for _, role_id in rows}))).all()} if rows else {}  # type: ignore[arg-type]
     groups = _groups_by_user(db, org_id, [int(user.id) for user, _ in rows])  # type: ignore[arg-type]
-    found = [{"user": people.person(db, user.id), "role": _label(int(role_id), staff_roles), "role_name": role_names.get(int(role_id), ""),
-              "groups": groups.get(int(user.id), [])} for user, role_id in rows]  # type: ignore[arg-type]
-    helpers: list[dict] = []
-    if needle and offset == 0:
-        helper_ids = sorted(roles.helper_ids(db, org_id) - roles.member_ids(db, org_id))
-        matched = db.exec(_like(select(User), needle).where(col(User.id).in_(helper_ids)).limit(MAX_HELPERS)).all() if helper_ids else []
-        helping = _helping_on(db, org_id, [int(user.id) for user in matched])  # type: ignore[arg-type]
-        helpers = [{"user": people.person(db, user.id), "role": "helper", "role_name": "Helper", "groups": [], "helping_on": helping.get(int(user.id), [])}  # type: ignore[arg-type]
-                   for user in matched]
-    return {"people": [*found, *helpers], "total": total + len(helpers), "offset": offset, "limit": limit}
+    return [{"user": people.person(db, user.id), "role": _label(int(role_id), staff_roles), "role_name": role_names.get(int(role_id), ""),
+             "groups": groups.get(int(user.id), [])} for user, role_id in rows]  # type: ignore[arg-type]
+
+
+def matching_helpers(db: Session, org_id: int, needle: str) -> list[dict]:
+    """Helpers on the organization's plans whose name matches: they aren't members, so only a search finds them."""
+    helper_ids = sorted(roles.helper_ids(db, org_id) - roles.member_ids(db, org_id))
+    matched = db.exec(_like(select(User), needle).where(col(User.id).in_(helper_ids)).limit(MAX_HELPERS)).all() if helper_ids else []
+    helping = _helping_on(db, org_id, [int(user.id) for user in matched])  # type: ignore[arg-type]
+    return [{"user": people.person(db, user.id), "role": "helper", "role_name": "Helper", "groups": [], "helping_on": helping.get(int(user.id), [])}  # type: ignore[arg-type]
+            for user in matched]
 
 
 def _row(db: Session, org_id: int, conversation: Conversation, member: ConversationMember, staff_roles: set[int], members: dict[int, int]) -> dict:
