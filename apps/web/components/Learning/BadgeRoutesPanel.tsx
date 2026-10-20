@@ -11,6 +11,7 @@ import { templatesApi } from '@services/goals/templates'
 import type { GoalTemplate } from '@services/goals/types'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { eligibilityLabel, type EligibilityRule } from '@services/goals/versions'
+import BadgeRouteTrust from '@components/Admin/Marketplace/BadgeRouteTrust'
 
 /** The badge creator chooses which goal templates earn the badge and which one learners see first. */
 export default function BadgeRoutesPanel({ badge, orgslug, readOnly = false }: { badge: any; orgslug: string; /** Show the routes without changing them (staff, or another organization's badge). */ readOnly?: boolean }) {
@@ -65,6 +66,7 @@ export default function BadgeRoutesPanel({ badge, orgslug, readOnly = false }: {
           {available.map((template: GoalTemplate) => <option key={template.template_uuid} value={template.template_uuid}>{template.title}</option>)}
         </select>
       </label> : null}
+      <BadgeRouteTrust badge={badge} routes={routes} readOnly={readOnly} onSaved={(next) => void mutate(next, false)} />
     </div>}
   </section>
 }

@@ -112,6 +112,44 @@ def test_library_framework_copy_uses_published_version_and_is_tenant_owned():
         assert copied["source_framework_uuid"] == source["framework_uuid"]
         assert copied["source_version"] == 1
         assert [node["title"] for node in copied["nodes"]] == ["Career exploration", "Career experience"]
+        # The copy names its publisher and stays the copying org's to edit.
+        listed = requirements.list_frameworks(db, admin, 2)[0]
+        assert listed["publisher"] == {"org_id": 1, "name": "Academy", "yours": False} and listed["can_edit"] is True
+        assert requirements.list_frameworks(db, admin, 1)[0]["publisher"] == {"org_id": 1, "name": "Academy", "yours": True}
+        edited = requirements.update_framework(db, admin, 2, copied["framework_uuid"], RequirementFrameworkUpdate(name="Our career readiness"))
+        assert edited["name"] == "Our career readiness" and edited["source_framework_uuid"] == source["framework_uuid"]
+
+
+def test_staff_read_frameworks_but_only_admins_change_them():
+    db, admin = _session()
+    with db:
+        # A teacher: a custom role that runs goals for the organization, but isn't an admin.
+        db.add(Role(id=5, role_uuid="role_teacher", name="Teacher", rights={"dashboard": {"action_access": True}, "learning_activities": {"action_update": True}}))
+        db.add(User(id=3, user_uuid="user_3", username="teach", email="teach@example.com", first_name="Terry", last_name="Teach", creation_date=NOW, update_date=NOW))
+        db.commit()
+        db.add(UserOrganization(user_id=3, org_id=1, role_id=5, creation_date=NOW, update_date=NOW))
+        db.commit()
+        framework = _framework(db, admin)
+        staff = PublicUser(id=3, user_uuid="user_3", username="teach", email="teach@example.com", first_name="Terry", last_name="Teach")
+        learner = PublicUser(id=2, user_uuid="user_2", username="learner", email="learner@example.com", first_name="Lee", last_name="Arner")
+
+        listed = requirements.list_frameworks(db, staff, 1)
+        assert [item["framework_uuid"] for item in listed] == [framework["framework_uuid"]] and listed[0]["can_edit"] is False
+        read = requirements.get_framework(db, staff, 1, framework["framework_uuid"])
+        assert read["name"] == "Career readiness" and read["can_edit"] is False and len(read["nodes"]) == 2
+        assert requirements.get_framework(db, admin, 1, framework["framework_uuid"])["can_edit"] is True
+
+        for attempt in (
+            lambda: requirements.update_framework(db, staff, 1, framework["framework_uuid"], RequirementFrameworkUpdate(name="Changed")),
+            lambda: requirements.publish_framework(db, staff, 1, framework["framework_uuid"]),
+            lambda: requirements.create_framework(db, staff, RequirementFrameworkCreate(org_id=1, name="New")),
+            lambda: requirements.assign_framework(db, staff, 1, framework["framework_uuid"], RequirementAssignmentCreate(usergroup_id=1)),
+            lambda: requirements.list_frameworks(db, learner, 1),
+            lambda: requirements.get_framework(db, learner, 1, framework["framework_uuid"]),
+        ):
+            with pytest.raises(HTTPException) as denied:
+                attempt()
+            assert denied.value.status_code == 403
 
 
 def test_non_owner_org_cannot_publish_requirement_to_library():

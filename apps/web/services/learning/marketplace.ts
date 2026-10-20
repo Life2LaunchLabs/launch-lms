@@ -224,3 +224,88 @@ export async function getIssuerBadgeMetrics(
   )
   return getResponseMetadata(result)
 }
+
+// Plan templates in the marketplace (permission is to use a plan; badges stay the badge side's call) ------------
+
+export type TemplateListingMode = 'locked' | 'open'
+export type TemplateListingAccess = 'open' | 'request'
+export type TemplateAuthorizationStatus = 'requested' | 'approved' | 'rejected' | 'revoked'
+
+export interface MarketplaceOrg { id: number; name: string; slug: string; logo_image?: string | null; org_uuid?: string }
+
+export interface TemplateListing {
+  listed: boolean
+  mode: TemplateListingMode
+  access: TemplateListingAccess
+  listed_at: string | null
+  usage?: { approved: number; requested: number }
+  published_version?: number | null
+}
+
+export interface TemplateAuthorization {
+  authorization_uuid: string
+  status: TemplateAuthorizationStatus
+  message: string
+  creation_date: string
+  update_date: string
+  decided_at: string | null
+  template: { template_uuid: string; title: string; thumbnail_image?: string | null; mode: TemplateListingMode | null } | null
+  creator_org: MarketplaceOrg | null
+  issuer_org: MarketplaceOrg | null
+  copied_template_uuid: string | null
+  /** Creator side only: plans the issuer runs on it (counts only). */
+  learner_count?: number
+}
+
+export interface MarketplaceTemplate extends TemplateListing {
+  template_uuid: string
+  title: string
+  description: string
+  thumbnail_image: string | null
+  published_version: number | null
+  stage_count: number
+  step_count: number
+  creator_org: MarketplaceOrg | null
+  is_own: boolean
+  badges: { badge_uuid: string; name: string; thumbnail_image: string; route_uuid: string; trusted_only: boolean }[]
+  frameworks: { framework_uuid: string; name: string; node_count: number }[]
+  requirement_count: number
+  authorization: TemplateAuthorization | null
+}
+
+export interface MarketplaceRequestsSummary {
+  incoming_requested: number
+  outgoing_pending: number
+  badges: { incoming_requested: number; outgoing_pending: number }
+  templates: { incoming_requested: number; outgoing_pending: number }
+}
+
+async function marketplaceRequest<T = any>(path: string, accessToken?: string, method = 'GET', body: any = null): Promise<T> {
+  const result = await fetch(`${getAPIUrl()}badge-marketplace/${path}`, RequestBodyWithAuthHeader(method, body, null, accessToken))
+  return errorHandling(result)
+}
+
+const qs = (params: Record<string, string | number | null | undefined>) => {
+  const search = new URLSearchParams()
+  Object.entries(params).forEach(([key, value]) => { if (value !== undefined && value !== null && value !== '') search.set(key, String(value)) })
+  return search.toString()
+}
+
+/** SWR keys for the marketplace start with this, to revalidate after a request or decision. */
+export const MARKETPLACE_KEY = 'marketplace'
+export const isMarketplaceKey = (key: unknown) => Array.isArray(key) && key[0] === MARKETPLACE_KEY
+
+export const templateMarketplaceApi = {
+  summary: (orgId: number, accessToken?: string) => marketplaceRequest<MarketplaceRequestsSummary>(`requests/summary?org_id=${orgId}`, accessToken),
+  browse: (orgId: number, query = '', accessToken?: string, creatorOrgId?: number | null) => marketplaceRequest<MarketplaceTemplate[]>(`templates?${qs({ org_id: orgId, q: query, creator_org_id: creatorOrgId })}`, accessToken),
+  listing: (orgId: number, templateUuid: string, accessToken?: string) => marketplaceRequest<TemplateListing>(`templates/${encodeURIComponent(templateUuid)}/listing?org_id=${orgId}`, accessToken),
+  setListing: (orgId: number, templateUuid: string, data: { listed: boolean; mode: TemplateListingMode; access: TemplateListingAccess }, accessToken?: string) =>
+    marketplaceRequest<TemplateListing>(`templates/${encodeURIComponent(templateUuid)}/listing?org_id=${orgId}`, accessToken, 'PUT', data),
+  copy: (orgId: number, templateUuid: string, accessToken?: string) => marketplaceRequest<{ template_uuid: string; title: string }>(`templates/${encodeURIComponent(templateUuid)}/copy?org_id=${orgId}`, accessToken, 'POST'),
+  authorizations: (orgId: number, perspective: 'creator' | 'issuer', accessToken?: string, status?: string) =>
+    marketplaceRequest<TemplateAuthorization[]>(`template-authorizations?${qs({ org_id: orgId, perspective, status })}`, accessToken),
+  request: (data: { template_uuid: string; issuer_org_id: number; message?: string }, accessToken?: string) => marketplaceRequest<TemplateAuthorization>('template-authorizations', accessToken, 'POST', data),
+  approve: (authorizationUuid: string, accessToken?: string) => marketplaceRequest<TemplateAuthorization>(`template-authorizations/${encodeURIComponent(authorizationUuid)}/approve`, accessToken, 'POST'),
+  reject: (authorizationUuid: string, accessToken?: string) => marketplaceRequest<TemplateAuthorization>(`template-authorizations/${encodeURIComponent(authorizationUuid)}/reject`, accessToken, 'POST'),
+  revoke: (authorizationUuid: string, accessToken?: string) => marketplaceRequest<TemplateAuthorization>(`template-authorizations/${encodeURIComponent(authorizationUuid)}/revoke`, accessToken, 'POST'),
+}

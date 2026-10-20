@@ -29,7 +29,7 @@ from src.db.requirements import RequirementAttainmentSource, RequirementEnrollme
 from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup
 from src.db.users import PublicUser, User
-from src.security.org_auth import is_org_admin, require_org_admin, require_org_membership
+from src.security.org_auth import is_org_admin, require_org_membership
 from src.services.goals import access
 from src.services.goals.document import iter_steps
 
@@ -310,13 +310,8 @@ def credit_requirement(db: Session, current_user: PublicUser, org_id: int, user_
     return {"source_uuid": source.source_uuid, "node_uuid": node_uuid}
 
 
-def coverage(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str) -> dict:
-    """The framework's current nodes, each with the published template steps that count toward it."""
-    from src.services.requirements import _framework_dict, _framework_or_404
-
-    require_org_admin(current_user.id, org_id, db)
-    framework_view = _framework_dict(db, _framework_or_404(db, org_id, framework_uuid))
-    node_uuids = {node["node_uuid"] for node in framework_view["nodes"]}
+def _template_coverage(db: Session, org_id: int, node_uuids: set[str]) -> tuple[dict[str, list[dict]], list[dict]]:
+    """For the org's published templates: the steps that count toward each of these nodes, and each template with whether it maps to any."""
     by_node: dict[str, list[dict]] = {}
     templates = []
     for template, version in _published_templates(db, org_id):
@@ -330,8 +325,45 @@ def coverage(db: Session, current_user: PublicUser, org_id: int, framework_uuid:
                         "step_types": [step.get("type")],
                     })
         templates.append({"template_uuid": template.template_uuid, "title": template.title, "mapped": mapped})
+    return by_node, templates
+
+
+def coverage(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str) -> dict:
+    """The framework's current nodes, each with the published template steps that count toward it. Staff can read it."""
+    from src.services.requirements import _framework_dict, _framework_or_404, _require_staff
+
+    _require_staff(db, current_user, org_id)
+    framework_view = _framework_dict(db, _framework_or_404(db, org_id, framework_uuid))
+    by_node, templates = _template_coverage(db, org_id, {node["node_uuid"] for node in framework_view["nodes"]})
     return {
         "framework": {key: framework_view[key] for key in ("framework_uuid", "name", "description", "version", "status", "source_framework_uuid", "source_metadata")},
         "templates": templates,
         "nodes": [{**node, "covered_by": by_node.get(node["node_uuid"], [])} for node in framework_view["nodes"]],
     }
+
+
+def coverage_summaries(db: Session, org_id: int, framework_views: list[dict]) -> dict[str, dict]:
+    """Per framework (by uuid): how many of its requirements (leaf nodes) the org's published templates cover, and by how many templates.
+
+    The caller has checked access; the templates are read once for every framework.
+    """
+    leaves = {view["framework_uuid"]: _leaf_uuids(view["nodes"]) for view in framework_views}
+    all_nodes = {node["node_uuid"] for view in framework_views for node in view["nodes"]}
+    by_node, _ = _template_coverage(db, org_id, all_nodes)
+    summaries = {}
+    for view in framework_views:
+        nodes = {node["node_uuid"] for node in view["nodes"]}
+        framework_leaves = leaves[view["framework_uuid"]]
+        covered = sum(1 for node_uuid in framework_leaves if by_node.get(node_uuid))
+        templates = {item["template_uuid"] for node_uuid in nodes for item in by_node.get(node_uuid, [])}
+        total = len(framework_leaves)
+        summaries[view["framework_uuid"]] = {
+            "covered": covered, "total": total, "gaps": total - covered, "template_count": len(templates),
+            "percent": round(covered * 100 / total) if total else 0,
+        }
+    return summaries
+
+
+def _leaf_uuids(nodes: list[dict]) -> list[str]:
+    parents = {node.get("parent_node_uuid") for node in nodes if node.get("parent_node_uuid")}
+    return [node["node_uuid"] for node in nodes if node["node_uuid"] not in parents]

@@ -50,7 +50,8 @@ export function useFilters(specs: readonly FilterSpec[], { syncUrl = true }: { s
   const apply = React.useCallback((next: FilterValues) => {
     if (!syncUrl) return setLocal(next)
     const query = filterQuery(specs, next, window.location.search)
-    window.history.replaceState(window.history.state, '', `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`)
+    // Pass no state: Next skips its router sync for its own entries (state.__NA), and it copies its internal state over itself.
+    window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`)
   }, [syncUrl, specs])
 
   return {
