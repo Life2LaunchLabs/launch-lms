@@ -27,17 +27,20 @@ export function leafNodes(nodes: RequirementNode[] = []) {
 const nodeLabel = (node: RequirementNode) => `${node.code ? `${node.code} · ` : ''}${node.title}`
 
 /** What a template step counts toward: the requirement nodes it satisfies once done. */
-export default function StepRequirementLinks({ value, frameworks, saving, onSave }: { value: string[]; frameworks: RequirementFramework[]; saving: boolean; onSave: (nodes: string[]) => Promise<boolean> }) { // eslint-disable-line no-unused-vars
+export default function StepRequirementLinks({ value, frameworks, saving, onSave, readOnly = false }: { value: string[]; frameworks: RequirementFramework[]; saving: boolean; onSave: (nodes: string[]) => Promise<boolean>; readOnly?: boolean }) { // eslint-disable-line no-unused-vars
   const [open, setOpen] = React.useState(false)
   const [selected, setSelected] = React.useState<string[]>(value)
   React.useEffect(() => setSelected(value), [value])
   const byUuid = new Map(frameworks.flatMap((framework) => (framework.nodes || []).map((node) => [node.node_uuid, node] as const)))
   const toggle = (uuid: string) => setSelected((current) => current.includes(uuid) ? current.filter((item) => item !== uuid) : [...current, uuid])
   const save = async () => { if (await onSave(selected)) setOpen(false) }
+  const summary = <span><span className="block text-[10px] font-black uppercase tracking-wide text-muted-foreground">Counts toward</span>
+    <span className="mt-0.5 block text-xs font-semibold">{value.length ? value.map((uuid) => byUuid.get(uuid) ? nodeLabel(byUuid.get(uuid) as RequirementNode) : 'Requirement').join(', ') : 'No requirements linked'}</span></span>
+  // Read-only: what it counts toward, without the picker.
+  if (readOnly) return <div className="rounded-lg border border-border bg-card px-4 py-3">{summary}</div>
   return <div className="rounded-lg border border-border bg-card">
     <button type="button" onClick={() => setOpen((current) => !current)} aria-expanded={open} className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left">
-      <span><span className="block text-[10px] font-black uppercase tracking-wide text-muted-foreground">Counts toward</span>
-        <span className="mt-0.5 block text-xs font-semibold">{value.length ? value.map((uuid) => byUuid.get(uuid) ? nodeLabel(byUuid.get(uuid) as RequirementNode) : 'Requirement').join(', ') : 'No requirements linked'}</span></span>
+      {summary}
       <ChevronDown size={15} className={open ? 'rotate-180' : ''} />
     </button>
     {open ? <div className="border-t border-border p-4">

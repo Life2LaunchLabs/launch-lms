@@ -279,10 +279,13 @@ def assign(db: Session, current_user: PublicUser, org_id: int, template_uuid: st
 
 
 def list_assignments(db: Session, current_user: PublicUser, org_id: int, template_uuid: str) -> list[dict]:
-    require_org_admin(current_user.id, org_id, db)
+    """A template's assignments here: all of them for admins; staff see it read-only, with the ones they staff."""
+    templates.require_reader(db, current_user, org_id)
     template, _ = badge_authority.runnable(db, org_id, template_uuid)
     rows = db.exec(select(GoalAssignment).where(GoalAssignment.template_id == template.id, GoalAssignment.org_id == org_id)
                    .order_by(GoalAssignment.id.desc())).all()  # type: ignore[union-attr]
+    if not templates.can_edit(db, current_user, org_id):
+        rows = [row for row in rows if current_user.id in (row.staff_user_ids or [])]
     return [assignment_dict(db, row) for row in rows]
 
 

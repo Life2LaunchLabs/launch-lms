@@ -2,10 +2,19 @@
 
 import Link from 'next/link'
 import React from 'react'
-import { BookCopy, Library, Loader2, Plus, RotateCcw, Trash2 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Award, BookCopy, ChevronRight, Library, Loader2, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { getUriWithOrg } from '@services/config/config'
+import { useOrg } from '@components/Contexts/OrgContext'
+import FilterBar from '@components/Admin/Filters/FilterBar'
+import { useFilters } from '@components/Admin/Filters/useFilters'
+import OwnershipChip from '@components/Admin/Plans/OwnershipChip'
+import { AddFromMarketplace, primaryActionClass } from '@components/Admin/Plans/PlansActions'
+import { useCanEditPlans } from '@components/Admin/Plans/useCanEditPlans'
+import { getUriWithOrg, routePaths } from '@services/config/config'
+import { matchesSearch, type FilterSpec } from '@/lib/admin/filters'
 import {
+  createLearningBadge,
   createLearningBadgeCollection,
   deleteLearningBadgeCollection,
   getDeletedLearningBadgeCollections,
@@ -32,6 +41,7 @@ export default function AdminBadgesHome({
 }) {
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
+  const canEdit = useCanEditPlans() === true
   const [name, setName] = React.useState('')
   const [description, setDescription] = React.useState('')
   const [creating, setCreating] = React.useState(false)
@@ -110,14 +120,15 @@ export default function AdminBadgesHome({
   }
 
   return (
-    <div className="px-10 pb-10 pt-6">
-      <section className="rounded-xl bg-card p-6 shadow-xs">
+    <div className="px-4 pb-10 pt-6 sm:px-10">
+      <BadgeList orgslug={orgslug} orgId={orgId} collections={collections} canEdit={canEdit} />
+      <section className="mt-8 rounded-xl bg-card p-6 shadow-xs" aria-label="Collections">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-lg font-bold text-foreground">Collections</h2>
           <p className="mt-1 text-sm text-muted-foreground">Every badge belongs to one collection.</p>
         </div>
-        <div className="flex items-center gap-2">
+        {canEdit ? <div className="flex items-center gap-2">
         <button onClick={openTrash} className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-xs font-bold text-foreground">
           <Trash2 className="h-4 w-4" /> Trash
         </button>
@@ -160,7 +171,7 @@ export default function AdminBadgesHome({
             </button>
           }
         />
-        </div>
+        </div> : null}
       </div>
 
       {collections.length === 0 ? (
@@ -239,4 +250,125 @@ export default function AdminBadgesHome({
       />
     </div>
   )
+}
+
+type BadgeRow = { badge: any; collection: any; owned: boolean; canEdit: boolean; ownerId: number; ownerName: string }
+
+/** Every badge the organization has: its own (one per collection) and the ones it runs with another organization's permission. */
+function badgeRows(collections: any[], orgId: number, orgName: string): BadgeRow[] {
+  const seen = new Set<string>()
+  const rows: BadgeRow[] = []
+  for (const collection of collections) {
+    for (const badge of collection.badges || []) {
+      if (seen.has(badge.badge_uuid)) continue
+      seen.add(badge.badge_uuid)
+      const owned = badge.access_type ? badge.access_type === 'owned' : Number(badge.org_id) === orgId
+      rows.push({
+        badge, collection, owned, canEdit: owned && badge.can_edit !== false, ownerId: Number(badge.org_id),
+        ownerName: owned ? orgName : collection.creator_org?.name || 'Another organization',
+      })
+    }
+  }
+  return rows.sort((a, b) => String(a.badge.name).localeCompare(String(b.badge.name)))
+}
+
+/** Plans › Badges: search and filter the badges, open one, create one, or add one from the marketplace. */
+function BadgeList({ orgslug, orgId, collections, canEdit }: { orgslug: string; orgId: number; collections: any[]; canEdit: boolean }) {
+  const org = useOrg() as { name?: string } | null
+  const rows = React.useMemo(() => badgeRows(collections, orgId, org?.name || 'Your organization'), [collections, orgId, org?.name])
+  const issuers = React.useMemo(() => {
+    const byId = new Map<number, string>()
+    rows.forEach((row) => byId.set(row.ownerId, row.owned ? 'Your org' : row.ownerName))
+    return [...byId].map(([value, label]) => ({ value: String(value), label }))
+  }, [rows])
+  const specs = React.useMemo<FilterSpec[]>(() => [{ key: 'issuer', label: 'Issued by', options: [{ value: '', label: 'Anyone' }, ...issuers] }], [issuers])
+  const filters = useFilters(specs)
+  const { issuer } = filters.values
+  const shown = rows.filter((row) => (!issuer || String(row.ownerId) === issuer)
+    && matchesSearch(filters.query, row.badge.name, row.badge.description, row.ownerName, row.collection?.name))
+  const hidden = rows.length - shown.length
+  const ownCollections = collections.filter((collection) => Number(collection.org_id) === orgId && collection.can_edit !== false)
+  return <section aria-label="Badges" className="flex flex-col gap-4">
+    <FilterBar filters={filters} placeholder="Search badges"
+      actions={<>{canEdit ? <NewBadgeModal orgslug={orgslug} orgId={orgId} collections={ownCollections} /> : null}<AddFromMarketplace type="badges" /></>}
+      summary={`${rows.length} badge${rows.length === 1 ? '' : 's'} in your library${hidden ? ` · ${hidden} hidden by filters` : ''}`} />
+    {shown.length ? <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr))]">
+      {shown.map((row) => <Link key={row.badge.badge_uuid} href={getUriWithOrg(orgslug, routePaths.org.admin.badge(row.badge.badge_uuid, 'analytics'))}
+        className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-4 transition-colors hover:border-gray-300 hover:bg-gray-50">
+        <div className="flex items-start gap-3">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border border-amber-200 bg-amber-50 text-amber-700">
+            {row.badge.thumbnail_image ? <SafeImage src={row.badge.thumbnail_image} alt="" className="h-full w-full object-cover" /> : <Award size={22} aria-hidden="true" />}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block break-words text-base font-semibold text-gray-950">{row.badge.name}</span>
+            <span className="block text-[13px] text-gray-500">Issued by {row.ownerName}</span>
+          </span>
+          <ChevronRight size={18} aria-hidden="true" className="mt-1 shrink-0 text-gray-400" />
+        </div>
+        {row.badge.description ? <p className="line-clamp-3 text-sm text-gray-700">{row.badge.description}</p> : null}
+        <div className="mt-auto flex flex-wrap items-center gap-1.5">
+          <OwnershipChip owned={row.owned} canEdit={row.canEdit} ownerName={row.ownerName} />
+          <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-700">{row.badge.status === 'published' ? 'Live' : 'Draft'}</span>
+          {row.collection?.name ? <span className="truncate text-xs text-gray-500">{row.collection.name}</span> : null}
+        </div>
+      </Link>)}
+    </div> : <div className="flex items-center justify-center rounded-2xl border-2 border-dashed border-border px-4 py-12 text-center"><div>
+      <Award size={36} className="mx-auto mb-3 text-gray-300" />
+      <p className="text-sm text-muted-foreground">{rows.length ? 'No badges match your search or filters.' : 'Create a badge, or add one another organization shares from the marketplace.'}</p>
+    </div></div>}
+  </section>
+}
+
+/** Create a badge in one of the organization's collections (or a new collection), then open it. */
+function NewBadgeModal({ orgslug, orgId, collections }: { orgslug: string; orgId: number; collections: any[] }) {
+  const router = useRouter()
+  const session = useLHSession() as any
+  const accessToken = session.data?.tokens?.access_token
+  const [open, setOpen] = React.useState(false)
+  const [saving, setSaving] = React.useState(false)
+  const [name, setName] = React.useState('')
+  const [description, setDescription] = React.useState('')
+  const [collectionId, setCollectionId] = React.useState<string>(collections[0]?.id ? String(collections[0].id) : 'new')
+  const [collectionName, setCollectionName] = React.useState('')
+  const needsCollection = collectionId === 'new'
+  const ready = name.trim().length >= 3 && (!needsCollection || !!collectionName.trim())
+  const create = async () => {
+    if (!ready || saving) return
+    setSaving(true)
+    try {
+      let targetId = Number(collectionId)
+      if (needsCollection) {
+        const collection = await createLearningBadgeCollection({ org_id: orgId, name: collectionName.trim(), description: '', public: true }, accessToken)
+        targetId = Number(collection?.id)
+      }
+      const badge = await createLearningBadge({
+        org_id: orgId, collection_id: targetId, name: name.trim(), description: description.trim(),
+        criteria: 'Complete a plan that earns this badge.', public: true, status: 'draft',
+      }, accessToken)
+      toast.success('Badge created')
+      setOpen(false)
+      router.push(getUriWithOrg(orgslug, routePaths.org.admin.badge(badge.badge_uuid, 'definition')))
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to create badge')
+    } finally {
+      setSaving(false)
+    }
+  }
+  return <Modal isDialogOpen={open} onOpenChange={setOpen} minHeight="no-min" minWidth="md" dialogTitle="Create badge"
+    dialogDescription="Name the badge and pick its collection. You'll define it, add ways to earn it and publish it next."
+    dialogTrigger={<button type="button" className={primaryActionClass}><Plus size={16} aria-hidden="true" />Create badge</button>}
+    dialogContent={<form className="flex flex-col gap-4 p-2" onSubmit={(event) => { event.preventDefault(); void create() }}>
+      <input autoFocus value={name} onChange={(event) => setName(event.target.value)} placeholder="Badge name" aria-label="Badge name" maxLength={100} className="w-full rounded-lg border border-border px-3 py-2 text-sm" />
+      <textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Optional description" aria-label="Badge description" rows={3} className="w-full resize-none rounded-lg border border-border px-3 py-2 text-sm" />
+      <label className="flex flex-col gap-1.5 text-xs font-bold">Collection
+        <select value={collectionId} onChange={(event) => setCollectionId(event.target.value)} className="h-10 rounded-lg border border-border bg-background px-2 text-sm font-normal">
+          {collections.map((collection) => <option key={collection.id} value={String(collection.id)}>{collection.name}</option>)}
+          <option value="new">New collection…</option>
+        </select>
+      </label>
+      {needsCollection ? <input value={collectionName} onChange={(event) => setCollectionName(event.target.value)} placeholder="Collection name" aria-label="New collection name" className="w-full rounded-lg border border-border px-3 py-2 text-sm" /> : null}
+      <button type="submit" disabled={saving || !ready} className="ml-auto inline-flex items-center gap-2 rounded-lg bg-black px-5 py-2 text-xs font-bold text-white disabled:opacity-50">
+        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}Create badge
+      </button>
+    </form>} />
 }
