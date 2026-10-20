@@ -18,10 +18,13 @@ test('covers learner routes without exposing dynamic identifiers', () => {
 
 test('titles admin pages by the registry tab that owns them', () => {
   assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin'), { section: 'Admin', detail: 'Home' })
-  assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/plans'), { section: 'Admin', detail: 'Assignments' })
-  assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/plans/review'), { section: 'Admin', detail: 'Assignments' })
-  assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/plans/template_1/settings'), { section: 'Admin', detail: 'Plan templates' })
-  assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/insights/frameworks/fw_1/spec'), { section: 'Admin', detail: 'Insights' })
+  assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/plans'), { section: 'Admin', detail: 'Plans · Assignments' })
+  assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/plans/review'), { section: 'Admin', detail: 'Plans · Assignments' })
+  assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/plans/template_1/settings'), { section: 'Admin', detail: 'Plans · Templates' })
+  assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/badges/badge/b1/routes'), { section: 'Admin', detail: 'Plans · Badges' })
+  assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/plans/requirements/fw_1/spec'), { section: 'Admin', detail: 'Plans · Requirements' })
+  assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/plans/marketplace'), { section: 'Admin', detail: 'Plans · Marketplace' })
+  assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/insights'), { section: 'Admin', detail: 'Insights' })
   assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/users'), { section: 'Admin', detail: 'People' })
   assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/podcasts/podcast/p1/general'), { section: 'Admin', detail: 'Content · Podcasts' })
   assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/org/settings/branding'), { section: 'Admin', detail: 'Organization · Branding' })

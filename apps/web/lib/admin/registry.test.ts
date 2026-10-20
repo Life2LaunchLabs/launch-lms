@@ -42,15 +42,20 @@ const FULL_FEATURES: Record<string, ResolvedFeature> = {
 }
 const ids = (items: { id: string }[]) => items.map((item) => item.id)
 
-test('a teacher (staff without admin rights) gets Home, Assignments and People only', () => {
+test('a teacher (staff without admin rights) gets Home, Plans (all five tabs) and People only', () => {
   const tabs = visibleAdminTabs(access({ rights: [STAFF], features: FULL_FEATURES }))
-  assert.deepEqual(ids(tabs), ['home', 'assignments', 'people'])
+  assert.deepEqual(ids(tabs), ['home', 'plans', 'people'])
+  const plans = tabs.find((tab) => tab.id === 'plans')!
+  assert.deepEqual(ids(plans.children!), ['assignments', 'templates', 'badges', 'requirements', 'marketplace'])
+  assert.equal(plans.href, '/admin/plans')
+  assert.equal(plans.inPageTabs, true)
+  assert.equal(plans.pill, 'New')
   assert.deepEqual(ids(ADMIN_HOME_WIDGETS.filter((widget) => adminVisibility(widget.requires, access({ rights: [STAFF] })).state !== 'hidden')), ['waiting', 'today', 'messages', 'attention'])
 })
 
 test('an admin gets every tab in job order, with each tab opening its first available page', () => {
   const tabs = visibleAdminTabs(access({ rights: ADMIN_RIGHTS, features: FULL_FEATURES }))
-  assert.deepEqual(ids(tabs), ['home', 'assignments', 'people', 'templates', 'badges', 'insights', 'content', 'organization'])
+  assert.deepEqual(ids(tabs), ['home', 'plans', 'people', 'insights', 'content', 'organization'])
   const content = tabs.find((tab) => tab.id === 'content')!
   // Podcasts are off with nothing to request; playgrounds need a plan the org can ask for.
   assert.deepEqual(ids(content.children!), ['resources', 'playgrounds'])
@@ -63,7 +68,7 @@ test('an admin gets every tab in job order, with each tab opening its first avai
 test('a free org gets every job tab open; plan-gated pages show locked with the plan to request', () => {
   const free = access({ plan: 'free', superadmin: true, features: { managed_plans: { enabled: false, required_plan: 'full' }, sso: { enabled: false, required_plan: 'enterprise' } } })
   const tabs = visibleAdminTabs(free)
-  for (const id of ['home', 'assignments', 'people', 'templates', 'insights']) {
+  for (const id of ['home', 'plans', 'people', 'insights']) {
     assert.equal(tabs.find((tab) => tab.id === id)!.visibility.state, 'open', id)
   }
   const sso = tabs.find((tab) => tab.id === 'organization')!.children!.find((child) => child.id === 'sso')!
@@ -101,14 +106,19 @@ test('paths resolve to the tab that owns them, by longest match', () => {
   }
   assert.equal(owner('/admin'), 'home')
   assert.equal(owner('/orgs/acme/admin/'), 'home')
-  assert.equal(owner('/admin/plans'), 'assignments')
-  assert.equal(owner('/admin/plans/live/goal_1/reviews'), 'assignments')
-  assert.equal(owner('/admin/plans/templates'), 'templates')
-  assert.equal(owner('/admin/plans/template_1/activity/a1'), 'templates')
-  assert.equal(owner('/admin/insights/frameworks/fw_1/spec'), 'insights')
+  assert.equal(owner('/admin/plans'), 'plans/assignments')
+  assert.equal(owner('/admin/plans/assignments/a1/learners'), 'plans/assignments')
+  assert.equal(owner('/admin/plans/live/goal_1/reviews'), 'plans/assignments')
+  assert.equal(owner('/admin/plans/review'), 'plans/assignments')
+  assert.equal(owner('/admin/plans/templates'), 'plans/templates')
+  assert.equal(owner('/admin/plans/template_1/activity/a1'), 'plans/templates')
+  assert.equal(owner('/admin/badges'), 'plans/badges')
+  assert.equal(owner('/admin/badges/collection/c1/badges'), 'plans/badges')
+  assert.equal(owner('/admin/plans/requirements'), 'plans/requirements')
+  assert.equal(owner('/admin/plans/requirements/fw_1/spec'), 'plans/requirements')
+  assert.equal(owner('/admin/plans/marketplace'), 'plans/marketplace')
   assert.equal(owner('/admin/insights/evidence'), 'insights')
   assert.equal(owner('/admin/users/groups/2/members'), 'people')
-  assert.equal(owner('/admin/badges/collection/c1/badges'), 'badges')
   assert.equal(owner('/admin/resources/tags'), 'content/resources')
   assert.equal(owner('/admin/payments/offers'), 'organization/payments')
   assert.equal(owner('/admin/org/settings/sso'), 'organization/sso')

@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
 from src.core.events.database import get_db_session
-from src.db.goal_admin import AdminHomeLayout, StaffNote, StepConfirmMany, StepDecision, StepProgressBulk
+from src.db.goal_admin import AdminHomeLayout, PlansTabsOrder,StaffNote, StepConfirmMany, StepDecision, StepProgressBulk
 from src.db.goal_templates import ApplyVersion, GoalAssignmentUpdate, StepRemind, StepSettle
 from src.db.goals import GoalAssignment
 from src.db.users import PublicUser
@@ -40,6 +40,18 @@ def api_home(org_id: int, db: Session = Depends(get_db_session), user: PublicUse
 @router.put("/home/layout")
 def api_home_layout(org_id: int, payload: AdminHomeLayout, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
     return admin_home.save_layout(db, user, org_id, payload)
+
+
+# Member preferences ---------------------------------------------------------------------
+
+@router.get("/preferences/plans-tabs")
+def api_plans_tabs(org_id: int, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    return admin_home.get_plans_tabs(db, user, org_id)
+
+
+@router.put("/preferences/plans-tabs")
+def api_save_plans_tabs(org_id: int, payload: PlansTabsOrder, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    return admin_home.save_plans_tabs(db, user, org_id, payload)
 
 
 # Review inbox ---------------------------------------------------------------------------

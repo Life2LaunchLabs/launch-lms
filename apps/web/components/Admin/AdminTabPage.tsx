@@ -8,11 +8,13 @@ import { adminLabel, adminTab, type AdminTabId } from '@/lib/admin/registry'
 import { useTranslation } from 'react-i18next'
 
 /** A registry tab's page: its header, then its content, or the request to unlock it when the org's plan or packages lack it. */
-export default function AdminTabPage({ tab, tabs = [], activeTab, actions, children }: {
+export default function AdminTabPage({ tab, tabs = [], activeTab, actions, variant, children }: {
   tab: AdminTabId
   tabs?: AdminFeatureTab[]
   activeTab?: string
   actions?: React.ReactNode
+  /** The header's tab style; see AdminFeatureHeader. */
+  variant?: 'pills' | 'underline'
   children: React.ReactNode
 }) {
   const { t } = useTranslation()
@@ -22,7 +24,7 @@ export default function AdminTabPage({ tab, tabs = [], activeTab, actions, child
   const visibility = features.visibility(entry.requires)
   return (
     <div className="min-h-full w-full bg-[#f8f8f8]">
-      <AdminFeatureHeader feature={label} tabs={tabs} activeTab={activeTab || tab} actions={actions} />
+      <AdminFeatureHeader feature={label} tabs={tabs} activeTab={activeTab || tab} actions={actions} variant={variant} />
       {visibility.state === 'locked' ? (
         <div className="mx-auto mt-16 max-w-md rounded-xl bg-white p-8 text-center nice-shadow">
           <LockSimple size={28} weight="fill" className="mx-auto text-gray-300" />

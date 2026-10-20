@@ -1,6 +1,36 @@
 /** What a group in People shows beside the list besides its chat. */
 export type GroupView = 'plans' | 'requirements'
 
+/** The Plans area's tabs, each its own page. */
+export type PlansTabId = 'assignments' | 'templates' | 'badges' | 'requirements' | 'marketplace'
+/** A requirement framework's pages under Plans › Requirements. */
+export type FrameworkSubpage = 'details' | 'levels' | 'spec' | 'plans'
+/** What the marketplace browses: everything, or one kind ("Add from marketplace" on a tab pre-filters to its kind). */
+export type MarketplaceType = 'templates' | 'badges' | 'frameworks'
+export type MarketplaceParams = { type?: MarketplaceType | null; creator?: string | number | null; view?: 'browse' | 'requests' | null; q?: string | null }
+
+const PLANS_TAB_PATHS: Record<PlansTabId, string> = {
+  assignments: '/admin/plans',
+  templates: '/admin/plans/templates',
+  badges: '/admin/badges',
+  requirements: '/admin/plans/requirements',
+  marketplace: '/admin/plans/marketplace',
+}
+
+function adminMarketplace(params?: MarketplaceParams): string {
+  return withQuery(PLANS_TAB_PATHS.marketplace, { type: params?.type, creator: params?.creator, view: params?.view === 'browse' ? null : params?.view, q: params?.q })
+}
+
+function frameworkPage(frameworkUuid: string, subpage: FrameworkSubpage = 'details'): string {
+  return `/admin/plans/requirements/${encodeURIComponent(frameworkUuid)}/${encodeURIComponent(subpage)}`
+}
+
+/** A framework list for a report: every framework, some, or none. */
+function frameworksParam(frameworks?: string[] | 'all' | null): string | null {
+  if (frameworks === 'all') return 'all'
+  return frameworks?.length ? frameworks.join(',') : null
+}
+
 export type QueryParamValue =
   | string
   | number
@@ -148,10 +178,12 @@ export const routePaths = {
       root: () => '/account',
       page: (subpage: string) => `/account/${subpage}`,
     },
-    /** The org admin side, by tab: Home, Assignments, People, Plan templates, Badges, Insights, Content, Organization. */
+    /** The org admin side, by tab: Home, Plans (Assignments, Templates, Badges, Requirements, Marketplace), People, Insights, Content, Organization. */
     admin: {
       root: () => '/admin',
-      assignments: () => '/admin/plans',
+      /** One Plans tab's page; with no tab, Assignments. The sidebar opens the viewer's own first tab instead. */
+      plans: (tab: PlansTabId = 'assignments') => PLANS_TAB_PATHS[tab],
+      assignments: () => PLANS_TAB_PATHS.assignments,
       // The grading stack; from 'assignment' goes back to the assignment rather than the list.
       planReview: (params: { assignment: string; objective?: string | null; planObjective?: string | null; activity?: string | null; focus?: string | null; from?: 'assignment' | null }) =>
         withQuery('/admin/plans/review', { assignment: params.assignment, objective: params.objective, step: params.planObjective, activity: params.activity, focus: params.focus, from: params.from }),
@@ -170,18 +202,31 @@ export const routePaths = {
         group: (groupId: string | number, view?: GroupView, assignment?: string | null) =>
           withQuery(`/admin/users/groups/${encodeURIComponent(String(groupId))}`, { view, assignment: view === 'plans' ? assignment : null }),
       },
-      templates: () => '/admin/plans/templates',
+      templates: () => PLANS_TAB_PATHS.templates,
       // Template uuids kept their old program uuids.
       template: (templateUuid: string) => `/admin/plans/${encodeURIComponent(templateUuid)}`,
       templatePage: (templateUuid: string, subpage: string) => `/admin/plans/${encodeURIComponent(templateUuid)}/${encodeURIComponent(subpage)}`,
-      badges: () => '/admin/badges',
-      badgeMarketplace: () => '/admin/badges?tab=marketplace',
+      badges: () => PLANS_TAB_PATHS.badges,
+      /** Old name: the marketplace browsing badges. */
+      badgeMarketplace: () => adminMarketplace({ type: 'badges' }),
+      /** Plans › Marketplace: browse (optionally one kind or one creator) or the requests view. */
+      marketplace: adminMarketplace,
+      /** Plans › Requirements: the org's requirement frameworks. */
+      requirements: () => PLANS_TAB_PATHS.requirements,
+      /** One framework under Plans › Requirements: details, levels, spec, or coverage by plan. */
+      requirementFrameworkPlans: frameworkPage,
       badgeCollection: (collectionUuid: string, subpage: string) => `/admin/badges/collection/${encodeURIComponent(collectionUuid)}/${encodeURIComponent(subpage)}`,
       badge: (badgeUuid: string, subpage: string) => `/admin/badges/badge/${encodeURIComponent(badgeUuid.replace(/^badge_/, ''))}/${encodeURIComponent(subpage)}`,
-      // Insights: requirement coverage by templates, learners' evidence by group, and the framework editor.
+      // Insights: reports by group (optionally against requirement frameworks), and learners' evidence by group.
       insights: () => '/admin/insights',
+      /** A group's report; `frameworks` adds requirement sections ('all', or framework uuids). */
+      insightsReport: (groupId?: string | number | null, frameworks?: string[] | 'all' | null) =>
+        withQuery('/admin/insights', { group: groupId == null ? null : String(groupId), fw: frameworksParam(frameworks) }),
+      insightsReportPrint: (groupId: string | number, frameworks?: string[] | 'all' | null) =>
+        withQuery(`/admin/insights/reports/${encodeURIComponent(String(groupId))}/print`, { fw: frameworksParam(frameworks) }),
       insightsEvidence: (groupId?: string | number | null) => withQuery('/admin/insights/evidence', { group: groupId == null ? null : String(groupId) }),
-      requirementFramework: (frameworkUuid: string, subpage = 'details') => `/admin/insights/frameworks/${encodeURIComponent(frameworkUuid)}/${encodeURIComponent(subpage)}`,
+      /** Old name for `requirementFrameworkPlans`; frameworks moved from Insights to Plans › Requirements. */
+      requirementFramework: frameworkPage,
       content: {
         resources: () => '/admin/resources',
         resourceTags: () => '/admin/resources/tags',

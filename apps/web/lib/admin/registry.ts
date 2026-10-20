@@ -9,7 +9,8 @@ import type { HomeWidgetId } from '../../services/goals/adminHome.ts'
  */
 export type AdminRequirement = { feature?: string; right?: string; plan?: PlanLevel }
 
-export type AdminTabId = 'home' | 'assignments' | 'people' | 'templates' | 'badges' | 'insights' | 'content' | 'organization'
+export type AdminTabId = 'home' | 'plans' | 'people' | 'insights' | 'content' | 'organization'
+export type { PlansTabId } from '../../services/routing/paths.ts'
 
 export type AdminNavItem = {
   id: string
@@ -26,6 +27,10 @@ export type AdminNavItem = {
   match: string[]
   /** Match the paths exactly, not the pages below them. */
   exact?: boolean
+  /** A short pill beside the label in the sidebar (e.g. "New"). */
+  pill?: string
+  /** The children are tabs on the page, not entries in the sidebar or mobile menu. */
+  inPageTabs?: boolean
   children?: AdminNavItem[]
 }
 
@@ -37,34 +42,25 @@ const STAFF = 'dashboard.action_access'
 export const ADMIN_TABS: AdminTab[] = [
   { id: 'home', label: 'Home', labelKey: 'common.home', href: admin.root(), match: [admin.root()], exact: true, requires: { right: STAFF } },
   {
-    id: 'assignments',
-    label: 'Assignments',
-    labelKey: 'common.assignments',
-    href: admin.assignments(),
-    match: [admin.assignments(), '/admin/plans/review', '/admin/plans/live'],
-    // Every org, free included, can assign its templates (a solo coach assigning to a client).
+    id: 'plans',
+    label: 'Plans',
+    href: admin.plans(),
+    pill: 'New',
+    // The five pages are tabs inside Plans (in each viewer's own order), not sidebar entries.
+    inPageTabs: true,
+    match: [],
     requires: { right: STAFF },
-  },
-  { id: 'people', label: 'People', href: admin.people.root(), match: [admin.people.root()], requires: { right: STAFF } },
-  {
-    id: 'templates',
-    label: 'Plan templates',
-    href: admin.templates(),
-    // Every other /admin/plans/<uuid> page is a template.
-    match: ['/admin/plans/'],
-    requires: { right: 'learning_activities.action_update' },
-  },
-  {
-    id: 'badges',
-    label: 'Badges',
-    href: admin.badges(),
-    match: [admin.badges()],
-    requires: { right: 'badges.action_update' },
     children: [
-      { id: 'collections', label: 'Collections', href: admin.badges(), match: [], requires: {} },
-      { id: 'marketplace', label: 'Marketplace', href: admin.badgeMarketplace(), match: [], requires: {} },
+      // Every org, free included, can assign its templates (a solo coach assigning to a client).
+      { id: 'assignments', label: 'Assignments', labelKey: 'common.assignments', href: admin.plans('assignments'), match: [admin.plans('assignments'), '/admin/plans/assignments', '/admin/plans/review', '/admin/plans/live'], requires: {} },
+      // Every other /admin/plans/<uuid> page is a template.
+      { id: 'templates', label: 'Templates', href: admin.plans('templates'), match: [admin.plans('templates'), '/admin/plans/'], requires: {} },
+      { id: 'badges', label: 'Badges', href: admin.plans('badges'), match: [admin.plans('badges')], requires: {} },
+      { id: 'requirements', label: 'Requirements', href: admin.plans('requirements'), match: [admin.plans('requirements')], requires: {} },
+      { id: 'marketplace', label: 'Marketplace', href: admin.plans('marketplace'), match: [admin.plans('marketplace')], requires: {} },
     ],
   },
+  { id: 'people', label: 'People', href: admin.people.root(), match: [admin.people.root()], requires: { right: STAFF } },
   {
     id: 'insights',
     label: 'Insights',

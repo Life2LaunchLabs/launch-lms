@@ -15,6 +15,8 @@ import { adminLabel, adminTabForPath, type VisibleNavItem } from '@/lib/admin/re
 import { useTranslation } from 'react-i18next'
 import RequestAccessButton from '@components/Admin/RequestAccessButton'
 import { ADMIN_NAV_ICONS, PLATFORM_NAV_ICONS } from '@components/Admin/adminNavIcons'
+import { usePlansNavTabs } from '@components/Admin/Plans/usePlansNavTabs'
+import NavPill from './NavPill'
 
 /** The admin menu on phones: the same registry tabs as the sidebar, with each tab's pages listed under it. */
 function DashMobileMenu() {
@@ -33,7 +35,7 @@ function DashMobileMenu() {
   }, [isOpen])
 
   const closeMenu = () => setIsOpen(false)
-  const tabs = features.adminTabs()
+  const tabs = usePlansNavTabs(features.adminTabs())
   const active = adminTabForPath(pathname)
   const showPlatform = org?.slug === getDefaultOrg() && features.isSuperadmin
   const logo = org?.logo_image
@@ -139,7 +141,8 @@ function DashMobileMenu() {
 
 function MobileTab({ tab, isActive, onNavigate }: { tab: VisibleNavItem; isActive: boolean; onNavigate: () => void }) {
   const { t } = useTranslation()
-  const children = tab.children && tab.children.length > 1 ? tab.children : []
+  // Pages that are tabs on their own page (Plans) aren't listed under the entry.
+  const children = !tab.inPageTabs && tab.children && tab.children.length > 1 ? tab.children : []
   return (
     <div>
       <MobileMenuLink href={tab.href} icon={ADMIN_NAV_ICONS[tab.id]} label={adminLabel(t, tab)} onClick={onNavigate} item={tab} className={isActive ? 'bg-white/[0.08] text-white' : undefined} />
@@ -183,6 +186,7 @@ function MobileMenuLink({
     <Link href={href} onClick={onClick} className={cn(rowClass, 'text-white/70 hover:bg-white/[0.08] hover:text-white', className)}>
       <ItemIcon size={20} weight="fill" className="shrink-0" />
       <span className="truncate">{label}</span>
+      {item?.pill ? <NavPill>{item.pill}</NavPill> : null}
     </Link>
   )
 }
