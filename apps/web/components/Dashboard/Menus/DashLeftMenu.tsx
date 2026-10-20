@@ -47,6 +47,7 @@ import {
   DropdownMenuTrigger,
 } from '@components/ui/dropdown-menu'
 import DashFeedbackButton from './DashFeedbackButton'
+import ExperienceSwitcher from '@components/Objects/Menus/ExperienceSwitcher'
 import { ADMIN_NAV_ICONS, PLATFORM_NAV_ICONS } from '@components/Admin/adminNavIcons'
 import RequestAccessButton, { accessRequestLabel } from '@components/Admin/RequestAccessButton'
 import { AVAILABLE_LANGUAGES } from '@/lib/languages'
@@ -128,13 +129,18 @@ function DashLeftMenu() {
           </div>
         ) : (
           <>
-            <Link className="flex items-center space-x-3 transition-opacity hover:opacity-70 min-w-0" href={routePaths.org.admin.root()}>
+            <ExperienceSwitcher
+              current={{ side: 'admin', orgslug: org.slug }}
+              homeHref={routePaths.org.admin.root()}
+              tone="dark"
+              className="-ml-2 flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-white/[0.08]"
+            >
               {logo}
               <div className="flex flex-col min-w-0">
                 <span className="font-semibold text-sm text-white truncate">{org.name}</span>
                 <span className="text-[9px] font-medium uppercase tracking-wider text-green-400">{PLAN_LABELS[features.plan] ?? features.plan}</span>
               </div>
-            </Link>
+            </ExperienceSwitcher>
             <button
               aria-label="Collapse sidebar"
               onClick={() => setCollapsed(true)}

@@ -15,6 +15,7 @@ import { adminLabel, adminTabForPath, type VisibleNavItem } from '@/lib/admin/re
 import { useTranslation } from 'react-i18next'
 import RequestAccessButton from '@components/Admin/RequestAccessButton'
 import { ADMIN_NAV_ICONS, PLATFORM_NAV_ICONS } from '@components/Admin/adminNavIcons'
+import ExperienceSwitcher from '@components/Objects/Menus/ExperienceSwitcher'
 
 /** The admin menu on phones: the same registry tabs as the sidebar, with each tab's pages listed under it. */
 function DashMobileMenu() {
@@ -54,10 +55,17 @@ function DashMobileMenu() {
           <List className="h-5 w-5" />
         </button>
 
-        <Link href={routePaths.org.admin.root()} className="flex min-w-0 items-center gap-2" aria-label="Dashboard home">
+        <ExperienceSwitcher
+          current={{ side: 'admin', orgslug: org?.slug }}
+          homeHref={routePaths.org.admin.root()}
+          tone="dark"
+          align="center"
+          ariaLabel={org?.name}
+          className="flex min-w-0 items-center gap-2 rounded-lg px-2 py-1 transition-colors hover:bg-white/[0.08]"
+        >
           {logo}
-          <span className="max-w-[58vw] truncate text-sm font-semibold">{org?.name}</span>
-        </Link>
+          <span className="max-w-[52vw] truncate text-sm font-semibold">{org?.name}</span>
+        </ExperienceSwitcher>
 
         <div className="h-10 w-10" aria-hidden="true" />
       </header>
