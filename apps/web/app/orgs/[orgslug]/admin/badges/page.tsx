@@ -1,9 +1,9 @@
-import IssuingAdminShell from '@components/Learning/IssuingAdminShell'
+import { redirect } from 'next/navigation'
+import { BadgesPage } from '@components/Goals/admin/GoalsAdminPages'
 import { getServerSession } from '@/lib/auth/server'
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
 import { getLearningBadgeCollections } from '@services/learning/learning'
-
-const validTabs = new Set(['collections', 'marketplace'])
+import { routePaths } from '@services/routing/paths'
 
 export default async function AdminBadgesPage({
   params,
@@ -14,6 +14,8 @@ export default async function AdminBadgesPage({
 }) {
   const { orgslug } = await params
   const { tab } = await searchParams
+  // The badge marketplace was a tab here; it is Plans › Marketplace now.
+  if (tab === 'marketplace') redirect(routePaths.org.admin.badgeMarketplace())
   const org = await getOrganizationContextInfo(orgslug, { revalidate: 1800, tags: ['organizations'] })
   const session = await getServerSession()
   let collections: any[] = []
@@ -23,6 +25,5 @@ export default async function AdminBadgesPage({
   } catch {
     collections = []
   }
-  const initialTab = validTabs.has(tab || '') ? tab as 'collections' | 'marketplace' : 'collections'
-  return <IssuingAdminShell orgslug={orgslug} orgId={org.id} collections={collections} initialTab={initialTab} />
+  return <BadgesPage orgslug={orgslug} orgId={org.id} collections={collections} />
 }

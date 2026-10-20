@@ -1,24 +1,16 @@
-/**
- * Insights routes for group reports. Local until they are folded into services/routing/paths.ts
- * (routePaths.org.admin.insightsReport and friends), which another change owns.
- */
-const withQuery = (path: string, query: Record<string, string | null | undefined>) => {
-  const params = new URLSearchParams()
-  Object.entries(query).forEach(([key, value]) => { if (value) params.set(key, value) })
-  const text = params.toString()
-  return text ? `${path}?${text}` : path
-}
+import { routePaths } from '@services/routing/paths'
 
-const fwParam = (frameworks: string[] = []) => frameworks.length ? frameworks.join(',') : null
+const admin = routePaths.org.admin
 
+/** Insights routes for group reports; thin names over services/routing/paths.ts (routePaths.org.admin.insights*). */
 export const insightsRoutes = {
   /** The Reports page, for a group and the frameworks to include. */
-  report: (groupId?: number | string | null, frameworks: string[] = []) => withQuery('/admin/insights', { group: groupId == null ? null : String(groupId), fw: fwParam(frameworks) }),
+  report: (groupId?: number | string | null, frameworks: string[] = []) => admin.insightsReport(groupId, frameworks),
   /** The clean page to print a group's report from. */
-  reportPrint: (groupId: number | string, frameworks: string[] = []) => withQuery(`/admin/insights/reports/${encodeURIComponent(String(groupId))}/print`, { fw: fwParam(frameworks) }),
-  engagement: () => '/admin/insights/engagement',
-  /** Framework coverage by template. Moves into Plans → Requirements later. */
-  coverage: () => '/admin/insights/coverage',
+  reportPrint: (groupId: number | string, frameworks: string[] = []) => admin.insightsReportPrint(groupId, frameworks),
+  engagement: () => admin.insightsEngagement(),
+  /** Framework coverage by template. */
+  coverage: () => admin.insightsCoverage(),
 }
 
 /** The `fw` query value as framework uuids. */
