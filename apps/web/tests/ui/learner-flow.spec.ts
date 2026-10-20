@@ -5,7 +5,7 @@ import { assertActualApp } from './auth'
 
 const fixture = JSON.parse(readFileSync('.playwright/learner-flow.json', 'utf8'))
 const orgPath = `/orgs/${fixture.org_slug}`
-const frameworkPath = (uuid: string, tab: string) => `${orgPath}/admin/insights/frameworks/${uuid}/${tab}`
+const frameworkPath = (uuid: string, tab: string) => `${orgPath}/admin/plans/requirements/${uuid}/${tab}`
 // Goals have no slug; the seed writes goal_uuid (equal to the old plan uuid).
 const goalId: string = fixture.goal_uuid || fixture.plan_uuid || fixture.plan_slug
 

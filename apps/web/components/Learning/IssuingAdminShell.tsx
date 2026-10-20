@@ -1,11 +1,8 @@
 'use client'
 
 import React from 'react'
-import Link from 'next/link'; import { getUriWithOrg } from '@services/config/config'
 import { Award, Check, ClipboardCheck, Handshake, Loader2, Plus, Search, Trash2 } from 'lucide-react'
-import { motion } from 'motion/react'
 import toast from 'react-hot-toast'; import IssuerRouteOffers from './IssuerRouteOffers'
-import AdminFeatureHeader from '@components/Admin/AdminFeatureHeader'
 import { ActivityAggregateGradeForm } from '@components/Goals/admin/live/ActivityGrading'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { SafeImage } from '@components/Objects/SafeImage'
@@ -26,8 +23,6 @@ import {
   updateIssuerAuthorization,
   type LearnerAccess,
 } from '@services/learning/marketplace'
-import AdminBadgesHome from '@components/Learning/AdminBadgesHome'
-import { adminTabWithIcons } from '@components/Admin/adminNavIcons'; import { adminLabel } from '@/lib/admin/registry'; import { useTranslation } from 'react-i18next'
 const statusStyles: Record<string, string> = {
   queued: 'bg-violet-100 text-violet-800',
   requested: 'bg-amber-100 text-amber-800',
@@ -42,53 +37,11 @@ const statusLabels: Record<string, string> = {
   package_denied: 'Package request denied',
 }
 
-type BadgeAdminTab = 'collections' | 'marketplace'
+// The badge marketplace and authorization panels. The Badges page that held them as tabs is
+// Plans › Badges and Plans › Marketplace now (components/Goals/admin/GoalsAdminPages.tsx).
 
-export default function IssuingAdminShell({
-  orgId,
-  orgslug,
-  collections,
-  initialTab = 'collections',
-}: {
-  orgId: number
-  orgslug: string
-  collections: any[]
-  initialTab?: BadgeAdminTab
-}) {
-  const { t } = useTranslation()
-  const [activeTab, setActiveTab] = React.useState<BadgeAdminTab>(initialTab)
-
-  const selectTab = (tab: BadgeAdminTab) => {
-    setActiveTab(tab)
-    const url = tab === 'collections' ? '/admin/badges' : `/admin/badges?tab=${tab}`
-    window.history.replaceState(null, '', url)
-  }
-
-  return (
-    <div className="min-h-full w-full bg-[#f8f8f8]">
-      <AdminFeatureHeader
-        feature={adminLabel(t, adminTabWithIcons('badges'))}
-        actions={<Button asChild variant="outline" size="sm"><Link href={getUriWithOrg(orgslug, '/admin/badges/discover')}>Discover carousel</Link></Button>}
-        activeTab={activeTab}
-        tabs={adminTabWithIcons('badges').children.map((tab) => {
-          return {
-            id: tab.id,
-            label: adminLabel(t, tab),
-            icon: <tab.Icon size={16} />,
-            onClick: () => selectTab(tab.id as BadgeAdminTab),
-          }
-        })}
-      />
-
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.1 }} className="overflow-x-hidden">
-        {activeTab === 'collections' ? <AdminBadgesHome orgslug={orgslug} orgId={orgId} collections={collections} /> : null}
-        {activeTab === 'marketplace' ? <MarketplaceBrowsePanel orgId={orgId} /> : null}
-      </motion.div>
-    </div>
-  )
-}
-
-function MarketplaceBrowsePanel({ orgId }: { orgId: number }) {
+/** Badges in the marketplace, with the request to issue one. Plans › Marketplace shows it until its own browse view lands. */
+export function MarketplaceBrowsePanel({ orgId }: { orgId: number }) {
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
   const [items, setItems] = React.useState<any[]>([])

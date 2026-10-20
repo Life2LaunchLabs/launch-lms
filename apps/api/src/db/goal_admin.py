@@ -43,3 +43,15 @@ class AdminHomeLayout(SQLModel):
 
     order: list[str] = Field(default_factory=list, max_length=20)
     hidden: list[str] = Field(default_factory=list, max_length=20)
+
+
+# The Plans area's tabs, in the order most orgs start with (see services/goals/admin_home.py).
+PLANS_TABS = ("assignments", "templates", "badges", "requirements", "marketplace")
+# The order for an org that makes badges and templates but runs no assignment itself.
+PLANS_TABS_CREATOR = ("badges", "templates", "assignments", "requirements", "marketplace")
+
+
+class PlansTabsOrder(SQLModel):
+    """A member's own order for the Plans tabs; empty goes back to the default."""
+
+    order: list[str] = Field(default_factory=list, max_length=20)

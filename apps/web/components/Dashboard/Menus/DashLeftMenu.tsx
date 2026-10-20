@@ -9,7 +9,6 @@ import {
   SidebarSimple,
   Check,
   CaretDown,
-  PencilSimple,
   UserCircle,
   LockSimple,
 } from '@phosphor-icons/react'
@@ -18,7 +17,7 @@ import React, { useState } from 'react'
 import { usePathname } from 'next/navigation'
 import UserAvatar from '../../Objects/UserAvatar'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { getUriWithOrg, getAPIUrl, getDefaultOrg, routePaths } from '@services/config/config'
+import { getUriWithOrg, getDefaultOrg, routePaths } from '@services/config/config'
 import { platformSections } from '@components/Admin/Platform/platformSections'
 import { authenticatedOrgHref } from '@services/auth/handoff'
 import { useTranslation } from 'react-i18next'
@@ -47,14 +46,15 @@ import {
   DropdownMenuTrigger,
 } from '@components/ui/dropdown-menu'
 import DashFeedbackButton from './DashFeedbackButton'
+import NavPill from './NavPill'
+import ExperienceSwitcher from '@components/Objects/Menus/ExperienceSwitcher'
 import { ADMIN_NAV_ICONS, PLATFORM_NAV_ICONS } from '@components/Admin/adminNavIcons'
 import RequestAccessButton, { accessRequestLabel } from '@components/Admin/RequestAccessButton'
 import { AVAILABLE_LANGUAGES } from '@/lib/languages'
 import { adminLabel, adminTabForPath, type VisibleNavItem } from '@/lib/admin/registry'
+import { usePlansNavTabs } from '@components/Admin/Plans/usePlansNavTabs'
 import { getOrgLogoMediaDirectory } from '@services/media/media'
 import { cn } from '@/lib/utils'
-import useSWR from 'swr'
-import { swrFetcher } from '@services/utils/ts/requests'
 import { useFeatures } from '@components/Hooks/useFeatures'
 import { PLAN_LABELS } from '@services/plans/plans'
 
@@ -82,9 +82,10 @@ function DashLeftMenu() {
     await signOut({ redirect: true, callbackUrl: getUriWithOrg(org.slug, '/login') })
   }
 
+  const tabs = usePlansNavTabs(features.adminTabs())
+
   if (!org || !session) return null
 
-  const tabs = features.adminTabs()
   const active = adminTabForPath(pathname)
   const showPlatform = org.slug === getDefaultOrg() && features.isSuperadmin
   const logo = org.logo_image
@@ -128,13 +129,18 @@ function DashLeftMenu() {
           </div>
         ) : (
           <>
-            <Link className="flex items-center space-x-3 transition-opacity hover:opacity-70 min-w-0" href={routePaths.org.admin.root()}>
+            <ExperienceSwitcher
+              current={{ side: 'admin', orgslug: org.slug }}
+              homeHref={routePaths.org.admin.root()}
+              tone="dark"
+              className="-ml-2 flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-white/[0.08]"
+            >
               {logo}
               <div className="flex flex-col min-w-0">
                 <span className="font-semibold text-sm text-white truncate">{org.name}</span>
                 <span className="text-[9px] font-medium uppercase tracking-wider text-green-400">{PLAN_LABELS[features.plan] ?? features.plan}</span>
               </div>
-            </Link>
+            </ExperienceSwitcher>
             <button
               aria-label="Collapse sidebar"
               onClick={() => setCollapsed(true)}
@@ -149,7 +155,7 @@ function DashLeftMenu() {
       <div className="flex-1 min-h-0 overflow-y-auto px-3 py-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div className="space-y-1">
           {tabs.map((tab) => (
-            <NavEntry key={tab.id} item={tab} isActive={active?.tab.id === tab.id} isCollapsed={isCollapsed} orgId={org.id} />
+            <NavEntry key={tab.id} item={tab} isActive={active?.tab.id === tab.id} isCollapsed={isCollapsed} />
           ))}
         </div>
       </div>
@@ -283,12 +289,12 @@ function DashLeftMenu() {
 }
 
 /** One tab: a link, a hover menu when it has more than one page, or a locked row with its Request action. */
-function NavEntry({ item, isActive, isCollapsed, orgId }: { item: VisibleNavItem; isActive: boolean; isCollapsed: boolean; orgId: number }) {
+function NavEntry({ item, isActive, isCollapsed }: { item: VisibleNavItem; isActive: boolean; isCollapsed: boolean }) {
   const { t } = useTranslation()
   const label = adminLabel(t, item)
   const Icon = ADMIN_NAV_ICONS[item.id]
   const locked = item.visibility.state === 'locked' ? item.visibility.request : null
-  const hasMenu = !locked && (item.children?.length ?? 0) > 1
+  const hasMenu = !locked && !item.inPageTabs && (item.children?.length ?? 0) > 1
   const rowClass = cn(
     "flex items-center w-full rounded-lg transition-all",
     isCollapsed ? "justify-center h-10" : "px-3 py-2 gap-3",
@@ -322,6 +328,7 @@ function NavEntry({ item, isActive, isCollapsed, orgId }: { item: VisibleNavItem
       {!isCollapsed && (
         <>
           <span className="text-sm font-medium flex-1 text-left">{label}</span>
+          {item.pill && <NavPill>{item.pill}</NavPill>}
           {hasMenu && <CaretDown aria-hidden="true" size={14} weight="bold" className="text-white/40" />}
         </>
       )}
@@ -355,38 +362,11 @@ function NavEntry({ item, isActive, isCollapsed, orgId }: { item: VisibleNavItem
               </HoverMenuItem>
             )
           })}
-          {item.id === 'badges' && <RecentBadges orgId={orgId} />}
         </HoverMenuContent>
       }
     >
       {link}
     </HoverMenu>
-  )
-}
-
-function RecentBadges({ orgId }: { orgId: number }) {
-  const session = useLHSession() as any
-  const { t } = useTranslation()
-  const token = session?.data?.tokens?.access_token
-  const { data } = useSWR(orgId && token ? `${getAPIUrl()}badges/?org_id=${orgId}&admin=true` : null, (url) => swrFetcher(url, token))
-  const recent: any[] = Array.isArray(data) ? data.slice(0, 8) : []
-  if (!recent.length) return null
-  return (
-    <>
-      <HoverMenuSeparator />
-      <HoverMenuLabel className="text-white/40">{t('common.recent')}</HoverMenuLabel>
-      {recent.map((badge) => (
-        <HoverMenuItem key={badge.badge_uuid} asChild>
-          <Link
-            href={routePaths.org.admin.badge(String(badge.badge_uuid || ''), 'routes')}
-            className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors"
-          >
-            <PencilSimple size={14} className="text-white/40" />
-            <span className="truncate">{badge.name}</span>
-          </Link>
-        </HoverMenuItem>
-      ))}
-    </>
   )
 }
 
