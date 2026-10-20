@@ -172,6 +172,33 @@ async def test_batch_invite_validates_deduplicates_and_records_role_and_group(se
 
 
 @pytest.mark.asyncio
+async def test_enterprise_org_can_invite_maintainer_with_real_seat_checks(session: Session, monkeypatch):
+    _seed(session)
+    session.add(Role(id=2, name="Maintainer", role_uuid="role_global_maintainer", rights={"dashboard": {"action_access": True}}))
+    config = session.exec(select(OrganizationConfig).where(OrganizationConfig.org_id == 1)).one()
+    config.config = {"config_version": "2.0", "plan": "enterprise"}
+    session.add(config)
+    session.commit()
+
+    async def allow_rbac(*_args, **_kwargs):
+        return True
+
+    monkeypatch.setattr(org_users_service, "rbac_check", allow_rbac)
+    monkeypatch.setattr(org_users_service, "increase_feature_usage", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(org_users_service, "send_direct_invitation_email", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr("src.security.superadmin.is_user_superadmin", lambda *_args, **_kwargs: True)
+
+    current_user = PublicUser(id=1, user_uuid="user_1", username="owner", email="owner@example.com", first_name="O", last_name="Wner", is_superadmin=True)
+    request = Request({"type": "http", "scheme": "https", "server": ("studio.example.com", 443), "path": "/", "headers": []})
+    result = await org_users_service.invite_batch_users(
+        request, 1, InviteUsersRequest(emails=["maintainer@example.com"], role_id=2), session, current_user,
+    )
+
+    assert result.created == 1
+    assert _get_actual_admin_seat_count(1, session) == 2  # owner + pending maintainer
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("signup_mode", ["inviteOnly", "open"])
 async def test_existing_user_acceptance_converts_reserved_invitation_without_new_usage(session: Session, monkeypatch, signup_mode: str):
     _seed(session)
