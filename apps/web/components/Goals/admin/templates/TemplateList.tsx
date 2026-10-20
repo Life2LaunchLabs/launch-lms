@@ -14,6 +14,7 @@ import { getUriWithOrg, routePaths } from '@services/config/config'
 import { isTemplatesKey, templateKeys, templatesApi } from '@services/goals/templates'
 import type { GoalTemplate } from '@services/goals/types'
 import { cn } from '@/lib/utils'
+import BadgeTemplatesSection from '@components/Goals/admin/versions/BadgeTemplatesSection'
 
 const templatePage = (orgslug: string, uuid: string) => getUriWithOrg(orgslug, routePaths.org.admin.templatePage(uuid, 'overview'))
 
@@ -45,7 +46,7 @@ export default function TemplateList({ orgslug, orgId, token }: { orgslug: strin
     <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div><h2 className="text-lg font-bold text-foreground">Goal templates</h2><p className="mt-1 text-sm text-muted-foreground">Reusable stages and steps you hand out to learners as goals.</p></div>
       <div className="flex items-center gap-3">
-        <label className="flex items-center gap-2 text-xs font-bold text-muted-foreground"><input type="checkbox" checked={showArchived} onChange={(event) => setShowArchived(event.target.checked)} />Show archived</label>
+        <label className="flex items-center gap-2 whitespace-nowrap text-xs font-bold text-muted-foreground"><input type="checkbox" checked={showArchived} onChange={(event) => setShowArchived(event.target.checked)} />Show archived</label>
         <NewTemplateModal orgslug={orgslug} orgId={orgId} token={token} />
       </div>
     </div>
@@ -65,7 +66,7 @@ export default function TemplateList({ orgslug, orgId, token }: { orgslug: strin
         </button>}
       </div>)}
     </div> : <div className="flex items-center justify-center rounded-xl border-2 border-dashed border-border py-16 text-center"><div><Layers3 size={36} className="mx-auto mb-3 text-gray-300" /><p className="text-sm text-muted-foreground">Create a goal template to hand the same stages and steps to many learners.</p></div></div>}
-  </section></div>
+  </section><BadgeTemplatesSection orgslug={orgslug} orgId={orgId} token={token} /></div>
 }
 
 function NewTemplateModal({ orgslug, orgId, token }: { orgslug: string; orgId: number; token?: string }) {

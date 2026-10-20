@@ -47,6 +47,8 @@ def _progress(db: Session, goals: list[Goal]) -> tuple[dict[int, tuple[int, int]
 
 
 def assignment_dict(db: Session, assignment: GoalAssignment) -> dict:
+    from src.services.goals.badge_authority import version_status
+
     template = db.get(GoalTemplate, assignment.template_id)
     version = db.get(GoalTemplateVersion, assignment.version_id)
     group = db.get(UserGroup, assignment.usergroup_id) if assignment.usergroup_id else None
@@ -79,6 +81,6 @@ def assignment_dict(db: Session, assignment: GoalAssignment) -> dict:
         "lifecycle_counts": lifecycle,
         "step_count": sum(1 for _ in iter_steps(version.document or {})) if version else 0,
         "completed_count": done, "ready_for_review_count": waiting,
-        "progress_percent": round(done * 100 / total) if total else 0,
+        "progress_percent": round(done * 100 / total) if total else 0, **version_status(db, assignment),
         "min_progress_percent": min(percents) if percents else 0, "max_progress_percent": max(percents) if percents else 0,
     }

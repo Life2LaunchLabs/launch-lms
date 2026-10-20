@@ -49,7 +49,7 @@ from src.db.usergroups import UserGroup
 from src.db.users import PublicUser, User
 from src.security.org_auth import require_org_admin
 from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
-from src.services.goals import access, templates
+from src.services.goals import access, badge_authority, templates
 from src.services.goals.assignment_summary import assignment_dict, collaborators_of
 from src.services.school import staff as group_staff
 from src.services.goals.document import iter_steps
@@ -111,7 +111,7 @@ def _issue(db: Session, assignment: GoalAssignment, template: GoalTemplate, vers
         raise HTTPException(status_code=422, detail="Inviting someone by email needs an owner")
     goal = issue_goal(
         db, template, version, subject_user_id=user_id, owner_user_id=owner_id,  # type: ignore[arg-type]
-        org_id=assignment.org_id, source=GoalSource.ASSIGNMENT, assignment_id=assignment.id,
+        org_id=assignment.org_id, source=GoalSource.ASSIGNMENT, assignment_id=assignment.id, badge_id=assignment.badge_id,
         staff_user_ids=list(assignment.staff_user_ids or []), start_date=assignment.start_date, due_date=assignment.due_date,
         stage_dates=assignment.stage_dates, status=GoalStatus.PENDING, actor_user_id=actor_user_id,
     )
@@ -154,9 +154,10 @@ def _invite_subject(db: Session, goal: Goal, assignment: GoalAssignment, version
 def sync_assignment(db: Session, assignment: GoalAssignment, actor_user_id: int | None = None) -> list[Goal]:
     """Issue a goal to every learner of an active assignment who doesn't have one yet (flushed, not committed).
 
-    Paused and ended assignments issue nothing (see the module docstring).
+    Paused and ended assignments issue nothing (see the module docstring), and nor
+    does a badge assignment whose organization may no longer run the badge's template.
     """
-    if _value(assignment.status) != AssignmentStatus.ACTIVE.value:
+    if _value(assignment.status) != AssignmentStatus.ACTIVE.value or not badge_authority.still_runs(db, assignment):
         return []
     template = db.get(GoalTemplate, assignment.template_id)
     version = db.get(GoalTemplateVersion, assignment.version_id)
@@ -247,7 +248,7 @@ def assign(db: Session, current_user: PublicUser, org_id: int, template_uuid: st
     email = (payload.subject_email or "").strip().lower() or None
     if sum([bool(payload.user_id), bool(payload.usergroup_id), bool(email)]) != 1:
         raise HTTPException(status_code=422, detail="Hand it to one person, one group or one email address")
-    template = templates.template_or_404(db, org_id, template_uuid)
+    template, badge = badge_authority.runnable(db, org_id, template_uuid, payload.badge_uuid)
     version = templates.issuable_version(db, template)
     if payload.usergroup_id and not db.exec(select(UserGroup.id).where(UserGroup.id == payload.usergroup_id, UserGroup.org_id == org_id)).first():
         raise HTTPException(status_code=404, detail="Group not found")
@@ -268,6 +269,7 @@ def assign(db: Session, current_user: PublicUser, org_id: int, template_uuid: st
         staff_user_ids=[item["user_id"] for item in collaborators], start_date=payload.start_date,
         due_date=payload.due_date, stage_dates=stage_dates,
         step_dates=step_dates, collaborators=collaborators, owner_user_id=owner_id, created_by_user_id=current_user.id, creation_date=now, update_date=now,
+        badge_id=badge.id if badge else None,
     )
     db.add(assignment)
     db.flush()
@@ -278,8 +280,9 @@ def assign(db: Session, current_user: PublicUser, org_id: int, template_uuid: st
 
 def list_assignments(db: Session, current_user: PublicUser, org_id: int, template_uuid: str) -> list[dict]:
     require_org_admin(current_user.id, org_id, db)
-    template = templates.template_or_404(db, org_id, template_uuid)
-    rows = db.exec(select(GoalAssignment).where(GoalAssignment.template_id == template.id).order_by(GoalAssignment.id.desc())).all()  # type: ignore[union-attr]
+    template, _ = badge_authority.runnable(db, org_id, template_uuid)
+    rows = db.exec(select(GoalAssignment).where(GoalAssignment.template_id == template.id, GoalAssignment.org_id == org_id)
+                   .order_by(GoalAssignment.id.desc())).all()  # type: ignore[union-attr]
     return [assignment_dict(db, row) for row in rows]
 
 

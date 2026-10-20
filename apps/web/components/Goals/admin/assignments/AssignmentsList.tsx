@@ -11,6 +11,7 @@ import { getUriWithOrg } from '@services/config/config'
 import { assignmentsKey, goalAdminApi, inboxKey, type Cohort, type Inbox } from '@services/goals/admin'
 import { EmptyState } from '../live/ui'
 import AssignmentActions from './AssignmentActions'
+import AssignmentVersionBanner from '@components/Goals/admin/versions/AssignmentVersionBanner'
 import { assignmentHref, assignmentLabel, Chip, datesLine, StatusChip, useStaff, useTemplateAssignments, type AssignmentRow } from './shared'
 
 /** What waits on the viewer in each assignment, from their review inbox: hand-ins to grade, staff steps to settle. */
@@ -58,7 +59,8 @@ export default function AssignmentsList({ rows, loading, orgslug, needs = {}, on
     <h2 className="mb-2 border-b border-border pb-2 text-sm font-black uppercase tracking-wider text-muted-foreground">{title}</h2>
     <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card shadow-xs">
       {items.map((assignment) => <AssignmentListRow key={assignment.assignment_uuid} assignment={assignment} orgslug={orgslug} showTemplate={showTemplate} need={needs[assignment.assignment_uuid]}
-        actions={admin ? <AssignmentActions compact assignment={assignment} orgId={orgId} token={token} onChanged={onChanged} /> : null} />)}
+        actions={admin ? <AssignmentActions compact assignment={assignment} orgId={orgId} token={token} onChanged={onChanged} /> : null}
+        banner={admin ? <AssignmentVersionBanner orgId={orgId} token={token} assignment={assignment as unknown as React.ComponentProps<typeof AssignmentVersionBanner>['assignment']} compact className="mt-2" onApplied={async () => { await onChanged() }} /> : null} />)}
     </ul>
   </section>
   return <div className="space-y-8">
@@ -68,7 +70,7 @@ export default function AssignmentsList({ rows, loading, orgslug, needs = {}, on
   </div>
 }
 
-function AssignmentListRow({ assignment, orgslug, showTemplate, need, actions }: { assignment: AssignmentRow; orgslug: string; showTemplate: boolean; need?: { grade: number; settle: number }; actions: React.ReactNode }) {
+function AssignmentListRow({ assignment, orgslug, showTemplate, need, actions, banner }: { assignment: AssignmentRow; orgslug: string; showTemplate: boolean; need?: { grade: number; settle: number }; actions: React.ReactNode; banner?: React.ReactNode }) {
   const Icon = assignment.assignment_type === 'group' ? Users : assignment.assignment_type === 'external' ? Mail : User
   const who = assignmentLabel(assignment)
   const waiting = Boolean(need?.grade || need?.settle)
@@ -88,6 +90,7 @@ function AssignmentListRow({ assignment, orgslug, showTemplate, need, actions }:
         <span>{datesLine(assignment)}</span>
         {assignment.staff.length ? <span>Staff: {assignment.staff.map((person) => [person.first_name, person.last_name].filter(Boolean).join(' ') || person.username).join(', ')}</span> : null}
       </p>
+      {banner ? <div className="relative z-10">{banner}</div> : null}
     </div>
     <div className={cn('order-last w-full items-center justify-between gap-3 pl-[52px] sm:order-none sm:flex sm:w-auto sm:justify-end sm:pl-0', waiting || actions ? 'flex' : 'hidden')}>
       <span className="flex shrink-0 flex-wrap gap-1.5 sm:justify-end" aria-label="Waiting on you">

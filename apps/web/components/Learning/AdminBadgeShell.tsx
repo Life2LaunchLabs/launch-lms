@@ -108,7 +108,7 @@ export default function AdminBadgeShell({
 
   return (
     <div className="min-h-full w-full bg-[#f8f8f8]">
-      <div className="relative z-10 bg-[#fcfbfc] pl-10 pr-10 text-sm tracking-tight nice-shadow">
+      <div className="relative z-10 bg-[#fcfbfc] px-4 text-sm tracking-tight nice-shadow sm:px-10">
         <div className="pb-4 pt-6">
           <Breadcrumbs items={[
             { label: 'Badges', href: '/admin/badges' },
@@ -166,12 +166,12 @@ export default function AdminBadgeShell({
           </div>
         </div>
 
-        <div className="flex space-x-3 text-sm font-black">
+        <div className="-mx-4 flex space-x-3 overflow-x-auto px-4 text-sm font-black [scrollbar-width:none] sm:mx-0 sm:overflow-visible sm:px-0">
           {visibleTabs.map((tab) => {
             const Icon = tab.icon
             const isActive = normalizedSubpage === tab.key
             return (
-              <Link key={tab.key} href={`${getUriWithOrg(orgslug, `/admin/badges/badge/${cleanBadgeId(badge.badge_uuid)}/${tab.key}`)}?version=${badge.selected_version?.version_uuid || ''}`} replace>
+              <Link key={tab.key} href={`${getUriWithOrg(orgslug, `/admin/badges/badge/${cleanBadgeId(badge.badge_uuid)}/${tab.key}`)}?version=${badge.selected_version?.version_uuid || ''}`} replace className="shrink-0 whitespace-nowrap">
                 <div className={`flex w-fit cursor-pointer space-x-4 border-black py-2 text-center transition-all ease-linear ${isActive ? 'border-b-4' : 'opacity-50 hover:opacity-75'}`}>
                   <div className="mx-2 flex items-center space-x-2.5">
                     <Icon size={16} />
@@ -202,7 +202,7 @@ function BadgeAnalyticsPanel({ badge, canEdit, issuerOrgId, orgslug }: { badge: 
   if (!canEdit) return <IssuerBadgeAnalyticsPanel badge={badge} issuerOrgId={issuerOrgId} orgslug={orgslug} />
   const metadata = badge.badge_metadata || {}
   return (
-    <div className="px-10 pb-10 pt-6">
+    <div className="px-4 pb-10 pt-6 sm:px-10">
       <section className="max-w-4xl rounded-xl bg-card p-6 shadow-xs">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -245,7 +245,7 @@ function IssuerBadgeAnalyticsPanel({ badge, issuerOrgId, orgslug }: { badge: any
   }, [load])
 
   return (
-    <div className="px-10 pb-10 pt-6">
+    <div className="px-4 pb-10 pt-6 sm:px-10">
       <section className="max-w-4xl rounded-xl bg-card p-6 shadow-xs">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -377,7 +377,7 @@ function BadgeIssuersPanel({ badge, onPatch }: { badge: any; onPatch: (patch: Re
   }
 
   return (
-    <div className="px-10 pb-10 pt-6">
+    <div className="px-4 pb-10 pt-6 sm:px-10">
       <section className="max-w-4xl rounded-xl bg-card p-6 shadow-xs">
         <h2 className="text-lg font-bold text-foreground">Marketplace</h2>
         <div className="mt-4 divide-y divide-border">
@@ -545,7 +545,7 @@ function BadgeAboutPanel({ badge, onPatch }: { badge: any; onPatch: (patch: Reco
   }
 
   return (
-    <div className="px-10 pb-10 pt-6">
+    <div className="px-4 pb-10 pt-6 sm:px-10">
       <section className="max-w-4xl rounded-xl bg-card p-6 shadow-xs">
         <h2 className="text-lg font-bold text-foreground">Marketing</h2>
         <div className="mt-5 space-y-5">
@@ -674,7 +674,7 @@ function BadgeSettingsPanel({ orgslug, badge, onPatch, isDraft }: { orgslug: str
   }
 
   return (
-    <div className="px-10 pb-10 pt-6">
+    <div className="px-4 pb-10 pt-6 sm:px-10">
       <section className="max-w-4xl rounded-xl bg-card p-6 shadow-xs">
         <h2 className="text-lg font-bold text-foreground">Settings</h2>
         <div className="mt-4 divide-y divide-border">
@@ -755,7 +755,7 @@ function IssuerBadgeSettingsPanel({ orgslug, badge, issuerOrgId }: { orgslug: st
   }
 
   return (
-    <div className="px-10 pb-10 pt-6">
+    <div className="px-4 pb-10 pt-6 sm:px-10">
       <section className="max-w-4xl rounded-xl bg-card p-6 shadow-xs">
         <h2 className="text-lg font-bold text-foreground">Issuer settings</h2>
         <p className="mt-1 text-sm text-muted-foreground">Settings that apply only to your organization’s use of this badge.</p>
@@ -891,7 +891,7 @@ function BadgeCertificationPanel({ badge, onPatch, readOnly = false }: { badge: 
   }
 
   return (
-    <div className="px-10 pb-10 pt-6">
+    <div className="px-4 pb-10 pt-6 sm:px-10">
       <div className="grid max-w-7xl gap-6 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-start">
         <div className="order-2 space-y-6 lg:order-1">
           <section className="rounded-xl bg-card p-6 shadow-xs">

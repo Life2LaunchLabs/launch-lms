@@ -27,7 +27,7 @@ def test_curated_order_and_artwork_persist_without_overwriting_org_settings():
         admin, _, _ = _world(session)
         _collect(session)
         row = session.exec(select(OrganizationConfig).where(OrganizationConfig.org_id == 1)).first() or OrganizationConfig(org_id=1)
-        row.config = {"general": {"enabled": True}, "customization": {"colors": {"primary": "red"}}}
+        row.config = {**(row.config or {}), "general": {"enabled": True}, "customization": {"colors": {"primary": "red"}}}
         session.add(row)
         session.commit()
         settings = DiscoverSettings(mode="curated", slides=[DiscoverSlide(kind="challenges", target="challenges", title="Challenges coming soon", image_url="/jungle_landscape.jpg"), DiscoverSlide(kind="badge", target="badge_adapt", title="Your next skill", action_label="Explore")])
@@ -68,7 +68,7 @@ def test_stored_news_slides_are_dropped_without_losing_curation():
         _world(session)
         _collect(session)
         row = session.exec(select(OrganizationConfig).where(OrganizationConfig.org_id == 1)).first() or OrganizationConfig(org_id=1)
-        row.config = {"customization": {"discover": {"mode": "curated", "slides": [{"kind": "news", "target": "news_public"}, {"kind": "challenges", "target": "challenges"}]}}}
+        row.config = {**(row.config or {}), "customization": {"discover": {"mode": "curated", "slides": [{"kind": "news", "target": "news_public"}, {"kind": "challenges", "target": "challenges"}]}}}
         session.add(row)
         session.commit()
         assert [slide["kind"] for slide in discover_featured.hero_slides(session, 1, [])] == ["challenges"]

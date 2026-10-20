@@ -37,6 +37,14 @@ class GoalAssignmentRequest(GoalAssignmentCreate):
     collaborators: list[AssignmentCollaborator] = Field(default_factory=list)
     owner_user_id: int | None = None
     schedule: AssignmentSchedule | None = None
+    # The badge its learners earn: required to run another organization's badge route; optional for your own.
+    badge_uuid: str | None = None
+
+
+class ApplyVersion(SQLModel):
+    """Move an assignment to another published version of its template (services/goals/assignment_versions.py)."""
+
+    version_uuid: str = Field(min_length=1)
 
 
 class GoalAssignmentUpdate(SQLModel):

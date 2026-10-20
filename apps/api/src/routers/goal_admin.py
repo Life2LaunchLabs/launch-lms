@@ -5,13 +5,13 @@ from sqlmodel import Session, select
 
 from src.core.events.database import get_db_session
 from src.db.goal_admin import AdminHomeLayout, StaffNote, StepConfirmMany, StepDecision, StepProgressBulk
-from src.db.goal_templates import GoalAssignmentUpdate, StepRemind, StepSettle
+from src.db.goal_templates import ApplyVersion, GoalAssignmentUpdate, StepRemind, StepSettle
 from src.db.goals import GoalAssignment
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
 from src.security.features_utils.plan_check import get_org_plan
 from src.security.features_utils.plans import plan_meets_requirement
-from src.services.goals import admin_home, assignment_steps, assignments, review, staff_views
+from src.services.goals import admin_home, assignment_steps, assignment_versions, assignments, review, staff_views
 
 router = APIRouter()
 GROUPS_NEED = "Group goal assignments require a Full plan or higher"
@@ -104,6 +104,20 @@ def api_assignment_resume(assignment_uuid: str, org_id: int, db: Session = Depen
 def api_assignment_end(assignment_uuid: str, org_id: int, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
     _require_assignment_plan(org_id, assignment_uuid, db)
     return assignments.end(db, user, org_id, assignment_uuid)
+
+
+@router.get("/assignments/{assignment_uuid}/version-changes")
+def api_assignment_version_changes(assignment_uuid: str, org_id: int, version_uuid: str | None = None,
+                                   db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    """What moving the assignment to a version (default: the template's newest) changes, by stage, and who started what."""
+    return assignment_versions.version_changes(db, user, org_id, assignment_uuid, version_uuid)
+
+
+@router.post("/assignments/{assignment_uuid}/apply-version")
+def api_assignment_apply_version(assignment_uuid: str, org_id: int, payload: ApplyVersion,
+                                 db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    """Move the assignment to the version: only steps nobody has started change in its learners' plans."""
+    return assignment_versions.apply_version(db, user, org_id, assignment_uuid, payload.version_uuid)
 
 
 @router.post("/assignments/{assignment_uuid}/steps/{step_key}/remind")
