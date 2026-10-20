@@ -207,8 +207,8 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
     if (!goal) { /* the placeholder shows until it arrives */ }
     else if (celebrating) { /* the story opens; the placeholder shows until it does */ }
     else body = <GoalPath goal={goal} color={color} badge={badge} selectedUuid={selectedStepUuid} onSelect={setSelectedStepUuid}
-      own={goal.ownership === 'personal' && can(goal, 'delete_plan')}
-      viewer={{ orgslug, token, viewerUserId, canWork: isSubject && can(goal, 'update_progress'), staff: !isSubject && can(goal, 'complete_restricted_objectives') }} />
+      own={goal.ownership === 'personal' && can(goal, 'delete_plan')} viewer={{ orgslug, token, viewerUserId }}
+      perspective={!isSubject && can(goal, 'complete_restricted_objectives') ? 'staff' : 'learner'} />
     content = <Reveal ready={ready} fallback={<GoalPathSkeleton />}>{body}</Reveal>
   }
 
@@ -219,7 +219,7 @@ export default function GoalsWorkspace({ orgslug, initialGoalUuid }: { orgslug: 
         : <h1 className="pb-4 pt-2 text-3xl font-extrabold tracking-tight">Overview</h1>}
       <LayoutGroup id="plans">
         <GoalEditingProvider goal={goal} token={token} color={color} setColor={isSubject && goal ? (next: string) => setGoalColor(goal.goal_uuid, next) : undefined}>
-        <GoalChatProvider goal={goal} token={token} orgslug={orgslug}>
+        <GoalChatProvider scope={{ goal }} token={token} orgslug={orgslug}>
         {strip}
         {goal && goal.ownership === 'personal' && goal.status === 'active' && viewerUserId !== undefined && goal.owner?.id === viewerUserId && !celebrating ? <GoalCoachBar goalUuid={goal.goal_uuid} token={token} /> : null}
         <div className="relative mt-8 overflow-x-clip">

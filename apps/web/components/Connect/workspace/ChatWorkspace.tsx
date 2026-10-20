@@ -5,10 +5,10 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import useSWR, { useSWRConfig, type KeyedMutator } from 'swr'
 import toast from 'react-hot-toast'
-import { ArrowUpRight, ChevronRight, Flag, X } from 'lucide-react'
+import { ArrowUpRight, ChevronRight, Flag, Lock, Users, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import { connectApi, connectKeys, type BlindPlan, type Chat, type ChatFilter, type ChatMessage, type ChatTopic, type MessageRef } from '@services/connect/connect'
+import { connectApi, connectKeys, type BlindPlan, type Chat, type ChatAudience, type ChatFilter, type ChatMessage, type ChatTopic, type MessageRef } from '@services/connect/connect'
 import { isGoalsKey } from '@services/goals/goals'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import useGoalColors from '@components/Goals/learner/useGoalColors'
@@ -22,8 +22,16 @@ import { MessageText, StepMark } from './tags'
 
 const CHAT_REFRESH_MS = 5_000
 
-/** A chat by its id, or a learner's chat with an organization as its staff see it. */
-export type ChatSource = { chatUuid: string } | { orgId: number; userId: number }
+/**
+ * A chat by its id, or a learner's chat with an organization as its staff see it. An
+ * assignment's chat says who reads it: its staff alone, or the whole group.
+ */
+export type ChatSource = ({ chatUuid: string } | { orgId: number; userId: number }) & { audience?: ChatAudience }
+
+const AUDIENCE: Record<ChatAudience, { icon: React.ElementType; text: string }> = {
+  staff: { icon: Lock, text: 'Staff only · learners never see this' },
+  group: { icon: Users, text: 'Everyone in the group sees this' },
+}
 
 function useWorkspaceChat(source: ChatSource, filter: ChatFilter, token?: string) {
   const key = 'chatUuid' in source ? connectKeys.chat(source.chatUuid, filter) : schoolKeys.studentChat(source.orgId, source.userId, filter)
@@ -37,7 +45,7 @@ function useWorkspaceChat(source: ChatSource, filter: ChatFilter, token?: string
  * write while filtered is about that plan or step without a tag saying so. A step's comments are
  * this chat filtered to the step, wherever it's opened from.
  */
-export default function ChatWorkspace({ source, orgslug, token, initialFilter = {}, header, blocked, empty, stepHref, onChat }: {
+export default function ChatWorkspace({ source, orgslug, token, initialFilter = {}, header, blocked, empty, stepHref, steps, onOpenPlan, onChat }: {
   source: ChatSource
   orgslug: string
   token?: string
@@ -52,6 +60,11 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
   /** Where a step opens for whoever is reading: the learner's plan, or staff's view of it. */
   // eslint-disable-next-line no-unused-vars
   stepHref?: (goalUuid: string, stepUuid: string) => string
+  /** The plan to filter by in place of the chat's own: an assignment's template, for its cohort's chat. */
+  steps?: ChatTopic
+  /** Where a plan tagged from outside this chat opens; by default the learner's plan. */
+  // eslint-disable-next-line no-unused-vars
+  onOpenPlan?: (goalUuid: string, stepUuid?: string) => void
   // eslint-disable-next-line no-unused-vars
   onChat?: (chat: Chat) => void
 }) {
@@ -63,9 +76,9 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
   const composer = React.useRef<TagComposerHandle>(null)
   const scroller = React.useRef<HTMLDivElement>(null)
   const [asking, setAsking] = React.useState<{ body: string; plans: BlindPlan[] } | null>(null)
-  const topics = React.useMemo(() => chat?.topics || [], [chat?.topics])
+  const topics = React.useMemo(() => steps ? [steps] : chat?.topics || [], [steps, chat?.topics])
   // Only plans under way: the ones on the Plans page, not finished ones or invitations.
-  const live = React.useMemo(() => topics.filter((item) => item.status === 'active'), [topics])
+  const live = React.useMemo(() => steps ? topics : topics.filter((item) => item.status === 'active'), [steps, topics])
   const session = useLHSession() as any
   const { getGoalColor } = useGoalColors(live, session?.data?.user?.id)
   const plan = topics.find((item) => item.goal_uuid === filter.goal_uuid)
@@ -92,7 +105,8 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
     if (ref.kind !== 'plan' && ref.kind !== 'step') return
     if (ref.hidden) return
     // A plan from outside this chat opens where it lives.
-    if (ref.outside) router.push(ref.kind === 'step' ? `${getUriWithOrg(orgslug, routePaths.org.plan(ref.goal_uuid))}?step=${encodeURIComponent(ref.step_uuid)}` : getUriWithOrg(orgslug, routePaths.org.plan(ref.goal_uuid)))
+    if (ref.outside && onOpenPlan) onOpenPlan(ref.goal_uuid, ref.kind === 'step' ? ref.step_uuid : undefined)
+    else if (ref.outside) router.push(ref.kind === 'step' ? `${getUriWithOrg(orgslug, routePaths.org.plan(ref.goal_uuid))}?step=${encodeURIComponent(ref.step_uuid)}` : getUriWithOrg(orgslug, routePaths.org.plan(ref.goal_uuid)))
     else setFilter(ref.kind === 'plan' ? { goal_uuid: ref.goal_uuid } : { goal_uuid: ref.goal_uuid, step_uuid: ref.step_uuid })
   }
   const send = async (body: string, share?: Record<string, string[]>) => {
@@ -140,12 +154,19 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
         : <p className="m-auto max-w-xs pt-16 text-center text-sm text-muted-foreground">{step ? `Nothing about ${step.title} yet. Anything you write here is about it.` : plan ? `Nothing about ${plan.title} yet. Anything you write here is about it.` : empty}</p>}
     </div>
     {chat ? <div className="mx-auto w-full max-w-[47.5rem] shrink-0 px-3 pb-3 sm:px-6 sm:pb-5">
+      {source.audience ? <AudienceLine audience={source.audience} /> : null}
       <TagComposer ref={composer} topics={live} people={chat.people} orgs={orgs} token={token}
         placeholder={step ? `Comment on ${step.title}` : plan ? `Message about ${plan.title}` : `Message ${chat.title}`} disabled={reason || undefined} onSend={(body) => send(body)} />
     </div> : null}
     <ShareSheet asking={asking} onClose={() => setAsking(null)}
       onSend={async (share) => { if (asking && await send(asking.body, share)) { composer.current?.clear(); setAsking(null) } }} />
   </>
+}
+
+/** Above the composer of an assignment's chat: who reads what's written here. */
+function AudienceLine({ audience }: { audience: ChatAudience }) {
+  const { icon: Icon, text } = AUDIENCE[audience]
+  return <p className="flex items-center gap-1.5 px-1 pb-1.5 text-xs font-semibold text-muted-foreground"><Icon size={12} aria-hidden="true" />{text}</p>
 }
 
 /**
