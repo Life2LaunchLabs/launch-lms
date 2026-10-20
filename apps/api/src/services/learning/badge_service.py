@@ -1,8 +1,8 @@
 """Badge creation."""
 
 from uuid import uuid4
-from fastapi import HTTPException, Request, status
-from sqlmodel import Session, select
+from fastapi import Request
+from sqlmodel import Session
 from src.db.learning import (
     LearningBadge,
     LearningBadgeCreate,
@@ -11,9 +11,8 @@ from src.db.learning import (
     LearningBadgeVersion,
     LearningBadgeVersionState,
 )
-from src.db.organization_config import OrganizationConfig
 from src.db.users import AnonymousUser, PublicUser
-from src.security.features_utils.resolve import resolve_feature
+from src.security.access.access import ensure_feature
 from src.security.superadmin import is_user_superadmin
 from src.services.learning import access_rules, lookups
 
@@ -60,12 +59,4 @@ def _require_badge_creation_access(
     """Require Badge Publishing access before creating or importing a badge."""
     if isinstance(current_user, PublicUser) and is_user_superadmin(current_user.id, db_session):
         return
-    org_config = db_session.exec(
-        select(OrganizationConfig).where(OrganizationConfig.org_id == org_id)
-    ).first()
-    config = org_config.config if org_config and org_config.config else {}
-    if not resolve_feature("marketplace_publishing", config, org_id).get("enabled"):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Badge Publishing is not enabled for this organization. Add the Badge Publishing package to create badges.",
-        )
+    ensure_feature(org_id, "badge_publishing", db_session)

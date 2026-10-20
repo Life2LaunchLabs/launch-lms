@@ -5,8 +5,8 @@ from sqlmodel import Field, SQLModel
 
 
 class PlanRequestBase(SQLModel):
-    request_type: str = "plan_upgrade"  # "plan_upgrade" | "package_add"
-    requested_value: str = ""  # plan name (e.g. "full") or package id (e.g. "analytics")
+    request_type: str = "tier_upgrade"  # "tier_upgrade" | "partner_application" | "feature_request"
+    requested_value: str = ""  # tier (e.g. "full"), partner program (e.g. "badge_publisher") or feature (e.g. "payments")
     message: str | None = None
 
 
@@ -24,7 +24,7 @@ class PlanRequest(PlanRequestBase, table=True):
 
 
 class PlanRequestCreate(SQLModel):
-    request_type: Literal["plan_upgrade", "package_add"] = "plan_upgrade"
+    request_type: Literal["tier_upgrade", "partner_application", "feature_request"] = "tier_upgrade"
     requested_value: str = ""
     message: str | None = None
 

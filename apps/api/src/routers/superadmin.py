@@ -17,9 +17,8 @@ from src.services.superadmin import orgs as orgs_service
 from src.services.superadmin import users as users_service
 from src.services import messages as messages_service
 from src.services.superadmin.orgs import (
+    OrgAccessUpdateRequest,
     OrgConfigUpdateRequest,
-    OrgPackagesUpdateRequest,
-    OrgPlanUpdateRequest,
     OrgSettingsUpdateRequest,
 )
 from src.services.superadmin.users import (
@@ -156,11 +155,11 @@ async def list_organizations(
     limit: int = 20,
     sort: str = "id",
     search: str = "",
-    plan: str = "all",
+    tier: str = "all",
     db_session: Session = Depends(get_db_session),
 ):
     return orgs_service.list_organizations(
-        db_session, page=page, limit=limit, sort=sort, search=search, plan=plan
+        db_session, page=page, limit=limit, sort=sort, search=search, tier=tier
     )
 
 
@@ -311,13 +310,13 @@ async def get_global_analytics(days: int = 30):
     return results
 
 
-@router.put("/organizations/{org_id}/plan")
-async def update_org_plan(
+@router.put("/organizations/{org_id}/access")
+async def update_org_access(
     org_id: int,
-    body: OrgPlanUpdateRequest,
+    body: OrgAccessUpdateRequest,
     db_session: Session = Depends(get_db_session),
 ):
-    return orgs_service.update_org_plan(db_session, org_id, body)
+    return orgs_service.update_org_access(db_session, org_id, body)
 
 
 @router.put("/organizations/{org_id}/settings")
@@ -338,15 +337,6 @@ async def update_org_config(
     return orgs_service.update_org_config(db_session, org_id, body)
 
 
-@router.put("/organizations/{org_id}/packages")
-async def update_org_packages(
-    org_id: int,
-    payload: OrgPackagesUpdateRequest,
-    db_session: Session = Depends(get_db_session),
-):
-    return orgs_service.update_org_packages(db_session, org_id, payload)
-
-
 # ============================================================================
 # Plan requests
 # ============================================================================
@@ -357,7 +347,7 @@ async def list_all_plan_requests(
     status: str | None = None,
     db_session: Session = Depends(get_db_session),
 ):
-    """List all plan/package requests across all orgs, with org info attached."""
+    """List all access requests across all orgs, with org info attached."""
     return orgs_service.list_all_plan_requests(db_session, status)
 
 

@@ -2,7 +2,7 @@
 
 "Own" means made here: not the system starter and not a copy from the library. Starts count every
 goal issued from one of them, in any org (library copies of a template count for its maker too).
-The metrics are part of the analytics package, so they come back only when the org has it.
+Reporting on an org's own work is open at every tier.
 """
 
 from __future__ import annotations
@@ -13,10 +13,6 @@ from sqlmodel import Session, col, func, select
 
 from src.db.goals import Goal, GoalStatus, GoalTemplate
 from src.db.learning import LearningBadge, LearningBadgeAward
-from src.db.organization_config import OrganizationConfig
-from src.security.features_utils.resolve import resolve_feature
-
-FEATURE = "analytics"
 RECENT_DAYS = 30
 EDITS = 5
 STARTED = (GoalStatus.ACTIVE.value, GoalStatus.FINISHED.value)
@@ -33,11 +29,6 @@ def _own_templates(org_id: int):
 def creates(db: Session, org_id: int) -> bool:
     """Whether the org makes its own templates or badges."""
     return bool(db.exec(_own_templates(org_id).limit(1)).first() or db.exec(select(LearningBadge.id).where(LearningBadge.org_id == org_id).limit(1)).first())
-
-
-def unlocked(db: Session, org_id: int) -> bool:
-    config = db.exec(select(OrganizationConfig).where(OrganizationConfig.org_id == org_id)).first()
-    return bool(resolve_feature(FEATURE, (config.config if config else None) or {}, org_id).get("enabled"))
 
 
 def _count(db: Session, statement) -> int:

@@ -6,7 +6,6 @@ from src.core.events.database import get_db_session
 from src.db.organization_config import (
     AuthBrandingConfig,
     BadgeIssuerConfig,
-    OrganizationConfigBase,
     SeoOrgConfig,
 )
 from src.db.organizations import (
@@ -18,7 +17,6 @@ from src.db.organizations import (
 from src.db.organization_invitations import CreateJoinLinkRequest, InvitationResponseRequest, InvitePreviewResponse, InviteUsersRequest, InviteUsersResponse
 from src.db.users import AnonymousUser, PublicUser
 from src.security.auth import get_authenticated_user, get_current_user
-from src.security.features_utils.dependencies import require_org_admin
 from src.services.orgs.invites import (
     create_invite_code,
     delete_invite_code,
@@ -28,7 +26,6 @@ from src.services.orgs.invites import (
 from src.services.orgs.join import JoinOrg, join_org
 from src.services.orgs.orgs import (
     create_org,
-    create_org_with_config,
     delete_org,
     get_discoverable_org_by_slug,
     get_organization_by_slug,
@@ -37,25 +34,16 @@ from src.services.orgs.orgs import (
     get_orgs_by_user_admin,
     list_discoverable_orgs,
     update_org,
-    update_org_ai_config,
     update_org_auth_branding_config,
-    update_org_badge_collections_config,
     update_org_badge_issuer_config,
-    update_org_badges_config,
-    update_org_boards_config,
     update_org_color_config,
-    update_org_communities_config,
     update_org_dark_color_config,
     update_org_favicon,
     update_org_footer_text_config,
     update_org_hide_org_name_config,
     update_org_landing,
     update_org_logo,
-    update_org_payments_config,
-    update_org_playgrounds_config,
-    update_org_podcasts_config,
     update_org_preview,
-    update_org_resources_config,
     update_org_seo_config,
     update_org_signup_mechanism,
     update_org_thumbnail,
@@ -81,13 +69,6 @@ from src.services.orgs.users import (
 )
 
 router = APIRouter()
-
-# Sub-router for feature config endpoints (admin-only)
-feature_config_router = APIRouter(
-    tags=["Feature Configuration"],
-    dependencies=[Depends(require_org_admin)],
-)
-
 
 @router.get("/invitations/me")
 async def api_get_my_organization_invitations(
@@ -141,23 +122,6 @@ async def api_create_org(
     Create new organization
     """
     return await create_org(request, org_object, current_user, db_session)
-
-
-# Temporary pre-alpha code
-@router.post("/withconfig/")
-async def api_create_org_withconfig(
-    request: Request,
-    org_object: OrganizationCreate,
-    config_object: OrganizationConfigBase,
-    current_user: PublicUser = Depends(get_current_user),
-    db_session: Session = Depends(get_db_session),
-) -> OrganizationRead:
-    """
-    Create new organization
-    """
-    return await create_org_with_config(
-        request, org_object, current_user, db_session, config_object
-    )
 
 
 @router.get("/uuid/{org_uuid}")
@@ -335,156 +299,6 @@ async def api_get_org_signup_mechanism(
     """
     return await update_org_signup_mechanism(
         request, signup_mechanism, org_id, current_user, db_session
-    )
-
-
-# ============================================================================
-# Feature config routes (admin-only via router-level dependency)
-# ============================================================================
-
-
-@feature_config_router.put("/{org_id}/config/ai")
-async def api_update_org_ai_config(
-    request: Request,
-    org_id: int,
-    ai_enabled: bool | None = None,
-    copilot_enabled: bool | None = None,
-    current_user: PublicUser = Depends(get_current_user),
-    db_session: Session = Depends(get_db_session),
-):
-    """
-    Update organization AI configuration (admin-only)
-    """
-    return await update_org_ai_config(
-        request, ai_enabled, org_id, current_user, db_session, copilot_enabled=copilot_enabled
-    )
-
-
-@feature_config_router.put("/{org_id}/config/communities")
-async def api_update_org_communities_config(
-    request: Request,
-    org_id: int,
-    communities_enabled: bool,
-    current_user: PublicUser = Depends(get_current_user),
-    db_session: Session = Depends(get_db_session),
-):
-    """
-    Update organization communities configuration (admin-only)
-    """
-    return await update_org_communities_config(
-        request, communities_enabled, org_id, current_user, db_session
-    )
-
-
-@feature_config_router.put("/{org_id}/config/payments")
-async def api_update_org_payments_config(
-    request: Request,
-    org_id: int,
-    payments_enabled: bool,
-    current_user: PublicUser = Depends(get_current_user),
-    db_session: Session = Depends(get_db_session),
-):
-    """
-    Update organization payments configuration (admin-only)
-    """
-    return await update_org_payments_config(
-        request, payments_enabled, org_id, current_user, db_session
-    )
-
-
-@feature_config_router.put("/{org_id}/config/badges")
-async def api_update_org_badges_config(
-    request: Request,
-    org_id: int,
-    badges_enabled: bool,
-    current_user: PublicUser = Depends(get_current_user),
-    db_session: Session = Depends(get_db_session),
-):
-    """
-    Update organization badge configuration (admin-only)
-    """
-    return await update_org_badges_config(
-        request, badges_enabled, org_id, current_user, db_session
-    )
-
-
-@feature_config_router.put("/{org_id}/config/badge-collections")
-async def api_update_org_badge_collections_config(
-    request: Request,
-    org_id: int,
-    badge_collections_enabled: bool,
-    current_user: PublicUser = Depends(get_current_user),
-    db_session: Session = Depends(get_db_session),
-):
-    """
-    Update organization badge collection configuration (admin-only)
-    """
-    return await update_org_badge_collections_config(
-        request, badge_collections_enabled, org_id, current_user, db_session
-    )
-
-
-@feature_config_router.put("/{org_id}/config/podcasts")
-async def api_update_org_podcasts_config(
-    request: Request,
-    org_id: int,
-    podcasts_enabled: bool,
-    current_user: PublicUser = Depends(get_current_user),
-    db_session: Session = Depends(get_db_session),
-):
-    """
-    Update organization podcasts configuration (admin-only)
-    """
-    return await update_org_podcasts_config(
-        request, podcasts_enabled, org_id, current_user, db_session
-    )
-
-
-@feature_config_router.put("/{org_id}/config/boards")
-async def api_update_org_boards_config(
-    request: Request,
-    org_id: int,
-    boards_enabled: bool,
-    current_user: PublicUser = Depends(get_current_user),
-    db_session: Session = Depends(get_db_session),
-):
-    """
-    Update organization boards configuration (admin-only)
-    """
-    return await update_org_boards_config(
-        request, boards_enabled, org_id, current_user, db_session
-    )
-
-
-@feature_config_router.put("/{org_id}/config/playgrounds")
-async def api_update_org_playgrounds_config(
-    request: Request,
-    org_id: int,
-    playgrounds_enabled: bool,
-    current_user: PublicUser = Depends(get_current_user),
-    db_session: Session = Depends(get_db_session),
-):
-    """
-    Update organization playgrounds configuration (admin-only)
-    """
-    return await update_org_playgrounds_config(
-        request, playgrounds_enabled, org_id, current_user, db_session
-    )
-
-
-@feature_config_router.put("/{org_id}/config/resources")
-async def api_update_org_resources_config(
-    request: Request,
-    org_id: int,
-    resources_enabled: bool,
-    current_user: PublicUser = Depends(get_current_user),
-    db_session: Session = Depends(get_db_session),
-):
-    """
-    Update organization resources configuration (admin-only)
-    """
-    return await update_org_resources_config(
-        request, resources_enabled, org_id, current_user, db_session
     )
 
 
@@ -1017,6 +831,3 @@ async def api_get_org_usage(
     from src.services.orgs.usage import get_org_usage_and_limits
     return await get_org_usage_and_limits(request, org_id, current_user, db_session)
 
-
-# Include the feature config sub-router (admin-only endpoints)
-router.include_router(feature_config_router)

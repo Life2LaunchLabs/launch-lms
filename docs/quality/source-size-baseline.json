@@ -10,7 +10,6 @@
     "apps/api/src/routers/resources.py": 571,
     "apps/api/src/routers/superadmin.py": 506,
     "apps/api/src/routers/users.py": 529,
-    "apps/api/src/security/features_utils/usage.py": 861,
     "apps/api/src/security/rbac/rbac.py": 512,
     "apps/api/src/security/rbac/resource_access.py": 903,
     "apps/api/src/services/analytics/queries.py": 1159,

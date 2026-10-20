@@ -13,18 +13,16 @@ from fastapi import HTTPException
 from sqlmodel import Session, col, select
 
 from src.db.conversations import Conversation, ConversationMember
-from src.db.organization_config import OrganizationConfig
 from src.db.school import UserGroupStaff
 from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup
 from src.db.users import PublicUser
-from src.security.features_utils.resolve import resolve_feature
+from src.security.access.access import org_access
 from src.services.goals.sharing_roles import _stamp
 
 GROUP = "group"
-# "usergroups" is on everywhere; the groups package (advanced user management, or a plan that includes it) is what turns on "roles".
-FEATURE = "roles"
-DISABLED = "Group chats need the groups package."
+FEATURE = "groups"
+DISABLED = "Group chats need the Full tier."
 
 
 def _key(group_id: int) -> str:
@@ -33,8 +31,7 @@ def _key(group_id: int) -> str:
 
 
 def enabled(db: Session, org_id: int) -> bool:
-    row = db.exec(select(OrganizationConfig).where(OrganizationConfig.org_id == org_id)).first()
-    return bool(row and resolve_feature(FEATURE, row.config or {}, org_id).get("enabled"))
+    return org_access(org_id, db).has(FEATURE)
 
 
 def require_enabled(db: Session, org_id: int) -> None:

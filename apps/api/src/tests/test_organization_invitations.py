@@ -14,16 +14,17 @@ from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
 from src.db.usergroups import UserGroup
 from src.db.users import AnonymousUser, PublicUser, User, UserCreate, UserRead
-from src.security.features_utils.usage import (
-    _get_actual_admin_seat_count,
-    _get_actual_member_count,
-)
+from src.security.access.access import count_usage
 from src.services.orgs import users as org_users_service
 from src.services.orgs import invites as org_invites_service
 from src.services.orgs import join as join_service
 from src.services.orgs import orgs as orgs_service
 from src.services.orgs.join import JoinOrg
 from src.services.users import users as user_service
+
+
+def _members(org_id: int, session: Session) -> int:
+    return count_usage("learners", org_id, session) + count_usage("staff_seats", org_id, session)
 
 
 # Keep pending-invitation fixtures valid regardless of the execution date.
@@ -47,7 +48,7 @@ def _seed(session: Session):
     session.add(User(id=2, user_uuid="user_2", username="existing", email="existing@example.com", first_name="E", last_name="Xisting"))
     session.add(UserOrganization(user_id=1, org_id=1, role_id=1, creation_date=NOW.isoformat(), update_date=NOW.isoformat()))
     session.add(UserGroup(id=1, org_id=1, usergroup_uuid="group_1", name="Blue group", description=""))
-    session.add(OrganizationConfig(org_id=1, config={"config_version": "2.0", "plan": "full"}, creation_date=NOW.isoformat(), update_date=NOW.isoformat()))
+    session.add(OrganizationConfig(org_id=1, config={"config_version": "3.0", "tier": "full"}, creation_date=NOW.isoformat(), update_date=NOW.isoformat()))
     session.commit()
 
 
@@ -76,8 +77,8 @@ def test_pending_invitations_reserve_member_and_admin_seats(session: Session):
     session.add(_invitation(invitation_uuid="invite_4", email="accepted@example.com", email_normalized="accepted@example.com", status="accepted"))
     session.commit()
 
-    assert _get_actual_member_count(1, session) == 3  # owner + two pending invitations
-    assert _get_actual_admin_seat_count(1, session) == 2  # owner + pending admin
+    assert _members(1, session) == 3  # owner + two pending invitations
+    assert count_usage("staff_seats", 1, session) == 2  # owner + pending admin
 
 
 def test_direct_invitation_does_not_require_shared_invite_code(session: Session):
@@ -110,7 +111,6 @@ def test_recipient_can_list_view_and_decline_organization_invitation(session: Se
     assert result["updated"] == 1
     assert invitation.viewed_at is not None
 
-    monkeypatch.setattr(org_users_service, "decrease_feature_usage", lambda *_args, **_kwargs: True)
     request = Request({"type": "http", "scheme": "https", "server": ("studio.example.com", 443), "path": "/", "headers": []})
     org_users_service.decline_my_organization_invitation(request, invitation.invitation_uuid, current_user, session)
     session.refresh(invitation)
@@ -139,8 +139,6 @@ async def test_batch_invite_validates_deduplicates_and_records_role_and_group(se
         return True
 
     monkeypatch.setattr(org_users_service, "rbac_check", allow_rbac)
-    monkeypatch.setattr(org_users_service, "check_limits_with_usage", lambda *_args, **_kwargs: True)
-    monkeypatch.setattr(org_users_service, "increase_feature_usage", lambda *_args, **_kwargs: True)
     monkeypatch.setattr(org_users_service, "send_direct_invitation_email", lambda *_args, **_kwargs: True)
     monkeypatch.setattr("src.security.superadmin.is_user_superadmin", lambda *_args, **_kwargs: True)
 
@@ -176,7 +174,7 @@ async def test_enterprise_org_can_invite_maintainer_with_real_seat_checks(sessio
     _seed(session)
     session.add(Role(id=2, name="Maintainer", role_uuid="role_global_maintainer", rights={"dashboard": {"action_access": True}}))
     config = session.exec(select(OrganizationConfig).where(OrganizationConfig.org_id == 1)).one()
-    config.config = {"config_version": "2.0", "plan": "enterprise"}
+    config.config = {"config_version": "3.0", "tier": "enterprise"}
     session.add(config)
     session.commit()
 
@@ -184,7 +182,6 @@ async def test_enterprise_org_can_invite_maintainer_with_real_seat_checks(sessio
         return True
 
     monkeypatch.setattr(org_users_service, "rbac_check", allow_rbac)
-    monkeypatch.setattr(org_users_service, "increase_feature_usage", lambda *_args, **_kwargs: True)
     monkeypatch.setattr(org_users_service, "send_direct_invitation_email", lambda *_args, **_kwargs: True)
     monkeypatch.setattr("src.security.superadmin.is_user_superadmin", lambda *_args, **_kwargs: True)
 
@@ -195,7 +192,7 @@ async def test_enterprise_org_can_invite_maintainer_with_real_seat_checks(sessio
     )
 
     assert result.created == 1
-    assert _get_actual_admin_seat_count(1, session) == 2  # owner + pending maintainer
+    assert count_usage("staff_seats", 1, session) == 2  # owner + pending maintainer
 
 
 @pytest.mark.asyncio
@@ -224,8 +221,7 @@ async def test_existing_user_acceptance_converts_reserved_invitation_without_new
 
     monkeypatch.setattr(join_service, "get_org_join_mechanism", invite_only)
     monkeypatch.setattr(join_service, "add_users_to_usergroup", add_to_group)
-    monkeypatch.setattr(join_service, "check_limits_with_usage", should_not_charge)
-    monkeypatch.setattr(join_service, "increase_feature_usage", should_not_charge)
+    monkeypatch.setattr(join_service, "require_capacity", should_not_charge)
     monkeypatch.setattr("src.routers.users._invalidate_session_cache", lambda *_args: None)
 
     current_user = PublicUser(id=2, user_uuid="user_2", username="existing", email="existing@example.com", first_name="E", last_name="Xisting")
@@ -308,7 +304,6 @@ async def test_managed_join_link_is_hashed_domain_limited_and_reserves_seats(ses
         return True
 
     monkeypatch.setattr(org_invites_service, "rbac_check", allow_rbac)
-    monkeypatch.setattr(org_invites_service, "increase_feature_usage", lambda *_args, **_kwargs: True)
     request = Request({"type": "http", "scheme": "https", "server": ("studio.example.com", 443), "path": "/", "headers": []})
     current_user = PublicUser(id=1, user_uuid="user_1", username="owner", email="owner@example.com", first_name="O", last_name="Wner", is_superadmin=True)
     created = await org_invites_service.create_invite_code(
@@ -320,7 +315,7 @@ async def test_managed_join_link_is_hashed_domain_limited_and_reserves_seats(ses
     link = session.exec(select(OrganizationJoinLink)).one()
     assert created["invite_code"] not in link.token_hash
     assert link.role_id == 4
-    assert _get_actual_member_count(1, session) == 3  # owner + two reserved redemptions
+    assert _members(1, session) == 3  # owner + two reserved redemptions
     with pytest.raises(Exception) as exc_info:
         org_invites_service.redeem_join_link(session, link.link_uuid, "learner@example.com")
     assert getattr(exc_info.value, "status_code", None) == 403
@@ -330,7 +325,7 @@ async def test_managed_join_link_is_hashed_domain_limited_and_reserves_seats(ses
     session.refresh(link)
     assert link.redemption_count == 1
     assert link.status == "active"
-    assert _get_actual_member_count(1, session) == 2  # owner + one remaining reservation
+    assert _members(1, session) == 2  # owner + one remaining reservation
 
 
 @pytest.mark.asyncio

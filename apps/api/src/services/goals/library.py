@@ -1,4 +1,4 @@
-"""The global template library: the platform owner organization shares templates every organization can copy.
+"""The global template library: plan publishers (and the platform owner) share templates every organization can copy.
 
 Publishing to the library stores a frozen copy of the draft document on the
 template. Copying makes an ordinary draft template in the copying organization
@@ -18,17 +18,23 @@ from src.db.goals import GoalTemplate, TemplateStatus
 from src.db.learning import LearningActivity, LearningPage
 from src.db.organizations import Organization
 from src.db.users import PublicUser
+from src.security.access.access import ensure_feature, orgs_with_feature
 from src.security.org_auth import require_org_admin
 from src.services.goals import templates
 from src.services.goals.document import iter_steps
 from src.services.learning.activity_copy import copy_activity
 
 
-def _owner_org(db: Session) -> Organization:
-    owner = db.exec(select(Organization).order_by(Organization.id).limit(1)).first()  # type: ignore[arg-type]
-    if not owner:
-        raise HTTPException(status_code=404, detail="Owner organization not found")
-    return owner
+def _publisher_orgs(db: Session, org_ids: set[int]) -> dict[int, Organization]:
+    """The organizations among `org_ids` that may list templates in the library."""
+    allowed = orgs_with_feature(org_ids, "plan_publishing", db)
+    if not allowed:
+        return {}
+    return {org.id: org for org in db.exec(select(Organization).where(Organization.id.in_(allowed))).all()}  # type: ignore[union-attr,misc]
+
+
+def _published():
+    return select(GoalTemplate).where(GoalTemplate.library_published_at.is_not(None))  # type: ignore[union-attr]
 
 
 def _library_dict(template: GoalTemplate, owner: Organization) -> dict:
@@ -51,11 +57,9 @@ def library_status(template: GoalTemplate) -> dict:
 
 
 def publish_to_library(db: Session, current_user: PublicUser, org_id: int, template_uuid: str) -> dict:
-    """Share the template's current draft in the library (the owner organization only); publishing again replaces it."""
-    owner = _owner_org(db)
-    if owner.id != org_id:
-        raise HTTPException(status_code=403, detail="Only the owner organization can publish to the global library")
+    """Share the template's current draft in the library (plan publishers only); publishing again replaces it."""
     require_org_admin(current_user.id, org_id, db)
+    ensure_feature(org_id, "plan_publishing", db)
     template = templates.template_or_404(db, org_id, template_uuid)
     if template.system_type:
         raise HTTPException(status_code=409, detail="System templates can't be shared in the library")
@@ -70,13 +74,10 @@ def publish_to_library(db: Session, current_user: PublicUser, org_id: int, templ
 
 def list_library(db: Session, current_user: PublicUser, org_id: int, query: str = "") -> list[dict]:
     require_org_admin(current_user.id, org_id, db)
-    owner = _owner_org(db)
-    rows = db.exec(
-        select(GoalTemplate).where(GoalTemplate.org_id == owner.id, GoalTemplate.library_published_at.is_not(None))  # type: ignore[union-attr]
-        .order_by(GoalTemplate.title)
-    ).all()
+    rows = db.exec(_published().order_by(GoalTemplate.title)).all()
+    publishers = _publisher_orgs(db, {row.org_id for row in rows})
     needle = query.strip().lower()
-    items = [_library_dict(row, owner) for row in rows if row.library_document]
+    items = [_library_dict(row, publishers[row.org_id]) for row in rows if row.library_document and row.org_id in publishers]
     return [item for item in items if not needle or needle in f"{item['title']} {item['description']}".lower()]
 
 
@@ -85,11 +86,8 @@ def copy_from_library(db: Session, current_user: PublicUser, org_id: int, templa
     from src.services.requirements import mappable_nodes, parent_node_uuids
 
     require_org_admin(current_user.id, org_id, db)
-    owner = _owner_org(db)
-    source = db.exec(select(GoalTemplate).where(
-        GoalTemplate.template_uuid == template_uuid, GoalTemplate.org_id == owner.id, GoalTemplate.library_published_at.is_not(None),  # type: ignore[union-attr]
-    )).first()
-    if not source or not source.library_document:
+    source = db.exec(_published().where(GoalTemplate.template_uuid == template_uuid)).first()
+    if not source or not source.library_document or not _publisher_orgs(db, {source.org_id}):
         raise HTTPException(status_code=404, detail="Library template not found")
     document = deepcopy(source.library_document)
     now = datetime.now().isoformat()

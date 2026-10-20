@@ -9,21 +9,20 @@ from src.db.goal_templates import ApplyVersion, GoalAssignmentUpdate, StepRemind
 from src.db.goals import GoalAssignment
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
-from src.security.features_utils.plan_check import get_org_plan
-from src.security.features_utils.plans import plan_meets_requirement
+from src.security.access.access import org_access
 from src.services.goals import admin_home, assignment_steps, assignment_versions, assignments, review, staff_views
 
 router = APIRouter()
-GROUPS_NEED = "Group goal assignments require a Full plan or higher"
+GROUPS_NEED = "Group goal assignments need the Full tier"
 
 
 def _require_group_plans(org_id: int, db: Session) -> None:
-    if not plan_meets_requirement(get_org_plan(org_id, db), "full"):
+    if not org_access(org_id, db).has("groups"):
         raise HTTPException(status_code=403, detail=GROUPS_NEED)
 
 
 def _require_assignment_plan(org_id: int, assignment_uuid: str, db: Session) -> None:
-    if plan_meets_requirement(get_org_plan(org_id, db), "full"):
+    if org_access(org_id, db).has("groups"):
         return
     group = db.exec(select(GoalAssignment.usergroup_id).where(GoalAssignment.org_id == org_id, GoalAssignment.assignment_uuid == assignment_uuid)).first()
     if group:

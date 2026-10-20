@@ -1,28 +1,33 @@
 from fastapi import APIRouter
-from src.security.features_utils.plans import (
-    AI_CREDIT_LIMITS,
-    PLAN_FEATURE_CONFIGS,
-)
+from src.security.access.catalog import FEATURES, LIMIT_LABELS, LIMITS, PARTNER_PROGRAMS, TIER_LABELS, TIERS
 
 router = APIRouter()
 
 
 @router.get("")
-async def api_get_plan_limits():
+async def api_get_catalog():
     """
-    Public endpoint — returns plan limits for all plans.
-    Used by the frontend to display correct plan feature limits
-    on pricing pages, dashboards, and onboarding flows.
+    Public endpoint: the tiers with their limits and features, and the partner programs.
+    Limits of 0 are unlimited. Legacy features are left out.
     """
-    result = {}
-    for plan_id, cfg in PLAN_FEATURE_CONFIGS.items():
-        features = cfg["features"]
-        result[plan_id] = {
-            "badges": features["badges"]["limit"],
-            "badge_collections": features["badge_collections"]["limit"],
-            "members": features["members"]["limit"],
-            "admin_seats": features["members"]["admin_limit"],
-            "ai_credits": AI_CREDIT_LIMITS.get(plan_id, 0),
-            "storage": features["storage"]["limit"],
-        }
-    return result
+    features = [spec for spec in FEATURES.values() if not spec.off]
+    return {
+        "tiers": [
+            {
+                "key": tier,
+                "label": TIER_LABELS[tier],
+                "limits": {name: LIMITS[name][tier] for name in LIMITS},
+                "features": [spec.key for spec in features if spec.tier and TIERS.index(spec.tier) <= TIERS.index(tier)],
+            }
+            for tier in TIERS
+        ],
+        "limit_labels": LIMIT_LABELS,
+        "features": [
+            {"key": spec.key, "label": spec.label, "tier": spec.tier, "partner": spec.partner, "on_request": spec.on_request}
+            for spec in features
+        ],
+        "partner_programs": [
+            {"key": program.key, "label": program.label, "description": program.description}
+            for program in PARTNER_PROGRAMS.values()
+        ],
+    }

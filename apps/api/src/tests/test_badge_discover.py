@@ -15,10 +15,10 @@ LEARNER = _user(LEARNER_ID)
 
 
 def approve_publishing(session: Session, org_id: int) -> None:
-    """The platform approved this organization to publish badges (the Badge Publishing override)."""
+    """The platform approved this organization as a verified badge publisher."""
     OrganizationConfig.__table__.create(session.get_bind(), checkfirst=True)
     row = session.exec(select(OrganizationConfig).where(OrganizationConfig.org_id == org_id)).first() or OrganizationConfig(org_id=org_id, config={})
-    row.config = {**(row.config or {}), "config_version": "2.0", "overrides": {"marketplace_publishing": {"force_enabled": True}}}
+    row.config = {**(row.config or {}), "config_version": "3.0", "partners": ["badge_publisher"]}
     session.add(row)
     session.commit()
 

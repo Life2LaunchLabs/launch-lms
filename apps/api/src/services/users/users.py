@@ -23,10 +23,7 @@ from src.db.users import (
     UserUpdate,
     UserUpdatePassword,
 )
-from src.security.features_utils.usage import (
-    check_limits_with_usage,
-    increase_feature_usage,
-)
+from src.security.access.access import require_capacity
 from src.security.rbac.rbac import (
     authorization_verify_based_on_roles_and_authorship,
     authorization_verify_if_user_is_anon,
@@ -113,9 +110,9 @@ async def create_user(
             detail="Organization does not exist",
         )
 
-    # Usage check
+    # Invitations already hold their seat.
     if reserved_invitation_id is None:
-        check_limits_with_usage("members", org_id, db_session)
+        require_capacity("learners", org_id, db_session)
 
     # Username
     statement = select(User).where(User.username == user.username)
@@ -180,9 +177,6 @@ async def create_user(
     db_session.refresh(user_organization)
 
     user_read = UserRead.model_validate(user)
-
-    if reserved_invitation_id is None:
-        increase_feature_usage("members", org_id, db_session)
 
     # Track user signup
     await track(
@@ -253,7 +247,6 @@ async def create_user_with_invite(
     ).first()
 
     if invitation is None:
-        check_limits_with_usage("members", org_id, db_session)
         # Reserve one redemption before account/membership creation; create_user's
         # transaction commits both together and a failed request rolls both back.
         redeem_join_link(db_session, inviteCode["invite_code_uuid"], str(user_object.email))
