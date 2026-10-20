@@ -214,6 +214,7 @@ def assignment_matrix(db: Session, current_user: PublicUser, org_id: int, assign
         entries.setdefault(int(entry.step_id), []).append(entry)
     template_keys = [step["key"] for _, step in iter_steps(document)]
     grading = {review["step_uuid"] for review in activity_reviews(db, visible)}
+    helpers = _people(db, [int(goal.id) for goal in visible])  # type: ignore[arg-type]
     learners = []
     for goal in visible:
         goal_steps = steps.get(int(goal.id), [])  # type: ignore[arg-type]
@@ -235,6 +236,8 @@ def assignment_matrix(db: Session, current_user: PublicUser, org_id: int, assign
             "goal_uuid": goal.goal_uuid, "status": _value(goal.status), "update_date": goal.update_date,
             "progress_percent": round(done * 100 / len(template_keys)) if template_keys else 0,
             "capabilities": sorted(granted[int(goal.id)]), "custom_steps": custom, "cells": cells,  # type: ignore[arg-type]
+            # Everyone else on the learner's plan, with their role: staff, and helpers such as a parent.
+            "people": [item for item in helpers.get(int(goal.id), []) if item["id"] != goal.subject_user_id],  # type: ignore[arg-type]
         })
     dates = stage_schedule(document, assignment.start_date, assignment.stage_dates)
     stages_out = []
@@ -246,6 +249,8 @@ def assignment_matrix(db: Session, current_user: PublicUser, org_id: int, assign
             columns.append({
                 "template_key": spec["key"], "title": spec.get("title"), "type": spec.get("type"), "description": spec.get("description") or "",
                 "completed_by": spec.get("completed_by") or "learner", "review_required": bool(spec.get("review_required")),
+                # What staff prepare from: the step's setup (an activity to try), its materials and how to review it.
+                "config": spec.get("config") or {}, "materials": spec.get("materials") or [], "reviewer_guidance": spec.get("reviewer_guidance") or "",
                 "aggregate": _aggregate(cells, len(learners), on_step),
             })
         start, due = dates.get(stage["key"], (None, None))
@@ -342,13 +347,15 @@ def cohort(db: Session, current_user: PublicUser, org_id: int, usergroup_id: int
     }
 
 
-def _people(db: Session, goal_ids: list[int], learner_id: int) -> dict[int, list[dict]]:
-    """Who helps on each goal besides the learner, with their role, for the goal cards."""
+def _people(db: Session, goal_ids: list[int], learner_id: int | None = None) -> dict[int, list[dict]]:
+    """Who helps on each goal besides ``learner_id``, with their role, for the goal cards."""
     if not goal_ids:
         return {}
-    rows = db.exec(select(PlanCollaborator, PlanRole).join(PlanRole, PlanRole.id == PlanCollaborator.role_id)  # type: ignore[arg-type]
-                   .where(PlanCollaborator.goal_id.in_(goal_ids), PlanCollaborator.active == True, PlanCollaborator.user_id != learner_id)  # type: ignore[union-attr]  # noqa: E712
-                   .order_by(PlanCollaborator.id)).all()
+    statement = select(PlanCollaborator, PlanRole).join(PlanRole, PlanRole.id == PlanCollaborator.role_id)  # type: ignore[arg-type]
+    statement = statement.where(PlanCollaborator.goal_id.in_(goal_ids), PlanCollaborator.active == True)  # type: ignore[union-attr]  # noqa: E712
+    if learner_id is not None:
+        statement = statement.where(PlanCollaborator.user_id != learner_id)
+    rows = db.exec(statement.order_by(PlanCollaborator.id)).all()
     found: dict[int, list[dict]] = {}
     for collaborator, role in rows:
         who = person(db.get(User, collaborator.user_id))

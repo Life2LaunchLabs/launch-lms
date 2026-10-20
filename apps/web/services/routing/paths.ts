@@ -149,8 +149,12 @@ export const routePaths = {
     admin: {
       root: () => '/admin',
       assignments: () => '/admin/plans',
-      planReview: (params: { assignment: string; objective?: string | null; planObjective?: string | null; activity?: string | null; focus?: string | null }) =>
-        withQuery('/admin/plans/review', { assignment: params.assignment, objective: params.objective, step: params.planObjective, activity: params.activity, focus: params.focus }),
+      // The grading stack; from 'assignment' goes back to the assignment rather than the list.
+      planReview: (params: { assignment: string; objective?: string | null; planObjective?: string | null; activity?: string | null; focus?: string | null; from?: 'assignment' | null }) =>
+        withQuery('/admin/plans/review', { assignment: params.assignment, objective: params.objective, step: params.planObjective, activity: params.activity, focus: params.focus, from: params.from }),
+      // One assignment (a template handed to a group or a person): its plan, or its learners.
+      planAssignment: (assignmentUuid: string, subpage: 'plan' | 'learners' = 'plan') => subpage === 'plan'
+        ? `/admin/plans/assignments/${encodeURIComponent(assignmentUuid)}` : `/admin/plans/assignments/${encodeURIComponent(assignmentUuid)}/${subpage}`,
       livePlan: (planUuid: string, subpage = 'overview') => subpage === 'overview' ? `/admin/plans/live/${encodeURIComponent(planUuid)}` : `/admin/plans/live/${encodeURIComponent(planUuid)}/${encodeURIComponent(subpage)}`,
       people: {
         root: () => '/admin/users',

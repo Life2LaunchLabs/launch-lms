@@ -19,6 +19,7 @@ import TagComposer, { type TagComposerHandle, type TagOrg } from './TagComposer'
 import { CardMessage } from './ChatCards'
 import ShareSheet from './ShareSheet'
 import { MessageText, StepMark } from './tags'
+import { ComposeModeToggle, feedEntries, NoteComposer, NoteEntry, useStaffNotes, type ComposeMode, type StaffNotesTarget } from './staffNotes'
 
 const CHAT_REFRESH_MS = 5_000
 
@@ -45,7 +46,7 @@ function useWorkspaceChat(source: ChatSource, filter: ChatFilter, token?: string
  * write while filtered is about that plan or step without a tag saying so. A step's comments are
  * this chat filtered to the step, wherever it's opened from.
  */
-export default function ChatWorkspace({ source, orgslug, token, initialFilter = {}, header, blocked, empty, stepHref, steps, onOpenPlan, onChat }: {
+export default function ChatWorkspace({ source, orgslug, token, initialFilter = {}, header, blocked, empty, stepHref, steps, onOpenPlan, onChat, staffNotes }: {
   source: ChatSource
   orgslug: string
   token?: string
@@ -67,6 +68,8 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
   onOpenPlan?: (goalUuid: string, stepUuid?: string) => void
   // eslint-disable-next-line no-unused-vars
   onChat?: (chat: Chat) => void
+  /** Staff on a learner's feed: their notes about the learner show between the messages, and the composer can write one. */
+  staffNotes?: StaffNotesTarget
 }) {
   const [filter, setFilter] = React.useState<ChatFilter>(initialFilter)
   const { data: chat, error, mutate } = useWorkspaceChat(source, filter, token)
@@ -83,9 +86,15 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
   const { getGoalColor } = useGoalColors(live, session?.data?.user?.id)
   const plan = topics.find((item) => item.goal_uuid === filter.goal_uuid)
   const step = plan?.steps.find((item) => item.step_uuid === filter.step_uuid)
+  const notes = useStaffNotes(staffNotes, token)
+  const [mode, setMode] = React.useState<ComposeMode>('message')
+  // Notes are about the learner, not a step: they show in the whole feed.
+  const shownNotes = notes.available && !filter.goal_uuid ? notes.notes : []
+  const noting = notes.available && mode === 'note'
 
   const lastStamp = chat?.messages.at(-1)?.update_date
-  React.useEffect(() => { scroller.current?.scrollTo({ top: scroller.current.scrollHeight }) }, [lastStamp, filter.goal_uuid, filter.step_uuid])
+  const lastNote = shownNotes.at(-1)?.note_uuid
+  React.useEffect(() => { scroller.current?.scrollTo({ top: scroller.current.scrollHeight }) }, [lastStamp, lastNote, filter.goal_uuid, filter.step_uuid])
   React.useEffect(() => { if (chat) onChat?.(chat) }, [chat, onChat])
   // Reading the chat clears its unread count, but a request stays unanswered until accepted.
   const unread = chat?.unread || 0
@@ -146,17 +155,23 @@ export default function ChatWorkspace({ source, orgslug, token, initialFilter = 
     <div ref={scroller} className="scrollbar-subtle min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-4 sm:px-6">
       {error ? <p className="m-auto max-w-xs pt-16 text-center text-sm text-muted-foreground">This chat didn&rsquo;t load.</p>
         : !chat ? null
-        : chat.messages.length ? <ol className="mx-auto flex w-full max-w-[46rem] flex-col gap-1.5 pb-4">
-          {chat.messages.map((message, index) => <Message key={message.message_uuid} message={message} orgslug={orgslug} token={token} links={chat.accepted} names={names}
-            topics={topics} filter={filter} onTag={openTag} onAnswered={answered}
-            first={index === 0 || chat.messages[index - 1].sender?.id !== message.sender?.id || chat.messages[index - 1].kind === 'card'} />)}
+        : chat.messages.length || shownNotes.length ? <ol className="mx-auto flex w-full max-w-[46rem] flex-col gap-1.5 pb-4">
+          {feedEntries(chat.messages, shownNotes).map((entry, position, entries) => {
+            if (entry.kind === 'note') return <NoteEntry key={entry.note.note_uuid} note={entry.note} onRemove={notes.remove} />
+            const { message } = entry
+            const before = entries[position - 1]
+            return <Message key={message.message_uuid} message={message} orgslug={orgslug} token={token} links={chat.accepted} names={names}
+              topics={topics} filter={filter} onTag={openTag} onAnswered={answered}
+              first={!before || before.kind === 'note' || before.message.sender?.id !== message.sender?.id || before.message.kind === 'card'} />
+          })}
         </ol>
         : <p className="m-auto max-w-xs pt-16 text-center text-sm text-muted-foreground">{step ? `Nothing about ${step.title} yet. Anything you write here is about it.` : plan ? `Nothing about ${plan.title} yet. Anything you write here is about it.` : empty}</p>}
     </div>
     {chat ? <div className="mx-auto w-full max-w-[47.5rem] shrink-0 px-3 pb-3 sm:px-6 sm:pb-5">
       {source.audience ? <AudienceLine audience={source.audience} /> : null}
-      <TagComposer ref={composer} topics={live} people={chat.people} orgs={orgs} token={token}
-        placeholder={step ? `Comment on ${step.title}` : plan ? `Message about ${plan.title}` : `Message ${chat.title}`} disabled={reason || undefined} onSend={(body) => send(body)} />
+      {notes.available ? <ComposeModeToggle mode={mode} onChange={setMode} /> : null}
+      {noting ? <NoteComposer onAdd={notes.add} /> : <TagComposer ref={composer} topics={live} people={chat.people} orgs={orgs} token={token}
+        placeholder={step ? `Comment on ${step.title}` : plan ? `Message about ${plan.title}` : `Message ${chat.title}`} disabled={reason || undefined} onSend={(body) => send(body)} />}
     </div> : null}
     <ShareSheet asking={asking} onClose={() => setAsking(null)}
       onSend={async (share) => { if (asking && await send(asking.body, share)) { composer.current?.clear(); setAsking(null) } }} />
