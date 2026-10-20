@@ -1,6 +1,7 @@
 import { getAPIUrl } from '@services/config/config'
 import { RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/requests'
 import type { PersonSummary } from '@services/goals/types'
+import type { GroupReportCard } from '@services/goals/reports'
 
 const q = encodeURIComponent
 export const connectUrl = (path = '') => `${getAPIUrl()}connect${path}`
@@ -105,7 +106,7 @@ export interface ChatMessage {
   /** The text with tags written out as names. */
   preview: string
   refs: MessageRef[]
-  card: GoalCommentsCard | PortfolioCard | ProgressCard | OrgMentionCard | InvitationCard | NoticeCard | StepReminderCard | null
+  card: GoalCommentsCard | PortfolioCard | ProgressCard | OrgMentionCard | InvitationCard | NoticeCard | StepReminderCard | GroupReportCard | null
   sender: PersonSummary | null
   mine: boolean
   creation_date: string
