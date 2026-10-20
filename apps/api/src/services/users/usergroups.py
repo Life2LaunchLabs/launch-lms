@@ -62,21 +62,9 @@ async def _validate_resource_exists_and_belongs_to_org(
         from src.db.learning import LearningBadge
         statement = select(LearningBadge).where(LearningBadge.badge_uuid == resource_uuid)
         resource = db_session.exec(statement).first()
-    elif config.resource_type == "podcasts":
-        from src.db.podcasts.podcasts import Podcast
-        statement = select(Podcast).where(Podcast.podcast_uuid == resource_uuid)
-        resource = db_session.exec(statement).first()
-    elif config.resource_type == "communities":
-        from src.db.communities.communities import Community
-        statement = select(Community).where(Community.community_uuid == resource_uuid)
-        resource = db_session.exec(statement).first()
     elif config.resource_type == "badge_collections":
         from src.db.learning import BadgeCollection
         statement = select(BadgeCollection).where(BadgeCollection.collection_uuid == resource_uuid)
-        resource = db_session.exec(statement).first()
-    elif config.resource_type == "boards":
-        from src.db.boards import Board
-        statement = select(Board).where(Board.board_uuid == resource_uuid)
         resource = db_session.exec(statement).first()
     elif config.resource_type == "resources":
         from src.db.resources import Resource

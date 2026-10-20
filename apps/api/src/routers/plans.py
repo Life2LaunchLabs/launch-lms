@@ -10,7 +10,7 @@ async def api_get_catalog():
     Public endpoint: the tiers with their limits and features, and the partner programs.
     Limits of 0 are unlimited. Legacy features are left out.
     """
-    features = [spec for spec in FEATURES.values() if not spec.off]
+    features = list(FEATURES.values())
     return {
         "tiers": [
             {

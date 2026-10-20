@@ -13,7 +13,6 @@ CORE_CAPABILITIES: dict[str, bool] = {
     "audit_logs": True,
     "payments": False,
     "sso": True,
-    "scorm": True,
     "advanced_analytics": True,
     "news": _enabled("NEXT_PUBLIC_LAUNCHLMS_ENABLE_LEGACY_NEWS"),
 }

@@ -33,9 +33,6 @@ export const FEATURE_LABELS: Record<string, string> = {
   badge_publishing: 'Badge publishing',
   plan_publishing: 'Plan publishing',
   resource_publishing: 'Resource publishing',
-  // Legacy, switched off for everyone.
-  podcasts: 'Podcasts',
-  playgrounds: 'Playgrounds',
 }
 
 export const REQUEST_KINDS: Record<string, string> = {

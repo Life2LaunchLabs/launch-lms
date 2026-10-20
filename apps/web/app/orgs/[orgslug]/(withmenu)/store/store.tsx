@@ -4,7 +4,7 @@ import TabbedPageHeader from '@components/Objects/StyledElements/Headers/TabbedP
 import Link from 'next/link'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import { ShoppingBag, RefreshCcw, SquareCheck, ArrowRight, Sparkles, BookOpen, Mic, Puzzle } from 'lucide-react'
+import { ShoppingBag, RefreshCcw, SquareCheck, ArrowRight, Sparkles, BookOpen, Puzzle } from 'lucide-react'
 import { useOrg } from '@components/Contexts/OrgContext'
 
 interface Resource {
@@ -43,8 +43,6 @@ function getResourceUrl(orgslug: string, resource: Resource): string | null {
   const id = stripTypePrefix(resource.resource_uuid)
   switch (resource.resource_type) {
     case 'badge': return getUriWithOrg(orgslug, routePaths.org.badgeDetail(id))
-    case 'podcast': return getUriWithOrg(orgslug, routePaths.org.podcast(id))
-    case 'playground': return getUriWithOrg(orgslug, routePaths.org.playground(id))
     default: return null
   }
 }
@@ -52,7 +50,6 @@ function getResourceUrl(orgslug: string, resource: Resource): string | null {
 function resourceIcon(type: string) {
   switch (type) {
     case 'badge': return <BookOpen size={12} className="text-indigo-400" />
-    case 'podcast': return <Mic size={12} className="text-pink-400" />
     default: return <Puzzle size={12} className="text-gray-300" />
   }
 }

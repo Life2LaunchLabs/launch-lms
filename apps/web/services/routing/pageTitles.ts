@@ -10,10 +10,10 @@ export const PAGE_TITLE_FORMAT = {
 
 const labels: Record<string, string> = {
   account: 'Account', achievements: 'Achievements', analytics: 'Analytics', badge: 'Badges', badges: 'Badges',
-  boards: 'Boards', communities: 'Communities', community: 'Communities', connect: 'Connect', discover: 'Discover', edit: 'Edit',
+  connect: 'Connect', discover: 'Discover', edit: 'Edit',
   journal: 'Journal', marketplace: 'Marketplace', organization: 'Organizations',
-  organizations: 'Organizations', payments: 'Payments', plans: 'Plans', platform: 'Platform', playground: 'Playgrounds',
-  playgrounds: 'Playgrounds', podcast: 'Podcasts', podcasts: 'Podcasts', portfolio: 'Portfolio', programs: 'Programs',
+  organizations: 'Organizations', payments: 'Payments', plans: 'Plans', platform: 'Platform',
+  portfolio: 'Portfolio', programs: 'Programs',
   projects: 'Projects', reporting: 'Reporting', requirements: 'Requirements', resource: 'Resources', resources: 'Resources',
   notifications: 'Notifications', profile: 'Profile', resume: 'Résumé', search: 'Search', settings: 'Settings', store: 'Store', tags: 'Tags', timeline: 'Timeline', users: 'Users',
 }
@@ -65,6 +65,6 @@ export function resolveAppPageTitle(pathname: string): AppPageTitle {
     return { section, detail: label(detail) }
   }
   // A chat's segment is its id, so Connect pages are titled by section alone.
-  if (['community', 'connect', 'organization', 'playground', 'podcast', 'resource'].includes(route[0])) return { section }
+  if (['connect', 'organization', 'resource'].includes(route[0])) return { section }
   return { section, detail: label(route[1]) }
 }

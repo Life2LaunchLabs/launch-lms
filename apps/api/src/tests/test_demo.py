@@ -132,7 +132,7 @@ def test_cache_keys_do_not_overlap_live_or_other_visitors():
         current_demo.reset(token)
 
 
-def test_checkpoint_media_copies_embedded_urls_and_binary_board_uploads(
+def test_checkpoint_media_copies_embedded_urls(
     tmp_path, monkeypatch
 ):
     from pathlib import Path
@@ -143,10 +143,8 @@ def test_checkpoint_media_copies_embedded_urls_and_binary_board_uploads(
     monkeypatch.setattr(storage, "get_content_delivery_type", lambda: "filesystem")
     monkeypatch.setattr(storage, "get_storage_client", lambda: None)
     original = Path("content/users/user_source/media/avatar.png")
-    board_file = Path("content/orgs/org_source/boards/board_source/uploads/image.png")
-    for path in (original, board_file):
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(b"checkpoint image")
+    original.parent.mkdir(parents=True, exist_ok=True)
+    original.write_bytes(b"checkpoint image")
     rows = {
         "user": [
             {
@@ -156,10 +154,9 @@ def test_checkpoint_media_copies_embedded_urls_and_binary_board_uploads(
             }
         ],
         "organization": [{"id": 1, "org_uuid": "org_source"}],
-        "board": [{"id": 1, "org_id": 1, "board_uuid": "board_source"}],
     }
     files = capture_files(rows, {1})
-    assert set(files) == {str(original), str(board_file)}
+    assert set(files) == {str(original)}
     identifier = "c" * 32
     copied, aliases = remap(rows, identifier)
     assert 'src="/content/' in copied["user"][0]["profile"]
@@ -167,7 +164,7 @@ def test_checkpoint_media_copies_embedded_urls_and_binary_board_uploads(
     assert all(Path(path).read_bytes() == b"checkpoint image" for path in paths)
     clean_files(identifier)
     assert all(not Path(path).exists() for path in paths)
-    assert original.exists() and board_file.exists()
+    assert original.exists()
 
 
 def test_email_is_simulated_without_reading_delivery_credentials(monkeypatch):
@@ -364,23 +361,12 @@ def test_checkpoint_excludes_private_peer_work_and_credentials():
     url = os.environ["DEMO_TEST_DATABASE_URL"]
     assert "test" in url.rsplit("/", 1)[-1]
     from src.core.events.database import import_all_models
-    from src.db.boards import Board
     from src.db.planning import Plan
     from src.services.demo.checkpoints import capture
 
     import_all_models()
     engine = create_engine(url)
     with Session(engine) as db:
-        db.add(
-            Board(
-                id=90001,
-                board_uuid="board_peer_private_test",
-                name="Peer private",
-                org_id=1,
-                created_by=1,
-                public=False,
-            )
-        )
         db.add(
             Plan(
                 id=90001,
@@ -394,10 +380,6 @@ def test_checkpoint_excludes_private_peer_work_and_credentials():
         )
         db.flush()
         snapshot = capture(db, 1, {2})
-        assert not any(
-            row["board_uuid"] == "board_peer_private_test"
-            for row in snapshot.get("board", [])
-        )
         assert not any(
             row["plan_uuid"] == "plan_peer_private_test"
             for row in snapshot.get("plan", [])

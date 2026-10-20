@@ -6,25 +6,18 @@ import {
   ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE, getLegacyParentCookieDomain,
 } from './services/auth/cookies'
 import { ROUTING_COOKIES } from './services/routing/cookies'
-import { isCustomDomainHost, getOrgSlugFromSubdomain } from './services/routing/context'
+import { getOrgSlugFromSubdomain } from './services/routing/context'
 import {
   resolveRequestRouting,
   type RequestInstanceInfo,
   type RoutingDecision,
 } from './services/routing/requestPolicy'
-import { stripPort } from './services/utils/ts/hostUtils'
 import { buildPublicRequestUrl } from './services/routing/context'
 import { hasRoutableSession } from './services/auth/sessionCookies'
 import { rewriteWithRequestHeaders } from './services/routing/rewriteResponse'
 
-interface OrgSubdomainAccess {
-  user_site_enabled: boolean
-}
-
 let instanceCache: { data: RequestInstanceInfo; ts: number } | null = null
-const orgAccessCache = new Map<string, { data: OrgSubdomainAccess; ts: number }>()
 const INSTANCE_CACHE_TTL = 30 * 1000
-const ORG_ACCESS_CACHE_TTL = 30 * 1000
 
 function getDevInstanceFallback(): RequestInstanceInfo {
   const frontendDomain =
@@ -110,59 +103,6 @@ function expireLegacyParentCookies(response: NextResponse, request: NextRequest)
   return response
 }
 
-async function resolveCustomDomain(domain: string): Promise<string | null> {
-  try {
-    const apiUrl = process.env.LAUNCHLMS_INTERNAL_API_URL || getAPIUrl()
-    const res = await fetch(
-      `${apiUrl}orgs/resolve/domain/${encodeURIComponent(stripPort(domain))}`,
-      {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        signal: AbortSignal.timeout(5000),
-      }
-    )
-
-    if (!res.ok) return null
-    const data = await res.json()
-    return data.org_slug || null
-  } catch (error) {
-    console.error('Error resolving custom domain:', error)
-    return null
-  }
-}
-
-async function getOrgSubdomainAccess(orgSlug: string): Promise<OrgSubdomainAccess> {
-  const cached = orgAccessCache.get(orgSlug)
-  if (cached && Date.now() - cached.ts < ORG_ACCESS_CACHE_TTL) {
-    return cached.data
-  }
-
-  try {
-    const apiUrl = process.env.LAUNCHLMS_INTERNAL_API_URL || getAPIUrl()
-    const res = await fetch(`${apiUrl}orgs/slug/${encodeURIComponent(orgSlug)}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      signal: AbortSignal.timeout(5000),
-    })
-
-    if (res.ok) {
-      const data = await res.json()
-      // Custom domains are switched off, so no org has its own user site for now.
-      const access = { user_site_enabled: data?.config?.config?.access?.features?.custom_domains?.enabled === true }
-      orgAccessCache.set(orgSlug, { data: access, ts: Date.now() })
-      return access
-    }
-  } catch (error) {
-    console.error('Error resolving org subdomain access:', error)
-  }
-
-  return { user_site_enabled: false }
-}
-
 function buildResponse(req: NextRequest, decision: RoutingDecision): NextResponse {
   switch (decision.action) {
     case 'next':
@@ -193,7 +133,6 @@ export const config = {
     '/sitemap.xml',
     '/robots.txt',
     '/payments/stripe/connect/oauth',
-    '/podcast/:path*/feed',
   ],
 }
 
@@ -230,21 +169,15 @@ export default async function proxy(req: NextRequest) {
     refreshToken: req.cookies.get(REFRESH_TOKEN_COOKIE)?.value,
   })
 
-  let resolvedCustomDomainOrgSlug: string | null = null
-  if (isCustomDomainHost(host, instanceInfo.frontend_domain) && host) {
-    resolvedCustomDomainOrgSlug = await resolveCustomDomain(host)
-  }
-
-  let orgSubdomainAccess: OrgSubdomainAccess | null = null
+  // Custom domains are retired, so no org has its own user site: other orgs' subdomains don't serve one.
   const subdomainOrgSlug = getOrgSlugFromSubdomain(host, instanceInfo.frontend_domain)
-  if (
+  const orgSubdomainAccess =
     instanceInfo.multi_org_enabled &&
     subdomainOrgSlug &&
     subdomainOrgSlug !== instanceInfo.default_org_slug &&
     !pathname.startsWith('/admin')
-  ) {
-    orgSubdomainAccess = await getOrgSubdomainAccess(subdomainOrgSlug)
-  }
+      ? { user_site_enabled: false }
+      : null
 
   const decision = resolveRequestRouting({
     requestUrl: publicRequestUrl,
@@ -253,7 +186,7 @@ export default async function proxy(req: NextRequest) {
     host,
     hasSession,
     instanceInfo,
-    resolvedCustomDomainOrgSlug,
+    resolvedCustomDomainOrgSlug: null,
     orgSubdomainAccess,
   })
 
