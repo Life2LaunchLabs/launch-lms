@@ -14,7 +14,7 @@ from src.db.user_organizations import UserOrganization
 from src.services.goals import admin_home, goals
 from src.tests.test_goal_assignments_admin import ESSAY, NEWCOMER, VISIT, _assign, _goal, _goal_step
 from src.tests.test_goal_assignments_admin import _session as _base_session
-from src.tests.test_goals import ADMIN, LEARNER, NOW, OTHER, _published, _status, _user
+from src.tests.test_goals import ADMIN, LEARNER, OTHER, _published, _status, _user
 
 TODAY = date.today()
 
