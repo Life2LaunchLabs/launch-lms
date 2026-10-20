@@ -316,7 +316,7 @@ class TestFeaturesUtils:
     async def test_all_features_covered(self, mock_db_session, mock_org_config):
         """Test that all features in FeatureSet are covered."""
         expected_results = {
-            "admin_seats": False,
+            "admin_seats": True,
             "ai": True,
             "analytics": True,
             "api": True,
@@ -361,3 +361,49 @@ class TestFeaturesUtils:
                             db_session=mock_db_session
                         )
                     assert exc_info.value.status_code == 403
+
+
+class TestAdminSeatResolution:
+    """Admin seats follow members enablement and the plan's members.admin_limit."""
+
+    @pytest.mark.parametrize("plan,limit", [("free", 1), ("full", 3), ("enterprise", 20), ("master", 0)])
+    def test_admin_seats_enabled_with_plan_admin_limit(self, plan, limit):
+        from src.security.features_utils.resolve import resolve_feature
+
+        resolved = resolve_feature("admin_seats", {"config_version": "2.0", "plan": plan})
+        assert resolved["enabled"] is True
+        assert resolved["limit"] == limit
+
+    def test_admin_seats_extra_limit_override(self):
+        from src.security.features_utils.resolve import resolve_feature
+
+        config = {
+            "config_version": "2.0",
+            "plan": "enterprise",
+            "overrides": {"admin_seats": {"extra_limit": 5}},
+        }
+        assert resolve_feature("admin_seats", config)["limit"] == 25
+
+    def test_enterprise_can_add_admin_seat(self):
+        from src.security.features_utils.usage import check_admin_seat_limit
+
+        org_config = Mock(spec=OrganizationConfig)
+        org_config.config = {"config_version": "2.0", "plan": "enterprise"}
+        db_session = Mock(spec=Session)
+        db_session.exec.return_value.first.return_value = org_config
+
+        with patch('src.security.features_utils.usage._get_actual_usage', return_value=2):
+            assert check_admin_seat_limit(1, db_session) is True
+
+    def test_free_plan_admin_seat_limit_reached(self):
+        from src.security.features_utils.usage import check_admin_seat_limit
+
+        org_config = Mock(spec=OrganizationConfig)
+        org_config.config = {"config_version": "2.0", "plan": "free"}
+        db_session = Mock(spec=Session)
+        db_session.exec.return_value.first.return_value = org_config
+
+        with patch('src.security.features_utils.usage._get_actual_usage', return_value=1):
+            with pytest.raises(HTTPException) as exc_info:
+                check_admin_seat_limit(1, db_session)
+        assert "Usage Limit has been reached" in exc_info.value.detail

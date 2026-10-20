@@ -125,6 +125,16 @@ def resolve_feature(feature: str, config: dict, org_id: int = 0) -> dict:
             effective_limit = plan_limit + extra_limit
         return {"enabled": True, "limit": effective_limit, "required_plan": required_plan}
 
+    # Admin seats are a sub-limit of members, not a plan feature of their own:
+    # enabled whenever members is, limited by the plan's members.admin_limit.
+    if feature == "admin_seats":
+        members = resolve_feature("members", config, org_id)
+        plan = _get_plan_from_config(config)
+        plan_limit = get_plan_feature_config(plan, "members").get("admin_limit", 0)
+        extra_limit = _get_overrides(config, feature).get("extra_limit", 0)
+        effective_limit = plan_limit + extra_limit if plan_limit else 0
+        return {"enabled": members["enabled"], "limit": effective_limit, "required_plan": required_plan}
+
     admin_toggle = _get_admin_toggle(config, feature)
     admin_disabled = admin_toggle.get("disabled", False)
     plan = _get_plan_from_config(config)
