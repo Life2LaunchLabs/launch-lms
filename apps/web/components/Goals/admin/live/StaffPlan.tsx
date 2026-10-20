@@ -45,16 +45,19 @@ export default function StaffPlan({ orgslug, goalUuid }: { orgslug: string; goal
   const subject = goal.subject
   const learnerPage = subject?.username ? routePaths.org.dash.users.userPage(subject.username, 'plans') : routePaths.org.dash.plans()
   const back = () => router.push(getUriWithOrg(orgslug, learnerPage))
+  // Staff see someone else's plan: the card says whose it is, not "Your goal".
+  const viewerId = session?.data?.user?.id
+  const headerGoal = subject && subject.id !== viewerId ? { ...goal, is_subject: false } : goal
   return <main className="min-h-full w-full bg-background px-4 pb-12 pt-6 sm:px-6 lg:px-10">
     <div className="mx-auto max-w-3xl space-y-6">
       <Breadcrumbs items={[
-        { label: 'Users', href: getUriWithOrg(orgslug, routePaths.org.dash.users.users()) },
+        { label: 'People', href: getUriWithOrg(orgslug, routePaths.org.dash.users.users()) },
         ...(subject?.username ? [{ label: subject.name || subject.username, href: getUriWithOrg(orgslug, learnerPage) }] : []),
         { label: goal.title },
       ]} />
       <StaffGoalPath goal={goal} orgslug={orgslug} orgId={orgId} token={token} viewerUserId={session?.data?.user?.id}
         header={(color) => <div data-plan="" style={planVars(color)}>
-          <GoalHeaderCard goal={goal as never} done={goal.progress.done} total={goal.progress.total}
+          <GoalHeaderCard goal={headerGoal as never} done={goal.progress.done} total={goal.progress.total}
             actions={<div className="flex flex-col gap-3">
               <GoalHeaderActions orgslug={orgslug} goal={goal} token={token} onBack={back} />
               <ArchivePlan goal={goal} token={token} onArchived={back} />
