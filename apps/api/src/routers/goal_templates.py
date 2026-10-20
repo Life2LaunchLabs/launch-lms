@@ -8,7 +8,7 @@ from src.db.goal_templates import GoalAssignmentRequest
 from src.db.goals import TemplateCreate, TemplatePublish, TemplateSave, TemplateStatus
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
-from src.services.goals import assignments, badge_templates, badge_versions, library, templates
+from src.services.goals import assignments, badge_templates, badge_versions, library, template_marketplace, templates
 from src.services.goals.document import json_schema
 
 router = APIRouter()
@@ -61,10 +61,12 @@ def api_issuer_badge_routes(org_id: int, db: Session = Depends(get_db_session), 
 def api_template(template_uuid: str, org_id: int, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
     if not badge_templates.owns(db, org_id, template_uuid):
         # Another organization's badge template this one runs: its published version, read-only.
-        return badge_templates.template_view(db, user, org_id, template_uuid)
+        view = badge_templates.template_view(db, user, org_id, template_uuid)
+        return {**view, "owner_org": template_marketplace.owner_org(db, template_uuid)}
     result = templates.get_template(db, user, org_id, template_uuid)
     template = templates.template_or_404(db, org_id, template_uuid)
-    return {**result, **library.library_status(template), "outdated_badge_steps": badge_versions.outdated_badge_steps(db, template)}
+    return {**result, **library.library_status(template), "outdated_badge_steps": badge_versions.outdated_badge_steps(db, template),
+            "based_on": template_marketplace.provenance(db, template)}
 
 
 @router.put("/{template_uuid}")

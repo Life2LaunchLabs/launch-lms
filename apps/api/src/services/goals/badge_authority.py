@@ -52,7 +52,18 @@ def may_run(db: Session, badge: LearningBadge, org_id: int, route: BadgeRoute) -
 
     if badge.deleted_at is not None or not authorized(db, badge, org_id):
         return False
-    return int(badge.org_id) == int(org_id) or offers(offered(db, badge), org_id, route)
+    if int(badge.org_id) == int(org_id):
+        return True
+    return offers(offered(db, badge), org_id, route) and trusted(db, route, org_id)
+
+
+def trusted(db: Session, route: BadgeRoute, org_id: int) -> bool:
+    """A trusted-partners-only route runs only for the issuers its badge's owner approved for it."""
+    if not route.trusted_only:
+        return True
+    from src.db.template_marketplace import BadgeRoutePartner
+
+    return db.exec(select(BadgeRoutePartner.id).where(BadgeRoutePartner.route_id == route.id, BadgeRoutePartner.issuer_org_id == org_id)).first() is not None
 
 
 def runnable(db: Session, org_id: int, template_uuid: str, badge_uuid: str | None = None) -> tuple[GoalTemplate, LearningBadge | None]:
@@ -78,11 +89,16 @@ def runnable(db: Session, org_id: int, template_uuid: str, badge_uuid: str | Non
         return template, None
     routes = db.exec(select(BadgeRoute, LearningBadge).join(LearningBadge, LearningBadge.id == BadgeRoute.badge_id)
                      .where(BadgeRoute.goal_template_id == template.id).order_by(BadgeRoute.id)).all()
-    if not routes:
-        raise HTTPException(status_code=404, detail="Goal template not found")
     for route, badge in routes:
         if may_run(db, badge, org_id, route):
             return template, badge
+    # A locked marketplace template this organization was given permission to use (no badge unless a route above allows it).
+    from src.services.goals.template_marketplace import may_use_as_is
+
+    if may_use_as_is(db, template, org_id):
+        return template, None
+    if not routes:
+        raise HTTPException(status_code=404, detail="Goal template not found")
     raise HTTPException(status_code=403, detail="This organization isn't authorized to run this badge's template")
 
 
@@ -90,7 +106,14 @@ def still_runs(db: Session, assignment: GoalAssignment) -> bool:
     """A badge assignment issues new plans only while its organization may still run the route."""
     badge = db.get(LearningBadge, assignment.badge_id) if assignment.badge_id else None
     if badge is None:
-        return assignment.badge_id is None
+        if assignment.badge_id is not None:
+            return False
+        template = db.get(GoalTemplate, assignment.template_id)
+        if template is None or int(template.org_id) == int(assignment.org_id):
+            return True
+        from src.services.goals.template_marketplace import use_withdrawn
+
+        return not use_withdrawn(db, template, assignment.org_id)
     route = route_for(db, badge.id, assignment.template_id)
     return bool(route and may_run(db, badge, assignment.org_id, route))
 

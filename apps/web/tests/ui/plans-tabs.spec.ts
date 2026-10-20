@@ -11,7 +11,8 @@ const plansTabs = (page: Page) => page.getByRole('navigation', { name: 'Plans pa
 
 async function tabOrder(page: Page): Promise<string[]> {
   await expect(plansTabs(page)).toHaveCount(5)
-  return (await plansTabs(page).allInnerTexts()).map((text) => text.trim())
+  // A tab's first line is its name; a count (Marketplace requests waiting) follows it.
+  return (await plansTabs(page).allInnerTexts()).map((text) => text.trim().split('\n')[0].trim())
 }
 
 async function saved(page: Page, action: () => Promise<void>) {

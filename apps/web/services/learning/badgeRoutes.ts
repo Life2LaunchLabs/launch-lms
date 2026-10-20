@@ -16,5 +16,8 @@ export const badgeRoutesApi = {
   /** The badge's owner says which versions of a route's template earn it. */
   setEligibility: (badgeUuid: string, routeUuid: string, rule: 'any' | 'latest' | 'from', fromVersion: number | null, token?: string) =>
     request(`${clean(badgeUuid)}/routes/${encodeURIComponent(routeUuid)}/eligibility`, token, 'PUT', { rule, from_version: rule === 'from' ? fromVersion : null }),
+  /** The badge's owner makes a route trusted-partners only (e.g. direct issuance) and picks the partners approved for it. */
+  setTrust: (badgeUuid: string, routeUuid: string, trustedOnly: boolean, partnerOrgIds: number[], token?: string) =>
+    request(`${clean(badgeUuid)}/routes/${encodeURIComponent(routeUuid)}/trust`, token, 'PUT', { trusted_only: trustedOnly, partner_org_ids: partnerOrgIds }),
   start: (badgeUuid: string, data: { template_uuid?: string; issuer_org_id?: number }, token?: string): Promise<{ goal_uuid: string; title: string; status: string; done: number; total: number }> => request(`${clean(badgeUuid)}/start-plan`, token, 'POST', data),
 }

@@ -19,7 +19,7 @@ from src.db.goals import DONE_STEP_STATUSES, Goal, GoalStep, GoalTemplate, StepP
 from src.db.learning import LearningBadge
 from src.db.users import PublicUser
 from src.services.goals import templates
-from src.services.goals.badge_authority import rule_of
+from src.services.goals.badge_authority import rule_of, trusted
 from src.services.goals.badges import active_badge_goal, badge_routes, start_badge_goal
 from src.services.goals.document import iter_steps
 from src.services.learning.lookups import _get_badge
@@ -82,6 +82,7 @@ def goal_progress(db: Session, goal: Goal) -> dict:
 
 def list_routes(db: Session, current_user: PublicUser | None, badge_uuid: str) -> dict:
     """The ways to earn a badge, each with the issuers that offer it, and the learner's goal if started."""
+    from src.services.goals.template_marketplace import route_partners
     from src.services.learning_issuers import issuer_options
 
     badge = _get_badge(db, badge_uuid)
@@ -91,9 +92,11 @@ def list_routes(db: Session, current_user: PublicUser | None, badge_uuid: str) -
     routes, uuids = [], {}
     for route, template in badge_routes(db, badge):
         uuids[route.id] = route.route_uuid
-        issuers = [{**visible[org_id], "is_creator": org_id == badge.org_id} for org_id in visible if offers(offered_routes, org_id, route)]
+        issuers = [{**visible[org_id], "is_creator": org_id == badge.org_id} for org_id in visible
+                   if offers(offered_routes, org_id, route) and (org_id == badge.org_id or trusted(db, route, org_id))]
         routes.append({**route_summary(db, template), "route_uuid": route.route_uuid, "recommended": route.recommended, "issuers": issuers,
-                       "eligible_versions": rule_of(route)})
+                       "eligible_versions": rule_of(route), "trusted_only": bool(route.trusted_only),
+                       "partners": route_partners(db, route) if route.trusted_only else []})
     routes.sort(key=lambda item: not item["recommended"])
     goal = active_badge_goal(db, badge, user_id) if user_id else None
     return {
