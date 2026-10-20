@@ -224,6 +224,10 @@ export const routePaths = {
         withQuery('/admin/insights', { group: groupId == null ? null : String(groupId), fw: frameworksParam(frameworks) }),
       insightsReportPrint: (groupId: string | number, frameworks?: string[] | 'all' | null) =>
         withQuery(`/admin/insights/reports/${encodeURIComponent(String(groupId))}/print`, { fw: frameworksParam(frameworks) }),
+      /** Engagement by group (a placeholder for now). */
+      insightsEngagement: () => '/admin/insights/engagement',
+      /** Requirement coverage by template. */
+      insightsCoverage: () => '/admin/insights/coverage',
       insightsEvidence: (groupId?: string | number | null) => withQuery('/admin/insights/evidence', { group: groupId == null ? null : String(groupId) }),
       /** Old name for `requirementFrameworkPlans`; frameworks moved from Insights to Plans › Requirements. */
       requirementFramework: frameworkPage,
