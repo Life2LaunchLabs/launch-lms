@@ -22,6 +22,7 @@ import TemplateSettings from './TemplateSettings'
 import TemplateSteps from './TemplateSteps'
 import TemplateVersionBar from './TemplateVersionBar'
 import { StaleTemplateBanner, useTemplate, type TemplateEditing } from './useTemplate'
+import { TemplateProvenance } from '@components/Admin/Marketplace/TemplateMarketplaceListing'
 
 /** Template tabs; the URL keeps the old `objectives` segment for the steps tab. */
 export type TemplateSubpage = 'overview' | 'objectives' | 'assignments' | 'settings'
@@ -86,6 +87,7 @@ export default function TemplateDetail({ orgslug, templateUuid, subpage = 'overv
       })}</div>
     </div>
     <StaleTemplateBanner editing={editing} />
+    <TemplateProvenance template={template} />
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.1 }}>
       {shown === 'overview' && <TemplateOverview orgslug={orgslug} orgId={orgId} token={token} template={template} />}
       {shown === 'objectives' && <TemplateSteps orgslug={orgslug} orgId={orgId} token={token} editing={editing} readOnly={readOnly} />}

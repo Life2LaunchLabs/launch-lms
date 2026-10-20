@@ -69,7 +69,9 @@ def publish_to_library(db: Session, current_user: PublicUser, org_id: int, templ
 
 
 def list_library(db: Session, current_user: PublicUser, org_id: int, query: str = "") -> list[dict]:
-    require_org_admin(current_user.id, org_id, db)
+    from src.services.goals.template_marketplace import require_reader
+
+    require_reader(db, current_user, org_id)  # staff browse the marketplace too; copying stays admin only
     owner = _owner_org(db)
     rows = db.exec(
         select(GoalTemplate).where(GoalTemplate.org_id == owner.id, GoalTemplate.library_published_at.is_not(None))  # type: ignore[union-attr]
@@ -82,8 +84,6 @@ def list_library(db: Session, current_user: PublicUser, org_id: int, query: str 
 
 def copy_from_library(db: Session, current_user: PublicUser, org_id: int, template_uuid: str) -> dict:
     """A draft template of the organization's own from a library template, with copies of its activities."""
-    from src.services.requirements import mappable_nodes, parent_node_uuids
-
     require_org_admin(current_user.id, org_id, db)
     owner = _owner_org(db)
     source = db.exec(select(GoalTemplate).where(
@@ -91,12 +91,22 @@ def copy_from_library(db: Session, current_user: PublicUser, org_id: int, templa
     )).first()
     if not source or not source.library_document:
         raise HTTPException(status_code=404, detail="Library template not found")
-    document = deepcopy(source.library_document)
+    copied = copy_into(db, current_user, org_id, source, source.library_document,
+                       templates.published_version(db, source).number if source.published_version_id else None)  # type: ignore[union-attr]
+    db.commit()
+    db.refresh(copied)
+    return {**templates.template_dict(db, copied), **library_status(copied)}
+
+
+def copy_into(db: Session, current_user: PublicUser, org_id: int, source: GoalTemplate, source_document: dict, source_version: int | None) -> GoalTemplate:
+    """A new draft template of the organization's own from another template's document, with copies of its activities (flushed, not committed)."""
+    from src.services.requirements import mappable_nodes, parent_node_uuids
+
+    document = deepcopy(source_document)
     now = datetime.now().isoformat()
     copied = GoalTemplate(
         template_uuid=f"goal_template_{uuid4()}", org_id=org_id, title="", document={}, thumbnail_image=source.thumbnail_image,
-        status=TemplateStatus.ACTIVE, source_template_uuid=source.template_uuid,
-        source_version=templates.published_version(db, source).number if source.published_version_id else None,  # type: ignore[union-attr]
+        status=TemplateStatus.ACTIVE, source_template_uuid=source.template_uuid, source_version=source_version,
         created_by_user_id=current_user.id, creation_date=now, update_date=now,
     )
     db.add(copied)
@@ -120,6 +130,5 @@ def copy_from_library(db: Session, current_user: PublicUser, org_id: int, templa
         else:
             config.pop("activity_uuid", None)
     templates._store(db, copied, templates._validated(db, copied, document))
-    db.commit()
-    db.refresh(copied)
-    return {**templates.template_dict(db, copied), **library_status(copied)}
+    db.flush()
+    return copied

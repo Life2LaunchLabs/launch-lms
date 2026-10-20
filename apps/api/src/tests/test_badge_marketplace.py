@@ -887,3 +887,44 @@ def test_build_ob3_credential_unit():
     assert credential["credentialSubject"]["achievement"]["creator"]["name"] == "Creator Org"
     assert credential["id"].endswith("/badge-awards/credential/award_abcdef123456")
     assert credential["validFrom"] == "2026-01-01T00:00:00Z"
+
+
+
+async def test_staff_browse_badges_read_only_and_learners_cannot():
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    _create_tables(engine)
+    with Session(engine) as session:
+        _, _, _, bob, _, badge = _setup(session)
+        session.add(Role(id=5, role_uuid="role_teacher", name="Teacher", rights={"dashboard": {"action_access": True}, "learning_activities": {"action_update": True}}))
+        session.commit()
+        teacher = _create_user(session, user_id=4, username="tia", org_id=2, role_id=5)
+        learner = _create_user(session, user_id=5, username="lou", org_id=2, role_id=4)
+        await request_authorization(_request(), IssuerAuthorizationRequest(badge_uuid=badge.badge_uuid, issuer_org_id=2), bob, session)
+
+        items = await browse_marketplace_badges(_request(), teacher, session, issuer_org_id=2)
+        assert items[0]["authorization"]["status"] == "requested"
+        with pytest.raises(HTTPException) as denied:
+            await browse_marketplace_badges(_request(), learner, session, issuer_org_id=2)
+        assert denied.value.status_code == 403
+        # Requesting stays an admin action.
+        with pytest.raises(HTTPException):
+            await request_authorization(_request(), IssuerAuthorizationRequest(badge_uuid=badge.badge_uuid, issuer_org_id=2), teacher, session)
+
+
+async def test_requests_summary_counts_badge_requests_both_ways():
+    from src.db.goals import GoalTemplate
+    from src.db.template_marketplace import GoalTemplateAuthorization
+    from src.services.goals.template_marketplace import requests_summary
+
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    _create_tables(engine)
+    GoalTemplate.__table__.create(engine)
+    GoalTemplateAuthorization.__table__.create(engine)
+    with Session(engine) as session:
+        _, _, alice, bob, _, badge = _setup(session)
+        assert requests_summary(session, alice, 1)["incoming_requested"] == 0
+        await request_authorization(_request(), IssuerAuthorizationRequest(badge_uuid=badge.badge_uuid, issuer_org_id=2), bob, session)
+        assert requests_summary(session, alice, 1)["badges"] == {"incoming_requested": 1, "outgoing_pending": 0}
+        assert requests_summary(session, bob, 2)["outgoing_pending"] == 1
+        with pytest.raises(HTTPException):
+            requests_summary(session, bob, 1)
