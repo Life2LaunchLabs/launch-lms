@@ -13,6 +13,7 @@ import { Input } from '@components/ui/input'
 import FilterBar from '@components/Admin/Filters/FilterBar'
 import { useFilters } from '@components/Admin/Filters/useFilters'
 import OwnershipChip from '@components/Admin/Plans/OwnershipChip'
+import PageWelcome from '@components/Admin/PageWelcome'
 import { AddFromMarketplace, primaryActionClass } from '@components/Admin/Plans/PlansActions'
 import { useCanEditPlans } from '@components/Admin/Plans/useCanEditPlans'
 import { getUriWithOrg, routePaths } from '@services/config/config'
@@ -141,10 +142,15 @@ export default function TemplateList({ orgslug, orgId, token }: { orgslug: strin
       : shown.length ? <ul className="overflow-hidden rounded-2xl border border-gray-200 bg-white" aria-label="Templates">
         {shown.map((row) => <TemplateRow key={row.uuid} row={row} orgslug={orgslug} busy={busy === row.uuid} onArchive={row.template && row.canEdit && !row.system ? () => void toggleArchived(row.template!) : undefined} />)}
       </ul>
-        : <div className="flex items-center justify-center rounded-2xl border-2 border-dashed border-border px-4 py-16 text-center"><div>
+        : rows.length ? <div className="flex items-center justify-center rounded-2xl border-2 border-dashed border-border px-4 py-16 text-center"><div>
           <Layers3 size={36} className="mx-auto mb-3 text-gray-300" />
-          <p className="text-sm text-muted-foreground">{rows.length ? 'No templates match your search or filters.' : 'Create a template to hand the same stages and steps to many learners, or add one from the marketplace.'}</p>
-        </div></div>}
+          <p className="text-sm text-muted-foreground">No templates match your search or filters.</p>
+        </div></div>
+        : <PageWelcome icon={<Layers3 size={28} />} title="Templates: plans you can hand out again and again"
+          body="A template is a plan's stages and steps, written once. Hand it to one learner or a whole group, and each gets their own copy to work through."
+          how="Start from a ready-made plan in the Marketplace and make it yours, or build one from scratch. Publish it when it's ready to hand out.">
+          <AddFromMarketplace type="templates" />{canEdit ? <NewTemplateModal orgslug={orgslug} orgId={orgId} token={token} /> : null}
+        </PageWelcome>}
   </div></div>
 }
 

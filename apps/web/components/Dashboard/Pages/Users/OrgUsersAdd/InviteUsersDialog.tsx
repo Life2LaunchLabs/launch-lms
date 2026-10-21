@@ -47,12 +47,13 @@ export default function InviteUsersDialog({ open: isOpen, onOpenChange, onInvite
   const isLearnerRole = selectedRole?.role_uuid === 'role_global_user' || ['user', 'learner', 'member'].includes(String(selectedRole?.name || '').toLowerCase())
   const readyRecipients = previewResults.filter((result) => result.status === 'ready')
 
+  // Each time it opens, start on the role it was opened for.
   React.useEffect(() => {
-    if (!selectedRoleId && roles?.length) {
+    if (isOpen && roles?.length) {
       const startRole = roles.find((role: any) => role.role_uuid === (initialRole === 'staff' ? 'role_global_maintainer' : 'role_global_user'))
       setSelectedRoleId(String(startRole?.id || roles[0].id))
     }
-  }, [roles, selectedRoleId, initialRole])
+  }, [roles, isOpen, initialRole])
 
   React.useEffect(() => {
     if (!isLearnerRole) {
