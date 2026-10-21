@@ -9,12 +9,12 @@ import { Skeleton } from '@components/ui/skeleton'
 import { PersonAvatar } from '@components/Goals/share/PersonAvatar'
 import { GroupMark } from '@components/Connect/ChatPane'
 import { chatTime } from '@components/Connect/ConnectView'
-import Modal from '@components/Objects/StyledElements/Modal/Modal'
-import AddUserGroup from '@components/Objects/Modals/Dash/OrgUserGroups/AddUserGroup'
 import InviteUsersDialog from '@components/Dashboard/Pages/Users/OrgUsersAdd/InviteUsersDialog'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import { ROLE_LABELS, peopleKeys, type FeedRow, type OrgRole, type PeopleStatusFilter } from '@services/school/people'
+import { ROLE_LABELS, peopleKeys, type FeedRow, type PeopleStatusFilter } from '@services/school/people'
+import NewGroup from './NewGroup'
 import PendingInvites from './PendingInvites'
+import { RoleTag } from './RoleTag'
 import type { PeopleSelection } from './PeopleView'
 import { usePeopleContext, usePeopleFeed, useRefreshPeople } from './usePeople'
 
@@ -54,10 +54,10 @@ export default function PeopleList({ orgslug, selection }: { orgslug: string; se
     <div className="flex h-16 shrink-0 items-center justify-between gap-2 px-4 md:border-b md:border-border md:px-5">
       <h1 className="text-2xl font-black tracking-tight md:text-xl">People</h1>
       <div className="flex items-center gap-1">
-        {isAdmin && groupsEnabled ? <Modal isDialogOpen={creatingGroup} onOpenChange={setCreatingGroup} minHeight="no-min" dialogTitle="New group"
-          dialogDescription="A group shares plans and a chat with the staff you add to it."
-          dialogContent={<AddUserGroup setCreateUserGroupModal={(open: boolean) => { setCreatingGroup(open); if (!open) void refresh() }} />}
-          dialogTrigger={<button type="button" aria-label="New group" title="New group" className="flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground"><Plus size={19} /></button>} /> : null}
+        {isAdmin && groupsEnabled ? <>
+          <button type="button" onClick={() => setCreatingGroup(true)} aria-haspopup="dialog" aria-label="New group" title="New group" className="flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground"><Plus size={19} /></button>
+          <NewGroup orgslug={orgslug} open={creatingGroup} onOpenChange={setCreatingGroup} />
+        </> : null}
         <button type="button" onClick={() => setInviting(true)} aria-label="Add people" title="Add people" className="flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground"><UserPlus size={19} /></button>
       </div>
     </div>
@@ -182,17 +182,6 @@ function GroupRow({ row, orgslug, selection }: { row: FeedRow; orgslug: string; 
       </span>
     </Link>
   </li>
-}
-
-const ROLE_TONES: Record<OrgRole, string> = {
-  admin: 'bg-foreground text-background',
-  staff: 'bg-[var(--org-primary-color)]/15 text-foreground',
-  learner: 'bg-muted text-muted-foreground',
-  helper: 'bg-amber-100 text-amber-800',
-}
-
-export function RoleTag({ role }: { role: OrgRole }) {
-  return <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wide', ROLE_TONES[role])}>{ROLE_LABELS[role]}</span>
 }
 
 function ListSkeleton() {
