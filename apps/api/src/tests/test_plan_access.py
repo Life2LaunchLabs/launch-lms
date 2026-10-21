@@ -9,10 +9,10 @@ from sqlmodel import select
 
 from src.db.badge_routes import BadgeRoute, BadgeRouteOffer
 from src.db.goals import GoalTemplate
-from src.db.learning import BadgeCollection, LearningBadgeAward, LearningBadgeStatus
+from src.db.learning import BadgeCollection, BadgeIssuerAuthorization, BadgeIssuerAuthorizationStatus, LearningBadgeAward, LearningBadgeStatus
 from src.db.template_marketplace import BadgeRoutePartner, GoalTemplateLearnerAccess, TemplateLearnerAccessUpdate
 from src.db.users import AnonymousUser
-from src.services import badge_discover, learning_issuers
+from src.services import badge_discover
 from src.services.goals import plan_access, template_learners
 from src.services.goals.badge_routes import list_routes
 from src.services.goals.badges import start_badge_goal
@@ -79,22 +79,6 @@ def test_starting_a_badge_goes_to_an_org_that_lets_the_learner_start_and_uses_th
         assert goal.org_id == 2 and goal.template_id == _template_id(db, routes[1])
 
 
-def test_the_badge_level_setting_writes_through_to_the_plans():
-    db, badge, routes = _setup(issuer_access="invite", creator_access="invite")
-    with db:
-        learning_issuers.update_issuing_settings(db, badge, learning_issuers.BadgeIssuingSettingsUpdate(creator_access="request"), ADMIN)
-        assert {plan_access.access_of(db, _template_id(db, uuid), 1) for uuid in routes} == {"request"}
-        settings = learning_issuers.issuing_settings(db, badge)
-        assert settings["creator_access"] == "request" and [plan["access"] for plan in settings["creator_plans"]] == ["request", "request"]
-        assert learning_issuers.issuer_access(db, badge, 2) == "invite"
-        # Stopping and resuming issuing leaves each plan's setting alone.
-        Update = learning_issuers.BadgeIssuingSettingsUpdate
-        assert learning_issuers.update_issuing_settings(db, badge, Update(creator_issues=False), ADMIN)["creator_access"] == "none"
-        assert _listed(db) == set()
-        assert learning_issuers.update_issuing_settings(db, badge, Update(creator_issues=True), ADMIN)["creator_access"] == "request"
-        assert _listed(db) == {"badge_adapt"}
-
-
 def test_template_learners_card_shows_the_badge_and_is_the_running_orgs_own_setting():
     db, badge, routes = _setup(issuer_access="invite", creator_access="open")
     with db:
@@ -125,6 +109,10 @@ def test_migration_copies_badge_level_access_onto_the_plans_each_issuer_runs():
     spec.loader.exec_module(migration)  # type: ignore[union-attr]
     db, _, routes = _setup(issuer_access="request")
     with db:
+        # Before plans carried it, learner access was on the partner's badge-level record.
+        BadgeIssuerAuthorization.__table__.create(db.get_bind(), checkfirst=True)
+        db.add(BadgeIssuerAuthorization(authorization_uuid="auth_2", badge_id=1, creator_org_id=1, issuer_org_id=2, status=BadgeIssuerAuthorizationStatus.APPROVED,
+                                        learner_access="request", open_to_all=True, creation_date=NOW, update_date=NOW))
         for row in db.exec(select(GoalTemplateLearnerAccess)).all():
             db.delete(row)
         # The partner offers only the second plan; the first is trusted-partners only (partner not approved).

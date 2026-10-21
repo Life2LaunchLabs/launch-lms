@@ -7,12 +7,12 @@ from sqlmodel import select
 from src.db.badge_routes import BadgeRoute, BadgeRouteEligibilityUpdate, BadgeRouteOffer
 from src.db.goal_templates import AssignmentCollaborator, GoalAssignmentRequest
 from src.db.goals import Goal, GoalAssignment, GoalStep, StepStatus, StepStatusChange
-from src.db.learning import BadgeIssuerAuthorization, BadgeIssuerAuthorizationStatus, LearningBadge, LearningBadgeAward, LearningBadgeStatus
+from src.db.learning import LearningBadge, LearningBadgeAward, LearningBadgeStatus
 from src.db.organizations import Organization
 from src.db.user_organizations import UserOrganization
 from src.services.goals import assignments, badge_authority, badge_templates, goals, templates
 from src.services.goals.badges import start_badge_goal
-from src.tests.plan_permissions import approve_badge_issuers_on_plans, set_plan_permission
+from src.tests.plan_permissions import approve_on_plans, set_plan_permission
 from src.tests.test_goal_sharing import _session as _sharing_session
 from src.tests.test_goals import ADMIN, LEARNER, NOW, _published, _user
 
@@ -23,17 +23,15 @@ STEPS = ({"key": "notice", "type": "task", "title": "Notice change"}, {"key": "s
 def _world(plans: bool = True):
     """Studio (1) owns the badge and its two routes; Partner (2) is authorized to issue it; Stranger (3) isn't.
 
-    ``plans``: Partner's badge approval is also on the badge's plans (as after migration a8c4e1f7d2b9)."""
+    ``plans``: Partner is approved on both of the badge's plans (else it has no permission at all)."""
     db = _sharing_session()
-    for model in (BadgeRoute, BadgeRouteOffer, BadgeIssuerAuthorization):
+    for model in (BadgeRoute, BadgeRouteOffer):
         model.__table__.create(db.get_bind(), checkfirst=True)
     for org_id, name in ((PARTNER, "Partner"), (STRANGER, "Stranger")):
         db.add(Organization(id=org_id, org_uuid=f"org_{org_id}", name=name, slug=name.lower(), email=f"{name}@example.com", creation_date=NOW, update_date=NOW))
         db.add(UserOrganization(user_id=ADMIN, org_id=org_id, role_id=1, creation_date=NOW, update_date=NOW))
         db.add(UserOrganization(user_id=LEARNER, org_id=org_id, role_id=4, creation_date=NOW, update_date=NOW))
     db.add(LearningBadge(id=1, badge_uuid="badge_adapt", org_id=1, name="Adaptability", status=LearningBadgeStatus.PUBLISHED, creation_date=NOW, update_date=NOW))
-    db.add(BadgeIssuerAuthorization(authorization_uuid="auth_2", badge_id=1, creator_org_id=1, issuer_org_id=PARTNER, status=BadgeIssuerAuthorizationStatus.APPROVED,
-                                    learner_access="open", open_to_all=True, creation_date=NOW, update_date=NOW))
     db.commit()
     routes = []
     for position in range(2):
@@ -43,7 +41,7 @@ def _world(plans: bool = True):
         routes.append(template)
     db.commit()
     if plans:
-        approve_badge_issuers_on_plans(db)
+        approve_on_plans(db, PARTNER)
     return db, routes
 
 

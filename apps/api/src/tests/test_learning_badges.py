@@ -1021,7 +1021,10 @@ ADMIN_ID, STAFF_ID, LEARNER_ID, PARTNER_STAFF_ID, STAFF_ROLE_ID = 1, 2, 3, 4, 7
 
 def _badge_world():
     from sqlmodel import Session, SQLModel, create_engine
-    from src.db.learning import BadgeCollection, BadgeIssuerAuthorization, BadgeIssuerAuthorizationStatus
+    from src.db.badge_routes import BadgeRoute, BadgeRouteOffer
+    from src.db.goals import GoalTemplate
+    from src.db.learning import BadgeCollection
+    from src.db.template_marketplace import GoalTemplateAuthorization
     from src.db.programs import Objective, Program, ProgramAssignment, ProgramObjective
     from src.db.roles import Role
     from src.db.user_organizations import UserOrganization
@@ -1029,7 +1032,8 @@ def _badge_world():
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     SQLModel.metadata.create_all(engine, tables=[
         Organization.__table__, User.__table__, Role.__table__, UserOrganization.__table__, BadgeCollection.__table__,
-        LearningBadge.__table__, LearningBadgeVersion.__table__, BadgeIssuerAuthorization.__table__, LearningBadgeAward.__table__,
+        LearningBadge.__table__, LearningBadgeVersion.__table__, LearningBadgeAward.__table__,
+        GoalTemplate.__table__, BadgeRoute.__table__, BadgeRouteOffer.__table__, GoalTemplateAuthorization.__table__,
         Program.__table__, ProgramObjective.__table__, Objective.__table__, ProgramAssignment.__table__,
     ])
     db = Session(engine)
@@ -1044,8 +1048,11 @@ def _badge_world():
     db.add(BadgeCollection(id=1, collection_uuid="badge_collection_1", org_id=1, name="Readiness", description="", public=True, creation_date=now, update_date=now))
     # Private and a draft, so only the organization (and issuers it authorized) can read it.
     db.add(LearningBadge(id=10, org_id=1, collection_id=1, badge_uuid="badge_ready", name="Career Ready", public=False, status=LearningBadgeStatus.DRAFT, creation_date=now, update_date=now))
-    db.add(BadgeIssuerAuthorization(authorization_uuid="auth_1", badge_id=10, creator_org_id=1, issuer_org_id=2, status=BadgeIssuerAuthorizationStatus.APPROVED,
-                                    creation_date=now, update_date=now))
+    # The partner issues it: approved on the badge's plan.
+    db.add(GoalTemplate(id=20, template_uuid="template_ready", org_id=1, title="Get ready", creation_date=now, update_date=now))
+    db.add(BadgeRoute(route_uuid="route_ready", badge_id=10, goal_template_id=20, creation_date=now))
+    db.add(GoalTemplateAuthorization(authorization_uuid="template_auth_1", template_id=20, creator_org_id=1, issuer_org_id=2, status="approved",
+                                     creation_date=now, update_date=now))
     db.commit()
     return db
 

@@ -1,7 +1,6 @@
 import pytest
 from sqlmodel import Session, create_engine, select
 from fastapi import HTTPException
-from src.db.learning import BadgeIssuerAuthorization
 from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
 from src.db.plan_requests import PlanRequest, PlanRequestUpdate
@@ -14,7 +13,6 @@ def db_session():
     Organization.__table__.create(engine)
     OrganizationConfig.__table__.create(engine)
     PlanRequest.__table__.create(engine)
-    BadgeIssuerAuthorization.__table__.create(engine)
     with Session(engine) as session:
         yield session
 
