@@ -10,7 +10,8 @@ without a badge or requirements) and says how others use it:
 
 Access is ``open`` (anyone may add it) or ``request`` (the creator approves each
 organization). ``GoalTemplateAuthorization`` records each organization's
-request and the decision, like ``BadgeIssuerAuthorization`` does for badges.
+request and the decision. Permission on a template that earns a badge is also
+the permission to issue that badge (``services/goals/plan_issuers``).
 """
 
 from __future__ import annotations
@@ -100,10 +101,10 @@ class GoalTemplateLearnerAccess(SQLModel, table=True):
 
 
 class BadgeRoutePartner(SQLModel, table=True):
-    """Deprecated: an issuer the badge's owner approved for a trusted-partners-only route.
+    """Unused (to drop in the pruning migration): an issuer once approved for a trusted-partners-only route.
 
-    No longer read: who runs a route is who is approved on its plan (``GoalTemplateAuthorization``);
-    the rows were copied there by migration a8c4e1f7d2b9."""
+    Never read or written: who runs a route is who is approved on its plan (``GoalTemplateAuthorization``);
+    migration a8c4e1f7d2b9 copied the rows there. The model stays so the table isn't dropped by autogenerate."""
 
     __tablename__ = "badge_route_partner"
     __table_args__ = (UniqueConstraint("route_id", "issuer_org_id"),)
@@ -135,8 +136,3 @@ class TemplateInvite(SQLModel):
 
 class TemplateLearnerAccessUpdate(SQLModel):
     access: Literal["open", "request", "invite"] = "invite"
-
-
-class BadgeRouteTrustUpdate(SQLModel):
-    trusted_only: bool = False
-    partner_org_ids: list[int] = Field(default_factory=list, description="Issuers approved to run this route while it is trusted-partners only.")

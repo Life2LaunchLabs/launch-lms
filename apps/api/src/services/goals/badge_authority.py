@@ -3,8 +3,7 @@
 A badge's routes are goal templates of the badge's organization. The owner runs
 them; another organization runs a route only while it is approved on that
 route's plan template (``GoalTemplateAuthorization``, see ``plan_issuers``), and
-only the routes it offers (BadgeRouteOffer; offering none offers all). A plan for
-trusted partners only is one whose owner approves only trusted partners. Running
+only the routes it offers (BadgeRouteOffer; offering none offers all). Running
 a route means assigning its template to the organization's learners, whose plans
 then earn the badge.
 Learners starting a badge themselves are checked by
@@ -33,12 +32,10 @@ from src.services.goals import templates
 
 
 def authorized(db: Session, badge: LearningBadge, org_id: int) -> bool:
-    """The badge's owner, or an organization approved on one of the badge's plans."""
-    from src.services.goals.plan_issuers import badge_issuer
+    """The badge's owner, or an organization approved on one of the badge's plans (``plan_issuers.may_issue``)."""
+    from src.services.goals.plan_issuers import may_issue
 
-    if int(badge.org_id) == int(org_id):
-        return True
-    return badge_issuer(db, badge, org_id)
+    return may_issue(db, badge, org_id)
 
 
 def route_for(db: Session, badge_id: int | None, template_id: int | None) -> BadgeRoute | None:
@@ -59,11 +56,9 @@ def may_run(db: Session, badge: LearningBadge, org_id: int, route: BadgeRoute) -
 
 
 def trusted(db: Session, route: BadgeRoute, org_id: int) -> bool:
-    """Whether the organization is approved on this route's plan (legacy program routes: always)."""
+    """Whether the organization is approved on this route's plan (a legacy program route: only its owner runs it)."""
     from src.services.goals.plan_issuers import approved_on
 
-    if not route.goal_template_id:
-        return True
     return approved_on(db, route.goal_template_id, org_id)
 
 

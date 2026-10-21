@@ -12,8 +12,7 @@ organization says who may start it:
 A badge reaches Discover only while an organization allowed to issue it (its owner, or an
 issuer approved on that route's plan that offers it) runs one of
 its routes ``open`` or by ``request``; starting the badge goes to such an organization.
-``BadgeIssuerAuthorization.learner_access`` stays readable but no longer decides anything: the
-old badge-level setting writes through to the plans (``apply_to_badge``).
+There is no badge-level setting: each plan carries its own.
 """
 
 from __future__ import annotations
@@ -112,16 +111,6 @@ def issuer_access(db: Session, badge: LearningBadge, org_id: int, route: BadgeRo
     return best(found.get((int(item.goal_template_id), int(org_id)), DEFAULT) for item in running)  # type: ignore[arg-type]
 
 
-def apply_to_badge(db: Session, badge: LearningBadge, org_id: int, access: str, user_id: int | None) -> None:
-    """The old badge-level setting: the same access on every route of the badge this organization runs."""
-    from src.services.goals.badge_routes import offered
-
-    offered_routes = offered(db, badge)
-    for route in _routes(db, badge):
-        if runs_route(db, badge, route, org_id, offered_routes):
-            set_access(db, int(route.goal_template_id), org_id, access, user_id)  # type: ignore[arg-type]
-
-
 def badge_plans(db: Session, badge: LearningBadge, org_id: int) -> list[dict]:
     """The badge's routes this organization runs, each with its learner access (for read-only badge views)."""
     from src.services.goals.badge_routes import offered
@@ -131,24 +120,28 @@ def badge_plans(db: Session, badge: LearningBadge, org_id: int) -> list[dict]:
     offered_routes = offered(db, badge)
     rows =[(route, db.get(GoalTemplate, route.goal_template_id)) for route in _routes(db, badge) if runs_route(db, badge, route, org_id, offered_routes)]
     found = accesses(db, [int(template.id) for _, template in rows if template], [org_id])  # type: ignore[arg-type]
+    permissions = _permissions(db, [int(template.id) for _, template in rows if template], org_id)  # type: ignore[arg-type]
     return [{"route_uuid": route.route_uuid, "template_uuid": template.template_uuid, "title": template.title,
-             "access": found.get((int(template.id), int(org_id)), DEFAULT)}  # type: ignore[arg-type]
+             "access": found.get((int(template.id), int(org_id)), DEFAULT),  # type: ignore[arg-type]
+             # The issuer's permission on the plan (none for the owner): leaving the plan stops issuing through it.
+             "authorization_uuid": permissions.get(int(template.id))}  # type: ignore[arg-type]
             for route, template in rows if template]
 
 
-def _may_issue(db: Session, badge: LearningBadge, org_id: int) -> bool:
-    """The owner (unless it stopped issuing its badge), or an issuer with an approved authorization."""
-    from src.services.goals.badge_authority import authorized
-    from src.services.learning_issuers import creator_issues
+def _permissions(db: Session, template_ids: list[int], org_id: int) -> dict[int, str]:
+    from src.db.template_marketplace import GoalTemplateAuthorization
 
-    if int(badge.org_id) == int(org_id):
-        return creator_issues(db, badge)
-    return authorized(db, badge, org_id)
+    if not template_ids or not inspect(db.connection()).has_table(GoalTemplateAuthorization.__tablename__):
+        return {}
+    return {int(row.template_id): row.authorization_uuid for row in db.exec(select(GoalTemplateAuthorization).where(
+        col(GoalTemplateAuthorization.template_id).in_(template_ids), GoalTemplateAuthorization.issuer_org_id == org_id,
+        GoalTemplateAuthorization.status == "approved")).all()}
 
 
 def offered_badge_ids(db: Session, badges: list[LearningBadge]) -> set[int]:
     """Badges at least one organization lets learners start (open or by request) on a route it may run."""
     from src.services.goals.badge_routes import offered
+    from src.services.goals.plan_issuers import may_issue
 
     by_id = {int(badge.id): badge for badge in badges if badge.id}  # type: ignore[arg-type]
     if not by_id or not _has_table(db):
@@ -167,7 +160,7 @@ def offered_badge_ids(db: Session, badges: list[LearningBadge]) -> set[int]:
             continue
         key = (int(badge.id), int(org_id))  # type: ignore[arg-type]
         if key not in issuing:
-            issuing[key] = _may_issue(db, badge, org_id)
+            issuing[key] = may_issue(db, badge, org_id)
         if not issuing[key]:
             continue
         routes = offers.setdefault(int(badge.id), offered(db, badge))  # type: ignore[arg-type]

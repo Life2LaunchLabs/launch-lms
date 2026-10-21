@@ -21,7 +21,7 @@ class BadgeRoute(SQLModel, table=True):
     # Which template versions earn the badge on an assignment: every version (neither set), the newest only, or from a number on.
     latest_only: bool = Field(default=False, sa_column=Column(Boolean, nullable=False, server_default="false"))
     eligible_from_version: int | None = Field(default=None, sa_column=Column(Integer, nullable=True))
-    # Deprecated, no longer read: who runs a route is who is approved on its plan template (GoalTemplateAuthorization).
+    # Unused (to drop in the pruning migration): who runs a route is who is approved on its plan template (GoalTemplateAuthorization).
     trusted_only: bool = Field(default=False, sa_column=Column(Boolean, nullable=False, server_default="false"))
     creation_date: str = ""
     update_date: str = ""
@@ -47,17 +47,3 @@ class BadgeRouteOffer(SQLModel, table=True):
 
 class BadgeRouteOffersUpdate(SQLModel):
     route_uuids: list[str] = Field(default_factory=list, description="Routes this issuer offers; empty offers every route.")
-
-
-class BadgeRouteInput(SQLModel):
-    program_uuid: str
-    recommended: bool = False
-
-
-class BadgeRoutesUpdate(SQLModel):
-    routes: list[BadgeRouteInput]
-
-
-class BadgePlanStart(SQLModel):
-    program_uuid: str | None = Field(default=None, description="The route to earn it by; defaults to the recommended route.")
-    issuer_org_id: int | None = Field(default=None, description="The organization to earn it with; defaults to the badge's creator.")

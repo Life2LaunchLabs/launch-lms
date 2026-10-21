@@ -8,7 +8,13 @@ approves only trusted partners.
 So nothing that ran stops running, every approved badge issuer is approved on each of the badge's
 plans it could run: every route, except a trusted-partners-only route unless it was a partner
 there. A pending plan request becomes approved; a plan permission the owner rejected or revoked
-stays as it was. The old tables and columns stay (no longer read).
+stays as it was. A creator that had stopped issuing its own badge (a revoked self-authorization)
+keeps its plans out of learners' reach: its learner access on them becomes invite only. Learner
+links no longer hang off a badge-level authorization, so ``badgeissuerlearnerlink.authorization_id``
+becomes nullable.
+
+The old tables and columns stay, unused, for the pruning migration: ``badgeissuerauthorization``,
+``badge_route_partner``, ``badgeroute.trusted_only`` and ``badgeissuerlearnerlink.authorization_id``.
 
 Revision ID: a8c4e1f7d2b9
 Revises: f7a3c9d2b8e4
@@ -84,8 +90,35 @@ def backfill(conn) -> int:
     return written
 
 
+def stopped_creators(conn) -> int:
+    """Plans of badges whose creator stopped issuing them: the creator's learner access becomes invite."""
+    tables = set(sa.inspect(conn).get_table_names())
+    if not {"badgeroute", "badgeissuerauthorization", "goal_template", "goal_template_learner_access"} <= tables:
+        return 0
+    rows = conn.execute(sa.text(
+        "SELECT DISTINCT r.goal_template_id, t.org_id FROM badgeroute r JOIN goal_template t ON t.id = r.goal_template_id "
+        "JOIN badgeissuerauthorization a ON a.badge_id = r.badge_id AND a.issuer_org_id = a.creator_org_id "
+        "WHERE a.status = 'revoked' AND t.org_id = a.creator_org_id"
+    )).fetchall()
+    now = datetime.now().isoformat()
+    for template_id, org_id in rows:
+        updated = conn.execute(sa.text(
+            "UPDATE goal_template_learner_access SET access = 'invite', update_date = :now WHERE template_id = :template_id AND org_id = :org_id"
+        ), {"template_id": template_id, "org_id": org_id, "now": now})
+        if not updated.rowcount:
+            conn.execute(sa.text(
+                "INSERT INTO goal_template_learner_access (template_id, org_id, access, creation_date, update_date) "
+                "VALUES (:template_id, :org_id, 'invite', :now, :now)"
+            ), {"template_id": template_id, "org_id": org_id, "now": now})
+    return len(rows)
+
+
 def upgrade() -> None:
-    backfill(op.get_bind())
+    conn = op.get_bind()
+    backfill(conn)
+    stopped_creators(conn)
+    if "badgeissuerlearnerlink" in set(sa.inspect(conn).get_table_names()):
+        op.alter_column("badgeissuerlearnerlink", "authorization_id", existing_type=sa.Integer(), nullable=True)
 
 
 def downgrade() -> None:

@@ -8,9 +8,6 @@ from fastapi import HTTPException
 from sqlmodel import Session, select
 
 from src.db.learning import (
-    BadgeIssuerAuthorization,
-    BadgeIssuerAuthorizationStatus,
-    BadgeIssuerLearnerLink,
     BadgeIssuerLearnerLinkStatus,
     LearningActivity,
     LearningBadge,
@@ -1924,7 +1921,7 @@ def _activate_program_badge_collaborations(
     participant: ProgramParticipant,
     decided_by_user_id: int,
 ) -> None:
-    """Accepting a program activates its org on each authorized badge objective."""
+    """Accepting a program links the learner with its org on each badge objective the org may issue."""
     badge_ids = {
         int(item["badge_id"])
         for item in (assignment.objective_snapshot or [])
@@ -1933,43 +1930,17 @@ def _activate_program_badge_collaborations(
     if not badge_ids:
         return
     badges = db.exec(select(LearningBadge).where(LearningBadge.id.in_(badge_ids))).all()  # type: ignore
+    from src.services.goals.plan_issuers import may_issue
+    from src.services.learning_issuer_links import find_link, new_link
+
     for badge in badges:
-        authorization = db.exec(select(BadgeIssuerAuthorization).where(
-            BadgeIssuerAuthorization.badge_id == badge.id,
-            BadgeIssuerAuthorization.issuer_org_id == assignment.org_id,
-            BadgeIssuerAuthorization.status == BadgeIssuerAuthorizationStatus.APPROVED,
-        )).first()
-        if not authorization and badge.org_id == assignment.org_id:
-            now = _now()
-            authorization = BadgeIssuerAuthorization(
-                authorization_uuid=f"issuer_authorization_{uuid4()}",
-                badge_id=badge.id or 0,
-                creator_org_id=badge.org_id,
-                issuer_org_id=assignment.org_id,
-                status=BadgeIssuerAuthorizationStatus.APPROVED, learner_access="open", open_to_all=True,
-                decided_by_user_id=decided_by_user_id,
-                decided_at=now,
-                creation_date=now.isoformat(),
-                update_date=now.isoformat(),
-            )
-            db.add(authorization)
-            db.flush()
-        if not authorization:
+        # The program's org supports the learner on badges it may issue (its own, or through a plan it's approved on).
+        if not may_issue(db, badge, assignment.org_id):
             continue
-        link = db.exec(select(BadgeIssuerLearnerLink).where(
-            BadgeIssuerLearnerLink.authorization_id == authorization.id,
-            BadgeIssuerLearnerLink.user_id == participant.user_id,
-        )).first()
+        link = find_link(db, badge.id or 0, assignment.org_id, participant.user_id)
         now = _now()
         if not link:
-            link = BadgeIssuerLearnerLink(
-                link_uuid=f"issuer_link_{uuid4()}",
-                authorization_id=authorization.id or 0,
-                badge_id=badge.id or 0,
-                issuer_org_id=assignment.org_id,
-                user_id=participant.user_id,
-                creation_date=now.isoformat(),
-            )
+            link = new_link(badge.id or 0, assignment.org_id, participant.user_id, now.isoformat())
         link.status = BadgeIssuerLearnerLinkStatus.ACCEPTED
         link.staff_user_ids = list(dict.fromkeys([*(link.staff_user_ids or []), *(assignment.staff_user_ids or [])]))
         link.decided_by_user_id = decided_by_user_id

@@ -152,11 +152,6 @@ def set_routes(db: Session, current_user: PublicUser, badge_uuid: str, payload: 
         db.add(route)
     for route in existing.values():
         db.delete(route)
-    db.flush()
-    # Organizations approved on the badge's plans issue it; the badge's issuer records follow the new routes.
-    from src.services.goals.plan_issuers import sync_badge
-
-    sync_badge(db, badge)
     db.commit()
     return list_routes(db, current_user, badge_uuid)
 
@@ -164,11 +159,11 @@ def set_routes(db: Session, current_user: PublicUser, badge_uuid: str, payload: 
 def set_offered_routes(db: Session, current_user: PublicUser, badge_uuid: str, issuer_org_id: int, payload: BadgeRouteOffersUpdate) -> dict:
     """An issuer chooses which of the badge's routes it offers (none chosen: every route)."""
     from src.security.org_auth import require_org_admin
-    from src.services.learning_issuers import active_issuers
+    from src.services.goals.plan_issuers import may_issue
 
     badge = _get_badge(db, badge_uuid)
     require_org_admin(current_user.id, issuer_org_id, db, "build_plans")
-    if issuer_org_id not in {org_id for org_id, _, _ in active_issuers(db, badge)}:
+    if not may_issue(db, badge, issuer_org_id):
         raise HTTPException(status_code=403, detail="This organization is not issuing this badge")
     routes = {route.route_uuid: route for route, _ in badge_routes(db, badge)}
     if any(uuid not in routes for uuid in payload.route_uuids):

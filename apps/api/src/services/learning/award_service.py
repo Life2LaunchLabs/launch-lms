@@ -40,9 +40,9 @@ async def confer_award(
     )
     if issuing_org_id is not None:
         admin = access_rules._require_org_admin(db_session, current_user, issuing_org_id, "review_work")
-        from src.services.learning_issuers import active_issuers
+        from src.services.goals.plan_issuers import may_issue
 
-        if issuing_org_id not in {org_id for org_id, _access, _authorization in active_issuers(db_session, badge)}:
+        if not may_issue(db_session, badge, issuing_org_id):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Your organization is not authorized to issue this badge",
