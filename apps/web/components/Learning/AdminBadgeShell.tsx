@@ -14,7 +14,7 @@ import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { deleteLearningBadge, updateLearningBadge } from '@services/learning/learning'
-import { getIssuerAuthorizations, getIssuerBadgeMetrics, revokeIssuerAuthorization } from '@services/learning/marketplace'
+import { getIssuerBadgeMetrics } from '@services/learning/marketplace'
 import { CreatorIssuingCard, learnerAccessLabel } from '@components/Learning/BadgeIssuing'; import PlanAccessList from '@components/Learning/PlanAccessList'
 import CertificatePreview from '@components/Learning/BadgeCertificatePreview'
 import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
@@ -269,7 +269,7 @@ function IssuerBadgeAnalyticsPanel({ badge, issuerOrgId, orgslug }: { badge: any
             <div className="mt-6 grid gap-4 sm:grid-cols-3">
               <AnalyticsStat label="Issued by your org" value={String(metrics?.issued_count || 0)} />
               <AnalyticsStat label="Used in programs" value={String(metrics?.programs?.length || 0)} />
-              <AnalyticsStat label="Learner access" value={learnerAccessLabel(metrics?.authorization?.learner_access)} />
+              <AnalyticsStat label="Learner access" value={learnerAccessLabel(metrics?.learner_access)} />
             </div>
 
             <div className="mt-8">
@@ -540,74 +540,30 @@ function BadgeSettingsPanel({ orgslug, badge, onPatch, isDraft }: { orgslug: str
   )
 }
 
+/** An issuer's settings for another organization's badge: the plans it runs for it. Stopping is leaving a plan (Marketplace › Requests). */
 function IssuerBadgeSettingsPanel({ orgslug, badge, issuerOrgId }: { orgslug: string; badge: any; issuerOrgId: number }) {
-  const router = useRouter()
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
-  const [authorization, setAuthorization] = React.useState<any>(null)
-  const [loading, setLoading] = React.useState(true)
-  const [releasing, setReleasing] = React.useState(false)
-
-  const load = React.useCallback(async () => {
-    setLoading(true)
-    try {
-      const response = await getIssuerAuthorizations(issuerOrgId, 'issuer', accessToken, badge.badge_uuid)
-      const data = response?.success ? response.data : response
-      setAuthorization(Array.isArray(data) ? data.find((item: any) => item.status === 'approved') || null : null)
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to load issuer settings.')
-    } finally {
-      setLoading(false)
-    }
-  }, [accessToken, badge.badge_uuid, issuerOrgId])
+  const [plans, setPlans] = React.useState<any[] | null>(null)
 
   React.useEffect(() => {
-    void load()
-  }, [load])
-
-  const release = async () => {
-    if (!authorization || releasing) return
-    if (!confirm(`Release “${badge.name}”? It will be removed from your badge library and your organization will no longer be able to issue it.`)) return
-    setReleasing(true)
-    try {
-      await revokeIssuerAuthorization(authorization.authorization_uuid, accessToken)
-      toast.success('Badge authorization released.')
-      router.push(getUriWithOrg(orgslug, routePaths.org.admin.badges()))
-      router.refresh()
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to release badge authorization.')
-      setReleasing(false)
-    }
-  }
+    let active = true
+    getIssuerBadgeMetrics(issuerOrgId, badge.badge_uuid, accessToken)
+      .then((response: any) => active && setPlans((response?.success ? response.data : response)?.plans || []))
+      .catch((error: any) => { if (active) { setPlans([]); toast.error(error?.message || 'Failed to load issuer settings.') } })
+    return () => { active = false }
+  }, [accessToken, badge.badge_uuid, issuerOrgId])
 
   return (
     <div className="px-4 pb-10 pt-6 sm:px-10">
       <section className="max-w-4xl rounded-xl bg-card p-6 shadow-xs">
         <h2 className="text-lg font-bold text-foreground">Issuer settings</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Settings that apply only to your organization’s use of this badge.</p>
-        {loading ? (
+        <p className="mt-1 text-sm text-muted-foreground">You issue this badge through the plans its creator approved you on. To stop, leave the plan in <Link className="font-semibold underline" href={getUriWithOrg(orgslug, routePaths.org.admin.marketplace())}>Marketplace</Link> › Requests; credentials already issued stay valid.</p>
+        {plans === null ? (
           <div className="flex items-center justify-center py-14 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /></div>
-        ) : authorization ? (
-          <div className="mt-5">
-            <PlanAccessList plans={authorization.plans || []} orgslug={orgslug} />
-          </div>
         ) : (
-          <p className="mt-5 rounded-lg bg-muted p-4 text-sm text-muted-foreground">No active issuing authorization was found.</p>
+          <div className="mt-5"><PlanAccessList plans={plans} orgslug={orgslug} /></div>
         )}
-      </section>
-
-      <section className="mt-6 max-w-4xl rounded-xl border border-red-100 bg-card p-6 shadow-xs">
-        <h2 className="text-lg font-bold text-red-700">Release authorization</h2>
-        <div className="mt-4 flex items-start justify-between gap-6">
-          <div>
-            <h3 className="text-sm font-semibold text-foreground">Remove from your library</h3>
-            <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">Your organization will stop appearing as an issuer and will no longer be able to deliver, grade, or issue this badge. Existing credentials remain valid.</p>
-          </div>
-          <button onClick={() => void release()} disabled={!authorization || releasing} className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-xs font-bold text-red-700 disabled:opacity-50">
-            {releasing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-            Release
-          </button>
-        </div>
       </section>
     </div>
   )

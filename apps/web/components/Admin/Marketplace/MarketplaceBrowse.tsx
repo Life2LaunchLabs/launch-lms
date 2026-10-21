@@ -22,7 +22,7 @@ import {
 } from '@services/learning/marketplace'
 import { isOn, matchesSearch, type FilterSpec } from '@/lib/admin/filters'
 import { cn } from '@/lib/utils'
-import { BadgeMarketplaceActions, StatusPill } from './BadgeIssuing'
+import { BadgeMarketplaceActions } from './BadgeIssuing'
 
 type Kind = 'templates' | 'badges' | 'frameworks'
 const LIBRARY = 'library'
@@ -114,7 +114,7 @@ export default function MarketplaceBrowse() {
 
   return <div className="space-y-6">
     <p className="max-w-[70ch] text-sm text-gray-600">
-      Templates, badges and requirement frameworks other organizations share. A <b>locked</b> template runs as its creator publishes it; an <b>open</b> one you copy and make your own. Badges stay with their creator, who says which templates earn them.
+      Templates, badges and requirement frameworks other organizations share. A <b>locked</b> template runs as its creator publishes it; an <b>open</b> one you copy and make your own. Badges stay with their creator; you issue one by running one of the plans that earn it, once its creator approves.
       {admin ? null : <b> Only admins can add or request.</b>}
     </p>
     <FilterBar filters={filters} placeholder="Search templates, badges, frameworks or creators" summary={`${shown.length} of ${cards.length} shown`} />
@@ -168,7 +168,7 @@ function footNote(card: Card) {
   if ('listed' in card) return `${card.listed.stage_count} stage${card.listed.stage_count === 1 ? '' : 's'} · ${card.listed.step_count} step${card.listed.step_count === 1 ? '' : 's'}${card.listed.published_version ? ` · v${card.listed.published_version}` : ''}`
   if ('library' in card) return `${card.library.stage_count} stage${card.library.stage_count === 1 ? '' : 's'} · ${card.library.step_count} steps`
   if ('framework' in card) return 'Free to use'
-  return card.item.authorization?.status === 'approved' ? 'You issue this badge' : 'Ask to issue'
+  return card.item.issuing ? 'You issue this badge' : 'Issue it by running one of its plans'
 }
 
 function ListedTemplateBody({ item }: { item: MarketplaceTemplate }) {
@@ -195,7 +195,7 @@ function CardAction({ card, orgId, token, admin, onChange }: { card: Card; orgId
   const button = (label: React.ReactNode, onClick: () => void, primary = true) => <button type="button" disabled={busy} onClick={onClick}
     className={cn('inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-sm font-semibold disabled:opacity-50', primary ? 'bg-black text-white hover:bg-black/85' : 'border border-gray-200 bg-white hover:bg-gray-50')}>{label}</button>
 
-  if (card.kind === 'badges') return admin ? <BadgeMarketplaceActions item={card.item} orgId={orgId} onChange={onChange} /> : card.item.authorization ? <StatusPill status={card.item.authorization.status} /> : null
+  if (card.kind === 'badges') return <BadgeMarketplaceActions item={card.item} orgId={orgId} admin={admin} onChange={onChange} />
   if ('framework' in card) {
     if (!admin) return null
     return button(<><Copy size={15} />Copy to your frameworks</>, async () => {

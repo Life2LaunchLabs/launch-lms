@@ -68,9 +68,10 @@ export default function TemplateDetail({ orgslug, templateUuid, subpage = 'overv
       <div className="pb-4 pt-6">
         <Breadcrumbs items={[{ label: 'Plans', href: getUriWithOrg(orgslug, routePaths.org.admin.plans()) }, { label: 'Templates', href: getUriWithOrg(orgslug, routePaths.org.admin.plans('templates')) }, { label: template.title }]} />
       </div>
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0 flex-1"><TemplateHeader template={template} editing={editing} readOnly={readOnly} /></div>
-        <div className="flex max-w-full flex-wrap gap-2 pt-1 sm:shrink-0 sm:justify-end">
+      {/* The title gets the full row; the version bar wraps below it rather than squeezing it. */}
+      <div className="flex flex-col gap-2">
+        <TemplateHeader template={template} editing={editing} readOnly={readOnly} />
+        <div className="flex max-w-full flex-wrap gap-2">
           {readOnly ? <span className="inline-flex h-9 items-center gap-2 rounded-full border border-border bg-card px-3 text-xs font-bold">{template.published_version ? `Version ${template.published_version} live` : 'Not released yet'}</span>
             : <TemplateVersionBar orgId={orgId} token={token} editing={editing} />}
         </div>
@@ -112,8 +113,8 @@ function TemplateHeader({ template, editing, readOnly }: { template: Template; e
     if (await editing.save((document) => ({ ...document, template: { ...document.template, title: title.trim() } }))) setField(false)
   }
   const steps = documentSteps(template.document).length
-  return <div className="my-2 flex flex-col gap-5 py-2 md:flex-row md:items-center">
-    <div className="relative aspect-video w-full max-w-[240px] shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
+  return <div className="my-2 flex min-w-0 flex-col gap-5 py-2 sm:flex-row sm:items-center">
+    <div className="relative aspect-video w-full max-w-[200px] shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
       {template.thumbnail_image ? <SafeImage src={template.thumbnail_image} alt="Template cover" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-blue-500"><Layers3 size={42} strokeWidth={1.4} /></div>}
     </div>
     <div className="min-w-0 flex-1">
