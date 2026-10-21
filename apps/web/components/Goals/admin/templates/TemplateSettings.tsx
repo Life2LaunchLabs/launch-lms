@@ -6,13 +6,12 @@ import { mutate } from 'swr'
 import { Archive, ArchiveRestore, Loader2 } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import { isTemplatesKey, templatesApi } from '@services/goals/templates'
-import TemplateMarketplaceListing from '@components/Admin/Marketplace/TemplateMarketplaceListing'
 import TemplateLearnersCard from './TemplateLearnersCard'
 import TemplateRoles from './TemplateRoles'
 import type { TemplateEditing } from './useTemplate'
 
 /**
- * Instructions for staff, roles, who can start it, the marketplace listing (the one way to publish to other orgs) and archiving.
+ * Instructions for staff, roles, who can start it, and archiving. Sharing with other organizations is the Publish tab.
  * On another organization's template this organization runs (``runOnly``), only who can start it: that setting is its own.
  */
 export default function TemplateSettings({ orgId, token, editing, runOnly = false }: { orgId: number; token?: string; editing: TemplateEditing; runOnly?: boolean }) {
@@ -41,7 +40,6 @@ export default function TemplateSettings({ orgId, token, editing, runOnly = fals
     </section>
     <TemplateRoles editing={editing} />
     {template.system_type ? null : <TemplateLearnersCard orgId={orgId} templateUuid={template.template_uuid} token={token} />}
-    <TemplateMarketplaceListing orgId={orgId} token={token} template={template} />
     {template.system_type ? null : <section className="rounded-xl border border-border bg-card p-6 shadow-xs">
       <h2 className="text-lg font-bold">{archived ? 'Archived' : 'Archive template'}</h2>
       <p className="mt-1 text-sm text-muted-foreground">{archived ? 'It can’t be handed out while archived. Goals already handed out keep working.' : 'Hide it from the list and stop handing it out. Goals already handed out keep working.'}</p>

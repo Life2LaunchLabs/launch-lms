@@ -129,7 +129,7 @@ def set_listing(db: Session, current_user: PublicUser, org_id: int, template_uui
         if template.system_type:
             raise HTTPException(status_code=409, detail="System templates can't be listed in the marketplace")
         if templates.published_version(db, template) is None:
-            raise HTTPException(status_code=422, detail="Publish the template before listing it in the marketplace")
+            raise HTTPException(status_code=422, detail="Release a version of the template before listing it in the marketplace")
     listing = listing_of(db, template)
     now = _now()
     if listing is None:

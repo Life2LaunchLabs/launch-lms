@@ -47,7 +47,7 @@ function templateRow(item: TemplateAuthorization, side: 'creator' | 'issuer', or
   const mode = item.template?.mode === 'open' ? 'open: copy and edit' : 'locked: run as-is'
   const href = side === 'issuer' && item.status === 'approved' && item.template
     ? getUriWithOrg(orgslug, routePaths.org.admin.templatePage(item.copied_template_uuid || item.template.template_uuid, 'overview'))
-    : side === 'creator' && item.template ? getUriWithOrg(orgslug, routePaths.org.admin.templatePage(item.template.template_uuid, 'settings')) : undefined
+    : side === 'creator' && item.template ? getUriWithOrg(orgslug, routePaths.org.admin.templatePage(item.template.template_uuid, 'publish')) : undefined
   return {
     key: `t:${item.authorization_uuid}`, kind: 'template', org: side === 'creator' ? item.issuer_org : item.creator_org, title: item.template?.title || 'Template', href,
     status: item.status, message: item.message, authorizationUuid: item.authorization_uuid,

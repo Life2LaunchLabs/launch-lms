@@ -74,7 +74,7 @@ test('marketplace.requests: a request to use a listed template shows on the tab 
   await page.request.put(`${api}badge-marketplace/templates/${template.template_uuid}/listing?org_id=${fixture.org_id}`, { headers, data: { listed: false, mode: 'locked', access: 'request' } })
 })
 
-test('marketplace.publish: Publish to marketplace in Template › Settings lists it, and your marketplace shows it as yours', async ({ page }) => {
+test('marketplace.publish: Publish to marketplace in Template › Publish lists it, and your marketplace shows it as yours', async ({ page }) => {
   const { api, authorization } = await openMarketplace(page)
   const headers = { authorization }
   const templates = await (await page.request.get(`${api}goal-templates?org_id=${fixture.org_id}`, { headers })).json()
@@ -83,8 +83,11 @@ test('marketplace.publish: Publish to marketplace in Template › Settings lists
   const listingUrl = `${api}badge-marketplace/templates/${template.template_uuid}/listing?org_id=${fixture.org_id}`
   await page.request.put(listingUrl, { headers, data: { listed: false, mode: 'locked', access: 'request' } })
 
-  await page.goto(`${orgPath}/admin/plans/${template.template_uuid}/settings`)
+  await page.goto(`${orgPath}/admin/plans/${template.template_uuid}/publish`)
   await assertActualApp(page)
+  // Publish holds the listing, who else may run the plan, and its usage; Settings no longer has the listing.
+  await expect(page.getByTestId('template-authorized-orgs')).toBeVisible()
+  await expect(page.getByTestId('template-usage-metrics')).toBeVisible()
   const card = page.getByTestId('template-marketplace-listing')
   await expect(card.getByText('Not listed')).toBeVisible()
   // One way to publish: there is no separate global-library card.

@@ -28,7 +28,7 @@ const templatePage = (orgslug: string, uuid: string) => getUriWithOrg(orgslug, r
 /** Where a template stands: archived, never published, or its live version and whether the draft moved on. */
 export function TemplateStatusChip({ template, className }: { template: Pick<GoalTemplate, 'status' | 'published_version' | 'has_unpublished_changes'>; className?: string }) {
   const [label, tone] = template.status === 'archived' ? ['Archived', 'bg-gray-100 text-gray-600']
-    : !template.published_version ? ['Not published', 'bg-amber-100 text-amber-800']
+    : !template.published_version ? ['Not released', 'bg-amber-100 text-amber-800']
       : template.has_unpublished_changes ? [`v${template.published_version} · changes`, 'bg-amber-100 text-amber-800']
         : [`v${template.published_version} live`, 'bg-green-100 text-green-700']
   return <span className={cn('inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[9px] font-black uppercase', tone, className)}>{label}</span>

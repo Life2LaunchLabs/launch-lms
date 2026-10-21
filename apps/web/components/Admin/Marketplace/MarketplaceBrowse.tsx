@@ -175,7 +175,7 @@ function ListedTemplateBody({ item }: { item: MarketplaceTemplate }) {
   return <>
     <div className="flex flex-wrap gap-1.5">
       {item.mode === 'locked' ? <Chip><Lock size={13} />Locked · run as-is</Chip> : <Chip><LockOpen size={13} />Open · copy and edit</Chip>}
-      {item.badges.length ? item.badges.map((badge) => <Chip key={badge.route_uuid} tone="badge"><Medal size={13} />Earns {badge.name}{badge.trusted_only ? ' · trusted partners' : ''}</Chip>) : <Chip>No badge</Chip>}
+      {item.badges.length ? item.badges.map((badge) => <Chip key={badge.route_uuid} tone="badge"><Medal size={13} />Earns {badge.name}</Chip>) : <Chip>No badge</Chip>}
     </div>
     {item.frameworks.length
       ? item.frameworks.map((framework) => <p key={framework.framework_uuid} className="flex items-center gap-1.5 text-sm text-gray-600"><ListBullets size={14} className="shrink-0" />Maps to {framework.node_count} {framework.name}</p>)

@@ -267,10 +267,21 @@ export interface MarketplaceTemplate extends TemplateListing {
   step_count: number
   creator_org: MarketplaceOrg | null
   is_own: boolean
-  badges: { badge_uuid: string; name: string; thumbnail_image: string; route_uuid: string; trusted_only: boolean }[]
+  badges: { badge_uuid: string; name: string; thumbnail_image: string; route_uuid: string }[]
   frameworks: { framework_uuid: string; name: string; node_count: number }[]
   requirement_count: number
   authorization: TemplateAuthorization | null
+}
+
+/** Quick usage counts on a template's Publish tab, across every organization running it. */
+export interface TemplateUsageMetrics {
+  authorized_orgs: number
+  pending_requests: number
+  orgs_running: number
+  assignments: number
+  active_learners: number
+  completions: number
+  badges_earned: number
 }
 
 export interface MarketplaceRequestsSummary {
@@ -302,8 +313,12 @@ export const templateMarketplaceApi = {
   setListing: (orgId: number, templateUuid: string, data: { listed: boolean; mode: TemplateListingMode; access: TemplateListingAccess }, accessToken?: string) =>
     marketplaceRequest<TemplateListing>(`templates/${encodeURIComponent(templateUuid)}/listing?org_id=${orgId}`, accessToken, 'PUT', data),
   copy: (orgId: number, templateUuid: string, accessToken?: string) => marketplaceRequest<{ template_uuid: string; title: string }>(`templates/${encodeURIComponent(templateUuid)}/copy?org_id=${orgId}`, accessToken, 'POST'),
-  authorizations: (orgId: number, perspective: 'creator' | 'issuer', accessToken?: string, status?: string) =>
-    marketplaceRequest<TemplateAuthorization[]>(`template-authorizations?${qs({ org_id: orgId, perspective, status })}`, accessToken),
+  authorizations: (orgId: number, perspective: 'creator' | 'issuer', accessToken?: string, status?: string, templateUuid?: string) =>
+    marketplaceRequest<TemplateAuthorization[]>(`template-authorizations?${qs({ org_id: orgId, perspective, status, template_uuid: templateUuid })}`, accessToken),
+  /** The template's owner authorizes another organization by slug (approving its request if it asked). */
+  invite: (orgId: number, templateUuid: string, issuerOrgSlug: string, accessToken?: string) =>
+    marketplaceRequest<TemplateAuthorization>(`templates/${encodeURIComponent(templateUuid)}/authorizations/invite?org_id=${orgId}`, accessToken, 'POST', { issuer_org_slug: issuerOrgSlug }),
+  metrics: (orgId: number, templateUuid: string, accessToken?: string) => marketplaceRequest<TemplateUsageMetrics>(`templates/${encodeURIComponent(templateUuid)}/metrics?org_id=${orgId}`, accessToken),
   request: (data: { template_uuid: string; issuer_org_id: number; message?: string }, accessToken?: string) => marketplaceRequest<TemplateAuthorization>('template-authorizations', accessToken, 'POST', data),
   approve: (authorizationUuid: string, accessToken?: string) => marketplaceRequest<TemplateAuthorization>(`template-authorizations/${encodeURIComponent(authorizationUuid)}/approve`, accessToken, 'POST'),
   reject: (authorizationUuid: string, accessToken?: string) => marketplaceRequest<TemplateAuthorization>(`template-authorizations/${encodeURIComponent(authorizationUuid)}/reject`, accessToken, 'POST'),
