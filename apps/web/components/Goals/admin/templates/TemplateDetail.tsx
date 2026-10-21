@@ -126,7 +126,7 @@ function TemplateHeader({ template, editing, readOnly }: { template: Template; e
       {template.thumbnail_image ? <SafeImage src={template.thumbnail_image} alt="" className="h-full w-full object-cover" /> : <Layers3 size={24} aria-hidden="true" />}
     </span>
     <div className="min-w-0 flex-1">
-      <div className="group flex min-w-0 flex-wrap items-center gap-2">
+      <div className="group flex min-w-0 items-center gap-2">
         {field ? <input autoFocus aria-label="Template title" value={title} maxLength={200} onChange={(event) => setTitle(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void save(); if (event.key === 'Escape') setField(false) }} className="min-w-0 flex-1 rounded-md border border-border bg-card px-3 py-1 text-2xl font-black tracking-tight outline-none focus:ring-2 focus:ring-black" />
           : <h1 className="min-w-0 break-words text-2xl font-black tracking-tight text-foreground">{meta.title}</h1>}
         <EditButton editing={field} saving={editing.saving && field} disabled={readOnly || editing.stale || !!template.system_type} label="title" onClick={() => field ? void save() : setField(true)} />

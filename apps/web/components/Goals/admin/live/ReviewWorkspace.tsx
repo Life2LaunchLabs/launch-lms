@@ -36,7 +36,7 @@ export default function ReviewWorkspace({ orgslug }: { orgslug: string }) {
   const back: Back = params.get('from') === 'assignment' && assignment
     ? { href: getUriWithOrg(orgslug, routePaths.org.admin.planAssignment(assignment)), label: 'Assignment' }
     : { href: getUriWithOrg(orgslug, routePaths.org.admin.assignments()), label: 'Assignments' }
-  if (!assignment) return <div className="px-4 py-10 sm:px-10"><div className="mx-auto max-w-xl"><EmptyState title="Nothing to review here"
+  if (!assignment) return <div className="w-full px-4 py-10 sm:px-10"><div className="mx-auto max-w-xl"><EmptyState title="Nothing to review here"
     detail={<>Grading opens from an assignment’s Plan tab, or from Waiting on you on Home. <Link href={back.href} className="font-bold text-foreground underline underline-offset-2">Go to assignments</Link></>} /></div></div>
   if (activity) return <ActivityGrading orgId={orgId} token={token} assignment={assignment} activity={activity} back={back} orgslug={orgslug} />
   return <StepQueue orgId={orgId} token={token} assignment={assignment} stepKey={params.get('step_key')} stepUuid={params.get('step')} focus={params.get('focus')} back={back} orgslug={orgslug} />

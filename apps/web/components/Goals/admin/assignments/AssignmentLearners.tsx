@@ -97,7 +97,7 @@ function LearnerRow({ learner, matrix, today, staffIds, selected, onOpen }: { le
         {attention ? <Chip tone={ATTENTION_TONE[attention.tone]} className="min-w-0 max-w-full shrink"><span className="min-w-0 truncate" title={attention.text}>{attention.text}</span></Chip> : null}
         <Chip tone={PACE_TONE[pace.pace]}>{paceLabel(pace)}</Chip>
       </span>
-      <ChevronRight size={16} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+      <ChevronRight size={16} className="hidden shrink-0 text-muted-foreground sm:block" aria-hidden="true" />
     </button>
   </li>
 }
