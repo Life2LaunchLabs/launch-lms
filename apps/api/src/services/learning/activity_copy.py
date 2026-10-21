@@ -49,7 +49,7 @@ def copy_activity(db: Session, source: LearningActivity, **fields) -> LearningAc
     pages = _pages(db, source)
     renamed = {page.page_uuid: f"learning_page_{uuid4()}" for page in pages}
     copy = LearningActivity(
-        activity_uuid=f"learning_activity_{uuid4()}", objective_id=source.objective_id, org_id=source.org_id,
+        activity_uuid=f"learning_activity_{uuid4()}", org_id=source.org_id,
         title=source.title, description=source.description, thumbnail_image=source.thumbnail_image, icon=source.icon,
         settings=rewrite_page_references(deepcopy(source.settings or {}), renamed), creation_date=now, update_date=now,
     )

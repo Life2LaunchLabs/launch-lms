@@ -14,7 +14,7 @@ from fastapi import HTTPException
 from sqlmodel import Session, col, select
 
 from src.db.goals import Goal, GoalOwnership
-from src.db.planning import PlanCollaborator
+from src.db.goal_sharing import PlanCollaborator
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
 from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS, ADMIN_ROLE_ID

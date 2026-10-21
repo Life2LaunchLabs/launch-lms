@@ -1,10 +1,8 @@
 """Converts legacy plan objectives into typed goal steps.
 
-Pure functions with no database access, so the production dry run
-(``scripts/goals_migration_report.py``) and the data migration use the
-same rules. A legacy objective is either a template objective snapshot
-(``custom_fields``, ``allow_learner_confirmation``) or a live
-``PlanObjective`` (``fields``, ``completion_restricted``); both are read
+Pure functions with no database access. A legacy objective is either a
+template objective snapshot (``custom_fields``, ``allow_learner_confirmation``)
+or a live ``PlanObjective`` (``fields``, ``completion_restricted``); both are read
 through :func:`objective_from_template` / :func:`objective_from_plan`.
 """
 
@@ -185,29 +183,3 @@ def convert_objective(objective: LegacyObjective, badge_id_uuid: str | None = No
         steps[0].title = title
     return Conversion(steps, warnings)
 
-
-def step_mix(objective: LegacyObjective) -> str:
-    """A short signature of an objective's field types, for grouping counts."""
-    kinds = []
-    if objective.activity_id or objective.kind == "activity":
-        kinds.append("activity")
-    kinds.extend(sorted(_field_type(raw) for raw in objective.fields))
-    if not kinds:
-        return "(no fields)"
-    return "+".join(kinds)
-
-
-def value_shape(value) -> str:
-    """How a legacy field value is stored, for checking the progress conversion."""
-    if value is None or value == "" or value == [] or value == {}:
-        return "empty"
-    if isinstance(value, bool):
-        return "bool"
-    if isinstance(value, str):
-        return "str"
-    if isinstance(value, list):
-        inner = {value_shape(item) for item in value}
-        return f"list[{'|'.join(sorted(inner))}]"
-    if isinstance(value, dict):
-        return "dict(" + ",".join(sorted(value)[:6]) + ")"
-    return type(value).__name__

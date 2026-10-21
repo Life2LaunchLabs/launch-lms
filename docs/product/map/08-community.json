@@ -438,8 +438,8 @@
                 "responsibility": "Creates organization-invitation messages in the invitation transaction."
               },
               {
-                "path": "apps/api/src/services/planning.py",
-                "responsibility": "Creates plan-invitation messages, including assigned-program compatibility paths."
+                "path": "apps/api/src/services/goals/sharing.py",
+                "responsibility": "Creates goal-invitation messages and resolves them when the invitation is answered."
               },
               {
                 "path": "apps/api/src/routers/messages.py",
@@ -462,8 +462,8 @@
                 "responsibility": "Verifies organization invitations create durable messages."
               },
               {
-                "path": "apps/api/src/tests/test_planning.py",
-                "responsibility": "Verifies plan invitation messages and synchronized action state."
+                "path": "apps/api/src/tests/test_goal_sharing.py",
+                "responsibility": "Verifies goal invitation messages and synchronized action state."
               }
             ],
             "title": "Receive and respond to an invitation as an inbox message",
@@ -596,9 +596,9 @@
             },
             {
               "kind": "code",
-              "path": "apps/api/src/services/planning.py",
+              "path": "apps/api/src/services/goals/sharing.py",
               "symbol": null,
-              "responsibility": "Creates plan-invitation messages, including assigned-program compatibility paths."
+              "responsibility": "Creates goal-invitation messages and resolves them when the invitation is answered."
             },
             {
               "kind": "test",
@@ -608,9 +608,9 @@
             },
             {
               "kind": "test",
-              "path": "apps/api/src/tests/test_planning.py",
+              "path": "apps/api/src/tests/test_goal_sharing.py",
               "symbol": null,
-              "responsibility": "Verifies plan invitation messages and synchronized action state."
+              "responsibility": "Verifies goal invitation messages and synchronized action state."
             }
           ],
           "relationships": []

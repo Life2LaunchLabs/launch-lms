@@ -31,7 +31,7 @@ def _offered_by(db: Session, badge: LearningBadge, route: BadgeRoute) -> list[di
     from src.services.learning_issuers import issuer_options
 
     return [{"org": option["org"], "access": option["access"], "is_creator": option["is_creator"]}
-            for option in issuer_options(db, badge, None, set(), route)["issuers"] if option["access"] in plan_access.OFFERED]
+            for option in issuer_options(db, badge, None, route)["issuers"] if option["access"] in plan_access.OFFERED]
 
 
 def _badge_version(db: Session, badge: LearningBadge) -> str | None:

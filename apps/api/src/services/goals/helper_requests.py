@@ -14,7 +14,7 @@ from fastapi import HTTPException
 from sqlmodel import Session, col, select
 
 from src.db.goals import Goal, GoalOwnership
-from src.db.planning import PlanInvitation, PlanInvitationStatus, PlanRole
+from src.db.goal_sharing import PlanInvitation, PlanInvitationStatus, PlanRole
 from src.db.users import PublicUser
 from src.security.org_auth import is_org_admin, require_org_admin
 from src.services.goals import access

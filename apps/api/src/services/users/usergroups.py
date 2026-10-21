@@ -8,7 +8,7 @@ from sqlmodel import Session, select
 from src.db.organizations import Organization
 from src.db.usergroup_resources import UserGroupResource
 from src.db.learning import LearningBadge, LearningBadgeStatus
-from src.db.programs import ProgramAssignment
+from src.db.goals import GoalAssignment
 from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup, UserGroupCreate, UserGroupRead, UserGroupUpdate
 from src.db.users import (
@@ -260,10 +260,10 @@ async def read_usergroup_overview(
     for membership in memberships:
         member_counts[membership.usergroup_id] = member_counts.get(membership.usergroup_id, 0) + 1
 
-    assignments = db_session.exec(select(ProgramAssignment).where(
-        ProgramAssignment.org_id == org_id,
-        ProgramAssignment.usergroup_id.in_(group_ids),  # type: ignore[union-attr]
-        ProgramAssignment.active == True,  # noqa: E712
+    assignments = db_session.exec(select(GoalAssignment).where(
+        GoalAssignment.org_id == org_id,
+        GoalAssignment.usergroup_id.in_(group_ids),  # type: ignore[union-attr]
+        GoalAssignment.active == True,  # noqa: E712
     )).all()
     active_group_ids = {assignment.usergroup_id for assignment in assignments}
     assigned_group_ids = {

@@ -956,7 +956,6 @@ def _badge_world():
     from src.db.goals import GoalTemplate
     from src.db.learning import BadgeCollection
     from src.db.template_marketplace import GoalTemplateAuthorization
-    from src.db.programs import Objective, Program, ProgramAssignment, ProgramObjective
     from src.db.roles import Role
     from src.db.user_organizations import UserOrganization
 
@@ -965,7 +964,6 @@ def _badge_world():
         Organization.__table__, User.__table__, Role.__table__, UserOrganization.__table__, BadgeCollection.__table__,
         LearningBadge.__table__, LearningBadgeVersion.__table__, LearningBadgeAward.__table__,
         GoalTemplate.__table__, BadgeRoute.__table__, BadgeRouteOffer.__table__, GoalTemplateAuthorization.__table__,
-        Program.__table__, ProgramObjective.__table__, Objective.__table__, ProgramAssignment.__table__,
     ])
     db = Session(engine)
     now = "2026-01-01T00:00:00"

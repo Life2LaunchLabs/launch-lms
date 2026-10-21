@@ -8,12 +8,20 @@ from src.db.organization_config import OrganizationConfig
 from src.db.users import AnonymousUser, User
 from src.services import badge_discover, discover_featured
 from src.tests.test_badge_discover import _collect
-from src.tests.test_badge_routes import LEARNER, _session, _world
+from src.tests.test_goal_badges import _world
+from src.tests.test_goals import ADMIN, LEARNER as LEARNER_ID, _user
+
+LEARNER = _user(LEARNER_ID)
+
+
+def _session():
+    session, _, _ = _world()
+    OrganizationConfig.__table__.create(session.get_bind(), checkfirst=True)
+    return session
 
 
 def test_automatic_hero_features_badges_series_and_challenges():
     with _session() as session:
-        _world(session)
         _collect(session)
         slides = badge_discover.discover(session, AnonymousUser(), site_org_id=1)["hero_slides"]
         assert slides[-1]["kind"] == "challenges" and slides[-1]["href"] == ""
@@ -24,7 +32,7 @@ def test_automatic_hero_features_badges_series_and_challenges():
 
 def test_curated_order_and_artwork_persist_without_overwriting_org_settings():
     with _session() as session:
-        admin, _, _ = _world(session)
+        admin = _user(ADMIN)
         _collect(session)
         row = session.exec(select(OrganizationConfig).where(OrganizationConfig.org_id == 1)).first() or OrganizationConfig(org_id=1)
         row.config = {**(row.config or {}), "general": {"enabled": True}, "customization": {"colors": {"primary": "red"}}}
@@ -45,7 +53,7 @@ def test_curated_order_and_artwork_persist_without_overwriting_org_settings():
 
 def test_selected_org_admin_required_and_unavailable_sources_rejected():
     with _session() as session:
-        admin, _, _ = _world(session)
+        admin = _user(ADMIN)
         _collect(session)
         row = session.get(User, admin.id)
         row.is_superadmin = False
@@ -65,7 +73,6 @@ def test_selected_org_admin_required_and_unavailable_sources_rejected():
 
 def test_stored_news_slides_are_dropped_without_losing_curation():
     with _session() as session:
-        _world(session)
         _collect(session)
         row = session.exec(select(OrganizationConfig).where(OrganizationConfig.org_id == 1)).first() or OrganizationConfig(org_id=1)
         row.config = {**(row.config or {}), "customization": {"discover": {"mode": "curated", "slides": [{"kind": "news", "target": "news_public"}, {"kind": "challenges", "target": "challenges"}]}}}
@@ -91,7 +98,6 @@ def test_empty_catalog_retains_welcome_and_challenges_hero():
     from src.db.learning import LearningBadge, LearningBadgeStatus
 
     with _session() as session:
-        _world(session)
         _collect(session)
         for badge in session.exec(select(LearningBadge)).all():
             badge.status = LearningBadgeStatus.DRAFT
@@ -106,7 +112,7 @@ def test_unpublished_curated_source_is_skipped_and_legacy_config_recovers():
     from src.db.learning import LearningBadge, LearningBadgeStatus
 
     with _session() as session:
-        admin, _, _ = _world(session)
+        admin = _user(ADMIN)
         _collect(session)
         discover_featured.save_settings(session, admin, 1, DiscoverSettings(mode="curated", slides=[DiscoverSlide(kind="badge", target="badge_adapt")]))
         badge = session.get(LearningBadge, 1)

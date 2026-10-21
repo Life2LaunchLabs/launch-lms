@@ -41,21 +41,9 @@ def _template_ref(template: GoalTemplate) -> dict:
 
 
 def owning_template(db_session: Session, activity: LearningActivity) -> dict | None:
-    """The goal template an activity belongs to, as {template_uuid, name, system_type, org_id}.
-
-    Only activities the plans-to-goals move hasn't reached (no goal template) fall back to their legacy plan template.
-    """
-    if activity.goal_template_id:
-        template = db_session.get(GoalTemplate, activity.goal_template_id)
-        return _template_ref(template) if template else None
-    if activity.objective_id is None:
-        return None
-    from src.db.programs import Program, ProgramObjective
-
-    program = db_session.exec(
-        select(Program).join(ProgramObjective, ProgramObjective.program_id == Program.id).where(ProgramObjective.objective_id == activity.objective_id)
-    ).first()
-    return {"template_uuid": program.program_uuid, "name": program.name, "system_type": program.system_type, "org_id": program.org_id} if program else None
+    """The goal template an activity belongs to, as {template_uuid, name, system_type, org_id}."""
+    template = db_session.get(GoalTemplate, activity.goal_template_id) if activity.goal_template_id else None
+    return _template_ref(template) if template else None
 
 
 def template_by_uuid(db_session: Session, template_uuid: str) -> dict | None:

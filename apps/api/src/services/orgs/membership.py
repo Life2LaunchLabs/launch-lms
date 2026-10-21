@@ -6,7 +6,7 @@ from sqlmodel import Session, col, select
 
 from src.db.conversations import Conversation, ConversationMember
 from src.db.goals import CURRENT_ASSIGNMENT_STATUSES, Goal, GoalAssignment, GoalOwnership, GoalStatus
-from src.db.planning import PlanCollaborator
+from src.db.goal_sharing import PlanCollaborator
 from src.db.school import UserGroupStaff
 from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup

@@ -33,7 +33,7 @@ from src.db.goals import (
     StepNote,
     StepSubmission,
 )
-from src.db.planning import PlanCollaborator
+from src.db.goal_sharing import PlanCollaborator
 from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
 from src.services.goals import access, check_ins, completion, references, schedule

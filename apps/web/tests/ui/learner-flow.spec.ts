@@ -15,7 +15,7 @@ async function capture(page: Page, info: TestInfo, name: string) {
 }
 
 async function freshFramework(page: Page, levels: any[] = []) {
-  const loaded = page.waitForResponse((response) => response.url().includes(`/planning/requirements/${fixture.framework_uuid}?`) && response.request().method() === 'GET')
+  const loaded = page.waitForResponse((response) => response.url().includes(`/requirement-frameworks/${fixture.framework_uuid}?`) && response.request().method() === 'GET')
   await page.goto(frameworkPath(fixture.framework_uuid, 'spec'))
   await assertActualApp(page)
   const response = await loaded

@@ -3,10 +3,7 @@ from fastapi import HTTPException
 from sqlmodel import SQLModel, Session, create_engine, select
 
 from src.db.organizations import Organization
-from src.db.planning import Plan, PlanObjective, PlanObjectiveProgress
-from src.db.programs import Objective, ObjectiveProgress, ObjectiveProgressStatus, Program, ProgramObjective, ProgramPhase
 from src.db.requirements import (
-    ProgramObjectiveRequirement,
     RequirementAssignmentBatch,
     RequirementAssignmentCreate,
     RequirementAttainmentSource,
@@ -34,11 +31,9 @@ def _session() -> tuple[Session, PublicUser]:
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     SQLModel.metadata.create_all(engine, tables=[
         Organization.__table__, User.__table__, Role.__table__, UserOrganization.__table__,
-        UserGroup.__table__, UserGroupUser.__table__, Program.__table__, ProgramPhase.__table__,
-        Objective.__table__, ProgramObjective.__table__, ObjectiveProgress.__table__,
-        Plan.__table__, PlanObjective.__table__, PlanObjectiveProgress.__table__,
+        UserGroup.__table__, UserGroupUser.__table__,
         RequirementFramework.__table__, RequirementFrameworkVersion.__table__, RequirementNode.__table__,
-        ProgramObjectiveRequirement.__table__, RequirementAssignmentBatch.__table__,
+        RequirementAssignmentBatch.__table__,
         RequirementEnrollment.__table__, RequirementAttainmentSource.__table__,
     ])
     db = Session(engine)
@@ -181,27 +176,18 @@ def test_framework_assignment_snapshots_leaf_requirements_and_syncs_group_member
         assert report["rows"][0]["status"] == "active"
 
 
-def test_verified_mapped_objective_satisfies_requirement_and_protects_completed_version():
+def test_verified_completion_satisfies_requirement_and_protects_completed_version():
     db, admin = _session()
     with db:
         framework = _framework(db, admin)
         requirements.assign_framework(db, admin, 1, framework["framework_uuid"], RequirementAssignmentCreate(user_id=2))
-        program = Program(program_uuid="program_1", slug="program-1", org_id=1, name="Launch plan", creation_date=NOW, update_date=NOW)
-        objective = Objective(objective_uuid="objective_1", org_id=1, title="Complete an internship", creation_date=NOW, update_date=NOW)
-        db.add_all([program, objective])
+        enrollment = db.exec(select(RequirementEnrollment)).one()
+        db.add(RequirementAttainmentSource(
+            source_uuid="requirement_source_1", enrollment_id=enrollment.id, node_uuid="node_experience", objective_title="Complete an internship",
+            verified_by_user_id=1, creation_date=NOW, update_date=NOW,
+        ))
         db.flush()
-        relation = ProgramObjective(program_id=program.id, objective_id=objective.id, creation_date=NOW, update_date=NOW)
-        db.add(relation)
-        db.flush()
-        requirements.update_mappings(db, admin, 1, relation, ["node_experience"])
-        progress = ObjectiveProgress(
-            progress_uuid="progress_1", org_id=1, objective_id=objective.id, user_id=2,
-            status=ObjectiveProgressStatus.COMPLETED, completed_by_user_id=1,
-            creation_date=NOW, update_date=NOW,
-        )
-        db.add(progress)
-        db.flush()
-        requirements.sync_legacy_progress(db, progress, objective)
+        requirements._recompute_enrollment(db, enrollment)
         db.commit()
 
         report = requirements.report(db, admin, 1, framework["framework_uuid"])

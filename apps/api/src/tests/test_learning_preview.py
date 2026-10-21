@@ -10,7 +10,7 @@ from src.db.learning import LearningPageProgress, LearningResponseAttempt, Learn
 from src.db.learning_previews import LearningActivityPreview
 from src.services.learning_documents import store
 from src.services.learning_preview import engine, sessions
-from src.tests.test_learning_documents import P1, P2, P3, _goal_template, _world
+from src.tests.test_learning_documents import P1, P2, P3, _world
 from src.tests.test_badge_marketplace import _request
 
 
@@ -110,16 +110,15 @@ async def test_invalid_documents_cannot_be_previewed():
 
 async def test_unsaved_activities_preview_against_their_template():
     session, alice, carol = _world()
-    _goal_template(session, 50, "program_template", 1, "Career Ready", 50, "learning_activity_draft", "objective_activity")
     document = {"activity": {"title": "Reflect"}, "pages": [{"page_uuid": "start", "title": "Start", "content": {"version": 2, "blocks": []}}]}
-    created = await sessions.create_preview(_request(), sessions.PreviewCreate(template_uuid="program_template", document=document), alice, session)
+    created = await sessions.create_preview(_request(), sessions.PreviewCreate(template_uuid="goal_template_career", document=document), alice, session)
     stored = session.exec(select(LearningActivityPreview)).one()
     assert stored.activity_id is None and stored.org_id == 1
     opened = await sessions.get_preview(_request(), created["token"], session)
     assert opened["activity"]["pages"][0]["title"] == "Start"
 
     with pytest.raises(HTTPException) as forbidden:
-        await sessions.create_preview(_request(), sessions.PreviewCreate(template_uuid="program_template", document=document), carol, session)
+        await sessions.create_preview(_request(), sessions.PreviewCreate(template_uuid="goal_template_career", document=document), carol, session)
     assert forbidden.value.status_code in {401, 403}
     with pytest.raises(HTTPException) as nothing:
         await sessions.create_preview(_request(), sessions.PreviewCreate(document=document), alice, session)
@@ -127,17 +126,17 @@ async def test_unsaved_activities_preview_against_their_template():
 
 
 async def test_live_run_navigation_matches_the_preview_engine():
-    """Live plan-step runs route exactly like the preview."""
+    """Live goal-step runs route exactly like the preview."""
+    from src.db.goals import Goal, GoalStep
     from src.db.learning_requests import LearningPageComplete, LearningResponseSubmit
-    from src.db.planning import Plan, PlanObjective
     from src.services.learning import runtime
     from src.services.learning.run_navigation import _run_navigation
 
     session, alice, _ = _world()
     document = await _document(session, alice)
-    session.add(Plan(id=1, plan_uuid="plan_1", slug="alice-career", name="Career Ready", owner_user_id=alice.id, subject_user_id=alice.id))
-    session.add(PlanObjective(id=1, objective_uuid="plan_objective_1", plan_id=1, title="Career interests", kind="activity", activity_id=50))
-    run = LearningRun(run_uuid="learning_run_live", activity_id=50, org_id=1, plan_id=1, plan_objective_id=1, user_id=alice.id)
+    session.add(Goal(id=1, goal_uuid="goal_1", org_id=1, title="Career Ready", owner_user_id=alice.id, subject_user_id=alice.id))
+    session.add(GoalStep(id=1, step_uuid="goal_step_1", goal_id=1, title="Career interests", type="activity", activity_id=50))
+    run = LearningRun(run_uuid="learning_run_live", activity_id=50, org_id=1, goal_id=1, goal_step_id=1, user_id=alice.id)
     session.add(run)
     session.commit()
     # The route exists before the learner has opened the activity.

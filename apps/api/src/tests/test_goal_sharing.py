@@ -12,7 +12,7 @@ from src.db.school import StaffNote, UserGroupStaff
 from src.db.goals import Goal, GoalAssignmentCreate, GoalCreate
 from src.db.media import MediaAsset, MediaOwnerType, MediaSourceType, MediaType
 from src.db.messages import InboxMessage
-from src.db.planning import (
+from src.db.goal_sharing import (
     OrganizationPlanRoleCreate,
     OrganizationPlanRoleUpdate,
     PlanAttachment,

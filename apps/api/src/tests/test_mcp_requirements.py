@@ -6,7 +6,6 @@ from copy import deepcopy
 import pytest
 
 from src.db.requirements import (
-    ProgramObjectiveRequirement,
     RequirementAssignmentBatch,
     RequirementAttainmentSource,
     RequirementEnrollment,
@@ -39,7 +38,7 @@ def _framework_document(**overrides) -> dict:
 @pytest.fixture
 def world(templates):  # noqa: F811
     session, call, alice, template_uuid, _rpc = templates
-    for model in (RequirementFramework, RequirementFrameworkVersion, RequirementNode, ProgramObjectiveRequirement, RequirementAssignmentBatch, RequirementEnrollment, RequirementAttainmentSource):
+    for model in (RequirementFramework, RequirementFrameworkVersion, RequirementNode, RequirementAssignmentBatch, RequirementEnrollment, RequirementAttainmentSource):
         model.__table__.create(session.get_bind(), checkfirst=True)
     return session, call, alice, template_uuid
 

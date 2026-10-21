@@ -7,7 +7,7 @@ from sqlmodel import select
 from src.db.conversations import ConversationMember, DirectChatOpen
 from src.db.goals import Goal, GoalStatus, GoalStep, StepStatus, StepStatusChange
 from src.db.organizations import Organization
-from src.db.planning import PlanInvitation
+from src.db.goal_sharing import PlanInvitation
 from src.services.connect import chats, legacy_comments, workspace
 from src.services.goals import goals, sharing
 from src.services.messages import create_inbox_message

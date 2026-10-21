@@ -1,20 +1,13 @@
+"""The rules the plans-to-goals move uses to turn a legacy objective into typed steps."""
+
 from types import SimpleNamespace
 
-from sqlmodel import Session, create_engine, select
-
-from src.db.learning import LearningActivity, LearningBadge
-from src.db.planning import PlanObjective
-from src.db.programs import ObjectiveCreate, ProgramAssignmentCreate, ProgramCreate
-from src.db.requirements import RequirementAttainmentSource
-from src.services.goals.legacy import (
+from src.services.goals.migration.objectives import (
     STATUS_MAP,
     convert_objective,
     objective_from_plan,
     objective_from_template,
-    step_mix,
 )
-from src.services.programs import add_program_objective, assign_program, create_program
-from src.tests.test_programs import _setup, _tables
 
 
 def _plan_objective(**changes):
@@ -73,7 +66,6 @@ def test_mixed_objective_splits_in_field_order_and_staff_only_learner_fields_nee
 def test_link_only_media_field_is_a_link():
     conversion = convert_objective(_plan_objective(fields=[{"field_uuid": "url", "type": "media", "allowed_types": ["link"], "title": "Link"}]))
     assert _types(conversion) == [("task", "learner", False)]
-    assert step_mix(_plan_objective(fields=[{"type": "media", "allowed_types": ["link"]}])) == "link"
 
 
 def test_template_objective_with_badge_id_gets_a_badge_step():
@@ -92,34 +84,3 @@ def test_unknown_field_types_are_kept_as_write_with_a_warning():
 def test_every_legacy_status_has_a_goal_status():
     assert set(STATUS_MAP.values()) == {"not_started", "in_progress", "submitted", "changes_requested", "completed", "excused"}
 
-
-def test_report_counts_templates_plans_and_conversion_without_writing():
-    from scripts.goals_migration_report import report
-
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    _tables(engine)
-    for model in (LearningBadge, LearningActivity, RequirementAttainmentSource):
-        model.__table__.create(engine, checkfirst=True)
-    with Session(engine) as session:
-        admin = _setup(session)
-        program = create_program(session, admin, ProgramCreate(org_id=1, name="College Ready"))
-        add_program_objective(session, admin, 1, program["program_uuid"], ObjectiveCreate(title="Orientation"))
-        add_program_objective(session, admin, 1, program["program_uuid"], ObjectiveCreate(
-            title="Application", allow_learner_confirmation=True,
-            custom_fields=[{"field_uuid": "essay", "type": "text", "title": "Essay"}, {"field_uuid": "transcript", "type": "media", "title": "Transcript"}],
-        ))
-        assign_program(session, admin, 1, program["program_uuid"], ProgramAssignmentCreate(usergroup_id=1, staff_user_ids=[1]))
-        before = len(session.exec(select(PlanObjective)).all())
-
-        data = report(session)
-
-        assert data["templates"]["templates"] == 1
-        assert data["assignments"]["assignments"] == 1
-        assert data["plans"]["by_source"] == {"assignment": 1}
-        assert data["objectives"]["objectives"] == 2
-        assert data["objectives"]["by_step_mix"] == {"(no fields)": 1, "media+text": 1}
-        assert data["conversion"]["objectives_split"] == 1
-        assert data["conversion"]["steps_after"] == 3
-        assert data["template_objectives"]["split"] == 1
-        assert data["progress"]["by_new_status"] == {"not_started": 2}
-        assert len(session.exec(select(PlanObjective)).all()) == before

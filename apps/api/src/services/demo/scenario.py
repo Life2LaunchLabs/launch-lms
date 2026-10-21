@@ -4,7 +4,7 @@ from fastapi import HTTPException
 
 # An empty collaborator/participant edge is not useful and can leak membership.
 USER_EDGES = frozenset(
-    "userorganization usergroupuser programparticipant plancollaborator resourceauthor programassignment requirementassignmentbatch".split()
+    "userorganization usergroupuser plancollaborator resourceauthor goal_assignment requirementassignmentbatch".split()
 )
 
 
@@ -75,7 +75,7 @@ def exclude_real_users(
         table = tables[name]
         for key, row in list(records.items()):
             remove = (
-                name in {"programassignment", "requirementassignmentbatch"}
+                name in {"goal_assignment", "requirementassignmentbatch"}
                 and bool(row.get("subject_email"))
                 and row["subject_email"] not in emails
             )
@@ -93,7 +93,7 @@ def exclude_real_users(
                 if owner and row[owner] is not None and row[owner] not in cohort_ids:
                     remove = True
             if (
-                name == "plan"
+                name == "goal"
                 and row.get("subject_user_id") is not None
                 and row["subject_user_id"] not in cohort_ids
             ):
