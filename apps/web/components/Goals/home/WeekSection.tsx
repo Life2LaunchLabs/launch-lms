@@ -105,8 +105,7 @@ function PaceChip({ done, pace, nextPace, planned, onChange }: { done: number; p
         <button type="button" aria-label={`${done} of your ${pace} steps this week. Change pace`}
           className={cn('flex h-10 items-center gap-1.5 rounded-xl px-3 font-extrabold tabular-nums transition-[background-color,box-shadow] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2',
             over ? 'week-gold shadow-[0_3px_0_var(--week-gold-edge)]' : 'border-2 border-border bg-card shadow-[0_3px_0_hsl(var(--border))] hover:bg-raised')}>
-          <span className="relative z-10 text-lg leading-none">{done}</span>
-          <span className="relative z-10 text-sm leading-none opacity-70">/{pace}</span>
+          <span className="relative z-10 flex items-baseline leading-none"><span className="text-lg">{done}</span><span className="text-sm opacity-70">/{pace}</span></span>
           <ChevronDown size={15} className="relative z-10 opacity-70" aria-hidden="true" />
         </button>
       </DropdownMenuTrigger>

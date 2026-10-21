@@ -4,7 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { HeaderProfileBox } from '@components/Security/HeaderProfileBox'
-import { getOrgLogoMediaDirectory } from '@services/media/media'
+import { OrgLogo } from '@components/Objects/OrgLogo'
 import { getMenuColorClasses } from '@services/utils/ts/colorUtils'
 import { getUriWithOrg } from '@services/config/config'
 
@@ -23,8 +23,8 @@ export function GuestHeader({ orgslug }: { orgslug: string }) {
         <Link href={getUriWithOrg(orgslug, '/')}>
           <div className="flex w-auto h-9 rounded-md items-center py-1 justify-center">
             {org?.logo_image ? (
-              <img
-                src={getOrgLogoMediaDirectory(org.org_uuid, org.logo_image)}
+              <OrgLogo
+                org={org}
                 alt={org.name || 'Logo'}
                 style={{ width: 'auto', height: '100%' }}
                 className="rounded-md"

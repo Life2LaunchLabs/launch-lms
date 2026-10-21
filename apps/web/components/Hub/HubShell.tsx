@@ -144,7 +144,7 @@ export default function HubShell({ children, orgslug, orgId, focused = false }: 
 
   useEffect(() => {
     if (!currentSurface) return
-    const section = /\/plans(?:\/|$)/.test(pathname) ? 'Plans' : currentSurface.label
+    const section = /\/plans(?:\/|$)/.test(pathname) ? 'Goals' : currentSurface.label
     const detail = currentSurface.label === section ? undefined : currentSurface.label
     setPageTitle?.({ path: pathname, section, detail })
     return () => setPageTitle?.(null)

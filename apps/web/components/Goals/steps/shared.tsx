@@ -54,25 +54,24 @@ export function FinishControls({ step, actions, canWork, staff, finishesItself =
     </div>
   }
 
-  const ask = actions.ask ? <AskCoach onAsk={actions.ask} /> : null
+  const ask = actions.ask ? <span className="ml-auto"><AskCoach onAsk={actions.ask} /></span> : null
   if (done(step)) return null
   if (step.status === 'submitted') return <CardNote icon={Clock3}>Handed in. Waiting on review.</CardNote>
   if (step.completed_by === 'staff') return <div className="flex flex-wrap items-center gap-2"><CardNote icon={UserCheck}>Someone helping with this goal marks this done.</CardNote>{ask}</div>
   if (finishesItself || !canWork) return ask
-  return <div className="flex flex-col gap-1.5">
-    <div className="flex flex-wrap items-center gap-2">
-      <Button type="button" variant="plan" disabled={actions.busy || !!blocker} onClick={() => actions.setStatus('completed')}>
-        <Check size={15} aria-hidden="true" />{step.review_required ? 'Hand in' : finishLabel || 'Mark done'}
-      </Button>
-      {ask}
-    </div>
+  // What still stands in the way sits beside the button it holds back, not on a line of its own.
+  return <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+    <Button type="button" variant="plan" disabled={actions.busy || !!blocker} onClick={() => actions.setStatus('completed')}>
+      <Check size={15} aria-hidden="true" />{step.review_required ? 'Hand in' : finishLabel || 'Mark done'}
+    </Button>
     {blocker ? <CardNote>{blocker}</CardNote> : null}
+    {ask}
   </div>
 }
 
-/** Asking Coach about a step, beside the step's main action. */
-function AskCoach({ onAsk }: { onAsk: () => void }) {
-  return <Button type="button" variant="surface" onClick={onAsk}><Sparkles size={15} aria-hidden="true" />Ask Coach</Button>
+/** Asking Coach about a step: a quiet offer beside the step's main action, never competing with it. */
+export function AskCoach({ onAsk }: { onAsk: () => void }) {
+  return <Button type="button" variant="ghost" onClick={onAsk} className="h-10 rounded-xl px-3 font-bold text-muted-foreground hover:bg-muted hover:text-foreground"><Sparkles size={15} aria-hidden="true" />Ask Coach</Button>
 }
 
 /** The description, with the step's materials under it. */

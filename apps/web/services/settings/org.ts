@@ -119,6 +119,19 @@ export async function updateOrgHideOrgNameConfig(
   return res
 }
 
+export async function updateOrgDarkLogoConfig(
+  org_id: string,
+  dark_logo: { separate_dark_logo: boolean; dark_logo_image: string },
+  access_token: string
+) {
+  const result: any = await fetch(
+    `${getAPIUrl()}orgs/${org_id}/config/dark_logo`,
+    RequestBodyWithAuthHeader('PUT', dark_logo, null, access_token)
+  )
+  const res = await errorHandling(result)
+  return res
+}
+
 export interface AuthBrandingConfig {
   welcome_message: string
   background_type: 'gradient' | 'custom' | 'unsplash'
