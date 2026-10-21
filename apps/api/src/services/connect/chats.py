@@ -97,10 +97,11 @@ def ensure_direct(db: Session, a: int, b: int) -> Conversation | None:
     return conversation
 
 
-def post(db: Session, conversation: Conversation, sender_id: int | None, body: str, kind: str = "text", card: dict | None = None, refs: list[dict] | None = None) -> ConversationMessage:
+def post(db: Session, conversation: Conversation, sender_id: int | None, body: str, kind: str = "text", card: dict | None = None, refs: list[dict] | None = None,
+         message_uuid: str | None = None) -> ConversationMessage:
     now = _stamp()
     message = ConversationMessage(
-        message_uuid=f"chat_message_{uuid4()}", conversation_id=int(conversation.id), sender_user_id=sender_id,  # type: ignore[arg-type]
+        message_uuid=message_uuid or f"chat_message_{uuid4()}", conversation_id=int(conversation.id), sender_user_id=sender_id,  # type: ignore[arg-type]
         kind=kind, body=body, card=card, refs=refs or None, creation_date=now, update_date=now,
     )
     conversation.last_message_at, conversation.update_date = now, now

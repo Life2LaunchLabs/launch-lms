@@ -3294,7 +3294,7 @@
               "id": "PATHWAYS-G004-A001-AC07",
               "activity_id": "PATHWAYS-G004-A001",
               "display_order": 7,
-              "criterion": "Only the owner organization can publish a template to the global library; any organization administrator can search it and create an independently editable tenant-owned copy.",
+              "criterion": "Plan publishers publish a template from Template Settings with one action, Publish to marketplace; a listing that is open to copy and open to any organization also puts its published version in the global library (and takes it out when locked, ask-first or unlisted), where any organization administrator can search it and create an independently editable tenant-owned copy.",
               "automated_status": "not_tested",
               "manual_status": "passed",
               "notes": null,

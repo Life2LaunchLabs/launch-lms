@@ -73,3 +73,30 @@ test('marketplace.requests: a request to use a listed template shows on the tab 
   // Leave the template unlisted for the other scenarios.
   await page.request.put(`${api}badge-marketplace/templates/${template.template_uuid}/listing?org_id=${fixture.org_id}`, { headers, data: { listed: false, mode: 'locked', access: 'request' } })
 })
+
+test('marketplace.publish: Publish to marketplace in Template › Settings lists it, and your marketplace shows it as yours', async ({ page }) => {
+  const { api, authorization } = await openMarketplace(page)
+  const headers = { authorization }
+  const templates = await (await page.request.get(`${api}goal-templates?org_id=${fixture.org_id}`, { headers })).json()
+  const template = templates.find((item: any) => item.title === 'Focused learner path') || templates.find((item: any) => item.published_version)
+  expect(template).toBeTruthy()
+  const listingUrl = `${api}badge-marketplace/templates/${template.template_uuid}/listing?org_id=${fixture.org_id}`
+  await page.request.put(listingUrl, { headers, data: { listed: false, mode: 'locked', access: 'request' } })
+
+  await page.goto(`${orgPath}/admin/plans/${template.template_uuid}/settings`)
+  await assertActualApp(page)
+  const card = page.getByTestId('template-marketplace-listing')
+  await expect(card.getByText('Not listed')).toBeVisible()
+  // One way to publish: there is no separate global-library card.
+  await expect(page.getByRole('heading', { name: 'Global template library' })).toHaveCount(0)
+  const saved = page.waitForResponse((res) => res.url().includes('/listing') && res.request().method() === 'PUT')
+  await card.getByRole('button', { name: 'Publish to marketplace' }).click()
+  expect((await saved).ok()).toBe(true)
+  await expect(card.getByText('In the marketplace')).toBeVisible()
+
+  await card.getByTestId('template-marketplace-listed').getByRole('link', { name: 'Plans › Marketplace' }).click()
+  const ownCard = page.getByRole('region', { name: 'Templates' }).getByTestId('marketplace-card').filter({ hasText: template.title })
+  await expect(ownCard.getByText('Yours · listed')).toBeVisible()
+
+  await page.request.put(listingUrl, { headers, data: { listed: false, mode: 'locked', access: 'request' } })
+})

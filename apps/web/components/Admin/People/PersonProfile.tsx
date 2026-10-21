@@ -16,7 +16,7 @@ import type { Profile, ProfilePlan } from '@services/school/people'
 import IssueBadge from './IssueBadge'
 import LearnerTeam from './LearnerTeam'
 import PersonManage from './PersonManage'
-import { RoleTag } from './PeopleList'
+import { RoleTag } from './RoleTag'
 import { usePersonTimeline } from './PersonActivity'
 import { usePeopleContext, useProfile, useRefreshPeople } from './usePeople'
 

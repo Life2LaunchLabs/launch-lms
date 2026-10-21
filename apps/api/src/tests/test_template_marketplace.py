@@ -1,5 +1,7 @@
 """Permission is to use a plan: locked templates run as-is, open ones are copied; badge routes can be trusted-partners only."""
 
+from copy import deepcopy
+
 import pytest
 from fastapi import HTTPException
 from sqlmodel import select
@@ -231,3 +233,90 @@ def test_staff_browse_the_template_and_framework_libraries_but_learners_cannot()
         with pytest.raises(HTTPException) as staff_copy:
             library.copy_from_library(db, _user(STAFF), PARTNER, "goal_template_missing")
         assert staff_copy.value.status_code == 403
+
+
+# Publishing from Template › Settings ---------------------------------------------------------------
+
+OWNER_ADMIN = 8  # an admin of the owner org who isn't a platform superadmin
+
+
+def _http(monkeypatch):
+    """The marketplace router over one shared in-memory database, signed in as ``OWNER_ADMIN``."""
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from sqlalchemy.pool import StaticPool
+    from sqlmodel import create_engine
+
+    from src.core.events.database import get_db_session
+    from src.routers import marketplace
+    from src.security.auth import get_current_user
+    from src.tests import test_goals
+
+    engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    monkeypatch.setattr(test_goals, "create_engine", lambda *args, **kwargs: engine)
+    db, _ = _market()
+    db.add(User(id=OWNER_ADMIN, user_uuid="user_8", username="owner", email="owner@example.com", first_name="Own", last_name="Er", creation_date=NOW, update_date=NOW))
+    for org_id in (1, PARTNER):
+        db.add(UserOrganization(user_id=OWNER_ADMIN, org_id=org_id, role_id=1, creation_date=NOW, update_date=NOW))
+    db.commit()
+    app = FastAPI()
+    app.include_router(marketplace.router, prefix="/api/v1/badge-marketplace")
+    app.dependency_overrides[get_db_session] = lambda: db
+    app.dependency_overrides[get_current_user] = lambda: _user(OWNER_ADMIN)
+    return db, TestClient(app)
+
+
+def test_an_owner_org_admin_publishes_to_the_marketplace_and_sees_it_listed(monkeypatch):
+    db, client = _http(monkeypatch)
+    with db:
+        template = _plain(db)
+        url = f"/api/v1/badge-marketplace/templates/{template.template_uuid}/listing?org_id=1"
+        assert client.get(url).json()["listed"] is False
+        published = client.put(url, json={"listed": True, "mode": "open", "access": "open"})
+        assert published.status_code == 200, published.text
+        assert (published.json()["listed"], published.json()["mode"], published.json()["access"]) == (True, "open", "open")
+        assert client.get(url).json()["listed"] is True
+        # The owner's own marketplace returns it, marked as its own (the browse page shows it as "Yours").
+        own = [card for card in client.get("/api/v1/badge-marketplace/templates?org_id=1").json() if card["template_uuid"] == template.template_uuid]
+        assert len(own) == 1 and own[0]["is_own"] is True
+
+
+def test_publishing_is_refused_with_a_reason_when_the_org_is_not_a_plan_publisher(monkeypatch):
+    db, client = _http(monkeypatch)
+    with db:
+        created = templates.create_template(db, _user(ADMIN), PARTNER, {"template": {"title": "Partner plan"}, "stages": [{"key": "s", "title": "S", "steps": [dict(STEPS[0])]}]})
+        templates.publish(db, _user(ADMIN), PARTNER, created["template_uuid"], "First")
+        refused = client.put(f"/api/v1/badge-marketplace/templates/{created['template_uuid']}/listing?org_id={PARTNER}", json={"listed": True})
+        assert refused.status_code == 403
+        assert "plan publish" in refused.json()["detail"].lower()
+
+
+def test_the_global_library_follows_a_listing_anyone_may_copy():
+    from src.services.goals import library
+
+    db, _ = _market()
+    with db:
+        template = _plain(db)
+
+        def in_library() -> list[str]:
+            return [item["template_uuid"] for item in library.list_library(db, _user(ADMIN), PARTNER)]
+
+        _list(db, template, "locked", "request")
+        assert in_library() == []
+        # Open to copy without asking: the published version is what the library (and MCP search_library) offers.
+        _list(db, template, "open", "open")
+        assert in_library() == [template.template_uuid]
+        assert db.get(GoalTemplate, template.id).library_document == templates.published_version(db, template).document
+        # A new published version follows it there; a draft edit alone doesn't.
+        document = deepcopy(templates.template_or_404(db, 1, template.template_uuid).document)
+        document["stages"][0]["steps"][0]["title"] = "Notice change, v2"
+        templates.save_template(db, _user(ADMIN), 1, template.template_uuid, document)
+        assert db.get(GoalTemplate, template.id).library_document["stages"][0]["steps"][0]["title"] == "Notice change"
+        templates.publish(db, _user(ADMIN), 1, template.template_uuid, "Second")
+        assert db.get(GoalTemplate, template.id).library_document["stages"][0]["steps"][0]["title"] == "Notice change, v2"
+        # Asking first, locking it, or taking it out of the marketplace takes it out of the library too.
+        _list(db, template, "open", "request")
+        assert in_library() == []
+        _list(db, template, "open", "open")
+        market.set_listing(db, _user(ADMIN), 1, template.template_uuid, TemplateListingUpdate(listed=False, mode="open", access="open"))
+        assert in_library() == []

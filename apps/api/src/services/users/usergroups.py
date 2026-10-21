@@ -152,6 +152,9 @@ async def create_usergroup(
     db_session.add(usergroup)
     db_session.commit()
     db_session.refresh(usergroup)
+    # Its chat opens with who created it, so the group shows as new on top of People.
+    group_chats.announce_created(db_session, usergroup, getattr(current_user, "id", None))
+    db_session.commit()
 
     usergroup = UserGroupRead.model_validate(usergroup)
 
