@@ -37,14 +37,72 @@ LINK_ROUTES = (
 )
 
 
+# Columns this revision's tables still have that today's models dropped, so the move
+# doesn't set them: a value to hold while it runs, and how to fill them after it.
+DROPPED_LATER = {
+    ("goal_assignment", "active"): ("true", "UPDATE goal_assignment SET active = (status <> 'ended')"),
+    ("goal_step", "allow_late"): ("false", None),
+}
+
+
+def _schema_drift() -> tuple[dict[str, list[sa.Column]], list[tuple[str, str]]]:
+    """Columns today's models have that later revisions add (goal_assignment.status, ...), and
+    required columns the models no longer have (goal_assignment.active), on existing tables.
+
+    The move runs today's models, so it reads and writes every column they map. On a database
+    upgrading through this revision in one go, the schema is still this revision's.
+    """
+    from sqlmodel import SQLModel
+
+    from src.core.events.database import import_all_models
+
+    import_all_models()
+    inspector = sa.inspect(op.get_bind())
+    existing = set(inspector.get_table_names())
+    missing: dict[str, list[sa.Column]] = {}
+    dropped: list[tuple[str, str]] = []
+    for table in SQLModel.metadata.sorted_tables:
+        if table.name not in existing:
+            continue
+        present = {column["name"]: column for column in inspector.get_columns(table.name)}
+        for column in table.columns:
+            if column.name not in present:
+                kind = sa.String() if isinstance(column.type, sa.Enum) else column.type.copy()
+                missing.setdefault(table.name, []).append(sa.Column(column.name, kind, nullable=True))
+        for name, column in present.items():
+            if name not in table.columns and not column["nullable"] and column.get("default") is None:
+                if (table.name, name) not in DROPPED_LATER:
+                    raise RuntimeError(f"{table.name}.{name} is required here but today's models don't set it")
+                dropped.append((table.name, name))
+    return missing, dropped
+
+
 def upgrade() -> None:
     from sqlmodel import Session
 
     from src.services.goals.migration import run
 
+    # Bridge the schema for the move only: later columns as plain nullable columns, dropped
+    # after (the revisions that own them add and fill them, as on a database that ran this
+    # revision before they existed), and dropped columns held at a default, then filled.
+    later, dropped = _schema_drift()
+    for table, columns in later.items():
+        for column in columns:
+            op.add_column(table, column)
+    for table, name in dropped:
+        op.alter_column(table, name, server_default=sa.text(DROPPED_LATER[(table, name)][0]))
     session = Session(bind=op.get_bind())
     result = run(session)
     session.flush()
+    session.expunge_all()
+    for table, name in dropped:
+        fill = DROPPED_LATER[(table, name)][1]
+        if fill:
+            op.execute(fill)
+        op.alter_column(table, name, server_default=None)
+    for table, columns in later.items():
+        for column in columns:
+            op.drop_column(table, column.name)
     op.execute(LINK_ROUTES)
     log.info("Moved plans to goals: %s", ", ".join(f"{key} {value}" for key, value in result.counts.items()))
     for warning in result.warnings:
