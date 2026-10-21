@@ -58,7 +58,7 @@ def api_set_route_eligibility(
     return badge_authority.set_eligibility(db, current_user, badge_uuid, route_uuid, payload)
 
 
-@router.put("/{badge_uuid}/routes/{route_uuid}/trust")
+@router.put("/{badge_uuid}/routes/{route_uuid}/trust", deprecated=True)
 def api_set_route_trust(
     badge_uuid: str,
     route_uuid: str,
@@ -66,7 +66,7 @@ def api_set_route_trust(
     db: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_current_user),
 ):
-    """The badge's owner makes a route trusted-partners only (e.g. direct issuance) and picks the partners approved for it."""
+    """Deprecated: stored but no longer decides who runs the route. Approve organizations on the route's plan instead."""
     return template_marketplace.set_route_trust(db, current_user, badge_uuid, route_uuid, payload)
 
 

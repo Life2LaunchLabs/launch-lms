@@ -2,7 +2,8 @@
 
 Creating a badge and issuing it are separate roles. The creator issues its own
 badge (until it records that it doesn't: a revoked self-authorization), and other
-organizations issue it with an approved BadgeIssuerAuthorization.
+organizations issue it while approved on one of its plans (``goals/plan_issuers``);
+their BadgeIssuerAuthorization follows those plan permissions.
 
 Which learners an issuer takes is set per plan it runs (``goals/plan_access``):
 
@@ -34,7 +35,7 @@ from src.db.learning import (
 )
 from src.db.badge_routes import BadgeRoute
 from src.db.organizations import Organization
-from src.services.goals import plan_access
+from src.services.goals import plan_access, plan_issuers
 from src.services.learning_issuer_links import ensure_learner_membership
 
 LearnerAccess = Literal["open", "request", "invite"]
@@ -131,6 +132,9 @@ def active_issuers(db_session: Session, badge: LearningBadge, route: BadgeRoute 
         BadgeIssuerAuthorization.issuer_org_id != badge.org_id,
     ).order_by(BadgeIssuerAuthorization.id)).all():
         if route is not None and not plan_access.runs_route(db_session, badge, route, authorization.issuer_org_id, offered_routes):
+            continue
+        # Permission to issue lives on the badge's plans; the record alone isn't enough.
+        if plans and not plan_issuers.badge_issuer(db_session, badge, authorization.issuer_org_id):
             continue
         issuers.append((authorization.issuer_org_id, _access(db_session, badge, authorization.issuer_org_id, authorization, route, plans), authorization))
     return issuers

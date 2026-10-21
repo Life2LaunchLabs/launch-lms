@@ -101,6 +101,20 @@ def get_active_authorization(db_session: Session, badge_id: int, issuer_org_id: 
     ).first()
 
 
+def _write_through(db_session: Session, authorization: BadgeIssuerAuthorization, approved: bool, user_id: int | None) -> None:
+    """Badge-level decisions land on the badge's plans, where permission to issue lives (``goals/plan_issuers``)."""
+    from src.services.goals import plan_issuers
+
+    badge = db_session.get(LearningBadge, authorization.badge_id)
+    if badge is None or int(authorization.issuer_org_id) == int(badge.org_id):
+        return
+    db_session.flush()
+    if approved:
+        plan_issuers.grant_badge(db_session, badge, authorization.issuer_org_id, user_id)
+    else:
+        plan_issuers.end_badge(db_session, badge, authorization.issuer_org_id, user_id)
+
+
 def _serialize_authorization(db_session: Session, authorization: BadgeIssuerAuthorization) -> issuers.BadgeIssuerAuthorizationAccessRead:
     badge = db_session.get(LearningBadge, authorization.badge_id)
     creator_org = db_session.get(Organization, authorization.creator_org_id)
@@ -309,6 +323,8 @@ async def decide_authorization(
     authorization.decided_at = datetime.utcnow()
     authorization.update_date = _now()
     db_session.add(authorization)
+    if approve:
+        _write_through(db_session, authorization, True, user.id)
     db_session.commit()
     db_session.refresh(authorization)
     return _serialize_authorization(db_session, authorization)
@@ -329,6 +345,7 @@ async def accept_invite(
     authorization.decided_at = datetime.utcnow()
     authorization.update_date = _now()
     db_session.add(authorization)
+    _write_through(db_session, authorization, True, user.id)
     db_session.commit()
     db_session.refresh(authorization)
     return _serialize_authorization(db_session, authorization)
@@ -354,6 +371,7 @@ async def revoke_authorization(
     authorization.decided_at = datetime.utcnow()
     authorization.update_date = _now()
     db_session.add(authorization)
+    _write_through(db_session, authorization, False, user.id)
     db_session.commit()
     db_session.refresh(authorization)
     return _serialize_authorization(db_session, authorization)

@@ -100,7 +100,10 @@ class GoalTemplateLearnerAccess(SQLModel, table=True):
 
 
 class BadgeRoutePartner(SQLModel, table=True):
-    """An issuer the badge's owner approved for a trusted-partners-only route."""
+    """Deprecated: an issuer the badge's owner approved for a trusted-partners-only route.
+
+    No longer read: who runs a route is who is approved on its plan (``GoalTemplateAuthorization``);
+    the rows were copied there by migration a8c4e1f7d2b9."""
 
     __tablename__ = "badge_route_partner"
     __table_args__ = (UniqueConstraint("route_id", "issuer_org_id"),)
@@ -124,6 +127,10 @@ class TemplateAuthorizationRequest(SQLModel):
     template_uuid: str
     issuer_org_id: int
     message: str | None = ""
+
+
+class TemplateInvite(SQLModel):
+    issuer_org_slug: str = Field(min_length=1)
 
 
 class TemplateLearnerAccessUpdate(SQLModel):

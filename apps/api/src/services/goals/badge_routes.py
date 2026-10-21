@@ -1,7 +1,8 @@
 """A badge's ways to earn it ("routes"), on goal templates.
 
 The badge's creator picks which of its goal templates earn the badge and which
-one is recommended; an issuer organization offers some or all of them. Starting
+one is recommended. Organizations approved on a route's plan issue the badge
+through it (``plan_issuers``); an issuer offers some or all of its routes. Starting
 a badge issues the learner's goal from a route (see ``goals/badges``).
 """
 
@@ -82,20 +83,22 @@ def goal_progress(db: Session, goal: Goal) -> dict:
 
 def list_routes(db: Session, current_user: PublicUser | None, badge_uuid: str) -> dict:
     """The ways to earn a badge, each with the issuers that offer it, and the learner's goal if started."""
-    from src.services.goals.template_marketplace import route_partners
+    from src.services.goals.plan_issuers import route_issuers
     from src.services.learning_issuers import issuer_options
 
     badge = _get_badge(db, badge_uuid)
     user_id = int(current_user.id) if current_user and getattr(current_user, "id", None) else None
     offered_routes = offered(db, badge)
+    owner_admin = _is_admin(db, user_id, int(badge.org_id))
     routes, uuids = [], {}
     for route, template in badge_routes(db, badge):
         uuids[route.id] = route.route_uuid
         # Each organization running this route, with who it lets start this plan (invite-only ones only for their learners).
         issuers = [{**option, "is_creator": option["org"]["id"] == badge.org_id} for option in issuer_options(db, badge, user_id, set(), route)["issuers"]]
         routes.append({**route_summary(db, template), "route_uuid": route.route_uuid, "recommended": route.recommended, "issuers": issuers,
-                       "eligible_versions": rule_of(route), "trusted_only": bool(route.trusted_only),
-                       "partners": route_partners(db, route) if route.trusted_only else []})
+                       "eligible_versions": rule_of(route),
+                       # Who owns the plan and the organizations approved on it (the plan's Publish tab manages them).
+                       "plan_issuers": route_issuers(db, route, owner_admin)})
     routes.sort(key=lambda item: not item["recommended"])
     goal = active_badge_goal(db, badge, user_id) if user_id else None
     return {
@@ -103,6 +106,12 @@ def list_routes(db: Session, current_user: PublicUser | None, badge_uuid: str) -
         "offers": {str(org_id): sorted(uuids[route_id] for route_id in route_ids if route_id in uuids) for org_id, route_ids in offered_routes.items()},
         "goal": goal_progress(db, goal) if goal else None,
     }
+
+
+def _is_admin(db: Session, user_id: int | None, org_id: int) -> bool:
+    from src.security.org_auth import is_org_admin
+
+    return user_id is not None and is_org_admin(user_id, org_id, db)
 
 
 def _legacy_program_id(db: Session, template_uuid: str) -> int | None:
@@ -143,6 +152,11 @@ def set_routes(db: Session, current_user: PublicUser, badge_uuid: str, payload: 
         db.add(route)
     for route in existing.values():
         db.delete(route)
+    db.flush()
+    # Organizations approved on the badge's plans issue it; the badge's issuer records follow the new routes.
+    from src.services.goals.plan_issuers import sync_badge
+
+    sync_badge(db, badge)
     db.commit()
     return list_routes(db, current_user, badge_uuid)
 

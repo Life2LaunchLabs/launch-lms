@@ -11,6 +11,7 @@ from src.db.organizations import Organization
 from src.services.goals import goals
 from src.services.goals.badges import goal_summaries, goal_summary, start_badge_goal
 from src.services.goals.plan_access import set_access
+from src.tests.plan_permissions import approve_badge_issuers_on_plans
 from src.tests.test_goals import LEARNER, NOW, _published, _session as _goal_session, _user
 
 
@@ -35,6 +36,7 @@ def _world(issuer_access: str = "open", creator_access: str = "open") -> tuple[S
         set_access(db, template.id, 1, creator_access, None)
         set_access(db, template.id, 2, issuer_access, None)
     db.commit()
+    approve_badge_issuers_on_plans(db)
     return db, badge, uuids
 
 

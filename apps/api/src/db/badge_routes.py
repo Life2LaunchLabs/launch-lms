@@ -21,7 +21,7 @@ class BadgeRoute(SQLModel, table=True):
     # Which template versions earn the badge on an assignment: every version (neither set), the newest only, or from a number on.
     latest_only: bool = Field(default=False, sa_column=Column(Boolean, nullable=False, server_default="false"))
     eligible_from_version: int | None = Field(default=None, sa_column=Column(Integer, nullable=True))
-    # Only the issuers the owner approved for this route may run it (BadgeRoutePartner), e.g. a direct-issuance route.
+    # Deprecated, no longer read: who runs a route is who is approved on its plan template (GoalTemplateAuthorization).
     trusted_only: bool = Field(default=False, sa_column=Column(Boolean, nullable=False, server_default="false"))
     creation_date: str = ""
     update_date: str = ""

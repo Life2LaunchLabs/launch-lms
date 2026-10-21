@@ -12,6 +12,7 @@ from src.db.organizations import Organization
 from src.db.user_organizations import UserOrganization
 from src.services.goals import assignments, badge_authority, badge_templates, goals, templates
 from src.services.goals.badges import start_badge_goal
+from src.tests.plan_permissions import approve_badge_issuers_on_plans, set_plan_permission
 from src.tests.test_goal_sharing import _session as _sharing_session
 from src.tests.test_goals import ADMIN, LEARNER, NOW, _published, _user
 
@@ -19,8 +20,10 @@ PARTNER, STRANGER = 2, 3
 STEPS = ({"key": "notice", "type": "task", "title": "Notice change"}, {"key": "story", "type": "task", "title": "Your story"})
 
 
-def _world():
-    """Studio (1) owns the badge and its two routes; Partner (2) is authorized to issue it; Stranger (3) isn't."""
+def _world(plans: bool = True):
+    """Studio (1) owns the badge and its two routes; Partner (2) is authorized to issue it; Stranger (3) isn't.
+
+    ``plans``: Partner's badge approval is also on the badge's plans (as after migration a8c4e1f7d2b9)."""
     db = _sharing_session()
     for model in (BadgeRoute, BadgeRouteOffer, BadgeIssuerAuthorization):
         model.__table__.create(db.get_bind(), checkfirst=True)
@@ -39,6 +42,8 @@ def _world():
                           position=position, creation_date=NOW))
         routes.append(template)
     db.commit()
+    if plans:
+        approve_badge_issuers_on_plans(db)
     return db, routes
 
 
@@ -88,11 +93,9 @@ def test_organizations_without_an_authorization_cannot_assign_or_start_a_badge_r
         assert not_offered.value.status_code == 403
         assert [item["template"]["template_uuid"] for item in badge_templates.issuer_routes(db, _user(ADMIN), PARTNER)] == [second.template_uuid]
 
-        # Once the authorization is revoked, Partner can neither assign nor let learners start the badge with it.
-        authorization = db.exec(select(BadgeIssuerAuthorization).where(BadgeIssuerAuthorization.issuer_org_id == PARTNER)).one()
-        authorization.status = BadgeIssuerAuthorizationStatus.REVOKED
-        db.add(authorization)
-        db.commit()
+        # Once its permission on the plans is revoked, Partner can neither assign nor let learners start the badge
+        # with it, though its old badge-level record still says approved.
+        set_plan_permission(db, PARTNER, "revoked")
         with pytest.raises(HTTPException) as revoked:
             _assign(db, PARTNER, second.template_uuid)
         assert revoked.value.status_code == 403

@@ -9,13 +9,14 @@ from sqlmodel import select
 
 from src.db.badge_routes import BadgeRoute, BadgeRouteOffer
 from src.db.goals import GoalTemplate
-from src.db.learning import BadgeCollection, BadgeIssuerAuthorization, BadgeIssuerAuthorizationStatus, LearningBadgeAward, LearningBadgeStatus
+from src.db.learning import BadgeCollection, LearningBadgeAward, LearningBadgeStatus
 from src.db.template_marketplace import BadgeRoutePartner, GoalTemplateLearnerAccess, TemplateLearnerAccessUpdate
 from src.db.users import AnonymousUser
 from src.services import badge_discover, learning_issuers
 from src.services.goals import plan_access, template_learners
 from src.services.goals.badge_routes import list_routes
 from src.services.goals.badges import start_badge_goal
+from src.tests.plan_permissions import set_plan_permission
 from src.tests.test_badge_discover import approve_publishing
 from src.tests.test_goal_badges import _world
 from src.tests.test_goals import ADMIN, LEARNER, NOW, _user
@@ -48,22 +49,11 @@ def test_discover_lists_a_badge_only_while_an_issuing_org_lets_learners_start_on
         plan_access.set_access(db, _template_id(db, routes[1]), 2, "request", None)
         db.commit()
         assert _listed(db) == {"badge_adapt"}
-        # A partner that no longer holds an approved authorization doesn't count.
-        authorization = db.exec(select(BadgeIssuerAuthorization).where(BadgeIssuerAuthorization.issuer_org_id == 2)).one()
-        authorization.status = BadgeIssuerAuthorizationStatus.REVOKED
-        db.add(authorization)
-        db.commit()
+        # A partner no longer approved on that plan doesn't count, even with its old badge-level record.
+        set_plan_permission(db, 2, "revoked", _template_id(db, routes[1]))
         assert _listed(db) == set()
-        authorization.status = BadgeIssuerAuthorizationStatus.APPROVED
-        db.add(authorization)
-        # Nor does a partner on a trusted-partners-only route the owner didn't approve it for.
-        route = db.exec(select(BadgeRoute).where(BadgeRoute.route_uuid == "route_1")).one()
-        route.trusted_only = True
-        db.add(route)
-        db.commit()
-        assert _listed(db) == set()
-        db.add(BadgeRoutePartner(route_id=int(route.id), issuer_org_id=2, creation_date=NOW))
-        db.commit()
+        # A trusted-partners-only plan is one whose owner approves only trusted partners: approving it again lists it.
+        set_plan_permission(db, 2, "approved", _template_id(db, routes[1]))
         assert _listed(db) == {"badge_adapt"}
         # Coming-soon badges are previews: listed without anyone offering them yet.
         plan_access.set_access(db, _template_id(db, routes[1]), 2, "invite", None)
@@ -111,7 +101,7 @@ def test_template_learners_card_shows_the_badge_and_is_the_running_orgs_own_sett
         own = template_learners.template_learners(db, _user(ADMIN), 1, routes[0])
         assert own["access"] == "open" and own["owned"] and own["earns_badge"]
         [earned] = own["badges"]
-        assert (earned["badge_uuid"], earned["route_uuid"], earned["trusted_only"], earned["eligible_versions"]["rule"]) == ("badge_adapt", "route_0", False, "any")
+        assert (earned["badge_uuid"], earned["route_uuid"], earned["eligible_versions"]["rule"]) == ("badge_adapt", "route_0", "any")
         assert [(item["org"]["id"], item["access"]) for item in earned["offered_by"]] == [(1, "open")]
         # The partner runs the creator's template read-only, but who may start it there is its own call.
         partner = template_learners.set_template_access(db, _user(ADMIN), 2, routes[0], TemplateLearnerAccessUpdate(access="request"))
@@ -123,8 +113,7 @@ def test_template_learners_card_shows_the_badge_and_is_the_running_orgs_own_sett
 def test_template_learners_refuses_a_template_the_org_does_not_run():
     db, _, routes = _setup()
     with db:
-        db.exec(select(BadgeIssuerAuthorization)).one().status = BadgeIssuerAuthorizationStatus.REVOKED
-        db.commit()
+        set_plan_permission(db, 2, "revoked")
         with pytest.raises(HTTPException) as refused:
             template_learners.set_template_access(db, _user(ADMIN), 2, routes[0], TemplateLearnerAccessUpdate(access="open"))
         assert refused.value.status_code in (403, 404)

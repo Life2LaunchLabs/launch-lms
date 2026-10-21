@@ -10,7 +10,7 @@ organization says who may start it:
 - ``invite``: only learners the organization adds (the default; no row means invite).
 
 A badge reaches Discover only while an organization allowed to issue it (its owner, or an
-approved issuer that offers the route and passes the route's trusted-partners rule) runs one of
+issuer approved on that route's plan that offers it) runs one of
 its routes ``open`` or by ``request``; starting the badge goes to such an organization.
 ``BadgeIssuerAuthorization.learner_access`` stays readable but no longer decides anything: the
 old badge-level setting writes through to the plans (``apply_to_badge``).
@@ -79,7 +79,7 @@ def set_access(db: Session, template_id: int, org_id: int, access: str, user_id:
 # Badges: which organizations offer which routes ------------------------------------------------
 
 def runs_route(db: Session, badge: LearningBadge, route: BadgeRoute, org_id: int, offered_routes: dict[int, set[int]] | None = None) -> bool:
-    """Whether an organization already allowed to issue the badge runs this route (offers and trust)."""
+    """Whether an organization already allowed to issue the badge runs this route (offers it and is approved on its plan)."""
     from src.services.goals.badge_authority import trusted
     from src.services.goals.badge_routes import offered, offers
 

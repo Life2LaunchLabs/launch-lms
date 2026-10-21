@@ -7,10 +7,10 @@ from src.db.learning import (
     IssuerLearnerRequestCreate,
     IssuerLearnerRequestDecision,
 )
-from src.db.template_marketplace import TemplateAuthorizationRequest, TemplateListingUpdate
+from src.db.template_marketplace import TemplateAuthorizationRequest, TemplateInvite, TemplateListingUpdate
 from src.security.auth import get_current_user
 from src.services import learning_marketplace as marketplace_service
-from src.services.goals import template_marketplace
+from src.services.goals import plan_issuers, template_marketplace
 from src.services.learning_issuers import BadgeIssuerAuthorizationAccessRead, BadgeIssuingSettingsUpdate, IssuerAccessUpdate
 
 router = APIRouter()
@@ -273,6 +273,18 @@ def api_set_template_listing(
     return template_marketplace.set_listing(db_session, current_user, org_id, template_uuid, payload)
 
 
+@router.post("/templates/{template_uuid}/authorizations/invite")
+def api_invite_to_template(template_uuid: str, payload: TemplateInvite, org_id: int = Query(...), current_user=Depends(get_current_user), db_session=Depends(get_db_session)) -> dict:
+    """The template's owner authorizes another organization (by slug) to run it, and so to issue the badges it earns."""
+    return plan_issuers.invite(db_session, current_user, org_id, template_uuid, payload.issuer_org_slug)
+
+
+@router.get("/templates/{template_uuid}/metrics")
+def api_template_metrics(template_uuid: str, org_id: int = Query(...), current_user=Depends(get_current_user), db_session=Depends(get_db_session)) -> dict:
+    """Quick usage counts for the owner's Publish tab: authorized orgs, assignments, learners, completions, badges earned."""
+    return plan_issuers.template_metrics(db_session, current_user, org_id, template_uuid)
+
+
 @router.post("/templates/{template_uuid}/copy")
 def api_copy_marketplace_template(template_uuid: str, org_id: int = Query(...), current_user=Depends(get_current_user), db_session=Depends(get_db_session)) -> dict:
     """Copy an open template into a draft of this organization's own ("Based on <plan> by <org>")."""
@@ -284,10 +296,11 @@ def api_template_authorizations(
     org_id: int = Query(...),
     perspective: str = Query("issuer"),
     status: str | None = Query(None),
+    template_uuid: str | None = Query(None),
     current_user=Depends(get_current_user),
     db_session=Depends(get_db_session),
 ) -> list[dict]:
-    return template_marketplace.list_authorizations(db_session, current_user, org_id, perspective, status)
+    return template_marketplace.list_authorizations(db_session, current_user, org_id, perspective, status, template_uuid)
 
 
 @router.post("/template-authorizations")

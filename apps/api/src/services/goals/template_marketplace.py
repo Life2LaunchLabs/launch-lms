@@ -7,9 +7,10 @@ read-only, on the creator's published versions) or ``open`` (others copy it
 into a template of their own, which remembers where it came from). Access is
 ``open`` (adding it approves at once) or ``request`` (the creator decides).
 
-Badges stay the badge side's call: assigning a locked template earns a badge
-only through a route the organization may run (``badge_authority.may_run``),
-which includes the route's trusted-partners-only restriction.
+Permission on a template that is a way to earn a badge is also permission to
+issue that badge through it (``plan_issuers``): the badge's issuer record
+follows every decision here. A plan for trusted partners only is one whose
+owner approves only trusted partners.
 """
 
 from __future__ import annotations
@@ -231,6 +232,14 @@ def _decide(authorization: GoalTemplateAuthorization, status: str, user_id: int 
     authorization.update_date = _now()
 
 
+def _follow(db: Session, authorization: GoalTemplateAuthorization) -> None:
+    """The badges this plan earns follow the decision for that organization."""
+    from src.services.goals.plan_issuers import sync_template
+
+    db.flush()
+    sync_template(db, authorization.template_id, authorization.issuer_org_id)
+
+
 def request_use(db: Session, current_user: PublicUser, payload: TemplateAuthorizationRequest) -> dict:
     """Ask to use a listed template. Open access approves at once; asking again after a decline asks again."""
     require_org_admin(current_user.id, payload.issuer_org_id, db)
@@ -257,6 +266,7 @@ def request_use(db: Session, current_user: PublicUser, payload: TemplateAuthoriz
     else:
         authorization.status, authorization.decided_by_user_id, authorization.decided_at = REQUESTED, None, None
     db.add(authorization)
+    _follow(db, authorization)
     db.commit()
     db.refresh(authorization)
     return authorization_dict(db, authorization, template)
@@ -269,6 +279,7 @@ def decide(db: Session, current_user: PublicUser, authorization_uuid: str, appro
         raise HTTPException(status_code=422, detail=f"This request isn't pending (status: {authorization.status})")
     _decide(authorization, APPROVED if approve else TemplateAuthorizationStatus.REJECTED.value, current_user.id)
     db.add(authorization)
+    _follow(db, authorization)
     db.commit()
     return authorization_dict(db, authorization)
 
@@ -283,16 +294,20 @@ def revoke(db: Session, current_user: PublicUser, authorization_uuid: str) -> di
     if authorization.status != TemplateAuthorizationStatus.REVOKED.value:
         _decide(authorization, TemplateAuthorizationStatus.REVOKED.value, current_user.id)
         db.add(authorization)
+        _follow(db, authorization)
         db.commit()
     return authorization_dict(db, authorization)
 
 
-def list_authorizations(db: Session, current_user: PublicUser, org_id: int, perspective: str, status: str | None = None) -> list[dict]:
+def list_authorizations(db: Session, current_user: PublicUser, org_id: int, perspective: str, status: str | None = None,
+                        template_uuid: str | None = None) -> list[dict]:
     require_org_admin(current_user.id, org_id, db)
     if perspective not in ("creator", "issuer"):
         raise HTTPException(status_code=400, detail="perspective must be 'creator' or 'issuer'")
     column = GoalTemplateAuthorization.creator_org_id if perspective == "creator" else GoalTemplateAuthorization.issuer_org_id
     statement = select(GoalTemplateAuthorization).where(column == org_id)
+    if template_uuid:
+        statement = statement.where(GoalTemplateAuthorization.template_id == _template(db, template_uuid).id)
     if status and status != "all":
         statement = statement.where(GoalTemplateAuthorization.status == status)
     rows = db.exec(statement.order_by(col(GoalTemplateAuthorization.id).desc())).all()
@@ -390,7 +405,8 @@ def added_templates(db: Session, current_user: PublicUser, org_id: int) -> list[
 # Trusted-partner badge routes (the badge's owner) ------------------------------------------------------------
 
 def set_route_trust(db: Session, current_user: PublicUser, badge_uuid: str, route_uuid: str, payload: BadgeRouteTrustUpdate) -> dict:
-    """The badge's owner restricts a route to approved partners (or opens it again) and picks the partners."""
+    """Deprecated: kept for older clients. ``trusted_only`` and partners are stored but no longer decide who
+    runs a route; approve organizations on the route's plan instead (its Publish tab)."""
     from src.services.goals.badge_routes import list_routes
     from src.services.learning.lookups import _get_badge
 
