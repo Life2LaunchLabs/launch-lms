@@ -54,29 +54,34 @@ type RowProps = {
   aggregate?: StepAggregate
   /** What opens in place of the step's card when it's selected, such as staff's to-dos on it. */
   body?: React.ReactNode
+  /** The step's stage already says why it's closed, so the row needn't repeat it. */
+  stageSaysWhy?: boolean
 }
 
 /** A step on the goal's path: its node, title and status; selected, its card opens in place. */
-export function GoalStepRow({ goal, step, viewer, perspective, selected, last, onSelect, onGoTo, onOpenActivity, onAsk, menu, after, aggregate, body }: RowProps) {
+export function GoalStepRow({ goal, step, viewer, perspective, selected, last, onSelect, onGoTo, onOpenActivity, onAsk, menu, after, aggregate, body, stageSaysWhy = false }: RowProps) {
   const definition = stepDefinition(step.type)
   const RowResult = aggregate ? undefined : definition.RowResult
-  const status = aggregate ? aggregateLine(aggregate) : statusLine(step)
-  const node = aggregate ? aggregateNode(aggregate) : step
   const locked = step.state === 'locked'
+  const status = aggregate ? aggregateLine(aggregate) : statusLine(step)
+  // A step waiting on its stage says so once, on the stage; the card says it again when opened.
+  const shownStatus = !aggregate && locked && (stageSaysWhy || (selected && body === undefined)) ? '' : status
+  const node = aggregate ? aggregateNode(aggregate) : step
   const done = node.state === 'done'
-  return <li id={`step-${step.step_uuid}`} data-step-shell={step.step_uuid} className="relative flex items-start gap-4 pb-4 scroll-mt-24">
+  return <li id={`step-${step.step_uuid}`} data-step-shell={step.step_uuid} className="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
     {!last ? <span aria-hidden="true" className={cn('absolute left-[28px] top-12 bottom-0 w-[3px] -translate-x-1/2 rounded-full', done ? 'bg-[var(--plan-face)]/60' : 'bg-border')} /> : null}
-    <button type="button" onClick={onSelect} aria-label={`${step.title}, ${status}`} aria-expanded={selected} className="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
+    <button type="button" onClick={onSelect} aria-label={status ? `${step.title}, ${status}` : step.title} aria-expanded={selected} className="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
       <PathNode state={node.state} fraction={node.fraction} icon={definition.icon} selected={selected} />
     </button>
     <div className={cn('min-w-0 flex-1', selected ? 'rounded-2xl border-2 bg-card p-4 shadow-[0_4px_0_hsl(var(--edge))]' : 'pt-2', selected && (locked ? 'border-border' : 'border-[var(--plan-face)]'))}>
       <div className="flex items-start gap-1">
         <button type="button" onClick={onSelect} tabIndex={-1} className="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left">
           <span className={cn('max-w-full font-bold leading-snug', selected ? 'text-lg' : 'truncate text-base', (done || locked) && !selected && 'text-muted-foreground')}>{step.title}</span>
-          <span className="text-xs font-semibold text-muted-foreground">{status}</span>
+          {shownStatus ? <span className="text-xs font-semibold text-muted-foreground">{shownStatus}</span> : null}
         </button>
         <span className="-mt-1 shrink-0"><StepChatButton step={step} quiet={!selected} label={perspective === 'cohort' ? 'Discuss' : undefined} /></span>
-        {menu ? <span className={cn('shrink-0', selected ? '-mr-2 -mt-1' : '-mt-1')}>{menu}</span> : null}
+        {/* With a mouse, a closed row's menu waits for the pointer so the path reads as a path; touch always shows it. */}
+        {menu ? <span className={cn('shrink-0', selected ? '-mr-2 -mt-1' : '-mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100')}>{menu}</span> : null}
       </div>
       {!selected && RowResult && step.result ? <div className="mt-2"><RowResult step={step as never} /></div> : null}
       {selected ? <div className="mt-3 flex flex-col gap-3">

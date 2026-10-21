@@ -121,7 +121,9 @@ export default function GoalPath({ goal, color, badge, viewer, perspective, sele
       const active = Boolean(section.stage && section.stage.stage_uuid === current)
       const place = !section.stage || currentIndex < 0 ? 'next' : section.index < currentIndex ? 'past' : active ? 'current' : 'next'
       const suggested = section.stage ? proposals.steps.filter((item) => item.stageUuid === section.stage!.stage_uuid) : looseSuggestions
-      const when = stageDate(goal, section, place)
+      // A stage the goal hasn't reached says once why its steps are closed, instead of every row saying it.
+      const waiting = !cohort && Boolean(section.stage) && section.steps.length > 0 && section.steps.every((step) => step.state === 'locked' && step.locked_reason?.kind === 'stage')
+      const when = stageDate(goal, section, place) || (waiting ? 'Opens when the goal moves on to it' : '')
       const titled = sections.length > 1 || (section.title !== 'Steps' && section.title !== goal.title) || Boolean(editing?.structure)
       // The stage the goal is on sits on a quiet surface of the goal's colour; every stage keeps the same inset so the path lines up.
       return <section key={section.key} id={section.stage ? `goal-stage-${section.stage.stage_uuid}` : undefined} aria-label={section.title} aria-current={active && sections.length > 1 ? 'step' : undefined}
@@ -141,7 +143,7 @@ export default function GoalPath({ goal, color, badge, viewer, perspective, sele
         {section.steps.length ? <ol className="flex flex-col">
           {section.steps.map((step, index) => <GoalStepRow key={step.step_uuid} goal={goal} step={step} viewer={viewer} perspective={perspective} selected={step.step_uuid === selected} last={index === section.steps.length - 1}
             onSelect={() => onSelect(step.step_uuid)} onGoTo={goTo} onOpenActivity={() => openActivity(step)} onAsk={ask ? () => ask(step) : undefined}
-            menu={<StepMenu step={step} />} aggregate={aggregates?.[step.step_uuid]} body={stepBody?.(step)}
+            menu={<StepMenu step={step} />} aggregate={aggregates?.[step.step_uuid]} body={stepBody?.(step)} stageSaysWhy={waiting && titled}
             after={<>{!cohort ? <ScheduleNotes goal={goal} stepUuid={step.step_uuid} className="pb-1" /> : null}{proposals.stepChanges.filter((item) => item.change.step_uuid === step.step_uuid).map((item) => <StepChangeLine key={item.change.local_id} goal={goal} item={item} token={viewer.token} onSettled={proposals.settle} />)}{rowExtra?.(step, { selected: step.step_uuid === selected })}</>} />)}
         </ol> : <p className="ml-[72px] text-sm text-muted-foreground">No steps here yet.</p>}
         {active && movable ? <MoveOnLine stage={section.stage!} next={goal.stages[section.index + 1]} onMove={() => mover.ask(goal.stages[section.index + 1])} /> : null}

@@ -13,7 +13,7 @@ exports[`an assigned plan opens at the step to do next, with its chat counts 1`]
 </div>
 </div>
 <ol class="flex flex-col">
-<li id="step-list" data-step-shell="list" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-list" data-step-shell="list" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <span aria-hidden="true" class="absolute left-[28px] top-12 bottom-0 w-[3px] -translate-x-1/2 rounded-full bg-[var(--plan-face)]/60">
 </span>
 <button type="button" aria-label="List three programs, Done Sep 10" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
@@ -38,14 +38,14 @@ exports[`an assigned plan opens at the step to do next, with its chat counts 1`]
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 <div class="mt-2">
 </div>
 </div>
 </li>
-<li id="step-visit" data-step-shell="visit" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-visit" data-step-shell="visit" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <button type="button" aria-label="Visit a campus, Done" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
 <span aria-hidden="true" class="relative block shrink-0" style="width:44px;height:48px">
 <span class="absolute left-0 top-1 rounded-full" style="width:44px;height:44px;background:var(--plan-edge)">
@@ -84,7 +84,7 @@ exports[`an assigned plan opens at the step to do next, with its chat counts 1`]
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
@@ -104,7 +104,7 @@ exports[`an assigned plan opens at the step to do next, with its chat counts 1`]
 </div>
 </div>
 <ol class="flex flex-col">
-<li id="step-essay" data-step-shell="essay" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-essay" data-step-shell="essay" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <span aria-hidden="true" class="absolute left-[28px] top-12 bottom-0 w-[3px] -translate-x-1/2 rounded-full bg-border">
 </span>
 <button type="button" aria-label="Write your essay, Closes Oct 30" aria-expanded="true" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
@@ -151,14 +151,12 @@ exports[`an assigned plan opens at the step to do next, with its chat counts 1`]
 <textarea class="flex min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50" rows="6" placeholder="Write here">
 </textarea>
 <p class="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">0 words of 500</p>
-<div class="flex flex-col gap-1.5">
-<div class="flex flex-wrap items-center gap-2">
+<div class="flex flex-wrap items-center gap-x-3 gap-y-2">
 <button class="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm ring-offset-background focus-visible:outline-hidden focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none hover:cursor-pointer cursor-pointer [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 rounded-2xl bg-[var(--plan-face)] font-extrabold uppercase tracking-wide text-[var(--plan-face-ink)] shadow-[0_4px_0_var(--plan-edge)] transition-[transform,box-shadow] hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--plan-face)] focus-visible:ring-0 active:translate-y-[3px] active:shadow-[0_1px_0_var(--plan-edge)] h-9 px-4 py-2" type="button" disabled="">
 <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check" aria-hidden="true">
 <path d="M20 6 9 17l-5-5">
 </path>
 </svg>Mark done</button>
-</div>
 <p class="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">Write something first</p>
 </div>
 </div>
@@ -180,7 +178,7 @@ exports[`an assigned plan opens at the step to do next, with its chat counts 1`]
 </div>
 </div>
 </li>
-<li id="step-resume" data-step-shell="resume" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-resume" data-step-shell="resume" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <span aria-hidden="true" class="absolute left-[28px] top-12 bottom-0 w-[3px] -translate-x-1/2 rounded-full bg-border">
 </span>
 <button type="button" aria-label="Upload your resume, Waiting on review" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
@@ -222,12 +220,12 @@ exports[`an assigned plan opens at the step to do next, with its chat counts 1`]
 <span>1</span>
 </button>
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
 </li>
-<li id="step-choose" data-step-shell="choose" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-choose" data-step-shell="choose" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <span aria-hidden="true" class="absolute left-[28px] top-12 bottom-0 w-[3px] -translate-x-1/2 rounded-full bg-border">
 </span>
 <button type="button" aria-label="Pick a program, Needs another go" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
@@ -261,12 +259,12 @@ exports[`an assigned plan opens at the step to do next, with its chat counts 1`]
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
 </li>
-<li id="step-send" data-step-shell="send" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-send" data-step-shell="send" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <button type="button" aria-label="Send it, After Write your essay" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
 <span aria-hidden="true" class="relative block shrink-0" style="width:44px;height:48px">
 <span class="absolute left-0 top-0 grid place-items-center rounded-full transition-[width,height] bg-muted text-muted-foreground" style="width:44px;height:44px">
@@ -287,7 +285,7 @@ exports[`an assigned plan opens at the step to do next, with its chat counts 1`]
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
@@ -307,7 +305,7 @@ exports[`an assigned plan opens at the step to do next, with its chat counts 1`]
 </div>
 </div>
 <ol class="flex flex-col">
-<li id="step-orientation" data-step-shell="orientation" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-orientation" data-step-shell="orientation" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <button type="button" aria-label="Go to orientation, Opens Dec 1" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
 <span aria-hidden="true" class="relative block shrink-0" style="width:44px;height:48px">
 <span class="absolute left-0 top-0 grid place-items-center rounded-full transition-[width,height] bg-muted text-muted-foreground" style="width:44px;height:44px">
@@ -340,11 +338,10 @@ exports[`an assigned plan opens at the step to do next, with its chat counts 1`]
 <div class="flex items-start gap-1">
 <button type="button" tabindex="-1" class="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left">
 <span class="max-w-full font-bold truncate text-base text-muted-foreground">Go to orientation</span>
-<span class="text-xs font-semibold text-muted-foreground">Opens Dec 1</span>
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
@@ -363,8 +360,8 @@ exports[`an assigned plan opens at the step to do next, with its chat counts 1`]
 </div>
 </div>
 <ol class="flex flex-col">
-<li id="step-habit" data-step-shell="habit" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
-<button type="button" aria-label="Read for 20 minutes, Any time" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
+<li id="step-habit" data-step-shell="habit" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
+<button type="button" aria-label="Read for 20 minutes" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
 <span aria-hidden="true" class="relative block shrink-0" style="width:44px;height:48px">
 <span class="absolute left-0 top-1 rounded-full" style="width:44px;height:44px;background:linear-gradient(to right, hsl(var(--edge)) 0 100.0%, var(--plan-edge) 100.0% 100%)">
 </span>
@@ -388,11 +385,10 @@ exports[`an assigned plan opens at the step to do next, with its chat counts 1`]
 <div class="flex items-start gap-1">
 <button type="button" tabindex="-1" class="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left">
 <span class="max-w-full font-bold truncate text-base">Read for 20 minutes</span>
-<span class="text-xs font-semibold text-muted-foreground">Any time</span>
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
@@ -401,7 +397,7 @@ exports[`an assigned plan opens at the step to do next, with its chat counts 1`]
 <div class="flex flex-wrap items-center gap-1">
 </div>
 </section>
-<section aria-label="Finish" class="relative overflow-hidden rounded-3xl bg-[var(--plan-face)] px-5 pb-14 pt-5 text-[var(--plan-face-ink)] shadow-[0_6px_0_var(--plan-edge)] sm:px-7">
+<section aria-label="Finish" class="relative overflow-hidden rounded-3xl bg-[var(--plan-face)] px-5 py-5 text-[var(--plan-face-ink)] shadow-[0_6px_0_var(--plan-edge)] sm:px-7">
 <div class="relative flex items-start justify-between gap-3">
 <div class="min-w-0">
 <h2 class="text-xl font-extrabold tracking-tight">Finish</h2>
@@ -418,7 +414,7 @@ exports[`an assigned plan opens at the step to do next, with its chat counts 1`]
 </svg>
 </span>
 <div class="min-w-0 flex-1 basis-40">
-<p class="font-extrabold">Complete</p>
+<p class="font-extrabold">Locked</p>
 <p class="text-sm opacity-80">7 steps to go to unlock it.</p>
 </div>
 </div>
@@ -439,7 +435,7 @@ exports[`a step waiting on staff, opened 1`] = `
 </div>
 </div>
 <ol class="flex flex-col">
-<li id="step-list" data-step-shell="list" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-list" data-step-shell="list" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <span aria-hidden="true" class="absolute left-[28px] top-12 bottom-0 w-[3px] -translate-x-1/2 rounded-full bg-[var(--plan-face)]/60">
 </span>
 <button type="button" aria-label="List three programs, Done Sep 10" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
@@ -464,14 +460,14 @@ exports[`a step waiting on staff, opened 1`] = `
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 <div class="mt-2">
 </div>
 </div>
 </li>
-<li id="step-visit" data-step-shell="visit" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-visit" data-step-shell="visit" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <button type="button" aria-label="Visit a campus, Done" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
 <span aria-hidden="true" class="relative block shrink-0" style="width:44px;height:48px">
 <span class="absolute left-0 top-1 rounded-full" style="width:44px;height:44px;background:var(--plan-edge)">
@@ -510,7 +506,7 @@ exports[`a step waiting on staff, opened 1`] = `
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
@@ -530,7 +526,7 @@ exports[`a step waiting on staff, opened 1`] = `
 </div>
 </div>
 <ol class="flex flex-col">
-<li id="step-essay" data-step-shell="essay" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-essay" data-step-shell="essay" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <span aria-hidden="true" class="absolute left-[28px] top-12 bottom-0 w-[3px] -translate-x-1/2 rounded-full bg-border">
 </span>
 <button type="button" aria-label="Write your essay, Closes Oct 30" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
@@ -568,12 +564,12 @@ exports[`a step waiting on staff, opened 1`] = `
 <span>2</span>
 </button>
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
 </li>
-<li id="step-resume" data-step-shell="resume" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-resume" data-step-shell="resume" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <span aria-hidden="true" class="absolute left-[28px] top-12 bottom-0 w-[3px] -translate-x-1/2 rounded-full bg-border">
 </span>
 <button type="button" aria-label="Upload your resume, Waiting on review" aria-expanded="true" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
@@ -664,7 +660,7 @@ exports[`a step waiting on staff, opened 1`] = `
 </div>
 </div>
 </li>
-<li id="step-choose" data-step-shell="choose" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-choose" data-step-shell="choose" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <span aria-hidden="true" class="absolute left-[28px] top-12 bottom-0 w-[3px] -translate-x-1/2 rounded-full bg-border">
 </span>
 <button type="button" aria-label="Pick a program, Needs another go" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
@@ -698,12 +694,12 @@ exports[`a step waiting on staff, opened 1`] = `
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
 </li>
-<li id="step-send" data-step-shell="send" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-send" data-step-shell="send" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <button type="button" aria-label="Send it, After Write your essay" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
 <span aria-hidden="true" class="relative block shrink-0" style="width:44px;height:48px">
 <span class="absolute left-0 top-0 grid place-items-center rounded-full transition-[width,height] bg-muted text-muted-foreground" style="width:44px;height:44px">
@@ -724,7 +720,7 @@ exports[`a step waiting on staff, opened 1`] = `
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
@@ -744,7 +740,7 @@ exports[`a step waiting on staff, opened 1`] = `
 </div>
 </div>
 <ol class="flex flex-col">
-<li id="step-orientation" data-step-shell="orientation" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-orientation" data-step-shell="orientation" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <button type="button" aria-label="Go to orientation, Opens Dec 1" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
 <span aria-hidden="true" class="relative block shrink-0" style="width:44px;height:48px">
 <span class="absolute left-0 top-0 grid place-items-center rounded-full transition-[width,height] bg-muted text-muted-foreground" style="width:44px;height:44px">
@@ -777,11 +773,10 @@ exports[`a step waiting on staff, opened 1`] = `
 <div class="flex items-start gap-1">
 <button type="button" tabindex="-1" class="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left">
 <span class="max-w-full font-bold truncate text-base text-muted-foreground">Go to orientation</span>
-<span class="text-xs font-semibold text-muted-foreground">Opens Dec 1</span>
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
@@ -800,8 +795,8 @@ exports[`a step waiting on staff, opened 1`] = `
 </div>
 </div>
 <ol class="flex flex-col">
-<li id="step-habit" data-step-shell="habit" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
-<button type="button" aria-label="Read for 20 minutes, Any time" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
+<li id="step-habit" data-step-shell="habit" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
+<button type="button" aria-label="Read for 20 minutes" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
 <span aria-hidden="true" class="relative block shrink-0" style="width:44px;height:48px">
 <span class="absolute left-0 top-1 rounded-full" style="width:44px;height:44px;background:linear-gradient(to right, hsl(var(--edge)) 0 100.0%, var(--plan-edge) 100.0% 100%)">
 </span>
@@ -825,11 +820,10 @@ exports[`a step waiting on staff, opened 1`] = `
 <div class="flex items-start gap-1">
 <button type="button" tabindex="-1" class="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left">
 <span class="max-w-full font-bold truncate text-base">Read for 20 minutes</span>
-<span class="text-xs font-semibold text-muted-foreground">Any time</span>
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
@@ -838,7 +832,7 @@ exports[`a step waiting on staff, opened 1`] = `
 <div class="flex flex-wrap items-center gap-1">
 </div>
 </section>
-<section aria-label="Finish" class="relative overflow-hidden rounded-3xl bg-[var(--plan-face)] px-5 pb-14 pt-5 text-[var(--plan-face-ink)] shadow-[0_6px_0_var(--plan-edge)] sm:px-7">
+<section aria-label="Finish" class="relative overflow-hidden rounded-3xl bg-[var(--plan-face)] px-5 py-5 text-[var(--plan-face-ink)] shadow-[0_6px_0_var(--plan-edge)] sm:px-7">
 <div class="relative flex items-start justify-between gap-3">
 <div class="min-w-0">
 <h2 class="text-xl font-extrabold tracking-tight">Finish</h2>
@@ -855,7 +849,7 @@ exports[`a step waiting on staff, opened 1`] = `
 </svg>
 </span>
 <div class="min-w-0 flex-1 basis-40">
-<p class="font-extrabold">Complete</p>
+<p class="font-extrabold">Locked</p>
 <p class="text-sm opacity-80">7 steps to go to unlock it.</p>
 </div>
 </div>
@@ -876,7 +870,7 @@ exports[`a step sent back, opened 1`] = `
 </div>
 </div>
 <ol class="flex flex-col">
-<li id="step-list" data-step-shell="list" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-list" data-step-shell="list" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <span aria-hidden="true" class="absolute left-[28px] top-12 bottom-0 w-[3px] -translate-x-1/2 rounded-full bg-[var(--plan-face)]/60">
 </span>
 <button type="button" aria-label="List three programs, Done Sep 10" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
@@ -901,14 +895,14 @@ exports[`a step sent back, opened 1`] = `
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 <div class="mt-2">
 </div>
 </div>
 </li>
-<li id="step-visit" data-step-shell="visit" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-visit" data-step-shell="visit" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <button type="button" aria-label="Visit a campus, Done" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
 <span aria-hidden="true" class="relative block shrink-0" style="width:44px;height:48px">
 <span class="absolute left-0 top-1 rounded-full" style="width:44px;height:44px;background:var(--plan-edge)">
@@ -947,7 +941,7 @@ exports[`a step sent back, opened 1`] = `
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
@@ -967,7 +961,7 @@ exports[`a step sent back, opened 1`] = `
 </div>
 </div>
 <ol class="flex flex-col">
-<li id="step-essay" data-step-shell="essay" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-essay" data-step-shell="essay" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <span aria-hidden="true" class="absolute left-[28px] top-12 bottom-0 w-[3px] -translate-x-1/2 rounded-full bg-border">
 </span>
 <button type="button" aria-label="Write your essay, Closes Oct 30" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
@@ -1005,12 +999,12 @@ exports[`a step sent back, opened 1`] = `
 <span>2</span>
 </button>
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
 </li>
-<li id="step-resume" data-step-shell="resume" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-resume" data-step-shell="resume" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <span aria-hidden="true" class="absolute left-[28px] top-12 bottom-0 w-[3px] -translate-x-1/2 rounded-full bg-border">
 </span>
 <button type="button" aria-label="Upload your resume, Waiting on review" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
@@ -1052,12 +1046,12 @@ exports[`a step sent back, opened 1`] = `
 <span>1</span>
 </button>
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
 </li>
-<li id="step-choose" data-step-shell="choose" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-choose" data-step-shell="choose" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <span aria-hidden="true" class="absolute left-[28px] top-12 bottom-0 w-[3px] -translate-x-1/2 rounded-full bg-border">
 </span>
 <button type="button" aria-label="Pick a program, Needs another go" aria-expanded="true" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
@@ -1129,14 +1123,12 @@ exports[`a step sent back, opened 1`] = `
 <input class="flex w-full rounded-md border-input py-1 text-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 h-8 border-0 bg-transparent px-0 font-bold shadow-none focus-visible:ring-0" maxLength="300" aria-label="Your own choice" placeholder="Something else" value=""/>
 </form>
 </div>
-<div class="flex flex-col gap-1.5">
-<div class="flex flex-wrap items-center gap-2">
+<div class="flex flex-wrap items-center gap-x-3 gap-y-2">
 <button class="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm ring-offset-background focus-visible:outline-hidden focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none hover:cursor-pointer cursor-pointer [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 rounded-2xl bg-[var(--plan-face)] font-extrabold uppercase tracking-wide text-[var(--plan-face-ink)] shadow-[0_4px_0_var(--plan-edge)] transition-[transform,box-shadow] hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--plan-face)] focus-visible:ring-0 active:translate-y-[3px] active:shadow-[0_1px_0_var(--plan-edge)] h-9 px-4 py-2" type="button" disabled="">
 <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check" aria-hidden="true">
 <path d="M20 6 9 17l-5-5">
 </path>
 </svg>Mark done</button>
-</div>
 <p class="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">Make a choice first</p>
 </div>
 </div>
@@ -1158,7 +1150,7 @@ exports[`a step sent back, opened 1`] = `
 </div>
 </div>
 </li>
-<li id="step-send" data-step-shell="send" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-send" data-step-shell="send" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <button type="button" aria-label="Send it, After Write your essay" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
 <span aria-hidden="true" class="relative block shrink-0" style="width:44px;height:48px">
 <span class="absolute left-0 top-0 grid place-items-center rounded-full transition-[width,height] bg-muted text-muted-foreground" style="width:44px;height:44px">
@@ -1179,7 +1171,7 @@ exports[`a step sent back, opened 1`] = `
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
@@ -1199,7 +1191,7 @@ exports[`a step sent back, opened 1`] = `
 </div>
 </div>
 <ol class="flex flex-col">
-<li id="step-orientation" data-step-shell="orientation" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-orientation" data-step-shell="orientation" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <button type="button" aria-label="Go to orientation, Opens Dec 1" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
 <span aria-hidden="true" class="relative block shrink-0" style="width:44px;height:48px">
 <span class="absolute left-0 top-0 grid place-items-center rounded-full transition-[width,height] bg-muted text-muted-foreground" style="width:44px;height:44px">
@@ -1232,11 +1224,10 @@ exports[`a step sent back, opened 1`] = `
 <div class="flex items-start gap-1">
 <button type="button" tabindex="-1" class="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left">
 <span class="max-w-full font-bold truncate text-base text-muted-foreground">Go to orientation</span>
-<span class="text-xs font-semibold text-muted-foreground">Opens Dec 1</span>
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
@@ -1255,8 +1246,8 @@ exports[`a step sent back, opened 1`] = `
 </div>
 </div>
 <ol class="flex flex-col">
-<li id="step-habit" data-step-shell="habit" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
-<button type="button" aria-label="Read for 20 minutes, Any time" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
+<li id="step-habit" data-step-shell="habit" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
+<button type="button" aria-label="Read for 20 minutes" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
 <span aria-hidden="true" class="relative block shrink-0" style="width:44px;height:48px">
 <span class="absolute left-0 top-1 rounded-full" style="width:44px;height:44px;background:linear-gradient(to right, hsl(var(--edge)) 0 100.0%, var(--plan-edge) 100.0% 100%)">
 </span>
@@ -1280,11 +1271,10 @@ exports[`a step sent back, opened 1`] = `
 <div class="flex items-start gap-1">
 <button type="button" tabindex="-1" class="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left">
 <span class="max-w-full font-bold truncate text-base">Read for 20 minutes</span>
-<span class="text-xs font-semibold text-muted-foreground">Any time</span>
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
@@ -1293,7 +1283,7 @@ exports[`a step sent back, opened 1`] = `
 <div class="flex flex-wrap items-center gap-1">
 </div>
 </section>
-<section aria-label="Finish" class="relative overflow-hidden rounded-3xl bg-[var(--plan-face)] px-5 pb-14 pt-5 text-[var(--plan-face-ink)] shadow-[0_6px_0_var(--plan-edge)] sm:px-7">
+<section aria-label="Finish" class="relative overflow-hidden rounded-3xl bg-[var(--plan-face)] px-5 py-5 text-[var(--plan-face-ink)] shadow-[0_6px_0_var(--plan-edge)] sm:px-7">
 <div class="relative flex items-start justify-between gap-3">
 <div class="min-w-0">
 <h2 class="text-xl font-extrabold tracking-tight">Finish</h2>
@@ -1310,7 +1300,7 @@ exports[`a step sent back, opened 1`] = `
 </svg>
 </span>
 <div class="min-w-0 flex-1 basis-40">
-<p class="font-extrabold">Complete</p>
+<p class="font-extrabold">Locked</p>
 <p class="text-sm opacity-80">7 steps to go to unlock it.</p>
 </div>
 </div>
@@ -1331,7 +1321,7 @@ exports[`a locked step, opened, points at the step it waits on 1`] = `
 </div>
 </div>
 <ol class="flex flex-col">
-<li id="step-list" data-step-shell="list" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-list" data-step-shell="list" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <span aria-hidden="true" class="absolute left-[28px] top-12 bottom-0 w-[3px] -translate-x-1/2 rounded-full bg-[var(--plan-face)]/60">
 </span>
 <button type="button" aria-label="List three programs, Done Sep 10" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
@@ -1356,14 +1346,14 @@ exports[`a locked step, opened, points at the step it waits on 1`] = `
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 <div class="mt-2">
 </div>
 </div>
 </li>
-<li id="step-visit" data-step-shell="visit" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-visit" data-step-shell="visit" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <button type="button" aria-label="Visit a campus, Done" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
 <span aria-hidden="true" class="relative block shrink-0" style="width:44px;height:48px">
 <span class="absolute left-0 top-1 rounded-full" style="width:44px;height:44px;background:var(--plan-edge)">
@@ -1402,7 +1392,7 @@ exports[`a locked step, opened, points at the step it waits on 1`] = `
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
@@ -1422,7 +1412,7 @@ exports[`a locked step, opened, points at the step it waits on 1`] = `
 </div>
 </div>
 <ol class="flex flex-col">
-<li id="step-essay" data-step-shell="essay" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-essay" data-step-shell="essay" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <span aria-hidden="true" class="absolute left-[28px] top-12 bottom-0 w-[3px] -translate-x-1/2 rounded-full bg-border">
 </span>
 <button type="button" aria-label="Write your essay, Closes Oct 30" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
@@ -1460,12 +1450,12 @@ exports[`a locked step, opened, points at the step it waits on 1`] = `
 <span>2</span>
 </button>
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
 </li>
-<li id="step-resume" data-step-shell="resume" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-resume" data-step-shell="resume" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <span aria-hidden="true" class="absolute left-[28px] top-12 bottom-0 w-[3px] -translate-x-1/2 rounded-full bg-border">
 </span>
 <button type="button" aria-label="Upload your resume, Waiting on review" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
@@ -1507,12 +1497,12 @@ exports[`a locked step, opened, points at the step it waits on 1`] = `
 <span>1</span>
 </button>
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
 </li>
-<li id="step-choose" data-step-shell="choose" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-choose" data-step-shell="choose" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <span aria-hidden="true" class="absolute left-[28px] top-12 bottom-0 w-[3px] -translate-x-1/2 rounded-full bg-border">
 </span>
 <button type="button" aria-label="Pick a program, Needs another go" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
@@ -1546,12 +1536,12 @@ exports[`a locked step, opened, points at the step it waits on 1`] = `
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
 </li>
-<li id="step-send" data-step-shell="send" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-send" data-step-shell="send" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <button type="button" aria-label="Send it, After Write your essay" aria-expanded="true" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
 <span aria-hidden="true" class="relative block shrink-0" style="width:52px;height:56px">
 <span class="absolute left-0 top-0 grid place-items-center rounded-full transition-[width,height] bg-muted text-muted-foreground" style="width:52px;height:52px">
@@ -1568,7 +1558,6 @@ exports[`a locked step, opened, points at the step it waits on 1`] = `
 <div class="flex items-start gap-1">
 <button type="button" tabindex="-1" class="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left">
 <span class="max-w-full font-bold text-lg">Send it</span>
-<span class="text-xs font-semibold text-muted-foreground">After Write your essay</span>
 </button>
 <span class="-mt-1 shrink-0">
 <button type="button" aria-label="Comment on Send it" class="flex h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-xs font-bold transition hover:bg-muted text-muted-foreground">
@@ -1606,7 +1595,7 @@ exports[`a locked step, opened, points at the step it waits on 1`] = `
 </div>
 </div>
 <ol class="flex flex-col">
-<li id="step-orientation" data-step-shell="orientation" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-orientation" data-step-shell="orientation" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <button type="button" aria-label="Go to orientation, Opens Dec 1" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
 <span aria-hidden="true" class="relative block shrink-0" style="width:44px;height:48px">
 <span class="absolute left-0 top-0 grid place-items-center rounded-full transition-[width,height] bg-muted text-muted-foreground" style="width:44px;height:44px">
@@ -1639,11 +1628,10 @@ exports[`a locked step, opened, points at the step it waits on 1`] = `
 <div class="flex items-start gap-1">
 <button type="button" tabindex="-1" class="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left">
 <span class="max-w-full font-bold truncate text-base text-muted-foreground">Go to orientation</span>
-<span class="text-xs font-semibold text-muted-foreground">Opens Dec 1</span>
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
@@ -1662,8 +1650,8 @@ exports[`a locked step, opened, points at the step it waits on 1`] = `
 </div>
 </div>
 <ol class="flex flex-col">
-<li id="step-habit" data-step-shell="habit" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
-<button type="button" aria-label="Read for 20 minutes, Any time" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
+<li id="step-habit" data-step-shell="habit" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
+<button type="button" aria-label="Read for 20 minutes" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
 <span aria-hidden="true" class="relative block shrink-0" style="width:44px;height:48px">
 <span class="absolute left-0 top-1 rounded-full" style="width:44px;height:44px;background:linear-gradient(to right, hsl(var(--edge)) 0 100.0%, var(--plan-edge) 100.0% 100%)">
 </span>
@@ -1687,11 +1675,10 @@ exports[`a locked step, opened, points at the step it waits on 1`] = `
 <div class="flex items-start gap-1">
 <button type="button" tabindex="-1" class="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left">
 <span class="max-w-full font-bold truncate text-base">Read for 20 minutes</span>
-<span class="text-xs font-semibold text-muted-foreground">Any time</span>
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
@@ -1700,7 +1687,7 @@ exports[`a locked step, opened, points at the step it waits on 1`] = `
 <div class="flex flex-wrap items-center gap-1">
 </div>
 </section>
-<section aria-label="Finish" class="relative overflow-hidden rounded-3xl bg-[var(--plan-face)] px-5 pb-14 pt-5 text-[var(--plan-face-ink)] shadow-[0_6px_0_var(--plan-edge)] sm:px-7">
+<section aria-label="Finish" class="relative overflow-hidden rounded-3xl bg-[var(--plan-face)] px-5 py-5 text-[var(--plan-face-ink)] shadow-[0_6px_0_var(--plan-edge)] sm:px-7">
 <div class="relative flex items-start justify-between gap-3">
 <div class="min-w-0">
 <h2 class="text-xl font-extrabold tracking-tight">Finish</h2>
@@ -1717,7 +1704,7 @@ exports[`a locked step, opened, points at the step it waits on 1`] = `
 </svg>
 </span>
 <div class="min-w-0 flex-1 basis-40">
-<p class="font-extrabold">Complete</p>
+<p class="font-extrabold">Locked</p>
 <p class="text-sm opacity-80">7 steps to go to unlock it.</p>
 </div>
 </div>
@@ -1738,7 +1725,7 @@ exports[`a done step, opened 1`] = `
 </div>
 </div>
 <ol class="flex flex-col">
-<li id="step-list" data-step-shell="list" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-list" data-step-shell="list" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <span aria-hidden="true" class="absolute left-[28px] top-12 bottom-0 w-[3px] -translate-x-1/2 rounded-full bg-[var(--plan-face)]/60">
 </span>
 <button type="button" aria-label="List three programs, Done Sep 10" aria-expanded="true" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
@@ -1797,7 +1784,7 @@ exports[`a done step, opened 1`] = `
 </div>
 </div>
 </li>
-<li id="step-visit" data-step-shell="visit" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-visit" data-step-shell="visit" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <button type="button" aria-label="Visit a campus, Done" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
 <span aria-hidden="true" class="relative block shrink-0" style="width:44px;height:48px">
 <span class="absolute left-0 top-1 rounded-full" style="width:44px;height:44px;background:var(--plan-edge)">
@@ -1836,7 +1823,7 @@ exports[`a done step, opened 1`] = `
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
@@ -1856,7 +1843,7 @@ exports[`a done step, opened 1`] = `
 </div>
 </div>
 <ol class="flex flex-col">
-<li id="step-essay" data-step-shell="essay" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-essay" data-step-shell="essay" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <span aria-hidden="true" class="absolute left-[28px] top-12 bottom-0 w-[3px] -translate-x-1/2 rounded-full bg-border">
 </span>
 <button type="button" aria-label="Write your essay, Closes Oct 30" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
@@ -1894,12 +1881,12 @@ exports[`a done step, opened 1`] = `
 <span>2</span>
 </button>
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
 </li>
-<li id="step-resume" data-step-shell="resume" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-resume" data-step-shell="resume" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <span aria-hidden="true" class="absolute left-[28px] top-12 bottom-0 w-[3px] -translate-x-1/2 rounded-full bg-border">
 </span>
 <button type="button" aria-label="Upload your resume, Waiting on review" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
@@ -1941,12 +1928,12 @@ exports[`a done step, opened 1`] = `
 <span>1</span>
 </button>
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
 </li>
-<li id="step-choose" data-step-shell="choose" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-choose" data-step-shell="choose" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <span aria-hidden="true" class="absolute left-[28px] top-12 bottom-0 w-[3px] -translate-x-1/2 rounded-full bg-border">
 </span>
 <button type="button" aria-label="Pick a program, Needs another go" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
@@ -1980,12 +1967,12 @@ exports[`a done step, opened 1`] = `
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
 </li>
-<li id="step-send" data-step-shell="send" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-send" data-step-shell="send" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <button type="button" aria-label="Send it, After Write your essay" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
 <span aria-hidden="true" class="relative block shrink-0" style="width:44px;height:48px">
 <span class="absolute left-0 top-0 grid place-items-center rounded-full transition-[width,height] bg-muted text-muted-foreground" style="width:44px;height:44px">
@@ -2006,7 +1993,7 @@ exports[`a done step, opened 1`] = `
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
@@ -2026,7 +2013,7 @@ exports[`a done step, opened 1`] = `
 </div>
 </div>
 <ol class="flex flex-col">
-<li id="step-orientation" data-step-shell="orientation" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-orientation" data-step-shell="orientation" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <button type="button" aria-label="Go to orientation, Opens Dec 1" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
 <span aria-hidden="true" class="relative block shrink-0" style="width:44px;height:48px">
 <span class="absolute left-0 top-0 grid place-items-center rounded-full transition-[width,height] bg-muted text-muted-foreground" style="width:44px;height:44px">
@@ -2059,11 +2046,10 @@ exports[`a done step, opened 1`] = `
 <div class="flex items-start gap-1">
 <button type="button" tabindex="-1" class="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left">
 <span class="max-w-full font-bold truncate text-base text-muted-foreground">Go to orientation</span>
-<span class="text-xs font-semibold text-muted-foreground">Opens Dec 1</span>
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
@@ -2082,8 +2068,8 @@ exports[`a done step, opened 1`] = `
 </div>
 </div>
 <ol class="flex flex-col">
-<li id="step-habit" data-step-shell="habit" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
-<button type="button" aria-label="Read for 20 minutes, Any time" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
+<li id="step-habit" data-step-shell="habit" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
+<button type="button" aria-label="Read for 20 minutes" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
 <span aria-hidden="true" class="relative block shrink-0" style="width:44px;height:48px">
 <span class="absolute left-0 top-1 rounded-full" style="width:44px;height:44px;background:linear-gradient(to right, hsl(var(--edge)) 0 100.0%, var(--plan-edge) 100.0% 100%)">
 </span>
@@ -2107,11 +2093,10 @@ exports[`a done step, opened 1`] = `
 <div class="flex items-start gap-1">
 <button type="button" tabindex="-1" class="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left">
 <span class="max-w-full font-bold truncate text-base">Read for 20 minutes</span>
-<span class="text-xs font-semibold text-muted-foreground">Any time</span>
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
@@ -2120,7 +2105,7 @@ exports[`a done step, opened 1`] = `
 <div class="flex flex-wrap items-center gap-1">
 </div>
 </section>
-<section aria-label="Finish" class="relative overflow-hidden rounded-3xl bg-[var(--plan-face)] px-5 pb-14 pt-5 text-[var(--plan-face-ink)] shadow-[0_6px_0_var(--plan-edge)] sm:px-7">
+<section aria-label="Finish" class="relative overflow-hidden rounded-3xl bg-[var(--plan-face)] px-5 py-5 text-[var(--plan-face-ink)] shadow-[0_6px_0_var(--plan-edge)] sm:px-7">
 <div class="relative flex items-start justify-between gap-3">
 <div class="min-w-0">
 <h2 class="text-xl font-extrabold tracking-tight">Finish</h2>
@@ -2137,7 +2122,7 @@ exports[`a done step, opened 1`] = `
 </svg>
 </span>
 <div class="min-w-0 flex-1 basis-40">
-<p class="font-extrabold">Complete</p>
+<p class="font-extrabold">Locked</p>
 <p class="text-sm opacity-80">7 steps to go to unlock it.</p>
 </div>
 </div>
@@ -2168,7 +2153,7 @@ exports[`the learner’s own plan: edited in place, stages moved, claimed at the
 </div>
 </div>
 <ol class="flex flex-col">
-<li id="step-list" data-step-shell="list" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-list" data-step-shell="list" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <span aria-hidden="true" class="absolute left-[28px] top-12 bottom-0 w-[3px] -translate-x-1/2 rounded-full bg-[var(--plan-face)]/60">
 </span>
 <button type="button" aria-label="List three programs, Done Sep 10" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
@@ -2193,7 +2178,7 @@ exports[`the learner’s own plan: edited in place, stages moved, claimed at the
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 <button type="button" aria-label="More for List three programs" class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-2 data-[state=open]:bg-muted" id="radix-_R_" aria-haspopup="menu" aria-expanded="false" data-state="closed">
 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-ellipsis-vertical" aria-hidden="true">
 <circle cx="12" cy="12" r="1">
@@ -2210,7 +2195,7 @@ exports[`the learner’s own plan: edited in place, stages moved, claimed at the
 </div>
 </div>
 </li>
-<li id="step-visit" data-step-shell="visit" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-visit" data-step-shell="visit" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <button type="button" aria-label="Visit a campus, Done" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
 <span aria-hidden="true" class="relative block shrink-0" style="width:44px;height:48px">
 <span class="absolute left-0 top-1 rounded-full" style="width:44px;height:44px;background:var(--plan-edge)">
@@ -2249,7 +2234,7 @@ exports[`the learner’s own plan: edited in place, stages moved, claimed at the
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 <button type="button" aria-label="More for Visit a campus" class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-2 data-[state=open]:bg-muted" id="radix-_R_" aria-haspopup="menu" aria-expanded="false" data-state="closed">
 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-ellipsis-vertical" aria-hidden="true">
 <circle cx="12" cy="12" r="1">
@@ -2298,7 +2283,7 @@ exports[`the learner’s own plan: edited in place, stages moved, claimed at the
 </div>
 </div>
 <ol class="flex flex-col">
-<li id="step-essay" data-step-shell="essay" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-essay" data-step-shell="essay" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <span aria-hidden="true" class="absolute left-[28px] top-12 bottom-0 w-[3px] -translate-x-1/2 rounded-full bg-border">
 </span>
 <button type="button" aria-label="Write your essay, Closes Oct 30" aria-expanded="true" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
@@ -2355,14 +2340,12 @@ exports[`the learner’s own plan: edited in place, stages moved, claimed at the
 <textarea class="flex min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50" rows="6" placeholder="Write here">
 </textarea>
 <p class="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">0 words of 500</p>
-<div class="flex flex-col gap-1.5">
-<div class="flex flex-wrap items-center gap-2">
+<div class="flex flex-wrap items-center gap-x-3 gap-y-2">
 <button class="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm ring-offset-background focus-visible:outline-hidden focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none hover:cursor-pointer cursor-pointer [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 rounded-2xl bg-[var(--plan-face)] font-extrabold uppercase tracking-wide text-[var(--plan-face-ink)] shadow-[0_4px_0_var(--plan-edge)] transition-[transform,box-shadow] hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--plan-face)] focus-visible:ring-0 active:translate-y-[3px] active:shadow-[0_1px_0_var(--plan-edge)] h-9 px-4 py-2" type="button" disabled="">
 <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check" aria-hidden="true">
 <path d="M20 6 9 17l-5-5">
 </path>
 </svg>Mark done</button>
-</div>
 <p class="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">Write something first</p>
 </div>
 </div>
@@ -2384,7 +2367,7 @@ exports[`the learner’s own plan: edited in place, stages moved, claimed at the
 </div>
 </div>
 </li>
-<li id="step-resume" data-step-shell="resume" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-resume" data-step-shell="resume" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <span aria-hidden="true" class="absolute left-[28px] top-12 bottom-0 w-[3px] -translate-x-1/2 rounded-full bg-border">
 </span>
 <button type="button" aria-label="Upload your resume, Waiting on review" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
@@ -2426,7 +2409,7 @@ exports[`the learner’s own plan: edited in place, stages moved, claimed at the
 <span>1</span>
 </button>
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 <button type="button" aria-label="More for Upload your resume" class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-2 data-[state=open]:bg-muted" id="radix-_R_" aria-haspopup="menu" aria-expanded="false" data-state="closed">
 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-ellipsis-vertical" aria-hidden="true">
 <circle cx="12" cy="12" r="1">
@@ -2441,7 +2424,7 @@ exports[`the learner’s own plan: edited in place, stages moved, claimed at the
 </div>
 </div>
 </li>
-<li id="step-choose" data-step-shell="choose" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-choose" data-step-shell="choose" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <span aria-hidden="true" class="absolute left-[28px] top-12 bottom-0 w-[3px] -translate-x-1/2 rounded-full bg-border">
 </span>
 <button type="button" aria-label="Pick a program, Needs another go" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
@@ -2475,7 +2458,7 @@ exports[`the learner’s own plan: edited in place, stages moved, claimed at the
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 <button type="button" aria-label="More for Pick a program" class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-2 data-[state=open]:bg-muted" id="radix-_R_" aria-haspopup="menu" aria-expanded="false" data-state="closed">
 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-ellipsis-vertical" aria-hidden="true">
 <circle cx="12" cy="12" r="1">
@@ -2490,7 +2473,7 @@ exports[`the learner’s own plan: edited in place, stages moved, claimed at the
 </div>
 </div>
 </li>
-<li id="step-send" data-step-shell="send" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-send" data-step-shell="send" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <button type="button" aria-label="Send it, After Write your essay" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
 <span aria-hidden="true" class="relative block shrink-0" style="width:44px;height:48px">
 <span class="absolute left-0 top-0 grid place-items-center rounded-full transition-[width,height] bg-muted text-muted-foreground" style="width:44px;height:44px">
@@ -2511,7 +2494,7 @@ exports[`the learner’s own plan: edited in place, stages moved, claimed at the
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 <button type="button" aria-label="More for Send it" class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-2 data-[state=open]:bg-muted" id="radix-_R_" aria-haspopup="menu" aria-expanded="false" data-state="closed">
 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-ellipsis-vertical" aria-hidden="true">
 <circle cx="12" cy="12" r="1">
@@ -2571,7 +2554,7 @@ exports[`the learner’s own plan: edited in place, stages moved, claimed at the
 </div>
 </div>
 <ol class="flex flex-col">
-<li id="step-orientation" data-step-shell="orientation" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-orientation" data-step-shell="orientation" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <button type="button" aria-label="Go to orientation, Opens Dec 1" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
 <span aria-hidden="true" class="relative block shrink-0" style="width:44px;height:48px">
 <span class="absolute left-0 top-0 grid place-items-center rounded-full transition-[width,height] bg-muted text-muted-foreground" style="width:44px;height:44px">
@@ -2604,11 +2587,10 @@ exports[`the learner’s own plan: edited in place, stages moved, claimed at the
 <div class="flex items-start gap-1">
 <button type="button" tabindex="-1" class="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left">
 <span class="max-w-full font-bold truncate text-base text-muted-foreground">Go to orientation</span>
-<span class="text-xs font-semibold text-muted-foreground">Opens Dec 1</span>
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 <button type="button" aria-label="More for Go to orientation" class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-2 data-[state=open]:bg-muted" id="radix-_R_" aria-haspopup="menu" aria-expanded="false" data-state="closed">
 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-ellipsis-vertical" aria-hidden="true">
 <circle cx="12" cy="12" r="1">
@@ -2646,8 +2628,8 @@ exports[`the learner’s own plan: edited in place, stages moved, claimed at the
 </div>
 </div>
 <ol class="flex flex-col">
-<li id="step-habit" data-step-shell="habit" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
-<button type="button" aria-label="Read for 20 minutes, Any time" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
+<li id="step-habit" data-step-shell="habit" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
+<button type="button" aria-label="Read for 20 minutes" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
 <span aria-hidden="true" class="relative block shrink-0" style="width:44px;height:48px">
 <span class="absolute left-0 top-1 rounded-full" style="width:44px;height:44px;background:linear-gradient(to right, hsl(var(--edge)) 0 100.0%, var(--plan-edge) 100.0% 100%)">
 </span>
@@ -2671,11 +2653,10 @@ exports[`the learner’s own plan: edited in place, stages moved, claimed at the
 <div class="flex items-start gap-1">
 <button type="button" tabindex="-1" class="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left">
 <span class="max-w-full font-bold truncate text-base">Read for 20 minutes</span>
-<span class="text-xs font-semibold text-muted-foreground">Any time</span>
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 <button type="button" aria-label="More for Read for 20 minutes" class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-2 data-[state=open]:bg-muted" id="radix-_R_" aria-haspopup="menu" aria-expanded="false" data-state="closed">
 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-ellipsis-vertical" aria-hidden="true">
 <circle cx="12" cy="12" r="1">
@@ -2705,7 +2686,7 @@ exports[`the learner’s own plan: edited in place, stages moved, claimed at the
 </section>
 <button type="button" class="flex min-h-11 items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border px-4 text-sm font-bold text-muted-foreground transition hover:border-[var(--plan-face)] hover:text-foreground focus-visible:outline focus-visible:outline-2">
 <span aria-hidden="true" class="text-lg leading-none">+</span>Add a stage</button>
-<section aria-label="Finish" class="relative overflow-hidden rounded-3xl bg-[var(--plan-face)] px-5 pb-14 pt-5 text-[var(--plan-face-ink)] shadow-[0_6px_0_var(--plan-edge)] sm:px-7">
+<section aria-label="Finish" class="relative overflow-hidden rounded-3xl bg-[var(--plan-face)] px-5 py-5 text-[var(--plan-face-ink)] shadow-[0_6px_0_var(--plan-edge)] sm:px-7">
 <div class="relative flex items-start justify-between gap-3">
 <div class="min-w-0">
 <h2 class="text-xl font-extrabold tracking-tight">Finish</h2>
@@ -2732,7 +2713,7 @@ exports[`the learner’s own plan: edited in place, stages moved, claimed at the
 </svg>
 </span>
 <div class="min-w-0 flex-1 basis-40">
-<p class="font-extrabold">Complete</p>
+<p class="font-extrabold">Locked</p>
 <p class="text-sm opacity-80">7 steps to go to unlock it.</p>
 </div>
 <button type="button" disabled="" class="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-5 text-sm font-extrabold transition sm:w-auto cursor-not-allowed bg-black/10 opacity-60">
@@ -2760,7 +2741,7 @@ exports[`the current stage done shows the way on 1`] = `
 </div>
 </div>
 <ol class="flex flex-col">
-<li id="step-list" data-step-shell="list" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-list" data-step-shell="list" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <span aria-hidden="true" class="absolute left-[28px] top-12 bottom-0 w-[3px] -translate-x-1/2 rounded-full bg-[var(--plan-face)]/60">
 </span>
 <button type="button" aria-label="List three programs, Done Sep 10" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
@@ -2785,14 +2766,14 @@ exports[`the current stage done shows the way on 1`] = `
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 <div class="mt-2">
 </div>
 </div>
 </li>
-<li id="step-visit" data-step-shell="visit" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-visit" data-step-shell="visit" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <button type="button" aria-label="Visit a campus, Done" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
 <span aria-hidden="true" class="relative block shrink-0" style="width:44px;height:48px">
 <span class="absolute left-0 top-1 rounded-full" style="width:44px;height:44px;background:var(--plan-edge)">
@@ -2831,7 +2812,7 @@ exports[`the current stage done shows the way on 1`] = `
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
@@ -2851,7 +2832,7 @@ exports[`the current stage done shows the way on 1`] = `
 </div>
 </div>
 <ol class="flex flex-col">
-<li id="step-essay" data-step-shell="essay" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-essay" data-step-shell="essay" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <span aria-hidden="true" class="absolute left-[28px] top-12 bottom-0 w-[3px] -translate-x-1/2 rounded-full bg-[var(--plan-face)]/60">
 </span>
 <button type="button" aria-label="Write your essay, Done" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
@@ -2883,12 +2864,12 @@ exports[`the current stage done shows the way on 1`] = `
 <span>2</span>
 </button>
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
 </li>
-<li id="step-resume" data-step-shell="resume" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-resume" data-step-shell="resume" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <span aria-hidden="true" class="absolute left-[28px] top-12 bottom-0 w-[3px] -translate-x-1/2 rounded-full bg-[var(--plan-face)]/60">
 </span>
 <button type="button" aria-label="Upload your resume, Done" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
@@ -2922,12 +2903,12 @@ exports[`the current stage done shows the way on 1`] = `
 <span>1</span>
 </button>
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
 </li>
-<li id="step-choose" data-step-shell="choose" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-choose" data-step-shell="choose" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <span aria-hidden="true" class="absolute left-[28px] top-12 bottom-0 w-[3px] -translate-x-1/2 rounded-full bg-[var(--plan-face)]/60">
 </span>
 <button type="button" aria-label="Pick a program, Done" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
@@ -2954,12 +2935,12 @@ exports[`the current stage done shows the way on 1`] = `
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
 </li>
-<li id="step-send" data-step-shell="send" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-send" data-step-shell="send" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <button type="button" aria-label="Send it, Done" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
 <span aria-hidden="true" class="relative block shrink-0" style="width:44px;height:48px">
 <span class="absolute left-0 top-1 rounded-full" style="width:44px;height:44px;background:var(--plan-edge)">
@@ -2982,7 +2963,7 @@ exports[`the current stage done shows the way on 1`] = `
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
@@ -3012,7 +2993,7 @@ exports[`the current stage done shows the way on 1`] = `
 </div>
 </div>
 <ol class="flex flex-col">
-<li id="step-orientation" data-step-shell="orientation" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-orientation" data-step-shell="orientation" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <button type="button" aria-label="Go to orientation, Opens Dec 1" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
 <span aria-hidden="true" class="relative block shrink-0" style="width:44px;height:48px">
 <span class="absolute left-0 top-0 grid place-items-center rounded-full transition-[width,height] bg-muted text-muted-foreground" style="width:44px;height:44px">
@@ -3045,11 +3026,10 @@ exports[`the current stage done shows the way on 1`] = `
 <div class="flex items-start gap-1">
 <button type="button" tabindex="-1" class="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left">
 <span class="max-w-full font-bold truncate text-base text-muted-foreground">Go to orientation</span>
-<span class="text-xs font-semibold text-muted-foreground">Opens Dec 1</span>
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
@@ -3068,8 +3048,8 @@ exports[`the current stage done shows the way on 1`] = `
 </div>
 </div>
 <ol class="flex flex-col">
-<li id="step-habit" data-step-shell="habit" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
-<button type="button" aria-label="Read for 20 minutes, Any time" aria-expanded="true" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
+<li id="step-habit" data-step-shell="habit" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
+<button type="button" aria-label="Read for 20 minutes" aria-expanded="true" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
 <span aria-hidden="true" class="relative block shrink-0" style="width:52px;height:56px">
 <span class="absolute left-0 top-1 rounded-full" style="width:52px;height:52px;background:linear-gradient(to right, hsl(var(--edge)) 0 100.0%, var(--plan-edge) 100.0% 100%)">
 </span>
@@ -3093,7 +3073,6 @@ exports[`the current stage done shows the way on 1`] = `
 <div class="flex items-start gap-1">
 <button type="button" tabindex="-1" class="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left">
 <span class="max-w-full font-bold text-lg">Read for 20 minutes</span>
-<span class="text-xs font-semibold text-muted-foreground">Any time</span>
 </button>
 <span class="-mt-1 shrink-0">
 <button type="button" aria-label="Comment on Read for 20 minutes" class="flex h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-xs font-bold transition hover:bg-muted text-muted-foreground">
@@ -3112,14 +3091,12 @@ exports[`the current stage done shows the way on 1`] = `
 </div>
 <div class="mt-3 flex flex-col gap-3">
 <div class="flex flex-col gap-3">
-<div class="flex flex-col gap-1.5">
-<div class="flex flex-wrap items-center gap-2">
+<div class="flex flex-wrap items-center gap-x-3 gap-y-2">
 <button class="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm ring-offset-background focus-visible:outline-hidden focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none hover:cursor-pointer cursor-pointer [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 rounded-2xl bg-[var(--plan-face)] font-extrabold uppercase tracking-wide text-[var(--plan-face-ink)] shadow-[0_4px_0_var(--plan-edge)] transition-[transform,box-shadow] hover:brightness-105 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--plan-face)] focus-visible:ring-0 active:translate-y-[3px] active:shadow-[0_1px_0_var(--plan-edge)] h-9 px-4 py-2" type="button">
 <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check" aria-hidden="true">
 <path d="M20 6 9 17l-5-5">
 </path>
 </svg>Mark done</button>
-</div>
 </div>
 </div>
 <button type="button" class="flex items-center gap-1.5 self-start rounded-md text-xs font-bold text-muted-foreground hover:text-foreground">
@@ -3144,7 +3121,7 @@ exports[`the current stage done shows the way on 1`] = `
 <div class="flex flex-wrap items-center gap-1">
 </div>
 </section>
-<section aria-label="Finish" class="relative overflow-hidden rounded-3xl bg-[var(--plan-face)] px-5 pb-14 pt-5 text-[var(--plan-face-ink)] shadow-[0_6px_0_var(--plan-edge)] sm:px-7">
+<section aria-label="Finish" class="relative overflow-hidden rounded-3xl bg-[var(--plan-face)] px-5 py-5 text-[var(--plan-face-ink)] shadow-[0_6px_0_var(--plan-edge)] sm:px-7">
 <div class="relative flex items-start justify-between gap-3">
 <div class="min-w-0">
 <h2 class="text-xl font-extrabold tracking-tight">Finish</h2>
@@ -3161,7 +3138,7 @@ exports[`the current stage done shows the way on 1`] = `
 </svg>
 </span>
 <div class="min-w-0 flex-1 basis-40">
-<p class="font-extrabold">Complete</p>
+<p class="font-extrabold">Locked</p>
 <p class="text-sm opacity-80">7 steps to go to unlock it.</p>
 </div>
 </div>
@@ -3182,7 +3159,7 @@ exports[`a finished plan 1`] = `
 </div>
 </div>
 <ol class="flex flex-col">
-<li id="step-list" data-step-shell="list" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-list" data-step-shell="list" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <span aria-hidden="true" class="absolute left-[28px] top-12 bottom-0 w-[3px] -translate-x-1/2 rounded-full bg-[var(--plan-face)]/60">
 </span>
 <button type="button" aria-label="List three programs, Done Sep 10" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
@@ -3207,14 +3184,14 @@ exports[`a finished plan 1`] = `
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 <div class="mt-2">
 </div>
 </div>
 </li>
-<li id="step-visit" data-step-shell="visit" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-visit" data-step-shell="visit" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <button type="button" aria-label="Visit a campus, Done" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
 <span aria-hidden="true" class="relative block shrink-0" style="width:44px;height:48px">
 <span class="absolute left-0 top-1 rounded-full" style="width:44px;height:44px;background:var(--plan-edge)">
@@ -3253,7 +3230,7 @@ exports[`a finished plan 1`] = `
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
@@ -3273,7 +3250,7 @@ exports[`a finished plan 1`] = `
 </div>
 </div>
 <ol class="flex flex-col">
-<li id="step-essay" data-step-shell="essay" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-essay" data-step-shell="essay" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <span aria-hidden="true" class="absolute left-[28px] top-12 bottom-0 w-[3px] -translate-x-1/2 rounded-full bg-[var(--plan-face)]/60">
 </span>
 <button type="button" aria-label="Write your essay, Done" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
@@ -3305,12 +3282,12 @@ exports[`a finished plan 1`] = `
 <span>2</span>
 </button>
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
 </li>
-<li id="step-resume" data-step-shell="resume" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-resume" data-step-shell="resume" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <span aria-hidden="true" class="absolute left-[28px] top-12 bottom-0 w-[3px] -translate-x-1/2 rounded-full bg-[var(--plan-face)]/60">
 </span>
 <button type="button" aria-label="Upload your resume, Done" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
@@ -3344,12 +3321,12 @@ exports[`a finished plan 1`] = `
 <span>1</span>
 </button>
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
 </li>
-<li id="step-choose" data-step-shell="choose" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-choose" data-step-shell="choose" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <span aria-hidden="true" class="absolute left-[28px] top-12 bottom-0 w-[3px] -translate-x-1/2 rounded-full bg-[var(--plan-face)]/60">
 </span>
 <button type="button" aria-label="Pick a program, Done" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
@@ -3376,12 +3353,12 @@ exports[`a finished plan 1`] = `
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
 </li>
-<li id="step-send" data-step-shell="send" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-send" data-step-shell="send" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <button type="button" aria-label="Send it, Done" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
 <span aria-hidden="true" class="relative block shrink-0" style="width:44px;height:48px">
 <span class="absolute left-0 top-1 rounded-full" style="width:44px;height:44px;background:var(--plan-edge)">
@@ -3404,7 +3381,7 @@ exports[`a finished plan 1`] = `
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
@@ -3424,7 +3401,7 @@ exports[`a finished plan 1`] = `
 </div>
 </div>
 <ol class="flex flex-col">
-<li id="step-orientation" data-step-shell="orientation" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-orientation" data-step-shell="orientation" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <button type="button" aria-label="Go to orientation, Done" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
 <span aria-hidden="true" class="relative block shrink-0" style="width:44px;height:48px">
 <span class="absolute left-0 top-1 rounded-full" style="width:44px;height:44px;background:var(--plan-edge)">
@@ -3463,7 +3440,7 @@ exports[`a finished plan 1`] = `
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
@@ -3482,7 +3459,7 @@ exports[`a finished plan 1`] = `
 </div>
 </div>
 <ol class="flex flex-col">
-<li id="step-habit" data-step-shell="habit" class="relative flex items-start gap-4 pb-4 scroll-mt-24">
+<li id="step-habit" data-step-shell="habit" class="group/row relative flex items-start gap-4 pb-4 scroll-mt-24">
 <button type="button" aria-label="Read for 20 minutes, Done" aria-expanded="false" class="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
 <span aria-hidden="true" class="relative block shrink-0" style="width:44px;height:48px">
 <span class="absolute left-0 top-1 rounded-full" style="width:44px;height:44px;background:var(--plan-edge)">
@@ -3505,7 +3482,7 @@ exports[`a finished plan 1`] = `
 </button>
 <span class="-mt-1 shrink-0">
 </span>
-<span class="shrink-0 -mt-1">
+<span class="shrink-0 -mt-1 transition-opacity [@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
 </span>
 </div>
 </div>
@@ -3514,7 +3491,7 @@ exports[`a finished plan 1`] = `
 <div class="flex flex-wrap items-center gap-1">
 </div>
 </section>
-<section aria-label="Finish" class="relative overflow-hidden rounded-3xl bg-[var(--plan-face)] px-5 pb-14 pt-5 text-[var(--plan-face-ink)] shadow-[0_6px_0_var(--plan-edge)] sm:px-7">
+<section aria-label="Finish" class="relative overflow-hidden rounded-3xl bg-[var(--plan-face)] px-5 py-5 text-[var(--plan-face-ink)] shadow-[0_6px_0_var(--plan-edge)] sm:px-7">
 <div class="relative flex items-start justify-between gap-3">
 <div class="min-w-0">
 <h2 class="text-xl font-extrabold tracking-tight">Finish</h2>

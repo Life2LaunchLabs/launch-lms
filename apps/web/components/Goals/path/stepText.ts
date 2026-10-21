@@ -22,7 +22,7 @@ export function lockedSentence(step: Step) {
   return 'Someone helping with this goal has put this step on hold.'
 }
 
-/** One short line under a step's title: why it's closed, where it stands, or when it's due. */
+/** One short line under a step's title: why it's closed, where it stands, or when it's due; empty when none applies. */
 export function statusLine(step: Step) {
   if (step.state === 'locked') {
     const reason = step.locked_reason
@@ -37,7 +37,8 @@ export function statusLine(step: Step) {
   const own = stepDefinition(step.type).statusLine?.(step as never)
   const due = step.due_date ? `Closes ${shortDate(step.due_date)}` : ''
   if (own) return due ? `${own} · ${due.toLowerCase()}` : own
-  return due || 'Any time'
+  // An open step with no date and nothing of its own to say needs no line at all.
+  return due
 }
 
 /** A step's line across a cohort: how many are done, then whatever is left for staff. */

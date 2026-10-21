@@ -12,6 +12,7 @@ import { signOut } from '@components/Contexts/AuthContext'
 import { getUriWithoutOrg } from '@services/config/config'
 import * as Yup from 'yup'
 import { useTranslation } from 'react-i18next'
+import { settingsCard, SettingsHeader } from '@components/Objects/Account/AccountPageShell'
 
 const validationSchema = Yup.object().shape({
   old_password: Yup.string().required('validation.required'),
@@ -58,19 +59,14 @@ function AccountSecurity() {
   }
 
   return (
-    <section className="overflow-hidden rounded-xl border border-border bg-card nice-shadow">
-      <div className="flex items-center justify-between gap-4 p-5 sm:p-6">
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground"><KeyRound size={19} /></span>
-          <div>
-            <h2 className="font-bold text-foreground">{t('user.settings.password.title')}</h2>
-            <p className="text-sm text-muted-foreground">{t('user.settings.password.subtitle')}</p>
-          </div>
-        </div>
-        <Button type="button" variant="outline" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded}>
-          {expanded ? 'Cancel' : 'Change password'}
-          {!expanded && <ChevronDown className="ml-2 h-4 w-4" />}
-        </Button>
+    <section className={`overflow-hidden ${settingsCard}`}>
+      <div className="p-5 sm:p-6">
+        <SettingsHeader icon={KeyRound} title={t('user.settings.password.title')} description={t('user.settings.password.subtitle')}>
+          <Button type="button" variant="surface" size="sm" className="shrink-0" onClick={() => setExpanded((value) => !value)} aria-expanded={expanded}>
+            {expanded ? 'Cancel' : 'Change'}
+            {!expanded && <ChevronDown className="h-4 w-4" />}
+          </Button>
+        </SettingsHeader>
       </div>
 
       {expanded && (
@@ -124,7 +120,7 @@ function AccountSecurity() {
                   <Button
                     type="submit"
                     disabled={isSubmitting}
-                    className="bg-primary text-primary-foreground hover:bg-primary/90"
+                    variant="brand"
                   >
                     {isSubmitting ? t('user.settings.password.updating') : t('user.settings.password.update_password')}
                   </Button>

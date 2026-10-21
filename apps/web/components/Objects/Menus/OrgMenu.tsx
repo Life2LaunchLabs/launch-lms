@@ -44,6 +44,8 @@ export const OrgMenu = (props: { orgslug: string; compact?: boolean }) => {
   const topOffset = isJoinBannerVisible ? JOIN_BANNER_HEIGHT : 0
   const config = org?.config?.config
   const hideOrgName = config?.customization?.general?.hide_org_name || config?.general?.hide_org_name || false
+  // A wide logo is usually a wordmark that already says the name; the name beside it would only be cut short.
+  const [wordmarkLogo, setWordmarkLogo] = React.useState(false)
   const isActivityPage = pathname?.includes('/activity/')
   const isCoursePage = /^\/course\/[^/]+$/.test(pathname || '')
   const isPublicCourseExperience = isCoursePage || isActivityPage
@@ -121,8 +123,10 @@ export const OrgMenu = (props: { orgslug: string; compact?: boolean }) => {
                     {org?.logo_image ? (
                       <img
                         src={getOrgLogoMediaDirectory(org.org_uuid, org.logo_image)}
-                        alt="Logo"
+                        alt={org?.name || 'Logo'}
                         className="h-10 w-auto max-w-[120px] object-contain"
+                        ref={(image) => { if (image?.complete && image.naturalWidth) setWordmarkLogo(isWordmark(image)) }}
+                        onLoad={(event) => setWordmarkLogo(isWordmark(event.currentTarget))}
                       />
                     ) : (
                       <LaunchLMSIcon />
@@ -130,7 +134,7 @@ export const OrgMenu = (props: { orgslug: string; compact?: boolean }) => {
                   </div>
                   <div className="flex min-w-0 items-center">
                     {org?.logo_image ? (
-                      !hideOrgName && (
+                      !hideOrgName && !wordmarkLogo && (
                         <span className="truncate text-sm font-semibold text-foreground">
                           {org?.name}
                         </span>
@@ -332,6 +336,9 @@ function SettingsSidebarLink({ orgslug, isExpanded, active }: { orgslug: string;
     </TooltipProvider>
   )
 }
+
+/** Whether a logo is wide enough to be a wordmark; measured on load, or at once when the browser already had it. */
+const isWordmark = (image: HTMLImageElement) => image.naturalWidth > image.naturalHeight * 1.8
 
 const LaunchLMSLogo = () => {
   return (

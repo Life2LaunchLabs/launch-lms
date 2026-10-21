@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { SignOut } from '@phosphor-icons/react'
-import AccountPageShell from '@components/Objects/Account/AccountPageShell'
+import AccountPageShell, { settingsCard } from '@components/Objects/Account/AccountPageShell'
 import AccountGeneral from '@components/Objects/Account/subpages/AccountGeneral'
 import AccountSecurity from '@components/Objects/Account/subpages/AccountSecurity'
 import AccountMemory from '@components/Objects/Account/subpages/AccountMemory'
@@ -26,7 +26,7 @@ const AccountClient = ({ subpage }: { orgslug: string; subpage: string }) => {
         <section id="appearance" className="scroll-mt-6"><AccountPreferences /></section>
         <section id="memory" className="scroll-mt-6"><AccountMemory /></section>
         <button type="button" onClick={() => signOut({ callbackUrl: '/' })}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-card px-5 py-4 text-sm font-bold text-red-600 nice-shadow transition-colors hover:bg-red-50 dark:hover:bg-red-500/10">
+          className={`${settingsCard} flex w-full items-center justify-center gap-2 px-5 py-4 text-sm font-bold text-red-600 transition-colors hover:bg-red-50 dark:hover:bg-red-500/10`}>
           <SignOut size={18} weight="fill" />Sign out
         </button>
       </div>
