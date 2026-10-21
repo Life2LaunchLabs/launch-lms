@@ -150,7 +150,8 @@ function StaffGuide({ value, set, orgId, token }: { value: StepDraft; set: (patc
       <span className="text-xs text-muted-foreground">Only staff see this</span>
     </div>
     <Textarea id="step-staff-notes" rows={4} value={value.staff_guide || ''} onChange={(event) => set({ staff_guide: event.target.value })}
-      placeholder="How to run this step: the lesson plan, timing, what to prepare, what to say" className="bg-background" />
+      placeholder="How to run this step: the lesson plan, timing, what to prepare, what to say" className="bg-background font-mono text-[13px]" />
+    <p className="-mt-2 text-xs text-muted-foreground">Markdown works: # headings, - lists, **bold**, links. Staff open it with the files below in one viewer.</p>
     <MaterialsEditor id="step-staff-materials" value={value.staff_materials || []} onChange={(staff_materials) => set({ staff_materials })} orgId={orgId} token={token} addLabel="Add for staff" />
   </section>
 }

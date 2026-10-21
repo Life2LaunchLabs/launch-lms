@@ -3,7 +3,7 @@
 import React from 'react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
-import { Bell, Check, ClipboardCheck, FileText, Link2, Loader2, Play, ScrollText } from 'lucide-react'
+import { Bell, BookOpenText, Check, ClipboardCheck, Loader2, Play, ScrollText } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import { EditorPreviewModal } from '@components/Learning/player/EditorPreviewModal'
 import { getUriWithOrg } from '@services/config/config'
@@ -12,6 +12,7 @@ import { stepTodo } from '@services/goals/cohort'
 import { cn } from '@/lib/utils'
 import { personName, reviewHref } from '../live/ui'
 import { shortDay } from './shared'
+import StaffGuideViewer, { guideItems, guideSummary } from './StaffGuideViewer'
 
 export type TodoContext = {
   orgslug: string
@@ -97,20 +98,18 @@ export default function StepTodos({ column, ctx, upcoming, full, onOpen }: { col
   </div>
 }
 
-/** The template's staff guide for the step: how to run it (a lesson plan) and the files staff use. */
+/** The template's staff guide for the step (a lesson plan and its files), opened full-size in the viewer. */
 function StaffGuide({ column }: { column: MatrixColumn }) {
-  const files = (column.staff_materials || []).filter((item) => item && item.url)
-  if (!column.staff_guide && !files.length) return null
-  return <section aria-label="Staff guide" className="flex flex-col gap-2 rounded-xl border border-dashed bg-background p-3">
-    <p className="text-xs font-black uppercase tracking-wider text-muted-foreground">Staff guide</p>
-    {column.staff_guide ? <p className="whitespace-pre-wrap text-sm leading-6 text-foreground">{column.staff_guide}</p> : null}
-    {files.length ? <div className="flex flex-wrap gap-2">
-      {files.map((item, index) => {
-        const Icon = item.kind === 'file' ? FileText : Link2
-        return <Button key={index} asChild variant="outline" size="sm"><a href={item.url} target="_blank" rel="noreferrer"><Icon size={14} />{item.title || item.url}</a></Button>
-      })}
-    </div> : null}
-  </section>
+  const [open, setOpen] = React.useState(false)
+  const items = React.useMemo(() => guideItems(column.staff_guide || '', column.staff_materials || []), [column.staff_guide, column.staff_materials])
+  if (!items.length) return null
+  return <>
+    <Button type="button" variant="outline" className="h-auto justify-start gap-3 self-start rounded-xl px-3 py-2 text-left" onClick={() => setOpen(true)}>
+      <BookOpenText size={18} aria-hidden="true" className="shrink-0 text-[var(--plan-accent)]" />
+      <span className="flex flex-col"><span className="text-sm font-bold">Staff guide</span><span className="text-xs font-normal text-muted-foreground">{guideSummary(items)}</span></span>
+    </Button>
+    <StaffGuideViewer open={open} onOpenChange={setOpen} stepTitle={column.title} items={items} />
+  </>
 }
 
 /** Settle a step staff confirm, such as an event: done for everyone, or everyone except the people tapped. */
