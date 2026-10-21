@@ -3,7 +3,7 @@ review lists, cohorts and one managed learner's goals."""
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi import HTTPException
 from sqlmodel import Session, col, select
@@ -34,7 +34,7 @@ from src.services.goals.activity_reviews import activity_reviews
 from src.services.goals.assignment_summary import status_fields
 from src.services.goals.availability import availability
 from src.services.goals.document import iter_steps
-from src.services.goals.issue import stage_schedule
+from src.services.goals.issue import _step_due, stage_schedule
 from src.services.goals.review import REVIEW, person, review_item
 from src.services.goals.types import StepState, step_type
 
@@ -243,10 +243,16 @@ def assignment_matrix(db: Session, current_user: PublicUser, org_id: int, assign
             "people": [item for item in helpers.get(int(goal.id), []) if item["id"] != goal.subject_user_id],  # type: ignore[arg-type]
         })
     dates = stage_schedule(document, assignment.start_date, assignment.stage_dates)
+    # A stage has no end of its own: it runs until the next one starts, the last until the assignment's due date.
+    starts = [dates.get(stage["key"], (None, None))[0] for stage in document.get("stages") or []]
     stages_out = []
     for position, stage in enumerate(document.get("stages") or []):
+        start = starts[position]
+        following = next((day for day in starts[position + 1:] if day), None)
+        due = following - timedelta(days=1) if following else assignment.due_date
         columns = []
         for spec in stage.get("steps") or []:
+            given = ((assignment.step_dates or {}).get(spec["key"]) or {}).get("due_date")
             on_step = [learner for learner in learners if spec["key"] in learner["cells"]]
             cells = [learner["cells"][spec["key"]] for learner in on_step]
             columns.append({
@@ -257,8 +263,9 @@ def assignment_matrix(db: Session, current_user: PublicUser, org_id: int, assign
                 "reviewer_guidance": (spec.get("reviewer_guidance") or "") if staff else "",
                 "staff_guide": (spec.get("staff_guide") or "") if staff else "", "staff_materials": (spec.get("staff_materials") or []) if staff else [],
                 "aggregate": _aggregate(cells, len(learners), on_step),
+                # When the assignment has it due: a date staff set on it, else the template's; due_set says staff set it.
+                "due_date": date.fromisoformat(given) if given else _step_due(spec, start, dates.get(stage["key"], (None, None))[1]), "due_set": bool(given),
             })
-        start, due = dates.get(stage["key"], (None, None))
         stages_out.append({"stage_key": stage["key"], "title": stage.get("title"), "position": position, "start_date": start, "due_date": due, "steps": columns})
     siblings = []
     if assignment.usergroup_id:
@@ -269,6 +276,8 @@ def assignment_matrix(db: Session, current_user: PublicUser, org_id: int, assign
         "assignment": assignment_summary(db, assignment), "assignments": siblings,
         "cohort": {"id": group.id, "uuid": group.usergroup_uuid, "name": group.name} if group else None,
         "version": version.number if version else None, "stages": stages_out, "learners": learners,
+        # Whoever runs assignments can move a step's due date on this one.
+        "can_reschedule": is_org_admin(current_user.id, org_id, db, "run_assignments"),
     }
 
 

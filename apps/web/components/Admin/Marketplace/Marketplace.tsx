@@ -24,7 +24,7 @@ export default function Marketplace() {
     { id: 'browse' as const, label: 'Browse', icon: Storefront, href: routePaths.org.admin.marketplace({ type }) },
     { id: 'requests' as const, label: 'Requests', icon: PaperPlaneTilt, href: routePaths.org.admin.marketplace({ view: 'requests' }) },
   ]
-  return <div className="space-y-5 px-4 pb-10 pt-5 sm:px-10">
+  return <div className="px-4 pb-10 pt-6 sm:px-10"><div className="mx-auto max-w-5xl space-y-5">
     <nav aria-label="Marketplace view" className="inline-flex rounded-full bg-gray-100 p-1">
       {views.map(({ id, label, icon: Icon, href }) => <Link key={id} href={getUriWithOrg(orgslug, href)} aria-current={view === id ? 'page' : undefined}
         className={cn('inline-flex h-9 items-center gap-1.5 rounded-full px-4 text-sm font-semibold', view === id ? 'bg-black text-white' : 'text-gray-700 hover:text-black')}>
@@ -33,5 +33,5 @@ export default function Marketplace() {
       </Link>)}
     </nav>
     {view === 'requests' ? <MarketplaceRequests /> : <MarketplaceBrowse />}
-  </div>
+  </div></div>
 }

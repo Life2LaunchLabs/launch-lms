@@ -92,7 +92,7 @@ def hero_slides(db: Session, org_id: int | None, featured: list[dict], user_id: 
         series = [DiscoverSlide(kind="collection", target=uuid, theme="light") for uuid, collection in sources["collection"].items() if len(collection["badges"]) > 1][:1]
         chosen = (badges + series)[:5]
         if not chosen:
-            chosen = [DiscoverSlide(kind="link", target="/plans", title="Find your next chapter", description="Explore badges and put your next step into a plan.", eyebrow="Discover", action_label="Explore your plans", image_url="/jungle_landscape.jpg")]
+            chosen = [DiscoverSlide(kind="link", target="/plans", title="Find your next chapter", description="Explore badges and turn your next step into a goal.", eyebrow="Discover", action_label="Go to your goals", image_url="/jungle_landscape.jpg")]
         chosen.append(DiscoverSlide(kind="challenges", target="challenges", image_url="/jungle_landscape.jpg"))
     return [resolved for slide in chosen if (resolved := _resolve(slide, sources)) is not None]
 

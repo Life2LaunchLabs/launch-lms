@@ -17,10 +17,12 @@ export function personName(person?: Partial<StaffPerson> & { name?: string } | n
   return person.name || [person.first_name, person.last_name].filter(Boolean).join(' ') || person.username || 'Learner'
 }
 
+/** A photo when the person has one, else their initials, like the avatars in People. */
 export function PersonAvatar({ person, size = 28 }: { person?: Partial<StaffPerson> & { name?: string } | null; size?: number }) {
-  if (person?.user_uuid) return <UserAvatar userUuid={person.user_uuid} avatarImage={person.avatar_image || undefined} size={size} />
+  if (person?.user_uuid && person.avatar_image) return <UserAvatar userUuid={person.user_uuid} avatarImage={person.avatar_image} size={size} />
   const initials = personName(person).split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase()
-  return person?.avatar_image ? <img src={person.avatar_image} alt="" className="shrink-0 rounded-full object-cover" style={{ width: size, height: size }} /> : <span className="flex shrink-0 items-center justify-center rounded-full bg-gray-100 text-[11px] font-bold text-gray-700" style={{ width: size, height: size }}>{initials}</span>
+  return person?.avatar_image ? <img src={person.avatar_image} alt="" className="shrink-0 rounded-full object-cover" style={{ width: size, height: size }} />
+    : <span className="flex shrink-0 items-center justify-center rounded-full bg-foreground font-black text-background" style={{ width: size, height: size, fontSize: Math.max(8, Math.round(size * 0.36)) }}>{initials}</span>
 }
 
 type Tone = 'gray' | 'green' | 'amber' | 'blue' | 'red'

@@ -23,8 +23,10 @@ function ActivityCard(props: StepCardProps<'activity'>) {
     <StepIntro step={step} />
     <Feedback step={step} />
     {step.reference?.page_count ? <CardNote icon={Play}>{step.reference.page_count} {step.reference.page_count === 1 ? 'page' : 'pages'}{started && !done ? ` · ${Math.round(step.fraction * 100)}% through` : ''}</CardNote> : null}
-    {canWork && !step.locked ? <Button type="button" variant={done ? 'surface' : 'plan'} className="self-start" onClick={actions.openActivity}><Play size={15} aria-hidden="true" />{done ? 'Review' : started ? 'Continue' : 'Start'}</Button> : null}
-    <FinishControls {...props} finishesItself />
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      {canWork && !step.locked ? <Button type="button" variant={done ? 'surface' : 'plan'} onClick={actions.openActivity}><Play size={15} aria-hidden="true" />{done ? 'Review' : started ? 'Continue' : 'Start'}</Button> : null}
+      <FinishControls {...props} finishesItself />
+    </div>
   </div>
 }
 

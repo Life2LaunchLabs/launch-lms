@@ -61,6 +61,7 @@ from src.routers import resources as resources_router_module
 from src.routers import sso as sso_router_module
 from src.routers import trending as trending_router_module
 from src.routers.audit_logs import router as audit_logs_router
+from src.routers.orgs import branding as org_branding
 from src.routers.plan_requests import router as plan_requests_router
 from src.routers.superadmin import router as superadmin_router
 from src.routers.coach_admin import router as coach_admin_router
@@ -204,6 +205,12 @@ v1_router.include_router(
 )
 v1_router.include_router(
     orgs.router,
+    prefix="/orgs",
+    tags=["orgs"],
+    dependencies=[Depends(get_non_api_token_user)]
+)
+v1_router.include_router(
+    org_branding.router,
     prefix="/orgs",
     tags=["orgs"],
     dependencies=[Depends(get_non_api_token_user)]

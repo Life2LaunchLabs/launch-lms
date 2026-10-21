@@ -107,7 +107,7 @@ export function FinishSection({ goal, token, color, orgslug, badge }: { goal: Go
     try { await run(() => goalsApi.update(goal.goal_uuid, { target_date: target || null }, token)); setSheet(null) } catch { /* toast shown */ }
   }
   const Mark = finished ? Trophy : unlocked ? LockOpen : Lock
-  return <section aria-label="Finish" className="relative overflow-hidden rounded-3xl bg-[var(--plan-face)] px-5 pb-14 pt-5 text-[var(--plan-face-ink)] shadow-[0_6px_0_var(--plan-edge)] sm:px-7">
+  return <section aria-label="Finish" className="relative overflow-hidden rounded-3xl bg-[var(--plan-face)] px-5 py-5 text-[var(--plan-face-ink)] shadow-[0_6px_0_var(--plan-edge)] sm:px-7">
     {unlocked && !finished ? <Sparkles aria-hidden="true" size={120} className="pointer-events-none absolute -right-6 -top-6 opacity-15 motion-safe:animate-pulse" /> : null}
     <div className="relative flex items-start justify-between gap-3">
       <div className="min-w-0">
@@ -125,7 +125,7 @@ export function FinishSection({ goal, token, color, orgslug, badge }: { goal: Go
     <div className={cn('relative mt-4 flex flex-wrap items-center gap-4 rounded-2xl p-4 transition', unlocked && !finished ? 'bg-[var(--plan-face-ink)] text-[var(--plan-face)] shadow-[0_4px_0_rgb(0_0_0/0.25)]' : 'bg-black/10')}>
       <span aria-hidden="true" className={cn('flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl', unlocked && !finished ? 'bg-[var(--plan-face)] text-[var(--plan-face-ink)] motion-safe:animate-bounce' : 'bg-black/15')}><Mark size={26} /></span>
       <div className="min-w-0 flex-1 basis-40">
-        <p className="font-extrabold">{finished ? 'Victory claimed' : unlocked ? 'Unlocked. Claim your victory!' : 'Complete'}</p>
+        <p className="font-extrabold">{finished ? 'Victory claimed' : unlocked ? 'Unlocked. Claim your victory!' : 'Locked'}</p>
         <p className="text-sm opacity-80">{finished
           ? goal.ownership === 'personal' ? 'Your story is ready.' : badge?.name ? `You earned the ${badge.name} badge.` : 'Every step is done.'
           : unlocked ? goal.ownership === 'personal' ? 'Every step is done. Say how it went.' : 'Every step is done.'

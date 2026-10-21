@@ -33,11 +33,11 @@ export const goalMorphId = (goalUuid: string) => `plan-card-${goalUuid}`
 const goalMarkId = (goalUuid: string) => `plan-mark-${goalUuid}`
 
 /** Where a goal comes from, as the small line over its title. */
-export function goalSource(goal: HeaderGoal, fallback = '') {
+export function goalSource(goal: HeaderGoal) {
   if (goal.source_badge) return `Earning with ${goal.organization?.name || 'your issuer'}`
   if (goal.organization?.name) return `From ${goal.organization.name}`
   const forWhom = goal.is_subject === false ? goal.subject?.name : ''
-  return forWhom ? `For ${forWhom}` : fallback
+  return forWhom ? `For ${forWhom}` : ''
 }
 
 /** A card's own contents fade in once it lands, so they never stretch while the card morphs. */
@@ -68,13 +68,15 @@ export function GoalProgress({ percent, label, thin = false }: { percent: number
  */
 export function GoalHeaderCard({ goal, done, total, actions, pending = false }: { goal: HeaderGoal; done: number; total: number; actions?: React.ReactNode; pending?: boolean }) {
   const percent = total ? Math.round((done * 100) / total) : 0
+  // A learner's own goal needs no line saying so; one from an organization or for someone else does.
+  const source = goalSource(goal)
   return <motion.section layoutId={goalMorphId(goal.goal_uuid)} transition={GOAL_MORPH} style={{ borderRadius: 24 }} aria-label={goal.title} aria-busy={pending || undefined}
     className="flex h-full flex-col bg-[var(--plan-deep)] p-5 text-[var(--plan-deep-ink)] shadow-[0_6px_0_var(--plan-deep-edge)]">
-    <div className="flex items-start gap-4">
+    <div className="flex items-center gap-4">
       <GoalMark badge={goal.source_badge} icon={goal.icon} layoutId={goalMarkId(goal.goal_uuid)} />
       <Settle className="min-w-0 flex-1">
-        <p className="text-xs font-extrabold uppercase tracking-wider opacity-80">{goalSource(goal, 'Your goal')}</p>
-        <h1 className="mt-1 text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">{goal.title}</h1>
+        {source ? <p className="mb-1 text-xs font-extrabold uppercase tracking-wider opacity-80">{source}</p> : null}
+        <h1 className="text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">{goal.title}</h1>
       </Settle>
     </div>
     <Settle className="mt-4 flex flex-col gap-4">

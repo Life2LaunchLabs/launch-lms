@@ -17,6 +17,7 @@ import {
 } from '@components/ui/dialog'
 import { Input } from '@components/ui/input'
 import { Switch } from '@components/ui/switch'
+import { settingsCard, SettingsHeader } from '@components/Objects/Account/AccountPageShell'
 import { clearHubMemory, getHubMemory, HubMemory, setHubMemoryEnabled } from '@services/hub/advisor'
 import HubMemoryItems from '@components/Hub/conversation/HubMemoryItems'
 
@@ -78,73 +79,59 @@ export default function AccountMemory() {
   }
 
   return (
-    <div className="space-y-5">
-      <section className="rounded-xl border border-border bg-card p-5 shadow-xs sm:p-6">
-        <div className="flex items-start justify-between gap-5">
-          <div className="flex gap-3">
-            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-              <BrainCircuit className="h-4 w-4" />
-            </div>
-            <div>
-              <h1 className="text-lg font-semibold text-foreground">Coach memory</h1>
-              <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-                Let Coach carry useful goals, preferences, constraints, and background into future conversations in this organization.
-              </p>
-            </div>
-          </div>
-          <Switch checked={enabled} onCheckedChange={(checked) => void toggle(checked)} disabled={loading || saving} aria-label="Enable Coach memory" />
-        </div>
-        {!enabled && memories.length > 0 && (
-          <p className="mt-4 rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
-            Memory is off. Your saved memories are retained, but Coach will not use or update them.
-          </p>
-        )}
-        {error && <p className="mt-4 text-sm text-destructive" role="alert">{error}</p>}
-      </section>
+    // One card: whether Coach remembers, then what it remembers.
+    <section className={`${settingsCard} p-5 sm:p-6`}>
+      <SettingsHeader icon={BrainCircuit} title="Coach memory" description="Let Coach carry useful goals, preferences, constraints, and background into future conversations in this organization.">
+        <Switch checked={enabled} onCheckedChange={(checked) => void toggle(checked)} disabled={loading || saving} aria-label="Enable Coach memory" />
+      </SettingsHeader>
+      {!enabled && memories.length > 0 && (
+        <p className="mt-4 rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
+          Memory is off. Your saved memories are retained, but Coach will not use or update them.
+        </p>
+      )}
+      {error && <p className="mt-4 text-sm text-destructive" role="alert">{error}</p>}
 
-      <section className="rounded-xl border border-border bg-card p-5 shadow-xs sm:p-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="font-semibold text-foreground">What Coach remembers</h2>
-            <p className="mt-1 text-sm text-muted-foreground">You can edit or delete any memory at any time.</p>
-          </div>
-          {memories.length > 0 && (
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button type="button" variant="ghost" size="sm" className="self-start text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" />Clear all</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Clear all Coach memories?</DialogTitle>
-                  <DialogDescription>This removes every saved memory for this organization. Conversation history is not deleted.</DialogDescription>
-                </DialogHeader>
-                <DialogFooter>
-                  <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
-                  <DialogClose asChild><Button type="button" variant="destructive" disabled={saving} onClick={() => void clearAll()}>Clear all</Button></DialogClose>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          )}
+      <div className="mt-6 flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 className="font-bold text-foreground">What Coach remembers</h3>
+          <p className="mt-0.5 text-sm text-muted-foreground">You can edit or delete any memory at any time.</p>
         </div>
-        <div className="relative mt-5">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search memories" className="pl-9" />
-        </div>
-        <div className="mt-4">
-          {loading ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">Loading memories…</p>
-          ) : filtered.length > 0 && org?.id && accessToken ? (
-            <HubMemoryItems memories={filtered} orgId={org.id} accessToken={accessToken} onChange={(nextFiltered) => {
-              const visible = new Map(nextFiltered.map((memory) => [memory.memory_uuid, memory]))
-              setMemories((current) => current
-                .filter((memory) => !filtered.some((item) => item.memory_uuid === memory.memory_uuid) || visible.has(memory.memory_uuid))
-                .map((memory) => visible.get(memory.memory_uuid) || memory))
-            }} />
-          ) : (
-            <p className="py-8 text-center text-sm text-muted-foreground">{query ? 'No memories match your search.' : 'Coach has not saved any memories yet.'}</p>
-          )}
-        </div>
-      </section>
-    </div>
+        {memories.length > 0 && (
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button type="button" variant="ghost" size="sm" className="self-start text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" />Clear all</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Clear all Coach memories?</DialogTitle>
+                <DialogDescription>This removes every saved memory for this organization. Conversation history is not deleted.</DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
+                <DialogClose asChild><Button type="button" variant="destructive" disabled={saving} onClick={() => void clearAll()}>Clear all</Button></DialogClose>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
+      </div>
+      {memories.length > 0 ? <div className="relative mt-5">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search memories" className="pl-9" />
+      </div> : null}
+      <div className="mt-4">
+        {loading ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">Loading memories…</p>
+        ) : filtered.length > 0 && org?.id && accessToken ? (
+          <HubMemoryItems memories={filtered} orgId={org.id} accessToken={accessToken} onChange={(nextFiltered) => {
+            const visible = new Map(nextFiltered.map((memory) => [memory.memory_uuid, memory]))
+            setMemories((current) => current
+              .filter((memory) => !filtered.some((item) => item.memory_uuid === memory.memory_uuid) || visible.has(memory.memory_uuid))
+              .map((memory) => visible.get(memory.memory_uuid) || memory))
+          }} />
+        ) : (
+          <p className={query ? 'py-8 text-center text-sm text-muted-foreground' : 'rounded-xl border-2 border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground'}>{query ? 'No memories match your search.' : 'Coach has not saved any memories yet.'}</p>
+        )}
+      </div>
+    </section>
   )
 }

@@ -24,8 +24,9 @@ function stepAggregate(column: MatrixColumn): StepAggregate {
   return { total: counts.learner_count, done: counts.done_count || 0, handed_in: waiting, to_grade: waiting, not_handed_in: counts.not_handed_in_count || 0, to_settle: counts.needs_settle_count || 0 }
 }
 
-/** The day a step closes for most of the cohort: the assignment's date, unless staff moved it for someone. */
+/** The day a step is due for the cohort: the assignment's date for it, else the one most learners have. */
 export function closeDate(column: MatrixColumn, learners: MatrixLearner[]) {
+  if (column.due_date) return column.due_date
   const counts = new Map<string, number>()
   for (const learner of learners) {
     const due = learner.cells[column.template_key]?.due_date
@@ -133,22 +134,24 @@ export function firstToDo(matrix: AssignmentMatrix, now: Date) {
 
 // One learner across the plan --------------------------------------------------------------
 
-/** A learner's step as a dot: done, waiting on staff, needs another go, past its close date, open, or not open yet. */
+/** A learner's step as a dot: done, waiting on staff, needs another go, past its due date, open, or not open yet. */
 export type Dot = 'done' | 'waiting' | 'retry' | 'late' | 'open' | 'locked'
 
-export function dotOf(cell: MatrixCell | undefined, stage: Pick<MatrixStage, 'start_date'>, today: string): Dot {
+/** A step closes on its own date, else when its stage ends (the day before the next one starts). */
+export function dotOf(cell: MatrixCell | undefined, stage: Pick<MatrixStage, 'start_date' | 'due_date'>, today: string): Dot {
   if (!cell) return 'locked'
   if (DONE.has(cell.status)) return 'done'
   if (cell.status === 'submitted' || cell.bucket === 'handed_in' || cell.bucket === 'to_grade') return 'waiting'
   if (cell.status === 'changes_requested') return 'retry'
-  if (cell.due_date && cell.due_date < today && !cell.held) return 'late'
+  const closes = cell.due_date || stage.due_date
+  if (closes && closes < today && !cell.held) return 'late'
   if (cell.locked || cell.held || (stage.start_date && stage.start_date > today)) return 'locked'
   return 'open'
 }
 
 export type Pace = { pace: 'ahead' | 'on_pace' | 'behind'; late: number }
 
-/** Behind with any step past its close date; ahead with anything done in a stage still to come. */
+/** Behind with any step past its due date; ahead with anything done in a stage still to come. */
 export function paceOf(learner: MatrixLearner, stages: MatrixStage[], today: string): Pace {
   let late = 0
   let ahead = false
@@ -173,7 +176,7 @@ export function attentionOf(learner: MatrixLearner, stages: MatrixStage[], today
   const retry = steps.find((item) => item.dot === 'retry')
   if (retry) return { tone: 'retry', text: `Sent back: ${retry.column.title}` }
   const late = steps.filter((item) => item.dot === 'late')
-  if (late.length) return { tone: 'late', text: late.length === 1 ? `Past close: ${late[0].column.title}` : `${late.length} steps past close` }
+  if (late.length) return { tone: 'late', text: late.length === 1 ? `Past due: ${late[0].column.title}` : `${late.length} steps past due` }
   return null
 }
 

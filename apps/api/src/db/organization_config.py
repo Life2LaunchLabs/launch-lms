@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy import JSON, BigInteger, Column, ForeignKey
 from sqlmodel import Field, SQLModel
 from src.db.discover import DiscoverSettings
@@ -26,6 +26,24 @@ class GeneralCustomization(BaseModel):
     footer_text: str = ""
     favicon_image: str = ""
     hide_org_name: bool = False
+    # Off, the one logo shows in both themes; on, dark_logo_image replaces it in dark mode.
+    separate_dark_logo: bool = False
+    dark_logo_image: str = ""
+
+
+class DarkLogoConfig(BaseModel):
+    separate_dark_logo: bool = False
+    dark_logo_image: str = Field(default="", max_length=2048)
+
+    @field_validator("dark_logo_image")
+    @classmethod
+    def _stored_image(cls, value: str) -> str:
+        # A media library URL, a site path or a stored file name; nothing that could run as a link.
+        value = value.strip()
+        safe = value.startswith(("https://", "http://")) or (":" not in value and not value.startswith("//"))
+        if value and not safe:
+            raise ValueError("dark_logo_image must be a media URL or file name")
+        return value
 
 
 class SeoOrgConfig(BaseModel):

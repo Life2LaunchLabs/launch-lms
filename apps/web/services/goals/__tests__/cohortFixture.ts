@@ -9,7 +9,7 @@ export function aggregate(extra: Partial<ColumnAggregate> = {}): ColumnAggregate
 }
 
 export function column(key: string, extra: Partial<MatrixColumn> = {}): MatrixColumn {
-  return { template_key: key, title: key, type: 'task', description: '', completed_by: 'learner', review_required: false, config: {}, materials: [], reviewer_guidance: '', aggregate: aggregate(), ...extra }
+  return { template_key: key, title: key, type: 'task', description: '', completed_by: 'learner', review_required: false, config: {}, materials: [], reviewer_guidance: '', aggregate: aggregate(), due_date: null, due_set: false, ...extra }
 }
 
 export function cell(extra: Partial<MatrixCell> = {}): MatrixCell {

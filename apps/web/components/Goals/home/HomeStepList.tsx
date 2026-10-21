@@ -3,7 +3,6 @@
 import React from 'react'
 import { useRouter } from 'next/navigation'
 import useSWR from 'swr'
-import { Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@components/ui/button'
 import { Skeleton } from '@components/ui/skeleton'
@@ -77,21 +76,20 @@ function HomeStepRow({ item, orgslug, token, color, selected, last, onSelect, on
 
   return <li id={`step-${item.step_uuid}`} data-step-shell={item.step_uuid} data-plan="" style={planVars(color)} className="relative flex items-start gap-4 pb-4 scroll-mt-24">
     {!last ? <span aria-hidden="true" className={cn('absolute left-[28px] top-12 bottom-0 w-[3px] -translate-x-1/2 rounded-full', done ? 'bg-[var(--plan-face)]/60' : 'bg-border')} /> : null}
-    <button type="button" onClick={onSelect} aria-label={`${title}, ${status}`} aria-expanded={selected} className="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
+    <button type="button" onClick={onSelect} aria-label={status ? `${title}, ${status}` : title} aria-expanded={selected} className="flex w-14 shrink-0 justify-center rounded-full pt-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
       <PathNode state={step.state} fraction={step.fraction} icon={definition.icon} selected={selected} />
     </button>
     <div className={cn('min-w-0 flex-1', selected ? 'rounded-2xl border-2 bg-card p-4 shadow-[0_4px_0_hsl(var(--edge))]' : 'pt-1', selected && (locked ? 'border-border' : 'border-[var(--plan-face)]'))}>
       <button type="button" onClick={onSelect} tabIndex={-1} className="flex w-full min-w-0 flex-col items-start gap-0.5 text-left">
         <span className="inline-flex max-w-full items-center gap-1.5 truncate text-xs font-extrabold text-[var(--plan-accent)]">{item.goal.title}</span>
         <span className={cn('max-w-full font-bold leading-snug', selected ? 'text-lg' : 'truncate text-base', (done || locked) && !selected && 'text-muted-foreground')}>{title}</span>
-        <span className="text-xs font-semibold text-muted-foreground">{status}</span>
+        {status ? <span className="text-xs font-semibold text-muted-foreground">{status}</span> : null}
       </button>
       {!selected && RowResult && step.result ? <div className="mt-2"><RowResult step={step as never} /></div> : null}
       {selected ? <div className="mt-3 flex flex-col gap-3">
         {locked ? <LockedBody step={step} onGoTo={onGoTo} />
-          : goal && full ? <StepCard goal={goal} step={full} orgslug={orgslug} token={token} openActivity={openActivity} />
+          : goal && full ? <StepCard goal={goal} step={full} orgslug={orgslug} token={token} openActivity={openActivity} onAsk={ask && !done ? ask : undefined} />
           : <div className="flex flex-col gap-2" aria-hidden="true"><Skeleton className="h-4 w-4/5 rounded-md" /><Skeleton className="h-10 w-32 rounded-xl" /></div>}
-        {ask && !done ? <Button type="button" variant="surface" className="self-start" onClick={ask}><Sparkles size={15} aria-hidden="true" />Ask Coach</Button> : null}
       </div> : null}
     </div>
   </li>
@@ -108,8 +106,8 @@ function LockedBody({ step, onGoTo }: { step: Step; onGoTo: (stepUuid: string) =
 }
 
 /** The step's own card body from the registry, worked on right here. */
-function StepCard({ goal, step, orgslug, token, openActivity }: { goal: Goal; step: Step; orgslug: string; token?: string; openActivity: () => void }) {
-  const actions = useStepActions(goal, step, token, openActivity)
+function StepCard({ goal, step, orgslug, token, openActivity, onAsk }: { goal: Goal; step: Step; orgslug: string; token?: string; openActivity: () => void; onAsk?: () => void }) {
+  const actions = useStepActions(goal, step, token, openActivity, onAsk)
   const session = useLHSession() as any
   const canWork = can(goal, 'update_progress') || can(goal, 'contribute_fields')
   return <StepBody goal={goal} step={step} actions={actions} canWork={canWork} staff={false} orgslug={orgslug} token={token} viewerUserId={session?.data?.user?.id} compact />

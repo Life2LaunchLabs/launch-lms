@@ -26,17 +26,18 @@ function useOrgAndToken() {
 }
 
 /**
- * Insights: reports by group (print or send them), engagement (not designed yet), and, until they move
+ * Insights: reports by group (print or send them) and, until they move
  * into Plans → Requirements, how templates cover requirement frameworks and each group's learner evidence.
  */
 function InsightsTabs({ orgslug, view, children }: { orgslug: string; view: InsightsView; children: React.ReactNode }) {
   const tabs = [
     { id: 'reports', label: 'Reports', icon: <BarChart3 size={15} />, href: getUriWithOrg(orgslug, routePaths.org.admin.insights()) },
-    { id: 'engagement', label: 'Engagement', icon: <MessageCircle size={15} />, href: getUriWithOrg(orgslug, insightsRoutes.engagement()) },
+    // Engagement isn't designed yet, so it gets no tab until it is (its page stays for old links).
+    ...(view === 'engagement' ? [{ id: 'engagement', label: 'Engagement', icon: <MessageCircle size={15} />, href: getUriWithOrg(orgslug, insightsRoutes.engagement()) }] : []),
     { id: 'coverage', label: 'Coverage', icon: <ListTree size={15} />, href: getUriWithOrg(orgslug, insightsRoutes.coverage()) },
     { id: 'evidence', label: 'Learner evidence', icon: <ClipboardCheck size={15} />, href: getUriWithOrg(orgslug, routePaths.org.admin.insightsEvidence()) },
   ]
-  return <AdminTabPage tab="insights" tabs={tabs} activeTab={view}>{children}</AdminTabPage>
+  return <AdminTabPage tab="insights" variant="underline" tabs={tabs} activeTab={view}>{children}</AdminTabPage>
 }
 
 /** Reports by group: plans and badges, who's behind and what's left, optional frameworks; print or send. */

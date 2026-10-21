@@ -15,20 +15,20 @@ import StepTodos, { type TodoContext } from './StepTodos'
  * card. Each step's Discuss button opens the assignment's chat beside the plan, filtered to it:
  * Staff only to start, and Whole group too for a group assignment.
  */
-export default function AssignmentPlan({ matrix, ctx, viewerUserId }: { matrix: AssignmentMatrix; ctx: Omit<TodoContext, 'learners' | 'now' | 'status'>; viewerUserId?: number }) {
+export default function AssignmentPlan({ matrix, ctx, viewerUserId }: { matrix: AssignmentMatrix; ctx: Omit<TodoContext, 'learners' | 'now' | 'status' | 'canReschedule'>; viewerUserId?: number }) {
   const now = React.useMemo(() => new Date(), [])
   const today = dayOf(now)
   const plan = React.useMemo(() => cohortPlan(matrix, today), [matrix, today])
   const aggregates = React.useMemo(() => cohortAggregates(matrix), [matrix])
-  const columns = React.useMemo(() => new Map(matrix.stages.flatMap((stage) => stage.steps).map((column) => [column.template_key, column])), [matrix])
+  const columns = React.useMemo(() => new Map(matrix.stages.flatMap((stage) => stage.steps.map((column) => [column.template_key, { column, stageEnd: stage.due_date }] as const))), [matrix])
   const upcoming = upcomingStep(matrix)?.template_key
   const [selected, setSelected] = React.useState(() => firstToDo(matrix, now))
   const summary = matrix.assignment
   const [audience, setAudience] = React.useState<ChatAudience>('staff')
-  const full: TodoContext = { ...ctx, learners: matrix.learners, now, status: summary.status }
+  const full: TodoContext = { ...ctx, learners: matrix.learners, now, status: summary.status, canReschedule: Boolean(matrix.can_reschedule) }
   const todos = (key: string, open: boolean) => {
-    const column = columns.get(key)
-    return column ? <StepTodos column={column} ctx={full} upcoming={key === upcoming} full={open} onOpen={() => setSelected(key)} /> : null
+    const found = columns.get(key)
+    return found ? <StepTodos column={found.column} stageEnd={found.stageEnd} ctx={full} upcoming={key === upcoming} full={open} onOpen={() => setSelected(key)} /> : null
   }
   return <GoalChatProvider scope={{ assignment: { orgId: ctx.orgId, assignment_uuid: summary.assignment_uuid, title: summary.template_title }, audience }}
     audiences={{ options: cohortAudiences(summary), onChange: setAudience }} token={ctx.token} orgslug={ctx.orgslug}>

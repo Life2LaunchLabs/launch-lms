@@ -36,7 +36,7 @@
     "apps/web/components/Admin/Platform/UserDetail.tsx": 879,
     "apps/web/components/Admin/Platform/UsersTable.tsx": 799,
     "apps/web/components/Contexts/AuthContext.tsx": 874,
-    "apps/web/components/Dashboard/Pages/Org/OrgEditBranding/OrgEditBranding.tsx": 1338,
+    "apps/web/components/Dashboard/Pages/Org/OrgEditBranding/OrgEditBranding.tsx": 1299,
     "apps/web/components/Dashboard/Pages/Payments/PaymentsCustomersPage.tsx": 530,
     "apps/web/components/Dashboard/Pages/Users/OrgUsers/OrgUsers.tsx": 587,
     "apps/web/components/Learning/AdminBadgeCollection.tsx": 708,

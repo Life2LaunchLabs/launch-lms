@@ -36,6 +36,8 @@ function openHref(entry: StepEntry, orgslug: string) {
 type Sort = 'newest' | 'oldest' | 'title' | 'rating'
 type View = 'grid' | 'stack'
 const VIEW_KEY = 'goals.explore.view'
+// How many finds before the board offers search, a type filter and sorting.
+const SORT_FROM = 6
 
 /** The board's square picture: the entry's image, or its kind's icon. */
 export function Thumb({ entry, className }: { entry: StepEntry; className?: string }) {
@@ -142,11 +144,12 @@ export function ExploreBoard({ step, actions, open, orgId, orgslug, token, viewe
   const [dropping, setDropping] = React.useState(false)
   const ingest = useBoardIngest(actions, token, viewerUserId)
 
-  const needle = query.trim().toLowerCase()
+  const sorting = entries.length >= SORT_FROM
+  const needle = sorting ? query.trim().toLowerCase() : ''
   const shown = entries
-    .filter((entry) => (!kind || entry.kind === kind) && (!needle || `${entry.title} ${entry.note} ${entry.url}`.toLowerCase().includes(needle)))
+    .filter((entry) => (!sorting || !kind || entry.kind === kind) && (!needle || `${entry.title} ${entry.note} ${entry.url}`.toLowerCase().includes(needle)))
     .sort((a, b) => Number(pinned(b)) - Number(pinned(a))
-      || (sort === 'title' ? titleOf(a).localeCompare(titleOf(b)) : sort === 'rating' ? ratingOf(b) - ratingOf(a) : 0)
+      || (!sorting ? 0 : sort === 'title' ? titleOf(a).localeCompare(titleOf(b)) : sort === 'rating' ? ratingOf(b) - ratingOf(a) : 0)
       || (sort === 'oldest' ? a.creation_date.localeCompare(b.creation_date) : b.creation_date.localeCompare(a.creation_date)))
   const kinds = EVIDENCE.filter((item) => entries.some((entry) => entry.kind === item))
   const drop = open ? {
@@ -156,8 +159,18 @@ export function ExploreBoard({ step, actions, open, orgId, orgslug, token, viewe
     onPaste: (event: React.ClipboardEvent) => { if (!(event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) && ingest.take(event.clipboardData)) event.preventDefault() },
   } : {}
 
+  const viewControls = <>
+    <div role="radiogroup" aria-label="View" className="flex rounded-lg border p-0.5">
+      {([['grid', LayoutGrid, 'Grid'], ['stack', Rows3, 'Stack']] as const).map(([key, Icon, label]) => <button key={key} type="button" role="radio" aria-checked={view === key} aria-label={label} onClick={() => pickView(key)}
+        className={cn('grid h-7 w-7 place-items-center rounded-md', view === key ? 'bg-muted text-foreground' : 'text-muted-foreground')}><Icon size={15} /></button>)}
+    </div>
+    {full ? null : <button type="button" aria-label="Expand the board" onClick={() => setExpanded(true)} className="grid h-9 w-9 place-items-center rounded-lg border text-muted-foreground hover:text-foreground"><Maximize2 size={15} /></button>}
+  </>
+  // A small board keeps its view controls beside Add; search, filter and sort earn a row once it holds more than a glance takes in.
+  const compact = entries.length > 0 && !sorting
+
   return <div className="flex flex-col gap-2">
-    {entries.length ? <div className="flex flex-wrap items-center gap-1.5">
+    {sorting ? <div className="flex flex-wrap items-center gap-1.5">
       <div className="relative min-w-36 flex-1"><Search size={14} aria-hidden="true" className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
         <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search" aria-label="Search the board" className="h-9 pl-8" /></div>
       {kinds.length > 1 ? <select aria-label="Type" value={kind} onChange={(event) => setKind(event.target.value as Evidence | '')} className={select}>
@@ -166,11 +179,7 @@ export function ExploreBoard({ step, actions, open, orgId, orgslug, token, viewe
       <select aria-label="Sort" value={sort} onChange={(event) => setSort(event.target.value as Sort)} className={select}>
         <option value="newest">Newest</option><option value="oldest">Oldest</option><option value="title">A–Z</option>{ratings ? <option value="rating">Rating</option> : null}
       </select>
-      <div role="radiogroup" aria-label="View" className="flex rounded-lg border p-0.5">
-        {([['grid', LayoutGrid, 'Grid'], ['stack', Rows3, 'Stack']] as const).map(([key, Icon, label]) => <button key={key} type="button" role="radio" aria-checked={view === key} aria-label={label} onClick={() => pickView(key)}
-          className={cn('grid h-7 w-7 place-items-center rounded-md', view === key ? 'bg-muted text-foreground' : 'text-muted-foreground')}><Icon size={15} /></button>)}
-      </div>
-      {full ? null : <button type="button" aria-label="Expand the board" onClick={() => setExpanded(true)} className="grid h-9 w-9 place-items-center rounded-lg border text-muted-foreground hover:text-foreground"><Maximize2 size={15} /></button>}
+      {viewControls}
     </div> : null}
 
     <div tabIndex={open ? 0 : undefined} aria-label={open ? 'Board. Drop or paste links and files here.' : 'Board'} {...drop}
@@ -188,9 +197,10 @@ export function ExploreBoard({ step, actions, open, orgId, orgslug, token, viewe
         : open ? <p className="rounded-2xl border-2 border-dashed px-4 py-6 text-center text-sm text-muted-foreground">Drop links, photos or PDFs here, paste a link, or tap Add.</p> : null}
     </div>
 
-    {open ? <div className="flex items-center gap-2">
-      <Button type="button" variant="surface" size="sm" onClick={() => setAdding(true)}><Plus size={15} aria-hidden="true" />Add</Button>
+    {open || compact ? <div className="flex flex-wrap items-center gap-2">
+      {open ? <Button type="button" variant="surface" size="sm" onClick={() => setAdding(true)}><Plus size={15} aria-hidden="true" />Add</Button> : null}
       {ingest.adding ? <span className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground"><Loader2 size={13} className="animate-spin" />Adding…</span> : null}
+      {compact ? <div className="ml-auto flex items-center gap-1.5">{viewControls}</div> : null}
     </div> : null}
     <AddToBoard open={adding} onOpenChange={setAdding} actions={actions} ingest={ingest} orgId={orgId} token={token} />
     {expanded ? <Dialog open onOpenChange={setExpanded}>

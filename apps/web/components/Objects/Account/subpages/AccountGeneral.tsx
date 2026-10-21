@@ -11,7 +11,9 @@ import {
   Info,
   ImageIcon,
   AlertTriangle,
+  UserRound,
 } from 'lucide-react'
+import { settingsCard, SettingsHeader } from '@components/Objects/Account/AccountPageShell'
 import UserAvatar from '@components/Objects/UserAvatar'
 import * as Yup from 'yup'
 import { Input } from "@components/ui/input"
@@ -65,17 +67,10 @@ const UserEditForm = ({
 
   return (
     <Form>
-      <div className="flex flex-col gap-0">
-        <div className="flex flex-col bg-muted -space-y-1 px-5 py-3 mx-3 my-3 rounded-md">
-          <h1 className="font-bold text-xl text-foreground">
-            {t('user.settings.general.title')}
-          </h1>
-          <h2 className="text-muted-foreground text-md">
-            {t('user.settings.general.subtitle')}
-          </h2>
-        </div>
+      <div className="flex flex-col gap-5 p-5 sm:p-6">
+        <SettingsHeader icon={UserRound} title={t('user.settings.general.title')} description={t('user.settings.general.subtitle')} />
 
-        <div className="flex flex-col lg:flex-row mt-0 mx-5 my-5 gap-8">
+        <div className="flex flex-col gap-8 lg:flex-row">
           {/* Portfolio Information Section */}
           <div className="flex-1 min-w-0 space-y-4">
             <div>
@@ -166,7 +161,7 @@ const UserEditForm = ({
 
           {/* Portfolio Picture Section */}
           <div className="lg:w-80 w-full">
-            <div className="bg-muted/50 p-6 rounded-lg nice-shadow h-full">
+            <div className="h-full rounded-2xl bg-muted/50 p-6">
               <div className="flex flex-col items-center space-y-6">
                 <Label className="font-bold">{t('user.settings.general.profile_picture')}</Label>
                 {profilePicture.error && (
@@ -211,11 +206,11 @@ const UserEditForm = ({
           </div>
         </div>
 
-        <div className="flex flex-row-reverse mt-0 mx-5 mb-5">
+        <div className="flex flex-row-reverse">
           <Button
             type="submit"
             disabled={isSubmitting}
-            className="bg-black text-white hover:bg-black/90"
+            variant="brand"
           >
             {isSubmitting ? t('user.settings.general.saving') : t('user.settings.general.save_changes')}
           </Button>
@@ -285,7 +280,7 @@ function AccountGeneral() {
 
   if (!userData) {
     return (
-      <div className="bg-card rounded-xl nice-shadow p-8">
+      <div className={`${settingsCard} p-8`}>
         <div className="flex items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
         </div>
@@ -294,7 +289,7 @@ function AccountGeneral() {
   }
 
   return (
-    <div className="bg-card rounded-xl nice-shadow">
+    <div className={settingsCard}>
       <Formik<FormValues>
         enableReinitialize
         initialValues={{

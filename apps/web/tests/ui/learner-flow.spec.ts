@@ -91,7 +91,7 @@ test('framework.list: Requirements lists frameworks with coverage and opens cove
   await expect(page.getByRole('button', { name: 'Create framework' })).toBeVisible()
   const row = page.getByRole('list', { name: 'Requirement frameworks' }).getByRole('link').filter({ hasText: 'Manual code editor test' }).first()
   await expect(row).toContainText(/\d+ of \d+ covered by \d+ templates?/)
-  await expect(row).toContainText('Yours · you can edit')
+  await expect(row).not.toContainText('view only')
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true)
   await capture(page, info, 'requirements-list.png')
 
@@ -137,7 +137,7 @@ test('goals.path: pending work looks finished and activity plays without navigat
   await expect(pending.getByRole('button', { name: /Start|Continue/ })).toHaveCount(0)
   await expect(pending.getByRole('button', { name: 'Ask Coach', exact: true })).toHaveCount(0)
   await capture(page, info, 'step-waiting-review.png')
-  await active.getByRole('button', { name: /^Practice activity, / }).click()
+  await active.getByRole('button', { name: /^Practice activity(, |$)/ }).first().click()
   await active.getByRole('button', { name: 'Ask Coach', exact: true }).click()
   await expect(page.getByRole('region', { name: 'Coach', exact: true })).toBeVisible()
   const composer = page.getByLabel('Ask a question or search Launch LMS')

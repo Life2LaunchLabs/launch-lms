@@ -61,6 +61,12 @@ class GoalAssignmentUpdate(SQLModel):
     collaborators: list[AssignmentCollaborator] | None = None
 
 
+class StepDue(SQLModel):
+    """When one step of a running assignment is due; None goes back to the template's date (or its stage's end)."""
+
+    due_date: date | None = None
+
+
 class StepRemind(SQLModel):
     """Remind learners who haven't handed a step in. No user_uuids: everyone it's waiting on."""
 

@@ -36,7 +36,8 @@ function TaskCard({ step, actions, canWork, staff }: StepCardProps<'task'>) {
     <StepIntro step={step} />
     <Feedback step={step} />
     {list ? <div className="flex flex-col gap-2">
-      <p className="text-xs font-extrabold text-muted-foreground">{list.label || 'Your list'}{target ? ` · ${entries.length} of ${target}` : ''}</p>
+      {/* The count already sits in the step's status line, right above. */}
+      <p className="text-xs font-extrabold text-muted-foreground">{list.label || 'Your list'}</p>
       {entries.length ? <ul className="flex flex-col gap-1.5">
         {entries.map((entry) => <li key={entry.entry_uuid} className="flex items-center gap-2 rounded-xl border bg-background px-3 py-2 text-sm">
           <button type="button" disabled={!open} aria-label={entry.done ? 'Mark not done' : 'Mark done'} onClick={() => actions.updateEntry(entry.entry_uuid, { done: !entry.done })} className={cn('grid h-5 w-5 shrink-0 place-items-center rounded-md border-2', entry.done ? 'border-[var(--plan-face)] bg-[var(--plan-face)] text-[var(--plan-face-ink)]' : 'border-border')}>{entry.done ? <Check size={12} strokeWidth={3.5} /> : null}</button>

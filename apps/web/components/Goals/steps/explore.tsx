@@ -1,23 +1,27 @@
 'use client'
 
 import React from 'react'
-import { Check, Compass, FileText, Sparkles } from 'lucide-react'
+import { Check, Compass, FileText } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@components/ui/dialog'
 import { Label } from '@components/ui/label'
 import { Textarea } from '@components/ui/textarea'
 import type { Step } from '@services/goals/types'
 import type { ConfigPanelProps, StepCardProps, StepDefinition } from './registry'
-import { CardNote, Feedback, FinishControls, StepIntro } from './shared'
+import { AskCoach, CardNote, Feedback, FinishControls, StepIntro } from './shared'
 import { evidenceOf, ExploreBoard, KIND, pinned, Thumb, type Evidence } from './exploreBoard'
 
 function ExploreRow({ step }: { step: Step<'explore'> }) {
   const result = step.result?.kind === 'explore' ? step.result : null
   if (!result) return null
   if (result.answer) return <p className="mt-1 line-clamp-2 text-sm font-bold text-[var(--plan-accent)]">{result.answer}</p>
-  return <div className="mt-1.5 flex gap-1.5">
-    {result.thumbs.map((thumb, index) => thumb.image ? <img key={index} src={thumb.image} alt="" className="h-10 w-10 rounded-lg object-cover" />
-      : <span key={index} className="grid h-10 w-10 place-items-center rounded-lg border bg-background text-[var(--plan-accent)]">{React.createElement(KIND[thumb.kind as Evidence]?.icon || FileText, { size: 15, 'aria-hidden': true })}</span>)}
+  // A picture shows as itself; anything else by its title, like a task's items, so the row says what was found.
+  return <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+    {result.thumbs.map((thumb, index) => thumb.image ? <img key={index} src={thumb.image} alt={thumb.title || ''} className="h-10 w-10 rounded-lg object-cover" />
+      : <span key={index} className="flex max-w-[14rem] items-center gap-1.5 rounded-[10px] border-[1.5px] border-[color-mix(in_srgb,var(--plan-face)_35%,transparent)] bg-[color-mix(in_srgb,var(--plan-face)_13%,hsl(var(--card)))] px-2.5 py-1 text-xs font-extrabold">
+        {React.createElement(KIND[thumb.kind as Evidence]?.icon || FileText, { size: 13, 'aria-hidden': true, className: 'shrink-0 text-[var(--plan-accent)]' })}<span className="truncate">{thumb.title || thumb.url || KIND[thumb.kind as Evidence]?.label}</span>
+      </span>)}
+    {result.count > result.thumbs.length ? <span className="px-1 text-xs font-bold text-muted-foreground">+{result.count - result.thumbs.length}</span> : null}
   </div>
 }
 
@@ -69,11 +73,11 @@ function ExploreCard(props: StepCardProps<'explore'>) {
     <StepIntro step={step} />
     <Feedback step={step} />
     {open ? <ExploreBoard step={step} actions={actions} open orgId={goal.org_id} orgslug={orgslug} token={token} viewerUserId={viewerUserId} /> : <ClosedBoard {...props} />}
-    {learnerFinishes ? finishing ? <Outcome step={step} actions={actions} onCancel={() => setFinishing(false)} /> : <div className="flex flex-wrap items-center gap-2">
-      <Button type="button" variant="plan" onClick={() => setFinishing(true)}><Check size={15} aria-hidden="true" />Done</Button>
-      {actions.ask ? <Button type="button" variant="surface" onClick={actions.ask}><Sparkles size={15} aria-hidden="true" />Ask Coach</Button> : null}
+    {learnerFinishes ? finishing ? <Outcome step={step} actions={actions} onCancel={() => setFinishing(false)} /> : <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      <Button type="button" variant="plan" onClick={() => setFinishing(true)}><Check size={15} aria-hidden="true" />Mark done</Button>
+      {actions.ask ? <span className="ml-auto"><AskCoach onAsk={actions.ask} /></span> : null}
     </div> : <FinishControls step={step} actions={actions} canWork={canWork} staff={staff} />}
-    {open && !evidenceOf(step).length && !staff ? <CardNote>Collect what you find here, then tap Done to say what you made of it.</CardNote> : null}
+    {open && !evidenceOf(step).length && !staff ? <CardNote>Collect what you find here, then tap Mark done to say what you made of it.</CardNote> : null}
   </div>
 }
 
