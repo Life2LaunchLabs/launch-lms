@@ -17,7 +17,7 @@ export default function BadgeTemplatesSection({ orgslug, orgId, token }: { orgsl
   const { data: routes = [] } = useSWR<IssuerBadgeRoute[]>(orgId && token ? templateKeys.badgeRoutes(orgId) : null, () => templatesApi.badgeRoutes(orgId, token))
   if (!routes.length) return null
   return <section className="mt-6 rounded-xl bg-card p-6 shadow-xs">
-    <div className="mb-5"><h2 className="text-lg font-bold text-foreground">Badge templates you run</h2><p className="mt-1 text-sm text-muted-foreground">Templates other organizations authorized you to run. Learners who finish earn their badge. When the owner publishes a new version, each assignment shows it here and you decide whether to apply it.</p></div>
+    <div className="mb-5"><h2 className="text-lg font-bold text-foreground">Badge templates you run</h2><p className="mt-1 text-sm text-muted-foreground">Templates other organizations authorized you to run. Learners who finish earn their badge. When the owner releases a new version, each assignment shows it here and you decide whether to apply it.</p></div>
     <div className="space-y-6">{routes.map((route) => <BadgeRouteCard key={route.route_uuid} route={route} orgslug={orgslug} orgId={orgId} token={token} />)}</div>
   </section>
 }

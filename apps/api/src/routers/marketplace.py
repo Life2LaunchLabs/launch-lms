@@ -1,17 +1,15 @@
 from fastapi import APIRouter, Depends, Query, Request
 from src.core.events.database import get_db_session
 from src.db.learning import (
-    IssuerAuthorizationInvite,
-    IssuerAuthorizationRequest,
     IssuerLearnerLinkCreate,
     IssuerLearnerRequestCreate,
     IssuerLearnerRequestDecision,
 )
-from src.db.template_marketplace import TemplateAuthorizationRequest, TemplateListingUpdate
+from src.db.template_marketplace import TemplateAuthorizationRequest, TemplateInvite, TemplateListingUpdate
 from src.security.auth import get_current_user
 from src.services import learning_marketplace as marketplace_service
-from src.services.goals import template_marketplace
-from src.services.learning_issuers import BadgeIssuerAuthorizationAccessRead, BadgeIssuingSettingsUpdate, IssuerAccessUpdate
+from src.services.goals import plan_issuers, template_marketplace
+from src.services.learning_issuers import BadgeIssuingSettingsUpdate
 
 router = APIRouter()
 
@@ -58,90 +56,15 @@ async def api_update_issuing_settings(
     return await marketplace_service.update_issuing_settings(request, badge_uuid, payload, current_user, db_session)
 
 
-@router.get("/authorizations")
-async def api_list_authorizations(
+@router.get("/issuing")
+async def api_list_issued_badges(
     request: Request,
     org_id: int = Query(...),
-    perspective: str = Query("issuer"),
-    badge_uuid: str | None = Query(None),
-    status: str | None = Query(None),
     current_user=Depends(get_current_user),
     db_session=Depends(get_db_session),
-) -> list[BadgeIssuerAuthorizationAccessRead]:
-    return await marketplace_service.list_authorizations(
-        request, org_id, perspective, current_user, db_session, badge_uuid=badge_uuid, status_filter=status
-    )
-
-
-@router.post("/authorizations")
-async def api_request_authorization(
-    request: Request,
-    payload: IssuerAuthorizationRequest,
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> BadgeIssuerAuthorizationAccessRead:
-    return await marketplace_service.request_authorization(request, payload, current_user, db_session)
-
-
-@router.post("/authorizations/invite")
-async def api_invite_issuer(
-    request: Request,
-    payload: IssuerAuthorizationInvite,
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> BadgeIssuerAuthorizationAccessRead:
-    return await marketplace_service.invite_issuer(request, payload, current_user, db_session)
-
-
-@router.post("/authorizations/{authorization_uuid}/approve")
-async def api_approve_authorization(
-    request: Request,
-    authorization_uuid: str,
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> BadgeIssuerAuthorizationAccessRead:
-    return await marketplace_service.decide_authorization(request, authorization_uuid, True, current_user, db_session)
-
-
-@router.post("/authorizations/{authorization_uuid}/reject")
-async def api_reject_authorization(
-    request: Request,
-    authorization_uuid: str,
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> BadgeIssuerAuthorizationAccessRead:
-    return await marketplace_service.decide_authorization(request, authorization_uuid, False, current_user, db_session)
-
-
-@router.post("/authorizations/{authorization_uuid}/accept")
-async def api_accept_invite(
-    request: Request,
-    authorization_uuid: str,
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> BadgeIssuerAuthorizationAccessRead:
-    return await marketplace_service.accept_invite(request, authorization_uuid, current_user, db_session)
-
-
-@router.post("/authorizations/{authorization_uuid}/revoke")
-async def api_revoke_authorization(
-    request: Request,
-    authorization_uuid: str,
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> BadgeIssuerAuthorizationAccessRead:
-    return await marketplace_service.revoke_authorization(request, authorization_uuid, current_user, db_session)
-
-
-@router.put("/authorizations/{authorization_uuid}")
-async def api_update_authorization(
-    request: Request,
-    authorization_uuid: str,
-    payload: IssuerAccessUpdate,
-    current_user=Depends(get_current_user),
-    db_session=Depends(get_db_session),
-) -> BadgeIssuerAuthorizationAccessRead:
-    return await marketplace_service.update_authorization(request, authorization_uuid, payload, current_user, db_session)
+) -> list[dict]:
+    """Other organizations' badges this one issues, with the plans it runs for each (leave a plan to stop)."""
+    return await marketplace_service.list_issued_badges(request, org_id, current_user, db_session)
 
 
 @router.get("/learner-links")
@@ -240,7 +163,7 @@ async def api_issuer_badge_metrics(
 
 @router.get("/requests/summary")
 def api_requests_summary(org_id: int = Query(...), current_user=Depends(get_current_user), db_session=Depends(get_db_session)) -> dict:
-    """Counts for the Marketplace tab: requests waiting on this organization and its own pending ones (badges + templates)."""
+    """Counts for the Marketplace tab: plan requests waiting on this organization and its own pending ones."""
     return template_marketplace.requests_summary(db_session, current_user, org_id)
 
 
@@ -273,6 +196,18 @@ def api_set_template_listing(
     return template_marketplace.set_listing(db_session, current_user, org_id, template_uuid, payload)
 
 
+@router.post("/templates/{template_uuid}/authorizations/invite")
+def api_invite_to_template(template_uuid: str, payload: TemplateInvite, org_id: int = Query(...), current_user=Depends(get_current_user), db_session=Depends(get_db_session)) -> dict:
+    """The template's owner authorizes another organization (by slug) to run it, and so to issue the badges it earns."""
+    return plan_issuers.invite(db_session, current_user, org_id, template_uuid, payload.issuer_org_slug)
+
+
+@router.get("/templates/{template_uuid}/metrics")
+def api_template_metrics(template_uuid: str, org_id: int = Query(...), current_user=Depends(get_current_user), db_session=Depends(get_db_session)) -> dict:
+    """Quick usage counts for the owner's Publish tab: authorized orgs, assignments, learners, completions, badges earned."""
+    return plan_issuers.template_metrics(db_session, current_user, org_id, template_uuid)
+
+
 @router.post("/templates/{template_uuid}/copy")
 def api_copy_marketplace_template(template_uuid: str, org_id: int = Query(...), current_user=Depends(get_current_user), db_session=Depends(get_db_session)) -> dict:
     """Copy an open template into a draft of this organization's own ("Based on <plan> by <org>")."""
@@ -284,15 +219,16 @@ def api_template_authorizations(
     org_id: int = Query(...),
     perspective: str = Query("issuer"),
     status: str | None = Query(None),
+    template_uuid: str | None = Query(None),
     current_user=Depends(get_current_user),
     db_session=Depends(get_db_session),
 ) -> list[dict]:
-    return template_marketplace.list_authorizations(db_session, current_user, org_id, perspective, status)
+    return template_marketplace.list_authorizations(db_session, current_user, org_id, perspective, status, template_uuid)
 
 
 @router.post("/template-authorizations")
 def api_request_template(payload: TemplateAuthorizationRequest, current_user=Depends(get_current_user), db_session=Depends(get_db_session)) -> dict:
-    """Ask to use a listed template (approved at once when its access is open)."""
+    """Ask to use a listed template, or to issue a marketplace badge through one of its plans (approved at once when open)."""
     return template_marketplace.request_use(db_session, current_user, payload)
 
 
@@ -308,4 +244,5 @@ def api_reject_template(authorization_uuid: str, current_user=Depends(get_curren
 
 @router.post("/template-authorizations/{authorization_uuid}/revoke")
 def api_revoke_template(authorization_uuid: str, current_user=Depends(get_current_user), db_session=Depends(get_db_session)) -> dict:
+    """Either side ends the permission: the owner revokes it, or the organization leaves the plan (and stops issuing its badges)."""
     return template_marketplace.revoke(db_session, current_user, authorization_uuid)

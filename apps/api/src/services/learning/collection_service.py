@@ -10,8 +10,6 @@ from src.db.learning import (
     BadgeCollectionCreate,
     BadgeCollectionRead,
     BadgeCollectionUpdate,
-    BadgeIssuerAuthorization,
-    BadgeIssuerAuthorizationStatus,
     LearningBadge,
     LearningBadgeRead,
 )
@@ -207,15 +205,10 @@ async def list_collections(
                 LearningBadge.org_id == org_id, LearningBadge.deleted_at.is_(None)
             )
         ).all()
-        authorized_badge_ids = {
-            authorization.badge_id
-            for authorization in db_session.exec(
-                select(BadgeIssuerAuthorization).where(
-                    BadgeIssuerAuthorization.issuer_org_id == org_id,
-                    BadgeIssuerAuthorization.status == BadgeIssuerAuthorizationStatus.APPROVED,
-                )
-            ).all()
-        }
+        from src.services.goals.plan_issuers import issued_badge_ids
+
+        # Badges other organizations created that this one issues (approved on one of their plans).
+        authorized_badge_ids = issued_badge_ids(db_session, [org_id])
         authorized_badges = (
             db_session.exec(
                 select(LearningBadge).where(

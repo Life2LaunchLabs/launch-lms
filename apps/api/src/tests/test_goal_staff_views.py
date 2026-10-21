@@ -6,7 +6,6 @@ from sqlmodel import select
 from src.db.badge_routes import BadgeRoute, BadgeRouteOffer
 from src.db.goal_admin import StepProgressBulk
 from src.db.goals import GoalAssignmentCreate, GoalTemplateVersion, StepCreate, StepStatus, StepSubmission
-from src.db.learning import BadgeIssuerAuthorization
 from src.db.requirements import RequirementFramework, RequirementFrameworkVersion, RequirementNode
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
@@ -135,7 +134,7 @@ TEACHER = 4
 
 def _plans_world(db) -> None:
     """Tables the plan stack reads, a teacher (staff, not admin) and a framework with two requirements."""
-    for model in (BadgeRoute, BadgeRouteOffer, BadgeIssuerAuthorization, RequirementFramework, RequirementFrameworkVersion, RequirementNode):
+    for model in (BadgeRoute, BadgeRouteOffer, RequirementFramework, RequirementFrameworkVersion, RequirementNode):
         model.__table__.create(db.get_bind(), checkfirst=True)
     db.add(Role(id=5, role_uuid="role_teacher", name="Teacher", rights={"dashboard": {"action_access": True}, "learning_activities": {"action_update": True}}))
     db.add(User(id=TEACHER, user_uuid="user_4", username="tina", email="tina@example.com", first_name="Tina", last_name="Teach", creation_date=NOW, update_date=NOW))

@@ -3,7 +3,7 @@ from sqlmodel import Session, select
 from src.db.badge_routes import BadgeRoute
 from src.db.goals import GoalTemplate
 from src.db.template_marketplace import GoalTemplateLearnerAccess
-from src.db.learning import BadgeCollection, BadgeIssuerAuthorization, BadgeIssuerAuthorizationStatus, LearningBadge, LearningBadgeAward, LearningBadgeStatus
+from src.db.learning import BadgeCollection, LearningBadge, LearningBadgeAward, LearningBadgeStatus
 from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
 from src.db.goals import StepStatus, StepStatusChange
@@ -13,6 +13,7 @@ from src.services.goals import goals
 from src.services.goals.badges import start_badge_goal
 from src.services.goals import plan_access
 from src.services.goals.plan_access import set_access
+from src.tests.plan_permissions import approve_on_plans
 from src.tests.test_goal_badges import _world
 from src.tests.test_goals import LEARNER as LEARNER_ID, NOW, _user
 
@@ -107,11 +108,9 @@ def test_discover_lists_approved_publishers_and_badges_offered_to_the_site_only(
         assert names() == {"Adaptability", "Leadership"}
         assert names(org_id=3) == set()
         assert names(site_org_id=2) == {"Adaptability", "Leadership"}
-        # A badge offered to the site organization through an authorization is listed there, and only there.
-        session.add(BadgeIssuerAuthorization(authorization_uuid="auth_3", badge_id=3, creator_org_id=3, issuer_org_id=2,
-                                             status=BadgeIssuerAuthorizationStatus.APPROVED, creation_date=NOW, update_date=NOW))
-        session.commit()
+        # A badge the site organization issues (approved on its plan) is listed there, and only there.
         _open_route(session, 3, "route_unvetted", org_id=2)
+        approve_on_plans(session, 2, badge_id=3)
         assert names(site_org_id=2) == {"Adaptability", "Leadership", "Unvetted"}
         assert names(org_id=2) == {"Adaptability", "Unvetted"}
         assert "Unvetted" not in names(site_org_id=1)

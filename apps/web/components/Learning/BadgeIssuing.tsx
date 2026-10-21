@@ -5,7 +5,6 @@ import { Loader2 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@components/ui/select'
-import { Switch } from '@components/ui/switch'
 import PlanAccessList from '@components/Learning/PlanAccessList'
 import { getBadgeIssuingSettings, LearnerAccess, updateBadgeIssuingSettings } from '@services/learning/marketplace'
 
@@ -20,16 +19,13 @@ export function learnerAccessLabel(access?: string) {
 }
 
 // One control for how learners join an issuer, used by the creator and by outside issuers alike.
-export function LearnerAccessSelect({ value, disabled, onChange, allowNone = false, label = 'Learner access' }: {
-  value: LearnerAccess | 'none'
+export function LearnerAccessSelect({ value, disabled, onChange, label = 'Learner access' }: {
+  value: LearnerAccess
   disabled?: boolean
-  onChange: React.Dispatch<LearnerAccess | 'none'>
-  allowNone?: boolean
+  onChange: React.Dispatch<LearnerAccess>
   label?: string
 }) {
-  const options = allowNone
-    ? [...LEARNER_ACCESS_OPTIONS, { value: 'none' as const, label: 'Not issuing', description: 'Your organization does not issue this badge.' }]
-    : LEARNER_ACCESS_OPTIONS
+  const options = LEARNER_ACCESS_OPTIONS
   const selected = options.find((option) => option.value === value)
   return (
     <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
@@ -37,7 +33,7 @@ export function LearnerAccessSelect({ value, disabled, onChange, allowNone = fal
         <p className="text-sm font-semibold text-foreground">{label}</p>
         <p className="mt-0.5 text-xs text-muted-foreground">{selected?.description}</p>
       </div>
-      <Select value={value} onValueChange={(next) => onChange(next as LearnerAccess | 'none')} disabled={disabled}>
+      <Select value={value} onValueChange={(next) => onChange(next as LearnerAccess)} disabled={disabled}>
         <SelectTrigger className="w-full bg-card sm:w-56" aria-label={label}><SelectValue /></SelectTrigger>
         <SelectContent>
           {options.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
@@ -47,7 +43,8 @@ export function LearnerAccessSelect({ value, disabled, onChange, allowNone = fal
   )
 }
 
-// The creator's own issuing settings and which issuer learners see first. Who can start is set on each plan.
+// The creator's plans for its badge (who can start each) and which issuer learners see first. The creator
+// always issues its own badge; to keep learners out, make its plans invite only.
 export function CreatorIssuingCard({ badge, orgName, orgslug = '', refreshKey = 0 }: { badge: any; orgName?: string; orgslug?: string; refreshKey?: number }) {
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
@@ -78,22 +75,13 @@ export function CreatorIssuingCard({ badge, orgName, orgslug = '', refreshKey = 
     return <div className="flex items-center justify-center rounded-xl border border-border py-8 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /></div>
   }
   const issuers: any[] = settings.issuers || []
-  const issuing = settings.creator_issues ?? settings.creator_access !== 'none'
   return (
     <article className="space-y-4 rounded-xl border border-lime-200 bg-lime-50/40 p-4">
       <div>
         <p className="text-sm font-bold text-foreground">{orgName || 'Your organization'}</p>
         <p className="mt-1 text-xs text-muted-foreground">Badge creator · issues this badge like any other issuer</p>
       </div>
-      <div className="flex items-center justify-between gap-6">
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-foreground">Issue this badge yourself</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">{issuing ? 'Your learners can earn it with your organization.' : 'Only other issuers offer it to learners.'}</p>
-        </div>
-        <Switch checked={issuing} disabled={saving} aria-label="Issue this badge yourself"
-          onCheckedChange={(next) => void save({ creator_issues: next }, next ? 'Your organization issues this badge again.' : 'Your organization no longer issues this badge.')} />
-      </div>
-      {issuing ? <PlanAccessList plans={settings.creator_plans || []} orgslug={orgslug} emptyText="Add a way to earn this badge first: learners start one of its plans." /> : null}
+      <PlanAccessList plans={settings.creator_plans || []} orgslug={orgslug} emptyText="Add a way to earn this badge first: learners start one of its plans." />
       {issuers.length > 1 ? (
         <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
           <div className="min-w-0">

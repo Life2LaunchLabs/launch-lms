@@ -44,7 +44,7 @@ export default function TemplateSteps({ orgslug, orgId, token, editing, readOnly
   }
   return <div className="px-4 pb-10 pt-6 sm:px-10" data-plan="" style={planVars()}><div className="mx-auto max-w-5xl">
     {readOnly ? <p className="mb-5 text-xs text-muted-foreground">View only. Open a step to see all of its settings.</p> : <div className="mb-5 flex items-center justify-between gap-3">
-      <p className="text-xs text-muted-foreground">Edits save to the draft. Learners get them once you publish.{editing.saving ? <Loader2 size={13} className="ml-2 inline animate-spin" /> : null}</p>
+      <p className="text-xs text-muted-foreground">Edits save to the draft. Learners get them once you release a new version.{editing.saving ? <Loader2 size={13} className="ml-2 inline animate-spin" /> : null}</p>
       <Modal isDialogOpen={stageOpen} onOpenChange={setStageOpen} minHeight="no-min" minWidth="md" dialogTitle="Add a stage" dialogDescription="Stages group steps: terms, units, milestones or anything that makes sense to learners."
         dialogTrigger={<Button variant="outline" size="sm"><Plus />Add stage</Button>}
         dialogContent={<div className="space-y-4 p-2">

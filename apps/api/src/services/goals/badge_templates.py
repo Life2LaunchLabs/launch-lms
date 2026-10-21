@@ -11,12 +11,13 @@ from __future__ import annotations
 from sqlmodel import Session, col, select
 
 from src.db.goals import GoalAssignment, GoalTemplate
-from src.db.learning import BadgeIssuerAuthorization, BadgeIssuerAuthorizationStatus, LearningBadge
+from src.db.learning import LearningBadge
 from src.db.organizations import Organization
 from src.db.users import PublicUser
 from src.services.goals import badge_authority, templates
 from src.services.goals.assignment_summary import assignment_dict
 from src.services.goals.badges import badge_routes
+from src.services.goals.plan_issuers import issued_badge_ids
 
 
 def _template_ref(db: Session, template: GoalTemplate) -> dict:
@@ -34,9 +35,7 @@ def issuer_routes(db: Session, current_user: PublicUser, org_id: int) -> list[di
     # Staff who aren't admins see only the assignments they staff, as on the Assignments list.
     sees_all = templates.can_edit(db, current_user, org_id)
     badges = db.exec(
-        select(LearningBadge).join(BadgeIssuerAuthorization, BadgeIssuerAuthorization.badge_id == LearningBadge.id)
-        .where(BadgeIssuerAuthorization.issuer_org_id == org_id, BadgeIssuerAuthorization.status == BadgeIssuerAuthorizationStatus.APPROVED,
-               LearningBadge.org_id != org_id, col(LearningBadge.deleted_at).is_(None))
+        select(LearningBadge).where(col(LearningBadge.id).in_(issued_badge_ids(db, [org_id]) or {0}), col(LearningBadge.deleted_at).is_(None))
         .order_by(LearningBadge.name)
     ).all()
     result = []

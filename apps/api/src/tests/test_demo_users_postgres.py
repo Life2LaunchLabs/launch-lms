@@ -572,28 +572,36 @@ def test_publish_includes_the_public_badge_catalog_of_every_org(world):
 
     db.add(Organization(id=4, org_uuid="org_issuer", name="Issuer", slug="issuer", email="i@example.com"))
     db.flush()
-    from src.db.learning import BadgeIssuerAuthorization, BadgeIssuerAuthorizationStatus
+    from src.db.badge_routes import BadgeRoute
+    from src.db.goals import GoalTemplate
+    from src.db.template_marketplace import GoalTemplateAuthorization, GoalTemplateLearnerAccess
 
-    for identifier, state in ((1, BadgeIssuerAuthorizationStatus.APPROVED), (2, BadgeIssuerAuthorizationStatus.REQUESTED)):
+    # Each catalog badge has a plan; org 4 is approved on CPR's and has only asked for Phlebotomy's.
+    for identifier, state in ((1, "approved"), (2, "requested")):
+        db.add(GoalTemplate(id=59 + identifier, template_uuid=f"template_{identifier}", org_id=3, title=f"Plan {identifier}"))
+        db.flush()
+        db.add(BadgeRoute(route_uuid=f"route_{identifier}", badge_id=49 + identifier, goal_template_id=59 + identifier))
         db.add(
-            BadgeIssuerAuthorization(
+            GoalTemplateAuthorization(
                 id=identifier,
-                authorization_uuid=f"issuer_auth_{identifier}",
-                badge_id=49 + identifier,
+                authorization_uuid=f"template_auth_{identifier}",
+                template_id=59 + identifier,
                 creator_org_id=3,
                 issuer_org_id=4,
                 status=state,
             )
         )
+    db.add(GoalTemplateLearnerAccess(template_id=60, org_id=4, access="invite"))
     db.commit()
     from src.services.demo.lifecycle import publish
 
     revision = db.exec(text("SELECT revision FROM democonfiguration")).scalar()
     rows = publish(db, 10, revision).data["rows"]
     # Approved issuers of catalog badges come along so learners can choose one.
-    assert [row["id"] for row in rows["badgeissuerauthorization"]] == [1]
-    # No issuer staff in a demo copy: visitors may request any captured issuer.
-    assert rows["badgeissuerauthorization"][0]["open_to_all"] is True
+    assert [row["id"] for row in rows["goal_template_authorization"]] == [1]
+    assert {row["id"] for row in rows["goal_template"]} >= {60, 61}
+    # No issuer staff in a demo copy: visitors start any captured issuer's plan at once.
+    assert [row["access"] for row in rows["goal_template_learner_access"]] == ["open"]
     assert "Issuer" in {row["name"] for row in rows["organization"]}
     names = {row["name"] for row in rows["learningbadge"]}
     assert {"CPR", "Phlebotomy", "First Aid"} <= names

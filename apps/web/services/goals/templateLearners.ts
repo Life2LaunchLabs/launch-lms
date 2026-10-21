@@ -21,8 +21,6 @@ export interface TemplateEarnedBadge {
   route_uuid: string
   recommended: boolean
   eligible_versions: { rule: EligibilityRule; from_version: number | null }
-  trusted_only: boolean
-  partners: Array<{ id: number; name: string; slug: string }>
   /** Finishing this plan here earns the badge (this organization may run this way to earn it). */
   earns_here: boolean
   offered_by: PlanOffer[]

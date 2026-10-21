@@ -11,7 +11,7 @@ from sqlalchemy import or_
 from sqlmodel import Session, col, select
 
 from src.db.badge_routes import BadgeRoute
-from src.db.learning import BadgeIssuerAuthorization, BadgeIssuerAuthorizationStatus, BadgeCollection, LearningBadge, LearningBadgeAward, LearningBadgeStatus, LearningBadgeVersion
+from src.db.learning import BadgeCollection, LearningBadge, LearningBadgeAward, LearningBadgeStatus, LearningBadgeVersion
 from src.db.organizations import Organization
 from src.db.users import AnonymousUser, PublicUser
 from src.services.learning import lookups
@@ -50,12 +50,10 @@ def _publishers(db: Session, org_ids: set[int]) -> set[int]:
 
 
 def _offered_to(db: Session, org_ids: set[int]) -> set[int]:
-    """Badges these organizations hold an approved authorization to issue."""
-    if not org_ids:
-        return set()
-    return set(db.exec(select(BadgeIssuerAuthorization.badge_id).where(
-        col(BadgeIssuerAuthorization.issuer_org_id).in_(org_ids), BadgeIssuerAuthorization.status == BadgeIssuerAuthorizationStatus.APPROVED,
-    )).all())
+    """Other organizations' badges these organizations may issue (approved on one of the badge's plans)."""
+    from src.services.goals.plan_issuers import issued_badge_ids
+
+    return issued_badge_ids(db, org_ids)
 
 
 def discoverable(db: Session, org_id: int | None = None, site_org_id: int | None = None, statement=None) -> list[LearningBadge]:
