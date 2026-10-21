@@ -6,9 +6,10 @@ from sqlmodel import Session
 from src.core.events.database import get_db_session
 from src.db.goal_templates import GoalAssignmentRequest
 from src.db.goals import TemplateCreate, TemplatePublish, TemplateSave, TemplateStatus
+from src.db.template_marketplace import TemplateLearnerAccessUpdate
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
-from src.services.goals import assignments, badge_templates, badge_versions, library, template_marketplace, templates
+from src.services.goals import assignments, badge_templates, badge_versions, library, template_learners, template_marketplace, templates
 from src.services.goals.document import json_schema
 
 router = APIRouter()
@@ -121,3 +122,15 @@ def api_template_assignments(template_uuid: str, org_id: int, db: Session = Depe
 def api_assign_template(template_uuid: str, org_id: int, payload: GoalAssignmentRequest, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
     """Hand the template to a person, a group or an email address, with a schedule and staff."""
     return assignments.assign(db, user, org_id, template_uuid, payload)
+
+
+@router.get("/{template_uuid}/learners")
+def api_template_learners(template_uuid: str, org_id: int, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    """The badges this template earns and who may start it in this organization."""
+    return template_learners.template_learners(db, user, org_id, template_uuid)
+
+
+@router.put("/{template_uuid}/learners")
+def api_set_template_learners(template_uuid: str, org_id: int, payload: TemplateLearnerAccessUpdate, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    """Who may start this plan in this organization: open, by request, or invited learners only."""
+    return template_learners.set_template_access(db, user, org_id, template_uuid, payload)

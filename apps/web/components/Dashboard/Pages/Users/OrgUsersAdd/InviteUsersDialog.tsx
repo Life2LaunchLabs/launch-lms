@@ -17,9 +17,11 @@ import { useFeatures } from '@components/Hooks/useFeatures'
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const splitRecipients = (value: string) => value.split(/[\s,;]+/).map((email) => email.trim()).filter(Boolean)
 
-export default function InviteUsersDialog({ open: isOpen, onOpenChange, onInvited }: {
+export default function InviteUsersDialog({ open: isOpen, onOpenChange, onInvited, initialRole = 'learner' }: {
   open: boolean
   onOpenChange: React.Dispatch<React.SetStateAction<boolean>>
+  /** Which role starts picked: learners, or staff (from Home's getting started). */
+  initialRole?: 'learner' | 'staff'
   onInvited?: () => void
 }) {
   const org = useOrg() as any
@@ -45,12 +47,13 @@ export default function InviteUsersDialog({ open: isOpen, onOpenChange, onInvite
   const isLearnerRole = selectedRole?.role_uuid === 'role_global_user' || ['user', 'learner', 'member'].includes(String(selectedRole?.name || '').toLowerCase())
   const readyRecipients = previewResults.filter((result) => result.status === 'ready')
 
+  // Each time it opens, start on the role it was opened for.
   React.useEffect(() => {
-    if (!selectedRoleId && roles?.length) {
-      const learnerRole = roles.find((role: any) => role.role_uuid === 'role_global_user')
-      setSelectedRoleId(String(learnerRole?.id || roles[0].id))
+    if (isOpen && roles?.length) {
+      const startRole = roles.find((role: any) => role.role_uuid === (initialRole === 'staff' ? 'role_global_maintainer' : 'role_global_user'))
+      setSelectedRoleId(String(startRole?.id || roles[0].id))
     }
-  }, [roles, selectedRoleId])
+  }, [roles, isOpen, initialRole])
 
   React.useEffect(() => {
     if (!isLearnerRole) {

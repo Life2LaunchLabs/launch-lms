@@ -3,7 +3,7 @@
 import React from 'react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
-import { Bell, Check, ClipboardCheck, Loader2, Play, ScrollText } from 'lucide-react'
+import { Bell, BookOpenText, Check, ClipboardCheck, Loader2, Play, ScrollText } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import { EditorPreviewModal } from '@components/Learning/player/EditorPreviewModal'
 import { getUriWithOrg } from '@services/config/config'
@@ -12,6 +12,7 @@ import { stepTodo } from '@services/goals/cohort'
 import { cn } from '@/lib/utils'
 import { personName, reviewHref } from '../live/ui'
 import { shortDay } from './shared'
+import StaffGuideViewer, { guideItems, guideSummary } from './StaffGuideViewer'
 
 export type TodoContext = {
   orgslug: string
@@ -89,11 +90,26 @@ export default function StepTodos({ column, ctx, upcoming, full, onOpen }: { col
 
   return <div className="flex flex-col gap-3 text-sm">
     {column.description ? <p className="whitespace-pre-wrap text-muted-foreground">{column.description}</p> : null}
+    <StaffGuide column={column} />
     {lines.length ? <p className="flex flex-col gap-1">{lines}</p> : null}
     {buttons.length ? <div className="flex flex-wrap gap-2">{buttons}</div> : null}
     {todo.settle.length ? <Settle column={column} ctx={ctx} who={todo.settle} /> : null}
     {upcoming || (!todo.clear && !lines.length) ? <Prep column={column} ctx={ctx} /> : null}
   </div>
+}
+
+/** The template's staff guide for the step (a lesson plan and its files), opened full-size in the viewer. */
+function StaffGuide({ column }: { column: MatrixColumn }) {
+  const [open, setOpen] = React.useState(false)
+  const items = React.useMemo(() => guideItems(column.staff_guide || '', column.staff_materials || []), [column.staff_guide, column.staff_materials])
+  if (!items.length) return null
+  return <>
+    <Button type="button" variant="outline" className="h-auto justify-start gap-3 self-start rounded-xl px-3 py-2 text-left" onClick={() => setOpen(true)}>
+      <BookOpenText size={18} aria-hidden="true" className="shrink-0 text-[var(--plan-accent)]" />
+      <span className="flex flex-col"><span className="text-sm font-bold">Staff guide</span><span className="text-xs font-normal text-muted-foreground">{guideSummary(items)}</span></span>
+    </Button>
+    <StaffGuideViewer open={open} onOpenChange={setOpen} stepTitle={column.title} items={items} />
+  </>
 }
 
 /** Settle a step staff confirm, such as an event: done for everyone, or everyone except the people tapped. */

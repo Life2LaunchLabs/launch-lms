@@ -147,3 +147,46 @@ def test_migration_grants_orgs_already_over_their_limits():
     over = migration.grant_overage(document, {"learners": 60, "staff_seats": 1})
     assert over["grants"] == {"learners": {"extra": 35}}
     assert migration.grant_overage({**document, "tier": "enterprise"}, {"learners": 9000})["grants"] == {}
+
+
+def test_a_running_trial_gives_full_and_an_ended_one_leaves_groups_readable():
+    from datetime import timezone
+    now = datetime.now(timezone.utc)
+    running = access_from_config({"tier": "free", "trial": {"tier": "full", "started_at": now.isoformat(), "ends_at": (now + timedelta(days=3)).isoformat()}})
+    assert running.effective_tier == "full" and running.has("groups") and running.limit("learners") == 200
+    assert not running.trial_available() and running.to_dict()["trial"]["days_left"] == 3 and running.to_dict()["base_tier"] == "free"
+    ended = access_from_config({"tier": "free", "trial": {"tier": "full", "started_at": (now - timedelta(days=31)).isoformat(), "ends_at": (now - timedelta(days=1)).isoformat()}})
+    assert ended.effective_tier == "free" and not ended.has("groups") and ended.lapsed("groups") and ended.can_read("groups")
+    assert not ended.lapsed("sso") and ended.limit("learners") == 25 and ended.to_dict()["features"]["groups"]["read_only"]
+    assert not ended.trial_available() and ended.unlock("groups") == {"type": "tier_upgrade", "value": "full"}
+    fresh = access_from_config({"tier": "free"})
+    assert fresh.trial_available() and not fresh.lapsed("groups")
+    assert not access_from_config({"tier": "full"}).trial_available() and not access_from_config({}, owner=True).trial_available()
+    # Upgraded after the trial: the tier wins and nothing is read-only.
+    upgraded = access_from_config({"tier": "full", "trial": ended.trial})
+    assert upgraded.has("groups") and not upgraded.lapsed("groups")
+
+
+def test_starting_the_trial_once(session: Session):
+    from src.services.orgs import trial
+    _config(session, 2, tier="free")
+    access = trial.start(session, 2)
+    assert access["tier"] == "full" and access["trial"]["running"] and access["trial"]["days_left"] == 30
+    assert org_access(2, session).has("groups")
+    with pytest.raises(HTTPException) as again:
+        trial.start(session, 2)
+    assert again.value.status_code == 409
+
+
+def test_require_feature_lets_reads_through_once_a_trial_lapses(session: Session):
+    import asyncio
+    from types import SimpleNamespace
+    from src.security.access.access import require_feature
+    _config(session, 2, tier="free", trial={"tier": "full", "started_at": "2020-01-01T00:00:00+00:00", "ends_at": "2020-01-31T00:00:00+00:00"})
+    request = lambda method: SimpleNamespace(method=method, path_params={"org_id": "2"}, query_params={})  # noqa: E731
+    asyncio.run(require_feature("groups", read_when_lapsed=True)(request("GET"), session))
+    with pytest.raises(HTTPException) as write:
+        asyncio.run(require_feature("groups", read_when_lapsed=True)(request("POST"), session))
+    assert write.value.status_code == 403 and "read-only" in write.value.detail
+    with pytest.raises(HTTPException):
+        asyncio.run(require_feature("groups")(request("GET"), session))

@@ -106,6 +106,7 @@
     "next": "16.2.1",
     "next-themes": "^0.4.6",
     "nextjs-toploader": "^3.9.17",
+    "pdfjs-dist": "6.4.299",
     "prosemirror-state": "^1.4.4",
     "qrcode": "^1.5.4",
     "re-resizable": "^6.11.2",

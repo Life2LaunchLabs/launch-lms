@@ -3294,12 +3294,23 @@
               "id": "PATHWAYS-G004-A001-AC07",
               "activity_id": "PATHWAYS-G004-A001",
               "display_order": 7,
-              "criterion": "Only the owner organization can publish a template to the global library; any organization administrator can search it and create an independently editable tenant-owned copy.",
+              "criterion": "Plan publishers publish a template from its Publish tab with one action, Publish to marketplace (saving a new template version is Release, so Publish means only the marketplace); a listing that is open to copy and open to any organization also puts its published version in the global library (and takes it out when locked, ask-first or unlisted), where any organization administrator can search it and create an independently editable tenant-owned copy.",
               "automated_status": "not_tested",
               "manual_status": "passed",
               "notes": null,
               "source_json": null,
               "created_at": "2026-09-09T18:34:09+00:00"
+            },
+            {
+              "id": "PATHWAYS-G004-A001-AC08",
+              "activity_id": "PATHWAYS-G004-A001",
+              "display_order": 8,
+              "criterion": "Who can start a plan (Open to everyone, By request, Invite only; default Invite only) is set per organization running it in Template Settings › Learners, which that organization's admins can change even on another organization's read-only template; the template Overview shows its description (edited in place), the badge it earns (thumbnail and name linking to the badge), which versions earn it, who issues it through this plan, and this organization's learner access. The template's Publish tab (owner only, for organizations that may publish) holds the marketplace listing, the organizations authorized to run the plan with pending requests on top (approve, decline, revoke, authorize by slug), and quick usage counts; organizations authorized on a plan that earns a badge issue that badge through it, so a trusted-partners-only plan is one whose owner authorizes only trusted partners. A plan that earns no badge says learners find plans through badges on Discover.",
+              "automated_status": "passed",
+              "manual_status": "not_tested",
+              "notes": null,
+              "source_json": null,
+              "created_at": "2026-10-21T12:00:00+00:00"
             }
           ],
           "steps": [

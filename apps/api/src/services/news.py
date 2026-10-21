@@ -15,6 +15,7 @@ from src.db.news import (
 from src.db.organizations import Organization
 from src.db.users import PublicUser
 from src.security.superadmin import is_user_owner_org_admin, is_user_superadmin
+from src.services.orgs.owner import owner_org
 
 
 def _now() -> str:
@@ -33,10 +34,6 @@ def _get_org(org_id: int, db_session: Session) -> Organization:
     return org
 
 
-def _get_default_org(db_session: Session) -> Organization | None:
-    return db_session.exec(select(Organization).order_by(Organization.id).limit(1)).first()
-
-
 def _ensure_default_org_admin(current_user: PublicUser, db_session: Session) -> None:
     if is_user_superadmin(current_user.id, db_session):
         return
@@ -49,7 +46,7 @@ def _ensure_default_org_admin(current_user: PublicUser, db_session: Session) -> 
 
 
 def _ensure_default_org_target(org_id: int, db_session: Session) -> None:
-    default_org = _get_default_org(db_session)
+    default_org = owner_org(db_session)
     if not default_org or default_org.id != org_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

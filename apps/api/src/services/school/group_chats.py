@@ -12,7 +12,7 @@ from uuid import uuid4
 from fastapi import HTTPException
 from sqlmodel import Session, col, select
 
-from src.db.conversations import Conversation, ConversationMember
+from src.db.conversations import Conversation, ConversationMember, ConversationMessage
 from src.db.school import UserGroupStaff
 from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup
@@ -22,6 +22,9 @@ from src.services.goals.sharing_roles import _stamp
 
 GROUP = "group"
 FEATURE = "groups"
+# A line the app writes in a chat about something that happened there, such as who created the group.
+EVENT = "event"
+CREATED = "group_created"
 DISABLED = "Group chats need the Full tier."
 
 
@@ -32,6 +35,11 @@ def _key(group_id: int) -> str:
 
 def enabled(db: Session, org_id: int) -> bool:
     return org_access(org_id, db).has(FEATURE)
+
+
+def visible(db: Session, org_id: int) -> bool:
+    """Groups and their chats are listed: on Full, and read-only after a Full trial ends."""
+    return org_access(org_id, db).can_read(FEATURE)
 
 
 def require_enabled(db: Session, org_id: int) -> None:
@@ -79,6 +87,35 @@ def sync(db: Session, group: UserGroup) -> None:
     if find(db, int(group.id)):  # type: ignore[arg-type]
         group_chat(db, group)
     school_chats.sync_group(db, int(group.org_id), int(group.id))  # type: ignore[arg-type]
+
+
+def _created_uuid(group_id: int) -> str:
+    # One per group, so it's posted once and can be found again.
+    return f"chat_message_{CREATED}_{group_id}"
+
+
+def announce_created(db: Session, group: UserGroup, creator_id: int | None) -> None:
+    """A new group's chat opens with "<creator> created this group", so the group lands on top of People as something new.
+
+    Whoever is added to the group afterwards sees it unread. Flushed, not committed; nothing without group chats.
+    """
+    from src.services.connect import chats, people
+
+    uuid = _created_uuid(int(group.id))  # type: ignore[arg-type]
+    if not creator_id or not enabled(db, int(group.org_id)) or db.exec(select(ConversationMessage.id).where(ConversationMessage.message_uuid == uuid)).first():  # type: ignore[arg-type]
+        return
+    name = (people.person(db, creator_id) or {}).get("name") or "Someone"
+    verb = "created this group"
+    chats.post(db, group_chat(db, group), creator_id, f"{name} {verb}", kind="card", card={"type": EVENT, "event": CREATED, "verb": verb}, message_uuid=uuid)
+
+
+def created_by(db: Session, org_id: int, user_id: int, since: str) -> list[tuple[int, Conversation]]:
+    """The groups someone created since a time, as (group id, its chat), whether or not they're in them."""
+    rows = db.exec(select(Conversation).join(ConversationMessage, ConversationMessage.conversation_id == Conversation.id).where(
+        Conversation.kind == GROUP, Conversation.org_id == org_id, ConversationMessage.sender_user_id == user_id,
+        col(ConversationMessage.message_uuid).startswith(f"chat_message_{CREATED}_"), ConversationMessage.creation_date >= since,
+    )).all()
+    return [(int((conversation.direct_key or "group:0").split(":")[1]), conversation) for conversation in rows]
 
 
 def drop(db: Session, group_id: int) -> None:

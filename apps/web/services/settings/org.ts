@@ -156,19 +156,6 @@ export interface BadgeIssuerConfig {
   image_url: string
 }
 
-export async function updateOrgSeoConfig(
-  org_id: string,
-  seo_config: SeoOrgConfig,
-  access_token: string
-) {
-  const result: any = await fetch(
-    `${getAPIUrl()}orgs/${org_id}/config/seo`,
-    RequestBodyWithAuthHeader('PUT', seo_config, null, access_token)
-  )
-  const res = await errorHandling(result)
-  return res
-}
-
 export async function updateOrgBadgeIssuerConfig(
   org_id: string,
   badge_issuer: BadgeIssuerConfig,
@@ -177,21 +164,6 @@ export async function updateOrgBadgeIssuerConfig(
   const result: any = await fetch(
     `${getAPIUrl()}orgs/${org_id}/config/badge_issuer`,
     RequestBodyWithAuthHeader('PUT', badge_issuer, null, access_token)
-  )
-  const res = await errorHandling(result)
-  return res
-}
-
-export async function uploadOrganizationOgImage(
-  org_id: string,
-  og_image_file: File,
-  access_token: string
-) {
-  const formData = new FormData()
-  formData.append('og_image_file', og_image_file)
-  const result: any = await fetch(
-    `${getAPIUrl()}orgs/${org_id}/og_image`,
-    RequestBodyFormWithAuthHeader('PUT', formData, null, access_token)
   )
   const res = await errorHandling(result)
   return res

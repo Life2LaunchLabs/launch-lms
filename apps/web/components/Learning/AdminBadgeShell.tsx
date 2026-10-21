@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import React from 'react'
-import { ArrowDown, ArrowLeftRight, ArrowUp, Award, BarChart3, Check, Eye, GalleryVerticalEnd, Handshake, Image as ImageIcon, Loader2, Megaphone, Plus, Settings, Trash2, X } from 'lucide-react'
+import { ArrowDown, ArrowLeftRight, ArrowUp, Award, BarChart3, Check, Eye, GalleryVerticalEnd, Image as ImageIcon, Loader2, Megaphone, Plus, Settings, Trash2 } from 'lucide-react'
 import { motion } from 'motion/react'
 import toast from 'react-hot-toast'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
@@ -14,8 +14,8 @@ import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { deleteLearningBadge, updateLearningBadge } from '@services/learning/learning'
-import { approveIssuerAuthorization, getIssuerAuthorizations, getIssuerBadgeMetrics, inviteIssuerOrg, LearnerAccess, rejectIssuerAuthorization, revokeIssuerAuthorization, updateIssuerAuthorization } from '@services/learning/marketplace'
-import { CreatorIssuingCard, LearnerAccessSelect, learnerAccessLabel } from '@components/Learning/BadgeIssuing'
+import { getIssuerBadgeMetrics } from '@services/learning/marketplace'
+import { CreatorIssuingCard, learnerAccessLabel } from '@components/Learning/BadgeIssuing'; import PlanAccessList from '@components/Learning/PlanAccessList'
 import CertificatePreview from '@components/Learning/BadgeCertificatePreview'
 import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
@@ -29,7 +29,6 @@ const tabs = [
   { key: 'routes', label: 'Ways to earn', icon: GalleryVerticalEnd },
   { key: 'definition', label: 'Definition', icon: Award },
   { key: 'marketing', label: 'Marketing', icon: Megaphone },
-  { key: 'issuers', label: 'Issuers', icon: Handshake },
   { key: 'settings', label: 'Settings', icon: Settings },
 ]
 
@@ -193,7 +192,6 @@ export default function AdminBadgeShell({
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.1 }} className="overflow-x-hidden">
         {normalizedSubpage === 'analytics' ? <BadgeAnalyticsPanel badge={badge} canEdit={owned} issuerOrgId={Number(org?.id)} orgslug={orgslug} /> : null}
         {normalizedSubpage === 'routes' ? <div className="px-4 pt-6 sm:px-10"><div className="max-w-4xl"><BadgeRoutesPanel badge={badge} orgslug={orgslug} readOnly={!canEdit} /></div></div> : null}
-        {normalizedSubpage === 'issuers' && canEdit ? <BadgeIssuersPanel badge={badge} onPatch={patchBadge} /> : null}
         {normalizedSubpage === 'marketing' ? <fieldset disabled={!isDraft || !canEdit}><BadgeAboutPanel badge={badge} onPatch={patchBadge} /></fieldset> : null}
         {normalizedSubpage === 'settings' ? (canEdit
           ? <BadgeSettingsPanel orgslug={orgslug} badge={badge} onPatch={patchBadge} isDraft={isDraft} />
@@ -271,7 +269,7 @@ function IssuerBadgeAnalyticsPanel({ badge, issuerOrgId, orgslug }: { badge: any
             <div className="mt-6 grid gap-4 sm:grid-cols-3">
               <AnalyticsStat label="Issued by your org" value={String(metrics?.issued_count || 0)} />
               <AnalyticsStat label="Used in programs" value={String(metrics?.programs?.length || 0)} />
-              <AnalyticsStat label="Learner access" value={learnerAccessLabel(metrics?.authorization?.learner_access)} />
+              <AnalyticsStat label="Learner access" value={learnerAccessLabel(metrics?.learner_access)} />
             </div>
 
             <div className="mt-8">
@@ -302,176 +300,6 @@ function IssuerBadgeAnalyticsPanel({ badge, issuerOrgId, orgslug }: { badge: any
 
 function AnalyticsStat({ label, value }: { label: string; value: string }) {
   return <div className="rounded-lg border border-border bg-muted/30 p-4"><p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{label}</p><p className="mt-2 text-sm font-bold text-foreground">{value}</p></div>
-}
-
-const authorizationStatusStyles: Record<string, string> = {
-  requested: 'bg-amber-100 text-amber-800',
-  invited: 'bg-blue-100 text-blue-800',
-  approved: 'bg-lime-100 text-lime-800',
-  rejected: 'bg-red-100 text-red-700',
-  revoked: 'bg-gray-200 text-gray-600',
-}
-
-function BadgeIssuersPanel({ badge, onPatch }: { badge: any; onPatch: (patch: Record<string, any>, successMessage?: string) => Promise<any> }) {
-  const org = useOrg() as any
-  const session = useLHSession() as any
-  const accessToken = session.data?.tokens?.access_token
-  const [authorizations, setAuthorizations] = React.useState<any[]>([])
-  const [loading, setLoading] = React.useState(true)
-  const [savingListing, setSavingListing] = React.useState(false)
-  const [actingOn, setActingOn] = React.useState('')
-  const [inviteSlug, setInviteSlug] = React.useState('')
-  const [inviting, setInviting] = React.useState(false)
-
-  const load = React.useCallback(async () => {
-    setLoading(true)
-    try {
-      const response = await getIssuerAuthorizations(badge.org_id, 'creator', accessToken, badge.badge_uuid)
-      const data = response?.success ? response.data : response
-      setAuthorizations(Array.isArray(data) ? data : [])
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to load issuer authorizations.')
-    } finally {
-      setLoading(false)
-    }
-  }, [accessToken, badge.badge_uuid, badge.org_id])
-
-  React.useEffect(() => {
-    void load()
-  }, [load])
-
-  const toggleListing = async (value: boolean) => {
-    setSavingListing(true)
-    try {
-      await onPatch({ marketplace_listed: value }, value ? 'Badge listed in the marketplace.' : 'Badge removed from the marketplace.')
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to update marketplace listing.')
-    } finally {
-      setSavingListing(false)
-    }
-  }
-
-  const act = async (authorization: any, action: 'approve' | 'reject' | 'revoke') => {
-    setActingOn(authorization.authorization_uuid)
-    try {
-      if (action === 'approve') await approveIssuerAuthorization(authorization.authorization_uuid, accessToken)
-      if (action === 'reject') await rejectIssuerAuthorization(authorization.authorization_uuid, accessToken)
-      if (action === 'revoke') await revokeIssuerAuthorization(authorization.authorization_uuid, accessToken)
-      toast.success('Authorization updated.')
-      await load()
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to update authorization.')
-    } finally {
-      setActingOn('')
-    }
-  }
-
-  const sendInvite = async () => {
-    const slug = inviteSlug.trim()
-    if (!slug) return
-    setInviting(true)
-    try {
-      await inviteIssuerOrg({ badge_uuid: badge.badge_uuid, issuer_org_slug: slug }, accessToken)
-      toast.success(`Invite sent to ${slug}.`)
-      setInviteSlug('')
-      await load()
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to send invite.')
-    } finally {
-      setInviting(false)
-    }
-  }
-
-  return (
-    <div className="px-4 pb-10 pt-6 sm:px-10">
-      <section className="max-w-4xl rounded-xl bg-card p-6 shadow-xs">
-        <h2 className="text-lg font-bold text-foreground">Marketplace</h2>
-        <div className="mt-4 divide-y divide-border">
-          <SettingRow
-            title="List in badge marketplace"
-            description="Other organizations can discover this badge and request authorization to issue it to their learners."
-            disabled={savingListing}
-            checked={badge.marketplace_listed === true}
-            onChange={(value) => void toggleListing(value)}
-          />
-        </div>
-      </section>
-
-      <section className="mt-6 max-w-4xl rounded-xl bg-card p-6 shadow-xs">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-bold text-foreground">Issuing organizations</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Orgs authorized to deliver, grade, and issue this badge to their own learners.</p>
-          </div>
-          <Button variant="outline" onClick={() => void load()} disabled={loading} className="gap-2 bg-card">
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Handshake className="h-4 w-4" />}
-            Refresh
-          </Button>
-        </div>
-
-        <div className="mt-4 flex items-end gap-3">
-          <label className="block flex-1 text-xs font-bold uppercase text-muted-foreground">
-            Invite an organization by slug
-            <input
-              value={inviteSlug}
-              onChange={(event) => setInviteSlug(event.target.value)}
-              placeholder="org-slug"
-              className="mt-2 h-10 w-full rounded-lg border border-border px-3 text-sm normal-case text-foreground outline-none focus:ring-2 focus:ring-black"
-            />
-          </label>
-          <Button onClick={() => void sendInvite()} disabled={inviting || !inviteSlug.trim()} className="gap-2">
-            {inviting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-            Invite
-          </Button>
-        </div>
-
-        <div className="mt-6 space-y-3">
-          <CreatorIssuingCard badge={badge} orgName={org?.name} refreshKey={authorizations.filter((item) => item.status === 'approved').length} />
-          {loading ? (
-            <div className="flex items-center justify-center py-12 text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin" />
-            </div>
-          ) : authorizations.length ? authorizations.map((authorization) => (
-            <article key={authorization.authorization_uuid} className="flex flex-col gap-3 rounded-xl border border-border p-4 md:flex-row md:items-center md:justify-between">
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-foreground">{authorization.issuer_org?.name || 'Organization'}</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {authorization.issuer_org?.slug}
-                  {authorization.message ? ` · “${authorization.message}”` : ''}
-                  {authorization.status === 'approved' ? ` · ${learnerAccessLabel(authorization.learner_access).toLowerCase()}` : ''}
-                </p>
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <span className={`rounded-full px-3 py-1 text-xs font-bold capitalize ${authorizationStatusStyles[authorization.status] || 'bg-gray-100 text-gray-600'}`}>
-                  {authorization.status}
-                </span>
-                {authorization.status === 'requested' ? (
-                  <>
-                    <Button size="sm" onClick={() => void act(authorization, 'approve')} disabled={actingOn === authorization.authorization_uuid} className="gap-1">
-                      <Check className="h-4 w-4" /> Approve
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => void act(authorization, 'reject')} disabled={actingOn === authorization.authorization_uuid} className="gap-1 bg-card">
-                      <X className="h-4 w-4" /> Reject
-                    </Button>
-                  </>
-                ) : null}
-                {authorization.status === 'approved' || authorization.status === 'invited' ? (
-                  <Button size="sm" variant="outline" onClick={() => void act(authorization, 'revoke')} disabled={actingOn === authorization.authorization_uuid} className="gap-1 bg-card text-red-700">
-                    <Trash2 className="h-4 w-4" /> Revoke
-                  </Button>
-                ) : null}
-              </div>
-            </article>
-          )) : (
-            <div className="rounded-xl border border-dashed border-border py-12 text-center">
-              <p className="text-sm font-semibold text-muted-foreground">No issuing organizations yet</p>
-              <p className="mt-1 text-xs text-muted-foreground">List this badge in the marketplace or invite an organization to get started.</p>
-            </div>
-          )}
-        </div>
-      </section>
-    </div>
-  )
 }
 
 function BadgeAboutPanel({ badge, onPatch }: { badge: any; onPatch: (patch: Record<string, any>, successMessage?: string) => Promise<any> }) {
@@ -647,6 +475,7 @@ function BadgeAboutPanel({ badge, onPatch }: { badge: any; onPatch: (patch: Reco
 
 function BadgeSettingsPanel({ orgslug, badge, onPatch, isDraft }: { orgslug: string; badge: any; onPatch: (patch: Record<string, any>, successMessage?: string) => Promise<any>; isDraft: boolean }) {
   const router = useRouter()
+  const org = useOrg() as any
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
   const [savingKey, setSavingKey] = React.useState('')
@@ -686,7 +515,13 @@ function BadgeSettingsPanel({ orgslug, badge, onPatch, isDraft }: { orgslug: str
         <div className="mt-4 divide-y divide-border">
           <SettingRow title="Public visibility" description="Show this badge in public badge listings. Private badges remain available only within this organization." disabled={savingKey === 'public'} checked={badge.public === true} onChange={(value) => toggle('public', value, value ? 'Badge is now public.' : 'Badge is now private.')} />
           <SettingRow title="Direct issuance" description={isDraft ? "Allow authorized admins to create an OpenBadgeCredential without the learner finishing a plan." : "Create a draft version to change direct issuance."} disabled={!isDraft || savingKey === 'direct_conferral_enabled'} checked={badge.direct_conferral_enabled === true} onChange={(value) => toggle('direct_conferral_enabled', value, 'Direct issuance setting updated.')} />
+          <SettingRow title="List in badge marketplace" description="Other organizations find this badge in Plans › Marketplace and ask to issue it. Approving one authorizes it on every plan that earns the badge." disabled={savingKey === 'marketplace_listed'} checked={badge.marketplace_listed === true} onChange={(value) => toggle('marketplace_listed', value, value ? 'Badge listed in the marketplace.' : 'Badge removed from the marketplace.')} />
         </div>
+      </section>
+      <section className="mt-6 max-w-4xl rounded-xl bg-card p-6 shadow-xs">
+        <h2 className="text-lg font-bold text-foreground">Issuing</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Other organizations issue this badge when they are authorized on one of its plans, from each plan’s Publish tab (Ways to earn links there).</p>
+        <div className="mt-4"><CreatorIssuingCard badge={badge} orgName={org?.name} orgslug={org?.slug} /></div>
       </section>
       <section className="mt-6 max-w-4xl rounded-xl border border-red-100 bg-card p-6 shadow-xs">
         <h2 className="text-lg font-bold text-red-700">Danger Zone</h2>
@@ -705,89 +540,30 @@ function BadgeSettingsPanel({ orgslug, badge, onPatch, isDraft }: { orgslug: str
   )
 }
 
+/** An issuer's settings for another organization's badge: the plans it runs for it. Stopping is leaving a plan (Marketplace › Requests). */
 function IssuerBadgeSettingsPanel({ orgslug, badge, issuerOrgId }: { orgslug: string; badge: any; issuerOrgId: number }) {
-  const router = useRouter()
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
-  const [authorization, setAuthorization] = React.useState<any>(null)
-  const [loading, setLoading] = React.useState(true)
-  const [saving, setSaving] = React.useState(false)
-  const [releasing, setReleasing] = React.useState(false)
-
-  const load = React.useCallback(async () => {
-    setLoading(true)
-    try {
-      const response = await getIssuerAuthorizations(issuerOrgId, 'issuer', accessToken, badge.badge_uuid)
-      const data = response?.success ? response.data : response
-      setAuthorization(Array.isArray(data) ? data.find((item: any) => item.status === 'approved') || null : null)
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to load issuer settings.')
-    } finally {
-      setLoading(false)
-    }
-  }, [accessToken, badge.badge_uuid, issuerOrgId])
+  const [plans, setPlans] = React.useState<any[] | null>(null)
 
   React.useEffect(() => {
-    void load()
-  }, [load])
-
-  const changeAccess = async (value: LearnerAccess) => {
-    if (!authorization || saving) return
-    setSaving(true)
-    try {
-      const updated = await updateIssuerAuthorization(authorization.authorization_uuid, { learner_access: value }, accessToken)
-      setAuthorization(updated)
-      toast.success(`Learner access: ${learnerAccessLabel(value).toLowerCase()}.`)
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to update learner access.')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const release = async () => {
-    if (!authorization || releasing) return
-    if (!confirm(`Release “${badge.name}”? It will be removed from your badge library and your organization will no longer be able to issue it.`)) return
-    setReleasing(true)
-    try {
-      await revokeIssuerAuthorization(authorization.authorization_uuid, accessToken)
-      toast.success('Badge authorization released.')
-      router.push(getUriWithOrg(orgslug, routePaths.org.admin.badges()))
-      router.refresh()
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to release badge authorization.')
-      setReleasing(false)
-    }
-  }
+    let active = true
+    getIssuerBadgeMetrics(issuerOrgId, badge.badge_uuid, accessToken)
+      .then((response: any) => active && setPlans((response?.success ? response.data : response)?.plans || []))
+      .catch((error: any) => { if (active) { setPlans([]); toast.error(error?.message || 'Failed to load issuer settings.') } })
+    return () => { active = false }
+  }, [accessToken, badge.badge_uuid, issuerOrgId])
 
   return (
     <div className="px-4 pb-10 pt-6 sm:px-10">
       <section className="max-w-4xl rounded-xl bg-card p-6 shadow-xs">
         <h2 className="text-lg font-bold text-foreground">Issuer settings</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Settings that apply only to your organization’s use of this badge.</p>
-        {loading ? (
+        <p className="mt-1 text-sm text-muted-foreground">You issue this badge through the plans its creator approved you on. To stop, leave the plan in <Link className="font-semibold underline" href={getUriWithOrg(orgslug, routePaths.org.admin.marketplace())}>Marketplace</Link> › Requests; credentials already issued stay valid.</p>
+        {plans === null ? (
           <div className="flex items-center justify-center py-14 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /></div>
-        ) : authorization ? (
-          <div className="mt-5">
-            <LearnerAccessSelect value={authorization.learner_access || 'invite'} disabled={saving} onChange={(value) => void changeAccess(value as LearnerAccess)} />
-          </div>
         ) : (
-          <p className="mt-5 rounded-lg bg-muted p-4 text-sm text-muted-foreground">No active issuing authorization was found.</p>
+          <div className="mt-5"><PlanAccessList plans={plans} orgslug={orgslug} /></div>
         )}
-      </section>
-
-      <section className="mt-6 max-w-4xl rounded-xl border border-red-100 bg-card p-6 shadow-xs">
-        <h2 className="text-lg font-bold text-red-700">Release authorization</h2>
-        <div className="mt-4 flex items-start justify-between gap-6">
-          <div>
-            <h3 className="text-sm font-semibold text-foreground">Remove from your library</h3>
-            <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">Your organization will stop appearing as an issuer and will no longer be able to deliver, grade, or issue this badge. Existing credentials remain valid.</p>
-          </div>
-          <button onClick={() => void release()} disabled={!authorization || releasing} className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-xs font-bold text-red-700 disabled:opacity-50">
-            {releasing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-            Release
-          </button>
-        </div>
       </section>
     </div>
   )
@@ -1162,5 +938,7 @@ function getActiveSubpage(subpage: string) {
   if (subpage === 'general' || subpage === 'seo' || subpage === 'about') return 'marketing'
   if (subpage === 'certification' || subpage === 'achievement') return 'definition'
   if (subpage === 'access' || subpage === 'contributors') return 'settings'
+  // Who may issue the badge is who is authorized on its plans: the old Issuers tab is Ways to earn.
+  if (subpage === 'issuers') return 'routes'
   return tabs.some((tab) => tab.key === subpage) ? subpage : 'analytics'
 }

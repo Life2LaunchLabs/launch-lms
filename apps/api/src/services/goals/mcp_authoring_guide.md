@@ -29,6 +29,8 @@ ordered list of typed steps.
           "completed_by": "learner",
           "review_required": true,
           "reviewer_guidance": "Check it fits on one page.",
+          "staff_guide": "",
+          "staff_materials": [],
           "after": [],
           "due_week": 2,
           "requirement_node_uuids": []
@@ -89,6 +91,14 @@ their own, so they are always `completed_by: "learner"`.
 `materials` are things to read or watch on the step:
 `{"kind": "link", "title": "...", "url": "https://..."}` or
 `{"kind": "resource", "resource_uuid": "...", "title": "..."}`.
+
+## Staff guide
+
+Each step can carry a guide for the staff who run it, like a lesson plan:
+`staff_guide` is free text (what to do in the session, timing, what to prepare)
+and `staff_materials` are files and links in the same shape as `materials`
+(a lesson packet, slides, an answer key). Staff see them when they get ready
+for the step; learners never do.
 
 ## Activity steps
 

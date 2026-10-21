@@ -25,6 +25,7 @@ from src.security.rbac.constants import ADMIN_ROLE_ID
 from src.security.security import security_hash_password
 from src.services.security.password_validation import validate_password_complexity
 from src.services.users.password_reset import generate_secure_reset_code
+from src.services.orgs.owner import owner_org
 
 logger = logging.getLogger(__name__)
 
@@ -168,12 +169,6 @@ def _serialize_global_user_detail(user: User, orgs: list[dict]) -> dict:
         "locked_until": user.locked_until,
         "last_login_ip": user.last_login_ip,
     }
-
-
-def _get_owner_org(db_session: Session) -> Organization | None:
-    return db_session.exec(
-        select(Organization).order_by(Organization.id).limit(1)
-    ).first()
 
 
 def _get_redis():
@@ -504,7 +499,7 @@ def generate_password_reset_link(
         if not org:
             raise HTTPException(status_code=404, detail="Organization not found")
     else:
-        org = _get_owner_org(db_session)
+        org = owner_org(db_session)
         if not org:
             raise HTTPException(status_code=400, detail="No organization exists")
 
@@ -623,8 +618,8 @@ def set_user_membership(
 
 def remove_user_membership(db_session: Session, user_id: int, org_id: int) -> dict:
     _get_user_or_404(db_session, user_id)
-    owner_org = _get_owner_org(db_session)
-    if owner_org and owner_org.id == org_id:
+    owner = owner_org(db_session)
+    if owner and owner.id == org_id:
         raise HTTPException(
             status_code=400,
             detail="Users cannot be removed from the owner organization",

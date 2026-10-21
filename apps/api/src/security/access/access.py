@@ -1,12 +1,13 @@
 """
 Org access: one answer to "may this organization use X, and how much?".
 
-Order: tier, then partner program, then a superadmin grant. The owner organization (the install's
-first org) has every tier feature, partner program and request feature.
+Order: tier (or a running trial's tier, if higher), then partner program,
+then a superadmin grant. The owner organization (the install's first org)
+has every tier feature, partner program and request feature.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy import or_
@@ -23,9 +24,18 @@ from src.security.access.catalog import (
     LIMITS,
     PARTNER_PROGRAMS,
     TIERS,
+    TRIAL_TIER,
     Tier,
     tier_index,
 )
+
+
+def _when(value) -> datetime | None:
+    try:
+        parsed = datetime.fromisoformat(str(value))
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
 
 
 @dataclass
@@ -34,6 +44,35 @@ class OrgAccess:
     partners: set[str] = field(default_factory=set)
     grants: dict = field(default_factory=dict)
     owner: bool = False
+    # {"tier", "started_at", "ends_at"} once the org has started its one trial.
+    trial: dict | None = None
+
+    def trial_running(self, now: datetime | None = None) -> bool:
+        ends = _when((self.trial or {}).get("ends_at"))
+        return ends is not None and (now or datetime.now(timezone.utc)) < ends
+
+    @property
+    def effective_tier(self) -> Tier:
+        """The configured tier, or the trial's while it runs and is higher."""
+        trial_tier = (self.trial or {}).get("tier")
+        if trial_tier in TIERS and self.trial_running() and tier_index(trial_tier) > tier_index(self.tier):
+            return trial_tier
+        return self.tier
+
+    def trial_available(self) -> bool:
+        """A Free org that hasn't trialed yet can start one."""
+        return not self.owner and not self.trial and tier_index(self.tier) < tier_index(TRIAL_TIER)
+
+    def lapsed(self, feature: str) -> bool:
+        """The org had this feature on a trial that has ended: what it made stays readable, but it can't add or change."""
+        spec = FEATURES.get(feature)
+        trial_tier = (self.trial or {}).get("tier")
+        if spec is None or not spec.tier or trial_tier not in TIERS or self.trial_running() or self.has(feature):
+            return False
+        return tier_index(trial_tier) >= tier_index(spec.tier)
+
+    def can_read(self, feature: str) -> bool:
+        return self.has(feature) or self.lapsed(feature)
 
     def has(self, feature: str) -> bool:
         spec = FEATURES.get(feature)
@@ -41,7 +80,7 @@ class OrgAccess:
             return False
         if self.owner:
             return True
-        if spec.tier and tier_index(self.tier) >= tier_index(spec.tier):
+        if spec.tier and tier_index(self.effective_tier) >= tier_index(spec.tier):
             return True
         if spec.partner and spec.partner in self.partners:
             return True
@@ -51,7 +90,7 @@ class OrgAccess:
         """The limit for a counted feature; 0 means unlimited."""
         if self.owner:
             return 0
-        base = LIMITS[name][self.tier]
+        base = LIMITS[name][self.effective_tier]
         if base == 0:
             return 0
         return base + int((self.grants.get(name) or {}).get("extra", 0))
@@ -67,16 +106,28 @@ class OrgAccess:
             return {"type": "partner_application", "value": spec.partner}
         return {"type": "feature_request", "value": feature}
 
+    def trial_dict(self) -> dict | None:
+        if not self.trial:
+            return None
+        ends = _when(self.trial.get("ends_at"))
+        running = self.trial_running()
+        days_left = max(0, -(-int((ends - datetime.now(timezone.utc)).total_seconds()) // 86400)) if ends and running else 0
+        return {"tier": self.trial.get("tier"), "started_at": self.trial.get("started_at"), "ends_at": self.trial.get("ends_at"),
+                "running": running, "days_left": days_left}
+
     def to_dict(self) -> dict:
         return {
-            "tier": self.tier,
+            "tier": self.effective_tier,
+            "base_tier": self.tier,
             "owner": self.owner,
             "partners": sorted(self.partners),
             "features": {
-                key: {"enabled": self.has(key), "unlock": self.unlock(key)}
+                key: {"enabled": self.has(key), "read_only": self.lapsed(key), "unlock": self.unlock(key)}
                 for key in FEATURES
             },
             "limits": {name: self.limit(name) for name in LIMITS},
+            "trial": self.trial_dict(),
+            "trial_available": self.trial_available(),
         }
 
 
@@ -92,7 +143,8 @@ def owner_org_id(db_session: Session) -> int | None:
 def access_from_config(config: dict | None, owner: bool = False) -> OrgAccess:
     config = config or {}
     partners = {key for key in config.get("partners") or [] if key in PARTNER_PROGRAMS}
-    return OrgAccess(tier=config_tier(config), partners=partners, grants=config.get("grants") or {}, owner=owner)
+    trial = config.get("trial") if isinstance(config.get("trial"), dict) else None
+    return OrgAccess(tier=config_tier(config), partners=partners, grants=config.get("grants") or {}, owner=owner, trial=trial)
 
 
 def org_access(org_id: int, db_session: Session) -> OrgAccess:
@@ -113,7 +165,9 @@ def orgs_with_feature(org_ids: set[int], feature: str, db_session: Session) -> s
 def unavailable(feature: str, access: OrgAccess | None = None) -> HTTPException:
     spec = FEATURES[feature]
     unlock = access.unlock(feature) if access else None
-    if unlock and unlock["type"] == "tier_upgrade":
+    if access and access.lapsed(feature):
+        detail = f"{spec.label} are read-only since your organization's Full trial ended. Request Full to keep using them"
+    elif unlock and unlock["type"] == "tier_upgrade":
         detail = f"{spec.label} needs the {unlock['value'].capitalize()} tier"
     elif unlock and unlock["type"] == "partner_application":
         detail = f"{spec.label} needs approval as a {PARTNER_PROGRAMS[unlock['value']].label.lower()}"
@@ -234,14 +288,23 @@ def org_id_from_request(request: Request, db_session: Session) -> int | None:
     return None
 
 
-def require_feature(feature: str):
-    """Route dependency: 403 unless the request's org has the feature."""
+READS = frozenset({"GET", "HEAD", "OPTIONS"})
+
+
+def require_feature(feature: str, read_when_lapsed: bool = False):
+    """Route dependency: 403 unless the request's org has the feature.
+
+    With `read_when_lapsed`, an org whose trial gave it the feature can still read (GET) after the trial ends.
+    """
     FEATURES[feature]  # an unknown key fails at import, not per request
 
     async def dependency(request: Request, db_session: Session = Depends(get_db_session)) -> None:
         org_id = org_id_from_request(request, db_session)
         if org_id is None:
             raise HTTPException(status_code=400, detail="Organization ID is required")
-        ensure_feature(org_id, feature, db_session)
+        access = org_access(org_id, db_session)
+        if access.has(feature) or (read_when_lapsed and request.method in READS and access.lapsed(feature)):
+            return
+        raise unavailable(feature, access)
 
     return dependency

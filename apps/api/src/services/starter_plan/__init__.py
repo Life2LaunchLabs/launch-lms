@@ -133,9 +133,9 @@ def _sync_step(db: Session, step: dict, program: Program, phase: ProgramPhase, p
 
 def sync_starter_template(db: Session) -> Program:
     """Create or update the starter plan template to match starter_plan.json."""
-    from src.services.learning.access_rules import _get_owner_org
+    from src.services.orgs.owner import require_owner_org
 
-    org = _get_owner_org(db)
+    org = require_owner_org(db)
     data = starter_data()
     now = _now()
     program = db.exec(select(Program).where(Program.program_uuid == TEMPLATE_UUID)).first()

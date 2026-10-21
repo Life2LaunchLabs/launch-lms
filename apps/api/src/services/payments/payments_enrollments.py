@@ -6,7 +6,6 @@ from src.db.organizations import Organization
 from src.db.payments.payments_enrollments import (
     EnrollmentStatusEnum,
     PaymentsEnrollment,
-    PaymentsEnrollmentRead,
 )
 from src.db.payments.payments_groups import PaymentsGroupSync
 from src.db.payments.payments_offers import PaymentsOffer
@@ -141,48 +140,6 @@ async def update_enrollment_status(
             )
 
     return enrollment
-
-
-async def get_enrollment(
-    request: Request,
-    org_id: int,
-    enrollment_id: int,
-    current_user: PublicUser | AnonymousUser | InternalUser | APITokenUser,
-    db_session: Session,
-) -> PaymentsEnrollmentRead:
-    org = db_session.exec(select(Organization).where(Organization.id == org_id)).first()
-    if not org:
-        raise HTTPException(status_code=404, detail="Organization not found")
-    await rbac_check(request, org.org_uuid, current_user, "read", db_session)
-
-    enrollment = db_session.exec(
-        select(PaymentsEnrollment).where(
-            PaymentsEnrollment.id == enrollment_id,
-            PaymentsEnrollment.org_id == org_id,
-        )
-    ).first()
-    if not enrollment:
-        raise HTTPException(status_code=404, detail="Enrollment not found")
-    return PaymentsEnrollmentRead.model_validate(enrollment)
-
-
-async def list_enrollments(
-    request: Request,
-    org_id: int,
-    current_user: PublicUser | AnonymousUser | APITokenUser,
-    db_session: Session,
-) -> list[PaymentsEnrollmentRead]:
-    org = db_session.exec(select(Organization).where(Organization.id == org_id)).first()
-    if not org:
-        raise HTTPException(status_code=404, detail="Organization not found")
-    await rbac_check(request, org.org_uuid, current_user, "read", db_session)
-
-    enrollments = db_session.exec(
-        select(PaymentsEnrollment)
-        .where(PaymentsEnrollment.org_id == org_id)
-        .order_by(PaymentsEnrollment.id.desc())  # type: ignore
-    ).all()
-    return [PaymentsEnrollmentRead.model_validate(e) for e in enrollments]
 
 
 async def get_user_enrollments(

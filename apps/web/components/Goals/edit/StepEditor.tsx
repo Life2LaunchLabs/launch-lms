@@ -5,8 +5,9 @@ import { cn } from '@/lib/utils'
 import { Input } from '@components/ui/input'
 import { Label } from '@components/ui/label'
 import { Textarea } from '@components/ui/textarea'
-import type { Goal, StepCompleter, StepConfigs, StepTypeKey } from '@services/goals/types'
+import type { Goal, StepCompleter, StepConfigs, StepMaterial, StepTypeKey } from '@services/goals/types'
 import { STEP_TYPE_ORDER, stepDefinition } from '../steps'
+import MaterialsEditor from './MaterialsEditor'
 import StepTiming from './StepTiming'
 
 /**
@@ -24,6 +25,10 @@ export interface StepDraft<T extends StepTypeKey = StepTypeKey> {
   review_required: boolean
   reviewer_guidance: string
   after: string[]
+  /** Template steps only: files and links learners open, and the staff guide (a lesson plan with its own files). */
+  materials?: StepMaterial[]
+  staff_guide?: string
+  staff_materials?: StepMaterial[]
   due_week?: number | null
   start_date?: string | null
   due_date?: string | null
@@ -102,6 +107,11 @@ export default function StepEditor({ value, onChange, mode, others = [], live, t
     <div className="flex flex-col gap-1"><Label htmlFor="step-title">Title</Label><Input id="step-title" value={value.title} onChange={(event) => set({ title: event.target.value })} placeholder="What needs to happen?" /></div>
     <div className="flex flex-col gap-1"><Label htmlFor="step-details">Details</Label><Textarea id="step-details" rows={3} value={value.description} onChange={(event) => set({ description: event.target.value })} placeholder="Anything that helps" /></div>
     {ConfigPanel ? <ConfigPanel config={value.config} onChange={setConfig} orgId={orgId} token={token} personal={personal} /> : null}
+    {mode === 'template' ? <div className="flex flex-col gap-1">
+      <Label htmlFor="step-materials">Materials</Label>
+      <MaterialsEditor id="step-materials" value={value.materials || []} onChange={(materials) => set({ materials })} orgId={orgId} token={token} />
+    </div> : null}
+    {mode === 'template' ? <StaffGuide value={value} set={set} orgId={orgId} token={token} /> : null}
     {problem ? <p role="status" className="text-xs font-semibold text-amber-700 dark:text-amber-400">{problem}</p> : null}
     <details className="group/settings border-t pt-3">
       <summary className="flex min-h-9 cursor-pointer list-none items-center justify-between gap-2 text-sm font-bold text-muted-foreground">
@@ -127,6 +137,23 @@ export default function StepEditor({ value, onChange, mode, others = [], live, t
       </div>
     </details>
   </div>
+}
+
+/**
+ * What staff need to run the step, like a lesson plan: how to lead it and the files they use
+ * (a packet, slides, an answer key). Staff see it on the assignment's plan; learners never do.
+ */
+function StaffGuide({ value, set, orgId, token }: { value: StepDraft; set: (patch: Partial<StepDraft>) => void; orgId?: number | null; token?: string }) { // eslint-disable-line no-unused-vars
+  return <section aria-labelledby="step-staff-guide" className="flex flex-col gap-3 rounded-xl border border-dashed bg-muted/40 p-3">
+    <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+      <Label id="step-staff-guide" htmlFor="step-staff-notes" className="text-sm font-black">Staff guide</Label>
+      <span className="text-xs text-muted-foreground">Only staff see this</span>
+    </div>
+    <Textarea id="step-staff-notes" rows={4} value={value.staff_guide || ''} onChange={(event) => set({ staff_guide: event.target.value })}
+      placeholder="How to run this step: the lesson plan, timing, what to prepare, what to say" className="bg-background font-mono text-[13px]" />
+    <p className="-mt-2 text-xs text-muted-foreground">Markdown works: # headings, - lists, **bold**, links. Staff open it with the files below in one viewer.</p>
+    <MaterialsEditor id="step-staff-materials" value={value.staff_materials || []} onChange={(staff_materials) => set({ staff_materials })} orgId={orgId} token={token} addLabel="Add for staff" />
+  </section>
 }
 
 /** One group in the Settings section. */

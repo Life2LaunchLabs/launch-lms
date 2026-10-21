@@ -115,12 +115,6 @@ export function applyAgentFieldProposal(state: ObjectEditState, field: string, r
   } }
 }
 
-export function releaseAgentField(state: ObjectEditState, field: string, reservationId: string): ObjectEditState {
-  const current = state[field]
-  if (!current || current.interaction !== 'agent' || current.reservationId !== reservationId) return state
-  return { ...state, [field]: { ...current, interaction: 'idle', reservationId: undefined, presentation: current.proposal === undefined ? 'settled' : 'proposed' } }
-}
-
 export function restoreAgentProposal(state: ObjectEditState, field: string): ObjectEditState {
   const current = state[field]
   if (!current || current.proposal === undefined || current.interaction === 'agent') return state

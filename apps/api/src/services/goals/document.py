@@ -38,6 +38,8 @@ class TemplateStep(BaseModel):
     completed_by: Literal["learner", "staff"] = "learner"
     review_required: bool = Field(default=False, description="Learner steps only: staff approve it before it counts as done.")
     reviewer_guidance: str = Field(default="", max_length=4000)
+    staff_guide: str = Field(default="", max_length=20000, description="For staff running the step: the lesson plan, how to lead it, what to prepare. Learners never see it.")
+    staff_materials: list[dict] = Field(default_factory=list, max_length=30, description="Files and links only staff see, such as a lesson packet or answer key; the same shape as materials.")
     after: list[str] = Field(default_factory=list, description="Keys of steps that must be finished before this one opens.")
     due_week: int | None = Field(default=None, ge=1, description="Week within the stage it closes; needs the stage's duration_weeks. Without it, it closes when the stage ends.")
     requirement_node_uuids: list[str] = Field(default_factory=list)
@@ -193,12 +195,26 @@ def validate_document(db: Session, raw: dict, org_id: int | None, *, requirement
             raise HTTPException(status_code=422, detail=f"{step['title']}: due_week needs the stage's duration_weeks")
         if step["due_week"] and stage.get("duration_weeks") and step["due_week"] > stage["duration_weeks"]:
             raise HTTPException(status_code=422, detail=f"{step['title']}: due_week is past the end of its stage")
+        step["staff_materials"] = [_staff_material(step["title"], item) for item in step["staff_materials"]]
         step["requirement_node_uuids"] = list(dict.fromkeys(step["requirement_node_uuids"]))
         if requirement_nodes is not None:
             missing = [node for node in step["requirement_node_uuids"] if node not in requirement_nodes]
             if missing:
                 raise HTTPException(status_code=422, detail=f"{step['title']}: unknown requirement {missing[0]}")
     return document
+
+
+def _staff_material(step_title: str, item: dict) -> dict:
+    """One staff-only file or link, kept to the fields the app reads; its url must be a web address."""
+    if not isinstance(item, dict) or item.get("kind") not in ("link", "file", "resource"):
+        raise HTTPException(status_code=422, detail=f"{step_title}: a staff material needs a kind of link, file or resource")
+    url = str(item.get("url") or "").strip()
+    if url and not url.startswith(("https://", "http://", "/")):
+        raise HTTPException(status_code=422, detail=f"{step_title}: staff material links must start with https://")
+    if not url and not item.get("resource_uuid"):
+        raise HTTPException(status_code=422, detail=f"{step_title}: a staff material needs a url")
+    kept = {key: str(item[key]).strip()[:300] for key in ("title", "asset_uuid", "resource_uuid", "media_type") if item.get(key)}
+    return {"kind": item["kind"], **({"url": url} if url else {}), **kept}
 
 
 def _validate_roles(roles: dict) -> None:

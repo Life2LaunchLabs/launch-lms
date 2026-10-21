@@ -10,7 +10,8 @@ without a badge or requirements) and says how others use it:
 
 Access is ``open`` (anyone may add it) or ``request`` (the creator approves each
 organization). ``GoalTemplateAuthorization`` records each organization's
-request and the decision, like ``BadgeIssuerAuthorization`` does for badges.
+request and the decision. Permission on a template that earns a badge is also
+the permission to issue that badge (``services/goals/plan_issuers``).
 """
 
 from __future__ import annotations
@@ -79,8 +80,31 @@ class GoalTemplateAuthorization(SQLModel, table=True):
     update_date: str = ""
 
 
+class GoalTemplateLearnerAccess(SQLModel, table=True):
+    """Who may start a plan an organization runs: its own template, or another organization's it may run.
+
+    ``open`` (anyone starts), ``request`` (learners ask, the organization accepts) or ``invite``
+    (only learners it adds). No row means ``invite``. Discover lists a badge only while an
+    organization allowed to issue it offers one of its routes ``open`` or by ``request``.
+    """
+
+    __tablename__ = "goal_template_learner_access"
+    __table_args__ = (UniqueConstraint("template_id", "org_id"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    template_id: int = Field(sa_column=Column(Integer, ForeignKey("goal_template.id", ondelete="CASCADE"), nullable=False, index=True))
+    org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), nullable=False, index=True))
+    access: str = Field(default="invite", sa_column=Column(String, nullable=False, server_default="invite"))
+    updated_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
+    creation_date: str = ""
+    update_date: str = ""
+
+
 class BadgeRoutePartner(SQLModel, table=True):
-    """An issuer the badge's owner approved for a trusted-partners-only route."""
+    """Unused (to drop in the pruning migration): an issuer once approved for a trusted-partners-only route.
+
+    Never read or written: who runs a route is who is approved on its plan (``GoalTemplateAuthorization``);
+    migration a8c4e1f7d2b9 copied the rows there. The model stays so the table isn't dropped by autogenerate."""
 
     __tablename__ = "badge_route_partner"
     __table_args__ = (UniqueConstraint("route_id", "issuer_org_id"),)
@@ -106,6 +130,9 @@ class TemplateAuthorizationRequest(SQLModel):
     message: str | None = ""
 
 
-class BadgeRouteTrustUpdate(SQLModel):
-    trusted_only: bool = False
-    partner_org_ids: list[int] = Field(default_factory=list, description="Issuers approved to run this route while it is trusted-partners only.")
+class TemplateInvite(SQLModel):
+    issuer_org_slug: str = Field(min_length=1)
+
+
+class TemplateLearnerAccessUpdate(SQLModel):
+    access: Literal["open", "request", "invite"] = "invite"

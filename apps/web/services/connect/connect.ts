@@ -76,6 +76,9 @@ export interface InvitationCard {
 /** A notice an organization sent, such as a welcome. */
 export interface NoticeCard { type: 'notice'; subject: string; text: string }
 
+/** A line about something that happened in the chat, such as who created the group. The sender did it. */
+export interface EventCard { type: 'event'; event: 'group_created'; verb: string }
+
 /** Staff reminded the learner about a step they haven't handed in. */
 export interface StepReminderCard {
   type: 'step_reminder'
@@ -106,7 +109,7 @@ export interface ChatMessage {
   /** The text with tags written out as names. */
   preview: string
   refs: MessageRef[]
-  card: GoalCommentsCard | PortfolioCard | ProgressCard | OrgMentionCard | InvitationCard | NoticeCard | StepReminderCard | GroupReportCard | null
+  card: GoalCommentsCard | PortfolioCard | ProgressCard | OrgMentionCard | InvitationCard | NoticeCard | EventCard | StepReminderCard | GroupReportCard | null
   sender: PersonSummary | null
   mine: boolean
   creation_date: string

@@ -84,6 +84,7 @@ export const routePaths = {
       withQuery('/login', params),
     signup: (params?: { next?: string; inviteCode?: string; invitation?: string; mode?: string }) =>
       withQuery('/signup', params),
+    orgSignup: () => '/signup/org',
     forgot: () => '/forgot',
     reset: () => '/reset',
     verifyEmail: () => '/verify-email',
@@ -125,6 +126,8 @@ export const routePaths = {
   },
   org: {
     root: () => '/',
+    /** The marketing page for people who run learning for others. */
+    forOrganizations: () => '/for-organizations',
     /** Plans is where the learner app opens. */
     home: () => '/plans',
     /** Opens Coach beside Plans, optionally resuming a conversation or starting with a prompt. */
@@ -187,7 +190,7 @@ export const routePaths = {
       learnerFeed: (planUuid: string) => `/admin/plans/live/${encodeURIComponent(planUuid)}?chat=plan`,
       /** People: one list of the organization's people and your chats with them, with a chat, a person or a group open beside it. */
       people: {
-        root: () => '/admin/users',
+        root: (params?: { invite?: 'learner' | 'staff' }) => withQuery('/admin/users', params),
         chat: (conversationUuid: string) => `/admin/users/chat/${encodeURIComponent(conversationUuid)}`,
         user: (username: string) => `/admin/users/user/${encodeURIComponent(username)}`,
         /** A group: its chat, or its plans (one assignment's grid) or requirements beside it. */

@@ -4,6 +4,7 @@ import useSWR from 'swr'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useFeatures } from '@components/Hooks/useFeatures'
+import { UpgradeAction } from '@components/Admin/Upgrade/UpgradeBanner'
 import RequestAccessButton from '@components/Admin/RequestAccessButton'
 import { getOrgPlanRequests, type PlanRequest } from '@services/plans/plan_requests'
 import { getAccessCatalog, getOrgUsage, type LimitUsage } from '@services/plans/access'
@@ -60,7 +61,9 @@ export default function OrgEditPlan({ orgslug }: { orgslug: string }) {
   const { data: requests } = useSWR<PlanRequest[]>(token ? `plan-requests-${orgslug}` : null, () => getOrgPlanRequests(orgslug, token), { revalidateOnFocus: false })
 
   const current = catalog?.tiers.find((tier) => tier.key === access.tier)
-  const higher = catalog?.tiers.filter((tier) => TIERS.indexOf(tier.key) > TIERS.indexOf(access.tier)) || []
+  // Upgrades are offered from the tier the org is on without its trial, so a trialing org can request Full to keep it.
+  const base = access.base_tier || access.tier
+  const higher = catalog?.tiers.filter((tier) => TIERS.indexOf(tier.key) > TIERS.indexOf(base)) || []
   const featureLabel = (key: string) => catalog?.features.find((feature) => feature.key === key)?.label ?? FEATURE_LABELS[key] ?? key
   const onRequest = catalog?.features.filter((feature) => feature.on_request) || []
 
@@ -69,8 +72,11 @@ export default function OrgEditPlan({ orgslug }: { orgslug: string }) {
       <section>
         <h2 className="text-lg font-bold tracking-tight mb-3">Current tier</h2>
         <div className="rounded-xl border border-black/10 bg-white p-5 shadow-sm space-y-4">
-          <div className="text-2xl font-black tracking-tight">{tierLabel(access.tier)}</div>
+          <div className="text-2xl font-black tracking-tight">{tierLabel(access.tier)}{access.trial?.running ? <span className="ml-2 align-middle text-sm font-semibold text-indigo-600">trial · {access.trial.days_left} day{access.trial.days_left === 1 ? '' : 's'} left</span> : null}</div>
           {access.owner && <p className="text-sm text-gray-500">This is the platform's owner organization, so it has every feature with no limits.</p>}
+          {access.trial?.running ? <p className="text-sm text-gray-500">Your {tierLabel(access.trial.tier)} trial ends {new Date(access.trial.ends_at).toLocaleDateString()}. Then you&rsquo;re back on {tierLabel(base)}: nothing is deleted, groups turn read-only, and you can&rsquo;t add people past its limits. Request {tierLabel(access.trial.tier)} below to keep it.</p> : null}
+          {access.trial && !access.trial.running && base === 'free' ? <p className="text-sm text-gray-500">Your Full trial has ended. Groups and their plans are still here, read-only.</p> : null}
+          {access.trial_available ? <div className="flex flex-wrap items-center gap-3 rounded-lg bg-indigo-50/70 p-3"><p className="flex-1 basis-56 text-sm text-gray-700">Try Full free for {catalog?.trial?.days ?? 30} days: groups, bulk invites and more room.</p><UpgradeAction /></div> : null}
           <div className="grid gap-4 sm:grid-cols-2">
             <Meter label="Active learners" usage={usage?.limits.learners} />
             <Meter label="Staff seats" usage={usage?.limits.staff_seats} />

@@ -5,29 +5,27 @@ import { Loader2 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@components/ui/select'
+import PlanAccessList from '@components/Learning/PlanAccessList'
 import { getBadgeIssuingSettings, LearnerAccess, updateBadgeIssuingSettings } from '@services/learning/marketplace'
 
 export const LEARNER_ACCESS_OPTIONS: Array<{ value: LearnerAccess; label: string; description: string }> = [
   { value: 'open', label: 'Open to everyone', description: 'Any learner can start right away.' },
-  { value: 'request', label: 'Accepts requests', description: 'Learners ask to join and your team accepts them.' },
-  { value: 'invite', label: 'Invited learners only', description: 'Only learners your team adds can choose you.' },
+  { value: 'request', label: 'By request', description: 'Learners ask to join and your team accepts them.' },
+  { value: 'invite', label: 'Invite only', description: 'Only learners your team adds can start.' },
 ]
 
 export function learnerAccessLabel(access?: string) {
-  return LEARNER_ACCESS_OPTIONS.find((option) => option.value === access)?.label || 'Invited learners only'
+  return LEARNER_ACCESS_OPTIONS.find((option) => option.value === access)?.label || 'Invite only'
 }
 
 // One control for how learners join an issuer, used by the creator and by outside issuers alike.
-export function LearnerAccessSelect({ value, disabled, onChange, allowNone = false, label = 'Learner access' }: {
-  value: LearnerAccess | 'none'
+export function LearnerAccessSelect({ value, disabled, onChange, label = 'Learner access' }: {
+  value: LearnerAccess
   disabled?: boolean
-  onChange: React.Dispatch<LearnerAccess | 'none'>
-  allowNone?: boolean
+  onChange: React.Dispatch<LearnerAccess>
   label?: string
 }) {
-  const options = allowNone
-    ? [...LEARNER_ACCESS_OPTIONS, { value: 'none' as const, label: 'Not issuing', description: 'Your organization does not issue this badge.' }]
-    : LEARNER_ACCESS_OPTIONS
+  const options = LEARNER_ACCESS_OPTIONS
   const selected = options.find((option) => option.value === value)
   return (
     <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
@@ -35,7 +33,7 @@ export function LearnerAccessSelect({ value, disabled, onChange, allowNone = fal
         <p className="text-sm font-semibold text-foreground">{label}</p>
         <p className="mt-0.5 text-xs text-muted-foreground">{selected?.description}</p>
       </div>
-      <Select value={value} onValueChange={(next) => onChange(next as LearnerAccess | 'none')} disabled={disabled}>
+      <Select value={value} onValueChange={(next) => onChange(next as LearnerAccess)} disabled={disabled}>
         <SelectTrigger className="w-full bg-card sm:w-56" aria-label={label}><SelectValue /></SelectTrigger>
         <SelectContent>
           {options.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
@@ -45,8 +43,9 @@ export function LearnerAccessSelect({ value, disabled, onChange, allowNone = fal
   )
 }
 
-// The creator's own issuing settings and which issuer learners see first.
-export function CreatorIssuingCard({ badge, orgName, refreshKey = 0 }: { badge: any; orgName?: string; refreshKey?: number }) {
+// The creator's plans for its badge (who can start each) and which issuer learners see first. The creator
+// always issues its own badge; to keep learners out, make its plans invite only.
+export function CreatorIssuingCard({ badge, orgName, orgslug = '', refreshKey = 0 }: { badge: any; orgName?: string; orgslug?: string; refreshKey?: number }) {
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
   const [settings, setSettings] = React.useState<any>(null)
@@ -82,13 +81,7 @@ export function CreatorIssuingCard({ badge, orgName, refreshKey = 0 }: { badge: 
         <p className="text-sm font-bold text-foreground">{orgName || 'Your organization'}</p>
         <p className="mt-1 text-xs text-muted-foreground">Badge creator · issues this badge like any other issuer</p>
       </div>
-      <LearnerAccessSelect
-        label="Your organization as an issuer"
-        value={settings.creator_access}
-        allowNone
-        disabled={saving}
-        onChange={(value) => void save({ creator_access: value }, value === 'none' ? 'Your organization no longer issues this badge.' : `Your organization is now ${learnerAccessLabel(value).toLowerCase()}.`)}
-      />
+      <PlanAccessList plans={settings.creator_plans || []} orgslug={orgslug} emptyText="Add a way to earn this badge first: learners start one of its plans." />
       {issuers.length > 1 ? (
         <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
           <div className="min-w-0">

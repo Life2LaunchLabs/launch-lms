@@ -91,7 +91,7 @@ v1_router.include_router(
     usergroups.router,
     prefix="/usergroups",
     tags=["usergroups"],
-    dependencies=[Depends(require_feature("groups"))]
+    dependencies=[Depends(require_feature("groups", read_when_lapsed=True))]
 )
 # Fixed paths under /goals (home, invitations) register before /goals/{goal_uuid}.
 for module in (goal_home, goal_sharing, goal_coach_notes, goal_launch, goal_story):

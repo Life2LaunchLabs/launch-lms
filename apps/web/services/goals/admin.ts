@@ -1,6 +1,6 @@
 import { RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/requests'
 import { getAPIUrl } from '@services/config/config'
-import type { GoalStatus, StepCompleter, StepResult, StepStatus, StepTypeKey } from './types'
+import type { GoalStatus, StepCompleter, StepResult, StepStatus, StepMaterial, StepTypeKey } from './types'
 import type { AssignmentVersionStatus } from './versionStatus'
 
 const q = encodeURIComponent
@@ -163,6 +163,9 @@ export interface MatrixColumn {
   materials: Array<Record<string, unknown>>
   /** How staff review it: the template's rubric for the step. */
   reviewer_guidance: string
+  /** How staff run it: the template's staff guide (a lesson plan) and its files. Empty for learners. */
+  staff_guide?: string
+  staff_materials?: StepMaterial[]
   aggregate: ColumnAggregate
 }
 /** One step across an assignment's learners, for staff on its plan: how many are where. */
@@ -199,8 +202,8 @@ export interface SettleResult { settled: StepOutcome[]; skipped: Array<StepOutco
 
 export const inboxKey = (orgId: number) => goalAdminUrl('/inbox', orgId)
 export const cohortKey = (groupId: number, orgId: number) => goalAdminUrl(`/cohorts/${groupId}`, orgId)
-export const managedUserKey = (userId: number, orgId: number) => goalAdminUrl(`/managed-users/${userId}`, orgId)
-export const assignmentsKey = (orgId: number) => goalAdminUrl('/assignments', orgId)
+const managedUserKey = (userId: number, orgId: number) => goalAdminUrl(`/managed-users/${userId}`, orgId)
+const assignmentsKey = (orgId: number) => goalAdminUrl('/assignments', orgId)
 export const matrixKey = (assignmentUuid: string, orgId: number) => goalAdminUrl(`/assignments/${q(assignmentUuid)}/matrix`, orgId)
 export const assignmentReviewsKey = (assignmentUuid: string, orgId: number) => goalAdminUrl(`/assignments/${q(assignmentUuid)}/reviews`, orgId)
 export const plansKey = (orgId: number) => goalAdminUrl('/plans', orgId)

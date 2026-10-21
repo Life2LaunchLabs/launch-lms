@@ -10,19 +10,22 @@ from src.db.goals import GoalAssignment
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
 from src.security.access.access import org_access
-from src.services.goals import admin_home, assignment_steps, assignment_versions, assignments, plan_cards, review, staff_views
+from src.services.goals import admin_home, admin_home_start, assignment_steps, assignment_versions, assignments, plan_cards, review, staff_views
 
 router = APIRouter()
 GROUPS_NEED = "Group goal assignments need the Full tier"
 
 
-def _require_group_plans(org_id: int, db: Session) -> None:
-    if not org_access(org_id, db).has("groups"):
+def _require_group_plans(org_id: int, db: Session, read: bool = False) -> None:
+    access = org_access(org_id, db)
+    if not (access.can_read("groups") if read else access.has("groups")):
         raise HTTPException(status_code=403, detail=GROUPS_NEED)
 
 
-def _require_assignment_plan(org_id: int, assignment_uuid: str, db: Session) -> None:
-    if org_access(org_id, db).has("groups"):
+def _require_assignment_plan(org_id: int, assignment_uuid: str, db: Session, read: bool = False) -> None:
+    """Group assignments need Full. After a Full trial ends they stay readable, and staff can still settle learners' steps."""
+    access = org_access(org_id, db)
+    if access.has("groups") or (read and access.lapsed("groups")):
         return
     group = db.exec(select(GoalAssignment.usergroup_id).where(GoalAssignment.org_id == org_id, GoalAssignment.assignment_uuid == assignment_uuid)).first()
     if group:
@@ -39,6 +42,11 @@ def api_home(org_id: int, db: Session = Depends(get_db_session), user: PublicUse
 @router.put("/home/layout")
 def api_home_layout(org_id: int, payload: AdminHomeLayout, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
     return admin_home.save_layout(db, user, org_id, payload)
+
+
+@router.post("/home/getting-started/dismiss")
+def api_dismiss_getting_started(org_id: int, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    return admin_home_start.dismiss(db, user, org_id)
 
 
 # Member preferences ---------------------------------------------------------------------
@@ -141,19 +149,19 @@ def api_assignment_step_remind(assignment_uuid: str, step_key: str, org_id: int,
 @router.post("/assignments/{assignment_uuid}/steps/{step_key}/settle")
 def api_assignment_step_settle(assignment_uuid: str, step_key: str, org_id: int, payload: StepSettle,
                                db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
-    _require_assignment_plan(org_id, assignment_uuid, db)
+    _require_assignment_plan(org_id, assignment_uuid, db, read=True)
     return assignment_steps.settle(db, user, org_id, assignment_uuid, step_key, payload)
 
 
 @router.get("/assignments/{assignment_uuid}/matrix")
 def api_assignment_matrix(assignment_uuid: str, org_id: int, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
-    _require_assignment_plan(org_id, assignment_uuid, db)
+    _require_assignment_plan(org_id, assignment_uuid, db, read=True)
     return staff_views.assignment_matrix(db, user, org_id, assignment_uuid)
 
 
 @router.get("/assignments/{assignment_uuid}/reviews")
 def api_assignment_reviews(assignment_uuid: str, org_id: int, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
-    _require_assignment_plan(org_id, assignment_uuid, db)
+    _require_assignment_plan(org_id, assignment_uuid, db, read=True)
     return staff_views.assignment_reviews(db, user, org_id, assignment_uuid)
 
 
@@ -164,7 +172,7 @@ def api_goal_reviews(goal_uuid: str, org_id: int, db: Session = Depends(get_db_s
 
 @router.get("/cohorts/{usergroup_id}")
 def api_cohort(usergroup_id: int, org_id: int, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
-    _require_group_plans(org_id, db)
+    _require_group_plans(org_id, db, read=True)
     return staff_views.cohort(db, user, org_id, usergroup_id)
 
 

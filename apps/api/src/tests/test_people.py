@@ -350,3 +350,32 @@ def test_a_groups_header_lists_its_staff_first_for_admins_and_its_own_people():
         assert feed.group_detail(db, _user(ADMIN), 1, 1)["can_manage"]
         with pytest.raises(HTTPException):
             feed.group_detail(db, _user(LEARNER), 1, 1)
+
+
+def test_a_new_groups_chat_opens_with_who_created_it_and_it_lands_on_top(monkeypatch):
+    import asyncio
+
+    from src.db.conversations import ConversationMessage
+    from src.db.usergroups import UserGroupCreate
+    from src.services.users import usergroups
+
+    async def allowed(*_args, **_kwargs):
+        return True
+
+    monkeypatch.setattr(usergroups, "rbac_check", allowed)
+    with _session() as db:
+        created = asyncio.run(usergroups.create_usergroup(None, db, _user(ADMIN), UserGroupCreate(name="Spring", description="", org_id=1)))  # type: ignore[arg-type]
+        # Posted once, from its creator, even if asked again.
+        group_chats.announce_created(db, db.get(UserGroup, created.id), ADMIN)
+        lines = db.exec(select(ConversationMessage).where(ConversationMessage.conversation_id == group_chats.find(db, created.id).id)).all()
+        assert [(line.body, line.sender_user_id, line.card["type"]) for line in lines] == [("Tea Cher created this group", ADMIN, "event")]
+        # The creator isn't in it, yet it's on top for them rather than in A to Z.
+        listed = feed.people_feed(db, _user(ADMIN), 1)
+        mine = next(row for row in listed["active"] if row["key"] == f"group:{created.id}")
+        assert mine["preview"] == "You created this group" and mine["total"] == 0 and mine["group"]["name"] == "Spring"
+        assert f"group:{created.id}" not in {row["key"] for row in listed["rest"]}
+        # Someone added afterwards sees it as new, with who created it.
+        staff.set_staff(db, _user(ADMIN), 1, created.id, GroupStaffSet(user_id=TEACHER))
+        theirs = next(row for row in feed.people_feed(db, _user(TEACHER), 1)["active"] if row["key"] == f"group:{created.id}")
+        assert theirs["counts"]["messages"] == 1 and theirs["preview"] == "Tea Cher created this group"
+        assert chats.get_chat(db, _user(TEACHER), theirs["chat_uuid"])["messages"][0]["card"]["verb"] == "created this group"

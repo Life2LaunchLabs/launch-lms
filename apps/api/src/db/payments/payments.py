@@ -42,10 +42,6 @@ class PaymentsConfig(PaymentsConfigBase, table=True):
     update_date: datetime = Field(default_factory=datetime.now)
 
 
-class PaymentsConfigCreate(PaymentsConfigBase):
-    pass
-
-
 class PaymentsConfigUpdate(PaymentsConfigBase):
     enabled: bool | None = True
     provider_config: dict | None = None
@@ -57,7 +53,3 @@ class PaymentsConfigRead(PaymentsConfigBase):
     org_id: int
     creation_date: datetime
     update_date: datetime
-
-
-class PaymentsConfigDelete(SQLModel):
-    id: int

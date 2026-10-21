@@ -2,19 +2,23 @@
 
 import React from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { useSWRConfig } from 'swr'
-import { Plus, Search, UserPlus, X } from 'lucide-react'
+import { Plus, Search, UserPlus, Users, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@components/ui/skeleton'
 import { PersonAvatar } from '@components/Goals/share/PersonAvatar'
 import { GroupMark } from '@components/Connect/ChatPane'
 import { chatTime } from '@components/Connect/ConnectView'
-import Modal from '@components/Objects/StyledElements/Modal/Modal'
-import AddUserGroup from '@components/Objects/Modals/Dash/OrgUserGroups/AddUserGroup'
 import InviteUsersDialog from '@components/Dashboard/Pages/Users/OrgUsersAdd/InviteUsersDialog'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import { ROLE_LABELS, peopleKeys, type FeedRow, type OrgRole, type PeopleStatusFilter } from '@services/school/people'
+import { ROLE_LABELS, peopleKeys, type FeedRow, type PeopleStatusFilter } from '@services/school/people'
+import NewGroup from './NewGroup'
+import PageWelcome from '@components/Admin/PageWelcome'
+import { PeopleBanners } from '@components/Admin/Upgrade/PlanBanners'
+import { primaryActionClass, secondaryActionClass } from '@components/Admin/Plans/PlansActions'
 import PendingInvites from './PendingInvites'
+import { RoleTag } from './RoleTag'
 import type { PeopleSelection } from './PeopleView'
 import { usePeopleContext, usePeopleFeed, useRefreshPeople } from './usePeople'
 
@@ -45,7 +49,10 @@ export default function PeopleList({ orgslug, selection }: { orgslug: string; se
   const needle = query.trim().replace(/^@/, '').toLowerCase()
   const [status, setStatus] = React.useState<PeopleStatusFilter>('active')
   const { data, isLoading, error, mutate } = usePeopleFeed(needle, 0, status)
-  const [inviting, setInviting] = React.useState(false)
+  // Home's getting started links here with ?invite=learner or ?invite=staff to open the dialog.
+  const inviteParam = useSearchParams().get('invite')
+  const [inviting, setInviting] = React.useState(Boolean(inviteParam))
+  const [inviteRole, setInviteRole] = React.useState<'learner' | 'staff'>(inviteParam === 'staff' ? 'staff' : 'learner')
   const [creatingGroup, setCreatingGroup] = React.useState(false)
   const groupsEnabled = Boolean(data?.groups_enabled)
   const active = data?.active || []
@@ -54,10 +61,10 @@ export default function PeopleList({ orgslug, selection }: { orgslug: string; se
     <div className="flex h-16 shrink-0 items-center justify-between gap-2 px-4 md:border-b md:border-border md:px-5">
       <h1 className="text-2xl font-black tracking-tight md:text-xl">People</h1>
       <div className="flex items-center gap-1">
-        {isAdmin && groupsEnabled ? <Modal isDialogOpen={creatingGroup} onOpenChange={setCreatingGroup} minHeight="no-min" dialogTitle="New group"
-          dialogDescription="A group shares plans and a chat with the staff you add to it."
-          dialogContent={<AddUserGroup setCreateUserGroupModal={(open: boolean) => { setCreatingGroup(open); if (!open) void refresh() }} />}
-          dialogTrigger={<button type="button" aria-label="New group" title="New group" className="flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground"><Plus size={19} /></button>} /> : null}
+        {isAdmin && groupsEnabled ? <>
+          <button type="button" onClick={() => setCreatingGroup(true)} aria-haspopup="dialog" aria-label="New group" title="New group" className="flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground"><Plus size={19} /></button>
+          <NewGroup orgslug={orgslug} open={creatingGroup} onOpenChange={setCreatingGroup} />
+        </> : null}
         <button type="button" onClick={() => setInviting(true)} aria-label="Add people" title="Add people" className="flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground"><UserPlus size={19} /></button>
       </div>
     </div>
@@ -68,6 +75,7 @@ export default function PeopleList({ orgslug, selection }: { orgslug: string; se
       {query ? <button type="button" onClick={() => setQuery('')} aria-label="Clear search" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"><X size={16} /></button> : null}
     </label>
     <StatusFilter value={status} onChange={setStatus} />
+    <PeopleBanners className="mx-3 mb-2" />
     <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
       {isLoading && !data ? <ListSkeleton />
         : error && !data ? <p className="px-2 py-8 text-center text-sm text-muted-foreground">People didn&rsquo;t load. <button type="button" className="font-semibold underline" onClick={() => mutate()}>Try again</button></p>
@@ -77,11 +85,18 @@ export default function PeopleList({ orgslug, selection }: { orgslug: string; se
             <h2 className={cn('px-2.5 pb-1 text-xs font-bold uppercase tracking-wide text-muted-foreground', active.length ? 'mt-4' : 'mt-1')}>{active.length ? 'Everyone else · A–Z' : 'Everyone · A–Z'}</h2>
             <RestRows rows={data.rest} orgslug={orgslug} selection={selection} label={active.length ? 'Everyone else' : 'Everyone'} />
             <MoreRows orgslug={orgslug} query={needle} status={status} next={data.offset + data.rest.length} total={data.total} selection={selection} />
-          </> : !active.length ? <p className="px-3 py-6 text-center text-sm text-muted-foreground">{needle ? 'Nobody matches that.' : status === 'alumni' ? 'No alumni yet. Mark learners who have moved on as alumni from their page or their group.' : 'Nobody here yet. Add people to get started.'}</p> : null}
+          </> : active.length ? null
+            : needle || status === 'alumni' || !isAdmin ? <p className="px-3 py-6 text-center text-sm text-muted-foreground">{needle ? 'Nobody matches that.' : status === 'alumni' ? 'No alumni yet. Mark learners who have moved on as alumni from their page or their group.' : 'Nobody here yet.'}</p>
+            : <PageWelcome className="mx-1 mt-2 px-4 py-8 sm:px-5 sm:py-8" icon={<Users size={26} />} title="People: your learners and staff"
+              body="Everyone in your organization, with their chats and anything waiting on you."
+              how="Learners use their own accounts and join by email invite or a join link. Staff help run plans and review work.">
+              <button type="button" onClick={() => { setInviteRole('learner'); setInviting(true) }} className={primaryActionClass}>Invite learners</button>
+              <button type="button" onClick={() => { setInviteRole('staff'); setInviting(true) }} className={secondaryActionClass}>Add staff</button>
+            </PageWelcome>}
           {isAdmin && !needle ? <PendingInvites /> : null}
         </> : null}
     </div>
-    <InviteUsersDialog open={inviting} onOpenChange={setInviting} onInvited={() => {
+    <InviteUsersDialog open={inviting} onOpenChange={setInviting} initialRole={inviteRole} onInvited={() => {
       void refresh()
       void mutateAll((key) => typeof key === 'string' && key.startsWith(peopleKeys.directory(orgId).split('?')[0]))
     }} />
@@ -182,17 +197,6 @@ function GroupRow({ row, orgslug, selection }: { row: FeedRow; orgslug: string; 
       </span>
     </Link>
   </li>
-}
-
-const ROLE_TONES: Record<OrgRole, string> = {
-  admin: 'bg-foreground text-background',
-  staff: 'bg-[var(--org-primary-color)]/15 text-foreground',
-  learner: 'bg-muted text-muted-foreground',
-  helper: 'bg-amber-100 text-amber-800',
-}
-
-export function RoleTag({ role }: { role: OrgRole }) {
-  return <span className={cn('shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wide', ROLE_TONES[role])}>{ROLE_LABELS[role]}</span>
 }
 
 function ListSkeleton() {

@@ -6,6 +6,7 @@ from sqlalchemy import create_engine, inspect
 from sqlmodel import Session, select
 from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
+from src.services.orgs.owner import owner_org
 
 logger = logging.getLogger(__name__)
 
@@ -28,14 +29,12 @@ def auto_install():
     orgs = db_session.exec(select(Organization)).all()
 
     def ensure_owner_org_is_enterprise() -> None:
-        owner_org = db_session.exec(
-            select(Organization).order_by(Organization.id).limit(1)
-        ).first()
-        if not owner_org:
+        org = owner_org(db_session)
+        if not org:
             return
 
         owner_org_config = db_session.exec(
-            select(OrganizationConfig).where(OrganizationConfig.org_id == owner_org.id)
+            select(OrganizationConfig).where(OrganizationConfig.org_id == org.id)
         ).first()
         if not owner_org_config:
             return
@@ -46,7 +45,7 @@ def auto_install():
             owner_org_config.config = config
             db_session.add(owner_org_config)
             db_session.commit()
-            logger.info("Updated owner organization '%s' tier to enterprise", owner_org.slug)
+            logger.info("Updated owner organization '%s' tier to enterprise", org.slug)
 
     if len(orgs) == 0:
         logger.info("No organizations found. Starting auto-installation 🏗️")
@@ -55,8 +54,7 @@ def auto_install():
         return
 
     if orgs:
-        owner_org = db_session.exec(select(Organization).order_by(Organization.id).limit(1)).first()
-        if not owner_org:
+        if not owner_org(db_session):
             logger.info("No owner organization found. Starting auto-installation 🏗️")
             install(short=True)
             ensure_owner_org_is_enterprise()

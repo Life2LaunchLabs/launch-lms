@@ -1034,15 +1034,15 @@ Let organizations design high-quality learning, publish stable credentials, and 
     - `CREDENTIAL_OPS-G005-A001-S001` [live / alternative] Publish an issuer opportunity
     - `CREDENTIAL_OPS-G005-A001-S002` [live / alternative] Browse issuer opportunities
     - `CREDENTIAL_OPS-G005-A001-S003` [live / core] Review an eligible credential or organization
-  - `CREDENTIAL_OPS-G005-A002` [live] Initiate issuer authorization
-    - `CREDENTIAL_OPS-G005-A002-S001` [live / alternative] Request authorization as an issuer
-    - `CREDENTIAL_OPS-G005-A002-S002` [live / alternative] Invite an issuer as the creator
-    - `CREDENTIAL_OPS-G005-A002-S003` [live / core] Wait while a required package is unavailable
-  - `CREDENTIAL_OPS-G005-A003` [live] Decide issuer authorization
-    - `CREDENTIAL_OPS-G005-A003-S001` [live / alternative] Approve or reject a request
-    - `CREDENTIAL_OPS-G005-A003-S002` [live / alternative] Accept an invitation
-    - `CREDENTIAL_OPS-G005-A003-S003` [live / alternative] Revoke authorization
-    - `CREDENTIAL_OPS-G005-A003-S004` [live / alternative] End the issuer relationship
+  - `CREDENTIAL_OPS-G005-A002` [live] Ask to run a badge's plan
+    - `CREDENTIAL_OPS-G005-A002-S001` [live / alternative] Ask to run one of the badge's plans
+    - `CREDENTIAL_OPS-G005-A002-S002` [live / alternative] Authorize an organization on a plan (Publish tab)
+    - `CREDENTIAL_OPS-G005-A002-S003` [live / core] Wait for the plan's owner to decide
+  - `CREDENTIAL_OPS-G005-A003` [live] Decide plan requests
+    - `CREDENTIAL_OPS-G005-A003-S001` [live / alternative] Approve or decline a plan request
+    - `CREDENTIAL_OPS-G005-A003-S002` [live / alternative] See the plan and the badges it earns
+    - `CREDENTIAL_OPS-G005-A003-S003` [live / alternative] Revoke a plan permission
+    - `CREDENTIAL_OPS-G005-A003-S004` [live / alternative] Leave a plan (stop issuing through it)
     - `CREDENTIAL_OPS-G005-A003-S005` [live / core] Review effects on active learners
   - `CREDENTIAL_OPS-G005-A004` [live] Set open-to-all issuer policy
     - `CREDENTIAL_OPS-G005-A004-S001` [live / core] Enable open issuer eligibility

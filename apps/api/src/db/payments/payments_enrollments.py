@@ -32,12 +32,3 @@ class PaymentsEnrollment(PaymentsEnrollmentBase, table=True):
     )
     creation_date: datetime = Field(default_factory=datetime.now)
     update_date: datetime = Field(default_factory=datetime.now)
-
-
-class PaymentsEnrollmentRead(PaymentsEnrollmentBase):
-    id: int
-    offer_id: int
-    user_id: int
-    org_id: int
-    creation_date: datetime
-    update_date: datetime

@@ -8,6 +8,8 @@ import FilterBar from '@components/Admin/Filters/FilterBar'
 import { useFilters } from '@components/Admin/Filters/useFilters'
 import GoalAssignmentModal from '@components/Goals/admin/templates/GoalAssignmentModal'
 import { goalAdminApi, inboxKey, plansKey, type Cohort, type Inbox } from '@services/goals/admin'
+import PageWelcome from '@components/Admin/PageWelcome'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import { EmptyState } from '../live/ui'
 import AssignmentActions from './AssignmentActions'
 import AssignmentVersionBanner from '@components/Goals/admin/versions/AssignmentVersionBanner'
@@ -94,8 +96,11 @@ export function OrgAssignments({ orgslug }: { orgslug: string }) {
   let body: React.ReactNode
   if (isLoading || (!data && !error)) body = <div className="flex justify-center py-16"><Loader2 className="animate-spin text-muted-foreground" /></div>
   else if (error || !data) body = <EmptyState icon={<Users size={34} />} title="Plans unavailable" detail={error?.message || 'Try again in a moment.'} />
-  else if (!data.plans.length) body = <EmptyState icon={<Users size={34} />} title="No plans yet"
-    detail={admin ? 'Publish a template, or add one from the marketplace, to assign it to a group or a learner here.' : 'Nothing you staff yet.'} />
+  else if (!data.plans.length) body = admin ? <PageWelcome icon={<Users size={28} />} title="Assignments: every plan you've handed out"
+    body="Each plan you hand to a learner or a group shows up here, with who's moving, who's stuck and what's waiting on you to review."
+    how="Hand out a plan from one of your templates. You choose when each stage opens, and learners see it in their feed."
+    actions={[{ label: 'Hand out a plan', href: getUriWithOrg(orgslug, routePaths.org.admin.templates()), primary: true }, { label: 'Find a plan', href: getUriWithOrg(orgslug, routePaths.org.admin.marketplace()) }]} />
+    : <EmptyState icon={<Users size={34} />} title="No plans yet" detail="Nothing you staff yet." />
   else if (!shown.cards.length) body = <div className="rounded-2xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
     No plans match these filters. <button type="button" onClick={clear} className="font-bold text-violet-700 underline underline-offset-2">Clear filters</button>
   </div>
@@ -109,12 +114,12 @@ export function OrgAssignments({ orgslug }: { orgslug: string }) {
 }
 
 /** One template's assignments, ended ones under Past, on the template's Assignments tab. */
-export function TemplateAssignments({ orgslug, templateUuid }: { orgslug: string; templateUuid: string }) {
+export function TemplateAssignments({ orgslug, templateUuid, assign }: { orgslug: string; templateUuid: string; /** Hand the template out, at the top of the list. */ assign?: React.ReactNode }) {
   const { orgId, token } = useStaff()
   const { data = [], isLoading, mutate } = useTemplateAssignments(orgId, templateUuid, token)
   const needs = useNeeds(orgId, token)
   return <div className="px-4 pb-10 pt-6 sm:px-10"><div className="mx-auto max-w-5xl">
-    <AssignmentsList rows={data} loading={isLoading} orgslug={orgslug} needs={needs} showTemplate={false} onChanged={() => mutate()} empty="Not handed out yet. Use Assign to give it to a group or a learner." />
+    <AssignmentsList rows={data} loading={isLoading} orgslug={orgslug} needs={needs} showTemplate={false} onChanged={() => mutate()} assign={assign} empty="Not handed out yet. Use Assign to give it to a group or a learner." />
   </div></div>
 }
 

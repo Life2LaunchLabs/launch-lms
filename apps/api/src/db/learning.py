@@ -228,7 +228,11 @@ class BadgeCollectionRead(BadgeCollectionBase):
 
 
 class BadgeIssuerAuthorization(SQLModel, table=True):
-    """Grants an issuing org the right to deliver, grade, and confer a creator org's badge."""
+    """Unused (to drop in the pruning migration): the old badge-level permission to issue a badge.
+
+    Never read or written. Permission to issue a badge is approval on one of its plans
+    (``GoalTemplateAuthorization``, see ``services/goals/plan_issuers``); migration a8c4e1f7d2b9
+    copied these approvals there. The model stays so autogenerate doesn't drop the table."""
 
     __table_args__ = (UniqueConstraint("badge_id", "issuer_org_id"), UniqueConstraint("authorization_uuid"))
 
@@ -255,7 +259,8 @@ class BadgeIssuerLearnerLink(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     link_uuid: str = Field(default="", index=True)
-    authorization_id: int = Field(sa_column=Column(Integer, ForeignKey("badgeissuerauthorization.id", ondelete="CASCADE"), index=True))
+    # Unused (to drop in the pruning migration, with the old unique (authorization_id, user_id)): links are per badge, issuer and learner.
+    authorization_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("badgeissuerauthorization.id", ondelete="CASCADE"), nullable=True, index=True))
     badge_id: int = Field(sa_column=Column(Integer, ForeignKey("learningbadge.id", ondelete="CASCADE"), index=True))
     issuer_org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
     user_id: int = Field(sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), index=True))
@@ -272,37 +277,6 @@ class BadgeIssuerLearnerLink(SQLModel, table=True):
     ended_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
     creation_date: str = ""
     update_date: str = ""
-
-
-class BadgeIssuerAuthorizationRead(BaseModel):
-    id: int
-    authorization_uuid: str
-    badge_id: int
-    creator_org_id: int
-    issuer_org_id: int
-    status: BadgeIssuerAuthorizationStatus
-    open_to_all: bool
-    message: str | None = ""
-    requested_by_user_id: int | None = None
-    decided_by_user_id: int | None = None
-    decided_at: datetime | None = None
-    creation_date: str
-    update_date: str
-    badge: dict | None = None
-    creator_org: dict | None = None
-    issuer_org: dict | None = None
-
-
-class IssuerAuthorizationRequest(SQLModel):
-    badge_uuid: str
-    issuer_org_id: int
-    message: str | None = ""
-
-
-class IssuerAuthorizationInvite(SQLModel):
-    badge_uuid: str
-    issuer_org_slug: str
-    message: str | None = ""
 
 
 class IssuerLearnerLinkCreate(SQLModel):

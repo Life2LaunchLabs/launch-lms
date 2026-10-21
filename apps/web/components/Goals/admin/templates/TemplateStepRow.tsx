@@ -26,6 +26,7 @@ function StepSummary({ step, stage }: { step: TemplateStep; stage: TemplateStage
     step.completed_by === 'staff' ? 'staff mark it done' : step.review_required ? 'staff review' : null,
     step.due_week && stage.duration_weeks ? `due week ${step.due_week}` : null,
     step.after?.length ? `waits on ${step.after.length}` : null,
+    step.staff_guide || step.staff_materials?.length ? 'staff guide' : null,
   ].filter(Boolean)
   return <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{bits.join(' · ')}</span>
 }

@@ -30,9 +30,7 @@ from src.services.learning.variable_definitions import _validate_variable_key
 from src.services.learning.version_drafts import _parse_semver
 from src.services.learning_page_convert import (
     normalize_question_settings,
-    convert_legacy_page,
     find_question_block,
-    link_variant_sources_to_question_blocks,
     paragraph_node,
     question_block,
     text_block,
@@ -883,73 +881,6 @@ def test_variable_key_validation_normalizes_and_rejects_bad_segments():
             raise AssertionError(f"Expected key rejection for {bad_key!r}")
 
 
-def test_convert_legacy_mcq_page_builds_question_block():
-    page_type, content = convert_legacy_page(
-        "multiple_choice",
-        {
-            "rich_text": {
-                "type": "doc",
-                "content": [
-                    {"type": "heading", "attrs": {"level": 1}, "content": [{"type": "text", "text": "Which fruit?"}]},
-                    {"type": "learningQuestion", "attrs": {"locked": True}},
-                ],
-            },
-            "options": [{"id": "a", "text": "Apples"}, {"id": "b", "text": "Bananas"}],
-        },
-    )
-
-    assert page_type == "standard"
-    assert content["version"] == 2
-    assert [block["type"] for block in content["blocks"]] == ["text", "question"]
-    question = find_question_block(content)
-    assert question["kind"] == "multiple_choice"
-    assert [option["id"] for option in question["content"]["options"]] == ["a", "b"]
-
-
-def test_convert_legacy_uppercase_sqlalchemy_enum_name():
-    page_type, content = convert_legacy_page(
-        "INFO",
-        {"heading": "Hello", "body": "Legacy enum storage"},
-    )
-
-    assert page_type == "standard"
-    assert content["version"] == 2
-    assert [block["type"] for block in content["blocks"]] == ["text", "text"]
-
-
-def test_convert_legacy_question_response_builds_variants():
-    page_type, content = convert_legacy_page(
-        "question_response",
-        {
-            "linked_page_uuid": "learning_page_src",
-            "rich_text": {"type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Default response"}]}]},
-            "response_variants": {
-                "option_a": {"enabled": True, "rich_text": {"type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Chose A"}]}]}},
-                "option_b": {"enabled": False, "rich_text": {"type": "doc", "content": [{"type": "paragraph"}]}},
-                "correct": {"enabled": True, "rich_text": {"type": "doc", "content": [{"type": "paragraph", "content": [{"type": "text", "text": "Well done"}]}]}},
-            },
-        },
-    )
-
-    assert page_type == "standard"
-    assert content["variants"]["source"]["page_uuid"] == "learning_page_src"
-    assert set(content["variants"]["overrides"].keys()) == {"option_a", "correct"}
-
-    pages = [
-        {"page_uuid": "learning_page_src", "content": {"version": 2, "blocks": [_mcq(block_id="blk_src_q")]}},
-        {"page_uuid": "learning_page_resp", "content": content},
-    ]
-    link_variant_sources_to_question_blocks(pages)
-    assert content["variants"]["source"]["block_id"] == "blk_src_q"
-
-
-def test_convert_video_page_passes_through():
-    page_type, content = convert_legacy_page("video", {"video_url": "https://youtu.be/x", "allow_scrubbing": True})
-
-    assert page_type == "video"
-    assert content == {"video_url": "https://youtu.be/x", "allow_scrubbing": True}
-
-
 def test_learning_badge_class_payload_uses_new_badge_metadata():
     payload = build_learning_badge_class_payload(_request(), _org(), _badge(), _org_config())
 
@@ -1021,7 +952,10 @@ ADMIN_ID, STAFF_ID, LEARNER_ID, PARTNER_STAFF_ID, STAFF_ROLE_ID = 1, 2, 3, 4, 7
 
 def _badge_world():
     from sqlmodel import Session, SQLModel, create_engine
-    from src.db.learning import BadgeCollection, BadgeIssuerAuthorization, BadgeIssuerAuthorizationStatus
+    from src.db.badge_routes import BadgeRoute, BadgeRouteOffer
+    from src.db.goals import GoalTemplate
+    from src.db.learning import BadgeCollection
+    from src.db.template_marketplace import GoalTemplateAuthorization
     from src.db.programs import Objective, Program, ProgramAssignment, ProgramObjective
     from src.db.roles import Role
     from src.db.user_organizations import UserOrganization
@@ -1029,7 +963,8 @@ def _badge_world():
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     SQLModel.metadata.create_all(engine, tables=[
         Organization.__table__, User.__table__, Role.__table__, UserOrganization.__table__, BadgeCollection.__table__,
-        LearningBadge.__table__, LearningBadgeVersion.__table__, BadgeIssuerAuthorization.__table__, LearningBadgeAward.__table__,
+        LearningBadge.__table__, LearningBadgeVersion.__table__, LearningBadgeAward.__table__,
+        GoalTemplate.__table__, BadgeRoute.__table__, BadgeRouteOffer.__table__, GoalTemplateAuthorization.__table__,
         Program.__table__, ProgramObjective.__table__, Objective.__table__, ProgramAssignment.__table__,
     ])
     db = Session(engine)
@@ -1044,8 +979,11 @@ def _badge_world():
     db.add(BadgeCollection(id=1, collection_uuid="badge_collection_1", org_id=1, name="Readiness", description="", public=True, creation_date=now, update_date=now))
     # Private and a draft, so only the organization (and issuers it authorized) can read it.
     db.add(LearningBadge(id=10, org_id=1, collection_id=1, badge_uuid="badge_ready", name="Career Ready", public=False, status=LearningBadgeStatus.DRAFT, creation_date=now, update_date=now))
-    db.add(BadgeIssuerAuthorization(authorization_uuid="auth_1", badge_id=10, creator_org_id=1, issuer_org_id=2, status=BadgeIssuerAuthorizationStatus.APPROVED,
-                                    creation_date=now, update_date=now))
+    # The partner issues it: approved on the badge's plan.
+    db.add(GoalTemplate(id=20, template_uuid="template_ready", org_id=1, title="Get ready", creation_date=now, update_date=now))
+    db.add(BadgeRoute(route_uuid="route_ready", badge_id=10, goal_template_id=20, creation_date=now))
+    db.add(GoalTemplateAuthorization(authorization_uuid="template_auth_1", template_id=20, creator_org_id=1, issuer_org_id=2, status="approved",
+                                     creation_date=now, update_date=now))
     db.commit()
     return db
 

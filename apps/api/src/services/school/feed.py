@@ -11,6 +11,8 @@ their conversation; it's merged at read time, so nothing new is stored.
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 from sqlalchemy import String, and_, func, literal, or_, union_all
 from sqlmodel import Session, col, select
 
@@ -26,10 +28,12 @@ from src.security.org_auth import is_org_admin
 from src.security.superadmin import is_user_superadmin
 from src.services.connect import chats, people
 from src.services.goals import access, helper_requests
+from src.services.goals.sharing_roles import _now
 from src.services.school import chats as school_chats, directory, group_chats, roles
 
 ACTIVE_CAP = 30
 PAGE = directory.PAGE
+NEW_GROUP_DAYS = 7
 
 
 def _admin(db: Session, user_id: int, org_id: int) -> bool:
@@ -132,6 +136,10 @@ def _last_line(message: dict | None, group: bool) -> str:
     if not message:
         return ""
     text = message.get("preview") or message.get("body") or ""
+    card = message.get("card") or {}
+    if card.get("type") == group_chats.EVENT:
+        # A line about what happened, which already names who did it.
+        return f"You {card['verb']}" if message.get("mine") and card.get("verb") else text
     if message.get("mine"):
         return f"You: {text}"
     sender = (message.get("sender") or {}).get("name")
@@ -172,6 +180,19 @@ def active_rows(db: Session, current_user: PublicUser, org_id: int, needle: str 
         if (chat["last_message_at"] or "") >= entry["_last_at"]:
             entry["_last_at"], entry["_last"] = chat["last_message_at"] or "", _last_line(chat.get("last_message"), chat["kind"] == group_chats.GROUP)
         touch(entry, chat["last_message_at"])
+
+    if listed["groups_enabled"]:
+        # A group the viewer just created stays near the top for a while, even when they aren't in its chat.
+        since = (_now() - timedelta(days=NEW_GROUP_DAYS)).isoformat()
+        for group_id, conversation in group_chats.created_by(db, org_id, viewer, since):
+            group = None if f"group:{group_id}" in rows else db.get(UserGroup, group_id)
+            if not group:
+                continue
+            entry = row("group", group_id)
+            entry["group"] = _group_rows(db, [group])[0]["group"]
+            last = chats._last(db, conversation)
+            entry["_last_at"], entry["_last"] = conversation.last_message_at or "", _last_line(chats._message_dict(db, last, viewer) if last else None, True)
+            touch(entry, conversation.last_message_at)
 
     school = [(student, conversation) for student, conversation in _school_chats(db, viewer, org_id) if conversation.last_message_at]
     unread = _unread(db, viewer, [int(conversation.id) for _, conversation in school])  # type: ignore[arg-type]
@@ -303,7 +324,9 @@ def people_feed(db: Session, current_user: PublicUser, org_id: int, query: str =
     if status == "alumni":
         active = []
     rest = everyone_else(db, current_user, org_id, needle, {item["key"] for item in active}, groups_on, admin, offset, limit, status)
-    return {"active": active if offset == 0 else [], **rest, "groups_enabled": groups_on, "is_admin": admin}
+    # Groups stay listed after a Full trial ends, but nobody can make new ones.
+    enabled = groups_on and group_chats.enabled(db, org_id)
+    return {"active": active if offset == 0 else [], **rest, "groups_enabled": enabled, "groups_read_only": groups_on and not enabled, "is_admin": admin}
 
 
 # A person's activity cards ---------------------------------------------------------------

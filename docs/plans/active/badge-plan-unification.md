@@ -98,7 +98,10 @@ through their org roles.
   *open* (start now), *request* (issuer accepts; `BadgeIssuerLearnerLink`) or
   *invite*. Learners can start credentials themselves through open/request
   routes. Routes a learner can't access (e.g. admin confer with note) are not
-  shown to them at all.
+  shown to them at all. Built as `goal_template_learner_access` (one row per
+  running org + template, no row = invite; `services/goals/plan_access.py`);
+  Discover lists a badge only while some issuing org runs one of its plans
+  open or by request.
 - Within an org, users differ: who can author routes, who can assign a route
   into a learner's plan, who can sign off. Assigning and signing off stay
   separate permissions.

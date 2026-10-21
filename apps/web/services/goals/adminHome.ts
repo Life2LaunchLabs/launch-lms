@@ -52,6 +52,15 @@ export interface AdminHome {
   messages?: { chats: ChatSummary[]; unread: number }
   attention?: { assignments: HomeAttentionRow[]; total: number }
   creator?: HomeCreator
+  /** The getting-started checklist, for admins until it's done or dismissed. */
+  getting_started?: GettingStarted | null
+}
+
+export type GettingStartedStepKey = 'plan' | 'organization' | 'learners' | 'staff' | 'assign'
+export interface GettingStarted {
+  steps: { key: GettingStartedStepKey; done: boolean; optional: boolean }[]
+  done: number
+  total: number
 }
 
 /** The Plans area's tabs (Assignments, Templates, Badges, Requirements, Marketplace). */
@@ -71,6 +80,7 @@ export const plansTabsKey = (orgId: number) => goalAdminUrl('/preferences/plans-
 export const adminHomeApi = {
   get: (orgId: number, token?: string) => request<AdminHome>(adminHomeKey(orgId), token),
   saveLayout: (orgId: number, layout: HomeLayout, token?: string) => request<HomeLayout>(goalAdminUrl('/home/layout', orgId), token, 'PUT', layout),
+  dismissGettingStarted: (orgId: number, token?: string) => request<{ dismissed: boolean }>(goalAdminUrl('/home/getting-started/dismiss', orgId), token, 'POST'),
   plansTabs: (orgId: number, token?: string) => request<PlansTabsPreference>(plansTabsKey(orgId), token),
   /** Saves the member's tab order; an empty order goes back to the default. */
   savePlansTabs: (orgId: number, order: PlansTabId[], token?: string) => request<PlansTabsPreference>(plansTabsKey(orgId), token, 'PUT', { order }),

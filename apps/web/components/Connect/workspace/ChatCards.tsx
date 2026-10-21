@@ -34,6 +34,9 @@ export function CardMessage({ message, orgslug, token, topics, time, first, onTa
       <span className="ml-2 inline-block align-bottom text-[10px] text-muted-foreground">{time}</span>
     </div>
   </li>
+  if (card.type === 'event') return <li className="my-3 flex justify-center">
+    <span className="rounded-full bg-[hsl(var(--raised)/0.55)] px-3 py-1 text-center text-xs text-muted-foreground">{message.mine ? `You ${card.verb}` : message.body}<span className="ml-1.5">· {time}</span></span>
+  </li>
   if (card.type === 'step_reminder') return <li className={cn('flex justify-start', first && 'mt-2')}>
     <ReminderView card={card} who={message.mine ? 'You' : who} time={time} onTag={onTag} />
   </li>

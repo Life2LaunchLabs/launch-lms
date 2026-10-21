@@ -276,14 +276,6 @@ export async function deleteResource(resourceUuid: string, accessToken: string) 
   return getResponseMetadata(result)
 }
 
-export async function uploadResourceThumbnail(resourceUuid: string, formData: FormData, accessToken: string) {
-  const result: any = await fetch(
-    `${getAPIUrl()}resources/${resourceUuid}/thumbnail`,
-    RequestBodyFormWithAuthHeader('PUT', formData, null, accessToken)
-  )
-  return getResponseMetadata(result)
-}
-
 export async function createResourceChannel(orgId: number, data: any, accessToken: string) {
   const result: any = await fetch(
     `${getAPIUrl()}resources/channels?org_id=${orgId}`,
@@ -341,14 +333,6 @@ export async function addResourceToChannel(
   return getResponseMetadata(result)
 }
 
-export async function removeResourceFromChannel(channelUuid: string, resourceUuid: string, accessToken: string) {
-  const result: any = await fetch(
-    `${getAPIUrl()}resources/channels/${channelUuid}/resources/${resourceUuid}`,
-    RequestBodyWithAuthHeader('DELETE', null, null, accessToken)
-  )
-  return getResponseMetadata(result)
-}
-
 export async function createUserResourceChannel(orgId: number, data: any, accessToken: string) {
   const result: any = await fetch(
     `${getAPIUrl()}resources/org/${orgId}/me/channels`,
@@ -390,14 +374,6 @@ export async function unsaveResource(resourceUuid: string, accessToken: string) 
   const result: any = await fetch(
     `${getAPIUrl()}resources/${resourceUuid}/save`,
     RequestBodyWithAuthHeader('DELETE', null, null, accessToken)
-  )
-  return getResponseMetadata(result)
-}
-
-export async function uploadOutcomeFile(resourceUuid: string, formData: FormData, accessToken: string) {
-  const result: any = await fetch(
-    `${getAPIUrl()}resources/${resourceUuid}/save/outcome-file`,
-    RequestBodyFormWithAuthHeader('PUT', formData, null, accessToken)
   )
   return getResponseMetadata(result)
 }
@@ -465,30 +441,6 @@ export async function getResourceComments(resourceUuid: string, accessToken?: st
     RequestBodyWithAuthHeader('GET', null, null, accessToken)
   )
   return errorHandling(result) as Promise<ResourceComment[]>
-}
-
-export async function createResourceComment(resourceUuid: string, data: { content: string }, accessToken: string) {
-  const result: any = await fetch(
-    `${getAPIUrl()}resources/${resourceUuid}/comments`,
-    RequestBodyWithAuthHeader('POST', data, null, accessToken)
-  )
-  return errorHandling(result) as Promise<ResourceComment>
-}
-
-export async function updateResourceComment(commentUuid: string, data: { content: string }, accessToken: string) {
-  const result: any = await fetch(
-    `${getAPIUrl()}resources/comments/${commentUuid}`,
-    RequestBodyWithAuthHeader('PUT', data, null, accessToken)
-  )
-  return errorHandling(result) as Promise<ResourceComment>
-}
-
-export async function deleteResourceComment(commentUuid: string, accessToken: string) {
-  const result: any = await fetch(
-    `${getAPIUrl()}resources/comments/${commentUuid}`,
-    RequestBodyWithAuthHeader('DELETE', null, null, accessToken)
-  )
-  return getResponseMetadata(result)
 }
 
 export async function getResourceReviews(resourceUuid: string, accessToken?: string) {

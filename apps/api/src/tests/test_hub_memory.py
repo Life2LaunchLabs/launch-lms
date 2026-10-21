@@ -70,7 +70,7 @@ def test_memory_defaults_on_is_tenant_scoped_and_stops_without_deleting(monkeypa
 def test_memory_selection_grounding_receipts_edit_and_delete(monkeypatch):
     with _session(monkeypatch) as db:
         _message(db)
-        hub_memory.set_memory_enabled(db, 7, 11, True)
+        hub_memory.update_memory_settings(db, 7, 11, enabled=True)
         changed = hub_memory.apply_memory_candidates(
             db, org_id=7, user_id=11, message_uuid="message_one",
             candidates=[{"category": "goal", "content": "You want to become a nurse", "explicit": True}],
@@ -97,14 +97,14 @@ def test_memory_selection_grounding_receipts_edit_and_delete(monkeypatch):
 def test_sensitive_memory_is_rejected_and_cross_owner_message_is_hidden_not_found(monkeypatch):
     with _session(monkeypatch) as db:
         _message(db)
-        hub_memory.set_memory_enabled(db, 7, 11, True)
+        hub_memory.update_memory_settings(db, 7, 11, enabled=True)
         assert hub_memory.memory_is_sensitive("My password is secret") is True
         assert hub_memory.apply_memory_candidates(
             db, org_id=7, user_id=11, message_uuid="message_one",
             candidates=[{"category": "background", "content": "Your medical condition is private"}],
             extraction_model="test",
         ) == []
-        hub_memory.set_memory_enabled(db, 7, 12, True)
+        hub_memory.update_memory_settings(db, 7, 12, enabled=True)
         try:
             hub_memory.apply_memory_candidates(
                 db, org_id=7, user_id=12, message_uuid="message_one",
@@ -119,7 +119,7 @@ def test_sensitive_memory_is_rejected_and_cross_owner_message_is_hidden_not_foun
 def test_forget_receipt_preserves_snapshot_without_offering_stale_actions(monkeypatch):
     with _session(monkeypatch) as db:
         _message(db)
-        hub_memory.set_memory_enabled(db, 7, 11, True)
+        hub_memory.update_memory_settings(db, 7, 11, enabled=True)
         created = hub_memory.apply_memory_candidates(
             db, org_id=7, user_id=11, message_uuid="message_one",
             candidates=[{"category": "goal", "content": "You want to become a nurse"}],

@@ -43,14 +43,24 @@ export const REQUEST_KINDS: Record<string, string> = {
 
 export type AccessRequest = { type: 'tier_upgrade' | 'partner_application' | 'feature_request'; value: string }
 
-export type FeatureAccess = { enabled: boolean; unlock: AccessRequest | null }
+/** `read_only`: the org had it on a Full trial that has ended, so what it made stays readable. */
+export type FeatureAccess = { enabled: boolean; read_only?: boolean; unlock: AccessRequest | null }
+
+/** The org's one Full trial, once started. */
+export type TrialAccess = { tier: Tier; started_at: string; ends_at: string; running: boolean; days_left: number }
 
 export type OrgAccess = {
+  /** What the org has now: its tier, or the trial's while it runs. */
   tier: Tier
+  /** The tier it's on without the trial. */
+  base_tier?: Tier
   owner: boolean
   partners: string[]
   features: Record<string, FeatureAccess>
   limits: Record<string, number>
+  trial?: TrialAccess | null
+  /** A Free org that hasn't tried Full yet. */
+  trial_available?: boolean
 }
 
 export const NO_ACCESS: OrgAccess = { tier: 'free', owner: false, partners: [], features: {}, limits: {} }

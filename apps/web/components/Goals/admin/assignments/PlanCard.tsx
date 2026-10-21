@@ -60,7 +60,7 @@ export default function PlanCard({ plan, rows, partners, endedHidden, total, onl
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="min-w-0 text-lg font-black leading-tight"><Link href={templateHref} className="hover:underline">{template.title}</Link></h2>
             {template.version ? <span className="rounded-md bg-green-50 px-1.5 py-0.5 text-[11px] font-black uppercase tracking-wide text-green-700">v{template.version} live</span>
-              : <span className="rounded-md bg-gray-100 px-1.5 py-0.5 text-[11px] font-black uppercase tracking-wide text-gray-600">Not published</span>}
+              : <span className="rounded-md bg-gray-100 px-1.5 py-0.5 text-[11px] font-black uppercase tracking-wide text-gray-600">Not released</span>}
             {template.status === 'archived' ? <span className="rounded-md bg-gray-100 px-1.5 py-0.5 text-[11px] font-black uppercase tracking-wide text-gray-600">Archived</span> : null}
           </div>
           <p className="mt-1 text-sm text-muted-foreground">{planMeta(plan)}</p>

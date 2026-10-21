@@ -37,3 +37,21 @@ def simulate_issuer_acceptance(db_session: Session, link: BadgeIssuerLearnerLink
     db_session.commit()
     db_session.refresh(link)
     return link
+
+
+def find_link(db_session: Session, badge_id: int, issuer_org_id: int, user_id: int | None) -> BadgeIssuerLearnerLink | None:
+    """The learner's link with an issuer for a badge (one per badge, issuer and learner)."""
+    if user_id is None:
+        return None
+    return db_session.exec(select(BadgeIssuerLearnerLink).where(
+        BadgeIssuerLearnerLink.badge_id == badge_id,
+        BadgeIssuerLearnerLink.issuer_org_id == issuer_org_id,
+        BadgeIssuerLearnerLink.user_id == user_id,
+    ).order_by(BadgeIssuerLearnerLink.id.desc())).first()  # type: ignore[union-attr]
+
+
+def new_link(badge_id: int, issuer_org_id: int, user_id: int, now: str, **values) -> BadgeIssuerLearnerLink:
+    from uuid import uuid4
+
+    return BadgeIssuerLearnerLink(link_uuid=f"issuer_link_{uuid4()}", badge_id=badge_id, issuer_org_id=issuer_org_id, user_id=user_id,
+                                  creation_date=now, update_date=now, **values)

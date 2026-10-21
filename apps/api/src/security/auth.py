@@ -8,7 +8,7 @@ from jwt.exceptions import PyJWTError
 from pydantic import BaseModel
 from sqlmodel import Session
 from src.core.events.database import get_db_session
-from src.db.users import AnonymousUser, APITokenUser, PublicUser, User, UserRead
+from src.db.users import AnonymousUser, APITokenUser, PublicUser, User
 from src.security.security import ALGORITHM, SECRET_KEY
 from src.services.users.users import security_get_user, security_verify_password
 
@@ -232,11 +232,6 @@ async def get_current_user(
         return public_user
     else:
         return AnonymousUser()
-
-
-async def non_public_endpoint(current_user: UserRead | AnonymousUser):
-    if isinstance(current_user, AnonymousUser):
-        raise HTTPException(status_code=401, detail="Not authenticated")
 
 
 async def get_authenticated_user(
