@@ -207,9 +207,23 @@ export interface TemplateStep<T extends StepTypeKey = StepTypeKey> {
   completed_by: StepCompleter
   review_required?: boolean
   reviewer_guidance?: string
+  /** For staff running the step, like a lesson plan. Learners never see it. */
+  staff_guide?: string
+  /** Files and links only staff see: a lesson packet, slides, an answer key. */
+  staff_materials?: StepMaterial[]
   after?: string[]
   due_week?: number | null
   requirement_node_uuids?: string[]
+}
+
+/** A file or link on a step: learners' materials, or the staff guide's. */
+export interface StepMaterial {
+  kind: 'link' | 'file' | 'resource'
+  title?: string
+  url?: string
+  asset_uuid?: string
+  resource_uuid?: string
+  media_type?: string
 }
 
 export interface TemplateStage {

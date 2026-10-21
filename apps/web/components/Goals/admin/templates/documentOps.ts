@@ -1,5 +1,5 @@
 import type { StepDraft } from '@components/Goals/edit/StepEditor'
-import type { TemplateDocument, TemplateStage, TemplateStep } from '@services/goals/types'
+import type { StepMaterial, TemplateDocument, TemplateStage, TemplateStep } from '@services/goals/types'
 
 // Pure edits on a template document. The editor always saves the whole document.
 
@@ -15,6 +15,7 @@ export function stepToDraft(step: TemplateStep): StepDraft {
   return {
     type: step.type, title: step.title, description: step.description || '', config: step.config, completed_by: step.completed_by || 'learner',
     review_required: !!step.review_required, reviewer_guidance: step.reviewer_guidance || '', after: step.after || [], due_week: step.due_week ?? null,
+    materials: (step.materials || []) as unknown as StepMaterial[], staff_guide: step.staff_guide || '', staff_materials: step.staff_materials || [],
   }
 }
 
@@ -23,6 +24,7 @@ export function draftToStep(draft: StepDraft, previous?: TemplateStep): Template
     ...(previous || { key: newKey('step'), materials: [], requirement_node_uuids: [] }),
     type: draft.type, title: draft.title.trim(), description: draft.description, config: draft.config, completed_by: draft.completed_by,
     review_required: draft.completed_by === 'learner' && draft.review_required, reviewer_guidance: draft.reviewer_guidance, after: draft.after, due_week: draft.due_week ?? null,
+    materials: (draft.materials || []) as unknown as TemplateStep['materials'], staff_guide: (draft.staff_guide || '').trim(), staff_materials: draft.staff_materials || [],
   }
 }
 

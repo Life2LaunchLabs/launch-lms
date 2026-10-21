@@ -207,6 +207,9 @@ def assignment_matrix(db: Session, current_user: PublicUser, org_id: int, assign
     visible = [goal for goal in goals if "view_plan" in granted[int(goal.id)]]  # type: ignore[arg-type]
     if goals and not visible:
         raise HTTPException(status_code=403, detail="You cannot view this assignment")
+    # Staff see how to run and review each step; a learner looking at their own row never does.
+    staff = current_user.id in (assignment.staff_user_ids or []) or current_user.id in {assignment.created_by_user_id, assignment.owner_user_id} \
+        or is_org_admin(current_user.id, org_id, db) or any(goal.subject_user_id != current_user.id and REVIEW in granted[int(goal.id)] for goal in visible)  # type: ignore[arg-type]
     steps, progress = _loaded(db, visible)
     step_ids = [step.id for rows in steps.values() for step in rows]
     entries: dict[int, list[StepEntry]] = {}
@@ -249,8 +252,10 @@ def assignment_matrix(db: Session, current_user: PublicUser, org_id: int, assign
             columns.append({
                 "template_key": spec["key"], "title": spec.get("title"), "type": spec.get("type"), "description": spec.get("description") or "",
                 "completed_by": spec.get("completed_by") or "learner", "review_required": bool(spec.get("review_required")),
-                # What staff prepare from: the step's setup (an activity to try), its materials and how to review it.
-                "config": spec.get("config") or {}, "materials": spec.get("materials") or [], "reviewer_guidance": spec.get("reviewer_guidance") or "",
+                # What staff prepare from: the step's setup (an activity to try), its materials, the staff guide and how to review it.
+                "config": spec.get("config") or {}, "materials": spec.get("materials") or [],
+                "reviewer_guidance": (spec.get("reviewer_guidance") or "") if staff else "",
+                "staff_guide": (spec.get("staff_guide") or "") if staff else "", "staff_materials": (spec.get("staff_materials") or []) if staff else [],
                 "aggregate": _aggregate(cells, len(learners), on_step),
             })
         start, due = dates.get(stage["key"], (None, None))

@@ -3,7 +3,7 @@
 import React from 'react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
-import { Bell, Check, ClipboardCheck, Loader2, Play, ScrollText } from 'lucide-react'
+import { Bell, Check, ClipboardCheck, FileText, Link2, Loader2, Play, ScrollText } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import { EditorPreviewModal } from '@components/Learning/player/EditorPreviewModal'
 import { getUriWithOrg } from '@services/config/config'
@@ -89,11 +89,28 @@ export default function StepTodos({ column, ctx, upcoming, full, onOpen }: { col
 
   return <div className="flex flex-col gap-3 text-sm">
     {column.description ? <p className="whitespace-pre-wrap text-muted-foreground">{column.description}</p> : null}
+    <StaffGuide column={column} />
     {lines.length ? <p className="flex flex-col gap-1">{lines}</p> : null}
     {buttons.length ? <div className="flex flex-wrap gap-2">{buttons}</div> : null}
     {todo.settle.length ? <Settle column={column} ctx={ctx} who={todo.settle} /> : null}
     {upcoming || (!todo.clear && !lines.length) ? <Prep column={column} ctx={ctx} /> : null}
   </div>
+}
+
+/** The template's staff guide for the step: how to run it (a lesson plan) and the files staff use. */
+function StaffGuide({ column }: { column: MatrixColumn }) {
+  const files = (column.staff_materials || []).filter((item) => item && item.url)
+  if (!column.staff_guide && !files.length) return null
+  return <section aria-label="Staff guide" className="flex flex-col gap-2 rounded-xl border border-dashed bg-background p-3">
+    <p className="text-xs font-black uppercase tracking-wider text-muted-foreground">Staff guide</p>
+    {column.staff_guide ? <p className="whitespace-pre-wrap text-sm leading-6 text-foreground">{column.staff_guide}</p> : null}
+    {files.length ? <div className="flex flex-wrap gap-2">
+      {files.map((item, index) => {
+        const Icon = item.kind === 'file' ? FileText : Link2
+        return <Button key={index} asChild variant="outline" size="sm"><a href={item.url} target="_blank" rel="noreferrer"><Icon size={14} />{item.title || item.url}</a></Button>
+      })}
+    </div> : null}
+  </section>
 }
 
 /** Settle a step staff confirm, such as an event: done for everyone, or everyone except the people tapped. */
