@@ -148,9 +148,7 @@ export default function TemplateList({ orgslug, orgId, token }: { orgslug: strin
         </div></div>
         : <PageWelcome icon={<Layers3 size={28} />} title="Templates: plans you can hand out again and again"
           body="A template is a plan's stages and steps, written once. Hand it to one learner or a whole group, and each gets their own copy to work through."
-          how="Start from a ready-made plan in the Marketplace and make it yours, or build one from scratch. Publish it when it's ready to hand out.">
-          <AddFromMarketplace type="templates" />{canEdit ? <NewTemplateModal orgslug={orgslug} orgId={orgId} token={token} /> : null}
-        </PageWelcome>}
+          how="Use Add from marketplace above to start from a ready-made plan and make it yours, or build one from scratch. Publish it when it's ready to hand out." />}
   </div></div>
 }
 

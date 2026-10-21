@@ -319,9 +319,7 @@ function BadgeList({ orgslug, orgId, collections, canEdit }: { orgslug: string; 
     </div></div>
       : <PageWelcome icon={<Award size={28} />} title="Badges: credentials learners earn"
         body="A badge says what a learner did and how. Link it to a template, and learners who finish that plan earn it. They keep it on their own profile."
-        how="Create your own, or add one another organization shares in the Marketplace.">
-        {canEdit ? <NewBadgeModal orgslug={orgslug} orgId={orgId} collections={ownCollections} /> : null}<AddFromMarketplace type="badges" />
-      </PageWelcome>}
+        how={canEdit ? 'Use Create badge above to make your own, or Add from marketplace to use one another organization shares.' : 'Use Add from marketplace above to use one another organization shares.'} />}
   </section>
 }
 
