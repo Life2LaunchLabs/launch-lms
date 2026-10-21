@@ -92,7 +92,7 @@ export default function TemplateDetail({ orgslug, templateUuid, subpage = 'overv
       {shown === 'overview' && <TemplateOverview orgslug={orgslug} orgId={orgId} token={token} template={template} />}
       {shown === 'objectives' && <TemplateSteps orgslug={orgslug} orgId={orgId} token={token} editing={editing} readOnly={readOnly} />}
       {shown === 'assignments' && <TemplateAssignments orgslug={orgslug} templateUuid={templateUuid} />}
-      {shown === 'settings' && <TemplateSettings orgslug={orgslug} orgId={orgId} token={token} editing={editing} />}
+      {shown === 'settings' && <TemplateSettings orgId={orgId} token={token} editing={editing} />}
     </motion.div>
   </div>
 }

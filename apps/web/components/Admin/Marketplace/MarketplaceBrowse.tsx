@@ -67,13 +67,16 @@ export default function MarketplaceBrowse() {
   const { mutate } = useSWRConfig()
   const refresh = React.useCallback(() => { void reloadListed(); void reloadBadges(); void mutate(isMarketplaceKey) }, [reloadListed, reloadBadges, mutate])
 
+  // Your own listings show too (marked "Yours"), so publishing from Template › Settings visibly lands here;
+  // a library copy of a listed template is the same template, so it shows once.
+  const listedUuids = React.useMemo(() => new Set(listed.map((item) => item.template_uuid)), [listed])
   const cards = React.useMemo<Card[]>(() => [
-    ...listed.filter((item) => !item.is_own).map((item): Card => ({
+    ...listed.map((item): Card => ({
       kind: 'templates', key: item.template_uuid, creator: orgKey(item.creator_org), creatorName: item.creator_org?.name || 'Unknown organization',
       title: item.title, description: item.description, frameworks: item.frameworks.map((framework) => framework.name), badge: item.badges.length > 0,
       open: item.access === 'open', listed: item,
     })),
-    ...library.map((item): Card => ({
+    ...library.filter((item) => !listedUuids.has(item.template_uuid)).map((item): Card => ({
       kind: 'templates', key: `library:${item.template_uuid}`, creator: LIBRARY, creatorName: item.owner_org_name || 'Global library',
       title: item.title, description: item.description, frameworks: [], badge: false, open: true, library: item,
     })),
@@ -85,7 +88,7 @@ export default function MarketplaceBrowse() {
       kind: 'frameworks', key: item.framework_uuid, creator: LIBRARY, creatorName: item.owner_org_name || 'Global library',
       title: item.name, description: item.description || '', frameworks: [item.name], badge: false, open: true, framework: item,
     })),
-  ], [listed, library, badges, frameworks])
+  ], [listed, listedUuids, library, badges, frameworks])
 
   const specs = React.useMemo<FilterSpec[]>(() => {
     const creators = new Map<string, string>()
@@ -208,6 +211,7 @@ function CardAction({ card, orgId, token, admin, onChange }: { card: Card; orgId
     })
   }
   const item = card.listed
+  if (item.is_own) return <div className="flex items-center gap-2"><Chip tone="ok"><Check size={13} />Yours · listed</Chip>{button('Listing', () => router.push(getUriWithOrg(org, routePaths.org.admin.templatePage(item.template_uuid, 'settings'))), false)}</div>
   const status = item.authorization?.status
   const locked = item.mode === 'locked'
   if (status === 'approved' && locked) return <div className="flex items-center gap-2"><Chip tone="ok"><Check size={13} />Yours to run</Chip>{button('Open', () => openTemplate(item.template_uuid), false)}</div>
