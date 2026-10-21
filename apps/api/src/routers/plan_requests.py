@@ -90,6 +90,20 @@ async def submit_plan_request(
     return plan_request
 
 
+@router.post("/orgs/{org_slug}/trial")
+async def start_trial(
+    org_slug: str,
+    db_session: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_current_user),
+):
+    """Start the organization's one Full trial. Only org admins can; returns the org's access."""
+    from src.services.orgs import trial
+
+    org = _get_org_by_slug(org_slug, db_session)
+    _require_org_admin(org, current_user, db_session)
+    return trial.start(db_session, int(org.id))  # type: ignore[arg-type]
+
+
 @router.get("/orgs/{org_slug}/plan-requests", response_model=list[PlanRequestRead])
 async def list_org_plan_requests(
     org_slug: str,

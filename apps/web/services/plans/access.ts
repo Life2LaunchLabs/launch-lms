@@ -19,6 +19,7 @@ export type AccessCatalog = {
   limit_labels: Record<string, string>
   features: { key: string; label: string; tier: Tier | null; partner: string | null; on_request: boolean }[]
   partner_programs: { key: string; label: string; description: string }[]
+  trial?: { tier: Tier; days: number }
 }
 
 /** Active learners and staff seats against the org's limits. */

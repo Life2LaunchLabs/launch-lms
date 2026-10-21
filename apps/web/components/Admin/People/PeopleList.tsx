@@ -15,6 +15,7 @@ import { getUriWithOrg, routePaths } from '@services/config/config'
 import { ROLE_LABELS, peopleKeys, type FeedRow, type PeopleStatusFilter } from '@services/school/people'
 import NewGroup from './NewGroup'
 import PageWelcome from '@components/Admin/PageWelcome'
+import { PeopleBanners } from '@components/Admin/Upgrade/PlanBanners'
 import { primaryActionClass, secondaryActionClass } from '@components/Admin/Plans/PlansActions'
 import PendingInvites from './PendingInvites'
 import { RoleTag } from './RoleTag'
@@ -74,6 +75,7 @@ export default function PeopleList({ orgslug, selection }: { orgslug: string; se
       {query ? <button type="button" onClick={() => setQuery('')} aria-label="Clear search" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"><X size={16} /></button> : null}
     </label>
     <StatusFilter value={status} onChange={setStatus} />
+    <PeopleBanners className="mx-3 mb-2" />
     <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
       {isLoading && !data ? <ListSkeleton />
         : error && !data ? <p className="px-2 py-8 text-center text-sm text-muted-foreground">People didn&rsquo;t load. <button type="button" className="font-semibold underline" onClick={() => mutate()}>Try again</button></p>

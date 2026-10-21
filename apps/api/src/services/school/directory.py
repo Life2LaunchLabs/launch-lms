@@ -116,7 +116,7 @@ def _row(db: Session, org_id: int, conversation: Conversation, member: Conversat
 def chat_list(db: Session, current_user: PublicUser, org_id: int) -> dict:
     """The viewer's chats with this organization's people: its groups' chats they're in, and direct chats with its members."""
     roles.require_staff(db, current_user.id, org_id)
-    groups_on = group_chats.enabled(db, org_id)
+    groups_on = group_chats.visible(db, org_id)
     if groups_on:
         for group in group_chats.groups_of(db, org_id, current_user.id):
             group_chats.group_chat(db, group)

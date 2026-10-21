@@ -37,6 +37,11 @@ def enabled(db: Session, org_id: int) -> bool:
     return org_access(org_id, db).has(FEATURE)
 
 
+def visible(db: Session, org_id: int) -> bool:
+    """Groups and their chats are listed: on Full, and read-only after a Full trial ends."""
+    return org_access(org_id, db).can_read(FEATURE)
+
+
 def require_enabled(db: Session, org_id: int) -> None:
     if not enabled(db, org_id):
         raise HTTPException(status_code=403, detail=DISABLED)

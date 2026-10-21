@@ -324,7 +324,9 @@ def people_feed(db: Session, current_user: PublicUser, org_id: int, query: str =
     if status == "alumni":
         active = []
     rest = everyone_else(db, current_user, org_id, needle, {item["key"] for item in active}, groups_on, admin, offset, limit, status)
-    return {"active": active if offset == 0 else [], **rest, "groups_enabled": groups_on, "is_admin": admin}
+    # Groups stay listed after a Full trial ends, but nobody can make new ones.
+    enabled = groups_on and group_chats.enabled(db, org_id)
+    return {"active": active if offset == 0 else [], **rest, "groups_enabled": enabled, "groups_read_only": groups_on and not enabled, "is_admin": admin}
 
 
 # A person's activity cards ---------------------------------------------------------------

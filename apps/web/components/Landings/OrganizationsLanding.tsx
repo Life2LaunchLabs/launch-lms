@@ -8,6 +8,12 @@ import { AssignmentMock, ChecklistMock, CoverageMock, FeedMock, MarketplaceMock 
 
 export type OrganizationsLandingLinks = { createOrg: string; learnerHome: string; login: string }
 
+/** Each tier's learner and staff limits (0 = unlimited) and the trial's length, from the API's tier catalog. */
+export type TierFacts = { free: TierLimits; full: TierLimits; trialDays: number }
+type TierLimits = { learners: number; staff_seats: number }
+
+export const DEFAULT_TIER_FACTS: TierFacts = { free: { learners: 25, staff_seats: 2 }, full: { learners: 200, staff_seats: 12 }, trialDays: 30 }
+
 const EYEBROW = 'text-sm font-extrabold uppercase tracking-[0.08em] text-[var(--org-primary-color)]'
 const H2 = 'text-balance text-[32px] font-black leading-[1.08] tracking-[-0.03em] text-gray-900 sm:text-[44px]'
 const LEAD = 'mt-5 text-pretty text-lg leading-8 text-gray-600'
@@ -24,11 +30,15 @@ const STEPS = [
   { title: 'Add your learners', body: 'Invite by email or share a join link. Each learner gets their own copy of the plan.' },
 ]
 
-const TIERS = [
-  { name: 'Free', blurb: 'For one person helping a few learners.', items: ['25 active learners', '2 staff', 'Build and hand out plans', 'A feed with every learner', 'Requirement reports on your learners'], cta: 'Create your organization' },
-  { name: 'Full', blurb: 'For programs with groups and several staff.', items: ['200 active learners', '12 staff', 'Groups, group plans and group chats', 'Bulk invites and CSV', 'Everything in Free'], cta: 'Start free, try Full for 30 days', featured: true },
-  { name: 'Enterprise', blurb: 'For schools, districts and employers at scale.', items: ['Unlimited learners and staff', 'Single sign-on', 'Advanced reporting', 'Audit logs and API access', 'Everything in Full'], cta: 'Start free, then ask us' },
-]
+const count = (value: number, word: string) => (value ? `${value} ${word}` : `Unlimited ${word}`)
+
+function tierCards({ free, full, trialDays }: TierFacts) {
+  return [
+    { name: 'Free', blurb: 'For one person helping a few learners.', items: [count(free.learners, 'active learners'), count(free.staff_seats, 'staff'), 'Build plans or add them from the Marketplace', 'A feed with every learner’s work', 'Requirements and coverage reports', 'Badges learners keep'], cta: 'Create your organization' },
+    { name: 'Full', blurb: 'For programs with groups and several staff.', items: [count(full.learners, 'active learners'), count(full.staff_seats, 'staff'), 'Groups, group plans and group chats', 'Bulk invites by email list or CSV', 'Everything in Free'], cta: `Start free, try Full for ${trialDays} days`, featured: true },
+    { name: 'Enterprise', blurb: 'For schools, districts and employers at scale.', items: ['Unlimited learners and staff', 'Single sign-on', 'Advanced reporting', 'Audit logs and API access', 'Everything in Full'], cta: 'Start free, then ask us' },
+  ]
+}
 
 function Feature({ eyebrow, title, children, picture, flip }: { eyebrow: string; title: string; children: React.ReactNode; picture: React.ReactNode; flip?: boolean }) {
   return (
@@ -51,7 +61,7 @@ function Feature({ eyebrow, title, children, picture, flip }: { eyebrow: string;
  * programs. It lives beside the learner landing, in the default org's colors, and sends people
  * to create their own organization.
  */
-export default function OrganizationsLanding({ links }: { links: OrganizationsLandingLinks }) {
+export default function OrganizationsLanding({ links, tiers = DEFAULT_TIER_FACTS }: { links: OrganizationsLandingLinks; tiers?: TierFacts }) {
   const create = buttonVariants({ variant: 'brand', size: 'cta', className: 'text-[15px]' })
   return (
     <main className="overflow-hidden bg-white text-gray-900">
@@ -71,7 +81,7 @@ export default function OrganizationsLanding({ links }: { links: OrganizationsLa
               <Link href={links.createOrg} className={create}>Create your organization, free</Link>
               <Link href="#how-it-works" className={buttonVariants({ variant: 'surface', size: 'cta', className: 'px-6 text-[15px]' })}>See how it works</Link>
             </div>
-            <p className="mt-4 text-sm text-gray-500">Free for up to 25 learners. Set up in about a minute.</p>
+            <p className="mt-4 text-sm text-gray-500">Free for up to {tiers.free.learners} learners. Set up in about a minute.</p>
           </div>
           <div className="min-w-0 flex-[1_1_480px]"><AssignmentMock /></div>
         </div>
@@ -136,12 +146,12 @@ export default function OrganizationsLanding({ links }: { links: OrganizationsLa
         <div className="mx-auto max-w-[1200px]">
           <div className="mx-auto max-w-[720px] text-center">
             <h2 className={cn(H2, 'sm:text-[50px]')}>Start free. Grow when you need to.</h2>
-            <p className={LEAD}>Free covers a family, a tutor or a small program. Try Full for 30 days whenever you need groups and more room.</p>
+            <p className={LEAD}>Free covers a family, a tutor or a small program. Try Full for {tiers.trialDays} days whenever you need groups and more room.</p>
           </div>
           <div className="mt-14 grid gap-5 md:grid-cols-3">
-            {TIERS.map((tier) => (
+            {tierCards(tiers).map((tier) => (
               <div key={tier.name} className={cn('relative flex flex-col rounded-[26px] p-7', tier.featured ? 'bg-gray-900 text-white shadow-[0_30px_60px_-28px_rgba(23,35,80,0.55)]' : 'border-2 border-gray-200')}>
-                {tier.featured ? <span className="absolute -top-3.5 left-7 rounded-full bg-[#bfe3d1] px-3 py-1.5 text-xs font-extrabold uppercase tracking-wide text-gray-900">Try it 30 days</span> : null}
+                {tier.featured ? <span className="absolute -top-3.5 left-7 rounded-full bg-[#bfe3d1] px-3 py-1.5 text-xs font-extrabold uppercase tracking-wide text-gray-900">Try it {tiers.trialDays} days</span> : null}
                 <p className="text-[26px] font-black">{tier.name}</p>
                 <p className={cn('mt-2 text-[15px] leading-relaxed', tier.featured ? 'text-gray-300' : 'text-gray-600')}>{tier.blurb}</p>
                 <ul className="mt-6 flex flex-col gap-2.5 text-[15px]">
@@ -153,6 +163,11 @@ export default function OrganizationsLanding({ links }: { links: OrganizationsLa
               </div>
             ))}
           </div>
+          <dl className="mx-auto mt-12 grid max-w-[960px] gap-6 text-[15px] leading-7 text-gray-600 md:grid-cols-3">
+            <div><dt className="font-bold text-gray-900">Upgrading is a request</dt><dd className="mt-1">There&rsquo;s no checkout. Ask for Full or Enterprise from your dashboard and we&rsquo;ll turn it on.</dd></div>
+            <div><dt className="font-bold text-gray-900">When the trial ends</dt><dd className="mt-1">You&rsquo;re back on Free unless you&rsquo;ve asked for Full. Nothing is deleted: groups turn read-only and learners keep their plans.</dd></div>
+            <div><dt className="font-bold text-gray-900">Learners own their accounts</dt><dd className="mt-1">Everyone 15 and older signs up with their own email or Google account, and keeps their work and badges.</dd></div>
+          </dl>
         </div>
       </section>
 

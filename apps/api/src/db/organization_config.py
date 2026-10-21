@@ -95,6 +95,8 @@ class OrganizationConfigDocument(BaseModel):
     partners: list[str] = Field(default_factory=list)
     # Superadmin grants: {"payments": {"enabled": true}, "learners": {"extra": 40}}.
     grants: dict = Field(default_factory=dict)
+    # The one Full trial, once started: {"tier": "full", "started_at": iso, "ends_at": iso}. See services/orgs/trial.py.
+    trial: dict | None = None
     signup_mode: Literal["open", "inviteOnly"] = "open"
     customization: CustomizationConfig = CustomizationConfig()
     messaging: MessagingPolicy = MessagingPolicy()
