@@ -277,8 +277,21 @@ def new_version(db: Session, template: GoalTemplate, document: dict, user_id: in
     if not private:
         template.published_version_id = version.id
         db.add(template)
+        _follow_in_library(db, template)
         db.flush()
     return version
+
+
+def _follow_in_library(db: Session, template: GoalTemplate) -> None:
+    """A template anyone may copy from the marketplace shares each newly published version in the library too."""
+    if template.library_published_at is None:
+        return
+    from src.services.goals import library
+    from src.services.goals.template_marketplace import listing_of
+
+    listing = listing_of(db, template)
+    if listing is not None:
+        library.follow_listing(db, template, listing)
 
 
 def publish_draft(db: Session, template: GoalTemplate, user_id: int | None, note: str = "") -> GoalTemplateVersion:

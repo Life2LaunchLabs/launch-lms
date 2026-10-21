@@ -37,7 +37,7 @@ from src.db.template_marketplace import (
 )
 from src.db.users import PublicUser
 from src.security.org_auth import require_org_admin
-from src.services.goals import templates
+from src.services.goals import library, templates
 from src.services.goals.document import iter_steps
 
 APPROVED = TemplateAuthorizationStatus.APPROVED.value
@@ -137,6 +137,7 @@ def set_listing(db: Session, current_user: PublicUser, org_id: int, template_uui
         listing.listed_at = datetime.utcnow()
     listing.listed, listing.mode, listing.access, listing.update_date = payload.listed, payload.mode, payload.access, now
     db.add(listing)
+    library.follow_listing(db, template, listing)
     db.commit()
     return get_listing(db, current_user, org_id, template_uuid)
 

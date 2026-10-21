@@ -72,6 +72,25 @@ def publish_to_library(db: Session, current_user: PublicUser, org_id: int, templ
     return {**templates.template_dict(db, template), **library_status(template)}
 
 
+def follow_listing(db: Session, template: GoalTemplate, listing) -> None:
+    """Keep the library in step with the marketplace listing (flushed, not committed).
+
+    A listing anyone may copy without asking (listed, open mode, open access) is what the library
+    offers, so its published version is shared there too (MCP ``search_library`` and
+    ``copy_from_library`` find it); any other listing takes the template out of the library, since
+    copying from there would skip the creator's choice.
+    """
+    live = templates.published_version(db, template)
+    if listing is not None and listing.listed and listing.mode == "open" and listing.access == "open" and live is not None:
+        template.library_document = deepcopy(live.document)
+        template.library_published_at = datetime.utcnow()
+    elif template.library_published_at is not None:
+        template.library_published_at = None
+    else:
+        return
+    db.add(template)
+
+
 def list_library(db: Session, current_user: PublicUser, org_id: int, query: str = "") -> list[dict]:
     from src.services.goals.template_marketplace import require_reader
 
