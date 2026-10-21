@@ -27,13 +27,13 @@ type Props = ShownPlan & {
 const button = 'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-3.5 text-sm font-medium hover:bg-muted'
 const chip = 'inline-flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold'
 
-/** "3 stages · 9 steps · Made by you", or where another organization's plan comes from. */
+/** "3 stages · 9 steps", plus where it comes from when another organization made it. */
 export function planMeta(plan: ShownPlan['plan']) {
   const { template } = plan
   const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`
   const owner = template.owner_org?.name || 'another organization'
-  const source = template.own ? `Made by ${template.owner_org?.name || 'you'}` : template.run_with_permission ? `From ${owner} · you run it with their permission` : `From ${owner}`
-  return [plural(template.stage_count, 'stage'), plural(template.step_count, 'step'), source].join(' · ')
+  const source = template.own ? null : template.run_with_permission ? `From ${owner} · you run it with their permission` : `From ${owner}`
+  return [plural(template.stage_count, 'stage'), plural(template.step_count, 'step'), source].filter(Boolean).join(' · ')
 }
 
 function monthYear(value?: string | null) {
@@ -64,19 +64,18 @@ export default function PlanCard({ plan, rows, partners, endedHidden, total, onl
             {template.status === 'archived' ? <span className="rounded-md bg-gray-100 px-1.5 py-0.5 text-[11px] font-black uppercase tracking-wide text-gray-600">Archived</span> : null}
           </div>
           <p className="mt-1 text-sm text-muted-foreground">{planMeta(plan)}</p>
-          <div className="mt-3 flex flex-wrap gap-2" aria-label="Badge and requirements">
-            {plan.badges.length ? plan.badges.map((badge) => <Link key={badge.badge_uuid} href={getUriWithOrg(orgslug, routePaths.org.admin.badge(badge.badge_uuid, 'definition'))}
-              className={cn(chip, 'bg-amber-50 text-amber-800 hover:bg-amber-100')}><Medal size={14} aria-hidden="true" /><span className="truncate">Earns {badge.name}</span></Link>)
-              : <span className={cn(chip, 'border border-border font-semibold text-muted-foreground')}>No badge</span>}
-            {plan.frameworks.length ? plan.frameworks.map((framework) => {
+          {plan.badges.length || plan.frameworks.length ? <div className="mt-3 flex flex-wrap gap-2" aria-label="Badge and requirements">
+            {plan.badges.map((badge) => <Link key={badge.badge_uuid} href={getUriWithOrg(orgslug, routePaths.org.admin.badge(badge.badge_uuid, 'definition'))}
+              className={cn(chip, 'bg-amber-50 text-amber-800 hover:bg-amber-100')}><Medal size={14} aria-hidden="true" /><span className="truncate">Earns {badge.name}</span></Link>)}
+            {plan.frameworks.map((framework) => {
               const label = <><ListBullets size={14} aria-hidden="true" /><span className="truncate">{framework.name} · {framework.node_count}</span></>
               const title = `${framework.node_count} requirement${framework.node_count === 1 ? '' : 's'} of ${framework.name}`
               // Another organization's framework has no page here.
               return framework.org_id === orgId
                 ? <Link key={framework.framework_uuid} href={getUriWithOrg(orgslug, routePaths.org.admin.requirementFrameworkPlans(framework.framework_uuid, 'details'))} title={title} className={cn(chip, 'bg-violet-50 text-violet-800 hover:bg-violet-100')}>{label}</Link>
                 : <span key={framework.framework_uuid} title={title} className={cn(chip, 'bg-violet-50 text-violet-800')}>{label}</span>
-            }) : <span className={cn(chip, 'border border-border font-semibold text-muted-foreground')}>No requirements linked</span>}
-          </div>
+            })}
+          </div> : null}
         </div>
       </div>
       <div className="flex shrink-0 flex-wrap gap-2 pl-14 sm:pl-0">
@@ -87,7 +86,7 @@ export default function PlanCard({ plan, rows, partners, endedHidden, total, onl
 
     {rows.length ? <>
       <div className={cn('hidden border-y border-border bg-muted/40 px-5 py-2 text-[11px] font-black uppercase tracking-wider text-muted-foreground', PLAN_ROW_GRID)} aria-hidden="true">
-        <span>Assigned to</span><span>Status</span><span>Dates</span><span>Staff</span><span>Progress</span><span>Needs you</span><span className="w-4" />
+        <span>Assigned to</span><span>Dates</span><span>Staff</span><span>Progress</span><span>Needs you</span><span className="w-4" />
       </div>
       <ul className="divide-y divide-border border-t border-border md:border-t-0" aria-label={`Assignments of ${template.title}`}>
         {rows.map((assignment) => <AssignmentListRow key={assignment.assignment_uuid} layout="table" assignment={assignment} orgslug={orgslug} showTemplate={false}
@@ -110,7 +109,6 @@ export default function PlanCard({ plan, rows, partners, endedHidden, total, onl
               <p className="text-xs text-muted-foreground">Authorized · {item.learner_count} learner{item.learner_count === 1 ? '' : 's'}</p></div>
           </div>
           <div className="flex flex-wrap items-center gap-2 pl-11 md:contents">
-            <span><span className="inline-flex rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-black uppercase text-green-700">Running</span></span>
             <span className="text-xs text-muted-foreground md:text-sm">{monthYear(item.since) ? `Since ${monthYear(item.since)}` : ''}</span>
             <span className="hidden md:block" />
             <span className="text-xs text-muted-foreground">Their staff run it</span>

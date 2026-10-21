@@ -22,7 +22,7 @@ const KIND: Record<InboxKind, { verb: string; icon: React.ElementType; tone: 'bl
 /** Work waiting on the viewer: submissions to review or grade, events to confirm, quiet learners, and chat reports. */
 export function WaitingWidget({ data, orgslug, title }: { data: HomeWaiting; orgslug: string; title: string }) {
   return (
-    <WidgetCard title={title} count={data.total} more={{ href: getUriWithOrg(orgslug, homeLinks.assignments()), label: 'Open inbox' }}>
+    <WidgetCard title={title} count={data.total} more={{ href: getUriWithOrg(orgslug, homeLinks.assignments()), label: 'Assignments' }}>
       {data.groups.length || data.reports ? <WidgetList>
         {data.groups.map((group) => {
           const look = KIND[group.kind]

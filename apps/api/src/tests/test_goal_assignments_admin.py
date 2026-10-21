@@ -146,6 +146,47 @@ def test_editing_dates_moves_learners_plans_but_not_dates_staff_changed_for_one_
         assert backwards.value.status_code == 422
 
 
+def test_staff_set_move_and_clear_one_steps_due_date_on_a_running_assignment():
+    with _session() as db:
+        start = date.today() - timedelta(days=3)
+        uuid = _assign(db, ESSAY, VISIT, staff=(ADMIN, COACH), start_date=start, due_date=start + timedelta(days=60))["assignment_uuid"]
+        mine, theirs = _goal(db, LEARNER, uuid), _goal(db, OTHER, uuid)
+        # A handout in class, due a week out.
+        handout = date.today() + timedelta(days=7)
+        assignments.set_step_due(db, _user(COACH), 1, uuid, "essay", handout)
+        assert _goal_step(db, mine, "essay").due_date == handout == _goal_step(db, theirs, "essay").due_date
+        matrix = staff_views.assignment_matrix(db, _user(COACH), 1, uuid)
+        essay = next(step for stage in matrix["stages"] for step in stage["steps"] if step["template_key"] == "essay")
+        assert essay["due_date"] == handout and essay["due_set"] and matrix["can_reschedule"]
+        # The only stage runs until the assignment's due date.
+        assert matrix["stages"][0]["due_date"] == start + timedelta(days=60)
+
+        # Sam got longer; moving the date again leaves Sam's alone.
+        special = _goal_step(db, theirs, "essay")
+        special.due_date = handout + timedelta(days=7)
+        db.add(special)
+        db.commit()
+        assignments.set_step_due(db, _user(COACH), 1, uuid, "essay", handout + timedelta(days=2))
+        assert _goal_step(db, mine, "essay").due_date == handout + timedelta(days=2)
+        assert _goal_step(db, theirs, "essay").due_date == handout + timedelta(days=7)
+
+        # Clearing it goes back to the template's date (none: the step closes with its stage).
+        assignments.set_step_due(db, _user(COACH), 1, uuid, "essay", None)
+        assert _goal_step(db, mine, "essay").due_date is None
+        assert not next(step for stage in staff_views.assignment_matrix(db, _user(COACH), 1, uuid)["stages"] for step in stage["steps"] if step["template_key"] == "essay")["due_set"]
+
+        with pytest.raises(HTTPException) as missing:
+            assignments.set_step_due(db, _user(COACH), 1, uuid, "nope", handout)
+        assert missing.value.status_code == 404
+        with pytest.raises(HTTPException) as learner:
+            assignments.set_step_due(db, _user(LEARNER), 1, uuid, "essay", handout)
+        assert learner.value.status_code == 403
+        assignments.end(db, _user(ADMIN), 1, uuid)
+        with pytest.raises(HTTPException) as ended:
+            assignments.set_step_due(db, _user(COACH), 1, uuid, "essay", handout)
+        assert ended.value.status_code == 409
+
+
 def test_editing_staff_adds_and_removes_them_on_every_plan():
     with _session() as db:
         uuid = _assign(db, VISIT)["assignment_uuid"]

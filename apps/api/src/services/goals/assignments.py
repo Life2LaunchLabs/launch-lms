@@ -433,6 +433,30 @@ def update(db: Session, current_user: PublicUser, org_id: int, assignment_uuid: 
     return assignment_dict(db, assignment)
 
 
+def set_step_due(db: Session, current_user: PublicUser, org_id: int, assignment_uuid: str, step_key: str, due_date: date | None) -> dict:
+    """Set or clear when one step of a running assignment is due (a handout due next week), on its learners' goals too."""
+    assignment = _managed(db, current_user, org_id, assignment_uuid)
+    if _value(assignment.status) == AssignmentStatus.ENDED.value:
+        raise HTTPException(status_code=409, detail="An ended assignment can't be changed")
+    version = db.get(GoalTemplateVersion, assignment.version_id)
+    document = (version.document if version else None) or {}
+    if step_key not in {step["key"] for _, step in iter_steps(document)}:
+        raise HTTPException(status_code=404, detail="Step not found in this assignment")
+    before = _planned(assignment, document)
+    step_dates = {key: value for key, value in (assignment.step_dates or {}).items() if key != step_key}
+    if due_date:
+        step_dates[step_key] = {"due_date": _iso(due_date)}
+    assignment.step_dates, assignment.update_date = step_dates, _now()
+    db.add(assignment)
+    db.flush()
+    after = _planned(assignment, document)
+    for goal in db.exec(select(Goal).where(Goal.assignment_id == assignment.id).order_by(col(Goal.id))).all():
+        if _reschedule(db, goal, before, after):
+            access.log(db, goal, current_user.id, "goal.updated", {"assignment_uuid": assignment.assignment_uuid, "fields": ["step_dates"]})
+    db.commit()
+    return assignment_dict(db, assignment)
+
+
 def pause(db: Session, current_user: PublicUser, org_id: int, assignment_uuid: str) -> dict:
     assignment = _managed(db, current_user, org_id, assignment_uuid)
     if _value(assignment.status) != AssignmentStatus.ACTIVE.value:

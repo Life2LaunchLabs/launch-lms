@@ -35,8 +35,9 @@ export default function ReviewWorkspace({ orgslug }: { orgslug: string }) {
   const activity = params.get('activity')
   const back: Back = params.get('from') === 'assignment' && assignment
     ? { href: getUriWithOrg(orgslug, routePaths.org.admin.planAssignment(assignment)), label: 'Assignment' }
-    : { href: getUriWithOrg(orgslug, routePaths.org.admin.assignments()), label: 'Inbox' }
-  if (!assignment) return <div className="p-10"><EmptyState title="Nothing to review" detail="Open a review from the Inbox." /></div>
+    : { href: getUriWithOrg(orgslug, routePaths.org.admin.assignments()), label: 'Assignments' }
+  if (!assignment) return <div className="w-full px-4 py-10 sm:px-10"><div className="mx-auto max-w-xl"><EmptyState title="Nothing to review here"
+    detail={<>Grading opens from an assignment’s Plan tab, or from Waiting on you on Home. <Link href={back.href} className="font-bold text-foreground underline underline-offset-2">Go to assignments</Link></>} /></div></div>
   if (activity) return <ActivityGrading orgId={orgId} token={token} assignment={assignment} activity={activity} back={back} orgslug={orgslug} />
   return <StepQueue orgId={orgId} token={token} assignment={assignment} stepKey={params.get('step_key')} stepUuid={params.get('step')} focus={params.get('focus')} back={back} orgslug={orgslug} />
 }
@@ -155,7 +156,7 @@ function StepQueue({ orgId, token, assignment, stepKey, stepUuid, focus, back, o
           </div>
         </div>
         <div className="flex gap-2 border-t border-gray-100 p-4">
-          {allDone ? <Link href={back.href} className="inline-flex h-10 flex-1 items-center justify-center rounded-full bg-black text-sm font-semibold text-white">All done · back to {back.label === 'Inbox' ? 'Inbox' : 'the assignment'}</Link> : <>
+          {allDone ? <Link href={back.href} className="inline-flex h-10 flex-1 items-center justify-center rounded-full bg-black text-sm font-semibold text-white">All done · back to {back.label === 'Assignments' ? 'assignments' : 'the assignment'}</Link> : <>
             {!confirmOnly ? <button type="button" onClick={() => void decide('flag')} disabled={Boolean(saving) || Boolean(state)} className="h-10 flex-1 rounded-full border border-gray-200 bg-white text-sm font-semibold disabled:opacity-40">Send back</button> : null}
             <button type="button" onClick={() => void decide('confirm')} disabled={Boolean(saving) || Boolean(state)} className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-full bg-black text-sm font-semibold text-white disabled:opacity-40">{saving === 'decide' ? <Loader2 size={14} className="animate-spin" /> : null}{confirmOnly ? 'Confirm' : 'Approve'} &amp; next</button>
           </>}
@@ -183,7 +184,7 @@ function ActivityGrading({ orgId, token, assignment, activity, back, orgslug }: 
   }
   return <div className="min-h-screen w-full bg-[#f8f8f8]">
     <Header back={back} title={review?.activity?.title || 'Activity'} detail={review?.badge?.name}><span className="text-xs text-gray-600">{reviews.length} waiting</span></Header>
-    {!review ? <div className="p-10"><EmptyState icon={<CheckCircle2 size={36} className="text-green-500" />} title="All graded" detail={<Link href={back.href} className="font-bold text-blue-700">Back to {back.label === 'Inbox' ? 'the Inbox' : 'the assignment'}</Link>} /></div> : <div className="flex flex-col lg:flex-row">
+    {!review ? <div className="p-10"><EmptyState icon={<CheckCircle2 size={36} className="text-green-500" />} title="All graded" detail={<Link href={back.href} className="font-bold text-blue-700">Back to {back.label === 'Assignments' ? 'assignments' : 'the assignment'}</Link>} /></div> : <div className="flex flex-col lg:flex-row">
       <nav aria-label="Learners" className="shrink-0 border-b border-gray-100 bg-white p-2 lg:min-h-[calc(100vh-56px)] lg:w-56 lg:border-b-0 lg:border-r">
         {reviews.map((item) => <button key={item.review_id} type="button" onClick={() => setCurrent(item.review_id)} className={cn('flex min-h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-[13px]', item.review_id === review.review_id ? 'bg-gray-100 font-bold' : 'font-medium hover:bg-gray-50')}><span className="h-2 w-2 rounded-full bg-gray-300" />{personName(item.user)}</button>)}
       </nav>

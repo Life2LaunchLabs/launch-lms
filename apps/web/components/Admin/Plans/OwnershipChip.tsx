@@ -10,8 +10,10 @@ export function ownershipLabel({ owned, canEdit, ownerName }: Ownership): string
   return canEdit ? 'Yours · you can edit' : 'Yours · view only'
 }
 
+/** Only the exceptions get a chip: view only, or run with another org's permission. Yours to edit is the norm and says nothing. */
 export default function OwnershipChip({ className, ...ownership }: Ownership & { className?: string }) {
   const { owned, canEdit } = ownership
+  if (owned && canEdit) return null
   const Icon = !owned ? Link2 : canEdit ? Pencil : Lock
   const tone = !owned ? 'bg-violet-100 text-violet-800' : canEdit ? 'bg-green-100 text-green-800' : 'border border-gray-200 bg-white text-gray-700'
   return <span className={cn('inline-flex max-w-full items-center gap-1.5 truncate rounded-full px-2.5 py-1 text-xs font-semibold', tone, className)}>

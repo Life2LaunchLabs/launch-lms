@@ -5,7 +5,7 @@ from sqlmodel import Session, select
 
 from src.core.events.database import get_db_session
 from src.db.goal_admin import AdminHomeLayout, PlansTabsOrder,StaffNote, StepConfirmMany, StepDecision, StepProgressBulk
-from src.db.goal_templates import ApplyVersion, GoalAssignmentUpdate, StepRemind, StepSettle
+from src.db.goal_templates import ApplyVersion, GoalAssignmentUpdate, StepDue, StepRemind, StepSettle
 from src.db.goals import GoalAssignment
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
@@ -137,6 +137,13 @@ def api_assignment_apply_version(assignment_uuid: str, org_id: int, payload: App
                                  db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
     """Move the assignment to the version: only steps nobody has started change in its learners' plans."""
     return assignment_versions.apply_version(db, user, org_id, assignment_uuid, payload.version_uuid)
+
+
+@router.put("/assignments/{assignment_uuid}/steps/{step_key}/due")
+def api_assignment_step_due(assignment_uuid: str, step_key: str, org_id: int, payload: StepDue,
+                            db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    _require_assignment_plan(org_id, assignment_uuid, db)
+    return assignments.set_step_due(db, user, org_id, assignment_uuid, step_key, payload.due_date)
 
 
 @router.post("/assignments/{assignment_uuid}/steps/{step_key}/remind")

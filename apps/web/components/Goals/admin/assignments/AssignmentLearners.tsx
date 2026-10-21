@@ -19,7 +19,7 @@ export const DOT_LOOK: Record<Dot, { cls: string; label: string }> = {
   done: { cls: 'bg-green-600', label: 'Done' },
   waiting: { cls: 'bg-blue-500', label: 'Handed in' },
   retry: { cls: 'bg-amber-500', label: 'Sent back' },
-  late: { cls: 'bg-red-500', label: 'Past close' },
+  late: { cls: 'bg-red-500', label: 'Past due' },
   open: { cls: 'bg-background ring-1 ring-inset ring-gray-400', label: 'Open' },
   locked: { cls: 'bg-gray-200', label: 'Not open yet' },
 }
@@ -93,11 +93,11 @@ function LearnerRow({ learner, matrix, today, staffIds, selected, onOpen }: { le
           })}
         </span>)}
       </span>
-      <span className="flex shrink-0 flex-wrap items-center justify-end gap-1.5 sm:w-64">
-        {attention ? <Chip tone={ATTENTION_TONE[attention.tone]} className="max-w-48"><span className="min-w-0 truncate" title={attention.text}>{attention.text}</span></Chip> : null}
+      <span className="flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-1.5 sm:w-80 sm:flex-nowrap">
+        {attention ? <Chip tone={ATTENTION_TONE[attention.tone]} className="min-w-0 max-w-full shrink"><span className="min-w-0 truncate" title={attention.text}>{attention.text}</span></Chip> : null}
         <Chip tone={PACE_TONE[pace.pace]}>{paceLabel(pace)}</Chip>
       </span>
-      <ChevronRight size={16} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+      <ChevronRight size={16} className="hidden shrink-0 text-muted-foreground sm:block" aria-hidden="true" />
     </button>
   </li>
 }

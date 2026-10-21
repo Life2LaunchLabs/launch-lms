@@ -115,7 +115,8 @@ function ActiveRow({ row, orgslug, selection }: { row: FeedRow; orgslug: string;
       <span className="min-w-0 flex-1">
         <span className="flex items-baseline gap-2">
           <span className={cn('truncate text-[15px]', fresh ? 'font-black' : 'font-semibold')}>{name}</span>
-          {row.role ? <RoleTag role={row.role} /> : null}
+          {/* Most people are learners, so only the other roles get a tag. */}
+          {row.role && row.role !== 'learner' ? <RoleTag role={row.role} /> : null}
           {row.at ? <span className={cn('ml-auto shrink-0 text-xs', fresh ? 'font-bold text-foreground' : 'text-muted-foreground')}>{chatTime(row.at)}</span> : null}
         </span>
         <span className="flex items-center gap-2">
@@ -178,7 +179,7 @@ function PersonRow({ row, orgslug, selection }: { row: FeedRow; orgslug: string;
       className={cn('flex items-center gap-3 rounded-2xl px-2.5 py-2 transition-colors hover:bg-foreground/[0.05]', active && 'bg-[var(--org-primary-color)]/15 hover:bg-[var(--org-primary-color)]/20')}>
       <PersonAvatar user={row.person as any} size="md" />
       <span className="min-w-0 flex-1">
-        <span className="flex items-baseline gap-2"><span className="truncate text-[15px] font-semibold">{row.person?.name}</span><RoleTag role={role} /></span>
+        <span className="flex items-baseline gap-2"><span className="truncate text-[15px] font-semibold">{row.person?.name}</span>{role !== 'learner' ? <RoleTag role={role} /> : null}</span>
         <span className="block truncate text-sm text-muted-foreground">{detail}</span>
       </span>
     </Link>
