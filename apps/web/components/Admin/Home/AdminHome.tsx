@@ -15,6 +15,7 @@ import { CreatorWidget, MessagesWidget } from './OrgWidgets'
 import { AttentionWidget, TodayWidget, WaitingWidget } from './StaffWidgets'
 import { LockedWidget } from './WidgetCard'
 import GettingStarted from './GettingStarted'
+import { TrialBanner } from '@components/Admin/Upgrade/PlanBanners'
 
 const WIDE: HomeWidgetId[] = ['today', 'attention']
 
@@ -92,6 +93,7 @@ export default function AdminHome({ orgslug }: { orgslug: string }) {
 
         {customizing ? <Customizer arranged={arranged} onChange={save} /> : null}
 
+        <TrialBanner className="mb-4" />
         {data?.getting_started ? <GettingStarted data={data.getting_started} orgslug={orgslug} onDismiss={dismissGettingStarted} /> : null}
 
         {error ? <p className="rounded-xl bg-white px-5 py-6 text-center text-sm text-gray-500 nice-shadow">Home couldn’t load. {error.message}</p>

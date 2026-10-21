@@ -20,6 +20,7 @@ import { useAuth } from '@components/Contexts/AuthContext'
 import { getUriWithOrg } from '@services/config/config'
 import { useTranslation } from 'react-i18next'
 import { PasswordStrengthIndicator, validatePasswordStrength } from '@components/Auth/PasswordStrengthIndicator'
+import AgeConfirm, { useAgeConfirm } from '@components/Auth/AgeConfirm'
 
 const welcomeSignupPasswordKey = (email: string) => `launchlms_welcome_signup_password:${email}`
 
@@ -68,6 +69,7 @@ function OpenSignUpComponent({
   const [isGoogleLoading, setIsGoogleLoading] = React.useState(false)
   const [step, setStep] = React.useState<'email' | 'details'>(createOrgMode ? 'details' : 'email')
   const [emailError, setEmailError] = React.useState('')
+  const age = useAgeConfirm()
   const org = useOrg() as any
   const { signIn } = useAuth()
   const router = useRouter()
@@ -139,6 +141,7 @@ function OpenSignUpComponent({
     setEmailError('')
 
     const email = formik.values.email.trim()
+    if (!age.ok()) return
     if (!email) {
       setEmailError(t('validation.required'))
       return
@@ -191,6 +194,7 @@ function OpenSignUpComponent({
 
   const handleGoogleSignup = async () => {
     setError('')
+    if (!age.ok()) return
     setIsGoogleLoading(true)
 
     const callbackUrl = postSignupUrl
@@ -222,6 +226,7 @@ function OpenSignUpComponent({
           )}
 
           <div className="mt-12 space-y-7">
+            <AgeConfirm {...age.field} />
             <Button
               type="button"
               onClick={handleGoogleSignup}
@@ -345,6 +350,7 @@ function OpenSignUpComponent({
 
       {createOrgMode ? (
         <div className="mb-5 space-y-5">
+          <AgeConfirm {...age.field} />
           <Button type="button" onClick={handleGoogleSignup} disabled={isGoogleLoading} variant="surface" size="cta" className="w-full text-[16px]">
             <SiGoogle size={20} color="#4285F4" />
             {isGoogleLoading ? t('common.loading') : 'Continue with Google'}
@@ -358,7 +364,7 @@ function OpenSignUpComponent({
       ) : null}
 
       <div className={embedded ? 'w-full' : 'rounded-xl bg-white p-6 nice-shadow'}>
-        <FormLayout onSubmit={formik.handleSubmit}>
+        <FormLayout onSubmit={(event: React.FormEvent<HTMLFormElement>) => (age.ok() ? formik.handleSubmit(event) : event.preventDefault())}>
           <FormField name="email">
             <FormLabelAndMessage
               label={t('auth.email')}
@@ -457,6 +463,7 @@ function OpenSignUpComponent({
             </FormField>
           )}
 
+          {createOrgMode ? null : <AgeConfirm {...age.field} />}
           <div className="pt-2">
             <Form.Submit asChild>
               <Button size="cta" className="w-full bg-gray-950 font-semibold text-white shadow-none hover:bg-gray-800">

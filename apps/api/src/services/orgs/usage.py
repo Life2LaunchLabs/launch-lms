@@ -26,4 +26,4 @@ async def get_org_usage_and_limits(
             "remaining": max(0, limit - usage) if limit else "unlimited",
             "limit_reached": bool(limit) and usage >= limit,
         }
-    return {"org_id": org_id, "tier": access.tier, "limits": limits}
+    return {"org_id": org_id, "tier": access.effective_tier, "limits": limits}
