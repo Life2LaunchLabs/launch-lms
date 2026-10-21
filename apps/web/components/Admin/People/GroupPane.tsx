@@ -10,14 +10,13 @@ import { cn } from '@/lib/utils'
 import ChatPane from '@components/Connect/ChatPane'
 import EditSheet from '@components/Goals/edit/EditSheet'
 import { PersonAvatar } from '@components/Goals/share/PersonAvatar'
-import GroupStaffPanel from '@components/Admin/Users/GroupStaffPanel'
-import ManageUsers from '@components/Objects/Modals/Dash/OrgUserGroups/ManageUsers'
 import { getAPIUrl, getUriWithOrg, routePaths } from '@services/config/config'
 import { deleteUserGroup, updateUserGroup } from '@services/usergroups/usergroups'
 import { cohortKey, goalAdminApi } from '@services/goals/admin'
 import { peopleApi, peopleKeys, type GroupDetail } from '@services/school/people'
 import { setGroupStatus, type MemberStatus } from '@services/organizations/membership'
 import type { GroupView } from '@services/routing/paths'
+import { GroupPeople } from './GroupPeople'
 import GroupWork from './GroupWork'
 import { useGroupDetail, useOrgGroups, usePeopleContext, useRefreshPeople } from './usePeople'
 
@@ -142,16 +141,15 @@ function ManageGroup({ orgslug, groupId, open, onOpenChange }: { orgslug: string
     router.push(getUriWithOrg(orgslug, people.root()))
   }
 
-  return <EditSheet open={open} onOpenChange={(next) => { onOpenChange(next); if (!next) void refresh() }} color="#7cc4ff" title={group?.name || 'Group'} description="Its members, the staff who work with them, and its name.">
+  return <EditSheet open={open} onOpenChange={(next) => { onOpenChange(next); if (!next) void refresh() }} color="#7cc4ff" title={group?.name || 'Group'} description="Its name and its people: staff first, then learners.">
     <form onSubmit={rename} className="flex items-end gap-2">
       <label className="flex-1 text-xs font-bold uppercase tracking-wide text-gray-500">Name
         <input value={name} onChange={(event) => setName(event.target.value)} maxLength={120} className="mt-1 h-10 w-full rounded-lg border border-gray-200 px-3 text-sm font-medium normal-case text-gray-900" />
       </label>
       <button type="submit" disabled={busy || !name.trim() || name.trim() === group?.name} className="h-10 rounded-lg bg-black px-4 text-xs font-bold text-white disabled:opacity-50">Rename</button>
     </form>
-    <GroupStaffPanel orgId={orgId} groupId={groupId} token={token} />
+    <GroupPeople groupId={groupId} onChanged={refresh} />
     <GroupStatus groupId={groupId} onChanged={refresh} />
-    <section><h3 className="mb-2 text-sm font-bold">Members</h3><ManageUsers usergroup_id={groupId} embedded /></section>
     <button type="button" onClick={() => void remove()} disabled={busy} className="inline-flex items-center gap-2 self-start rounded-lg border border-red-200 px-4 py-2 text-xs font-bold text-red-700 disabled:opacity-50"><Trash2 size={14} />Delete group</button>
   </EditSheet>
 }
