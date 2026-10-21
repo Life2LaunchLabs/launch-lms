@@ -48,7 +48,7 @@
     "apps/web/components/Dashboard/Boards/BoardEffects.tsx": 1080,
     "apps/web/components/Dashboard/Boards/BoardTopRight.tsx": 649,
     "apps/web/components/Dashboard/Boards/Extensions/PlaygroundBlockComponent.tsx": 612,
-    "apps/web/components/Dashboard/Pages/Org/OrgEditBranding/OrgEditBranding.tsx": 1338,
+    "apps/web/components/Dashboard/Pages/Org/OrgEditBranding/OrgEditBranding.tsx": 1299,
     "apps/web/components/Dashboard/Pages/Payments/PaymentsCustomersPage.tsx": 530,
     "apps/web/components/Dashboard/Pages/Podcast/EditPodcastEpisodes/EditPodcastEpisodes.tsx": 640,
     "apps/web/components/Dashboard/Pages/UserAccount/UserProfile/UserProfileBuilder.tsx": 1345,

@@ -6,7 +6,6 @@ from src.core.events.database import get_db_session
 from src.db.organization_config import (
     AuthBrandingConfig,
     BadgeIssuerConfig,
-    DarkLogoConfig,
     SeoOrgConfig,
 )
 from src.db.organizations import (
@@ -43,7 +42,6 @@ from src.services.orgs.orgs import (
     update_org_favicon,
     update_org_footer_text_config,
     update_org_hide_org_name_config,
-    update_org_dark_logo_config,
     update_org_landing,
     update_org_logo,
     update_org_preview,
@@ -423,22 +421,6 @@ async def api_update_org_hide_org_name_config(
     """
     return await update_org_hide_org_name_config(
         request, hide_org_name, org_id, current_user, db_session
-    )
-
-
-@router.put("/{org_id}/config/dark_logo")
-async def api_update_org_dark_logo_config(
-    request: Request,
-    org_id: int,
-    dark_logo: DarkLogoConfig,
-    current_user: PublicUser = Depends(get_current_user),
-    db_session: Session = Depends(get_db_session),
-):
-    """
-    Use one logo in both themes, or a separate logo in dark mode
-    """
-    return await update_org_dark_logo_config(
-        request, dark_logo, org_id, current_user, db_session
     )
 
 

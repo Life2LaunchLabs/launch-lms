@@ -67,6 +67,7 @@ from src.routers.boards import boards_playground
 from src.routers.communities import communities as communities_router_module
 from src.routers.communities import discussions as discussions_router_module
 from src.routers.orgs import custom_domains
+from src.routers.orgs import branding as org_branding
 from src.routers.plan_requests import router as plan_requests_router
 from src.routers.playgrounds import playgrounds as playgrounds_router_module
 from src.routers.playgrounds import (
@@ -216,6 +217,12 @@ v1_router.include_router(
 )
 v1_router.include_router(
     orgs.router,
+    prefix="/orgs",
+    tags=["orgs"],
+    dependencies=[Depends(get_non_api_token_user)]
+)
+v1_router.include_router(
+    org_branding.router,
     prefix="/orgs",
     tags=["orgs"],
     dependencies=[Depends(get_non_api_token_user)]
