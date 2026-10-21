@@ -77,7 +77,7 @@ def require_individual(db: Session, goal: Goal) -> None:
         raise HTTPException(status_code=409, detail={
             "message": "Group goals are shared. Change them for the whole group from the group's admin page.",
             "assignment_uuid": assignment.assignment_uuid,
-            "group_workspace": f"/admin/users/groups/{assignment.usergroup_id}/plans?assignment={assignment.assignment_uuid}",
+            "group_workspace": f"/admin/plans/assignments/{assignment.assignment_uuid}",
         })
 
 

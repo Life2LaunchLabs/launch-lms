@@ -13,12 +13,13 @@ from datetime import datetime
 from uuid import uuid4
 
 from fastapi import HTTPException
-from sqlmodel import Session, func, select
+from sqlalchemy import inspect
+from sqlmodel import Session, col, func, select
 
 from src.db.goals import GoalTemplate, GoalTemplateVersion, TemplateStatus
 from src.db.learning import LearningActivity
 from src.db.users import PublicUser
-from src.security.org_auth import require_org_admin
+from src.security.org_auth import is_org_admin, require_org_admin
 from src.services.goals.document import empty_document, iter_steps, validate_document
 from src.services.learning.activity_copy import activity_hash, content_hash, copy_activity
 
@@ -122,17 +123,72 @@ def template_dict(db: Session, template: GoalTemplate, *, with_document: bool = 
     return result
 
 
+def can_edit(db: Session, current_user: PublicUser, org_id: int) -> bool:
+    """Whether this person may change the organization's templates (admins and maintainers; staff only read them)."""
+    return is_org_admin(current_user.id, org_id, db)
+
+
+def require_reader(db: Session, current_user: PublicUser, org_id: int) -> None:
+    """Template reads are for the organization's staff; every write keeps ``require_org_admin``."""
+    from src.services.school.roles import is_staff
+
+    if current_user.is_superadmin or is_org_admin(current_user.id, org_id, db) or is_staff(db, org_id, current_user.id):
+        return
+    raise HTTPException(status_code=403, detail="Only the organization's staff can see its plan templates")
+
+
+def _badges_by_template(db: Session, template_ids: list[int]) -> dict[int, list[dict]]:
+    """The badges each template earns (it is one of their routes)."""
+    from src.db.badge_routes import BadgeRoute
+    from src.db.learning import LearningBadge
+
+    if not template_ids or not inspect(db.connection()).has_table("badgeroute"):
+        return {}
+    rows = db.exec(
+        select(BadgeRoute.goal_template_id, LearningBadge).join(LearningBadge, LearningBadge.id == BadgeRoute.badge_id)
+        .where(col(BadgeRoute.goal_template_id).in_(template_ids), col(LearningBadge.deleted_at).is_(None))
+        .order_by(LearningBadge.name)
+    ).all()
+    result: dict[int, list[dict]] = {}
+    for template_id, badge in rows:
+        result.setdefault(int(template_id), []).append({"badge_uuid": badge.badge_uuid, "name": badge.name, "thumbnail_image": badge.thumbnail_image or "", "org_id": badge.org_id})
+    return result
+
+
+def _frameworks_of(document: dict, nodes: dict) -> list[dict]:
+    """The requirement frameworks a template's steps link to, with how many of each framework's requirements."""
+    counts: dict[str, dict] = {}
+    for _, step in iter_steps(document or {}):
+        for node_uuid in step.get("requirement_node_uuids") or []:
+            framework = nodes.get(node_uuid)
+            if framework is None:
+                continue
+            entry = counts.setdefault(framework.framework_uuid, {"framework_uuid": framework.framework_uuid, "name": framework.name, "nodes": set()})
+            entry["nodes"].add(node_uuid)
+    return [{"framework_uuid": item["framework_uuid"], "name": item["name"], "node_count": len(item["nodes"])} for item in counts.values()]
+
+
 def list_templates(db: Session, current_user: PublicUser, org_id: int, include_archived: bool = False) -> list[dict]:
-    require_org_admin(current_user.id, org_id, db)
+    """The organization's templates, each with its size, the badges it earns and the frameworks it maps to."""
+    from src.services.requirements import mappable_nodes
+
+    require_reader(db, current_user, org_id)
     statement = select(GoalTemplate).where(GoalTemplate.org_id == org_id)
     if not include_archived:
         statement = statement.where(GoalTemplate.status != TemplateStatus.ARCHIVED)
     rows = db.exec(statement.order_by(GoalTemplate.title)).all()
-    return [template_dict(db, row, with_document=False) for row in rows]
+    read_only = not can_edit(db, current_user, org_id)
+    badges = _badges_by_template(db, [int(row.id) for row in rows if row.id])
+    nodes = mappable_nodes(db, org_id)
+    return [{
+        **template_dict(db, row, with_document=False), "read_only": read_only,
+        "stage_count": len((row.document or {}).get("stages") or []), "step_count": sum(1 for _ in iter_steps(row.document or {})),
+        "badges": badges.get(int(row.id or 0), []), "frameworks": _frameworks_of(row.document, nodes),
+    } for row in rows]
 
 
 def create_template(db: Session, current_user: PublicUser, org_id: int, document: dict | None = None, title: str = "") -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     raw = document or empty_document(title.strip() or "Untitled template")
     now = _now()
     template = GoalTemplate(
@@ -156,13 +212,16 @@ def _store(db: Session, template: GoalTemplate, document: dict) -> None:
 
 
 def get_template(db: Session, current_user: PublicUser, org_id: int, template_uuid: str) -> dict:
-    require_org_admin(current_user.id, org_id, db)
-    return template_dict(db, template_or_404(db, org_id, template_uuid))
+    """One of the organization's templates with its draft; ``read_only`` for staff, who see it but can't change it."""
+    require_reader(db, current_user, org_id)
+    template = template_or_404(db, org_id, template_uuid)
+    return {**template_dict(db, template), "read_only": not can_edit(db, current_user, org_id),
+            "badges": _badges_by_template(db, [int(template.id or 0)]).get(int(template.id or 0), [])}
 
 
 def save_template(db: Session, current_user: PublicUser, org_id: int, template_uuid: str, document: dict, expected_etag: str | None = None) -> dict:
     """Replace the draft. With ``expected_etag``, refuse if someone saved since it was read."""
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     template = template_or_404(db, org_id, template_uuid)
     if template.system_type:
         raise HTTPException(status_code=409, detail="System templates are updated with each release")
@@ -175,7 +234,7 @@ def save_template(db: Session, current_user: PublicUser, org_id: int, template_u
 
 
 def set_status(db: Session, current_user: PublicUser, org_id: int, template_uuid: str, status: TemplateStatus) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     template = template_or_404(db, org_id, template_uuid)
     template.status = status
     template.update_date = _now()
@@ -229,7 +288,7 @@ def publish_draft(db: Session, template: GoalTemplate, user_id: int | None, note
 
 
 def publish(db: Session, current_user: PublicUser, org_id: int, template_uuid: str, note: str = "") -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     template = template_or_404(db, org_id, template_uuid)
     if template.system_type:
         raise HTTPException(status_code=409, detail="System templates are published with each release")
@@ -241,7 +300,7 @@ def publish(db: Session, current_user: PublicUser, org_id: int, template_uuid: s
 
 def restore(db: Session, current_user: PublicUser, org_id: int, template_uuid: str, number: int, note: str = "") -> dict:
     """Publish an earlier version again, and make it the draft too."""
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     template = template_or_404(db, org_id, template_uuid)
     earlier = db.exec(select(GoalTemplateVersion).where(
         GoalTemplateVersion.template_id == template.id, GoalTemplateVersion.number == number, GoalTemplateVersion.private == False,  # noqa: E712
@@ -278,7 +337,7 @@ def template_activity(db: Session, current_user: PublicUser, org_id: int, templa
     from src.db.learning import LearningPage
     from src.services.learning import lookups
 
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     template = template_or_404(db, org_id, template_uuid)
     activity = db.exec(select(LearningActivity).where(LearningActivity.activity_uuid == activity_uuid)).first()
     if not activity or activity.goal_template_id != template.id or activity.frozen_from_id is not None:

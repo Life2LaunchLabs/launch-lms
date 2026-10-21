@@ -358,12 +358,12 @@ def _apply(db: Session, current_user: PublicUser, org_id: int, program: Program,
 
 
 def get_template_document(db: Session, current_user: PublicUser, org_id: int, template_uuid: str) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     return _envelope(db, programs._program_or_404(db, template_uuid, org_id))
 
 
 def validate_template_document(db: Session, current_user: PublicUser, org_id: int, raw, template_uuid: str | None = None) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     program = programs._program_or_404(db, template_uuid, org_id) if template_uuid else None
     _, report, _ = _check(db, org_id, raw, program)
     return report
@@ -374,7 +374,7 @@ def _reject(report: dict) -> HTTPException:
 
 
 def save_template_document(db: Session, current_user: PublicUser, org_id: int, template_uuid: str, raw, base_etag: str) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     program = programs._program_or_404(db, template_uuid, org_id)
     current = _envelope(db, program)
     if base_etag != current["etag"]:
@@ -397,7 +397,7 @@ def save_template_document(db: Session, current_user: PublicUser, org_id: int, t
 
 
 def create_template_from_document(db: Session, current_user: PublicUser, org_id: int, raw) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     document, report, prepared = _check(db, org_id, raw, None)
     if document is None or not report["valid"]:
         raise _reject(report)
@@ -422,7 +422,7 @@ def create_template_from_document(db: Session, current_user: PublicUser, org_id:
 
 def set_objective_requirements(db: Session, current_user: PublicUser, org_id: int, template_uuid: str, objective_uuid: str, node_uuids: list[str]) -> list[dict]:
     """Replace the requirement nodes one template objective counts toward."""
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     program = programs._program_or_404(db, template_uuid, org_id)
     relation = db.exec(
         select(ProgramObjective)

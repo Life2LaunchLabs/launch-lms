@@ -112,7 +112,7 @@ def envelope(db: Session, template: GoalTemplate) -> dict:
 
 
 def _template(db: Session, ctx: AccessContext, template_uuid: str) -> GoalTemplate:
-    require_org_admin(ctx.user.id, ctx.org_id, db)
+    require_org_admin(ctx.user.id, ctx.org_id, db, "build_plans")
     template = db.exec(select(GoalTemplate).where(GoalTemplate.template_uuid == template_uuid, GoalTemplate.org_id == ctx.org_id)).first()
     if not template:
         raise HTTPException(status_code=404, detail="Plan template not found in the connected organization")
@@ -122,7 +122,7 @@ def _template(db: Session, ctx: AccessContext, template_uuid: str) -> GoalTempla
 # Handlers --------------------------------------------------------------------------------
 
 async def list_plan_templates(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
-    require_org_admin(ctx.user.id, ctx.org_id, db_session)
+    require_org_admin(ctx.user.id, ctx.org_id, db_session, "build_plans")
     query = str(args.get("query") or "").strip().lower()
     rows = db_session.exec(select(GoalTemplate).where(GoalTemplate.org_id == ctx.org_id).order_by(GoalTemplate.title)).all()
     assigned = dict(db_session.exec(
@@ -152,7 +152,7 @@ async def get_plan_template_schema(request: Request, db_session: Session, ctx: A
 
 
 async def validate_plan_template(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
-    require_org_admin(ctx.user.id, ctx.org_id, db_session)
+    require_org_admin(ctx.user.id, ctx.org_id, db_session, "build_plans")
     template = _template(db_session, ctx, args["template_uuid"]) if args.get("template_uuid") else None
     return check_document(db_session, ctx.org_id, args["document"], template)
 
@@ -174,7 +174,7 @@ async def save_plan_template(request: Request, db_session: Session, ctx: AccessC
 
 
 async def create_plan_template(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
-    require_org_admin(ctx.user.id, ctx.org_id, db_session)
+    require_org_admin(ctx.user.id, ctx.org_id, db_session, "build_plans")
     document = deepcopy(args["document"])
     # A document read from another template is a copy: its activities and keys get made anew.
     for stage in document.get("stages") or [] if isinstance(document, dict) else []:

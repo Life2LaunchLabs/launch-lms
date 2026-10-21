@@ -829,7 +829,7 @@ def _require_individual_definition(db: Session, plan: Plan) -> None:
         raise HTTPException(status_code=409, detail={
             "message": "Group plan structure is shared. Change it for the whole group from the group's Plans tab in admin.",
             "assignment_uuid": assignment.assignment_uuid,
-            "group_workspace": f"/admin/users/groups/{assignment.usergroup_id}/plans?assignment={assignment.assignment_uuid}",
+            "group_workspace": f"/admin/plans/assignments/{assignment.assignment_uuid}",
         })
 
 

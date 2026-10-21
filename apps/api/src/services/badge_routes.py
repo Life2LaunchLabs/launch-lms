@@ -99,7 +99,7 @@ def set_routes(db: Session, current_user: PublicUser, badge_uuid: str, payload: 
     from src.security.org_auth import require_org_admin
 
     badge = _get_badge(db, badge_uuid)
-    require_org_admin(current_user.id, badge.org_id, db)
+    require_org_admin(current_user.id, badge.org_id, db, "build_plans")
     programs = []
     for item in payload.routes:
         program = db.exec(select(Program).where(Program.program_uuid == item.program_uuid, Program.org_id == badge.org_id)).first()
@@ -173,7 +173,7 @@ def set_offered_routes(db: Session, current_user: PublicUser, badge_uuid: str, i
     from src.services.learning_issuers import active_issuers
 
     badge = _get_badge(db, badge_uuid)
-    require_org_admin(current_user.id, issuer_org_id, db)
+    require_org_admin(current_user.id, issuer_org_id, db, "build_plans")
     if issuer_org_id not in {org_id for org_id, _, _ in active_issuers(db, badge)}:
         raise HTTPException(status_code=403, detail="This organization is not issuing this badge")
     routes = {route.route_uuid: route for route, _ in _routes(db, badge)}

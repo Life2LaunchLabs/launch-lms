@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from sqlalchemy import Column, ForeignKey, Integer, UniqueConstraint
+from typing import Literal
+
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 
@@ -16,8 +18,20 @@ class BadgeRoute(SQLModel, table=True):
     goal_template_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("goal_template.id", ondelete="CASCADE"), nullable=True, index=True))
     recommended: bool = False
     position: int = 0
+    # Which template versions earn the badge on an assignment: every version (neither set), the newest only, or from a number on.
+    latest_only: bool = Field(default=False, sa_column=Column(Boolean, nullable=False, server_default="false"))
+    eligible_from_version: int | None = Field(default=None, sa_column=Column(Integer, nullable=True))
+    # Only the issuers the owner approved for this route may run it (BadgeRoutePartner), e.g. a direct-issuance route.
+    trusted_only: bool = Field(default=False, sa_column=Column(Boolean, nullable=False, server_default="false"))
     creation_date: str = ""
     update_date: str = ""
+
+
+class BadgeRouteEligibilityUpdate(SQLModel):
+    """The badge owner's rule for which versions of a route's template earn the badge."""
+
+    rule: Literal["any", "latest", "from"] = "any"
+    from_version: int | None = Field(default=None, ge=1, description="With rule 'from': the first version that earns the badge.")
 
 
 class BadgeRouteOffer(SQLModel, table=True):

@@ -1,10 +1,6 @@
-import UsersAdminPage from '@components/Admin/Users/UsersAdminPage'
+import PeopleView from '@components/Admin/People/PeopleView'
 
-export default async function UsersPage({
-  params,
-}: {
-  params: Promise<{ orgslug: string }>
-}) {
+export default async function PeoplePage({ params }: { params: Promise<{ orgslug: string }> }) {
   const { orgslug } = await params
-  return <UsersAdminPage orgslug={orgslug} section="overview" />
+  return <PeopleView orgslug={orgslug} selection={{ kind: 'none' }} />
 }

@@ -86,11 +86,14 @@ function StaffRow({ member, data, busy, save, remove }: {
           <p className="truncate text-sm font-semibold">{member.user.name}</p>
           <p className="truncate text-xs text-muted-foreground">@{member.user.username}{hint ? ` · ${hint}` : ''}</p>
         </div>
-        <select aria-label={`Role for ${member.user.name}`} value={member.role_key} disabled={busy} onChange={(event) => void save(member.user.id, event.target.value as StaffRole, member.assignment_uuids)} className={SELECT}>
-          {data.choices.map((choice) => <option key={choice.key} value={choice.key}>{choice.name}</option>)}
-        </select>
-        <button type="button" onClick={() => setPicking(!picking)} disabled={!data.goals.length} aria-expanded={picking} className="h-9 rounded-lg border border-gray-200 px-3 text-sm font-medium disabled:opacity-50">{data.goals.length ? scope : 'No goals yet'}</button>
-        <button type="button" onClick={() => void remove(member)} disabled={busy} aria-label={`Remove ${member.user.name}`} className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground">{busy ? <Loader2 size={16} className="animate-spin" /> : <X size={16} />}</button>
+        {/* On a phone the name keeps the first line with the remove button; role and goals go on their own line. */}
+        <div className="order-last flex w-full flex-wrap gap-2 pl-12 sm:order-none sm:w-auto sm:flex-nowrap sm:gap-3 sm:pl-0">
+          <select aria-label={`Role for ${member.user.name}`} value={member.role_key} disabled={busy} onChange={(event) => void save(member.user.id, event.target.value as StaffRole, member.assignment_uuids)} className={SELECT}>
+            {data.choices.map((choice) => <option key={choice.key} value={choice.key}>{choice.name}</option>)}
+          </select>
+          <button type="button" onClick={() => setPicking(!picking)} disabled={!data.goals.length} aria-expanded={picking} className="h-9 rounded-lg border border-gray-200 px-3 text-sm font-medium disabled:opacity-50">{data.goals.length ? scope : 'No goals yet'}</button>
+        </div>
+        <button type="button" onClick={() => void remove(member)} disabled={busy} aria-label={`Remove ${member.user.name}`} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground sm:h-9 sm:w-9">{busy ? <Loader2 size={16} className="animate-spin" /> : <X size={16} />}</button>
       </div>
       {picking ? <div className="ml-12 mt-3 grid gap-2 rounded-lg bg-muted/40 p-3 sm:grid-cols-2">
         {data.goals.map((goal) => {

@@ -3,19 +3,17 @@ import React, { use } from 'react';
 import { motion } from 'motion/react'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import Link from 'next/link'
-import { getCoreCapabilities, getUriWithOrg, routePaths } from '@services/config/config'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import { Settings, Users, Gem, CreditCard, Layers, ShoppingBag, ExternalLink } from 'lucide-react'
 import { SiStripe } from '@icons-pack/react-simple-icons'
-import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { useOrg } from '@components/Contexts/OrgContext'
 import PaymentsConfigurationPage from '@components/Dashboard/Pages/Payments/PaymentsConfigurationPage'
 import PaymentsCustomersPage from '@components/Dashboard/Pages/Payments/PaymentsCustomersPage'
 import PaymentsOffersPage from '@components/Dashboard/Pages/Payments/PaymentsOffersPage'
 import PaymentsGroupsPage from '@components/Dashboard/Pages/Payments/PaymentsGroupsPage'
-import PlanRestrictedFeature from '@components/Dashboard/Shared/PlanRestricted/PlanRestrictedFeature'
+import FeatureGate from '@components/Dashboard/Shared/FeatureGate/FeatureGate'
 import FeatureDisabledView from '@components/Dashboard/Shared/FeatureDisabled/FeatureDisabledView'
 import { BadgeDollarSign } from 'lucide-react'
-import { usePlan } from '@components/Hooks/usePlan'
+import { useFeatures } from '@components/Hooks/useFeatures'
 
 export type PaymentsParams = {
   subpage: string
@@ -24,11 +22,8 @@ export type PaymentsParams = {
 
 function PaymentsPage(props: { params: Promise<PaymentsParams> }) {
   const params = use(props.params);
-  const session = useLHSession() as any
-  const org = useOrg() as any
   const subpage = params.subpage || 'overview'
-  const currentPlan = usePlan()
-  const capabilities = getCoreCapabilities()
+  const features = useFeatures()
 
   const getPageTitle = () => {
     switch (subpage) {
@@ -61,21 +56,10 @@ function PaymentsPage(props: { params: Promise<PaymentsParams> }) {
   }
 
   const { h1, h2 } = getPageTitle()
-  const paymentsEnabled = capabilities.payments && (
-    org?.config?.config?.resolved_features?.payments?.enabled ??
-    org?.config?.config?.features?.payments?.enabled !== false
-  )
+  const paymentsEnabled = features.has('payments')
 
-  // Plan-based restriction (standard required)
   return (
-    <PlanRestrictedFeature
-      currentPlan={currentPlan}
-      requiredPlan="full"
-      icon={BadgeDollarSign}
-      titleKey="common.plans.feature_restricted.payments.title"
-      descriptionKey="common.plans.feature_restricted.payments.description"
-      fullScreen
-    >
+    <FeatureGate feature="payments" icon={BadgeDollarSign} description="Sell offers and take payments through Stripe." fullScreen>
     <FeatureDisabledView featureName="payments" orgslug={params.orgslug} context="dashboard">
     <div className="h-screen w-full bg-[#f8f8f8] flex flex-col">
       <div className="pl-10 pr-10 tracking-tight bg-[#fcfbfc] z-10 nice-shadow flex-shrink-0 relative">
@@ -119,25 +103,25 @@ function PaymentsPage(props: { params: Promise<PaymentsParams> }) {
         </div>
         <div className="flex space-x-0.5 font-black text-sm">
           <TabLink
-            href={getUriWithOrg(params.orgslug, routePaths.org.dash.paymentsOverview())}
+            href={getUriWithOrg(params.orgslug, routePaths.org.admin.payments.overview())}
             icon={<Users size={16} />}
             label="Overview"
             isActive={subpage === 'overview'}
           />
           <TabLink
-            href={getUriWithOrg(params.orgslug, routePaths.org.dash.paymentsOffers())}
+            href={getUriWithOrg(params.orgslug, routePaths.org.admin.payments.offers())}
             icon={<Gem size={16} />}
             label="Offers"
             isActive={subpage === 'offers'}
           />
           <TabLink
-            href={getUriWithOrg(params.orgslug, routePaths.org.dash.paymentsGroups())}
+            href={getUriWithOrg(params.orgslug, routePaths.org.admin.payments.groups())}
             icon={<Layers size={16} />}
             label="Payment Groups"
             isActive={subpage === 'groups'}
           />
           <TabLink
-            href={getUriWithOrg(params.orgslug, routePaths.org.dash.paymentsConfiguration())}
+            href={getUriWithOrg(params.orgslug, routePaths.org.admin.payments.configuration())}
             icon={<Settings size={16} />}
             label="Configuration"
             isActive={subpage === 'configuration'}
@@ -159,7 +143,7 @@ function PaymentsPage(props: { params: Promise<PaymentsParams> }) {
       </motion.div>
     </div>
     </FeatureDisabledView>
-    </PlanRestrictedFeature>
+    </FeatureGate>
   )
 }
 

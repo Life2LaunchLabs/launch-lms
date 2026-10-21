@@ -7,8 +7,8 @@ import {
 import {
   classifyRoute,
   isAuthenticatedAuthRedirectPath,
-  isPodcastFeedPath,
 } from './routeAccess.ts'
+import { legacyRedirectPath } from './legacyRedirects.ts'
 
 export interface RequestInstanceInfo {
   multi_org_enabled: boolean
@@ -182,13 +182,6 @@ export function resolveRequestRouting(
     }
   }
 
-  if (pathname.startsWith('/board/') || pathname.startsWith('/editor/playground/')) {
-    return {
-      action: 'rewrite',
-      destination: `${pathname}${search}`,
-    }
-  }
-
   if (pathname.startsWith('/payments/stripe/connect/oauth')) {
     const searchParams = new URLSearchParams(search)
     const orgSlug = searchParams.get('state')?.split('_')[0]
@@ -267,14 +260,12 @@ export function resolveRequestRouting(
     }
   }
 
-  if (isPodcastFeedPath(pathname)) {
-    return {
-      action: 'rewrite',
-      destination: `/api${pathname}`,
-      headers: {
-        'X-Feed-Orgslug': context.resolvedOrgSlug,
-      },
-    }
+  const legacyTarget = legacyRedirectPath(pathname)
+  if (legacyTarget) {
+    // The request's own query carries over; the new path's query wins where both name a parameter.
+    const destination = new URL(legacyTarget, input.requestUrl)
+    new URLSearchParams(search).forEach((value, key) => { if (!destination.searchParams.has(key)) destination.searchParams.set(key, value) })
+    return { action: 'redirect', destination: destination.toString() }
   }
 
   if (pathname.startsWith('/sitemap.xml')) {

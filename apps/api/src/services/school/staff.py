@@ -5,18 +5,16 @@ from __future__ import annotations
 from fastapi import HTTPException
 from sqlmodel import Session, col, select
 
-from src.db.goals import Goal, GoalAssignment
+from src.db.goals import CURRENT_ASSIGNMENT_STATUSES, Goal, GoalAssignment
 from src.db.planning import PlanCollaborator
-from src.db.roles import Role
-from src.db.user_organizations import UserOrganization
 from src.db.school import GroupStaffSet, UserGroupStaff
 from src.db.usergroups import UserGroup
 from src.db.users import PublicUser
 from src.security.org_auth import require_org_admin
-from src.security.rbac.constants import ADMIN_OR_MAINTAINER_ROLE_IDS
 from src.services.connect import people
 from src.services.goals import access
 from src.services.goals.assignment_summary import collaborators_of
+from src.services.school import roles
 from src.services.goals.sharing_roles import ROLE_HINTS, SHARING_ROLE_KEYS, _role, _stamp, sharing_choices
 
 
@@ -28,7 +26,7 @@ def _group(db: Session, org_id: int, group_id: int) -> UserGroup:
 
 
 def _assignments(db: Session, group_id: int) -> list[GoalAssignment]:
-    return list(db.exec(select(GoalAssignment).where(GoalAssignment.usergroup_id == group_id, GoalAssignment.active == True)  # noqa: E712
+    return list(db.exec(select(GoalAssignment).where(GoalAssignment.usergroup_id == group_id, col(GoalAssignment.status).in_(CURRENT_ASSIGNMENT_STATUSES))
                         .order_by(col(GoalAssignment.id))).all())
 
 
@@ -46,16 +44,12 @@ def _staff_dict(db: Session, row: UserGroupStaff, assignments: list[GoalAssignme
 
 def _candidates(db: Session, org_id: int, taken: set[int]) -> list[dict]:
     """The organization's staff who could be added: the same people who can manage goals."""
-    in_org = select(Role).where((Role.org_id == None) | (Role.org_id == org_id))  # noqa: E711
-    roles = {*ADMIN_OR_MAINTAINER_ROLE_IDS, *(role.id for role in db.exec(in_org).all() if isinstance(role.rights, dict)
-                                              and role.rights.get("dashboard", {}).get("action_access") and role.rights.get("learning_activities", {}).get("action_update"))}
-    user_ids = db.exec(select(UserOrganization.user_id).where(UserOrganization.org_id == org_id, col(UserOrganization.role_id).in_(roles))).all()
-    found = [people.person(db, int(user_id)) for user_id in user_ids if int(user_id) not in taken]
+    found = [people.person(db, user_id) for user_id in roles.staff_ids(db, org_id) - taken]
     return sorted((item for item in found if item), key=lambda item: item["name"].lower())
 
 
 def list_staff(db: Session, current_user: PublicUser, org_id: int, group_id: int) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "manage_learners")
     _group(db, org_id, group_id)
     assignments = _assignments(db, group_id)
     rows = db.exec(select(UserGroupStaff).where(UserGroupStaff.usergroup_id == group_id).order_by(col(UserGroupStaff.id))).all()
@@ -99,10 +93,11 @@ def _sync_goals(db: Session, row: UserGroupStaff | None, group_id: int, user_id:
 
 def set_staff(db: Session, current_user: PublicUser, org_id: int, group_id: int, payload: GroupStaffSet) -> dict:
     from src.services.goals.assignments import _can_manage
-    from src.services.school import chats as school_chats
+    from src.services.connect import cohort
+    from src.services.school import group_chats
 
-    require_org_admin(current_user.id, org_id, db)
-    _group(db, org_id, group_id)
+    require_org_admin(current_user.id, org_id, db, "manage_learners")
+    group = _group(db, org_id, group_id)
     if payload.role_key not in SHARING_ROLE_KEYS:
         raise HTTPException(status_code=422, detail="Choose Viewer, Commenter or Editor")
     if payload.user_id not in _can_manage(db, org_id, [payload.user_id]):
@@ -119,22 +114,26 @@ def set_staff(db: Session, current_user: PublicUser, org_id: int, group_id: int,
     db.add(row)
     db.flush()
     _sync_goals(db, row, group_id, payload.user_id)
-    school_chats.sync_group(db, org_id, group_id)
+    group_chats.sync(db, group)
+    cohort.sync_group(db, group_id)
     db.commit()
     return list_staff(db, current_user, org_id, group_id)
 
 
 def remove_staff(db: Session, current_user: PublicUser, org_id: int, group_id: int, user_id: int) -> dict:
-    from src.services.school import chats as school_chats
+    from src.services.connect import cohort
+    from src.services.school import group_chats
 
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "manage_learners")
+    group = _group(db, org_id, group_id)
     row = db.exec(select(UserGroupStaff).where(UserGroupStaff.usergroup_id == group_id, UserGroupStaff.user_id == user_id, UserGroupStaff.org_id == org_id)).first()
     if not row:
         raise HTTPException(status_code=404, detail="They aren't staff on this group")
     db.delete(row)
     db.flush()
     _sync_goals(db, None, group_id, user_id)
-    school_chats.sync_group(db, org_id, group_id)
+    group_chats.sync(db, group)
+    cohort.sync_group(db, group_id)
     db.commit()
     return list_staff(db, current_user, org_id, group_id)
 

@@ -3,15 +3,16 @@
 import React from 'react'
 import Link from 'next/link'
 import { ChevronRight } from 'lucide-react'
-import { SectionCard } from '@components/Admin/Plans/shared'
+import { SectionCard } from '@components/Goals/admin/live/ui'
 import { stepDefinition } from '@components/Goals/steps'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import type { TemplateDetail } from '@services/goals/templates'
 import type { TemplateStep } from '@services/goals/types'
 import { documentSteps } from './documentOps'
 import { leafNodes, useRequirementFrameworks } from './StepRequirementLinks'
-import { assignmentLabel, assignmentPath, useTemplateAssignments } from './TemplateAssignments'
+import { assignmentHref, assignmentLabel, useTemplateAssignments } from '../assignments/shared'
 import { TemplateStatusChip } from './TemplateList'
+import { insightsRoutes } from '../insights/reportRoutes'
 
 /** What staff do with a step once a learner reaches it. */
 const reviewKind = (step: TemplateStep) => step.completed_by === 'staff' ? 'sign-off' : step.review_required ? 'review' : null
@@ -24,7 +25,7 @@ export default function TemplateOverview({ orgslug, orgId, token, template }: { 
   const stages = document.stages
   const stepCount = documentSteps(document).length
   const weeks = stages.reduce((sum, stage) => sum + (Number(stage.duration_weeks) || 0), 0)
-  const assignments = allAssignments.filter((item) => item.active)
+  const assignments = allAssignments.filter((item) => item.status !== 'ended')
   const learners = assignments.reduce((sum, item) => sum + Number(item.learner_count || 0), 0)
   const linked = new Set(documentSteps(document).flatMap(({ step }) => step.requirement_node_uuids || []))
   const coverage = frameworks.map((framework) => {
@@ -59,22 +60,22 @@ export default function TemplateOverview({ orgslug, orgId, token, template }: { 
     </section>
 
     <div className="flex w-full shrink-0 flex-col gap-4 xl:w-80">
-      <SectionCard title="Handed out" action={<span className="text-xs text-gray-500">{learners} learner{learners === 1 ? '' : 's'}</span>}>
+      <SectionCard title="Assignments" action={<span className="text-xs text-gray-500">{learners} learner{learners === 1 ? '' : 's'}</span>}>
         {assignments.length ? <ul className="-my-1 divide-y divide-gray-50">
-          {assignments.slice(0, 6).map((assignment) => <li key={assignment.assignment_uuid}><Link href={getUriWithOrg(orgslug, assignmentPath(assignment))} className="flex items-center gap-3 py-2.5">
+          {assignments.slice(0, 6).map((assignment) => <li key={assignment.assignment_uuid}><Link href={getUriWithOrg(orgslug, assignmentHref(assignment))} className="flex items-center gap-3 py-2.5">
             <span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold text-gray-900">{assignmentLabel(assignment)}</span><span className="block text-xs text-gray-500">{assignment.learner_count} learner{assignment.learner_count === 1 ? '' : 's'}{assignment.ready_for_review_count ? ` · ${assignment.ready_for_review_count} to review` : ''}</span></span>
             <span className="text-xs font-bold text-gray-700">{assignment.progress_percent}%</span>
             <ChevronRight size={14} className="text-gray-300" />
           </Link></li>)}
         </ul> : <p className="text-sm text-gray-500">Not handed out yet.</p>}
-        {assignments.length > 6 ? <Link href={getUriWithOrg(orgslug, routePaths.org.dash.programPage(template.template_uuid, 'assignments'))} className="mt-2 block text-xs font-bold text-gray-900">All {assignments.length}</Link> : null}
+        {assignments.length > 6 ? <Link href={getUriWithOrg(orgslug, routePaths.org.admin.templatePage(template.template_uuid, 'assignments'))} className="mt-2 block text-xs font-bold text-gray-900">All {assignments.length}</Link> : null}
       </SectionCard>
       <SectionCard title="Requirements it meets">
         {coverage.length ? <div className="space-y-3">{coverage.map((framework) => <div key={framework.framework_uuid}>
           <div className="mb-1 flex justify-between gap-2 text-[13px]"><span className="truncate font-semibold text-gray-900">{framework.name}</span><span className="shrink-0 text-gray-500">{framework.covered} of {framework.total}</span></div>
           <div className="h-1.5 overflow-hidden rounded-full bg-gray-100"><div className="h-full rounded-full bg-black" style={{ width: `${framework.total ? framework.covered / framework.total * 100 : 0}%` }} /></div>
         </div>)}</div> : <p className="text-sm text-gray-500">No steps are linked to a requirement yet.</p>}
-        <Link href={getUriWithOrg(orgslug, routePaths.org.dash.planRequirements())} className="mt-3 block text-xs font-bold text-gray-900 hover:text-blue-700">See coverage</Link>
+        <Link href={getUriWithOrg(orgslug, insightsRoutes.coverage())} className="mt-3 block text-xs font-bold text-gray-900 hover:text-blue-700">See coverage</Link>
       </SectionCard>
       <SectionCard title="When it’s handed out">
         <dl className="space-y-2 text-[13px]">

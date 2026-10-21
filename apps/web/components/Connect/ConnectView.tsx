@@ -14,7 +14,7 @@ import EditSheet from '@components/Goals/edit/EditSheet'
 import { PersonAvatar } from '@components/Goals/share/PersonAvatar'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { connectApi, connectKeys, connectUrl, type ChatSummary, type FoundPerson } from '@services/connect/connect'
-import ChatPane from './ChatPane'
+import ChatPane, { GroupMark } from './ChatPane'
 import { OrganizationResults, OrgMark } from './ConnectOrgs'
 import { useChatList, useConnectToken } from './useConnect'
 
@@ -86,7 +86,7 @@ function ChatRow({ chat, orgslug, active }: { chat: ChatSummary; orgslug: string
   return <li>
     <Link href={getUriWithOrg(orgslug, routePaths.org.chat(chat.conversation_uuid))} aria-current={active ? 'page' : undefined}
       className={cn('flex items-center gap-3 rounded-2xl px-2.5 py-2.5 transition-colors hover:bg-foreground/[0.05]', active && 'bg-[var(--org-primary-color)]/15 hover:bg-[var(--org-primary-color)]/20')}>
-      {chat.kind === 'school' ? <OrgMark org={chat.org} /> : <PersonAvatar user={chat.people[0] as any} size="md" />}
+      {chat.kind === 'school' ? <OrgMark org={chat.org} /> : chat.kind === 'group' ? <GroupMark /> : <PersonAvatar user={chat.people[0] as any} size="md" />}
       <span className="min-w-0 flex-1">
         <span className="flex items-baseline gap-2">
           <span className={cn('truncate text-[15px]', unread ? 'font-black' : 'font-semibold')}>{chat.title}</span>

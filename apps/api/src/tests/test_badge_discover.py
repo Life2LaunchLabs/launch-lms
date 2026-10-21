@@ -1,6 +1,8 @@
-from sqlmodel import Session
+from sqlmodel import Session, select
 
-from src.db.learning import BadgeCollection, LearningBadge, LearningBadgeAward, LearningBadgeStatus
+from src.db.learning import BadgeCollection, BadgeIssuerAuthorization, BadgeIssuerAuthorizationStatus, LearningBadge, LearningBadgeAward, LearningBadgeStatus
+from src.db.organization_config import OrganizationConfig
+from src.db.organizations import Organization
 from src.db.goals import StepStatus, StepStatusChange
 from src.db.users import AnonymousUser
 from src.services import badge_discover
@@ -12,9 +14,19 @@ from src.tests.test_goals import LEARNER as LEARNER_ID, NOW, _user
 LEARNER = _user(LEARNER_ID)
 
 
+def approve_publishing(session: Session, org_id: int) -> None:
+    """The platform approved this organization as a verified badge publisher."""
+    OrganizationConfig.__table__.create(session.get_bind(), checkfirst=True)
+    row = session.exec(select(OrganizationConfig).where(OrganizationConfig.org_id == org_id)).first() or OrganizationConfig(org_id=org_id, config={})
+    row.config = {**(row.config or {}), "config_version": "3.0", "partners": ["badge_publisher"]}
+    session.add(row)
+    session.commit()
+
+
 def _collect(session: Session) -> None:
     for model in (BadgeCollection, LearningBadgeAward):
         model.__table__.create(session.get_bind(), checkfirst=True)
+    approve_publishing(session, 1)
     session.add(BadgeCollection(id=1, collection_uuid="badge_collection_work", org_id=1, name="Work ready", creation_date=NOW, update_date=NOW,
                                 collection_metadata={"credibility": "Built with local employers", "endorsers": [{"name": "Chamber of Commerce"}]}))
     badge = session.get(LearningBadge, 1)
@@ -56,3 +68,30 @@ def test_badge_page_tells_the_story_and_shows_the_set():
 
         collection = badge_discover.collection_page(session, None, "work")
         assert collection["creator"]["name"] == "Studio" and len(collection["badges"]) == 2
+
+
+def test_discover_lists_approved_publishers_and_badges_offered_to_the_site_only():
+    session, _, _ = _world()
+    with session:
+        _collect(session)
+        session.add(Organization(id=3, org_uuid="org_3", name="Unvetted", slug="unvetted", email="u@example.com", creation_date=NOW, update_date=NOW))
+        session.add(LearningBadge(id=3, badge_uuid="badge_unvetted", org_id=3, name="Unvetted", status=LearningBadgeStatus.PUBLISHED, creation_date=NOW, update_date=NOW))
+        session.commit()
+
+        def names(**scope) -> set[str]:
+            return {card["name"] for card in badge_discover.discover(session, AnonymousUser(), **scope)["badges"]}
+
+        # An organization nobody approved to publish badges doesn't reach Discover, wherever it is browsed from.
+        assert names() == {"Adaptability", "Leadership"}
+        assert names(org_id=3) == set()
+        assert names(site_org_id=2) == {"Adaptability", "Leadership"}
+        # A badge offered to the site organization through an authorization is listed there, and only there.
+        session.add(BadgeIssuerAuthorization(authorization_uuid="auth_3", badge_id=3, creator_org_id=3, issuer_org_id=2,
+                                             status=BadgeIssuerAuthorizationStatus.APPROVED, creation_date=NOW, update_date=NOW))
+        session.commit()
+        assert names(site_org_id=2) == {"Adaptability", "Leadership", "Unvetted"}
+        assert names(org_id=2) == {"Adaptability", "Unvetted"}
+        assert "Unvetted" not in names(site_org_id=1)
+        # Once the platform approves the creator, it is listed everywhere.
+        approve_publishing(session, 3)
+        assert "Unvetted" in names(site_org_id=1)

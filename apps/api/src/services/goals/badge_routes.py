@@ -19,6 +19,7 @@ from src.db.goals import DONE_STEP_STATUSES, Goal, GoalStep, GoalTemplate, StepP
 from src.db.learning import LearningBadge
 from src.db.users import PublicUser
 from src.services.goals import templates
+from src.services.goals.badge_authority import rule_of, trusted
 from src.services.goals.badges import active_badge_goal, badge_routes, start_badge_goal
 from src.services.goals.document import iter_steps
 from src.services.learning.lookups import _get_badge
@@ -69,6 +70,7 @@ def route_summary(db: Session, template: GoalTemplate) -> dict:
         "template_uuid": template.template_uuid, "name": template.title,
         "description": template.description or "",
         "steps": steps, "step_count": len(steps), "activity_count": sum(step["kind"] == "activity" for step in steps),
+        "published_version": live.number if live else None,
     }
 
 
@@ -80,6 +82,7 @@ def goal_progress(db: Session, goal: Goal) -> dict:
 
 def list_routes(db: Session, current_user: PublicUser | None, badge_uuid: str) -> dict:
     """The ways to earn a badge, each with the issuers that offer it, and the learner's goal if started."""
+    from src.services.goals.template_marketplace import route_partners
     from src.services.learning_issuers import issuer_options
 
     badge = _get_badge(db, badge_uuid)
@@ -89,8 +92,11 @@ def list_routes(db: Session, current_user: PublicUser | None, badge_uuid: str) -
     routes, uuids = [], {}
     for route, template in badge_routes(db, badge):
         uuids[route.id] = route.route_uuid
-        issuers = [{**visible[org_id], "is_creator": org_id == badge.org_id} for org_id in visible if offers(offered_routes, org_id, route)]
-        routes.append({**route_summary(db, template), "route_uuid": route.route_uuid, "recommended": route.recommended, "issuers": issuers})
+        issuers = [{**visible[org_id], "is_creator": org_id == badge.org_id} for org_id in visible
+                   if offers(offered_routes, org_id, route) and (org_id == badge.org_id or trusted(db, route, org_id))]
+        routes.append({**route_summary(db, template), "route_uuid": route.route_uuid, "recommended": route.recommended, "issuers": issuers,
+                       "eligible_versions": rule_of(route), "trusted_only": bool(route.trusted_only),
+                       "partners": route_partners(db, route) if route.trusted_only else []})
     routes.sort(key=lambda item: not item["recommended"])
     goal = active_badge_goal(db, badge, user_id) if user_id else None
     return {
@@ -114,7 +120,7 @@ def set_routes(db: Session, current_user: PublicUser, badge_uuid: str, payload: 
     from src.security.org_auth import require_org_admin
 
     badge = _get_badge(db, badge_uuid)
-    require_org_admin(current_user.id, badge.org_id, db)
+    require_org_admin(current_user.id, badge.org_id, db, "build_plans")
     chosen: list[tuple[GoalTemplate, bool]] = []
     for item in payload.routes:
         template = db.exec(select(GoalTemplate).where(GoalTemplate.template_uuid == item.uuid, GoalTemplate.org_id == badge.org_id)).first()
@@ -148,7 +154,7 @@ def set_offered_routes(db: Session, current_user: PublicUser, badge_uuid: str, i
     from src.services.learning_issuers import active_issuers
 
     badge = _get_badge(db, badge_uuid)
-    require_org_admin(current_user.id, issuer_org_id, db)
+    require_org_admin(current_user.id, issuer_org_id, db, "build_plans")
     if issuer_org_id not in {org_id for org_id, _, _ in active_issuers(db, badge)}:
         raise HTTPException(status_code=403, detail="This organization is not issuing this badge")
     routes = {route.route_uuid: route for route, _ in badge_routes(db, badge)}

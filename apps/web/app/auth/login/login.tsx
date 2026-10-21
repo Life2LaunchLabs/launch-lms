@@ -59,7 +59,7 @@ const LoginClient = (props: LoginClientProps) => {
       }
     }
     checkSSO()
-  }, [props.org?.slug, props.org?.config?.config?.plan, props.org?.config?.config?.cloud?.plan])  
+  }, [props.org?.slug, props.org?.config?.config?.tier])
 
   const handleSSOLogin = async () => {
     setSsoLoading(true)

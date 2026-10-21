@@ -156,14 +156,16 @@ def set_status(
     progress.update_date = _now()
     db.add(progress)
     db.flush()
-    _after_change(db, goal, step, progress, actor_user_id, method, current)
+    # A staff note (a grader's feedback) travels with the change to the learner's progress card.
+    _after_change(db, goal, step, progress, actor_user_id, method, current, note if method == CompletionMethod.STAFF else None)
     db.commit()
     db.refresh(progress)
     finish_if_complete(db, goal)
     return progress
 
 
-def _after_change(db: Session, goal: Goal, step: GoalStep, progress: StepProgress, actor_user_id: int | None, method: CompletionMethod, previous: str) -> None:
+def _after_change(db: Session, goal: Goal, step: GoalStep, progress: StepProgress, actor_user_id: int | None, method: CompletionMethod, previous: str,
+                  note: str | None = None) -> None:
     from src.services.goals.credit import sync_step_progress
 
     state = state_of(db, step, progress)
@@ -171,6 +173,7 @@ def _after_change(db: Session, goal: Goal, step: GoalStep, progress: StepProgres
     sync_step_progress(db, progress, step, goal, evidence)
     access.log(db, goal, actor_user_id, "step.status", {
         "step_uuid": step.step_uuid, "from": previous, "to": _value(progress.status), "method": _value(method),
+        **({"note": note} if note else {}),
     })
     if step.stage_id is not None and _value(progress.status) in DONE_STEP_STATUSES and previous not in DONE_STEP_STATUSES:
         # Finishing a stage brings Coach's next check-in forward.
@@ -196,7 +199,7 @@ def finish_if_complete(db: Session, goal: Goal) -> None:
     values = [statuses.get(int(step.id), StepStatus.NOT_STARTED.value) for step in steps]  # type: ignore[arg-type]
     if any(value not in DONE_STEP_STATUSES for value in values) or StepStatus.COMPLETED.value not in values:
         return
-    badge = db.get(LearningBadge, goal.badge_id) if _value(goal.source) == GoalSource.BADGE.value and goal.badge_id else None
+    badge = db.get(LearningBadge, goal.badge_id) if goal.badge_id and _earns_badge(db, goal) else None
     if badge:
         from src.services.goals.badges import award_badge
 
@@ -209,6 +212,19 @@ def finish_if_complete(db: Session, goal: Goal) -> None:
     db.commit()
     if badge:
         on_badge_awarded(db, int(goal.subject_user_id), int(badge.id))  # type: ignore[arg-type]
+
+
+def _earns_badge(db: Session, goal: Goal) -> bool:
+    """Badge plans earn their badge; an assignment's plans only on a version the badge's owner accepts."""
+    if _value(goal.source) == GoalSource.BADGE.value:
+        return True
+    if _value(goal.source) != GoalSource.ASSIGNMENT.value or not goal.assignment_id:
+        return False
+    from src.db.goals import GoalAssignment, GoalTemplateVersion
+    from src.services.goals.badge_authority import finishing_earns_badge
+
+    assignment = db.get(GoalAssignment, goal.assignment_id)
+    return finishing_earns_badge(db, assignment, db.get(GoalTemplateVersion, goal.version_id) if goal.version_id else None)
 
 
 # Automatic completion -----------------------------------------------------------

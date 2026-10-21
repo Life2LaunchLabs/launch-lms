@@ -6,8 +6,8 @@ from sqlmodel import SQLModel, Session, create_engine, select
 
 from src.db.coach import CoachPlaybook, CoachPolicy, CoachProviderKey
 from src.db.conversations import Conversation, ConversationMember, ConversationMessage, ConversationMessageRef
+from src.db.coach_notes import CoachNote
 from src.db.goals import (
-    CoachNote,
     Goal,
     GoalAssignment,
     GoalAssignmentCreate,
@@ -31,11 +31,13 @@ from src.db.goals import (
 )
 from src.db.learning import BadgeIssuerLearnerLink, LearningActivity, LearningResponseAttempt, LearningBadge, LearningBadgeAward, LearningBadgeVersion, LearningPage, LearningPageProgress, LearningRun, LearningRunStatus
 from src.db.media import MediaAsset
+from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
 from src.db.portfolio import Portfolio
 from src.db.planning import OrganizationPlanRole, Plan, PlanActivity, PlanCollaborator, PlanRole
 from src.db.roles import Role
 from src.db.school import UserGroupStaff
+from src.db.template_marketplace import GoalTemplateAuthorization, GoalTemplateListing
 from src.db.user_organizations import UserOrganization
 from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup
@@ -56,9 +58,11 @@ def _session() -> Session:
         PlanRole.__table__, PlanCollaborator.__table__, PlanActivity.__table__, OrganizationPlanRole.__table__,
         GoalTemplate.__table__, GoalTemplateVersion.__table__, GoalAssignment.__table__, Goal.__table__, GoalStage.__table__,
         GoalStep.__table__, StepProgress.__table__, StepEntry.__table__, GoalStory.__table__, CoachNote.__table__, Portfolio.__table__, Plan.__table__,
-        CoachPolicy.__table__, CoachProviderKey.__table__, CoachPlaybook.__table__, UserGroupStaff.__table__,
+        CoachPolicy.__table__, CoachProviderKey.__table__, CoachPlaybook.__table__, UserGroupStaff.__table__, OrganizationConfig.__table__,
         # Goals keep their chats in step (services/connect/workspace.py).
         Conversation.__table__, ConversationMember.__table__, ConversationMessage.__table__, ConversationMessageRef.__table__,
+        # Marketplace permission to use another organization's template (services/goals/template_marketplace.py).
+        GoalTemplateListing.__table__, GoalTemplateAuthorization.__table__,
     ])
     db = Session(engine)
     db.add(Organization(id=1, org_uuid="org_1", name="Studio", slug="studio", email="studio@example.com", creation_date=NOW, update_date=NOW))

@@ -3,10 +3,12 @@
 import React from 'react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
-import { Building2, Check, Loader2, Mail, MessageCircle, UserRound, X } from 'lucide-react'
+import { BarChart3, Bell, Building2, Check, Loader2, Mail, MessageCircle, UserRound, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import type { ChatMessage, ChatTopic, InvitationCard, MessageRef, ProgressCard } from '@services/connect/connect'
+import type { ChatMessage, ChatTopic, InvitationCard, MessageRef, ProgressCard, StepReminderCard } from '@services/connect/connect'
+import type { GroupReportCard } from '@services/goals/reports'
+import { insightsRoutes } from '@components/Goals/admin/insights/reportRoutes'
 import { goalsApi } from '@services/goals/goals'
 import { messagesApi } from '@services/messages/messages'
 import { PlanTag, StepMark } from './tags'
@@ -31,6 +33,12 @@ export function CardMessage({ message, orgslug, token, topics, time, first, onTa
       <span className="block font-bold">{card.subject}</span>{card.text}
       <span className="ml-2 inline-block align-bottom text-[10px] text-muted-foreground">{time}</span>
     </div>
+  </li>
+  if (card.type === 'step_reminder') return <li className={cn('flex justify-start', first && 'mt-2')}>
+    <ReminderView card={card} who={message.mine ? 'You' : who} time={time} onTag={onTag} />
+  </li>
+  if (card.type === 'group_report') return <li className={cn('flex', message.mine ? 'justify-end' : 'justify-start', 'mt-2')}>
+    <ReportView card={card} who={message.mine ? 'You' : who} orgslug={orgslug} time={time} />
   </li>
   if (card.type === 'org_mention') return <li className={cn('flex', message.mine ? 'justify-end' : 'justify-start', 'mt-2')}>
     <div className="w-full max-w-[360px] rounded-2xl bg-background p-3.5">
@@ -97,12 +105,14 @@ function ProgressView({ card, who, time, topic, onTag }: { card: ProgressCard; w
     <p className="mt-2 text-sm font-bold">{card.started && !card.events.length ? `${who} started ${card.goal_title}` : `${who} ${card.events.length === 1 ? VERBS[card.events[0].event].toLowerCase() : 'made progress'}`}</p>
     {card.events.length ? <ul className="mt-1.5 space-y-1">{card.events.map((event) => {
       const status = topic?.steps.find((item) => item.step_uuid === event.step_uuid)?.status || (event.event === 'turned_in' ? 'submitted' : event.event === 'changes' ? 'changes_requested' : 'completed')
-      return <li key={event.step_uuid} className="flex items-center gap-2 text-sm">
+      return <li key={event.step_uuid} className="text-sm"><div className="flex items-center gap-2">
         <StepMark status={status} className="h-4 w-4" />
         <button type="button" onClick={() => onTag({ kind: 'step', key: `step:${card.goal_uuid}/${event.step_uuid}`, goal_uuid: card.goal_uuid, step_uuid: event.step_uuid, title: event.title, plan_title: card.goal_title, status })}
           className="min-w-0 truncate text-left hover:underline">{event.title}</button>
         {card.events.length > 1 ? <span className="shrink-0 text-xs text-muted-foreground">{VERBS[event.event]}</span> : null}
         {status === 'submitted' ? <span className="ml-auto shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800 dark:bg-amber-500/15 dark:text-amber-300">Awaiting review</span> : null}
+      </div>
+      {event.note ? <p className="ml-6 mt-0.5 whitespace-pre-wrap break-words border-l-2 border-border pl-2 text-xs text-muted-foreground">{event.note}</p> : null}
       </li>
     })}</ul> : null}
     {progress && progress.total ? <div className="mt-3 space-y-1.5">
@@ -113,5 +123,37 @@ function ProgressView({ card, who, time, topic, onTag }: { card: ProgressCard; w
         {progress.behind ? <span><b className="text-foreground">{progress.behind}</b> behind</span> : null}
       </p>
     </div> : null}
+  </div>
+}
+
+/** A group's progress report a colleague sent. It opens the live report, so it stays current. */
+function ReportView({ card, who, orgslug, time }: { card: GroupReportCard; who: string; orgslug: string; time: string }) {
+  const href = getUriWithOrg(card.org_slug || orgslug, insightsRoutes.report(card.usergroup_id, card.frameworks || []))
+  const { summary } = card
+  return <Link href={href} className="block w-full max-w-[380px] rounded-2xl bg-background p-3.5 transition-colors hover:bg-muted/60">
+    <span className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-[var(--org-primary-color)]"><BarChart3 size={14} aria-hidden="true" />Progress report<span className="ml-auto font-normal normal-case tracking-normal text-muted-foreground">{time}</span></span>
+    <span className="mt-1 block font-black leading-snug">{card.group_name}</span>
+    <span className="mt-0.5 block text-xs text-muted-foreground">{who} sent it{card.framework_names?.length ? ` · with ${card.framework_names.join(', ')} (draft)` : ''}</span>
+    {card.message ? <span className="mt-2 block whitespace-pre-wrap break-words text-sm">{card.message}</span> : null}
+    <span className="mt-2 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+      <span><b className="text-foreground">{summary.progress_percent}%</b> of steps done</span>
+      <span><b className="text-foreground">{summary.behind_count}</b> behind</span>
+      <span><b className="text-foreground">{summary.badges_earned}</b> badge{summary.badges_earned === 1 ? '' : 's'} earned</span>
+    </span>
+    <span className="mt-2 block text-xs font-semibold text-foreground">Open report &rarr;</span>
+  </Link>
+}
+
+/** Staff nudged the learner about a step that's waiting on them. */
+// eslint-disable-next-line no-unused-vars
+function ReminderView({ card, who, time, onTag }: { card: StepReminderCard; who: string; time: string; onTag: (ref: MessageRef) => void }) {
+  const due = card.due_date ? new Date(`${card.due_date.slice(0, 10)}T12:00:00`).toLocaleDateString([], { month: 'short', day: 'numeric' }) : null
+  return <div className="w-full max-w-[400px] rounded-2xl bg-background p-3.5">
+    <span className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-amber-700 dark:text-amber-400"><Bell size={14} aria-hidden="true" />Reminder<span className="ml-auto font-normal normal-case tracking-normal text-muted-foreground">{time}</span></span>
+    <span className="mt-1 block font-bold leading-snug">{who} sent a reminder about{' '}
+      <button type="button" className="hover:underline" onClick={() => onTag({ kind: 'step', key: `step:${card.goal_uuid}/${card.step_uuid}`, goal_uuid: card.goal_uuid, step_uuid: card.step_uuid, title: card.step_title, plan_title: card.goal_title, status: 'not_started' })}>{card.step_title}</button>
+    </span>
+    <span className="mt-0.5 block text-xs text-muted-foreground">{card.goal_title}{due ? ` · due ${due}` : ''}</span>
+    {card.message ? <span className="mt-2 block whitespace-pre-wrap break-words text-sm">{card.message}</span> : null}
   </div>
 }

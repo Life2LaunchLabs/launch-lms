@@ -33,7 +33,7 @@ export default function ResourceChannelCard({
   const router = useRouter()
   const accessToken = session?.data?.tokens?.access_token
 
-  const settingsHref = getUriWithOrg(orgslug, routePaths.org.dash.resourceChannelSettings(channel.channel_uuid, 'general'))
+  const settingsHref = getUriWithOrg(orgslug, routePaths.org.admin.content.resourceChannel(channel.channel_uuid, 'general'))
   const thumbnailSrc =
     channel.thumbnail_image && org?.org_uuid
       ? getResourceChannelThumbnailMediaDirectory(

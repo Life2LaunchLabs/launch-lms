@@ -1498,13 +1498,13 @@
   "roles": {
     "custom_role": "Custom Role",
     "role_admin": "ADMIN",
-    "role_admin_desc": "Full platform control with all permissions",
-    "role_maintainer": "MAINTAINER",
-    "role_maintainer_desc": "Mid-level manager with wide permissions",
+    "role_admin_desc": "Everything, including settings, roles and staff permissions",
+    "role_maintainer": "STAFF",
+    "role_maintainer_desc": "Staff, with the permissions an admin gave them",
     "role_instructor": "INSTRUCTOR",
     "role_instructor_desc": "Can manage their own content",
-    "role_user": "USER",
-    "role_user_desc": "Read-Only Learner",
+    "role_user": "LEARNER",
+    "role_user_desc": "Learner",
     "instructor": "Instructor"
   },
   "time": {

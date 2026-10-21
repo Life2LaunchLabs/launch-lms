@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import React from 'react'
-import { ArrowDown, ArrowLeftRight, ArrowUp, Award, BarChart3, Check, Eye, GalleryVerticalEnd, Handshake, Image as ImageIcon, Loader2, Megaphone, Pencil, Plus, Settings, Trash2, X } from 'lucide-react'
+import { ArrowDown, ArrowLeftRight, ArrowUp, Award, BarChart3, Check, Eye, GalleryVerticalEnd, Handshake, Image as ImageIcon, Loader2, Megaphone, Plus, Settings, Trash2, X } from 'lucide-react'
 import { motion } from 'motion/react'
 import toast from 'react-hot-toast'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
@@ -20,6 +20,9 @@ import CertificatePreview from '@components/Learning/BadgeCertificatePreview'
 import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import BadgeVersionToolbar from '@components/Learning/BadgeVersionToolbar'; import BadgeRoutesPanel from '@components/Learning/BadgeRoutesPanel'
+import EditableHeaderField from '@components/Learning/BadgeHeaderField'
+import OwnershipChip from '@components/Admin/Plans/OwnershipChip'
+import { BadgeReadOnlyNote, useBadgeOwnership } from '@components/Learning/BadgeOwnership'
 
 const tabs = [
   { key: 'analytics', label: 'Analytics', icon: BarChart3 },
@@ -46,8 +49,7 @@ export default function AdminBadgeShell({
   const router = useRouter()
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
-  const org = useOrg() as any
-  const canEdit = Number(org?.id) === Number(initialBadge.org_id)
+  const { org, owned, canEdit, ownerName, viewerIsEditor, showsTab } = useBadgeOwnership(initialBadge)
   const [badge, setBadge] = React.useState(initialBadge)
   const [editingField, setEditingField] = React.useState<'name' | null>(null)
   const [draftName, setDraftName] = React.useState(initialBadge.name || '')
@@ -102,16 +104,15 @@ export default function AdminBadgeShell({
   const publicBadgeHref = getUriWithOrg(orgslug, `/badges/${cleanBadgeId(badge.badge_uuid)}`)
   const imageUrl = badge.thumbnail_image
   const isDraft = badge.selected_version?.state === 'draft'
-  const visibleTabs = canEdit
-    ? tabs
-    : tabs.filter((tab) => ['analytics', 'definition', 'settings'].includes(tab.key))
+  const visibleTabs = tabs.filter((tab) => showsTab(tab.key))
 
   return (
     <div className="min-h-full w-full bg-[#f8f8f8]">
-      <div className="relative z-10 bg-[#fcfbfc] pl-10 pr-10 text-sm tracking-tight nice-shadow">
+      <div className="relative z-10 bg-[#fcfbfc] px-4 text-sm tracking-tight nice-shadow sm:px-10">
         <div className="pb-4 pt-6">
           <Breadcrumbs items={[
-            { label: 'Badges', href: '/admin/badges' },
+            { label: 'Plans', href: getUriWithOrg(orgslug, routePaths.org.admin.plans()) },
+            { label: 'Badges', href: getUriWithOrg(orgslug, routePaths.org.admin.plans('badges')) },
             { label: badge.name },
           ]} />
         </div>
@@ -149,10 +150,13 @@ export default function AdminBadgeShell({
               onEdit={() => isDraft && canEdit && setEditingField('name')}
               onSave={saveName}
               isSaving={savingField === 'name'}
+              editable={canEdit && isDraft}
             />
+            {ownerName ? <p className="text-sm text-muted-foreground">Created and issued by <span className="font-semibold text-foreground">{ownerName}</span></p> : null}
             <p className="mt-2 text-xs font-medium text-muted-foreground">
               {getBadgeDateLine(badge)}
             </p>
+            <div className="mt-3 flex justify-center md:justify-start"><OwnershipChip owned={owned} canEdit={canEdit} ownerName={ownerName} /></div>
 
             <div className="mt-4 flex flex-wrap items-center justify-center gap-2 md:justify-start">
               {canEdit ? <BadgeVersionToolbar badge={badge} /> : null}
@@ -166,12 +170,14 @@ export default function AdminBadgeShell({
           </div>
         </div>
 
-        <div className="flex space-x-3 text-sm font-black">
+        {canEdit ? null : <BadgeReadOnlyNote owned={owned} ownerName={ownerName} />}
+
+        <div className="-mx-4 flex space-x-3 overflow-x-auto px-4 text-sm font-black [scrollbar-width:none] sm:mx-0 sm:overflow-visible sm:px-0">
           {visibleTabs.map((tab) => {
             const Icon = tab.icon
             const isActive = normalizedSubpage === tab.key
             return (
-              <Link key={tab.key} href={`${getUriWithOrg(orgslug, `/admin/badges/badge/${cleanBadgeId(badge.badge_uuid)}/${tab.key}`)}?version=${badge.selected_version?.version_uuid || ''}`} replace>
+              <Link key={tab.key} href={`${getUriWithOrg(orgslug, `/admin/badges/badge/${cleanBadgeId(badge.badge_uuid)}/${tab.key}`)}?version=${badge.selected_version?.version_uuid || ''}`} replace className="shrink-0 whitespace-nowrap">
                 <div className={`flex w-fit cursor-pointer space-x-4 border-black py-2 text-center transition-all ease-linear ${isActive ? 'border-b-4' : 'opacity-50 hover:opacity-75'}`}>
                   <div className="mx-2 flex items-center space-x-2.5">
                     <Icon size={16} />
@@ -185,13 +191,13 @@ export default function AdminBadgeShell({
       </div>
 
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.1 }} className="overflow-x-hidden">
-        {normalizedSubpage === 'analytics' ? <BadgeAnalyticsPanel badge={badge} canEdit={canEdit} issuerOrgId={Number(org?.id)} orgslug={orgslug} /> : null}
-        {normalizedSubpage === 'routes' && canEdit ? <BadgeRoutesPanel badge={badge} orgslug={orgslug} /> : null}
+        {normalizedSubpage === 'analytics' ? <BadgeAnalyticsPanel badge={badge} canEdit={owned} issuerOrgId={Number(org?.id)} orgslug={orgslug} /> : null}
+        {normalizedSubpage === 'routes' ? <div className="px-4 pt-6 sm:px-10"><div className="max-w-4xl"><BadgeRoutesPanel badge={badge} orgslug={orgslug} readOnly={!canEdit} /></div></div> : null}
         {normalizedSubpage === 'issuers' && canEdit ? <BadgeIssuersPanel badge={badge} onPatch={patchBadge} /> : null}
-        {normalizedSubpage === 'marketing' && canEdit ? <fieldset disabled={!isDraft}><BadgeAboutPanel badge={badge} onPatch={patchBadge} /></fieldset> : null}
+        {normalizedSubpage === 'marketing' ? <fieldset disabled={!isDraft || !canEdit}><BadgeAboutPanel badge={badge} onPatch={patchBadge} /></fieldset> : null}
         {normalizedSubpage === 'settings' ? (canEdit
           ? <BadgeSettingsPanel orgslug={orgslug} badge={badge} onPatch={patchBadge} isDraft={isDraft} />
-          : <IssuerBadgeSettingsPanel orgslug={orgslug} badge={badge} issuerOrgId={Number(org?.id)} />) : null}
+          : !owned && viewerIsEditor ? <IssuerBadgeSettingsPanel orgslug={orgslug} badge={badge} issuerOrgId={Number(org?.id)} /> : null) : null}
         {normalizedSubpage === 'definition' ? <BadgeCertificationPanel badge={badge} onPatch={patchBadge} readOnly={!isDraft || !canEdit} /> : null}
       </motion.div>
     </div>
@@ -202,7 +208,7 @@ function BadgeAnalyticsPanel({ badge, canEdit, issuerOrgId, orgslug }: { badge: 
   if (!canEdit) return <IssuerBadgeAnalyticsPanel badge={badge} issuerOrgId={issuerOrgId} orgslug={orgslug} />
   const metadata = badge.badge_metadata || {}
   return (
-    <div className="px-10 pb-10 pt-6">
+    <div className="px-4 pb-10 pt-6 sm:px-10">
       <section className="max-w-4xl rounded-xl bg-card p-6 shadow-xs">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -245,7 +251,7 @@ function IssuerBadgeAnalyticsPanel({ badge, issuerOrgId, orgslug }: { badge: any
   }, [load])
 
   return (
-    <div className="px-10 pb-10 pt-6">
+    <div className="px-4 pb-10 pt-6 sm:px-10">
       <section className="max-w-4xl rounded-xl bg-card p-6 shadow-xs">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -272,7 +278,7 @@ function IssuerBadgeAnalyticsPanel({ badge, issuerOrgId, orgslug }: { badge: any
               <h3 className="text-sm font-bold text-foreground">Programs using this badge</h3>
               <div className="mt-3 space-y-3">
                 {metrics?.programs?.length ? metrics.programs.map((program: any) => (
-                  <Link key={program.program_uuid} href={getUriWithOrg(orgslug, routePaths.org.dash.program(program.program_uuid))} className="flex items-center justify-between gap-4 rounded-lg border border-border p-4 transition hover:border-foreground/30 hover:bg-muted/30">
+                  <Link key={program.program_uuid} href={getUriWithOrg(orgslug, routePaths.org.admin.template(program.program_uuid))} className="flex items-center justify-between gap-4 rounded-lg border border-border p-4 transition hover:border-foreground/30 hover:bg-muted/30">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-bold text-foreground">{program.name}</p>
                       <p className="mt-1 text-xs text-muted-foreground">{program.assignment_count} {program.assignment_count === 1 ? 'assignment' : 'assignments'}</p>
@@ -377,7 +383,7 @@ function BadgeIssuersPanel({ badge, onPatch }: { badge: any; onPatch: (patch: Re
   }
 
   return (
-    <div className="px-10 pb-10 pt-6">
+    <div className="px-4 pb-10 pt-6 sm:px-10">
       <section className="max-w-4xl rounded-xl bg-card p-6 shadow-xs">
         <h2 className="text-lg font-bold text-foreground">Marketplace</h2>
         <div className="mt-4 divide-y divide-border">
@@ -545,7 +551,7 @@ function BadgeAboutPanel({ badge, onPatch }: { badge: any; onPatch: (patch: Reco
   }
 
   return (
-    <div className="px-10 pb-10 pt-6">
+    <div className="px-4 pb-10 pt-6 sm:px-10">
       <section className="max-w-4xl rounded-xl bg-card p-6 shadow-xs">
         <h2 className="text-lg font-bold text-foreground">Marketing</h2>
         <div className="mt-5 space-y-5">
@@ -674,7 +680,7 @@ function BadgeSettingsPanel({ orgslug, badge, onPatch, isDraft }: { orgslug: str
   }
 
   return (
-    <div className="px-10 pb-10 pt-6">
+    <div className="px-4 pb-10 pt-6 sm:px-10">
       <section className="max-w-4xl rounded-xl bg-card p-6 shadow-xs">
         <h2 className="text-lg font-bold text-foreground">Settings</h2>
         <div className="mt-4 divide-y divide-border">
@@ -746,7 +752,7 @@ function IssuerBadgeSettingsPanel({ orgslug, badge, issuerOrgId }: { orgslug: st
     try {
       await revokeIssuerAuthorization(authorization.authorization_uuid, accessToken)
       toast.success('Badge authorization released.')
-      router.push(getUriWithOrg(orgslug, routePaths.org.dash.badges()))
+      router.push(getUriWithOrg(orgslug, routePaths.org.admin.badges()))
       router.refresh()
     } catch (error: any) {
       toast.error(error?.message || 'Failed to release badge authorization.')
@@ -755,7 +761,7 @@ function IssuerBadgeSettingsPanel({ orgslug, badge, issuerOrgId }: { orgslug: st
   }
 
   return (
-    <div className="px-10 pb-10 pt-6">
+    <div className="px-4 pb-10 pt-6 sm:px-10">
       <section className="max-w-4xl rounded-xl bg-card p-6 shadow-xs">
         <h2 className="text-lg font-bold text-foreground">Issuer settings</h2>
         <p className="mt-1 text-sm text-muted-foreground">Settings that apply only to your organization’s use of this badge.</p>
@@ -891,7 +897,7 @@ function BadgeCertificationPanel({ badge, onPatch, readOnly = false }: { badge: 
   }
 
   return (
-    <div className="px-10 pb-10 pt-6">
+    <div className="px-4 pb-10 pt-6 sm:px-10">
       <div className="grid max-w-7xl gap-6 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-start">
         <div className="order-2 space-y-6 lg:order-1">
           <section className="rounded-xl bg-card p-6 shadow-xs">
@@ -1132,46 +1138,6 @@ function SettingRow({ title, description, checked, disabled, onChange }: { title
         <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">{description}</p>
       </div>
       <Switch checked={checked} onCheckedChange={onChange} />
-    </div>
-  )
-}
-
-function EditableHeaderField({
-  field,
-  isEditing,
-  value,
-  onChange,
-  onEdit,
-  onSave,
-  isSaving,
-}: {
-  field: 'name' | 'description'
-  isEditing: boolean
-  value: string
-  onChange: (value: string) => void
-  onEdit: () => void
-  onSave: () => void
-  isSaving: boolean
-}) {
-  const isTitle = field === 'name'
-
-  return (
-    <div className={`group flex min-w-0 items-start gap-2 ${isTitle ? 'mb-2' : ''}`}>
-      {isEditing ? (
-        isTitle ? (
-          <input autoFocus value={value} maxLength={100} onChange={(event) => onChange(event.target.value)} className="min-w-0 flex-1 rounded-md border border-border bg-card px-3 py-2 text-3xl font-bold tracking-tight text-foreground outline-none focus:ring-2 focus:ring-black" />
-        ) : (
-          <textarea autoFocus value={value} maxLength={1000} onChange={(event) => onChange(event.target.value)} rows={2} placeholder="Describe this badge..." className="min-w-0 flex-1 resize-none rounded-md border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground outline-none focus:ring-2 focus:ring-black" />
-        )
-      ) : isTitle ? (
-        <h1 className="min-w-0 break-words text-4xl font-bold tracking-tight text-foreground">{value}</h1>
-      ) : (
-        <p className="min-w-0 break-words text-sm font-medium text-muted-foreground">{value || 'No description yet.'}</p>
-      )}
-
-      <Button type="button" size="icon" variant={isEditing ? 'default' : 'ghost'} disabled={isSaving} className={`mt-1 h-7 w-7 shrink-0 ${isEditing ? 'bg-green-600 text-white hover:bg-green-700' : 'opacity-0 transition-opacity group-hover:opacity-100'}`} onClick={isEditing ? onSave : onEdit} title={isEditing ? 'Save' : 'Edit'}>
-        {isSaving ? <Loader2 className="animate-spin" /> : isEditing ? <Check /> : <Pencil />}
-      </Button>
     </div>
   )
 }

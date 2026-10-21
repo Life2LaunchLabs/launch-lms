@@ -17,7 +17,7 @@ type Choices = Array<{ id: string; title: string }>
 
 /** The admin activity editor for a template's activity step. */
 export const templateActivityHref = (orgslug: string, templateUuid: string, activityUuid: string) =>
-  getUriWithOrg(orgslug, `${routePaths.org.dash.program(templateUuid)}/activity/${encodeURIComponent(activityUuid.replace(/^learning_activity_/, ''))}`)
+  getUriWithOrg(orgslug, `${routePaths.org.admin.template(templateUuid)}/activity/${encodeURIComponent(activityUuid.replace(/^learning_activity_/, ''))}`)
 
 function StepSummary({ step, stage }: { step: TemplateStep; stage: TemplateStage }) {
   const definition = stepDefinition(step.type)
@@ -45,10 +45,12 @@ type RowProps = {
   // eslint-disable-next-line no-unused-vars
   onSave: (step: TemplateStep, done?: string) => Promise<boolean>
   onDelete: () => Promise<boolean>
+  /** Show the step without changing it: no reordering, saving, removing or activity editor. */
+  readOnly?: boolean
 }
 
 /** One template step: a compact row that opens into the shared step editor and its requirement links. */
-export default function TemplateStepRow({ step, stage, others, orgslug, orgId, token, templateUuid, frameworks, saving, dragHandleProps, dragging, onSave, onDelete }: RowProps) {
+export default function TemplateStepRow({ step, stage, others, orgslug, orgId, token, templateUuid, frameworks, saving, dragHandleProps, dragging, onSave, onDelete, readOnly = false }: RowProps) {
   const [open, setOpen] = React.useState(false)
   const [draft, setDraft] = React.useState<StepDraft>(() => stepToDraft(step))
   React.useEffect(() => { if (!open) setDraft(stepToDraft(step)) }, [step, open])
@@ -57,17 +59,22 @@ export default function TemplateStepRow({ step, stage, others, orgslug, orgId, t
   const activityUuid = step.type === 'activity' ? (step.config as ActivityConfig).activity_uuid : ''
   const save = async () => { if (!draftProblem(draft) && await onSave(draftToStep({ ...draft, config: savedConfig(draft) }, step), 'Step saved.')) setOpen(false) }
   return <div className={cn('group flex items-stretch gap-1', dragging && 'rounded-xl shadow-xl ring-2 ring-blue-300')}>
-    <button type="button" {...dragHandleProps} className="w-7 cursor-grab rounded-lg text-muted-foreground opacity-0 hover:bg-muted focus:opacity-100 group-hover:opacity-100" aria-label={`Move ${step.title}`}><GripVertical size={16} className="mx-auto" /></button>
+    {readOnly ? <span className="w-7 shrink-0" aria-hidden="true" /> : <button type="button" {...dragHandleProps} className="w-7 cursor-grab rounded-lg text-muted-foreground opacity-0 hover:bg-muted focus:opacity-100 group-hover:opacity-100" aria-label={`Move ${step.title}`}><GripVertical size={16} className="mx-auto" /></button>}
     <div className="min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-card shadow-xs">
       <div className="flex items-center gap-3 p-3">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[color-mix(in_srgb,var(--plan-face)_15%,hsl(var(--card)))] text-[var(--plan-accent)]"><Icon size={17} aria-hidden="true" /></span>
         <button type="button" onClick={() => setOpen((current) => !current)} aria-expanded={open} className="min-w-0 flex-1 text-left">
           <span className="block truncate text-sm font-black">{step.title}</span><StepSummary step={step} stage={stage} />
         </button>
-        {activityUuid ? <Button asChild size="sm" variant="outline"><Link href={templateActivityHref(orgslug, templateUuid, activityUuid)}><Pencil />Edit activity</Link></Button> : null}
-        <button type="button" onClick={() => setOpen((current) => !current)} aria-label={open ? 'Close step' : 'Edit step'} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted"><ChevronDown size={16} className={open ? 'rotate-180' : ''} /></button>
+        {activityUuid && !readOnly ? <Button asChild size="sm" variant="outline"><Link href={templateActivityHref(orgslug, templateUuid, activityUuid)}><Pencil />Edit activity</Link></Button> : null}
+        <button type="button" onClick={() => setOpen((current) => !current)} aria-label={open ? 'Close step' : readOnly ? 'View step' : 'Edit step'} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted"><ChevronDown size={16} className={open ? 'rotate-180' : ''} /></button>
       </div>
-      {open ? <div className="space-y-4 border-t border-border p-4">
+      {open && readOnly ? <div className="space-y-4 border-t border-border p-4">
+        {/* Every setting of the step, shown in the editor's fields with editing switched off. */}
+        <fieldset disabled className="min-w-0"><StepEditor value={draft} onChange={setDraft} mode="template" others={others} typeLocked orgId={orgId} token={token} /></fieldset>
+        <StepRequirementLinks value={step.requirement_node_uuids || []} frameworks={frameworks} saving={saving} readOnly onSave={async () => false} />
+        <div className="flex justify-end"><Button type="button" size="sm" variant="outline" onClick={() => setOpen(false)}>Close</Button></div>
+      </div> : open ? <div className="space-y-4 border-t border-border p-4">
         <StepEditor value={draft} onChange={setDraft} mode="template" others={others} typeLocked orgId={orgId} token={token} />
         <StepRequirementLinks value={step.requirement_node_uuids || []} frameworks={frameworks} saving={saving} onSave={(nodes) => onSave({ ...step, requirement_node_uuids: nodes }, 'Requirement links saved.')} />
         <div className="flex flex-wrap items-center justify-between gap-2">

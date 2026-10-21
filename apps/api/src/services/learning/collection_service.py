@@ -27,7 +27,7 @@ async def create_collection(
     current_user: PublicUser | AnonymousUser,
     db_session: Session,
 ) -> BadgeCollectionRead:
-    access_rules._require_org_admin(db_session, current_user, data.org_id)
+    access_rules._require_org_admin(db_session, current_user, data.org_id, "build_plans")
     now = access_rules._now()
     collection = BadgeCollection(
         **data.model_dump(),
@@ -56,7 +56,7 @@ async def update_collection(
     ).first()
     if not collection:
         raise HTTPException(status_code=404, detail="Badge collection not found")
-    access_rules._require_org_admin(db_session, current_user, collection.org_id)
+    access_rules._require_org_admin(db_session, current_user, collection.org_id, "build_plans")
     for key, value in data.model_dump(exclude_unset=True).items():
         setattr(collection, key, value)
     collection.update_date = access_rules._now()
@@ -87,7 +87,7 @@ async def update_collection_thumbnail(
     ).first()
     if not collection:
         raise HTTPException(status_code=404, detail="Badge collection not found")
-    access_rules._require_org_admin(db_session, current_user, collection.org_id)
+    access_rules._require_org_admin(db_session, current_user, collection.org_id, "build_plans")
     org = access_rules._get_org(db_session, collection.org_id)
 
     if not thumbnail_file or not thumbnail_file.filename:
@@ -130,7 +130,7 @@ async def delete_collection(
     ).first()
     if not collection:
         raise HTTPException(status_code=404, detail="Badge collection not found")
-    access_rules._require_org_admin(db_session, current_user, collection.org_id)
+    access_rules._require_org_admin(db_session, current_user, collection.org_id, "build_plans")
     badges = db_session.exec(
         select(LearningBadge).where(LearningBadge.collection_id == collection.id)
     ).all()
@@ -148,7 +148,7 @@ async def delete_collection(
 
 
 async def list_deleted_collections(request: Request, org_id: int, current_user, db_session: Session) -> list[BadgeCollectionRead]:
-    access_rules._require_org_admin(db_session, current_user, org_id)
+    access_rules._require_org_admin(db_session, current_user, org_id, "build_plans")
     cutoff = datetime.utcnow() - timedelta(days=14)
     collections = db_session.exec(select(BadgeCollection).where(
         BadgeCollection.org_id == org_id,
@@ -165,7 +165,7 @@ async def restore_collection(request: Request, collection_uuid: str, current_use
     )).first()
     if not collection:
         raise HTTPException(status_code=404, detail="Badge collection not found in trash")
-    access_rules._require_org_admin(db_session, current_user, collection.org_id)
+    access_rules._require_org_admin(db_session, current_user, collection.org_id, "build_plans")
     if collection.deleted_at < datetime.utcnow() - timedelta(days=14):
         raise HTTPException(status_code=410, detail="The 14-day restore period has expired")
     deleted_at = collection.deleted_at
@@ -192,13 +192,16 @@ async def list_collections(
     db_session: Session,
     admin: bool = False,
 ) -> list[BadgeCollectionRead]:
+    viewer_edits = False
     if admin:
         if org_id is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="org_id is required for admin badge collection listing",
             )
-        access_rules._require_org_admin(db_session, current_user, org_id)
+        # Staff see the list; only admins may change it (``can_edit`` below).
+        access_rules._require_org_staff(db_session, current_user, org_id)
+        viewer_edits = access_rules._is_org_admin(db_session, current_user, org_id)
         owned_badges = db_session.exec(
             select(LearningBadge).where(
                 LearningBadge.org_id == org_id, LearningBadge.deleted_at.is_(None)
@@ -263,12 +266,12 @@ async def list_collections(
             badges=[
                 LearningBadgeRead(
                     **badge.model_dump(),
-                    can_edit=(badge.org_id == org_id) if admin else None,
+                    can_edit=(badge.org_id == org_id and viewer_edits) if admin else None,
                     access_type=("owned" if badge.org_id == org_id else "authorized") if admin else None,
                 )
                 for badge in badges_by_collection.get(collection.id or 0, [])
             ],
-            can_edit=(collection.org_id == org_id) if admin else None,
+            can_edit=(collection.org_id == org_id and viewer_edits) if admin else None,
             access_type=("owned" if collection.org_id == org_id else "authorized") if admin else None,
             creator_org=(
                 {

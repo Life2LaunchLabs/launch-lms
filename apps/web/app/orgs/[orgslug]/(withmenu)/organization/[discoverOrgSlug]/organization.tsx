@@ -7,6 +7,7 @@ import { ArrowLeft, Building2, Check, ChevronRight, Globe2, Layers3, Loader2, Ma
 import { useChatList } from '@components/Connect/useConnect'
 import GeneralWrapperStyled from '@components/Objects/StyledElements/Wrappers/GeneralWrapper'
 import OrganizationMembershipActions from '@components/Organizations/OrganizationMembershipActions'
+import YourRelationship from '@components/Organizations/YourRelationship'
 import {
   getOrgLogoMediaDirectory,
   getOrgThumbnailMediaDirectory,
@@ -133,13 +134,11 @@ export default function OrganizationDetailClient({
               <div className="w-full md:w-auto md:min-w-[260px]">
                 <div className="rounded-2xl border border-border bg-muted/80 p-4">
                   <p className="mb-3 text-sm font-medium text-muted-foreground">Membership</p>
-                  <p className="mb-4 text-sm text-muted-foreground">
-                    {organization.is_member
-                      ? 'You are enrolled in this organization.'
-                      : organization.signup_mode === 'open'
-                        ? 'You can join this organization right away.'
-                        : 'This organization currently requires an invite to join.'}
-                  </p>
+                  {organization.is_member ? <YourRelationship orgId={organization.id} token={token} /> : <p className="mb-4 text-sm text-muted-foreground">
+                    {organization.signup_mode === 'open'
+                      ? 'You can join this organization right away.'
+                      : 'This organization currently requires an invite to join.'}
+                  </p>}
                   {chat ? <Link href={getUriWithOrg(currentOrgslug, routePaths.org.chat(chat.conversation_uuid))} className="mb-2 flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-foreground px-4 text-sm font-bold text-background"><MessageCircle size={16} />Message</Link> : null}
                   <OrganizationMembershipActions
                     organization={organization}
@@ -165,7 +164,7 @@ export default function OrganizationDetailClient({
           <div><p className="text-xs font-black uppercase tracking-wider text-muted-foreground">Learning relationship</p><h2 className="mt-1 text-xl font-black text-foreground">Your goals with {organization.name}</h2><p className="mt-1 text-sm text-muted-foreground">Direct and group assignments appear here from invitation through completion.</p></div>
           {goalsLoading ? <div className="flex justify-center py-12"><Loader2 className="animate-spin text-muted-foreground" /></div> : organizationGoals.length ? <div className="mt-5 space-y-3">{organizationGoals.map((item) => {
             const invited = item.status === 'pending'
-            const statusLabel = invited ? 'Invited' : item.assignment.active ? 'Active' : 'Completed'
+            const statusLabel = invited ? 'Invited' : item.assignment.status !== 'ended' ? 'Active' : 'Completed'
             return <article key={item.goal_uuid} className="flex flex-col gap-4 rounded-2xl border border-border p-4 sm:flex-row sm:items-center">
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-lime-100 text-lime-800"><Layers3 size={20} /></span>
               <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="font-black text-foreground">{item.title}</h3><span className={invited ? 'rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-black uppercase text-blue-700' : 'rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-black uppercase text-green-700'}>{statusLabel}</span></div><p className="mt-1 text-xs text-muted-foreground">{item.group?.name ? `Assigned through ${item.group.name}` : 'Assigned directly'}{item.assignment.due_date ? ` · Due ${new Date(item.assignment.due_date).toLocaleDateString()}` : ''}</p>{invited && item.assignment.welcome_message ? <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{item.assignment.welcome_message}</p> : null}</div>

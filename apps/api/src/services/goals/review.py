@@ -35,7 +35,7 @@ from src.db.requirements import RequirementFramework
 from src.db.usergroups import UserGroup
 from src.db.users import PublicUser, User
 from src.security.org_auth import require_org_membership
-from src.services.goals import access, completion
+from src.services.goals import access, completion, schedule
 from src.services.goals.activity_reviews import activity_reviews
 from src.services.goals.document import iter_steps
 from src.services.goals.types import StepState, step_type
@@ -43,7 +43,6 @@ from src.services.goals.types import StepState, step_type
 REVIEW = "complete_restricted_objectives"
 STALL_DAYS = 14
 OPEN_STATUSES = {StepStatus.NOT_STARTED.value, StepStatus.IN_PROGRESS.value, StepStatus.CHANGES_REQUESTED.value, StepStatus.SUBMITTED.value}
-ENTRY_KINDS = {"file", "link", "item"}
 
 
 def _now() -> str:
@@ -86,12 +85,27 @@ def assignment_context(db: Session, assignment: GoalAssignment, cache: dict | No
     return cache[assignment.id]
 
 
-def waiting(step: GoalStep, progress: StepProgress) -> bool:
-    """Waiting on staff: a submitted learner step, or a staff step not yet done."""
+def waiting(step: GoalStep, progress: StepProgress, started: bool = True) -> bool:
+    """Waiting on staff: a submitted learner step, or a staff step not yet done in a stage that has started.
+
+    ``started`` says whether the step's stage has started (see ``stage_started``); a staff step in a
+    stage still to come isn't waiting on anyone yet.
+    """
     status = _value(progress.status)
     if _value(step.completed_by) == StepCompleter.STAFF.value:
-        return status not in DONE_STEP_STATUSES and not step.held
+        return started and status not in DONE_STEP_STATUSES and not step.held
     return status == StepStatus.SUBMITTED.value
+
+
+def stage_started(db: Session, step: GoalStep, cache: dict[int, set[int]] | None = None) -> bool:
+    """Whether the goal has reached the step's stage. Steps outside a stage always have."""
+    if step.stage_id is None:
+        return True
+    cache = cache if cache is not None else {}
+    goal_id = int(step.goal_id)
+    if goal_id not in cache:
+        cache[goal_id] = schedule.started_stage_ids(list(db.exec(select(GoalStage).where(GoalStage.goal_id == goal_id)).all()))
+    return int(step.stage_id) in cache[goal_id]
 
 
 def _progress_by_step(db: Session, steps: list[GoalStep]) -> dict[int, StepProgress]:
@@ -120,7 +134,8 @@ def review_item(db: Session, goal: Goal, step: GoalStep, progress: StepProgress)
     return {
         "goal_uuid": goal.goal_uuid, "step_uuid": step.step_uuid, "step_key": step.template_key, "status": _value(progress.status),
         "user": person(db.get(User, goal.subject_user_id)) if goal.subject_user_id else None,
-        "entries": [entry_view(db, entry) for entry in entries if _value(entry.kind) in ENTRY_KINDS],
+        # Every kind of evidence: files, links and items, and the notes, resources and logs of explore and routine steps.
+        "entries": [entry_view(db, entry) for entry in entries],
         "submission": progress.submission or {}, "answer": progress.answer,
         "result": step_type(step.type).result(StepState(step, progress, entries)),
         "learner_note": progress.learner_note, "feedback_history": history,
@@ -171,6 +186,7 @@ def inbox(db: Session, current_user: PublicUser, org_id: int) -> dict:
         steps = list(db.exec(select(GoalStep).where(GoalStep.goal_id == goal.id)).all())
         stages = {stage.id: stage for stage in db.exec(select(GoalStage).where(GoalStage.goal_id == goal.id)).all()}
         progress = _progress_by_step(db, steps)
+        started = schedule.started_stage_ids(list(stages.values()))
         last_touch = goal.creation_date or ""
         open_count = 0
         for step in steps:
@@ -181,7 +197,7 @@ def inbox(db: Session, current_user: PublicUser, org_id: int) -> dict:
             learner_step = _value(step.completed_by) == StepCompleter.LEARNER.value
             if learner_step and status in OPEN_STATUSES:
                 open_count += 1
-            if not waiting(step, row) or step.step_uuid in grading_steps:
+            if not waiting(step, row, step.stage_id is None or int(step.stage_id) in started) or step.step_uuid in grading_steps:
                 continue
             kind = "review" if learner_step else "confirm"
             key = (kind, assignment.assignment_uuid, step.template_key, None if step.template_key else step.step_uuid)
@@ -248,6 +264,7 @@ def review_queue(db: Session, current_user: PublicUser, org_id: int, assignment_
         grades.setdefault(review["step_uuid"], []).append(review)
     items: list[dict] = []
     definition: GoalStep | None = None
+    reached: dict[int, set[int]] = {}
     for goal in goals:
         statement = select(GoalStep).where(GoalStep.goal_id == goal.id)
         statement = statement.where(GoalStep.template_key == step_key) if step_key else statement.where(GoalStep.step_uuid == step_uuid)
@@ -255,7 +272,7 @@ def review_queue(db: Session, current_user: PublicUser, org_id: int, assignment_
         if not step:
             continue
         progress = completion.progress_view(db, step)
-        if not waiting(step, progress):
+        if not waiting(step, progress, stage_started(db, step, reached)):
             continue
         definition = definition or step
         items.append({**review_item(db, goal, step, progress), "activity_reviews": grades.get(step.step_uuid, [])})

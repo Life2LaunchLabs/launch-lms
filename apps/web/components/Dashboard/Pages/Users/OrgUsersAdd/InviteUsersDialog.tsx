@@ -12,8 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { getAPIUrl, getUriWithOrg } from '@services/config/config'
 import { createJoinLink, inviteBatchUsers, previewBatchUsers, revokeJoinLink } from '@services/organizations/invites'
 import { swrFetcher } from '@services/utils/ts/requests'
-import { usePlan } from '@components/Hooks/usePlan'
-import { PlanLevel, planMeetsRequirement } from '@services/plans/plans'
+import { useFeatures } from '@components/Hooks/useFeatures'
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const splitRecipients = (value: string) => value.split(/[\s,;]+/).map((email) => email.trim()).filter(Boolean)
@@ -26,9 +25,8 @@ export default function InviteUsersDialog({ open: isOpen, onOpenChange, onInvite
   const org = useOrg() as any
   const session = useLHSession() as any
   const accessToken = session?.data?.tokens?.access_token
-  const currentPlan = usePlan()
-  const groupsEnabled = planMeetsRequirement(currentPlan, 'full')
-    && (org?.config?.config?.resolved_features?.usergroups?.enabled ?? true)
+  const features = useFeatures()
+  const groupsEnabled = features.has('groups')
   const [recipients, setRecipients] = React.useState<string[]>([])
   const [method, setMethod] = React.useState<'manual' | 'csv' | 'link'>('manual')
   const [previewResults, setPreviewResults] = React.useState<any[]>([])
@@ -179,10 +177,10 @@ export default function InviteUsersDialog({ open: isOpen, onOpenChange, onInvite
         {!reviewing ? <div className="space-y-5 py-2">
           <div className="grid grid-cols-3 gap-2 rounded-xl bg-gray-50 p-1">
             <MethodButton active={method === 'manual'} onClick={() => setMethod('manual')} icon={MailPlus} label="Emails" />
-            <MethodButton active={method === 'csv'} onClick={() => setMethod('csv')} icon={Upload} label="CSV" disabled={!planMeetsRequirement(currentPlan, 'full')} />
+            <MethodButton active={method === 'csv'} onClick={() => setMethod('csv')} icon={Upload} label="CSV" disabled={!features.has('bulk_invites')} />
             <MethodButton active={method === 'link'} onClick={() => setMethod('link')} icon={QrCode} label="Link / QR" />
           </div>
-          {method === 'link' ? <JoinLinkPanel org={org} accessToken={accessToken} usergroups={usergroups || []} groupsEnabled={groupsEnabled} currentPlan={currentPlan} onCreated={onInvited} /> : <>
+          {method === 'link' ? <JoinLinkPanel org={org} accessToken={accessToken} usergroups={usergroups || []} groupsEnabled={groupsEnabled} bulkInvites={features.has('bulk_invites')} onCreated={onInvited} /> : <>
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="space-y-2 text-sm font-medium text-gray-800"><span>Role</span><Select value={selectedRoleId} onValueChange={setSelectedRoleId}><SelectTrigger className="h-11"><SelectValue placeholder="Choose a role" /></SelectTrigger><SelectContent>{roles?.map((role: any) => <SelectItem key={role.id} value={String(role.id)}>{role.name}</SelectItem>)}</SelectContent></Select></label>
             {isLearnerRole && groupsEnabled && <label className="space-y-2 text-sm font-medium text-gray-800"><span>Group <span className="font-normal text-gray-400">optional</span></span><Select value={groupChoice} onValueChange={setGroupChoice}><SelectTrigger className="h-11"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="none">No group</SelectItem>{usergroups?.map((group: any) => <SelectItem key={group.id} value={`group:${group.id}`}>{group.name}</SelectItem>)}<SelectItem value="new"><span className="flex items-center gap-2"><Plus className="h-3.5 w-3.5" />Create a new group</span></SelectItem></SelectContent></Select></label>}
@@ -279,11 +277,11 @@ function CsvUploader({ onRecipients }: { onRecipients: (emails: string[]) => voi
   return <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4"><div className="flex flex-wrap items-center gap-3"><label className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"><Upload className="h-4 w-4" />Choose CSV<input type="file" accept=".csv,text/csv" className="sr-only" onChange={(event) => void load(event.target.files?.[0])} /></label><span className="min-w-0 flex-1 truncate text-xs text-gray-500">{fileName || 'Use a header row and one recipient per row.'}</span>{headers.length > 0 && <Select value={emailColumn} onValueChange={chooseColumn}><SelectTrigger className="h-9 w-44 bg-white"><SelectValue /></SelectTrigger><SelectContent>{headers.map((header, index) => <SelectItem key={`${header}-${index}`} value={String(index)}>{header || `Column ${index + 1}`}</SelectItem>)}</SelectContent></Select>}</div></div>
 }
 
-function JoinLinkPanel({ org, accessToken, usergroups, groupsEnabled, currentPlan, onCreated }: { org: any; accessToken: string; usergroups: any[]; groupsEnabled: boolean; currentPlan: PlanLevel; onCreated?: () => void }) {
+function JoinLinkPanel({ org, accessToken, usergroups, groupsEnabled, bulkInvites, onCreated }: { org: any; accessToken: string; usergroups: any[]; groupsEnabled: boolean; bulkInvites: boolean; onCreated?: () => void }) {
   const [name, setName] = React.useState('')
   const [groupId, setGroupId] = React.useState('none')
   const [minutes, setMinutes] = React.useState('60')
-  const [maximum, setMaximum] = React.useState(planMeetsRequirement(currentPlan, 'full') ? '25' : '5')
+  const [maximum, setMaximum] = React.useState(bulkInvites ? '25' : '5')
   const [domain, setDomain] = React.useState('')
   const [creating, setCreating] = React.useState(false)
   const [link, setLink] = React.useState<any>(null)

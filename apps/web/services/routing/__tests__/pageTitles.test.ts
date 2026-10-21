@@ -16,7 +16,19 @@ test('covers learner routes without exposing dynamic identifiers', () => {
   assert.deepEqual(resolveAppPageTitle('/orgs/acme/account/notifications'), { section: 'Account', detail: 'Notifications' })
 })
 
-test('covers admin route families from the same resolver', () => {
-  assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/plans/reporting'), { section: 'Admin', detail: 'Plans · Reporting' })
-  assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/users'), { section: 'Admin', detail: 'Users' })
+test('titles admin pages by the registry tab that owns them', () => {
+  assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin'), { section: 'Admin', detail: 'Home' })
+  assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/plans'), { section: 'Admin', detail: 'Plans · Assignments' })
+  assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/plans/review'), { section: 'Admin', detail: 'Plans · Assignments' })
+  assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/plans/template_1/settings'), { section: 'Admin', detail: 'Plans · Templates' })
+  assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/badges/badge/b1/routes'), { section: 'Admin', detail: 'Plans · Badges' })
+  assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/plans/requirements/fw_1/spec'), { section: 'Admin', detail: 'Plans · Requirements' })
+  assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/plans/marketplace'), { section: 'Admin', detail: 'Plans · Marketplace' })
+  assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/insights'), { section: 'Admin', detail: 'Insights' })
+  assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/users'), { section: 'Admin', detail: 'People' })
+  assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/org/settings/branding'), { section: 'Admin', detail: 'Organization · Branding' })
+})
+
+test('keeps admin pages outside the tabs on the segment labels', () => {
+  assert.deepEqual(resolveAppPageTitle('/orgs/acme/admin/platform/users'), { section: 'Admin', detail: 'Platform · Users' })
 })

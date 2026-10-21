@@ -1,5 +1,4 @@
 from sqlmodel import Session, create_engine
-from src.db.custom_domains import CustomDomain
 from src.db.learning import LearningBadge
 from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
@@ -19,7 +18,6 @@ def _create_tables(engine) -> None:
     Role.__table__.create(engine)
     LearningBadge.__table__.create(engine)
     PlanRequest.__table__.create(engine)
-    CustomDomain.__table__.create(engine)
 
 
 def _create_org(session: Session, *, org_id: int, slug: str) -> Organization:
@@ -36,7 +34,7 @@ def _create_org(session: Session, *, org_id: int, slug: str) -> Organization:
     session.add(
         OrganizationConfig(
             org_id=org_id,
-            config={"config_version": "2.0", "plan": "free"},
+            config={"config_version": "3.0", "tier": "free"},
             creation_date="2026-01-01T00:00:00+00:00",
             update_date="2026-01-01T00:00:00+00:00",
         )

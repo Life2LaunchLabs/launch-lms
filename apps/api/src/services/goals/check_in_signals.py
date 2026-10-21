@@ -13,7 +13,8 @@ from datetime import date, datetime, timedelta
 
 from sqlmodel import Session, select
 
-from src.db.goals import CoachNote, Goal, GoalStage, StepStatus
+from src.db.coach_notes import CoachNote
+from src.db.goals import Goal, GoalStage, StepStatus
 from src.services.goals.home_week import Entry, goal_entries
 from src.services.goals.types.routine import logged_in, trigger_on
 

@@ -3,12 +3,13 @@ import pytest
 from sqlmodel import Session, SQLModel, create_engine
 
 from src.db.hub import HubConversation, HubConversationMessage
+from src.security.access.access import access_from_config
 from src.services import hub_actions
 
 
 def _session(monkeypatch):
     monkeypatch.setattr(hub_actions, "require_org_membership", lambda *_args: None)
-    monkeypatch.setattr(hub_actions, "_org_config", lambda *_args: {})
+    monkeypatch.setattr(hub_actions, "org_access", lambda *_args: access_from_config({}))
     engine = create_engine("sqlite:///:memory:")
     SQLModel.metadata.create_all(engine, tables=[HubConversation.__table__, HubConversationMessage.__table__])
     return Session(engine)

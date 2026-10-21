@@ -152,7 +152,7 @@ export const HeaderProfileBox = ({ primaryColor = '', compact = false }: { prima
       const isSystemRole = 
         role.role.role_uuid?.startsWith('role_global_') ||
         [1, 2, 3, 4].includes(role.role.id) ||
-        ['Admin', 'Maintainer', 'Instructor', 'User'].includes(role.role.name);
+        ['Admin', 'Staff', 'Learner', 'Maintainer', 'Instructor', 'User'].includes(role.role.name);
       
       return !isSystemRole;
     });

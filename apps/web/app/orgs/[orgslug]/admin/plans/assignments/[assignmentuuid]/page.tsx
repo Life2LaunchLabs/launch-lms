@@ -1,6 +1,6 @@
-import AssignmentRedirect from '@components/Goals/admin/templates/AssignmentRedirect'
+import AssignmentDetail from '@components/Goals/admin/assignments/AssignmentDetail'
 
-export default async function GoalAssignmentPage({ params }: { params: Promise<{ orgslug: string; assignmentuuid: string }> }) {
+export default async function AssignmentPage({ params }: { params: Promise<{ orgslug: string; assignmentuuid: string }> }) {
   const { orgslug, assignmentuuid } = await params
-  return <AssignmentRedirect orgslug={orgslug} assignmentUuid={decodeURIComponent(assignmentuuid)} />
+  return <AssignmentDetail orgslug={orgslug} assignmentUuid={decodeURIComponent(assignmentuuid)} />
 }

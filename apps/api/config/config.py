@@ -44,11 +44,6 @@ class SecurityConfig(BaseModel):
     auth_jwt_secret_key: str
 
 
-class AIConfig(BaseModel):
-    gemini_api_key: str | None
-    is_ai_enabled: bool | None
-
-
 class S3ApiConfig(BaseModel):
     bucket_name: str | None
     endpoint_url: str | None
@@ -112,7 +107,6 @@ class LaunchLMSConfig(BaseModel):
     database_config: DatabaseConfig
     redis_config: RedisConfig
     security_config: SecurityConfig
-    ai_config: AIConfig
     mailing_config: MailingConfig
     payments_config: InternalPaymentsConfig
     tinybird_config: TinybirdConfig | None
@@ -285,20 +279,6 @@ def get_launchlms_config() -> LaunchLMSConfig:
         "database_config", {}
     ).get("sql_connection_string")
 
-    # AI Config
-    env_gemini_api_key = os.environ.get("LAUNCHLMS_GEMINI_API_KEY")
-    env_is_ai_enabled_str = os.environ.get("LAUNCHLMS_IS_AI_ENABLED")
-
-    gemini_api_key = env_gemini_api_key or yaml_config.get("ai_config", {}).get(
-        "gemini_api_key"
-    )
-    
-    # Parse is_ai_enabled from env or yaml
-    if env_is_ai_enabled_str:
-        is_ai_enabled = env_is_ai_enabled_str.lower() in ("true", "1", "yes")
-    else:
-        is_ai_enabled = yaml_config.get("ai_config", {}).get("is_ai_enabled", False)
-
     # Redis config
     env_redis_connection_string = os.environ.get("LAUNCHLMS_REDIS_CONNECTION_STRING")
     redis_connection_string = env_redis_connection_string or yaml_config.get(
@@ -411,12 +391,6 @@ def get_launchlms_config() -> LaunchLMSConfig:
         sql_connection_string=sql_connection_string,
     )
 
-    # AI Config
-    ai_config = AIConfig(
-        gemini_api_key=gemini_api_key,
-        is_ai_enabled=bool(is_ai_enabled),
-    )
-
     # Create LaunchLMSConfig object
     config = LaunchLMSConfig(
         site_name=site_name,
@@ -432,7 +406,6 @@ def get_launchlms_config() -> LaunchLMSConfig:
         hosting_config=hosting_config,
         database_config=database_config,
         security_config=SecurityConfig(auth_jwt_secret_key=auth_jwt_secret_key),
-        ai_config=ai_config,
         redis_config=RedisConfig(redis_connection_string=redis_connection_string),
         mailing_config=MailingConfig(
             email_provider=email_provider,

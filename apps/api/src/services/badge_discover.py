@@ -7,15 +7,18 @@ what the viewer has going on with it: earned, or a badge goal in progress.
 from __future__ import annotations
 
 from fastapi import HTTPException
-from sqlmodel import Session, select
+from sqlalchemy import or_
+from sqlmodel import Session, col, select
 
 from src.db.badge_routes import BadgeRoute
-from src.db.learning import BadgeCollection, LearningBadge, LearningBadgeAward, LearningBadgeStatus, LearningBadgeVersion
+from src.db.learning import BadgeIssuerAuthorization, BadgeIssuerAuthorizationStatus, BadgeCollection, LearningBadge, LearningBadgeAward, LearningBadgeStatus, LearningBadgeVersion
 from src.db.organizations import Organization
 from src.db.users import AnonymousUser, PublicUser
 from src.services.learning import lookups
 
 FEATURED_COUNT = 5
+# The feature an owner organization needs (the verified badge publisher program) for Discover to list its badges.
+PUBLISHING = "badge_publishing"
 
 
 def _user_id(current_user: PublicUser | AnonymousUser | None) -> int | None:
@@ -33,6 +36,38 @@ def _definitions(db: Session, badges: list[LearningBadge]) -> dict[int, dict]:
         payload.update((version.definition or {}) if version else {})
         merged[int(badge.id)] = payload  # type: ignore[arg-type]
     return merged
+
+
+def _publishers(db: Session, org_ids: set[int]) -> set[int]:
+    """The organizations approved to publish badges beyond their own learners."""
+    from sqlalchemy import inspect
+
+    from src.security.access.access import orgs_with_feature
+
+    if not org_ids or not inspect(db.connection()).has_table("organizationconfig"):
+        return set()
+    return orgs_with_feature(org_ids, PUBLISHING, db)
+
+
+def _offered_to(db: Session, org_ids: set[int]) -> set[int]:
+    """Badges these organizations hold an approved authorization to issue."""
+    if not org_ids:
+        return set()
+    return set(db.exec(select(BadgeIssuerAuthorization.badge_id).where(
+        col(BadgeIssuerAuthorization.issuer_org_id).in_(org_ids), BadgeIssuerAuthorization.status == BadgeIssuerAuthorizationStatus.APPROVED,
+    )).all())
+
+
+def discoverable(db: Session, org_id: int | None = None, site_org_id: int | None = None, statement=None) -> list[LearningBadge]:
+    """Public badges Discover may list: their owner is approved to publish badges, or the site organization
+    (or ``org_id``) is authorized to issue them. ``org_id`` narrows it to that organization's own and offered badges."""
+    offered = _offered_to(db, {item for item in (site_org_id, org_id) if item is not None})
+    statement = statement if statement is not None else lookups._public_badge_query()
+    if org_id is not None:
+        statement = statement.where(or_(LearningBadge.org_id == org_id, col(LearningBadge.id).in_(offered or {0})))
+    badges = list(db.exec(statement.order_by(LearningBadge.id)).all())
+    approved = _publishers(db, {badge.org_id for badge in badges if badge.id not in offered})
+    return [badge for badge in badges if badge.id in offered or badge.org_id in approved]
 
 
 def _plan_progress(db: Session, plans: list) -> dict[int, tuple[int, int]]:
@@ -131,7 +166,7 @@ def _public_collections(db: Session, org_id: int | None) -> list[BadgeCollection
 def discover(db: Session, current_user: PublicUser | AnonymousUser | None, org_id: int | None = None, site_org_id: int | None = None) -> dict:
     """Everything the Discover page shows, in one call."""
     user_id = _user_id(current_user)
-    badges = list(db.exec(lookups._public_badge_query(org_id).order_by(LearningBadge.id)).all())
+    badges = discoverable(db, org_id, site_org_id)
     collections = {int(item.id): item for item in _public_collections(db, org_id)}  # type: ignore[arg-type]
     cards = _cards(db, badges, user_id, collections)
     by_collection: dict[int, list[dict]] = {}
@@ -166,7 +201,7 @@ def _collection_or_404(db: Session, collection_uuid: str) -> BadgeCollection:
 def collection_page(db: Session, current_user: PublicUser | AnonymousUser | None, collection_uuid: str) -> dict:
     """A collection with every public badge in it (hidden collections are reachable by link)."""
     collection = _collection_or_404(db, collection_uuid)
-    badges = list(db.exec(lookups._public_badge_query(None).where(LearningBadge.collection_id == collection.id).order_by(LearningBadge.id)).all())
+    badges = discoverable(db, statement=lookups._public_badge_query(None).where(LearningBadge.collection_id == collection.id))
     cards = _cards(db, badges, _user_id(current_user), {int(collection.id): collection})  # type: ignore[arg-type]
     return _collection_dict(collection, cards, _orgs(db, {collection.org_id}).get(collection.org_id))
 
@@ -185,7 +220,7 @@ def badge_page(db: Session, current_user: PublicUser | AnonymousUser | None, bad
     collection = db.get(BadgeCollection, badge.collection_id) if badge.collection_id else None
     siblings = []
     if collection and collection.public and collection.deleted_at is None:
-        others = list(db.exec(lookups._public_badge_query(None).where(LearningBadge.collection_id == collection.id, LearningBadge.id != badge.id).order_by(LearningBadge.id)).all())
+        others = discoverable(db, statement=lookups._public_badge_query(None).where(LearningBadge.collection_id == collection.id, LearningBadge.id != badge.id))
         siblings = _cards(db, others, user_id, {int(collection.id): collection})  # type: ignore[arg-type]
     return {
         **card,

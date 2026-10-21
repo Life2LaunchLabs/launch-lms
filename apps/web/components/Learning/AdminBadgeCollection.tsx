@@ -9,7 +9,6 @@ import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { Switch } from '@components/ui/switch'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { useOrg } from '@components/Contexts/OrgContext'
 import { getUriWithOrg } from '@services/config/config'
 import { SafeImage } from '@components/Objects/SafeImage'
 import { BadgeThumbnailImage } from '@components/Objects/Thumbnails/BadgeThumbnailImage'
@@ -26,6 +25,7 @@ import {
 } from '@services/learning/learning'
 import toast from 'react-hot-toast'
 import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'; import CollectionMarketing from './CollectionMarketing'
+import { useFeatures } from '@components/Hooks/useFeatures'
 
 const tabs = [
   { id: 'badges', label: 'Badges', icon: BookCopy },
@@ -283,9 +283,8 @@ export function EditableDetailHeader({
 
 function CollectionBadges({ orgslug, orgId, collection, canEdit }: { orgslug: string; orgId: number; collection: any; canEdit: boolean }) {
   const session = useLHSession() as any
-  const org = useOrg() as any
   const accessToken = session.data?.tokens?.access_token
-  const canCreateBadges = org?.config?.config?.resolved_features?.marketplace_publishing?.enabled === true
+  const canCreateBadges = useFeatures().has('badge_publishing')
   const [search, setSearch] = React.useState('')
   const [modalOpen, setModalOpen] = React.useState(false)
   const [name, setName] = React.useState('')

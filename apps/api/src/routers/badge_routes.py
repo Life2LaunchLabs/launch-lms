@@ -2,9 +2,11 @@ from fastapi import APIRouter, Depends
 from sqlmodel import Session
 
 from src.core.events.database import get_db_session
-from src.db.badge_routes import BadgeRouteOffersUpdate
+from src.db.badge_routes import BadgeRouteEligibilityUpdate, BadgeRouteOffersUpdate
 from src.db.users import AnonymousUser, PublicUser
 from src.security.auth import get_current_user
+from src.db.template_marketplace import BadgeRouteTrustUpdate
+from src.services.goals import badge_authority, template_marketplace
 from src.services.goals import badge_routes as service
 from src.services.goals.badge_routes import GoalBadgeRoutesUpdate, GoalBadgeStart
 
@@ -42,6 +44,30 @@ def api_set_offered_routes(
 ):
     """An issuer chooses which routes it offers (none: every route)."""
     return service.set_offered_routes(db, current_user, badge_uuid, issuer_org_id, payload)
+
+
+@router.put("/{badge_uuid}/routes/{route_uuid}/eligibility")
+def api_set_route_eligibility(
+    badge_uuid: str,
+    route_uuid: str,
+    payload: BadgeRouteEligibilityUpdate,
+    db: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_current_user),
+):
+    """The badge's owner says which versions of the route's template earn it: any, only the newest, or from a version on."""
+    return badge_authority.set_eligibility(db, current_user, badge_uuid, route_uuid, payload)
+
+
+@router.put("/{badge_uuid}/routes/{route_uuid}/trust")
+def api_set_route_trust(
+    badge_uuid: str,
+    route_uuid: str,
+    payload: BadgeRouteTrustUpdate,
+    db: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_current_user),
+):
+    """The badge's owner makes a route trusted-partners only (e.g. direct issuance) and picks the partners approved for it."""
+    return template_marketplace.set_route_trust(db, current_user, badge_uuid, route_uuid, payload)
 
 
 @router.post("/{badge_uuid}/start-plan")

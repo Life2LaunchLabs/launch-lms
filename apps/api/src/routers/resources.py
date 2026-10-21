@@ -19,6 +19,7 @@ from src.db.resources import (
     UserSavedResourceUpdate,
 )
 from src.db.users import PublicUser
+from src.security.access.access import require_feature
 from src.security.auth import get_current_user
 from src.security.org_auth import require_org_role_permission
 from src.services.resources import (
@@ -66,6 +67,8 @@ from src.services.search.resource_search import (
 )
 
 router = APIRouter()
+# Authoring resources is the resource partner program; reading, saving and notes stay open to members.
+PUBLISHING = [Depends(require_feature("resource_publishing"))]
 
 
 class LinkResourceRequest(BaseModel):
@@ -94,7 +97,7 @@ async def api_list_tags(
     return await list_tags(request, org_id, current_user, db_session)
 
 
-@router.post("/org/{org_id}/tags")
+@router.post("/org/{org_id}/tags", dependencies=PUBLISHING)
 async def api_create_tag(
     request: Request,
     org_id: int,
@@ -105,7 +108,7 @@ async def api_create_tag(
     return await create_tag(request, org_id, tag_data, current_user, db_session)
 
 
-@router.put("/tags/{tag_uuid}")
+@router.put("/tags/{tag_uuid}", dependencies=PUBLISHING)
 async def api_update_tag(
     request: Request,
     background_tasks: BackgroundTasks,
@@ -119,7 +122,7 @@ async def api_update_tag(
     return tag
 
 
-@router.delete("/tags/{tag_uuid}")
+@router.delete("/tags/{tag_uuid}", dependencies=PUBLISHING)
 async def api_delete_tag(
     request: Request,
     background_tasks: BackgroundTasks,
@@ -132,7 +135,7 @@ async def api_delete_tag(
     return result
 
 
-@router.post("/channels")
+@router.post("/channels", dependencies=PUBLISHING)
 async def api_create_channel(
     request: Request,
     org_id: int,
@@ -143,7 +146,7 @@ async def api_create_channel(
     return await create_channel(request, org_id, channel_data, current_user, db_session)
 
 
-@router.put("/channels/{channel_uuid}")
+@router.put("/channels/{channel_uuid}", dependencies=PUBLISHING)
 async def api_update_channel(
     request: Request,
     channel_uuid: str,
@@ -154,7 +157,7 @@ async def api_update_channel(
     return await update_channel(request, channel_uuid, channel_data, current_user, db_session)
 
 
-@router.delete("/channels/{channel_uuid}")
+@router.delete("/channels/{channel_uuid}", dependencies=PUBLISHING)
 async def api_delete_channel(
     request: Request,
     channel_uuid: str,
@@ -164,7 +167,7 @@ async def api_delete_channel(
     return await delete_channel(request, channel_uuid, current_user, db_session)
 
 
-@router.put("/channels/{channel_uuid}/thumbnail")
+@router.put("/channels/{channel_uuid}/thumbnail", dependencies=PUBLISHING)
 async def api_upload_channel_thumbnail(
     request: Request,
     channel_uuid: str,
@@ -236,7 +239,7 @@ async def api_resource_search_index_status(
     return resource_search_index_status(org_id, db_session)
 
 
-@router.post("/org/{org_id}/search-index/backfill", status_code=202)
+@router.post("/org/{org_id}/search-index/backfill", status_code=202, dependencies=PUBLISHING)
 async def api_backfill_resource_search_index(
     org_id: int,
     background_tasks: BackgroundTasks,
@@ -248,7 +251,7 @@ async def api_backfill_resource_search_index(
     return {"detail": "Resource search backfill queued", **resource_search_index_status(org_id, db_session)}
 
 
-@router.post("/")
+@router.post("/", dependencies=PUBLISHING)
 async def api_create_resource(
     request: Request,
     background_tasks: BackgroundTasks,
@@ -274,7 +277,7 @@ async def api_get_resource(
     return await get_resource(request, resource_uuid, current_user, db_session, include_private=include_private)
 
 
-@router.put("/{resource_uuid}")
+@router.put("/{resource_uuid}", dependencies=PUBLISHING)
 async def api_update_resource(
     request: Request,
     background_tasks: BackgroundTasks,
@@ -288,7 +291,7 @@ async def api_update_resource(
     return resource
 
 
-@router.delete("/{resource_uuid}")
+@router.delete("/{resource_uuid}", dependencies=PUBLISHING)
 async def api_delete_resource(
     request: Request,
     resource_uuid: str,
@@ -298,7 +301,7 @@ async def api_delete_resource(
     return await delete_resource(request, resource_uuid, current_user, db_session)
 
 
-@router.put("/{resource_uuid}/thumbnail")
+@router.put("/{resource_uuid}/thumbnail", dependencies=PUBLISHING)
 async def api_upload_resource_thumbnail(
     request: Request,
     resource_uuid: str,
@@ -322,7 +325,7 @@ async def api_list_channel_resources(
     return await list_channel_resources(request, channel_uuid, current_user, db_session, include_private=include_private)
 
 
-@router.post("/channels/{channel_uuid}/resources")
+@router.post("/channels/{channel_uuid}/resources", dependencies=PUBLISHING)
 async def api_add_resource_to_channel(
     request: Request,
     channel_uuid: str,
@@ -330,17 +333,10 @@ async def api_add_resource_to_channel(
     current_user: PublicUser = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
-    return await add_resource_to_channel(
-        request,
-        channel_uuid,
-        link_data.resource_uuid,
-        current_user,
-        db_session,
-        sort_order=link_data.sort_order,
-    )
+    return await add_resource_to_channel(request, channel_uuid, link_data.resource_uuid, current_user, db_session, sort_order=link_data.sort_order)
 
 
-@router.delete("/channels/{channel_uuid}/resources/{resource_uuid}")
+@router.delete("/channels/{channel_uuid}/resources/{resource_uuid}", dependencies=PUBLISHING)
 async def api_remove_resource_from_channel(
     request: Request,
     channel_uuid: str,
@@ -556,7 +552,7 @@ async def api_delete_comment(
     return await delete_comment(request, comment_uuid, current_user, db_session)
 
 
-@router.post("/org/{org_id}/import")
+@router.post("/org/{org_id}/import", dependencies=PUBLISHING)
 async def api_import_resources_csv(
     request: Request,
     background_tasks: BackgroundTasks,

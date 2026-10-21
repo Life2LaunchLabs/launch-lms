@@ -1,7 +1,7 @@
 """chats: move the last goal comments into their plans' chats, and drop goalcomment
 
 Revision ID: e7f8a9b0c1d2
-Revises: d6e7f8a9b0c1
+Revises: d5e2b8f3c1a6
 
 Plans' comments moved into chats one plan at a time, when someone opened it. This moves the
 rest (src.services.connect.legacy_comments) in the migration's transaction, then drops the
@@ -15,7 +15,7 @@ import sqlalchemy as sa
 
 
 revision: str = 'e7f8a9b0c1d2'
-down_revision: Union[str, None] = 'd6e7f8a9b0c1'
+down_revision: Union[str, None] = 'd5e2b8f3c1a6'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

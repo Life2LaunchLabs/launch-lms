@@ -7,7 +7,7 @@ import { getUriWithOrg, routePaths } from '@services/config/config'
 import { getOfferCheckoutSession } from '@services/payments/offers'
 import {
   ArrowLeft, RefreshCcw, SquareCheck, Sparkles, BookOpen,
-  Mic, Puzzle, AlertCircle, Loader2, ShoppingBag
+  Puzzle, AlertCircle, Loader2, ShoppingBag
 } from 'lucide-react'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import toast from 'react-hot-toast'
@@ -32,7 +32,6 @@ interface OfferDetailClientProps {
 function resourceIcon(type: string, size = 14) {
   switch (type) {
     case 'course': return <BookOpen size={size} className="text-indigo-500" />
-    case 'podcast': return <Mic size={size} className="text-pink-400" />
     default: return <Puzzle size={size} className="text-muted-foreground" />
   }
 }
@@ -45,8 +44,6 @@ function getResourceUrl(orgslug: string, resource: Resource): string | null {
   const id = stripTypePrefix(resource.resource_uuid)
   switch (resource.resource_type) {
     case 'badge': return getUriWithOrg(orgslug, routePaths.org.badgeDetail(id))
-    case 'podcast': return getUriWithOrg(orgslug, routePaths.org.podcast(id))
-    case 'playground': return getUriWithOrg(orgslug, routePaths.org.playground(id))
     default: return null
   }
 }

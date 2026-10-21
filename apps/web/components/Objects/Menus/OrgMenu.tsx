@@ -11,6 +11,7 @@ import { ChatCircleDots, GearSix, SidebarSimple } from '@phosphor-icons/react'
 import { openCandidatePanel } from '@components/Candidate/CandidateExperience'
 import { useJoinBannerVisible, JOIN_BANNER_HEIGHT } from '@components/Objects/Banners/OrgJoinBanner'
 import { GuestHeader } from '@components/Objects/Menus/GuestHeader'
+import ExperienceSwitcher from '@components/Objects/Menus/ExperienceSwitcher'
 import {
   Tooltip,
   TooltipContent,
@@ -42,7 +43,6 @@ export const OrgMenu = (props: { orgslug: string; compact?: boolean }) => {
   const connect = useConnectCounts()
   const topOffset = isJoinBannerVisible ? JOIN_BANNER_HEIGHT : 0
   const config = org?.config?.config
-  const resolvedFeatures = config?.resolved_features
   const hideOrgName = config?.customization?.general?.hide_org_name || config?.general?.hide_org_name || false
   const isActivityPage = pathname?.includes('/activity/')
   const isCoursePage = /^\/course\/[^/]+$/.test(pathname || '')
@@ -56,7 +56,6 @@ export const OrgMenu = (props: { orgslug: string; compact?: boolean }) => {
 
   const primaryNavItems = getPrimaryOrgMenuItems({
     pathname,
-    resolvedFeatures,
     hubOpen: hub?.state === 'open',
     // Invitations and notices arrive as chat messages, so unread chats cover them.
     connectWaiting: connect.unread + connect.requests > 0,
@@ -112,10 +111,11 @@ export const OrgMenu = (props: { orgslug: string; compact?: boolean }) => {
           >
             <div className={cn('flex h-10 items-center', isDesktopNavExpanded ? 'justify-between gap-2' : 'justify-center')}>
               {isDesktopNavExpanded ? (
-                <Link
-                  href={getUriWithOrg(orgslug, '/')}
-                  data-sidebar-logo
-                  className="flex h-10 w-full items-center gap-3 overflow-hidden pl-1"
+                <ExperienceSwitcher
+                  current={{ side: 'user' }}
+                  homeHref={getUriWithOrg(orgslug, '/')}
+                  tone="light"
+                  className="flex h-10 w-full min-w-0 items-center gap-3 overflow-hidden rounded-2xl pl-1 pr-2 transition-colors hover:bg-foreground/[0.05]"
                 >
                   <div className="flex h-10 shrink-0 items-center justify-center">
                     {org?.logo_image ? (
@@ -139,7 +139,7 @@ export const OrgMenu = (props: { orgslug: string; compact?: boolean }) => {
                       <LaunchLMSLogo />
                     )}
                   </div>
-                </Link>
+                </ExperienceSwitcher>
               ) : (
                 <div className="relative h-10 w-10">
                   <Link

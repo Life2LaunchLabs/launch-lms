@@ -4,16 +4,22 @@ RBAC Role Constants
 This module defines role ID constants used throughout the RBAC system.
 Using constants instead of magic numbers improves code maintainability and clarity.
 
-Role Hierarchy:
-    ADMIN (1) - Full access to all resources and organization management
-    MAINTAINER (2) - Can manage content but limited org-level permissions
-    MEMBER (3+) - Custom roles with configurable permissions
+Roles: an organization has three, Admin, Staff and Learner.
+    ADMIN (1) - Everything, including org settings, roles and staff permissions
+    MAINTAINER (2) - Staff: what each staff member may do is a set of permissions the admin
+                     gives them (security/org_auth.STAFF_PERMISSIONS)
+    USER (4) - Learner
+The old Instructor role (3) and custom roles are retired; their members became staff or learners.
 """
 
 # Core role IDs - these match the database seed data
 ADMIN_ROLE_ID = 1
 MAINTAINER_ROLE_ID = 2
 USER_ROLE_ID = 4
+STAFF_ROLE_ID = MAINTAINER_ROLE_ID
+LEARNER_ROLE_ID = USER_ROLE_ID
+# The roles an organization assigns, by uuid.
+ORG_ROLE_UUIDS = frozenset(["role_global_admin", "role_global_maintainer", "role_global_user"])
 
 # Role ID sets for common checks
 ADMIN_ROLE_IDS = frozenset([ADMIN_ROLE_ID])

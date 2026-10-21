@@ -32,3 +32,26 @@ class StepProgressBulk(SQLModel):
     goal_uuids: list[str] = Field(default_factory=list, max_length=1000)
     status: StepStatus = StepStatus.COMPLETED
     staff_note: str | None = Field(default=None, max_length=10000)
+
+
+# The admin Home's widgets, in their default order (see services/goals/admin_home.py).
+ADMIN_HOME_WIDGETS = ("waiting", "today", "messages", "attention", "creator")
+
+
+class AdminHomeLayout(SQLModel):
+    """A member's own Home: widgets in the order they want, and the ones they hid."""
+
+    order: list[str] = Field(default_factory=list, max_length=20)
+    hidden: list[str] = Field(default_factory=list, max_length=20)
+
+
+# The Plans area's tabs, in the order most orgs start with (see services/goals/admin_home.py).
+PLANS_TABS = ("assignments", "templates", "badges", "requirements", "marketplace")
+# The order for an org that makes badges and templates but runs no assignment itself.
+PLANS_TABS_CREATOR = ("badges", "templates", "assignments", "requirements", "marketplace")
+
+
+class PlansTabsOrder(SQLModel):
+    """A member's own order for the Plans tabs; empty goes back to the default."""
+
+    order: list[str] = Field(default_factory=list, max_length=20)

@@ -68,7 +68,7 @@ def capture_files(
                 for value in references
                 if "." in value and "/" not in value
             }
-            if not filenames and name != "board":
+            if not filenames:
                 continue
             for directory, _, files in walk_directory(prefix):
                 parts = PurePosixPath(directory).parts
@@ -78,8 +78,7 @@ def capture_files(
                 if name in {"organization", "user"} and len(parts) != 4:
                     continue
                 for filename in files:
-                    # Board uploads can exist only in binary Yjs attributes.
-                    if filename in filenames or name == "board":
+                    if filename in filenames:
                         paths.add(f"{directory}/{filename}")
     result = {}
     total = 0

@@ -7,10 +7,7 @@ from src.db.organizations import Organization
 from src.db.organization_invitations import OrganizationInvitation
 from src.db.user_organizations import UserOrganization
 from src.db.users import AnonymousUser, InternalUser, PublicUser, User
-from src.security.features_utils.usage import (
-    check_limits_with_usage,
-    increase_feature_usage,
-)
+from src.security.access.access import require_capacity
 from src.services.orgs.invites import get_invite_code, redeem_join_link
 from src.services.orgs.orgs import get_org_join_mechanism
 from src.services.users.usergroups import add_users_to_usergroup
@@ -123,8 +120,9 @@ async def join_org(
                     detail="Invite code is incorrect",
                 )
 
-            if invitation is None:
-                check_limits_with_usage("members", org.id, db_session)
+            # Invitations and join links already hold their seat.
+            if invitation is None and not inviteCode:
+                require_capacity("learners", org.id, db_session)
 
             # Link user and organization, consuming a reserved invitation when present.
             user_organization = UserOrganization(
@@ -168,9 +166,6 @@ async def join_org(
                     str(user.id),
                 )
 
-            if invitation is None:
-                increase_feature_usage("members", org.id, db_session)
-
             return "Great, You're part of the Organization"
 
         else:
@@ -181,8 +176,9 @@ async def join_org(
 
     if join_method == "open" and user and org:
         if user.id is not None and org.id is not None:
-            if invitation is None:
-                check_limits_with_usage("members", org.id, db_session)
+            # Invitations and join links already hold their seat.
+            if invitation is None and not inviteCode:
+                require_capacity("learners", org.id, db_session)
             # Link user and organization
             user_organization = UserOrganization(
                 user_id=user.id,
@@ -222,9 +218,6 @@ async def join_org(
                     int(invitation.usergroup_id),
                     str(user.id),
                 )
-
-            if invitation is None:
-                increase_feature_usage("members", org.id, db_session)
 
             return "Great, You're part of the Organization"
 

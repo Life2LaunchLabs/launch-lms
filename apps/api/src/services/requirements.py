@@ -31,23 +31,10 @@ from src.db.user_organizations import UserOrganization
 from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup
 from src.db.users import PublicUser, User
-from src.security.org_auth import require_org_admin
-
-
-REQUIREMENT_CODE_STYLES = {
-    "upper_alpha",
-    "lower_alpha",
-    "decimal",
-    "upper_roman",
-    "lower_roman",
-}
-DEFAULT_REQUIREMENT_CODE_STYLES = (
-    "upper_alpha",
-    "decimal",
-    "lower_roman",
-    "lower_alpha",
-    "upper_roman",
-)
+from src.security.org_auth import is_org_admin, require_org_admin
+from src.security.superadmin import is_user_superadmin
+from src.services.requirement_codes import _code_segment, _default_code_style, _normalize_source_metadata  # noqa: F401
+from src.services.school.roles import is_staff
 
 
 def _now() -> datetime:
@@ -68,7 +55,24 @@ def _owner_org(db: Session) -> Organization:
 def _require_owner_org_admin(db: Session, current_user: PublicUser, org_id: int) -> None:
     if _owner_org(db).id != org_id:
         raise HTTPException(status_code=403, detail="Only the owner organization can publish to the global library")
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
+
+
+def _require_staff(db: Session, current_user: PublicUser, org_id: int) -> None:
+    """Reading frameworks is for the organization's staff; changing them stays with its admins."""
+    if is_user_superadmin(current_user.id, db) or is_org_admin(current_user.id, org_id, db) or is_staff(db, org_id, current_user.id):
+        return
+    raise HTTPException(status_code=403, detail="Only the organization's staff can see its requirement frameworks")
+
+
+def _publisher(db: Session, framework: RequirementFramework) -> dict:
+    """Who publishes a framework: the org it was copied from (the global library), or its own org."""
+    source = db.exec(select(RequirementFramework).where(
+        RequirementFramework.framework_uuid == framework.source_framework_uuid,
+    )).first() if framework.source_framework_uuid else None
+    org_id = source.org_id if source else framework.org_id
+    org = db.get(Organization, org_id)
+    return {"org_id": org_id, "name": org.name if org else "", "yours": org_id == framework.org_id}
 
 
 def _available(db: Session) -> bool:
@@ -101,71 +105,6 @@ def _nodes(db: Session, version_id: int) -> list[RequirementNode]:
     return list(db.exec(select(RequirementNode).where(
         RequirementNode.version_id == version_id,
     ).order_by(RequirementNode.position, RequirementNode.id)).all())
-
-
-def _default_code_style(depth: int) -> str:
-    return DEFAULT_REQUIREMENT_CODE_STYLES[min(depth, len(DEFAULT_REQUIREMENT_CODE_STYLES) - 1)]
-
-
-def _normalize_source_metadata(source_metadata: dict | None, *, validate: bool = False) -> dict:
-    normalized = dict(source_metadata or {})
-    raw_levels = normalized.get("requirement_levels")
-    if not isinstance(raw_levels, list):
-        if validate and raw_levels is not None:
-            raise HTTPException(status_code=422, detail="Requirement levels must be a list")
-        return normalized
-    levels = []
-    for depth, raw_level in enumerate(raw_levels):
-        if not isinstance(raw_level, dict):
-            if validate:
-                raise HTTPException(status_code=422, detail="Every requirement level must be an object")
-            continue
-        level = dict(raw_level)
-        code_style = level.get("code_style") or _default_code_style(depth)
-        if code_style not in REQUIREMENT_CODE_STYLES:
-            if validate:
-                raise HTTPException(status_code=422, detail=f"Unsupported requirement code style: {code_style}")
-            code_style = _default_code_style(depth)
-        level["code_style"] = code_style
-        levels.append(level)
-    normalized["requirement_levels"] = levels
-    return normalized
-
-
-def _alpha_code(number: int) -> str:
-    result = ""
-    while number > 0:
-        number, remainder = divmod(number - 1, 26)
-        result = chr(65 + remainder) + result
-    return result
-
-
-def _roman_code(number: int) -> str:
-    numerals = (
-        (1000, "M"), (900, "CM"), (500, "D"), (400, "CD"),
-        (100, "C"), (90, "XC"), (50, "L"), (40, "XL"),
-        (10, "X"), (9, "IX"), (5, "V"), (4, "IV"), (1, "I"),
-    )
-    result = ""
-    for value, numeral in numerals:
-        while number >= value:
-            result += numeral
-            number -= value
-    return result
-
-
-def _code_segment(number: int, style: str) -> str:
-    if style == "decimal":
-        return str(number)
-    if style == "upper_alpha":
-        return _alpha_code(number)
-    if style == "lower_alpha":
-        return _alpha_code(number).lower()
-    if style == "upper_roman":
-        return _roman_code(number)
-    if style == "lower_roman":
-        return _roman_code(number).lower()
-    raise HTTPException(status_code=422, detail=f"Unsupported requirement code style: {style}")
 
 
 def _validate_nodes(items: list[RequirementNodeInput], source_metadata: dict | None = None) -> list[dict]:
@@ -292,13 +231,30 @@ def _framework_dict(db: Session, framework: RequirementFramework, version_number
     }
 
 
-def list_frameworks(db: Session, current_user: PublicUser, org_id: int) -> list[dict]:
-    require_org_admin(current_user.id, org_id, db)
+def _reader_view(db: Session, current_user: PublicUser, framework: RequirementFramework, version_number: int | None = None) -> dict:
+    """A framework as staff read it: who publishes it, and whether this viewer can change it."""
+    return {
+        **_framework_dict(db, framework, version_number),
+        "publisher": _publisher(db, framework),
+        "can_edit": is_org_admin(current_user.id, framework.org_id, db),
+    }
+
+
+def list_frameworks(db: Session, current_user: PublicUser, org_id: int, with_coverage: bool = False) -> list[dict]:
+    """The org's frameworks; with `with_coverage`, each also says how much of it the org's published templates cover."""
+    _require_staff(db, current_user, org_id)
     items = db.exec(select(RequirementFramework).where(
         RequirementFramework.org_id == org_id,
         RequirementFramework.archived == False,  # noqa: E712
     ).order_by(RequirementFramework.name)).all()
-    return [_framework_dict(db, item) for item in items]
+    views = [_reader_view(db, current_user, item) for item in items]
+    if with_coverage:
+        from src.services.goals.requirements import coverage_summaries
+
+        summaries = coverage_summaries(db, org_id, views)
+        for view in views:
+            view["coverage"] = summaries[view["framework_uuid"]]
+    return views
 
 
 def publish_framework_to_library(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str) -> dict:
@@ -316,7 +272,9 @@ def publish_framework_to_library(db: Session, current_user: PublicUser, org_id: 
 
 
 def list_framework_library(db: Session, current_user: PublicUser, org_id: int, query: str = "") -> list[dict]:
-    require_org_admin(current_user.id, org_id, db)
+    from src.services.goals.template_marketplace import require_reader
+
+    require_reader(db, current_user, org_id)  # staff browse the marketplace too; copying stays admin only
     owner = _owner_org(db)
     items = db.exec(select(RequirementFramework).where(
         RequirementFramework.org_id == owner.id,
@@ -340,7 +298,7 @@ def list_framework_library(db: Session, current_user: PublicUser, org_id: int, q
 
 
 def copy_framework_from_library(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     owner = _owner_org(db)
     source = db.exec(select(RequirementFramework).where(
         RequirementFramework.framework_uuid == framework_uuid,
@@ -360,7 +318,7 @@ def copy_framework_from_library(db: Session, current_user: PublicUser, org_id: i
 
 
 def create_framework(db: Session, current_user: PublicUser, payload: RequirementFrameworkCreate) -> dict:
-    require_org_admin(current_user.id, payload.org_id, db)
+    require_org_admin(current_user.id, payload.org_id, db, "build_plans")
     if not payload.name.strip():
         raise HTTPException(status_code=422, detail="Framework name is required")
     now = _now_string()
@@ -388,12 +346,12 @@ def create_framework(db: Session, current_user: PublicUser, payload: Requirement
 
 
 def get_framework(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str, version: int | None = None) -> dict:
-    require_org_admin(current_user.id, org_id, db)
-    return _framework_dict(db, _framework_or_404(db, org_id, framework_uuid), version)
+    _require_staff(db, current_user, org_id)
+    return _reader_view(db, current_user, _framework_or_404(db, org_id, framework_uuid), version)
 
 
 def update_framework(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str, payload: RequirementFrameworkUpdate) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     framework = _framework_or_404(db, org_id, framework_uuid)
     current = _version(db, framework)
     now = _now_string()
@@ -443,7 +401,7 @@ def update_framework(db: Session, current_user: PublicUser, org_id: int, framewo
 
 
 def publish_framework(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     framework = _framework_or_404(db, org_id, framework_uuid)
     version = _version(db, framework)
     if version.status == RequirementVersionStatus.PUBLISHED:
@@ -603,7 +561,7 @@ def _backfill(db: Session, enrollment: RequirementEnrollment) -> None:
 
 
 def assign_framework(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str, payload: RequirementAssignmentCreate) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "run_assignments")
     framework = _framework_or_404(db, org_id, framework_uuid)
     if not framework.published_version:
         raise HTTPException(status_code=409, detail="Publish this framework before assigning it")
@@ -677,7 +635,7 @@ def sync_group_batches(db: Session, org_id: int, framework_id: int | None = None
 
 
 def migrate_enrollments(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str, payload: RequirementEnrollmentMigrate) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     framework = _framework_or_404(db, org_id, framework_uuid)
     if not framework.published_version:
         raise HTTPException(status_code=409, detail="No published version is available")
@@ -719,7 +677,7 @@ def parent_node_uuids(db: Session, org_id: int) -> set[str]:
 
 
 def update_mappings(db: Session, current_user: PublicUser, org_id: int, relation: ProgramObjective, node_uuids: list[str]) -> list[dict]:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     valid = mappable_nodes(db, org_id)
     requested = list(dict.fromkeys(node_uuids))
     if set(requested) - set(valid):
@@ -757,7 +715,7 @@ def mappings_for_relation(db: Session, relation: ProgramObjective) -> list[dict]
 
 
 def report(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str | None = None, version_number: int | None = None, usergroup_id: int | None = None, node_uuid: str | None = None, status: str | None = None) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "see_reports")
     framework = _framework_or_404(db, org_id, framework_uuid) if framework_uuid else None
     sync_group_batches(db, org_id, int(framework.id) if framework else None)
     statement = select(RequirementEnrollment).where(

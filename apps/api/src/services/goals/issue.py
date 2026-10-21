@@ -64,23 +64,29 @@ def _step_due(step: dict, stage_start: date | None, stage_due: date | None) -> d
     return None
 
 
-def build_step(db: Session, goal: Goal, stage: GoalStage | None, spec: dict, position: int, *, due_date: date | None = None) -> GoalStep:
-    """A live step from a template document step (or a step a learner or Coach wrote in the same shape)."""
+def step_fields(db: Session, goal: Goal, spec: dict) -> dict:
+    """A live step's content from a template document step: its type, text, config and what it links to."""
     from src.services.goals.credit import requirement_links
 
     kind = step_type(spec["type"])
     config = kind.validate_config(spec.get("config"))
     references = kind.resolve(db, config, goal.org_id)
+    return {
+        "type": kind.key, "title": spec["title"], "description": spec.get("description") or "",
+        "config": config, "materials": list(spec.get("materials") or []),
+        "completed_by": spec.get("completed_by") or "learner", "review_required": bool(spec.get("review_required")),
+        "reviewer_guidance": spec.get("reviewer_guidance") or "",
+        "requirement_links": requirement_links(db, goal.org_id, list(spec.get("requirement_node_uuids") or [])),
+        "activity_id": references.get("activity_id"), "badge_id": references.get("badge_id"), "template_key": spec.get("key"),
+    }
+
+
+def build_step(db: Session, goal: Goal, stage: GoalStage | None, spec: dict, position: int, *, due_date: date | None = None) -> GoalStep:
+    """A live step from a template document step (or a step a learner or Coach wrote in the same shape)."""
     now = _now()
     step = GoalStep(
         step_uuid=f"goal_step_{uuid4()}", goal_id=int(goal.id), stage_id=stage.id if stage else None,  # type: ignore[arg-type]
-        position=position, type=kind.key, title=spec["title"], description=spec.get("description") or "",
-        config=config, materials=list(spec.get("materials") or []),
-        completed_by=spec.get("completed_by") or "learner", review_required=bool(spec.get("review_required")),
-        reviewer_guidance=spec.get("reviewer_guidance") or "", due_date=due_date,
-        requirement_links=requirement_links(db, goal.org_id, list(spec.get("requirement_node_uuids") or [])),
-        activity_id=references.get("activity_id"), badge_id=references.get("badge_id"),
-        template_key=spec.get("key"), creation_date=now, update_date=now,
+        position=position, due_date=due_date, creation_date=now, update_date=now, **step_fields(db, goal, spec),
     )
     db.add(step)
     return step

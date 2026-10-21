@@ -60,8 +60,33 @@ test('connect.tagging: / lists only active plans, and a tagged message files und
   await expect(filters.getByRole('button', { name: new RegExp(PENDING_PLAN) })).toHaveCount(0)
 })
 
-test('connect.reports: admins review a chat report in Users and can reopen it', async ({ page }, info) => {
-  test.skip(info.project.name !== 'chromium-desktop', 'Users is desktop only')
+test('people.feed: one list with conversations on top, and a person opens with Message and Plans', async ({ page }) => {
+  await page.goto(`${orgPath}/admin/users`)
+  await assertActualApp(page)
+  const list = page.getByRole('region', { name: 'People and groups' })
+  // The friend who wrote to the admin is in the top section; everyone else follows A to Z.
+  const friend = list.getByRole('list', { name: 'New for you' }).getByRole('link', { name: new RegExp(fixture.friend.name) })
+  await expect(friend).toBeVisible()
+  await expect(list.getByRole('heading', { name: 'Everyone else · A–Z' })).toBeVisible()
+  // No separate boxes or Chats/Everyone split any more.
+  await expect(page.getByRole('tab', { name: 'Direct' })).toHaveCount(0)
+  await expect(page.getByRole('region', { name: 'Helpers to approve' })).toHaveCount(0)
+  await friend.click()
+  const person = page.getByRole('region', { name: 'Person' })
+  await expect(person.getByRole('heading', { name: new RegExp(fixture.friend.name) })).toBeVisible()
+  await expect(person.getByText('Want to practice interview questions on Thursday?')).toBeVisible()
+  await expect(page.getByRole('textbox', { name: 'Message' })).toBeVisible()
+  await person.getByRole('link', { name: /Plans · \d+/ }).click()
+  await expect(person.getByRole('region', { name: 'Plans' })).toBeVisible()
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true)
+  // Search finds anyone, people and groups alike.
+  await page.goto(`${orgPath}/admin/users`)
+  await page.getByRole('textbox', { name: /Search people and groups/ }).fill('Casey')
+  await expect(page.getByRole('region', { name: 'People and groups' }).getByRole('link', { name: /Casey Reported/ })).toBeVisible()
+})
+
+test('connect.reports: admins review a chat report in People and can reopen it', async ({ page }, info) => {
+  test.skip(info.project.name !== 'chromium-desktop', 'People shows reports beside the list on desktop')
   // Start from an open report even if an earlier browser or attempt stopped after resolving it.
   const listed = page.waitForResponse((response) => response.url().includes('/reports?status=open'))
   await page.goto(`${orgPath}/admin/users`)

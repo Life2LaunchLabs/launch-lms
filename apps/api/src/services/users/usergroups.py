@@ -19,12 +19,9 @@ from src.db.users import (
     User,
     UserRead,
 )
-from src.security.features_utils.usage import (
-    check_limits_with_usage,
-    increase_feature_usage,
-)
 from src.security.org_auth import require_org_role_permission
 from src.security.rbac.config import get_resource_config
+from src.services.school import group_chats
 from src.security.rbac.rbac import (
     authorization_verify_based_on_roles_and_authorship,
     authorization_verify_based_on_roles_and_authorship_or_api_token,
@@ -65,21 +62,9 @@ async def _validate_resource_exists_and_belongs_to_org(
         from src.db.learning import LearningBadge
         statement = select(LearningBadge).where(LearningBadge.badge_uuid == resource_uuid)
         resource = db_session.exec(statement).first()
-    elif config.resource_type == "podcasts":
-        from src.db.podcasts.podcasts import Podcast
-        statement = select(Podcast).where(Podcast.podcast_uuid == resource_uuid)
-        resource = db_session.exec(statement).first()
-    elif config.resource_type == "communities":
-        from src.db.communities.communities import Community
-        statement = select(Community).where(Community.community_uuid == resource_uuid)
-        resource = db_session.exec(statement).first()
     elif config.resource_type == "badge_collections":
         from src.db.learning import BadgeCollection
         statement = select(BadgeCollection).where(BadgeCollection.collection_uuid == resource_uuid)
-        resource = db_session.exec(statement).first()
-    elif config.resource_type == "boards":
-        from src.db.boards import Board
-        statement = select(Board).where(Board.board_uuid == resource_uuid)
         resource = db_session.exec(statement).first()
     elif config.resource_type == "resources":
         from src.db.resources import Resource
@@ -146,9 +131,6 @@ async def create_usergroup(
             detail="Organization does not exist",
         )
 
-    # Usage check
-    check_limits_with_usage("usergroups", org.id, db_session)
-
     # Complete the object
     usergroup.usergroup_uuid = f"usergroup_{uuid4()}"
     usergroup.creation_date = str(datetime.now())
@@ -158,9 +140,6 @@ async def create_usergroup(
     db_session.add(usergroup)
     db_session.commit()
     db_session.refresh(usergroup)
-
-    # Feature usage
-    increase_feature_usage("usergroups", org.id, db_session)
 
     usergroup = UserGroupRead.model_validate(usergroup)
 
@@ -446,9 +425,7 @@ async def delete_usergroup_by_id(
         org_id=usergroup.org_id,
     )
 
-    # Feature usage
-    increase_feature_usage("usergroups", usergroup.org_id, db_session)
-
+    group_chats.drop(db_session, int(usergroup_id))
     db_session.delete(usergroup)
     db_session.commit()
 
@@ -518,12 +495,10 @@ async def add_users_to_usergroup(
 
     db_session.flush()
     if linked_user_ids:
-        # Active cohort programs automatically invite newly added learners. Their
-        # canonical objective progress is intentionally stored outside the cohort,
-        # so leaving and rejoining never erases completed work.
-        from src.services.programs import ensure_group_participants
-
-        ensure_group_participants(db_session, usergroup_id, linked_user_ids)
+        # New members get the plans of the group's active assignments, their chat with the organization, and the group's chat.
+        from src.services.goals.assignments import sync_group_members
+        sync_group_members(db_session, usergroup, linked_user_ids, current_user.id if isinstance(current_user, PublicUser) else None)
+        group_chats.sync(db_session, usergroup)
     db_session.commit()
 
     return "Users added to UserGroup successfully"
@@ -536,7 +511,6 @@ async def remove_users_from_usergroup(
     usergroup_id: int,
     user_ids: str,
 ) -> str:
-
     statement = select(UserGroup).where(UserGroup.id == usergroup_id)
     usergroup = db_session.exec(statement).first()
 
@@ -568,7 +542,10 @@ async def remove_users_from_usergroup(
             db_session.delete(usergroup_user)
         else:
             logging.error(f"User with id {user_id} not found in UserGroup")
-
+    db_session.flush()
+    group_chats.members_left(db_session, usergroup, user_ids_array)
+    from src.services.connect.cohort import sync_group  # People who left leave its assignments' whole-group chats.
+    sync_group(db_session, usergroup_id)
     db_session.commit()
 
     return "Users removed from UserGroup successfully"

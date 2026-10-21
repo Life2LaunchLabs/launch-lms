@@ -44,8 +44,7 @@ from src.db.requirements import (
 )
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
-from src.security.features_utils.plan_check import get_org_plan
-from src.security.features_utils.plans import plan_meets_requirement
+from src.security.access.access import org_access
 from src.services import planning as service
 from src.services import programs as template_service
 from src.services import requirements as requirement_service
@@ -57,13 +56,13 @@ router = APIRouter()
 
 
 def _require_managed_plans(org_id: int, db: Session) -> None:
-    if not plan_meets_requirement(get_org_plan(org_id, db), "full"):
+    if not org_access(org_id, db).has("groups"):
         from fastapi import HTTPException
-        raise HTTPException(status_code=403, detail="Group plan assignments require a Full plan or higher")
+        raise HTTPException(status_code=403, detail="Group plan assignments need the Full tier")
 
 
 def _require_managed_assignment(org_id: int, assignment_uuid: str, db: Session) -> None:
-    if plan_meets_requirement(get_org_plan(org_id, db), "full"):
+    if org_access(org_id, db).has("groups"):
         return
     assignment = db.exec(select(ProgramAssignment).where(
         ProgramAssignment.org_id == org_id,
@@ -71,7 +70,7 @@ def _require_managed_assignment(org_id: int, assignment_uuid: str, db: Session) 
     )).first()
     if assignment and assignment.usergroup_id:
         from fastapi import HTTPException
-        raise HTTPException(status_code=403, detail="Group plan assignments require a Full plan or higher")
+        raise HTTPException(status_code=403, detail="Group plan assignments need the Full tier")
 
 
 @router.get("/plans")
@@ -386,8 +385,8 @@ def api_managed_user_plans(user_id: int, org_id: int, db: Session = Depends(get_
 
 
 @router.get("/requirements")
-def api_list_requirement_frameworks(org_id: int, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
-    return requirement_service.list_frameworks(db, current_user, org_id)
+def api_list_requirement_frameworks(org_id: int, with_coverage: bool = False, db: Session = Depends(get_db_session), current_user: PublicUser = Depends(get_current_user)):
+    return requirement_service.list_frameworks(db, current_user, org_id, with_coverage)
 
 
 @router.post("/requirements")
