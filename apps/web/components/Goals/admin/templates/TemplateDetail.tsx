@@ -50,8 +50,9 @@ export default function TemplateDetail({ orgslug, templateUuid, subpage = 'overv
   const readOnly = !!template.read_only
   const owned = Number(template.org_id) === orgId
   const ownerName = template.owner_org?.name || template.badge?.owner_org?.name || null
-  const tabs = readOnly ? TABS.filter((tab) => tab.key !== 'settings') : TABS
-  const shown: TemplateSubpage = readOnly && subpage === 'settings' ? 'overview' : subpage
+  // Another organization's template keeps a Settings tab for this organization's own setting: who can start it here.
+  const tabs = readOnly && owned ? TABS.filter((tab) => tab.key !== 'settings') : TABS
+  const shown: TemplateSubpage = readOnly && owned && subpage === 'settings' ? 'overview' : subpage
   const badges = template.badges?.length ? template.badges : template.badge ? [template.badge] : []
   return <div className="min-h-full w-full bg-[#f8f8f8]">
     <div className="relative z-10 bg-[#fcfbfc] px-4 text-sm tracking-tight nice-shadow sm:px-10">
@@ -92,7 +93,7 @@ export default function TemplateDetail({ orgslug, templateUuid, subpage = 'overv
       {shown === 'overview' && <TemplateOverview orgslug={orgslug} orgId={orgId} token={token} template={template} />}
       {shown === 'objectives' && <TemplateSteps orgslug={orgslug} orgId={orgId} token={token} editing={editing} readOnly={readOnly} />}
       {shown === 'assignments' && <TemplateAssignments orgslug={orgslug} templateUuid={templateUuid} />}
-      {shown === 'settings' && <TemplateSettings orgId={orgId} token={token} editing={editing} />}
+      {shown === 'settings' && <TemplateSettings orgId={orgId} token={token} editing={editing} runOnly={readOnly} />}
     </motion.div>
   </div>
 }

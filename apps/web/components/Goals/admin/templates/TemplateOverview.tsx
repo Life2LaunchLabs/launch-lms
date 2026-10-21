@@ -13,6 +13,7 @@ import { leafNodes, useRequirementFrameworks } from './StepRequirementLinks'
 import { assignmentHref, assignmentLabel, useTemplateAssignments } from '../assignments/shared'
 import { TemplateStatusChip } from './TemplateList'
 import { insightsRoutes } from '../insights/reportRoutes'
+import TemplateBadgeSection from './TemplateBadgeSection'
 
 /** What staff do with a step once a learner reaches it. */
 const reviewKind = (step: TemplateStep) => step.completed_by === 'staff' ? 'sign-off' : step.review_required ? 'review' : null
@@ -60,6 +61,7 @@ export default function TemplateOverview({ orgslug, orgId, token, template }: { 
     </section>
 
     <div className="flex w-full shrink-0 flex-col gap-4 xl:w-80">
+      <TemplateBadgeSection orgslug={orgslug} orgId={orgId} token={token} templateUuid={template.template_uuid} />
       <SectionCard title="Assignments" action={<span className="text-xs text-gray-500">{learners} learner{learners === 1 ? '' : 's'}</span>}>
         {assignments.length ? <ul className="-my-1 divide-y divide-gray-50">
           {assignments.slice(0, 6).map((assignment) => <li key={assignment.assignment_uuid}><Link href={getUriWithOrg(orgslug, assignmentHref(assignment))} className="flex items-center gap-3 py-2.5">

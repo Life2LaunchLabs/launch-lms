@@ -51,6 +51,26 @@ def badge_routes(db: Session, badge: LearningBadge) -> list[tuple[BadgeRoute, Go
     ).all())
 
 
+def _route_and_issuer(db: Session, badge: LearningBadge, user_id: int, candidates: list[tuple[BadgeRoute, GoalTemplate]],
+                      issuer_org_id: int | None) -> tuple[BadgeRoute, GoalTemplate, int]:
+    """The route and organization to start with: the one asked for, else the first route an organization lets this learner start."""
+    from src.services.learning_issuers import issuer_options
+
+    if issuer_org_id and len(candidates) == 1:
+        return candidates[0][0], candidates[0][1], int(issuer_org_id)
+    fallback = None
+    for route, template in candidates:
+        options = issuer_options(db, badge, user_id, set(), route)
+        startable = [option["org"]["id"] for option in options["issuers"] if option["can_start"]]
+        if issuer_org_id and int(issuer_org_id) in startable:
+            return route, template, int(issuer_org_id)
+        if not issuer_org_id and options["startable_issuer_org_id"]:
+            return route, template, int(options["startable_issuer_org_id"])
+        if fallback is None:
+            fallback = (route, template, int(issuer_org_id or options["default_issuer_org_id"] or badge.org_id))
+    return fallback  # type: ignore[return-value]
+
+
 def start_badge_goal(db: Session, user: PublicUser, badge: LearningBadge, template_uuid: str | None, issuer_org_id: int | None, commit: bool = True) -> Goal:
     """The learner's goal for a badge: their existing one, or a new one from the chosen route (committed unless ``commit`` is false)."""
     from src.services.goals import badge_authority
@@ -64,19 +84,18 @@ def start_badge_goal(db: Session, user: PublicUser, badge: LearningBadge, templa
     if not routes:
         raise HTTPException(status_code=409, detail="This badge has no way to earn it yet")
     if template_uuid:
-        chosen = next(((route, template) for route, template in routes if template.template_uuid == template_uuid), None)
+        candidates = [(route, template) for route, template in routes if template.template_uuid == template_uuid]
+        if not candidates:
+            raise HTTPException(status_code=404, detail="This goal template is not a way to earn this badge")
     else:
-        chosen = next(((route, template) for route, template in routes if route.recommended), routes[0])
-    if not chosen:
-        raise HTTPException(status_code=404, detail="This goal template is not a way to earn this badge")
-    route, template = chosen
-    issuer = issuer_org_id or int(badge.org_id)
+        candidates = sorted(routes, key=lambda pair: not pair[0].recommended)
+    route, template, issuer = _route_and_issuer(db, badge, user_id, candidates, issuer_org_id)
     if not badge_authority.authorized(db, badge, issuer):
         raise HTTPException(status_code=403, detail="This organization is not issuing this badge")
     if not badge_authority.may_run(db, badge, issuer, route):
         raise HTTPException(status_code=403, detail="This organization doesn't offer that way of earning the badge")
     version = templates.issuable_version(db, template)
-    link = validate_issuer_start(db, badge, issuer, user_id, set())
+    link = validate_issuer_start(db, badge, issuer, user_id, set(), route)
     goal = issue_goal(
         db, template, version, subject_user_id=user_id, owner_user_id=user_id, org_id=issuer, source=GoalSource.BADGE,
         badge_id=badge.id, title=badge.name, staff_user_ids=[int(item) for item in (link.staff_user_ids if link else [])], actor_user_id=user_id,
