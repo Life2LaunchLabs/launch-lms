@@ -19,7 +19,7 @@ export const DOT_LOOK: Record<Dot, { cls: string; label: string }> = {
   done: { cls: 'bg-green-600', label: 'Done' },
   waiting: { cls: 'bg-blue-500', label: 'Handed in' },
   retry: { cls: 'bg-amber-500', label: 'Sent back' },
-  late: { cls: 'bg-red-500', label: 'Past close' },
+  late: { cls: 'bg-red-500', label: 'Past due' },
   open: { cls: 'bg-background ring-1 ring-inset ring-gray-400', label: 'Open' },
   locked: { cls: 'bg-gray-200', label: 'Not open yet' },
 }

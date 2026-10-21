@@ -8,11 +8,12 @@ import { Button } from '@components/ui/button'
 import { EditorPreviewModal } from '@components/Learning/player/EditorPreviewModal'
 import { getUriWithOrg } from '@services/config/config'
 import { goalAdminApi, type AssignmentStatus, type MatrixColumn, type MatrixLearner } from '@services/goals/admin'
-import { stepTodo } from '@services/goals/cohort'
+import { closeDate, dayOf, stepTodo } from '@services/goals/cohort'
 import { cn } from '@/lib/utils'
 import { personName, reviewHref } from '../live/ui'
 import { shortDay } from './shared'
 import StaffGuideViewer, { guideItems, guideSummary } from './StaffGuideViewer'
+import StepDue, { dueLabel } from './StepDue'
 
 export type TodoContext = {
   orgslug: string
@@ -23,6 +24,8 @@ export type TodoContext = {
   learners: MatrixLearner[]
   /** Admins can try an activity: previews belong to whoever builds them. */
   admin: boolean
+  /** Runs assignments, so can move a step's due date. */
+  canReschedule: boolean
   now: Date
   /** Reload the matrix after reminding or settling. */
   refresh: () => unknown
@@ -50,7 +53,7 @@ function gradingHref(column: MatrixColumn, ctx: TodoContext) {
  * remind); on the open step, in place of its card: the same, settling a step staff confirm, and
  * for the step coming up, what to prepare.
  */
-export default function StepTodos({ column, ctx, upcoming, full, onOpen }: { column: MatrixColumn; ctx: TodoContext; upcoming: boolean; full: boolean; onOpen: () => void }) {
+export default function StepTodos({ column, stageEnd = null, ctx, upcoming, full, onOpen }: { column: MatrixColumn; stageEnd?: string | null; ctx: TodoContext; upcoming: boolean; full: boolean; onOpen: () => void }) {
   const todo = stepTodo(column, ctx.learners, ctx.now)
   const [reminding, setReminding] = React.useState(false)
   const [sent, setSent] = React.useState(false)
@@ -63,6 +66,10 @@ export default function StepTodos({ column, ctx, upcoming, full, onOpen }: { col
       await ctx.refresh()
     } catch (error: any) { toast.error(error?.message || 'Reminders didn’t go out') } finally { setReminding(false) }
   }
+  // A step without a date of its own is due when its stage ends.
+  const own = closeDate(column, ctx.learners)
+  const due = own || stageEnd
+  const today = dayOf(ctx.now)
   const lines: React.ReactNode[] = []
   const buttons: React.ReactNode[] = []
   if (todo.clear) lines.push(<span key="clear" className="font-semibold text-green-700">All {column.aggregate.learner_count} done</span>)
@@ -70,7 +77,8 @@ export default function StepTodos({ column, ctx, upcoming, full, onOpen }: { col
   if (todo.grade) buttons.push(<Button key="grade" asChild size="sm"><Link href={gradingHref(column, ctx)}><ClipboardCheck size={14} />Grade {todo.grade}</Link></Button>)
   if (todo.waiting.length) {
     const canRemind = !sent && todo.remindable.length > 0 && ctx.status === 'active'
-    if (!canRemind) lines.push(<span key="waiting">{todo.waiting.length === 1 ? `${namesOf(todo.waiting, ctx.learners) || 'One learner'} hasn’t handed it in.` : `Not handed in: ${namesOf(todo.waiting, ctx.learners) || todo.waiting.length}.`}</span>)
+    // The open step names everyone; a row leaves the names to its Remind button when it has one.
+    if (!canRemind || full) lines.push(<span key="waiting">{todo.waiting.length === 1 ? `${namesOf(todo.waiting, ctx.learners) || 'One learner'} hasn’t handed it in.` : `Not handed in: ${namesOf(todo.waiting, ctx.learners, full ? 99 : 3) || todo.waiting.length}.`}</span>)
     if (sent || !todo.remindable.length) buttons.push(<span key="reminded" className="inline-flex h-8 items-center rounded-full bg-muted px-3 text-xs font-bold text-muted-foreground">Reminded today</span>)
     else if (canRemind) buttons.push(<Button key="remind" type="button" variant="outline" size="sm" disabled={reminding} onClick={() => void remind()} title={`Remind ${namesOf(todo.remindable, ctx.learners, 99)}`}>
       {reminding ? <Loader2 size={14} className="animate-spin" /> : <Bell size={14} />}Remind {todo.remindable.length <= 3 ? namesOf(todo.remindable, ctx.learners) || todo.remindable.length : todo.remindable.length}
@@ -81,6 +89,7 @@ export default function StepTodos({ column, ctx, upcoming, full, onOpen }: { col
     if (!full) buttons.push(<Button key="settle" type="button" size="sm" onClick={onOpen}><Check size={14} />Settle</Button>)
   }
   if (!lines.length && upcoming) lines.push(<span key="next" className="font-semibold text-[var(--plan-accent)]">Up next</span>)
+  if (!full && due && !todo.clear) lines.unshift(<span key="due" className={cn(due < today && (todo.waiting.length || todo.settle.length) && 'font-semibold text-red-700')}>{dueLabel(due, today)}</span>)
 
   if (!full) return lines.length || buttons.length ? <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-muted-foreground">
     {lines.length ? <span className="flex flex-wrap gap-x-2">{lines}</span> : null}
@@ -90,6 +99,7 @@ export default function StepTodos({ column, ctx, upcoming, full, onOpen }: { col
   return <div className="flex flex-col gap-3 text-sm">
     {column.description ? <p className="whitespace-pre-wrap text-muted-foreground">{column.description}</p> : null}
     <StaffGuide column={column} />
+    {due || (ctx.canReschedule && ctx.status !== 'ended') ? <StepDue column={column} due={due} withStage={!own} ctx={ctx} /> : null}
     {lines.length ? <p className="flex flex-col gap-1">{lines}</p> : null}
     {buttons.length ? <div className="flex flex-wrap gap-2">{buttons}</div> : null}
     {todo.settle.length ? <Settle column={column} ctx={ctx} who={todo.settle} /> : null}

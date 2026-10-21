@@ -62,10 +62,19 @@ test('each learner’s steps as dots, their pace, and what needs attention', () 
 
   assert.deepEqual(attentionOf(ada, data.stages, TODAY), { tone: 'waiting', text: 'Handed in: resume' })
   assert.deepEqual(attentionOf(ben, data.stages, TODAY), { tone: 'retry', text: 'Sent back: resume' })
-  assert.deepEqual(attentionOf(cy, data.stages, TODAY), { tone: 'late', text: 'Past close: values' })
+  assert.deepEqual(attentionOf(cy, data.stages, TODAY), { tone: 'late', text: 'Past due: values' })
 
   assert.deepEqual(byNeed(data.learners, data.stages, TODAY, (item) => String(item.first_name)).map((item) => item.id), [3, 1, 2])
   assert.deepEqual(helpersOf(ben, [9]).map((person) => person.role), ['Guardian'])
+})
+
+test('a step with no date of its own is late once its stage ends, and the assignment’s date for a step wins', () => {
+  const data = matrix()
+  const [explore, plan] = data.stages
+  // Explore ended Oct 2 (Plan started Oct 5): an open step in it is late without a date of its own.
+  assert.equal(dotOf(cell(), explore, TODAY), 'late')
+  assert.equal(dotOf(cell(), plan, TODAY), 'open')
+  assert.equal(closeDate({ ...plan.steps[1], due_date: '2026-10-29', due_set: true }, data.learners), '2026-10-29')
 })
 
 test('a group’s assignment talks with its staff and its whole group; one person’s only with its staff', () => {
