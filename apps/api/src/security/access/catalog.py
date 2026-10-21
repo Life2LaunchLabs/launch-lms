@@ -20,6 +20,11 @@ TIERS: tuple[Tier, ...] = ("free", "full", "enterprise")
 
 TIER_LABELS: dict[str, str] = {"free": "Free", "full": "Full", "enterprise": "Enterprise"}
 
+# A Free org can try Full once, for this long. When it ends nothing is deleted: what it made with
+# Full features stays readable, and it can't add more until it's under Free's limits or upgraded.
+TRIAL_TIER: Tier = "full"
+TRIAL_DAYS = 30
+
 # Counted limits per tier. 0 means unlimited.
 LIMITS: dict[str, dict[str, int]] = {
     "learners": {"free": 25, "full": 200, "enterprise": 0},

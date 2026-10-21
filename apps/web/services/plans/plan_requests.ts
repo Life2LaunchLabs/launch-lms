@@ -1,4 +1,5 @@
 import { getAPIUrl } from '@services/config/config'
+import type { OrgAccess } from './plans'
 
 export type PlanRequestType = 'tier_upgrade' | 'partner_application' | 'feature_request'
 export type PlanRequestStatus = 'pending' | 'approved' | 'denied'
@@ -49,5 +50,18 @@ export async function getOrgPlanRequests(
     headers: { Authorization: `Bearer ${accessToken}` },
   })
   if (!res.ok) return []
+  return res.json()
+}
+
+/** Start the org's one Full trial. Returns the org's access with the trial running. */
+export async function startTrial(orgSlug: string, accessToken: string): Promise<OrgAccess> {
+  const res = await fetch(`${getAPIUrl()}orgs/${orgSlug}/trial`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data?.detail || 'Could not start the trial')
+  }
   return res.json()
 }
