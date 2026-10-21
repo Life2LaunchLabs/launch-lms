@@ -151,21 +151,6 @@ async def authorization_verify_if_element_is_public(
                 detail="User rights : You don't have the right to perform this action",
             )
 
-    elif element_nature == "podcasts" and action == "read":
-        from src.db.podcasts.podcasts import Podcast
-        statement = select(Podcast).where(
-            Podcast.public == True,
-            Podcast.published == True,
-            Podcast.podcast_uuid == element_uuid
-        )
-        podcast = db_session.exec(statement).first()
-        if podcast:
-            return True
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="User rights : You don't have the right to perform this action",
-            )
 
     else:
         raise HTTPException(

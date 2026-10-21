@@ -20,8 +20,8 @@ goal_template goal_template_version goal_template_authorization goal_template_le
 program programobjective programphase objective
 organizationplanrole requirementframework requirementframeworkversion requirementnode
 programobjectiverequirement resourcetag resourcetaglink resource resourcesearchdocument
-resourcechannel resourcechannelresource resourceauthor podcast podcastepisode
-usergroup usergroupresource board community playground newsarticle
+resourcechannel resourcechannelresource resourceauthor
+usergroup usergroupresource newsarticle
 """.split()
 )
 PERSONAL = frozenset(
@@ -30,7 +30,7 @@ userorganization usergroupuser programparticipant objectiveprogress learningrun
 learningresponseattempt learningbadgeaward badgeissuerlearnerlink
 requirementenrollment usersavedresource userresourcechannel resourcenoteblock
 portfolio hubconversation hubmemorypreference hubmemory hubeditrun
-boardmember playgroundreaction inboxmessage mediaasset mediafolder
+inboxmessage mediaasset mediafolder
 """.split()
 )
 # These rows belong to the fake learner but carry the catalog creator's org_id.
@@ -93,11 +93,10 @@ ANCHORS = {
 }
 FORBIDDEN = frozenset(
     """
-apitoken ssoconnection customdomain auditlog orgpack usageevent
+apitoken ssoconnection auditlog
 paymentsconfig paymentsenrollment paymentsoffer paymentsofferresource paymentsgroup
 paymentsgroupresource paymentsgroupsync organizationinvitation organizationjoinlink
-planinvitation plancollaboratorrequest discussion discussioncomment discussionvote
-discussioncommentvote discussionreaction resourcecomment
+planinvitation plancollaboratorrequest resourcecomment
 hubadvisorconfiguration hubadvisorproviderconfiguration inboxmessagetemplate
 feedbackjiraconfiguration
 """.split()
@@ -193,10 +192,6 @@ def capture(db: Session, main_org_id: int, user_ids: set[int]) -> dict:
         table = tables[name]
         if "org_id" in table.c:
             condition = table.c.org_id.in_(org_ids)
-            if name == "board":
-                condition = condition & or_(
-                    table.c.public.is_(True), table.c.created_by.in_(user_ids)
-                )
             add(name, read(name, condition))
         elif name == "role":
             add(name, read(name, table.c.org_id.is_(None)))
@@ -232,16 +227,7 @@ def capture(db: Session, main_org_id: int, user_ids: set[int]) -> dict:
     for name in ("programassignment", "requirementassignmentbatch"):
         add(name, read(name, tables[name].c.org_id.in_(org_ids)))
     # Iterate to a fixed point; never follow private peer state or credential tables.
-    scenario_tables = set(
-        "discussion discussioncomment discussionvote discussioncommentvote discussionreaction planinvitation plancollaboratorrequest".split()
-    )
-    for name in scenario_tables - {"planinvitation", "plancollaboratorrequest"}:
-        table = tables[name]
-        owner = table.c.author_id if "author_id" in table.c else table.c.user_id
-        condition = owner.in_(user_ids)
-        if "org_id" in table.c:
-            condition &= table.c.org_id.in_(org_ids)
-        add(name, read(name, condition))
+    scenario_tables = {"planinvitation", "plancollaboratorrequest"}
     allowed = (
         scenario_tables
         | CONTENT

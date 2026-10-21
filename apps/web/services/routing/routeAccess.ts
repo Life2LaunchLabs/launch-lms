@@ -15,16 +15,11 @@ const AUTH_CALLBACK_PREFIXES = ['/auth/sso/', '/auth/callback/', '/auth/token-ex
 const PUBLIC_EXACT_PATHS = new Set(['/', '/welcome', '/for-organizations'])
 const PUBLIC_BADGE_ENTRY_PATH_RE = /^\/badges\/[^/]+$/
 const PUBLIC_PORTFOLIO_PATH_RE = /^\/user\/[^/]+(?:\/work(?:\/[^/]+)?)?$/
-const SPECIAL_PREFIXES = ['/board/', '/editor/playground/', '/payments/stripe/connect/oauth', '/health']
+const SPECIAL_PREFIXES = ['/payments/stripe/connect/oauth', '/health']
 const SPECIAL_EXACT_PATHS = new Set(['/sitemap.xml', '/robots.txt', '/redirect_from_auth'])
-const PODCAST_FEED_RE = /^\/podcast\/([^/]+)\/feed$/
 
 export function isAuthenticatedAuthRedirectPath(pathname: string): boolean {
   return pathname === '/login' || pathname === '/signup'
-}
-
-export function isPodcastFeedPath(pathname: string): boolean {
-  return PODCAST_FEED_RE.test(pathname)
 }
 
 export function classifyRoute(pathname: string): RouteAccessClassification {
@@ -42,8 +37,7 @@ export function classifyRoute(pathname: string): RouteAccessClassification {
 
   if (
     SPECIAL_EXACT_PATHS.has(pathname) ||
-    SPECIAL_PREFIXES.some((prefix) => pathname.startsWith(prefix)) ||
-    isPodcastFeedPath(pathname)
+    SPECIAL_PREFIXES.some((prefix) => pathname.startsWith(prefix))
   ) {
     return { kind: 'special' }
   }

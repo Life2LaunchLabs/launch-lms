@@ -4,7 +4,7 @@ from fastapi import HTTPException
 
 # An empty collaborator/participant edge is not useful and can leak membership.
 USER_EDGES = frozenset(
-    "userorganization usergroupuser programparticipant plancollaborator boardmember resourceauthor programassignment requirementassignmentbatch discussion discussioncomment discussionvote discussioncommentvote discussionreaction".split()
+    "userorganization usergroupuser programparticipant plancollaborator resourceauthor programassignment requirementassignmentbatch".split()
 )
 
 

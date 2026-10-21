@@ -235,7 +235,6 @@ function LandingCustom({
               items={section.items}
               orgslug={orgslug}
               orgUUID={org?.org_uuid}
-              communities={[]}
               resourceChannels={resourceChannels}
             />
           </div>

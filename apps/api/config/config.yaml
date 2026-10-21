@@ -66,10 +66,6 @@ payments_config:
     # Connect endpoint:   POST /payments/stripe/webhook/connect
     stripe_webhook_connect_secret: ""    # whsec_...
 
-ai_config:
-  gemini_api_key: ""
-  is_ai_enabled: false
-
 tinybird_config:
   # Set api_url to enable analytics automatically
   api_url: ""

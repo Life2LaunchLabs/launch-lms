@@ -162,11 +162,6 @@ async def get_element_organization_id(
         # Houses might not have org_id - return None
         return None
 
-    elif element_type == "communities":
-        from src.db.communities.communities import Community
-        statement = select(Community).where(Community.community_uuid == element_uuid)
-        community = db_session.exec(statement).first()
-        return community.org_id if community else None
     elif element_type == "resources":
         from src.db.resources import Resource
         statement = select(Resource).where(Resource.resource_uuid == element_uuid)
@@ -178,46 +173,10 @@ async def get_element_organization_id(
         channel = db_session.exec(statement).first()
         return channel.org_id if channel else None
 
-    elif element_type == "discussions":
-        from src.db.communities.discussions import Discussion
-        statement = select(Discussion).where(Discussion.discussion_uuid == element_uuid)
-        discussion = db_session.exec(statement).first()
-        return discussion.org_id if discussion else None
 
-    elif element_type == "votes":
-        # Votes don't have org_id directly, need to get from discussion
-        from src.db.communities.discussion_votes import DiscussionVote
-        from src.db.communities.discussions import Discussion
-        statement = select(DiscussionVote).where(DiscussionVote.vote_uuid == element_uuid)
-        vote = db_session.exec(statement).first()
-        if vote:
-            discussion_statement = select(Discussion).where(Discussion.id == vote.discussion_id)
-            discussion = db_session.exec(discussion_statement).first()
-            return discussion.org_id if discussion else None
-        return None
 
-    elif element_type == "podcasts":
-        from src.db.podcasts.podcasts import Podcast
-        statement = select(Podcast).where(Podcast.podcast_uuid == element_uuid)
-        podcast = db_session.exec(statement).first()
-        return podcast.org_id if podcast else None
 
-    elif element_type == "episodes":
-        from src.db.podcasts.episodes import PodcastEpisode
-        from src.db.podcasts.podcasts import Podcast
-        statement = select(PodcastEpisode).where(PodcastEpisode.episode_uuid == element_uuid)
-        episode = db_session.exec(statement).first()
-        if episode:
-            podcast_statement = select(Podcast).where(Podcast.id == episode.podcast_id)
-            podcast = db_session.exec(podcast_statement).first()
-            return podcast.org_id if podcast else None
-        return None
 
-    elif element_type == "boards":
-        from src.db.boards import Board
-        statement = select(Board).where(Board.board_uuid == element_uuid)
-        board = db_session.exec(statement).first()
-        return board.org_id if board else None
 
     # Unknown element type
     return None

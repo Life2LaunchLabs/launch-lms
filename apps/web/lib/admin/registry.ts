@@ -76,8 +76,6 @@ export const ADMIN_TABS: AdminTab[] = [
     requires: { right: 'organizations.action_read' },
     children: [
       { id: 'resources', label: 'Resources', labelKey: 'common.resources', href: admin.content.resources(), match: [admin.content.resources()], requires: { feature: 'resource_publishing' } },
-      { id: 'podcasts', label: 'Podcasts', labelKey: 'podcasts.podcasts', href: admin.content.podcasts(), match: [admin.content.podcasts()], requires: { feature: 'podcasts' } },
-      { id: 'playgrounds', label: 'Playgrounds', labelKey: 'common.playgrounds', href: admin.content.playgrounds(), match: [admin.content.playgrounds()], requires: { feature: 'playgrounds' } },
     ],
   },
   {

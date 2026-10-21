@@ -8,7 +8,7 @@ import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { getTrendingItems, TrendingItem } from '@services/trending/trending'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { getResourceThumbnailMediaDirectory } from '@services/media/media'
-import { Activity, BookOpen, FileText, MessageSquare } from 'lucide-react'
+import { Activity, BookOpen, FileText } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 interface TrendingSectionProps {
@@ -38,15 +38,6 @@ function stripPrefix(uuid: string, prefix: string): string {
 }
 
 function itemHref(item: TrendingItem, orgslug: string): string {
-  if (item.item_type === 'discussion' && item.community_uuid) {
-    return getUriWithOrg(
-      orgslug,
-      routePaths.org.communityDiscussion(
-        stripPrefix(item.community_uuid, 'community_'),
-        stripPrefix(item.item_uuid, 'discussion_')
-      )
-    )
-  }
   if (item.item_type === 'resource') {
     return getUriWithOrg(orgslug, routePaths.org.resource(stripPrefix(item.item_uuid, 'resource_')))
   }
@@ -55,7 +46,6 @@ function itemHref(item: TrendingItem, orgslug: string): string {
 
 function TypeBadge({ type }: { type: TrendingItem['item_type'] }) {
   const cfg = {
-    discussion: { label: 'Discussion', color: 'bg-violet-100 text-violet-700', Icon: MessageSquare },
     resource: { label: 'Resource', color: 'bg-blue-100 text-blue-700', Icon: FileText },
   }[type]
 
@@ -100,9 +90,7 @@ function TrendingItemRow({
         />
       ) : (
         <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0 mt-0.5">
-          {item.item_type === 'discussion' ? (
-            <MessageSquare className="w-4 h-4 text-muted-foreground" />
-          ) : item.item_type === 'resource' ? (
+          {item.item_type === 'resource' ? (
             <FileText className="w-4 h-4 text-muted-foreground" />
           ) : (
             <BookOpen className="w-4 h-4 text-muted-foreground" />
@@ -113,9 +101,6 @@ function TrendingItemRow({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
           <TypeBadge type={item.item_type} />
-          {item.community_name && (
-            <span className="text-xs text-muted-foreground truncate">{item.community_name}</span>
-          )}
         </div>
         <p className="text-sm font-medium text-foreground truncate group-hover:text-muted-foreground">
           {item.title}

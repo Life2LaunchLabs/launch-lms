@@ -205,60 +205,6 @@ def get_my_message(message_uuid: str, current_user: PublicUser, db_session: Sess
     return message
 
 
-def list_my_messages(current_user: PublicUser, db_session: Session) -> list[dict]:
-    _claim_email_messages(current_user, db_session)
-    rows = db_session.exec(
-        select(InboxMessage, Organization)
-        .outerjoin(Organization, Organization.id == InboxMessage.sender_org_id)
-        .where(InboxMessage.recipient_user_id == current_user.id)
-        .order_by(InboxMessage.created_at.desc())  # type: ignore[union-attr]
-    ).all()
-    return [
-        {
-            "message_uuid": message.message_uuid,
-            "message_type": message.message_type,
-            "subject": message.subject,
-            "body": message.body,
-            "action_url": message.action_url,
-            "action_kind": message.action_kind,
-            "action_data": message.action_data,
-            "action_status": message.action_status,
-            "resolved_at": message.resolved_at,
-            "unread": message.read_at is None,
-            "read_at": message.read_at,
-            "created_at": message.created_at,
-            "sender_organization": (
-                {
-                    "id": organization.id,
-                    "org_uuid": organization.org_uuid,
-                    "name": organization.name,
-                    "slug": organization.slug,
-                    "logo_image": organization.logo_image,
-                }
-                if organization is not None
-                else None
-            ),
-        }
-        for message, organization in rows
-    ]
-
-
-def mark_my_messages_viewed(current_user: PublicUser, db_session: Session) -> dict:
-    _claim_email_messages(current_user, db_session)
-    messages = db_session.exec(
-        select(InboxMessage)
-        .where(InboxMessage.recipient_user_id == current_user.id)
-        .where(InboxMessage.read_at.is_(None))  # type: ignore[union-attr]
-    ).all()
-    viewed_at = datetime.utcnow()
-    for message in messages:
-        message.read_at = viewed_at
-        db_session.add(message)
-    if messages:
-        db_session.commit()
-    return {"updated": len(messages), "viewed_at": viewed_at}
-
-
 def resolve_message_action(
     message: InboxMessage,
     *,

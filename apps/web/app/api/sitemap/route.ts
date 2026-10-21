@@ -1,6 +1,5 @@
 import { getOrganizationContextInfo } from '@services/organizations/orgs'
 import { getLearningBadgeCollections, getLearningBadges } from '@services/learning/learning'
-import { getOrgPodcasts } from '@services/podcasts/podcasts'
 import { NextRequest, NextResponse } from 'next/server'
 
 function getBaseUrlFromRequest(request: NextRequest): string {
@@ -39,7 +38,6 @@ export async function GET(request: NextRequest) {
       sitemapUrls = [
         { loc: baseUrl, priority: 1.0, changefreq: 'daily' },
         { loc: `${baseUrl}badges`, priority: 0.9, changefreq: 'weekly' },
-        { loc: `${baseUrl}podcasts`, priority: 0.9, changefreq: 'weekly' },
         { loc: `${baseUrl}news`, priority: 0.8, changefreq: 'weekly' },
       ]
       break
@@ -70,18 +68,6 @@ export async function GET(request: NextRequest) {
       }
       break
     }
-    case 'podcasts': {
-      const podcasts = await getOrgPodcasts(orgSlug, null).catch(() => [])
-      for (const podcast of podcasts) {
-        sitemapUrls.push({
-          loc: `${baseUrl}podcast/${podcast.podcast_uuid.replace('podcast_', '')}`,
-          priority: 0.7,
-          changefreq: 'weekly',
-          lastmod: podcast.update_date,
-        })
-      }
-      break
-    }
     default: {
       return NextResponse.json({ error: 'Invalid sitemap type' }, { status: 400 })
     }
@@ -100,7 +86,7 @@ interface SitemapUrl {
   lastmod?: string
 }
 
-const SITEMAP_TYPES = ['pages', 'badges', 'badge-collections', 'podcasts']
+const SITEMAP_TYPES = ['pages', 'badges', 'badge-collections']
 
 function generateSitemapIndex(baseUrl: string): string {
   const sitemaps = SITEMAP_TYPES.map(type => `

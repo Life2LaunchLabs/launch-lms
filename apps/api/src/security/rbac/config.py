@@ -20,24 +20,6 @@ RESOURCE_CONFIGS: dict[str, ResourceConfig] = {
         model_name="LearningBadge",
         uuid_field="badge_uuid",
     ),
-    "podcasts": ResourceConfig(
-        resource_type="podcasts",
-        uuid_prefix="podcast_",
-        has_published_field=True,
-        supports_usergroups=True,
-        supports_authorship=True,
-        model_name="Podcast",
-        uuid_field="podcast_uuid",
-    ),
-    "communities": ResourceConfig(
-        resource_type="communities",
-        uuid_prefix="community_",
-        has_published_field=False,  # Communities only use public flag
-        supports_usergroups=True,
-        supports_authorship=False,  # Communities don't have authors
-        model_name="Community",
-        uuid_field="community_uuid",
-    ),
     "badge_collections": ResourceConfig(
         resource_type="badge_collections",
         uuid_prefix="badge_collection_",
@@ -48,15 +30,6 @@ RESOURCE_CONFIGS: dict[str, ResourceConfig] = {
         uuid_field="collection_uuid",
     ),
 
-    "boards": ResourceConfig(
-        resource_type="boards",
-        uuid_prefix="board_",
-        has_published_field=False,
-        supports_usergroups=True,
-        supports_authorship=True,
-        model_name="Board",
-        uuid_field="board_uuid",
-    ),
     "resources": ResourceConfig(
         resource_type="resources",
         uuid_prefix="resource_",
@@ -89,28 +62,6 @@ RESOURCE_CONFIGS: dict[str, ResourceConfig] = {
         uuid_field="activity_uuid",
         parent_resource_type="badges",
         parent_id_field="badge_id",
-    ),
-    "episodes": ResourceConfig(
-        resource_type="episodes",
-        uuid_prefix="episode_",
-        has_published_field=False,  # Inherits from podcast
-        supports_usergroups=False,  # Access via podcast
-        supports_authorship=False,  # Authorship on podcast level
-        model_name="PodcastEpisode",
-        uuid_field="episode_uuid",
-        parent_resource_type="podcasts",
-        parent_id_field="podcast_id",
-    ),
-    "discussions": ResourceConfig(
-        resource_type="discussions",
-        uuid_prefix="discussion_",
-        has_published_field=False,
-        supports_usergroups=False,  # Access via community
-        supports_authorship=False,  # Discussions have author_id but different pattern
-        model_name="Discussion",
-        uuid_field="discussion_uuid",
-        parent_resource_type="communities",
-        parent_id_field="community_id",
     ),
 }
 
