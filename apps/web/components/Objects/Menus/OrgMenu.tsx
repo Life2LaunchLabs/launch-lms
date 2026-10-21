@@ -3,7 +3,7 @@ import React, { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import { getOrgLogoMediaDirectory } from '@services/media/media'
+import { OrgLogo } from '@components/Objects/OrgLogo'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { usePathname } from 'next/navigation'
@@ -121,8 +121,8 @@ export const OrgMenu = (props: { orgslug: string; compact?: boolean }) => {
                 >
                   <div className="flex h-10 shrink-0 items-center justify-center">
                     {org?.logo_image ? (
-                      <img
-                        src={getOrgLogoMediaDirectory(org.org_uuid, org.logo_image)}
+                      <OrgLogo
+                        org={org}
                         alt={org?.name || 'Logo'}
                         className="h-10 w-auto max-w-[120px] object-contain"
                         ref={(image) => { if (image?.complete && image.naturalWidth) setWordmarkLogo(isWordmark(image)) }}
@@ -152,8 +152,8 @@ export const OrgMenu = (props: { orgslug: string; compact?: boolean }) => {
                     className="absolute inset-0 flex items-center justify-center overflow-hidden transition-opacity duration-150 group-hover/sidebar:pointer-events-none group-hover/sidebar:opacity-0"
                   >
                     {org?.logo_image ? (
-                      <img
-                        src={getOrgLogoMediaDirectory(org.org_uuid, org.logo_image)}
+                      <OrgLogo
+                        org={org}
                         alt="Logo"
                         className="h-10 w-auto max-w-[40px] object-contain"
                       />

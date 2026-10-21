@@ -3,7 +3,7 @@
 import { useOrg } from '@components/Contexts/OrgContext'
 import { cn } from '@/lib/utils'
 import { getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config'
-import { getOrgLogoMediaDirectory } from '@services/media/media'
+import { OrgLogo } from '@components/Objects/OrgLogo'
 import { authenticatedOrgHref } from '@services/auth/handoff'
 import { House, List, UserCircle, X, type Icon } from '@phosphor-icons/react'
 import Link from 'next/link'
@@ -40,7 +40,7 @@ function DashMobileMenu() {
   const active = adminTabForPath(pathname)
   const showPlatform = org?.slug === getDefaultOrg() && features.isSuperadmin
   const logo = org?.logo_image
-    ? <img src={getOrgLogoMediaDirectory(org.org_uuid, org.logo_image)} alt={org?.name} className="h-8 w-8 rounded-lg object-contain" />
+    ? <OrgLogo org={org} surface="dark" alt={org?.name} className="h-8 w-8 rounded-lg object-contain" />
     : <img src="/logo-icon.svg" alt="Launch LMS logo" className="h-8 w-8" />
 
   return (

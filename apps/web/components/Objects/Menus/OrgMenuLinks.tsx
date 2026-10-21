@@ -27,7 +27,7 @@ export function getPrimaryOrgMenuItems({
   const isOnPortfolio = Boolean(pathname?.includes('/portfolio'))
   const isOnDiscover = !isOnPortfolio && Boolean(pathname?.includes('/discover') || pathname?.includes('/badges'))
   return [
-    { href: '/plans', label: 'Plans', icon: <ClipboardText size={22} weight="fill" />, active: Boolean(pathname?.includes('/plans')) && !hubOpen, show: true },
+    { href: '/plans', label: 'Goals', icon: <ClipboardText size={22} weight="fill" />, active: Boolean(pathname?.includes('/plans')) && !hubOpen, show: true },
     { href: '/discover', label: 'Discover', icon: <Compass size={22} weight="fill" />, active: isOnDiscover && !hubOpen, show: true },
     { href: '/connect', label: 'Connect', icon: <ChatsCircle size={22} weight="fill" />, active: Boolean(pathname?.includes('/connect') || pathname?.includes('/organization/')) && !hubOpen, show: true, dot: connectWaiting },
     { href: '/portfolio', label: 'Portfolio', icon: <User size={22} weight="fill" />, active: isOnPortfolio && !hubOpen, show: true },

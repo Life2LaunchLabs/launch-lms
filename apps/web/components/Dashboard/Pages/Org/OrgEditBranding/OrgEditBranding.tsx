@@ -8,7 +8,7 @@ import { getOrgLogoMediaDirectory, getOrgPreviewMediaDirectory, getOrgThumbnailM
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@components/ui/tabs"
 import { toast } from 'react-hot-toast'
 import { constructAcceptValue } from '@/lib/constants'
-import { uploadOrganizationLogo, uploadOrganizationThumbnail, uploadOrganizationPreview, updateOrganization, updateOrgColorConfig, updateOrgDarkColorConfig, uploadOrganizationFavicon, updateOrgBadgeIssuerConfig, updateOrgHideOrgNameConfig } from '@services/settings/org'
+import { uploadOrganizationLogo, uploadOrganizationThumbnail, uploadOrganizationPreview, updateOrganization, updateOrgColorConfig, updateOrgDarkColorConfig, uploadOrganizationFavicon, updateOrgBadgeIssuerConfig, updateOrgHideOrgNameConfig, updateOrgDarkLogoConfig } from '@services/settings/org'
 import { Switch } from '@components/ui/switch'
 import { cn } from '@/lib/utils'
 import { Input } from "@components/ui/input"
@@ -132,6 +132,9 @@ export default function OrgEditBranding() {
     org?.config?.config?.customization?.general?.hide_org_name || org?.config?.config?.general?.hide_org_name || false
   )
   const [isHideOrgNameSaving, setIsHideOrgNameSaving] = useState(false)
+  const [separateDarkLogo, setSeparateDarkLogo] = useState<boolean>(Boolean(org?.config?.config?.customization?.general?.separate_dark_logo))
+  const [darkLogoImage, setDarkLogoImage] = useState<string>(org?.config?.config?.customization?.general?.dark_logo_image || '')
+  const [isDarkLogoSaving, setIsDarkLogoSaving] = useState(false)
 
   // Theme state
   const [primaryColor, setPrimaryColor] = useState<string>(org?.config?.config?.customization?.general?.color || org?.config?.config?.general?.color || '')
@@ -494,6 +497,27 @@ export default function OrgEditBranding() {
     }
   }
 
+  const saveDarkLogo = async (next: { separate_dark_logo: boolean; dark_logo_image: string }) => {
+    const before = { separate: separateDarkLogo, image: darkLogoImage }
+    setSeparateDarkLogo(next.separate_dark_logo)
+    setDarkLogoImage(next.dark_logo_image)
+    setIsDarkLogoSaving(true)
+    const loadingToast = toast.loading(t('dashboard.organization.settings.updating'))
+    try {
+      await updateOrgDarkLogoConfig(org.id, next, access_token)
+      await revalidateTags(['organizations'], org.slug)
+      mutate(`${getAPIUrl()}orgs/slug/${org.slug}`)
+      toast.success(t('dashboard.organization.settings.update_success'), { id: loadingToast })
+      router.refresh()
+    } catch {
+      setSeparateDarkLogo(before.separate)
+      setDarkLogoImage(before.image)
+      toast.error(t('dashboard.organization.settings.update_error'), { id: loadingToast })
+    } finally {
+      setIsDarkLogoSaving(false)
+    }
+  }
+
   const handleClearColor = () => {
     setPrimaryColor('')
   }
@@ -587,7 +611,8 @@ export default function OrgEditBranding() {
               <div className="flex flex-col space-y-5 w-full">
                 <div className="w-full bg-linear-to-b from-gray-50 to-white rounded-xl transition-all duration-300 py-8">
                   <div className="flex flex-col justify-center items-center space-y-8">
-                    <div className="relative group">
+                    <div className="relative group flex flex-col items-center gap-2">
+                      {separateDarkLogo ? <span className="text-xs font-semibold text-gray-500">Light mode</span> : null}
                       <div
                         className={cn(
                           "w-[200px] sm:w-[250px] h-[100px] sm:h-[125px] bg-contain bg-no-repeat bg-center rounded-lg shadow-md bg-white",
@@ -623,6 +648,43 @@ export default function OrgEditBranding() {
                       </div>
                     </div>
                   </div>
+                </div>
+
+                {/* One logo for both themes, or a separate one for dark mode */}
+                <div className="w-full border-t border-gray-100 pt-6">
+                  <div className="flex items-center justify-between gap-4 px-4 py-3 bg-gray-50 rounded-xl">
+                    <div className="flex flex-col space-y-0.5">
+                      <span className="text-sm font-medium text-gray-800">Separate logo for dark mode</span>
+                      <span className="text-xs text-gray-500">Off, the logo above shows in both themes. On, choose a version that reads on a dark background.</span>
+                    </div>
+                    <Switch
+                      checked={separateDarkLogo}
+                      onCheckedChange={(checked) => saveDarkLogo({ separate_dark_logo: checked, dark_logo_image: darkLogoImage })}
+                      disabled={isDarkLogoSaving || !org?.logo_image}
+                    />
+                  </div>
+                  {separateDarkLogo ? (
+                    <div className="mt-5 flex flex-col items-center gap-4">
+                      <span className="text-xs font-semibold text-gray-500">Dark mode</span>
+                      <div
+                        className={cn(
+                          "w-[200px] sm:w-[250px] h-[100px] sm:h-[125px] bg-contain bg-no-repeat bg-center rounded-lg shadow-md bg-gray-900",
+                          "border-2 border-gray-800 flex items-center justify-center",
+                          isDarkLogoSaving && "opacity-50"
+                        )}
+                        style={darkLogoImage ? { backgroundImage: `url(${getOrgLogoMediaDirectory(org?.org_uuid, darkLogoImage)})` } : undefined}
+                      >
+                        {!darkLogoImage ? <span className="px-4 text-center text-xs text-gray-400">Uses the logo above until you choose one</span> : null}
+                      </div>
+                      <ImageMediaPicker
+                        owner={{ type: 'org', id: Number(org.id) }}
+                        title="Choose dark mode logo"
+                        buttonText={isDarkLogoSaving ? t('dashboard.organization.images.uploading') : 'Choose dark mode logo'}
+                        disabled={isDarkLogoSaving}
+                        onSelect={(url) => saveDarkLogo({ separate_dark_logo: true, dark_logo_image: url })}
+                      />
+                    </div>
+                  ) : null}
                 </div>
 
                 {/* Hide org name toggle */}

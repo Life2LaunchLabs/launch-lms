@@ -53,7 +53,7 @@ import RequestAccessButton, { accessRequestLabel } from '@components/Admin/Reque
 import { AVAILABLE_LANGUAGES } from '@/lib/languages'
 import { adminLabel, adminTabForPath, type VisibleNavItem } from '@/lib/admin/registry'
 import { usePlansNavTabs } from '@components/Admin/Plans/usePlansNavTabs'
-import { getOrgLogoMediaDirectory } from '@services/media/media'
+import { OrgLogo } from '@components/Objects/OrgLogo'
 import { cn } from '@/lib/utils'
 import { useFeatures } from '@components/Hooks/useFeatures'
 import { tierLabel } from '@services/plans/plans'
@@ -89,7 +89,7 @@ function DashLeftMenu() {
   const active = adminTabForPath(pathname)
   const showPlatform = org.slug === getDefaultOrg() && features.isSuperadmin
   const logo = org.logo_image
-    ? <img src={getOrgLogoMediaDirectory(org.org_uuid, org.logo_image)} alt={org.name} className="h-9 w-9 object-contain rounded-lg" />
+    ? <OrgLogo org={org} surface="dark" alt={org.name} className="h-9 w-9 object-contain rounded-lg" />
     : <img src="/logo-icon.svg" alt="Launch LMS logo" className="h-8 w-8" />
 
   return (
