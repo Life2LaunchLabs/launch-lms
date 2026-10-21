@@ -2,7 +2,7 @@
 
 import React from 'react'
 import toast from 'react-hot-toast'
-import { History, Loader2, RotateCcw, Upload } from 'lucide-react'
+import { History, Loader2, Rocket, RotateCcw } from 'lucide-react'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { Button } from '@components/ui/button'
 import { Textarea } from '@components/ui/textarea'
@@ -13,10 +13,13 @@ import type { TemplateEditing } from './useTemplate'
 
 const publishedOn = (value: string | null) => (value ? new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '')
 
-/** The live version, whether the draft has unpublished changes, publishing, and making an earlier version live again. */
+/**
+ * The live version, whether the draft has unreleased changes, releasing a new version, and making an earlier
+ * version live again. Saving a version is "Release"; "Publish" means only the marketplace (the Publish tab).
+ */
 export default function TemplateVersionBar({ orgId, token, editing }: { orgId: number; token?: string; editing: TemplateEditing }) {
   const template = editing.template
-  const [publishOpen, setPublishOpen] = React.useState(false)
+  const [releaseOpen, setReleaseOpen] = React.useState(false)
   const [historyOpen, setHistoryOpen] = React.useState(false)
   const [note, setNote] = React.useState('')
   const [busy, setBusy] = React.useState<string | null>(null)
@@ -24,13 +27,13 @@ export default function TemplateVersionBar({ orgId, token, editing }: { orgId: n
   const versions = template.versions || []
   const nextNumber = (versions[0]?.number || 0) + 1
 
-  const publish = async () => {
-    setBusy('publish')
+  const release = async () => {
+    setBusy('release')
     try {
       await editing.replace(await templatesApi.publish(orgId, template.template_uuid, note.trim(), token))
-      setPublishOpen(false); setNote('')
-      toast.success(`Version ${nextNumber} published. New goals use it; goals already handed out keep theirs.`)
-    } catch (error: any) { toast.error(error?.message || 'Could not publish the template.') } finally { setBusy(null) }
+      setReleaseOpen(false); setNote('')
+      toast.success(`Version ${nextNumber} released. New goals use it; goals already handed out keep theirs.`)
+    } catch (error: any) { toast.error(error?.message || 'Could not release the version.') } finally { setBusy(null) }
   }
   const restore = async (version: TemplateVersion) => {
     setBusy(version.version_uuid)
@@ -43,8 +46,8 @@ export default function TemplateVersionBar({ orgId, token, editing }: { orgId: n
   return <div className="flex flex-wrap items-center gap-2">
     <span className="inline-flex h-9 items-center gap-2 rounded-full border border-border bg-card px-3 text-xs font-bold">
       <span className={cn('h-2 w-2 rounded-full', template.has_unpublished_changes ? 'bg-amber-500' : 'bg-emerald-500')} aria-hidden />
-      {template.published_version ? `Version ${template.published_version} live` : 'Not published yet'}
-      {template.has_unpublished_changes && template.published_version ? <span className="font-medium text-amber-700">· unpublished changes</span> : null}
+      {template.published_version ? `Version ${template.published_version} live` : 'Not released yet'}
+      {template.has_unpublished_changes && template.published_version ? <span className="font-medium text-amber-700">· unreleased changes</span> : null}
     </span>
     {versions.length ? <Modal isDialogOpen={historyOpen} onOpenChange={setHistoryOpen} minHeight="no-min" minWidth="md" dialogTitle="Version history"
       dialogDescription="Each goal keeps the version it was handed out with. Making an earlier version live again only changes what new goals get."
@@ -57,12 +60,12 @@ export default function TemplateVersionBar({ orgId, token, editing }: { orgId: n
         </div>
         {version.live ? null : <Button size="sm" variant="outline" disabled={busy !== null} onClick={() => void restore(version)}>{busy === version.version_uuid ? <Loader2 className="animate-spin" /> : <RotateCcw />}Make live again</Button>}
       </li>)}</ol>} /> : null}
-    <Modal isDialogOpen={publishOpen} onOpenChange={setPublishOpen} minHeight="no-min" minWidth="md" dialogTitle={`Publish version ${nextNumber}`}
+    <Modal isDialogOpen={releaseOpen} onOpenChange={setReleaseOpen} minHeight="no-min" minWidth="md" dialogTitle={`Release version ${nextNumber}`}
       dialogDescription="New goals and badge starts will use this version. Goals already handed out keep the version they started with, along with their learners' answers."
-      dialogTrigger={<Button variant="brand" size="sm" className="h-9 rounded-full" disabled={!template.has_unpublished_changes || editing.stale}><Upload />Publish</Button>}
+      dialogTrigger={<Button variant="brand" size="sm" className="h-9 rounded-full" disabled={!template.has_unpublished_changes || editing.stale}><Rocket />Release</Button>}
       dialogContent={<div className="space-y-4 p-2">
         <Textarea autoFocus value={note} onChange={(event) => setNote(event.target.value)} rows={3} placeholder="What changed? (optional, shown in the version history)" aria-label="Version note" />
-        <Button className="ml-auto flex" onClick={() => void publish()} disabled={busy !== null}>{busy === 'publish' ? <Loader2 className="animate-spin" /> : <Upload />}Publish version {nextNumber}</Button>
+        <Button className="ml-auto flex" onClick={() => void release()} disabled={busy !== null}>{busy === 'release' ? <Loader2 className="animate-spin" /> : <Rocket />}Release version {nextNumber}</Button>
       </div>} />
   </div>
 }

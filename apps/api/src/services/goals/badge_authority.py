@@ -1,10 +1,11 @@
 """Who may run a badge's routes, and which template versions earn the badge.
 
 A badge's routes are goal templates of the badge's organization. The owner runs
-them; another organization runs one only while it holds an approved
-BadgeIssuerAuthorization for the badge, and only the routes it offers
-(BadgeRouteOffer; offering none offers all). Running a route means assigning
-its template to the organization's learners, whose plans then earn the badge.
+them; another organization runs a route only while it is approved on that
+route's plan template (``GoalTemplateAuthorization``, see ``plan_issuers``), and
+only the routes it offers (BadgeRouteOffer; offering none offers all). Running
+a route means assigning its template to the organization's learners, whose plans
+then earn the badge.
 Learners starting a badge themselves are checked by
 ``learning_issuers.validate_issuer_start`` the same way.
 
@@ -23,7 +24,7 @@ from sqlmodel import Session, select
 
 from src.db.badge_routes import BadgeRoute, BadgeRouteEligibilityUpdate
 from src.db.goals import GoalAssignment, GoalTemplate, GoalTemplateVersion
-from src.db.learning import BadgeIssuerAuthorization, BadgeIssuerAuthorizationStatus, LearningBadge
+from src.db.learning import LearningBadge
 from src.db.organizations import Organization
 from src.db.users import PublicUser
 from src.security.org_auth import require_org_admin
@@ -31,13 +32,10 @@ from src.services.goals import templates
 
 
 def authorized(db: Session, badge: LearningBadge, org_id: int) -> bool:
-    """The badge's owner, or an organization with an approved authorization to issue it."""
-    if int(badge.org_id) == int(org_id):
-        return True
-    return db.exec(select(BadgeIssuerAuthorization.id).where(
-        BadgeIssuerAuthorization.badge_id == badge.id, BadgeIssuerAuthorization.issuer_org_id == org_id,
-        BadgeIssuerAuthorization.status == BadgeIssuerAuthorizationStatus.APPROVED,
-    )).first() is not None
+    """The badge's owner, or an organization approved on one of the badge's plans (``plan_issuers.may_issue``)."""
+    from src.services.goals.plan_issuers import may_issue
+
+    return may_issue(db, badge, org_id)
 
 
 def route_for(db: Session, badge_id: int | None, template_id: int | None) -> BadgeRoute | None:
@@ -58,12 +56,10 @@ def may_run(db: Session, badge: LearningBadge, org_id: int, route: BadgeRoute) -
 
 
 def trusted(db: Session, route: BadgeRoute, org_id: int) -> bool:
-    """A trusted-partners-only route runs only for the issuers its badge's owner approved for it."""
-    if not route.trusted_only:
-        return True
-    from src.db.template_marketplace import BadgeRoutePartner
+    """Whether the organization is approved on this route's plan (a legacy program route: only its owner runs it)."""
+    from src.services.goals.plan_issuers import approved_on
 
-    return db.exec(select(BadgeRoutePartner.id).where(BadgeRoutePartner.route_id == route.id, BadgeRoutePartner.issuer_org_id == org_id)).first() is not None
+    return approved_on(db, route.goal_template_id, org_id)
 
 
 def runnable(db: Session, org_id: int, template_uuid: str, badge_uuid: str | None = None) -> tuple[GoalTemplate, LearningBadge | None]:

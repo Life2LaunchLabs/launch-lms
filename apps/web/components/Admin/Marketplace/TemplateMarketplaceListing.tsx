@@ -41,9 +41,10 @@ const ACCESS: { value: TemplateListingAccess; label: string; detail: string }[] 
 ]
 
 /**
- * Template Settings › Marketplace listing: publish this template to the marketplace, locked (run
+ * Template › Publish › Marketplace listing: publish this template to the marketplace, locked (run
  * as-is) or open (copy and edit), and whether orgs ask first. Any template can be listed, with or
- * without a badge; which templates earn a badge is set on the badge's routes.
+ * without a badge; which templates earn a badge is set on the badge's routes. "Publish" means only
+ * this; saving a new version of the template is "Release".
  */
 export default function TemplateMarketplaceListing({ orgId, token, template }: { orgId: number; token?: string; template: TemplateDetail }) {
   const org = useOrg() as { slug?: string } | null
@@ -78,7 +79,7 @@ export default function TemplateMarketplaceListing({ orgId, token, template }: {
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div>
         <h2 className="flex items-center gap-2 text-lg font-bold"><Storefront size={18} />Marketplace listing</h2>
-        <p className="mt-1 max-w-xl text-sm text-muted-foreground">Share this template with other organizations, with or without a badge. They use your published version.</p>
+        <p className="mt-1 max-w-xl text-sm text-muted-foreground">Share this template with other organizations, with or without a badge. They run your latest released version.</p>
       </div>
       {listing?.listed ? <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-800">In the marketplace</span> : <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-600">Not listed</span>}
     </div>
@@ -96,11 +97,7 @@ export default function TemplateMarketplaceListing({ orgId, token, template }: {
         <span><span className="block text-sm font-bold">{label}</span><span className="block text-xs text-muted-foreground">{detail}</span></span>
       </label>)}
     </fieldset>
-    {listing?.usage && (listing.usage.approved || listing.usage.requested) ? <p className="mt-4 text-sm text-muted-foreground">
-      {listing.usage.approved} org{listing.usage.approved === 1 ? '' : 's'} use{listing.usage.approved === 1 ? 's' : ''} it{listing.usage.requested ? ` · ${listing.usage.requested} waiting for you` : ''}.{' '}
-      <Link className="font-semibold text-foreground underline" href={getUriWithOrg(org?.slug || '', routePaths.org.admin.marketplace({ view: 'requests' }))}>See requests</Link>
-    </p> : null}
-    {!published ? <p className="mt-4 text-sm text-amber-700">Publish the template before listing it.</p> : null}
+    {!published ? <p className="mt-4 text-sm text-amber-700">Release a version of the template before listing it.</p> : null}
     {listing?.listed ? <p className="mt-4 text-sm text-muted-foreground" data-testid="template-marketplace-listed">
       Other organizations see it in{' '}
       <Link className="font-semibold text-foreground underline" href={getUriWithOrg(org?.slug || '', routePaths.org.admin.marketplace())}>Plans › Marketplace</Link>

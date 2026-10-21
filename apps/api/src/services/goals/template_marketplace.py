@@ -7,9 +7,11 @@ read-only, on the creator's published versions) or ``open`` (others copy it
 into a template of their own, which remembers where it came from). Access is
 ``open`` (adding it approves at once) or ``request`` (the creator decides).
 
-Badges stay the badge side's call: assigning a locked template earns a badge
-only through a route the organization may run (``badge_authority.may_run``),
-which includes the route's trusted-partners-only restriction.
+Permission on a template that is a way to earn a badge is also permission to
+issue that badge through it (``plan_issuers.may_issue``). A plan of a badge
+listed in the marketplace can be asked for even when the plan itself isn't
+listed: that is how an organization asks to issue the badge. Leaving a plan
+(``revoke`` by the issuer) stops issuing through it.
 """
 
 from __future__ import annotations
@@ -25,8 +27,6 @@ from src.db.goals import GoalAssignment, GoalTemplate, TemplateStatus
 from src.db.learning import LearningBadge
 from src.db.organizations import Organization
 from src.db.template_marketplace import (
-    BadgeRoutePartner,
-    BadgeRouteTrustUpdate,
     GoalTemplateAuthorization,
     GoalTemplateListing,
     TemplateAuthorizationRequest,
@@ -128,7 +128,7 @@ def set_listing(db: Session, current_user: PublicUser, org_id: int, template_uui
         if template.system_type:
             raise HTTPException(status_code=409, detail="System templates can't be listed in the marketplace")
         if templates.published_version(db, template) is None:
-            raise HTTPException(status_code=422, detail="Publish the template before listing it in the marketplace")
+            raise HTTPException(status_code=422, detail="Release a version of the template before listing it in the marketplace")
     listing = listing_of(db, template)
     now = _now()
     if listing is None:
@@ -164,7 +164,7 @@ def _badges(db: Session, template: GoalTemplate) -> list[dict]:
     rows = db.exec(select(BadgeRoute, LearningBadge).join(LearningBadge, LearningBadge.id == BadgeRoute.badge_id)
                    .where(BadgeRoute.goal_template_id == template.id, col(LearningBadge.deleted_at).is_(None))).all()
     return [{"badge_uuid": badge.badge_uuid, "name": badge.name, "thumbnail_image": badge.thumbnail_image or "",
-             "route_uuid": route.route_uuid, "trusted_only": bool(route.trusted_only)} for route, badge in rows]
+             "route_uuid": route.route_uuid} for route, badge in rows]
 
 
 def authorization_dict(db: Session, authorization: GoalTemplateAuthorization, template: GoalTemplate | None = None) -> dict:
@@ -179,6 +179,8 @@ def authorization_dict(db: Session, authorization: GoalTemplateAuthorization, te
         "creator_org": _org(db.get(Organization, authorization.creator_org_id)),
         "issuer_org": _org(db.get(Organization, authorization.issuer_org_id)),
         "copied_template_uuid": copied.template_uuid if copied else None,
+        # The badges this plan earns: approval on it is permission to issue them.
+        "badges": _badges(db, template) if template else [],
     }
 
 
@@ -231,14 +233,27 @@ def _decide(authorization: GoalTemplateAuthorization, status: str, user_id: int 
     authorization.update_date = _now()
 
 
+def _earns_listed_badge(db: Session, template: GoalTemplate) -> bool:
+    """Whether the template is a way to earn a published badge listed in the marketplace."""
+    from src.db.learning import LearningBadgeStatus
+
+    return db.exec(select(BadgeRoute.id).join(LearningBadge, LearningBadge.id == BadgeRoute.badge_id).where(
+        BadgeRoute.goal_template_id == template.id, LearningBadge.marketplace_listed == True,  # noqa: E712
+        LearningBadge.status == LearningBadgeStatus.PUBLISHED, col(LearningBadge.deleted_at).is_(None))).first() is not None
+
+
 def request_use(db: Session, current_user: PublicUser, payload: TemplateAuthorizationRequest) -> dict:
-    """Ask to use a listed template. Open access approves at once; asking again after a decline asks again."""
+    """Ask to use a listed template, or to issue a marketplace badge through one of its plans.
+
+    Open access approves at once (a badge's plan that isn't listed itself is by request); asking again
+    after a decline or after leaving asks again."""
     require_org_admin(current_user.id, payload.issuer_org_id, db)
     template = _template(db, payload.template_uuid)
     listing = listing_of(db, template)
     if template.org_id == payload.issuer_org_id:
         raise HTTPException(status_code=422, detail="Your organization already owns this template")
-    if listing is None or not listing.listed:
+    listed = listing is not None and listing.listed
+    if not listed and not _earns_listed_badge(db, template):
         raise HTTPException(status_code=422, detail="This template isn't in the marketplace")
     now = _now()
     authorization = authorization_of(db, template, payload.issuer_org_id)
@@ -252,7 +267,7 @@ def request_use(db: Session, current_user: PublicUser, payload: TemplateAuthoriz
     authorization.message = payload.message or ""
     authorization.requested_by_user_id = current_user.id
     authorization.update_date = now
-    if listing.access == TemplateListingAccess.OPEN.value:
+    if listed and listing.access == TemplateListingAccess.OPEN.value:  # type: ignore[union-attr]
         _decide(authorization, APPROVED, None)
     else:
         authorization.status, authorization.decided_by_user_id, authorization.decided_at = REQUESTED, None, None
@@ -274,7 +289,8 @@ def decide(db: Session, current_user: PublicUser, authorization_uuid: str, appro
 
 
 def revoke(db: Session, current_user: PublicUser, authorization_uuid: str) -> dict:
-    """Either side ends the permission. Assignments already running stop issuing new plans."""
+    """Either side ends the permission: the owner revokes it, or the organization leaves the plan.
+    Assignments already running stop issuing new plans, and the plan's badges stop issuing through it."""
     authorization = _authorization(db, authorization_uuid)
     try:
         require_org_admin(current_user.id, authorization.creator_org_id, db)
@@ -287,12 +303,15 @@ def revoke(db: Session, current_user: PublicUser, authorization_uuid: str) -> di
     return authorization_dict(db, authorization)
 
 
-def list_authorizations(db: Session, current_user: PublicUser, org_id: int, perspective: str, status: str | None = None) -> list[dict]:
+def list_authorizations(db: Session, current_user: PublicUser, org_id: int, perspective: str, status: str | None = None,
+                        template_uuid: str | None = None) -> list[dict]:
     require_org_admin(current_user.id, org_id, db)
     if perspective not in ("creator", "issuer"):
         raise HTTPException(status_code=400, detail="perspective must be 'creator' or 'issuer'")
     column = GoalTemplateAuthorization.creator_org_id if perspective == "creator" else GoalTemplateAuthorization.issuer_org_id
     statement = select(GoalTemplateAuthorization).where(column == org_id)
+    if template_uuid:
+        statement = statement.where(GoalTemplateAuthorization.template_id == _template(db, template_uuid).id)
     if status and status != "all":
         statement = statement.where(GoalTemplateAuthorization.status == status)
     rows = db.exec(statement.order_by(col(GoalTemplateAuthorization.id).desc())).all()
@@ -315,23 +334,14 @@ def _learners_running(db: Session, authorization: GoalTemplateAuthorization) -> 
 
 
 def requests_summary(db: Session, current_user: PublicUser, org_id: int) -> dict:
-    """Counts for the Marketplace tab: requests waiting on this organization, and its own still pending (badges and templates)."""
-    from src.db.learning import BadgeIssuerAuthorization, BadgeIssuerAuthorizationStatus
-
+    """Counts for the Marketplace tab: plan requests waiting on this organization, and its own still pending."""
     require_org_admin(current_user.id, org_id, db)
 
-    def count(model, *where) -> int:
-        return int(db.exec(select(func.count()).select_from(model).where(*where)).one() or 0)
+    def count(*where) -> int:
+        return int(db.exec(select(func.count()).select_from(GoalTemplateAuthorization).where(*where)).one() or 0)
 
-    badge_in = count(BadgeIssuerAuthorization, BadgeIssuerAuthorization.creator_org_id == org_id, BadgeIssuerAuthorization.issuer_org_id != org_id,
-                     BadgeIssuerAuthorization.status == BadgeIssuerAuthorizationStatus.REQUESTED)
-    badge_out = count(BadgeIssuerAuthorization, BadgeIssuerAuthorization.issuer_org_id == org_id, BadgeIssuerAuthorization.creator_org_id != org_id,
-                      BadgeIssuerAuthorization.status == BadgeIssuerAuthorizationStatus.REQUESTED)
-    template_in = count(GoalTemplateAuthorization, GoalTemplateAuthorization.creator_org_id == org_id, GoalTemplateAuthorization.status == REQUESTED)
-    template_out = count(GoalTemplateAuthorization, GoalTemplateAuthorization.issuer_org_id == org_id, GoalTemplateAuthorization.status == REQUESTED)
-    return {"incoming_requested": badge_in + template_in, "outgoing_pending": badge_out + template_out,
-            "badges": {"incoming_requested": badge_in, "outgoing_pending": badge_out},
-            "templates": {"incoming_requested": template_in, "outgoing_pending": template_out}}
+    return {"incoming_requested": count(GoalTemplateAuthorization.creator_org_id == org_id, GoalTemplateAuthorization.status == REQUESTED),
+            "outgoing_pending": count(GoalTemplateAuthorization.issuer_org_id == org_id, GoalTemplateAuthorization.status == REQUESTED)}
 
 
 # Open-mode copies ---------------------------------------------------------------------------------------------
@@ -385,38 +395,3 @@ def owner_org(db: Session, template_uuid: str) -> dict | None:
 def added_templates(db: Session, current_user: PublicUser, org_id: int) -> list[dict]:
     """Templates this organization uses with permission: locked ones it runs and open ones it copied."""
     return list_authorizations(db, current_user, org_id, "issuer", APPROVED)
-
-
-# Trusted-partner badge routes (the badge's owner) ------------------------------------------------------------
-
-def set_route_trust(db: Session, current_user: PublicUser, badge_uuid: str, route_uuid: str, payload: BadgeRouteTrustUpdate) -> dict:
-    """The badge's owner restricts a route to approved partners (or opens it again) and picks the partners."""
-    from src.services.goals.badge_routes import list_routes
-    from src.services.learning.lookups import _get_badge
-
-    badge = _get_badge(db, badge_uuid)
-    require_org_admin(current_user.id, badge.org_id, db)
-    route = db.exec(select(BadgeRoute).where(BadgeRoute.route_uuid == route_uuid, BadgeRoute.badge_id == badge.id)).first()
-    if not route:
-        raise HTTPException(status_code=404, detail="Route not found")
-    wanted = {int(org_id) for org_id in payload.partner_org_ids if int(org_id) != int(badge.org_id)}
-    for org_id in wanted:
-        if db.get(Organization, org_id) is None:
-            raise HTTPException(status_code=422, detail="Partner organization not found")
-    route.trusted_only = payload.trusted_only
-    route.update_date = _now()
-    db.add(route)
-    existing = {partner.issuer_org_id: partner for partner in db.exec(select(BadgeRoutePartner).where(BadgeRoutePartner.route_id == route.id)).all()}
-    for org_id, partner in existing.items():
-        if org_id not in wanted:
-            db.delete(partner)
-    for org_id in wanted - set(existing):
-        db.add(BadgeRoutePartner(route_id=int(route.id), issuer_org_id=org_id, approved_by_user_id=current_user.id, creation_date=_now()))  # type: ignore[arg-type]
-    db.commit()
-    return list_routes(db, current_user, badge_uuid)
-
-
-def route_partners(db: Session, route: BadgeRoute) -> list[dict]:
-    rows = db.exec(select(Organization).join(BadgeRoutePartner, BadgeRoutePartner.issuer_org_id == Organization.id)
-                   .where(BadgeRoutePartner.route_id == route.id).order_by(Organization.name)).all()
-    return [_org(org) for org in rows]  # type: ignore[misc]

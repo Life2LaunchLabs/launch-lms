@@ -4,8 +4,6 @@ from copy import deepcopy
 from fastapi import HTTPException, status
 from sqlmodel import Session, select
 from src.db.learning import (
-    BadgeIssuerAuthorization,
-    BadgeIssuerAuthorizationStatus,
     LearningActivity,
     LearningActivityRead,
     LearningBadge,
@@ -192,12 +190,9 @@ def _can_read_badge(
         return True
     except HTTPException:
         pass
-    authorized_issuer_org_ids = db_session.exec(
-        select(BadgeIssuerAuthorization.issuer_org_id).where(
-            BadgeIssuerAuthorization.badge_id == badge.id,
-            BadgeIssuerAuthorization.status == BadgeIssuerAuthorizationStatus.APPROVED,
-        )
-    ).all()
+    from src.services.goals.plan_issuers import issuer_org_ids
+
+    authorized_issuer_org_ids = issuer_org_ids(db_session, badge)
     for issuer_org_id in authorized_issuer_org_ids:
         try:
             access_rules._require_org_staff(db_session, current_user, issuer_org_id)

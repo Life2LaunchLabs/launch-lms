@@ -33,8 +33,9 @@ def test_full_cohort_capture_preserves_stages_and_drops_real_attribution():
     from src.db.usergroups import UserGroup
     from src.db.usergroup_resources import UserGroupResource
     from src.db.resource_authors import ResourceAuthor
+    from src.db.goals import GoalTemplate
+    from src.db.template_marketplace import GoalTemplateAuthorization
     from src.db.learning import (
-        BadgeIssuerAuthorization,
         LearningRun,
         LearningPageProgress,
         LearningBadgeAward,
@@ -161,14 +162,16 @@ def test_full_cohort_capture_preserves_stages_and_drops_real_attribution():
                     authorship_status="ACTIVE",
                 )
             )
+            # The cohort's org issues org 1's badge: approved on one of its plans.
+            db.add(GoalTemplate(id=90002, template_uuid="template_cohort_test", org_id=1, title="Cohort plan"))
+            db.flush()
             db.add(
-                BadgeIssuerAuthorization(
-                    authorization_uuid="issuer_cohort_test",
-                    badge_id=1,
+                GoalTemplateAuthorization(
+                    authorization_uuid="template_auth_cohort_test",
+                    template_id=90002,
                     creator_org_id=1,
                     issuer_org_id=org_id,
                     status="approved",
-                    open_to_all=True,
                     decided_by_user_id=1,
                 )
             )
@@ -309,7 +312,7 @@ def test_full_cohort_capture_preserves_stages_and_drops_real_attribution():
             assert award["conferred_by_user_id"] is None
             authorization = next(
                 row
-                for row in snapshot["badgeissuerauthorization"]
+                for row in snapshot["goal_template_authorization"]
                 if row["issuer_org_id"] == org_id
             )
             assert (

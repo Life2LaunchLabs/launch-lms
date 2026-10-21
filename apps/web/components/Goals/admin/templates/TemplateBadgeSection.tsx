@@ -2,7 +2,7 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { Award, ShieldCheck, Users } from 'lucide-react'
+import { Award, ShieldCheck } from 'lucide-react'
 import { SafeImage } from '@components/Objects/SafeImage'
 import { SectionCard } from '@components/Goals/admin/live/ui'
 import { AccessChip, OfferedBy } from '@components/Learning/PlanAccessList'
@@ -39,9 +39,9 @@ function EarnedBadge({ badge, orgslug, orgId }: { badge: TemplateEarnedBadge; or
     </Link>
     <dl className="mt-3 space-y-1.5 text-[13px]">
       <div className="flex gap-2"><dt className="sr-only">Plan versions</dt><dd className="text-gray-700">{eligibilityLabel(badge.eligible_versions.rule, badge.eligible_versions.from_version)}</dd></div>
-      <div className="flex items-start gap-2"><dt className="sr-only">Who may run it</dt>{badge.trusted_only ? <ShieldCheck size={14} className="mt-0.5 shrink-0 text-gray-500" aria-hidden="true" /> : <Users size={14} className="mt-0.5 shrink-0 text-gray-500" aria-hidden="true" />}
-        <dd className="text-gray-700">{badge.trusted_only ? `Trusted partners only${badge.partners.length ? `: ${badge.partners.map((partner) => partner.name).join(', ')}` : ''}` : 'Any organization approved to issue the badge'}</dd></div>
-      {!badge.earns_here ? <div><dt className="sr-only">Here</dt><dd className="text-amber-800">Finishing it here doesn’t earn the badge: your organization isn’t approved to run this way to earn it.</dd></div> : null}
+      {ownBadge || badge.earns_here ? <div className="flex items-start gap-2"><dt className="sr-only">Who may run it</dt><ShieldCheck size={14} className="mt-0.5 shrink-0 text-gray-500" aria-hidden="true" />
+        <dd className="text-gray-700">{ownBadge ? 'Organizations you authorize on this plan issue the badge through it' : `Issued here because ${badge.owner_org?.name || 'its owner'} authorized your organization on this plan`}</dd></div> : null}
+      {!badge.earns_here ? <div><dt className="sr-only">Here</dt><dd className="text-amber-800">Finishing it here doesn’t earn the badge: your organization isn’t authorized on this plan for the badge.</dd></div> : null}
     </dl>
     <OfferedBy offers={badge.offered_by} className="mt-2" />
   </div>

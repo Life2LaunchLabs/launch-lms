@@ -3,15 +3,11 @@ from datetime import datetime
 import pytest
 from fastapi import HTTPException
 from sqlmodel import Session, create_engine, select
-from src.db.goals import Goal, GoalStep, StepProgress
+from src.db.goals import Goal, GoalStep, GoalTemplate, StepProgress
 from src.db.learning import (
     BadgeCollection,
-    BadgeIssuerAuthorization,
-    BadgeIssuerAuthorizationStatus,
     BadgeIssuerLearnerLink,
     BadgeIssuerLearnerLinkStatus,
-    IssuerAuthorizationInvite,
-    IssuerAuthorizationRequest,
     IssuerLearnerLinkCreate,
     IssuerLearnerRequestCreate,
     IssuerLearnerRequestDecision,
@@ -31,13 +27,14 @@ from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
 from src.db.plan_requests import PlanRequest
 from src.db.portfolio import Portfolio
-from src.db.badge_routes import BadgePlanStart, BadgeRoute, BadgeRouteInput, BadgeRouteOffer, BadgeRoutesUpdate
+from src.db.badge_routes import BadgeRoute, BadgeRouteOffer
+from src.db.template_marketplace import GoalTemplateAuthorization, GoalTemplateLearnerAccess, GoalTemplateListing, TemplateAuthorizationRequest
 from src.db.planning import Plan, PlanActivity, PlanCollaborator, PlanInvitation, PlanObjective, PlanObjectiveProgress, PlanPhase, PlanRole
 from src.db.programs import Objective, ObjectiveCreate, ObjectiveKind, Program, ProgramAssignment, ProgramObjective, ProgramCreate, ProgramParticipant, ProgramPhase, ProgramTemplateVersion, FrozenActivity
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
 from src.db.users import PublicUser, User
-from src.services.badge_routes import set_routes, start_badge_plan
+from src.services.goals import plan_access, template_marketplace
 from src.services.learning import (
     build_ob3_credential,
     confer_award,
@@ -48,18 +45,14 @@ from src.services.learning import (
     runtime,
 )
 from src.services.learning_page_convert import normalize_question_settings, question_block
-from src.services.learning_issuers import IssuerAccessUpdate
 from src.services.learning_marketplace import (
     browse_marketplace_badges,
     create_learner_link,
-    decide_authorization,
     decide_learner_request,
-    invite_issuer,
     issuer_badge_metrics,
     list_eligible_issuers,
-    request_authorization,
+    list_issued_badges,
     request_learner_support,
-    update_authorization,
 )
 from src.services.plan_activities import start_objective_activity
 from src.services.programs import add_program_objective, create_program
@@ -97,8 +90,11 @@ def _create_tables(engine) -> None:
         LearningPageProgress,
         LearningResponseAttempt,
         LearningBadgeAward,
-        BadgeIssuerAuthorization,
         BadgeIssuerLearnerLink,
+        GoalTemplate,
+        GoalTemplateListing,
+        GoalTemplateAuthorization,
+        GoalTemplateLearnerAccess,
         Program,
         Objective,
         ProgramPhase,
@@ -222,69 +218,76 @@ def _setup(session: Session):
     return creator_org, issuer_org, alice, bob, carol, badge
 
 
-async def _approved_authorization(session: Session, alice: PublicUser, bob: PublicUser, badge: LearningBadge, open_to_all: bool = False):
-    await request_authorization(_request(), IssuerAuthorizationRequest(badge_uuid=badge.badge_uuid, issuer_org_id=2), bob, session)
-    authorization = session.exec(select(BadgeIssuerAuthorization)).first()
-    await decide_authorization(_request(), authorization.authorization_uuid, True, alice, session)
-    if open_to_all:
-        await update_authorization(_request(), authorization.authorization_uuid, IssuerAccessUpdate(open_to_all=True), bob, session)
-    session.refresh(authorization)
-    return authorization
+def _plan(session: Session, badge: LearningBadge) -> GoalTemplate:
+    """The badge's plan: a template of the badge's org that is its only way to earn it."""
+    template = session.exec(select(GoalTemplate).where(GoalTemplate.template_uuid == f"template_{badge.id}")).first()
+    if template is None:
+        template = GoalTemplate(template_uuid=f"template_{badge.id}", org_id=badge.org_id, title=f"Plan for {badge.name}", creation_date=NOW, update_date=NOW)
+        session.add(template)
+        session.flush()
+        session.add(BadgeRoute(route_uuid=f"route_{badge.id}", badge_id=badge.id, goal_template_id=template.id, recommended=True, creation_date=NOW))
+        session.commit()
+    return template
 
 
-async def test_request_and_approve_authorization():
+def _set_access(session: Session, badge: LearningBadge, org_id: int, access: str) -> None:
+    """Who may start the badge's plan at this organization."""
+    plan_access.set_access(session, int(_plan(session, badge).id), org_id, access, None)  # type: ignore[arg-type]
+    session.commit()
+
+
+def _ask(session: Session, admin: PublicUser, badge: LearningBadge, org_id: int = 2) -> dict:
+    """The issuer asks to run the badge's plan (so to issue the badge through it)."""
+    return template_marketplace.request_use(session, admin, TemplateAuthorizationRequest(template_uuid=_plan(session, badge).template_uuid, issuer_org_id=org_id))
+
+
+async def _approved_authorization(session: Session, alice: PublicUser, bob: PublicUser, badge: LearningBadge, access: str = "invite") -> dict:
+    """Bob's org (2) asks for the badge's plan and Alice (the owner) approves it."""
+    asked = _ask(session, bob, badge)
+    approved = template_marketplace.decide(session, alice, asked["authorization_uuid"], True)
+    _set_access(session, badge, 2, access)
+    return approved
+
+
+async def test_an_issuer_asks_for_a_badges_plan_and_issues_once_the_owner_approves():
+    from src.services.goals.plan_issuers import may_issue
+
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     _create_tables(engine)
     with Session(engine) as session:
         _, _, alice, bob, _, badge = _setup(session)
-
-        result = await request_authorization(
-            _request(), IssuerAuthorizationRequest(badge_uuid=badge.badge_uuid, issuer_org_id=2, message="please"), bob, session
-        )
-        assert result.status == BadgeIssuerAuthorizationStatus.REQUESTED
-        assert result.creator_org_id == 1
-
-        approved = await decide_authorization(_request(), result.authorization_uuid, True, alice, session)
-        assert approved.status == BadgeIssuerAuthorizationStatus.APPROVED
-        assert approved.decided_by_user_id == alice.id
-
-
-async def test_issuer_cannot_decide_own_request():
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    _create_tables(engine)
-    with Session(engine) as session:
-        _, _, _, bob, _, badge = _setup(session)
-        result = await request_authorization(
-            _request(), IssuerAuthorizationRequest(badge_uuid=badge.badge_uuid, issuer_org_id=2), bob, session
-        )
+        # The plan isn't listed itself: asking for a marketplace badge's plan is how an org asks to issue it.
+        asked = _ask(session, bob, badge)
+        assert asked["status"] == "requested" and [item["badge_uuid"] for item in asked["badges"]] == [badge.badge_uuid]
+        assert not may_issue(session, badge, 2)
+        # Only the plan's owner decides.
         with pytest.raises(HTTPException) as exc:
-            await decide_authorization(_request(), result.authorization_uuid, True, bob, session)
+            template_marketplace.decide(session, bob, asked["authorization_uuid"], True)
         assert exc.value.status_code == 403
+        assert template_marketplace.decide(session, alice, asked["authorization_uuid"], True)["status"] == "approved"
+        assert may_issue(session, badge, 2) and may_issue(session, badge, 1) and not may_issue(session, badge, 3)
+        # Leaving the plan stops issuing the badge; asking again asks again.
+        assert template_marketplace.revoke(session, bob, asked["authorization_uuid"])["status"] == "revoked"
+        assert not may_issue(session, badge, 2)
+        assert _ask(session, bob, badge)["status"] == "requested"
 
 
-async def test_unlisted_badge_cannot_be_requested():
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    _create_tables(engine)
-    with Session(engine) as session:
-        _create_org(session, org_id=1, slug="creator")
-        _create_org(session, org_id=2, slug="issuer")
-        bob = _create_user(session, user_id=2, username="bob", org_id=2)
-        badge = _create_badge(session, badge_id=1, org_id=1, listed=False)
-        with pytest.raises(HTTPException) as exc:
-            await request_authorization(_request(), IssuerAuthorizationRequest(badge_uuid=badge.badge_uuid, issuer_org_id=2), bob, session)
-        assert exc.value.status_code == 422
-
-
-async def test_badge_issuing_is_available_on_free_plan():
+async def test_a_plan_of_an_unlisted_badge_cannot_be_asked_for():
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     _create_tables(engine)
     with Session(engine) as session:
         _create_org(session, org_id=1, slug="creator")
         _create_org(session, org_id=2, slug="issuer", tier="free")
         bob = _create_user(session, user_id=2, username="bob", org_id=2)
-        badge = _create_badge(session, badge_id=1, org_id=1)
-        result = await request_authorization(_request(), IssuerAuthorizationRequest(badge_uuid=badge.badge_uuid, issuer_org_id=2), bob, session)
-        assert result.status == BadgeIssuerAuthorizationStatus.REQUESTED
+        badge = _create_badge(session, badge_id=1, org_id=1, listed=False)
+        with pytest.raises(HTTPException) as exc:
+            _ask(session, bob, badge)
+        assert exc.value.status_code == 422
+        # Listed again, a free-plan organization may ask.
+        badge.marketplace_listed = True
+        session.add(badge)
+        session.commit()
+        assert _ask(session, bob, badge)["status"] == "requested"
 
 
 async def test_badge_creation_requires_the_badge_publisher_program():
@@ -313,90 +316,12 @@ async def test_badge_creation_requires_the_badge_publisher_program():
         assert badge.name == "Allowed"
 
 
-async def test_legacy_pending_issuing_package_does_not_queue_free_request():
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    _create_tables(engine)
-    with Session(engine) as session:
-        _create_org(session, org_id=1, slug="creator")
-        _create_org(session, org_id=2, slug="issuer", tier="free")
-        bob = _create_user(session, user_id=2, username="bob", org_id=2)
-        badge = _create_badge(session, badge_id=1, org_id=1)
-        session.add(PlanRequest(
-            org_id=2,
-            request_uuid="plan_request_1",
-            request_type="package_add",
-            requested_value="badge_issuing",
-            status="pending",
-            creation_date=NOW,
-            update_date=NOW,
-        ))
-        session.commit()
-
-        result = await request_authorization(
-            _request(),
-            IssuerAuthorizationRequest(badge_uuid=badge.badge_uuid, issuer_org_id=2),
-            bob,
-            session,
-        )
-        assert result.status == BadgeIssuerAuthorizationStatus.REQUESTED
-        items = await browse_marketplace_badges(_request(), bob, session, issuer_org_id=2)
-        assert items[0]["issuing_access"] == "active"
-
-
-async def test_marketplace_marks_free_plan_issuing_access_active():
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    _create_tables(engine)
-    with Session(engine) as session:
-        _create_org(session, org_id=1, slug="creator")
-        _create_org(session, org_id=2, slug="issuer", tier="free")
-        bob = _create_user(session, user_id=2, username="bob", org_id=2)
-        _create_badge(session, badge_id=1, org_id=1)
-
-        items = await browse_marketplace_badges(_request(), bob, session, issuer_org_id=2)
-        assert items[0]["issuing_access"] == "active"
-
-
-async def test_creator_sees_free_plan_authorization_request():
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    _create_tables(engine)
-    with Session(engine) as session:
-        _create_org(session, org_id=1, slug="creator")
-        _create_org(session, org_id=2, slug="issuer", tier="free")
-        alice = _create_user(session, user_id=1, username="alice", org_id=1)
-        bob = _create_user(session, user_id=2, username="bob", org_id=2)
-        badge = _create_badge(session, badge_id=1, org_id=1)
-        session.add(PlanRequest(
-            org_id=2,
-            request_uuid="plan_request_1",
-            request_type="package_add",
-            requested_value="badge_issuing",
-            status="pending",
-            creation_date=NOW,
-            update_date=NOW,
-        ))
-        session.commit()
-        await request_authorization(
-            _request(),
-            IssuerAuthorizationRequest(badge_uuid=badge.badge_uuid, issuer_org_id=2),
-            bob,
-            session,
-        )
-
-        from src.services.learning_marketplace import list_authorizations
-        creator_items = await list_authorizations(_request(), 1, "creator", alice, session)
-        issuer_items = await list_authorizations(_request(), 2, "issuer", bob, session)
-        assert len(creator_items) == 1
-        assert len(issuer_items) == 1
-        assert creator_items[0].status == BadgeIssuerAuthorizationStatus.REQUESTED
-        assert issuer_items[0].status == BadgeIssuerAuthorizationStatus.REQUESTED
-
-
 async def test_issuer_badge_metrics_are_scoped_to_issuer_and_include_programs():
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     _create_tables(engine)
     with Session(engine) as session:
         _, _, alice, bob, carol, badge = _setup(session)
-        await _approved_authorization(session, alice, bob, badge, open_to_all=True)
+        await _approved_authorization(session, alice, bob, badge, access="request")
         program = Program(id=1, program_uuid="program_1", org_id=2, name="Issuer Program", creation_date=NOW, update_date=NOW)
         objective = Objective(
             id=1,
@@ -435,7 +360,8 @@ async def test_issuer_badge_metrics_are_scoped_to_issuer_and_include_programs():
         metrics = await issuer_badge_metrics(_request(), 2, badge.badge_uuid, bob, session)
 
         assert metrics["issued_count"] == 1
-        assert metrics["authorization"]["open_to_all"] is True
+        assert metrics["learner_access"] == "request"
+        assert [plan["template_uuid"] for plan in metrics["plans"]] == ["template_1"] and metrics["plans"][0]["authorization_uuid"]
         assert metrics["programs"] == [{
             "program_uuid": "program_1",
             "name": "Issuer Program",
@@ -444,29 +370,23 @@ async def test_issuer_badge_metrics_are_scoped_to_issuer_and_include_programs():
         }]
 
 
-async def test_invite_flow():
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    _create_tables(engine)
-    with Session(engine) as session:
-        _, _, alice, bob, _, badge = _setup(session)
-        invited = await invite_issuer(_request(), IssuerAuthorizationInvite(badge_uuid=badge.badge_uuid, issuer_org_slug="issuer"), alice, session)
-        assert invited.status == BadgeIssuerAuthorizationStatus.INVITED
-        # Issuer requesting while invited counts as acceptance
-        accepted = await request_authorization(_request(), IssuerAuthorizationRequest(badge_uuid=badge.badge_uuid, issuer_org_id=2), bob, session)
-        assert accepted.status == BadgeIssuerAuthorizationStatus.APPROVED
-
-
-async def test_browse_marketplace_includes_authorization_status():
+async def test_browse_shows_each_badges_plans_with_this_orgs_permission():
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     _create_tables(engine)
     with Session(engine) as session:
         _, _, alice, bob, _, badge = _setup(session)
         _create_badge(session, badge_id=2, org_id=1, listed=False)
-        await request_authorization(_request(), IssuerAuthorizationRequest(badge_uuid=badge.badge_uuid, issuer_org_id=2), bob, session)
+        _ask(session, bob, badge)
 
         items = await browse_marketplace_badges(_request(), bob, session, issuer_org_id=2)
         assert len(items) == 1  # unlisted badge excluded
-        assert items[0]["authorization"]["status"] == "requested"
+        assert items[0]["issuing"] is False
+        [plan] = items[0]["plans"]
+        assert plan["template_uuid"] == "template_1" and plan["authorization"]["status"] == "requested"
+        template_marketplace.decide(session, alice, plan["authorization"]["authorization_uuid"], True)
+        assert (await browse_marketplace_badges(_request(), bob, session, issuer_org_id=2))[0]["issuing"] is True
+        [issued] = await list_issued_badges(_request(), 2, bob, session)
+        assert issued["badge"]["badge_uuid"] == badge.badge_uuid and issued["plans"][0]["authorization_uuid"] == plan["authorization"]["authorization_uuid"]
 
 
 async def test_authorized_badges_appear_in_issuer_collections_without_edit_access():
@@ -506,7 +426,8 @@ async def test_eligible_issuers_open_to_all_and_links():
     _create_tables(engine)
     with Session(engine) as session:
         _, _, alice, bob, carol, badge = _setup(session)
-        authorization = await _approved_authorization(session, alice, bob, badge)
+        _set_access(session, badge, 1, "open")
+        await _approved_authorization(session, alice, bob, badge)
 
         # Not open to all, no link: only creator eligible
         issuers = await list_eligible_issuers(_request(), badge.badge_uuid, carol, session)
@@ -520,7 +441,7 @@ async def test_eligible_issuers_open_to_all_and_links():
 
         # Open to all: eligible for everyone
         dave = _create_user(session, user_id=4, username="dave")
-        await update_authorization(_request(), authorization.authorization_uuid, IssuerAccessUpdate(open_to_all=True), bob, session)
+        _set_access(session, badge, 2, "request")
         issuers = await list_eligible_issuers(_request(), badge.badge_uuid, dave, session)
         assert [i["org"]["slug"] for i in issuers] == ["creator", "issuer"]
 
@@ -530,7 +451,7 @@ async def test_open_issuer_can_accept_learner_request_and_connect_user():
     _create_tables(engine)
     with Session(engine) as session:
         _, _, alice, bob, carol, badge = _setup(session)
-        await _approved_authorization(session, alice, bob, badge, open_to_all=True)
+        await _approved_authorization(session, alice, bob, badge, access="request")
 
         requested = await request_learner_support(
             _request(),
@@ -571,7 +492,7 @@ async def test_demo_learner_request_is_accepted_without_issuer_staff():
     with Session(engine) as session:
         _, _, alice, bob, carol, badge = _setup(session)
         dave = _create_user(session, user_id=4, username="dave")
-        await _approved_authorization(session, alice, bob, badge, open_to_all=True)
+        await _approved_authorization(session, alice, bob, badge, access="request")
         request = IssuerLearnerRequestCreate(badge_uuid=badge.badge_uuid, issuer_org_id=2)
         # Outside a demo the request waits for issuer staff.
         pending = await request_learner_support(_request(), request, carol, session)
@@ -592,41 +513,11 @@ async def test_demo_learner_request_is_accepted_without_issuer_staff():
         ).first() is not None
 
 
-async def test_badge_plan_start_with_issuer_selection():
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    _create_tables(engine)
-    with Session(engine) as session:
-        _, _, alice, bob, carol, badge = _setup(session)
-        _add_activity_route(session, alice, badge)
-
-        # Unauthorized issuer org rejected
-        with pytest.raises(HTTPException) as exc:
-            start_badge_plan(session, carol, badge.badge_uuid, BadgePlanStart(issuer_org_id=2))
-        assert exc.value.status_code == 403
-
-        await _approved_authorization(session, alice, bob, badge)
-
-        # Approved but invite-only, no link: still rejected
-        with pytest.raises(HTTPException) as exc:
-            start_badge_plan(session, carol, badge.badge_uuid, BadgePlanStart(issuer_org_id=2))
-        assert exc.value.status_code == 403
-
-        await create_learner_link(_request(), IssuerLearnerLinkCreate(badge_uuid=badge.badge_uuid, issuer_org_id=2, user_id=carol.id), bob, session)
-        plan = start_badge_plan(session, carol, badge.badge_uuid, BadgePlanStart(issuer_org_id=2))
-        assert plan["source_organization"]["name"] == "Issuer"
-        assert plan["source_badge"]["badge_uuid"] == badge.badge_uuid
-
-        # Selecting the creator org (or none) starts with the creator
-        dave = _create_user(session, user_id=4, username="dave")
-        plan = start_badge_plan(session, dave, badge.badge_uuid, BadgePlanStart(issuer_org_id=1))
-        assert plan["source_organization"]["name"] == "Creator"
-
-
 ESSAY_PAGE_UUID = "learning_page_essay"
 
 
 def _add_activity_route(session: Session, admin: PublicUser, badge: LearningBadge) -> dict:
-    """A plan template with one activity step (a manually graded essay) as the badge's only route."""
+    """A legacy program with one activity step (a manually graded essay) that earns the badge."""
     program = create_program(session, admin, ProgramCreate(org_id=badge.org_id, name="Write it up"))
     program = add_program_objective(session, admin, badge.org_id, program["program_uuid"], ObjectiveCreate(title="Reflect", kind=ObjectiveKind.ACTIVITY))
     activity = session.exec(select(LearningActivity).where(LearningActivity.activity_uuid == program["objectives"][0]["activity"]["activity_uuid"])).one()
@@ -640,8 +531,21 @@ def _add_activity_route(session: Session, admin: PublicUser, badge: LearningBadg
         title="Question", order=1, required=True, content=content, creation_date=NOW, update_date=NOW,
     ))
     session.commit()
-    set_routes(session, admin, badge.badge_uuid, BadgeRoutesUpdate(routes=[BadgeRouteInput(program_uuid=program["program_uuid"])]))
     return program
+
+
+def _start_plan(session: Session, badge: LearningBadge, program: dict, learner: PublicUser, issuer_org_id: int = 1, staff_ids: list[int] | None = None) -> dict:
+    """A legacy badge plan from the program, offered by the issuer (how plans already running were started)."""
+    from src.services.own_plans import create_own_plan
+    from src.services.planning import _plan_dict
+
+    source = session.exec(select(Program).where(Program.program_uuid == program["program_uuid"])).one()
+    plan = create_own_plan(session, source, learner.id, issuer_org_id, staff_ids or [])
+    plan.source_badge_id, plan.name = badge.id, badge.name
+    session.add(plan)
+    session.commit()
+    session.refresh(plan)
+    return _plan_dict(session, plan, learner.id, True)
 
 
 async def _submit_essay(session: Session, learner: PublicUser, plan: dict) -> LearningResponseAttempt:
@@ -674,10 +578,9 @@ async def test_grading_routed_to_issuing_org():
     _create_tables(engine)
     with Session(engine) as session:
         _, _, alice, bob, carol, badge = _setup(session)
-        _add_activity_route(session, alice, badge)
-        authorization = await _approved_authorization(session, alice, bob, badge)
-        await update_authorization(_request(), authorization.authorization_uuid, IssuerAccessUpdate(learner_access="open"), bob, session)
-        plan = start_badge_plan(session, carol, badge.badge_uuid, BadgePlanStart(issuer_org_id=2))
+        program = _add_activity_route(session, alice, badge)
+        await _approved_authorization(session, alice, bob, badge, access="open")
+        plan = _start_plan(session, badge, program, carol, 2)
         attempt = await _submit_essay(session, carol, plan)
         assert _step_status(session, plan) == "submitted"
 
@@ -708,12 +611,11 @@ async def test_plan_reviewer_can_grade_without_being_an_org_admin():
         _, _, alice, bob, carol, badge = _setup(session)
         dave = _create_user(session, user_id=4, username="dave", org_id=2, role_id=4)
         erin = _create_user(session, user_id=5, username="erin", org_id=2, role_id=4)
-        _add_activity_route(session, alice, badge)
-        authorization = await _approved_authorization(session, alice, bob, badge)
-        await update_authorization(_request(), authorization.authorization_uuid, IssuerAccessUpdate(learner_access="request"), bob, session)
+        program = _add_activity_route(session, alice, badge)
+        await _approved_authorization(session, alice, bob, badge, access="request")
         requested = await request_learner_support(_request(), IssuerLearnerRequestCreate(badge_uuid=badge.badge_uuid, issuer_org_id=2), carol, session)
-        await decide_learner_request(_request(), requested["link_uuid"], True, IssuerLearnerRequestDecision(staff_user_ids=[dave.id]), bob, session)
-        plan = start_badge_plan(session, carol, badge.badge_uuid, BadgePlanStart(issuer_org_id=2))
+        accepted = await decide_learner_request(_request(), requested["link_uuid"], True, IssuerLearnerRequestDecision(staff_user_ids=[dave.id]), bob, session)
+        plan = _start_plan(session, badge, program, carol, 2, accepted["staff_user_ids"])
         attempt = await _submit_essay(session, carol, plan)
 
         # Staff of the issuer org who are not reviewers on this plan cannot grade it
@@ -730,8 +632,8 @@ async def test_grading_preserves_activity_and_question_feedback():
     _create_tables(engine)
     with Session(engine) as session:
         _, _, alice, _, carol, badge = _setup(session)
-        _add_activity_route(session, alice, badge)
-        plan = start_badge_plan(session, carol, badge.badge_uuid, BadgePlanStart())
+        program = _add_activity_route(session, alice, badge)
+        plan = _start_plan(session, badge, program, carol)
         attempt = await _submit_essay(session, carol, plan)
         assert attempt.result["questions"]["reflection"]["grading_status"] == "pending"
 
@@ -759,8 +661,8 @@ async def test_grading_defaults_to_creator_org():
     _create_tables(engine)
     with Session(engine) as session:
         _, _, alice, bob, carol, badge = _setup(session)
-        _add_activity_route(session, alice, badge)
-        plan = start_badge_plan(session, carol, badge.badge_uuid, BadgePlanStart())
+        program = _add_activity_route(session, alice, badge)
+        plan = _start_plan(session, badge, program, carol)
         attempt = await _submit_essay(session, carol, plan)
 
         with pytest.raises(HTTPException) as exc:
@@ -779,10 +681,9 @@ async def test_response_listing_scoped_by_issuing_org():
     _create_tables(engine)
     with Session(engine) as session:
         _, _, alice, bob, carol, badge = _setup(session)
-        _add_activity_route(session, alice, badge)
-        authorization = await _approved_authorization(session, alice, bob, badge)
-        await update_authorization(_request(), authorization.authorization_uuid, IssuerAccessUpdate(learner_access="open"), bob, session)
-        plan = start_badge_plan(session, carol, badge.badge_uuid, BadgePlanStart(issuer_org_id=2))
+        program = _add_activity_route(session, alice, badge)
+        await _approved_authorization(session, alice, bob, badge, access="open")
+        plan = _start_plan(session, badge, program, carol, 2)
         attempt = await _submit_essay(session, carol, plan)
 
         issuer_view = await list_learning_responses(_request(), bob, session, org_id=2)
@@ -878,32 +779,28 @@ async def test_staff_browse_badges_read_only_and_learners_cannot():
         session.commit()
         teacher = _create_user(session, user_id=4, username="tia", org_id=2, role_id=5)
         learner = _create_user(session, user_id=5, username="lou", org_id=2, role_id=4)
-        await request_authorization(_request(), IssuerAuthorizationRequest(badge_uuid=badge.badge_uuid, issuer_org_id=2), bob, session)
+        _ask(session, bob, badge)
 
         items = await browse_marketplace_badges(_request(), teacher, session, issuer_org_id=2)
-        assert items[0]["authorization"]["status"] == "requested"
+        assert items[0]["plans"][0]["authorization"]["status"] == "requested"
         with pytest.raises(HTTPException) as denied:
             await browse_marketplace_badges(_request(), learner, session, issuer_org_id=2)
         assert denied.value.status_code == 403
         # Requesting stays an admin action.
         with pytest.raises(HTTPException):
-            await request_authorization(_request(), IssuerAuthorizationRequest(badge_uuid=badge.badge_uuid, issuer_org_id=2), teacher, session)
+            _ask(session, teacher, badge)
 
 
-async def test_requests_summary_counts_badge_requests_both_ways():
-    from src.db.goals import GoalTemplate
-    from src.db.template_marketplace import GoalTemplateAuthorization
+async def test_requests_summary_counts_plan_requests_both_ways():
     from src.services.goals.template_marketplace import requests_summary
 
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     _create_tables(engine)
-    GoalTemplate.__table__.create(engine)
-    GoalTemplateAuthorization.__table__.create(engine)
     with Session(engine) as session:
         _, _, alice, bob, _, badge = _setup(session)
         assert requests_summary(session, alice, 1)["incoming_requested"] == 0
-        await request_authorization(_request(), IssuerAuthorizationRequest(badge_uuid=badge.badge_uuid, issuer_org_id=2), bob, session)
-        assert requests_summary(session, alice, 1)["badges"] == {"incoming_requested": 1, "outgoing_pending": 0}
+        _ask(session, bob, badge)
+        assert requests_summary(session, alice, 1) == {"incoming_requested": 1, "outgoing_pending": 0}
         assert requests_summary(session, bob, 2)["outgoing_pending"] == 1
         with pytest.raises(HTTPException):
             requests_summary(session, bob, 1)

@@ -41,8 +41,6 @@ def _badge_version(db: Session, badge: LearningBadge) -> str | None:
 
 def template_learners(db: Session, current_user: PublicUser, org_id: int, template_uuid: str) -> dict:
     """The badges this template earns and who may start it in this organization."""
-    from src.services.goals.template_marketplace import route_partners
-
     templates.require_reader(db, current_user, org_id)
     template = _template(db, org_id, template_uuid)
     rows = db.exec(select(BadgeRoute, LearningBadge).join(LearningBadge, LearningBadge.id == BadgeRoute.badge_id)
@@ -53,7 +51,6 @@ def template_learners(db: Session, current_user: PublicUser, org_id: int, templa
         badges.append({
             **badge_authority.badge_ref(db, badge), "badge_version": _badge_version(db, badge), "status": getattr(badge.status, "value", badge.status),
             "route_uuid": route.route_uuid, "recommended": bool(route.recommended), "eligible_versions": badge_authority.rule_of(route),
-            "trusted_only": bool(route.trusted_only), "partners": route_partners(db, route) if route.trusted_only else [],
             # Whether finishing this plan here earns the badge: the owner, or an issuer allowed to run this route.
             "earns_here": badge_authority.may_run(db, badge, org_id, route),
             "offered_by": _offered_by(db, badge, route),

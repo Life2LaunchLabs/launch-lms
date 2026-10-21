@@ -114,12 +114,12 @@ export function OrgAssignments({ orgslug }: { orgslug: string }) {
 }
 
 /** One template's assignments, ended ones under Past, on the template's Assignments tab. */
-export function TemplateAssignments({ orgslug, templateUuid }: { orgslug: string; templateUuid: string }) {
+export function TemplateAssignments({ orgslug, templateUuid, assign }: { orgslug: string; templateUuid: string; /** Hand the template out, at the top of the list. */ assign?: React.ReactNode }) {
   const { orgId, token } = useStaff()
   const { data = [], isLoading, mutate } = useTemplateAssignments(orgId, templateUuid, token)
   const needs = useNeeds(orgId, token)
   return <div className="px-4 pb-10 pt-6 sm:px-10"><div className="mx-auto max-w-5xl">
-    <AssignmentsList rows={data} loading={isLoading} orgslug={orgslug} needs={needs} showTemplate={false} onChanged={() => mutate()} empty="Not handed out yet. Use Assign to give it to a group or a learner." />
+    <AssignmentsList rows={data} loading={isLoading} orgslug={orgslug} needs={needs} showTemplate={false} onChanged={() => mutate()} assign={assign} empty="Not handed out yet. Use Assign to give it to a group or a learner." />
   </div></div>
 }
 

@@ -6,25 +6,22 @@ from sqlmodel import Session, select
 
 from src.db.badge_routes import BadgeRoute, BadgeRouteOffer
 from src.db.goals import Goal, StepStatus, StepStatusChange
-from src.db.learning import BadgeIssuerAuthorization, BadgeIssuerAuthorizationStatus, LearningBadge, LearningBadgeAward, LearningBadgeStatus
+from src.db.learning import LearningBadge, LearningBadgeAward, LearningBadgeStatus
 from src.db.organizations import Organization
 from src.services.goals import goals
 from src.services.goals.badges import goal_summaries, goal_summary, start_badge_goal
 from src.services.goals.plan_access import set_access
+from src.tests.plan_permissions import approve_on_plans
 from src.tests.test_goals import LEARNER, NOW, _published, _session as _goal_session, _user
 
 
 def _world(issuer_access: str = "open", creator_access: str = "open") -> tuple[Session, LearningBadge, list[str]]:
     db = _goal_session()
-    for model in (BadgeRoute, BadgeRouteOffer, BadgeIssuerAuthorization):
+    for model in (BadgeRoute, BadgeRouteOffer):
         model.__table__.create(db.get_bind(), checkfirst=True)
     db.add(Organization(id=2, org_uuid="org_2", name="Partner", slug="partner", email="partner@example.com", creation_date=NOW, update_date=NOW))
     badge = LearningBadge(id=1, badge_uuid="badge_adapt", org_id=1, name="Adaptability", status=LearningBadgeStatus.PUBLISHED, creation_date=NOW, update_date=NOW)
     db.add(badge)
-    db.add(BadgeIssuerAuthorization(
-        authorization_uuid="auth_2", badge_id=1, creator_org_id=1, issuer_org_id=2, status=BadgeIssuerAuthorizationStatus.APPROVED,
-        learner_access=issuer_access, open_to_all=issuer_access != "invite", creation_date=NOW, update_date=NOW,
-    ))
     db.commit()
     uuids = []
     for position, titles in enumerate((["Notice change", "Your story"], ["Write it up"])):
@@ -35,6 +32,8 @@ def _world(issuer_access: str = "open", creator_access: str = "open") -> tuple[S
         set_access(db, template.id, 1, creator_access, None)
         set_access(db, template.id, 2, issuer_access, None)
     db.commit()
+    # The partner issues the badge: approved on both of its plans.
+    approve_on_plans(db, 2)
     return db, badge, uuids
 
 

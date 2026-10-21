@@ -16,7 +16,7 @@ from sqlmodel import Session, col, select
 
 from src.db.badge_routes import BadgeRoute
 from src.db.goals import CURRENT_ASSIGNMENT_STATUSES, Goal, GoalAssignment, GoalTemplate, GoalTemplateVersion, TemplateStatus
-from src.db.learning import BadgeIssuerAuthorization, BadgeIssuerAuthorizationStatus, LearningBadge
+from src.db.learning import LearningBadge
 from src.db.organizations import Organization
 from src.db.requirements import RequirementFramework, RequirementFrameworkVersion, RequirementNode
 from src.db.users import PublicUser, User
@@ -24,6 +24,7 @@ from src.security.org_auth import is_org_admin, require_org_membership
 from src.services.goals import badge_authority
 from src.services.goals.assignment_summary import _person, assignment_summaries
 from src.services.goals.badges import badge_routes
+from src.services.goals.plan_issuers import issued_badge_ids
 from src.services.goals.document import iter_steps
 from src.services.school.roles import is_staff
 
@@ -40,9 +41,7 @@ def _runnable(db: Session, org_id: int) -> dict[int, list[LearningBadge]]:
     """Other organizations' templates this one may run, by template id, with the badges they earn
     (the routes ``badge_templates.issuer_routes`` lists)."""
     badges = db.exec(
-        select(LearningBadge).join(BadgeIssuerAuthorization, BadgeIssuerAuthorization.badge_id == LearningBadge.id)
-        .where(BadgeIssuerAuthorization.issuer_org_id == org_id, BadgeIssuerAuthorization.status == BadgeIssuerAuthorizationStatus.APPROVED,
-               LearningBadge.org_id != org_id, col(LearningBadge.deleted_at).is_(None))
+        select(LearningBadge).where(col(LearningBadge.id).in_(issued_badge_ids(db, [org_id]) or {0}), col(LearningBadge.deleted_at).is_(None))
         .order_by(LearningBadge.name)
     ).all()
     result: dict[int, list[LearningBadge]] = {}
