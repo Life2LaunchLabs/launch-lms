@@ -1,5 +1,8 @@
 from sqlmodel import Session, select
 
+from src.db.badge_routes import BadgeRoute
+from src.db.goals import GoalTemplate
+from src.db.template_marketplace import GoalTemplateLearnerAccess
 from src.db.learning import BadgeCollection, BadgeIssuerAuthorization, BadgeIssuerAuthorizationStatus, LearningBadge, LearningBadgeAward, LearningBadgeStatus
 from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
@@ -8,6 +11,8 @@ from src.db.users import AnonymousUser
 from src.services import badge_discover
 from src.services.goals import goals
 from src.services.goals.badges import start_badge_goal
+from src.services.goals import plan_access
+from src.services.goals.plan_access import set_access
 from src.tests.test_goal_badges import _world
 from src.tests.test_goals import LEARNER as LEARNER_ID, NOW, _user
 
@@ -34,6 +39,23 @@ def _collect(session: Session) -> None:
     badge.badge_metadata = {"overview_subtitle": "Roll with it", "overview_cards": [{"title": "Adjust fast", "body": "Change course when plans shift"}, {"title": ""}]}
     session.add(LearningBadge(id=2, badge_uuid="badge_lead", org_id=1, collection_id=1, name="Leadership", status=LearningBadgeStatus.PUBLISHED, creation_date=NOW, update_date=NOW))
     session.commit()
+    # Discover lists a badge only while some organization lets learners start one of its plans.
+    if not plan_access.has_plans(session, session.get(LearningBadge, 1)):
+        _open_route(session, 1, "route_adapt", org_id=1)
+    _open_route(session, 2, "route_lead", org_id=1)
+
+
+def _open_route(session: Session, badge_id: int, route_uuid: str, org_id: int, access: str = "open") -> int:
+    """A way to earn the badge that ``org_id`` lets learners start (``access``); returns its template id."""
+    for model in (GoalTemplate, GoalTemplateLearnerAccess):
+        model.__table__.create(session.get_bind(), checkfirst=True)
+    template = GoalTemplate(template_uuid=f"goal_template_{route_uuid}", org_id=1, title="Lead a meeting", document={"stages": []}, creation_date=NOW, update_date=NOW)
+    session.add(template)
+    session.flush()
+    session.add(BadgeRoute(route_uuid=route_uuid, badge_id=badge_id, goal_template_id=template.id, recommended=True, creation_date=NOW))
+    set_access(session, int(template.id), org_id, access, None)
+    session.commit()
+    return int(template.id)
 
 
 def test_discover_groups_badges_and_follows_the_learner():
@@ -89,6 +111,7 @@ def test_discover_lists_approved_publishers_and_badges_offered_to_the_site_only(
         session.add(BadgeIssuerAuthorization(authorization_uuid="auth_3", badge_id=3, creator_org_id=3, issuer_org_id=2,
                                              status=BadgeIssuerAuthorizationStatus.APPROVED, creation_date=NOW, update_date=NOW))
         session.commit()
+        _open_route(session, 3, "route_unvetted", org_id=2)
         assert names(site_org_id=2) == {"Adaptability", "Leadership", "Unvetted"}
         assert names(org_id=2) == {"Adaptability", "Unvetted"}
         assert "Unvetted" not in names(site_org_id=1)

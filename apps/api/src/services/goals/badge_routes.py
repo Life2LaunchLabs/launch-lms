@@ -19,7 +19,7 @@ from src.db.goals import DONE_STEP_STATUSES, Goal, GoalStep, GoalTemplate, StepP
 from src.db.learning import LearningBadge
 from src.db.users import PublicUser
 from src.services.goals import templates
-from src.services.goals.badge_authority import rule_of, trusted
+from src.services.goals.badge_authority import rule_of
 from src.services.goals.badges import active_badge_goal, badge_routes, start_badge_goal
 from src.services.goals.document import iter_steps
 from src.services.learning.lookups import _get_badge
@@ -87,13 +87,12 @@ def list_routes(db: Session, current_user: PublicUser | None, badge_uuid: str) -
 
     badge = _get_badge(db, badge_uuid)
     user_id = int(current_user.id) if current_user and getattr(current_user, "id", None) else None
-    visible = {option["org"]["id"]: option for option in issuer_options(db, badge, user_id, set())["issuers"]}
     offered_routes = offered(db, badge)
     routes, uuids = [], {}
     for route, template in badge_routes(db, badge):
         uuids[route.id] = route.route_uuid
-        issuers = [{**visible[org_id], "is_creator": org_id == badge.org_id} for org_id in visible
-                   if offers(offered_routes, org_id, route) and (org_id == badge.org_id or trusted(db, route, org_id))]
+        # Each organization running this route, with who it lets start this plan (invite-only ones only for their learners).
+        issuers = [{**option, "is_creator": option["org"]["id"] == badge.org_id} for option in issuer_options(db, badge, user_id, set(), route)["issuers"]]
         routes.append({**route_summary(db, template), "route_uuid": route.route_uuid, "recommended": route.recommended, "issuers": issuers,
                        "eligible_versions": rule_of(route), "trusted_only": bool(route.trusted_only),
                        "partners": route_partners(db, route) if route.trusted_only else []})

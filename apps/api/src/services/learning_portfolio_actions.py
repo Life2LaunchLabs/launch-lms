@@ -204,7 +204,7 @@ def _start_badge_plans(db: Session, user: User, badge_uuids: list) -> list[str]:
         issuer_org_id = issuer_options(db, badge, int(user.id), set())["startable_issuer_org_id"] if badge and badge_routes(db, badge) else None  # type: ignore[arg-type]
         if badge and issuer_org_id is not None:
             try:
-                start_badge_goal(db, user, badge, None, issuer_org_id, commit=False)  # type: ignore[arg-type]
+                start_badge_goal(db, user, badge, None, None, commit=False)  # type: ignore[arg-type]
                 started.append(badge.badge_uuid)
             except HTTPException:
                 pass

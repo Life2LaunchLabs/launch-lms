@@ -79,6 +79,26 @@ class GoalTemplateAuthorization(SQLModel, table=True):
     update_date: str = ""
 
 
+class GoalTemplateLearnerAccess(SQLModel, table=True):
+    """Who may start a plan an organization runs: its own template, or another organization's it may run.
+
+    ``open`` (anyone starts), ``request`` (learners ask, the organization accepts) or ``invite``
+    (only learners it adds). No row means ``invite``. Discover lists a badge only while an
+    organization allowed to issue it offers one of its routes ``open`` or by ``request``.
+    """
+
+    __tablename__ = "goal_template_learner_access"
+    __table_args__ = (UniqueConstraint("template_id", "org_id"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    template_id: int = Field(sa_column=Column(Integer, ForeignKey("goal_template.id", ondelete="CASCADE"), nullable=False, index=True))
+    org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), nullable=False, index=True))
+    access: str = Field(default="invite", sa_column=Column(String, nullable=False, server_default="invite"))
+    updated_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
+    creation_date: str = ""
+    update_date: str = ""
+
+
 class BadgeRoutePartner(SQLModel, table=True):
     """An issuer the badge's owner approved for a trusted-partners-only route."""
 
@@ -104,6 +124,10 @@ class TemplateAuthorizationRequest(SQLModel):
     template_uuid: str
     issuer_org_id: int
     message: str | None = ""
+
+
+class TemplateLearnerAccessUpdate(SQLModel):
+    access: Literal["open", "request", "invite"] = "invite"
 
 
 class BadgeRouteTrustUpdate(SQLModel):

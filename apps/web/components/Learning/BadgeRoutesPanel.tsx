@@ -12,6 +12,7 @@ import type { GoalTemplate } from '@services/goals/types'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { eligibilityLabel, type EligibilityRule } from '@services/goals/versions'
 import BadgeRouteTrust from '@components/Admin/Marketplace/BadgeRouteTrust'
+import { OfferedBy } from '@components/Learning/PlanAccessList'
 
 /** The badge creator chooses which goal templates earn the badge and which one learners see first. */
 export default function BadgeRoutesPanel({ badge, orgslug, readOnly = false }: { badge: any; orgslug: string; /** Show the routes without changing them (staff, or another organization's badge). */ readOnly?: boolean }) {
@@ -36,7 +37,7 @@ export default function BadgeRoutesPanel({ badge, orgslug, readOnly = false }: {
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div>
         <h2 className="text-lg font-bold">Ways to earn</h2>
-        <p className="mt-1 max-w-xl text-sm text-muted-foreground">Goal templates learners can follow to earn this badge. Starting one gives the learner their own goal, offered by the issuer they choose. Finishing every step awards the badge.</p>
+        <p className="mt-1 max-w-xl text-sm text-muted-foreground">Plans learners follow to earn this badge. Each organization running a plan decides who can start it (in the plan’s Settings); the badge shows on Discover once one of its plans is open or by request. Finishing every step awards the badge.</p>
       </div>
       {saving ? <Loader2 size={16} className="animate-spin text-muted-foreground" /> : null}
     </div>
@@ -48,6 +49,8 @@ export default function BadgeRoutesPanel({ badge, orgslug, readOnly = false }: {
         <div className="min-w-0 flex-1">
           <Link href={getUriWithOrg(orgslug, routePaths.org.admin.templatePage(route.template_uuid, 'overview'))} className="text-sm font-black hover:underline">{route.name}</Link>
           <p className="text-xs text-muted-foreground">{route.step_count} step{route.step_count === 1 ? '' : 's'}{route.activity_count ? ` · ${route.activity_count} activit${route.activity_count === 1 ? 'y' : 'ies'}` : ''}{route.recommended ? ' · Recommended' : ''}</p>
+          {/* Who lets learners start this plan is set on each organization's plan Settings. */}
+          <OfferedBy offers={route.issuers || []} className="mt-1" />
         </div>
         {/* On a phone the template's name keeps its line; which versions earn the badge goes under it. */}
         <div className="order-last w-full pl-11 sm:order-none sm:w-auto sm:pl-0 [&>select]:w-full sm:[&>select]:w-auto">

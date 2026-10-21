@@ -5,8 +5,9 @@ import { Check, Handshake, Loader2, Plus, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import IssuerRouteOffers from '@components/Learning/IssuerRouteOffers'
 import { Button } from '@components/ui/button'
-import { LearnerAccessSelect, learnerAccessLabel } from '@components/Learning/BadgeIssuing'
+import PlanAccessList from '@components/Learning/PlanAccessList'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
+import { useOrg } from '@components/Contexts/OrgContext'
 import {
   acceptIssuerInvite,
   createIssuerLearnerLink,
@@ -16,8 +17,6 @@ import {
   getIssuerLearnerLinks,
   requestIssuerAuthorization,
   revokeIssuerAuthorization,
-  updateIssuerAuthorization,
-  type LearnerAccess,
 } from '@services/learning/marketplace'
 
 // Badge issuing in the marketplace: the request flow on a badge card (Browse), and the badges this
@@ -121,18 +120,8 @@ export function IssuingAuthorizationsPanel({ orgId, statuses }: { orgId: number;
     void load()
   }, [load])
 
-  const changeAccess = async (authorization: any, value: LearnerAccess) => {
-    setActingOn(authorization.authorization_uuid)
-    try {
-      await updateIssuerAuthorization(authorization.authorization_uuid, { learner_access: value }, accessToken)
-      toast.success(`Learner access: ${learnerAccessLabel(value).toLowerCase()}.`)
-      await load()
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to update authorization.')
-    } finally {
-      setActingOn('')
-    }
-  }
+  // Who can start is set on each plan the organization runs (Plans › template › Settings).
+  const orgslug = (useOrg() as { slug?: string } | null)?.slug || ''
 
   const act = async (authorization: any, action: 'accept' | 'revoke') => {
     setActingOn(authorization.authorization_uuid)
@@ -271,7 +260,7 @@ export function IssuingAuthorizationsPanel({ orgId, statuses }: { orgId: number;
 
                 {authorization.status === 'approved' ? (
                   <div className="mt-4 rounded-lg bg-muted p-4">
-                    <LearnerAccessSelect value={authorization.learner_access || 'invite'} disabled={actingOn === authorization.authorization_uuid} onChange={(value) => void changeAccess(authorization, value as LearnerAccess)} /><IssuerRouteOffers badgeUuid={authorization.badge?.badge_uuid} issuerOrgId={orgId} />
+                    <PlanAccessList plans={authorization.plans || []} orgslug={orgslug} /><IssuerRouteOffers badgeUuid={authorization.badge?.badge_uuid} issuerOrgId={orgId} />
 
                     <div className="mt-4">
                       <p className="text-xs font-bold uppercase text-muted-foreground">Supported learners ({authorizationLinks.length})</p>
