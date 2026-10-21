@@ -26,7 +26,7 @@ from src.db.goal_admin import ADMIN_HOME_WIDGETS, PLANS_TABS, PLANS_TABS_CREATOR
 from src.db.goals import DONE_STEP_STATUSES, AssignmentStatus, GoalAssignment
 from src.db.users import PublicUser
 from src.security.org_auth import get_user_org, is_org_admin, require_org_membership
-from src.services.goals import admin_home_creator, review, staff_views
+from src.services.goals import admin_home_creator, admin_home_start, review, staff_views
 
 # How far ahead "today and upcoming" looks.
 UPCOMING_DAYS = 7
@@ -251,7 +251,7 @@ def home(db: Session, current_user: PublicUser, org_id: int) -> dict:
     layout = get_layout(db, current_user.id, org_id)
     shown = set(widgets) - set(layout["hidden"])
     cache: dict = {}
-    result: dict = {"widgets": widgets, "layout": layout, "locked": []}
+    result: dict = {"widgets": widgets, "layout": layout, "locked": [], "getting_started": admin_home_start.getting_started(db, current_user, org_id)}
     if "waiting" in shown:
         result["waiting"] = waiting(db, current_user, org_id, admin)
     if "today" in shown:

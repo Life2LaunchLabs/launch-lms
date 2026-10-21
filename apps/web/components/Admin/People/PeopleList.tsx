@@ -2,6 +2,7 @@
 
 import React from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { useSWRConfig } from 'swr'
 import { Plus, Search, UserPlus, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -45,7 +46,9 @@ export default function PeopleList({ orgslug, selection }: { orgslug: string; se
   const needle = query.trim().replace(/^@/, '').toLowerCase()
   const [status, setStatus] = React.useState<PeopleStatusFilter>('active')
   const { data, isLoading, error, mutate } = usePeopleFeed(needle, 0, status)
-  const [inviting, setInviting] = React.useState(false)
+  // Home's getting started links here with ?invite=learner or ?invite=staff to open the dialog.
+  const inviteParam = useSearchParams().get('invite')
+  const [inviting, setInviting] = React.useState(Boolean(inviteParam))
   const [creatingGroup, setCreatingGroup] = React.useState(false)
   const groupsEnabled = Boolean(data?.groups_enabled)
   const active = data?.active || []
@@ -81,7 +84,7 @@ export default function PeopleList({ orgslug, selection }: { orgslug: string; se
           {isAdmin && !needle ? <PendingInvites /> : null}
         </> : null}
     </div>
-    <InviteUsersDialog open={inviting} onOpenChange={setInviting} onInvited={() => {
+    <InviteUsersDialog open={inviting} onOpenChange={setInviting} initialRole={inviteParam === 'staff' ? 'staff' : 'learner'} onInvited={() => {
       void refresh()
       void mutateAll((key) => typeof key === 'string' && key.startsWith(peopleKeys.directory(orgId).split('?')[0]))
     }} />

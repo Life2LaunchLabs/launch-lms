@@ -11,7 +11,8 @@ from src.db.goals import StepStatus, StepSubmission
 from src.db.organization_config import OrganizationConfig
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
-from src.services.goals import admin_home, goals
+from src.db.organizations import Organization
+from src.services.goals import admin_home, admin_home_start, goals
 from src.tests.test_goal_assignments_admin import ESSAY, NEWCOMER, VISIT, _assign, _goal, _goal_step
 from src.tests.test_goal_assignments_admin import _session as _base_session
 from src.tests.test_goals import ADMIN, LEARNER, OTHER, _published, _status, _user
@@ -147,3 +148,37 @@ def test_plans_tab_order_defaults_by_what_the_org_does_and_is_kept_per_member():
         with pytest.raises(HTTPException) as outsider:
             admin_home.get_plans_tabs(db, _user(LEARNER), 2)
         assert outsider.value.status_code == 403
+
+
+def test_getting_started_ticks_off_from_the_orgs_own_data_for_admins_only():
+    with _session() as db:
+        start = admin_home.home(db, _user(ADMIN), 1)["getting_started"]
+        done = {step["key"]: step["done"] for step in start["steps"]}
+        assert list(done) == ["plan", "organization", "learners", "staff", "assign"]
+        assert done["plan"] is False and done["assign"] is False and done["learners"] is True
+        assert [step["key"] for step in start["steps"] if step["optional"]] == ["staff"]
+        # Staff and learners never see it.
+        assert admin_home.home(db, _user(NEWCOMER), 1)["getting_started"] is None
+        assert admin_home.home(db, _user(LEARNER), 1)["getting_started"] is None
+
+        # Handing out a plan ticks off the plan and the assignment.
+        _assign(db, VISIT, staff=(ADMIN,), start_date=TODAY)
+        done = {step["key"]: step["done"] for step in admin_home.home(db, _user(ADMIN), 1)["getting_started"]["steps"]}
+        assert done["plan"] and done["assign"]
+
+        # With a description too, every required step is done and it goes away.
+        org = db.get(Organization, 1)
+        org.description = "A small learning co-op"
+        db.add(org)
+        db.commit()
+        assert admin_home.home(db, _user(ADMIN), 1)["getting_started"] is None
+
+
+def test_getting_started_can_be_dismissed_by_an_admin():
+    with _session() as db:
+        assert admin_home.home(db, _user(ADMIN), 1)["getting_started"] is not None
+        assert admin_home_start.dismiss(db, _user(ADMIN), 1) == {"dismissed": True}
+        assert admin_home.home(db, _user(ADMIN), 1)["getting_started"] is None
+        with pytest.raises(HTTPException) as staff:
+            admin_home_start.dismiss(db, _user(NEWCOMER), 1)
+        assert staff.value.status_code == 403
