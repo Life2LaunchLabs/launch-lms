@@ -582,6 +582,7 @@ test('request policy redirects unauthenticated protected paths to root landing',
 test('route access treats welcome onboarding as public', () => {
   assert.equal(classifyRoute('/').kind, 'public')
   assert.equal(classifyRoute('/welcome').kind, 'public')
+  assert.equal(classifyRoute('/for-organizations').kind, 'public')
 })
 
 test('route access exposes only the new public portfolio surfaces', () => {

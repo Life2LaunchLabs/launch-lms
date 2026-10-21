@@ -84,6 +84,7 @@ export const routePaths = {
       withQuery('/login', params),
     signup: (params?: { next?: string; inviteCode?: string; invitation?: string; mode?: string }) =>
       withQuery('/signup', params),
+    orgSignup: () => '/signup/org',
     forgot: () => '/forgot',
     reset: () => '/reset',
     verifyEmail: () => '/verify-email',
@@ -125,6 +126,8 @@ export const routePaths = {
   },
   org: {
     root: () => '/',
+    /** The marketing page for people who run learning for others. */
+    forOrganizations: () => '/for-organizations',
     /** Plans is where the learner app opens. */
     home: () => '/plans',
     /** Opens Coach beside Plans, optionally resuming a conversation or starting with a prompt. */
