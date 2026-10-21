@@ -91,7 +91,7 @@ test('framework.list: Requirements lists frameworks with coverage and opens cove
   await expect(page.getByRole('button', { name: 'Create framework' })).toBeVisible()
   const row = page.getByRole('list', { name: 'Requirement frameworks' }).getByRole('link').filter({ hasText: 'Manual code editor test' }).first()
   await expect(row).toContainText(/\d+ of \d+ covered by \d+ templates?/)
-  await expect(row).toContainText('Yours · you can edit')
+  await expect(row).not.toContainText('view only')
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true)
   await capture(page, info, 'requirements-list.png')
 

@@ -12,7 +12,7 @@ import { LearnerRequirementTree } from '@components/Goals/admin/live/LearnerRequ
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { connectApi } from '@services/connect/connect'
 import { goalSharingApi } from '@services/goals/sharing'
-import type { Profile, ProfilePlan } from '@services/school/people'
+import { ROLE_LABELS, type Profile, type ProfilePlan } from '@services/school/people'
 import IssueBadge from './IssueBadge'
 import LearnerTeam from './LearnerTeam'
 import PersonManage from './PersonManage'
@@ -56,7 +56,8 @@ export default function PersonProfile({ orgslug, username, tab = 'message' }: { 
   const learner = profile.role === 'learner'
   const canManage = profile.manage.change_role || profile.manage.remove || profile.manage.groups || profile.manage.remove_helper
   const planCount = profile.role === 'helper' ? profile.helping_on.length : profile.plans.length
-  const subtitle = [`@${user.username}`, profile.role_name && profile.role !== 'helper' ? profile.role_name : '', user.email || ''].filter(Boolean).join(' · ')
+  // The tag beside the name says the role; the line under it only names a custom one (Counselor, say).
+  const subtitle = [`@${user.username}`, profile.role_name && profile.role !== 'helper' && profile.role_name !== ROLE_LABELS[profile.role] ? profile.role_name : '', user.email || ''].filter(Boolean).join(' · ')
   return <div className="flex min-h-0 flex-1 flex-col">
     <header className="shrink-0 border-b border-border bg-background px-4 pt-4 md:px-6">
       <div className="flex items-start gap-3">

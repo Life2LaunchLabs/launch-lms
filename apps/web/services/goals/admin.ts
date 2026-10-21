@@ -167,6 +167,9 @@ export interface MatrixColumn {
   staff_guide?: string
   staff_materials?: StepMaterial[]
   aggregate: ColumnAggregate
+  /** When the assignment has it due: a date staff set on it (due_set), else the template's. */
+  due_date: string | null
+  due_set: boolean
 }
 /** One step across an assignment's learners, for staff on its plan: how many are where. */
 export interface StepAggregate {
@@ -191,6 +194,8 @@ export interface AssignmentMatrix {
   version: number | null
   stages: MatrixStage[]
   learners: MatrixLearner[]
+  /** The viewer runs assignments, so can move a step's due date. */
+  can_reschedule?: boolean
 }
 export interface Cohort { cohort: { id: number; uuid: string; name: string; description: string; thumbnail_image: string }; learner_count: number; assignments: AssignmentSummary[]; completed_assignments: AssignmentSummary[] }
 export interface ManagedGoal { goal_uuid: string; title: string; status: GoalStatus; source: string; target_date: string | null; progress: { done: number; total: number }; people?: Array<StaffPerson & { role: string }> }
@@ -265,6 +270,9 @@ export const goalAdminApi = {
   pause: (orgId: number, assignmentUuid: string, token?: string) => request<AssignmentSummary>(goalAdminUrl(`/assignments/${q(assignmentUuid)}/pause`, orgId), token, 'POST'),
   resume: (orgId: number, assignmentUuid: string, token?: string) => request<AssignmentSummary>(goalAdminUrl(`/assignments/${q(assignmentUuid)}/resume`, orgId), token, 'POST'),
   end: (orgId: number, assignmentUuid: string, token?: string) => request<AssignmentSummary>(goalAdminUrl(`/assignments/${q(assignmentUuid)}/end`, orgId), token, 'POST'),
+  /** When one step is due on the assignment, on its learners' plans too; null goes back to the template's date. */
+  setStepDue: (orgId: number, assignmentUuid: string, stepKey: string, dueDate: string | null, token?: string) =>
+    request<AssignmentSummary>(goalAdminUrl(`/assignments/${q(assignmentUuid)}/steps/${q(stepKey)}/due`, orgId), token, 'PUT', { due_date: dueDate }),
   /** A reminder card in each feed of the learners who haven't handed the step in (or just these), at most once a day each. */
   remind: (orgId: number, assignmentUuid: string, stepKey: string, data: { user_uuids?: string[]; message?: string } = {}, token?: string) =>
     request<RemindResult>(goalAdminUrl(`/assignments/${q(assignmentUuid)}/steps/${q(stepKey)}/remind`, orgId), token, 'POST', data),

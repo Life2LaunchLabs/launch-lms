@@ -9,7 +9,7 @@ import { PersonAvatar, personName } from '../live/ui'
 import { assignmentHref, assignmentLabel, Chip, datesLine, StatusChip, type AssignmentRow } from './shared'
 
 /** The columns of a plan card's assignment rows from tablet width up (stacked on a phone). */
-export const PLAN_ROW_GRID = 'md:grid md:grid-cols-[minmax(0,1fr)_84px_150px_88px_128px_minmax(104px,150px)_auto] md:items-center md:gap-4'
+export const PLAN_ROW_GRID = 'md:grid md:grid-cols-[minmax(0,1fr)_150px_88px_128px_minmax(104px,150px)_56px] md:items-center md:gap-4'
 
 type Need = { grade: number; settle: number }
 
@@ -77,12 +77,15 @@ function TableRow({ assignment, orgslug, icon, who, needs, actions, banner }: {
       <div className="flex min-w-0 items-center gap-3 pr-16 md:pr-0">
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">{icon}</span>
         <div className="min-w-0">
-          <Link href={getUriWithOrg(orgslug, assignmentHref(assignment))} className="block truncate text-sm font-bold after:absolute after:inset-0 focus-visible:outline-none">{who}</Link>
+          <span className="flex min-w-0 items-center gap-2">
+            <Link href={getUriWithOrg(orgslug, assignmentHref(assignment))} className="truncate text-sm font-bold after:absolute after:inset-0 focus-visible:outline-none">{who}</Link>
+            {/* Active is the norm; only a paused or ended assignment says so. */}
+            {assignment.status !== 'active' ? <StatusChip status={assignment.status} /> : null}
+          </span>
           <p className="truncate text-xs text-muted-foreground">{assignment.learner_count} learner{assignment.learner_count === 1 ? '' : 's'}{assignment.version ? ` · v${assignment.version}` : ''}</p>
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-11 md:contents">
-        <span><StatusChip status={assignment.status} /></span>
         <span className="text-xs tabular-nums text-muted-foreground md:text-sm">{datesLine(assignment)}</span>
         <span className="flex items-center -space-x-1.5" aria-label={staff.length ? `Staff: ${staff.join(', ')}` : 'No staff'} title={staff.join(', ')}>
           {assignment.staff.slice(0, 3).map((person) => <span key={person.id} className="rounded-full ring-2 ring-card"><PersonAvatar person={person} size={24} /></span>)}
@@ -96,7 +99,7 @@ function TableRow({ assignment, orgslug, icon, who, needs, actions, banner }: {
       <div className="flex flex-wrap gap-1.5 pl-11 md:pl-0" aria-label="Waiting on you">
         {needs || <span className="text-xs text-muted-foreground">{assignment.status === 'ended' ? 'Finished' : 'All clear'}</span>}
       </div>
-      <div className="absolute right-3 top-3 flex items-center gap-1 md:static">
+      <div className="absolute right-3 top-3 flex items-center justify-end gap-1 md:static">
         {actions ? <span className="relative z-10">{actions}</span> : null}
         <ChevronRight size={16} className="shrink-0 text-muted-foreground" aria-hidden="true" />
       </div>

@@ -93,7 +93,7 @@ export function RequirementFrameworkDetail({ orgslug, orgId, token, frameworkUui
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2"><h1 className="text-2xl font-black">{framework.name}</h1><span className={cn('rounded-full px-2 py-1 text-[9px] font-black uppercase', framework.status === 'published' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700')}>{framework.status}</span></div>
           <p className="mt-1 text-xs text-muted-foreground">{framework.publisher?.name ? `${framework.publisher.name} · ` : ''}{framework.nodes.length} node{framework.nodes.length === 1 ? '' : 's'} · Version {framework.version} · published versions remain available to existing learner snapshots</p>
-          <div className="mt-2 flex flex-wrap gap-1.5"><SourceChip item={framework} /></div>
+          <div className="mt-2 flex flex-wrap gap-1.5 empty:hidden"><SourceChip item={framework} /></div>
         </div>
         <div className="flex flex-wrap gap-2">{canEdit && isOwnerOrg && framework.status === 'published' ? <Button variant="outline" onClick={() => void publishToLibrary()} disabled={publishingToLibrary || framework.library_published_version === framework.version}>{publishingToLibrary ? <Loader2 className="animate-spin" /> : <BookCopy />}{framework.library_published_version === framework.version ? 'Published to library' : framework.published_to_library ? 'Update library copy' : 'Publish to library'}</Button> : null}{canEdit ? <Button onClick={() => void publish()} disabled={publishing || framework.status === 'published' || !framework.nodes.length}>{publishing ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}Publish version</Button> : null}</div>
       </div>

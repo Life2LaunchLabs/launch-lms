@@ -117,16 +117,21 @@ export default function MarketplaceBrowse() {
       Templates, badges and requirement frameworks other organizations share. A <b>locked</b> template runs as its creator publishes it; an <b>open</b> one you copy and make your own. Badges stay with their creator; you issue one by running one of the plans that earn it, once its creator approves.
       {admin ? null : <b> Only admins can add or request.</b>}
     </p>
-    <FilterBar filters={filters} placeholder="Search templates, badges, frameworks or creators" summary={`${shown.length} of ${cards.length} shown`} />
-    {kinds.map((kind) => {
-      const items = shown.filter((card) => card.kind === kind)
-      return <section key={kind} aria-label={SECTION_LABEL[kind]}>
-        <h2 className="mb-3 text-xs font-bold uppercase tracking-[0.12em] text-gray-500">{SECTION_LABEL[kind]} · {items.length}</h2>
-        {items.length ? <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr))]">
-          {items.map((card) => <MarketCard key={card.key} card={card} orgId={orgId} token={token} admin={admin} onChange={refresh} />)}
-        </div> : <div className="rounded-2xl border border-dashed border-gray-200 bg-white px-4 py-8 text-center text-sm text-gray-500">Nothing matches.</div>}
-      </section>
-    })}
+    <FilterBar filters={filters} placeholder="Search templates, badges, frameworks or creators" summary={cards.length ? `${shown.length} of ${cards.length} shown` : null} />
+    {!cards.length && !values.type ? <div className="rounded-2xl border border-dashed border-gray-200 bg-white px-4 py-12 text-center">
+      <p className="text-sm font-semibold text-gray-800">Nothing shared yet</p>
+      <p className="mt-1 text-sm text-gray-500">When other organizations share templates, badges or frameworks, they show up here.</p>
+    </div> : !shown.length && !values.type ? <div className="rounded-2xl border border-dashed border-gray-200 bg-white px-4 py-8 text-center text-sm text-gray-500">Nothing matches your search or filters.</div>
+      : kinds.map((kind) => {
+        const items = shown.filter((card) => card.kind === kind)
+        // Showing everything, only kinds with something in them get a section; one kind always shows.
+        return items.length || values.type ? <section key={kind} aria-label={SECTION_LABEL[kind]}>
+          <h2 className="mb-3 text-xs font-bold uppercase tracking-[0.12em] text-gray-500">{SECTION_LABEL[kind]} · {items.length}</h2>
+          {items.length ? <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr))]">
+            {items.map((card) => <MarketCard key={card.key} card={card} orgId={orgId} token={token} admin={admin} onChange={refresh} />)}
+          </div> : <div className="rounded-2xl border border-dashed border-gray-200 bg-white px-4 py-8 text-center text-sm text-gray-500">Nothing matches.</div>}
+        </section> : null
+      })}
   </div>
 }
 

@@ -10,7 +10,7 @@ import FilterBar from '@components/Admin/Filters/FilterBar'
 import { useFilters } from '@components/Admin/Filters/useFilters'
 import OwnershipChip from '@components/Admin/Plans/OwnershipChip'
 import PageWelcome from '@components/Admin/PageWelcome'
-import { AddFromMarketplace, primaryActionClass } from '@components/Admin/Plans/PlansActions'
+import { AddFromMarketplace, primaryActionClass, secondaryActionClass } from '@components/Admin/Plans/PlansActions'
 import { useCanEditPlans } from '@components/Admin/Plans/useCanEditPlans'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { matchesSearch, type FilterSpec } from '@/lib/admin/filters'
@@ -121,7 +121,7 @@ export default function AdminBadgesHome({
   }
 
   return (
-    <div className="px-4 pb-10 pt-6 sm:px-10">
+    <div className="px-4 pb-10 pt-6 sm:px-10"><div className="mx-auto max-w-5xl">
       <BadgeList orgslug={orgslug} orgId={orgId} collections={collections} canEdit={canEdit} />
       <section className="mt-8 rounded-xl bg-card p-6 shadow-xs" aria-label="Collections">
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -130,15 +130,15 @@ export default function AdminBadgesHome({
           <p className="mt-1 text-sm text-muted-foreground">Every badge belongs to one collection.</p>
         </div>
         {canEdit ? <div className="flex items-center gap-2">
-        <button onClick={openTrash} className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-xs font-bold text-foreground">
-          <Trash2 className="h-4 w-4" /> Trash
+        <button onClick={openTrash} className={secondaryActionClass}>
+          <Trash2 size={16} aria-hidden="true" />Trash
         </button>
         <Modal
           isDialogOpen={modalOpen}
           onOpenChange={setModalOpen}
           minHeight="no-min"
           minWidth="md"
-          dialogTitle="New Badge Collection"
+          dialogTitle="New badge collection"
           dialogDescription="Create a collection that will own its badges."
           dialogContent={
             <div className="flex flex-col gap-4 p-2">
@@ -161,14 +161,14 @@ export default function AdminBadgesHome({
                 className="ml-auto inline-flex items-center gap-2 rounded-lg bg-black px-5 py-2 text-xs font-bold text-white disabled:opacity-50"
               >
                 {creating && <Loader2 className="h-4 w-4 animate-spin" />}
-                Create Collection
+                Create collection
               </button>
             </div>
           }
           dialogTrigger={
-            <button className="flex items-center gap-2 rounded-lg bg-black px-5 py-2 text-xs font-bold text-white nice-shadow transition-transform hover:scale-105">
-              <Plus className="h-4 w-4" />
-              New Collection
+            <button className={primaryActionClass}>
+              <Plus size={16} aria-hidden="true" />
+              New collection
             </button>
           }
         />
@@ -176,12 +176,7 @@ export default function AdminBadgesHome({
       </div>
 
       {collections.length === 0 ? (
-        <div className="flex items-center justify-center rounded-xl border-2 border-dashed border-border py-16 text-center">
-          <div>
-            <Library size={36} className="mx-auto mb-3 text-gray-300" />
-            <p className="text-sm text-muted-foreground">Create a collection before adding badges.</p>
-          </div>
-        </div>
+        <p className="text-sm text-muted-foreground">No collections yet. Creating your first badge makes one.</p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {collections.map((collection) => (
@@ -249,7 +244,7 @@ export default function AdminBadgesHome({
         }
         dialogTrigger={<span className="hidden" />}
       />
-    </div>
+    </div></div>
   )
 }
 

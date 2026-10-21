@@ -60,12 +60,13 @@ export default function TemplateVersionBar({ orgId, token, editing }: { orgId: n
         </div>
         {version.live ? null : <Button size="sm" variant="outline" disabled={busy !== null} onClick={() => void restore(version)}>{busy === version.version_uuid ? <Loader2 className="animate-spin" /> : <RotateCcw />}Make live again</Button>}
       </li>)}</ol>} /> : null}
-    <Modal isDialogOpen={releaseOpen} onOpenChange={setReleaseOpen} minHeight="no-min" minWidth="md" dialogTitle={`Release version ${nextNumber}`}
+    {/* Release shows up once the draft has changes to release. */}
+    {template.has_unpublished_changes || releaseOpen ? <Modal isDialogOpen={releaseOpen} onOpenChange={setReleaseOpen} minHeight="no-min" minWidth="md" dialogTitle={`Release version ${nextNumber}`}
       dialogDescription="New goals and badge starts will use this version. Goals already handed out keep the version they started with, along with their learners' answers."
-      dialogTrigger={<Button variant="brand" size="sm" className="h-9 rounded-full" disabled={!template.has_unpublished_changes || editing.stale}><Rocket />Release</Button>}
+      dialogTrigger={<button type="button" disabled={editing.stale} className="inline-flex h-9 items-center gap-1.5 rounded-full bg-black px-3.5 text-xs font-bold text-white hover:bg-black/85 disabled:opacity-50"><Rocket size={14} />Release</button>}
       dialogContent={<div className="space-y-4 p-2">
         <Textarea autoFocus value={note} onChange={(event) => setNote(event.target.value)} rows={3} placeholder="What changed? (optional, shown in the version history)" aria-label="Version note" />
         <Button className="ml-auto flex" onClick={() => void release()} disabled={busy !== null}>{busy === 'release' ? <Loader2 className="animate-spin" /> : <Rocket />}Release version {nextNumber}</Button>
-      </div>} />
+      </div>} /> : null}
   </div>
 }

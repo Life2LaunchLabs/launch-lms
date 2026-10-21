@@ -70,7 +70,7 @@ export default function AssignmentDetail({ orgslug, assignmentUuid, tab = 'plan'
       </div>
     </header>
     <div className="px-4 py-6 sm:px-6 lg:px-10"><div className="mx-auto max-w-5xl">
-      {tab === 'plan' ? <div className="mx-auto max-w-3xl"><AssignmentPlan matrix={matrix} viewerUserId={viewerId}
+      {tab === 'plan' ? <div className="max-w-3xl"><AssignmentPlan matrix={matrix} viewerUserId={viewerId}
         ctx={{ orgslug, orgId, token, assignmentUuid, admin, refresh: () => mutate() }} /></div>
         : <AssignmentLearners matrix={matrix} orgslug={orgslug} orgId={orgId} token={token} />}
     </div></div>

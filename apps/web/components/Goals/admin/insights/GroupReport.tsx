@@ -242,12 +242,13 @@ export default function GroupReport({ orgslug, groupId, frameworks: fromUrl }: {
           {groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
         </select>
       </label>
-      <fieldset className="min-w-0">
+      {/* Only a group with frameworks gets the choice; without any it would just say there's nothing to pick. */}
+      {available.length ? <fieldset className="min-w-0">
         <legend className="mb-1.5 flex items-center gap-2 text-xs font-bold text-gray-900">Include requirements <DraftTag /></legend>
-        {available.length ? <div className="flex min-h-10 flex-wrap items-center gap-x-5 gap-y-2">{available.map((framework) => <label key={framework.framework_uuid} className="inline-flex items-center gap-2 text-[13px] font-semibold text-gray-700">
+        <div className="flex min-h-10 flex-wrap items-center gap-x-5 gap-y-2">{available.map((framework) => <label key={framework.framework_uuid} className="inline-flex items-center gap-2 text-[13px] font-semibold text-gray-700">
           <input type="checkbox" checked={frameworks.includes(framework.framework_uuid)} onChange={() => toggleFramework(framework.framework_uuid)} />{framework.name}
-        </label>)}</div> : <p className="flex min-h-10 items-center text-xs text-gray-500">{report ? 'No requirement frameworks are assigned to this group.' : '…'}</p>}
-      </fieldset>
+        </label>)}</div>
+      </fieldset> : null}
       <div className="flex flex-wrap gap-2 sm:ml-auto">
         <Link href={getUriWithOrg(orgslug, insightsRoutes.reportPrint(selected.id, frameworks))} target="_blank" className="inline-flex h-10 items-center gap-2 rounded-full bg-white px-4 text-sm font-bold text-gray-900 ring-1 ring-gray-200 hover:bg-gray-50"><Printer size={16} aria-hidden="true" />Print report</Link>
         {canSend ? <button type="button" onClick={() => setSending(true)} disabled={!report} aria-expanded={sending} className="inline-flex h-10 items-center gap-2 rounded-full bg-gray-900 px-4 text-sm font-bold text-white disabled:opacity-40"><Send size={16} aria-hidden="true" />Send report</button> : null}

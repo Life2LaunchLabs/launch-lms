@@ -36,8 +36,8 @@ describe('an assignment’s plan', () => {
     expect(html).toContain('aria-label="Explore"')
     expect(html).toContain('All 3 done')
     // Hand-ins go to the grading stack, back to this assignment.
-    expect(html).toContain('ready to grade')
-    expect(html).toContain('Start grading')
+    expect(html).toContain('to grade')
+    expect(/<\/svg>Grade \d/.test(html)).toBe(true)
     expect(html).toContain('from=assignment')
     // Late hand-ins: reminded today already, so no second reminder.
     expect(html).toContain('Reminded today')
@@ -151,8 +151,9 @@ describe('the plan card stack', () => {
   test('a creator’s own plan lists the organizations running it, counts only', () => {
     const card = shownPlans(stack(), {}, { admin: true }).cards[1]
     const html = render(<PlanCard {...card} orgslug="school" orgId={1} token="token" admin needs={{}} onChanged={() => undefined} onShowEnded={() => undefined} />)
-    expect(html).toContain('Made by Northside')
-    expect(html).toContain('No badge')
+    // Your own plan doesn't say who made it, and missing badges or requirements get no placeholder chips.
+    expect(html).not.toContain('Made by')
+    expect(html).not.toContain('No badge')
     expect(html).toContain('Run by authorized orgs · 1')
     expect(html).toContain('Authorized · 112 learners')
     expect(html).toContain('Not assigned yet.')
