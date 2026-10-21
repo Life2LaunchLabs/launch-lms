@@ -38,7 +38,6 @@
     "apps/api/src/services/users/usergroups.py": 737,
     "apps/api/src/services/users/users.py": 936,
     "apps/web/app/api/portfolio/social-previews/route.ts": 503,
-    "apps/web/app/auth/signup/CreateOrgWizard.tsx": 514,
     "apps/web/app/orgs/[orgslug]/(withmenu)/portfolio/resume/ProfileResumeClient.tsx": 645,
     "apps/web/app/orgs/[orgslug]/admin/playgrounds/client.tsx": 561,
     "apps/web/app/orgs/[orgslug]/admin/resources/[channeluuid]/[subpage]/page.tsx": 1339,
