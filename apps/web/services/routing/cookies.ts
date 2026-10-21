@@ -8,13 +8,3 @@ export const ROUTING_COOKIES = {
   multiOrg: 'launchlms_multi_org',
 } as const
 
-export function getCanonicalOrgSlug(
-  orgSlug?: string | null,
-  legacyOrgSlug?: string | null
-): string | null {
-  return orgSlug || legacyOrgSlug || null
-}
-
-export function getScopedCookieDomain(topDomain: string): string {
-  return topDomain === 'localhost' ? '' : `.${topDomain}`
-}

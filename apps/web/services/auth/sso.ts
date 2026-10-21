@@ -311,7 +311,7 @@ export async function checkSSOEnabled(
  * Initiate SSO login flow.
  * Returns authorization URL to redirect user to identity provider.
  */
-export async function initiateSSOLogin(
+async function initiateSSOLogin(
   orgSlug: string
 ): Promise<SSOAuthorizationResponse> {
   const response = await fetch(
@@ -381,32 +381,6 @@ export async function handleSSOCallback(
 export async function redirectToSSOLogin(orgSlug: string): Promise<void> {
   const response = await initiateSSOLogin(orgSlug)
   window.location.href = response.authorization_url
-}
-
-/**
- * Get provider display name.
- */
-export function getProviderDisplayName(provider: SSOProvider): string {
-  const names: Record<SSOProvider, string> = {
-    workos: 'WorkOS',
-    keycloak: 'Keycloak',
-    okta: 'Okta',
-    auth0: 'Auth0',
-    custom_saml: 'Custom SAML',
-    custom_oidc: 'Custom OIDC',
-  }
-  return names[provider] || provider
-}
-
-/**
- * Check if a provider is available (properly configured on backend).
- */
-export function isProviderAvailable(
-  providers: SSOProviderInfo[],
-  providerId: SSOProvider
-): boolean {
-  const provider = providers.find((p) => p.id === providerId)
-  return provider?.available ?? false
 }
 
 /**

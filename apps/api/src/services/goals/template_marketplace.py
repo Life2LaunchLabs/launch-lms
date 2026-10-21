@@ -391,7 +391,3 @@ def owner_org(db: Session, template_uuid: str) -> dict | None:
 
 
 # Added from other organizations --------------------------------------------------------------------------------
-
-def added_templates(db: Session, current_user: PublicUser, org_id: int) -> list[dict]:
-    """Templates this organization uses with permission: locked ones it runs and open ones it copied."""
-    return list_authorizations(db, current_user, org_id, "issuer", APPROVED)

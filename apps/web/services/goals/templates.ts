@@ -5,7 +5,7 @@ import type { AssignmentBadge, AssignmentVersionStatus, EligibilityRule } from '
 
 const q = encodeURIComponent
 
-export const templatesUrl = (path = '') => `${getAPIUrl()}goal-templates${path}`
+const templatesUrl = (path = '') => `${getAPIUrl()}goal-templates${path}`
 export const templateUrl = (templateUuid: string, path = '') => templatesUrl(`/${q(templateUuid)}${path}`)
 const withOrg = (url: string, orgId: number, extra = '') => `${url}${url.includes('?') ? '&' : '?'}org_id=${orgId}${extra}`
 

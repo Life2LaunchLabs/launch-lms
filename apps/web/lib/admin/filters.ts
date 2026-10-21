@@ -75,7 +75,7 @@ export function filterQuery(specs: readonly FilterSpec[], values: FilterValues, 
   return search.toString()
 }
 
-export function isApplied(spec: FilterSpec, values: FilterValues): boolean {
+function isApplied(spec: FilterSpec, values: FilterValues): boolean {
   return (values[spec.key] ?? filterDefault(spec)) !== filterDefault(spec)
 }
 

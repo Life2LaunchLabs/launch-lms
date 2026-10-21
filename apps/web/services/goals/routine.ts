@@ -13,7 +13,7 @@ export function ordinal(day: number) {
   return `${day}${({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[day % 10] || 'th'}`
 }
 
-export function listWords(words: string[]) {
+function listWords(words: string[]) {
   if (words.length <= 1) return words.join('')
   return `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`
 }

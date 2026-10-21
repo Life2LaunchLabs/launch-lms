@@ -6,7 +6,7 @@ import {
   stripPort,
 } from '../utils/ts/hostUtils.ts'
 
-export const RESERVED_SUBDOMAINS = new Set(['auth', 'www', 'api', 'admin'])
+const RESERVED_SUBDOMAINS = new Set(['auth', 'www', 'api', 'admin'])
 
 export type HostMode = 'main' | 'subdomain' | 'custom'
 
@@ -35,7 +35,7 @@ export interface OrgHostContext {
   isLocalhost: boolean
 }
 
-export function isReservedSubdomain(subdomain: string | null | undefined): boolean {
+function isReservedSubdomain(subdomain: string | null | undefined): boolean {
   return !!subdomain && RESERVED_SUBDOMAINS.has(subdomain)
 }
 

@@ -13,14 +13,6 @@ from config.config import get_launchlms_config
 from fastapi import HTTPException, Request
 
 
-class RateLimitExceeded(Exception):
-    """Exception raised when rate limit is exceeded."""
-    def __init__(self, message: str, retry_after: int):
-        self.message = message
-        self.retry_after = retry_after
-        super().__init__(self.message)
-
-
 def get_redis_connection() -> redis.Redis:
     """Get Redis connection from config."""
     LH_CONFIG = get_launchlms_config()
@@ -146,25 +138,6 @@ def check_login_rate_limit(request: Request) -> tuple[bool, int]:
     return is_allowed, retry_after
 
 
-def check_signup_rate_limit(request: Request) -> tuple[bool, int]:
-    """
-    Check signup rate limit: 10 attempts per hour per IP.
-
-    Returns:
-        Tuple of (is_allowed, retry_after_seconds)
-    """
-    ip = get_client_ip(request)
-    key = f"signup:{ip}"
-
-    is_allowed, count, retry_after = check_rate_limit(
-        key=key,
-        max_attempts=10,
-        window_seconds=60 * 60  # 1 hour
-    )
-
-    return is_allowed, retry_after
-
-
 def check_verification_resend_rate_limit(email: str) -> tuple[bool, int]:
     """
     Check verification email resend rate limit: 5 attempts per 5 minutes per email.
@@ -256,17 +229,3 @@ def check_email_verification_rate_limit(email: str) -> tuple[bool, int]:
     )
 
     return is_allowed, retry_after
-
-
-def increment_rate_limit(key: str, window_seconds: int) -> None:
-    """
-    Increment a rate limit counter for tracking purposes.
-    Used when we want to count an action without checking.
-    """
-    r = get_redis_connection()
-    rate_limit_key = f"rate_limit:{key}"
-
-    if r.exists(rate_limit_key):
-        r.incr(rate_limit_key)
-    else:
-        r.setex(rate_limit_key, window_seconds, 1)

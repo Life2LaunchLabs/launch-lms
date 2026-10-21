@@ -127,6 +127,24 @@ def test_checklist_is_the_learners_starter_goal():
         assert db.exec(select(LearningBadgeAward)).all() == []
 
 
+def test_portfolio_steps_on_other_goals_finish_when_the_portfolio_has_it():
+    from src.db.goals import Goal, GoalStep
+    from src.services.goals.completion import progress_view
+
+    with _session() as db:
+        user = _user()
+        db.add(user)
+        db.add(Goal(id=50, goal_uuid="goal_50", title="Show your work", owner_user_id=1, subject_user_id=1, ownership="external", status="active", creation_date="", update_date=""))
+        db.add(GoalStep(id=50, step_uuid="step_50", goal_id=50, type="portfolio", title="Add a project", position=0, config={"check": "project"}, creation_date="", update_date=""))
+        db.commit()
+        step = db.get(GoalStep, 50)
+        assert progress_view(db, step).status != "completed"
+
+        service.create_project(ProjectItemCreate(title="My first build"), _public(user), db)
+
+        assert progress_view(db, step).status == "completed"
+
+
 def test_portfolio_badges_are_the_earned_ones():
     with _session() as db:
         user = _user()

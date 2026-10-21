@@ -239,32 +239,6 @@ def _resource_in_accessible_channel(resource: Resource, db_session: Session, cur
     return any(_channel_is_accessible(channel, db_session, current_user) for channel in channels)
 
 
-def _get_or_create_default_user_channel(user_id: int, org_id: int, db_session: Session) -> UserResourceChannel:
-    default_channel = db_session.exec(
-        select(UserResourceChannel).where(
-            UserResourceChannel.user_id == user_id,
-            UserResourceChannel.org_id == org_id,
-            UserResourceChannel.is_default == True,
-        )
-    ).first()
-    if default_channel:
-        return default_channel
-    default_channel = UserResourceChannel(
-        user_id=user_id,
-        org_id=org_id,
-        user_channel_uuid=f"userchannel_{uuid4()}",
-        name="Saved",
-        description="Your default saved resources",
-        is_default=True,
-        creation_date=_now(),
-        update_date=_now(),
-    )
-    db_session.add(default_channel)
-    db_session.commit()
-    db_session.refresh(default_channel)
-    return default_channel
-
-
 def _get_or_create_saved_resource(user_id: int, resource_id: int, db_session: Session) -> UserSavedResource:
     saved = db_session.exec(
         select(UserSavedResource).where(

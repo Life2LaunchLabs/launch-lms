@@ -40,6 +40,7 @@ from src.services.users.email_verification import (
     resend_verification_email,
     verify_email_token,
 )
+from src.services.orgs.owner import require_owner_org
 
 
 def get_token_expiry_ms() -> int | None:
@@ -59,13 +60,6 @@ class WelcomeSignupRequest(BaseModel):
 
 class WelcomeSignupEmailCheckRequest(BaseModel):
     email: EmailStr
-
-
-def _get_owner_org(db_session: Session) -> Organization:
-    owner_org = db_session.exec(select(Organization).order_by(Organization.id).limit(1)).first()
-    if not owner_org:
-        raise HTTPException(status_code=404, detail="Owner organization not found")
-    return owner_org
 
 
 def _starter_plan_redirect_url(owner_org: Organization, user_id: int, db_session: Session) -> str:
@@ -128,7 +122,7 @@ async def get_welcome_onboarding(
     """Where onboarding continues: the starter plan for a signed-in learner, otherwise signup."""
     if isinstance(current_user, AnonymousUser):
         return {"redirect_url": "/signup"}
-    return {"redirect_url": _starter_plan_redirect_url(_get_owner_org(db_session), int(current_user.id), db_session)}
+    return {"redirect_url": _starter_plan_redirect_url(require_owner_org(db_session), int(current_user.id), db_session)}
 
 
 @router.post("/signup/welcome/check-email")
@@ -149,7 +143,7 @@ async def complete_welcome_signup(
     body: WelcomeSignupRequest,
     db_session: Session = Depends(get_db_session),
 ):
-    owner_org = _get_owner_org(db_session)
+    owner_org = require_owner_org(db_session)
 
     existing = db_session.exec(select(User).where(User.email == body.email)).first()
     if existing:

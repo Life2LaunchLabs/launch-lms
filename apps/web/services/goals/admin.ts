@@ -202,8 +202,8 @@ export interface SettleResult { settled: StepOutcome[]; skipped: Array<StepOutco
 
 export const inboxKey = (orgId: number) => goalAdminUrl('/inbox', orgId)
 export const cohortKey = (groupId: number, orgId: number) => goalAdminUrl(`/cohorts/${groupId}`, orgId)
-export const managedUserKey = (userId: number, orgId: number) => goalAdminUrl(`/managed-users/${userId}`, orgId)
-export const assignmentsKey = (orgId: number) => goalAdminUrl('/assignments', orgId)
+const managedUserKey = (userId: number, orgId: number) => goalAdminUrl(`/managed-users/${userId}`, orgId)
+const assignmentsKey = (orgId: number) => goalAdminUrl('/assignments', orgId)
 export const matrixKey = (assignmentUuid: string, orgId: number) => goalAdminUrl(`/assignments/${q(assignmentUuid)}/matrix`, orgId)
 export const assignmentReviewsKey = (assignmentUuid: string, orgId: number) => goalAdminUrl(`/assignments/${q(assignmentUuid)}/reviews`, orgId)
 export const plansKey = (orgId: number) => goalAdminUrl('/plans', orgId)
