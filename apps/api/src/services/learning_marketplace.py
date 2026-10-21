@@ -33,6 +33,7 @@ from src.security.access.access import ensure_feature
 from src.security.superadmin import is_user_superadmin
 from src.services.learning_issuer_links import ensure_learner_membership, simulate_issuer_acceptance
 from src.services import learning_issuers as issuers
+from src.services.goals import plan_access
 from src.services.learning import (
     _clean_uuid,
     _get_badge,
@@ -104,8 +105,12 @@ def _serialize_authorization(db_session: Session, authorization: BadgeIssuerAuth
     badge = db_session.get(LearningBadge, authorization.badge_id)
     creator_org = db_session.get(Organization, authorization.creator_org_id)
     issuer_org = db_session.get(Organization, authorization.issuer_org_id)
+    # Learner access lives on the plans the issuer runs; the badge-level value is their most open one.
+    approved = badge is not None and authorization.status == BadgeIssuerAuthorizationStatus.APPROVED
+    access = issuers.issuer_access(db_session, badge, authorization.issuer_org_id) if approved else issuers.learner_access(authorization)  # type: ignore[arg-type]
     return issuers.BadgeIssuerAuthorizationAccessRead(
-        **{**authorization.model_dump(), "learner_access": issuers.learner_access(authorization)},
+        **{**authorization.model_dump(), "learner_access": access},
+        plans=plan_access.badge_plans(db_session, badge, authorization.issuer_org_id) if approved else [],  # type: ignore[arg-type]
         badge=_badge_summary(badge) if badge else None,
         creator_org=_org_summary(creator_org) if creator_org else None,
         issuer_org=_org_summary(issuer_org) if issuer_org else None,
@@ -362,9 +367,14 @@ async def update_authorization(
     db_session: Session,
 ) -> BadgeIssuerAuthorizationRead:
     authorization = _get_authorization(db_session, authorization_uuid)
-    _require_org_admin(db_session, current_user, authorization.issuer_org_id)
+    admin = _require_org_admin(db_session, current_user, authorization.issuer_org_id)
     if data.learner_access is not None or data.open_to_all is not None:
-        issuers.set_learner_access(authorization, data.learner_access or ("request" if data.open_to_all else "invite"))
+        access = data.learner_access or ("request" if data.open_to_all else "invite")
+        issuers.set_learner_access(authorization, access)
+        # The old badge-level setting writes through to every plan of the badge this issuer runs.
+        badge = db_session.get(LearningBadge, authorization.badge_id)
+        if badge is not None:
+            plan_access.apply_to_badge(db_session, badge, authorization.issuer_org_id, access, admin.id)
     authorization.update_date = _now()
     db_session.add(authorization)
     db_session.commit()
@@ -512,13 +522,14 @@ async def request_learner_support(
 ) -> dict:
     learner = _require_user(current_user)
     badge = _get_badge(db_session, data.badge_uuid)
-    authorization = get_active_authorization(
-        db_session, badge.id or 0, data.issuer_org_id
-    )
-    if authorization and issuers.learner_access(authorization) == "open":
+    issuing = {org_id: access for org_id, access, _ in issuers.active_issuers(db_session, badge)}
+    access = issuing.get(data.issuer_org_id)
+    if access == "open":
         link = issuers.validate_issuer_start(db_session, badge, data.issuer_org_id, learner.id, set())
         return _serialize_learner_link(db_session, link) if link else {"status": BadgeIssuerLearnerLinkStatus.ACCEPTED, "active": True}
-    if not authorization or not authorization.open_to_all:
+    # Requests go to an issuer running one of the badge's plans by request (the creator's own authorization is recorded now).
+    authorization = issuers.ensure_authorization(db_session, badge, data.issuer_org_id) if access == "request" else None
+    if not authorization:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="This organization is not accepting learner requests for this badge",

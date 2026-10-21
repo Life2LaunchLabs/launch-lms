@@ -10,10 +10,11 @@ from src.db.learning import BadgeIssuerAuthorization, BadgeIssuerAuthorizationSt
 from src.db.organizations import Organization
 from src.services.goals import goals
 from src.services.goals.badges import goal_summaries, goal_summary, start_badge_goal
+from src.services.goals.plan_access import set_access
 from src.tests.test_goals import LEARNER, NOW, _published, _session as _goal_session, _user
 
 
-def _world(issuer_access: str = "open") -> tuple[Session, LearningBadge, list[str]]:
+def _world(issuer_access: str = "open", creator_access: str = "open") -> tuple[Session, LearningBadge, list[str]]:
     db = _goal_session()
     for model in (BadgeRoute, BadgeRouteOffer, BadgeIssuerAuthorization):
         model.__table__.create(db.get_bind(), checkfirst=True)
@@ -30,6 +31,9 @@ def _world(issuer_access: str = "open") -> tuple[Session, LearningBadge, list[st
         template = _published(db, *({"type": "task", "title": title} for title in titles))
         db.add(BadgeRoute(route_uuid=f"route_{position}", badge_id=1, goal_template_id=template.id, recommended=position == 0, position=position, creation_date=NOW))
         uuids.append(template.template_uuid)
+        # Who may start each plan is set per running organization: the creator open, the partner as asked.
+        set_access(db, template.id, 1, creator_access, None)
+        set_access(db, template.id, 2, issuer_access, None)
     db.commit()
     return db, badge, uuids
 

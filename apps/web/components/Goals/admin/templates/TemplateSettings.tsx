@@ -7,16 +7,21 @@ import { Archive, ArchiveRestore, Loader2 } from 'lucide-react'
 import { Button } from '@components/ui/button'
 import { isTemplatesKey, templatesApi } from '@services/goals/templates'
 import TemplateMarketplaceListing from '@components/Admin/Marketplace/TemplateMarketplaceListing'
+import TemplateLearnersCard from './TemplateLearnersCard'
 import TemplateRoles from './TemplateRoles'
 import type { TemplateEditing } from './useTemplate'
 
-/** Instructions for staff, roles, the marketplace listing (the one way to publish to other orgs) and archiving. */
-export default function TemplateSettings({ orgId, token, editing }: { orgId: number; token?: string; editing: TemplateEditing }) {
+/**
+ * Instructions for staff, roles, who can start it, the marketplace listing (the one way to publish to other orgs) and archiving.
+ * On another organization's template this organization runs (``runOnly``), only who can start it: that setting is its own.
+ */
+export default function TemplateSettings({ orgId, token, editing, runOnly = false }: { orgId: number; token?: string; editing: TemplateEditing; runOnly?: boolean }) {
   const template = editing.template
   const [instructions, setInstructions] = React.useState(template?.document.template.instructions || '')
   const [busy, setBusy] = React.useState(false)
   React.useEffect(() => setInstructions(template?.document.template.instructions || ''), [template?.document.template.instructions])
   if (!template) return null
+  if (runOnly) return <div className="px-4 pb-10 pt-6 sm:px-10"><div className="max-w-3xl space-y-6"><TemplateLearnersCard orgId={orgId} templateUuid={template.template_uuid} token={token} /></div></div>
   const archived = template.status === 'archived'
   const setMeta = (patch: { instructions?: string }, done?: string) => editing.save((document) => ({ ...document, template: { ...document.template, ...patch } }), done)
   const toggleArchived = async () => {
@@ -35,6 +40,7 @@ export default function TemplateSettings({ orgId, token, editing }: { orgId: num
       <button type="button" onClick={() => void setMeta({ instructions }, 'Instructions saved.')} disabled={editing.saving || editing.stale} className="mt-3 inline-flex items-center gap-2 rounded-lg bg-black px-5 py-2 text-xs font-bold text-white disabled:opacity-50">{editing.saving ? <Loader2 size={15} className="animate-spin" /> : null}Save instructions</button>
     </section>
     <TemplateRoles editing={editing} />
+    {template.system_type ? null : <TemplateLearnersCard orgId={orgId} templateUuid={template.template_uuid} token={token} />}
     <TemplateMarketplaceListing orgId={orgId} token={token} template={template} />
     {template.system_type ? null : <section className="rounded-xl border border-border bg-card p-6 shadow-xs">
       <h2 className="text-lg font-bold">{archived ? 'Archived' : 'Archive template'}</h2>

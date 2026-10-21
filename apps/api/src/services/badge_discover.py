@@ -60,14 +60,25 @@ def _offered_to(db: Session, org_ids: set[int]) -> set[int]:
 
 def discoverable(db: Session, org_id: int | None = None, site_org_id: int | None = None, statement=None) -> list[LearningBadge]:
     """Public badges Discover may list: their owner is approved to publish badges, or the site organization
-    (or ``org_id``) is authorized to issue them. ``org_id`` narrows it to that organization's own and offered badges."""
+    (or ``org_id``) is authorized to issue them. ``org_id`` narrows it to that organization's own and offered badges.
+
+    A published badge is listed only while some organization allowed to issue it lets learners start one of
+    its plans, open or by request (``goals/plan_access``); coming-soon badges are previews and need none."""
+    from src.services.goals.plan_access import offered_badge_ids
+
     offered = _offered_to(db, {item for item in (site_org_id, org_id) if item is not None})
     statement = statement if statement is not None else lookups._public_badge_query()
     if org_id is not None:
         statement = statement.where(or_(LearningBadge.org_id == org_id, col(LearningBadge.id).in_(offered or {0})))
     badges = list(db.exec(statement.order_by(LearningBadge.id)).all())
     approved = _publishers(db, {badge.org_id for badge in badges if badge.id not in offered})
-    return [badge for badge in badges if badge.id in offered or badge.org_id in approved]
+    listed = [badge for badge in badges if badge.id in offered or badge.org_id in approved]
+    startable = offered_badge_ids(db, [badge for badge in listed if _status(badge) != LearningBadgeStatus.COMING_SOON.value])
+    return [badge for badge in listed if badge.id in startable or _status(badge) == LearningBadgeStatus.COMING_SOON.value]
+
+
+def _status(badge: LearningBadge) -> str:
+    return getattr(badge.status, "value", badge.status)
 
 
 def _plan_progress(db: Session, plans: list) -> dict[int, tuple[int, int]]:

@@ -125,7 +125,7 @@ export async function getBadgeIssuingSettings(badgeUuid: string, accessToken?: s
 
 export async function updateBadgeIssuingSettings(
   badgeUuid: string,
-  data: { creator_access?: LearnerAccess | 'none'; default_issuer_org_id?: number; clear_default_issuer?: boolean },
+  data: { creator_access?: LearnerAccess | 'none'; creator_issues?: boolean; default_issuer_org_id?: number; clear_default_issuer?: boolean },
   accessToken?: string
 ) {
   const result = await fetch(

@@ -14,8 +14,8 @@ import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { deleteLearningBadge, updateLearningBadge } from '@services/learning/learning'
-import { approveIssuerAuthorization, getIssuerAuthorizations, getIssuerBadgeMetrics, inviteIssuerOrg, LearnerAccess, rejectIssuerAuthorization, revokeIssuerAuthorization, updateIssuerAuthorization } from '@services/learning/marketplace'
-import { CreatorIssuingCard, LearnerAccessSelect, learnerAccessLabel } from '@components/Learning/BadgeIssuing'
+import { approveIssuerAuthorization, getIssuerAuthorizations, getIssuerBadgeMetrics, inviteIssuerOrg, rejectIssuerAuthorization, revokeIssuerAuthorization } from '@services/learning/marketplace'
+import { CreatorIssuingCard, learnerAccessLabel } from '@components/Learning/BadgeIssuing'; import PlanAccessList from '@components/Learning/PlanAccessList'
 import CertificatePreview from '@components/Learning/BadgeCertificatePreview'
 import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
@@ -426,7 +426,7 @@ function BadgeIssuersPanel({ badge, onPatch }: { badge: any; onPatch: (patch: Re
         </div>
 
         <div className="mt-6 space-y-3">
-          <CreatorIssuingCard badge={badge} orgName={org?.name} refreshKey={authorizations.filter((item) => item.status === 'approved').length} />
+          <CreatorIssuingCard badge={badge} orgName={org?.name} orgslug={org?.slug} refreshKey={authorizations.filter((item) => item.status === 'approved').length} />
           {loading ? (
             <div className="flex items-center justify-center py-12 text-muted-foreground">
               <Loader2 className="h-5 w-5 animate-spin" />
@@ -711,7 +711,6 @@ function IssuerBadgeSettingsPanel({ orgslug, badge, issuerOrgId }: { orgslug: st
   const accessToken = session.data?.tokens?.access_token
   const [authorization, setAuthorization] = React.useState<any>(null)
   const [loading, setLoading] = React.useState(true)
-  const [saving, setSaving] = React.useState(false)
   const [releasing, setReleasing] = React.useState(false)
 
   const load = React.useCallback(async () => {
@@ -730,20 +729,6 @@ function IssuerBadgeSettingsPanel({ orgslug, badge, issuerOrgId }: { orgslug: st
   React.useEffect(() => {
     void load()
   }, [load])
-
-  const changeAccess = async (value: LearnerAccess) => {
-    if (!authorization || saving) return
-    setSaving(true)
-    try {
-      const updated = await updateIssuerAuthorization(authorization.authorization_uuid, { learner_access: value }, accessToken)
-      setAuthorization(updated)
-      toast.success(`Learner access: ${learnerAccessLabel(value).toLowerCase()}.`)
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to update learner access.')
-    } finally {
-      setSaving(false)
-    }
-  }
 
   const release = async () => {
     if (!authorization || releasing) return
@@ -769,7 +754,7 @@ function IssuerBadgeSettingsPanel({ orgslug, badge, issuerOrgId }: { orgslug: st
           <div className="flex items-center justify-center py-14 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /></div>
         ) : authorization ? (
           <div className="mt-5">
-            <LearnerAccessSelect value={authorization.learner_access || 'invite'} disabled={saving} onChange={(value) => void changeAccess(value as LearnerAccess)} />
+            <PlanAccessList plans={authorization.plans || []} orgslug={orgslug} />
           </div>
         ) : (
           <p className="mt-5 rounded-lg bg-muted p-4 text-sm text-muted-foreground">No active issuing authorization was found.</p>
