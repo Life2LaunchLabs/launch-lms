@@ -331,7 +331,7 @@ function OpenSignUpComponent({
         </h1>
         {!embedded && (
           <p className="mt-1 text-gray-500">
-            {createOrgMode ? 'Create your user account first, then we will walk you through setting up an organization.' : t('auth.fill_in_details')}
+            {createOrgMode ? 'Create your account first. Next you’ll name your organization.' : t('auth.fill_in_details')}
           </p>
         )}
       </div>
@@ -342,6 +342,20 @@ function OpenSignUpComponent({
           <div className="font-bold text-sm">{error}</div>
         </div>
       )}
+
+      {createOrgMode ? (
+        <div className="mb-5 space-y-5">
+          <Button type="button" onClick={handleGoogleSignup} disabled={isGoogleLoading} variant="surface" size="cta" className="w-full text-[16px]">
+            <SiGoogle size={20} color="#4285F4" />
+            {isGoogleLoading ? t('common.loading') : 'Continue with Google'}
+          </Button>
+          <div className="flex items-center gap-4 text-sm font-semibold text-gray-400">
+            <div className="h-px flex-1 bg-gray-200" />
+            <span>or with email</span>
+            <div className="h-px flex-1 bg-gray-200" />
+          </div>
+        </div>
+      ) : null}
 
       <div className={embedded ? 'w-full' : 'rounded-xl bg-white p-6 nice-shadow'}>
         <FormLayout onSubmit={formik.handleSubmit}>
@@ -426,20 +440,22 @@ function OpenSignUpComponent({
             </Form.Control>
           </FormField>
 
-          <FormField name="bio">
-            <FormLabelAndMessage
-              label={`${t('user.bio')} (${t('common.optional')})`}
-              message={formik.touched.bio ? formik.errors.bio : undefined}
-            />
-            <Form.Control asChild>
-              <Textarea
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-                value={formik.values.bio}
-                placeholder={t('user.bio_placeholder')}
+          {createOrgMode ? null : (
+            <FormField name="bio">
+              <FormLabelAndMessage
+                label={`${t('user.bio')} (${t('common.optional')})`}
+                message={formik.touched.bio ? formik.errors.bio : undefined}
               />
-            </Form.Control>
-          </FormField>
+              <Form.Control asChild>
+                <Textarea
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  value={formik.values.bio}
+                  placeholder={t('user.bio_placeholder')}
+                />
+              </Form.Control>
+            </FormField>
+          )}
 
           <div className="pt-2">
             <Form.Submit asChild>

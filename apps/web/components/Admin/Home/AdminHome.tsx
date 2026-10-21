@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils'
 import { CreatorWidget, MessagesWidget } from './OrgWidgets'
 import { AttentionWidget, TodayWidget, WaitingWidget } from './StaffWidgets'
 import { LockedWidget } from './WidgetCard'
+import GettingStarted from './GettingStarted'
 
 const WIDE: HomeWidgetId[] = ['today', 'attention']
 
@@ -60,6 +61,18 @@ export default function AdminHome({ orgslug }: { orgslug: string }) {
     }
   }
 
+  const dismissGettingStarted = async () => {
+    if (!data) return
+    try {
+      await mutate(async (current) => {
+        await adminHomeApi.dismissGettingStarted(orgId, token)
+        return current ? { ...current, getting_started: null } : current
+      }, { optimisticData: { ...data, getting_started: null }, rollbackOnError: true, revalidate: false })
+    } catch (failure: any) {
+      toast.error(failure?.message || 'Could not dismiss getting started.')
+    }
+  }
+
   const firstName = user?.first_name || user?.username || ''
   const today = new Date().toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })
 
@@ -78,6 +91,8 @@ export default function AdminHome({ orgslug }: { orgslug: string }) {
         </div>
 
         {customizing ? <Customizer arranged={arranged} onChange={save} /> : null}
+
+        {data?.getting_started ? <GettingStarted data={data.getting_started} orgslug={orgslug} onDismiss={dismissGettingStarted} /> : null}
 
         {error ? <p className="rounded-xl bg-white px-5 py-6 text-center text-sm text-gray-500 nice-shadow">Home couldn’t load. {error.message}</p>
           : !data ? <HomeSkeleton />

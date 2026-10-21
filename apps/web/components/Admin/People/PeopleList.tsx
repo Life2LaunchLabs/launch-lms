@@ -2,8 +2,9 @@
 
 import React from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { useSWRConfig } from 'swr'
-import { Plus, Search, UserPlus, X } from 'lucide-react'
+import { Plus, Search, UserPlus, Users, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@components/ui/skeleton'
 import { PersonAvatar } from '@components/Goals/share/PersonAvatar'
@@ -13,6 +14,8 @@ import InviteUsersDialog from '@components/Dashboard/Pages/Users/OrgUsersAdd/Inv
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { ROLE_LABELS, peopleKeys, type FeedRow, type PeopleStatusFilter } from '@services/school/people'
 import NewGroup from './NewGroup'
+import PageWelcome from '@components/Admin/PageWelcome'
+import { primaryActionClass, secondaryActionClass } from '@components/Admin/Plans/PlansActions'
 import PendingInvites from './PendingInvites'
 import { RoleTag } from './RoleTag'
 import type { PeopleSelection } from './PeopleView'
@@ -45,7 +48,10 @@ export default function PeopleList({ orgslug, selection }: { orgslug: string; se
   const needle = query.trim().replace(/^@/, '').toLowerCase()
   const [status, setStatus] = React.useState<PeopleStatusFilter>('active')
   const { data, isLoading, error, mutate } = usePeopleFeed(needle, 0, status)
-  const [inviting, setInviting] = React.useState(false)
+  // Home's getting started links here with ?invite=learner or ?invite=staff to open the dialog.
+  const inviteParam = useSearchParams().get('invite')
+  const [inviting, setInviting] = React.useState(Boolean(inviteParam))
+  const [inviteRole, setInviteRole] = React.useState<'learner' | 'staff'>(inviteParam === 'staff' ? 'staff' : 'learner')
   const [creatingGroup, setCreatingGroup] = React.useState(false)
   const groupsEnabled = Boolean(data?.groups_enabled)
   const active = data?.active || []
@@ -77,11 +83,18 @@ export default function PeopleList({ orgslug, selection }: { orgslug: string; se
             <h2 className={cn('px-2.5 pb-1 text-xs font-bold uppercase tracking-wide text-muted-foreground', active.length ? 'mt-4' : 'mt-1')}>{active.length ? 'Everyone else · A–Z' : 'Everyone · A–Z'}</h2>
             <RestRows rows={data.rest} orgslug={orgslug} selection={selection} label={active.length ? 'Everyone else' : 'Everyone'} />
             <MoreRows orgslug={orgslug} query={needle} status={status} next={data.offset + data.rest.length} total={data.total} selection={selection} />
-          </> : !active.length ? <p className="px-3 py-6 text-center text-sm text-muted-foreground">{needle ? 'Nobody matches that.' : status === 'alumni' ? 'No alumni yet. Mark learners who have moved on as alumni from their page or their group.' : 'Nobody here yet. Add people to get started.'}</p> : null}
+          </> : active.length ? null
+            : needle || status === 'alumni' || !isAdmin ? <p className="px-3 py-6 text-center text-sm text-muted-foreground">{needle ? 'Nobody matches that.' : status === 'alumni' ? 'No alumni yet. Mark learners who have moved on as alumni from their page or their group.' : 'Nobody here yet.'}</p>
+            : <PageWelcome className="mx-1 mt-2 px-4 py-8 sm:px-5 sm:py-8" icon={<Users size={26} />} title="People: your learners and staff"
+              body="Everyone in your organization, with their chats and anything waiting on you."
+              how="Learners use their own accounts and join by email invite or a join link. Staff help run plans and review work.">
+              <button type="button" onClick={() => { setInviteRole('learner'); setInviting(true) }} className={primaryActionClass}>Invite learners</button>
+              <button type="button" onClick={() => { setInviteRole('staff'); setInviting(true) }} className={secondaryActionClass}>Add staff</button>
+            </PageWelcome>}
           {isAdmin && !needle ? <PendingInvites /> : null}
         </> : null}
     </div>
-    <InviteUsersDialog open={inviting} onOpenChange={setInviting} onInvited={() => {
+    <InviteUsersDialog open={inviting} onOpenChange={setInviting} initialRole={inviteRole} onInvited={() => {
       void refresh()
       void mutateAll((key) => typeof key === 'string' && key.startsWith(peopleKeys.directory(orgId).split('?')[0]))
     }} />

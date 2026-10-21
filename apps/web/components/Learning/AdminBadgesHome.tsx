@@ -9,6 +9,7 @@ import { useOrg } from '@components/Contexts/OrgContext'
 import FilterBar from '@components/Admin/Filters/FilterBar'
 import { useFilters } from '@components/Admin/Filters/useFilters'
 import OwnershipChip from '@components/Admin/Plans/OwnershipChip'
+import PageWelcome from '@components/Admin/PageWelcome'
 import { AddFromMarketplace, primaryActionClass } from '@components/Admin/Plans/PlansActions'
 import { useCanEditPlans } from '@components/Admin/Plans/useCanEditPlans'
 import { getUriWithOrg, routePaths } from '@services/config/config'
@@ -312,10 +313,13 @@ function BadgeList({ orgslug, orgId, collections, canEdit }: { orgslug: string; 
           {row.collection?.name ? <span className="truncate text-xs text-gray-500">{row.collection.name}</span> : null}
         </div>
       </Link>)}
-    </div> : <div className="flex items-center justify-center rounded-2xl border-2 border-dashed border-border px-4 py-12 text-center"><div>
+    </div> : rows.length ? <div className="flex items-center justify-center rounded-2xl border-2 border-dashed border-border px-4 py-12 text-center"><div>
       <Award size={36} className="mx-auto mb-3 text-gray-300" />
-      <p className="text-sm text-muted-foreground">{rows.length ? 'No badges match your search or filters.' : 'Create a badge, or add one another organization shares from the marketplace.'}</p>
-    </div></div>}
+      <p className="text-sm text-muted-foreground">No badges match your search or filters.</p>
+    </div></div>
+      : <PageWelcome icon={<Award size={28} />} title="Badges: credentials learners earn"
+        body="A badge says what a learner did and how. Link it to a template, and learners who finish that plan earn it. They keep it on their own profile."
+        how={canEdit ? 'Use Create badge above to make your own, or Add from marketplace to use one another organization shares.' : 'Use Add from marketplace above to use one another organization shares.'} />}
   </section>
 }
 
