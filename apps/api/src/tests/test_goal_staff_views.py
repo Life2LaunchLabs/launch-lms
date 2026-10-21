@@ -15,7 +15,8 @@ from src.services.goals.sharing_roles import _role
 from src.tests.test_goal_review import _assigned, _goal
 from src.tests.test_goals import ADMIN, LEARNER, NOW, OTHER, _session, _status, _step, _user
 
-ESSAY = {"key": "essay", "type": "write", "title": "Essay", "review_required": True, "reviewer_guidance": "Look for a thesis", "config": {"prompt": "Why?"}}
+ESSAY = {"key": "essay", "type": "write", "title": "Essay", "review_required": True, "reviewer_guidance": "Look for a thesis", "config": {"prompt": "Why?"},
+         "staff_guide": "Period 4: model a thesis, then 20 minutes drafting", "staff_materials": [{"kind": "link", "title": "Lesson packet", "url": "https://example.com/packet.pdf"}]}
 FAIR = {"key": "fair", "type": "task", "title": "Career Fair", "completed_by": "staff"}
 
 
@@ -56,8 +57,13 @@ def test_assignments_list_and_matrix_show_each_learner_by_template_step():
         db.commit()
         rows = {row["id"]: row for row in staff_views.assignment_matrix(db, _user(ADMIN), 1, assignment["assignment_uuid"])["learners"]}
         assert [(person["id"], person["role"]) for person in rows[LEARNER]["people"]] == [(OTHER, "Commenter")] and rows[OTHER]["people"] == []
-        # Rows follow goal access: a learner sees only their own.
-        assert [row["id"] for row in staff_views.assignment_matrix(db, _user(LEARNER), 1, assignment["assignment_uuid"])["learners"]] == [LEARNER]
+        assert essay_column["staff_guide"].startswith("Period 4") and essay_column["staff_materials"] == [{"kind": "link", "title": "Lesson packet", "url": "https://example.com/packet.pdf"}]
+        # Rows follow goal access: a learner sees only their own, and none of the staff side of a step.
+        own = staff_views.assignment_matrix(db, _user(LEARNER), 1, assignment["assignment_uuid"])
+        assert [row["id"] for row in own["learners"]] == [LEARNER]
+        own_essay = own["stages"][0]["steps"][0]
+        assert own_essay["staff_guide"] == "" and own_essay["staff_materials"] == [] and own_essay["reviewer_guidance"] == ""
+        assert "Period 4" not in str(goals.get_goal(db, _user(LEARNER), _goal(db, LEARNER).goal_uuid))
 
 
 def test_bulk_progress_sets_a_template_step_for_many_learners_through_completion():
@@ -231,3 +237,16 @@ def test_plans_show_badge_templates_run_with_permission_and_their_creator_sees_c
         assert own["assignments"] == [] and [badge["name"] for badge in own["badges"]] == ["Adaptability"]
         assert [(item["org"]["name"], item["assignment_count"], item["learner_count"]) for item in own["authorized_orgs"]] == [("Partner", 1, 1)]
         assert creator["learners"] == []
+
+
+def test_staff_materials_are_web_links_kept_to_what_the_app_reads():
+    from src.services.goals.document import empty_document, validate_document
+
+    with _session() as db:
+        document = empty_document("Lessons")
+        document["stages"] = [{"title": "One", "steps": [{**FAIR, "staff_materials": [{"kind": "file", "title": "Packet", "url": "https://files.example.com/p.pdf", "asset_uuid": "asset_1", "extra": "x"}]}]}]
+        step = validate_document(db, document, 1)["stages"][0]["steps"][0]
+        assert step["staff_guide"] == "" and step["staff_materials"] == [{"kind": "file", "url": "https://files.example.com/p.pdf", "title": "Packet", "asset_uuid": "asset_1"}]
+        document["stages"][0]["steps"][0]["staff_materials"] = [{"kind": "link", "title": "Bad", "url": "javascript:alert(1)"}]
+        with pytest.raises(HTTPException):
+            validate_document(db, document, 1)
