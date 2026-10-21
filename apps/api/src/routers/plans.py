@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from src.security.access.catalog import FEATURES, LIMIT_LABELS, LIMITS, PARTNER_PROGRAMS, TIER_LABELS, TIERS
+from src.security.access.catalog import FEATURES, LIMIT_LABELS, LIMITS, PARTNER_PROGRAMS, TIER_LABELS, TIERS, TRIAL_DAYS, TRIAL_TIER
 
 router = APIRouter()
 
@@ -22,6 +22,7 @@ async def api_get_catalog():
             for tier in TIERS
         ],
         "limit_labels": LIMIT_LABELS,
+        "trial": {"tier": TRIAL_TIER, "days": TRIAL_DAYS},
         "features": [
             {"key": spec.key, "label": spec.label, "tier": spec.tier, "partner": spec.partner, "on_request": spec.on_request}
             for spec in features
