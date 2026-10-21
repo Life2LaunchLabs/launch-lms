@@ -66,15 +66,14 @@ export default function StepTodos({ column, ctx, upcoming, full, onOpen }: { col
   const lines: React.ReactNode[] = []
   const buttons: React.ReactNode[] = []
   if (todo.clear) lines.push(<span key="clear" className="font-semibold text-green-700">All {column.aggregate.learner_count} done</span>)
-  if (todo.grade) {
-    lines.push(<span key="grade"><b className="text-foreground">{todo.grade} ready to grade</b></span>)
-    buttons.push(<Button key="grade" asChild size="sm"><Link href={gradingHref(column, ctx)}><ClipboardCheck size={14} />Start grading</Link></Button>)
-  }
+  // The step's own line already counts who's done, handed in and waiting; these say who, on the buttons where they can.
+  if (todo.grade) buttons.push(<Button key="grade" asChild size="sm"><Link href={gradingHref(column, ctx)}><ClipboardCheck size={14} />Grade {todo.grade}</Link></Button>)
   if (todo.waiting.length) {
-    lines.push(<span key="waiting">{todo.waiting.length === 1 ? `${namesOf(todo.waiting, ctx.learners) || 'One learner'} hasn’t handed it in.` : `${todo.waiting.length} haven’t handed it in${namesOf(todo.waiting, ctx.learners) ? `: ${namesOf(todo.waiting, ctx.learners)}` : ''}.`}</span>)
+    const canRemind = !sent && todo.remindable.length > 0 && ctx.status === 'active'
+    if (!canRemind) lines.push(<span key="waiting">{todo.waiting.length === 1 ? `${namesOf(todo.waiting, ctx.learners) || 'One learner'} hasn’t handed it in.` : `Not handed in: ${namesOf(todo.waiting, ctx.learners) || todo.waiting.length}.`}</span>)
     if (sent || !todo.remindable.length) buttons.push(<span key="reminded" className="inline-flex h-8 items-center rounded-full bg-muted px-3 text-xs font-bold text-muted-foreground">Reminded today</span>)
-    else if (ctx.status === 'active') buttons.push(<Button key="remind" type="button" variant="outline" size="sm" disabled={reminding} onClick={() => void remind()}>
-      {reminding ? <Loader2 size={14} className="animate-spin" /> : <Bell size={14} />}Remind {todo.remindable.length === 1 ? namesOf(todo.remindable, ctx.learners) || 1 : todo.remindable.length}
+    else if (canRemind) buttons.push(<Button key="remind" type="button" variant="outline" size="sm" disabled={reminding} onClick={() => void remind()} title={`Remind ${namesOf(todo.remindable, ctx.learners, 99)}`}>
+      {reminding ? <Loader2 size={14} className="animate-spin" /> : <Bell size={14} />}Remind {todo.remindable.length <= 3 ? namesOf(todo.remindable, ctx.learners) || todo.remindable.length : todo.remindable.length}
     </Button>)
   }
   if (todo.settle.length) {

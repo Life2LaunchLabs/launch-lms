@@ -82,7 +82,7 @@ function FrameworkRow({ item, href }: { item: FrameworkListItem; href: string })
     <span className="min-w-0 flex-[1_1_220px]">
       <b className="block truncate text-[15px] text-gray-900">{item.name}</b>
       <span className="block text-[13px] text-gray-500">{item.publisher?.name || 'Your org'} · {plural(total, 'requirement')} · version {item.version}{item.status !== 'published' ? ' · draft' : ''}</span>
-      <span className="mt-1.5 flex flex-wrap gap-1.5"><SourceChip item={item} /></span>
+      <span className="mt-1.5 flex flex-wrap gap-1.5 empty:hidden"><SourceChip item={item} /></span>
     </span>
     <span className="flex min-w-0 flex-[1_1_220px] items-center gap-3 sm:max-w-[360px] sm:flex-none">
       <span className="flex min-w-0 flex-1 flex-col gap-1.5">

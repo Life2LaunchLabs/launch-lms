@@ -53,7 +53,7 @@ export default function TemplatePublish({ orgId, token, template }: { orgId: num
   }
   const rows = [...(authorizations || [])].sort((a, b) => (ORDER[a.status] ?? 9) - (ORDER[b.status] ?? 9))
 
-  return <div className="px-4 pb-10 pt-6 sm:px-10"><div className="max-w-4xl space-y-6">
+  return <div className="px-4 pb-10 pt-6 sm:px-6 lg:px-10"><div className="mx-auto max-w-5xl space-y-6">
     <UsageMetrics metrics={metrics} />
     <TemplateMarketplaceListing orgId={orgId} token={token} template={template} />
     <section aria-labelledby="template-authorized-title" className="rounded-xl border border-border bg-card p-6 shadow-xs" data-testid="template-authorized-orgs">

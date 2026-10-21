@@ -168,7 +168,7 @@ function TemplateRow({ row, orgslug, busy, onArchive }: { row: Row; orgslug: str
         <span className="flex flex-wrap items-center gap-2"><span className="min-w-0 break-words text-[15px] font-semibold text-gray-950">{row.title}</span><TemplateStatusChip template={row.status} /></span>
         {counts ? <span className="mt-0.5 block text-[13px] text-gray-500">{counts}</span> : null}
         {row.rules.length ? <span className="mt-0.5 block text-xs font-semibold text-gray-500">{row.rules.join(' · ')}</span> : null}
-        <span className="mt-2 flex flex-wrap gap-1.5">
+        <span className="mt-2 flex flex-wrap gap-1.5 empty:hidden">
           <OwnershipChip owned={row.owned} canEdit={row.canEdit} ownerName={row.ownerName} />
           {row.badges.map((badge) => <span key={badge.badge_uuid} className="inline-flex max-w-full items-center gap-1.5 truncate rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-900"><Award size={12} aria-hidden="true" className="shrink-0" /><span className="truncate">{badge.name}</span></span>)}
           {row.frameworks.map((framework) => <span key={framework.framework_uuid} className="inline-flex max-w-full items-center gap-1.5 truncate rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-700"><ListTree size={12} aria-hidden="true" className="shrink-0" /><span className="truncate">{framework.name} · {framework.node_count}</span></span>)}

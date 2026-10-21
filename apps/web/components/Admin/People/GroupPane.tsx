@@ -83,7 +83,6 @@ function Faces({ group, orgslug }: { group: GroupDetail; orgslug: string }) {
       </li>)}
     </ul>
     {more > 0 ? <span className="text-xs font-semibold text-muted-foreground">+{more}</span> : null}
-    <span className="text-xs text-muted-foreground">Staff first</span>
   </div>
 }
 

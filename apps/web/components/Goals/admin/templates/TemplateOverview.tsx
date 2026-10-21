@@ -22,7 +22,7 @@ export default function TemplateOverview({ orgslug, orgId, token, editing, readO
     return { ...framework, total: leaves.length, covered: leaves.filter((node) => linked.has(node.node_uuid)).length }
   }).filter((framework) => framework.covered > 0)
 
-  return <div className="grid gap-6 px-4 pb-10 pt-6 sm:px-10 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+  return <div className="px-4 pb-10 pt-6 sm:px-6 lg:px-10"><div className="mx-auto grid max-w-5xl gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
     <div className="flex min-w-0 flex-col gap-6">
       <TemplateDescription editing={editing} editable={!readOnly && !editing.stale && !template.system_type} />
       <SectionCard title="Requirements it meets">
@@ -36,7 +36,7 @@ export default function TemplateOverview({ orgslug, orgId, token, editing, readO
     <div className="flex min-w-0 flex-col gap-4">
       <TemplateBadgeSection orgslug={orgslug} orgId={orgId} token={token} templateUuid={template.template_uuid} />
     </div>
-  </div>
+  </div></div>
 }
 
 /** What learners will work toward, edited in place (saved to the draft). */
