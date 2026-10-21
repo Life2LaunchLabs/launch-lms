@@ -7,15 +7,16 @@ import { ActivityPreview } from './ActivityPreview'
 
 // Previews exactly what is on screen in the editor (including edits that are
 // still autosaving) through the same preview session and player used by
-// shared preview links and the Claude connector.
-export function EditorPreviewModal({ activity, pages, accessToken, onClose }: { activity: any; pages: any[]; accessToken?: string; onClose: () => void }) {
+// shared preview links and the Claude connector. Without pages it previews the
+// activity as saved, as staff do to try one before their learners get to it.
+export function EditorPreviewModal({ activity, pages, accessToken, onClose }: { activity: any; pages?: any[]; accessToken?: string; onClose: () => void }) {
   const [token, setToken] = React.useState<string | null>(null)
   const [problems, setProblems] = React.useState<Array<{ path: string; message: string }> | null>(null)
   const [message, setMessage] = React.useState<string | null>(null)
-  const documentRef = React.useRef(buildActivityDocument(activity, pages))
+  const documentRef = React.useRef(pages ? buildActivityDocument(activity, pages) : undefined)
 
   React.useEffect(() => {
-    createLearningPreview({ activity_uuid: activity.activity_uuid, document: documentRef.current, source: 'editor' }, accessToken)
+    createLearningPreview({ activity_uuid: activity.activity_uuid, document: documentRef.current, source: documentRef.current ? 'editor' : 'link' }, accessToken)
       .then((created) => setToken(created.token))
       .catch((error: any) => {
         setMessage(error?.message || 'Could not start the preview.')

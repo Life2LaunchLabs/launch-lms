@@ -4,8 +4,6 @@ from copy import deepcopy
 from fastapi import HTTPException, status
 from sqlmodel import Session, select
 from src.db.learning import (
-    BadgeIssuerAuthorization,
-    BadgeIssuerAuthorizationStatus,
     LearningActivity,
     LearningActivityRead,
     LearningBadge,
@@ -93,26 +91,27 @@ def _bump_version(version: LearningBadgeVersion, db_session: Session | None = No
 
 
 def _require_activity_editor(db_session: Session, user, activity: LearningActivity) -> None:
-    """Activities belong to plan templates; their organization's admins edit them."""
-    access_rules._require_org_admin(db_session, user, activity.org_id)
+    """Activities belong to templates; their organization's admins edit them."""
+    access_rules._require_org_admin(db_session, user, activity.org_id, "build_plans")
 
 
 def _ensure_editable(db_session: Session, activity: LearningActivity) -> None:
-    """Frozen copies belong to a published plan template version and never change."""
-    from src.services.template_versions import is_frozen
+    """Frozen copies belong to a published template version and never change."""
+    frozen = activity.frozen_from_id is not None
+    if not frozen and activity.goal_template_id is None and activity.objective_id is not None:
+        from src.services.template_versions import is_frozen  # activities the plans-to-goals move hasn't reached
 
-    if is_frozen(db_session, activity.id):
-        raise HTTPException(status_code=409, detail="This activity is part of a published plan template version and cannot be edited. Edit the template's draft instead.")
+        frozen = is_frozen(db_session, activity.id)
+    if frozen:
+        raise HTTPException(status_code=409, detail="This activity is part of a published template version and cannot be edited. Edit the template's draft instead.")
 
 
 def _is_system_activity(db_session: Session, activity: LearningActivity) -> bool:
-    """Activities of a system template (the starter plan) may use trusted portfolio outcomes and system blocks."""
-    from src.db.programs import Program, ProgramObjective
+    """Activities of a system template (the starter) may use trusted portfolio outcomes and system blocks."""
+    from src.services.learning_documents.store import owning_template
 
-    return db_session.exec(
-        select(Program.id).join(ProgramObjective, ProgramObjective.program_id == Program.id)
-        .where(ProgramObjective.objective_id == activity.objective_id, Program.system_type.is_not(None))  # type: ignore[union-attr]
-    ).first() is not None
+    template = owning_template(db_session, activity)
+    return bool(template and template["system_type"] is not None)
 
 
 def _serialize_page(page: LearningPage) -> LearningPageRead:
@@ -187,19 +186,16 @@ def _can_read_badge(
     if isinstance(current_user, AnonymousUser):
         return False
     try:
-        access_rules._require_org_admin(db_session, current_user, badge.org_id)
+        access_rules._require_org_staff(db_session, current_user, badge.org_id)
         return True
     except HTTPException:
         pass
-    authorized_issuer_org_ids = db_session.exec(
-        select(BadgeIssuerAuthorization.issuer_org_id).where(
-            BadgeIssuerAuthorization.badge_id == badge.id,
-            BadgeIssuerAuthorization.status == BadgeIssuerAuthorizationStatus.APPROVED,
-        )
-    ).all()
+    from src.services.goals.plan_issuers import issuer_org_ids
+
+    authorized_issuer_org_ids = issuer_org_ids(db_session, badge)
     for issuer_org_id in authorized_issuer_org_ids:
         try:
-            access_rules._require_org_admin(db_session, current_user, issuer_org_id)
+            access_rules._require_org_staff(db_session, current_user, issuer_org_id)
             return True
         except HTTPException:
             continue

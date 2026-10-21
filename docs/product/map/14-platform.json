@@ -3936,21 +3936,93 @@
             },
             {
               "kind": "code",
-              "path": "apps/api/src/services/hub_configuration.py",
-              "symbol": "update_hub_advisor_configuration",
-              "responsibility": "Encrypt, persist, redact, and resolve platform advisor configuration"
+              "path": "apps/api/src/services/coach/policy.py",
+              "symbol": "CoachRuntime",
+              "responsibility": "The platform coaching policy: playbooks (the method is one), one routine per trigger, abilities and per-tier models, assembled into Coach's instructions"
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Admin/Platform/PlatformSettings.tsx",
-              "symbol": "PlatformSettings",
-              "responsibility": "Superadmin controls for provider model, instructions, credential, and rollout state"
+              "path": "apps/api/src/services/coach/keys.py",
+              "symbol": "create_key",
+              "responsibility": "Encrypt, persist, and redact provider API keys; several per provider"
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/components/Admin/Platform/Coach/CoachShell.tsx",
+              "symbol": "CoachShell",
+              "responsibility": "Platform › Coach: Method, Knowledge, Routines, Abilities, Model, Tests and Releases tabs, with the draft's unreleased changes on every tab"
+            },
+            {
+              "kind": "code",
+              "path": "apps/api/src/services/coach/releases.py",
+              "symbol": "release",
+              "responsibility": "Freeze the draft policy into a numbered live release, describe draft changes, roll back and discard the draft"
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/components/Admin/Platform/Coach/CoachReleases.tsx",
+              "symbol": "CoachReleases",
+              "responsibility": "Releases tab: the draft's changes and its test scores, release with a note, discard the draft, and roll back to an earlier release"
+            },
+            {
+              "kind": "code",
+              "path": "apps/api/src/services/coach/mcp.py",
+              "symbol": "save_coach_playbook",
+              "responsibility": "MCP tools for platform admins: read the Coach policy, preview matched knowledge, write playbooks into the draft, and write and run Coach tests"
+            },
+            {
+              "kind": "code",
+              "path": "apps/api/src/services/coach/scenarios.py",
+              "symbol": "execute",
+              "responsibility": "Coach tests: run each scenario (a message, a new goal, or a conversation with a simulated learner) several times through Coach's real path on the draft and the live release, graded line by line by a blind judge model"
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/components/Admin/Platform/Coach/CoachTests.tsx",
+              "symbol": "CoachTests",
+              "responsibility": "Tests tab: write scenarios with a realistic learner and a must/should rubric, run them on the draft, and read scores, responses and evidence"
             },
             {
               "kind": "test",
-              "path": "apps/api/src/tests/test_hub_advisor.py",
+              "path": "apps/api/src/tests/test_coach_policy.py",
               "symbol": null,
-              "responsibility": "Credential redaction, encryption, enablement, and Hub provider boundary checks"
+              "responsibility": "Key encryption and redaction, tiers, abilities, knowledge selection, and instruction layering"
+            },
+            {
+              "kind": "test",
+              "path": "apps/api/src/tests/test_coach_releases.py",
+              "symbol": null,
+              "responsibility": "Edits wait in the draft, releasing makes them live, rollback and discard, and Coach stays runnable across releases and keys"
+            },
+            {
+              "kind": "test",
+              "path": "apps/api/src/tests/test_coach_mcp.py",
+              "symbol": null,
+              "responsibility": "Coach MCP tools only change the draft, and only platform admins with the coach scopes see and use them"
+            },
+            {
+              "kind": "test",
+              "path": "apps/api/src/tests/test_coach_tests.py",
+              "symbol": null,
+              "responsibility": "Tests reach Coach with nothing that says test, both versions are graded, failures stay per response, and releases keep their run's results"
+            },
+            {
+              "kind": "code",
+              "path": "apps/api/src/services/coach/reports.py",
+              "symbol": "report",
+              "responsibility": "Learners report a Coach reply; the team gets the conversation up to it without the learner's name, marks it reviewed, and starts a test from it"
+            },
+            {
+              "kind": "code",
+              "path": "apps/web/components/Hub/conversation/HubReportDialog.tsx",
+              "symbol": "HubReportDialog",
+              "responsibility": "The learner reports a Coach reply with a reason and an optional note, told what the coaching team will see"
+            },
+            {
+              "kind": "test",
+              "path": "apps/api/src/tests/test_coach_reports.py",
+              "symbol": null,
+              "responsibility": "Only Coach replies in the learner's own conversation can be reported, the team's copy stops at the reply and carries no name, and reviewed reports sort last"
             }
           ],
           "relationships": []

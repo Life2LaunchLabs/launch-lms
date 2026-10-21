@@ -11,10 +11,9 @@ from fastapi import HTTPException
 from pydantic import BaseModel, Field as PydanticField, field_validator
 from sqlmodel import Session
 
-from src.db.hub import HubAdvisorConfiguration
+from src.db.coach import CoachPolicy
 from src.db.users import PublicUser
-from src.services.hub_configuration import CONFIGURATION_ID, get_configuration_record
-from src.services.hub_advisor import DEFAULT_HUB_ADVISOR_INSTRUCTIONS
+from src.services.coach.policy import POLICY_ID
 from src.services.demo.providers import platform_read
 
 MAX_CARDS = 6
@@ -49,14 +48,14 @@ def effective_launch_cards(db_session: Session) -> list[dict]:
 
 
 def _stored_or_default_cards(db_session: Session) -> list[dict]:
-    record = get_configuration_record(db_session)
+    record = db_session.get(CoachPolicy, POLICY_ID)
     stored = record.launch_cards if record and record.launch_cards else None
     cards = [HubLaunchCard(**card) for card in stored] if stored else DEFAULT_LAUNCH_CARDS
     return [card.model_dump() for card in cards]
 
 
 def launch_cards_settings(db_session: Session) -> dict:
-    record = get_configuration_record(db_session)
+    record = db_session.get(CoachPolicy, POLICY_ID)
     return {"cards": effective_launch_cards(db_session), "is_default": not (record and record.launch_cards)}
 
 
@@ -65,9 +64,9 @@ def save_launch_cards(db_session: Session, current_user: PublicUser, cards: list
     if cards is not None:
         if not 1 <= len(cards) <= MAX_CARDS:
             raise HTTPException(status_code=422, detail=f"Use between 1 and {MAX_CARDS} cards.")
-    record = get_configuration_record(db_session)
+    record = db_session.get(CoachPolicy, POLICY_ID)
     if record is None:
-        record = HubAdvisorConfiguration(id=CONFIGURATION_ID, instructions=DEFAULT_HUB_ADVISOR_INSTRUCTIONS)
+        record = CoachPolicy(id=POLICY_ID)
     record.launch_cards = [c.model_dump() for c in cards] if cards is not None else None
     record.updated_by_user_id = current_user.id
     record.updated_at = datetime.utcnow()

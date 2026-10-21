@@ -72,8 +72,9 @@ import {
   type LearningQuestionBlock,
   type LearningTextBlock,
 } from '@components/Learning/schema'
-import { LearningActivitySurface } from '@components/Learning/LearningBadgeViews'
+import { LearningActivitySurface } from '@components/Learning/player/ActivitySurface'
 import { ContentIssuesBanner } from './ContentIssuesBanner'
+import { ActivityDesignFields, BlockDesignFields, ColorField, PageDesignFields } from './DesignInspector'
 import type { DeviceMode, EditorViewMode, SaveState, Selection } from './types'
 import {
   EMPTY_PARAGRAPH,
@@ -126,6 +127,7 @@ import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 import type { MediaAsset } from '@services/media/library'
 import { TimelineCardView, type TimelineEntry } from '@components/Pages/Portfolio/Timeline'
 import { EditorPreviewModal } from '@components/Learning/player/EditorPreviewModal'
+import StoryBlock, { STORY_BLOCKS } from '@components/Learning/player/StoryBlocks'
 
 /** Edits one activity in place. `ownerName` is the plan template it belongs to; `orgId` owns its variables and media. */
 export default function LearningActivityEditor({
@@ -903,6 +905,7 @@ export default function LearningActivityEditor({
           onCreateVariable={createVariable}
           onPatchVariable={patchVariable}
           onDeleteVariable={removeVariable}
+          pages={pages}
         />
       ) : viewMode === 'flow' ? (
         <ActivityFlowView
@@ -1321,13 +1324,9 @@ function CanvasBlock({ block, page, selected, readOnly, registerBlockEl, onHover
       ? <div className="rounded-lg border border-dashed border-violet-300 bg-violet-50 px-4 py-3 text-sm font-semibold text-violet-800">{block.content.nodes[0].content[0].attrs?.binding?.fallback || 'Dynamic value'}</div>
       : <TextBlockEditor block={block} selected={selected} readOnly={contentReadOnly} onEditorReady={onTextEditorReady} onPatch={onPatch} />
   ) : block.type === 'image' ? (
-    <ImageBlockEditor
-      block={block}
-      selected={selected}
-      readOnly={contentReadOnly}
-      onPatch={onPatch}
-      onRequestImageUpload={onRequestImageUpload}
-    />
+    <ImageBlockEditor block={block} selected={selected} readOnly={contentReadOnly} onPatch={onPatch} onRequestImageUpload={onRequestImageUpload} />
+  ) : STORY_BLOCKS.has(block.type) ? (
+    <StoryBlock block={block} run={null} />
   ) : block.type === 'button' ? (
     <button type="button" disabled className={`pointer-events-none min-h-11 rounded-full px-5 py-3 text-sm font-bold ${block.design?.variant === 'primary' ? 'bg-[var(--org-primary-color)] text-white' : 'border border-gray-200 bg-white text-gray-700 shadow-sm'}`}>{block.content?.label || 'Continue'}</button>
   ) : block.type === 'portfolio_preview' ? (
@@ -2114,8 +2113,6 @@ function EditableInspectorTitle({ value, fallback, onChange }: { value: string; 
 
 function PageInspector({ page, variantKey, onPatchPage, onSelectBlock, onRequestVideo }: any) {
   if (!page) return null
-  const design = page.design || {}
-  const patchDesign = (patch: any) => onPatchPage({ design: { ...design, ...patch } })
   const blocks = getEditorBlocks(page, variantKey)
   return (
     <div>
@@ -2125,14 +2122,7 @@ function PageInspector({ page, variantKey, onPatchPage, onSelectBlock, onRequest
           <span className="font-bold text-gray-700">Required</span>
           <input type="checkbox" checked={page.required !== false} onChange={(event) => onPatchPage({ required: event.target.checked })} />
         </label>
-        {page.page_type !== 'video' && (
-          <ColorField
-            label="Background accent"
-            value={design.background_accent_color || ''}
-            fallback="#f8fafc"
-            onChange={(value) => patchDesign({ background_accent_color: value })}
-          />
-        )}
+        {page.page_type !== 'video' && <PageDesignFields page={page} onPatchPage={onPatchPage} />}
         {page.page_type === 'video' && (
           <>
           <button type="button" onClick={onRequestVideo} className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-gray-200 text-sm font-bold hover:bg-gray-50">
@@ -2310,6 +2300,7 @@ function BlockInspector({ block, page, pages, learningVariables, onCreateVariabl
         </InspectorSection>
       )}
       {block.type === 'button' && <InspectorSection label="Page button"><TextField label="Label" value={block.content?.label || ''} onChange={(value) => onPatchBlock(block.id, { content: { ...(block.content || {}), label: value } })} /><SegmentedControl label="When pressed" value={block.content?.action === 'revisit' ? 'revisit' : 'continue'} options={[{ value: 'continue', label: 'Continue' }, { value: 'revisit', label: 'Go back' }]} onChange={(value) => onPatchBlock(block.id, { content: value === 'revisit' ? { ...(block.content || {}), action: 'revisit' } : { label: block.content?.label, action: 'continue' } })} />{block.content?.action === 'revisit' ? <label className="grid gap-2 text-xs font-bold text-gray-500">Earlier page<select value={block.content?.revisit_page_uuid || ''} onChange={(event) => onPatchBlock(block.id, { content: { ...(block.content || {}), revisit_page_uuid: event.target.value } })} className="h-10 rounded-lg border border-gray-200 px-3 text-sm font-normal text-gray-900"><option value="">Choose a page</option>{(pages || []).slice(0, Math.max(0, (pages || []).findIndex((item: any) => item.page_uuid === page.page_uuid))).map((item: any) => <option key={item.page_uuid} value={item.page_uuid}>{item.title}</option>)}</select></label> : <p className="text-xs leading-5 text-gray-500">Completes the page. To send learners somewhere different per button, add a path on &ldquo;Button pressed&rdquo; in the Flow tab.</p>}<SegmentedControl label="Style" value={design.variant === 'primary' ? 'primary' : 'secondary'} options={[{ value: 'primary', label: 'Primary' }, { value: 'secondary', label: 'Secondary' }]} onChange={(value) => patchDesign({ variant: value })} /><SegmentedControl label="Layout" value={design.group ? 'grouped' : 'solo'} options={[{ value: 'solo', label: 'Solo' }, { value: 'grouped', label: 'Side by side' }]} onChange={(value) => patchDesign({ group: value === 'grouped' ? `button_group_${page.page_uuid}` : undefined })} /><p className="text-xs leading-5 text-gray-500">Grouped page buttons share one responsive row. Direction icons are added automatically.</p></InspectorSection>}
+      <BlockDesignFields block={block} onPatchBlock={onPatchBlock} />
       {block.type === 'question' && (
         <QuestionInspector
           block={block}
@@ -2745,38 +2736,6 @@ function SelectionRangeFields({
   )
 }
 
-function ColorField({ label, value, fallback, onChange }: { label: string; value: string; fallback: string; onChange: (value: string) => void }) {
-  const color = isHexColor(value) ? value : fallback
-  return (
-    <div>
-      <FieldLabel>{label}</FieldLabel>
-      <div className="flex items-center gap-2">
-        <input
-          type="color"
-          value={color}
-          onChange={(event) => onChange(event.target.value)}
-          className="h-10 w-12 rounded-lg border border-gray-200 bg-white p-1"
-        />
-        <input
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          placeholder={fallback}
-          className="h-10 min-w-0 flex-1 rounded-lg border border-gray-200 px-3 text-sm outline-none focus:border-[var(--org-primary-color)]"
-        />
-        {value && (
-          <button type="button" onClick={() => onChange('')} className="h-10 rounded-lg border border-gray-200 px-3 text-xs font-bold text-gray-600 hover:bg-gray-50">
-            Reset
-          </button>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function isHexColor(value: string) {
-  return /^#[0-9a-f]{6}$/i.test(String(value || ''))
-}
-
 function VariableCreateInline({ value, onChange, onCreate }: any) {
   return (
     <div className="flex gap-2">
@@ -2809,6 +2768,7 @@ function ActivitySettingsView({
   onCreateVariable,
   onPatchVariable,
   onDeleteVariable,
+  pages,
 }: any) {
   return (
     <main className="min-h-0 flex-1 overflow-y-auto bg-white">
@@ -2827,6 +2787,7 @@ function ActivitySettingsView({
             </div>
           </div>
         </section>
+        <ActivityDesignFields activity={activity} pages={pages || []} onPatchActivity={onPatchActivity} />
         {hasScoredQuestions ? (
           <section>
             <h2 className="text-lg font-bold">Pass/fail grading</h2>

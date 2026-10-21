@@ -284,6 +284,14 @@ def _serialize_run(db_session: Session, run: LearningRun) -> LearningRunRead:
                 if (item.id or 0) not in started_badge_ids
                 and (item.id or 0) not in earned_badge_ids
             ][:6]
+    if run.goal_id:
+        # Activities run inside a goal can show it: its title, why and numbers so far.
+        from src.db.goals import Goal
+        from src.services.goals.story import goal_variables
+
+        goal = db_session.get(Goal, run.goal_id)
+        if goal:
+            render_context["variables"].update(goal_variables(db_session, goal))
     return LearningRunRead(
         id=run.id or 0,
         run_uuid=run.run_uuid,
@@ -292,6 +300,8 @@ def _serialize_run(db_session: Session, run: LearningRun) -> LearningRunRead:
         issuing_org_id=run.issuing_org_id,
         plan_id=run.plan_id,
         plan_objective_id=run.plan_objective_id,
+        goal_id=run.goal_id,
+        goal_step_id=run.goal_step_id,
         user_id=run.user_id,
         status=run.status,
         started_at=run.started_at,

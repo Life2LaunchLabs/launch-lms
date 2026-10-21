@@ -1,0 +1,624 @@
+{
+  "template": {
+    "name": "Start a goal",
+    "description": "The questions every new personal goal starts with."
+  },
+  "steps": [
+    {
+      "key": "launch",
+      "description": "Set up a new goal.",
+      "policy": "managed",
+      "seed_pages": [],
+      "document": {
+        "format": "launch-lms.activity",
+        "format_version": 1,
+        "activity": {
+          "activity_uuid": "learning_activity_goal_launch",
+          "title": "Start a goal",
+          "description": "A few questions to set up your goal.",
+          "icon": "rocket",
+          "thumbnail_image": "",
+          "settings": {
+            "design": {
+              "background": {
+                "color": "#0b1026",
+                "gradient_to": "#1e1b4b",
+                "scene": "starfield",
+                "intensity": "medium"
+              },
+              "progress": "segments",
+              "exit": {
+                "label": "Skip to my goal",
+                "confirm": "Skip the rest? You can fill it in on the goal's page.",
+                "to_page_uuid": "learning_page_launch_ready"
+              }
+            }
+          }
+        },
+        "pages": [
+          {
+            "page_uuid": "learning_page_launch_title",
+            "page_type": "standard",
+            "title": "What do you want to work toward?",
+            "required": false,
+            "content": {
+              "version": 2,
+              "blocks": [
+                {
+                  "id": "blk_launch_title_heading",
+                  "type": "text",
+                  "design": {},
+                  "content": {
+                    "node": {
+                      "type": "heading",
+                      "attrs": {
+                        "level": 1
+                      },
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "What do you want to work toward?"
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "id": "blk_launch_title_hint",
+                  "type": "text",
+                  "design": {},
+                  "content": {
+                    "node": {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Say it in your own words. You can change it any time."
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "id": "blk_launch_title",
+                  "type": "question",
+                  "kind": "text_input",
+                  "design": {},
+                  "scoring": {
+                    "mode": "off",
+                    "points": 0
+                  },
+                  "content": {
+                    "hide_prompt": true,
+                    "inputs": [
+                      {
+                        "id": "title",
+                        "label": "Your goal",
+                        "placeholder": "Get into vet school",
+                        "variant": "single_line"
+                      }
+                    ]
+                  },
+                  "completion": {
+                    "inputs": {
+                      "title": {
+                        "required": true,
+                        "min_words": 1
+                      }
+                    },
+                    "variable_bindings": {
+                      "inputs": {
+                        "title": {
+                          "target": "goal.title"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "design": {}
+          },
+          {
+            "page_uuid": "learning_page_launch_why",
+            "page_type": "standard",
+            "title": "Why does it matter to you?",
+            "required": false,
+            "content": {
+              "version": 2,
+              "blocks": [
+                {
+                  "id": "blk_launch_why_heading",
+                  "type": "text",
+                  "design": {},
+                  "content": {
+                    "node": {
+                      "type": "heading",
+                      "attrs": {
+                        "level": 1
+                      },
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Why does it matter to you?"
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "id": "blk_launch_why_hint",
+                  "type": "text",
+                  "design": {},
+                  "content": {
+                    "node": {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "A line or two is plenty. It's good company on the slow weeks."
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "id": "blk_launch_why",
+                  "type": "question",
+                  "kind": "text_input",
+                  "design": {},
+                  "scoring": {
+                    "mode": "off",
+                    "points": 0
+                  },
+                  "content": {
+                    "hide_prompt": true,
+                    "inputs": [
+                      {
+                        "id": "why",
+                        "label": "Why it matters",
+                        "placeholder": "I've loved working with animals since I was little",
+                        "variant": "short_answer",
+                        "height": 140
+                      }
+                    ]
+                  },
+                  "completion": {
+                    "inputs": {
+                      "why": {
+                        "required": false
+                      }
+                    },
+                    "variable_bindings": {
+                      "inputs": {
+                        "why": {
+                          "target": "goal.why"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "design": {}
+          },
+          {
+            "page_uuid": "learning_page_launch_size",
+            "page_type": "standard",
+            "title": "How big does it feel?",
+            "required": false,
+            "content": {
+              "version": 2,
+              "blocks": [
+                {
+                  "id": "blk_launch_size_heading",
+                  "type": "text",
+                  "design": {},
+                  "content": {
+                    "node": {
+                      "type": "heading",
+                      "attrs": {
+                        "level": 1
+                      },
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "How big does it feel?"
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "id": "blk_launch_size",
+                  "type": "question",
+                  "kind": "multiple_choice",
+                  "design": {
+                    "style": "pills"
+                  },
+                  "scoring": {
+                    "mode": "off",
+                    "points": 0,
+                    "correct_option_ids": []
+                  },
+                  "content": {
+                    "hide_prompt": true,
+                    "options": [
+                      {
+                        "id": "weeks",
+                        "text": "A few weeks",
+                        "icon": "🌱"
+                      },
+                      {
+                        "id": "months",
+                        "text": "A few months",
+                        "icon": "🌿"
+                      },
+                      {
+                        "id": "year",
+                        "text": "A year or more",
+                        "icon": "🌳"
+                      }
+                    ]
+                  },
+                  "completion": {
+                    "min_selections": 1,
+                    "max_selections": 1,
+                    "variable_bindings": {
+                      "options": {
+                        "weeks": [
+                          {
+                            "target": "goal.size",
+                            "value": "weeks"
+                          }
+                        ],
+                        "months": [
+                          {
+                            "target": "goal.size",
+                            "value": "months"
+                          }
+                        ],
+                        "year": [
+                          {
+                            "target": "goal.size",
+                            "value": "year"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "design": {}
+          },
+          {
+            "page_uuid": "learning_page_launch_start",
+            "page_type": "standard",
+            "title": "Where are you starting from?",
+            "required": false,
+            "content": {
+              "version": 2,
+              "blocks": [
+                {
+                  "id": "blk_launch_start_heading",
+                  "type": "text",
+                  "design": {},
+                  "content": {
+                    "node": {
+                      "type": "heading",
+                      "attrs": {
+                        "level": 1
+                      },
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Where are you starting from?"
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "id": "blk_launch_start",
+                  "type": "question",
+                  "kind": "multiple_choice",
+                  "design": {
+                    "style": "cards"
+                  },
+                  "scoring": {
+                    "mode": "off",
+                    "points": 0,
+                    "correct_option_ids": []
+                  },
+                  "content": {
+                    "hide_prompt": true,
+                    "options": [
+                      {
+                        "id": "idea",
+                        "text": "Just an idea",
+                        "icon": "💡",
+                        "description": "I haven't started yet."
+                      },
+                      {
+                        "id": "started",
+                        "text": "Some steps done",
+                        "icon": "👣",
+                        "description": "I've made a start."
+                      },
+                      {
+                        "id": "underway",
+                        "text": "Already underway",
+                        "icon": "🚀",
+                        "description": "I want to keep it moving."
+                      }
+                    ]
+                  },
+                  "completion": {
+                    "min_selections": 1,
+                    "max_selections": 1,
+                    "variable_bindings": {
+                      "options": {
+                        "idea": [
+                          {
+                            "target": "goal.starting_point",
+                            "value": "idea"
+                          }
+                        ],
+                        "started": [
+                          {
+                            "target": "goal.starting_point",
+                            "value": "started"
+                          }
+                        ],
+                        "underway": [
+                          {
+                            "target": "goal.starting_point",
+                            "value": "underway"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "design": {}
+          },
+          {
+            "page_uuid": "learning_page_launch_help",
+            "page_type": "standard",
+            "title": "How should Coach help?",
+            "required": false,
+            "content": {
+              "version": 2,
+              "blocks": [
+                {
+                  "id": "blk_launch_help_heading",
+                  "type": "text",
+                  "design": {},
+                  "content": {
+                    "node": {
+                      "type": "heading",
+                      "attrs": {
+                        "level": 1
+                      },
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "How should Coach help?"
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "id": "blk_launch_help",
+                  "type": "question",
+                  "kind": "multiple_choice",
+                  "design": {
+                    "style": "cards"
+                  },
+                  "scoring": {
+                    "mode": "off",
+                    "points": 0,
+                    "correct_option_ids": []
+                  },
+                  "content": {
+                    "hide_prompt": true,
+                    "options": [
+                      {
+                        "id": "plan",
+                        "text": "Help me plan it",
+                        "icon": "🧭",
+                        "description": "Coach checks in weekly and suggests steps."
+                      },
+                      {
+                        "id": "check",
+                        "text": "Check in on me",
+                        "icon": "📅",
+                        "description": "A weekly nudge, and I plan it myself."
+                      },
+                      {
+                        "id": "steer",
+                        "text": "I'll steer",
+                        "icon": "🛶",
+                        "description": "Coach checks in once a month."
+                      }
+                    ]
+                  },
+                  "completion": {
+                    "min_selections": 1,
+                    "max_selections": 1,
+                    "variable_bindings": {
+                      "options": {
+                        "plan": [
+                          {
+                            "target": "goal.coach_cadence",
+                            "value": "weekly"
+                          }
+                        ],
+                        "check": [
+                          {
+                            "target": "goal.coach_cadence",
+                            "value": "weekly"
+                          }
+                        ],
+                        "steer": [
+                          {
+                            "target": "goal.coach_cadence",
+                            "value": "monthly"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "design": {}
+          },
+          {
+            "page_uuid": "learning_page_launch_template",
+            "page_type": "standard",
+            "title": "Start from a plan?",
+            "required": false,
+            "content": {
+              "version": 2,
+              "blocks": [
+                {
+                  "id": "blk_launch_template_heading",
+                  "type": "text",
+                  "design": {},
+                  "content": {
+                    "node": {
+                      "type": "heading",
+                      "attrs": {
+                        "level": 1
+                      },
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Start from a plan?"
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "id": "blk_launch_template_hint",
+                  "type": "text",
+                  "design": {},
+                  "content": {
+                    "node": {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "These plans fit what you described. Pick one to start with its stages, or start blank."
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "id": "blk_launch_template",
+                  "type": "question",
+                  "kind": "multiple_choice",
+                  "design": {
+                    "style": "cards"
+                  },
+                  "scoring": {
+                    "mode": "off",
+                    "points": 0,
+                    "correct_option_ids": []
+                  },
+                  "content": {
+                    "hide_prompt": true,
+                    "options": [],
+                    "options_source": {
+                      "kind": "goal_templates",
+                      "limit": 3
+                    }
+                  },
+                  "completion": {
+                    "min_selections": 0,
+                    "max_selections": 1,
+                    "variable_bindings": {
+                      "selected": [
+                        {
+                          "target": "goal.template"
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "id": "blk_launch_blank",
+                  "type": "button",
+                  "design": {
+                    "placement": "footer"
+                  },
+                  "content": {
+                    "label": "Start blank",
+                    "action": "continue"
+                  }
+                }
+              ]
+            },
+            "design": {}
+          },
+          {
+            "page_uuid": "learning_page_launch_ready",
+            "page_type": "standard",
+            "title": "You're set",
+            "required": true,
+            "content": {
+              "version": 2,
+              "blocks": [
+                {
+                  "id": "blk_launch_ready_heading",
+                  "type": "text",
+                  "design": {},
+                  "content": {
+                    "node": {
+                      "type": "heading",
+                      "attrs": {
+                        "level": 1
+                      },
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "You're set."
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "id": "blk_launch_ready_text",
+                  "type": "text",
+                  "design": {},
+                  "content": {
+                    "node": {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Your goal is ready. Next, shape it on its page: add a first step, or ask Coach to plan it with you."
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "design": {
+              "celebrate": true
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

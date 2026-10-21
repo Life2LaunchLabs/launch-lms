@@ -1,166 +1,29 @@
-import json
-
-from fastapi import HTTPException, Request
-from sqlmodel import Session, select
-from src.db.organization_config import OrganizationConfig
+from fastapi import Request
+from sqlmodel import Session
 from src.db.users import PublicUser
-from src.security.features_utils.plans import (
-    PlanLevel,
-    get_plan_limit,
-)
-from src.security.features_utils.usage import (
-    _get_actual_admin_seat_count,
-    _get_actual_usage,
-    _get_redis_client,
-    get_purchased_member_seats,
-)
+from src.security.access.access import count_usage, org_access
 from src.security.rbac.rbac import authorization_verify_if_user_is_anon
 
-# Cache TTL in seconds (30 seconds)
-USAGE_CACHE_TTL = 30
-
-
-def _get_cache_key(org_id: int) -> str:
-    """Get Redis cache key for org usage."""
-    return f"org_usage:{org_id}"
-
-
-def invalidate_usage_cache(org_id: int) -> None:
-    """
-    Invalidate the usage cache for an organization.
-    Call this when usage changes.
-    """
-    try:
-        r = _get_redis_client()
-        r.delete(_get_cache_key(org_id))
-    except Exception:
-        # Silently fail if Redis is unavailable
-        pass
-
-
-def _get_cached_usage(org_id: int) -> dict | None:
-    """Get cached usage data if available."""
-    try:
-        r = _get_redis_client()
-        cached = r.get(_get_cache_key(org_id))
-        if cached:
-            return json.loads(cached)
-    except Exception:
-        pass
-    return None
-
-
-def _set_cached_usage(org_id: int, data: dict) -> None:
-    """Cache usage data."""
-    try:
-        r = _get_redis_client()
-        r.setex(_get_cache_key(org_id), USAGE_CACHE_TTL, json.dumps(data))
-    except Exception:
-        # Silently fail if Redis is unavailable
-        pass
+COUNTED = ("learners", "staff_seats")
 
 
 async def get_org_usage_and_limits(
-    request: Request,
+    request: Request | None,
     org_id: int,
     current_user: PublicUser,
     db_session: Session,
 ) -> dict:
-    """
-    Get organization usage and limits for plan-based features.
-    Results are cached in Redis for 30 seconds.
-
-    Returns:
-        Dictionary with current usage, limits, and remaining quota for each feature.
-    """
-    # Check if user is authenticated
+    """The org's tier and, for each counted limit, usage against it (limit 0 = unlimited)."""
     await authorization_verify_if_user_is_anon(current_user.id)
-
-    # Try to get from cache first
-    cached = _get_cached_usage(org_id)
-    if cached:
-        return cached
-
-    # Get the Organization Config
-    statement = select(OrganizationConfig).where(OrganizationConfig.org_id == org_id)
-    result = db_session.exec(statement)
-    org_config = result.first()
-
-    if org_config is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Organization config not found",
-        )
-
-    from src.security.features_utils.resolve import (
-        _get_plan_from_config,
-        resolve_feature,
-    )
-
-    config = org_config.config or {}
-    org_plan: PlanLevel = _get_plan_from_config(config)
-
-    # Get actual usage counts
-    badges_usage = _get_actual_usage("badges", org_id, db_session)
-    badge_collections_usage = _get_actual_usage("badge_collections", org_id, db_session)
-    members_usage = _get_actual_usage("members", org_id, db_session)
-    admin_seats_usage = _get_actual_admin_seat_count(org_id, db_session)
-
-    # Get limits via resolve_feature (handles mode, overrides, packs)
-    badges_resolved = resolve_feature("badges", config, org_id)
-    badge_collections_resolved = resolve_feature("badge_collections", config, org_id)
-    members_resolved = resolve_feature("members", config, org_id)
-    badges_limit = badges_resolved["limit"]
-    badge_collections_limit = badge_collections_resolved["limit"]
-    members_limit = members_resolved["limit"]
-    members_plan_limit = get_plan_limit(org_plan, "members")
-    members_purchased = get_purchased_member_seats(org_id)
-    admin_seats_limit = get_plan_limit(org_plan, "admin_seats")
-
-    def calc_remaining(usage: int, limit: int) -> int | str:
-        if limit == 0:
-            return "unlimited"
-        return max(0, limit - usage)
-
-    def is_limit_reached(usage: int, limit: int) -> bool:
-        if limit == 0:
-            return False
-        return usage >= limit
-
-    response = {
-        "org_id": org_id,
-        "plan": org_plan,
-        "features": {
-            "badges": {
-                "usage": badges_usage,
-                "limit": badges_limit if badges_limit > 0 else "unlimited",
-                "remaining": calc_remaining(badges_usage, badges_limit),
-                "limit_reached": is_limit_reached(badges_usage, badges_limit),
-            },
-            "badge_collections": {
-                "usage": badge_collections_usage,
-                "limit": badge_collections_limit if badge_collections_limit > 0 else "unlimited",
-                "remaining": calc_remaining(badge_collections_usage, badge_collections_limit),
-                "limit_reached": is_limit_reached(badge_collections_usage, badge_collections_limit),
-            },
-            "members": {
-                "usage": members_usage,
-                "limit": members_limit if members_limit > 0 else "unlimited",
-                "plan_limit": members_plan_limit if members_plan_limit > 0 else "unlimited",
-                "purchased": members_purchased,
-                "remaining": calc_remaining(members_usage, members_limit),
-                "limit_reached": is_limit_reached(members_usage, members_limit),
-            },
-            "admin_seats": {
-                "usage": admin_seats_usage,
-                "limit": admin_seats_limit if admin_seats_limit > 0 else "unlimited",
-                "remaining": calc_remaining(admin_seats_usage, admin_seats_limit),
-                "limit_reached": is_limit_reached(admin_seats_usage, admin_seats_limit),
-            },
-        },
-    }
-
-    # Cache the response
-    _set_cached_usage(org_id, response)
-
-    return response
+    access = org_access(org_id, db_session)
+    limits = {}
+    for name in COUNTED:
+        usage = count_usage(name, org_id, db_session)
+        limit = access.limit(name)
+        limits[name] = {
+            "usage": usage,
+            "limit": limit or "unlimited",
+            "remaining": max(0, limit - usage) if limit else "unlimited",
+            "limit_reached": bool(limit) and usage >= limit,
+        }
+    return {"org_id": org_id, "tier": access.effective_tier, "limits": limits}

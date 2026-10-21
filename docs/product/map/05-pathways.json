@@ -191,7 +191,7 @@
           "references": [
             {
               "kind": "code",
-              "path": "apps/web/components/Plans/learner/PlansHome.tsx"
+              "path": "apps/web/components/Goals/home/GoalsHome.tsx"
             },
             {
               "kind": "code",
@@ -199,7 +199,7 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Plans/learner/PlansHome.tsx"
+              "path": "apps/web/components/Goals/home/GoalsHome.tsx"
             }
           ],
           "relationships": []
@@ -369,15 +369,15 @@
           "references": [
             {
               "kind": "code",
-              "path": "apps/web/components/Plans/learner/PlanView.tsx"
+              "path": "apps/web/components/Goals/learner/GoalPath.tsx"
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Plans/learner/StepStack.tsx"
+              "path": "apps/web/components/Goals/learner/GoalStepRow.tsx"
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Plans/learner/PlanHeaderActions.tsx"
+              "path": "apps/web/components/Goals/learner/GoalHeaderActions.tsx"
             },
             {
               "kind": "code",
@@ -666,7 +666,7 @@
               "references": [
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Plans/learner/PlansHome.tsx"
+                  "path": "apps/web/components/Goals/home/GoalsHome.tsx"
                 },
                 {
                   "kind": "test",
@@ -865,7 +865,7 @@
               "references": [
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Plans/PlansWorkspace.tsx",
+                  "path": "apps/web/components/Goals/learner/GoalsWorkspace.tsx",
                   "symbol": "byDueDate,PlanEditor",
                   "responsibility": "Orders explicitly dated objectives chronologically within each live-plan section."
                 }
@@ -944,7 +944,7 @@
           "references": [
             {
               "kind": "code",
-              "path": "apps/web/components/Plans/PlansWorkspace.tsx"
+              "path": "apps/web/components/Goals/learner/GoalsWorkspace.tsx"
             },
             {
               "kind": "code",
@@ -1240,7 +1240,7 @@
               "references": [
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Plans/learner/StepStack.tsx"
+                  "path": "apps/web/components/Goals/learner/GoalStepRow.tsx"
                 },
                 {
                   "kind": "test",
@@ -1473,6 +1473,142 @@
                 {
                   "kind": "doc",
                   "path": "docs/design/framework-editor-and-learner-flow-verification.md"
+                }
+              ]
+            },
+            {
+              "id": "PATHWAYS-G002-A004-S006",
+              "activity_id": "PATHWAYS-G002-A004",
+              "display_order": 6,
+              "title": "Add a note to any step",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "partial",
+              "automated_status": "passed",
+              "manual_status": "not_tested",
+              "implementation_notes": "Every step has one note: added while it's open, asked for right after it's marked done, and kept once it's done.",
+              "updated_at": "2026-10-17T01:00:00+00:00",
+              "verification": {
+                "status": "unverified"
+              },
+              "signoff": {},
+              "source": {},
+              "references": [
+                {
+                  "kind": "code",
+                  "path": "apps/web/components/Goals/steps/StepBody.tsx"
+                },
+                {
+                  "kind": "code",
+                  "path": "apps/api/src/services/goals/goals.py"
+                },
+                {
+                  "kind": "test",
+                  "path": "apps/api/src/tests/test_goals.py"
+                }
+              ]
+            },
+            {
+              "id": "PATHWAYS-G002-A004-S007",
+              "activity_id": "PATHWAYS-G002-A004",
+              "display_order": 7,
+              "title": "Collect finds on an Explore board",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "partial",
+              "automated_status": "passed",
+              "manual_status": "not_tested",
+              "implementation_notes": "Drop or paste links, photos and PDFs, or add library resources and notes; grid or stack, search, type and sort, pins and optional 1–5 star ratings. Done asks for the outcome; a finished board shows its pins and the outcome.",
+              "updated_at": "2026-10-17T01:00:00+00:00",
+              "verification": {
+                "status": "unverified"
+              },
+              "signoff": {},
+              "source": {},
+              "references": [
+                {
+                  "kind": "code",
+                  "path": "apps/web/components/Goals/steps/exploreBoard.tsx"
+                },
+                {
+                  "kind": "code",
+                  "path": "apps/web/components/Goals/steps/exploreAdd.tsx"
+                },
+                {
+                  "kind": "test",
+                  "path": "apps/api/src/tests/test_goal_explore.py"
+                }
+              ]
+            },
+            {
+              "id": "PATHWAYS-G002-A004-S008",
+              "activity_id": "PATHWAYS-G002-A004",
+              "display_order": 8,
+              "title": "Add an event step to my calendar",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "partial",
+              "automated_status": "passed",
+              "manual_status": "not_tested",
+              "implementation_notes": "Event steps open in Google Calendar or download as an .ics file; the learner says they went once the day comes.",
+              "updated_at": "2026-10-17T01:00:00+00:00",
+              "verification": {
+                "status": "unverified"
+              },
+              "signoff": {},
+              "source": {},
+              "references": [
+                {
+                  "kind": "code",
+                  "path": "apps/web/services/goals/calendar.ts"
+                },
+                {
+                  "kind": "test",
+                  "path": "apps/web/services/goals/__tests__/calendar.test.ts"
+                }
+              ]
+            },
+            {
+              "id": "PATHWAYS-G002-A004-S009",
+              "activity_id": "PATHWAYS-G002-A004",
+              "display_order": 9,
+              "title": "Keep up a routine",
+              "description": "",
+              "step_kind": "core",
+              "product_state": "live",
+              "health": "not_applicable",
+              "traceability": "partial",
+              "automated_status": "passed",
+              "manual_status": "not_tested",
+              "implementation_notes": "A routine comes round daily, on chosen weekdays, or on chosen days of the month, and each time asks for an action: add a few named items, enter a number (one line per named series), or check it off. The card reads the cadence in words, charts past times (bars, or lines for numbers), and each column opens that time's action to fill in late. Home shows only the current action. Older weekly-count routines migrate to weekly on Mondays; follow-ups and totals are gone.",
+              "updated_at": "2026-10-17T02:00:00+00:00",
+              "verification": {
+                "status": "unverified"
+              },
+              "signoff": {},
+              "source": {},
+              "references": [
+                {
+                  "kind": "code",
+                  "path": "apps/api/src/services/goals/types/routine.py"
+                },
+                {
+                  "kind": "code",
+                  "path": "apps/web/components/Goals/steps/routine.tsx"
+                },
+                {
+                  "kind": "test",
+                  "path": "apps/api/src/tests/test_goal_routines.py"
+                },
+                {
+                  "kind": "test",
+                  "path": "apps/web/services/goals/__tests__/routine.test.ts"
                 }
               ]
             }
@@ -1795,7 +1931,7 @@
           "health": "works",
           "traceability": "partial",
           "priority": "unset",
-          "implementation_notes": "Undated steps are paced: each learner has a weekly target (default 5). On the first My plans load of a week the server picks the week's steps (dated this week or overdue, carried-over picks, then open undated steps round-robin across plans) and keeps them for the week. Ready for more adds up to three open steps; Next week previews the next batch; other undated steps wait in Later. Plan pages ignore pacing and show every step.",
+          "implementation_notes": "Undated steps are paced: each learner has a weekly target (default 5). On the first My plans load of a week the server picks the week's steps (dated this week or overdue, carried-over picks, then open undated steps round-robin across plans) and keeps them for the week. Only the learner grows a week: once every step is done, Pull 3 more adds up to three open steps from any active plan, and finishing steps or a plan finishing itself never refills it. The weekly goal shows as done/goal on the overview and a new goal starts next week. Next week previews the next batch; other undated steps wait in Later. Plan pages ignore pacing and show every step.",
           "original_state": null,
           "updated_at": "2026-10-12T16:00:00+00:00",
           "description": "",
@@ -1814,11 +1950,11 @@
             {
               "kind": "code",
               "path": "apps/api/src/services/plan_home.py",
-              "responsibility": "Weekly picks, Ready for more, and the My plans timeline"
+              "responsibility": "Weekly picks, Pull 3 more, and the My plans timeline"
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Plans/learner/PlansHome.tsx"
+              "path": "apps/web/components/Goals/home/GoalsHome.tsx"
             },
             {
               "kind": "test",
@@ -1852,7 +1988,7 @@
               "id": "PATHWAYS-G002-A007-S002",
               "activity_id": "PATHWAYS-G002-A007",
               "display_order": 2,
-              "title": "Change the weekly target",
+              "title": "Change the weekly goal for next week",
               "description": "",
               "step_kind": "optional",
               "product_state": "live",
@@ -2522,9 +2658,9 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Admin/Programs/AdminLivePlanDetail.tsx",
-              "symbol": "ActivityAndFiles",
-              "responsibility": "Presents plan discussion, audit history, and shared files in the individual live-plan workspace."
+              "path": "apps/web/components/Connect/workspace/ChatWorkspace.tsx",
+              "symbol": "ChatWorkspace",
+              "responsibility": "The learner's plan feed: discussion and the app's cards, with staff notes about the learner between the messages for staff."
             }
           ],
           "relationships": []
@@ -2983,9 +3119,9 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Admin/Programs/AdminLivePlanDetail.tsx",
-              "symbol": "Objectives, PlanSettings",
-              "responsibility": "Lets authorized staff update learner-specific objective definitions, plan details, priority, and schedule."
+              "path": "apps/web/components/Goals/admin/live/StaffGoalPath.tsx",
+              "symbol": "StaffGoalPath",
+              "responsibility": "Lets authorized staff update learner-specific steps from each step's menu and the plan's details and schedule from its settings."
             }
           ],
           "relationships": [
@@ -3032,7 +3168,7 @@
           "health": "works",
           "traceability": "partial",
           "priority": "unset",
-          "implementation_notes": "Define the template's identity, roles, phases, custom objectives, badge steps, activity steps (an interactive activity owned by the step), step order (any order, in order, or by chapter) with prerequisites, evidence and completion policies, scheduling rules, and late-work behavior for future assignments. Templates are also the ways to earn badges.",
+          "implementation_notes": "Define the template's identity, roles, phases, custom objectives, badge steps, activity steps (an interactive activity owned by the step), when steps open and close (with their stage, after other steps, or by week) with prerequisites, evidence and completion policies, scheduling rules, and late-work behavior for future assignments. Templates are also the ways to earn badges.",
           "original_state": "`Live`",
           "updated_at": "2026-10-12T16:00:00+00:00",
           "description": "",
@@ -3158,12 +3294,23 @@
               "id": "PATHWAYS-G004-A001-AC07",
               "activity_id": "PATHWAYS-G004-A001",
               "display_order": 7,
-              "criterion": "Only the owner organization can publish a template to the global library; any organization administrator can search it and create an independently editable tenant-owned copy.",
+              "criterion": "Plan publishers publish a template from its Publish tab with one action, Publish to marketplace (saving a new template version is Release, so Publish means only the marketplace); a listing that is open to copy and open to any organization also puts its published version in the global library (and takes it out when locked, ask-first or unlisted), where any organization administrator can search it and create an independently editable tenant-owned copy.",
               "automated_status": "not_tested",
               "manual_status": "passed",
               "notes": null,
               "source_json": null,
               "created_at": "2026-09-09T18:34:09+00:00"
+            },
+            {
+              "id": "PATHWAYS-G004-A001-AC08",
+              "activity_id": "PATHWAYS-G004-A001",
+              "display_order": 8,
+              "criterion": "Who can start a plan (Open to everyone, By request, Invite only; default Invite only) is set per organization running it in Template Settings › Learners, which that organization's admins can change even on another organization's read-only template; the template Overview shows its description (edited in place), the badge it earns (thumbnail and name linking to the badge), which versions earn it, who issues it through this plan, and this organization's learner access. The template's Publish tab (owner only, for organizations that may publish) holds the marketplace listing, the organizations authorized to run the plan with pending requests on top (approve, decline, revoke, authorize by slug), and quick usage counts; organizations authorized on a plan that earns a badge issue that badge through it, so a trusted-partners-only plan is one whose owner authorizes only trusted partners. A plan that earns no badge says learners find plans through badges on Discover.",
+              "automated_status": "passed",
+              "manual_status": "not_tested",
+              "notes": null,
+              "source_json": null,
+              "created_at": "2026-10-21T12:00:00+00:00"
             }
           ],
           "steps": [
@@ -3253,7 +3400,7 @@
               "references": [
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Admin/Programs/ProgramsAdminPage.tsx",
+                  "path": "apps/web/components/Goals/admin/templates/TemplateDetail.tsx",
                   "symbol": "ObjectiveInlineCreator",
                   "responsibility": "Expands the shared objective editor directly within a template phase for inline save and cancel."
                 }
@@ -3332,7 +3479,7 @@
                 },
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Admin/Programs/ProgramAssignmentModal.tsx",
+                  "path": "apps/web/components/Goals/admin/templates/GoalAssignmentModal.tsx",
                   "symbol": "ScheduleStep,ProgramAssignmentModal",
                   "responsibility": "The template's Assign dialog: sets phase dates and per-objective due rules for the group or learners it is handed to."
                 }
@@ -3391,7 +3538,7 @@
               "references": [
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Admin/Programs/ProgramsAdminPage.tsx",
+                  "path": "apps/web/components/Goals/admin/templates/TemplateDetail.tsx",
                   "symbol": "ProgramList",
                   "responsibility": "Offers searchable library and blank paths from the new-template action."
                 }
@@ -3422,7 +3569,7 @@
               "id": "PATHWAYS-G004-A001-S009",
               "activity_id": "PATHWAYS-G004-A001",
               "display_order": 9,
-              "title": "Set the step order",
+              "title": "Set when steps open and close",
               "description": "",
               "step_kind": "core",
               "product_state": "live",
@@ -3449,13 +3596,13 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Admin/Programs/ProgramsAdminPage.tsx",
+              "path": "apps/web/components/Goals/admin/templates/TemplateDetail.tsx",
               "symbol": "ObjectiveInlineCreator, TemplateRoles",
               "responsibility": "Creates template objectives inline with the shared card and edits compact template role summaries."
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Plans/PlanEditorShared.tsx",
+              "path": "apps/web/components/Goals/edit/StepEditor.tsx",
               "symbol": "PlanObjectiveDefinitionCard, PlanStepPicker, PlanPermissionChecklist",
               "responsibility": "Provides the shared objective, step, badge, and permission interactions used across template and live-plan surfaces."
             },
@@ -3808,7 +3955,7 @@
           "references": [
             {
               "kind": "code",
-              "path": "apps/web/components/Admin/Programs/ProgramsAdminPage.tsx",
+              "path": "apps/web/components/Goals/admin/templates/TemplateDetail.tsx",
               "symbol": "PlanStructureGuide, AssignmentRow, AssignmentSection",
               "responsibility": "Explains the managed-plan hierarchy and routes batch and individual assignments to the correct workspace."
             }
@@ -4003,15 +4150,15 @@
           "references": [
             {
               "kind": "code",
-              "path": "apps/web/components/Admin/Programs/AdminLivePlanDetail.tsx",
-              "symbol": "AdminLivePlanDetail",
-              "responsibility": "Labels learner-specific live plans and preserves navigation back through their source assignment."
+              "path": "apps/web/components/Goals/admin/live/StaffPlan.tsx",
+              "symbol": "StaffPlan",
+              "responsibility": "One learner's live plan from the staff side: its header card, people and feed over the path the learner sees."
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Admin/Plans/GroupPlansGrid.tsx",
-              "symbol": "GroupPlansGrid",
-              "responsibility": "The group's Plans tab: learners by steps grouped into chapters, with bulk mark done or excuse and review cells that open the review queue."
+              "path": "apps/web/components/Goals/admin/assignments/AssignmentLearners.tsx",
+              "symbol": "AssignmentLearners",
+              "responsibility": "An assignment's Learners tab: each learner's steps as dots by stage, pace and what needs attention, opening their plan feed."
             }
           ],
           "relationships": [
@@ -4558,7 +4705,7 @@
               "references": [
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Admin/Programs/RequirementsAdmin.tsx",
+                  "path": "apps/web/components/Goals/admin/insights/RequirementFrameworkEditor.tsx",
                   "symbol": "CreateFramework",
                   "responsibility": "Offers searchable library and blank paths from the new-framework action."
                 }
@@ -4584,7 +4731,7 @@
               "references": [
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Admin/Programs/RequirementsAdmin.tsx",
+                  "path": "apps/web/components/Goals/admin/insights/RequirementFrameworkEditor.tsx",
                   "symbol": "FrameworkLevels",
                   "responsibility": "Defines ordered levels and configurable metadata fields."
                 }
@@ -4612,13 +4759,13 @@
               "references": [
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Admin/Programs/RequirementsAdmin.tsx",
+                  "path": "apps/web/components/Goals/admin/insights/RequirementFrameworkEditor.tsx",
                   "symbol": "FrameworkLevels",
                   "responsibility": "Lets administrators select the generated code format for each hierarchy level."
                 },
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Admin/Programs/RequirementsAdmin.tsx",
+                  "path": "apps/web/components/Goals/admin/insights/RequirementFrameworkEditor.tsx",
                   "symbol": "FrameworkSpec",
                   "responsibility": "Adds root and child nodes from the tree and edits the selected node in a detail panel."
                 },
@@ -4673,7 +4820,7 @@
               "references": [
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Admin/Programs/RequirementsAdmin.tsx",
+                  "path": "apps/web/components/Goals/admin/insights/RequirementFrameworkEditor.tsx",
                   "symbol": "FrameworkSpec",
                   "responsibility": "Shows connected tree branches, terminal add rows, generated codes, and node details."
                 },
@@ -4759,13 +4906,13 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Admin/Programs/RequirementsAdmin.tsx",
+              "path": "apps/web/components/Goals/admin/insights/RequirementFrameworkEditor.tsx",
               "symbol": "RequirementsAdmin",
               "responsibility": "Provides the framework list and draft/publish editor."
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Admin/Programs/RequirementsAdmin.tsx",
+              "path": "apps/web/components/Goals/admin/insights/RequirementFrameworkEditor.tsx",
               "symbol": "RequirementsAdmin, RequirementFrameworkDetail, FrameworkLevels, FrameworkSpec",
               "responsibility": "Provides list/detail navigation, configurable hierarchy levels, and the MUI X tree-based specification editor."
             },
@@ -4981,13 +5128,13 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Admin/Programs/ProgramObjectiveEditorRow.tsx",
+              "path": "apps/web/components/Goals/admin/templates/TemplateStepRow.tsx",
               "symbol": "RequirementMappings",
               "responsibility": "Lets administrators select requirement mappings for a template objective."
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Admin/Programs/ProgramsAdminPage.tsx",
+              "path": "apps/web/components/Goals/admin/templates/TemplateDetail.tsx",
               "symbol": "TemplateRequirementCoverage",
               "responsibility": "Summarizes mapped requirement coverage for a plan template."
             },
@@ -5186,7 +5333,7 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Admin/Programs/RequirementsAdmin.tsx",
+              "path": "apps/web/components/Goals/admin/insights/RequirementFrameworkEditor.tsx",
               "symbol": "AssignmentPanel",
               "responsibility": "Provides direct learner and group assignment controls and version migration prompt."
             },
@@ -5404,7 +5551,7 @@
                 },
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Admin/Plans/RequirementEvidenceExport.tsx"
+                  "path": "apps/web/components/Goals/admin/live/RequirementEvidenceExport.tsx"
                 },
                 {
                   "kind": "test",
@@ -5434,7 +5581,7 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Admin/Programs/RequirementsAdmin.tsx",
+              "path": "apps/web/components/Goals/admin/insights/RequirementFrameworkEditor.tsx",
               "symbol": "RequirementsReporting",
               "responsibility": "Provides version, group, node, and status filters plus evidence detail."
             },
@@ -5861,7 +6008,7 @@
           "references": [
             {
               "kind": "code",
-              "path": "apps/web/components/Admin/Programs/ProgramsAdminPage.tsx",
+              "path": "apps/web/components/Goals/admin/templates/TemplateDetail.tsx",
               "symbol": "TemplateRequirementCoverage",
               "responsibility": "Shows mapped versus uncovered requirement leaves on a plan template."
             }
@@ -6122,6 +6269,12 @@
             },
             {
               "kind": "code",
+              "path": "apps/api/src/services/coach/learner.py",
+              "symbol": "learner_context",
+              "responsibility": "Who the learner is (portfolio) and what they're working on (goals), bounded and gated by the coaching policy"
+            },
+            {
+              "kind": "code",
               "path": "apps/api/src/services/hub_context.py",
               "symbol": null,
               "responsibility": "Resolves bounded saved plan and objective context server-side, revalidates access, and produces source receipts."
@@ -6155,6 +6308,12 @@
               "path": "apps/api/src/tests/test_hub_advisor.py",
               "symbol": null,
               "responsibility": "Conversation boundary, provider payload, membership, and rate-limit coverage"
+            },
+            {
+              "kind": "test",
+              "path": "apps/api/src/tests/test_coach_learner.py",
+              "symbol": null,
+              "responsibility": "Learner context scope, ordering, budget, and ability gating"
             },
             {
               "kind": "test",

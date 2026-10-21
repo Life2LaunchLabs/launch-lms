@@ -63,6 +63,9 @@ class BlockDesign(BaseModel):
     shape: Literal["rounded", "circle"] | None = None
     variant: Literal["primary", "secondary"] | None = None
     group: str | None = Field(default=None, description="Buttons sharing a group render side by side.")
+    entrance: Literal["rise", "fade", "none"] | None = Field(default=None, description="How the block enters; blocks rise in, staggered in page order, by default.")
+    placement: Literal["inline", "footer"] | None = Field(default=None, description="Continue buttons only: `footer` draws the button beside Continue as a secondary action.")
+    style: Literal["list", "pills", "scale", "cards"] | None = Field(default=None, description="Choice questions only: how options are drawn. Cards show each option's `icon` and `description`.")
 
 
 class BlockSystem(BaseModel):
@@ -157,6 +160,8 @@ class ChoiceOption(BaseModel):
     id: str = Field(min_length=1)
     text: str = ""
     category: str | None = None
+    icon: str | None = Field(default=None, description="An emoji or short mark shown on pills, scale steps and cards.")
+    description: str | None = Field(default=None, description="A line under the option on cards.")
 
 
 class TextInputField(BaseModel):
@@ -172,6 +177,15 @@ class TextInputField(BaseModel):
     height: float | None = None
 
 
+class OptionsSource(BaseModel):
+    """Where a choice question's options come from when they aren't typed in."""
+
+    model_config = STRICT
+
+    kind: Literal["goal_templates"] = Field(description="`goal_templates`: plan templates the learner can start from, ranked by the goal's wording, with a search for more. The run must belong to a goal.")
+    limit: int = Field(default=3, ge=1, le=6, description="How many options show before \"See more\".")
+
+
 class QuestionContent(BaseModel):
     """Choice kinds use ``options`` (+ ``categories`` for categorized
     selection); ``text_input`` uses ``inputs``; ``image_upload`` only a label."""
@@ -180,6 +194,7 @@ class QuestionContent(BaseModel):
 
     label: str | None = None
     options: list[ChoiceOption] | None = None
+    options_source: OptionsSource | None = Field(default=None, description="Options come from this source instead of `options`; bind the choice with `variable_bindings.selected`.")
     categories: list[dict[str, Any]] | None = None
     inputs: list[TextInputField] | None = None
 
@@ -244,8 +259,76 @@ class PortfolioPreviewBlock(_Block):
     content: PortfolioPreviewContent
 
 
+class StatItem(BaseModel):
+    model_config = STRICT
+
+    value: float | str | None = Field(default=None, description="The number to show; counts up when it is a number.")
+    label: str = Field(default="", max_length=80)
+    binding: DisplayBinding | None = Field(default=None, description="Read the value from a variable instead, such as `goal.stats.steps_done`.")
+
+
+class StatContent(BaseModel):
+    model_config = STRICT
+
+    items: list[StatItem] = Field(min_length=1, max_length=4)
+
+
+class StatBlock(_Block):
+    """A row of up to four numbers that count up as the page opens."""
+
+    type: Literal["stat"]
+    content: StatContent
+
+
+class QuoteContent(BaseModel):
+    model_config = STRICT
+
+    text: str = Field(default="", max_length=600)
+    attribution: str = Field(default="", max_length=120)
+    binding: DisplayBinding | None = Field(default=None, description="Read the quote from an earlier answer or a variable, such as `goal.why`.")
+
+
+class QuoteBlock(_Block):
+    """A pull quote that fades in line by line."""
+
+    type: Literal["quote"]
+    content: QuoteContent
+
+
+class ChartContent(BaseModel):
+    model_config = STRICT
+
+    kind: Literal["bars"] = "bars"
+    title: str = Field(default="", max_length=120)
+    values: list[float] = Field(default_factory=list, max_length=52)
+    labels: list[str] = Field(default_factory=list, max_length=52)
+    binding: DisplayBinding | None = Field(default=None, description="Read the values from a list variable instead, such as `goal.stats.weekly`.")
+
+
+class ChartBlock(_Block):
+    """Bars that grow in, such as steps done each week."""
+
+    type: Literal["chart"]
+    content: ChartContent
+
+
+class MedalContent(BaseModel):
+    model_config = STRICT
+
+    title: str = Field(default="", max_length=120)
+    subtitle: str = Field(default="", max_length=160)
+    image: str = Field(default="", max_length=2000, description="An image for the medal's face, such as a badge's; a star when empty.")
+
+
+class MedalBlock(_Block):
+    """A medal that lands on the page."""
+
+    type: Literal["medal"]
+    content: MedalContent
+
+
 Block = Annotated[
-    Union[TextBlock, ImageBlock, ButtonBlock, QuestionBlock, PortfolioPreviewBlock],
+    Union[TextBlock, ImageBlock, ButtonBlock, QuestionBlock, PortfolioPreviewBlock, StatBlock, QuoteBlock, ChartBlock, MedalBlock],
     Field(discriminator="type"),
 ]
 

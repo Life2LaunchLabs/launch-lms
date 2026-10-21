@@ -15,7 +15,7 @@ The security tests are organized into the following files:
 - **`test_rbac_utils.py`** - Tests for RBAC utility functions like element type checking
 
 ### Feature Usage Tests
-- **`test_features_utils.py`** - Tests for feature usage tracking and limits
+- **`test_access.py`** - Tests for org access: tiers, partner programs, grants, seat limits and the config migration
 
 ### Comprehensive Tests
 - **`test_security_all.py`** - Comprehensive test suite that imports and validates all security modules
@@ -52,13 +52,12 @@ The security tests are organized into the following files:
 - ✅ Edge cases and error handling
 - ✅ Consistency validation
 
-### Feature Usage (`test_features_utils.py`)
-- ✅ Feature limit checking
-- ✅ Usage tracking (increase/decrease)
-- ✅ Redis integration
-- ✅ Organization configuration validation
-- ✅ Unlimited feature handling
-- ✅ Error handling for missing configs
+### Org Access (`test_access.py`)
+- ✅ Tier, partner program and grant resolution
+- ✅ Legacy features off for everyone
+- ✅ Active learner and staff seat counting, with pending invitations and join-link reservations
+- ✅ Capacity checks at the limit
+- ✅ Plan/package config migration to tiers
 
 ## Running the Tests
 
@@ -82,8 +81,8 @@ pytest src/tests/security/test_auth.py -v
 # Run only RBAC tests
 pytest src/tests/security/test_rbac.py -v
 
-# Run only feature usage tests
-pytest src/tests/security/test_features_utils.py -v
+# Run only org access tests
+pytest src/tests/security/test_access.py -v
 ```
 
 ### Run Comprehensive Tests

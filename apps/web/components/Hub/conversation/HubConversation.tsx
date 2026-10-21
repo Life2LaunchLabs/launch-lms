@@ -8,20 +8,23 @@ import { usePageTitle } from '@components/Contexts/PageTitleContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import {
-  archiveHubConversation, askHubAdvisor, getActiveHubEditRun, getHubConversation, HubAdvisorMessage, HubAdvisorResource,
+  archiveHubConversation, askHubAdvisor, concludeHubEditRun, getActiveHubEditRun, getHubConversation, HubAdvisorMessage, HubAdvisorResource,
   HubConversationSummary, HubSuggestedAction, listHubConversations, recordHubSearch, renameHubConversation,
   resolveHubSuggestedAction, saveHubConversationState,
 } from '@services/hub/advisor'
 import { getResource, Resource } from '@services/resources/resources'
 import { getUriWithOrg } from '@services/config/config'
+import { answerHubQuestions, type HubQuestionAnswer } from '@services/hub/questions'
 import HubHeader from './HubHeader'
 import HubComposer, { COMPOSER_MIN_HEIGHT, type HubComposerHandle } from './HubComposer'
 import HubThread, { type HubConversationMessage } from './HubThread'
 import HubHome from '../home/HubHome'
+import { CoachNoteCards } from '@components/Goals/coach/CoachNotes'
 import HubResourceTray from '../resources/HubResourceTray'
 import { asAdvisorResource } from '../resources/HubResourceContext'
 import { addHubContextResource, addHubContextResources, hubAdvisorHistory, inferHubResponseKind, newHubTranscriptResources, removeHubContextResource, restoreSubmittedDraft } from '@services/hub/interaction'
-import { buildHubRunTimeline, mergePendingHubEditOperations, placeHubRunTimeline, recoverHubEditOperations } from './editRunTimeline'
+import { buildHubRunTimeline, mergePendingHubEditOperations, placeHubRunTimeline, recoverHubEditOperations, unreviewedSuggestions } from './editRunTimeline'
+import EndSessionDialog from './EndSessionDialog'
 import useHubMemory from './useHubMemory'
 import useHubEditRun from './useHubEditRun'
 
@@ -70,6 +73,7 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
   const [trayUuid, setTrayUuid] = useState<string | null>(null)
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [composerHeight, setComposerHeight] = useState(COMPOSER_MIN_HEIGHT)
+  const [overlayHeight, setOverlayHeight] = useState(0)
   const scrollRef = useRef<HTMLDivElement>(null)
   const composerRef = useRef<HubComposerHandle>(null)
   const messageSequenceRef = useRef(0)
@@ -120,7 +124,7 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
       if (!alive.current || load !== loadSequence.current) return
       const restored = conversation.messages.map((message) => ({
         id: message.id, role: message.role, content: message.content, resources: message.resources, resourceLabel: message.resource_label,
-        searchQuery: message.search_query, createdAt: message.created_at, memories: message.memories, page_context: message.page_context, suggestedActions: message.suggested_actions,
+        searchQuery: message.search_query, createdAt: message.created_at, memories: message.memories, page_context: message.page_context, suggestedActions: message.suggested_actions, questions: message.questions,
       }))
       setMessages(restored)
       setConversationUuid(conversation.conversation_uuid)
@@ -201,7 +205,18 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
     if (area) area.scrollTo({ top: area.scrollHeight, behavior: 'smooth' })
   }, [messages, sending, pendingResources, libraryOpen])
 
+  // Ending Coach's session with suggestions still waiting asks first; what to do once the learner agrees.
+  const [pendingEnd, setPendingEnd] = useState<null | (() => void)>(null)
+  const endingSession = (then: () => void) => {
+    const run = hub?.editRun
+    if (run?.status === 'active' && unreviewedSuggestions(run)) setPendingEnd(() => then)
+    else then()
+  }
+
   const resetChat = () => {
+    // Clearing the chat ends its session on the server too; suggestions stay on the goal.
+    const run = hub?.editRun
+    if (run?.status === 'active' && accessToken && org?.id) void concludeHubEditRun(org.id, run.run_uuid, 'cancelled', accessToken).catch(() => undefined)
     setMessages([]); setConversationUuid(null); setConversationTitle(''); setContextResources([]); setPendingResources([]); setTrayUuid(null)
     introducedResourceUuidsRef.current.clear()
     setDraft(''); setError('')
@@ -294,7 +309,7 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
         transcriptResources.forEach((resource) => introducedResourceUuidsRef.current.add(resource.resource_uuid))
         setMessages([...previousMessages,
           userMessage(response.user_message_uuid, response.user_message_created_at, { memories: response.memory_changes, page_context: response.page_context }),
-          { id: response.assistant_message_uuid, role: 'assistant', content: response.answer, resources: transcriptResources, resourceLabel: transcriptResources.length ? 'Suggested' : undefined, createdAt: response.assistant_message_created_at, memories: response.memories_used, page_context: response.page_context, suggestedActions: response.suggested_actions },
+          { id: response.assistant_message_uuid, role: 'assistant', content: response.answer, resources: transcriptResources, resourceLabel: transcriptResources.length ? 'Suggested' : undefined, createdAt: response.assistant_message_created_at, memories: response.memories_used, page_context: response.page_context, suggestedActions: response.suggested_actions, questions: response.questions },
         ])
         setContextResources((current) => addHubContextResources(current, response.resources))
         hub?.setEditOperations((current) => mergePendingHubEditOperations(current, response.edit_operations || [], response.edit_run || hub.editRun))
@@ -335,13 +350,29 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
       const resolved = await resolveHubSuggestedAction(org.id, conversationUuid, messageId, action.action_id, accessToken, mode)
       if (resolved.edit_run) hub?.setEditRun(resolved.edit_run)
       router.push(getUriWithOrg(orgslug, resolved.route))
+      // A session already running on that goal lives in its own conversation: pick it up there.
+      if (resolved.edit_run && resolved.edit_run.conversation_uuid !== conversationUuid) { void openConversation(resolved.edit_run.conversation_uuid); return }
       if (mode === 'edit' && resolved.edit_run && !automaticallyStartedRunsRef.current.has(resolved.edit_run.run_uuid)) {
         automaticallyStartedRunsRef.current.add(resolved.edit_run.run_uuid)
-        pendingSubmissionRef.current = { content: 'Go ahead and work on this plan.', preserveDraft: true }
+        pendingSubmissionRef.current = { content: 'Let’s plan this goal together.', preserveDraft: true }
         window.requestAnimationFrame(() => composerRef.current?.submit())
       } else if (window.matchMedia('(max-width: 767px)').matches) hub?.tuck()
     } catch (actionError: any) {
       setError(actionError?.message || 'That suggested destination is no longer available.')
+    }
+  }
+
+  // The learner answers Coach's questions; the answers go back to Coach as their next message.
+  const answerQuestions = async (messageId: string, answers: HubQuestionAnswer[]) => {
+    if (!accessToken || !org?.id || sending) return
+    setError('')
+    try {
+      const result = await answerHubQuestions(org.id, messageId, answers, accessToken)
+      setMessages((current) => current.map((message) => message.id === messageId ? { ...message, questions: result.questions } : message))
+      pendingSubmissionRef.current = { content: result.content, preserveDraft: true, allowHidden: true }
+      window.requestAnimationFrame(() => composerRef.current?.submit())
+    } catch (answerError: any) {
+      setError(answerError?.message || 'Your answers could not be sent.')
     }
   }
 
@@ -371,38 +402,45 @@ export default function HubConversation({ orgslug, active, intent, onIntentConsu
   }
 
   const busy = sending || conversationLoading
+  const pick = (content: string) => { pendingSubmissionRef.current = { content, preserveDraft: true }; composerRef.current?.submit() }
+  // On a goal, Coach's notes on it show as cards: before anything else, or after the conversation.
+  const noteGoal = hub?.surface?.hint.surface === 'goal' ? hub.surface.hint.entity_id : undefined
+  const notes = noteGoal ? <CoachNoteCards goalUuid={noteGoal} orgslug={orgslug} token={accessToken} disabled={busy} onAsk={pick} /> : null
   return <div className="relative h-full min-h-0 w-full overflow-hidden" aria-label="Coach conversation">
     <h1 className="sr-only">{conversationTitle || 'Coach'}</h1>
     <HubHeader
       conversationUuid={conversationUuid} conversationStarted={conversationStarted} title={conversationTitle} conversations={conversations}
-      loading={historyLoading} disabled={busy} onHistoryOpen={refreshHistory} onNew={resetChat} onSelect={openConversation}
+      loading={historyLoading} disabled={busy} onHistoryOpen={refreshHistory} onNew={() => endingSession(resetChat)} onSelect={openConversation}
       onOpenResources={(uuid) => void openConversation(uuid, true)}
       onRename={(title) => conversationUuid ? renameConversation(conversationUuid, title) : Promise.resolve()}
       onArchive={archiveConversation} contextUnavailable={!hub?.surface} editRun={hub?.editRun}
-      onStopEditing={() => void editing.stop()} onUpdateEditGoal={editing.updateGoal}
-      onTuck={() => hub?.tuck()} onEnd={() => hub?.end()}
+      onStopEditing={() => endingSession(() => void editing.stop())} onUpdateEditGoal={editing.updateGoal}
+      onTuck={() => hub?.tuck()} onEnd={() => endingSession(() => hub?.end())}
     />
+    <EndSessionDialog open={Boolean(pendingEnd)} unreviewed={unreviewedSuggestions(hub?.editRun || null)} keepLabel="Keep the session"
+      onEnd={() => { const then = pendingEnd; setPendingEnd(null); then?.() }} onKeep={() => setPendingEnd(null)} />
     <div ref={scrollRef} className={`scrollbar-subtle absolute inset-x-0 bottom-0 overflow-y-auto overscroll-contain scroll-smooth ${hub?.editRun?.status === 'active' ? 'top-[5.25rem]' : !hub?.surface ? 'top-[5rem]' : 'top-14'}`}>
-      <div className="min-h-full w-full px-3 pt-4 sm:px-4" style={{ paddingBottom: composerHeight + 88 + (memory.visible ? 148 : 0) + (libraryOpen ? 290 : 0) + (hub?.editReviewItems.length ? 58 : 0) }}>
+      <div className="min-h-full w-full px-3 pt-4 sm:px-4" style={{ paddingBottom: Math.max(composerHeight + 88 + (memory.visible ? 148 : 0) + (libraryOpen ? 290 : 0) + (hub?.editReviewItems.length ? 58 : 0), overlayHeight + 40) }}>
         <div className="space-y-6" aria-live="polite" aria-busy={busy}>
-          {!conversationUuid && messages.length === 0 ? <HubHome orgslug={orgslug} token={accessToken} disabled={busy} conversations={conversations} historyLoading={historyLoading} onHistoryOpen={refreshHistory} onSelect={openConversation} onOpenResources={(uuid) => void openConversation(uuid, true)} onPick={(content) => { pendingSubmissionRef.current = { content, preserveDraft: true }; composerRef.current?.submit() }} /> : null}
+          {!conversationStarted ? <>{notes}<HubHome orgslug={orgslug} token={accessToken} disabled={busy} conversations={conversations} historyLoading={historyLoading} onHistoryOpen={refreshHistory} onSelect={openConversation} onOpenResources={(uuid) => void openConversation(uuid, true)} onPick={pick} /></> : null}
           {conversationLoading ? <div className="py-16 text-center text-sm text-muted-foreground" role="status">Loading conversation…</div> : null}
           <HubThread
             messages={messages} timelineSlots={timelineSlots} editRun={hub?.editRun || null} editObjects={hub?.editRun?.objects || []}
             pendingReviewCount={hub?.editReviewItems.length || 0} pendingResources={pendingResources} inChat={inChat}
             orgId={org?.id} orgUuid={org?.org_uuid} accessToken={accessToken} sending={sending}
             narratedConclusionMessageId={editing.narratedConclusionMessageId} restoreOfferMessageId={editing.restoreOfferMessageId}
-            onOpenResource={openTrayAt} onInspectSearchResource={inspectSearchResource} onActivateAction={activateSuggestedAction}
+            onOpenResource={openTrayAt} onInspectSearchResource={inspectSearchResource} onActivateAction={activateSuggestedAction} onAnswer={answerQuestions}
             onPoint={editing.pointTo} onFinish={() => void editing.finish()} onRestore={() => void editing.restore()}
           />
           {sending ? <div className="text-sm text-muted-foreground" role="status">Thinking…</div> : null}
+          {conversationStarted && !conversationLoading ? notes : null}
           {error ? <div className="rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive" role="alert">{error}</div> : null}
         </div>
       </div>
     </div>
     <HubComposer
       ref={composerRef} orgslug={orgslug} orgId={org?.id} accessToken={accessToken} draft={draft} setDraft={setDraft} onSubmit={submit}
-      onStop={() => advisorAbortRef.current?.abort()} sending={sending} loading={conversationLoading} onHeightChange={setComposerHeight}
+      onStop={() => advisorAbortRef.current?.abort()} sending={sending} loading={conversationLoading} onHeightChange={setComposerHeight} onOverlayHeightChange={setOverlayHeight}
       memory={memory} reviewItems={hub?.editReviewItems || []} onReview={editing.pointTo} conversationStarted={conversationStarted}
       contextResources={contextResources} onOpenTray={() => setTrayUuid(contextResources.at(-1)?.resource_uuid ?? null)}
       libraryOpen={libraryOpen} setLibraryOpen={setLibraryOpen} onAddResource={addResource}

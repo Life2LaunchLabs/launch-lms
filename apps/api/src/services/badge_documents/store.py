@@ -22,7 +22,7 @@ from fastapi import HTTPException
 from pydantic import ValidationError
 from sqlmodel import Session, func, select
 
-from src.db.badge_routes import BadgeRoute, BadgeRouteInput, BadgeRoutesUpdate
+from src.db.badge_routes import BadgeRoute
 from src.db.learning import (
     BadgeCollection,
     LearningBadge,
@@ -31,10 +31,9 @@ from src.db.learning import (
     LearningBadgeVersionPublish,
     LearningBadgeVersionState,
 )
-from src.db.programs import Objective, Program, ProgramObjective
+from src.db.programs import Program
 from src.db.users import PublicUser
 from src.security.org_auth import require_org_admin
-from src.services import badge_routes
 from src.services.badge_documents.models import (
     ACHIEVEMENT_TYPES,
     CERTIFICATE_THEMES,
@@ -259,11 +258,14 @@ def _version_entry(version: LearningBadgeVersion, badge: LearningBadge) -> dict:
 
 
 def route_summaries(db: Session, badge: LearningBadge) -> list[dict]:
+    from src.services.goals.badge_routes import route_summary
+    from src.services.goals.badges import badge_routes as goal_routes
+
     summaries = []
-    for route, program in badge_routes._routes(db, badge):
-        summary = badge_routes._route_summary(db, program)
+    for route, template in goal_routes(db, badge):
+        summary = route_summary(db, template)
         summaries.append({
-            "template_uuid": program.program_uuid, "name": program.name, "recommended": route.recommended,
+            "template_uuid": template.template_uuid, "name": template.title, "recommended": route.recommended,
             "step_count": summary["step_count"], "activity_count": summary["activity_count"],
         })
     return summaries
@@ -307,7 +309,7 @@ def envelope(db: Session, badge: LearningBadge) -> dict:
 
 
 def list_badges(db: Session, current_user: PublicUser, org_id: int, query: str = "") -> list[dict]:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     badges = db.exec(select(LearningBadge).where(LearningBadge.org_id == org_id, LearningBadge.deleted_at.is_(None)).order_by(LearningBadge.name.asc())).all()  # type: ignore[union-attr]
     route_counts = dict(db.exec(
         select(BadgeRoute.badge_id, func.count(BadgeRoute.id)).where(BadgeRoute.badge_id.in_([badge.id for badge in badges] or [0])).group_by(BadgeRoute.badge_id)  # type: ignore[arg-type, union-attr]
@@ -332,18 +334,18 @@ def list_badges(db: Session, current_user: PublicUser, org_id: int, query: str =
 
 
 def get_badge_document(db: Session, current_user: PublicUser, org_id: int, badge_uuid: str) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     return envelope(db, _badge(db, org_id, badge_uuid))
 
 
 def validate_badge_document(db: Session, current_user: PublicUser, org_id: int, raw) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     _, report, _ = _check(db, org_id, raw)
     return report
 
 
 async def create_badge_from_document(db: Session, current_user: PublicUser, org_id: int, raw) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     document, report, prepared = _check(db, org_id, raw)
     if document is None or not report["valid"]:
         raise _reject(report)
@@ -364,7 +366,7 @@ async def create_badge_from_document(db: Session, current_user: PublicUser, org_
 
 
 def save_badge_document(db: Session, current_user: PublicUser, org_id: int, badge_uuid: str, raw, base_etag: str) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     badge = _badge(db, org_id, badge_uuid)
     current = envelope(db, badge)
     if base_etag != current["etag"]:
@@ -414,19 +416,22 @@ def save_badge_document(db: Session, current_user: PublicUser, org_id: int, badg
 
 
 def _templates_on_older_major(db: Session, badge: LearningBadge, major: int) -> list[dict]:
-    rows = db.exec(
-        select(Program, ProgramObjective).join(ProgramObjective, ProgramObjective.program_id == Program.id)
-        .join(Objective, Objective.id == ProgramObjective.objective_id)
-        .where(Objective.badge_id == badge.id, ProgramObjective.badge_major_version.is_not(None), ProgramObjective.badge_major_version < major)  # type: ignore[union-attr, operator]
-    ).all()
+    """Goal templates whose draft badge steps for this badge still pin an earlier major version."""
+    from src.db.goals import GoalTemplate
+    from src.services.goals.document import iter_steps
+
     seen: dict[str, dict] = {}
-    for program, _ in rows:
-        seen.setdefault(program.program_uuid, {"template_uuid": program.program_uuid, "name": program.name, "org_id": program.org_id})
+    for template in db.exec(select(GoalTemplate).order_by(GoalTemplate.id)).all():  # type: ignore[arg-type]
+        for _, step in iter_steps(template.document or {}):
+            config = step.get("config") or {}
+            pinned = config.get("major_version")
+            if step.get("type") == "badge" and config.get("badge_uuid") == badge.badge_uuid and pinned and int(pinned) < major:
+                seen.setdefault(template.template_uuid, {"template_uuid": template.template_uuid, "name": template.title, "org_id": template.org_id})
     return list(seen.values())
 
 
 async def publish_badge(db: Session, current_user: PublicUser, org_id: int, badge_uuid: str, semantic_version: str | None, release_title: str | None, release_notes: str | None) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     badge = _badge(db, org_id, badge_uuid)
     draft = _draft(db, badge)
     if draft is None:
@@ -441,7 +446,7 @@ async def publish_badge(db: Session, current_user: PublicUser, org_id: int, badg
     )
     db.refresh(badge)
     warnings = []
-    if not badge_routes._routes(db, badge):
+    if not route_summaries(db, badge):
         warnings.append({"path": "routes", "message": "No plan template earns this badge yet, so learners cannot start it. Link one with set_badge_routes."})
     major = (_semver(version) or (1, 0, 0))[0]
     outdated = _templates_on_older_major(db, badge, major)
@@ -452,21 +457,23 @@ async def publish_badge(db: Session, current_user: PublicUser, org_id: int, badg
 
 
 def set_badge_routes(db: Session, current_user: PublicUser, org_id: int, badge_uuid: str, routes: list[dict]) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     badge = _badge(db, org_id, badge_uuid)
+    from src.services.goals import badge_routes as goal_badge_routes
+
     requested = {str(item.get("template_uuid") or "") for item in routes}
-    dropped = [program.name for _, program in badge_routes._routes(db, badge) if program.program_uuid not in requested]
+    dropped = [route["name"] for route in route_summaries(db, badge) if route["template_uuid"] not in requested]
     if dropped:
         # Removing a route deletes the issuers' offers of it; the connector never deletes.
         raise HTTPException(status_code=409, detail=(
             f"This would stop {', '.join(dropped)} from earning the badge. The connector only adds routes and changes which one is recommended; "
             "remove a way to earn in the badge's Ways to earn tab in Launch LMS."
         ))
-    payload = BadgeRoutesUpdate(routes=[
-        BadgeRouteInput(program_uuid=str(item.get("template_uuid") or ""), recommended=bool(item.get("recommended")))
+    payload = goal_badge_routes.GoalBadgeRoutesUpdate(routes=[
+        goal_badge_routes.GoalBadgeRouteInput(template_uuid=str(item.get("template_uuid") or ""), recommended=bool(item.get("recommended")))
         for item in routes
     ])
-    badge_routes.set_routes(db, current_user, badge.badge_uuid, payload)
+    goal_badge_routes.set_routes(db, current_user, badge.badge_uuid, payload)
     return envelope(db, badge)
 
 

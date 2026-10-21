@@ -1,5 +1,4 @@
 from sqlmodel import Session
-from src.services.hub_configuration import get_enabled_hub_advisor_credentials
 
 
 def platform_read(db_session: Session, read):
@@ -12,10 +11,6 @@ def platform_read(db_session: Session, read):
         with Session(engine) as control:
             return read(control)
     return read(db_session)
-
-
-def advisor_credentials(db_session: Session):
-    return platform_read(db_session, get_enabled_hub_advisor_credentials)
 
 
 def reserve_ai(payload: dict, output_tokens: int):

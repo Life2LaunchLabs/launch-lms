@@ -81,37 +81,68 @@ async function mockCandidateApi(page: Page) {
 
 test.beforeEach(async ({ page }) => mockCandidateApi(page))
 
-test('candidate panels stay in the visual viewport and dismiss back to their trigger', async ({ page }, testInfo) => {
+// Desktop opens feedback from the sidebar; phones have no sidebar and use the portfolio settings menu.
+async function openFeedback(page: Page) {
+  if ((page.viewportSize()?.width ?? 1280) >= 768) return page.getByRole('button', { name: 'Send feedback' }).click()
+  await page.goto('/portfolio')
+  // An unread tester announcement sits over the portfolio's top-right settings button until it is dismissed.
+  const notice = page.getByRole('region', { name: 'Unread tester announcement' })
+  if (await notice.waitFor({ timeout: 5_000 }).then(() => true, () => false)) await notice.getByRole('button', { name: 'Done', exact: true }).click()
+  await page.getByRole('button', { name: /^Settings/ }).click()
+  await page.getByRole('menuitem', { name: 'Feedback', exact: true }).click()
+}
+
+async function popoverColor(page: Page) {
+  return page.evaluate(() => {
+    const probe = document.createElement('div')
+    probe.className = 'bg-popover'
+    document.body.append(probe)
+    const color = getComputedStyle(probe).backgroundColor
+    probe.remove()
+    return color
+  })
+}
+
+test('feedback opens from the sidebar above settings, follows the theme, and dismisses back to its trigger', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1280, height: 551 })
   await page.goto('/plans?coach=open')
   await page.getByRole('button', { name: 'Done', exact: true }).click({ force: true })
-  const feedbackTrigger = page.getByRole('button', { name: /^Feedback/ })
+  // Feedback lives in the navigation, not the unstable tester bar.
+  await expect(page.getByRole('button', { name: /^Feedback/ })).toHaveCount(0)
+  const feedbackTrigger = page.getByRole('button', { name: 'Send feedback' })
+  const [triggerBox, settingsBox] = await Promise.all([feedbackTrigger.boundingBox(), page.getByRole('link', { name: 'Settings', exact: true }).boundingBox()])
+  expect(triggerBox!.y + triggerBox!.height).toBeLessThanOrEqual(settingsBox!.y)
   await feedbackTrigger.click()
-  await expect(page.getByRole('dialog', { name: 'feedback panel' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Feedback', exact: true })).toHaveCount(0)
+  const dialog = page.getByRole('dialog', { name: 'Feedback' })
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByText('Share feedback', { exact: true })).toBeVisible()
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
   if (process.env.UI_TEST_CAPTURE === 'true') await page.screenshot({ path: testInfo.outputPath('candidate-feedback-1280x551.png'), fullPage: true })
-  await page.getByRole('button', { name: 'Close unstable panel' }).click({ position: { x: 8, y: 80 } })
-  await expect(page.getByRole('dialog', { name: 'feedback panel' })).toHaveCount(0)
+  await page.keyboard.press('Escape')
+  await expect(dialog).toHaveCount(0)
   await expect(feedbackTrigger).toBeFocused()
+  // Settings sits right under Feedback, as a plain link like it.
+  await expect(page.getByRole('link', { name: 'Settings', exact: true })).toHaveAttribute('href', /\/account$/)
 
-  await feedbackTrigger.click()
-  await page.keyboard.press('Escape')
-  await expect(feedbackTrigger).toBeFocused()
-  await page.setViewportSize({ width: 390, height: 844 })
-  await feedbackTrigger.click()
-  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
-  await expect(page.getByRole('dialog', { name: 'feedback panel' })).toHaveCSS('max-width', '390px')
-  if (process.env.UI_TEST_CAPTURE === 'true') await page.screenshot({ path: testInfo.outputPath('candidate-feedback-390x844.png'), fullPage: true })
-  await page.keyboard.press('Escape')
+  for (const theme of ['light', 'dark']) {
+    // next-themes follows storage events, so the theme flips without a reload.
+    await page.evaluate((value) => {
+      localStorage.setItem('theme', value)
+      window.dispatchEvent(new StorageEvent('storage', { key: 'theme', newValue: value }))
+    }, theme)
+    await expect(page.locator('html')).toHaveClass(new RegExp(`\\b${theme}\\b`))
+    await page.getByRole('button', { name: 'Send feedback' }).click()
+    await expect(dialog).toHaveCSS('background-color', await popoverColor(page))
+    if (process.env.UI_TEST_CAPTURE === 'true') await page.screenshot({ path: testInfo.outputPath(`candidate-feedback-${theme}.png`), fullPage: true })
+    await page.keyboard.press('Escape')
+  }
 
   await page.goto('/admin/platform/feedback')
   await page.getByRole('button', { name: 'Done', exact: true }).click({ force: true })
-  await page.getByRole('button', { name: /^Feedback/ }).click()
-  await expect(page.getByRole('dialog', { name: 'feedback panel' })).toHaveClass(/dark/)
-  await expect(page.getByRole('dialog', { name: 'feedback panel' })).toHaveCSS('background-color', 'rgb(15, 15, 16)')
+  await page.getByRole('button', { name: 'Send feedback' }).click()
+  await expect(dialog).toBeVisible()
+  await expect(dialog).toHaveCSS('background-color', await popoverColor(page))
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
-  if (process.env.UI_TEST_CAPTURE === 'true') await page.screenshot({ path: testInfo.outputPath('candidate-feedback-dark.png'), fullPage: true })
 })
 
 test('tester sees announcements and can paste a screenshot into quick feedback', async ({ page }, testInfo) => {
@@ -119,11 +150,10 @@ test('tester sees announcements and can paste a screenshot into quick feedback',
   await expect(page.getByText('Unstable', { exact: true })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Unread tester announcement' })).toContainText('Test data refresh Friday')
   await expect(page.getByRole('button', { name: /announcements.*1 unread/i })).toHaveCount(0)
-  await expect(page.getByRole('button', { name: /feedback.*1 unread/i })).toBeVisible()
   // Release notes are no longer offered from the tester bar.
   await expect(page.getByRole('button', { name: /what's new/i })).toHaveCount(0)
 
-  await page.getByRole('button', { name: /^Feedback/ }).click()
+  await openFeedback(page)
   await expect(page.getByText('Share feedback', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: "I'm stuck" })).toBeVisible()
   await expect(page.getByLabel('1 comment, new activity')).toBeVisible()
@@ -160,9 +190,9 @@ test('tester sees announcements and can paste a screenshot into quick feedback',
   await expect(page.getByAltText('dropped-screen.png')).toBeVisible()
   await expect(page.getByText('3/3')).toBeVisible()
   await expect(page.getByText('Your submissions')).toBeVisible()
-  await expect(page.getByText('Your original note cannot be edited after it is sent.')).toHaveCount(0)
-  await expect(page.getByText('Edit', { exact: true })).toHaveCount(0)
-  await expect(page.getByText('Likely the narrow layout breakpoint.')).toHaveCount(0)
+  await expect(page.getByRole('dialog', { name: 'Feedback' }).getByText('Your original note cannot be edited after it is sent.')).toHaveCount(0)
+  await expect(page.getByRole('dialog', { name: 'Feedback' }).getByText('Edit', { exact: true })).toHaveCount(0)
+  await expect(page.getByRole('dialog', { name: 'Feedback' }).getByText('Likely the narrow layout breakpoint.')).toHaveCount(0)
   if (process.env.UI_TEST_CAPTURE === 'true') await page.screenshot({ path: testInfo.outputPath('candidate-feedback.png'), fullPage: true })
   await page.getByRole('button', { name: /^Send$/ }).click()
   await expect(page.getByText('Thanks for the feedback')).toBeVisible()

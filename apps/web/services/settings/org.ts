@@ -67,19 +67,6 @@ export const uploadOrganizationPreview = async (orgId: string, file: File, acces
   return res
 };
 
-export async function updateOrgCommunitiesConfig(
-  org_id: string,
-  communities_enabled: boolean,
-  access_token: string
-) {
-  const result: any = await fetch(
-    `${getAPIUrl()}orgs/${org_id}/config/communities?communities_enabled=${communities_enabled}`,
-    RequestBodyWithAuthHeader('PUT', null, null, access_token)
-  )
-  const res = await errorHandling(result)
-  return res
-}
-
 export async function updateOrgColorConfig(
   org_id: string,
   color: string,
@@ -127,6 +114,19 @@ export async function updateOrgHideOrgNameConfig(
   const result: any = await fetch(
     `${getAPIUrl()}orgs/${org_id}/config/hide_org_name?hide_org_name=${hide_org_name}`,
     RequestBodyWithAuthHeader('PUT', null, null, access_token)
+  )
+  const res = await errorHandling(result)
+  return res
+}
+
+export async function updateOrgDarkLogoConfig(
+  org_id: string,
+  dark_logo: { separate_dark_logo: boolean; dark_logo_image: string },
+  access_token: string
+) {
+  const result: any = await fetch(
+    `${getAPIUrl()}orgs/${org_id}/config/dark_logo`,
+    RequestBodyWithAuthHeader('PUT', dark_logo, null, access_token)
   )
   const res = await errorHandling(result)
   return res

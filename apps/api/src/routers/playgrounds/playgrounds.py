@@ -6,7 +6,6 @@ from src.db.playground_reactions import PlaygroundReactionSummary
 from src.db.playgrounds import PlaygroundCreate, PlaygroundRead, PlaygroundUpdate
 from src.db.users import AnonymousUser, PublicUser
 from src.security.auth import get_current_user
-from src.security.features_utils.dependencies import require_playgrounds_feature
 from src.services.playgrounds.playground_reactions import (
     get_playground_reactions,
     toggle_playground_reaction,
@@ -24,7 +23,7 @@ from src.services.playgrounds.playgrounds import (
     update_playground_thumbnail,
 )
 
-router = APIRouter(dependencies=[Depends(require_playgrounds_feature)])
+router = APIRouter()
 
 
 @router.post("/")

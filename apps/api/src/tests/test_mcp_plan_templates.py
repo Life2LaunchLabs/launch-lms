@@ -1,4 +1,4 @@
-"""Launch LMS MCP server: plan template tools."""
+"""The connector's plan template tools, called through the MCP server: they read and write goal templates."""
 
 import json
 from copy import deepcopy
@@ -6,8 +6,8 @@ from copy import deepcopy
 import pytest
 from sqlmodel import select
 
-from src.db.programs import Objective, ObjectiveCreate, Program, ProgramAssignment, ProgramCreate, ProgramObjective, ProgramPhase, ProgramPhaseUpdate, ProgramTemplateVersion, FrozenActivity
-from src.services.programs import add_program_objective, create_program, update_program_phase
+from src.db.goals import GoalTemplate
+from src.services.goals import templates as goal_templates
 from src.tests.test_mcp import _token
 from src.tests.test_mcp import mcp  # noqa: F401  (fixture)
 
@@ -20,197 +20,117 @@ def templates(mcp):  # noqa: F811
     def call(name, arguments=None, auth=token):
         return base_call(name, arguments, auth=auth)
 
-    for model in (Program, ProgramPhase, Objective, ProgramObjective, ProgramAssignment, ProgramTemplateVersion, FrozenActivity):
-        model.__table__.create(session.get_bind(), checkfirst=True)
-    template = create_program(session, alice, ProgramCreate(org_id=1, name="Career Ready", description="Get ready"))
-    uuid = template["program_uuid"]
-    phase_uuid = template["phases"][0]["phase_uuid"]
-    update_program_phase(session, alice, 1, uuid, phase_uuid, ProgramPhaseUpdate(name="Explore", suggested_duration_weeks=4))
-    add_program_objective(session, alice, 1, uuid, ObjectiveCreate(title="Draft a resume", custom_fields=[{"field_uuid": "resume", "title": "Resume", "type": "media", "allowed_types": ["document"]}]))
-    add_program_objective(session, alice, 1, uuid, ObjectiveCreate(title="Mock interview", suggested_due_week=3))
-    return session, call, alice, uuid
+    created = goal_templates.create_template(session, alice, 1, {
+        "template": {"title": "Career Ready", "description": "Get ready"},
+        "stages": [{"key": "explore", "title": "Explore", "duration_weeks": 4, "steps": [
+            {"key": "resume", "type": "upload", "title": "Draft a resume", "config": {"slots": [{"key": "resume", "label": "Resume", "kinds": ["document"]}]}},
+            {"key": "interview", "type": "task", "title": "Mock interview", "due_week": 3},
+        ]}],
+    })
+    return session, call, alice, created["template_uuid"], rpc
 
 
 def test_tools_are_listed_with_their_scopes(templates):
-    _, call, _, uuid = templates
+    _, call, _, uuid, rpc = templates
     listed = [item for item in call("list_plan_templates", {"query": "career"})["structuredContent"]["templates"] if item["template_uuid"] == uuid]
-    assert [(item["name"], item["phase_count"], item["objective_count"]) for item in listed] == [("Career Ready", 1, 2)]
-    assert listed[0]["editor_url"].endswith(f"/admin/plans/{listed[0]['template_uuid']}/objectives")
+    assert [(item["title"], item["stage_count"], item["step_count"]) for item in listed] == [("Career Ready", 1, 2)]
+    assert listed[0]["editor_url"].endswith(f"/admin/plans/{uuid}")
     schema = call("get_plan_template_schema")["structuredContent"]
-    assert "## Steps" in schema["guide"] and "PlanTemplateObjective" in schema["schema"]["$defs"]
+    assert schema["format_version"] == "launch-lms.goal-template/1" and "TemplateStep" in schema["schema"]["$defs"]
+    tools = {tool["name"]: tool for tool in rpc("tools/list").json()["result"]["tools"]}
+    requirements = tools["set_objective_requirements"]["inputSchema"]
+    assert requirements["required"] == ["template_uuid", "node_uuids"] and {"step_key", "objective_uuid"} <= set(requirements["properties"])
+    assert "launch-lms.goal-template" in tools["save_plan_template"]["inputSchema"]["properties"]["document"]["description"]
 
 
 def test_read_edit_and_save_round_trip(templates):
-    session, call, _, uuid = templates
+    session, call, _, uuid, _ = templates
     current = call("get_plan_template", {"template_uuid": uuid})["structuredContent"]
     document = current["document"]
-    assert [item["title"] for item in document["phases"][0]["objectives"]] == ["Draft a resume", "Mock interview"]
-    assert "access" not in document["phases"][0]["objectives"][0]["steps"][0]
+    assert [step["title"] for step in document["stages"][0]["steps"]] == ["Draft a resume", "Mock interview"]
 
     unchanged = call("save_plan_template", {"template_uuid": uuid, "document": document, "base_etag": current["etag"]})
-    assert unchanged["structuredContent"]["changed"] is False and unchanged["structuredContent"]["etag"] == current["etag"]
-    assert "No changes" in unchanged["content"][0]["text"]
+    assert unchanged["structuredContent"]["changed"] is False and "No changes to plan template" in unchanged["content"][0]["text"]
 
     edited = deepcopy(document)
-    explore = edited["phases"][0]
-    interview = explore["objectives"].pop(1)
-    interview["schedule"]["suggested_due_week"] = None
-    explore["objectives"][0]["steps"].append({"title": "Reviewer notes", "type": "text", "restricted": True})
-    edited["phases"].insert(0, {"name": "Launch", "suggested_duration_weeks": 2, "objectives": [interview, {"title": "Set a goal", "allow_learner_confirmation": True}]})
-    edited["template"]["instructions"] = "Meet weekly."
-
-    report = call("validate_plan_template", {"template_uuid": uuid, "document": edited})["structuredContent"]
-    assert report == {"valid": True, "errors": [], "warnings": []}
+    edited["stages"].insert(0, {"title": "Launch", "steps": [{"type": "write", "title": "Set a goal", "config": {"prompt": "What next?"}}]})
+    assert call("validate_plan_template", {"template_uuid": uuid, "document": edited})["structuredContent"] == {"valid": True, "errors": [], "warnings": []}
     saved = call("save_plan_template", {"template_uuid": uuid, "document": edited, "base_etag": current["etag"]})
-    assert "isError" not in saved and "Saved plan template" in saved["content"][0]["text"]
-    result = saved["structuredContent"]["document"]
-    assert [phase["name"] for phase in result["phases"]] == ["Launch", "Explore"]
-    assert [item["title"] for item in result["phases"][0]["objectives"]] == ["Mock interview", "Set a goal"]
-    new_step = result["phases"][1]["objectives"][0]["steps"][1]
-    assert new_step["restricted"] is True and new_step["field_uuid"].startswith("field_")
-    program = session.exec(select(Program).where(Program.program_uuid == uuid)).one()
-    assert program.instructions == "Meet weekly." and program.version == current["context"]["version"] + 1
-    goal = session.exec(select(Objective).where(Objective.title == "Set a goal")).one()
-    assert goal.completion_policy == "either" and goal.evidence_policy == "none"
+    assert "isError" not in saved and 'Saved plan template "Career Ready" (2 stages, 3 steps)' in saved["content"][0]["text"]
+    assert session.exec(select(GoalTemplate).where(GoalTemplate.template_uuid == uuid)).one().document["stages"][0]["title"] == "Launch"
 
     stale = call("save_plan_template", {"template_uuid": uuid, "document": edited, "base_etag": current["etag"]})
     detail = json.loads(stale["content"][0]["text"])
-    assert stale["isError"] is True and detail["status"] == 409
-    assert detail["current"]["etag"] == saved["structuredContent"]["etag"]
-
-
-def test_validation_reports_paths_and_saves_can_remove_objectives_and_phases(templates):
-    session, call, _, uuid = templates
-    current = call("get_plan_template", {"template_uuid": uuid})["structuredContent"]
-    broken = deepcopy(current["document"])
-    objectives = broken["phases"][0]["objectives"]
-    objectives[0]["schedule"]["suggested_due_week"] = 9
-    objectives[0]["steps"][0]["type"] = "essay"
-    objectives[1]["objective_uuid"] = "objective_nope"
-    objectives.append({"title": "Earn it", "badge_uuid": "badge_missing", "requirement_node_uuids": ["node_x"]})
-    report = call("validate_plan_template", {"template_uuid": uuid, "document": broken})["structuredContent"]
-    assert report["valid"] is False
-    paths = {error["path"] for error in report["errors"]}
-    assert "phases[0].objectives[0].steps[0].type" in paths  # schema errors come first and stop there
-    del objectives[0]["steps"][0]["type"]
-    paths = {error["path"] for error in call("validate_plan_template", {"template_uuid": uuid, "document": broken})["structuredContent"]["errors"]}
-    assert {
-        "phases[0].objectives[0].schedule.suggested_due_week",
-        "phases[0].objectives[1].objective_uuid",
-        "phases[0].objectives[2].badge_uuid",
-        "phases[0].objectives[2].requirement_node_uuids",
-    } <= paths
-
-    # Leaving things out removes them; validation lists what would go.
-    reshaped = deepcopy(current["document"])
-    interview = reshaped["phases"][0]["objectives"].pop()
-    reshaped["phases"] = [{"name": "Launch", "objectives": reshaped["phases"][0]["objectives"]}]
-    report = call("validate_plan_template", {"template_uuid": uuid, "document": reshaped})["structuredContent"]
-    assert report["valid"] is True
-    assert {item["message"] for item in report["warnings"]} == {
-        'Removes phase "Explore"', 'Removes objective "Mock interview"; plans already assigned keep it',
-    }
-    saved = call("save_plan_template", {"template_uuid": uuid, "document": reshaped, "base_etag": current["etag"]})
-    assert "Warning at phases: Removes objective" in saved["content"][0]["text"]
-    result = saved["structuredContent"]["document"]
-    assert [(phase["name"], [item["title"] for item in phase["objectives"]]) for phase in result["phases"]] == [("Launch", ["Draft a resume"])]
-    removed = session.exec(select(Objective).where(Objective.objective_uuid == interview["objective_uuid"])).one()
-    assert removed.archived is True
-    assert session.exec(select(ProgramPhase).where(ProgramPhase.phase_uuid == current["document"]["phases"][0]["phase_uuid"])).first() is None
-
-
-def test_create_copies_a_template_with_a_badge_objective(templates):
-    session, call, _, uuid = templates
-    document = call("get_plan_template", {"template_uuid": uuid})["structuredContent"]["document"]
-    document["template"]["name"] = "Career Ready (Spring)"
-    document["phases"][0]["objectives"].append({"title": "Explorer badge", "badge_uuid": "badge_1"})
-    created = call("create_plan_template", {"document": document})["structuredContent"]
-    assert created["context"]["template_uuid"] != uuid
-    objectives = created["document"]["phases"][0]["objectives"]
-    assert [item["title"] for item in objectives] == ["Draft a resume", "Mock interview", "Explorer badge"]
-    badge = objectives[2]
-    assert badge["badge_uuid"] == "badge_1" and badge["allow_learner_confirmation"] is True
-    assert badge["steps"][0]["type"] == "badge" and badge["steps"][0]["badge_uuid"] == "badge_1"
-    # Copies own their objectives: editing one never edits the source template.
-    def objective_ids(template_uuid):
-        program = session.exec(select(Program).where(Program.program_uuid == template_uuid)).one()
-        return {row.objective_id for row in session.exec(select(ProgramObjective).where(ProgramObjective.program_id == program.id)).all()}
-
-    source_ids, copy_ids = objective_ids(uuid), objective_ids(created["context"]["template_uuid"])
-    assert source_ids and not source_ids & copy_ids
-
-    edited = deepcopy(created["document"])
-    edited["phases"][0]["objectives"][2]["badge_uuid"] = "badge_other"
-    report = call("validate_plan_template", {"template_uuid": created["context"]["template_uuid"], "document": edited})["structuredContent"]
-    assert report["errors"] == [{"path": "phases[0].objectives[2].badge_uuid", "message": "An objective's badge cannot change; add a new objective for another badge"}]
+    assert stale["isError"] is True and detail["status"] == 409 and detail["current"]["etag"] == saved["structuredContent"]["etag"]
 
 
 def test_template_scopes_and_org_are_enforced(templates):
-    session, call, alice, uuid = templates
+    session, call, alice, uuid, _ = templates
     activities_only = _token(session, alice.id, 1, scope="activities:read")
     blocked = call("get_plan_template", {"template_uuid": uuid}, auth=activities_only)
     assert blocked["isError"] is True and "plans:read" in blocked["content"][0]["text"]
     read_only = _token(session, alice.id, 1, scope="plans:read")
     assert "plans:write" in call("create_plan_template", {"document": {}}, auth=read_only)["content"][0]["text"]
-
     other = _token(session, alice.id, 2, scope="plans:read plans:write")
-    denied = call("get_plan_template", {"template_uuid": uuid}, auth=other)
-    assert denied["isError"] is True
+    assert call("get_plan_template", {"template_uuid": uuid}, auth=other)["isError"] is True
 
 
-def test_activity_objectives_are_added_in_the_template_and_edited_with_activity_tools(templates):
-    session, call, alice, uuid = templates
+def test_steps_link_to_requirements_by_step_key(templates):
+    _, call, _, uuid, _ = templates
+    linked = call("set_objective_requirements", {"template_uuid": uuid, "step_key": "resume", "node_uuids": []})
+    assert "isError" not in linked and linked["structuredContent"]["step_key"] == "resume"
+    legacy = call("set_objective_requirements", {"template_uuid": uuid, "objective_uuid": "interview", "node_uuids": []})
+    assert legacy["structuredContent"]["step_key"] == "interview"
+    assert call("set_objective_requirements", {"template_uuid": uuid, "step_key": "nope", "node_uuids": []})["isError"] is True
+
+
+def test_activity_steps_are_added_in_the_template_and_edited_with_activity_tools(templates):
+    session, call, alice, uuid, _ = templates
     from src.db.learning import LearningActivity, LearningPage
 
     token = _token(session, alice.id, 1, scope="activities:read activities:write plans:read plans:write")
     current = call("get_plan_template", {"template_uuid": uuid})["structuredContent"]
     edited = deepcopy(current["document"])
-    edited["template"]["step_order"] = "in_order"
-    resume = edited["phases"][0]["objectives"][0]
-    edited["phases"][0]["objectives"].append({"title": "Spot the change", "type": "activity", "after_objective_uuids": [resume["objective_uuid"]]})
+    edited["stages"][0]["steps"].append({"type": "activity", "title": "Spot the change"})
     saved = call("save_plan_template", {"template_uuid": uuid, "document": edited, "base_etag": current["etag"]})["structuredContent"]["document"]
-    assert saved["template"]["step_order"] == "in_order"
-    activity_objective = saved["phases"][0]["objectives"][-1]
-    assert activity_objective["type"] == "activity" and activity_objective["activity_uuid"].startswith("learning_activity_")
-    assert activity_objective["after_objective_uuids"] == [resume["objective_uuid"]]
-
-    changing = deepcopy(saved)
-    changing["phases"][0]["objectives"][0]["type"] = "activity"
-    report = call("validate_plan_template", {"template_uuid": uuid, "document": changing})["structuredContent"]
-    assert report["valid"] is False and report["errors"][0]["path"].endswith(".type")
+    activity_uuid = saved["stages"][0]["steps"][-1]["config"]["activity_uuid"]
 
     listed = call("list_activities", {"template_uuid": uuid})["structuredContent"]["activities"]
-    assert [(item["title"], item["page_count"]) for item in listed] == [("Spot the change", 0)]
-    assert "/admin/plans/" in listed[0]["editor_url"]
-    activity = call("get_activity", {"activity_uuid": listed[0]["activity_uuid"]})["structuredContent"]
-    assert activity["context"]["template_uuid"] == uuid
+    assert [(item["activity_uuid"], item["page_count"]) for item in listed] == [(activity_uuid, 0)]
+    assert f"/admin/plans/{uuid}/activity/" in listed[0]["editor_url"]
+    activity = call("get_activity", {"activity_uuid": activity_uuid})["structuredContent"]
+    assert activity["context"]["template_uuid"] == uuid and activity["context"]["template_name"] == "Career Ready"
+    assert activity["editor_url"] == listed[0]["editor_url"]
     document = deepcopy(activity["document"])
     document["pages"] = [{"page_uuid": "start", "title": "What changed?", "content": {"version": 2, "blocks": []}}]
-    result = call("save_activity", {"activity_uuid": listed[0]["activity_uuid"], "document": document, "base_etag": activity["etag"]}, auth=token)
-    assert "isError" not in result
-    stored = session.exec(select(LearningActivity).where(LearningActivity.activity_uuid == listed[0]["activity_uuid"])).one()
+    result = call("save_activity", {"activity_uuid": activity_uuid, "document": document, "base_etag": activity["etag"]}, auth=token)
+    assert "isError" not in result and 'in "Career Ready"' in result["content"][0]["text"]
+    stored = session.exec(select(LearningActivity).where(LearningActivity.activity_uuid == activity_uuid)).one()
     assert [page.title for page in session.exec(select(LearningPage).where(LearningPage.activity_id == stored.id)).all()] == ["What changed?"]
+    preview = call("preview_activity", {"template_uuid": uuid, "document": document}, auth=token)
+    assert preview["structuredContent"]["unsaved"] is True
+
+    # Published copies are frozen: the activity tools refuse to edit them.
+    call("publish_plan_template", {"template_uuid": uuid})
+    frozen = session.exec(select(LearningActivity).where(LearningActivity.frozen_from_id == stored.id)).one()
+    copy = call("get_activity", {"activity_uuid": frozen.activity_uuid})["structuredContent"]
+    refused = call("save_activity", {"activity_uuid": frozen.activity_uuid, "document": copy["document"], "base_etag": copy["etag"]}, auth=token)
+    assert refused["isError"] is True and "published template version" in refused["content"][0]["text"]
 
 
 def test_publish_list_and_roll_back_template_versions(templates):
-    _, call, _, uuid = templates
-    read = call("get_plan_template", {"template_uuid": uuid})["structuredContent"]
-    assert read["context"]["versioning"]["published_version"] is None and read["context"]["versioning"]["has_unpublished_changes"]
-
+    _, call, _, uuid, _ = templates
     first = call("publish_plan_template", {"template_uuid": uuid, "note": "Launch"})["structuredContent"]
     assert first["published"]["number"] == 1 and not first["has_unpublished_changes"]
     assert call("publish_plan_template", {"template_uuid": uuid})["isError"]  # nothing changed
 
-    document = deepcopy(read["document"])
-    document["phases"][0]["objectives"].append({"title": "Reflect"})
     current = call("get_plan_template", {"template_uuid": uuid})["structuredContent"]
-    saved = call("save_plan_template", {"template_uuid": uuid, "document": document, "base_etag": current["etag"]})["structuredContent"]
-    assert saved["context"]["versioning"]["has_unpublished_changes"]
+    document = deepcopy(current["document"])
+    document["stages"][0]["steps"].append({"type": "task", "title": "Reflect"})
+    call("save_plan_template", {"template_uuid": uuid, "document": document, "base_etag": current["etag"]})
     second = call("publish_plan_template", {"template_uuid": uuid, "note": "Add reflection"})["structuredContent"]
-    assert [(item["number"], item["objective_count"], item["is_published"]) for item in second["versions"]] == [(2, 3, True), (1, 2, False)]
+    assert [(item["number"], item["step_count"], item["is_published"]) for item in second["versions"]] == [(2, 3, True), (1, 2, False)]
 
     rolled = call("restore_plan_template_version", {"template_uuid": uuid, "number": 1})["structuredContent"]
-    assert rolled["published"] == {**rolled["published"], "number": 3, "restored_from_number": 1, "objective_count": 2}
-    assert rolled["has_unpublished_changes"]  # the draft still has the reflection
-    listed = call("list_plan_template_versions", {"template_uuid": uuid})["structuredContent"]
-    assert [item["number"] for item in listed["versions"]] == [3, 2, 1]
+    assert (rolled["published"]["number"], rolled["published"]["restored_from_number"], rolled["published"]["step_count"]) == (3, 1, 2)
+    assert [item["number"] for item in call("list_plan_template_versions", {"template_uuid": uuid})["structuredContent"]["versions"]] == [3, 2, 1]

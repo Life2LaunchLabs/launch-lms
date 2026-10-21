@@ -3,39 +3,22 @@ import { useOrg } from '@components/Contexts/OrgContext'
 import { signOut } from '@components/Contexts/AuthContext'
 import {
   House,
-  BookOpen,
-  Users,
-  CurrencyCircleDollar,
-  Buildings,
   Globe,
-  Question,
   Gear,
   SignOut,
   SidebarSimple,
   Check,
   CaretDown,
-  PencilSimple,
-  ChatsCircle,
-  Headphones,
-  UsersThree,
-  ClipboardText,
-  Cube,
-  FolderOpen,
-  Newspaper,
   UserCircle,
-  ChartPieSlice,
-  Tray,
-  Flag,
-  Flask,
+  LockSimple,
 } from '@phosphor-icons/react'
 import Link from 'next/link'
 import React, { useState } from 'react'
 import { usePathname } from 'next/navigation'
 import UserAvatar from '../../Objects/UserAvatar'
-import AdminAuthorization from '@components/Security/AdminAuthorization'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { getUriWithOrg, getAPIUrl, getCoreCapabilities, getDefaultOrg, routePaths } from '@services/config/config'
-import { platformSections, type PlatformSection } from '@components/Admin/Platform/platformSections'
+import { getUriWithOrg, getDefaultOrg, routePaths } from '@services/config/config'
+import { platformSections } from '@components/Admin/Platform/platformSections'
 import { authenticatedOrgHref } from '@services/auth/handoff'
 import { useTranslation } from 'react-i18next'
 import {
@@ -62,82 +45,52 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@components/ui/dropdown-menu'
-import { openCandidatePanel } from '@components/Candidate/CandidateExperience'
+import DashFeedbackButton from './DashFeedbackButton'
+import NavPill from './NavPill'
+import ExperienceSwitcher from '@components/Objects/Menus/ExperienceSwitcher'
+import { ADMIN_NAV_ICONS, PLATFORM_NAV_ICONS } from '@components/Admin/adminNavIcons'
+import RequestAccessButton, { accessRequestLabel } from '@components/Admin/RequestAccessButton'
 import { AVAILABLE_LANGUAGES } from '@/lib/languages'
-import { getOrgLogoMediaDirectory } from '@services/media/media'
+import { adminLabel, adminTabForPath, type VisibleNavItem } from '@/lib/admin/registry'
+import { usePlansNavTabs } from '@components/Admin/Plans/usePlansNavTabs'
+import { OrgLogo } from '@components/Objects/OrgLogo'
 import { cn } from '@/lib/utils'
-import useSWR from 'swr'
-import { swrFetcher } from '@services/utils/ts/requests'
-import { usePlan } from '@components/Hooks/usePlan'
-import {
-  BADGE_ADMIN_PAGES,
-  getOrganizationAdminPages,
-  getUserAdminPages,
-} from '@components/Admin/adminFeaturePages'
+import { useFeatures } from '@components/Hooks/useFeatures'
+import { tierLabel } from '@services/plans/plans'
 
+const TOOLTIP_CLASS = "z-tooltip bg-[#1a1a1b] border-white/10 text-white text-xs px-2 py-1 shadow-lg shadow-black/20"
+const COLLAPSED_KEY = 'dash-menu-collapsed'
+
+/** The admin sidebar: the registry's tabs for this viewer, the platform pages for superadmins, then feedback and the account menu. */
 function DashLeftMenu() {
   const org = useOrg() as any
   const session = useLHSession() as any
+  const features = useFeatures()
   const { t, i18n } = useTranslation()
-  const pathname = usePathname()
-  const plan = usePlan()
+  const pathname = usePathname() || ''
   const [isCollapsed, setIsCollapsed] = useState(() => {
     if (typeof window === 'undefined') return false
-    return localStorage.getItem('dash-menu-collapsed') === 'true'
+    return localStorage.getItem(COLLAPSED_KEY) === 'true'
   })
-  const access_token = session?.data?.tokens?.access_token
 
-  const badgesKey = org?.id ? `${getAPIUrl()}badges/?org_id=${org.id}&admin=true` : null
-
-  const { data: badgesData } = useSWR(
-    badgesKey,
-    (url) => swrFetcher(url, access_token),
-    {
-      revalidateOnFocus: true,
-      revalidateOnReconnect: true,
-    }
-  )
-  const recentBadges = badgesData?.slice(0, 8) || []
-
-  const toggleCollapse = () => {
-    const newState = !isCollapsed
-    setIsCollapsed(newState)
-    localStorage.setItem('dash-menu-collapsed', String(newState))
-  }
-
-  const expandSidebar = () => {
-    setIsCollapsed(false)
-    localStorage.setItem('dash-menu-collapsed', 'false')
-  }
-
-  const changeLanguage = (lng: string) => {
-    i18n.changeLanguage(lng)
+  const setCollapsed = (collapsed: boolean) => {
+    setIsCollapsed(collapsed)
+    localStorage.setItem(COLLAPSED_KEY, String(collapsed))
   }
 
   async function logOutUI() {
     await signOut({ redirect: true, callbackUrl: getUriWithOrg(org.slug, '/login') })
   }
 
+  const tabs = usePlansNavTabs(features.adminTabs())
 
   if (!org || !session) return null
 
-  const capabilities = getCoreCapabilities()
-  const planLabel = 'Core'
-  const isOwnerOrg = org?.slug === getDefaultOrg()
-
-  // Feature visibility from API resolved_features
-  const rf = org?.config?.config?.resolved_features
-  const isEnabled = (feature: string) => rf?.[feature]?.enabled === true
-
-  const showCommunities = isEnabled('communities')
-  const showResources = isEnabled('resources')
-  const showPodcasts = isEnabled('podcasts')
-  const showPlaygrounds = isEnabled('playgrounds')
-  const showPayments = capabilities.payments && isEnabled('payments')
-  const userAdminPages = getUserAdminPages()
-  const organizationAdminPages = getOrganizationAdminPages(t, {
-    hasSso: rf?.sso?.enabled === true,
-  })
+  const active = adminTabForPath(pathname)
+  const showPlatform = org.slug === getDefaultOrg() && features.isSuperadmin
+  const logo = org.logo_image
+    ? <OrgLogo org={org} surface="dark" alt={org.name} className="h-9 w-9 object-contain rounded-lg" />
+    : <img src="/logo-icon.svg" alt="Launch LMS logo" className="h-8 w-8" />
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -148,7 +101,6 @@ function DashLeftMenu() {
         isCollapsed ? "w-[72px]" : "w-64"
       )}
     >
-      {/* Header with Logo and Toggle */}
       <div className={cn(
         "flex items-center h-16 border-b border-white/[0.08] px-4 shrink-0",
         isCollapsed ? "justify-center" : "justify-between"
@@ -157,356 +109,113 @@ function DashLeftMenu() {
           <div className="relative h-10 w-10">
             <Link
               className="absolute inset-0 flex items-center justify-center rounded-xl transition-opacity hover:opacity-70 group-hover/sidebar:pointer-events-none group-hover/sidebar:opacity-0"
-              href={routePaths.org.dash.root()}
+              href={routePaths.org.admin.root()}
               aria-label="Dashboard home"
             >
-              {org?.logo_image ? (
-                <img
-                  src={getOrgLogoMediaDirectory(org.org_uuid, org.logo_image)}
-                  alt={org?.name}
-                  className="h-9 w-9 object-contain rounded-lg"
-                />
-              ) : (
-                <img
-                  src="/logo-icon.svg"
-                  alt="Launch LMS logo"
-                  className="h-8 w-8"
-                />
-              )}
+              {logo}
             </Link>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
                   aria-label="Expand sidebar"
-                  onClick={expandSidebar}
+                  onClick={() => setCollapsed(false)}
                   className="absolute inset-0 flex items-center justify-center rounded-xl bg-white/[0.08] text-white/50 opacity-0 transition-all hover:bg-white/[0.12] hover:text-white group-hover/sidebar:opacity-100"
                 >
                   <SidebarSimple size={20} weight="fill" />
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="right" className="z-tooltip bg-[#1a1a1b] border-white/10 text-white text-xs px-2 py-1 shadow-lg shadow-black/20">
-                {t('common.expand')}
-              </TooltipContent>
+              <TooltipContent side="right" className={TOOLTIP_CLASS}>{t('common.expand')}</TooltipContent>
             </Tooltip>
           </div>
         ) : (
-          <Link
-            className="flex items-center space-x-3 transition-opacity hover:opacity-70"
-            href={routePaths.org.dash.root()}
-          >
-            {org?.logo_image ? (
-              <img
-                src={getOrgLogoMediaDirectory(org.org_uuid, org.logo_image)}
-                alt={org?.name}
-                className="h-9 w-9 object-contain rounded-lg"
-              />
-            ) : (
-              <img
-                src="/logo-icon.svg"
-                alt="Launch LMS logo"
-                className="h-8 w-8"
-              />
-            )}
-            <div className="flex flex-col min-w-0">
-              <span className="font-semibold text-sm text-white truncate">
-                {org?.name}
-              </span>
-              <span className={cn(
-                "text-[9px] font-medium uppercase tracking-wider",
-                plan === 'enterprise' ? "text-purple-400" :
-                plan === 'full' ? "text-blue-400" :
-                "text-green-400"
-              )}>
-                {planLabel}
-              </span>
-            </div>
-          </Link>
-        )}
-
-        {!isCollapsed && (
-          <button
-            aria-label="Collapse sidebar"
-            onClick={toggleCollapse}
-            className="p-2 rounded-lg text-white/40 hover:text-white hover:bg-white/[0.08] transition-all"
-          >
-            <SidebarSimple size={18} weight="fill" />
-          </button>
+          <>
+            <ExperienceSwitcher
+              current={{ side: 'admin', orgslug: org.slug }}
+              homeHref={routePaths.org.admin.root()}
+              tone="dark"
+              className="-ml-2 flex min-w-0 flex-1 items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-white/[0.08]"
+            >
+              {logo}
+              <div className="flex flex-col min-w-0">
+                <span className="font-semibold text-sm text-white truncate">{org.name}</span>
+                <span className="text-[9px] font-medium uppercase tracking-wider text-green-400">{tierLabel(features.tier)}</span>
+              </div>
+            </ExperienceSwitcher>
+            <button
+              aria-label="Collapse sidebar"
+              onClick={() => setCollapsed(true)}
+              className="p-2 rounded-lg text-white/40 hover:text-white hover:bg-white/[0.08] transition-all"
+            >
+              <SidebarSimple size={18} weight="fill" />
+            </button>
+          </>
         )}
       </div>
 
-      {/* Main Navigation */}
       <div className="flex-1 min-h-0 overflow-y-auto px-3 py-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <AdminAuthorization authorizationMode="component">
-          <div className="space-y-1">
-            <MenuLink
-              href={routePaths.org.dash.root()}
-              icon={<House size={20} weight="fill" />}
-              label={t('common.home')}
-              isCollapsed={isCollapsed}
-            />
-
-            {/* Badges with hover menu */}
-            <HoverMenu
-              content={
-                <HoverMenuContent className="w-64">
-                  <HoverMenuLabel className="text-white/70 font-medium">Badges</HoverMenuLabel>
-                  <HoverMenuSeparator />
-                  {BADGE_ADMIN_PAGES.map((page) => {
-                    const Icon = page.icon
-                    return (
-                      <HoverMenuItem key={page.id} asChild>
-                        <Link href={page.href} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
-                          <Icon size={16} fill="currentColor" />
-                          <span>{page.label}</span>
-                        </Link>
-                      </HoverMenuItem>
-                    )
-                  })}
-                  {recentBadges.length > 0 && (
-                    <>
-                      <HoverMenuSeparator />
-                      <HoverMenuLabel className="text-white/40">{t('common.recent')}</HoverMenuLabel>
-                      {recentBadges.map((badge: any) => (
-                        <HoverMenuItem key={badge.badge_uuid} asChild>
-                          <Link
-                            href={`${routePaths.org.dash.badges()}/badge/${String(badge.badge_uuid || '').replace(/^badge_/, '')}/routes`}
-                            className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors"
-                          >
-                            <PencilSimple size={14} className="text-white/40" />
-                            <span className="truncate">{badge.name}</span>
-                          </Link>
-                        </HoverMenuItem>
-                      ))}
-                    </>
-                  )}
-                </HoverMenuContent>
-              }
-            >
-              <button
-                  aria-label="Open badges menu"
-                className={cn(
-                  "flex items-center w-full rounded-lg text-white/50 hover:text-white hover:bg-white/[0.08] transition-all",
-                  isCollapsed ? "justify-center h-10" : "px-3 py-2 gap-3"
-                )}
-              >
-                <span className="relative flex items-center justify-center">
-                  <BookOpen size={20} weight="fill" />
-                  {isCollapsed && (
-                    <CaretDown aria-hidden="true" size={8} weight="bold" className="absolute -right-2.5 text-white/30" />
-                  )}
-                </span>
-                {!isCollapsed && (
-                  <>
-                    <span className="text-sm font-medium flex-1 text-left">Badges</span>
-                    <CaretDown aria-hidden="true" size={14} weight="bold" className="text-white/40" />
-                  </>
-                )}
-              </button>
-            </HoverMenu>
-
-            <MenuLink
-              href={routePaths.org.dash.plans()}
-              icon={<ClipboardText size={20} weight="fill" />}
-              label="Plans"
-              isCollapsed={isCollapsed}
-            />
-            {showCommunities && (
-              <MenuLink
-                href={routePaths.org.dash.communities()}
-                icon={<ChatsCircle size={20} weight="fill" />}
-                label={t('communities.title')}
-                isCollapsed={isCollapsed}
-              />
-            )}
-            {showResources && (
-              <MenuLink
-                href={routePaths.org.dash.resources()}
-                icon={<FolderOpen size={20} weight="fill" />}
-                label="Resources"
-                isCollapsed={isCollapsed}
-              />
-            )}
-            {showPodcasts && (
-              <MenuLink
-                href={routePaths.org.dash.podcasts()}
-                icon={<Headphones size={20} weight="fill" />}
-                label={t('podcasts.podcasts')}
-                isCollapsed={isCollapsed}
-              />
-            )}
-            {showPlaygrounds && (
-              <MenuLink
-                href={routePaths.org.dash.playgrounds()}
-                icon={<Cube size={20} weight="fill" />}
-                label="Playgrounds"
-                isCollapsed={isCollapsed}
-              />
-            )}
-            {/* Users with hover menu */}
-            <HoverMenu
-              content={
-                <HoverMenuContent className="w-64">
-                  <HoverMenuLabel className="text-white/70 font-medium">{t('common.users')}</HoverMenuLabel>
-                  <HoverMenuSeparator />
-                  {userAdminPages.map((page) => {
-                    const Icon = page.icon
-                    return (
-                      <HoverMenuItem key={page.id} asChild>
-                        <Link href={page.href} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
-                          <Icon size={16} fill="currentColor" />
-                          <span>{page.label}</span>
-                        </Link>
-                      </HoverMenuItem>
-                    )
-                  })}
-                </HoverMenuContent>
-              }
-            >
-              <button
-                aria-label="Open users menu"
-                className={cn(
-                  "flex items-center w-full rounded-lg text-white/50 hover:text-white hover:bg-white/[0.08] transition-all",
-                  isCollapsed ? "justify-center h-10" : "px-3 py-2 gap-3"
-                )}
-              >
-                <span className="relative flex items-center justify-center">
-                  <Users size={20} weight="fill" />
-                  {isCollapsed && (
-                    <CaretDown aria-hidden="true" size={8} weight="bold" className="absolute -right-2.5 text-white/30" />
-                  )}
-                </span>
-                {!isCollapsed && (
-                  <>
-                    <span className="text-sm font-medium flex-1 text-left">{t('common.users')}</span>
-                    <CaretDown aria-hidden="true" size={14} weight="bold" className="text-white/40" />
-                  </>
-                )}
-              </button>
-            </HoverMenu>
-
-            {showPayments && (
-              <MenuLink
-                href={routePaths.org.dash.paymentsOverview()}
-                icon={<CurrencyCircleDollar size={20} weight="fill" />}
-                label={t('common.payments')}
-                isCollapsed={isCollapsed}
-              />
-            )}
-
-            {/* Organization with hover menu */}
-            <HoverMenu
-              content={
-                <HoverMenuContent className="w-64">
-                  <HoverMenuLabel className="text-white/70 font-medium">{t('common.organization')}</HoverMenuLabel>
-                  <HoverMenuSeparator />
-                  {organizationAdminPages.map((page) => {
-                    const Icon = page.icon
-                    return (
-                      <HoverMenuItem key={page.id} asChild>
-                        <Link href={page.href} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
-                          <Icon size={16} fill="currentColor" />
-                          <span>{page.label}</span>
-                        </Link>
-                      </HoverMenuItem>
-                    )
-                  })}
-                </HoverMenuContent>
-              }
-            >
-              <button
-                aria-label="Open organization menu"
-                className={cn(
-                  "flex items-center w-full rounded-lg text-white/50 hover:text-white hover:bg-white/[0.08] transition-all",
-                  isCollapsed ? "justify-center h-10" : "px-3 py-2 gap-3"
-                )}
-              >
-                <span className="relative flex items-center justify-center">
-                  <Buildings size={20} weight="fill" />
-                  {isCollapsed && (
-                    <CaretDown aria-hidden="true" size={8} weight="bold" className="absolute -right-2.5 text-white/30" />
-                  )}
-                </span>
-                {!isCollapsed && (
-                  <>
-                    <span className="text-sm font-medium flex-1 text-left">{t('common.organization')}</span>
-                    <CaretDown aria-hidden="true" size={14} weight="bold" className="text-white/40" />
-                  </>
-                )}
-              </button>
-            </HoverMenu>
-
-          </div>
-        </AdminAuthorization>
+        <div className="space-y-1">
+          {tabs.map((tab) => (
+            <NavEntry key={tab.id} item={tab} isActive={active?.tab.id === tab.id} isCollapsed={isCollapsed} />
+          ))}
+        </div>
       </div>
 
-      {/* Owner org platform section */}
-      {isOwnerOrg && (
+      {showPlatform && (
         <div className="border-t border-amber-400/20 mt-1 pt-2 px-3 pb-1">
           {!isCollapsed && (
-            <p className="text-[9px] font-semibold uppercase tracking-widest text-amber-400/60 px-1 mb-1">
-              Platform
-            </p>
+            <p className="text-[9px] font-semibold uppercase tracking-widest text-amber-400/60 px-1 mb-1">Platform</p>
           )}
-          {platformSections().map((section) => ({ ...section, icon: PLATFORM_ICONS[section.id] })).map((item) => {
-            const isActive = item.exact
-              ? pathname === `/orgs/${org.slug}${item.href}` ||
-                pathname === item.href
-              : pathname?.startsWith(`/orgs/${org.slug}${item.href}`) ||
-                pathname?.startsWith(item.href)
-
+          {platformSections().map((section) => {
+            const Icon = PLATFORM_NAV_ICONS[section.id]
+            const isActive = section.exact
+              ? pathname === `/orgs/${org.slug}${section.href}` || pathname === section.href
+              : pathname.startsWith(`/orgs/${org.slug}${section.href}`) || pathname.startsWith(section.href)
             return (
               <Link
-                key={item.href}
-                href={getUriWithOrg(org.slug, item.href)}
+                key={section.href}
+                href={getUriWithOrg(org.slug, section.href)}
+                aria-label={section.label}
                 className={cn(
                   "flex items-center w-full rounded-lg transition-all",
                   isCollapsed ? "justify-center h-10" : "px-3 py-2 gap-3",
-                  isActive
-                    ? "bg-amber-400/10 text-amber-300"
-                    : "text-amber-400/70 hover:text-amber-300 hover:bg-amber-400/10"
+                  isActive ? "bg-amber-400/10 text-amber-300" : "text-amber-400/70 hover:text-amber-300 hover:bg-amber-400/10"
                 )}
               >
-                {item.icon}
-                {!isCollapsed && (
-                  <span className="text-sm font-medium">{item.label}</span>
-                )}
+                <Icon size={20} weight="fill" />
+                {!isCollapsed && <span className="text-sm font-medium">{section.label}</span>}
               </Link>
             )
           })}
         </div>
       )}
 
-      {/* Bottom Section */}
       <div className="border-t border-white/[0.08] py-3 px-3 shrink-0">
+        <DashFeedbackButton isCollapsed={isCollapsed} />
         <DropdownMenu modal={false}>
-          <TooltipProvider delayDuration={0}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <button className={cn(
-                    "group/account flex items-center w-full rounded-lg text-white/50 hover:text-white hover:bg-white/[0.08] transition-all",
-                    isCollapsed ? "justify-center h-10" : "px-3 py-2 gap-3"
-                  )}>
-                    <UserAvatar width={24} rounded="rounded-full" shadow="shadow-none" />
-                    {!isCollapsed && (
-                      <>
-                        <div className="flex flex-col min-w-0 flex-1 text-left">
-                          <span className="text-sm font-medium truncate text-white/90">{session?.data?.user?.username}</span>
-                          <span className="text-xs text-white/40 truncate">{session?.data?.user?.email}</span>
-                        </div>
-                        <CaretDown size={16} weight="bold" className="shrink-0 text-white/30 transition-colors group-hover/account:text-white/60" />
-                      </>
-                    )}
-                  </button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              {isCollapsed && (
-                <TooltipContent side="right" className="z-tooltip bg-[#1a1a1b] border-white/10 text-white text-xs px-2 py-1 shadow-lg shadow-black/20">
-                  {session?.data?.user?.username || 'Account'}
-                </TooltipContent>
-              )}
-            </Tooltip>
-          </TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <button className={cn(
+                  "group/account flex items-center w-full rounded-lg text-white/50 hover:text-white hover:bg-white/[0.08] transition-all",
+                  isCollapsed ? "justify-center h-10" : "px-3 py-2 gap-3"
+                )}>
+                  <UserAvatar width={24} rounded="rounded-full" shadow="shadow-none" />
+                  {!isCollapsed && (
+                    <>
+                      <div className="flex flex-col min-w-0 flex-1 text-left">
+                        <span className="text-sm font-medium truncate text-white/90">{session?.data?.user?.username}</span>
+                        <span className="text-xs text-white/40 truncate">{session?.data?.user?.email}</span>
+                      </div>
+                      <CaretDown size={16} weight="bold" className="shrink-0 text-white/30 transition-colors group-hover/account:text-white/60" />
+                    </>
+                  )}
+                </button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            {isCollapsed && (
+              <TooltipContent side="right" className={TOOLTIP_CLASS}>{session?.data?.user?.username || 'Account'}</TooltipContent>
+            )}
+          </Tooltip>
           <DropdownMenuContent
             side={isCollapsed ? 'right' : 'top'}
             align={isCollapsed ? 'end' : 'start'}
@@ -538,27 +247,18 @@ function DashLeftMenu() {
                 {AVAILABLE_LANGUAGES.map((language) => (
                   <DropdownMenuItem
                     key={language.code}
-                    onClick={() => changeLanguage(language.code)}
+                    onClick={() => i18n.changeLanguage(language.code)}
                     className="flex items-center justify-between rounded-md px-3 py-2 text-white/70 focus:bg-white/[0.08] focus:text-white"
                   >
                     <div className="flex min-w-0 flex-col">
                       <span className="truncate text-sm font-medium">{language.nativeName}</span>
                       <span className="truncate text-xs text-white/40">{t(language.translationKey)}</span>
                     </div>
-                    {i18n.language === language.code && (
-                      <Check size={16} weight="bold" className="text-green-500" />
-                    )}
+                    {i18n.language === language.code && <Check size={16} weight="bold" className="text-green-500" />}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuSubContent>
             </DropdownMenuSub>
-            <DropdownMenuItem
-              onClick={() => openCandidatePanel('feedback')}
-              className="flex items-center gap-2 rounded-md px-3 py-2 text-white/70 focus:bg-white/[0.08] focus:text-white"
-            >
-              <Question size={16} weight="fill" />
-              <span>{t('common.help_menu.report_feedback')}</span>
-            </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-white/[0.08]" />
             <DropdownMenuItem asChild>
               <Link href={authenticatedOrgHref(getUriWithOrg(getDefaultOrg(), routePaths.org.portfolio()), true)} className="flex items-center gap-2 rounded-md px-3 py-2 text-white/70 focus:bg-white/[0.08] focus:text-white">
@@ -572,8 +272,6 @@ function DashLeftMenu() {
                 <span>{t('common.settings')}</span>
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-            </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-white/[0.08]" />
             <DropdownMenuItem
               onClick={() => logOutUI()}
@@ -586,68 +284,99 @@ function DashLeftMenu() {
         </DropdownMenu>
       </div>
     </nav>
-
-      {/* Feedback Modal */}
     </TooltipProvider>
   )
 }
 
-const MenuLink = ({ href, icon, label, isCollapsed, isExternal }: {
-  href: string
-  icon: React.ReactNode
-  label: string
-  isCollapsed: boolean
-  isExternal?: boolean
-}) => {
-  const content = (
-    <div
-      className={cn(
-        "flex items-center w-full rounded-lg text-white/50 hover:text-white hover:bg-white/[0.08] transition-all",
-        isCollapsed ? "justify-center h-10" : "px-3 py-2 gap-3"
-      )}
-    >
-      {icon}
-      {!isCollapsed && (
-        <span className="text-sm font-medium">{label}</span>
-      )}
-    </div>
+/** One tab: a link, a hover menu when it has more than one page, or a locked row with its Request action. */
+function NavEntry({ item, isActive, isCollapsed }: { item: VisibleNavItem; isActive: boolean; isCollapsed: boolean }) {
+  const { t } = useTranslation()
+  const label = adminLabel(t, item)
+  const Icon = ADMIN_NAV_ICONS[item.id]
+  const locked = item.visibility.state === 'locked' ? item.visibility.request : null
+  const hasMenu = !locked && !item.inPageTabs && (item.children?.length ?? 0) > 1
+  const rowClass = cn(
+    "flex items-center w-full rounded-lg transition-all",
+    isCollapsed ? "justify-center h-10" : "px-3 py-2 gap-3",
+    isActive ? "bg-white/[0.08] text-white" : "text-white/50 hover:text-white hover:bg-white/[0.08]"
   )
 
-  const linkElement = isExternal ? (
-    <a href={href} target="_blank" rel="noopener noreferrer" aria-label={label}>
-      {content}
-    </a>
-  ) : (
-    <Link aria-label={label} href={href}>
-      {content}
-    </Link>
-  )
-
-  if (isCollapsed) {
-    return (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          {linkElement}
-        </TooltipTrigger>
-        <TooltipContent side="right" className="z-tooltip bg-[#1a1a1b] border-white/10 text-white text-xs px-2 py-1 shadow-lg shadow-black/20">
-          {label}
-        </TooltipContent>
-      </Tooltip>
+  if (locked) {
+    const row = (
+      <div className={cn(rowClass, "text-white/30 hover:bg-transparent hover:text-white/30")}>
+        <span className="relative flex items-center justify-center">
+          <Icon size={20} weight="fill" />
+          {isCollapsed && <LockSimple aria-hidden="true" size={10} weight="fill" className="absolute -right-2 -bottom-1" />}
+        </span>
+        {!isCollapsed && (
+          <>
+            <span className="text-sm font-medium flex-1 text-left">{label}</span>
+            <RequestAccessButton request={locked} tone="dark" />
+          </>
+        )}
+      </div>
     )
+    return isCollapsed ? <WithTooltip label={`${label} · requires ${accessRequestLabel(locked)}`}>{row}</WithTooltip> : row
   }
 
-  return linkElement
+  const content = (
+    <>
+      <span className="relative flex items-center justify-center">
+        <Icon size={20} weight="fill" />
+        {hasMenu && isCollapsed && <CaretDown aria-hidden="true" size={8} weight="bold" className="absolute -right-2.5 text-white/30" />}
+      </span>
+      {!isCollapsed && (
+        <>
+          <span className="text-sm font-medium flex-1 text-left">{label}</span>
+          {item.pill && <NavPill>{item.pill}</NavPill>}
+          {hasMenu && <CaretDown aria-hidden="true" size={14} weight="bold" className="text-white/40" />}
+        </>
+      )}
+    </>
+  )
+  const link = <Link aria-label={label} href={item.href} className={rowClass}>{content}</Link>
+
+  if (!hasMenu) return isCollapsed ? <WithTooltip label={label}>{link}</WithTooltip> : link
+
+  return (
+    <HoverMenu
+      content={
+        <HoverMenuContent className="w-64">
+          <HoverMenuLabel className="text-white/70 font-medium">{label}</HoverMenuLabel>
+          <HoverMenuSeparator />
+          {item.children!.map((child) => {
+            const ChildIcon = ADMIN_NAV_ICONS[child.id]
+            const request = child.visibility.state === 'locked' ? child.visibility.request : null
+            return request ? (
+              <div key={child.id} className="flex items-center gap-2 px-3 py-2 text-sm text-white/30">
+                <ChildIcon size={16} weight="fill" />
+                <span className="flex-1">{adminLabel(t, child)}</span>
+                <RequestAccessButton request={request} tone="dark" />
+              </div>
+            ) : (
+              <HoverMenuItem key={child.id} asChild>
+                <Link href={child.href} className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/[0.08] cursor-pointer transition-colors">
+                  <ChildIcon size={16} weight="fill" />
+                  <span>{adminLabel(t, child)}</span>
+                </Link>
+              </HoverMenuItem>
+            )
+          })}
+        </HoverMenuContent>
+      }
+    >
+      {link}
+    </HoverMenu>
+  )
 }
 
-
-const PLATFORM_ICONS: Record<PlatformSection, React.ReactNode> = {
-  overview: <ChartPieSlice size={20} weight="fill" />,
-  organizations: <Buildings size={20} weight="fill" />,
-  users: <UsersThree size={20} weight="fill" />,
-  requests: <Tray size={20} weight="fill" />,
-  feedback: <Flag size={20} weight="fill" />,
-  demo: <Flask size={20} weight="fill" />,
-  settings: <Gear size={20} weight="fill" />,
-  news: <Newspaper size={20} weight="fill" />,
+function WithTooltip({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent side="right" className={TOOLTIP_CLASS}>{label}</TooltipContent>
+    </Tooltip>
+  )
 }
+
 export default DashLeftMenu

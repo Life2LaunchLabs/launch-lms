@@ -8,8 +8,8 @@ from fastapi import HTTPException
 from sqlmodel import Session, select
 
 from src.db.hub import HubConversation, HubEditObjectState, HubEditRun, HubEditRunEvent
-from src.db.planning import Plan
 from src.security.org_auth import require_org_membership
+from src.services.goals.coach_tools import scope
 
 
 ACTIVE = "active"
@@ -33,7 +33,8 @@ def _run_dict(db: Session, run: HubEditRun) -> dict:
         "conversation_uuid": db.get(HubConversation, run.conversation_id).conversation_uuid,
         "goal": run.goal,
         "scope": {
-            "kind": run.scope_kind,
+            # Runs begun before goals stored plan scope names.
+            "kind": scope(run.scope_kind),
             "target_uuid": run.target_uuid,
             "label": run.target_label,
             "route": run.route,
@@ -124,6 +125,7 @@ def begin_edit_run(
             raise HTTPException(status_code=404, detail="Editing action not found")
         return _run_dict(db, existing)
 
+    scope_kind = scope(scope_kind) or scope_kind
     now = datetime.utcnow()
     active_runs = db.exec(select(HubEditRun).where(
         HubEditRun.conversation_id == conversation.id,
@@ -143,7 +145,7 @@ def begin_edit_run(
     db.add(HubEditRunEvent(
         event_uuid=f"hub_edit_event_{uuid4().hex}", run_id=int(run.id), sequence=1,
         kind="run.started", summary=f"Started working on {target_label}",
-        object_type="plan" if target_uuid else None, object_uuid=target_uuid,
+        object_type="goal" if target_uuid else None, object_uuid=target_uuid,
         object_label=target_label if target_uuid else None,
         payload={"goal": run.goal, "scope_kind": scope_kind, "scope_label": target_label},
         created_at=now,
@@ -297,10 +299,12 @@ def save_object_state(
     )).first()
     if run is None:
         raise HTTPException(status_code=404, detail="Editing run not found")
-    if run.status != ACTIVE:
+    # Suggestions left on a goal outlive the session, so the learner can still add or drop them.
+    settling_left_suggestion = status in {"saved", "cancelled"} and scope(run.scope_kind) == "goal"
+    if run.status != ACTIVE and not settling_left_suggestion:
         raise HTTPException(status_code=409, detail="The editing run is no longer active")
-    if object_key == "new-plan" and run.scope_kind != "new_plan" and status != "saved":
-        raise HTTPException(status_code=409, detail="The new plan editor is no longer active")
+    if object_key in {"new-goal", "new-plan"} and scope(run.scope_kind) != "new_goal" and status != "saved":
+        raise HTTPException(status_code=409, detail="The new goal editor is no longer active")
     item = db.exec(select(HubEditObjectState).where(
         HubEditObjectState.run_id == run.id,
         HubEditObjectState.object_key == object_key,
@@ -349,54 +353,3 @@ def save_object_state(
         "current_fields": item.current_fields, "proposal_fields": item.proposal_fields,
         "revision": item.revision, "updated_at": item.updated_at,
     }
-
-
-def bind_created_plan(
-    db: Session, run_uuid: str, org_id: int, user_id: int, plan_identifier: str,
-) -> dict:
-    require_org_membership(user_id, org_id, db)
-    run = db.exec(select(HubEditRun).where(
-        HubEditRun.run_uuid == run_uuid,
-        HubEditRun.org_id == org_id,
-        HubEditRun.user_id == user_id,
-    )).first()
-    if run is None:
-        raise HTTPException(status_code=404, detail="Editing run not found")
-    if run.status != ACTIVE or run.scope_kind != "new_plan":
-        raise HTTPException(status_code=409, detail="This run is not waiting for a new plan")
-    plan = db.exec(select(Plan).where(
-        (Plan.plan_uuid == plan_identifier) | (Plan.slug == plan_identifier),
-        Plan.owner_user_id == user_id,
-        Plan.source_assignment_id.is_(None),
-    )).first()
-    if plan is None:
-        raise HTTPException(status_code=404, detail="New personal plan not found")
-
-    now = datetime.utcnow()
-    run.scope_kind = "plan"
-    run.target_uuid = plan.plan_uuid
-    run.target_label = plan.name[:240]
-    run.route = f"/plans/{plan.slug}"
-    run.updated_at = now
-    db.add(run)
-    recovered = db.exec(select(HubEditObjectState).where(
-        HubEditObjectState.run_id == run.id,
-        HubEditObjectState.object_key == "new-plan",
-    )).first()
-    if recovered:
-        recovered.status = "saved"
-        recovered.object_uuid = plan.plan_uuid
-        recovered.revision += 1
-        recovered.updated_at = now
-        db.add(recovered)
-    last_sequence = db.exec(select(HubEditRunEvent.sequence).where(
-        HubEditRunEvent.run_id == run.id,
-    ).order_by(HubEditRunEvent.sequence.desc())).first() or 0
-    db.add(HubEditRunEvent(
-        event_uuid=f"hub_edit_event_{uuid4().hex}", run_id=int(run.id),
-        sequence=int(last_sequence) + 1, kind="plan.created",
-        summary=f"Created plan {plan.name}", object_type="plan",
-        object_uuid=plan.plan_uuid, object_label=plan.name, created_at=now,
-    ))
-    db.commit()
-    return _run_dict(db, run)

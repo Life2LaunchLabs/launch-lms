@@ -74,6 +74,13 @@ with `"question_mode": "scored"`. A scored question with no correct options can
 never earn its points, so a graded activity containing one can never be passed.
 Allow several answers with `max_selections` > 1.
 
+Options can come from a source instead of the document:
+`"options_source": { "kind": "goal_templates", "limit": 3 }` lists the plans a learner can
+start their goal from (top matches, with "See more" to search). Leave `options` empty and
+write the pick with `"variable_bindings": { "selected": [ { "target": "goal.template" } ] }`.
+Activities run in a goal's launch flow may write `goal.title`, `goal.why`, `goal.size`,
+`goal.starting_point`, `goal.coach_cadence` and `goal.template`.
+
 Text response:
 
 ```json
@@ -92,6 +99,34 @@ the flow can route on which one was pressed (see below):
 `{ "id": "btn_more", "type": "button", "content": { "label": "Show me more", "action": "continue" } }`.
 A `revisit` button jumps back to a page that comes earlier on the route:
 `{ "type": "button", "content": { "label": "Back to the intro", "action": "revisit", "revisit_page_uuid": "new-intro" } }`.
+
+Story blocks show numbers, words and achievements with their own motion:
+`{ "type": "stat", "content": { "items": [ { "value": 12, "label": "steps done" } ] } }` (up to 4, numbers count up),
+`{ "type": "quote", "content": { "text": "…", "attribution": "Why you started" } }`,
+`{ "type": "chart", "content": { "kind": "bars", "values": [1, 3, 2], "labels": ["Oct 1", "Oct 8", "Oct 15"] } }` and
+`{ "type": "medal", "content": { "title": "Goal complete", "subtitle": "…", "image": "" } }`.
+A stat item, quote or chart can read a variable through `binding` instead. Activities run inside a
+goal can read `goal.title`, `goal.why` and `goal.stats.steps_done`, `.weeks`, `.decisions`,
+`.stages_done` and `.weekly` (steps done each week, for a chart).
+
+## Design
+
+Every activity plays full screen; these make it feel alive. Use them with
+intent: one scene or celebration where it lands, not on every page.
+
+- Page background: `"design": { "background": { "color": "#0f172a", "gradient_to": "#1e3a8a", "scene": "starfield", "intensity": "medium" } }`.
+  Scenes: `starfield`, `aurora`, `drift`, `confetti` (or omit). Text turns light on dark colours.
+- `"design": { "celebrate": true }` bursts confetti when the page opens (a finish line, a milestone).
+- `"design": { "auto_advance_ms": 6000 }` moves the page on by itself, story style:
+  learners tap to skip or go back and hold to pause; a page with questions waits for its answers.
+- Activity defaults in `settings.design`: `"background"` (same shape, a page's own replaces it),
+  `"progress": "segments"` (one segment per page; timed pages use segments anyway), and
+  `"exit": { "label": "Save for later", "confirm": "Leave now?", "to_page_uuid": "p9" }`
+  (no label shows a plain X; `to_page_uuid` jumps ahead to that page if it is still on the route, else the activity closes).
+- Block design: `"entrance": "rise" | "fade" | "none"` (blocks rise in, staggered, by default);
+  a continue button with `"placement": "footer"` sits beside Continue at the bottom;
+  a choice question's `"style": "list" | "pills" | "scale" | "cards"` (options may carry
+  `"icon"` (an emoji) and, for cards, `"description"`; a scale labels its two ends with the first and last option).
 
 ## Branching flow
 

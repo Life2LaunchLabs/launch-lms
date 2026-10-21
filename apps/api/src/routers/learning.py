@@ -10,25 +10,22 @@ from src.db.learning import (
     BadgeCollectionUpdate,
     LearningActivityRead,
     LearningActivityUpdate,
-    LearningAwardCreate,
     LearningBadgeCreate,
     LearningBadgeRead,
     LearningBadgeUpdate,
     LearningBadgeVersionCreate,
     LearningBadgeVersionPublish,
     LearningBadgeVersionUpdate,
-    LearningPageComplete,
     LearningPageCreate,
     LearningPageRead,
     LearningPageUpdate,
-    LearningResponseGrade,
-    LearningResponseSubmit,
     LearningRunRead,
     LearningVariableCreate,
     LearningVariableRead,
     LearningVariableUpdate,
     OpenBadgeImport,
 )
+from src.db.learning_requests import LearningAwardCreate, LearningPageComplete, LearningResponseGrade, LearningResponseSubmit
 from src.db.users import PublicUser
 from src.security.auth import get_authenticated_user, get_current_user
 from src.services import learning as learning_service

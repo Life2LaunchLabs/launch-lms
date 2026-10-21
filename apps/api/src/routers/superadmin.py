@@ -1,12 +1,10 @@
 import logging
-from typing import Literal
 
 from fastapi import APIRouter, Depends, Request, status
 from sqlmodel import Session
 from src.core.capabilities import CORE_CAPABILITIES
 from src.core.events.database import get_db_session
 from src.db.messages import WelcomeMessageTemplateUpdate
-from src.db.hub import HubAdvisorConfigurationUpdate
 from src.db.organizations import OrganizationCreate
 from src.db.plan_requests import PlanRequestRead, PlanRequestUpdate
 from src.db.roles import Role, RoleTypeEnum
@@ -18,11 +16,9 @@ from src.services.orgs.usage import get_org_usage_and_limits
 from src.services.superadmin import orgs as orgs_service
 from src.services.superadmin import users as users_service
 from src.services import messages as messages_service
-from src.services import hub_configuration
 from src.services.superadmin.orgs import (
+    OrgAccessUpdateRequest,
     OrgConfigUpdateRequest,
-    OrgPackagesUpdateRequest,
-    OrgPlanUpdateRequest,
     OrgSettingsUpdateRequest,
 )
 from src.services.superadmin.users import (
@@ -70,32 +66,6 @@ async def reset_welcome_message_template(
     db_session: Session = Depends(get_db_session),
 ):
     return messages_service.reset_welcome_template(db_session)
-
-
-@router.get("/settings/hub-advisor")
-async def get_hub_advisor_configuration(
-    db_session: Session = Depends(get_db_session),
-):
-    return hub_configuration.get_hub_advisor_configuration(db_session)
-
-
-@router.put("/settings/hub-advisor")
-async def update_hub_advisor_configuration(
-    payload: HubAdvisorConfigurationUpdate,
-    current_user: PublicUser = Depends(get_current_user),
-    db_session: Session = Depends(get_db_session),
-):
-    return hub_configuration.update_hub_advisor_configuration(
-        db_session, current_user, payload
-    )
-
-
-@router.get("/settings/hub-advisor/models")
-async def list_hub_advisor_models(
-    provider: Literal["openai", "anthropic"],
-    db_session: Session = Depends(get_db_session),
-):
-    return await hub_configuration.list_hub_advisor_models(db_session, provider)
 
 
 @router.get("/roles")
@@ -185,11 +155,11 @@ async def list_organizations(
     limit: int = 20,
     sort: str = "id",
     search: str = "",
-    plan: str = "all",
+    tier: str = "all",
     db_session: Session = Depends(get_db_session),
 ):
     return orgs_service.list_organizations(
-        db_session, page=page, limit=limit, sort=sort, search=search, plan=plan
+        db_session, page=page, limit=limit, sort=sort, search=search, tier=tier
     )
 
 
@@ -340,13 +310,13 @@ async def get_global_analytics(days: int = 30):
     return results
 
 
-@router.put("/organizations/{org_id}/plan")
-async def update_org_plan(
+@router.put("/organizations/{org_id}/access")
+async def update_org_access(
     org_id: int,
-    body: OrgPlanUpdateRequest,
+    body: OrgAccessUpdateRequest,
     db_session: Session = Depends(get_db_session),
 ):
-    return orgs_service.update_org_plan(db_session, org_id, body)
+    return orgs_service.update_org_access(db_session, org_id, body)
 
 
 @router.put("/organizations/{org_id}/settings")
@@ -367,15 +337,6 @@ async def update_org_config(
     return orgs_service.update_org_config(db_session, org_id, body)
 
 
-@router.put("/organizations/{org_id}/packages")
-async def update_org_packages(
-    org_id: int,
-    payload: OrgPackagesUpdateRequest,
-    db_session: Session = Depends(get_db_session),
-):
-    return orgs_service.update_org_packages(db_session, org_id, payload)
-
-
 # ============================================================================
 # Plan requests
 # ============================================================================
@@ -386,7 +347,7 @@ async def list_all_plan_requests(
     status: str | None = None,
     db_session: Session = Depends(get_db_session),
 ):
-    """List all plan/package requests across all orgs, with org info attached."""
+    """List all access requests across all orgs, with org info attached."""
     return orgs_service.list_all_plan_requests(db_session, status)
 
 

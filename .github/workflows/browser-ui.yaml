@@ -113,6 +113,7 @@ jobs:
           uv run python cli.py install --short
           uv run python scripts/seed_requirement_evidence.py ../../apps/web/.playwright/requirement-evidence.json
           uv run python scripts/seed_learner_flow.py ../../apps/web/.playwright/learner-flow.json
+          uv run python scripts/seed_connect.py ../../apps/web/.playwright/connect.json
 
       - name: Build the test application
         run: bun run build

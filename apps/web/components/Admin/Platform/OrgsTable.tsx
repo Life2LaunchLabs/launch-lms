@@ -14,7 +14,7 @@ import {
   LoadingRows,
   OrgLogo,
   Pagination,
-  PlanBadge,
+  TierBadge,
   SearchInput,
   SortableTh,
   useDebounced,
@@ -37,11 +37,11 @@ const LIST_DEFAULTS = {
   page: '1',
   sort: 'id',
   search: '',
-  plan: 'all',
+  tier: 'all',
 }
 
-const PLAN_OPTIONS = [
-  { value: 'all', label: 'All plans' },
+const TIER_OPTIONS = [
+  { value: 'all', label: 'All tiers' },
   { value: 'free', label: 'Free' },
   { value: 'full', label: 'Full' },
   { value: 'enterprise', label: 'Enterprise' },
@@ -54,7 +54,7 @@ interface OrgRow {
   slug: string
   email: string
   logo_image?: string | null
-  plan: string
+  tier: string
   user_count: number
   badge_count: number
   course_count: number
@@ -97,7 +97,7 @@ export default function OrgsTable() {
   const { get, update } = useListParams(LIST_DEFAULTS)
   const page = Number(get('page')) || 1
   const sort = get('sort')
-  const planFilter = get('plan')
+  const tierFilter = get('tier')
 
   const [search, setSearch] = useState(get('search'))
   const debouncedSearch = useDebounced(search)
@@ -110,9 +110,9 @@ export default function OrgsTable() {
       sort,
     })
     if (debouncedSearch) params.set('search', debouncedSearch)
-    if (planFilter !== 'all') params.set('plan', planFilter)
+    if (tierFilter !== 'all') params.set('tier', tierFilter)
     return params.toString()
-  }, [page, sort, debouncedSearch, planFilter])
+  }, [page, sort, debouncedSearch, tierFilter])
 
   const { data, isLoading, mutate } = useSWR(
     accessToken ? `${getAPIUrl()}superadmin/organizations?${queryParams}` : null,
@@ -172,10 +172,10 @@ export default function OrgsTable() {
             placeholder="Search organizations..."
           />
           <FilterSelect
-            label="Plan"
-            value={planFilter}
-            options={PLAN_OPTIONS}
-            onChange={(value) => update({ plan: value, page: 1 })}
+            label="Tier"
+            value={tierFilter}
+            options={TIER_OPTIONS}
+            onChange={(value) => update({ tier: value, page: 1 })}
           />
         </div>
         <div className="flex items-center gap-3">
@@ -208,7 +208,7 @@ export default function OrgsTable() {
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50/50">
                     <SortableTh label="Organization" currentSort={sort} onSort={(s) => update({ sort: s, page: 1 })} />
-                    <SortableTh label="Plan" currentSort={sort} onSort={() => {}} />
+                    <SortableTh label="Tier" currentSort={sort} onSort={() => {}} />
                     <SortableTh
                       label="Users"
                       ascKey="users_asc"
@@ -260,7 +260,7 @@ export default function OrgsTable() {
                         </Link>
                       </td>
                       <td className="px-4 py-3">
-                        <PlanBadge plan={row.plan} />
+                        <TierBadge tier={row.tier} />
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">{row.user_count}</td>
                       <td className="px-4 py-3 text-sm text-gray-600">{row.badge_count ?? row.course_count}</td>

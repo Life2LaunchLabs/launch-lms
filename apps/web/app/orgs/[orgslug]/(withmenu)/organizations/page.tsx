@@ -7,5 +7,5 @@ type OrganizationsPageProps = {
 
 export default async function OrganizationsPage(props: OrganizationsPageProps) {
   const params = await props.params
-  redirect(getUriWithOrg(params.orgslug, routePaths.owner.account.organizations()))
+  redirect(getUriWithOrg(params.orgslug, routePaths.org.connect()))
 }

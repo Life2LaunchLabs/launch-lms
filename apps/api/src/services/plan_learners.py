@@ -271,7 +271,7 @@ def coverage(db: Session, current_user: PublicUser, org_id: int, framework_uuid:
     """The framework's current nodes, each with the template objectives that count toward it."""
     from src.services.requirements import _framework_dict, _framework_or_404
 
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "see_reports")
     framework = _framework_or_404(db, org_id, framework_uuid)
     rows = db.exec(
         select(ProgramObjectiveRequirement, ProgramObjective, Objective, Program)

@@ -27,7 +27,7 @@ def auto_install():
 
     orgs = db_session.exec(select(Organization)).all()
 
-    def ensure_owner_org_is_master() -> None:
+    def ensure_owner_org_is_enterprise() -> None:
         owner_org = db_session.exec(
             select(Organization).order_by(Organization.id).limit(1)
         ).first()
@@ -40,31 +40,18 @@ def auto_install():
         if not owner_org_config:
             return
 
-        config = owner_org_config.config or {}
-        version = str(config.get("config_version", "1.0"))
-
-        if version.startswith("2"):
-            current_plan = config.get("plan", "free")
-            if current_plan != "master":
-                config["plan"] = "master"
-                owner_org_config.config = config
-                db_session.add(owner_org_config)
-                db_session.commit()
-                logger.info("Updated owner organization '%s' plan to master", owner_org.slug)
-        else:
-            cloud = config.setdefault("cloud", {})
-            current_plan = cloud.get("plan", "free")
-            if current_plan != "master":
-                cloud["plan"] = "master"
-                owner_org_config.config = config
-                db_session.add(owner_org_config)
-                db_session.commit()
-                logger.info("Updated legacy owner organization '%s' plan to master", owner_org.slug)
+        config = dict(owner_org_config.config or {})
+        if config.get("tier") != "enterprise":
+            config["tier"] = "enterprise"
+            owner_org_config.config = config
+            db_session.add(owner_org_config)
+            db_session.commit()
+            logger.info("Updated owner organization '%s' tier to enterprise", owner_org.slug)
 
     if len(orgs) == 0:
         logger.info("No organizations found. Starting auto-installation 🏗️")
         install(short=True)
-        ensure_owner_org_is_master()
+        ensure_owner_org_is_enterprise()
         return
 
     if orgs:
@@ -72,10 +59,10 @@ def auto_install():
         if not owner_org:
             logger.info("No owner organization found. Starting auto-installation 🏗️")
             install(short=True)
-            ensure_owner_org_is_master()
+            ensure_owner_org_is_enterprise()
             return
 
-        ensure_owner_org_is_master()
+        ensure_owner_org_is_enterprise()
 
             
             

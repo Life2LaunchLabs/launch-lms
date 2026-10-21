@@ -3,14 +3,8 @@ from datetime import datetime
 
 from config.config import get_launchlms_config
 from fastapi import APIRouter, Depends, HTTPException
-from migrations.orgconfigs.orgconfigs_migrations import (
-    migrate_to_v1_1,
-    migrate_to_v1_2,
-    migrate_v0_to_v1,
-)
 from sqlmodel import Session, select
 from src.core.events.database import get_db_session
-from src.db.organization_config import OrganizationConfig
 from src.db.users import PublicUser, User
 from src.security.auth import get_authenticated_user
 
@@ -302,63 +296,18 @@ async def seed_profile(
     }
 
 
-@router.post("/migrate_orgconfig_v0_to_v1")
-async def migrate(
+@router.post("/goals/{goal_uuid}/check-in")
+def dev_goal_check_in(
+    goal_uuid: str,
     db_session: Session = Depends(get_db_session),
     current_user: PublicUser = Depends(get_authenticated_user),
 ):
-    """
-    Migrate organization config from v0 to v1
-    """
-    _require_superadmin(current_user)
-    statement = select(OrganizationConfig)
-    result = db_session.exec(statement)
+    """Run Coach's check-in on one of your goals now, as if its first hour had passed (fixed wording)."""
+    from datetime import timedelta
 
-    for orgConfig in result:
-        orgConfig.config = migrate_v0_to_v1(orgConfig.config)
+    from src.services.goals import check_ins
+    from src.services.goals.coach_notes import _own_goal
 
-        db_session.add(orgConfig)
-        db_session.commit()
-
-    return {"message": "Migration successful"}
-
-
-@router.post("/migrate_orgconfig_v1_to_v1.1")
-async def migratev1_1(
-    db_session: Session = Depends(get_db_session),
-    current_user: PublicUser = Depends(get_authenticated_user),
-):
-    """
-    Migrate organization config from v1 to v1.1
-    """
-    _require_superadmin(current_user)
-    statement = select(OrganizationConfig)
-    result = db_session.exec(statement)
-
-    for orgConfig in result:
-        orgConfig.config = migrate_to_v1_1(orgConfig.config)
-
-        db_session.add(orgConfig)
-        db_session.commit()
-
-    return {"message": "Migration successful"}
-
-@router.post("/migrate_orgconfig_v1_to_v1.2")
-async def migratev1_2(
-    db_session: Session = Depends(get_db_session),
-    current_user: PublicUser = Depends(get_authenticated_user),
-):
-    """
-    Migrate organization config from v1 to v1.2
-    """
-    _require_superadmin(current_user)
-    statement = select(OrganizationConfig)
-    result = db_session.exec(statement)
-
-    for orgConfig in result:
-        orgConfig.config = migrate_to_v1_2(orgConfig.config)
-
-        db_session.add(orgConfig)
-        db_session.commit()
-
-    return {"message": "Migration successful"}
+    goal = _own_goal(db_session, current_user.id, goal_uuid)
+    notes = check_ins.check_in(db_session, goal, datetime.utcnow() + check_ins.FIRST_CHECK_IN + timedelta(minutes=1))
+    return {"created": [note.note_uuid for note in notes]}

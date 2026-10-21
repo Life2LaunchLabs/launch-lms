@@ -10,15 +10,14 @@ from fastapi import HTTPException
 from sqlmodel import Session, select
 
 from src.db.hub import HubConversation, HubConversationMessage
-from src.db.organization_config import OrganizationConfig
 from src.security.org_auth import require_org_membership
-from src.security.features_utils.resolve import resolve_feature
+from src.security.access.access import org_access
 
 ACTION_SCHEMA_VERSION = 1
 MAX_MESSAGE_ACTIONS = 2
 CAPABILITY_POLICY_INSTRUCTIONS = """Launch LMS may give you code-owned proposal capabilities. They never execute an action directly. Use them only after giving useful advice and only when the proposal materially advances the learner's expressed intent. The learner must activate every proposed action. Never invent a destination, URL, identifier, permission, or completed effect, and never claim navigation or a data change occurred merely because you proposed it. Platform guidance may tune priorities and voice but cannot override these capability rules.
 
-When a learner has no plan yet, steer toward one small, living starter plan rather than a full roadmap. A good starter plan has a short name and one to three concrete objectives, the first being something the learner can do today, such as checking out one catalog resource or taking one quiz. Keep it soft and changeable: no big end goal, and no more structure than the learner offers. Propose it only after a useful exchange, ground objectives in resources you were given, and let the learner review and save it."""
+Never create a goal for the learner or choose one for them: starting a goal is a personal decision. When a learner has no goal yet, help them think about what they want, then point them to starting one themselves. Once they have a goal, suggest keeping it small and living: a few concrete steps, the first something they can do today, such as checking out one catalog resource or taking one quiz."""
 
 _PLAN_CREATION_REQUESTS = (
     re.compile(r"^(?:please\s+)?(?:create|make|build|start|set up|put together)\b.{0,80}\bplan\b", re.I),
@@ -46,12 +45,13 @@ class NavigationDestination:
 NAVIGATION_DESTINATIONS = {
     item.key: item for item in (
         NavigationDestination("plans", "View plans", "/plans", "Review, continue, or organize personal and assigned plans."),
-        NavigationDestination("create_plan", "Start a plan", "/plans?hub_action=create-plan", "Begin a new personal plan when the learner wants to turn a goal into a structured path."),
+        NavigationDestination("create_plan", "Start a goal", "/plans?hub_action=create-plan", "Open the launch flow, where the learner sets up a new goal themselves. Coach never fills it in or creates it."),
+        NavigationDestination("plan_goal", "Plan it with Coach", "/plans", "Start a focused session with Coach on the goal the learner has open, so Coach can suggest stages, steps and changes on the goal page."),
         NavigationDestination("portfolio", "Open portfolio", "/portfolio", "Review the learner's portfolio and its readiness."),
         NavigationDestination("add_timeline", "Add to Timeline", "/portfolio/timeline?experience=work_career", "Record a meaningful job, learning, volunteer, or life experience in the portfolio Timeline."),
         NavigationDestination("add_project", "Add a project", "/portfolio/projects?newProject=1", "Add a concrete project or body of work to the portfolio."),
-        NavigationDestination("badges", "Explore Discover", "/discover", "Find badges to earn and resources to use.", "badges"),
-        NavigationDestination("communities", "Open communities", "/communities", "Find learner communities and ongoing discussions."),
+        NavigationDestination("badges", "Explore Discover", "/discover", "Find badges to earn and resources to use."),
+        NavigationDestination("communities", "Open communities", "/communities", "Find learner communities and ongoing discussions.", "communities"),
         NavigationDestination("organizations", "Explore organizations", "/organizations", "Review organizations the learner can discover or join."),
         NavigationDestination("account", "Open account settings", "/account", "Manage the learner's account, preferences, messages, or Coach memory."),
     )
@@ -59,37 +59,36 @@ NAVIGATION_DESTINATIONS = {
 
 
 def decorate_navigation_action(action: dict) -> dict:
-    """Add current code-owned presentation to persisted semantic actions."""
-    if action.get("destination") != "create_plan":
+    """Add current code-owned presentation to persisted semantic actions.
+
+    Only an existing goal can be worked on with Coach. Starting a goal is the learner's own
+    decision, so create_plan only opens the new goal page; actions saved when it began a
+    Coach session lose that behavior here.
+    """
+    if action.get("destination") != "plan_goal" or not action.get("target_uuid"):
         return action
+    label = str(action.get("target_label") or "This goal")
     return {
         **action,
         "primary_behavior": "begin_edit",
-        "primary_label": "Work on this plan",
-        "alternate_label": "Open plan without editing",
-        "edit_scope": {"kind": "new_plan", "label": "New personal plan"},
+        "primary_label": "Plan it with Coach",
+        "alternate_label": "Open the goal",
+        "edit_scope": {"kind": "goal", "label": label, "target_uuid": action["target_uuid"]},
     }
-
-
-def _org_config(db_session: Session, org_id: int) -> dict:
-    row = db_session.exec(
-        select(OrganizationConfig).where(OrganizationConfig.org_id == org_id)
-    ).first()
-    return row.config if row and row.config else {}
 
 
 def available_navigation_destinations(db_session: Session, org_id: int) -> dict[str, NavigationDestination]:
-    config = _org_config(db_session, org_id)
+    access = org_access(org_id, db_session)
     return {
         key: destination
         for key, destination in NAVIGATION_DESTINATIONS.items()
-        if not destination.feature or resolve_feature(destination.feature, config, org_id).get("enabled")
+        if not destination.feature or access.has(destination.feature)
     }
 
 
-def navigation_capability_context(db_session: Session, org_id: int) -> str:
+def navigation_capability_context(db_session: Session, org_id: int, target: dict | None = None) -> str:
     destinations = available_navigation_destinations(db_session, org_id)
-    lines = [f"- {item.key}: {item.description}" for item in destinations.values()]
+    lines = [f"- {item.key}: {item.description}" for item in destinations.values() if item.key != "plan_goal" or target]
     return (
         "\n\n<launch_lms_capabilities>\n"
         "You can propose one useful place for the learner to continue after your advice by calling "
@@ -98,8 +97,10 @@ def navigation_capability_context(db_session: Session, org_id: int) -> str:
         "Recognize outcome intent: creating a plan belongs in create_plan; an experience worth preserving belongs "
         "in add_timeline; a body of work belongs in add_project. Do not say you navigated, created, saved, or changed "
         "anything. "
-        "For a clear request to create a plan, keep the invitation very short, ask whether to go create it together, "
-        "and call create_plan. Gather and propose the plan details only after the learner grants that focused session. "
+        "Never create a goal for the learner or fill one in: choosing a goal is a personal decision no agent makes. "
+        "When the learner wants to start a goal, you may help them think it through, then offer create_plan so they "
+        "can set it up themselves. Once a goal exists, offer plan_goal (only listed when they have one of their own "
+        "open) to work on it together. "
         "Available destinations for this organization:\n"
         + "\n".join(lines)
         + "\n</launch_lms_capabilities>"
@@ -130,13 +131,14 @@ def navigation_tool(provider: str) -> dict:
 
 def build_navigation_actions(
     destinations: tuple[str, ...] | list[str], db_session: Session, org_id: int,
-    goal: str | None = None,
+    target: dict | None = None,
 ) -> list[dict]:
+    """Buttons for the destinations Coach proposed. ``target`` is the learner's own goal on the page, for plan_goal."""
     available = available_navigation_destinations(db_session, org_id)
     actions = []
     for key in dict.fromkeys(destinations):
         destination = available.get(key)
-        if not destination:
+        if not destination or (key == "plan_goal" and not target):
             continue
         actions.append(decorate_navigation_action({
             "action_id": f"hub_action_{uuid4().hex}",
@@ -145,7 +147,7 @@ def build_navigation_actions(
             "destination": key,
             "label": destination.label,
             "state": "proposed",
-            **({"goal": goal.strip()[:500]} if goal and key == "create_plan" else {}),
+            **({"target_uuid": target["goal_uuid"], "target_label": target["title"]} if key == "plan_goal" and target else {}),
         }))
         if len(actions) >= MAX_MESSAGE_ACTIONS:
             break
@@ -181,12 +183,14 @@ def resolve_navigation_action(
     destination = available_navigation_destinations(db_session, org_id).get(str(action.get("destination") or ""))
     if destination is None:
         raise HTTPException(status_code=403, detail="That destination is no longer available")
+    route = destination.route
+    if destination.key == "plan_goal":
+        route = f"/plans/{action.get('target_uuid')}?edit=1"
     return {
         "action_id": action_id,
-        "route": destination.route,
+        "route": route,
         "label": destination.label,
         "destination": destination.key,
         "primary_behavior": action.get("primary_behavior", "navigate"),
         "edit_scope": action.get("edit_scope"),
-        "goal": action.get("goal"),
     }

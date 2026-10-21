@@ -16,6 +16,12 @@ export interface BlockDesign {
   variant?: "primary" | "secondary"
   /** Buttons sharing a group render side by side. */
   group?: string
+  /** How the block enters; blocks rise in, staggered in page order, by default. */
+  entrance?: "rise" | "fade" | "none"
+  /** Continue buttons only: `footer` draws the button beside Continue as a secondary action. */
+  placement?: "inline" | "footer"
+  /** Choice questions only: how options are drawn. Cards show each option's `icon` and `description`. */
+  style?: "list" | "pills" | "scale" | "cards"
 }
 
 /** Set by the platform on system activities; not editable by admins. */
@@ -41,10 +47,33 @@ export interface ButtonContent {
   revisit_page_uuid?: string
 }
 
+/** Bars that grow in, such as steps done each week. */
+export interface ChartBlock {
+  /** Unique within the page. */
+  id: string
+  design?: BlockDesign
+  system?: BlockSystem
+  type: "chart"
+  content: ChartContent
+}
+
+export interface ChartContent {
+  kind?: "bars"
+  title?: string
+  values?: Array<number>
+  labels?: Array<string>
+  /** Read the values from a list variable instead, such as `goal.stats.weekly`. */
+  binding?: DisplayBinding
+}
+
 export interface ChoiceOption {
   id: string
   text?: string
   category?: string
+  /** An emoji or short mark shown on pills, scale steps and cards. */
+  icon?: string
+  /** A line under the option on cards. */
+  description?: string
   [key: string]: any
 }
 
@@ -110,9 +139,34 @@ export interface ImageContent {
   [key: string]: any
 }
 
+/** A medal that lands on the page. */
+export interface MedalBlock {
+  /** Unique within the page. */
+  id: string
+  design?: BlockDesign
+  system?: BlockSystem
+  type: "medal"
+  content: MedalContent
+}
+
+export interface MedalContent {
+  title?: string
+  subtitle?: string
+  /** An image for the medal's face, such as a badge's; a star when empty. */
+  image?: string
+}
+
 export interface Negation {
   op: "not"
   condition: Comparison | AllOf | Negation
+}
+
+/** Where a choice question's options come from when they aren't typed in. */
+export interface OptionsSource {
+  /** `goal_templates`: plan templates the learner can start from, ranked by the goal's wording, with a search for more. The run must belong to a goal. */
+  kind: "goal_templates"
+  /** How many options show before "See more". */
+  limit?: number
 }
 
 /** Show different blocks depending on an earlier question's answer. */
@@ -165,6 +219,8 @@ export interface QuestionCompletion {
 export interface QuestionContent {
   label?: string
   options?: Array<ChoiceOption>
+  /** Options come from this source instead of `options`; bind the choice with `variable_bindings.selected`. */
+  options_source?: OptionsSource
   categories?: Array<Record<string, any>>
   inputs?: Array<TextInputField>
   [key: string]: any
@@ -181,14 +237,53 @@ export interface QuestionScoring {
   [key: string]: any
 }
 
+/** A pull quote that fades in line by line. */
+export interface QuoteBlock {
+  /** Unique within the page. */
+  id: string
+  design?: BlockDesign
+  system?: BlockSystem
+  type: "quote"
+  content: QuoteContent
+}
+
+export interface QuoteContent {
+  text?: string
+  attribution?: string
+  /** Read the quote from an earlier answer or a variable, such as `goal.why`. */
+  binding?: DisplayBinding
+}
+
 /** Standard page content (version 2). */
 export interface StandardPageContent {
   version?: 2
-  blocks?: Array<TextBlock | ImageBlock | ButtonBlock | QuestionBlock | PortfolioPreviewBlock>
+  blocks?: Array<TextBlock | ImageBlock | ButtonBlock | QuestionBlock | PortfolioPreviewBlock | StatBlock | QuoteBlock | ChartBlock | MedalBlock>
   /** Label for the page's continue action. */
   action_label?: string
   variants?: PageVariants
   [key: string]: any
+}
+
+/** A row of up to four numbers that count up as the page opens. */
+export interface StatBlock {
+  /** Unique within the page. */
+  id: string
+  design?: BlockDesign
+  system?: BlockSystem
+  type: "stat"
+  content: StatContent
+}
+
+export interface StatContent {
+  items: Array<StatItem>
+}
+
+export interface StatItem {
+  /** The number to show; counts up when it is a number. */
+  value?: number | string
+  label?: string
+  /** Read the value from a variable instead, such as `goal.stats.steps_done`. */
+  binding?: DisplayBinding
 }
 
 export interface TextBlock {
@@ -220,7 +315,7 @@ export interface TextInputField {
 }
 
 export interface VariantOverride {
-  blocks?: Array<TextBlock | ImageBlock | ButtonBlock | QuestionBlock | PortfolioPreviewBlock>
+  blocks?: Array<TextBlock | ImageBlock | ButtonBlock | QuestionBlock | PortfolioPreviewBlock | StatBlock | QuoteBlock | ChartBlock | MedalBlock>
   [key: string]: any
 }
 

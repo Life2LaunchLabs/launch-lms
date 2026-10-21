@@ -1,20 +1,17 @@
 'use client'
 import React from 'react'
-import Link from 'next/link'
 import { useTranslation } from 'react-i18next'
 import {
   MessageCircle,
   Plus,
   Globe,
   Lock,
-  Settings,
   Calendar,
 } from 'lucide-react'
 import { Community } from '@services/communities/communities'
 import { getCommunityThumbnailMediaDirectory } from '@services/media/media'
 import { useCommunityRights } from '@components/Hooks/useCommunityRights'
 import { useOrg } from '@components/Contexts/OrgContext'
-import { getUriWithOrg, routePaths } from '@services/config/config'
 import dayjs from 'dayjs'
 import { SafeImage } from '@components/Objects/SafeImage'
 
@@ -28,11 +25,10 @@ interface CommunitySidebarProps {
 export function CommunitySidebar({
   community,
   discussionCount,
-  orgslug,
   onCreateDiscussion,
 }: CommunitySidebarProps) {
   const { t } = useTranslation()
-  const { canManageCommunity, canCreateDiscussion } = useCommunityRights(community.community_uuid)
+  const { canCreateDiscussion } = useCommunityRights(community.community_uuid)
   const org = useOrg() as any
   const createdDate = dayjs(community.creation_date).format('MMM D, YYYY')
   const ownerOrgUuid = community.owner_org_uuid || org?.org_uuid
@@ -115,15 +111,6 @@ export function CommunitySidebar({
             </button>
           )}
 
-          {canManageCommunity && (
-            <Link
-              href={getUriWithOrg(orgslug, routePaths.org.dash.communities())}
-              className="w-full bg-card text-muted-foreground border border-border py-2.5 rounded-lg font-medium hover:bg-muted transition-colors flex items-center justify-center gap-2 text-sm"
-            >
-              <Settings className="w-4 h-4" />
-              {t('communities.manage')}
-            </Link>
-          )}
         </div>
       </div>
 

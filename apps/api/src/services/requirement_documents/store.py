@@ -15,9 +15,7 @@ from fastapi import HTTPException
 from pydantic import ValidationError
 from sqlmodel import Session, func, select
 
-from src.db.programs import Objective, Program, ProgramObjective
 from src.db.requirements import (
-    ProgramObjectiveRequirement,
     RequirementEnrollment,
     RequirementEnrollmentStatus,
     RequirementFramework,
@@ -90,19 +88,22 @@ def document_etag(document: dict) -> str:
 
 
 def framework_links(db: Session, framework: RequirementFramework) -> dict[str, list[dict]]:
-    """Template objectives linked to each node of this framework."""
-    rows = db.exec(
-        select(ProgramObjectiveRequirement, Program, Objective)
-        .join(ProgramObjective, ProgramObjective.id == ProgramObjectiveRequirement.program_objective_id)  # type: ignore[arg-type]
-        .join(Program, Program.id == ProgramObjective.program_id)  # type: ignore[arg-type]
-        .join(Objective, Objective.id == ProgramObjective.objective_id)  # type: ignore[arg-type]
-        .where(ProgramObjectiveRequirement.framework_id == framework.id)
-    ).all()
+    """Goal template steps (in each template's draft) linked to each node of this framework."""
+    from src.db.goals import GoalTemplate
+    from src.services.goals.document import iter_steps
+
+    nodes = set(db.exec(
+        select(RequirementNode.node_uuid).join(RequirementFrameworkVersion, RequirementFrameworkVersion.id == RequirementNode.version_id)  # type: ignore[arg-type]
+        .where(RequirementFrameworkVersion.framework_id == framework.id)
+    ).all())
     links: dict[str, list[dict]] = {}
-    for mapping, program, objective in rows:
-        links.setdefault(mapping.node_uuid, []).append(
-            {"template_uuid": program.program_uuid, "template_name": program.name, "objective_uuid": objective.objective_uuid, "objective_title": objective.title}
-        )
+    for template in db.exec(select(GoalTemplate).where(GoalTemplate.org_id == framework.org_id).order_by(GoalTemplate.id)).all():  # type: ignore[arg-type]
+        for _, step in iter_steps(template.document or {}):
+            for node_uuid in step.get("requirement_node_uuids") or []:
+                if node_uuid in nodes:
+                    links.setdefault(node_uuid, []).append(
+                        {"template_uuid": template.template_uuid, "template_title": template.title, "step_key": step.get("key"), "step_title": step.get("title") or ""}
+                    )
     return links
 
 
@@ -131,7 +132,7 @@ def _envelope(db: Session, framework: RequirementFramework) -> dict:
             "versions": [{"version": item.version_number, "status": _value(item.status), "published_at": item.published_at} for item in versions],
             "active_enrollments": active,
             "published_to_library": framework.library_published_version is not None,
-            "linked_objectives": links,
+            "linked_steps": links,
             "unlinked_leaf_nodes": [{"node_uuid": node["node_uuid"], "code": node["code"], "title": node["title"]} for node in leaves if node["node_uuid"] not in links],
         },
     }
@@ -238,9 +239,9 @@ def _check(db: Session, raw, framework: RequirementFramework | None) -> tuple[Re
         kept = {node["node_uuid"] for node in normalized}
         parents = {node["parent_node_uuid"] for node in normalized if node["parent_node_uuid"]}
         for node_uuid, linked in links.items():
-            names = ", ".join(f"{item['template_name']}: {item['objective_title']}" for item in linked)
+            names = ", ".join(f"{item['template_title']}: {item['step_title']}" for item in linked)
             if node_uuid not in kept:
-                warnings.append({"path": "nodes", "message": f"Removes a requirement linked to {len(linked)} objective(s) ({names}); those links stop earning credit"})
+                warnings.append({"path": "nodes", "message": f"Removes a requirement linked to {len(linked)} step(s) ({names}); those links stop earning credit"})
             elif node_uuid in parents:
                 warnings.append({"path": "nodes", "message": f"A linked requirement now has children; only leaf requirements earn credit ({names})"})
 
@@ -257,18 +258,18 @@ def _framework(db: Session, org_id: int, framework_uuid: str) -> RequirementFram
 
 
 def get_framework_document(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     return _envelope(db, _framework(db, org_id, framework_uuid))
 
 
 def validate_framework_document(db: Session, current_user: PublicUser, org_id: int, raw, framework_uuid: str | None = None) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     framework = _framework(db, org_id, framework_uuid) if framework_uuid else None
     return _check(db, raw, framework)[1]
 
 
 def save_framework_document(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str, raw, base_etag: str) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     framework = _framework(db, org_id, framework_uuid)
     current = _envelope(db, framework)
     if base_etag != current["etag"]:
@@ -294,7 +295,7 @@ def save_framework_document(db: Session, current_user: PublicUser, org_id: int, 
 
 
 def create_framework_from_document(db: Session, current_user: PublicUser, org_id: int, raw) -> dict:
-    require_org_admin(current_user.id, org_id, db)
+    require_org_admin(current_user.id, org_id, db, "build_plans")
     document, report, prepared = _check(db, raw, None)
     if document is None or not report["valid"]:
         raise _reject(report)

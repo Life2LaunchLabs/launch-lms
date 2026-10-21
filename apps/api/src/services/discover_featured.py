@@ -8,12 +8,10 @@ from sqlalchemy import inspect
 from sqlmodel import Session, select
 
 from src.db.discover import DiscoverSettings, DiscoverSlide
-from src.db.learning import LearningBadge
 from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
 from src.db.users import PublicUser
 from src.security.org_auth import require_org_admin
-from src.services.learning import lookups
 
 
 def _site(db: Session, org_id: int | None) -> Organization | None:
@@ -44,14 +42,14 @@ def _settings(config: OrganizationConfig | None) -> DiscoverSettings:
         return DiscoverSettings()
 
 
-def _sources(db: Session, user_id: int | None = None, catalog: tuple[list, list, list] | None = None) -> dict:
+def _sources(db: Session, user_id: int | None = None, catalog: tuple[list, list, list] | None = None, site_org_id: int | None = None) -> dict:
     """Publishable hero sources. ``catalog`` (badges, cards, collections) reuses the cards Discover already built."""
-    from src.services.badge_discover import _cards, _collection_dict, _public_collections
+    from src.services.badge_discover import _cards, _collection_dict, _public_collections, discoverable
 
     if catalog:
         badges, cards, collections = catalog
     else:
-        badges = list(db.exec(lookups._public_badge_query().order_by(LearningBadge.id)).all())
+        badges = discoverable(db, site_org_id=site_org_id)
         cards = _cards(db, badges, user_id)
         collections = _public_collections(db, None)
     groups = {int(collection.id): [] for collection in collections}
@@ -86,7 +84,7 @@ def hero_slides(db: Session, org_id: int | None, featured: list[dict], user_id: 
     settings = _settings(_config(db, int(site.id)))
     if not settings.enabled:
         return []
-    sources = _sources(db, user_id, catalog)
+    sources = _sources(db, user_id, catalog, int(site.id))
     if settings.mode == "curated":
         chosen = settings.slides
     else:
@@ -94,7 +92,7 @@ def hero_slides(db: Session, org_id: int | None, featured: list[dict], user_id: 
         series = [DiscoverSlide(kind="collection", target=uuid, theme="light") for uuid, collection in sources["collection"].items() if len(collection["badges"]) > 1][:1]
         chosen = (badges + series)[:5]
         if not chosen:
-            chosen = [DiscoverSlide(kind="link", target="/plans", title="Find your next chapter", description="Explore badges and put your next step into a plan.", eyebrow="Discover", action_label="Explore your plans", image_url="/jungle_landscape.jpg")]
+            chosen = [DiscoverSlide(kind="link", target="/plans", title="Find your next chapter", description="Explore badges and turn your next step into a goal.", eyebrow="Discover", action_label="Go to your goals", image_url="/jungle_landscape.jpg")]
         chosen.append(DiscoverSlide(kind="challenges", target="challenges", image_url="/jungle_landscape.jpg"))
     return [resolved for slide in chosen if (resolved := _resolve(slide, sources)) is not None]
 
@@ -102,7 +100,7 @@ def hero_slides(db: Session, org_id: int | None, featured: list[dict], user_id: 
 def read_settings(db: Session, user: PublicUser, org_id: int) -> dict:
     require_org_admin(user.id, org_id, db)
     _site(db, org_id)
-    sources = _sources(db)
+    sources = _sources(db, site_org_id=org_id)
     return {
         "settings": _settings(_config(db, org_id)).model_dump(),
         "options": {
@@ -115,7 +113,7 @@ def read_settings(db: Session, user: PublicUser, org_id: int) -> dict:
 def save_settings(db: Session, user: PublicUser, org_id: int, settings: DiscoverSettings) -> dict:
     require_org_admin(user.id, org_id, db)
     _site(db, org_id)
-    sources = _sources(db)
+    sources = _sources(db, site_org_id=org_id)
     for slide in settings.slides if settings.enabled and settings.mode == "curated" else []:
         if slide.kind not in {"link", "challenges"} and slide.target not in sources[slide.kind]:
             raise HTTPException(422, "A featured source is no longer published or available. Choose another source.")

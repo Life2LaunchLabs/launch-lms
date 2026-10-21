@@ -7,12 +7,12 @@ from uuid import uuid4
 from fastapi import HTTPException, Request, status
 from sqlmodel import Session, select
 from src.db.learning import (
-    LearningAwardCreate,
     LearningAwardSource,
     LearningBadge,
     LearningBadgeAward,
     LearningBadgeVersion,
 )
+from src.db.learning_requests import LearningAwardCreate
 from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization
 from src.db.users import AnonymousUser, PublicUser, User
@@ -39,16 +39,16 @@ async def confer_award(
         data.issuing_org_id if data.issuing_org_id != badge.org_id else None
     )
     if issuing_org_id is not None:
-        admin = access_rules._require_org_admin(db_session, current_user, issuing_org_id)
-        from src.services.learning_issuers import active_issuers
+        admin = access_rules._require_org_admin(db_session, current_user, issuing_org_id, "review_work")
+        from src.services.goals.plan_issuers import may_issue
 
-        if issuing_org_id not in {org_id for org_id, _access, _authorization in active_issuers(db_session, badge)}:
+        if not may_issue(db_session, badge, issuing_org_id):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Your organization is not authorized to issue this badge",
             )
     else:
-        admin = access_rules._require_org_admin(db_session, current_user, badge.org_id)
+        admin = access_rules._require_org_admin(db_session, current_user, badge.org_id, "review_work")
     if not badge.direct_conferral_enabled:
         raise HTTPException(
             status_code=422, detail="Direct conferral is disabled for this badge"
@@ -83,6 +83,9 @@ async def confer_award(
     )
     db_session.add(award)
     db_session.commit()
+    from src.services.goals.completion import on_badge_awarded
+
+    on_badge_awarded(db_session, int(award.user_id), int(award.badge_id))
     db_session.refresh(award)
     return build_award_response(request, db_session, award)
 

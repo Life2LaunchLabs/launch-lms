@@ -10,7 +10,6 @@ from src.db.organization_config import (
     AuthBrandingConfig,
     BadgeIssuerConfig,
     OrganizationConfig,
-    OrganizationConfigBase,
     SeoOrgConfig,
 )
 from src.db.organizations import (
@@ -27,7 +26,7 @@ from src.security.rbac.rbac import (
     authorization_verify_based_on_org_admin_status,
     authorization_verify_if_user_is_anon,
 )
-from src.security.features_utils.usage import is_role_dashboard_enabled
+from src.security.access.access import access_from_config, is_staff_role, owner_org_id
 from src.services.orgs.uploads import (
     upload_org_auth_background,
     upload_org_favicon,
@@ -39,19 +38,12 @@ from src.services.orgs.uploads import (
 )
 
 
-def _build_org_read_with_resolved(org, org_config) -> OrganizationRead:
-    """Build OrganizationRead with resolved_features attached."""
-    from src.security.features_utils.resolve import resolve_all_features
-
-    config = OrganizationConfig.model_validate(org_config) if org_config else {}
-    org_read = OrganizationRead(**org.model_dump(), config=config)
-
-    # Attach resolved_features as extra data on the config
+def _build_org_read_with_access(org, org_config, owner_id: int | None) -> OrganizationRead:
+    """OrganizationRead with the org's resolved `access` (tier, features, limits, partners) on its config."""
+    org_read = OrganizationRead(**org.model_dump(), config=OrganizationConfig.model_validate(org_config) if org_config else {})
     if org_config and org_config.config:
-        resolved = resolve_all_features(org_config.config, org.id or 0)
-        # Inject into the config dict so it's returned in the response
-        config_dict = org_config.config.copy() if org_config.config else {}
-        config_dict["resolved_features"] = resolved
+        config_dict = dict(org_config.config)
+        config_dict["access"] = access_from_config(org_config.config, owner=org.id == owner_id).to_dict()
         org_read.config = OrganizationConfig(
             id=org_config.id,
             org_id=org_config.org_id,
@@ -59,7 +51,6 @@ def _build_org_read_with_resolved(org, org_config) -> OrganizationRead:
             creation_date=org_config.creation_date,
             update_date=org_config.update_date,
         )
-
     return org_read
 
 
@@ -92,7 +83,7 @@ async def get_organization_by_uuid(
     if org_config is None:
         logging.error(f"Organization {org_uuid} has no config")
 
-    return _build_org_read_with_resolved(org, org_config)
+    return _build_org_read_with_access(org, org_config, owner_org_id(db_session))
 
 
 async def get_organization_by_slug(
@@ -126,7 +117,7 @@ async def get_organization_by_slug(
     if org_config is None:
         logging.error(f"Organization {org_slug} has no config")
 
-    return _build_org_read_with_resolved(org, org_config)
+    return _build_org_read_with_access(org, org_config, owner_org_id(db_session))
 
 
 async def create_org(
@@ -180,99 +171,10 @@ async def create_org(
     from src.routers.users import _invalidate_session_cache
     _invalidate_session_cache(int(current_user.id))
 
-    from src.db.organization_config import OrganizationConfigV2Base
-    org_config = OrganizationConfigV2Base(
-        config_version="2.0",
-        plan="free",
-    )
+    from src.db.organization_config import OrganizationConfigDocument
+    org_config = OrganizationConfigDocument()
 
     org_config = json.loads(org_config.model_dump_json())
-
-    # OrgSettings
-    org_settings = OrganizationConfig(
-        org_id=int(org.id if org.id else 0),
-        config=org_config,
-        creation_date=str(datetime.now()),
-        update_date=str(datetime.now()),
-    )
-
-    db_session.add(org_settings)
-    db_session.commit()
-    db_session.refresh(org_settings)
-
-    # Get org config
-    statement = select(OrganizationConfig).where(OrganizationConfig.org_id == org.id)
-    result = db_session.exec(statement)
-
-    org_config = result.first()
-
-    if org_config is None:
-        logging.error(f"Organization {org.id} has no config")
-
-    config = OrganizationConfig.model_validate(org_config)
-
-    org = OrganizationRead(**org.model_dump(), config=config)
-
-    return org
-
-
-async def create_org_with_config(
-    request: Request,
-    org_object: OrganizationCreate,
-    current_user: PublicUser | AnonymousUser,
-    db_session: Session,
-    submitted_config: dict | OrganizationConfigBase,
-):
-    statement = select(Organization).where(Organization.slug == org_object.slug)
-    result = db_session.exec(statement)
-
-    org = result.first()
-
-    if org:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Organization already exists",
-        )
-
-    org = Organization.model_validate(org_object)
-
-    if isinstance(current_user, AnonymousUser):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="You should be logged in to be able to achieve this action",
-        )
-
-    # Complete the org object
-    org.org_uuid = f"org_{uuid4()}"
-    org.creation_date = str(datetime.now())
-    org.update_date = str(datetime.now())
-
-    db_session.add(org)
-    db_session.commit()
-    db_session.refresh(org)
-
-    # Link user to org
-    user_org = UserOrganization(
-        user_id=int(current_user.id),
-        org_id=int(org.id if org.id else 0),
-        role_id=1,
-        creation_date=str(datetime.now()),
-        update_date=str(datetime.now()),
-    )
-
-    db_session.add(user_org)
-    db_session.commit()
-    db_session.refresh(user_org)
-
-    # Invalidate session cache so the new org role is picked up immediately
-    from src.routers.users import _invalidate_session_cache
-    _invalidate_session_cache(int(current_user.id))
-
-    # Support both dict (v2) and Pydantic model (v1) inputs
-    if isinstance(submitted_config, dict):
-        org_config = submitted_config
-    else:
-        org_config = json.loads(submitted_config.model_dump_json())
 
     # OrgSettings
     org_settings = OrganizationConfig(
@@ -352,53 +254,6 @@ async def update_org(
     return org
 
 
-async def update_org_with_config_no_auth(
-    request: Request,
-    orgconfig: dict | OrganizationConfigBase,
-    org_id: int,
-    db_session: Session,
-):
-    statement = select(Organization).where(Organization.id == org_id)
-    result = db_session.exec(statement)
-
-    org = result.first()
-
-    if not org:
-        raise HTTPException(
-            status_code=404,
-            detail="Organization slug not found",
-        )
-
-    # Get org config
-    statement = select(OrganizationConfig).where(OrganizationConfig.org_id == org.id)
-    result = db_session.exec(statement)
-
-    org_config = result.first()
-
-    if org_config is None:
-        logging.error(f"Organization {org_id} has no config")
-        raise HTTPException(
-            status_code=404,
-            detail="Organization config not found",
-        )
-
-    # Support both dict (v2) and Pydantic model (v1) inputs
-    if isinstance(orgconfig, dict):
-        config_dict = orgconfig
-    else:
-        config_dict = json.loads(orgconfig.model_dump_json())
-
-    # Update the database
-    org_config.config = config_dict
-    org_config.update_date = str(datetime.now())
-
-    db_session.add(org_config)
-    db_session.commit()
-    db_session.refresh(org_config)
-
-    return {"detail": "Organization updated"}
-
-
 async def update_org_logo(
     request: Request,
     logo_file: UploadFile,
@@ -475,13 +330,8 @@ async def update_org_favicon(
 
     updated_config = _deep_copy_config(org_config)
 
-    if _is_v2_config(updated_config):
-        updated_config.setdefault("customization", {}).setdefault("general", {})
-        updated_config["customization"]["general"]["favicon_image"] = name_in_disk
-    else:
-        if "general" not in updated_config:
-            updated_config["general"] = {"enabled": True, "color": "", "footer_text": "", "favicon_image": "", "auth_branding": {}}
-        updated_config["general"]["favicon_image"] = name_in_disk
+    updated_config.setdefault("customization", {}).setdefault("general", {})
+    updated_config["customization"]["general"]["favicon_image"] = name_in_disk
 
     org_config.config = updated_config
     org_config.update_date = str(datetime.now())
@@ -653,7 +503,7 @@ async def get_orgs_by_user_admin(
 
     # Execute single query to get all data
     result = db_session.exec(statement)
-    authorized_org_data = [row for row in result.all() if is_role_dashboard_enabled(row[2])]
+    authorized_org_data = [row for row in result.all() if is_staff_role(row[2])]
     org_data = authorized_org_data[(page - 1) * limit:page * limit]
 
     # Process results in memory
@@ -702,16 +552,7 @@ async def get_orgs_by_user(
 
 
 def _extract_signup_mode_from_config(org_config: OrganizationConfig | None) -> str:
-    if not org_config:
-        return "open"
-
-    config = org_config.config or {}
-    version = config.get("config_version", "1.0")
-
-    if version.startswith("2"):
-        return config.get("admin_toggles", {}).get("members", {}).get("signup_mode", "open")
-
-    return config.get("features", {}).get("members", {}).get("signup_mode", "open")
+    return ((org_config.config if org_config else None) or {}).get("signup_mode", "open")
 
 
 def _build_discover_org_read(
@@ -719,8 +560,9 @@ def _build_discover_org_read(
     org_config: OrganizationConfig | None,
     is_member: bool,
     member_count: int,
+    owner_id: int | None,
 ) -> OrganizationDiscoverRead:
-    org_read = _build_org_read_with_resolved(org, org_config)
+    org_read = _build_org_read_with_access(org, org_config, owner_id)
     payload = org_read.model_dump()
     payload["signup_mode"] = _extract_signup_mode_from_config(org_config)
     payload["is_member"] = is_member
@@ -784,12 +626,14 @@ async def list_discoverable_orgs(
         ).all()
         visible_member_org_ids = set(member_rows)
 
+    owner_id = owner_org_id(db_session)
     return [
         _build_discover_org_read(
             org,
             org_config,
             org.id in visible_member_org_ids if org.id is not None else False,
             member_counts_map.get(org.id or 0, 0),
+            owner_id,
         )
         for org, org_config in org_rows
     ]
@@ -835,18 +679,13 @@ async def get_discoverable_org_by_slug(
         select(func.count()).where(UserOrganization.org_id == org.id)
     ).one()
 
-    return _build_discover_org_read(org, org_config, is_member, member_count)
+    return _build_discover_org_read(org, org_config, is_member, member_count, owner_org_id(db_session))
 
 
 # Config related
 def _deep_copy_config(org_config: OrganizationConfig) -> dict:
     """Deep copy config dict so SQLAlchemy detects changes."""
     return json.loads(json.dumps(org_config.config or {}))
-
-
-def _is_v2_config(config: dict) -> bool:
-    """Check if config is v2 format."""
-    return config.get("config_version", "1.0").startswith("2")
 
 
 async def update_org_signup_mechanism(
@@ -885,14 +724,7 @@ async def update_org_signup_mechanism(
 
     updated_config = _deep_copy_config(org_config)
 
-    if _is_v2_config(updated_config):
-        updated_config.setdefault("admin_toggles", {}).setdefault("members", {})
-        updated_config["admin_toggles"]["members"]["signup_mode"] = signup_mechanism
-    else:
-        updated_config.setdefault("features", {}).setdefault("members", {
-            "enabled": True, "signup_mode": "open", "admin_limit": 1, "limit": 10
-        })
-        updated_config["features"]["members"]["signup_mode"] = signup_mechanism
+    updated_config["signup_mode"] = signup_mechanism
 
     org_config.config = updated_config
     org_config.update_date = str(datetime.now())
@@ -902,217 +734,6 @@ async def update_org_signup_mechanism(
     db_session.refresh(org_config)
 
     return {"detail": "Signup mechanism updated"}
-
-
-async def update_org_ai_config(
-    request: Request,
-    ai_enabled: bool | None,
-    org_id: int,
-    current_user: PublicUser | AnonymousUser,
-    db_session: Session,
-    copilot_enabled: bool | None = None,
-):
-    statement = select(Organization).where(Organization.id == org_id)
-    result = db_session.exec(statement)
-
-    org = result.first()
-
-    if not org:
-        raise HTTPException(
-            status_code=404,
-            detail="Organization not found",
-        )
-
-    # RBAC check
-    await rbac_check(request, org.org_uuid, current_user, "update", db_session)
-
-    # Get org config
-    statement = select(OrganizationConfig).where(OrganizationConfig.org_id == org.id)
-    result = db_session.exec(statement)
-
-    org_config = result.first()
-
-    if org_config is None:
-        logging.error(f"Organization {org_id} has no config")
-        raise HTTPException(
-            status_code=404,
-            detail="Organization config not found",
-        )
-
-    updated_config = _deep_copy_config(org_config)
-
-    if _is_v2_config(updated_config):
-        updated_config.setdefault("admin_toggles", {}).setdefault("ai", {})
-        if ai_enabled is not None:
-            updated_config["admin_toggles"]["ai"]["disabled"] = not ai_enabled
-        if copilot_enabled is not None:
-            updated_config["admin_toggles"]["ai"]["copilot_enabled"] = copilot_enabled
-    else:
-        updated_config.setdefault("features", {}).setdefault("ai", {"enabled": True, "limit": 10})
-        if ai_enabled is not None:
-            updated_config["features"]["ai"]["enabled"] = ai_enabled
-        if copilot_enabled is not None:
-            updated_config["features"]["ai"]["copilot_enabled"] = copilot_enabled
-        if "model" in updated_config["features"]["ai"]:
-            del updated_config["features"]["ai"]["model"]
-
-    org_config.config = updated_config
-    org_config.update_date = str(datetime.now())
-
-    db_session.add(org_config)
-    db_session.commit()
-    db_session.refresh(org_config)
-
-    return {"detail": "AI configuration updated"}
-
-
-async def _update_feature_toggle(
-    request: Request,
-    feature: str,
-    enabled: bool,
-    org_id: int,
-    current_user: PublicUser | AnonymousUser,
-    db_session: Session,
-    v1_default: dict | None = None,
-) -> dict:
-    """Generic helper for updating a feature's enabled/disabled state."""
-    statement = select(Organization).where(Organization.id == org_id)
-    org = db_session.exec(statement).first()
-
-    if not org:
-        raise HTTPException(status_code=404, detail="Organization not found")
-
-    await rbac_check(request, org.org_uuid, current_user, "update", db_session)
-
-    statement = select(OrganizationConfig).where(OrganizationConfig.org_id == org.id)
-    org_config = db_session.exec(statement).first()
-
-    if org_config is None:
-        raise HTTPException(status_code=404, detail="Organization config not found")
-
-    updated_config = _deep_copy_config(org_config)
-
-    if _is_v2_config(updated_config):
-        updated_config.setdefault("admin_toggles", {}).setdefault(feature, {})
-        updated_config["admin_toggles"][feature]["disabled"] = not enabled
-    else:
-        updated_config.setdefault("features", {})
-        if feature not in updated_config["features"]:
-            updated_config["features"][feature] = v1_default or {"enabled": True}
-        updated_config["features"][feature]["enabled"] = enabled
-
-    org_config.config = updated_config
-    org_config.update_date = str(datetime.now())
-
-    db_session.add(org_config)
-    db_session.commit()
-    db_session.refresh(org_config)
-
-    return {"detail": f"{feature.capitalize()} configuration updated"}
-
-
-async def update_org_communities_config(
-    request: Request,
-    communities_enabled: bool,
-    org_id: int,
-    current_user: PublicUser | AnonymousUser,
-    db_session: Session,
-):
-    return await _update_feature_toggle(
-        request, "communities", communities_enabled, org_id, current_user, db_session,
-        v1_default={"enabled": True},
-    )
-
-
-async def update_org_payments_config(
-    request: Request,
-    payments_enabled: bool,
-    org_id: int,
-    current_user: PublicUser | AnonymousUser,
-    db_session: Session,
-):
-    return await _update_feature_toggle(
-        request, "payments", payments_enabled, org_id, current_user, db_session,
-        v1_default={"enabled": False},
-    )
-
-
-async def update_org_badge_collections_config(
-    request: Request,
-    badge_collections_enabled: bool,
-    org_id: int,
-    current_user: PublicUser | AnonymousUser,
-    db_session: Session,
-):
-    return await _update_feature_toggle(
-        request, "badge_collections", badge_collections_enabled, org_id, current_user, db_session,
-        v1_default={"enabled": True},
-    )
-
-
-async def update_org_badges_config(
-    request: Request,
-    badges_enabled: bool,
-    org_id: int,
-    current_user: PublicUser | AnonymousUser,
-    db_session: Session,
-):
-    return await _update_feature_toggle(
-        request, "badges", badges_enabled, org_id, current_user, db_session,
-        v1_default={"enabled": True, "limit": 100},
-    )
-
-
-async def update_org_podcasts_config(
-    request: Request,
-    podcasts_enabled: bool,
-    org_id: int,
-    current_user: PublicUser | AnonymousUser,
-    db_session: Session,
-):
-    return await _update_feature_toggle(
-        request, "podcasts", podcasts_enabled, org_id, current_user, db_session,
-        v1_default={"enabled": False, "limit": 10},
-    )
-
-
-async def update_org_boards_config(
-    request: Request,
-    boards_enabled: bool,
-    org_id: int,
-    current_user: PublicUser | AnonymousUser,
-    db_session: Session,
-):
-    return await _update_feature_toggle(
-        request, "boards", boards_enabled, org_id, current_user, db_session,
-        v1_default={"enabled": False, "limit": 10},
-    )
-
-
-async def update_org_playgrounds_config(
-    request: Request,
-    playgrounds_enabled: bool,
-    org_id: int,
-    current_user: PublicUser | AnonymousUser,
-    db_session: Session,
-):
-    return await _update_feature_toggle(
-        request, "playgrounds", playgrounds_enabled, org_id, current_user, db_session,
-        v1_default={"enabled": False, "limit": 10},
-    )
-
-
-async def update_org_resources_config(
-    request: Request,
-    resources_enabled: bool,
-    org_id: int,
-    current_user: PublicUser | AnonymousUser,
-    db_session: Session,
-):
-    return await _update_feature_toggle(
-        request, "resources", resources_enabled, org_id, current_user, db_session,
-        v1_default={"enabled": False, "limit": 0},
-    )
 
 
 async def update_org_color_config(
@@ -1138,12 +759,8 @@ async def update_org_color_config(
 
     updated_config = _deep_copy_config(org_config)
 
-    if _is_v2_config(updated_config):
-        updated_config.setdefault("customization", {}).setdefault("general", {})
-        updated_config["customization"]["general"]["color"] = color
-    else:
-        updated_config.setdefault("general", {"enabled": True, "color": ""})
-        updated_config["general"]["color"] = color
+    updated_config.setdefault("customization", {}).setdefault("general", {})
+    updated_config["customization"]["general"]["color"] = color
 
     org_config.config = updated_config
     org_config.update_date = str(datetime.now())
@@ -1178,12 +795,8 @@ async def update_org_dark_color_config(
 
     updated_config = _deep_copy_config(org_config)
 
-    if _is_v2_config(updated_config):
-        updated_config.setdefault("customization", {}).setdefault("general", {})
-        updated_config["customization"]["general"]["dark_color"] = dark_color
-    else:
-        updated_config.setdefault("general", {"enabled": True, "color": ""})
-        updated_config["general"]["dark_color"] = dark_color
+    updated_config.setdefault("customization", {}).setdefault("general", {})
+    updated_config["customization"]["general"]["dark_color"] = dark_color
 
     org_config.config = updated_config
     org_config.update_date = str(datetime.now())
@@ -1218,12 +831,8 @@ async def update_org_footer_text_config(
 
     updated_config = _deep_copy_config(org_config)
 
-    if _is_v2_config(updated_config):
-        updated_config.setdefault("customization", {}).setdefault("general", {})
-        updated_config["customization"]["general"]["footer_text"] = footer_text
-    else:
-        updated_config.setdefault("general", {"enabled": True, "color": "", "footer_text": ""})
-        updated_config["general"]["footer_text"] = footer_text
+    updated_config.setdefault("customization", {}).setdefault("general", {})
+    updated_config["customization"]["general"]["footer_text"] = footer_text
 
     org_config.config = updated_config
     org_config.update_date = str(datetime.now())
@@ -1258,12 +867,8 @@ async def update_org_hide_org_name_config(
 
     updated_config = _deep_copy_config(org_config)
 
-    if _is_v2_config(updated_config):
-        updated_config.setdefault("customization", {}).setdefault("general", {})
-        updated_config["customization"]["general"]["hide_org_name"] = hide_org_name
-    else:
-        updated_config.setdefault("general", {"enabled": True, "color": ""})
-        updated_config["general"]["hide_org_name"] = hide_org_name
+    updated_config.setdefault("customization", {}).setdefault("general", {})
+    updated_config["customization"]["general"]["hide_org_name"] = hide_org_name
 
     org_config.config = updated_config
     org_config.update_date = str(datetime.now())
@@ -1299,12 +904,8 @@ async def update_org_auth_branding_config(
     updated_config = _deep_copy_config(org_config)
     branding_data = json.loads(auth_branding.model_dump_json())
 
-    if _is_v2_config(updated_config):
-        updated_config.setdefault("customization", {})
-        updated_config["customization"]["auth_branding"] = branding_data
-    else:
-        updated_config.setdefault("general", {"enabled": True, "color": "", "footer_text": "", "auth_branding": {}})
-        updated_config["general"]["auth_branding"] = branding_data
+    updated_config.setdefault("customization", {})
+    updated_config["customization"]["auth_branding"] = branding_data
 
     org_config.config = updated_config
     org_config.update_date = str(datetime.now())
@@ -1340,11 +941,8 @@ async def update_org_badge_issuer_config(
     updated_config = _deep_copy_config(org_config)
     issuer_data = json.loads(badge_issuer.model_dump_json())
 
-    if _is_v2_config(updated_config):
-        updated_config.setdefault("customization", {})
-        updated_config["customization"]["badge_issuer"] = issuer_data
-    else:
-        updated_config["badge_issuer"] = issuer_data
+    updated_config.setdefault("customization", {})
+    updated_config["customization"]["badge_issuer"] = issuer_data
 
     org_config.config = updated_config
     org_config.update_date = str(datetime.now())
@@ -1418,15 +1016,7 @@ async def get_org_join_mechanism(
             detail="Organization config not found",
         )
 
-    config = org_config.config or {}
-    version = config.get("config_version", "1.0")
-
-    if version.startswith("2"):
-        signup_mechanism = config.get("admin_toggles", {}).get("members", {}).get("signup_mode", "open")
-    else:
-        signup_mechanism = config.get("features", {}).get("members", {}).get("signup_mode", "open")
-
-    return signup_mechanism
+    return _extract_signup_mode_from_config(org_config)
 
 async def upload_org_preview_service(
     preview_file: UploadFile,
@@ -1478,11 +1068,8 @@ async def update_org_landing(
 
     updated_config = _deep_copy_config(org_config)
 
-    if _is_v2_config(updated_config):
-        updated_config.setdefault("customization", {})
-        updated_config["customization"]["landing"] = landing_object
-    else:
-        updated_config["landing"] = landing_object
+    updated_config.setdefault("customization", {})
+    updated_config["customization"]["landing"] = landing_object
 
     org_config.config = updated_config
     org_config.update_date = str(datetime.now())
@@ -1559,11 +1146,8 @@ async def update_org_seo_config(
     updated_config = _deep_copy_config(org_config)
     seo_data = json.loads(seo_config.model_dump_json())
 
-    if _is_v2_config(updated_config):
-        updated_config.setdefault("customization", {})
-        updated_config["customization"]["seo"] = seo_data
-    else:
-        updated_config["seo"] = seo_data
+    updated_config.setdefault("customization", {})
+    updated_config["customization"]["seo"] = seo_data
 
     # Update the database with the new dictionary
     org_config.config = updated_config

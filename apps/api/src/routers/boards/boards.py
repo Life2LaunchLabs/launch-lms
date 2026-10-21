@@ -23,7 +23,6 @@ from src.db.boards import (
 )
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
-from src.security.features_utils.dependencies import require_boards_feature
 from src.services.boards.boards import (
     add_board_member,
     add_board_members_batch,
@@ -40,7 +39,7 @@ from src.services.boards.boards import (
     update_board_thumbnail,
 )
 
-router = APIRouter(dependencies=[Depends(require_boards_feature)])
+router = APIRouter()
 
 
 async def verify_internal_key(x_internal_key: str = Header(...)):

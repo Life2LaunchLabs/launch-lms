@@ -1,10 +1,11 @@
 import { notFound } from 'next/navigation'
-import ProgramsAdminPage, { type ProgramSubpage } from '@components/Admin/Programs/ProgramsAdminPage'
+import TemplateDetail, { type TemplateSubpage } from '@components/Goals/admin/templates/TemplateDetail'
 
-const subpages = new Set<ProgramSubpage>(['overview', 'objectives', 'assignments', 'settings'])
+// Kept here: a value exported from a client module reaches a server component only as a reference.
+const TEMPLATE_SUBPAGES: TemplateSubpage[] = ['overview', 'objectives', 'assignments', 'publish', 'settings']
 
-export default async function PlanTemplateSubpage({ params }: { params: Promise<{ orgslug: string; programuuid: string; subpage: string }> }) {
+export default async function GoalTemplateSubpage({ params }: { params: Promise<{ orgslug: string; programuuid: string; subpage: string }> }) {
   const { orgslug, programuuid, subpage } = await params
-  if (!subpages.has(subpage as ProgramSubpage)) notFound()
-  return <ProgramsAdminPage orgslug={orgslug} programUuid={decodeURIComponent(programuuid)} activeSubpage={subpage as ProgramSubpage} />
+  if (!TEMPLATE_SUBPAGES.includes(subpage as TemplateSubpage)) notFound()
+  return <TemplateDetail orgslug={orgslug} templateUuid={decodeURIComponent(programuuid)} subpage={subpage as TemplateSubpage} />
 }

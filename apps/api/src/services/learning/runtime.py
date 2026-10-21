@@ -7,13 +7,12 @@ from sqlmodel import Session, select
 from src.db.learning import (
     LearningActivity,
     LearningPage,
-    LearningPageComplete,
     LearningPageProgress,
     LearningResponseAttempt,
-    LearningResponseSubmit,
     LearningRunRead,
     LearningRunStatus,
 )
+from src.db.learning_requests import LearningPageComplete, LearningResponseSubmit
 from src.db.users import PublicUser, User
 from src.services.learning_portfolio_actions import (
     PortfolioActionError,
@@ -193,17 +192,29 @@ async def submit_response(
     is_correct, score, feedback_key, result = grading._grade_answer(page, data.answer)
     variables = learner_variables._extract_learning_variables(page, result)
     if variables:
+        from src.services.goals import launch
+
         result = {**result, "variables": variables}
+        # goal.* answers land on the run's goal; the rest on the learner.
+        goal_variables = [item for item in variables if launch.is_goal_target(item.get("target"))]
+        applied, skipped = launch.apply_variables(db_session, run, goal_variables, data.button) if goal_variables else ([], [])
         user = db_session.get(User, run.user_id)
-        if user:
-            applied, skipped = learner_variables._apply_learning_variables_to_user(
-                db_session, user, variables, org_id=page.org_id
+        learner_variables_ = [item for item in variables if not launch.is_goal_target(item.get("target"))]
+        if user and learner_variables_:
+            user_applied, user_skipped = learner_variables._apply_learning_variables_to_user(
+                db_session, user, learner_variables_, org_id=page.org_id
             )
-            result = {
-                **result,
-                "variables_applied": applied,
-                "variables_skipped": skipped,
-            }
+            applied, skipped = applied + user_applied, skipped + user_skipped
+        result = {
+            **result,
+            "variables_applied": applied,
+            "variables_skipped": skipped,
+        }
+    elif data.button and run.goal_id:
+        from src.services.goals import launch
+
+        if data.button == launch.BLANK_BUTTON:
+            launch.apply_variables(db_session, run, [], data.button)
     now = datetime.utcnow()
     attempt = LearningResponseAttempt(
         attempt_uuid=f"learning_attempt_{uuid4()}",

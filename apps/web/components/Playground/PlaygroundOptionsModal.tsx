@@ -358,7 +358,7 @@ function AccessTab({
                 <Lock size={20} className="text-gray-300 mx-auto mb-2" />
                 <p className="text-xs text-gray-400">No groups linked yet</p>
                 <Link
-                  href={getUriWithOrg(orgslug, routePaths.org.dash.users.usergroups())}
+                  href={getUriWithOrg(orgslug, routePaths.org.admin.people.root())}
                   target="_blank"
                   className="text-xs text-sky-600 hover:underline mt-1 inline-block"
                 >
@@ -524,7 +524,7 @@ function LinkUserGroupForm({
       <div className="py-6 text-center space-y-2">
         <p className="text-sm text-gray-500">No groups available.</p>
         <Link
-          href={getUriWithOrg(orgslug, routePaths.org.dash.users.usergroups())}
+          href={getUriWithOrg(orgslug, routePaths.org.admin.people.root())}
           target="_blank"
           className="text-sm text-sky-600 hover:underline"
         >

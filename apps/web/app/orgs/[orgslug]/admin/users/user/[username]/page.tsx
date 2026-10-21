@@ -1,16 +1,10 @@
-import { redirect } from 'next/navigation'
-import { getUriWithOrg, routePaths } from '@services/config/config'
+import PeopleView from '@components/Admin/People/PeopleView'
 
-export default async function UserDetailPage({
-  params,
-}: {
+export default async function PersonPage({ params, searchParams }: {
   params: Promise<{ orgslug: string; username: string }>
+  searchParams: Promise<{ tab?: string }>
 }) {
   const { orgslug, username } = await params
-  redirect(
-    getUriWithOrg(
-      orgslug,
-      routePaths.org.dash.users.userPage(decodeURIComponent(username), 'overview')
-    )
-  )
+  const { tab } = await searchParams
+  return <PeopleView orgslug={orgslug} selection={{ kind: 'person', username: decodeURIComponent(username), tab: tab === 'plans' ? 'plans' : 'message' }} />
 }

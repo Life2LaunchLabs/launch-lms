@@ -12,7 +12,7 @@ import { Pagination } from '@components/Admin/Platform/shared'
 import { removeUserFromOrg, removeUsersFromOrg, updateUserRole } from '@services/organizations/orgs'
 import { resendUserInvitation, revokeUserInvitation } from '@services/organizations/invites'
 import { swrFetcher } from '@services/utils/ts/requests'
-import { LogOut, Shield, User, Crown, Users, CheckCircle2, XCircle, Mail, Globe, ArrowUp, ArrowDown, RefreshCw, X, UserPlus } from 'lucide-react'
+import { LogOut, Shield, User, Crown, Users, CheckCircle2, XCircle, Mail, Globe, ArrowUp, ArrowDown, X, UserPlus } from 'lucide-react'
 import React, { useState, useRef } from 'react'
 import toast from 'react-hot-toast'
 import useSWR, { mutate } from 'swr'
@@ -24,44 +24,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@components/ui/select'
+import InviteRow, { formatShortDate } from './InviteRow'
+import { MessagesCell, useMessageCounts } from './MessagesCell'
 import InviteUsersDialog from '@components/Dashboard/Pages/Users/OrgUsersAdd/InviteUsersDialog'
-import { usePlan } from '@components/Hooks/usePlan'
-import { planMeetsRequirement } from '@services/plans/plans'
+import { useFeatures } from '@components/Hooks/useFeatures'
 
 const ITEMS_PER_PAGE = 10
-
-export type OrgUsersOverviewFilters = {
-  search: string
-  roleId: string
-  verified: 'all' | 'verified' | 'unverified'
-  active: 'all' | 'active' | 'inactive'
-  assignedToMe: boolean
-}
-
-function formatShortDate(dateStr: string | null | undefined): string {
-  if (!dateStr) return '—'
-  try {
-    const date = new Date(dateStr)
-    if (isNaN(date.getTime())) return '—'
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-  } catch {
-    return '—'
-  }
-}
 
 // Probabilistic revalidateOnFocus — revalidate ~50% of the time
 function shouldRevalidate() {
   return Math.random() < 0.5
 }
 
-function OrgUsers({ overviewFilters }: { overviewFilters?: OrgUsersOverviewFilters } = {}) {
+function OrgUsers() {
   const { t } = useTranslation()
   const org = useOrg() as any
   const session = useLHSession() as any
   const access_token = session?.data?.tokens?.access_token;
-  const currentPlan = usePlan()
-  const hasUserGroups = planMeetsRequirement(currentPlan, 'full')
-    && (org?.config?.config?.resolved_features?.usergroups?.enabled ?? true)
+  const features = useFeatures()
+  const hasUserGroups = features.has('groups')
+  const messageCounts = useMessageCounts(hasUserGroups ? Number(org?.id) : 0, access_token)
 
   const [page, setPage] = useState(1)
   const [searchValue, setSearchValue] = useState('')
@@ -73,12 +55,6 @@ function OrgUsers({ overviewFilters }: { overviewFilters?: OrgUsersOverviewFilte
   const [showInviteDialog, setShowInviteDialog] = useState(false)
   const [showInvitationHistory, setShowInvitationHistory] = useState(false)
 
-  React.useEffect(() => {
-    if (!overviewFilters) return
-    setPage(1)
-    setSelectedUserIds(new Set())
-  }, [overviewFilters])
-
   // Track whether revalidation on focus is allowed
   const revalidateRef = useRef(shouldRevalidate)
 
@@ -87,16 +63,9 @@ function OrgUsers({ overviewFilters }: { overviewFilters?: OrgUsersOverviewFilte
     params.append('page', page.toString())
     params.append('limit', ITEMS_PER_PAGE.toString())
     params.append('sort_order', sortOrder)
-    const effectiveSearch = overviewFilters?.search ?? searchValue
-    const effectiveRole = overviewFilters?.roleId ?? filterRole
-    const effectiveStatus = overviewFilters?.verified === 'all' ? '' : (overviewFilters?.verified ?? filterStatus)
-    if (effectiveSearch) params.append('search', effectiveSearch)
-    if (effectiveRole) params.append('role_id', effectiveRole)
-    if (effectiveStatus) params.append('status', effectiveStatus)
-    if (overviewFilters?.active !== undefined && overviewFilters.active !== 'all') {
-      params.append('active', String(overviewFilters.active === 'active'))
-    }
-    if (overviewFilters?.assignedToMe) params.append('assigned_to_me', 'true')
+    if (searchValue) params.append('search', searchValue)
+    if (filterRole) params.append('role_id', filterRole)
+    if (filterStatus) params.append('status', filterStatus)
     if (filterGroupId) {
       params.append('usergroup_id', filterGroupId)
       params.append('usergroup_filter', 'in_group')
@@ -151,13 +120,10 @@ function OrgUsers({ overviewFilters }: { overviewFilters?: OrgUsersOverviewFilte
 
   const orgUsers = data?.items || []
   const filteredInvites = (invitedUsers || []).filter((invite: any) => {
-    const effectiveSearch = (overviewFilters?.search ?? searchValue).trim().toLowerCase()
-    const effectiveRole = overviewFilters?.roleId ?? filterRole
-    const effectiveStatus = overviewFilters?.verified === 'all' ? '' : (overviewFilters?.verified ?? filterStatus)
-    if (effectiveSearch && !String(invite.email).toLowerCase().includes(effectiveSearch)) return false
-    if (effectiveRole && String(invite.role?.id) !== effectiveRole) return false
-    if (effectiveStatus) return false
-    if (overviewFilters?.assignedToMe) return false
+    const search = searchValue.trim().toLowerCase()
+    if (search && !String(invite.email).toLowerCase().includes(search)) return false
+    if (filterRole && String(invite.role?.id) !== filterRole) return false
+    if (filterStatus) return false
     if (filterGroupId && String(invite.usergroup?.id) !== filterGroupId) return false
     return true
   })
@@ -170,9 +136,7 @@ function OrgUsers({ overviewFilters }: { overviewFilters?: OrgUsersOverviewFilte
   const visibleUserIds: number[] = orgUsers.map((u: any) => u.user.id)
   const allVisibleSelected = visibleUserIds.length > 0 && visibleUserIds.every((id: number) => selectedUserIds.has(id))
 
-  const hasActiveFilters = overviewFilters
-    ? Boolean(overviewFilters.search || overviewFilters.roleId || overviewFilters.verified !== 'all' || overviewFilters.active !== 'all' || overviewFilters.assignedToMe)
-    : Boolean(filterRole || filterStatus || (hasUserGroups && filterGroupId))
+  const hasActiveFilters = Boolean(filterRole || filterStatus || (hasUserGroups && filterGroupId))
 
   const toggleSelectAll = () => {
     setSelectedUserIds((prev) => {
@@ -288,15 +252,15 @@ function OrgUsers({ overviewFilters }: { overviewFilters?: OrgUsersOverviewFilte
     <div>
       <Toast></Toast>
       <AdminDataTable
-        className={overviewFilters ? '' : 'mx-8 my-6'}
-        search={overviewFilters ? undefined : { value: searchValue, onChange: handleSearchChange, placeholder: t('dashboard.users.active_users.search_placeholder') || 'Search users...' }}
-        filters={overviewFilters ? [] : [
+        className="mx-8 my-6"
+        search={{ value: searchValue, onChange: handleSearchChange, placeholder: t('dashboard.users.active_users.search_placeholder') || 'Search users...' }}
+        filters={[
           { id: 'role', label: 'Role', value: filterRole || 'all', options: [{ value: 'all', label: 'All' }, ...(roles || []).map((role: any) => ({ value: String(role.id), label: role.name }))], onChange: handleFilterChange(setFilterRole) },
           { id: 'status', label: 'Status', value: filterStatus || 'all', options: [{ value: 'all', label: 'All' }, { value: 'verified', label: 'Verified' }, { value: 'unverified', label: 'Unverified' }], onChange: handleFilterChange(setFilterStatus) },
           ...(hasUserGroups ? [{ id: 'group', label: 'Groups', value: filterGroupId || 'all', options: [{ value: 'all', label: 'All' }, ...(usergroups || []).map((group: any) => ({ value: String(group.id), label: group.name }))], onChange: handleFilterChange(setFilterGroupId) }] : []),
         ]}
         resultLabel={`${total + displayedInvites.length} record${total + displayedInvites.length !== 1 ? 's' : ''}`}
-        actions={!overviewFilters ? (
+        actions={(
           <div className="flex items-center gap-2">
             {hasActiveFilters && <button onClick={resetFilters} className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-black"><X className="h-3 w-3" />Clear</button>}
             <button onClick={() => setShowInvitationHistory((current) => !current)} className={`rounded-lg border px-3 py-1.5 text-[13px] font-medium ${showInvitationHistory ? 'border-indigo-200 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-600'}`}>{showInvitationHistory ? 'Pending only' : 'Invitation history'}</button>
@@ -308,7 +272,7 @@ function OrgUsers({ overviewFilters }: { overviewFilters?: OrgUsersOverviewFilte
               Add users
             </button>
           </div>
-        ) : undefined}
+        )}
       >
 
             {/* Selection Action Bar */}
@@ -354,7 +318,7 @@ function OrgUsers({ overviewFilters }: { overviewFilters?: OrgUsersOverviewFilte
                       <User className="w-8 h-8 text-gray-400" />
                     </div>
                     <p className="text-gray-400 text-sm font-medium">
-                      {(overviewFilters?.search ?? searchValue) || hasActiveFilters
+                      {searchValue || hasActiveFilters
                         ? t('dashboard.users.active_users.no_results') || 'No users found matching your filters'
                         : t('dashboard.users.active_users.no_users') || 'No users in this organization yet'
                       }
@@ -395,6 +359,7 @@ function OrgUsers({ overviewFilters }: { overviewFilters?: OrgUsersOverviewFilte
                           {t('dashboard.users.active_users.table.groups') || 'Groups'}
                         </th>
                       )}
+                      {hasUserGroups && <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-6 py-3">Messages</th>}
                       <th
                         className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wider px-6 py-3 cursor-pointer select-none hover:text-gray-700 transition-colors"
                         onClick={toggleSortOrder}
@@ -420,34 +385,7 @@ function OrgUsers({ overviewFilters }: { overviewFilters?: OrgUsersOverviewFilte
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
-                    {page === 1 && displayedInvites.map((invite: any) => (
-                      <tr key={invite.invitation_uuid} className={invite.pending ? 'bg-amber-50/30' : 'bg-gray-50/40'}>
-                        <td className="w-10 px-6 py-4">
-                          <input type="checkbox" disabled className="h-4 w-4 cursor-not-allowed rounded border-gray-200 opacity-40" aria-label={`Invitation for ${invite.email}`} />
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-700">
-                              <Mail className="h-4 w-4" />
-                            </div>
-                            <div className="min-w-0">
-                              <div className="truncate text-sm font-semibold text-gray-800">{invite.email}</div>
-                              <div className="text-xs text-gray-400">{invite.source === 'csv' ? 'CSV invitation' : 'Invitation'} · {String(invite.delivery_status || 'queued').replace('_', ' ')}</div>
-                            </div>
-                          </div>
-                        </td>
-                        {hasUserGroups && <td className="px-6 py-4">{invite.usergroup ? <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-600"><Users className="h-3 w-3" />{invite.usergroup.name}</span> : <span className="text-xs text-gray-400">—</span>}</td>}
-                        <td className="px-6 py-4 text-xs text-gray-500">Invited {formatShortDate(invite.created_at)}</td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${invite.pending ? 'bg-amber-100 text-amber-700' : invite.status === 'accepted' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
-                            <Mail className="h-3 w-3" />
-                            {String(invite.status).replace('_', ' ')}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4"><span className="inline-flex items-center gap-1.5 rounded-md bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-700">{String(invite.role?.name || 'User').toLowerCase().includes('admin') ? <Crown className="h-3.5 w-3.5 text-indigo-600" /> : String(invite.role?.name || '').toLowerCase().match(/maintainer|instructor|staff/) ? <Shield className="h-3.5 w-3.5 text-emerald-600" /> : <User className="h-3.5 w-3.5 text-gray-500" />}{invite.role?.name || 'User'}</span></td>
-                        <td className="px-6 py-4 text-right">{invite.pending ? <div className="inline-flex gap-2"><button onClick={() => void handleResendInvitation(invite.invitation_uuid)} className="inline-flex h-8 items-center gap-1.5 rounded-md bg-white px-3 text-xs font-medium text-gray-600 nice-shadow transition hover:bg-gray-50" title={`${invite.delivery_attempts || 0} delivery attempts`}><RefreshCw className="h-3.5 w-3.5" />Resend</button><ConfirmationModal confirmationButtonText="Revoke invitation" confirmationMessage={`Revoke the invitation for ${invite.email}? The reserved seat will be released.`} dialogTitle="Revoke invitation" dialogTrigger={<button className="inline-flex h-8 items-center gap-1.5 rounded-md bg-white px-3 text-xs font-medium text-gray-600 nice-shadow transition hover:bg-rose-50 hover:text-rose-600"><X className="h-3.5 w-3.5" />Revoke</button>} functionToExecute={() => handleRevokeInvitation(invite.invitation_uuid)} status="warning" /></div> : <span className="text-xs text-gray-400">No actions</span>}</td>
-                      </tr>
-                    ))}
+                    {page === 1 && displayedInvites.map((invite: any) => <InviteRow key={invite.invitation_uuid} invite={invite} hasUserGroups={hasUserGroups} messages={hasUserGroups} onResend={handleResendInvitation} onRevoke={handleRevokeInvitation} />)}
                     {orgUsers?.map((user: any) => (
                       <tr
                         key={user.user.id}
@@ -465,7 +403,7 @@ function OrgUsers({ overviewFilters }: { overviewFilters?: OrgUsersOverviewFilte
 
                         {/* User Info */}
                         <td className="px-6 py-4">
-                          <Link href={getUriWithOrg(org.slug, routePaths.org.dash.users.user(user.user.username))} className="group flex items-center gap-3">
+                          <Link href={getUriWithOrg(org.slug, routePaths.org.admin.people.user(user.user.username))} className="group flex items-center gap-3">
                             <UserAvatar
                               width={40}
                               userId={user.user.id?.toString()}
@@ -509,6 +447,7 @@ function OrgUsers({ overviewFilters }: { overviewFilters?: OrgUsersOverviewFilte
                             <span className="text-xs text-gray-400">—</span>
                           )}
                         </td>}
+                        {hasUserGroups && <td className="px-6 py-4"><MessagesCell orgslug={org.slug} username={user.user.username} counts={messageCounts[user.user.id]} /></td>}
 
                         {/* Joined */}
                         <td className="px-6 py-4">

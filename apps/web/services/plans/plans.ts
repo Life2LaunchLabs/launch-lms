@@ -1,48 +1,79 @@
 /**
- * Plan utilities for the frontend.
+ * Org access types for the frontend.
  *
- * All plan data (feature configs, limits, requirements) lives in the API.
- * The frontend reads `resolved_features` from the org config returned by the API.
- *
- * This file only provides:
- *   - PlanLevel type
- *   - Plan hierarchy for UI comparisons (plan badges, upgrade prompts)
- *   - Instance capability helpers for globally disabled features
+ * What an org may use is decided by the API (`security/access`) and sent with the org as
+ * `config.config.access`: its tier, partner programs, each feature with what would unlock it,
+ * and its counted limits (0 = unlimited). The web never works access out for itself.
  */
 
-import { getCoreCapabilities } from '@services/config/config'
+export type Tier = 'free' | 'full' | 'enterprise'
 
-export type PlanLevel = 'free' | 'full' | 'enterprise'
+export const TIERS: Tier[] = ['free', 'full', 'enterprise']
 
-export const PLAN_HIERARCHY: PlanLevel[] = ['free', 'full', 'enterprise']
-
-export const PLAN_LABELS: Record<PlanLevel, string> = {
+export const TIER_LABELS: Record<Tier, string> = {
   free: 'Free',
   full: 'Full',
   enterprise: 'Enterprise',
 }
 
-/**
- * Check if the current plan meets or exceeds the required plan level.
- * Used for org-plan comparisons in the UI.
- */
-export function planMeetsRequirement(
-  currentPlan: PlanLevel,
-  requiredPlan: PlanLevel
-): boolean {
-  const currentIndex = PLAN_HIERARCHY.indexOf(currentPlan)
-  const requiredIndex = PLAN_HIERARCHY.indexOf(requiredPlan)
-  return currentIndex >= requiredIndex
+export const PARTNER_LABELS: Record<string, string> = {
+  badge_publisher: 'Verified badge publisher',
+  plan_publisher: 'Plan publisher',
+  resource_partner: 'Resource partner',
 }
 
-/**
- * Check if a feature is available in this deployment.
- */
-export function isFeatureAvailable(featureKey: string, _currentPlan?: PlanLevel): boolean {
-  const capabilities = getCoreCapabilities()
-  const capabilityKey = featureKey === 'analytics_advanced' ? 'advanced_analytics' : featureKey
-  if (capabilityKey in capabilities) {
-    return capabilities[capabilityKey as keyof typeof capabilities]
-  }
-  return true
+export const FEATURE_LABELS: Record<string, string> = {
+  groups: 'Groups',
+  bulk_invites: 'Bulk invites',
+  advanced_reports: 'Advanced reporting',
+  sso: 'Single sign-on',
+  audit_logs: 'Audit logs',
+  api_tokens: 'API tokens',
+  payments: 'Payments',
+  badge_publishing: 'Badge publishing',
+  plan_publishing: 'Plan publishing',
+  resource_publishing: 'Resource publishing',
+  // Legacy, switched off for everyone.
+  podcasts: 'Podcasts',
+  playgrounds: 'Playgrounds',
+}
+
+export const REQUEST_KINDS: Record<string, string> = {
+  tier_upgrade: 'Tier upgrade',
+  partner_application: 'Partner program',
+  feature_request: 'Feature',
+}
+
+export type AccessRequest = { type: 'tier_upgrade' | 'partner_application' | 'feature_request'; value: string }
+
+/** `read_only`: the org had it on a Full trial that has ended, so what it made stays readable. */
+export type FeatureAccess = { enabled: boolean; read_only?: boolean; unlock: AccessRequest | null }
+
+/** The org's one Full trial, once started. */
+export type TrialAccess = { tier: Tier; started_at: string; ends_at: string; running: boolean; days_left: number }
+
+export type OrgAccess = {
+  /** What the org has now: its tier, or the trial's while it runs. */
+  tier: Tier
+  /** The tier it's on without the trial. */
+  base_tier?: Tier
+  owner: boolean
+  partners: string[]
+  features: Record<string, FeatureAccess>
+  limits: Record<string, number>
+  trial?: TrialAccess | null
+  /** A Free org that hasn't tried Full yet. */
+  trial_available?: boolean
+}
+
+export const NO_ACCESS: OrgAccess = { tier: 'free', owner: false, partners: [], features: {}, limits: {} }
+
+export function tierLabel(tier: string | null | undefined): string {
+  return TIER_LABELS[(tier || 'free') as Tier] ?? tier ?? 'Free'
+}
+
+export function accessRequestLabel(request: AccessRequest): string {
+  if (request.type === 'tier_upgrade') return `${tierLabel(request.value)} tier`
+  if (request.type === 'partner_application') return PARTNER_LABELS[request.value] ?? request.value
+  return FEATURE_LABELS[request.value] ?? request.value
 }

@@ -1,6 +1,6 @@
 """Read and write activities as Activity Documents.
 
-An activity is the content of a plan template's activity step; its
+An activity is the content of a goal template's activity step; its
 organization's admins edit it in place. Saves are guarded by the document
 etag, so a save made from a stale copy returns 409 with the current document
 instead of overwriting someone's work.
@@ -11,8 +11,8 @@ from __future__ import annotations
 from fastapi import HTTPException, Request
 from sqlmodel import Session, select
 
+from src.db.goals import GoalTemplate
 from src.db.learning import LearningActivity, LearningPage, LearningPageType
-from src.db.programs import Program, ProgramObjective
 from src.db.users import AnonymousUser, PublicUser
 from src.services import learning
 from src.services.learning_documents.document import (
@@ -36,15 +36,41 @@ def activity_pages(db_session: Session, activity: LearningActivity) -> list[Lear
     )
 
 
-def _context(db_session: Session, activity: LearningActivity) -> dict:
-    template = db_session.exec(
+def _template_ref(template: GoalTemplate) -> dict:
+    return {"template_uuid": template.template_uuid, "name": template.title, "system_type": template.system_type, "org_id": template.org_id}
+
+
+def owning_template(db_session: Session, activity: LearningActivity) -> dict | None:
+    """The goal template an activity belongs to, as {template_uuid, name, system_type, org_id}.
+
+    Only activities the plans-to-goals move hasn't reached (no goal template) fall back to their legacy plan template.
+    """
+    if activity.goal_template_id:
+        template = db_session.get(GoalTemplate, activity.goal_template_id)
+        return _template_ref(template) if template else None
+    if activity.objective_id is None:
+        return None
+    from src.db.programs import Program, ProgramObjective
+
+    program = db_session.exec(
         select(Program).join(ProgramObjective, ProgramObjective.program_id == Program.id).where(ProgramObjective.objective_id == activity.objective_id)
     ).first()
+    return {"template_uuid": program.program_uuid, "name": program.name, "system_type": program.system_type, "org_id": program.org_id} if program else None
+
+
+def template_by_uuid(db_session: Session, template_uuid: str) -> dict | None:
+    """A goal template by uuid, in the same shape as ``owning_template``."""
+    template = db_session.exec(select(GoalTemplate).where(GoalTemplate.template_uuid == template_uuid)).first()
+    return _template_ref(template) if template else None
+
+
+def _context(db_session: Session, activity: LearningActivity) -> dict:
+    template = owning_template(db_session, activity)
     return {
         "activity_uuid": activity.activity_uuid,
         "org_id": activity.org_id,
-        "template_uuid": template.program_uuid if template else None,
-        "template_name": template.name if template else None,
+        "template_uuid": template["template_uuid"] if template else None,
+        "template_name": template["name"] if template else None,
     }
 
 

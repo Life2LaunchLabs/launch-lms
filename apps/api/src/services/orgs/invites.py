@@ -8,7 +8,6 @@ from fastapi import HTTPException, Request
 from pydantic import EmailStr
 from sqlmodel import Session, select
 from src.db.organization_invitations import OrganizationJoinLink
-from src.db.organization_config import OrganizationConfig
 from src.db.organizations import (
     Organization,
     OrganizationRead,
@@ -16,8 +15,7 @@ from src.db.organizations import (
 from src.db.usergroups import UserGroup
 from src.db.users import AnonymousUser, PublicUser, UserRead
 from src.security.rbac.constants import USER_ROLE_ID
-from src.security.features_utils.resolve import resolve_feature
-from src.security.features_utils.usage import _get_actual_member_count, increase_feature_usage, decrease_feature_usage
+from src.security.access.access import org_access, require_capacity
 from src.services.email.utils import send_email
 from src.services.orgs.orgs import rbac_check
 
@@ -78,24 +76,14 @@ async def create_invite_code(
         raise HTTPException(status_code=400, detail="Enter a valid approved email domain")
     if max_redemptions < 1 or max_redemptions > 1000:
         raise HTTPException(status_code=400, detail="Maximum redemptions must be between 1 and 1000")
-    config = db_session.exec(select(OrganizationConfig).where(OrganizationConfig.org_id == org_id)).first()
-    if not config:
-        raise HTTPException(status_code=404, detail="Organization has no config")
-    member_policy = resolve_feature("members", config.config or {}, org_id)
-    if not member_policy["enabled"]:
-        raise HTTPException(status_code=403, detail="Member invitations are disabled")
-    raw_config = config.config or {}
-    plan = raw_config.get("plan") if str(raw_config.get("config_version", "1.0")).startswith("2") else raw_config.get("cloud", {}).get("plan", "free")
-    member_limit = int(member_policy["limit"])
-    if plan == "free" and member_limit and _get_actual_member_count(org_id, db_session) + max_redemptions > member_limit:
-        raise HTTPException(status_code=403, detail="This link would reserve more seats than the organization has available")
+    require_capacity("learners", org_id, db_session, adding=max_redemptions)
     active_links = db_session.exec(select(OrganizationJoinLink).where(
         OrganizationJoinLink.org_id == org_id,
         OrganizationJoinLink.status == "active",
         OrganizationJoinLink.expires_at > datetime.utcnow(),
     )).all()
-    active_link_limit = 2 if plan == "free" else (100 if plan in {"enterprise", "master"} else 25)
-    if len(active_links) >= active_link_limit:
+    active_link_limit = org_access(org_id, db_session).limit("join_links")
+    if active_link_limit and len(active_links) >= active_link_limit:
         raise HTTPException(status_code=429, detail="Active join-link limit reached")
 
     link = OrganizationJoinLink(
@@ -113,7 +101,6 @@ async def create_invite_code(
     db_session.add(link)
     db_session.commit()
     db_session.refresh(link)
-    increase_feature_usage("members", org_id, db_session)
     from src.services.audit_logs import record_audit_log
     record_audit_log(
         db_session, action="join_link.create", resource="organization_join_link", status_code=200,
@@ -212,7 +199,6 @@ async def delete_invite_code(
     link.revoked_at = datetime.utcnow()
     db_session.add(link)
     db_session.commit()
-    decrease_feature_usage("members", org_id, db_session)
     from src.services.audit_logs import record_audit_log
     record_audit_log(
         db_session, action="join_link.revoke", resource="organization_join_link", status_code=200,

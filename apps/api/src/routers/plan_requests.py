@@ -1,5 +1,5 @@
 """
-Plan upgrade and package add-on request endpoints.
+Requests for a tier upgrade, a partner program or an on-request feature.
 
 Org admins submit requests; superadmins (or master org) review them.
 """
@@ -14,8 +14,7 @@ from src.db.plan_requests import PlanRequest, PlanRequestCreate, PlanRequestRead
 from src.db.user_organizations import UserOrganization
 from src.db.users import AnonymousUser, PublicUser
 from src.security.auth import get_current_user
-from src.security.features_utils.packs import is_valid_package
-from src.security.features_utils.plans import PLAN_HIERARCHY
+from src.security.access.catalog import FEATURES, PARTNER_PROGRAMS, TIERS
 from src.security.rbac.constants import ADMIN_ROLE_ID
 
 router = APIRouter()
@@ -52,21 +51,27 @@ async def submit_plan_request(
     current_user: PublicUser = Depends(get_current_user),
 ):
     """
-    Submit a plan upgrade or package add-on request for an organization.
+    Submit a tier upgrade, partner application or feature request for an organization.
     Only org admins can submit requests.
     """
     org = _get_org_by_slug(org_slug, db_session)
     _require_org_admin(org, current_user, db_session)
 
     # Validate the requested value
-    if body.request_type == "plan_upgrade":
-        if body.requested_value not in PLAN_HIERARCHY:
-            raise HTTPException(status_code=400, detail=f"Unknown plan: {body.requested_value}")
-    elif body.request_type == "package_add":
-        if not is_valid_package(body.requested_value):
-            raise HTTPException(status_code=400, detail=f"Unknown package: {body.requested_value}")
-    else:
-        raise HTTPException(status_code=400, detail="Invalid request_type")
+    valid = {
+        "tier_upgrade": TIERS[1:],
+        "partner_application": PARTNER_PROGRAMS,
+        "feature_request": [key for key, spec in FEATURES.items() if spec.on_request and not spec.off],
+    }
+    if body.requested_value not in valid[body.request_type]:
+        raise HTTPException(status_code=400, detail=f"Unknown {body.request_type.replace('_', ' ')}: {body.requested_value}")
+    if db_session.exec(select(PlanRequest).where(
+        PlanRequest.org_id == org.id,
+        PlanRequest.request_type == body.request_type,
+        PlanRequest.requested_value == body.requested_value,
+        PlanRequest.status == "pending",
+    )).first():
+        raise HTTPException(status_code=409, detail="This request is already waiting for review")
 
     now = datetime.now(timezone.utc).isoformat()
     plan_request = PlanRequest(
@@ -83,6 +88,20 @@ async def submit_plan_request(
     db_session.commit()
     db_session.refresh(plan_request)
     return plan_request
+
+
+@router.post("/orgs/{org_slug}/trial")
+async def start_trial(
+    org_slug: str,
+    db_session: Session = Depends(get_db_session),
+    current_user: PublicUser = Depends(get_current_user),
+):
+    """Start the organization's one Full trial. Only org admins can; returns the org's access."""
+    from src.services.orgs import trial
+
+    org = _get_org_by_slug(org_slug, db_session)
+    _require_org_admin(org, current_user, db_session)
+    return trial.start(db_session, int(org.id))  # type: ignore[arg-type]
 
 
 @router.get("/orgs/{org_slug}/plan-requests", response_model=list[PlanRequestRead])

@@ -1,6 +1,6 @@
-import ProgramsAdminPage from '@components/Admin/Programs/ProgramsAdminPage'
+import { TemplatesPage } from '@components/Goals/admin/GoalsAdminPages'
 
-export default async function PlanTemplatesPage({ params }: { params: Promise<{ orgslug: string }> }) {
+export default async function GoalTemplatesPage({ params }: { params: Promise<{ orgslug: string }> }) {
   const { orgslug } = await params
-  return <ProgramsAdminPage orgslug={orgslug} rootTab="templates" />
+  return <TemplatesPage orgslug={orgslug} />
 }

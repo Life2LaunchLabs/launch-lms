@@ -355,7 +355,7 @@ def conversation_detail(
     accessible_resources: list[dict],
 ) -> dict:
     conversation = get_owned_conversation(db_session, conversation_uuid, org_id, user_id)
-    from src.services.hub_context import visible_receipt
+    from src.services.goals.coach_context import visible_receipt
     resources_by_uuid = _public_resources(accessible_resources)
     messages = db_session.exec(select(HubConversationMessage).where(
         HubConversationMessage.conversation_id == conversation.id
@@ -376,6 +376,8 @@ def conversation_detail(
     memory_receipts = message_memory_receipts(
         db_session, [int(message.id) for message in messages]
     )
+    from src.services.hub_questions import questions_by_message
+    questions = questions_by_message(db_session, [int(message.id) for message in messages])
     return {
         "conversation_uuid": conversation.conversation_uuid,
         "title": conversation.title,
@@ -392,6 +394,7 @@ def conversation_detail(
             "memories": memory_receipts.get(int(message.id), []),
             "page_context": visible_receipt(db_session, message.page_context, org_id, user_id),
             "suggested_actions": [decorate_navigation_action(action) for action in (message.suggested_actions or [])],
+            "questions": questions.get(int(message.id), []),
         } for message in messages],
         "context_resources": [resources_by_uuid[row.resource_uuid] for row in context if row.resource_uuid in resources_by_uuid],
     }

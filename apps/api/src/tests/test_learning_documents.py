@@ -6,6 +6,7 @@ import pytest
 from fastapi import HTTPException
 from sqlmodel import Session, create_engine, select
 
+from src.db.goals import GoalAssignment, GoalTemplate, GoalTemplateVersion
 from src.db.learning import LearningActivity, LearningPage, LearningPageType
 from src.db.learning_previews import LearningActivityPreview
 from src.db.programs import Objective, ObjectiveKind, Program, ProgramObjective, ProgramPhase
@@ -60,6 +61,19 @@ def _flow(made: str = P2, other: str = P3, entry: str = P1) -> dict:
             {"from": f"page:{other}", "to": "complete", "priority": 0},
         ],
     }
+
+
+def _goal_template(session: Session, template_id: int, template_uuid: str, org_id: int, title: str, activity_id: int, activity_uuid: str, step_key: str) -> None:
+    """The goal template an activity belongs to (moved plans keep their uuids: template = program, step key = objective)."""
+    for model in (GoalTemplate, GoalTemplateVersion, GoalAssignment):
+        model.__table__.create(session.get_bind(), checkfirst=True)
+    session.add(GoalTemplate(id=template_id, template_uuid=template_uuid, org_id=org_id, title=title, document={
+        "format": "launch-lms.goal-template", "format_version": 1, "template": {"title": title},
+        "stages": [{"key": f"stage_{template_id}", "title": "Explore", "steps": [{"key": step_key, "type": "activity", "title": "Career interests", "config": {"activity_uuid": activity_uuid}}]}],
+    }))
+    session.flush()
+    session.get(LearningActivity, activity_id).goal_template_id = template_id
+    session.commit()
 
 
 def _world(system_type: str | None = None):
@@ -228,3 +242,16 @@ def test_published_schema_describes_blocks_and_flow():
     schema = activity_document_json_schema()
     assert {"$ref": "#/$defs/StandardPageContent"} in schema["$defs"]["ActivityDocumentPage"]["properties"]["content"]["anyOf"]
     assert "QuestionBlock" in schema["$defs"] and "Flow" in schema["$defs"]
+
+
+def test_design_language_fields_validate():
+    question = {"id": "blk_q", "type": "question", "kind": "multiple_choice", "design": {"style": "cards", "entrance": "fade"},
+                "content": {"options": [{"id": "a", "text": "Calm", "icon": "🌊", "description": "Slow and steady"}]}}
+    footer = {"id": "blk_skip", "type": "button", "design": {"placement": "footer"}, "content": {"label": "Skip", "action": "continue"}}
+    page = {"page_uuid": "p", "title": "Q", "design": {"background": {"color": "#0f172a", "scene": "starfield"}, "celebrate": True, "auto_advance_ms": 5000},
+            "content": {"version": 2, "blocks": [question, footer]}}
+    document = {"activity": {"title": "A", "settings": {"design": {"progress": "segments", "exit": {"label": "Later"}}}}, "pages": [page]}
+    assert prepare_document(document, existing_page_uuids=set(), allow_system_blocks=False).ok
+    question["design"]["style"] = "carousel"
+    bad = prepare_document(document, existing_page_uuids=set(), allow_system_blocks=False)
+    assert not bad.ok and "design.style" in bad.errors[0].message

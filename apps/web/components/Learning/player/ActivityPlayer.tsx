@@ -2,11 +2,10 @@
 
 import React from 'react'
 import toast from 'react-hot-toast'
-import {
-  isQuestionResponseRequired,
-  LearningActivitySurface,
-  LearningPageContent,
-} from '@components/Learning/LearningBadgeViews'
+import { footerButtons, isQuestionResponseRequired, LearningPageContent } from '@components/Learning/LearningBadgeViews'
+import { allowsNoAnswer } from './OptionSources'
+import { LearningActivitySurface } from './ActivitySurface'
+import useAutoAdvance from './useAutoAdvance'
 
 // The learner runtime behind a player: the live run API for learners, or the
 // side-effect-free preview API for admins and the Claude connector. Both return
@@ -100,11 +99,16 @@ export function ActivityPlayer({
     if (position > 0) setIndex(position)
   }, [run, activity])
 
+  // A new page starts from its saved answer, if any. The run arriving later (or refreshing)
+  // with nothing saved for this page keeps what the learner has typed so far.
+  const shownPage = React.useRef<string | undefined>(undefined)
   React.useEffect(() => {
-    setUnlocked(Boolean(page) && !isQuestionResponseRequired(page))
     const prior = (run?.attempts || [])
       .filter((item: any) => item.page_uuid === page?.page_uuid && !baseline?.has(item.attempt_uuid))
       .at(-1)
+    if (shownPage.current === page?.page_uuid && !prior) return
+    shownPage.current = page?.page_uuid
+    setUnlocked(Boolean(page) && (!isQuestionResponseRequired(page) || allowsNoAnswer(page)))
     setAnswer(prior?.answer || {})
   }, [page, baseline, run?.attempts])
 
@@ -141,7 +145,9 @@ export function ActivityPlayer({
       // (a retake or review), step to the page after this one on the route.
       const nextPages = routedPages(activity, nextRun)
       const position = nextPages.findIndex((item: any) => item.page_uuid === page.page_uuid)
-      const nextPageUuid = nextNavigation?.current_page_uuid || nextPages[position + 1]?.page_uuid
+      // A finished run that reached its last page is done, even with optional pages skipped on the way.
+      const done = nextRun?.status === 'completed' && position === nextPages.length - 1
+      const nextPageUuid = done ? undefined : nextNavigation?.current_page_uuid || nextPages[position + 1]?.page_uuid
       const destination = nextPageUuid ? nextPages.findIndex((item: any) => item.page_uuid === nextPageUuid) : -1
       if (destination >= 0) {
         setIndex(destination)
@@ -156,6 +162,23 @@ export function ActivityPlayer({
     }
   }
 
+  // The configured exit jumps ahead to its page on the route (so finishing pages still run), else closes.
+  const exitTo = activity.settings?.design?.exit?.to_page_uuid
+  const exit = () => {
+    const destination = pages.findIndex((item: any) => item.page_uuid === exitTo)
+    if (destination > index) setIndex(destination); else onClose()
+  }
+  // Enter in a one-line answer moves on, as Continue would (phone keyboards have no other way).
+  // Text areas keep Enter for new lines; pages that route on their own buttons wait for a tap.
+  const enterToContinue = (event: React.KeyboardEvent) => {
+    const target = event.target as HTMLElement
+    if (event.key !== 'Enter' || event.nativeEvent.isComposing || !(target instanceof HTMLInputElement)) return
+    if (['checkbox', 'radio', 'file', 'button', 'submit'].includes(target.type) || !unlocked || footerButtons(page, run)) return
+    event.preventDefault()
+    void completeAndNext()
+  }
+  const timed = useAutoAdvance(page, unlocked, () => void completeAndNext(), index > 0 ? () => setIndex(index - 1) : undefined)
+
   return (
     <LearningActivitySurface
       pages={pages}
@@ -167,7 +190,13 @@ export function ActivityPlayer({
       onAction={() => completeAndNext()}
       interactionState={answer}
       className={className}
+      settings={activity.settings}
+      onPrevious={() => navigateToPage(pages[index - 1]?.page_uuid)}
+      onExit={exitTo ? exit : undefined}
+      footer={footerButtons(page, run, unlocked ? completeAndNext : undefined)}
+      timed={timed}
     >
+      <div className="contents" onKeyDown={enterToContinue}>
       <LearningPageContent
         page={page}
         answer={answer}
@@ -179,6 +208,7 @@ export function ActivityPlayer({
         onButton={unlocked ? completeAndNext : undefined}
         responseMediaOwner={responseMediaOwner}
       />
+      </div>
     </LearningActivitySurface>
   )
 }

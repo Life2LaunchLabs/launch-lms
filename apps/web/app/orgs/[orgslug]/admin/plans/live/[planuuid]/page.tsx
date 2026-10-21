@@ -1,6 +1,6 @@
-import AdminLivePlanDetail from '@components/Admin/Programs/AdminLivePlanDetail'
+import StaffPlan from '@components/Goals/admin/live/StaffPlan'
 
-export default async function AdminLivePlanPage({ params }: { params: Promise<{ orgslug: string; planuuid: string }> }) {
+export default async function StaffPlanPage({ params }: { params: Promise<{ orgslug: string; planuuid: string }> }) {
   const { orgslug, planuuid } = await params
-  return <AdminLivePlanDetail orgslug={orgslug} planUuid={decodeURIComponent(planuuid)} />
+  return <StaffPlan orgslug={orgslug} goalUuid={decodeURIComponent(planuuid)} />
 }

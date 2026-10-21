@@ -9,10 +9,10 @@ from src.db.learning import (
     LearningPage,
     LearningPageProgress,
     LearningResponseAttempt,
-    LearningResponseGrade,
     LearningRun,
     LearningRunStatus,
 )
+from src.db.learning_requests import LearningResponseGrade
 from src.db.planning import Plan
 from src.db.users import AnonymousUser, PublicUser, User
 from src.security.superadmin import is_user_superadmin
@@ -33,7 +33,7 @@ def _grading_org_id(db_session: Session, plan: Plan, user: PublicUser) -> int | 
     if "review_badge_submissions" in capabilities_for(db_session, plan, user.id) or is_user_superadmin(user.id, db_session):
         return org_id
     try:
-        access_rules._require_org_admin(db_session, user, org_id)
+        access_rules._require_org_admin(db_session, user, org_id, "review_work")
         return org_id
     except HTTPException:
         return None
@@ -49,7 +49,7 @@ async def list_learning_responses(
     page_uuid: str | None = None,
     grading_status: str | None = "pending",
 ) -> list[dict]:
-    access_rules._require_org_admin(db_session, current_user, org_id)
+    access_rules._require_org_admin(db_session, current_user, org_id, "review_work")
     # Answers on plans that came from this organization.
     statement = (
         select(LearningResponseAttempt)

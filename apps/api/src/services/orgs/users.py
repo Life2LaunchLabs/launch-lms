@@ -6,7 +6,7 @@ from fastapi import HTTPException, Request
 from pydantic import EmailStr, TypeAdapter, ValidationError
 from sqlalchemy import or_
 from sqlalchemy.orm import aliased
-from sqlmodel import Session, func, select
+from sqlmodel import Session, col, func, select
 from src.db.organization_invitations import (
     InvitePreviewResponse,
     InviteRecipientResult,
@@ -15,7 +15,6 @@ from src.db.organization_invitations import (
     OrganizationInvitation,
 )
 from src.db.audit_logs import AuditLog
-from src.db.organization_config import OrganizationConfig
 from src.db.organizations import (
     Organization,
     OrganizationRead,
@@ -23,24 +22,18 @@ from src.db.organizations import (
 )
 from src.db.roles import Role, RoleRead
 from src.db.learning import LearningBadge, LearningBadgeStatus
-from src.db.programs import ProgramAssignment, ProgramParticipant
 from src.db.user_organizations import UserOrganization
 from src.db.usergroup_resources import UserGroupResource
 from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup, UserGroupRead
 from src.db.users import AnonymousUser, PublicUser, User, UserRead
-from src.security.features_utils.usage import (
-    check_admin_seat_limit,
-    check_limits_with_usage,
-    decrease_feature_usage,
-    increase_feature_usage,
-    is_role_dashboard_enabled,
-)
-from src.security.features_utils.plans import plan_meets_requirement
-from src.security.org_auth import get_user_org, is_org_member
-from src.security.rbac.constants import ADMIN_ROLE_ID
+from src.security.access.access import is_staff_role, org_access, require_role_capacity
+from src.security.access.catalog import LIMITS
+from src.security.org_auth import get_user_org, is_org_member, require_org_owner_admin, staff_permissions
+from src.security.rbac.constants import ADMIN_ROLE_ID, ORG_ROLE_UUIDS
 from src.services.email.utils import get_base_url_from_request
 from src.services.orgs.invites import send_direct_invitation_email
+from src.services.orgs.membership import assigned_user_ids as learners_on_plans, cleanup_after_removal
 from src.services.orgs.orgs import rbac_check
 from src.services.messages import create_inbox_message, resolve_action_by_dedupe
 from src.services.users.usergroups import create_usergroup
@@ -169,11 +162,6 @@ def decline_my_organization_invitation(
     )
     db_session.commit()
 
-    decrease_feature_usage("members", invitation.org_id, db_session)
-    role = db_session.exec(select(Role).where(Role.id == invitation.role_id)).first()
-    if role and is_role_dashboard_enabled(role):
-        decrease_feature_usage("admin_seats", invitation.org_id, db_session)
-
     from src.services.audit_logs import record_audit_log
     record_audit_log(
         db_session,
@@ -189,16 +177,16 @@ def decline_my_organization_invitation(
 
 
 def _invitation_policy(org_id: int, db_session: Session) -> dict[str, int | bool]:
-    config = db_session.exec(select(OrganizationConfig).where(OrganizationConfig.org_id == org_id)).first()
-    raw = config.config if config and isinstance(config.config, dict) else {}
-    plan = raw.get("plan") if str(raw.get("config_version", "1.0")).startswith("2") else raw.get("cloud", {}).get("plan")
-    paid = plan_meets_requirement(str(plan or "free"), "full")
-    enterprise = plan_meets_requirement(str(plan or "free"), "enterprise")
+    access = org_access(org_id, db_session)
+
+    def limit(name: str) -> int:
+        # The owner org is unlimited; invitation throughput still gets the largest tier's ceiling.
+        return access.limit(name) or LIMITS[name]["enterprise"]
+
     return {
-        "csv": paid,
-        "batch": 500 if enterprise else (100 if paid else 10),
-        "daily": 5000 if enterprise else (500 if paid else 25),
-        "pending": 5000 if enterprise else (500 if paid else 30),
+        "csv": access.has("bulk_invites"),
+        "batch": limit("invite_batch"),
+        "daily": limit("invite_daily"),
     }
 
 
@@ -262,6 +250,7 @@ async def get_organization_users(
     status: str | None = None,
     active: bool | None = None,
     assigned_to_me: bool = False,
+    membership: str | None = None,
 ):
     """
     Get paginated list of users in an organization.
@@ -334,44 +323,14 @@ async def get_organization_users(
     elif status == "unverified":
         base_statement = base_statement.where(User.email_verified == False)
 
-    # Active means an active program or a published badge is currently assigned.
-    # Staff ownership lives on program assignments, so "assigned to me" narrows
-    # the result to learners on programs owned by the current staff member.
-    if active is not None or assigned_to_me:
-        active_assignments = db_session.exec(
-            select(ProgramAssignment).where(
-                ProgramAssignment.org_id == int(org_id),
-                ProgramAssignment.active == True,  # noqa: E712
-            )
-        ).all()
-        relevant_assignments = [
-            assignment for assignment in active_assignments
-            if not assigned_to_me or current_user.id in (assignment.staff_user_ids or [])
-        ]
-        assignment_ids = [assignment.id for assignment in relevant_assignments if assignment.id is not None]
-        assigned_user_ids: set[int] = {
-            int(assignment.user_id)
-            for assignment in relevant_assignments
-            if assignment.user_id is not None
-        }
-        assigned_group_ids = {
-            int(assignment.usergroup_id)
-            for assignment in relevant_assignments
-            if assignment.usergroup_id is not None
-        }
-        if assignment_ids:
-            assigned_user_ids.update(db_session.exec(
-                select(ProgramParticipant.user_id).where(
-                    ProgramParticipant.assignment_id.in_(assignment_ids)  # type: ignore[union-attr]
-                )
-            ).all())
-        if assigned_group_ids:
-            assigned_user_ids.update(db_session.exec(
-                select(UserGroupUser.user_id).where(
-                    UserGroupUser.usergroup_id.in_(assigned_group_ids)  # type: ignore[union-attr]
-                )
-            ).all())
+    # Membership status the organization set (active or alumni).
+    if membership is not None:
+        base_statement = base_statement.where(UserOrganization.status == membership)
 
+    # Active means an open plan from the organization or a published badge is assigned.
+    # "Assigned to me" narrows to learners on the plans the current staff member staffs.
+    if active is not None or assigned_to_me:
+        assigned_user_ids = learners_on_plans(db_session, int(org_id), current_user.id if assigned_to_me else None)
         if active is not None and not assigned_to_me:
             badge_group_ids = set(db_session.exec(
                 select(UserGroupResource.usergroup_id)
@@ -508,6 +467,9 @@ async def get_organization_users(
                 role=role_read,
                 usergroups=usergroups,
                 joined_at=user_org.creation_date,
+                membership_status=user_org.status or "active",
+                membership_status_since=user_org.status_since,
+                permissions=sorted(staff_permissions(user_org)),
             )
 
             org_users_list.append(org_user)
@@ -571,12 +533,12 @@ async def leave_current_user_from_org(
         )
 
     db_session.delete(user_org)
+    db_session.flush()
+    cleanup_after_removal(db_session, int(org.id), current_user.id)
     db_session.commit()
 
     from src.routers.users import _invalidate_session_cache
     _invalidate_session_cache(current_user.id)
-
-    decrease_feature_usage("members", org_id, db_session)
 
     return {"detail": "Left organization"}
 
@@ -631,12 +593,12 @@ async def remove_user_from_org(
         )
 
     db_session.delete(user_org)
+    db_session.flush()
+    cleanup_after_removal(db_session, int(org.id), user_id)
     db_session.commit()
 
     from src.routers.users import _invalidate_session_cache
     _invalidate_session_cache(user_id)
-
-    decrease_feature_usage("members", org_id, db_session)
 
     return {"detail": "User removed from org"}
 
@@ -688,6 +650,8 @@ async def remove_batch_users_from_org(
 
         if user_org:
             db_session.delete(user_org)
+            db_session.flush()
+            cleanup_after_removal(db_session, int(org.id), int(user_id))
             removed_count += 1
 
     db_session.commit()
@@ -695,9 +659,6 @@ async def remove_batch_users_from_org(
     from src.routers.users import _invalidate_session_cache
     for uid in user_ids:
         _invalidate_session_cache(uid)
-
-    for _ in range(removed_count):
-        decrease_feature_usage("members", org_id, db_session)
 
     return {"detail": f"{removed_count} user(s) removed from org"}
 
@@ -721,6 +682,8 @@ async def update_user_role(
             status_code=404,
             detail="Role not found",
         )
+    if role.role_uuid not in ORG_ROLE_UUIDS:
+        raise HTTPException(status_code=422, detail="Choose Admin, Staff or Learner")
 
     role_id = role.id
 
@@ -735,8 +698,9 @@ async def update_user_role(
             detail="Organization not found",
         )
 
-    # RBAC check
+    # RBAC check; only admins change roles
     await rbac_check(request, org.org_uuid, current_user, "update", db_session)
+    require_org_owner_admin(current_user.id, org.id, db_session)
 
     # Check if user is the last admin and if the new role is not admin
     statement = select(UserOrganization).where(
@@ -774,8 +738,12 @@ async def update_user_role(
             detail="User not found",
         )
 
-    if role_id is not None:
+    if role_id is not None and role_id != user_org.role_id:
+        if is_staff_role(role) != is_staff_role(db_session.get(Role, user_org.role_id)):
+            require_role_capacity(role, org.id, db_session)
         user_org.role_id = role_id
+        # A new staff member starts with the default permissions (security/org_auth.py).
+        user_org.permissions = None
 
     db_session.add(user_org)
     db_session.commit()
@@ -800,18 +768,18 @@ async def preview_batch_users(
     await rbac_check(request, org.org_uuid, current_user, "create", db_session)
     policy = _invitation_policy(org_id, db_session)
     if invite_request.source == "csv" and not policy["csv"]:
-        raise HTTPException(status_code=403, detail="CSV invitations require a paid plan")
+        raise HTTPException(status_code=403, detail="CSV invitations need the Full tier")
     if invite_request.source not in {"manual", "csv", "api"}:
         raise HTTPException(status_code=400, detail="Unsupported invitation source")
     if len(invite_request.emails) > int(policy["batch"]):
         raise HTTPException(status_code=400, detail=f"This plan allows {policy['batch']} recipients per batch")
     role = db_session.exec(select(Role).where(
         Role.id == invite_request.role_id,
-        or_(Role.org_id == org.id, Role.org_id.is_(None)),
+        col(Role.role_uuid).in_(ORG_ROLE_UUIDS),
     )).first()
     if not role:
         raise HTTPException(status_code=400, detail="Role is not available in this organization")
-    if is_role_dashboard_enabled(role):
+    if is_staff_role(role):
         inviter_membership = get_user_org(current_user.id, org.id, db_session)
         from src.security.superadmin import is_user_superadmin
         if not is_user_superadmin(current_user.id, db_session) and (
@@ -821,7 +789,7 @@ async def preview_batch_users(
     if invite_request.usergroup_id and invite_request.new_usergroup_name:
         raise HTTPException(status_code=400, detail="Choose an existing group or create a new one, not both")
     if invite_request.usergroup_id:
-        if is_role_dashboard_enabled(role):
+        if is_staff_role(role):
             raise HTTPException(status_code=400, detail="Groups can only be assigned with learner invitations")
         if not db_session.exec(select(UserGroup).where(
             UserGroup.id == invite_request.usergroup_id, UserGroup.org_id == org.id,
@@ -829,7 +797,7 @@ async def preview_batch_users(
             raise HTTPException(status_code=400, detail="Group is not available in this organization")
     if invite_request.new_usergroup_name is not None and not invite_request.new_usergroup_name.strip():
         raise HTTPException(status_code=400, detail="New group name is required")
-    if invite_request.new_usergroup_name and is_role_dashboard_enabled(role):
+    if invite_request.new_usergroup_name and is_staff_role(role):
         raise HTTPException(status_code=400, detail="Groups can only be assigned with learner invitations")
     return InvitePreviewResponse(results=_recipient_results(org_id, invite_request.emails, db_session))
 
@@ -857,7 +825,7 @@ async def invite_batch_users(
 
     policy = _invitation_policy(org.id, db_session)
     if invite_request.source == "csv" and not policy["csv"]:
-        raise HTTPException(status_code=403, detail="CSV invitations require a paid plan")
+        raise HTTPException(status_code=403, detail="CSV invitations need the Full tier")
     if invite_request.source not in {"manual", "csv", "api"}:
         raise HTTPException(status_code=400, detail="Unsupported invitation source")
     if len(invite_request.emails) > int(policy["batch"]):
@@ -901,11 +869,6 @@ async def invite_batch_users(
     platform_sent = db_session.exec(select(func.count()).where(
         OrganizationInvitation.created_at > day_ago,
     )).one()
-    active_pending = db_session.exec(select(func.count()).where(
-        OrganizationInvitation.org_id == org.id,
-        OrganizationInvitation.status == "pending",
-        OrganizationInvitation.expires_at > datetime.utcnow(),
-    )).one()
     preview_results = _recipient_results(org.id, invite_request.emails, db_session)
     prospective = sum(result.status == "ready" for result in preview_results)
     if sent_today + prospective > daily_limit:
@@ -922,13 +885,11 @@ async def invite_batch_users(
         )).one()
         if batches_from_ip >= 100:
             raise HTTPException(status_code=429, detail="Invitation rate limit reached for this network")
-    if active_pending + prospective > int(policy["pending"]):
-        raise HTTPException(status_code=429, detail="Active pending invitation limit reached")
 
     role = db_session.exec(
         select(Role).where(
             Role.id == invite_request.role_id,
-            or_(Role.org_id == org.id, Role.org_id.is_(None)),
+            col(Role.role_uuid).in_(ORG_ROLE_UUIDS),
         )
     ).first()
     if not role:
@@ -936,7 +897,7 @@ async def invite_batch_users(
 
     # Only full administrators may grant dashboard-bearing roles. Maintainers can
     # still invite learners when their normal RBAC permissions allow it.
-    if is_role_dashboard_enabled(role):
+    if is_staff_role(role):
         inviter_membership = get_user_org(current_user.id, org.id, db_session)
         from src.security.superadmin import is_user_superadmin
         if not is_user_superadmin(current_user.id, db_session) and (
@@ -974,7 +935,7 @@ async def invite_batch_users(
         ).first()
         if not group:
             raise HTTPException(status_code=400, detail="Group is not available in this organization")
-        if is_role_dashboard_enabled(role):
+        if is_staff_role(role):
             raise HTTPException(status_code=400, detail="Groups can only be assigned with learner invitations")
 
     now = datetime.utcnow()
@@ -1025,9 +986,7 @@ async def invite_batch_users(
             db_session.add(pending)
             db_session.flush()
 
-        check_limits_with_usage("members", org.id, db_session)
-        if is_role_dashboard_enabled(role):
-            check_admin_seat_limit(org.id, db_session)
+        require_role_capacity(role, org.id, db_session)
 
         invitation = OrganizationInvitation(
             invitation_uuid=f"org_invitation_{uuid4()}",
@@ -1084,12 +1043,6 @@ async def invite_batch_users(
         invitation.last_sent_at = datetime.utcnow()
         invitation.updated_at = datetime.utcnow()
     db_session.commit()
-
-    for _invitation in new_invitations:
-        increase_feature_usage("members", org.id, db_session)
-    if is_role_dashboard_enabled(role):
-        for _invitation in new_invitations:
-            increase_feature_usage("admin_seats", org.id, db_session)
 
     if new_invitations:
         from src.services.audit_logs import record_audit_log
@@ -1191,16 +1144,11 @@ async def remove_invited_user(
             detail="Invitation not found",
         )
 
-    role = db_session.exec(select(Role).where(Role.id == invitation.role_id)).first()
     invitation.status = "revoked"
     invitation.revoked_at = datetime.utcnow()
     invitation.updated_at = datetime.utcnow()
     db_session.add(invitation)
     db_session.commit()
-
-    decrease_feature_usage("members", org_id, db_session)
-    if role and is_role_dashboard_enabled(role):
-        decrease_feature_usage("admin_seats", org_id, db_session)
 
     from src.services.audit_logs import record_audit_log
     record_audit_log(

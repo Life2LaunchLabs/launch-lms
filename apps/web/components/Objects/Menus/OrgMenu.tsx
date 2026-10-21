@@ -3,36 +3,26 @@ import React, { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { getUriWithOrg, routePaths } from '@services/config/config'
-import { getOrgLogoMediaDirectory } from '@services/media/media'
+import { OrgLogo } from '@components/Objects/OrgLogo'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { usePathname } from 'next/navigation'
-import { Buildings, CaretDown, Envelope, Question, SidebarSimple, SignOut, Sun, User } from '@phosphor-icons/react'
+import { ChatCircleDots, GearSix, SidebarSimple } from '@phosphor-icons/react'
 import { openCandidatePanel } from '@components/Candidate/CandidateExperience'
 import { useJoinBannerVisible, JOIN_BANNER_HEIGHT } from '@components/Objects/Banners/OrgJoinBanner'
 import { GuestHeader } from '@components/Objects/Menus/GuestHeader'
+import ExperienceSwitcher from '@components/Objects/Menus/ExperienceSwitcher'
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from '@components/ui/tooltip'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@components/ui/dropdown-menu'
-import { signOut } from '@components/Contexts/AuthContext'
-import UserAvatar from '@components/Objects/UserAvatar'
 import { getPrimaryOrgMenuItems, OrgMenuNavItem } from './OrgMenuLinks'
 import OrgMenuMobile, { NavItemControl, NAV_ACTIVE_CLASS } from './OrgMenuMobile'
 import { useHub } from '@components/Hub/HubContext'
 import { cn } from '@/lib/utils'
-import { Z_INDEX } from '@/lib/z-index'
-import useInboxMessages from '@components/Hooks/useInboxMessages'
+import { useConnectCounts } from '@components/Connect/useConnect'
 
 const DESKTOP_NAV_COLLAPSED_WIDTH = '44px'
 const DESKTOP_NAV_EXPANDED_WIDTH = '264px'
@@ -49,11 +39,13 @@ export const OrgMenu = (props: { orgslug: string; compact?: boolean }) => {
     return window.localStorage.getItem(DESKTOP_NAV_STORAGE_KEY) !== 'true'
   })
   const { isVisible: isJoinBannerVisible } = useJoinBannerVisible()
-  const { unreadCount } = useInboxMessages()
+  // Invitations and notices from organizations arrive in Connect now.
+  const connect = useConnectCounts()
   const topOffset = isJoinBannerVisible ? JOIN_BANNER_HEIGHT : 0
   const config = org?.config?.config
-  const resolvedFeatures = config?.resolved_features
   const hideOrgName = config?.customization?.general?.hide_org_name || config?.general?.hide_org_name || false
+  // A wide logo is usually a wordmark that already says the name; the name beside it would only be cut short.
+  const [wordmarkLogo, setWordmarkLogo] = React.useState(false)
   const isActivityPage = pathname?.includes('/activity/')
   const isCoursePage = /^\/course\/[^/]+$/.test(pathname || '')
   const isPublicCourseExperience = isCoursePage || isActivityPage
@@ -66,8 +58,9 @@ export const OrgMenu = (props: { orgslug: string; compact?: boolean }) => {
 
   const primaryNavItems = getPrimaryOrgMenuItems({
     pathname,
-    resolvedFeatures,
     hubOpen: hub?.state === 'open',
+    // Invitations and notices arrive as chat messages, so unread chats cover them.
+    connectWaiting: connect.unread + connect.requests > 0,
   }).filter((item) => item.show)
 
   const isDesktopNavExpanded = isDesktopExpanded && !props.compact
@@ -120,17 +113,20 @@ export const OrgMenu = (props: { orgslug: string; compact?: boolean }) => {
           >
             <div className={cn('flex h-10 items-center', isDesktopNavExpanded ? 'justify-between gap-2' : 'justify-center')}>
               {isDesktopNavExpanded ? (
-                <Link
-                  href={getUriWithOrg(orgslug, '/')}
-                  data-sidebar-logo
-                  className="flex h-10 w-full items-center gap-3 overflow-hidden pl-1"
+                <ExperienceSwitcher
+                  current={{ side: 'user' }}
+                  homeHref={getUriWithOrg(orgslug, '/')}
+                  tone="light"
+                  className="flex h-10 w-full min-w-0 items-center gap-3 overflow-hidden rounded-2xl pl-1 pr-2 transition-colors hover:bg-foreground/[0.05]"
                 >
                   <div className="flex h-10 shrink-0 items-center justify-center">
                     {org?.logo_image ? (
-                      <img
-                        src={getOrgLogoMediaDirectory(org.org_uuid, org.logo_image)}
-                        alt="Logo"
+                      <OrgLogo
+                        org={org}
+                        alt={org?.name || 'Logo'}
                         className="h-10 w-auto max-w-[120px] object-contain"
+                        ref={(image) => { if (image?.complete && image.naturalWidth) setWordmarkLogo(isWordmark(image)) }}
+                        onLoad={(event) => setWordmarkLogo(isWordmark(event.currentTarget))}
                       />
                     ) : (
                       <LaunchLMSIcon />
@@ -138,7 +134,7 @@ export const OrgMenu = (props: { orgslug: string; compact?: boolean }) => {
                   </div>
                   <div className="flex min-w-0 items-center">
                     {org?.logo_image ? (
-                      !hideOrgName && (
+                      !hideOrgName && !wordmarkLogo && (
                         <span className="truncate text-sm font-semibold text-foreground">
                           {org?.name}
                         </span>
@@ -147,7 +143,7 @@ export const OrgMenu = (props: { orgslug: string; compact?: boolean }) => {
                       <LaunchLMSLogo />
                     )}
                   </div>
-                </Link>
+                </ExperienceSwitcher>
               ) : (
                 <div className="relative h-10 w-10">
                   <Link
@@ -156,8 +152,8 @@ export const OrgMenu = (props: { orgslug: string; compact?: boolean }) => {
                     className="absolute inset-0 flex items-center justify-center overflow-hidden transition-opacity duration-150 group-hover/sidebar:pointer-events-none group-hover/sidebar:opacity-0"
                   >
                     {org?.logo_image ? (
-                      <img
-                        src={getOrgLogoMediaDirectory(org.org_uuid, org.logo_image)}
+                      <OrgLogo
+                        org={org}
                         alt="Logo"
                         className="h-10 w-auto max-w-[40px] object-contain"
                       />
@@ -210,15 +206,14 @@ export const OrgMenu = (props: { orgslug: string; compact?: boolean }) => {
             </div>
 
             <div className={cn('mt-auto flex flex-col pt-6', isDesktopNavExpanded ? 'items-stretch' : 'items-center')}>
-              <div className="mt-6">
-                <DesktopAccountLink orgslug={orgslug} onHelp={openFeedback} isExpanded={isDesktopNavExpanded} unreadCount={unreadCount} />
-              </div>
+              <FeedbackSidebarButton onClick={openFeedback} isExpanded={isDesktopNavExpanded} />
+              <SettingsSidebarLink orgslug={orgslug} isExpanded={isDesktopNavExpanded} active={Boolean(pathname?.includes('/account'))} />
             </div>
           </div>
         </div>
       </aside>
 
-      <OrgMenuMobile items={primaryNavItems} orgslug={orgslug} hidden={Boolean(isActivityPage)} unreadCount={unreadCount} />
+      <OrgMenuMobile items={primaryNavItems} orgslug={orgslug} hidden={Boolean(isActivityPage)} />
 
     </>
   )
@@ -259,7 +254,7 @@ function SidebarItem({
     </>
   )
 
-  const element = <NavItemControl item={item} orgslug={orgslug} className={sharedClass}>{content}</NavItemControl>
+  const element = <NavItemControl item={item} orgslug={orgslug} className={sharedClass} dot={item.dot && !item.active}>{content}</NavItemControl>
 
   if (isExpanded) {
     return element
@@ -277,6 +272,34 @@ function SidebarItem({
   )
 }
 
+function FeedbackSidebarButton({ onClick, isExpanded }: { onClick: () => void; isExpanded: boolean }) {
+  const button = (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Send feedback"
+      className={cn(
+        'relative flex h-11 items-center rounded-2xl text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground',
+        isExpanded ? 'w-full justify-start gap-1 pl-0.5 pr-3' : 'w-11 justify-center'
+      )}
+    >
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center"><ChatCircleDots size={22} weight="fill" /></span>
+      <span className={cn('truncate text-sm font-medium', isExpanded ? 'inline' : 'hidden')}>Feedback</span>
+    </button>
+  )
+
+  if (isExpanded) return button
+
+  return (
+    <TooltipProvider delayDuration={0}>
+      <Tooltip>
+        <TooltipTrigger asChild>{button}</TooltipTrigger>
+        <TooltipContent side="right" className="text-xs">Feedback</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )
+}
+
 type SidebarItemProps = {
   item: OrgMenuNavItem
   orgslug: string
@@ -284,114 +307,38 @@ type SidebarItemProps = {
   isExpanded?: boolean
 }
 
-function DesktopAccountLink({
-  orgslug,
-  onHelp,
-  isExpanded,
-  unreadCount,
-}: {
-  orgslug: string
-  onHelp: () => void
-  isExpanded: boolean
-  unreadCount: number
-}) {
-  const session = useLHSession() as any
-  const accountHref = getUriWithOrg(orgslug, routePaths.owner.account.root())
+/** Settings sits under Feedback and looks like it: account, appearance and sign out are one page now. */
+function SettingsSidebarLink({ orgslug, isExpanded, active }: { orgslug: string; isExpanded: boolean; active: boolean }) {
+  const link = (
+    <Link
+      href={getUriWithOrg(orgslug, routePaths.owner.account.root())}
+      aria-label="Settings"
+      aria-current={active ? 'page' : undefined}
+      className={cn(
+        'relative flex h-11 items-center rounded-2xl transition-colors',
+        active ? NAV_ACTIVE_CLASS : 'text-muted-foreground hover:bg-foreground/[0.05] hover:text-foreground',
+        isExpanded ? 'w-full justify-start gap-1 pl-0.5 pr-3' : 'w-11 justify-center'
+      )}
+    >
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center"><GearSix size={22} weight="fill" /></span>
+      <span className={cn('truncate text-sm', active ? 'font-semibold' : 'font-medium', isExpanded ? 'inline' : 'hidden')}>Settings</span>
+    </Link>
+  )
+
+  if (isExpanded) return link
 
   return (
-    <DropdownMenu modal={false}>
-      <TooltipProvider delayDuration={0}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                aria-label="Account"
-                className={cn(
-                  'group/account flex h-11 items-center rounded-2xl text-muted-foreground transition-colors hover:bg-foreground/[0.08] hover:text-foreground',
-                  isExpanded
-                    ? 'w-full justify-start gap-1 pl-0.5 pr-3'
-                    : 'w-11 justify-center'
-                )}
-              >
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center">
-                  <span className="relative"><UserAvatar border="border-2" rounded="rounded-xl" width={34} />{unreadCount > 0 ? <span className="absolute -right-1.5 -top-1.5 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-blue-600 px-1 text-[9px] font-black leading-none text-white ring-2 ring-background">{unreadCount > 9 ? '9+' : unreadCount}</span> : null}</span>
-                </div>
-                <div className={cn('min-w-0 flex-1 text-left leading-tight', isExpanded ? 'block' : 'hidden')}>
-                  <p className="truncate text-sm font-semibold text-foreground capitalize">
-                    {session?.data?.user?.username}
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">{session?.data?.user?.email}</p>
-                </div>
-                <CaretDown size={16} weight="bold" className={cn('shrink-0 text-muted-foreground transition-colors group-hover/account:text-muted-foreground', isExpanded ? 'block' : 'hidden')} />
-              </button>
-            </DropdownMenuTrigger>
-          </TooltipTrigger>
-          {!isExpanded && (
-            <TooltipContent side="right" className="text-xs">
-              {session?.data?.user?.username || 'Account'}
-            </TooltipContent>
-          )}
-        </Tooltip>
-      </TooltipProvider>
-      <DropdownMenuContent
-        side={isExpanded ? 'top' : 'right'}
-        align={isExpanded ? 'start' : 'end'}
-        sideOffset={isExpanded ? 8 : 12}
-        className="w-56"
-        style={{ zIndex: Z_INDEX.NAV_MENU + 1 }}
-      >
-        <DropdownMenuLabel>
-          <div className="flex items-center gap-2">
-            <UserAvatar border="border-2" rounded="rounded-full" width={24} shadow="" />
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium capitalize">{session?.data?.user?.username}</p>
-              <p className="truncate text-xs text-muted-foreground">{session?.data?.user?.email}</p>
-            </div>
-          </div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link href={accountHref} className="flex items-center gap-2">
-            <User size={16} weight="fill" /><span>Account</span>
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href={getUriWithOrg(orgslug, routePaths.owner.account.messages())} className="flex items-center gap-2">
-            <Envelope size={16} weight="fill" />
-            <span className="flex-1">Messages</span>
-            {unreadCount > 0 ? <span className="flex min-w-5 items-center justify-center rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] font-black text-white">{unreadCount}</span> : null}
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href={getUriWithOrg(orgslug, routePaths.owner.account.organizations())} className="flex items-center gap-2">
-            <Buildings size={16} weight="fill" /><span>Organizations</span>
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href={getUriWithOrg(orgslug, routePaths.owner.account.preferences())} className="flex items-center gap-2">
-            <Sun size={16} weight="fill" /><span>Appearance</span>
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onClick={onHelp}
-          className="flex items-center gap-2"
-        >
-          <Question size={16} weight="fill" />
-          <span>Help &amp; feedback</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => signOut({ callbackUrl: '/' })}
-          className="flex items-center gap-2 text-red-600 focus:text-red-600"
-        >
-          <SignOut size={16} weight="fill" />
-          <span>Sign out</span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <TooltipProvider delayDuration={0}>
+      <Tooltip>
+        <TooltipTrigger asChild>{link}</TooltipTrigger>
+        <TooltipContent side="right" className="text-xs">Settings</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   )
 }
+
+/** Whether a logo is wide enough to be a wordmark; measured on load, or at once when the browser already had it. */
+const isWordmark = (image: HTMLImageElement) => image.naturalWidth > image.naturalHeight * 1.8
 
 const LaunchLMSLogo = () => {
   return (

@@ -1,17 +1,15 @@
 'use client'
 
-import Link from 'next/link'
 import React from 'react'
 import { Extension } from '@tiptap/core'
 import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
-import { ArrowLeft, ArrowRight, ChevronRight, Copy, Loader2, Pause, Play, Upload, X } from 'lucide-react'
-import { AnimatePresence, motion } from 'motion/react'
+import { ArrowLeft, ArrowRight, Copy, Loader2, Pause, Play, Upload } from 'lucide-react'
 import YouTube from 'react-youtube'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import {
-  findQuestionBlock,
+  findQuestionBlock, questionAllowsNoAnswer,
   getBlockCompletion,
   getBlockScoring,
   getQuestionAnswer,
@@ -29,94 +27,10 @@ import { TimelineCardView, type TimelineEntry } from '@components/Pages/Portfoli
 import { ProjectCardView, type Project } from '@components/Pages/Portfolio/PortfolioShell'
 import { normalizeMediaUrl } from '@services/media/media'
 import { CategorizedMultiSelect } from '@components/Portfolio/CategorizedMultiSelect'
-
-export function LearningActivitySurface({
-  pages,
-  page,
-  pageIndex,
-  children,
-  backHref,
-  onBack,
-  actionLabel = 'Continue',
-  actionDisabled,
-  onAction,
-  interactionState,
-  className = 'h-dvh',
-}: any) {
-  const progress = ((pageIndex + 1) / Math.max(1, pages.length)) * 100
-  const isVideoPage = page?.page_type === 'video'
-  const showVideoControls = isVideoPage && actionDisabled && interactionState?.videoStarted
-  const pageBackground = !isVideoPage && page?.design?.background_accent_color
-    ? String(page.design.background_accent_color)
-    : undefined
-  const surfaceClassName = isVideoPage
-    ? `relative flex w-full min-w-0 items-center justify-center overflow-hidden bg-black px-4 py-4 text-foreground sm:py-6 ${className}`
-    : `relative flex w-full min-w-0 overflow-hidden bg-[var(--org-page-background)] text-foreground ${className} items-center justify-center px-4 py-4 sm:py-6`
-  const frameClassName = isVideoPage
-    ? 'relative flex h-full min-h-0 w-full min-w-0 flex-none flex-col overflow-hidden'
-    : 'relative flex h-full min-h-0 w-full min-w-0 max-w-3xl flex-none flex-col overflow-hidden'
-  const chromeInnerClassName = isVideoPage
-    ? 'mx-auto flex h-14 w-full max-w-3xl items-center gap-4'
-    : 'mx-auto flex h-14 w-full items-center gap-4'
-  const footerInnerClassName = isVideoPage
-    ? 'mx-auto flex w-full max-w-3xl justify-center'
-    : 'mx-auto flex w-full max-w-2xl justify-center'
-  const backControl = backHref ? (
-    <Link href={backHref} aria-label="Close activity" className={`rounded-full p-2 transition ${isVideoPage ? 'text-white hover:bg-white/10' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}><X size={20} /></Link>
-  ) : (
-    <button onClick={onBack} aria-label="Close activity" className={`rounded-full p-2 transition ${isVideoPage ? 'text-white hover:bg-white/10' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}><X size={20} /></button>
-  )
-
-  return (
-    <main data-learning-activity-surface className={surfaceClassName} style={pageBackground ? { backgroundColor: pageBackground } : undefined}>
-      <div className={frameClassName}>
-        <div className="relative z-10 shrink-0 px-4">
-          <div className={chromeInnerClassName}>
-            {backControl}
-            <div className={`h-2 flex-1 overflow-hidden rounded-full ${isVideoPage ? 'bg-white/25' : 'bg-muted'}`}>
-              <div className="h-full rounded-full bg-[var(--org-primary-color)] transition-all" style={{ width: `${progress}%` }} />
-            </div>
-            <span className={`text-sm font-medium ${isVideoPage ? 'text-white/80' : 'text-muted-foreground'}`}>{pageIndex + 1}/{Math.max(1, pages.length)}</span>
-          </div>
-        </div>
-        <div className={`${isVideoPage ? 'flex min-h-0 flex-1 items-center justify-center overflow-hidden p-0' : 'min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-5 py-8'}`}>
-          <div className={`${isVideoPage ? 'flex h-full w-full items-center justify-center overflow-hidden' : 'mx-auto flex min-h-full w-full max-w-2xl items-center overflow-visible'}`}>
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.div
-                key={page?.page_uuid || pageIndex}
-                data-learning-page-heading
-                tabIndex={-1}
-                className={isVideoPage ? 'flex h-full w-full items-center justify-center' : 'w-full'}
-                initial={{ x: 36, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                exit={{ x: -24, opacity: 0 }}
-                transition={{ duration: 0.18, ease: 'easeOut' }}
-              >
-                {page ? children : <div className="flex min-h-[420px] items-center justify-center text-muted-foreground">No page selected</div>}
-              </motion.div>
-            </AnimatePresence>
-          </div>
-        </div>
-        <div className="relative z-10 shrink-0 px-5 py-4">
-          <div className={footerInnerClassName}>
-            {showVideoControls ? (
-              <VideoPlaybackStatus
-                interactionState={interactionState}
-                pageUuid={page?.page_uuid}
-                allowScrubbing={page?.content?.allow_scrubbing !== false}
-              />
-            ) : (
-              <button onClick={onAction} disabled={actionDisabled} className="inline-flex h-12 w-full max-w-sm items-center justify-center gap-2 rounded-lg bg-[var(--org-primary-color)] px-5 text-sm font-bold text-white shadow-sm transition hover:brightness-95 disabled:opacity-40 sm:w-auto sm:min-w-40">
-                {actionLabel}
-                <ChevronRight size={18} />
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    </main>
-  )
-}
+import ChoiceOptions from './player/ChoiceOptions'
+import SourcedChoiceOptions from '@components/Learning/player/OptionSources'
+import StoryBlock, { STORY_BLOCKS } from '@components/Learning/player/StoryBlocks'
+import { EntranceMotion } from './player/design'
 
 export function LearningPageContent({ page, answer, setAnswer, setUnlocked, pages, run, onNavigatePage, onButton, responseMediaOwner }: any) {
   if (!page) return null
@@ -141,7 +55,7 @@ function StandardPageContent({ page, answer, setAnswer, setUnlocked, run, pages,
   const unlockedByBlockRef = React.useRef<Record<string, boolean>>({})
 
   React.useEffect(() => {
-    unlockedByBlockRef.current = Object.fromEntries(blocks.filter((block: any) => block.type === 'question' && block.kind === 'image_upload' && getBlockCompletion(block)?.required === false).map((block: any) => [block.id, true]))
+    unlockedByBlockRef.current = Object.fromEntries(blocks.filter((block: any) => block.type === 'question' && questionAllowsNoAnswer(block)).map((block: any) => [block.id, true]))
     setUnlocked?.(questionIds.every((id: string) => unlockedByBlockRef.current[id]))
   }, [blocks, page?.page_uuid, questionIds, setUnlocked])
 
@@ -154,21 +68,34 @@ function StandardPageContent({ page, answer, setAnswer, setUnlocked, run, pages,
     setAnswer?.((current: any) => setQuestionAnswer(current, blockId, value))
   }
 
-  const renderBlock = (block: LearningBlock) => <StandardBlockView key={block.id} block={block} page={page} answer={getQuestionAnswer(answer, block.id)} setAnswer={(value: any) => setBlockAnswer(block.id, value)} setUnlocked={(value: boolean) => setBlockUnlocked(block.id, value)} responseMediaOwner={responseMediaOwner} run={run} pages={pages} onNavigatePage={onNavigatePage} onButton={onButton} />
+  // Buttons placed in the footer render beside Continue instead (see footerButtons).
+  const inline = blocks.filter((block: LearningBlock) => !isFooterButton(block))
+  const renderBlock = (block: LearningBlock) => <EntranceMotion key={block.id} entrance={block.design?.entrance} index={inline.indexOf(block)}><StandardBlockView block={block} page={page} answer={getQuestionAnswer(answer, block.id)} setAnswer={(value: any) => setBlockAnswer(block.id, value)} setUnlocked={(value: boolean) => setBlockUnlocked(block.id, value)} responseMediaOwner={responseMediaOwner} run={run} pages={pages} onNavigatePage={onNavigatePage} onButton={onButton} /></EntranceMotion>
 
   return (
     <div className="learning-info-block-stack">
       <div className="learning-info-reorder-list">
-        {blocks.map((block: LearningBlock, index: number) => {
+        {inline.map((block: LearningBlock, index: number) => {
           const group = block.design?.group
           if (!group) return renderBlock(block)
-          if (index > 0 && blocks[index - 1]?.design?.group === group) return null
-          const members = blocks.filter((item: LearningBlock) => item.design?.group === group)
+          if (index > 0 && inline[index - 1]?.design?.group === group) return null
+          const members = inline.filter((item: LearningBlock) => item.design?.group === group)
           return <div key={group} className="my-3 grid w-full grid-cols-1 gap-3 sm:grid-cols-2">{members.map(renderBlock)}</div>
         })}
       </div>
     </div>
   )
+}
+
+/** A continue button the author placed in the footer, beside Continue. */
+export const isFooterButton = (block: any) => block?.type === 'button' && block.design?.placement === 'footer' && block.content?.action !== 'revisit'
+
+/** A page's footer buttons, as secondary actions that route like any other button. */
+export function footerButtons(page: any, run: any, onButton?: (id: string) => void) { // eslint-disable-line no-unused-vars
+  if (page?.page_type !== 'standard') return null
+  const buttons = resolveVariantBlocks(page, run).filter(isFooterButton)
+  return buttons.length ? buttons.map((block: any) => <button key={block.id} type="button" disabled={!onButton} onClick={() => onButton?.(block.id)}
+    className="inline-flex h-12 w-full max-w-sm items-center justify-center rounded-lg border border-border/80 bg-background/70 px-5 text-sm font-bold text-foreground shadow-sm transition hover:border-foreground/30 disabled:opacity-40 sm:w-auto sm:min-w-32">{block.content?.label || 'Continue'}</button>) : null
 }
 
 export function buildQuestionVirtualPage(page: any, block: any) {
@@ -178,19 +105,17 @@ export function buildQuestionVirtualPage(page: any, block: any) {
     content: { ...(block.content || {}), hide_prompt: true },
     scoring: getBlockScoring(block),
     completion: getBlockCompletion(block),
+    choice_style: block.design?.style,
   }
 }
 
 function StandardBlockView({ block, page, answer, setAnswer, setUnlocked, responseMediaOwner, run, pages, onNavigatePage, onButton }: any) {
   const blockStyle = getStandardBlockStyle(block)
+  if (STORY_BLOCKS.has(block.type)) return <StoryBlock block={block} run={run} style={blockStyle} />
 
   if (block.type === 'text') {
     const nodes = resolveDisplayNodes(getTextBlockNodes(block as LearningTextBlock), run)
-    return (
-      <section className="learning-info-stack-section" style={blockStyle}>
-        <InfoTextBlock block={nodes} blockId={block.id} />
-      </section>
-    )
+    return <section className="learning-info-stack-section" style={blockStyle}><InfoTextBlock block={nodes} blockId={block.id} /></section>
   }
 
   if (block.type === 'image') {
@@ -336,8 +261,8 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, responseMe
     if (page.page_type === 'multiple_choice' || page.page_type === 'categorized_multi_select') {
       const completion = page.completion || {}
       const selectedIds = Array.isArray(answer?.option_ids) ? answer.option_ids : answer?.option_id ? [answer.option_id] : []
-      const minSelections = Math.max(1, Number(completion.min_selections ?? 1))
-      const maxSelections = Math.max(minSelections, Number(completion.max_selections ?? 1))
+      const minSelections = Math.max(page.content?.options_source ? 0 : 1, Number(completion.min_selections ?? 1))
+      const maxSelections = Math.max(minSelections, 1, Number(completion.max_selections ?? 1))
       setUnlocked(selectedIds.length >= minSelections && selectedIds.length <= maxSelections)
       return
     }
@@ -370,13 +295,9 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, responseMe
     }))
     const visibleOptions = options.length ? options : [{ id: 'a', text: '' }, { id: 'b', text: '' }]
     const completion = page.completion || {}
-    const minSelections = Math.max(1, Number(completion.min_selections ?? 1))
-    const maxSelections = Math.max(minSelections, Number(completion.max_selections ?? 1))
-    const selectedIds = Array.isArray(answer?.option_ids)
-      ? answer.option_ids
-      : answer?.option_id
-        ? [answer.option_id]
-        : []
+    const minSelections = Math.max(page.content?.options_source ? 0 : 1, Number(completion.min_selections ?? 1))
+    const maxSelections = Math.max(minSelections, 1, Number(completion.max_selections ?? 1))
+    const selectedIds = Array.isArray(answer?.option_ids) ? answer.option_ids : answer?.option_id ? [answer.option_id] : []
     const toggleOption = (id: string) => {
       let next = selectedIds.includes(id)
         ? selectedIds.filter((selectedId: string) => selectedId !== id)
@@ -395,18 +316,7 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, responseMe
             <h1 className="text-3xl font-bold text-foreground">{page.content?.prompt || 'Question prompt'}</h1>
           </section>
         )}
-        <div className="mt-6 space-y-3">
-          {visibleOptions.map((option: any, index: number) => (
-            <button
-              key={option.id || index}
-              onClick={() => toggleOption(option.id || String(index))}
-              className={`flex w-full items-center gap-4 rounded-xl border bg-card p-4 text-left shadow-sm transition ${selectedIds.includes(option.id || String(index)) ? 'border-[var(--org-primary-color)] ring-2 ring-[var(--org-primary-color)]' : 'border-border hover:border-border'}`}
-            >
-              <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-sm font-bold ${selectedIds.includes(option.id || String(index)) ? 'border-[var(--org-primary-color)] bg-[var(--org-primary-color)] text-white' : 'border-border text-muted-foreground'}`}>{String.fromCharCode(65 + index)}</span>
-              <span className="min-w-0 flex-1 text-foreground">{option.text || `Option ${index + 1}`}</span>
-            </button>
-          ))}
-        </div>
+        {page.content?.options_source ? <SourcedChoiceOptions source={page.content.options_source} selected={selectedIds} style={page.choice_style} onToggle={toggleOption} /> : <ChoiceOptions options={visibleOptions} selected={selectedIds} multiple={maxSelections > 1} style={page.choice_style} onToggle={toggleOption} />}
       </div>
     )
   }
@@ -519,9 +429,9 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, responseMe
                   </select>
                 ) : isSingleLine ? (
                   <input
-                    type={htmlInputType}
+                    type={htmlInputType} enterKeyHint="next"
                     autoComplete={validation === 'name' ? 'name' : validation === 'email' ? 'email' : validation === 'phone' ? 'tel' : validation === 'url' ? 'url' : undefined}
-                    aria-invalid={Boolean(validationError)}
+                    aria-invalid={Boolean(validationError)} aria-label={input.label || undefined}
                     value={value}
                     onChange={(event) => updateTextInput(input.id, event.target.value)}
                     placeholder={input.placeholder}
@@ -535,7 +445,7 @@ function QuestionBlockContent({ page, answer, setAnswer, setUnlocked, responseMe
                     onChange={(event) => updateTextInput(input.id, event.target.value)}
                     placeholder={input.placeholder}
                     style={{ height }}
-                    aria-invalid={Boolean(validationError)}
+                    aria-invalid={Boolean(validationError)} aria-label={input.label || undefined}
                     className={`w-full resize-none rounded-xl border bg-card p-4 text-foreground outline-none shadow-sm placeholder:text-muted-foreground focus:ring-2 focus:ring-[var(--org-primary-color)] ${validationError ? 'border-red-400' : 'border-border focus:border-[var(--org-primary-color)]'}`}
                   />
                 )}
@@ -941,7 +851,7 @@ function VideoPageContent({ page, answer, setAnswer, setUnlocked }: any) {
   )
 }
 
-function VideoPlaybackStatus({ interactionState, pageUuid, allowScrubbing = true }: { interactionState: any; pageUuid?: string; allowScrubbing?: boolean }) {
+export function VideoPlaybackStatus({ interactionState, pageUuid, allowScrubbing = true }: { interactionState: any; pageUuid?: string; allowScrubbing?: boolean }) {
   const progress = Math.max(0, Math.min(1, interactionState?.videoProgress || 0))
   const seekFromPointer = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!allowScrubbing || !pageUuid) return

@@ -5,7 +5,6 @@ import pytest
 from sqlmodel import Session, SQLModel, create_engine, select
 
 from src.db.hub import HubConversation, HubEditObjectState, HubEditRun, HubEditRunEvent
-from src.db.planning import Plan
 from src.services import hub_edit_runs
 
 
@@ -13,7 +12,7 @@ def _session(monkeypatch):
     monkeypatch.setattr(hub_edit_runs, "require_org_membership", lambda *_args: None)
     engine = create_engine("sqlite:///:memory:")
     SQLModel.metadata.create_all(engine, tables=[
-        HubConversation.__table__, HubEditRun.__table__, HubEditRunEvent.__table__, HubEditObjectState.__table__, Plan.__table__,
+        HubConversation.__table__, HubEditRun.__table__, HubEditRunEvent.__table__, HubEditObjectState.__table__,
     ])
     return Session(engine)
 
@@ -44,14 +43,8 @@ def test_edit_run_is_scoped_idempotent_and_cancellable(monkeypatch):
         assert first["events"][0]["kind"] == "run.started"
         assert hub_edit_runs.active_edit_run(db, conversation.conversation_uuid, 7, 11)["run_uuid"] == first["run_uuid"]
 
-        plan = Plan(plan_uuid="plan_one", slug="my-plan", name="My plan", owner_user_id=11, subject_user_id=11)
-        db.add(plan)
-        db.commit()
-        bound = hub_edit_runs.bind_created_plan(db, first["run_uuid"], 7, 11, plan.plan_uuid)
-        assert bound["scope"] == {
-            "kind": "plan", "target_uuid": "plan_one", "label": "My plan", "route": "/plans/my-plan",
-        }
-        assert bound["events"][-1]["kind"] == "plan.created"
+        # Plan-era scope names from hub actions are stored and returned as goal scopes.
+        assert first["scope"]["kind"] == "new_goal" and first["events"][0]["payload"]["scope_kind"] == "new_goal"
 
         stopped = hub_edit_runs.conclude_edit_run(db, first["run_uuid"], 7, 11, "cancelled")
         assert stopped["status"] == "cancelled"
@@ -63,7 +56,7 @@ def test_edit_run_is_scoped_idempotent_and_cancellable(monkeypatch):
         assert reopened["status"] == "active"
         assert reopened["ended_at"] is None
         assert reopened["events"][-1]["kind"] == "run.reopened"
-        assert reopened["scope"]["target_uuid"] == "plan_one"
+        assert reopened["scope"]["kind"] == "new_goal"
 
 
 def test_new_scope_cannot_silently_replace_an_active_run(monkeypatch):
@@ -147,31 +140,31 @@ def test_native_object_state_recovers_and_rejects_stale_tabs(monkeypatch):
 
         saved = hub_edit_runs.save_object_state(
             db, run_uuid=run["run_uuid"], org_id=7, user_id=11,
-            object_key="new-plan", object_type="plan",
-            current_fields={"name": "Career plan", "description": "", "due_date": "2099-12-31"},
-            proposal_fields={"name": "Career plan"}, expected_revision=0,
+            object_key="new-goal", object_type="goal",
+            current_fields={"title": "Career change", "description": "", "target_date": "2099-12-31"},
+            proposal_fields={"title": "Career change"}, expected_revision=0,
         )
         assert saved["revision"] == 1
         recovered = hub_edit_runs.active_edit_run(db, conversation.conversation_uuid, 7, 11)
-        assert recovered["objects"][0]["current_fields"]["name"] == "Career plan"
+        assert recovered["objects"][0]["current_fields"]["title"] == "Career change"
 
         with pytest.raises(HTTPException) as caught:
             hub_edit_runs.save_object_state(
                 db, run_uuid=run["run_uuid"], org_id=7, user_id=11,
-                object_key="new-plan", object_type="plan", current_fields={"name": "Stale"},
+                object_key="new-goal", object_type="goal", current_fields={"title": "Stale"},
                 proposal_fields={}, expected_revision=0,
             )
         assert caught.value.status_code == 409
 
         cancelled = hub_edit_runs.save_object_state(
             db, run_uuid=run["run_uuid"], org_id=7, user_id=11,
-            object_key="new-plan", object_type="plan", current_fields={}, proposal_fields={},
+            object_key="new-goal", object_type="goal", current_fields={}, proposal_fields={},
             status="cancelled", expected_revision=1,
         )
         assert cancelled["revision"] == 2
         recovered = hub_edit_runs.active_edit_run(db, conversation.conversation_uuid, 7, 11)
         assert recovered["objects"][0]["status"] == "cancelled"
-        assert recovered["events"][-1]["kind"] == "plan.cancelled"
+        assert recovered["events"][-1]["kind"] == "goal.cancelled"
 
 
 def test_native_object_recovery_expires_after_thirty_inactive_days(monkeypatch):

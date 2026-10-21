@@ -31,7 +31,7 @@ def _badge_document(**credential) -> dict:
 
 
 def test_create_badge_writes_editor_fields_and_starts_a_draft(templates):  # noqa: F811
-    session, call, _, _ = templates
+    session, call, _, _, _rpc = templates
     created = call("create_badge", {"document": _badge_document()})
     assert not created.get("isError"), created
     result = created["structuredContent"]
@@ -50,7 +50,7 @@ def test_create_badge_writes_editor_fields_and_starts_a_draft(templates):  # noq
 
 
 def test_validation_reports_errors_and_publish_gaps(templates):  # noqa: F811
-    _, call, _, _ = templates
+    _, call, _, _, _rpc = templates
     report = call("validate_badge", {"document": _badge_document(image_url="ftp://nope", achievement_type="Trophy", description="")})["structuredContent"]
     assert not report["valid"] and report["errors"][0]["path"] == "badge.achievement_type"
     report = call("validate_badge", {"document": {**_badge_document(image_url="ftp://nope", description=""), "listing": {"collection_uuid": "badge_collection_missing"}}})["structuredContent"]
@@ -59,7 +59,7 @@ def test_validation_reports_errors_and_publish_gaps(templates):  # noqa: F811
 
 
 def test_route_publish_then_edit_starts_a_new_draft(templates):  # noqa: F811
-    session, call, _, template_uuid = templates
+    session, call, _, template_uuid, _rpc = templates
     created = call("create_badge", {"document": _badge_document()})["structuredContent"]
     badge_uuid = created["context"]["badge_uuid"]
 
@@ -92,8 +92,8 @@ def test_route_publish_then_edit_starts_a_new_draft(templates):  # noqa: F811
 
 
 def test_routes_can_be_added_but_never_removed(templates):  # noqa: F811
-    session, call, _, template_uuid = templates
-    other = call("create_plan_template", {"document": {"template": {"name": "Fast track"}, "phases": [{"name": "Do it", "objectives": [{"title": "Step"}]}]}})
+    session, call, _, template_uuid, _rpc = templates
+    other = call("create_plan_template", {"document": {"template": {"title": "Fast track"}, "stages": [{"title": "Do it", "steps": [{"type": "task", "title": "Step"}]}]}})
     other_uuid = other["structuredContent"]["context"]["template_uuid"]
     badge_uuid = call("create_badge", {"document": _badge_document()})["structuredContent"]["context"]["badge_uuid"]
     call("set_badge_routes", {"badge_uuid": badge_uuid, "routes": [{"template_uuid": template_uuid}]})
@@ -105,7 +105,7 @@ def test_routes_can_be_added_but_never_removed(templates):  # noqa: F811
 
 
 def test_collections(templates):  # noqa: F811
-    _, call, _, _ = templates
+    _, call, _, _, _rpc = templates
     created = call("save_badge_collection", {"name": "Work Ready", "credibility": "Built with employers", "endorsers": [{"name": "Acme", "url": "https://acme.test"}]})["structuredContent"]["collection"]
     assert created["endorsers"] == [{"name": "Acme", "url": "https://acme.test"}]
     document = {**_badge_document(), "listing": {"collection_uuid": created["collection_uuid"]}}
@@ -118,7 +118,7 @@ def test_collections(templates):  # noqa: F811
 
 
 def test_org_switching_is_limited_to_orgs_the_user_administers(templates):  # noqa: F811
-    session, call, alice, _ = templates
+    session, call, alice, _, _rpc = templates
     orgs = call("list_organizations")["structuredContent"]
     assert orgs["default_org"] == "creator" and [item["slug"] for item in orgs["organizations"]] == ["creator"]
     refused = call("list_plan_templates", {"org": "issuer"})
@@ -127,10 +127,10 @@ def test_org_switching_is_limited_to_orgs_the_user_administers(templates):  # no
     session.add(UserOrganization(user_id=alice.id, org_id=2, role_id=1, creation_date=NOW, update_date=NOW))
     session.commit()
     assert [item["slug"] for item in call("list_organizations")["structuredContent"]["organizations"]] == ["creator", "issuer"]
-    created = call("create_plan_template", {"org": "issuer", "document": {"template": {"name": "Issuer plan"}, "phases": [{"name": "One", "objectives": [{"title": "Step"}]}]}})
+    created = call("create_plan_template", {"org": "issuer", "document": {"template": {"title": "Issuer plan"}, "stages": [{"title": "One", "steps": [{"type": "task", "title": "Step"}]}]}})
     assert "/orgs/issuer/admin/plans/" in created["structuredContent"]["editor_url"]
-    assert [item["name"] for item in call("list_plan_templates", {"org": "issuer"})["structuredContent"]["templates"]] == ["Issuer plan"]
-    assert "Issuer plan" not in [item["name"] for item in call("list_plan_templates")["structuredContent"]["templates"]]
+    assert [item["title"] for item in call("list_plan_templates", {"org": "issuer"})["structuredContent"]["templates"]] == ["Issuer plan"]
+    assert "Issuer plan" not in [item["title"] for item in call("list_plan_templates")["structuredContent"]["templates"]]
     # A template in another org reads as not found unless that org is named.
     uuid = created["structuredContent"]["context"]["template_uuid"]
     assert call("get_plan_template", {"template_uuid": uuid})["isError"]

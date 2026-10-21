@@ -1,0 +1,435 @@
+"""Live goals: reading them, personal goals, entries and submissions.
+
+Editing a goal's stages and steps lives in ``structure``.
+
+Status changes go through ``completion.set_status``; nothing here writes a
+step's status directly.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime
+from uuid import uuid4
+
+from fastapi import HTTPException
+from sqlmodel import Session, func, or_, select
+
+from src.db.goals import (
+    DONE_STEP_STATUSES,
+    CompletionMethod,
+    Goal,
+    GoalCreate,
+    GoalOwnership,
+    GoalSource,
+    GoalStage,
+    GoalStatus,
+    GoalStep,
+    GoalUpdate,
+    StepCompleter,
+    StepEntry,
+    StepProgress,
+    StepStatus,
+    StepStatusChange,
+    StepNote,
+    StepSubmission,
+)
+from src.db.planning import PlanCollaborator
+from src.db.user_organizations import UserOrganization
+from src.db.users import PublicUser, User
+from src.services.goals import access, check_ins, completion, references, schedule
+from src.services.goals.badges import badge_summary
+from src.services.goals.coach_notes import note_counts
+from src.services.goals.availability import availability, node_state, ordered_steps
+from src.services.goals.types import StepState, step_type
+
+STAFF_CAPABILITY = "complete_restricted_objectives"
+
+
+def _now() -> str:
+    return datetime.now().isoformat()
+
+
+def _value(item) -> str:
+    return getattr(item, "value", item)
+
+
+def _personal(goal: Goal) -> bool:
+    return _value(goal.ownership) == GoalOwnership.PERSONAL.value
+
+
+def _user_summary(db: Session, user_id: int | None) -> dict | None:
+    user = db.get(User, user_id) if user_id else None
+    if not user:
+        return None
+    return {
+        "id": user.id, "user_uuid": user.user_uuid, "username": user.username, "avatar_image": user.avatar_image,
+        "name": " ".join(filter(None, [user.first_name, user.last_name])) or user.username,
+    }
+
+
+# Reading -------------------------------------------------------------------------
+
+def _structure(db: Session, goal: Goal) -> tuple[list[GoalStage], list[GoalStep], dict[int, StepProgress], dict[int, list[StepEntry]]]:
+    stages = sorted(db.exec(select(GoalStage).where(GoalStage.goal_id == goal.id)).all(), key=lambda item: (item.position, item.id or 0))
+    steps = list(db.exec(select(GoalStep).where(GoalStep.goal_id == goal.id)).all())
+    ids = [step.id for step in steps]
+    progress = {int(row.step_id): row for row in db.exec(select(StepProgress).where(StepProgress.step_id.in_(ids))).all()} if ids else {}  # type: ignore[union-attr]
+    entries: dict[int, list[StepEntry]] = {}
+    for entry in (db.exec(select(StepEntry).where(StepEntry.step_id.in_(ids)).order_by(StepEntry.position, StepEntry.id)).all() if ids else []):  # type: ignore[union-attr, arg-type]
+        entries.setdefault(int(entry.step_id), []).append(entry)
+    return stages, steps, progress, entries
+
+
+def _entry_dict(entry: StepEntry) -> dict:
+    return {
+        "entry_uuid": entry.entry_uuid, "kind": _value(entry.kind), "slot": entry.slot, "title": entry.title, "url": entry.url,
+        "asset_id": entry.asset_id, "resource_uuid": entry.resource_uuid, "note": entry.note, "done": entry.done,
+        "period_start": entry.period_start,
+        "data": entry.data or {}, "creation_date": entry.creation_date,
+    }
+
+
+def step_dict(step: GoalStep, progress: StepProgress, entries: list[StepEntry], stage: GoalStage | None, lock: dict, staff: bool) -> dict:
+    kind = step_type(step.type)
+    state = StepState(step, progress, entries)
+    status = _value(progress.status)
+    fraction = 1.0 if status in DONE_STEP_STATUSES else kind.fraction(state)
+    result = {
+        "step_uuid": step.step_uuid, "stage_uuid": stage.stage_uuid if stage else None, "position": step.position,
+        "type": step.type, "title": step.title, "description": step.description, "config": step.config or {},
+        "materials": step.materials or [], "completed_by": _value(step.completed_by), "review_required": step.review_required,
+        "start_date": step.start_date, "due_date": step.due_date, "held": step.held,
+        "after_step_uuids": step.after_step_uuids or [], "requirement_links": step.requirement_links or [],
+        "status": status, "locked": lock["locked"], "locked_reason": lock["reason"],
+        "state": node_state(status, lock["locked"], fraction), "fraction": round(fraction, 3),
+        "result": kind.result(state), "submission": progress.submission or {}, "answer": progress.answer,
+        "learner_note": progress.learner_note, "reviewer_note": progress.reviewer_note,
+        "feedback_history": progress.feedback_history or [], "completed_at": progress.completed_at,
+        "completion_method": _value(progress.completion_method) if progress.completion_method else None,
+        "entries": [_entry_dict(entry) for entry in entries],
+    }
+    if staff:
+        result["reviewer_guidance"] = step.reviewer_guidance
+        result["staff_notes"] = progress.staff_notes or []
+    return result
+
+
+def goal_dict(db: Session, goal: Goal, user_id: int, granted: set[str] | None = None) -> dict:
+    granted = granted if granted is not None else access.capabilities(db, goal, user_id)
+    stages, steps, progress, entries = _structure(db, goal)
+    statuses = {step_id: _value(row.status) for step_id, row in progress.items()}
+    locks = availability(goal, stages, steps, statuses)
+    stage_by_id = {stage.id: stage for stage in stages}
+    staff = STAFF_CAPABILITY in granted
+    views = {
+        int(step.id): step_dict(step, progress.get(int(step.id)) or completion.progress_view(db, step), entries.get(int(step.id), []),  # type: ignore[arg-type]
+                                stage_by_id.get(step.stage_id), locks[int(step.id)], staff)  # type: ignore[arg-type]
+        for step in steps
+    }
+    references.attach(db, steps, views)
+    ordered = ordered_steps(stages, steps)
+    ends = schedule.stage_ends(goal, stages)
+    done = sum(1 for step in steps if statuses.get(int(step.id)) in DONE_STEP_STATUSES)  # type: ignore[arg-type]
+    return {
+        "goal_uuid": goal.goal_uuid, "title": goal.title, "description": goal.description,
+        "ownership": _value(goal.ownership), "source": _value(goal.source), "status": _value(goal.status),
+        "org_id": goal.org_id, "start_date": goal.start_date, "icon": (goal.details or {}).get("icon"),
+        "target_date": goal.target_date, "finished_at": goal.finished_at, "finish": goal.finish or {},
+        "owner": _user_summary(db, goal.owner_user_id), "subject": _user_summary(db, goal.subject_user_id),
+        "capabilities": sorted(granted), "progress": {"done": done, "total": len(steps)}, "source_badge": badge_summary(db, goal.badge_id),
+        "current_stage_uuid": schedule.current_stage(stages), "schedule_warnings": schedule.conflicts(goal, stages, steps),
+        "stages": [
+            {
+                "stage_uuid": stage.stage_uuid, "position": stage.position, "title": stage.title, "description": stage.description,
+                "timing": stage.timing, "milestone": stage.milestone, "start_date": stage.start_date, "end_date": ends.get(int(stage.id)),  # type: ignore[arg-type]
+                "steps": [views[int(step.id)] for step in ordered if step.stage_id == stage.id],  # type: ignore[arg-type]
+            }
+            for stage in stages
+        ],
+        "unstaged_steps": [views[int(step.id)] for step in ordered if step.stage_id not in stage_by_id],  # type: ignore[arg-type]
+    }
+
+
+def get_goal(db: Session, current_user: PublicUser, goal_uuid: str) -> dict:
+    goal = access.goal_or_404(db, goal_uuid)
+    granted = access.require(db, goal, current_user.id, "view_plan")
+    completion.end_routines(db, goal)
+    return goal_dict(db, goal, current_user.id, granted)
+
+
+def _done_total(db: Session, goal_ids: list[int]) -> dict[int, tuple[int, int]]:
+    if not goal_ids:
+        return {}
+    totals = dict(db.exec(select(GoalStep.goal_id, func.count()).where(GoalStep.goal_id.in_(goal_ids)).group_by(GoalStep.goal_id)).all())  # type: ignore[union-attr, call-overload]
+    done = dict(db.exec(select(GoalStep.goal_id, func.count()).join(StepProgress, StepProgress.step_id == GoalStep.id).where(  # type: ignore[call-overload]
+        GoalStep.goal_id.in_(goal_ids), StepProgress.status.in_(list(DONE_STEP_STATUSES)),  # type: ignore[union-attr, attr-defined]
+    ).group_by(GoalStep.goal_id)).all())
+    return {goal_id: (int(done.get(goal_id, 0)), int(totals.get(goal_id, 0))) for goal_id in goal_ids}
+
+
+def _percent(done: int, total: int) -> int:
+    return round(done * 100 / total) if total else 0
+
+
+def _group_rows(db: Session, user_id: int, include_finished: bool) -> list[dict]:
+    """One row per active group assignment the user staffs, summarising its learners' goals."""
+    from src.db.goals import CURRENT_ASSIGNMENT_STATUSES, GoalAssignment, GoalTemplate
+    from src.db.usergroups import UserGroup
+
+    org_ids = select(UserOrganization.org_id).where(UserOrganization.user_id == user_id)
+    assignments = [item for item in db.exec(select(GoalAssignment).where(
+        GoalAssignment.status.in_(CURRENT_ASSIGNMENT_STATUSES), GoalAssignment.usergroup_id.is_not(None), GoalAssignment.org_id.in_(org_ids),  # type: ignore[union-attr, attr-defined]
+    )).all() if item.owner_user_id == user_id or user_id in (item.staff_user_ids or [])]
+    rows = []
+    for assignment in assignments:
+        statuses = [GoalStatus.PENDING, GoalStatus.ACTIVE] + ([GoalStatus.FINISHED] if include_finished else [])
+        members = db.exec(select(Goal).where(Goal.assignment_id == assignment.id, Goal.status.in_(statuses))).all()  # type: ignore[attr-defined]
+        if not members:
+            continue
+        counts = _done_total(db, [int(goal.id) for goal in members])  # type: ignore[arg-type]
+        percents = [_percent(*counts[int(goal.id)]) for goal in members]  # type: ignore[arg-type]
+        template = db.get(GoalTemplate, assignment.template_id)
+        group = db.get(UserGroup, assignment.usergroup_id)
+        rows.append({
+            "target_kind": "group", "assignment_uuid": assignment.assignment_uuid, "title": members[0].title,
+            "template_title": template.title if template else members[0].title, "group": {"id": group.id, "name": group.name} if group else None,
+            "status": "active", "target_date": assignment.due_date, "learner_count": len(members),
+            "min_progress_percent": min(percents), "max_progress_percent": max(percents),
+            "organization": _org_ref(db, assignment.org_id), "is_subject": False,
+        })
+    return rows
+
+
+def _org_ref(db: Session, org_id: int | None) -> dict | None:
+    from src.db.organizations import Organization
+
+    org = db.get(Organization, org_id) if org_id else None
+    return {"id": org.id, "name": org.name, "slug": org.slug} if org else None
+
+
+def list_my_goals(db: Session, current_user: PublicUser, include_finished: bool = True) -> list[dict]:
+    """Goals the user is working toward, owns or is a member of, plus one row per group they staff.
+
+    Goals an organization issued to someone else stay out (staff work on those from admin), as plans did."""
+    member_goal_ids = select(PlanCollaborator.goal_id).where(PlanCollaborator.user_id == current_user.id, PlanCollaborator.active == True, PlanCollaborator.goal_id.is_not(None))  # type: ignore[union-attr]  # noqa: E712
+    statement = select(Goal).where(
+        or_(Goal.subject_user_id == current_user.id, Goal.owner_user_id == current_user.id, Goal.id.in_(member_goal_ids)),  # type: ignore[union-attr]
+        or_(Goal.subject_user_id == current_user.id, Goal.assignment_id.is_(None)),  # type: ignore[union-attr]
+        Goal.status != GoalStatus.ARCHIVED,
+    )
+    if not include_finished:
+        statement = statement.where(Goal.status != GoalStatus.FINISHED)
+    goals = db.exec(statement.order_by(Goal.id)).all()  # type: ignore[arg-type]
+    counts = _done_total(db, [int(goal.id) for goal in goals])  # type: ignore[arg-type]
+    notes = note_counts(db, current_user.id, [int(goal.id) for goal in goals])  # type: ignore[arg-type]
+    result = []
+    for goal in goals:
+        done, total = counts[int(goal.id)]  # type: ignore[arg-type]
+        subject = _user_summary(db, goal.subject_user_id)
+        result.append({
+            "target_kind": "individual", "goal_uuid": goal.goal_uuid, "title": goal.title, "ownership": _value(goal.ownership),
+            "source": _value(goal.source), "status": _value(goal.status), "priority": goal.priority, "target_date": goal.target_date, "icon": (goal.details or {}).get("icon"),
+            "progress": {"done": done, "total": total}, "progress_percent": _percent(done, total),
+            "source_badge": badge_summary(db, goal.badge_id), "organization": _org_ref(db, goal.org_id),
+            "subject": {"id": subject["id"], "name": subject["name"]} if subject else None,
+            "is_subject": goal.subject_user_id == current_user.id, "update_date": goal.update_date, "coach_notes": notes.get(int(goal.id), 0),  # type: ignore[arg-type]
+        })
+    return result + _group_rows(db, current_user.id, include_finished)
+
+
+# Personal goals and goal details ---------------------------------------------------
+
+def new_personal_goal(db: Session, current_user: PublicUser, payload: GoalCreate, status: GoalStatus = GoalStatus.ACTIVE) -> Goal:
+    """A personal goal with its roles and one empty stage (flushed, not committed)."""
+    if payload.org_id is not None and not db.exec(select(UserOrganization.id).where(
+        UserOrganization.user_id == current_user.id, UserOrganization.org_id == payload.org_id,
+    )).first():
+        raise HTTPException(status_code=403, detail="You're not a member of that organization")
+    now = _now()
+    goal = Goal(
+        goal_uuid=f"goal_{uuid4()}", org_id=payload.org_id, owner_user_id=current_user.id, subject_user_id=current_user.id,
+        ownership=GoalOwnership.PERSONAL, source=GoalSource.NONE, title=payload.title.strip(), description=payload.description,
+        target_date=payload.target_date, status=status, creation_date=now, update_date=now,
+    )
+    db.add(goal)
+    db.flush()
+    access.seed_roles(db, goal, None)
+    db.add(GoalStage(stage_uuid=f"goal_stage_{uuid4()}", goal_id=int(goal.id), position=0, title="Getting started", creation_date=now, update_date=now))  # type: ignore[arg-type]
+    access.log(db, goal, current_user.id, "goal.created", {})
+    return goal
+
+
+def create_personal_goal(db: Session, current_user: PublicUser, payload: GoalCreate) -> dict:
+    """A goal the learner writes and owns. It starts with one empty stage."""
+    goal = new_personal_goal(db, current_user, payload)
+    check_ins.due_soon(db, goal, check_ins.FIRST_CHECK_IN)
+    db.commit()
+    db.refresh(goal)
+    return goal_dict(db, goal, current_user.id)
+
+
+def update_goal(db: Session, current_user: PublicUser, goal_uuid: str, payload: GoalUpdate) -> dict:
+    goal = access.goal_or_404(db, goal_uuid)
+    changes = payload.model_dump(exclude_unset=True)
+    access.require(db, goal, current_user.id, "edit_plan_details")
+    if "icon" in changes:
+        # The mark lives with the goal's other details: null puts back the default.
+        icon = changes.pop("icon")
+        details = {key: value for key, value in (goal.details or {}).items() if key != "icon"}
+        goal.details = {**details, "icon": icon} if icon else details
+    for key, value in changes.items():
+        setattr(goal, key, value.strip() if isinstance(value, str) and key == "title" else value)
+    goal.update_date = _now()
+    db.add(goal)
+    access.log(db, goal, current_user.id, "goal.updated", {"fields": sorted(changes)})
+    db.commit()
+    return goal_dict(db, goal, current_user.id)
+
+
+def respond(db: Session, current_user: PublicUser, goal_uuid: str, accept: bool) -> dict:
+    """The learner accepts or declines a goal handed to them."""
+    goal = access.goal_or_404(db, goal_uuid)
+    if goal.subject_user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    if _value(goal.status) != GoalStatus.PENDING.value:
+        raise HTTPException(status_code=409, detail="This goal isn't waiting for an answer")
+    goal.status = GoalStatus.ACTIVE if accept else GoalStatus.ARCHIVED
+    goal.update_date = _now()
+    db.add(goal)
+    access.log(db, goal, current_user.id, "goal.accepted" if accept else "goal.declined", {})
+    db.commit()
+    return goal_dict(db, goal, current_user.id)
+
+
+# Steps -------------------------------------------------------------------------------
+
+def step_or_404(db: Session, goal: Goal, step_uuid: str) -> GoalStep:
+    step = db.exec(select(GoalStep).where(GoalStep.goal_id == goal.id, GoalStep.step_uuid == step_uuid)).first()
+    if not step:
+        raise HTTPException(status_code=404, detail="Step not found")
+    return step
+
+
+# Working on a step ------------------------------------------------------------------------
+
+def _require_contribute(db: Session, goal: Goal, step: GoalStep, user_id: int) -> set[str]:
+    needed = "contribute_restricted_fields" if _value(step.completed_by) == StepCompleter.STAFF.value else "contribute_fields"
+    return access.require(db, goal, user_id, needed)
+
+
+def _require_open(db: Session, goal: Goal, step: GoalStep) -> None:
+    stages, steps, progress, _ = _structure(db, goal)
+    lock = availability(goal, stages, steps, {key: _value(row.status) for key, row in progress.items()})[int(step.id)]  # type: ignore[arg-type]
+    if lock["locked"]:
+        raise HTTPException(status_code=409, detail={"message": "This step isn't open yet", "reason": lock["reason"]})
+
+
+def _mark_started(db: Session, goal: Goal, step: GoalStep, user_id: int) -> None:
+    progress = completion.progress_view(db, step)
+    if _value(progress.status) == StepStatus.NOT_STARTED.value:
+        completion.set_status(db, goal, step, StepStatus.IN_PROGRESS, actor_user_id=user_id, method=CompletionMethod.LEARNER)
+
+
+def save_submission(db: Session, current_user: PublicUser, goal_uuid: str, step_uuid: str, payload: StepSubmission) -> dict:
+    goal = access.goal_or_404(db, goal_uuid)
+    step = step_or_404(db, goal, step_uuid)
+    _require_contribute(db, goal, step, current_user.id)
+    progress = completion.progress_for(db, step)
+    if _value(progress.status) in DONE_STEP_STATUSES:
+        raise HTTPException(status_code=409, detail="This step is done; reopen it to change it")
+    _require_open(db, goal, step)
+    progress.submission = step_type(step.type).validate_submission(payload.submission)
+    if payload.answer is not None:
+        progress.answer = payload.answer.strip()
+    if payload.learner_note is not None:
+        progress.learner_note = payload.learner_note
+    progress.updated_by_user_id = current_user.id
+    progress.update_date = _now()
+    db.add(progress)
+    db.commit()
+    _mark_started(db, goal, step, current_user.id)
+    return goal_dict(db, goal, current_user.id)
+
+
+def save_note(db: Session, current_user: PublicUser, goal_uuid: str, step_uuid: str, payload: StepNote) -> dict:
+    """The learner's note on a step: theirs to add or change while it's open and after it's done."""
+    goal = access.goal_or_404(db, goal_uuid)
+    step = step_or_404(db, goal, step_uuid)
+    _require_contribute(db, goal, step, current_user.id)
+    progress = completion.progress_for(db, step)
+    if _value(progress.status) not in DONE_STEP_STATUSES:
+        _require_open(db, goal, step)
+    progress.learner_note = payload.note.strip()
+    progress.updated_by_user_id = current_user.id
+    progress.update_date = _now()
+    db.add(progress)
+    db.commit()
+    return goal_dict(db, goal, current_user.id)
+
+
+def change_status(db: Session, current_user: PublicUser, goal_uuid: str, step_uuid: str, payload: StepStatusChange) -> dict:
+    """Learners start, submit and finish their steps; staff review, complete on a learner's behalf, excuse and reopen."""
+    goal = access.goal_or_404(db, goal_uuid)
+    granted = access.require(db, goal, current_user.id, "view_plan")
+    step = step_or_404(db, goal, step_uuid)
+    target = payload.status
+    current = _value(completion.progress_view(db, step).status)
+    staff_targets = {StepStatus.CHANGES_REQUESTED, StepStatus.EXCUSED}
+    is_learner = current_user.id == goal.subject_user_id and "update_progress" in granted
+    needs_staff = (
+        target in staff_targets
+        or (target == StepStatus.COMPLETED and (
+            _value(step.completed_by) == StepCompleter.STAFF.value
+            or current == StepStatus.SUBMITTED.value
+            or not step_type(step.type).learner_can_complete
+            or not is_learner
+        ))
+        or (current in DONE_STEP_STATUSES and not is_learner)
+    )
+    if needs_staff:
+        if STAFF_CAPABILITY not in granted:
+            kind = step_type(step.type)
+            if target == StepStatus.COMPLETED and is_learner and not kind.learner_can_complete:
+                raise HTTPException(status_code=409, detail=f"{kind.label} steps finish on their own")
+            raise HTTPException(status_code=403, detail="Staff do that")
+        method = CompletionMethod.STAFF
+    else:
+        if "update_progress" not in granted:
+            raise HTTPException(status_code=403, detail="You can't update this step")
+        if target in {StepStatus.IN_PROGRESS, StepStatus.SUBMITTED, StepStatus.COMPLETED}:
+            _require_open(db, goal, step)
+        method = CompletionMethod.LEARNER
+    completion.set_status(db, goal, step, target, actor_user_id=current_user.id, method=method, note=payload.note)
+    db.refresh(goal)
+    return goal_dict(db, goal, current_user.id)
+
+
+def start_activity(db: Session, current_user: PublicUser, goal_uuid: str, step_uuid: str) -> dict:
+    """Start (or resume) the learner's run of an activity step."""
+    from src.db.learning import LearningActivity, LearningRun
+    from src.services.learning import run_navigation
+
+    goal = access.goal_or_404(db, goal_uuid)
+    access.require(db, goal, current_user.id, "update_progress")
+    if goal.subject_user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the person this goal is for can play its activities")
+    step = step_or_404(db, goal, step_uuid)
+    if step.type != "activity" or not step.activity_id:
+        raise HTTPException(status_code=422, detail="This step is not an activity")
+    _require_open(db, goal, step)
+    activity = db.get(LearningActivity, step.activity_id)
+    if not activity:
+        raise HTTPException(status_code=404, detail="This step's activity is no longer available")
+    run = db.exec(select(LearningRun).where(LearningRun.goal_step_id == step.id, LearningRun.user_id == current_user.id)).first()
+    if not run:
+        now = datetime.utcnow()
+        run = LearningRun(
+            run_uuid=f"learning_run_{uuid4()}", activity_id=int(activity.id), org_id=activity.org_id, issuing_org_id=goal.org_id,  # type: ignore[arg-type]
+            goal_id=goal.id, goal_step_id=step.id, user_id=current_user.id, started_at=now, creation_date=str(now), update_date=str(now),
+        )
+        db.add(run)
+        db.commit()
+        db.refresh(run)
+    _mark_started(db, goal, step, current_user.id)
+    db.refresh(run)
+    return {"goal_uuid": goal.goal_uuid, "step_uuid": step.step_uuid, "activity_uuid": activity.activity_uuid, "run": run_navigation._serialize_run(db, run).model_dump()}

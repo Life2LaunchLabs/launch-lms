@@ -2,135 +2,51 @@
 
 import { useOrg } from '@components/Contexts/OrgContext'
 import { cn } from '@/lib/utils'
-import { getCoreCapabilities, getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config'
-import { getOrgLogoMediaDirectory } from '@services/media/media'
+import { getDefaultOrg, getUriWithOrg, routePaths } from '@services/config/config'
+import { OrgLogo } from '@components/Objects/OrgLogo'
 import { authenticatedOrgHref } from '@services/auth/handoff'
-import {
-  BadgeDollarSign,
-  Building2,
-  ChartPie,
-  FlaskConical,
-  Inbox,
-  ClipboardList,
-  FolderOpen,
-  Headphones,
-  Home,
-  Library,
-  Menu,
-  MessageSquareWarning,
-  MessagesSquare,
-  Newspaper,
-  Settings,
-  School,
-  Store,
-  UserRound,
-  Users,
-  X,
-} from 'lucide-react'
+import { House, List, UserCircle, X, type Icon } from '@phosphor-icons/react'
 import Link from 'next/link'
-import { platformSections, type PlatformSection } from '@components/Admin/Platform/platformSections'
+import { usePathname } from 'next/navigation'
+import { platformSections } from '@components/Admin/Platform/platformSections'
 import React, { useEffect, useState } from 'react'
+import { useFeatures } from '@components/Hooks/useFeatures'
+import { adminLabel, adminTabForPath, type VisibleNavItem } from '@/lib/admin/registry'
 import { useTranslation } from 'react-i18next'
+import RequestAccessButton from '@components/Admin/RequestAccessButton'
+import { ADMIN_NAV_ICONS, PLATFORM_NAV_ICONS } from '@components/Admin/adminNavIcons'
+import { usePlansNavTabs } from '@components/Admin/Plans/usePlansNavTabs'
+import NavPill from './NavPill'
+import ExperienceSwitcher from '@components/Objects/Menus/ExperienceSwitcher'
 
+/** The admin menu on phones: the same registry tabs as the sidebar, with each tab's pages listed under it. */
 function DashMobileMenu() {
-  const { t } = useTranslation()
   const org = useOrg() as any
+  const features = useFeatures()
+  const pathname = usePathname() || ''
   const [isOpen, setIsOpen] = useState(false)
-
-  const rf = org?.config?.config?.resolved_features
-  const isEnabled = (feature: string) => rf?.[feature]?.enabled === true
-  const capabilities = getCoreCapabilities()
-  const showCommunities = isEnabled('communities')
-  const showResources = isEnabled('resources')
-  const showPodcasts = isEnabled('podcasts')
-  const showPayments = capabilities.payments && isEnabled('payments')
-  const isOwnerOrg = org?.slug === getDefaultOrg()
 
   useEffect(() => {
     if (!isOpen) return
-
     const originalOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-
     return () => {
       document.body.style.overflow = originalOverflow
     }
   }, [isOpen])
 
   const closeMenu = () => setIsOpen(false)
-
-  const navItems = [
-    {
-      href: routePaths.org.dash.root(),
-      icon: Home,
-      label: t('common.home'),
-    },
-    {
-      href: routePaths.org.dash.badges(),
-      icon: Library,
-      label: 'Collections',
-    },
-    {
-      href: `${routePaths.org.dash.badges()}?tab=marketplace`,
-      icon: Store,
-      label: 'Marketplace',
-    },
-    {
-      href: routePaths.org.dash.plans(),
-      icon: ClipboardList,
-      label: 'Plans',
-    },
-    showCommunities
-      ? {
-          href: routePaths.org.dash.communities(),
-          icon: MessagesSquare,
-          label: t('communities.title'),
-        }
-      : null,
-    showResources
-      ? {
-          href: routePaths.org.dash.resources(),
-          icon: FolderOpen,
-          label: 'Resources',
-        }
-      : null,
-    showPodcasts
-      ? {
-          href: routePaths.org.dash.podcasts(),
-          icon: Headphones,
-          label: t('podcasts.podcasts'),
-        }
-      : null,
-    showPayments
-      ? {
-          href: routePaths.org.dash.paymentsOverview(),
-          icon: BadgeDollarSign,
-          label: t('common.payments'),
-        }
-      : null,
-    {
-      href: routePaths.org.dash.users.users(),
-      icon: Users,
-      label: t('common.users'),
-    },
-    {
-      href: routePaths.org.dash.orgSettings.general(),
-      icon: School,
-      label: t('common.organization'),
-    },
-  ].filter(Boolean) as Array<{
-    href: string
-    icon: React.ComponentType<{ className?: string }>
-    label: string
-  }>
-
-  const platformItems = isOwnerOrg
-    ? platformSections().map((section) => ({ href: getUriWithOrg(org.slug, section.href), icon: PLATFORM_ICONS[section.id], label: section.label }))
-    : []
+  const tabs = usePlansNavTabs(features.adminTabs())
+  const active = adminTabForPath(pathname)
+  const showPlatform = org?.slug === getDefaultOrg() && features.isSuperadmin
+  const logo = org?.logo_image
+    ? <OrgLogo org={org} surface="dark" alt={org?.name} className="h-8 w-8 rounded-lg object-contain" />
+    : <img src="/logo-icon.svg" alt="Launch LMS logo" className="h-8 w-8" />
 
   return (
     <>
-      <header className="sticky top-0 z-overlay flex h-14 items-center justify-between border-b border-black/[0.08] bg-[#0f0f10] px-4 text-white shadow-sm">
+      {/* z-overlay isn't a generated utility, so the bar scrolled under the page. At nav level it stays above the page and under full-screen panels such as the plan chat. */}
+      <header className="sticky top-0 z-[var(--z-nav)] flex h-14 items-center justify-between border-b border-black/[0.08] bg-[#0f0f10] px-4 text-white shadow-sm">
         <button
           type="button"
           aria-label="Open dashboard menu"
@@ -138,29 +54,20 @@ function DashMobileMenu() {
           onClick={() => setIsOpen(true)}
           className="flex h-10 w-10 items-center justify-center rounded-lg text-white/70 transition-colors hover:bg-white/[0.08] hover:text-white"
         >
-          <Menu className="h-5 w-5" />
+          <List className="h-5 w-5" />
         </button>
 
-        <Link
-          href={routePaths.org.dash.root()}
-          className="flex min-w-0 items-center gap-2"
-          aria-label="Dashboard home"
+        <ExperienceSwitcher
+          current={{ side: 'admin', orgslug: org?.slug }}
+          homeHref={routePaths.org.admin.root()}
+          tone="dark"
+          align="center"
+          ariaLabel={org?.name}
+          className="flex min-w-0 items-center gap-2 rounded-lg px-2 py-1 transition-colors hover:bg-white/[0.08]"
         >
-          {org?.logo_image ? (
-            <img
-              src={getOrgLogoMediaDirectory(org.org_uuid, org.logo_image)}
-              alt={org?.name}
-              className="h-8 w-8 rounded-lg object-contain"
-            />
-          ) : (
-            <img
-              src="/logo-icon.svg"
-              alt="Launch LMS logo"
-              className="h-8 w-8"
-            />
-          )}
-          <span className="max-w-[58vw] truncate text-sm font-semibold">{org?.name}</span>
-        </Link>
+          {logo}
+          <span className="max-w-[52vw] truncate text-sm font-semibold">{org?.name}</span>
+        </ExperienceSwitcher>
 
         <div className="h-10 w-10" aria-hidden="true" />
       </header>
@@ -178,58 +85,38 @@ function DashMobileMenu() {
             aria-label="Dashboard menu"
             className="fixed left-0 top-0 z-[1001] flex h-[100dvh] w-[min(84vw,320px)] flex-col bg-[#0f0f10] text-white shadow-2xl"
           >
-          <div className="flex h-14 items-center justify-between border-b border-white/[0.08] px-4">
-            <div className="flex min-w-0 items-center gap-2">
-              {org?.logo_image ? (
-                <img
-                  src={getOrgLogoMediaDirectory(org.org_uuid, org.logo_image)}
-                  alt={org?.name}
-                  className="h-8 w-8 rounded-lg object-contain"
-                />
-              ) : (
-                <img
-                  src="/logo-icon.svg"
-                  alt="Launch LMS logo"
-                  className="h-8 w-8"
-                />
-              )}
-              <span className="truncate text-sm font-semibold">{org?.name}</span>
+            <div className="flex h-14 items-center justify-between border-b border-white/[0.08] px-4">
+              <div className="flex min-w-0 items-center gap-2">
+                {logo}
+                <span className="truncate text-sm font-semibold">{org?.name}</span>
+              </div>
+              <button
+                type="button"
+                aria-label="Close dashboard menu"
+                onClick={closeMenu}
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-white/60 transition-colors hover:bg-white/[0.08] hover:text-white"
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
-            <button
-              type="button"
-              aria-label="Close dashboard menu"
-              onClick={closeMenu}
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-white/60 transition-colors hover:bg-white/[0.08] hover:text-white"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               <div className="space-y-1">
-                {navItems.map((item) => (
-                  <MobileMenuLink
-                    key={item.href}
-                    href={item.href}
-                    icon={item.icon}
-                    label={item.label}
-                    onClick={closeMenu}
-                  />
+                {tabs.map((tab) => (
+                  <MobileTab key={tab.id} tab={tab} isActive={active?.tab.id === tab.id} onNavigate={closeMenu} />
                 ))}
               </div>
 
-              {platformItems.length > 0 && (
+              {showPlatform && (
                 <div className="mt-5 border-t border-amber-400/20 pt-4">
-                  <p className="px-3 text-[10px] font-semibold uppercase tracking-widest text-amber-400/60">
-                    Platform
-                  </p>
+                  <p className="px-3 text-[10px] font-semibold uppercase tracking-widest text-amber-400/60">Platform</p>
                   <div className="mt-2 space-y-1">
-                    {platformItems.map((item) => (
+                    {platformSections().map((section) => (
                       <MobileMenuLink
-                        key={item.href}
-                        href={item.href}
-                        icon={item.icon}
-                        label={item.label}
+                        key={section.href}
+                        href={getUriWithOrg(org.slug, section.href)}
+                        icon={PLATFORM_NAV_ICONS[section.id]}
+                        label={section.label}
                         onClick={closeMenu}
                         className="text-amber-400/80 hover:bg-amber-400/10 hover:text-amber-300"
                       />
@@ -242,13 +129,13 @@ function DashMobileMenu() {
             <div className="border-t border-white/[0.08] p-3">
               <MobileMenuLink
                 href={authenticatedOrgHref(getUriWithOrg(getDefaultOrg(), routePaths.org.portfolio()), true)}
-                icon={UserRound}
+                icon={UserCircle}
                 label="Portfolio"
                 onClick={closeMenu}
               />
               <MobileMenuLink
                 href={authenticatedOrgHref(getUriWithOrg(getDefaultOrg(), routePaths.org.root()), true)}
-                icon={Home}
+                icon={House}
                 label="Return to User Experience"
                 onClick={closeMenu}
               />
@@ -260,43 +147,56 @@ function DashMobileMenu() {
   )
 }
 
+function MobileTab({ tab, isActive, onNavigate }: { tab: VisibleNavItem; isActive: boolean; onNavigate: () => void }) {
+  const { t } = useTranslation()
+  // Pages that are tabs on their own page (Plans) aren't listed under the entry.
+  const children = !tab.inPageTabs && tab.children && tab.children.length > 1 ? tab.children : []
+  return (
+    <div>
+      <MobileMenuLink href={tab.href} icon={ADMIN_NAV_ICONS[tab.id]} label={adminLabel(t, tab)} onClick={onNavigate} item={tab} className={isActive ? 'bg-white/[0.08] text-white' : undefined} />
+      {children.length > 0 && (
+        <div className="ml-8 space-y-0.5 border-l border-white/[0.08] pl-2">
+          {children.map((child) => (
+            <MobileMenuLink key={child.id} href={child.href} icon={ADMIN_NAV_ICONS[child.id]} label={adminLabel(t, child)} onClick={onNavigate} item={child} className="py-2 text-[13px]" />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function MobileMenuLink({
   href,
-  icon: Icon,
+  icon: ItemIcon,
   label,
   onClick,
   className,
+  item,
 }: {
   href: string
-  icon: React.ComponentType<{ className?: string }>
+  icon: Icon
   label: string
   onClick: () => void
   className?: string
+  item?: VisibleNavItem
 }) {
+  const rowClass = 'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors'
+  if (item?.visibility.state === 'locked') {
+    return (
+      <div className={cn(rowClass, 'text-white/30', className)}>
+        <ItemIcon size={20} weight="fill" className="shrink-0" />
+        <span className="flex-1 truncate">{label}</span>
+        <RequestAccessButton request={item.visibility.request} tone="dark" />
+      </div>
+    )
+  }
   return (
-    <Link
-      href={href}
-      onClick={onClick}
-      className={cn(
-        'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-white/70 transition-colors hover:bg-white/[0.08] hover:text-white',
-        className
-      )}
-    >
-      <Icon className="h-5 w-5 shrink-0" />
+    <Link href={href} onClick={onClick} className={cn(rowClass, 'text-white/70 hover:bg-white/[0.08] hover:text-white', className)}>
+      <ItemIcon size={20} weight="fill" className="shrink-0" />
       <span className="truncate">{label}</span>
+      {item?.pill ? <NavPill>{item.pill}</NavPill> : null}
     </Link>
   )
 }
 
-
-const PLATFORM_ICONS: Record<PlatformSection, React.ComponentType<{ className?: string }>> = {
-  overview: ChartPie,
-  organizations: Building2,
-  users: Users,
-  requests: Inbox,
-  feedback: MessageSquareWarning,
-  demo: FlaskConical,
-  settings: Settings,
-  news: Newspaper,
-}
 export default DashMobileMenu

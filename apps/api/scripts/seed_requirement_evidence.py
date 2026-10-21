@@ -12,16 +12,15 @@ from config.config import get_launchlms_config
 from sqlalchemy import create_engine
 from sqlmodel import Session, select
 
+from src.db.goals import Goal, GoalAssignment, GoalAssignmentCreate, GoalStep, StepEntryCreate, StepEntryKind, StepStatus, StepStatusChange
 from src.db.organizations import Organization
-from src.db.planning import Plan, PlanObjective, PlanObjectiveProgressUpdate
-from src.db.programs import ObjectiveCreate, ProgramAssignment, ProgramAssignmentCreate, ProgramCreate, ProgramParticipant
 from src.db.requirements import RequirementAssignmentCreate, RequirementFrameworkCreate, RequirementNodeInput
 from src.db.user_organizations import UserOrganization
 from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup
 from src.db.users import PublicUser, User
-from src.services import plan_admin, planning, requirements
-from src.services.programs import add_program_objective, assign_program, create_program, respond_to_invitation
+from src.services import requirements
+from src.services.goals import assignments, entries, goals, review, templates
 
 
 def main():
@@ -55,22 +54,27 @@ def main():
         ]))
         requirements.publish_framework(db, admin, org.id, framework["framework_uuid"])
         requirements.assign_framework(db, admin, org.id, framework["framework_uuid"], RequirementAssignmentCreate(usergroup_id=group.id))
-        program = create_program(db, admin, ProgramCreate(org_id=org.id, name="SB3 Career Path Skills"))
-        program = add_program_objective(db, admin, org.id, program["program_uuid"], ObjectiveCreate(
-            title="Build a professional resume", requirement_node_uuids=["sb3-resume"], reviewer_guidance="Clear contact details\nRelevant experience",
-            custom_fields=[{"field_uuid": "reflection", "title": "Resume reflection", "type": "text"}, {"field_uuid": "resume_link", "title": "Resume document", "type": "link"}],
-        ))
-        assignment = assign_program(db, admin, org.id, program["program_uuid"], ProgramAssignmentCreate(usergroup_id=group.id, staff_user_ids=[admin.id]))
-        assignment_id = db.exec(select(ProgramAssignment.id).where(ProgramAssignment.assignment_uuid == assignment["assignment_uuid"])).one()
+        # One reviewed upload step mapped to the resume standard; the interview standard stays a gap.
+        template = templates.create_template(db, admin, org.id, {"template": {"title": "SB3 Career Path Skills"}, "stages": [{"key": "resume", "title": "Resume", "steps": [{
+            "key": "resume", "type": "upload", "title": "Build a professional resume", "review_required": True,
+            "reviewer_guidance": "Clear contact details\nRelevant experience", "requirement_node_uuids": ["sb3-resume"],
+            "config": {"slots": [{"key": "reflection", "label": "Resume reflection", "kinds": ["link"]}, {"key": "resume_link", "label": "Resume document", "kinds": ["link"]}]},
+        }]}]})
+        templates.publish(db, admin, org.id, template["template_uuid"])
+        assignment = assignments.assign(db, admin, org.id, template["template_uuid"], GoalAssignmentCreate(usergroup_id=group.id, staff_user_ids=[admin.id]))
+        assignment_id = db.exec(select(GoalAssignment.id).where(GoalAssignment.assignment_uuid == assignment["assignment_uuid"])).one()
         for user in users:
             learner = PublicUser.model_validate(user, from_attributes=True)
-            participant = db.exec(select(ProgramParticipant).where(ProgramParticipant.user_id == user.id, ProgramParticipant.assignment_id == assignment_id)).one()
-            respond_to_invitation(db, learner, org.id, participant.participant_uuid, True)
-            plan = db.exec(select(Plan).where(Plan.subject_user_id == user.id, Plan.source_assignment_id == assignment_id)).one()
-            objective = db.exec(select(PlanObjective).where(PlanObjective.plan_id == plan.id)).one()
-            planning.update_objective_progress(db, learner, plan.plan_uuid, objective.objective_uuid, PlanObjectiveProgressUpdate(status="submitted", field_values={"reflection": f"<p>{user.first_name}'s synthetic resume reflection.</p>", "resume_link": ["https://example.org/synthetic-resume"]}))
+            goal = db.exec(select(Goal).where(Goal.subject_user_id == user.id, Goal.assignment_id == assignment_id)).one()
+            goals.respond(db, learner, goal.goal_uuid, True)
+            step = db.exec(select(GoalStep).where(GoalStep.goal_id == goal.id)).one()
+            for slot, title, url in [("reflection", f"{user.first_name}'s synthetic resume reflection.", "https://example.org/synthetic-reflection"),
+                                     ("resume_link", "Synthetic resume", "https://example.org/synthetic-resume")]:
+                entries.add_entry(db, learner, goal.goal_uuid, step.step_uuid, StepEntryCreate(kind=StepEntryKind.LINK, slot=slot, title=title, url=url))
+            # Reviewed steps go to staff when the learner finishes them.
+            goals.change_status(db, learner, goal.goal_uuid, step.step_uuid, StepStatusChange(status=StepStatus.COMPLETED))
             if user.first_name == "Alex":
-                plan_admin.decide(db, admin, org.id, objective.objective_uuid, "confirm", "Reviewed against the resume criteria")
+                review.decide(db, admin, org.id, step.step_uuid, "confirm", "Reviewed against the resume criteria")
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(json.dumps({"group_id": group.id, "assignment_uuid": assignment["assignment_uuid"], "framework_uuid": framework["framework_uuid"], "org_slug": org.slug, "approved_username": users[0].username, "user_ids": [user.id for user in users]}, indent=2) + "\n")
 

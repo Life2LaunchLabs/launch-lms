@@ -93,18 +93,18 @@ launch-lms/
 | `/audit_logs` | Audit log queries |
 | `/news` | Platform news articles |
 | `/users` | User profile, settings |
-| `/orgs` | Organization CRUD, custom domains, packs |
+| `/orgs` | Organization CRUD, usage |
 | `/roles` | RBAC role definitions |
 | `/usergroups` | User groups & resource access |
-| `/api_tokens` | API token management (pro plan) |
+| `/api_tokens` | API token management (Enterprise tier) |
 | `/courses` | Course CRUD, publishing, thumbnails |
 | `/courses/.../chapters` | Chapter management |
 | `/courses/.../activities` | Activity/lesson content |
 | `/courses/.../assignments` | Tasks + submissions |
 | `/courses/.../certifications` | Certificates (pro plan) |
 | `/courses/.../collections` | Course collections |
-| `/boards` | Collaborative whiteboards (pro plan) |
-| `/playgrounds` | Interactive playground elements (pro plan) |
+| `/boards` | Collaborative whiteboards (legacy, switched off) |
+| `/playgrounds` | Interactive playground elements (legacy, switched off) |
 | `/podcasts` | Podcast + episode management |
 | `/communities` | Community forums |
 | `/discussions` | Discussion threads |
@@ -125,7 +125,7 @@ launch-lms/
 - IP-based rate limiting on login, refresh, email verification
 - CSRF protection
 - RBAC via dependency injection (`Depends(...)`)
-- Plan-based feature gating via dependency injection
+- Org access gating via `require_feature(...)` / `ensure_feature(...)` (security/access)
 - All file uploads validated for size and MIME type
 
 ---
@@ -369,10 +369,13 @@ Alternatively, switch to S3 storage (`LAUNCHLMS_CONTENT_DELIVERY_TYPE=s3api`).
 
 ## Business Domain Concepts
 
-### Plans
-`free` → `personal` → `standard` → `pro` → `enterprise`
+### Org access (tiers, partner programs, grants)
+Tiers: `free` (25 active learners, 2 staff seats) → `full` (200 / 12, groups, bulk invites) → `enterprise` (unlimited, SSO, audit logs, API tokens, advanced reports).
+Partner programs (applied for, approved by a superadmin): `badge_publisher`, `plan_publisher`, `resource_partner`. Payments is granted on request. No fees; upgrades are requests.
 
-Plan gating is done via FastAPI dependency injection in route handlers.
+The only definition is `apps/api/src/security/access/catalog.py`; every check goes through `security/access/access.py` (`org_access(...).has/limit`, `ensure_feature`, `require_feature` route dependency, `require_capacity`). The owner org (lowest id) has everything. Legacy features (AI, boards, playgrounds, podcasts, communities, SCORM, custom domains, custom roles) are off for everyone. The web reads `org.config.config.access` through `useFeatures()`.
+
+Learner status: each membership has a `status` the org sets (`active` or `alumni`, per learner or per group; `services/orgs/member_status.py`). Only active learners count toward the learner limit; alumni are left out of group plans and the default People list, and handing an alumnus a plan needs `reactivate`. Staff are always active and count toward staff seats.
 
 ### Multi-Tenancy
 Every resource belongs to an `Organization`. Orgs have:
@@ -391,9 +394,15 @@ Organization
 ```
 
 ### Access Control
-- **Roles** define permissions per org
+- **Roles**: an org has three, Admin (1), Staff (2) and Learner (4). Admins can do everything; each staff member has permissions the admin sets (`build_plans`, `run_assignments`, `review_work`, `manage_learners`, `see_reports`; defaults are run_assignments and review_work), stored on `UserOrganization.permissions`. Service checks pass the permission: `require_org_admin(user_id, org_id, db, "build_plans")`; admin-only actions use `require_org_owner_admin`. The Instructor role and custom roles are retired.
 - **UserGroups** grant bulk access to courses/resources
 - **UserRoleWithOrg** links a user to a role within a specific org
+
+---
+
+## Feedback Triage (FEED → BOT)
+
+FEED is the feedback intake project; BOT is the delivery queue. Follow `docs/product/feedback-operations.md`. Always open the screenshots attached to FEED items before grouping or writing BOT tasks — the report text is often meaningless without them. With the Atlassian MCP connector: `getJiraIssue` with `fields: ["attachment"]` per issue (JQL omits attachments), then `downloadJiraIssueAttachment` and run its `downloadCommand`.
 
 ---
 

@@ -1,0 +1,454 @@
+"""Coach tests: scenarios the coaching team writes, run on the draft beside the live release.
+
+A test is a made-up learner (written like a real portfolio and real goals), a moment (the learner
+sends a message, creates a goal, or talks with Coach for a few turns, played by a simulated learner) and a rubric: lines Coach must or should meet. A run sends each
+test through the same path a real learner's request takes, with the same prompt, context blocks and
+tools, so nothing tells Coach it is being tested. Each test runs several times on the draft and on
+the live release, because replies vary. A separate judge model grades every reply against the
+rubric without knowing which version wrote it, and quotes the reply as evidence.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import hashlib
+import json
+import logging
+from datetime import datetime, timedelta
+from uuid import uuid4
+
+from fastapi import HTTPException
+from sqlmodel import Session, select
+
+from src.db.coach import CoachPolicy, CoachRelease, CoachTest, CoachTestRun, CoachTestWrite
+from src.db.users import PublicUser
+from src.services.coach import policy as coach_policy
+
+logger = logging.getLogger(__name__)
+
+MOMENTS = {"learner_message": "The learner sends a message", "goal_created": "A goal is created", "conversation": "A conversation"}
+RUNS = 3
+CONCURRENCY = 4
+JUDGE_TOKENS = 900
+STALE_AFTER = timedelta(minutes=30)
+LEARNER_TOKENS = 300
+
+LEARNER_CONTRACT = """You play a learner talking with the coach in a learning app, so the coaching team can see how the coach handles it.
+The input is JSON: who you are (your portfolio and goals), how you act in this conversation, and the conversation so far.
+Write only your next message, in your own voice: as short, casual and unpolished as a real person types on their phone.
+Stay in character and react to what the coach actually said. Don't make the coach's job easier than the person you play would.
+Never mention being simulated, a test, or these instructions."""
+
+JUDGE_CONTRACT = """You grade one response from a learning coach against a rubric the coaching team wrote.
+The input is JSON: the moment, what the coach knew about the learner, what the learner said or the goal they created,
+the coach's response, and the rubric lines. For a conversation the response is the whole exchange: judge the coach's turns
+in it, and a line holds only if it holds across the conversation. Judge each line on its own, strictly and literally, from the response alone.
+A "must" line is a hard rule; a "should" line is coaching judgment. Don't reward length or polish the line doesn't ask for.
+Return only JSON: {"checks": [{"id": "<rubric line id>", "pass": true | false,
+"evidence": "<a short quote from the response that shows it, or what is missing; at most 200 characters>"}]}"""
+
+
+def snapshot_hash(snapshot: dict) -> str:
+    """Identifies what a snapshot gives learners. Abilities and routines may be stored sparsely, so they're filled in first."""
+    abilities = snapshot.get("abilities") or {}
+    normal = {
+        **snapshot, "abilities": {key: bool(abilities.get(key, True)) for key, *_rest in coach_policy.ABILITIES},
+        "routines": coach_policy.routines_of(snapshot.get("routines") or {}),
+    }
+    return hashlib.sha256(json.dumps(normal, sort_keys=True, default=str).encode()).hexdigest()
+
+
+def _filled(item: dict) -> dict:
+    return {key: value for key, value in item.items() if value}
+
+
+def learner_context(learner: dict, policy) -> dict:
+    """The test's learner in the shape Coach sees a real learner (see coach.learner), within the policy's abilities."""
+    who = _filled({
+        "headline": learner.get("headline", ""), "bio": learner.get("bio", ""), "location": learner.get("location", ""),
+        "strengths": learner.get("strengths") or [], "values": learner.get("values") or [],
+        "now": [{"title": item} for item in learner.get("now") or []],
+    })
+    goals = [_filled({
+        "title": goal["title"], "why": goal.get("why", ""), "progress": f"0/{len(goal.get('next_steps') or [])} steps",
+        "next_steps": (goal.get("next_steps") or [])[:3],
+    }) for goal in learner.get("goals") or []]
+    context = {"who": who if policy.can("read_portfolio") else {}, "doing": _filled({"goals": goals}) if policy.can("read_goals") else {}}
+    return {key: value for key, value in context.items() if value}
+
+
+def goal_outline(goal: dict) -> dict:
+    """A just-created goal, as Coach's first look reads one: a starting stage and any steps the learner added."""
+    stage = f"goal_stage_{uuid4()}"
+    return {
+        "title": goal.get("title", ""), "why": goal.get("why", ""),
+        "stages": [{"id": stage, "title": "Getting started", "milestone": "", "timing": ""}],
+        "steps": [{"id": f"goal_step_{uuid4()}", "title": title, "type": "task", "stage_id": stage, "done": False} for title in goal.get("steps") or []],
+        **({"target_date": goal["target_date"]} if goal.get("target_date") else {}),
+    }
+
+
+# Tests -------------------------------------------------------------------
+
+
+def _test_dict(test: CoachTest) -> dict:
+    return {
+        "test_uuid": test.test_uuid, "title": test.title, "moment": test.moment, "learner": test.learner, "message": test.message,
+        "goal": test.goal, "persona": test.persona, "turns": test.turns, "rubric": test.rubric, "enabled": test.enabled, "updated_at": test.updated_at,
+    }
+
+
+def _tests(db: Session) -> list[CoachTest]:
+    return list(db.exec(select(CoachTest).order_by(CoachTest.position, CoachTest.id)).all())
+
+
+def _find(db: Session, test_uuid: str) -> CoachTest:
+    test = db.exec(select(CoachTest).where(CoachTest.test_uuid == test_uuid)).first()
+    if test is None:
+        raise HTTPException(status_code=404, detail="Test not found.")
+    return test
+
+
+def save_test(db: Session, current_user: PublicUser, payload: CoachTestWrite, test_uuid: str | None = None) -> dict:
+    if payload.moment in ("learner_message", "conversation") and not payload.message.strip():
+        raise HTTPException(status_code=422, detail="Write what the learner says.")
+    if payload.moment == "conversation" and not payload.persona.strip():
+        raise HTTPException(status_code=422, detail="Say how the learner acts in the conversation.")
+    if payload.moment == "goal_created" and not payload.goal.title.strip():
+        raise HTTPException(status_code=422, detail="Give the learner's new goal a title.")
+    test = _find(db, test_uuid) if test_uuid else CoachTest(test_uuid=f"coach_test_{uuid4().hex}", title="", moment=payload.moment, position=len(_tests(db)))
+    rubric, seen = [], set()
+    for index, line in enumerate(payload.rubric, start=1):
+        line_id = line.id.strip() or f"r{index}"
+        while line_id in seen:
+            line_id = f"{line_id}_{index}"
+        seen.add(line_id)
+        rubric.append({"id": line_id, "kind": line.kind, "text": line.text.strip()})
+    test.title, test.moment, test.message = payload.title.strip(), payload.moment, payload.message.strip()
+    test.persona, test.turns = payload.persona.strip(), payload.turns if payload.moment == "conversation" else 0
+    test.learner, test.goal, test.rubric, test.enabled = payload.learner.model_dump(), payload.goal.model_dump(), rubric, payload.enabled
+    test.updated_by_user_id, test.updated_at = current_user.id, datetime.utcnow()
+    db.add(test)
+    db.commit()
+    db.refresh(test)
+    return _test_dict(test)
+
+
+def delete_test(db: Session, test_uuid: str) -> None:
+    db.delete(_find(db, test_uuid))
+    db.commit()
+
+
+# Runs --------------------------------------------------------------------
+
+
+def _live(db: Session) -> CoachRelease | None:
+    policy = db.get(CoachPolicy, coach_policy.POLICY_ID)
+    return db.get(CoachRelease, policy.live_release_id) if policy and policy.live_release_id else None
+
+
+def _sides(db: Session) -> dict[str, dict]:
+    """What a run compares: the draft, and the live release when the draft differs from it."""
+    draft = coach_policy.draft_snapshot(db)
+    live = _live(db)
+    sides = {"draft": draft}
+    if live is not None and snapshot_hash(live.snapshot) != snapshot_hash(draft):
+        sides["live"] = dict(live.snapshot)
+    return sides
+
+
+def calls_for(test: dict | CoachTest) -> int:
+    """Model calls one response takes, with its grade: a conversation adds Coach's and the learner's turns."""
+    turns = test["turns"] if isinstance(test, dict) else test.turns
+    moment = test["moment"] if isinstance(test, dict) else test.moment
+    return 2 * turns if moment == "conversation" else 2
+
+
+def estimate(db: Session) -> int:
+    """Model calls a run makes, for every test, run, and version."""
+    return sum(calls_for(test) for test in _tests(db) if test.enabled) * RUNS * len(_sides(db))
+
+
+def _fixture_mode() -> bool:
+    from src.services.hub_advisor import _ui_test_provider
+
+    return _ui_test_provider(memory=True) is not None
+
+
+def start_run(db: Session, current_user: PublicUser) -> CoachTestRun:
+    tests = [test for test in _tests(db) if test.enabled]
+    if not tests:
+        raise HTTPException(status_code=422, detail="Add a test first.")
+    running = db.exec(select(CoachTestRun).where(CoachTestRun.status == "running")).first()
+    if running is not None and running.started_at < datetime.utcnow() - STALE_AFTER:
+        # The server restarted mid-run; nothing will finish it.
+        running.status, running.error, running.finished_at = "failed", "The run stopped before it finished.", datetime.utcnow()
+        db.add(running)
+        db.commit()
+    elif running is not None:
+        raise HTTPException(status_code=409, detail="A test run is already going. Wait for it to finish.")
+    sides = _sides(db)
+    if not _fixture_mode():
+        try:
+            coach_policy.runtime_from(db, sides["draft"], True).model("standard")
+        except RuntimeError:
+            raise HTTPException(status_code=422, detail="Give the draft's Standard tier a key and a model on the Model tab before running tests.") from None
+    live = _live(db)
+    run = CoachTestRun(
+        run_uuid=f"coach_run_{uuid4().hex}", status="running", snapshot_hash=snapshot_hash(sides["draft"]),
+        live_number=live.number if live and "live" in sides else None, calls=sum(calls_for(test) for test in tests) * RUNS * len(sides),
+        started_by_user_id=current_user.id, started_at=datetime.utcnow(),
+    )
+    db.add(run)
+    db.commit()
+    db.refresh(run)
+    return run
+
+
+class _FixtureReply:
+    """Browser tests run without a model."""
+
+    async def respond(self, messages, safety_identifier):
+        from src.services.hub_advisor import AdvisorResult
+
+        return AdvisorResult(text="That sounds like a real goal. What would a first small step look like this week?", model="fixture")
+
+
+class _FixtureLearner:
+    async def respond(self, messages, safety_identifier):
+        from src.services.hub_advisor import AdvisorResult
+
+        return AdvisorResult(text="ok but i dont really know where to start", model="fixture")
+
+
+class _FixtureJudge:
+    async def respond(self, messages, safety_identifier):
+        from src.services.hub_advisor import AdvisorResult
+
+        rubric = json.loads(messages[-1].content)["rubric"]
+        return AdvisorResult(text=json.dumps({"checks": [{"id": line["id"], "pass": True, "evidence": "Fixture grade"} for line in rubric]}), model="fixture")
+
+
+def _judge_provider(policy):
+    from dataclasses import replace
+
+    from src.services.coach.providers import provider_for
+
+    model = policy.model("deep")
+    return provider_for(replace(model, settings={**model.settings, "max_output_tokens": JUDGE_TOKENS}), instructions=JUDGE_CONTRACT, allow_actions=False)
+
+
+def _learner_provider(policy):
+    """The simulated learner, on the draft's Fast tier, the same for both versions."""
+    from dataclasses import replace
+
+    from src.services.coach.providers import provider_for
+
+    model = policy.model("fast")
+    return provider_for(replace(model, settings={**model.settings, "max_output_tokens": LEARNER_TOKENS}), instructions=LEARNER_CONTRACT, allow_actions=False)
+
+
+def _shown(result) -> str:
+    """A chat reply as the learner sees it, with any quick questions or links Coach offered."""
+    from src.services.hub_advisor import bound_advisor_text
+
+    text = bound_advisor_text(result.text)
+    if result.questions:
+        text += "\n\n[Offered quick questions: " + "; ".join(str(item.get("prompt") or item.get("question") or "") for item in result.questions) + "]"
+    if result.action_destinations:
+        text += "\n\n[Offered to open: " + ", ".join(result.action_destinations) + "]"
+    return text
+
+
+async def _chat_turn(policy, history: list, context: dict, safety_identifier: str, provider=None):
+    """One chat turn, as a real one is built: the learner layer and the reply rules on the newest message."""
+    from src.services.coach.learner import with_learner_context
+    from src.services.coach.providers import chat_provider
+    from src.services.hub_advisor import REPLY_RULES, AdvisorMessage
+
+    messages = with_learner_context(history, context)
+    messages = [*messages[:-1], AdvisorMessage(role="user", content=messages[-1].content + "\n\n" + REPLY_RULES)]
+    return await (provider or chat_provider(policy, None, query=history[-1].content)).respond(messages, safety_identifier)
+
+
+async def converse(policy, test: dict, safety_identifier: str, provider=None, learner=None) -> str:
+    """Coach talks with the simulated learner for the test's number of replies; returns the transcript."""
+    from src.services.hub_advisor import AdvisorMessage, bound_advisor_text
+
+    context = learner_context(test["learner"], policy)
+    history = [AdvisorMessage(role="user", content=test["message"])]
+    transcript = [f"Learner: {test['message']}"]
+    for turn in range(test["turns"]):
+        result = await _chat_turn(policy, history, context, safety_identifier, provider)
+        history.append(AdvisorMessage(role="assistant", content=bound_advisor_text(result.text)))
+        transcript.append(f"Coach: {_shown(result)}")
+        if turn == test["turns"] - 1:
+            break
+        prompt = json.dumps({"you": {k: v for k, v in test["learner"].items() if v}, "how_you_act": test["persona"], "conversation": transcript}, ensure_ascii=False)
+        reply = await learner.respond([AdvisorMessage(role="user", content=prompt)], safety_identifier)
+        said = " ".join(reply.text.split())[:2000] or "ok"
+        history.append(AdvisorMessage(role="user", content=said))
+        transcript.append(f"Learner: {said}")
+    return "\n\n".join(transcript)
+
+
+async def respond(policy, test: dict, safety_identifier: str, provider=None, learner=None) -> str:
+    """Coach's response to the test, through the same path a real learner's request takes."""
+    from src.services.coach import first_look
+    from src.services.hub_advisor import AdvisorMessage
+
+    context = learner_context(test["learner"], policy)
+    if test["moment"] == "goal_created":
+        look, _model = await first_look.ask(policy, goal_outline(test["goal"]), context, safety_identifier, provider)
+        if look is None:
+            return "(No first look: the model's answer could not be read.)"
+        steps = "".join(f"\n- {step.get('title', '')}" + (f" ({step['why']})" if step.get("why") else "") for step in look["steps"])
+        return f"Note on the goal: {look['title']}\n{look['body']}\nConversation starter: {look['prompt']}" + (f"\nSuggested steps:{steps}" if steps else "")
+    if test["moment"] == "conversation":
+        return await converse(policy, test, safety_identifier, provider, learner)
+    return _shown(await _chat_turn(policy, [AdvisorMessage(role="user", content=test["message"])], context, safety_identifier, provider))
+
+
+async def judge(provider, test: dict, context: dict, response: str, safety_identifier: str) -> list[dict]:
+    from src.services.hub_advisor import AdvisorMessage, _json_object
+
+    scenario = {"goal": test["goal"]} if test["moment"] == "goal_created" else {"message": test["message"]}
+    prompt = json.dumps({
+        "moment": MOMENTS[test["moment"]], "learner": context, **scenario, "response": response,
+        "rubric": [{"id": line["id"], "kind": line["kind"], "text": line["text"]} for line in test["rubric"]],
+    }, ensure_ascii=False)
+    result = await provider.respond([AdvisorMessage(role="user", content=prompt)], safety_identifier)
+    graded = {str(item.get("id")): item for item in (_json_object(result.text).get("checks") or []) if isinstance(item, dict)}
+    return [
+        {"id": line["id"], "pass": bool(graded.get(line["id"], {}).get("pass")), "evidence": str(graded.get(line["id"], {}).get("evidence") or "Not graded")[:240]}
+        for line in test["rubric"]
+    ]
+
+
+def _tally(samples: list[dict], rubric: list[dict]) -> dict:
+    graded = [sample for sample in samples if not sample.get("error")]
+    lines = {line["id"]: [sum(1 for sample in graded for check in sample["checks"] if check["id"] == line["id"] and check["pass"]), len(graded)] for line in rubric}
+    return {"samples": samples, "lines": lines}
+
+
+def summarize(results: list[dict]) -> dict:
+    summary: dict = {}
+    for side in ("draft", "live"):
+        totals = {"must": [0, 0], "should": [0, 0]}
+        failed: list[dict] = []
+        present = False
+        for result in results:
+            outcome = (result.get("sides") or {}).get(side)
+            if not outcome:
+                continue
+            present = True
+            for line in result["rubric"]:
+                passed, total = outcome["lines"].get(line["id"], [0, 0])
+                totals[line["kind"]][0] += passed
+                totals[line["kind"]][1] += total
+                if line["kind"] == "must" and passed < total:
+                    failed.append({"test": result["title"], "line": line["text"], "passed": passed, "total": total})
+        if present:
+            summary[side] = {**totals, "failed_musts": failed}
+    return summary
+
+
+async def execute(bind, run_uuid: str, sides: dict[str, dict], tests: list[dict], safety_identifier: str) -> None:
+    """Run every test on each version and grade it. Runs after the request that started it, in its own session."""
+    with Session(bind) as db:
+        run = db.exec(select(CoachTestRun).where(CoachTestRun.run_uuid == run_uuid)).one()
+        try:
+            fixture = _fixture_mode()
+            policies = {side: coach_policy.runtime_from(db, snapshot, True) for side, snapshot in sides.items()}
+            judge_provider = _FixtureJudge() if fixture else _judge_provider(policies["draft"])
+            needs_learner = any(test["moment"] == "conversation" for test in tests)
+            learner = (_FixtureLearner() if fixture else _learner_provider(policies["draft"])) if needs_learner else None
+            gate = asyncio.Semaphore(CONCURRENCY)
+
+            async def sample(test: dict, side: str) -> dict:
+                async with gate:
+                    try:
+                        # In browser tests the first look brings its own fixture.
+                        reply = _FixtureReply() if fixture and test["moment"] != "goal_created" else None
+                        response = await respond(policies[side], test, safety_identifier, reply, learner=learner)
+                        checks = await judge(judge_provider, test, learner_context(test["learner"], policies[side]), response, safety_identifier)
+                        outcome = {"response": response, "checks": checks}
+                    except Exception as error:  # A failed call is reported on its sample, not the whole run.
+                        logger.warning("Coach test sample failed run=%s test=%s", run_uuid, test["test_uuid"], exc_info=True)
+                        outcome = {"response": "", "checks": [], "error": str(error)[:300] or error.__class__.__name__}
+                    run.done_calls += calls_for(test)
+                    db.add(run)
+                    db.commit()
+                    return outcome
+
+            results = []
+            for test in tests:
+                outcomes = {side: await asyncio.gather(*(sample(test, side) for _ in range(RUNS))) for side in sides}
+                results.append({
+                    "test_uuid": test["test_uuid"], "title": test["title"], "moment": test["moment"], "rubric": test["rubric"],
+                    "sides": {side: _tally(list(samples), test["rubric"]) for side, samples in outcomes.items()},
+                })
+            errors = [sample["error"] for result in results for outcome in result["sides"].values() for sample in outcome["samples"] if sample.get("error")]
+            run.results, run.summary = results, summarize(results)
+            graded = sum(1 for result in results for outcome in result["sides"].values() for sample in outcome["samples"] if not sample.get("error"))
+            run.status = "done" if graded else "failed"
+            run.error = "" if graded else (errors[0] if errors else "Nothing could be graded.")
+        except Exception as error:
+            logger.exception("Coach test run failed run=%s", run_uuid)
+            run.status, run.error = "failed", str(error)[:500] or error.__class__.__name__
+        run.finished_at = datetime.utcnow()
+        db.add(run)
+        db.commit()
+
+
+def begin(db: Session, current_user: PublicUser) -> tuple[CoachTestRun, dict]:
+    """Start a run; returns it and the arguments for ``execute``, which the caller schedules after responding."""
+    run = start_run(db, current_user)
+    from src.services.hub_advisor import advisor_safety_identifier
+
+    arguments = {
+        "bind": db.get_bind(), "run_uuid": run.run_uuid, "sides": _sides(db),
+        "tests": [_test_dict(test) for test in _tests(db) if test.enabled],
+        "safety_identifier": advisor_safety_identifier(int(current_user.id)),
+    }
+    return run, arguments
+
+
+def run_dict(run: CoachTestRun | None, results: bool = False) -> dict | None:
+    if run is None:
+        return None
+    view = {
+        "run_uuid": run.run_uuid, "status": run.status, "live_number": run.live_number, "calls": run.calls, "done_calls": run.done_calls,
+        "summary": run.summary, "error": run.error, "started_at": run.started_at, "finished_at": run.finished_at,
+    }
+    return {**view, "results": run.results} if results else view
+
+
+def get_run(db: Session, run_uuid: str) -> dict:
+    run = db.exec(select(CoachTestRun).where(CoachTestRun.run_uuid == run_uuid)).first()
+    if run is None:
+        raise HTTPException(status_code=404, detail="Test run not found.")
+    return run_dict(run, results=True)  # type: ignore[return-value]
+
+
+def latest_run(db: Session, snapshot: dict | None = None, finished: bool = False) -> CoachTestRun | None:
+    """The newest run, or the newest on a given snapshot (the draft, or a release)."""
+    query = select(CoachTestRun)
+    if snapshot is not None:
+        query = query.where(CoachTestRun.snapshot_hash == snapshot_hash(snapshot))
+    if finished:
+        query = query.where(CoachTestRun.status == "done")
+    return db.exec(query.order_by(CoachTestRun.started_at.desc(), CoachTestRun.id.desc())).first()  # type: ignore[attr-defined, union-attr]
+
+
+def tests_view(db: Session) -> dict:
+    draft = coach_policy.draft_snapshot(db)
+    latest = latest_run(db)
+    on_draft = latest_run(db, draft)
+    return {
+        "moments": [{"key": key, "label": label} for key, label in MOMENTS.items()],
+        "runs_per_test": RUNS, "estimate": estimate(db),
+        "tests": [_test_dict(test) for test in _tests(db)],
+        "latest_run": run_dict(on_draft or latest, results=True),
+        "latest_run_is_on_draft": bool(on_draft) and (latest is None or on_draft.id == latest.id),
+    }

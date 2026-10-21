@@ -1,3 +1,5 @@
+import { adminTabForPath } from '../../lib/admin/registry.ts'
+
 export type AppPageTitle = { section: string; detail?: string }
 
 // Change title order, separator, or length here rather than route by route.
@@ -8,7 +10,7 @@ export const PAGE_TITLE_FORMAT = {
 
 const labels: Record<string, string> = {
   account: 'Account', achievements: 'Achievements', analytics: 'Analytics', badge: 'Badges', badges: 'Badges',
-  boards: 'Boards', communities: 'Communities', community: 'Communities', discover: 'Discover', edit: 'Edit',
+  boards: 'Boards', communities: 'Communities', community: 'Communities', connect: 'Connect', discover: 'Discover', edit: 'Edit',
   journal: 'Journal', marketplace: 'Marketplace', organization: 'Organizations',
   organizations: 'Organizations', payments: 'Payments', plans: 'Plans', platform: 'Platform', playground: 'Playgrounds',
   playgrounds: 'Playgrounds', podcast: 'Podcasts', podcasts: 'Podcasts', portfolio: 'Portfolio', programs: 'Programs',
@@ -17,7 +19,7 @@ const labels: Record<string, string> = {
 }
 
 // Learner sections named as the nav names them; admin keeps the plain labels above.
-const learnerSections: Record<string, string> = { badges: 'Discover', discover: 'Discover', plans: 'Plans' }
+const learnerSections: Record<string, string> = { badges: 'Discover', discover: 'Discover', plans: 'Goals' }
 
 function humanize(segment: string) {
   const decoded = decodeURIComponent(segment).replace(/[-_]+/g, ' ').trim()
@@ -46,6 +48,9 @@ export function resolveAppPageTitle(pathname: string): AppPageTitle {
   if (!route.length) return { section: 'Home' }
 
   if (route[0] === 'admin') {
+    // Admin pages are titled by the tab (and page) that owns them in the admin registry.
+    const owner = adminTabForPath(`/${route.join('/')}`)
+    if (owner) return { section: 'Admin', detail: owner.child && owner.child.label !== owner.tab.label ? `${owner.tab.label} · ${owner.child.label}` : owner.tab.label }
     const feature = label(route[1]) || 'Dashboard'
     const staticDetail = route.slice(2).find(part => labels[part.toLowerCase()])
     return { section: 'Admin', detail: staticDetail ? `${feature} · ${label(staticDetail)}` : feature }
@@ -59,6 +64,7 @@ export function resolveAppPageTitle(pathname: string): AppPageTitle {
     const detail = route.slice(1).find(part => labels[part.toLowerCase()])
     return { section, detail: label(detail) }
   }
-  if (['community', 'organization', 'playground', 'podcast', 'resource'].includes(route[0])) return { section }
+  // A chat's segment is its id, so Connect pages are titled by section alone.
+  if (['community', 'connect', 'organization', 'playground', 'podcast', 'resource'].includes(route[0])) return { section }
   return { section, detail: label(route[1]) }
 }

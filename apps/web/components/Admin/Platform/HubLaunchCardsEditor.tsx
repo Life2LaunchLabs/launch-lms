@@ -5,10 +5,8 @@ import toast from 'react-hot-toast'
 import { ArrowDown, ArrowUp, Loader2, Plus, RotateCcw, Save, Trash2 } from 'lucide-react'
 import useSWR from 'swr'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
-import { getAPIUrl } from '@services/config/config'
-import { hubLaunchCardsApi } from '@services/hub/configuration'
+import { COACH_POLICY_PATH, coachAdminApi } from '@services/coach/admin'
 import { LAUNCH_CARD_LIMITS, MAX_LAUNCH_CARDS, launchCardsProblem, type HubLaunchCard, type HubLaunchCardsSettings } from '@services/hub/launchCards'
-import { swrFetcher } from '@services/utils/ts/requests'
 import { Button } from '@components/ui/button'
 import { Input } from '@components/ui/input'
 
@@ -18,8 +16,8 @@ export default function HubLaunchCardsEditor() {
   const session = useLHSession() as any
   const token = session?.data?.tokens?.access_token
   const { data, error, isLoading, mutate } = useSWR<HubLaunchCardsSettings>(
-    token ? `${getAPIUrl()}superadmin/settings/hub-launch-cards` : null,
-    (url: string) => swrFetcher(url, token),
+    token ? [COACH_POLICY_PATH, 'launch-cards', token] : null,
+    () => coachAdminApi.launchCards(token),
   )
   const [cards, setCards] = React.useState<HubLaunchCard[]>([])
   const [busy, setBusy] = React.useState<'save' | 'reset' | null>(null)
@@ -39,7 +37,7 @@ export default function HubLaunchCardsEditor() {
     if (kind === 'reset' && !window.confirm('Replace the cards with the Launch LMS defaults?')) return
     setBusy(kind)
     try {
-      await mutate(await hubLaunchCardsApi.save(payload, token), { revalidate: false })
+      await mutate(await coachAdminApi.saveLaunchCards(payload, token), { revalidate: false })
       toast.success(done)
     } catch (saveError: any) {
       toast.error(saveError?.message || 'Could not update the cards.')
@@ -49,10 +47,9 @@ export default function HubLaunchCardsEditor() {
   }
 
   return (
-    <section className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm sm:p-8" aria-labelledby="hub-launch-cards-heading">
-      <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Coach home</p>
-      <h2 id="hub-launch-cards-heading" className="mt-1 text-2xl font-black text-gray-950">Starter cards</h2>
-      <p className="mt-2 text-sm leading-6 text-gray-600">Shown to learners who have no plan work yet. Clicking a card sends its opening message to Coach, which replies using the platform guidance above. Up to {MAX_LAUNCH_CARDS} cards.</p>
+    <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="hub-launch-cards-heading">
+      <h2 id="hub-launch-cards-heading" className="text-base font-black text-gray-950">Starter cards on Coach home</h2>
+      <p className="mt-1 text-sm leading-6 text-gray-600">Shown to learners who have no plan work yet. Clicking a card sends its opening message to Coach, which replies following the Method. Up to {MAX_LAUNCH_CARDS} cards.</p>
 
       {error ? <p className="mt-5 text-sm text-red-700" role="alert">Could not load the cards. Learners still see the default set.</p> : null}
       {isLoading ? <p className="mt-5 text-sm text-gray-500" role="status">Loading cards…</p> : null}

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import React from 'react'
-import { ArrowDown, ArrowLeftRight, ArrowUp, Award, BarChart3, Check, Eye, GalleryVerticalEnd, Handshake, Image as ImageIcon, Loader2, Megaphone, Pencil, Plus, Settings, Trash2, X } from 'lucide-react'
+import { ArrowDown, ArrowLeftRight, ArrowUp, Award, BarChart3, Check, Eye, GalleryVerticalEnd, Image as ImageIcon, Loader2, Megaphone, Plus, Settings, Trash2 } from 'lucide-react'
 import { motion } from 'motion/react'
 import toast from 'react-hot-toast'
 import { Breadcrumbs } from '@components/Objects/Breadcrumbs/Breadcrumbs'
@@ -14,19 +14,21 @@ import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { deleteLearningBadge, updateLearningBadge } from '@services/learning/learning'
-import { approveIssuerAuthorization, getIssuerAuthorizations, getIssuerBadgeMetrics, inviteIssuerOrg, LearnerAccess, rejectIssuerAuthorization, revokeIssuerAuthorization, updateIssuerAuthorization } from '@services/learning/marketplace'
-import { CreatorIssuingCard, LearnerAccessSelect, learnerAccessLabel } from '@components/Learning/BadgeIssuing'
+import { getIssuerBadgeMetrics } from '@services/learning/marketplace'
+import { CreatorIssuingCard, learnerAccessLabel } from '@components/Learning/BadgeIssuing'; import PlanAccessList from '@components/Learning/PlanAccessList'
 import CertificatePreview from '@components/Learning/BadgeCertificatePreview'
 import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import BadgeVersionToolbar from '@components/Learning/BadgeVersionToolbar'; import BadgeRoutesPanel from '@components/Learning/BadgeRoutesPanel'
+import EditableHeaderField from '@components/Learning/BadgeHeaderField'
+import OwnershipChip from '@components/Admin/Plans/OwnershipChip'
+import { BadgeReadOnlyNote, useBadgeOwnership } from '@components/Learning/BadgeOwnership'
 
 const tabs = [
   { key: 'analytics', label: 'Analytics', icon: BarChart3 },
   { key: 'routes', label: 'Ways to earn', icon: GalleryVerticalEnd },
   { key: 'definition', label: 'Definition', icon: Award },
   { key: 'marketing', label: 'Marketing', icon: Megaphone },
-  { key: 'issuers', label: 'Issuers', icon: Handshake },
   { key: 'settings', label: 'Settings', icon: Settings },
 ]
 
@@ -46,8 +48,7 @@ export default function AdminBadgeShell({
   const router = useRouter()
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
-  const org = useOrg() as any
-  const canEdit = Number(org?.id) === Number(initialBadge.org_id)
+  const { org, owned, canEdit, ownerName, viewerIsEditor, showsTab } = useBadgeOwnership(initialBadge)
   const [badge, setBadge] = React.useState(initialBadge)
   const [editingField, setEditingField] = React.useState<'name' | null>(null)
   const [draftName, setDraftName] = React.useState(initialBadge.name || '')
@@ -102,16 +103,15 @@ export default function AdminBadgeShell({
   const publicBadgeHref = getUriWithOrg(orgslug, `/badges/${cleanBadgeId(badge.badge_uuid)}`)
   const imageUrl = badge.thumbnail_image
   const isDraft = badge.selected_version?.state === 'draft'
-  const visibleTabs = canEdit
-    ? tabs
-    : tabs.filter((tab) => ['analytics', 'definition', 'settings'].includes(tab.key))
+  const visibleTabs = tabs.filter((tab) => showsTab(tab.key))
 
   return (
     <div className="min-h-full w-full bg-[#f8f8f8]">
-      <div className="relative z-10 bg-[#fcfbfc] pl-10 pr-10 text-sm tracking-tight nice-shadow">
+      <div className="relative z-10 bg-[#fcfbfc] px-4 text-sm tracking-tight nice-shadow sm:px-10">
         <div className="pb-4 pt-6">
           <Breadcrumbs items={[
-            { label: 'Badges', href: '/admin/badges' },
+            { label: 'Plans', href: getUriWithOrg(orgslug, routePaths.org.admin.plans()) },
+            { label: 'Badges', href: getUriWithOrg(orgslug, routePaths.org.admin.plans('badges')) },
             { label: badge.name },
           ]} />
         </div>
@@ -149,10 +149,13 @@ export default function AdminBadgeShell({
               onEdit={() => isDraft && canEdit && setEditingField('name')}
               onSave={saveName}
               isSaving={savingField === 'name'}
+              editable={canEdit && isDraft}
             />
+            {ownerName ? <p className="text-sm text-muted-foreground">Created and issued by <span className="font-semibold text-foreground">{ownerName}</span></p> : null}
             <p className="mt-2 text-xs font-medium text-muted-foreground">
               {getBadgeDateLine(badge)}
             </p>
+            <div className="mt-3 flex justify-center md:justify-start"><OwnershipChip owned={owned} canEdit={canEdit} ownerName={ownerName} /></div>
 
             <div className="mt-4 flex flex-wrap items-center justify-center gap-2 md:justify-start">
               {canEdit ? <BadgeVersionToolbar badge={badge} /> : null}
@@ -166,12 +169,14 @@ export default function AdminBadgeShell({
           </div>
         </div>
 
-        <div className="flex space-x-3 text-sm font-black">
+        {canEdit ? null : <BadgeReadOnlyNote owned={owned} ownerName={ownerName} />}
+
+        <div className="-mx-4 flex space-x-3 overflow-x-auto px-4 text-sm font-black [scrollbar-width:none] sm:mx-0 sm:overflow-visible sm:px-0">
           {visibleTabs.map((tab) => {
             const Icon = tab.icon
             const isActive = normalizedSubpage === tab.key
             return (
-              <Link key={tab.key} href={`${getUriWithOrg(orgslug, `/admin/badges/badge/${cleanBadgeId(badge.badge_uuid)}/${tab.key}`)}?version=${badge.selected_version?.version_uuid || ''}`} replace>
+              <Link key={tab.key} href={`${getUriWithOrg(orgslug, `/admin/badges/badge/${cleanBadgeId(badge.badge_uuid)}/${tab.key}`)}?version=${badge.selected_version?.version_uuid || ''}`} replace className="shrink-0 whitespace-nowrap">
                 <div className={`flex w-fit cursor-pointer space-x-4 border-black py-2 text-center transition-all ease-linear ${isActive ? 'border-b-4' : 'opacity-50 hover:opacity-75'}`}>
                   <div className="mx-2 flex items-center space-x-2.5">
                     <Icon size={16} />
@@ -185,13 +190,12 @@ export default function AdminBadgeShell({
       </div>
 
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.1 }} className="overflow-x-hidden">
-        {normalizedSubpage === 'analytics' ? <BadgeAnalyticsPanel badge={badge} canEdit={canEdit} issuerOrgId={Number(org?.id)} orgslug={orgslug} /> : null}
-        {normalizedSubpage === 'routes' && canEdit ? <BadgeRoutesPanel badge={badge} orgslug={orgslug} /> : null}
-        {normalizedSubpage === 'issuers' && canEdit ? <BadgeIssuersPanel badge={badge} onPatch={patchBadge} /> : null}
-        {normalizedSubpage === 'marketing' && canEdit ? <fieldset disabled={!isDraft}><BadgeAboutPanel badge={badge} onPatch={patchBadge} /></fieldset> : null}
+        {normalizedSubpage === 'analytics' ? <BadgeAnalyticsPanel badge={badge} canEdit={owned} issuerOrgId={Number(org?.id)} orgslug={orgslug} /> : null}
+        {normalizedSubpage === 'routes' ? <div className="px-4 pt-6 sm:px-10"><div className="max-w-4xl"><BadgeRoutesPanel badge={badge} orgslug={orgslug} readOnly={!canEdit} /></div></div> : null}
+        {normalizedSubpage === 'marketing' ? <fieldset disabled={!isDraft || !canEdit}><BadgeAboutPanel badge={badge} onPatch={patchBadge} /></fieldset> : null}
         {normalizedSubpage === 'settings' ? (canEdit
           ? <BadgeSettingsPanel orgslug={orgslug} badge={badge} onPatch={patchBadge} isDraft={isDraft} />
-          : <IssuerBadgeSettingsPanel orgslug={orgslug} badge={badge} issuerOrgId={Number(org?.id)} />) : null}
+          : !owned && viewerIsEditor ? <IssuerBadgeSettingsPanel orgslug={orgslug} badge={badge} issuerOrgId={Number(org?.id)} /> : null) : null}
         {normalizedSubpage === 'definition' ? <BadgeCertificationPanel badge={badge} onPatch={patchBadge} readOnly={!isDraft || !canEdit} /> : null}
       </motion.div>
     </div>
@@ -202,7 +206,7 @@ function BadgeAnalyticsPanel({ badge, canEdit, issuerOrgId, orgslug }: { badge: 
   if (!canEdit) return <IssuerBadgeAnalyticsPanel badge={badge} issuerOrgId={issuerOrgId} orgslug={orgslug} />
   const metadata = badge.badge_metadata || {}
   return (
-    <div className="px-10 pb-10 pt-6">
+    <div className="px-4 pb-10 pt-6 sm:px-10">
       <section className="max-w-4xl rounded-xl bg-card p-6 shadow-xs">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -245,7 +249,7 @@ function IssuerBadgeAnalyticsPanel({ badge, issuerOrgId, orgslug }: { badge: any
   }, [load])
 
   return (
-    <div className="px-10 pb-10 pt-6">
+    <div className="px-4 pb-10 pt-6 sm:px-10">
       <section className="max-w-4xl rounded-xl bg-card p-6 shadow-xs">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -265,14 +269,14 @@ function IssuerBadgeAnalyticsPanel({ badge, issuerOrgId, orgslug }: { badge: any
             <div className="mt-6 grid gap-4 sm:grid-cols-3">
               <AnalyticsStat label="Issued by your org" value={String(metrics?.issued_count || 0)} />
               <AnalyticsStat label="Used in programs" value={String(metrics?.programs?.length || 0)} />
-              <AnalyticsStat label="Learner access" value={learnerAccessLabel(metrics?.authorization?.learner_access)} />
+              <AnalyticsStat label="Learner access" value={learnerAccessLabel(metrics?.learner_access)} />
             </div>
 
             <div className="mt-8">
               <h3 className="text-sm font-bold text-foreground">Programs using this badge</h3>
               <div className="mt-3 space-y-3">
                 {metrics?.programs?.length ? metrics.programs.map((program: any) => (
-                  <Link key={program.program_uuid} href={getUriWithOrg(orgslug, routePaths.org.dash.program(program.program_uuid))} className="flex items-center justify-between gap-4 rounded-lg border border-border p-4 transition hover:border-foreground/30 hover:bg-muted/30">
+                  <Link key={program.program_uuid} href={getUriWithOrg(orgslug, routePaths.org.admin.template(program.program_uuid))} className="flex items-center justify-between gap-4 rounded-lg border border-border p-4 transition hover:border-foreground/30 hover:bg-muted/30">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-bold text-foreground">{program.name}</p>
                       <p className="mt-1 text-xs text-muted-foreground">{program.assignment_count} {program.assignment_count === 1 ? 'assignment' : 'assignments'}</p>
@@ -296,176 +300,6 @@ function IssuerBadgeAnalyticsPanel({ badge, issuerOrgId, orgslug }: { badge: any
 
 function AnalyticsStat({ label, value }: { label: string; value: string }) {
   return <div className="rounded-lg border border-border bg-muted/30 p-4"><p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{label}</p><p className="mt-2 text-sm font-bold text-foreground">{value}</p></div>
-}
-
-const authorizationStatusStyles: Record<string, string> = {
-  requested: 'bg-amber-100 text-amber-800',
-  invited: 'bg-blue-100 text-blue-800',
-  approved: 'bg-lime-100 text-lime-800',
-  rejected: 'bg-red-100 text-red-700',
-  revoked: 'bg-gray-200 text-gray-600',
-}
-
-function BadgeIssuersPanel({ badge, onPatch }: { badge: any; onPatch: (patch: Record<string, any>, successMessage?: string) => Promise<any> }) {
-  const org = useOrg() as any
-  const session = useLHSession() as any
-  const accessToken = session.data?.tokens?.access_token
-  const [authorizations, setAuthorizations] = React.useState<any[]>([])
-  const [loading, setLoading] = React.useState(true)
-  const [savingListing, setSavingListing] = React.useState(false)
-  const [actingOn, setActingOn] = React.useState('')
-  const [inviteSlug, setInviteSlug] = React.useState('')
-  const [inviting, setInviting] = React.useState(false)
-
-  const load = React.useCallback(async () => {
-    setLoading(true)
-    try {
-      const response = await getIssuerAuthorizations(badge.org_id, 'creator', accessToken, badge.badge_uuid)
-      const data = response?.success ? response.data : response
-      setAuthorizations(Array.isArray(data) ? data : [])
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to load issuer authorizations.')
-    } finally {
-      setLoading(false)
-    }
-  }, [accessToken, badge.badge_uuid, badge.org_id])
-
-  React.useEffect(() => {
-    void load()
-  }, [load])
-
-  const toggleListing = async (value: boolean) => {
-    setSavingListing(true)
-    try {
-      await onPatch({ marketplace_listed: value }, value ? 'Badge listed in the marketplace.' : 'Badge removed from the marketplace.')
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to update marketplace listing.')
-    } finally {
-      setSavingListing(false)
-    }
-  }
-
-  const act = async (authorization: any, action: 'approve' | 'reject' | 'revoke') => {
-    setActingOn(authorization.authorization_uuid)
-    try {
-      if (action === 'approve') await approveIssuerAuthorization(authorization.authorization_uuid, accessToken)
-      if (action === 'reject') await rejectIssuerAuthorization(authorization.authorization_uuid, accessToken)
-      if (action === 'revoke') await revokeIssuerAuthorization(authorization.authorization_uuid, accessToken)
-      toast.success('Authorization updated.')
-      await load()
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to update authorization.')
-    } finally {
-      setActingOn('')
-    }
-  }
-
-  const sendInvite = async () => {
-    const slug = inviteSlug.trim()
-    if (!slug) return
-    setInviting(true)
-    try {
-      await inviteIssuerOrg({ badge_uuid: badge.badge_uuid, issuer_org_slug: slug }, accessToken)
-      toast.success(`Invite sent to ${slug}.`)
-      setInviteSlug('')
-      await load()
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to send invite.')
-    } finally {
-      setInviting(false)
-    }
-  }
-
-  return (
-    <div className="px-10 pb-10 pt-6">
-      <section className="max-w-4xl rounded-xl bg-card p-6 shadow-xs">
-        <h2 className="text-lg font-bold text-foreground">Marketplace</h2>
-        <div className="mt-4 divide-y divide-border">
-          <SettingRow
-            title="List in badge marketplace"
-            description="Other organizations can discover this badge and request authorization to issue it to their learners."
-            disabled={savingListing}
-            checked={badge.marketplace_listed === true}
-            onChange={(value) => void toggleListing(value)}
-          />
-        </div>
-      </section>
-
-      <section className="mt-6 max-w-4xl rounded-xl bg-card p-6 shadow-xs">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-bold text-foreground">Issuing organizations</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Orgs authorized to deliver, grade, and issue this badge to their own learners.</p>
-          </div>
-          <Button variant="outline" onClick={() => void load()} disabled={loading} className="gap-2 bg-card">
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Handshake className="h-4 w-4" />}
-            Refresh
-          </Button>
-        </div>
-
-        <div className="mt-4 flex items-end gap-3">
-          <label className="block flex-1 text-xs font-bold uppercase text-muted-foreground">
-            Invite an organization by slug
-            <input
-              value={inviteSlug}
-              onChange={(event) => setInviteSlug(event.target.value)}
-              placeholder="org-slug"
-              className="mt-2 h-10 w-full rounded-lg border border-border px-3 text-sm normal-case text-foreground outline-none focus:ring-2 focus:ring-black"
-            />
-          </label>
-          <Button onClick={() => void sendInvite()} disabled={inviting || !inviteSlug.trim()} className="gap-2">
-            {inviting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-            Invite
-          </Button>
-        </div>
-
-        <div className="mt-6 space-y-3">
-          <CreatorIssuingCard badge={badge} orgName={org?.name} refreshKey={authorizations.filter((item) => item.status === 'approved').length} />
-          {loading ? (
-            <div className="flex items-center justify-center py-12 text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin" />
-            </div>
-          ) : authorizations.length ? authorizations.map((authorization) => (
-            <article key={authorization.authorization_uuid} className="flex flex-col gap-3 rounded-xl border border-border p-4 md:flex-row md:items-center md:justify-between">
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-foreground">{authorization.issuer_org?.name || 'Organization'}</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {authorization.issuer_org?.slug}
-                  {authorization.message ? ` · “${authorization.message}”` : ''}
-                  {authorization.status === 'approved' ? ` · ${learnerAccessLabel(authorization.learner_access).toLowerCase()}` : ''}
-                </p>
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <span className={`rounded-full px-3 py-1 text-xs font-bold capitalize ${authorizationStatusStyles[authorization.status] || 'bg-gray-100 text-gray-600'}`}>
-                  {authorization.status}
-                </span>
-                {authorization.status === 'requested' ? (
-                  <>
-                    <Button size="sm" onClick={() => void act(authorization, 'approve')} disabled={actingOn === authorization.authorization_uuid} className="gap-1">
-                      <Check className="h-4 w-4" /> Approve
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => void act(authorization, 'reject')} disabled={actingOn === authorization.authorization_uuid} className="gap-1 bg-card">
-                      <X className="h-4 w-4" /> Reject
-                    </Button>
-                  </>
-                ) : null}
-                {authorization.status === 'approved' || authorization.status === 'invited' ? (
-                  <Button size="sm" variant="outline" onClick={() => void act(authorization, 'revoke')} disabled={actingOn === authorization.authorization_uuid} className="gap-1 bg-card text-red-700">
-                    <Trash2 className="h-4 w-4" /> Revoke
-                  </Button>
-                ) : null}
-              </div>
-            </article>
-          )) : (
-            <div className="rounded-xl border border-dashed border-border py-12 text-center">
-              <p className="text-sm font-semibold text-muted-foreground">No issuing organizations yet</p>
-              <p className="mt-1 text-xs text-muted-foreground">List this badge in the marketplace or invite an organization to get started.</p>
-            </div>
-          )}
-        </div>
-      </section>
-    </div>
-  )
 }
 
 function BadgeAboutPanel({ badge, onPatch }: { badge: any; onPatch: (patch: Record<string, any>, successMessage?: string) => Promise<any> }) {
@@ -545,7 +379,7 @@ function BadgeAboutPanel({ badge, onPatch }: { badge: any; onPatch: (patch: Reco
   }
 
   return (
-    <div className="px-10 pb-10 pt-6">
+    <div className="px-4 pb-10 pt-6 sm:px-10">
       <section className="max-w-4xl rounded-xl bg-card p-6 shadow-xs">
         <h2 className="text-lg font-bold text-foreground">Marketing</h2>
         <div className="mt-5 space-y-5">
@@ -641,6 +475,7 @@ function BadgeAboutPanel({ badge, onPatch }: { badge: any; onPatch: (patch: Reco
 
 function BadgeSettingsPanel({ orgslug, badge, onPatch, isDraft }: { orgslug: string; badge: any; onPatch: (patch: Record<string, any>, successMessage?: string) => Promise<any>; isDraft: boolean }) {
   const router = useRouter()
+  const org = useOrg() as any
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
   const [savingKey, setSavingKey] = React.useState('')
@@ -674,13 +509,19 @@ function BadgeSettingsPanel({ orgslug, badge, onPatch, isDraft }: { orgslug: str
   }
 
   return (
-    <div className="px-10 pb-10 pt-6">
+    <div className="px-4 pb-10 pt-6 sm:px-10">
       <section className="max-w-4xl rounded-xl bg-card p-6 shadow-xs">
         <h2 className="text-lg font-bold text-foreground">Settings</h2>
         <div className="mt-4 divide-y divide-border">
           <SettingRow title="Public visibility" description="Show this badge in public badge listings. Private badges remain available only within this organization." disabled={savingKey === 'public'} checked={badge.public === true} onChange={(value) => toggle('public', value, value ? 'Badge is now public.' : 'Badge is now private.')} />
           <SettingRow title="Direct issuance" description={isDraft ? "Allow authorized admins to create an OpenBadgeCredential without the learner finishing a plan." : "Create a draft version to change direct issuance."} disabled={!isDraft || savingKey === 'direct_conferral_enabled'} checked={badge.direct_conferral_enabled === true} onChange={(value) => toggle('direct_conferral_enabled', value, 'Direct issuance setting updated.')} />
+          <SettingRow title="List in badge marketplace" description="Other organizations find this badge in Plans › Marketplace and ask to issue it. Approving one authorizes it on every plan that earns the badge." disabled={savingKey === 'marketplace_listed'} checked={badge.marketplace_listed === true} onChange={(value) => toggle('marketplace_listed', value, value ? 'Badge listed in the marketplace.' : 'Badge removed from the marketplace.')} />
         </div>
+      </section>
+      <section className="mt-6 max-w-4xl rounded-xl bg-card p-6 shadow-xs">
+        <h2 className="text-lg font-bold text-foreground">Issuing</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Other organizations issue this badge when they are authorized on one of its plans, from each plan’s Publish tab (Ways to earn links there).</p>
+        <div className="mt-4"><CreatorIssuingCard badge={badge} orgName={org?.name} orgslug={org?.slug} /></div>
       </section>
       <section className="mt-6 max-w-4xl rounded-xl border border-red-100 bg-card p-6 shadow-xs">
         <h2 className="text-lg font-bold text-red-700">Danger Zone</h2>
@@ -699,89 +540,30 @@ function BadgeSettingsPanel({ orgslug, badge, onPatch, isDraft }: { orgslug: str
   )
 }
 
+/** An issuer's settings for another organization's badge: the plans it runs for it. Stopping is leaving a plan (Marketplace › Requests). */
 function IssuerBadgeSettingsPanel({ orgslug, badge, issuerOrgId }: { orgslug: string; badge: any; issuerOrgId: number }) {
-  const router = useRouter()
   const session = useLHSession() as any
   const accessToken = session.data?.tokens?.access_token
-  const [authorization, setAuthorization] = React.useState<any>(null)
-  const [loading, setLoading] = React.useState(true)
-  const [saving, setSaving] = React.useState(false)
-  const [releasing, setReleasing] = React.useState(false)
-
-  const load = React.useCallback(async () => {
-    setLoading(true)
-    try {
-      const response = await getIssuerAuthorizations(issuerOrgId, 'issuer', accessToken, badge.badge_uuid)
-      const data = response?.success ? response.data : response
-      setAuthorization(Array.isArray(data) ? data.find((item: any) => item.status === 'approved') || null : null)
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to load issuer settings.')
-    } finally {
-      setLoading(false)
-    }
-  }, [accessToken, badge.badge_uuid, issuerOrgId])
+  const [plans, setPlans] = React.useState<any[] | null>(null)
 
   React.useEffect(() => {
-    void load()
-  }, [load])
-
-  const changeAccess = async (value: LearnerAccess) => {
-    if (!authorization || saving) return
-    setSaving(true)
-    try {
-      const updated = await updateIssuerAuthorization(authorization.authorization_uuid, { learner_access: value }, accessToken)
-      setAuthorization(updated)
-      toast.success(`Learner access: ${learnerAccessLabel(value).toLowerCase()}.`)
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to update learner access.')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const release = async () => {
-    if (!authorization || releasing) return
-    if (!confirm(`Release “${badge.name}”? It will be removed from your badge library and your organization will no longer be able to issue it.`)) return
-    setReleasing(true)
-    try {
-      await revokeIssuerAuthorization(authorization.authorization_uuid, accessToken)
-      toast.success('Badge authorization released.')
-      router.push(getUriWithOrg(orgslug, routePaths.org.dash.badges()))
-      router.refresh()
-    } catch (error: any) {
-      toast.error(error?.message || 'Failed to release badge authorization.')
-      setReleasing(false)
-    }
-  }
+    let active = true
+    getIssuerBadgeMetrics(issuerOrgId, badge.badge_uuid, accessToken)
+      .then((response: any) => active && setPlans((response?.success ? response.data : response)?.plans || []))
+      .catch((error: any) => { if (active) { setPlans([]); toast.error(error?.message || 'Failed to load issuer settings.') } })
+    return () => { active = false }
+  }, [accessToken, badge.badge_uuid, issuerOrgId])
 
   return (
-    <div className="px-10 pb-10 pt-6">
+    <div className="px-4 pb-10 pt-6 sm:px-10">
       <section className="max-w-4xl rounded-xl bg-card p-6 shadow-xs">
         <h2 className="text-lg font-bold text-foreground">Issuer settings</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Settings that apply only to your organization’s use of this badge.</p>
-        {loading ? (
+        <p className="mt-1 text-sm text-muted-foreground">You issue this badge through the plans its creator approved you on. To stop, leave the plan in <Link className="font-semibold underline" href={getUriWithOrg(orgslug, routePaths.org.admin.marketplace())}>Marketplace</Link> › Requests; credentials already issued stay valid.</p>
+        {plans === null ? (
           <div className="flex items-center justify-center py-14 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /></div>
-        ) : authorization ? (
-          <div className="mt-5">
-            <LearnerAccessSelect value={authorization.learner_access || 'invite'} disabled={saving} onChange={(value) => void changeAccess(value as LearnerAccess)} />
-          </div>
         ) : (
-          <p className="mt-5 rounded-lg bg-muted p-4 text-sm text-muted-foreground">No active issuing authorization was found.</p>
+          <div className="mt-5"><PlanAccessList plans={plans} orgslug={orgslug} /></div>
         )}
-      </section>
-
-      <section className="mt-6 max-w-4xl rounded-xl border border-red-100 bg-card p-6 shadow-xs">
-        <h2 className="text-lg font-bold text-red-700">Release authorization</h2>
-        <div className="mt-4 flex items-start justify-between gap-6">
-          <div>
-            <h3 className="text-sm font-semibold text-foreground">Remove from your library</h3>
-            <p className="mt-1 max-w-2xl text-xs leading-5 text-muted-foreground">Your organization will stop appearing as an issuer and will no longer be able to deliver, grade, or issue this badge. Existing credentials remain valid.</p>
-          </div>
-          <button onClick={() => void release()} disabled={!authorization || releasing} className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-xs font-bold text-red-700 disabled:opacity-50">
-            {releasing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-            Release
-          </button>
-        </div>
       </section>
     </div>
   )
@@ -891,7 +673,7 @@ function BadgeCertificationPanel({ badge, onPatch, readOnly = false }: { badge: 
   }
 
   return (
-    <div className="px-10 pb-10 pt-6">
+    <div className="px-4 pb-10 pt-6 sm:px-10">
       <div className="grid max-w-7xl gap-6 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-start">
         <div className="order-2 space-y-6 lg:order-1">
           <section className="rounded-xl bg-card p-6 shadow-xs">
@@ -1136,46 +918,6 @@ function SettingRow({ title, description, checked, disabled, onChange }: { title
   )
 }
 
-function EditableHeaderField({
-  field,
-  isEditing,
-  value,
-  onChange,
-  onEdit,
-  onSave,
-  isSaving,
-}: {
-  field: 'name' | 'description'
-  isEditing: boolean
-  value: string
-  onChange: (value: string) => void
-  onEdit: () => void
-  onSave: () => void
-  isSaving: boolean
-}) {
-  const isTitle = field === 'name'
-
-  return (
-    <div className={`group flex min-w-0 items-start gap-2 ${isTitle ? 'mb-2' : ''}`}>
-      {isEditing ? (
-        isTitle ? (
-          <input autoFocus value={value} maxLength={100} onChange={(event) => onChange(event.target.value)} className="min-w-0 flex-1 rounded-md border border-border bg-card px-3 py-2 text-3xl font-bold tracking-tight text-foreground outline-none focus:ring-2 focus:ring-black" />
-        ) : (
-          <textarea autoFocus value={value} maxLength={1000} onChange={(event) => onChange(event.target.value)} rows={2} placeholder="Describe this badge..." className="min-w-0 flex-1 resize-none rounded-md border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground outline-none focus:ring-2 focus:ring-black" />
-        )
-      ) : isTitle ? (
-        <h1 className="min-w-0 break-words text-4xl font-bold tracking-tight text-foreground">{value}</h1>
-      ) : (
-        <p className="min-w-0 break-words text-sm font-medium text-muted-foreground">{value || 'No description yet.'}</p>
-      )}
-
-      <Button type="button" size="icon" variant={isEditing ? 'default' : 'ghost'} disabled={isSaving} className={`mt-1 h-7 w-7 shrink-0 ${isEditing ? 'bg-green-600 text-white hover:bg-green-700' : 'opacity-0 transition-opacity group-hover:opacity-100'}`} onClick={isEditing ? onSave : onEdit} title={isEditing ? 'Save' : 'Edit'}>
-        {isSaving ? <Loader2 className="animate-spin" /> : isEditing ? <Check /> : <Pencil />}
-      </Button>
-    </div>
-  )
-}
-
 function formatBadgeDate(value?: string) {
   if (!value) return ''
   const date = new Date(value)
@@ -1196,5 +938,7 @@ function getActiveSubpage(subpage: string) {
   if (subpage === 'general' || subpage === 'seo' || subpage === 'about') return 'marketing'
   if (subpage === 'certification' || subpage === 'achievement') return 'definition'
   if (subpage === 'access' || subpage === 'contributors') return 'settings'
+  // Who may issue the badge is who is authorized on its plans: the old Issuers tab is Ways to earn.
+  if (subpage === 'issuers') return 'routes'
   return tabs.some((tab) => tab.key === subpage) ? subpage : 'analytics'
 }

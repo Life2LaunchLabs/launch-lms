@@ -62,7 +62,7 @@ const AdminAuthorization: React.FC<AuthorizationProps> = ({ children, authorizat
           setIsAuthorized(true);
         } else {
           setIsAuthorized(false);
-          router.push(routePaths.org.dash.root());
+          router.push(routePaths.org.admin.root());
         }
       } else {
         setIsAuthorized(true);

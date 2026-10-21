@@ -25,17 +25,17 @@ export function NavItemControl({ item, orgslug, className, children, dot = false
 
 /**
  * The phone tab bar. It sits on the outside surface and never moves with the page.
- * Account, messages and help live behind the settings button on the learner's
- * portfolio, so Portfolio carries the unread-messages dot.
+ * Settings and help live behind the settings button on the learner's portfolio;
+ * messages and invitations are in Connect, which carries the dot.
  */
-export default function OrgMenuMobile({ items, orgslug, hidden, unreadCount }: { items: OrgMenuNavItem[]; orgslug: string; hidden: boolean; unreadCount: number }) {
+export default function OrgMenuMobile({ items, orgslug, hidden }: { items: OrgMenuNavItem[]; orgslug: string; hidden: boolean }) {
   return <nav
     aria-label="Mobile navigation"
     className={cn('fixed inset-x-0 bottom-0 z-[var(--z-nav)] flex justify-center bg-shell px-2 transition-[opacity,transform] duration-300 ease-out md:hidden', hidden ? 'pointer-events-none translate-y-full opacity-0' : 'translate-y-0 opacity-100')}
     style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 0px)' }}
   >
     <div className="pointer-events-auto flex h-16 w-full max-w-screen-sm items-center justify-around gap-1">
-      {items.map((item) => <NavItemControl key={item.href || item.label} item={item} orgslug={orgslug} dot={unreadCount > 0 && item.href === '/portfolio'} className={cn('flex h-11 w-14 items-center justify-center rounded-2xl transition-colors', item.active ? NAV_ACTIVE_CLASS : 'text-muted-foreground hover:bg-foreground/[0.08] hover:text-foreground')}>{item.icon}</NavItemControl>)}
+      {items.map((item) => <NavItemControl key={item.href || item.label} item={item} orgslug={orgslug} dot={item.dot} className={cn('flex h-11 w-14 items-center justify-center rounded-2xl transition-colors', item.active ? NAV_ACTIVE_CLASS : 'text-muted-foreground hover:bg-foreground/[0.08] hover:text-foreground')}>{item.icon}</NavItemControl>)}
     </div>
   </nav>
 }

@@ -6,26 +6,21 @@ from types import SimpleNamespace
 import httpx
 import pytest
 from fastapi import HTTPException, Request
-from sqlmodel import Session, create_engine
 
-from src.db.hub import (
-    HubAdvisorConfiguration,
-    HubAdvisorConfigurationUpdate,
-    HubAdvisorProviderConfiguration,
-)
 from src.db.resources import ResourceAccessModeEnum, ResourceTypeEnum
-from src.db.users import PublicUser, User
 from src.services import hub_advisor
+from src.security.access.access import access_from_config
 from src.services import hub_actions
-from src.services import hub_configuration
+from src.services import hub_questions
 from src.routers import hub as hub_router
+from src.services.coach.policy import CoachRuntime
+from src.services.hub_advisor_fixture import DeterministicUiTestProvider
 from src.services.hub_advisor import (
     AdvisorMessage,
     AdvisorResult,
     AdvisorProviderLimited,
     AdvisorUnavailable,
     AnthropicMessagesProvider,
-    DeterministicUiTestProvider,
     OpenAIResponsesProvider,
     ask_hub_advisor,
     advisor_resources_for_request,
@@ -61,24 +56,23 @@ async def test_ui_fixture_provider_returns_semantic_actions_without_external_cal
         ),
     ], "safe")
     memory = await DeterministicUiTestProvider(memory=True).respond([message("user", "anything")], "safe")
-    editing = await DeterministicUiTestProvider(edit_scope="new_plan").respond(
-        [message("user", "Prepare the plan details")], "safe",
+    continued = await DeterministicUiTestProvider(edit_scope="goal").respond(
+        [message("user", "I saved the goal details")], "safe",
     )
-    continued = await DeterministicUiTestProvider(edit_scope="plan").respond(
-        [message("user", "I saved the plan details")], "safe",
+    stepped = await DeterministicUiTestProvider(edit_scope="goal").respond(
+        [message("user", "You finished reviewing the proposed stages\nI added the suggested stage “Explore”.\nAll proposed stages have now been reviewed.")], "safe",
     )
-    cancelled = await DeterministicUiTestProvider(edit_scope="new_plan").respond(
-        [message("user", "I cancelled the new plan instead of saving it")], "safe",
-    )
+    session = await DeterministicUiTestProvider().respond([message("user", "Can you plan this goal with me?")], "safe")
 
     assert plan.action_destinations == ("create_plan",)
     assert timeline.action_destinations == ("add_timeline",)
     assert json.loads(memory.text) == {"candidates": []}
-    assert editing.plan_operations[0]["type"] == "set_new_plan_details"
-    assert editing.action_destinations == ()
-    assert continued.plan_operations[0]["type"] == "add_plan_phases"
-    assert len(continued.plan_operations[0]["phases"]) == 3
-    assert "Would you like" in cancelled.text
+    assert session.action_destinations == ("plan_goal",)
+    assert continued.goal_operations[0]["type"] == "add_goal_stages"
+    assert len(continued.goal_operations[0]["stages"]) == 3
+    steps = stepped.goal_operations[0]["steps"]
+    assert stepped.goal_operations[0]["type"] == "add_goal_steps" and [step["type"] for step in steps] == ["write", "task", "task"]
+    assert steps[1]["config"]["list"]["label"] == "Skills to build" and steps[1]["config"]["list"]["target"] == 3
 
 
 def test_conversation_must_be_bounded_alternating_and_end_with_user():
@@ -335,153 +329,6 @@ async def test_anthropic_provider_parses_the_same_navigation_proposal_contract()
     assert result.action_destinations == ("add_timeline",)
 
 
-def _admin() -> PublicUser:
-    return PublicUser(
-        id=7,
-        user_uuid="user_7",
-        username="admin",
-        email="admin@example.com",
-        first_name="Platform",
-        last_name="Admin",
-        is_superadmin=True,
-    )
-
-
-def _configuration_session() -> Session:
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    User.__table__.create(engine)
-    HubAdvisorConfiguration.__table__.create(engine)
-    HubAdvisorProviderConfiguration.__table__.create(engine)
-    return Session(engine)
-
-
-def test_superadmin_configuration_encrypts_key_and_never_returns_it():
-    with _configuration_session() as db:
-        result = hub_configuration.update_hub_advisor_configuration(
-            db,
-            _admin(),
-            HubAdvisorConfigurationUpdate(
-                provider="openai",
-                enabled=True,
-                model="gpt-test",
-                instructions="Give concise guidance.",
-                api_key="sk-test-secret-that-must-not-leak",
-            ),
-        )
-        stored = hub_configuration.get_provider_record(db, "openai")
-        assert stored is not None and stored.api_key_ciphertext is not None
-        assert stored.api_key_ciphertext != "sk-test-secret-that-must-not-leak"
-        assert "sk-test-secret" not in stored.api_key_ciphertext
-        assert "api_key" not in result
-        assert result["provider_configurations"]["openai"]["api_key_configured"] is True
-        assert hub_configuration.get_enabled_hub_advisor_credentials(db) == (
-            "openai",
-            "sk-test-secret-that-must-not-leak",
-            "gpt-test",
-            "Give concise guidance.",
-            {
-                "max_output_tokens": 700,
-                "reasoning_effort": "default",
-                "verbosity": "default",
-                "thinking_effort": "default",
-            },
-        )
-
-
-def test_enabled_configuration_requires_key_and_key_can_be_cleared():
-    with _configuration_session() as db:
-        with pytest.raises(HTTPException, match="Add an Anthropic API key"):
-            hub_configuration.update_hub_advisor_configuration(
-                db,
-                _admin(),
-                HubAdvisorConfigurationUpdate(
-                    provider="anthropic",
-                    enabled=True,
-                    model="claude-test",
-                    instructions="Help learners.",
-                ),
-            )
-        hub_configuration.update_hub_advisor_configuration(
-            db,
-            _admin(),
-            HubAdvisorConfigurationUpdate(
-                provider="openai",
-                enabled=False,
-                model="gpt-test",
-                instructions="Help learners.",
-                api_key="sk-test-secret-that-must-not-leak",
-            ),
-        )
-        result = hub_configuration.update_hub_advisor_configuration(
-            db,
-            _admin(),
-            HubAdvisorConfigurationUpdate(
-                provider="openai",
-                enabled=False,
-                model="gpt-test",
-                instructions="Help learners.",
-                clear_api_key=True,
-            ),
-        )
-        assert result["provider_configurations"]["openai"]["api_key_configured"] is False
-        with pytest.raises(RuntimeError, match="not configured or enabled"):
-            hub_configuration.get_enabled_hub_advisor_credentials(db)
-
-
-def test_provider_credentials_and_settings_are_retained_independently():
-    with _configuration_session() as db:
-        hub_configuration.update_hub_advisor_configuration(
-            db,
-            _admin(),
-            HubAdvisorConfigurationUpdate(
-                provider="openai",
-                enabled=False,
-                model="gpt-test",
-                instructions="Shared instructions.",
-                api_key="sk-openai-secret-that-must-not-leak",
-                advanced={"max_output_tokens": 500, "reasoning_effort": "low"},
-            ),
-        )
-        result = hub_configuration.update_hub_advisor_configuration(
-            db,
-            _admin(),
-            HubAdvisorConfigurationUpdate(
-                provider="anthropic",
-                enabled=True,
-                model="claude-test",
-                instructions="Shared instructions.",
-                api_key="sk-anthropic-secret-that-must-not-leak",
-                advanced={"max_output_tokens": 900, "thinking_effort": "high"},
-            ),
-        )
-
-        assert result["provider"] == "anthropic"
-        assert result["provider_configurations"]["openai"]["api_key_configured"] is True
-        assert result["provider_configurations"]["openai"]["advanced"]["max_output_tokens"] == 500
-        assert result["provider_configurations"]["anthropic"]["api_key_configured"] is True
-        assert hub_configuration.get_enabled_hub_advisor_credentials(db) == (
-            "anthropic",
-            "sk-anthropic-secret-that-must-not-leak",
-            "claude-test",
-            "Shared instructions.",
-            {
-                "max_output_tokens": 900,
-                "reasoning_effort": "default",
-                "verbosity": "default",
-                "thinking_effort": "high",
-            },
-        )
-
-
-@pytest.mark.asyncio
-async def test_model_catalog_uses_curated_choices_without_a_provider_key():
-    with _configuration_session() as db:
-        result = await hub_configuration.list_hub_advisor_models(db, "anthropic")
-
-    assert result["source"] == "curated"
-    assert any(model["id"] == "claude-haiku-4-5-20251001" for model in result["models"])
-
-
 class FakeProvider:
     async def respond(self, messages, safety_identifier):
         assert messages[-1].content.startswith("Help\n\n<launch_lms_capabilities>")
@@ -521,10 +368,12 @@ async def test_memory_extraction_supports_explicit_commands_and_structured_provi
 
 @pytest.mark.asyncio
 async def test_advisor_requires_membership_and_applies_user_rate_limit(monkeypatch):
+    monkeypatch.setattr(hub_advisor, "coach_runtime", lambda *_args: CoachRuntime(True, {"read_portfolio": False, "read_goals": False}, {}))
     membership = []
     monkeypatch.setattr(hub_advisor, "require_org_membership", lambda user_id, org_id, _db: membership.append((user_id, org_id)))
     monkeypatch.setattr(hub_advisor, "check_rate_limit", lambda *args: (True, 1, 60))
-    monkeypatch.setattr(hub_actions, "_org_config", lambda *_args: {})
+    monkeypatch.setattr(hub_actions, "org_access", lambda *_args: access_from_config({}))
+    monkeypatch.setattr(hub_questions, "question_context", lambda *_args: "")
     request = Request({"type": "http", "headers": [], "client": ("127.0.0.1", 1234)})
 
     result = await ask_hub_advisor(request, 7, 11, [message("user", "Help")], object(), FakeProvider())  # type: ignore[arg-type]
@@ -548,21 +397,22 @@ async def test_advisor_returns_retry_after_when_rate_limited(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_advisor_route_returns_edit_operations_without_changing_conversation_contract(monkeypatch):
+    monkeypatch.setattr(hub_router, "coach_runtime", lambda *_args: CoachRuntime(True, {}, {}))
     record_advice_signature = inspect.signature(hub_router.record_advice)
     operation = {
-        "operation_id": "hub_plan_operation_test", "type": "set_new_plan_details",
-        "object_type": "plan", "object_uuid": None, "object_label": "Career plan",
-        "fields": {"name": "Career plan", "description": "", "due_date": "2099-12-31"},
+        "operation_id": "hub_goal_operation_test", "type": "set_new_goal_details",
+        "object_type": "goal", "object_uuid": None, "object_label": "Career change",
+        "fields": {"title": "Career change", "description": "", "target_date": "2099-12-31"},
     }
     run = {
-        "run_uuid": "hub_edit_run_test", "goal": "Create a plan",
-        "scope": {"kind": "new_plan", "label": "New plan", "route": "/plans"},
+        "run_uuid": "hub_edit_run_test", "goal": "Create a goal",
+        "scope": {"kind": "new_goal", "label": "New goal", "route": "/plans"},
     }
     async def resources(*_args, **_kwargs):
         return []
     async def advice(*_args, **kwargs):
         assert kwargs["edit_run"] == run
-        return AdvisorResult("Prepared.", "fake", plan_operations=(operation,))
+        return AdvisorResult("Prepared.", "fake", goal_operations=(operation,))
     def persist(db_session, **kwargs):
         record_advice_signature.bind(db_session, **kwargs)
         now = datetime.utcnow()
@@ -580,7 +430,7 @@ async def test_advisor_route_returns_edit_operations_without_changing_conversati
     monkeypatch.setattr(hub_router, "advisor_resources_for_request", lambda *_args: [])
     monkeypatch.setattr(hub_router, "ask_hub_advisor", advice)
     monkeypatch.setattr(hub_router, "build_navigation_actions", lambda *_args: [])
-    monkeypatch.setattr(hub_router, "record_plan_proposals", lambda *_args: [operation])
+    monkeypatch.setattr(hub_router, "record_goal_proposals", lambda *_args: [operation])
     monkeypatch.setattr(hub_router, "record_advice", persist)
     monkeypatch.setattr(hub_router, "record_used_memories", lambda *_args: None)
     monkeypatch.setattr(hub_router, "memory_settings", lambda *_args: {"enabled": False})
@@ -597,3 +447,75 @@ async def test_advisor_route_returns_edit_operations_without_changing_conversati
     )
 
     assert response.edit_operations == [operation]
+
+
+@pytest.mark.asyncio
+async def test_both_providers_return_the_same_typed_step_changes():
+    from src.services.goals.coach_tools import STEP_CHANGES_TOOL
+
+    arguments = {"changes": [{"step_id": "step_one", "title": "Visit two campuses", "description": "", "stage_id": "", "remove": False, "reason": "Clearer"}]}
+
+    def offered(request: httpx.Request) -> list[str]:
+        names = [tool["name"] for tool in json.loads(request.content)["tools"]]
+        # Coach can suggest changes on a goal, and has no tool that writes a new goal.
+        assert STEP_CHANGES_TOOL in names and "propose_new_goal_details" not in names
+        return names
+
+    async def openai_handler(request: httpx.Request):
+        offered(request)
+        return httpx.Response(200, json={"model": "gpt-test", "output": [
+            {"type": "message", "content": [{"type": "output_text", "text": "One change to look at."}]},
+            {"type": "function_call", "name": STEP_CHANGES_TOOL, "arguments": json.dumps(arguments)},
+        ]})
+
+    async def anthropic_handler(request: httpx.Request):
+        offered(request)
+        return httpx.Response(200, json={"model": "claude-test", "content": [
+            {"type": "text", "text": "One change to look at."},
+            {"type": "tool_use", "name": STEP_CHANGES_TOOL, "input": arguments},
+        ]})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(openai_handler)) as client:
+        openai = await OpenAIResponsesProvider("test-key", "gpt-test", client, edit_scope="goal").respond(
+            [AdvisorMessage(role="user", content="Tidy my steps")], "safe-user",
+        )
+    async with httpx.AsyncClient(transport=httpx.MockTransport(anthropic_handler)) as client:
+        anthropic = await AnthropicMessagesProvider("test-key", "claude-test", client, edit_scope="plan").respond(
+            [AdvisorMessage(role="user", content="Tidy my steps")], "safe-user",
+        )
+
+    assert [item["type"] for item in openai.goal_operations] == [item["type"] for item in anthropic.goal_operations] == ["change_goal_steps"]
+    strip = lambda operation: [{key: value for key, value in change.items() if key != "local_id"} for change in operation["changes"]]  # noqa: E731
+    assert strip(openai.goal_operations[0]) == strip(anthropic.goal_operations[0]) == [{"step_uuid": "step_one", "remove": False, "reason": "Clearer", "title": "Visit two campuses"}]
+
+
+@pytest.mark.asyncio
+async def test_both_providers_offer_and_return_questions_in_any_chat():
+    from src.services.hub_questions import ASK_LEARNER_TOOL
+
+    arguments = {"questions": [{"prompt": "How many hours a week?", "kind": "single", "options": ["1-2", "3-5"], "allow_skip": False,
+                                "low_label": "", "high_label": "", "keep": "none", "variable_key": ""}]}
+
+    async def openai_handler(request: httpx.Request):
+        assert ASK_LEARNER_TOOL in [tool["name"] for tool in json.loads(request.content)["tools"]]
+        return httpx.Response(200, json={"model": "gpt-test", "output": [
+            {"type": "message", "content": [{"type": "output_text", "text": "Quick question."}]},
+            {"type": "function_call", "name": ASK_LEARNER_TOOL, "arguments": json.dumps(arguments)},
+        ]})
+
+    async def anthropic_handler(request: httpx.Request):
+        assert ASK_LEARNER_TOOL in [tool["name"] for tool in json.loads(request.content)["tools"]]
+        return httpx.Response(200, json={"model": "claude-test", "content": [
+            {"type": "text", "text": "Quick question."}, {"type": "tool_use", "name": ASK_LEARNER_TOOL, "input": arguments},
+        ]})
+
+    # No focused session: questions work in any conversation.
+    async with httpx.AsyncClient(transport=httpx.MockTransport(openai_handler)) as client:
+        openai = await OpenAIResponsesProvider("test-key", "gpt-test", client).respond([AdvisorMessage(role="user", content="Help me plan")], "safe-user")
+    async with httpx.AsyncClient(transport=httpx.MockTransport(anthropic_handler)) as client:
+        anthropic = await AnthropicMessagesProvider("test-key", "claude-test", client).respond([AdvisorMessage(role="user", content="Help me plan")], "safe-user")
+    assert openai.questions == anthropic.questions and [item["options"] for item in openai.questions] == [["1-2", "3-5"]]
+    asked = await DeterministicUiTestProvider().respond([message("user", "Ask me a few questions")], "safe")
+    assert [item["kind"] for item in asked.questions] == ["single", "scale", "text"]
+    replied = await DeterministicUiTestProvider(edit_scope="goal").respond([message("user", "My answers:\n- How sure? 4 of 5")], "safe")
+    assert replied.questions == () and replied.goal_operations == ()

@@ -190,8 +190,9 @@ def _portfolio(db: Session, user: User, now: str) -> Portfolio:
 
 
 def _start_badge_plans(db: Session, user: User, badge_uuids: list) -> list[str]:
-    """Start up to three picked badges the learner can start now, each on its recommended route."""
-    from src.services.badge_routes import _routes, active_badge_plan, create_badge_plan
+    """Start up to three picked badges the learner can start now, each as a goal on its recommended route (not committed)."""
+    from fastapi import HTTPException
+    from src.services.goals.badges import badge_routes, start_badge_goal
     from src.services.learning_issuers import issuer_options
 
     started: list[str] = []
@@ -200,14 +201,13 @@ def _start_badge_plans(db: Session, user: User, badge_uuids: list) -> list[str]:
             LearningBadge.badge_uuid == badge_uuid, LearningBadge.status == LearningBadgeStatus.PUBLISHED,
             LearningBadge.public == True, LearningBadge.deleted_at.is_(None),  # type: ignore[union-attr]  # noqa: E712
         )).first()
-        routes = _routes(db, badge) if badge else []
-        issuer_org_id = issuer_options(db, badge, int(user.id), set())["startable_issuer_org_id"] if badge else None  # type: ignore[arg-type]
-        if not badge or not routes or issuer_org_id is None:
-            continue
-        if not active_badge_plan(db, badge, int(user.id)):  # type: ignore[arg-type]
-            route, program = next(((route, program) for route, program in routes if route.recommended), routes[0])
-            create_badge_plan(db, badge, program, int(user.id), issuer_org_id, [])  # type: ignore[arg-type]
-        started.append(badge.badge_uuid)
+        issuer_org_id = issuer_options(db, badge, int(user.id), set())["startable_issuer_org_id"] if badge and badge_routes(db, badge) else None  # type: ignore[arg-type]
+        if badge and issuer_org_id is not None:
+            try:
+                start_badge_goal(db, user, badge, None, None, commit=False)  # type: ignore[arg-type]
+                started.append(badge.badge_uuid)
+            except HTTPException:
+                pass
     return started
 
 

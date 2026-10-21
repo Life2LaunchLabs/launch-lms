@@ -15,8 +15,8 @@ from sqlmodel import Session
 from src.services.learning_documents.models import activity_document_json_schema, authoring_guide
 from src.services.mcp.app_shell import APP_MIME_TYPE, PREVIEW_APP_URI, preview_app_html, preview_app_meta
 from src.services.mcp.tools import TOOLS, call_tool
-from src.services.plan_template_documents.models import authoring_guide as template_authoring_guide
-from src.services.plan_template_documents.models import plan_template_json_schema
+from src.services.goals.document import json_schema as plan_template_json_schema
+from src.services.goals.mcp_templates import authoring_guide as template_authoring_guide
 from src.services.requirement_documents.models import authoring_guide as requirement_authoring_guide
 from src.services.requirement_documents.models import requirement_framework_json_schema
 from src.services.badge_documents.models import authoring_guide as badge_authoring_guide
@@ -29,13 +29,15 @@ INSTRUCTIONS = """Launch LMS holds plans, the requirements they count toward, an
 
 Requirement frameworks (standards, competencies, state mandates) are hierarchies of requirement nodes. Turn a requirements write-up into one with get_requirement_framework_schema, validate_requirement_framework and create_requirement_framework (or edit an existing one from list_requirement_frameworks / get_requirement_framework). Frameworks are versioned: saves edit a draft; publish_requirement_framework only when the admin asks.
 
-Plan templates are reusable plans: an ordered stack of phases and objectives that learners get as their own plan, assigned by an organization or by starting a badge. An objective is a standard step (fields, checkboxes, uploads, a badge to earn) or an interactive activity the learner plays in the app. Objectives link to leaf requirement nodes (requirement_node_uuids in the document, or set_objective_requirements). Read get_plan_template_schema first; build the whole document, run validate_plan_template until it is clean, then create_plan_template or save_plan_template. Templates are versioned: create_plan_template and save_plan_template edit the draft, and publish_plan_template (only when the admin asks) makes it the version new assignments and badge starts get. Issued plans keep their version and their learners' answers; restore_plan_template_version rolls back by publishing an earlier version again.
+Plan templates are reusable goals: an ordered stack of stages of typed steps that learners get as their own goal, assigned by an organization or by starting a badge. A step is a task, upload, write-up, event, badge to earn, decision or an interactive activity the learner plays in the app. Steps link to leaf requirement nodes (requirement_node_uuids in the document, or set_objective_requirements with the step_key). Read get_plan_template_schema first; build the whole document, run validate_plan_template until it is clean, then create_plan_template or save_plan_template. Templates are versioned: create_plan_template and save_plan_template edit the draft, and publish_plan_template (only when the admin asks) makes it the version new assignments and badge starts get. Issued goals keep their version and their learners' answers; restore_plan_template_version rolls back by publishing an earlier version again.
 
-Activities: add one by giving a new objective type "activity" in a template document and saving; list_activities then shows its activity_uuid. Read get_activity_schema, write the whole Activity Document, validate_activity until clean, show preview_activity so the admin can click through, then save_activity. Activity edits change the template's draft and reach learners when the template is published.
+Activities: add one by giving a new step type "activity" in a template document and saving; list_activities then shows its activity_uuid. Read get_activity_schema, write the whole Activity Document, validate_activity until clean, show preview_activity so the admin can click through, then save_activity. Activity edits change the template's draft and reach learners when the template is published.
 
 Badges are credentials: a definition (name, criteria, image, achievement type), Marketing (subtitle, time, highlights) and a listing (collection, public). Read get_badge_schema. create_badge makes a draft; save_badge edits the draft (saving over a live badge starts a new draft). Learners earn a badge through the plan templates linked with set_badge_routes; a badge needs at least one before learners can start it. publish_badge makes the draft live, only when the admin asks.
 
-Typical flows: requirements write-up -> framework -> template whose objectives link to it. Badge -> create_badge -> create_plan_template for how to earn it (with activities) -> publish_plan_template -> set_badge_routes -> publish_badge.
+Typical flows: requirements write-up -> framework -> template whose steps link to it. Badge -> create_badge -> create_plan_template for how to earn it (with activities) -> publish_plan_template -> set_badge_routes -> publish_badge.
+
+Coach (platform admins only): get_coach_policy shows the coaching policy's draft. save_coach_playbook and delete_coach_playbook write knowledge into the draft; preview_coach_knowledge shows which playbooks a learner message would bring in. Nothing reaches learners until a person releases the draft on Platform › Coach › Releases, so never say a change is live. Tests: list_coach_tests explains how to write realistic scenarios; save_coach_test writes one; run_coach_tests grades the draft beside the live release and get_coach_test_run reads the result. A run makes real model calls, so run it when the admin asks.
 
 Save only when the admin asks, with the etag you read; on a stale-document error, merge your change into the returned current document and retry. Tell the admin what will change (validation warnings list removals) and point them to the editor_url to review. Publishing to the global library happens only when the admin asks."""
 
@@ -58,14 +60,14 @@ RESOURCES = [
         "uri": "launch-lms://plan-template-document/guide",
         "name": "plan-template-authoring-guide",
         "title": "Plan template authoring guide",
-        "description": "How Launch LMS plan templates, phases, objectives and steps are written.",
+        "description": "How Launch LMS plan templates (goal templates: stages of typed steps) are written.",
         "mimeType": "text/markdown",
     },
     {
         "uri": "launch-lms://plan-template-document/schema",
         "name": "plan-template-document-schema",
         "title": "Plan Template Document JSON Schema",
-        "description": "JSON Schema for Plan Template Document v1.",
+        "description": "JSON Schema for the Goal Template Document (launch-lms.goal-template v1).",
         "mimeType": "application/schema+json",
     },
     {
@@ -149,7 +151,8 @@ async def _dispatch(request: Request, db_session: Session, ctx: AccessContext, m
     if method == "ping":
         return {}
     if method == "tools/list":
-        return {"tools": [tool.definition() for tool in TOOLS]}
+        platform_admin = bool(getattr(ctx.user, "is_superadmin", False))
+        return {"tools": [tool.definition() for tool in TOOLS if platform_admin or not tool.platform]}
     if method == "tools/call":
         name = params.get("name")
         if not isinstance(name, str):

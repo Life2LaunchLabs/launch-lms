@@ -69,6 +69,11 @@ async def respond_to_message(
         result = respond_to_invitation(
             db_session, current_user, invitation_uuid, payload.accept
         )
+    elif message.action_kind == "goal_invitation":
+        from src.services.goals.sharing import respond_to_invitation as respond_to_goal_invitation
+
+        invitation_uuid = str(action_data.get("invitation_uuid") or "")
+        result = respond_to_goal_invitation(db_session, current_user, invitation_uuid, payload.accept)
     else:
         raise HTTPException(status_code=422, detail="Unsupported message action")
 

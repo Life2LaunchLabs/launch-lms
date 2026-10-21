@@ -1,4 +1,4 @@
-"""Launch LMS MCP server: requirement frameworks, objective links and the global library."""
+"""Launch LMS MCP server: requirement frameworks, step links and the global library."""
 
 import json
 from copy import deepcopy
@@ -38,7 +38,7 @@ def _framework_document(**overrides) -> dict:
 
 @pytest.fixture
 def world(templates):  # noqa: F811
-    session, call, alice, template_uuid = templates
+    session, call, alice, template_uuid, _rpc = templates
     for model in (RequirementFramework, RequirementFrameworkVersion, RequirementNode, ProgramObjectiveRequirement, RequirementAssignmentBatch, RequirementEnrollment, RequirementAttainmentSource):
         model.__table__.create(session.get_bind(), checkfirst=True)
     return session, call, alice, template_uuid
@@ -78,24 +78,24 @@ def test_link_objectives_and_see_coverage_then_edit_and_publish(world):
     framework_uuid = framework["context"]["framework_uuid"]
     domain, communicates, time = framework["document"]["nodes"]
     template = call("get_plan_template", {"template_uuid": template_uuid})["structuredContent"]
-    resume, interview = template["document"]["phases"][0]["objectives"]
+    _resume, interview = template["document"]["stages"][0]["steps"]
 
-    linked = call("set_objective_requirements", {"template_uuid": template_uuid, "objective_uuid": interview["objective_uuid"], "node_uuids": [communicates["node_uuid"]]})
-    assert linked["structuredContent"]["requirement_mappings"][0]["node_code"] == "A.1"
+    linked = call("set_objective_requirements", {"template_uuid": template_uuid, "step_key": interview["key"], "node_uuids": [communicates["node_uuid"]]})
+    assert linked["structuredContent"]["requirement_links"] == [{"framework_id": linked["structuredContent"]["requirement_links"][0]["framework_id"], "framework_uuid": framework_uuid, "node_uuid": communicates["node_uuid"]}]
     assert linked["structuredContent"]["template_etag"] != template["etag"]
-
-    # A template document can link too; linking a grouping node is allowed but flagged.
     document = call("get_plan_template", {"template_uuid": template_uuid})["structuredContent"]["document"]
-    document["phases"][0]["objectives"][0]["requirement_node_uuids"] = [domain["node_uuid"]]
+    assert document["stages"][0]["steps"][1]["requirement_node_uuids"] == [communicates["node_uuid"]]
+
+    # A template document can link too; only leaf requirements earn credit.
+    document["stages"][0]["steps"][0]["requirement_node_uuids"] = [domain["node_uuid"]]
     report = call("validate_plan_template", {"template_uuid": template_uuid, "document": document})["structuredContent"]
-    assert report["valid"] is True and "Only leaf requirements earn credit" in report["warnings"][0]["message"]
+    assert report["valid"] is False and "Only leaf requirements earn credit" in report["errors"][0]["message"]
 
     current = call("get_requirement_framework", {"framework_uuid": framework_uuid})["structuredContent"]
-    assert current["context"]["linked_objectives"] == {
-        communicates["node_uuid"]: [{"template_uuid": template_uuid, "template_name": "Career Ready", "objective_uuid": interview["objective_uuid"], "objective_title": "Mock interview"}]
+    assert current["context"]["linked_steps"] == {
+        communicates["node_uuid"]: [{"template_uuid": template_uuid, "template_title": "Career Ready", "step_key": interview["key"], "step_title": "Mock interview"}]
     }
     assert [node["code"] for node in current["context"]["unlinked_leaf_nodes"]] == ["A.2"]
-
     unchanged = call("save_requirement_framework", {"framework_uuid": framework_uuid, "document": current["document"], "base_etag": current["etag"]})
     assert unchanged["structuredContent"]["changed"] is False
 
@@ -129,9 +129,9 @@ def test_library_round_trip_and_owner_only_publishing(world):
     assert call("publish_to_library", {"kind": "plan_template", "uuid": template_uuid})["structuredContent"]["published_to_library"] is True
 
     found = call("search_library", {"kind": "plan_template", "query": "career"})["structuredContent"]["items"]
-    assert [item["name"] for item in found] == ["Career Ready"]
+    assert [item["title"] for item in found] == ["Career Ready"]
     copied = call("copy_from_library", {"kind": "plan_template", "uuid": found[0]["uuid"]})["structuredContent"]
-    assert copied["context"]["template_uuid"] != template_uuid and copied["editor_url"].endswith("/objectives")
+    assert copied["context"]["template_uuid"] != template_uuid and copied["editor_url"].endswith(f"/admin/plans/{copied['context']['template_uuid']}")
     frameworks = call("search_library", {"kind": "requirement_framework", "query": "wbl"})["structuredContent"]["items"]
     framework_copy = call("copy_from_library", {"kind": "requirement_framework", "uuid": frameworks[0]["uuid"]})["structuredContent"]
     assert framework_copy["context"]["framework_uuid"] != framework_uuid and len(framework_copy["document"]["nodes"]) == 3

@@ -13,6 +13,8 @@ SCOPES = {
     "activities:write": "Edit activities in draft badge versions",
     "plans:read": "See your organization's plan templates and requirement frameworks",
     "plans:write": "Create and edit plan templates and requirement frameworks",
+    "coach:read": "Platform admins: see the Coach policy",
+    "coach:write": "Platform admins: edit the Coach draft (a person releases it)",
 }
 DEFAULT_SCOPE = " ".join(SCOPES)
 CODE_TTL_SECONDS = 600

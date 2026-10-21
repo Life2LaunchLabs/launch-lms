@@ -1,6 +1,6 @@
 'use client'
 import React, { useState } from 'react'
-import useSWR, { mutate as globalMutate } from 'swr'
+import useSWR from 'swr'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
 import { useParams, useRouter, useSearchParams, usePathname } from 'next/navigation'
@@ -11,15 +11,16 @@ import { useOrg } from '@components/Contexts/OrgContext'
 import {
   deletePlatformOrg,
   updatePlanRequest,
-  updatePlatformOrgPlan,
   updatePlatformOrgSettings,
 } from '@services/platform/platform'
+import { REQUEST_KINDS, accessRequestLabel } from '@services/plans/plans'
+import AccessTab from './OrgAccessTab'
 import {
   Card,
   EmptyState,
   OrgLogo,
   Pagination,
-  PlanBadge,
+  TierBadge,
   SearchInput,
   StatusBadge,
   UserAvatar,
@@ -31,7 +32,6 @@ import {
   ArrowSquareOut,
   Buildings,
   ChartBar,
-  Check,
   CreditCard,
   Eye,
   EyeSlash,
@@ -56,7 +56,7 @@ const TABS = [
   { id: 'badges', label: 'Badges', icon: Medal },
   { id: 'users', label: 'Users', icon: Users },
   { id: 'analytics', label: 'Analytics', icon: ChartBar },
-  { id: 'plan', label: 'Plan', icon: CreditCard },
+  { id: 'plan', label: 'Access', icon: CreditCard },
   { id: 'requests', label: 'Requests', icon: Tray },
   { id: 'settings', label: 'Settings', icon: GearSix },
 ] as const
@@ -142,7 +142,7 @@ export default function OrgDetail() {
         <div>
           <div className="flex items-center gap-2.5">
             <h1 className="text-2xl font-bold text-gray-900">{org.name}</h1>
-            <PlanBadge plan={org.plan} />
+            <TierBadge tier={org.tier} />
             {org.is_owner_org && <StatusBadge tone="blue">Owner org</StatusBadge>}
             {(org.pending_request_count ?? 0) > 0 && (
               <StatusBadge tone="amber">
@@ -187,10 +187,10 @@ export default function OrgDetail() {
       )}
       {activeTab === 'analytics' && <AnalyticsTab />}
       {activeTab === 'plan' && (
-        <PlanTab
+        <AccessTab
           orgId={orgId}
           accessToken={accessToken}
-          currentPlan={org.plan}
+          access={org.access}
           config={org.config}
           onChanged={mutate}
         />
@@ -281,16 +281,14 @@ function OverviewTab({
     (url: string) => swrFetcher(url, accessToken),
     { revalidateOnFocus: false }
   )
-  const features = usageData?.features
-  const badgeFeature = features?.badges
+  const limits = usageData?.limits
 
   return (
     <div className="space-y-5">
-      {features ? (
+      {limits ? (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <UsageBar label="Badges" usage={badgeFeature?.usage ?? 0} limit={badgeFeature?.limit ?? 'unlimited'} />
-          <UsageBar label="Members" usage={features.members.usage} limit={features.members.limit} />
-          <UsageBar label="Admin Seats" usage={features.admin_seats.usage} limit={features.admin_seats.limit} />
+          <UsageBar label="Active learners" usage={limits.learners.usage} limit={limits.learners.limit} />
+          <UsageBar label="Staff seats" usage={limits.staff_seats.usage} limit={limits.staff_seats.limit} />
         </div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -627,122 +625,6 @@ function AnalyticsTab() {
 }
 
 // ============================================================================
-// Plan
-// ============================================================================
-
-const PLAN_CHOICES = [
-  { id: 'free', name: 'Free', description: 'Basic course features, 1 admin' },
-  { id: 'full', name: 'Full', description: 'Communities, resources, packages' },
-  { id: 'enterprise', name: 'Enterprise', description: 'White-label, custom domains, unlimited' },
-]
-
-function PlanTab({
-  orgId,
-  accessToken,
-  currentPlan,
-  config,
-  onChanged,
-}: {
-  orgId: string
-  accessToken: string
-  currentPlan: string
-  config: any
-  onChanged: () => void
-}) {
-  const [selectedPlan, setSelectedPlan] = useState(currentPlan)
-  const [saving, setSaving] = useState(false)
-
-  const handleSave = async () => {
-    setSaving(true)
-    const res = await updatePlatformOrgPlan(Number(orgId), selectedPlan, accessToken)
-    setSaving(false)
-    if (res.status === 200) {
-      toast.success('Plan updated')
-      onChanged()
-      globalMutate(`${getAPIUrl()}superadmin/organizations/${orgId}`)
-    } else {
-      toast.error(res.data?.detail || 'Failed to update plan')
-    }
-  }
-
-  const features = config?.resolved_features || config?.features || {}
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {PLAN_CHOICES.map((plan) => (
-            <button
-              key={plan.id}
-              onClick={() => setSelectedPlan(plan.id)}
-              className={`text-left p-4 rounded-xl border transition-all bg-white ${
-                selectedPlan === plan.id
-                  ? 'border-gray-900 nice-shadow'
-                  : 'border-gray-200 hover:border-gray-300'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <PlanBadge plan={plan.id} />
-                {selectedPlan === plan.id && (
-                  <Check size={16} weight="bold" className="text-emerald-500" />
-                )}
-              </div>
-              <p className="text-xs text-gray-400 mt-1">{plan.description}</p>
-            </button>
-          ))}
-        </div>
-        {selectedPlan !== currentPlan && (
-          <div className="mt-4 flex items-center gap-3">
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="px-4 py-2 bg-gray-900 hover:bg-gray-700 text-white text-sm rounded-lg transition-colors disabled:opacity-50"
-            >
-              {saving ? 'Saving...' : 'Save plan'}
-            </button>
-            <button
-              onClick={() => setSelectedPlan(currentPlan)}
-              className="px-4 py-2 text-gray-400 hover:text-gray-600 text-sm transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        )}
-      </div>
-
-      {Object.keys(features).length > 0 && (
-        <Card title="Feature limits">
-          <div className="divide-y divide-gray-50 -my-2">
-            {Object.entries(features).map(([key, val]: [string, any]) => (
-              <div key={key} className="flex items-center justify-between py-2.5">
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`w-2 h-2 rounded-full ${
-                      val?.enabled !== false ? 'bg-emerald-400' : 'bg-gray-200'
-                    }`}
-                  />
-                  <span className="text-sm text-gray-700 capitalize">
-                    {key.replace(/_/g, ' ')}
-                  </span>
-                </div>
-                <div className="flex items-center gap-4 text-xs text-gray-400">
-                  {val?.limit !== undefined && <span>Limit: {val.limit}</span>}
-                  {val?.signup_mode && <span>Signup: {val.signup_mode}</span>}
-                  {val?.admin_limit !== undefined && <span>Admin limit: {val.admin_limit}</span>}
-                  <span className={val?.enabled !== false ? 'text-emerald-500' : 'text-gray-300'}>
-                    {val?.enabled !== false ? 'Enabled' : 'Disabled'}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
-    </div>
-  )
-}
-
-// ============================================================================
 // Requests
 // ============================================================================
 
@@ -781,7 +663,7 @@ function RequestsTab({
     return (
       <EmptyState
         icon={<Tray size={40} weight="fill" />}
-        message="No plan or package requests for this organization"
+        message="No access requests for this organization"
       />
     )
   }
@@ -805,9 +687,9 @@ function RequestsTab({
           {requests.map((req: any) => (
             <tr key={req.request_uuid} className="border-b border-gray-50 last:border-0">
               <td className="px-4 py-3 text-gray-600">
-                {req.request_type === 'plan_upgrade' ? 'Plan upgrade' : 'Package'}
+                {REQUEST_KINDS[req.request_type] ?? req.request_type}
               </td>
-              <td className="px-4 py-3 font-medium text-gray-900">{req.requested_value}</td>
+              <td className="px-4 py-3 font-medium text-gray-900">{accessRequestLabel({ type: req.request_type, value: req.requested_value })}</td>
               <td className="px-4 py-3 text-gray-400 text-xs max-w-[200px] truncate">
                 {req.message || '—'}
               </td>

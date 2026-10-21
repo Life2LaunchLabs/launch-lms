@@ -131,6 +131,7 @@ class LearningBadgeRead(LearningBadgeBase):
     versions: list[dict] = Field(default_factory=list)
     can_edit: bool | None = None
     access_type: str | None = None
+    creator_org: dict | None = None  # {id, name, slug} of the badge's maker, on the admin detail read
 
 
 class LearningBadgeVersion(SQLModel, table=True):
@@ -227,7 +228,11 @@ class BadgeCollectionRead(BadgeCollectionBase):
 
 
 class BadgeIssuerAuthorization(SQLModel, table=True):
-    """Grants an issuing org the right to deliver, grade, and confer a creator org's badge."""
+    """Unused (to drop in the pruning migration): the old badge-level permission to issue a badge.
+
+    Never read or written. Permission to issue a badge is approval on one of its plans
+    (``GoalTemplateAuthorization``, see ``services/goals/plan_issuers``); migration a8c4e1f7d2b9
+    copied these approvals there. The model stays so autogenerate doesn't drop the table."""
 
     __table_args__ = (UniqueConstraint("badge_id", "issuer_org_id"), UniqueConstraint("authorization_uuid"))
 
@@ -237,8 +242,7 @@ class BadgeIssuerAuthorization(SQLModel, table=True):
     creator_org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
     issuer_org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
     status: BadgeIssuerAuthorizationStatus = Field(default=BadgeIssuerAuthorizationStatus.REQUESTED, sa_column=Column(String, nullable=False))
-    # How learners join: "open" (start now), "request" (issuer accepts) or "invite"; open_to_all mirrors open|request.
-    open_to_all: bool = False
+    open_to_all: bool = False  # mirrors learner_access open|request; learner_access is "open", "request" or "invite"
     learner_access: str = Field(default="invite", sa_column=Column(String, nullable=False, server_default="invite"))
     message: str | None = ""
     requested_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
@@ -255,7 +259,8 @@ class BadgeIssuerLearnerLink(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     link_uuid: str = Field(default="", index=True)
-    authorization_id: int = Field(sa_column=Column(Integer, ForeignKey("badgeissuerauthorization.id", ondelete="CASCADE"), index=True))
+    # Unused (to drop in the pruning migration, with the old unique (authorization_id, user_id)): links are per badge, issuer and learner.
+    authorization_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("badgeissuerauthorization.id", ondelete="CASCADE"), nullable=True, index=True))
     badge_id: int = Field(sa_column=Column(Integer, ForeignKey("learningbadge.id", ondelete="CASCADE"), index=True))
     issuer_org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
     user_id: int = Field(sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), index=True))
@@ -272,37 +277,6 @@ class BadgeIssuerLearnerLink(SQLModel, table=True):
     ended_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
     creation_date: str = ""
     update_date: str = ""
-
-
-class BadgeIssuerAuthorizationRead(BaseModel):
-    id: int
-    authorization_uuid: str
-    badge_id: int
-    creator_org_id: int
-    issuer_org_id: int
-    status: BadgeIssuerAuthorizationStatus
-    open_to_all: bool
-    message: str | None = ""
-    requested_by_user_id: int | None = None
-    decided_by_user_id: int | None = None
-    decided_at: datetime | None = None
-    creation_date: str
-    update_date: str
-    badge: dict | None = None
-    creator_org: dict | None = None
-    issuer_org: dict | None = None
-
-
-class IssuerAuthorizationRequest(SQLModel):
-    badge_uuid: str
-    issuer_org_id: int
-    message: str | None = ""
-
-
-class IssuerAuthorizationInvite(SQLModel):
-    badge_uuid: str
-    issuer_org_slug: str
-    message: str | None = ""
 
 
 class IssuerLearnerLinkCreate(SQLModel):
@@ -326,7 +300,10 @@ class IssuerLearnerRequestDecision(SQLModel):
 class LearningActivityBase(SQLModel):
     """An interactive activity: the content of a plan template's activity objective."""
 
-    objective_id: int = Field(sa_column=Column(Integer, ForeignKey("objective.id", ondelete="CASCADE"), nullable=False, index=True))
+    objective_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("objective.id", ondelete="CASCADE"), nullable=True, index=True))
+    goal_template_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("goal_template.id", ondelete="CASCADE"), nullable=True, index=True))
+    frozen_from_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("learningactivity.id", ondelete="SET NULL"), nullable=True, index=True))
+    frozen_hash: str | None = Field(default=None, sa_column=Column(String, nullable=True))
     org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
     title: str
     description: str | None = ""
@@ -456,8 +433,10 @@ class LearningRun(SQLModel, table=True):
     activity_id: int = Field(sa_column=Column(Integer, ForeignKey("learningactivity.id", ondelete="CASCADE"), nullable=False, index=True))
     org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
     issuing_org_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("organization.id", ondelete="SET NULL"), nullable=True, index=True))  # the plan's source organization
-    plan_id: int = Field(sa_column=Column(Integer, ForeignKey("plan.id", ondelete="CASCADE"), nullable=False, index=True))
-    plan_objective_id: int = Field(sa_column=Column(Integer, ForeignKey("planobjective.id", ondelete="CASCADE"), nullable=False, index=True))
+    plan_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("plan.id", ondelete="CASCADE"), nullable=True, index=True))
+    plan_objective_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("planobjective.id", ondelete="CASCADE"), nullable=True, index=True))
+    goal_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("goal.id", ondelete="CASCADE"), nullable=True, index=True))
+    goal_step_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("goal_step.id", ondelete="CASCADE"), nullable=True, index=True))
     user_id: int = Field(sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True))
     status: LearningRunStatus = LearningRunStatus.IN_PROGRESS
     started_at: datetime = Field(default_factory=datetime.utcnow, sa_column=Column(DateTime, nullable=False))
@@ -520,8 +499,10 @@ class LearningRunRead(BaseModel):
     activity_id: int
     org_id: int
     issuing_org_id: int | None = None
-    plan_id: int
-    plan_objective_id: int
+    plan_id: int | None = None
+    plan_objective_id: int | None = None
+    goal_id: int | None = None
+    goal_step_id: int | None = None
     user_id: int
     status: LearningRunStatus
     started_at: datetime
@@ -530,33 +511,6 @@ class LearningRunRead(BaseModel):
     attempts: list[dict] = []
     navigation: dict | None = None
     render_context: dict = Field(default_factory=dict)
-
-
-class LearningPageComplete(SQLModel):
-    run_uuid: str
-    page_uuid: str
-    data: dict = Field(default_factory=dict)
-
-
-class LearningResponseSubmit(SQLModel):
-    run_uuid: str
-    page_uuid: str
-    answer: dict = Field(default_factory=dict)
-    button: str | None = None
-
-
-class LearningResponseGrade(SQLModel):
-    score: float
-    feedback: str | None = ""
-    question_scores: dict[str, float] = Field(default_factory=dict)
-    question_feedback: dict[str, str] = Field(default_factory=dict)
-
-
-class LearningAwardCreate(SQLModel):
-    badge_uuid: str
-    user_id: int
-    issuing_org_id: int | None = None
-    evidence: dict = Field(default_factory=dict)
 
 
 LearningActivityRead.model_rebuild()

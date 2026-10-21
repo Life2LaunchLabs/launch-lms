@@ -8,9 +8,6 @@ from fastapi import HTTPException
 from sqlmodel import Session, select
 
 from src.db.learning import (
-    BadgeIssuerAuthorization,
-    BadgeIssuerAuthorizationStatus,
-    BadgeIssuerLearnerLink,
     BadgeIssuerLearnerLinkStatus,
     LearningActivity,
     LearningBadge,
@@ -28,7 +25,6 @@ from src.db.planning import (
     PlanObjective,
     PlanObjectiveProgress,
     PlanObjectiveStatus,
-    PlanStatus,
 )
 from src.services.planning import _normalized_capability_list, capabilities_for as plan_capabilities_for
 from src.services import template_versions
@@ -37,17 +33,13 @@ from src.db.programs import (
     Objective,
     ObjectiveCreate,
     ObjectiveKind,
-    ObjectiveProgress,
     ObjectiveProgressStatus,
-    ObjectiveReviewDecision,
     ParticipantStatus,
     Program,
     ProgramAssignment,
     ProgramAssignmentCreate,
-    ProgramAssignmentObjectiveUpdate,
     ProgramCreate,
     ProgramObjective,
-    ProgramObjectiveScheduleUpdate,
     ProgramObjectiveUpdate,
     ProgramPhase,
     ProgramPhaseCreate,
@@ -739,42 +731,6 @@ def add_program_objective(
     return _program_dict(db, program)
 
 
-def update_program_objective_schedule(
-    db: Session,
-    current_user: PublicUser,
-    org_id: int,
-    program_uuid: str,
-    objective_uuid: str,
-    payload: ProgramObjectiveScheduleUpdate,
-) -> dict:
-    require_org_admin(current_user.id, org_id, db)
-    program = _program_or_404(db, program_uuid, org_id)
-    relation = db.exec(
-        select(ProgramObjective)
-        .join(Objective, Objective.id == ProgramObjective.objective_id)
-        .where(
-            ProgramObjective.program_id == program.id,
-            Objective.objective_uuid == objective_uuid,
-        )
-    ).first()
-    if not relation:
-        raise HTTPException(status_code=404, detail="Program objective not found")
-    phase = db.get(ProgramPhase, relation.phase_id) if relation.phase_id else None
-    relation.default_start_rule = payload.default_start_rule
-    relation.default_due_rule = payload.default_due_rule
-    relation.default_allow_late = payload.default_allow_late
-    if "suggested_due_week" in payload.model_fields_set:
-        relation.suggested_due_week = _validated_suggested_due_week(payload.suggested_due_week, phase)
-    now = _now_string()
-    relation.update_date = now
-    program.version += 1
-    program.update_date = now
-    db.add(relation)
-    db.add(program)
-    db.commit()
-    return _program_dict(db, program)
-
-
 def update_program_objective(
     db: Session,
     current_user: PublicUser,
@@ -834,59 +790,6 @@ def detach_program_objective(db: Session, relation: ProgramObjective, objective:
     objective.archived = True
     objective.update_date = _now_string()
     db.add(objective)
-
-
-def remove_program_objective(db: Session, current_user: PublicUser, org_id: int, program_uuid: str, objective_uuid: str) -> dict:
-    require_org_admin(current_user.id, org_id, db)
-    program = _program_or_404(db, program_uuid, org_id)
-    row = db.exec(
-        select(ProgramObjective, Objective)
-        .join(Objective, Objective.id == ProgramObjective.objective_id)
-        .where(ProgramObjective.program_id == program.id, Objective.objective_uuid == objective_uuid)
-    ).first()
-    if not row:
-        raise HTTPException(status_code=404, detail="Program objective not found")
-    relation, objective = row
-    detach_program_objective(db, relation, objective)
-    db.flush()
-    for position, remaining in enumerate(db.exec(
-        select(ProgramObjective)
-        .where(ProgramObjective.program_id == program.id, ProgramObjective.phase_id == relation.phase_id)
-        .order_by(ProgramObjective.position, ProgramObjective.id)
-    ).all()):
-        remaining.position = position
-        db.add(remaining)
-    program.version += 1
-    program.update_date = _now_string()
-    db.add(program)
-    db.commit()
-    db.refresh(program)
-    return _program_dict(db, program)
-
-
-def delete_program_phase(db: Session, current_user: PublicUser, org_id: int, program_uuid: str, phase_uuid: str) -> dict:
-    require_org_admin(current_user.id, org_id, db)
-    program = _program_or_404(db, program_uuid, org_id)
-    phases = db.exec(
-        select(ProgramPhase).where(ProgramPhase.program_id == program.id).order_by(ProgramPhase.position, ProgramPhase.id)
-    ).all()
-    phase = next((item for item in phases if item.phase_uuid == phase_uuid), None)
-    if not phase:
-        raise HTTPException(status_code=404, detail="Program phase not found")
-    if len(phases) == 1:
-        raise HTTPException(status_code=422, detail="A template needs at least one phase")
-    if db.exec(select(ProgramObjective.id).where(ProgramObjective.phase_id == phase.id)).first() is not None:
-        raise HTTPException(status_code=409, detail="Move or remove this phase's objectives first")
-    db.delete(phase)
-    for position, remaining in enumerate(item for item in phases if item.id != phase.id):
-        remaining.position = position
-        db.add(remaining)
-    program.version += 1
-    program.update_date = _now_string()
-    db.add(program)
-    db.commit()
-    db.refresh(program)
-    return _program_dict(db, program)
 
 
 def _role_can_manage_programs(role: Role | None) -> bool:
@@ -1322,43 +1225,6 @@ def assign_program(
     return _assignment_summary(db, assignment)
 
 
-def _progress_map(db: Session, org_id: int, user_ids: list[int], objective_ids: list[int]) -> dict[tuple[int, int], ObjectiveProgress]:
-    if not user_ids or not objective_ids:
-        return {}
-    progresses = db.exec(select(ObjectiveProgress).where(
-        ObjectiveProgress.org_id == org_id,
-        ObjectiveProgress.user_id.in_(user_ids),
-        ObjectiveProgress.objective_id.in_(objective_ids),
-    )).all()
-    return {(progress.user_id, progress.objective_id): progress for progress in progresses}
-
-
-def _badge_award_keys(db: Session, user_ids: list[int], objectives: list[dict]) -> set[tuple[int, int]]:
-    badge_objectives = [
-        item
-        for item in objectives
-        if item.get("badge_id") and item.get("id")
-    ]
-    if not user_ids or not badge_objectives:
-        return set()
-    awards = db.exec(select(LearningBadgeAward).where(
-        LearningBadgeAward.user_id.in_(user_ids),
-        LearningBadgeAward.badge_id.in_([int(item["badge_id"]) for item in badge_objectives]),
-    )).all()
-    completed: set[tuple[int, int]] = set()
-    for award in awards:
-        for objective in badge_objectives:
-            required_major = int(objective.get("badge_major_version") or 1)
-            if award.badge_id != int(objective["badge_id"]):
-                continue
-            if award.major_version == required_major or (
-                objective.get("accept_previous_major_versions")
-                and award.major_version < required_major
-            ):
-                completed.add((award.user_id, int(objective["id"])))
-    return completed
-
-
 def _assignment_summary(db: Session, assignment: ProgramAssignment) -> dict:
     program = db.get(Program, assignment.program_id)
     group = db.get(UserGroup, assignment.usergroup_id) if assignment.usergroup_id else None
@@ -1625,149 +1491,6 @@ def assignment_matrix(db: Session, current_user: PublicUser, org_id: int, assign
     }
 
 
-def _require_assignment_lifecycle_capability(
-    db: Session,
-    current_user: PublicUser,
-    assignment: ProgramAssignment,
-    capability: str,
-) -> list[Plan]:
-    require_org_membership(current_user.id, assignment.org_id, db)
-    plans = db.exec(select(Plan).where(Plan.source_assignment_id == assignment.id)).all()
-    if current_user.is_superadmin or is_org_admin(current_user.id, assignment.org_id, db):
-        return plans
-    if plans and all(capability in plan_capabilities_for(db, plan, current_user.id) for plan in plans):
-        return plans
-    if not plans and (current_user.id == assignment.owner_user_id or current_user.id in (assignment.staff_user_ids or [])):
-        return plans
-    raise HTTPException(status_code=403, detail="Your group plan role cannot manage this assignment")
-
-
-def change_assignment_status(
-    db: Session,
-    current_user: PublicUser,
-    org_id: int,
-    assignment_uuid: str,
-    status: PlanStatus,
-) -> dict:
-    assignment = _assignment_or_404(db, assignment_uuid, org_id)
-    if not assignment.usergroup_id:
-        raise HTTPException(status_code=422, detail="Group lifecycle actions require a group assignment")
-    permission = "complete_plan" if status in {PlanStatus.COMPLETED, PlanStatus.ACTIVE} else "archive_plan"
-    plans = _require_assignment_lifecycle_capability(db, current_user, assignment, permission)
-    now = _now()
-    now_string = now.isoformat()
-    for plan in plans:
-        plan.status = status
-        plan.completed_at = now if status == PlanStatus.COMPLETED else None
-        plan.update_date = now_string
-        db.add(plan)
-    assignment.active = status == PlanStatus.ACTIVE
-    assignment.update_date = now_string
-    db.add(assignment)
-    db.commit()
-    return {
-        "assignment_uuid": assignment.assignment_uuid,
-        "status": status.value,
-        "affected_plan_count": len(plans),
-    }
-
-
-def delete_assignment(
-    db: Session,
-    current_user: PublicUser,
-    org_id: int,
-    assignment_uuid: str,
-) -> dict:
-    assignment = _assignment_or_404(db, assignment_uuid, org_id)
-    if not assignment.usergroup_id:
-        raise HTTPException(status_code=422, detail="Group deletion requires a group assignment")
-    plans = _require_assignment_lifecycle_capability(db, current_user, assignment, "edit_structure")
-    affected_plan_count = len(plans)
-    for plan in plans:
-        db.delete(plan)
-    participants = db.exec(select(ProgramParticipant).where(ProgramParticipant.assignment_id == assignment.id)).all()
-    for participant in participants:
-        db.delete(participant)
-    db.flush()
-    db.delete(assignment)
-    db.commit()
-    return {
-        "deleted": True,
-        "assignment_uuid": assignment_uuid,
-        "affected_plan_count": affected_plan_count,
-    }
-
-
-def _require_assignment_reviewer(
-    db: Session, current_user: PublicUser, assignment: ProgramAssignment
-) -> None:
-    require_org_membership(current_user.id, assignment.org_id, db)
-    plans = db.exec(select(Plan).where(Plan.source_assignment_id == assignment.id)).all()
-    if any("edit_structure" in plan_capabilities_for(db, plan, current_user.id) for plan in plans):
-        return
-    if plans and not current_user.is_superadmin:
-        raise HTTPException(status_code=403, detail="Your group plan role cannot edit its definition")
-    assigned = set(assignment.staff_user_ids or [])
-    if current_user.id not in assigned and not current_user.is_superadmin:
-        raise HTTPException(
-            status_code=403,
-            detail="You are not assigned to review this program",
-        )
-
-
-def update_assignment_objective(
-    db: Session,
-    current_user: PublicUser,
-    org_id: int,
-    assignment_uuid: str,
-    objective_uuid: str,
-    payload: ProgramAssignmentObjectiveUpdate,
-) -> dict:
-    assignment = _assignment_or_404(db, assignment_uuid, org_id)
-    _require_assignment_reviewer(db, current_user, assignment)
-    if not assignment.usergroup_id:
-        raise HTTPException(status_code=422, detail="Batch definition editing is only used for group assignments")
-    if payload.definition_version != assignment.definition_version:
-        raise HTTPException(status_code=409, detail="This group plan changed in another session. Refresh before saving.")
-    snapshots = [dict(item) for item in (assignment.objective_snapshot or [])]
-    snapshot = next((item for item in snapshots if item.get("objective_uuid") == objective_uuid), None)
-    if not snapshot:
-        raise HTTPException(status_code=404, detail="Group objective not found")
-    title = payload.title.strip()
-    if not title:
-        raise HTTPException(status_code=422, detail="Objective title is required")
-    fields = _validated_steps(db, payload.fields)
-    plans = db.exec(select(Plan).where(Plan.source_assignment_id == assignment.id)).all()
-    plan_objectives = db.exec(select(PlanObjective).where(
-        PlanObjective.plan_id.in_([int(plan.id) for plan in plans]),
-        PlanObjective.source_objective_id == snapshot.get("id"),
-    )).all() if plans else []
-    progresses = db.exec(select(PlanObjectiveProgress).where(
-        PlanObjectiveProgress.plan_objective_id.in_([int(item.id) for item in plan_objectives])
-    )).all() if plan_objectives else []
-    old_fields = snapshot.get("fields") or snapshot.get("custom_fields") or []
-    if fields != old_fields and any(item.status == PlanObjectiveStatus.COMPLETED for item in progresses):
-        raise HTTPException(status_code=409, detail="Reopen completed group objectives before changing supporting steps")
-    now = _now_string()
-    before = {"title": snapshot.get("title"), "description": snapshot.get("description"), "fields": old_fields}
-    snapshot.update(title=title, description=payload.description, custom_fields=fields, fields=fields, allow_learner_confirmation=not payload.completion_restricted, default_allow_late=payload.allow_late)
-    for item in plan_objectives:
-        item.title = title
-        item.description = payload.description
-        item.fields = fields
-        item.completion_restricted = payload.completion_restricted
-        item.allow_late = payload.allow_late
-        item.update_date = now
-        db.add(item)
-    assignment.objective_snapshot = snapshots
-    assignment.definition_version += 1
-    assignment.definition_audit = [*(assignment.definition_audit or []), {"version": assignment.definition_version, "objective_uuid": objective_uuid, "actor_user_id": current_user.id, "before": before, "changed_at": now}]
-    assignment.update_date = now
-    db.add(assignment)
-    db.commit()
-    return {"assignment_uuid": assignment.assignment_uuid, "definition_version": assignment.definition_version, "affected_plan_count": len(plans)}
-
-
 def assignment_reviews(
     db: Session,
     current_user: PublicUser,
@@ -1936,56 +1659,6 @@ def _assignment_activity_reviews(
     return result
 
 
-def review_objective_submission(
-    db: Session,
-    current_user: PublicUser,
-    org_id: int,
-    assignment_uuid: str,
-    payload: ObjectiveReviewDecision,
-) -> dict:
-    assignment = _assignment_or_404(db, assignment_uuid, org_id)
-    require_org_membership(current_user.id, org_id, db)
-    if payload.action not in {"confirm", "flag"}:
-        raise HTTPException(status_code=422, detail="Action must be confirm or flag")
-    if payload.action == "flag" and not payload.message.strip():
-        raise HTTPException(status_code=422, detail="Tell the learner what needs to change")
-    if not payload.plan_objective_uuid:
-        raise HTTPException(status_code=422, detail="Choose the plan objective to review")
-    plan = db.exec(select(Plan).where(
-        Plan.source_assignment_id == assignment.id,
-        Plan.plan_uuid == payload.plan_uuid,
-    )).first() if payload.plan_uuid else None
-    plan_objective = db.exec(select(PlanObjective).where(
-        PlanObjective.objective_uuid == payload.plan_objective_uuid,
-    )).first()
-    if not plan and plan_objective:
-        plan = db.get(Plan, plan_objective.plan_id)
-    if not plan or not plan_objective or plan_objective.plan_id != plan.id or plan.source_assignment_id != assignment.id:
-        raise HTTPException(status_code=404, detail="Plan objective not found in this assignment")
-    if "complete_restricted_objectives" not in plan_capabilities_for(db, plan, current_user.id):
-        raise HTTPException(status_code=403, detail="You cannot review this plan")
-    progress = db.exec(select(PlanObjectiveProgress).where(PlanObjectiveProgress.plan_objective_id == plan_objective.id)).first()
-    if not progress or progress.status != PlanObjectiveStatus.SUBMITTED:
-        raise HTTPException(status_code=409, detail="This submission is no longer waiting for review")
-    now = _now()
-    history = list(progress.feedback_history or [])
-    if payload.message.strip():
-        history.append({"message": payload.message.strip(), "action": "confirmed" if payload.action == "confirm" else "changes_requested", "created_at": now.isoformat(), "staff_user_id": current_user.id})
-    progress.status = PlanObjectiveStatus.COMPLETED if payload.action == "confirm" else PlanObjectiveStatus.CHANGES_REQUESTED
-    progress.completed_at = now if payload.action == "confirm" else None
-    progress.reviewer_note = payload.message.strip()
-    progress.feedback_history = history
-    progress.updated_by_user_id = current_user.id
-    progress.update_date = now.isoformat()
-    db.add(progress)
-    db.flush()
-    from src.services.requirements import sync_live_progress
-    sync_live_progress(db, progress, plan_objective, plan)
-    status = progress.status.value if hasattr(progress.status, "value") else str(progress.status)
-    db.commit()
-    return {"plan_uuid": plan.plan_uuid, "plan_objective_uuid": plan_objective.objective_uuid, "status": status}
-
-
 def update_progress(
     db: Session,
     current_user: PublicUser,
@@ -2001,6 +1674,8 @@ def update_progress(
     field_values: dict | None = None,
 ) -> list[dict]:
     require_org_membership(current_user.id, org_id, db)
+    if status.value not in {item.value for item in PlanObjectiveStatus}:
+        raise HTTPException(status_code=422, detail=f"Live plan steps can't be set to {status.value}")
     objective = db.exec(select(Objective).where(
         Objective.objective_uuid == objective_uuid,
         Objective.org_id == org_id,
@@ -2110,175 +1785,6 @@ def user_program_overview(db: Session, current_user: PublicUser, org_id: int, us
         })
         items.append(summary)
     return {"user": {"id": user.id, "username": user.username}, "programs": items}
-
-
-def _my_programs_for_org(db: Session, current_user: PublicUser, org_id: int) -> list[dict]:
-    participants = db.exec(select(ProgramParticipant).where(
-        ProgramParticipant.org_id == org_id,
-        ProgramParticipant.user_id == current_user.id,
-    )).all()
-    result = []
-    for participant in participants:
-        assignment = db.get(ProgramAssignment, participant.assignment_id)
-        if not assignment:
-            continue
-        if assignment.initiate_date:
-            initiate_date = assignment.initiate_date
-            if initiate_date.tzinfo is None:
-                initiate_date = initiate_date.replace(tzinfo=timezone.utc)
-            if initiate_date.date() > _now().date():
-                continue
-        program = db.get(Program, assignment.program_id)
-        objective_ids = [int(item["id"]) for item in assignment.objective_snapshot or [] if item.get("id")]
-        progress = _progress_map(db, org_id, [current_user.id], objective_ids)
-        badge_awards = _badge_award_keys(db, [current_user.id], assignment.objective_snapshot or [])
-        objectives = []
-        schedule_by_objective = {item.get("objective_uuid"): item for item in (assignment.schedule or {}).get("objectives", [])}
-        for snapshot in assignment.objective_snapshot or []:
-            item = progress.get((current_user.id, int(snapshot["id"])))
-            earned_badge = (current_user.id, int(snapshot["id"])) in badge_awards
-            objective_schedule = schedule_by_objective.get(snapshot["objective_uuid"], {})
-            effective_start = objective_schedule.get("effective_start_date")
-            effective_due = objective_schedule.get("effective_due_date")
-            available = not effective_start or effective_start <= _now().date().isoformat()
-            late = bool(effective_due and effective_due < _now().date().isoformat())
-            badge = db.get(LearningBadge, int(snapshot["badge_id"])) if snapshot.get("badge_id") else None
-            objectives.append({**snapshot, **({"badge_uuid": badge.badge_uuid, "badge_name": badge.name} if badge else {}), "schedule": objective_schedule, "can_start": available, "is_late": late, "progress": {
-                "status": "completed" if earned_badge else ((item.status.value if hasattr(item.status, "value") else item.status) if item else "not_started"),
-                "evidence": item.evidence if item else [],
-                "learner_note": item.learner_note if item else "",
-                "staff_note": item.staff_note if item else "",
-                "feedback_history": item.feedback_history if item else [],
-            }})
-        status = participant.status.value if hasattr(participant.status, "value") else participant.status
-        if status == ParticipantStatus.ACTIVE.value and not assignment.active:
-            status = ParticipantStatus.COMPLETED.value
-        assignment_summary = _assignment_summary(db, assignment)
-        enrollment = {
-            "participant_uuid": participant.participant_uuid,
-            "status": status,
-            "viewed_at": participant.viewed_at,
-            "responded_at": participant.responded_at,
-            "created_at": participant.creation_date,
-        }
-        result.append({
-            "participant_uuid": participant.participant_uuid,
-            "status": status,
-            "created_at": participant.creation_date,
-            "program": _program_dict(db, program, include_objectives=False) if program else None,
-            "assignment": assignment_summary,
-            "objectives": objectives,
-            "enrollment": enrollment,
-            "run": assignment_summary,
-        })
-    return result
-
-
-def my_programs(db: Session, current_user: PublicUser, org_id: int) -> list[dict]:
-    require_org_membership(current_user.id, org_id, db)
-    return _my_programs_for_org(db, current_user, org_id)
-
-
-def _learner_program_enrollments(db: Session, current_user: PublicUser) -> list[dict]:
-    participants = db.exec(select(ProgramParticipant).where(
-        ProgramParticipant.user_id == current_user.id,
-    )).all()
-    result = []
-    for org_id in sorted({participant.org_id for participant in participants}):
-        organization = db.get(Organization, org_id)
-        if not organization:
-            continue
-        for item in _my_programs_for_org(db, current_user, org_id):
-            if not item["program"]:
-                continue
-            item["organization"] = {
-                "id": organization.id,
-                "org_uuid": organization.org_uuid,
-                "name": organization.name,
-                "slug": organization.slug,
-                "logo_image": organization.logo_image,
-            }
-            result.append(item)
-    return result
-
-
-def _ordered_enrollments(items: list[dict]) -> list[dict]:
-    status_priority = {
-        ParticipantStatus.ACTIVE.value: 0,
-        ParticipantStatus.INVITED.value: 1,
-        ParticipantStatus.COMPLETED.value: 2,
-        ParticipantStatus.DECLINED.value: 3,
-        ParticipantStatus.LEFT.value: 4,
-    }
-    newest_first = sorted(items, key=lambda item: item["created_at"] or "", reverse=True)
-    return sorted(newest_first, key=lambda item: status_priority.get(item["status"], 99))
-
-
-def my_programs_all(db: Session, current_user: PublicUser) -> list[dict]:
-    by_program: dict[str, list[dict]] = {}
-    for item in _learner_program_enrollments(db, current_user):
-        by_program.setdefault(item["program"]["slug"], []).append(item)
-    result = []
-    for enrollments in by_program.values():
-        ordered = _ordered_enrollments(enrollments)
-        current = ordered[0]
-        current["enrollment_count"] = len(ordered)
-        result.append(current)
-    return sorted(result, key=lambda item: item["created_at"] or "", reverse=True)
-
-
-def _program_detail(enrollments: list[dict], participant_uuid: str | None = None) -> dict:
-    if not enrollments:
-        raise HTTPException(status_code=404, detail="Program enrollment not found")
-    ordered = _ordered_enrollments(enrollments)
-    for item in ordered:
-        item["enrollment_count"] = len(ordered)
-    current = next(
-        (item for item in ordered if item["participant_uuid"] == participant_uuid),
-        ordered[0],
-    )
-    return {
-        "program": ordered[0]["program"],
-        "organization": ordered[0]["organization"],
-        "current_enrollment": current,
-        "enrollments": ordered,
-    }
-
-
-def my_program_detail(db: Session, current_user: PublicUser, program_slug: str) -> dict:
-    program = db.exec(select(Program).where(Program.slug == program_slug)).first()
-    if not program:
-        raise HTTPException(status_code=404, detail="Program enrollment not found")
-    organization = db.get(Organization, program.org_id)
-    if not organization:
-        raise HTTPException(status_code=404, detail="Program enrollment not found")
-    enrollments = [
-        item for item in _my_programs_for_org(db, current_user, program.org_id)
-        if item["program"] and item["program"]["program_uuid"] == program.program_uuid
-    ]
-    organization_summary = {
-        "id": organization.id,
-        "org_uuid": organization.org_uuid,
-        "name": organization.name,
-        "slug": organization.slug,
-        "logo_image": organization.logo_image,
-    }
-    for item in enrollments:
-        item["organization"] = organization_summary
-    return _program_detail(enrollments)
-
-
-def my_enrollment_detail(db: Session, current_user: PublicUser, participant_uuid: str) -> dict:
-    participant = db.exec(select(ProgramParticipant).where(
-        ProgramParticipant.participant_uuid == participant_uuid,
-        ProgramParticipant.user_id == current_user.id,
-    )).first()
-    assignment = db.get(ProgramAssignment, participant.assignment_id) if participant else None
-    program = db.get(Program, assignment.program_id) if assignment else None
-    if not participant or not assignment or not program:
-        raise HTTPException(status_code=404, detail="Program enrollment not found")
-    detail = my_program_detail(db, current_user, program.slug)
-    return _program_detail(detail["enrollments"], participant_uuid)
 
 
 def my_program_summaries(db: Session, current_user: PublicUser) -> list[dict]:
@@ -2415,7 +1921,7 @@ def _activate_program_badge_collaborations(
     participant: ProgramParticipant,
     decided_by_user_id: int,
 ) -> None:
-    """Accepting a program activates its org on each authorized badge objective."""
+    """Accepting a program links the learner with its org on each badge objective the org may issue."""
     badge_ids = {
         int(item["badge_id"])
         for item in (assignment.objective_snapshot or [])
@@ -2424,43 +1930,17 @@ def _activate_program_badge_collaborations(
     if not badge_ids:
         return
     badges = db.exec(select(LearningBadge).where(LearningBadge.id.in_(badge_ids))).all()  # type: ignore
+    from src.services.goals.plan_issuers import may_issue
+    from src.services.learning_issuer_links import find_link, new_link
+
     for badge in badges:
-        authorization = db.exec(select(BadgeIssuerAuthorization).where(
-            BadgeIssuerAuthorization.badge_id == badge.id,
-            BadgeIssuerAuthorization.issuer_org_id == assignment.org_id,
-            BadgeIssuerAuthorization.status == BadgeIssuerAuthorizationStatus.APPROVED,
-        )).first()
-        if not authorization and badge.org_id == assignment.org_id:
-            now = _now()
-            authorization = BadgeIssuerAuthorization(
-                authorization_uuid=f"issuer_authorization_{uuid4()}",
-                badge_id=badge.id or 0,
-                creator_org_id=badge.org_id,
-                issuer_org_id=assignment.org_id,
-                status=BadgeIssuerAuthorizationStatus.APPROVED, learner_access="open", open_to_all=True,
-                decided_by_user_id=decided_by_user_id,
-                decided_at=now,
-                creation_date=now.isoformat(),
-                update_date=now.isoformat(),
-            )
-            db.add(authorization)
-            db.flush()
-        if not authorization:
+        # The program's org supports the learner on badges it may issue (its own, or through a plan it's approved on).
+        if not may_issue(db, badge, assignment.org_id):
             continue
-        link = db.exec(select(BadgeIssuerLearnerLink).where(
-            BadgeIssuerLearnerLink.authorization_id == authorization.id,
-            BadgeIssuerLearnerLink.user_id == participant.user_id,
-        )).first()
+        link = find_link(db, badge.id or 0, assignment.org_id, participant.user_id)
         now = _now()
         if not link:
-            link = BadgeIssuerLearnerLink(
-                link_uuid=f"issuer_link_{uuid4()}",
-                authorization_id=authorization.id or 0,
-                badge_id=badge.id or 0,
-                issuer_org_id=assignment.org_id,
-                user_id=participant.user_id,
-                creation_date=now.isoformat(),
-            )
+            link = new_link(badge.id or 0, assignment.org_id, participant.user_id, now.isoformat())
         link.status = BadgeIssuerLearnerLinkStatus.ACCEPTED
         link.staff_user_ids = list(dict.fromkeys([*(link.staff_user_ids or []), *(assignment.staff_user_ids or [])]))
         link.decided_by_user_id = decided_by_user_id

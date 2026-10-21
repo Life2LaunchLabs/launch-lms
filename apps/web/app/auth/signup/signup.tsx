@@ -25,10 +25,7 @@ function SignUpClient(props: SignUpClientProps) {
   const invitationParam = searchParams.get('invitation')
   const createOrgMode = searchParams.get('mode') === 'create-org'
   const config = props.org?.config?.config
-  const isV2 = config?.config_version?.startsWith('2')
-  const joinMethod = isV2
-    ? config?.admin_toggles?.members?.signup_mode || 'open'
-    : config?.features?.members?.signup_mode || 'open'
+  const joinMethod = config?.signup_mode || 'open'
   const inviteCode = inviteCodeParam || ''
   const invitationToken = invitationParam || ''
 

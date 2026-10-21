@@ -16,7 +16,8 @@ CONTENT = frozenset(
     """
 organization organizationconfig role badgecollection learningbadge
 learningbadgeversion badgeroute badgerouteoffer learningactivity learningpage learningvariable
-badgeissuerauthorization program programobjective programphase objective
+goal_template goal_template_version goal_template_authorization goal_template_learner_access
+program programobjective programphase objective
 organizationplanrole requirementframework requirementframeworkversion requirementnode
 programobjectiverequirement resourcetag resourcetaglink resource resourcesearchdocument
 resourcechannel resourcechannelresource resourceauthor podcast podcastepisode
@@ -50,6 +51,9 @@ ANCHORS = {
     "learningbadgeversion": "badge_id",
     "badgeroute": "badge_id",
     "badgerouteoffer": "route_id",
+    "goal_template_version": "template_id",
+    "goal_template_authorization": "template_id",
+    "goal_template_learner_access": "template_id",
     "learningactivity": "objective_id",
     "learningpage": "activity_id",
     "learningvariable": "org_id",
@@ -196,7 +200,7 @@ def capture(db: Session, main_org_id: int, user_ids: set[int]) -> dict:
             add(name, read(name, condition))
         elif name == "role":
             add(name, read(name, table.c.org_id.is_(None)))
-        elif name == "badgeissuerauthorization":
+        elif name == "goal_template_authorization":
             add(
                 name,
                 read(
@@ -280,6 +284,9 @@ def capture(db: Session, main_org_id: int, user_ids: set[int]) -> dict:
                                     table.c.org_id.in_(org_ids),
                                     table.c.state == "published",
                                 )
+                            if name == "goal_template_authorization":
+                                # Approved plan permissions are who issues a badge; pending asks stay out.
+                                condition &= table.c.status == "approved"
                             add(name, read(name, condition))
         if before == sum(map(len, rows.values())):
             break
@@ -293,10 +300,9 @@ def capture(db: Session, main_org_id: int, user_ids: set[int]) -> dict:
             ),
         ),
     )
-    # Issuer staff never sign in to a demo copy: every captured issuer lets learners start at once.
-    for record in rows["badgeissuerauthorization"].values():
-        record["open_to_all"] = True
-        record["learner_access"] = "open"
+    # Issuer staff never sign in to a demo copy: every captured plan an issuer runs lets learners start at once.
+    for record in rows["goal_template_learner_access"].values():
+        record["access"] = "open"
     # Role IDs are global in legacy authorization; include definitions, not memberships.
     add(
         "role",
@@ -352,7 +358,7 @@ def capture(db: Session, main_org_id: int, user_ids: set[int]) -> dict:
 
 def catalog(add, read, tables) -> None:
     """Mirror the public badge hub listing (learning.list_collections)."""
-    from src.db.learning import BadgeIssuerAuthorizationStatus, LearningBadgeStatus
+    from src.db.learning import LearningBadgeStatus
 
     collection, badge = tables["badgecollection"], tables["learningbadge"]
     add(
@@ -373,19 +379,27 @@ def catalog(add, read, tables) -> None:
         & badge.c.deleted_at.is_(None),
     )
     add("learningbadge", badges)
-    # Approved issuers populate "Choose a cooperating organization"; without them
-    # instructor-graded catalog badges cannot be started. Issuer orgs follow by FK.
-    authorization = tables["badgeissuerauthorization"]
+    # Organizations approved on a badge's plans issue it and populate "Choose a cooperating organization";
+    # without them instructor-graded catalog badges cannot be started. The plans, their versions and
+    # the issuer orgs follow by FK closure and the anchors above.
+    route = tables["badgeroute"]
     badge_ids = [record["id"] for record in badges]
     if badge_ids:
-        add(
-            "badgeissuerauthorization",
-            read(
-                "badgeissuerauthorization",
-                authorization.c.badge_id.in_(badge_ids)
-                & (authorization.c.status == BadgeIssuerAuthorizationStatus.APPROVED),
-            ),
-        )
+        routes = read("badgeroute", route.c.badge_id.in_(badge_ids))
+        add("badgeroute", routes)
+        template_ids = [record["goal_template_id"] for record in routes if record["goal_template_id"]]
+        if template_ids:
+            authorization = tables["goal_template_authorization"]
+            add(
+                "goal_template_authorization",
+                read(
+                    "goal_template_authorization",
+                    authorization.c.template_id.in_(template_ids)
+                    & (authorization.c.status == "approved"),
+                ),
+            )
+            access = tables["goal_template_learner_access"]
+            add("goal_template_learner_access", read("goal_template_learner_access", access.c.template_id.in_(template_ids)))
 
 
 def scrub_json(value):

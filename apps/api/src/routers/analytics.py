@@ -13,8 +13,7 @@ from src.db.users import PublicUser, AnonymousUser, User
 from src.db.user_organizations import UserOrganization
 from src.db.roles import Role
 from src.security.auth import get_current_user
-from src.security.features_utils.plan_check import get_org_plan
-from src.security.features_utils.plans import plan_meets_requirement
+from src.security.access.access import org_access
 from src.security.superadmin import is_user_superadmin
 from src.services.analytics.analytics import track
 from src.services.analytics.cache import get_cached_result, set_cached_result
@@ -474,6 +473,6 @@ async def get_plan_info(
 
     _verify_org_membership(current_user.id, org_id, db_session)
 
-    current_plan = get_org_plan(org_id, db_session)
-    tier = "advanced" if plan_meets_requirement(current_plan, "pro") else "core"
-    return PlanInfoResponse(tier=tier, plan=current_plan)
+    access = org_access(org_id, db_session)
+    tier = "advanced" if access.has("advanced_reports") else "core"
+    return PlanInfoResponse(tier=tier, plan=access.tier)

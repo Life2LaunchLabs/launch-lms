@@ -11,28 +11,6 @@ from src.core.events.logs import create_logs_dir
 logger = logging.getLogger(__name__)
 
 
-def _reconcile_packs():
-    """Reconcile Redis pack credits with DB state on startup."""
-    try:
-        from sqlalchemy import create_engine
-        from sqlmodel import Session
-        launchlms_config = get_launchlms_config()
-        engine = create_engine(
-            launchlms_config.database_config.sql_connection_string,
-            echo=False,
-            pool_pre_ping=True,
-        )
-        db_session = Session(engine)
-        try:
-            from src.services.packs.packs import reconcile_pack_credits
-            result = reconcile_pack_credits(db_session)
-            logger.info("Pack reconciliation on startup: %s", result)
-        finally:
-            db_session.close()
-    except Exception as e:
-        logger.warning("Pack reconciliation skipped (non-fatal): %s", e)
-
-
 def startup_app(app: FastAPI) -> Callable:
     async def start_app() -> None:
         # Get Launch LMS Config
@@ -51,13 +29,13 @@ def startup_app(app: FastAPI) -> Callable:
         # Check if auto-installation is needed
         auto_install()
 
-        # Reconcile pack credits (Redis ↔ DB)
-        _reconcile_packs()
 
         import asyncio
         from src.core.events.database import engine
-        from src.services.starter_plan import sync_starter_template_on_startup
+        from src.services.goals.starter import sync_starter_template_on_startup
         sync_starter_template_on_startup(engine)
+        from src.services.goals.launch import sync_launch_template_on_startup
+        sync_launch_template_on_startup(engine)
         from src.services.demo.worker import run_cleanup, run_preparation, run_recapture
         app.state.demo_cleanup = asyncio.create_task(run_cleanup(engine))
         app.state.demo_preparation = asyncio.create_task(run_preparation(engine))

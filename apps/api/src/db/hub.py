@@ -1,43 +1,7 @@
 from datetime import datetime
-from typing import Literal
 
-from pydantic import BaseModel, Field as PydanticField
 from sqlalchemy import JSON, Boolean, Column, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlmodel import Field, SQLModel
-
-
-class HubAdvisorConfiguration(SQLModel, table=True):
-    """Singleton platform configuration for the learner Coach advisor."""
-
-    __tablename__ = "hubadvisorconfiguration"
-
-    id: int | None = Field(default=None, primary_key=True)
-    provider: str = Field(default="openai", max_length=50)
-    enabled: bool = False
-    instructions: str = Field(sa_column=Column(Text, nullable=False))
-    # Conversation-starter cards shown on Coach home; NULL means the code defaults.
-    launch_cards: list | None = Field(default=None, sa_column=Column(JSON, nullable=True))
-    updated_by_user_id: int | None = Field(
-        default=None,
-        sa_column=Column(
-            Integer,
-            ForeignKey("user.id", ondelete="SET NULL"),
-            nullable=True,
-        ),
-    )
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
-
-
-class HubAdvisorProviderConfiguration(SQLModel, table=True):
-    """Credential and inference choices retained independently per provider."""
-
-    __tablename__ = "hubadvisorproviderconfiguration"
-
-    provider: str = Field(primary_key=True, max_length=50)
-    model: str = Field(max_length=200)
-    api_key_ciphertext: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
-    advanced_settings: str = Field(default="{}", sa_column=Column(Text, nullable=False))
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class HubConversation(SQLModel, table=True):
@@ -242,20 +206,33 @@ class HubEditObjectState(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.utcnow, index=True)
 
 
-class HubAdvisorAdvancedConfiguration(BaseModel):
-    max_output_tokens: int = PydanticField(default=700, ge=128, le=4_000)
-    reasoning_effort: Literal["default", "none", "low", "medium", "high", "xhigh"] = "default"
-    verbosity: Literal["default", "low", "medium", "high"] = "default"
-    thinking_effort: Literal["default", "low", "medium", "high", "xhigh", "max"] = "default"
+class HubQuestion(SQLModel, table=True):
+    """A question Coach asked through ``ask_learner``, and the learner's answer.
+
+    ``keep`` names where the answer is kept (a field of the learner's goal or one of the
+    organization's learner variables); ``kept`` records what happened when it was answered.
+    """
+
+    __tablename__ = "hubquestion"
+    __table_args__ = (Index("ix_hubquestion_message_position", "message_id", "position"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    question_uuid: str = Field(index=True, unique=True)
+    org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), nullable=False, index=True))
+    user_id: int = Field(sa_column=Column(Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True))
+    conversation_id: int = Field(sa_column=Column(Integer, ForeignKey("hubconversation.id", ondelete="CASCADE"), nullable=False, index=True))
+    message_id: int = Field(sa_column=Column(Integer, ForeignKey("hubconversationmessage.id", ondelete="CASCADE"), nullable=False, index=True))
+    goal_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("goal.id", ondelete="SET NULL"), nullable=True, index=True))
+    position: int = 0
+    kind: str = Field(sa_column=Column(String(16), nullable=False))
+    prompt: str = Field(sa_column=Column(Text, nullable=False))
+    options: list = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
+    settings: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    keep: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
+    status: str = Field(default="open", sa_column=Column(String(16), nullable=False, index=True))
+    answer: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
+    kept: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    answered_at: datetime | None = None
 
 
-class HubAdvisorConfigurationUpdate(BaseModel):
-    provider: Literal["openai", "anthropic"]
-    enabled: bool
-    model: str = PydanticField(min_length=1, max_length=200)
-    instructions: str = PydanticField(min_length=1, max_length=20_000)
-    advanced: HubAdvisorAdvancedConfiguration = PydanticField(
-        default_factory=HubAdvisorAdvancedConfiguration
-    )
-    api_key: str | None = PydanticField(default=None, min_length=20, max_length=512)
-    clear_api_key: bool = False

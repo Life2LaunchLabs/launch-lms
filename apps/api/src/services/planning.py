@@ -12,6 +12,7 @@ from src.db.learning import LearningBadge, LearningBadgeAward
 from src.db.media import MediaAsset, MediaOwnerType
 from src.db.organizations import Organization
 from src.db.planning import (
+    ALL_CAPABILITIES,
     DEFAULT_ROLE_DEFINITIONS,
     Plan,
     PlanActivity,
@@ -39,7 +40,6 @@ from src.db.planning import (
     PlanPhaseCreate,
     PlanPhaseUpdate,
     PlanRole,
-    PlanRoleCreate,
     PlanRoleUpdate,
     PlanStatus,
     PlanUpdate,
@@ -52,17 +52,10 @@ from src.security.org_auth import is_org_admin, require_org_admin
 from src.services.badge_routes import award_if_plan_complete, badge_summary as _badge_summary
 from src.services.messages import create_inbox_message, resolve_action_by_dedupe
 from src.services.plan_permissions import effective_plan_capabilities
+from src.services.plan_progress import progress_for as _progress_for, progress_view as _progress_view
 from src.services.plan_home import adaptive_future_groups as _adaptive_future_groups
 from src.services.plan_availability import apply_template_order, plan_availability, validated_prerequisites
 from src.services.template_versions import issued_program
-
-ALL_CAPABILITIES = {
-    "view_plan", "comment", "contribute_fields", "update_progress",
-    "request_collaborators", "contribute_restricted_fields", "complete_restricted_objectives",
-    "review_badge_submissions", "edit_plan_details", "edit_structure",
-    "edit_schedule", "complete_plan", "archive_plan", "manage_collaborators",
-    "manage_roles",
-}
 
 LEGACY_CAPABILITY_ALIASES = {
     "contribute_reviewer_fields": "contribute_restricted_fields",
@@ -232,20 +225,6 @@ def _seed_roles(db: Session, plan: Plan, definitions: list[dict] | None = None) 
     return roles
 
 
-def _progress_for(db: Session, objective: PlanObjective) -> PlanObjectiveProgress:
-    progress = db.exec(select(PlanObjectiveProgress).where(PlanObjectiveProgress.plan_objective_id == objective.id)).first()
-    if progress:
-        return progress
-    now = _now_string()
-    progress = PlanObjectiveProgress(
-        progress_uuid=f"plan_progress_{uuid4()}", plan_objective_id=int(objective.id),
-        creation_date=now, update_date=now,
-    )
-    db.add(progress)
-    db.flush()
-    return progress
-
-
 def _badge_plan(db: Session, plan: Plan, badge_id: int | None) -> Plan | None:
     """The subject's own plan for earning this badge, if they started it."""
     if not badge_id or not plan.subject_user_id:
@@ -253,19 +232,6 @@ def _badge_plan(db: Session, plan: Plan, badge_id: int | None) -> Plan | None:
     return db.exec(select(Plan).where(
         Plan.subject_user_id == plan.subject_user_id, Plan.source_badge_id == badge_id, Plan.status == PlanStatus.ACTIVE,
     )).first()
-
-
-def _badge_state(db: Session, plan: Plan, objective: PlanObjective, progress: PlanObjectiveProgress) -> str:
-    stored = progress.status.value if hasattr(progress.status, "value") else str(progress.status)
-    if not objective.badge_id or not plan.subject_user_id:
-        return stored
-    award = db.exec(select(LearningBadgeAward).where(
-        LearningBadgeAward.badge_id == objective.badge_id,
-        LearningBadgeAward.user_id == plan.subject_user_id,
-    )).first()
-    if award and (not objective.badge_major_version or award.major_version == objective.badge_major_version):
-        return PlanObjectiveStatus.COMPLETED.value
-    return PlanObjectiveStatus.IN_PROGRESS.value if _badge_plan(db, plan, objective.badge_id) else stored
 
 
 def _badge_requirement(db: Session, plan: Plan, objective: PlanObjective, badge: LearningBadge, field: dict) -> dict:
@@ -379,7 +345,7 @@ def _materialized_objective_fields(db: Session, snapshot: dict) -> list[dict]:
 
 
 def _objective_dict(db: Session, plan: Plan, objective: PlanObjective, capabilities: set[str], availability: dict | None = None) -> dict:
-    progress = _progress_for(db, objective)
+    progress = _progress_view(db, objective)
     phase = db.get(PlanPhase, objective.phase_id) if objective.phase_id else None
     effective_due_date = objective.due_date or (phase.due_date if phase else None) or plan.due_date
     status = progress.status.value if hasattr(progress.status, "value") else str(progress.status)
@@ -863,33 +829,8 @@ def _require_individual_definition(db: Session, plan: Plan) -> None:
         raise HTTPException(status_code=409, detail={
             "message": "Group plan structure is shared. Change it for the whole group from the group's Plans tab in admin.",
             "assignment_uuid": assignment.assignment_uuid,
-            "group_workspace": f"/admin/users/groups/{assignment.usergroup_id}/plans?assignment={assignment.assignment_uuid}",
+            "group_workspace": f"/admin/plans/assignments/{assignment.assignment_uuid}",
         })
-
-
-def resolve_legacy_plan(db: Session, current_user: PublicUser, legacy_identifier: str) -> dict:
-    from src.db.programs import Program, ProgramAssignment, ProgramParticipant
-
-    plan = db.exec(select(Plan).where(
-        Plan.subject_user_id == current_user.id,
-        Plan.source_program_id.is_not(None),
-    ).join(Program, Program.id == Plan.source_program_id).where(
-        (Program.slug == legacy_identifier) | (Program.program_uuid == legacy_identifier),
-    ).order_by(Plan.update_date.desc())).first()
-    if not plan:
-        participant = db.exec(select(ProgramParticipant).where(
-            ProgramParticipant.participant_uuid == legacy_identifier,
-            ProgramParticipant.user_id == current_user.id,
-        )).first()
-        if participant:
-            assignment = db.get(ProgramAssignment, participant.assignment_id)
-            plan = db.exec(select(Plan).where(
-                Plan.source_assignment_id == (assignment.id if assignment else -1),
-                Plan.subject_user_id == current_user.id,
-            )).first()
-    if not plan:
-        raise HTTPException(status_code=404, detail="Migrated plan not found")
-    return {"plan_uuid": plan.plan_uuid, "slug": plan.slug}
 
 
 def update_plan(db: Session, current_user: PublicUser, identifier: str, payload: PlanUpdate) -> dict:
@@ -1059,21 +1000,6 @@ def update_phase(db: Session, current_user: PublicUser, identifier: str, phase_u
     return _plan_dict(db, plan, current_user.id, True)
 
 
-def delete_phase(db: Session, current_user: PublicUser, identifier: str, phase_uuid: str) -> dict:
-    plan = _plan_or_404(db, identifier)
-    _require_individual_definition(db, plan)
-    _require(db, plan, current_user.id, "edit_structure")
-    phase = db.exec(select(PlanPhase).where(PlanPhase.plan_id == plan.id, PlanPhase.phase_uuid == phase_uuid)).first()
-    if not phase:
-        raise HTTPException(status_code=404, detail="Plan phase not found")
-    if db.exec(select(PlanObjective.id).where(PlanObjective.phase_id == phase.id)).first() is not None:
-        raise HTTPException(status_code=409, detail="Move or remove this phase's objectives first")
-    db.delete(phase)
-    _activity(db, plan, current_user.id, "phase.deleted", {"phase_uuid": phase_uuid})
-    db.commit()
-    return {"deleted": True, "phase_uuid": phase_uuid}
-
-
 def create_objective(db: Session, current_user: PublicUser, identifier: str, payload: PlanObjectiveCreate) -> dict:
     plan = _plan_or_404(db, identifier)
     _require_individual_definition(db, plan)
@@ -1165,7 +1091,7 @@ def update_objective(db: Session, current_user: PublicUser, identifier: str, obj
     if next_due and target_start and next_due < target_start:
         raise HTTPException(status_code=422, detail="Objective target date must be within its phase")
     if "fields" in changes:
-        if _progress_for(db, objective).status == PlanObjectiveStatus.COMPLETED:
+        if _progress_view(db, objective).status == PlanObjectiveStatus.COMPLETED:
             raise HTTPException(status_code=409, detail="Reopen this objective before changing its supporting items")
         changes["fields"] = _validated_plan_steps(db, changes["fields"])
         requirement_badges = _badges_for_requirement_fields(db, changes["fields"])
@@ -1255,29 +1181,6 @@ def update_objective_progress(db: Session, current_user: PublicUser, identifier:
     return _objective_dict(db, plan, objective, capabilities)
 
 
-def create_role(db: Session, current_user: PublicUser, identifier: str, payload: PlanRoleCreate) -> dict:
-    plan = _plan_or_404(db, identifier)
-    _require_individual_definition(db, plan)
-    _require(db, plan, current_user.id, "manage_roles")
-    key = _slug(payload.key).replace("-", "_")
-    invalid = set(payload.capabilities) - ALL_CAPABILITIES
-    if invalid:
-        raise HTTPException(status_code=422, detail=f"Unknown capabilities: {', '.join(sorted(invalid))}")
-    existing_keys = set(db.exec(select(PlanRole.key).where(PlanRole.plan_id == plan.id)).all())
-    if key in existing_keys:
-        raise HTTPException(status_code=409, detail="Role key already exists")
-    if set(payload.grantable_role_keys) - existing_keys:
-        raise HTTPException(status_code=422, detail="A grantable role does not exist")
-    _validate_role_authority(db, plan, current_user.id, payload.capabilities, payload.grantable_role_keys)
-    now = _now_string()
-    role = PlanRole(role_uuid=f"plan_role_{uuid4()}", plan_id=int(plan.id), key=key, name=payload.name.strip() or key, capabilities=payload.capabilities, grantable_role_keys=payload.grantable_role_keys, creation_date=now, update_date=now)
-    db.add(role)
-    _activity(db, plan, current_user.id, "role.created", {"key": key})
-    db.commit()
-    db.refresh(role)
-    return {"role_uuid": role.role_uuid, "key": role.key, "name": role.name, "capabilities": role.capabilities, "grantable_role_keys": role.grantable_role_keys}
-
-
 def _validate_role_authority(db: Session, plan: Plan, actor_user_id: int, capabilities: list[str], grantable_role_keys: list[str]) -> None:
     if plan.owner_user_id == actor_user_id:
         return
@@ -1320,23 +1223,6 @@ def update_role(db: Session, current_user: PublicUser, identifier: str, role_uui
     _activity(db, plan, current_user.id, "role.updated", {"role_uuid": role_uuid, "fields": sorted(changes)})
     db.commit()
     return {"role_uuid": role.role_uuid, "key": role.key, "name": role.name, "capabilities": role.capabilities, "grantable_role_keys": role.grantable_role_keys}
-
-
-def delete_role(db: Session, current_user: PublicUser, identifier: str, role_uuid: str) -> dict:
-    plan = _plan_or_404(db, identifier)
-    _require_individual_definition(db, plan)
-    _require(db, plan, current_user.id, "manage_roles")
-    role = db.exec(select(PlanRole).where(PlanRole.plan_id == plan.id, PlanRole.role_uuid == role_uuid)).first()
-    if not role:
-        raise HTTPException(status_code=404, detail="Plan role not found")
-    if role.key in {"subject", "reviewer", "plan_admin", "viewer"}:
-        raise HTTPException(status_code=422, detail="Default plan roles cannot be deleted")
-    if db.exec(select(PlanCollaborator.id).where(PlanCollaborator.role_id == role.id, PlanCollaborator.active == True)).first() is not None:  # noqa: E712
-        raise HTTPException(status_code=409, detail="Reassign collaborators before deleting this role")
-    db.delete(role)
-    _activity(db, plan, current_user.id, "role.deleted", {"role_uuid": role_uuid, "key": role.key})
-    db.commit()
-    return {"deleted": True, "role_uuid": role_uuid}
 
 
 def _organization_role_dict(role: OrganizationPlanRole) -> dict:

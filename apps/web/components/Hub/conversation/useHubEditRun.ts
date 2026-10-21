@@ -6,6 +6,7 @@ import { concludeHubEditRun, reopenHubEditRun, updateHubEditRunGoal } from '@ser
 import { getUriWithOrg } from '@services/config/config'
 import type { HubContextValue } from '../HubContext'
 import { mergePendingHubEditOperations, recoverHubEditOperations, sessionEventLabel } from './editRunTimeline'
+import { continuationId } from '@components/Goals/edit/useGoalProposals'
 
 type Message = { id: string; role: string; content: string }
 
@@ -59,7 +60,7 @@ export default function useHubEditRun({ hub, orgslug, orgId, accessToken, messag
       hub.open()
       router.push(getUriWithOrg(orgslug, restored.scope.route))
       hub.enqueueEditContinuation({
-        id: crypto.randomUUID(), conversationUuid: restored.conversation_uuid, runUuid: restored.run_uuid,
+        id: continuationId(), conversationUuid: restored.conversation_uuid, runUuid: restored.run_uuid,
         content: `[[hub-session-event]] You reopened the focused session\nThe learner restored the focused session “${restored.goal}”. Briefly assess its saved and unresolved state, then ask one short question about how they would like to continue. Do not make new edits before their answer.`,
       })
     } catch (error: any) {
@@ -73,7 +74,7 @@ export default function useHubEditRun({ hub, orgslug, orgId, accessToken, messag
       const updated = await updateHubEditRunGoal(orgId, run.run_uuid, goal, accessToken)
       hub.setEditRun(updated)
       hub.enqueueEditContinuation({
-        id: crypto.randomUUID(), conversationUuid: updated.conversation_uuid, runUuid: updated.run_uuid,
+        id: continuationId(), conversationUuid: updated.conversation_uuid, runUuid: updated.run_uuid,
         content: `[[hub-session-event]] You updated the session goal\nThe focused-session goal is now: ${updated.goal}. Continue within the existing scope.`,
       })
     } catch (error: any) {

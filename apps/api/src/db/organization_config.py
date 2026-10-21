@@ -1,161 +1,12 @@
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy import JSON, BigInteger, Column, ForeignKey
 from sqlmodel import Field, SQLModel
 from src.db.discover import DiscoverSettings
 
 # ============================================================================
-# v1 Feature models (kept for backward compat with existing code imports)
-# ============================================================================
-
-class BadgeOrgConfig(BaseModel):
-    enabled: bool = True
-    limit: int = 10
-
-
-class MemberOrgConfig(BaseModel):
-    enabled: bool = True
-    signup_mode: Literal["open", "inviteOnly"] = "open"
-    admin_limit: int = 1
-    limit: int = 10
-
-
-class UserGroupOrgConfig(BaseModel):
-    enabled: bool = True
-    limit: int = 10
-
-
-class StorageOrgConfig(BaseModel):
-    enabled: bool = True
-    limit: int = 10
-
-
-class AIOrgConfig(BaseModel):
-    enabled: bool = True
-    limit: int = 10
-    model: str = ""
-
-
-class PaymentOrgConfig(BaseModel):
-    enabled: bool = False
-
-
-class DiscussionOrgConfig(BaseModel):
-    enabled: bool = True
-    limit: int = 10
-
-
-class CommunitiesOrgConfig(BaseModel):
-    enabled: bool = True
-
-
-class BadgeCollectionsOrgConfig(BaseModel):
-    enabled: bool = True
-
-
-class AnalyticsOrgConfig(BaseModel):
-    enabled: bool = True
-    limit: int = 10
-
-
-class CollaborationOrgConfig(BaseModel):
-    enabled: bool = True
-    limit: int = 10
-
-
-class APIOrgConfig(BaseModel):
-    enabled: bool = True
-    limit: int = 10
-
-
-class PodcastsOrgConfig(BaseModel):
-    enabled: bool = False
-    limit: int = 10
-
-
-class BoardsOrgConfig(BaseModel):
-    enabled: bool = False
-    limit: int = 10
-
-
-class PlaygroundsOrgConfig(BaseModel):
-    enabled: bool = False
-    limit: int = 10
-
-
-class ResourcesOrgConfig(BaseModel):
-    enabled: bool = False
-    limit: int = 0
-
-
-class OrgFeatureConfig(BaseModel):
-    badges: BadgeOrgConfig = BadgeOrgConfig()
-    badge_collections: BadgeCollectionsOrgConfig = BadgeCollectionsOrgConfig()
-    members: MemberOrgConfig = MemberOrgConfig()
-    usergroups: UserGroupOrgConfig = UserGroupOrgConfig()
-    storage: StorageOrgConfig = StorageOrgConfig()
-    ai: AIOrgConfig = AIOrgConfig()
-    payments: PaymentOrgConfig = PaymentOrgConfig()
-    discussions: DiscussionOrgConfig = DiscussionOrgConfig()
-    communities: CommunitiesOrgConfig = CommunitiesOrgConfig()
-    analytics: AnalyticsOrgConfig = AnalyticsOrgConfig()
-    collaboration: CollaborationOrgConfig = CollaborationOrgConfig()
-    api: APIOrgConfig = APIOrgConfig()
-    podcasts: PodcastsOrgConfig = PodcastsOrgConfig()
-    boards: BoardsOrgConfig = BoardsOrgConfig()
-    playgrounds: PlaygroundsOrgConfig = PlaygroundsOrgConfig()
-    resources: ResourcesOrgConfig = ResourcesOrgConfig()
-
-
-# ============================================================================
-# v2 Admin Toggle models
-# ============================================================================
-
-class AIAdminToggle(BaseModel):
-    disabled: bool = False
-    copilot_enabled: bool = True
-
-
-class MembersAdminToggle(BaseModel):
-    disabled: bool = False
-    signup_mode: Literal["open", "inviteOnly"] = "open"
-
-
-class FeatureAdminToggle(BaseModel):
-    disabled: bool = False
-
-
-class AdminToggles(BaseModel):
-    ai: AIAdminToggle = AIAdminToggle()
-    analytics: FeatureAdminToggle = FeatureAdminToggle()
-    api: FeatureAdminToggle = FeatureAdminToggle()
-    boards: FeatureAdminToggle = FeatureAdminToggle()
-    collaboration: FeatureAdminToggle = FeatureAdminToggle()
-    badge_collections: FeatureAdminToggle = FeatureAdminToggle()
-    communities: FeatureAdminToggle = FeatureAdminToggle()
-    members: MembersAdminToggle = MembersAdminToggle()
-    payments: FeatureAdminToggle = FeatureAdminToggle()
-    playgrounds: FeatureAdminToggle = FeatureAdminToggle()
-    podcasts: FeatureAdminToggle = FeatureAdminToggle()
-    resources: FeatureAdminToggle = FeatureAdminToggle()
-
-
-# ============================================================================
-# v2 Overrides model
-# ============================================================================
-
-class FeatureOverride(BaseModel):
-    extra_limit: int = 0
-    force_enabled: bool = False
-
-
-class Overrides(BaseModel):
-    note: str = ""
-
-
-# ============================================================================
-# Auth Branding (shared between v1 and v2)
+# Auth Branding
 # ============================================================================
 
 class AuthBrandingConfig(BaseModel):
@@ -166,7 +17,7 @@ class AuthBrandingConfig(BaseModel):
 
 
 # ============================================================================
-# v2 Customization models
+# Customization models
 # ============================================================================
 
 class GeneralCustomization(BaseModel):
@@ -175,6 +26,24 @@ class GeneralCustomization(BaseModel):
     footer_text: str = ""
     favicon_image: str = ""
     hide_org_name: bool = False
+    # Off, the one logo shows in both themes; on, dark_logo_image replaces it in dark mode.
+    separate_dark_logo: bool = False
+    dark_logo_image: str = ""
+
+
+class DarkLogoConfig(BaseModel):
+    separate_dark_logo: bool = False
+    dark_logo_image: str = Field(default="", max_length=2048)
+
+    @field_validator("dark_logo_image")
+    @classmethod
+    def _stored_image(cls, value: str) -> str:
+        # A media library URL, a site path or a stored file name; nothing that could run as a link.
+        value = value.strip()
+        safe = value.startswith(("https://", "http://")) or (":" not in value and not value.startswith("//"))
+        if value and not safe:
+            raise ValueError("dark_logo_image must be a media URL or file name")
+        return value
 
 
 class SeoOrgConfig(BaseModel):
@@ -216,51 +85,43 @@ class CustomizationConfig(BaseModel):
 
 
 # ============================================================================
-# v1 General & Cloud (kept for backward compat)
+# Messaging policy
 # ============================================================================
 
-class OrgGeneralConfig(BaseModel):
-    enabled: bool = True
-    color: str = ""
-    footer_text: str = ""
-    favicon_image: str = ""
-    auth_branding: AuthBrandingConfig = AuthBrandingConfig()
+class MessagingPolicy(BaseModel):
+    """Who may message whom in an organization. Helpers are never messaged directly: only in their plan's feed."""
 
-
-class OrgCloudConfig(BaseModel):
-    plan: Literal["free", "full", "enterprise", "master"] = "free"
-    custom_domain: bool = False
+    # Staff and learners may open one-to-one chats (on by default, as before the policy). Off keeps every staff-learner conversation in a plan feed.
+    staff_dm_learners: bool = True
+    # A learner's plan feed takes messages only once at least two staff are on it.
+    min_two_staff_on_feeds: bool = False
+    # A helper a learner invites to a plan the organization gave them joins only after an admin approves.
+    helper_approval: bool = False
 
 
 # ============================================================================
-# v1 Main Config (kept for backward compat with existing code)
+# Config document
 # ============================================================================
 
-class OrganizationConfigBase(BaseModel):
-    config_version: str = "1.4"
-    general: OrgGeneralConfig
-    features: OrgFeatureConfig
-    cloud: OrgCloudConfig
-    landing: dict = Field(default_factory=dict)
-    seo: SeoOrgConfig = SeoOrgConfig()
+class OrganizationConfigDocument(BaseModel):
+    """What `OrganizationConfig.config` holds. Access rules live in `security/access/catalog.py`."""
 
-
-# ============================================================================
-# v2 Main Config
-# ============================================================================
-
-class OrganizationConfigV2Base(BaseModel):
-    config_version: str = "2.0"
+    config_version: str = "3.0"
     active: bool = True
-    plan: str = "free"
-    packages: list[str] = Field(default_factory=list)
-    admin_toggles: AdminToggles = AdminToggles()
-    overrides: dict = Field(default_factory=dict)
+    tier: Literal["free", "full", "enterprise"] = "free"
+    # Partner programs a superadmin approved (badge_publisher, plan_publisher, resource_partner).
+    partners: list[str] = Field(default_factory=list)
+    # Superadmin grants: {"payments": {"enabled": true}, "learners": {"extra": 40}}.
+    grants: dict = Field(default_factory=dict)
+    # The one Full trial, once started: {"tier": "full", "started_at": iso, "ends_at": iso}. See services/orgs/trial.py.
+    trial: dict | None = None
+    signup_mode: Literal["open", "inviteOnly"] = "open"
     customization: CustomizationConfig = CustomizationConfig()
+    messaging: MessagingPolicy = MessagingPolicy()
 
 
 # ============================================================================
-# SQLModel table (unchanged — config is a JSON blob)
+# SQLModel table (config is a JSON blob)
 # ============================================================================
 
 class OrganizationConfig(SQLModel, table=True):
