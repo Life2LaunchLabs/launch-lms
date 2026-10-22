@@ -46,7 +46,7 @@ export function stageClash(goal: Goal, stage: Stage | null | undefined, date: st
 }
 
 /** Every step the given one waits on, directly or through others. */
-export function waitsOn(goal: Goal, stepUuid: string): Set<string> {
+function waitsOn(goal: Goal, stepUuid: string): Set<string> {
   const byUuid = new Map(allSteps(goal).map((step) => [step.step_uuid, step]))
   const seen = new Set<string>()
   const pending = [...(byUuid.get(stepUuid)?.after_step_uuids || [])]

@@ -16,7 +16,7 @@ from fastapi import HTTPException
 from sqlmodel import Session, select
 
 from src.db.goals import Goal, GoalAssignment, GoalOwnership, GoalSource
-from src.db.planning import ALL_CAPABILITIES, OrganizationPlanRole, PlanActivity, PlanCollaborator, PlanRole
+from src.db.goal_sharing import ALL_CAPABILITIES, OrganizationPlanRole, PlanActivity, PlanCollaborator, PlanRole
 from src.security.org_auth import is_org_admin
 
 OWNER_ONLY = {"transfer_ownership", "delete_plan"}

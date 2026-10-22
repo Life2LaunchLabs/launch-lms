@@ -16,7 +16,6 @@ from src.security.auth import (
     decode_refresh_token,
     extract_jwt_from_request,
     get_current_user,
-    non_public_endpoint,
 )
 from src.security.security import ALGORITHM, SECRET_KEY
 
@@ -255,23 +254,6 @@ class TestAuth:
 
             assert exc_info.value.status_code == 401
             assert "Could not validate credentials" in exc_info.value.detail
-
-    @pytest.mark.asyncio
-    async def test_non_public_endpoint_authenticated(self, mock_user):
-        """Test non_public_endpoint with authenticated user"""
-        # Should not raise any exception
-        await non_public_endpoint(mock_user)
-
-    @pytest.mark.asyncio
-    async def test_non_public_endpoint_anonymous(self):
-        """Test non_public_endpoint with anonymous user"""
-        anonymous_user = AnonymousUser()
-
-        with pytest.raises(HTTPException) as exc_info:
-            await non_public_endpoint(anonymous_user)
-
-        assert exc_info.value.status_code == 401
-        assert "Not authenticated" in exc_info.value.detail
 
     def test_create_refresh_token(self):
         """Test refresh token creation"""

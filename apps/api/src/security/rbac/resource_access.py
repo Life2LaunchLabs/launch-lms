@@ -1,7 +1,7 @@
 """
 Unified Resource Access Checker
 
-This module provides a single, unified access checker for badges, podcasts, and communities.
+This module provides a single, unified access checker for badges, badge collections and resources.
 It replaces the duplicated logic in courses_security.py, podcasts_security.py, and
 communities_security.py (~1,200 lines) with a single configurable implementation (~300 lines).
 
@@ -57,7 +57,7 @@ def _coerce_flag(value: object, default: bool = False) -> bool:
 
 class ResourceAccessChecker:
     """
-    Unified access checker for badges, podcasts, and communities.
+    Unified access checker for badges, badge collections and resources.
 
     Usage:
         checker = ResourceAccessChecker(request, db_session, current_user)
@@ -694,17 +694,7 @@ class ResourceAccessChecker:
             parent = self.db_session.exec(statement).first()
             return parent.badge_uuid if parent else None
 
-        elif parent_config.resource_type == "podcasts":
-            from src.db.podcasts.podcasts import Podcast
-            statement = select(Podcast).where(Podcast.id == parent_id)
-            parent = self.db_session.exec(statement).first()
-            return parent.podcast_uuid if parent else None
 
-        elif parent_config.resource_type == "communities":
-            from src.db.communities.communities import Community
-            statement = select(Community).where(Community.id == parent_id)
-            parent = self.db_session.exec(statement).first()
-            return parent.community_uuid if parent else None
 
         elif parent_config.resource_type == "badge_collections":
             from src.db.learning import BadgeCollection
@@ -812,15 +802,7 @@ class ResourceAccessChecker:
             statement = select(LearningBadge).where(LearningBadge.badge_uuid == resource_uuid)
             resource = self.db_session.exec(statement).first()
 
-        elif config.resource_type == "podcasts":
-            from src.db.podcasts.podcasts import Podcast
-            statement = select(Podcast).where(Podcast.podcast_uuid == resource_uuid)
-            resource = self.db_session.exec(statement).first()
 
-        elif config.resource_type == "communities":
-            from src.db.communities.communities import Community
-            statement = select(Community).where(Community.community_uuid == resource_uuid)
-            resource = self.db_session.exec(statement).first()
         elif config.resource_type == "resources":
             from src.db.resources import Resource
             statement = select(Resource).where(Resource.resource_uuid == resource_uuid)
@@ -830,10 +812,6 @@ class ResourceAccessChecker:
             statement = select(ResourceChannel).where(ResourceChannel.channel_uuid == resource_uuid)
             resource = self.db_session.exec(statement).first()
 
-        elif config.resource_type == "boards":
-            from src.db.boards import Board
-            statement = select(Board).where(Board.board_uuid == resource_uuid)
-            resource = self.db_session.exec(statement).first()
 
         elif config.resource_type == "badge_collections":
             from src.db.learning import BadgeCollection
@@ -846,15 +824,7 @@ class ResourceAccessChecker:
             statement = select(LearningActivity).where(LearningActivity.activity_uuid == resource_uuid)
             resource = self.db_session.exec(statement).first()
 
-        elif config.resource_type == "episodes":
-            from src.db.podcasts.episodes import PodcastEpisode
-            statement = select(PodcastEpisode).where(PodcastEpisode.episode_uuid == resource_uuid)
-            resource = self.db_session.exec(statement).first()
 
-        elif config.resource_type == "discussions":
-            from src.db.communities.discussions import Discussion
-            statement = select(Discussion).where(Discussion.discussion_uuid == resource_uuid)
-            resource = self.db_session.exec(statement).first()
 
         self._resource_cache[resource_uuid] = resource
         return resource

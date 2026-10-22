@@ -10,13 +10,12 @@ from __future__ import annotations
 from urllib.parse import quote
 
 from fastapi import HTTPException, Request
-from sqlmodel import Session, func, select
+from sqlmodel import Session, select
 
 from src.db.learning import LearningActivity, LearningPage, LearningPageProgress, LearningResponseAttempt, LearningVariable
-from src.db.programs import FrozenActivity, Objective, Program, ProgramAssignment, ProgramObjective, ProgramPhase
 from src.db.requirements import RequirementFramework
 from src.security.org_auth import require_org_admin
-from src.services import learning, programs, requirements, template_versions
+from src.services import learning, requirements
 from src.services.learning_documents import store
 from src.services.learning_documents.models import (
     ActivityDocumentSave,
@@ -24,9 +23,6 @@ from src.services.learning_documents.models import (
     authoring_guide,
 )
 from src.services.learning_preview import sessions
-from src.services.plan_template_documents import store as template_store
-from src.services.plan_template_documents.models import authoring_guide as template_authoring_guide
-from src.services.plan_template_documents.models import plan_template_json_schema
 from src.services.requirement_documents import store as requirement_store
 from src.services.requirement_documents.models import authoring_guide as requirement_authoring_guide
 from src.services.requirement_documents.models import requirement_framework_json_schema
@@ -50,38 +46,6 @@ def _editor_url(db_session: Session, activity: LearningActivity) -> str:
     activity_uuid = activity.activity_uuid.removeprefix("learning_activity_")
     template = store.owning_template(db_session, activity)
     return f"{frontend_url()}/orgs/{org.slug}/admin/plans/{template['template_uuid'] if template else ''}/activity/{activity_uuid}"
-
-
-async def list_activities(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
-    return _template_activities(db_session, ctx, args["template_uuid"])
-
-
-def _template_activities(db_session: Session, ctx: AccessContext, template_uuid: str) -> dict:
-    learning._require_org_admin(db_session, ctx.user, ctx.org_id)
-    program = db_session.exec(select(Program).where(Program.program_uuid == template_uuid, Program.org_id == ctx.org_id)).first()
-    if not program:
-        raise HTTPException(status_code=404, detail="Plan template not found in the connected organization")
-    rows = db_session.exec(
-        select(LearningActivity, Objective)
-        .join(Objective, Objective.id == LearningActivity.objective_id)
-        .join(ProgramObjective, ProgramObjective.objective_id == Objective.id)
-        .where(ProgramObjective.program_id == program.id, LearningActivity.id.not_in(select(FrozenActivity.activity_id)))  # type: ignore[union-attr]  (published copies are not edited)
-        .order_by(ProgramObjective.position)
-    ).all()
-    counts = dict(db_session.exec(
-        select(LearningPage.activity_id, func.count(LearningPage.id))  # type: ignore[arg-type]
-        .where(LearningPage.activity_id.in_([activity.id for activity, _ in rows] or [0]))  # type: ignore[union-attr]
-        .group_by(LearningPage.activity_id)
-    ).all())
-    return {
-        "template": {"template_uuid": program.program_uuid, "name": program.name},
-        "activities": [
-            {"activity_uuid": activity.activity_uuid, "objective_uuid": objective.objective_uuid, "title": activity.title,
-             "page_count": counts.get(activity.id, 0), "branching": bool((activity.settings or {}).get("flow")),
-             "editor_url": _editor_url(db_session, activity)}
-            for activity, objective in rows
-        ],
-    }
 
 
 async def get_activity(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
@@ -180,88 +144,6 @@ async def save_activity(request: Request, db_session: Session, ctx: AccessContex
     return {**envelope, "editor_url": _editor_url(db_session, activity)}
 
 
-# Plan templates ---------------------------------------------------------------
-
-
-def _template_editor_url(db_session: Session, ctx: AccessContext, template_uuid: str) -> str:
-    org = learning._get_org(db_session, ctx.org_id)
-    return f"{frontend_url()}/orgs/{org.slug}/admin/plans/{quote(template_uuid)}/objectives"
-
-
-def _with_template_url(db_session: Session, ctx: AccessContext, envelope: dict) -> dict:
-    template_uuid = envelope["context"]["template_uuid"]
-    program = db_session.exec(select(Program).where(Program.program_uuid == template_uuid)).first()
-    context = {
-        **envelope["context"],
-        "earns_badges": badge_store.badge_routes_for_template(db_session, program) if program else [],
-        "versioning": template_versions.version_status(db_session, program) if program else None,
-    }
-    return {**envelope, "context": context, "editor_url": _template_editor_url(db_session, ctx, template_uuid)}
-
-
-async def list_plan_templates(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
-    require_org_admin(ctx.user.id, ctx.org_id, db_session)
-    query = str(args.get("query") or "").strip().lower()
-    templates = db_session.exec(
-        select(Program).where(Program.org_id == ctx.org_id).order_by(Program.name.asc())  # type: ignore[union-attr]
-    ).all()
-    items = []
-    for program in templates:
-        if query and query not in f"{program.name} {program.description}".lower():
-            continue
-        phases = db_session.exec(select(func.count(ProgramPhase.id)).where(ProgramPhase.program_id == program.id)).one()  # type: ignore[arg-type]
-        objectives = db_session.exec(select(func.count(ProgramObjective.id)).where(ProgramObjective.program_id == program.id)).one()  # type: ignore[arg-type]
-        assignments = db_session.exec(select(func.count(ProgramAssignment.id)).where(ProgramAssignment.program_id == program.id)).one()  # type: ignore[arg-type]
-        items.append(
-            {
-                "template_uuid": program.program_uuid,
-                "name": program.name,
-                "description": program.description or "",
-                "phase_count": phases,
-                "objective_count": objectives,
-                "assignment_count": assignments,
-                "updated": program.update_date,
-                "editor_url": _template_editor_url(db_session, ctx, program.program_uuid),
-            }
-        )
-    return {"templates": items}
-
-
-async def get_plan_template(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
-    envelope = template_store.get_template_document(db_session, ctx.user, ctx.org_id, args["template_uuid"])
-    return _with_template_url(db_session, ctx, envelope)
-
-
-async def get_plan_template_schema(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
-    return {"guide": template_authoring_guide(), "schema": plan_template_json_schema()}
-
-
-async def validate_plan_template(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
-    return template_store.validate_template_document(db_session, ctx.user, ctx.org_id, args["document"], args.get("template_uuid"))
-
-
-async def save_plan_template(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
-    envelope = template_store.save_template_document(db_session, ctx.user, ctx.org_id, args["template_uuid"], args["document"], args["base_etag"])
-    return _with_template_url(db_session, ctx, envelope)
-
-
-async def create_plan_template(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
-    envelope = template_store.create_template_from_document(db_session, ctx.user, ctx.org_id, args["document"])
-    return _with_template_url(db_session, ctx, envelope)
-
-
-async def set_objective_requirements(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
-    mappings = template_store.set_objective_requirements(db_session, ctx.user, ctx.org_id, args["template_uuid"], args["objective_uuid"], list(args.get("node_uuids") or []))
-    envelope = template_store.get_template_document(db_session, ctx.user, ctx.org_id, args["template_uuid"])
-    return {"objective_uuid": args["objective_uuid"], "requirement_mappings": mappings, "template_etag": envelope["etag"]}
-
-
-async def update_template_badge_versions(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
-    programs.update_badge_versions(db_session, ctx.user, ctx.org_id, args["template_uuid"], bool(args.get("accept_previous_major_versions")))
-    envelope = template_store.get_template_document(db_session, ctx.user, ctx.org_id, args["template_uuid"])
-    return _with_template_url(db_session, ctx, envelope)
-
-
 # Requirement frameworks -------------------------------------------------------
 
 
@@ -335,45 +217,6 @@ async def publish_requirement_framework(request: Request, db_session: Session, c
     return _with_framework_url(db_session, ctx, envelope)
 
 
-# Global library ---------------------------------------------------------------
-
-_LIBRARY_KINDS = {"plan_template", "requirement_framework"}
-
-
-def _library_kind(args: dict) -> str:
-    kind = str(args.get("kind") or "")
-    if kind not in _LIBRARY_KINDS:
-        raise HTTPException(status_code=422, detail="kind must be plan_template or requirement_framework")
-    return kind
-
-
-async def search_library(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
-    kind, query = _library_kind(args), str(args.get("query") or "")
-    if kind == "plan_template":
-        return {"kind": kind, "items": [{**item, "uuid": item["program_uuid"]} for item in programs.list_program_library(db_session, ctx.user, ctx.org_id, query)]}
-    return {"kind": kind, "items": [{**item, "uuid": item["framework_uuid"]} for item in requirements.list_framework_library(db_session, ctx.user, ctx.org_id, query)]}
-
-
-async def copy_from_library(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
-    kind = _library_kind(args)
-    if kind == "plan_template":
-        copied = programs.copy_program_from_library(db_session, ctx.user, ctx.org_id, args["uuid"])
-        envelope = template_store.get_template_document(db_session, ctx.user, ctx.org_id, copied["program_uuid"])
-        return {"kind": kind, **_with_template_url(db_session, ctx, envelope)}
-    copied = requirements.copy_framework_from_library(db_session, ctx.user, ctx.org_id, args["uuid"])
-    envelope = requirement_store.get_framework_document(db_session, ctx.user, ctx.org_id, copied["framework_uuid"])
-    return {"kind": kind, **_with_framework_url(db_session, ctx, envelope)}
-
-
-async def publish_to_library(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
-    kind = _library_kind(args)
-    if kind == "plan_template":
-        programs.publish_program_to_library(db_session, ctx.user, ctx.org_id, args["uuid"])
-    else:
-        requirements.publish_framework_to_library(db_session, ctx.user, ctx.org_id, args["uuid"])
-    return {"kind": kind, "uuid": args["uuid"], "published_to_library": True}
-
-
 # Organizations ----------------------------------------------------------------
 
 
@@ -444,20 +287,3 @@ async def list_badge_collections(request: Request, db_session: Session, ctx: Acc
 
 async def save_badge_collection(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
     return {"collection": badge_collections.save_collection(db_session, ctx.user, ctx.org_id, args)}
-
-
-# Template versions --------------------------------------------------------------
-
-
-async def list_plan_template_versions(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
-    return template_versions.list_versions(db_session, ctx.user, ctx.org_id, args["template_uuid"])
-
-
-async def publish_plan_template(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
-    result = template_versions.publish(db_session, ctx.user, ctx.org_id, args["template_uuid"], str(args.get("note") or ""))
-    return {**result, "editor_url": _template_editor_url(db_session, ctx, result["template_uuid"])}
-
-
-async def restore_plan_template_version(request: Request, db_session: Session, ctx: AccessContext, args: dict) -> dict:
-    result = template_versions.restore(db_session, ctx.user, ctx.org_id, args["template_uuid"], int(args["number"]), str(args.get("note") or ""))
-    return {**result, "editor_url": _template_editor_url(db_session, ctx, result["template_uuid"])}

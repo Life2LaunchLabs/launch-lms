@@ -1,31 +1,11 @@
 import logging
 
-import stripe
 from fastapi import HTTPException
 from sqlmodel import Session, select
 from src.db.payments.payments import PaymentsConfig
 from src.db.payments.payments_offers import PaymentsOffer
-from src.db.users import User
 
 logger = logging.getLogger(__name__)
-
-async def get_user_from_customer(customer_id: str, db_session: Session) -> User:
-    """Helper function to get user from Stripe customer ID"""
-    try:
-        customer = stripe.Customer.retrieve(customer_id)
-        statement = select(User).where(User.email == customer.email)
-        user = db_session.exec(statement).first()
-        if not user:
-            raise HTTPException(
-                status_code=404, detail=f"User not found for customer {customer_id}"
-            )
-        return user
-    except stripe.StripeError as e:
-        logger.error(f"Stripe error retrieving customer {customer_id}: {e!s}")
-        raise HTTPException(
-            status_code=400, detail="Error retrieving customer information"
-        )
-
 
 async def get_offer_from_stripe_id(
     product_id: str, db_session: Session

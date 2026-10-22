@@ -4,7 +4,6 @@ from fastapi import Request
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import true as sa_true
 from sqlmodel import Session, and_, func, or_, select, text
-from src.db.communities.communities import Community, CommunityRead
 from src.db.learning import BadgeCollection, BadgeCollectionRead, LearningBadge, LearningBadgeRead
 from src.db.organization_config import OrganizationConfig
 from src.db.organizations import Organization, OrganizationDiscoverRead
@@ -14,7 +13,6 @@ from src.db.users import AnonymousUser, APITokenUser, PublicUser, User, UserRead
 from src.security.org_auth import is_org_member
 from src.services.orgs.orgs import _build_discover_org_read
 from src.services.resources import _channel_is_accessible, list_resources
-from src.services.shared_content import owner_org_payload
 
 T = TypeVar('T')
 
@@ -23,7 +21,6 @@ class SearchResult(BaseModel):
 
     badges: list[LearningBadgeRead]
     badge_collections: list[BadgeCollectionRead]
-    communities: list[CommunityRead]
     organizations: list[OrganizationDiscoverRead]
     resources: list[dict]
     resource_channels: list[ResourceChannelRead]
@@ -67,7 +64,7 @@ async def search_across_org(
     org = db_session.exec(org_statement).first()
 
     if not org:
-        return SearchResult(badges=[], badge_collections=[], communities=[], organizations=[], resources=[], resource_channels=[], users=[])
+        return SearchResult(badges=[], badge_collections=[], organizations=[], resources=[], resource_channels=[], users=[])
 
     # API Token validation: verify token belongs to this organization
     if isinstance(current_user, APITokenUser):
@@ -108,18 +105,6 @@ async def search_across_org(
             or_(
                 text('LOWER(badgecollection.name) LIKE LOWER(:pattern)'),
                 text('LOWER(badgecollection.description) LIKE LOWER(:pattern)')
-            )
-        )
-        .params(pattern=f"%{search_query}%")
-    )
-
-    communities_query = (
-        select(Community)
-        .where(or_(Community.org_id == org.id, Community.shared == sa_true()))
-        .where(
-            or_(
-                text('LOWER(community.name) LIKE LOWER(:pattern)'),
-                text('LOWER(community.description) LIKE LOWER(:pattern)')
             )
         )
         .params(pattern=f"%{search_query}%")
@@ -167,10 +152,6 @@ async def search_across_org(
         # For anonymous users, only show public collections
         collections_query = collections_query.where(BadgeCollection.public == sa_true())
         badges_query = badges_query.where(LearningBadge.public == sa_true())
-        communities_query = communities_query.where(
-            Community.org_id == org.id,
-            Community.public == sa_true(),
-        )
         organizations_query = organizations_query.where(Organization.explore == sa_true())
         organizations = [
             _build_discover_org_read(
@@ -190,12 +171,6 @@ async def search_across_org(
     else:
         # For authenticated users, show public collections and those in their org
         collections_query = collections_query.where(or_(BadgeCollection.public == sa_true(), BadgeCollection.org_id == org.id))
-        communities_query = communities_query.where(
-            or_(
-                Community.org_id == org.id,
-                Community.shared == sa_true(),
-            )
-        )
         candidate_channels = db_session.exec(resource_channels_query).all()
         raw_channels = [
             channel
@@ -281,7 +256,6 @@ async def search_across_org(
 
     # Apply pagination to collections query
     collections = db_session.exec(collections_query.offset(offset).limit(limit)).all()
-    communities = db_session.exec(communities_query.offset(offset).limit(limit)).all()
 
     badges = db_session.exec(badges_query.offset(offset).limit(limit)).all()
     resources = await list_resources(
@@ -301,21 +275,12 @@ async def search_across_org(
         for collection in collections
     ]
 
-    community_reads = []
-    for community in communities:
-        owner_org = db_session.exec(select(Organization).where(Organization.id == community.org_id)).first()
-        payload = CommunityRead.model_validate(community.model_dump()).model_dump()
-        if owner_org:
-            payload.update(owner_org_payload(owner_org, org.id))
-        community_reads.append(CommunityRead.model_validate(payload))
-
     # Convert users to UserRead objects
     user_reads = [UserRead.model_validate(user) for user in users]
 
     return SearchResult(
         badges=[LearningBadgeRead.model_validate(badge) for badge in badges],
         badge_collections=collection_reads,
-        communities=community_reads,
         organizations=organizations,
         resources=resources,
         resource_channels=resource_channels,

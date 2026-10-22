@@ -69,11 +69,10 @@ def test_tiers_partners_and_grants_decide_features():
     assert access_from_config({"tier": "nonsense"}).tier == "free"
 
 
-def test_legacy_features_are_off_even_for_the_owner_and_grants():
-    for key, spec in FEATURES.items():
-        if spec.off:
-            assert not access_from_config({"tier": "enterprise", "grants": {key: {"enabled": True}}}, owner=True).has(key)
-            assert key not in access_from_config({}).to_dict()["features"]
+def test_retired_features_are_gone_from_the_catalog():
+    for key in ("ai", "boards", "playgrounds", "podcasts", "communities", "scorm", "custom_domains", "custom_roles"):
+        assert key not in FEATURES
+        assert not access_from_config({"tier": "enterprise", "grants": {key: {"enabled": True}}}, owner=True).has(key)
 
 
 def test_limits_add_grants_and_owner_is_unlimited():

@@ -7,7 +7,7 @@ from sqlmodel import Session, col, select
 
 from src.db.conversations import UserBlock
 from src.db.goals import Goal
-from src.db.planning import PlanCollaborator
+from src.db.goal_sharing import PlanCollaborator
 from src.db.portfolio import Portfolio
 from src.db.portfolio_people import PortfolioPerson
 from src.db.users import PublicUser, User

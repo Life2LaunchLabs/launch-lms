@@ -146,9 +146,9 @@ def _document(template: GoalTemplate, data: dict) -> dict:
 
 def sync_starter_template(db: Session) -> GoalTemplate:
     """Create or update the starter template from starter_plan.json, publishing it when it changed."""
-    from src.services.learning.access_rules import _get_owner_org
+    from src.services.orgs.owner import require_owner_org
 
-    org = _get_owner_org(db)
+    org = require_owner_org(db)
     data = starter_data()
     now = _now()
     template = db.exec(select(GoalTemplate).where(GoalTemplate.system_type == STARTER)).first() or db.exec(

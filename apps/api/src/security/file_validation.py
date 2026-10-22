@@ -122,12 +122,6 @@ FILE_TYPES = {
         'max_size': None,  # No limit
         'validator': validate_audio_content
     },
-    'scorm': {
-        'extensions': ['.zip'],
-        'mime_types': ['application/zip', 'application/x-zip-compressed'],
-        'max_size': None,  # No limit
-        'validator': validate_zip_content
-    },
     'office': {
         'extensions': ['.docx', '.pptx'],
         'mime_types': [

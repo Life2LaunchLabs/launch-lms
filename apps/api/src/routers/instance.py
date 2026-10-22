@@ -3,10 +3,10 @@ from pathlib import Path
 
 from config.config import get_launchlms_config
 from fastapi import APIRouter, Depends
-from sqlmodel import Session, select
+from sqlmodel import Session
 from src.core.capabilities import CORE_CAPABILITIES
 from src.core.events.database import get_db_session
-from src.db.organizations import Organization
+from src.services.orgs.owner import owner_org
 
 router = APIRouter()
 BUILD_INFO_PATH = Path("/app/build-info.json")
@@ -23,8 +23,7 @@ async def get_instance_info(db_session: Session = Depends(get_db_session)):
     # Get default org slug (first org by ID)
     default_org_slug = "default"
     try:
-        statement = select(Organization).order_by(Organization.id).limit(1)
-        first_org = db_session.exec(statement).first()
+        first_org = owner_org(db_session)
         if first_org:
             default_org_slug = first_org.slug
     except Exception:

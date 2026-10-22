@@ -12,7 +12,6 @@ from fastapi import HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm.attributes import flag_modified
 from sqlmodel import Session, func, select
-from src.db.custom_domains import CustomDomain
 from src.db.learning import LearningBadge
 from src.db.organization_config import OrganizationConfig, OrganizationConfigDocument
 from src.db.organizations import Organization, OrganizationCreate
@@ -77,7 +76,7 @@ def _clean_grants(grants: dict[str, dict]) -> dict[str, dict]:
                 raise HTTPException(status_code=422, detail=f"Extra {key} can't be negative")
             if extra:
                 cleaned[key] = {"extra": extra}
-        elif key in FEATURES and not FEATURES[key].off:
+        elif key in FEATURES:
             if (grant or {}).get("enabled"):
                 cleaned[key] = {"enabled": True}
         else:
@@ -245,9 +244,6 @@ def list_organizations(
     pending_counts = _counts_by_org(
         db_session, PlanRequest.org_id, filters=(PlanRequest.status == "pending",)
     )
-    domains_by_org: dict[int, list[str]] = {}
-    for domain in db_session.exec(select(CustomDomain)).all():
-        domains_by_org.setdefault(domain.org_id, []).append(domain.domain)
     admins_by_org = _admin_users_by_org(db_session)
 
     items = []
@@ -266,7 +262,6 @@ def list_organizations(
                 "course_count": badge_counts.get(org.id, 0),
                 "pending_request_count": pending_counts.get(org.id, 0),
                 "tier": org_tier,
-                "custom_domains": domains_by_org.get(org.id, []),
                 "admin_users": admins_by_org.get(org.id, []),
             }
         )
@@ -297,9 +292,6 @@ def get_organization(db_session: Session, org_id: int) -> dict:
             PlanRequest.org_id == org.id, PlanRequest.status == "pending"
         )
     ).one()
-    domains = db_session.exec(
-        select(CustomDomain).where(CustomDomain.org_id == org.id)
-    ).all()
     owner_org = _get_owner_org(db_session)
     is_owner = bool(owner_org and owner_org.id == org.id)
     return {
@@ -312,7 +304,6 @@ def get_organization(db_session: Session, org_id: int) -> dict:
         # Backward-compatible alias for older platform clients.
         "course_count": badge_count,
         "pending_request_count": pending_request_count,
-        "custom_domains": [domain.domain for domain in domains],
         "admin_users": _admin_users_for_org(org.id, db_session),
         "is_owner_org": is_owner,
         "config_row_count": len(org_config_rows),

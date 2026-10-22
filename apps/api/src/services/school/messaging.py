@@ -57,7 +57,7 @@ def _org_name(db: Session, org_id: int) -> str:
 def _shared_orgs(db: Session, a: int, b: int) -> set[int]:
     """Organizations either person is a member or a helper of, where the other is too."""
     from src.db.goals import Goal, GoalOwnership
-    from src.db.planning import PlanCollaborator
+    from src.db.goal_sharing import PlanCollaborator
     from src.db.user_organizations import UserOrganization
 
     def orgs_of(user_id: int) -> set[int]:

@@ -1,10 +1,10 @@
 import pytest
 from fastapi import HTTPException
 from sqlmodel import Session, create_engine, select
+from src.db.goals import Goal, GoalStatus
 from src.db.learning import LearningBadgeAward
 from src.db.media import MediaAsset
 from src.db.organizations import Organization
-from src.db.planning import Plan, PlanObjective, PlanObjectiveProgress, PlanObjectiveStatus, PlanStatus
 from src.db.portfolio import (
     Portfolio,
     PortfolioFeaturedProjectUpdate,
@@ -56,14 +56,13 @@ def _session():
         model.__table__.create(engine)
     from src.db.goals import Goal, GoalAssignment, GoalStage, GoalStep, GoalStory, GoalTemplate, GoalTemplateVersion, StepEntry, StepProgress
     from src.db.learning import BadgeIssuerLearnerLink, LearningActivity, LearningPage, LearningPageProgress, LearningResponseAttempt, LearningRun
-    from src.db.planning import OrganizationPlanRole, PlanActivity, PlanCollaborator, PlanRole
+    from src.db.goal_sharing import OrganizationPlanRole, PlanActivity, PlanCollaborator, PlanRole
     from src.db.conversations import Conversation, ConversationMember, ConversationMessage, ConversationMessageRef
-    from src.db.goal_comments import GoalComment
 
     for model in (LearningActivity, LearningPage, LearningRun, LearningPageProgress, LearningResponseAttempt, BadgeIssuerLearnerLink,
                   PlanRole, PlanCollaborator, PlanActivity, OrganizationPlanRole, GoalTemplate, GoalTemplateVersion, GoalAssignment, Goal, GoalStage, GoalStep, StepProgress, StepEntry, GoalStory,
                   # Goals keep their chats in step.
-                  Conversation, ConversationMember, ConversationMessage, ConversationMessageRef, GoalComment):
+                  Conversation, ConversationMember, ConversationMessage, ConversationMessageRef):
         model.__table__.create(engine, checkfirst=True)
     session = Session(engine)
     session.add(
@@ -127,6 +126,24 @@ def test_checklist_is_the_learners_starter_goal():
         assert db.exec(select(LearningBadgeAward)).all() == []
 
 
+def test_portfolio_steps_on_other_goals_finish_when_the_portfolio_has_it():
+    from src.db.goals import Goal, GoalStep
+    from src.services.goals.completion import progress_view
+
+    with _session() as db:
+        user = _user()
+        db.add(user)
+        db.add(Goal(id=50, goal_uuid="goal_50", title="Show your work", owner_user_id=1, subject_user_id=1, ownership="external", status="active", creation_date="", update_date=""))
+        db.add(GoalStep(id=50, step_uuid="step_50", goal_id=50, type="portfolio", title="Add a project", position=0, config={"check": "project"}, creation_date="", update_date=""))
+        db.commit()
+        step = db.get(GoalStep, 50)
+        assert progress_view(db, step).status != "completed"
+
+        service.create_project(ProjectItemCreate(title="My first build"), _public(user), db)
+
+        assert progress_view(db, step).status == "completed"
+
+
 def test_portfolio_badges_are_the_earned_ones():
     with _session() as db:
         user = _user()
@@ -135,19 +152,14 @@ def test_portfolio_badges_are_the_earned_ones():
         started = _create_badge(db, badge_id=5, org_id=1)
         earned = _create_badge(db, badge_id=6, org_id=1)
         abandoned = _create_badge(db, badge_id=7, org_id=1)
-        for plan_id, badge, status in ((10, started, PlanStatus.ACTIVE), (11, earned, PlanStatus.ACTIVE), (12, abandoned, PlanStatus.ARCHIVED)):
-            db.add(Plan(id=plan_id, plan_uuid=f"plan_{plan_id}", slug=f"plan-{plan_id}", name=badge.name, status=status, subject_user_id=1, source_badge_id=badge.id, creation_date="", update_date=""))
-        db.flush()
-        for objective_id, (plan_id, done) in enumerate(((10, True), (10, False), (10, False), (11, False)), start=1):
-            db.add(PlanObjective(id=objective_id, objective_uuid=f"plan_objective_{objective_id}", plan_id=plan_id, title=f"Step {objective_id}", creation_date="", update_date=""))
-            if done:
-                db.add(PlanObjectiveProgress(progress_uuid=f"progress_{objective_id}", plan_objective_id=objective_id, status=PlanObjectiveStatus.COMPLETED, creation_date="", update_date=""))
+        for goal_id, badge, status in ((10, started, GoalStatus.ACTIVE), (11, earned, GoalStatus.ACTIVE), (12, abandoned, GoalStatus.ARCHIVED)):
+            db.add(Goal(id=goal_id, goal_uuid=f"goal_{goal_id}", title=badge.name, status=status, owner_user_id=1, subject_user_id=1, badge_id=badge.id))
         db.add(LearningBadgeAward(award_uuid="award_6", badge_id=earned.id, org_id=1, user_id=1))
         db.commit()
 
         badges = service.get_owner_shell(_public(user), db)["badges"]
 
-        # Badges still being worked toward are plans, not portfolio entries.
+        # Badges still being worked toward are goals, not portfolio entries.
         assert [item["badge_uuid"] for item in badges["earned"]] == ["badge_6"]
         assert [item["badge_uuid"] for item in badges["featured"]] == ["badge_6"]
         assert "inProgress" not in badges

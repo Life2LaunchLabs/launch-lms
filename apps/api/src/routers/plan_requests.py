@@ -61,7 +61,7 @@ async def submit_plan_request(
     valid = {
         "tier_upgrade": TIERS[1:],
         "partner_application": PARTNER_PROGRAMS,
-        "feature_request": [key for key, spec in FEATURES.items() if spec.on_request and not spec.off],
+        "feature_request": [key for key, spec in FEATURES.items() if spec.on_request],
     }
     if body.requested_value not in valid[body.request_type]:
         raise HTTPException(status_code=400, detail=f"Unknown {body.request_type.replace('_', ' ')}: {body.requested_value}")

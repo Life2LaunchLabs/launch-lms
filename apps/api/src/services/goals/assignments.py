@@ -41,7 +41,7 @@ from src.db.goals import (
     GoalTemplate,
     GoalTemplateVersion,
 )
-from src.db.planning import PlanCollaborator, PlanInvitation, PlanInvitationKind, PlanInvitationStatus, PlanRole
+from src.db.goal_sharing import PlanCollaborator, PlanInvitation, PlanInvitationKind, PlanInvitationStatus, PlanRole
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
 from src.db.usergroup_user import UserGroupUser
@@ -188,6 +188,12 @@ def _sync_chats(db: Session, assignment: GoalAssignment) -> None:
     from src.services.connect import cohort
 
     cohort.sync(db, assignment)
+
+
+def sync_group(db: Session, usergroup_id: int) -> None:
+    """Issue goals from the group's active assignments to members who joined after them (flushed, not committed)."""
+    for assignment in db.exec(select(GoalAssignment).where(GoalAssignment.usergroup_id == usergroup_id, GoalAssignment.active == True)).all():  # noqa: E712
+        sync_assignment(db, assignment)
 
 
 def _can_manage(db: Session, org_id: int, user_ids: list[int]) -> set[int]:

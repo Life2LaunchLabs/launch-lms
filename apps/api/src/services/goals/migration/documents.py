@@ -4,7 +4,7 @@ A legacy template is a set of settings, phases and objective dicts (the shape
 ``services.programs._snapshot`` produces), whether it is a template's draft, a
 published version's snapshot, an assignment's objective snapshot or a library
 snapshot. This turns one into a goal template document with the agreed step
-rules from ``goals.legacy``.
+rules from ``migration.objectives``.
 
 Keys stay traceable: a stage's key is its phase uuid, and an objective's first
 step takes the objective uuid as its key (split steps add ``-2``, ``-3``...).
@@ -19,8 +19,8 @@ from sqlmodel import Session, select
 from src.db.learning import LearningActivity, LearningBadge
 from src.services.goals.access import LEGACY_ALIASES
 from src.services.goals.document import DOCUMENT_FORMAT, DOCUMENT_FORMAT_VERSION, default_roles, validate_document
-from src.db.planning import ALL_CAPABILITIES
-from src.services.goals.legacy import convert_objective, objective_from_template
+from src.db.goal_sharing import ALL_CAPABILITIES
+from src.services.goals.migration.objectives import convert_objective, objective_from_template
 
 STEP_ORDER = {"by_chapter": "by_stage", "in_order": "in_order"}
 

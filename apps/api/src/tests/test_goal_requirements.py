@@ -1,13 +1,13 @@
 import csv
 import io
+from datetime import datetime
 
 import pytest
 from fastapi import HTTPException
 from sqlmodel import select
 
 from src.db.goals import Goal, GoalAssignmentCreate, GoalStage, GoalStep, StepEntryCreate, StepEntryKind, StepProgress, StepStatus
-from src.db.planning import PlanObjective, PlanObjectiveProgress
-from src.db.programs import Objective, ObjectiveProgress
+from src.db.learning import LearningActivity, LearningPage, LearningResponseAttempt, LearningRun
 from src.db.requirement_exports import RequirementEvidenceExport
 from src.db.requirements import (
     RequirementAssignmentBatch,
@@ -16,6 +16,7 @@ from src.db.requirements import (
     RequirementEnrollment,
     RequirementFramework,
     RequirementFrameworkCreate,
+    RequirementFrameworkUpdate,
     RequirementFrameworkVersion,
     RequirementNode,
     RequirementNodeInput,
@@ -36,7 +37,7 @@ TEACHER = 4
 @pytest.fixture
 def world():
     db = _session()
-    for model in (Objective, ObjectiveProgress, PlanObjective, PlanObjectiveProgress, RequirementFramework, RequirementFrameworkVersion,
+    for model in (RequirementFramework, RequirementFrameworkVersion,
                   RequirementNode, RequirementAssignmentBatch, RequirementEnrollment, RequirementAttainmentSource):
         model.__table__.create(db.get_bind(), checkfirst=True)
     db.add(User(id=TEACHER, user_uuid="user_4", username="teach", email="te@example.com", first_name="Terry", last_name="Teach", creation_date=NOW, update_date=NOW))
@@ -248,3 +249,49 @@ def test_export_csv_escapes_and_scope_is_enforced(world):
     with pytest.raises(HTTPException) as wrong_org:
         evidence.evidence_rows(db, _user(ADMIN), 2, RequirementEvidenceExport(user_ids=[LEARNER]))
     assert wrong_org.value.status_code == 403
+
+
+def test_activity_responses_include_history_grading_and_only_the_selected_learner(world):
+    db, _, _, _, _ = world
+    goal = _goal(db, LEARNER)
+    step = db.exec(select(GoalStep).where(GoalStep.goal_id == goal.id, GoalStep.title == "Your first resume")).one()
+    activity = LearningActivity(activity_uuid="activity_evidence", org_id=1, title="Resume practice")
+    db.add(activity)
+    db.flush()
+    step.activity_id = activity.id
+    db.add(step)
+    page = LearningPage(activity_id=activity.id, org_id=1, page_uuid="activity_page", page_type="standard", title="Interview reflection",
+                        content={"blocks": [{"id": "q1", "type": "question", "kind": "text_input", "content": {"prompt": "What did you learn?"}}]})
+    db.add(page)
+    db.flush()
+    run = LearningRun(run_uuid="selected_run", activity_id=activity.id, org_id=1, goal_id=goal.id, goal_step_id=step.id, user_id=LEARNER)
+    other = LearningRun(run_uuid="other_run", activity_id=activity.id, org_id=1, goal_id=goal.id, goal_step_id=step.id, user_id=OTHER)
+    db.add_all([run, other])
+    db.flush()
+    db.add_all([
+        LearningResponseAttempt(attempt_uuid="attempt_1", run_id=run.id, page_id=page.id, user_id=LEARNER, answer={"questions": {"q1": {"text": "First draft"}}},
+                                submitted_at=datetime(2026, 10, 12), result={"grading_status": "pending"}),
+        LearningResponseAttempt(attempt_uuid="attempt_2", run_id=run.id, page_id=page.id, user_id=LEARNER,
+                                answer={"questions": {"q1": {"text": "Revised reflection", "image": {"url": "https://example.org/work.png"}}}},
+                                submitted_at=datetime(2026, 10, 13), graded_at=datetime(2026, 10, 13), score=3,
+                                result={"grading_status": "graded", "max_score": 4, "graded_by_user_id": ADMIN, "graded_by": {"staff_name": "Teacher"}, "feedback": "Good explanation"}),
+        LearningResponseAttempt(attempt_uuid="other_attempt", run_id=other.id, page_id=page.id, user_id=OTHER, answer={"text": "PRIVATE other learner answer"}),
+    ])
+    db.commit()
+    rows = [row for row in _rows(db, ADMIN) if row.get("Activity attempt UUID")]
+    assert [(row["Current activity attempt"], row["Activity grading status"]) for row in rows] == [("No", "pending"), ("Yes", "graded")]
+    assert rows[1]["Evidence field"] == "Interview reflection · What did you learn?" and rows[1]["Evidence URL"] == "https://example.org/work.png"
+    assert (rows[1]["Activity graded by"], rows[1]["Activity score"], rows[1]["Activity maximum score"]) == ("Teacher", 3, 4)
+    assert "PRIVATE" not in str(rows)
+
+
+def test_export_uses_the_assigned_framework_snapshot_after_a_new_version_is_published(world):
+    db, _, _, framework, _ = world
+    admin = _user(ADMIN)
+    revised = [RequirementNodeInput(node_uuid=node["node_uuid"], parent_node_uuid=node.get("parent_node_uuid"), code=node.get("code", ""),
+                                    title=node["title"] + " revised", position=node["position"]) for node in framework["nodes"]]
+    requirements.update_framework(db, admin, 1, framework["framework_uuid"], RequirementFrameworkUpdate(nodes=revised))
+    requirements.publish_framework(db, admin, 1, framework["framework_uuid"])
+    rows = _rows(db, ADMIN)
+    assert {row["Framework version"] for row in rows} == {1}
+    assert {row["Requirement title"] for row in rows} == {"Resume", "Workplace experience"}

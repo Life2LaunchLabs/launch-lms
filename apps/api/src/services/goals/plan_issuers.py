@@ -98,16 +98,6 @@ def issuer_org_ids(db: Session, badge: LearningBadge) -> list[int]:
     return list(dict.fromkeys(int(item) for item in rows))
 
 
-def badges_earned_by(db: Session, template_ids: Iterable[int]) -> list[LearningBadge]:
-    """The live badges these templates are ways to earn (badge ids picked in a subquery: no DISTINCT over JSON)."""
-    ids = {int(item) for item in template_ids if item}
-    if not ids:
-        return []
-    return list(db.exec(select(LearningBadge).where(
-        col(LearningBadge.id).in_(select(BadgeRoute.badge_id).where(col(BadgeRoute.goal_template_id).in_(ids))),
-        col(LearningBadge.deleted_at).is_(None)).order_by(LearningBadge.name)).all())
-
-
 def badge_plans(db: Session, badge: LearningBadge, org_id: int | None) -> list[dict]:
     """The badge's plans with this organization's permission on each, for asking to issue it through one."""
     from src.services.goals.badges import badge_routes

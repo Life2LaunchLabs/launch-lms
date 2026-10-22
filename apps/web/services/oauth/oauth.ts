@@ -1,5 +1,5 @@
 import { getAPIUrl } from '@services/config/config'
-import { RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/requests'
+import { RequestBodyWithAuthHeader } from '@services/utils/ts/requests'
 
 export interface OAuthAuthorizationParams {
   client_id: string
@@ -37,12 +37,3 @@ export async function decideOAuthAuthorization(
   return oauthResult(result)
 }
 
-export async function listOAuthConnections(accessToken?: string) {
-  const result = await fetch(`${getAPIUrl()}oauth/connections`, RequestBodyWithAuthHeader('GET', null, null, accessToken))
-  return errorHandling(result)
-}
-
-export async function disconnectOAuthConnection(connectionId: string, accessToken?: string) {
-  const result = await fetch(`${getAPIUrl()}oauth/connections/${encodeURIComponent(connectionId)}`, RequestBodyWithAuthHeader('DELETE', null, null, accessToken))
-  return errorHandling(result)
-}

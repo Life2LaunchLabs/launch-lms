@@ -79,25 +79,6 @@ def _status(badge: LearningBadge) -> str:
     return getattr(badge.status, "value", badge.status)
 
 
-def _plan_progress(db: Session, plans: list) -> dict[int, tuple[int, int]]:
-    """Plan id -> (steps done, steps in all). Legacy plans only (services/planning reads it until the plan code is removed)."""
-    from src.db.planning import PlanObjective, PlanObjectiveProgress, PlanObjectiveStatus
-
-    if not plans:
-        return {}
-    counts: dict[int, list[int]] = {int(plan.id): [0, 0] for plan in plans}
-    rows = db.exec(
-        select(PlanObjective.plan_id, PlanObjectiveProgress.status).outerjoin(PlanObjectiveProgress, PlanObjectiveProgress.plan_objective_id == PlanObjective.id)
-        .where(PlanObjective.plan_id.in_(list(counts)))  # type: ignore[union-attr]
-    ).all()
-    for plan_id, status in rows:
-        if getattr(status, "value", status) == PlanObjectiveStatus.CANCELED.value:
-            continue
-        counts[plan_id][1] += 1
-        counts[plan_id][0] += getattr(status, "value", status) == PlanObjectiveStatus.COMPLETED.value
-    return {plan_id: (done, total) for plan_id, (done, total) in counts.items()}
-
-
 class _Viewer:
     """What one learner has going on across a set of badges."""
 
@@ -114,7 +95,7 @@ class _Viewer:
 
 def _route_counts(db: Session, badge_ids: list[int]) -> dict[int, int]:
     counts: dict[int, int] = {}
-    for badge_id in db.exec(select(BadgeRoute.badge_id).where(BadgeRoute.badge_id.in_(badge_ids), BadgeRoute.goal_template_id.is_not(None))).all() if badge_ids else []:  # type: ignore[union-attr]
+    for badge_id in db.exec(select(BadgeRoute.badge_id).where(BadgeRoute.badge_id.in_(badge_ids))).all() if badge_ids else []:  # type: ignore[union-attr]
         counts[badge_id] = counts.get(badge_id, 0) + 1
     return counts
 

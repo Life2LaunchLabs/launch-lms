@@ -10,8 +10,6 @@ export type GoalOwnership = 'personal' | 'external'
 export type GoalSource = 'none' | 'assignment' | 'badge' | 'starter' | 'template'
 export type EntryKind = 'file' | 'link' | 'item' | 'resource' | 'note' | 'log'
 
-export const DONE_STATUSES: StepStatus[] = ['completed', 'excused']
-
 export interface PersonSummary {
   id: number
   user_uuid?: string

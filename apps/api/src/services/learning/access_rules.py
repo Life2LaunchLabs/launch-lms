@@ -24,15 +24,6 @@ def _get_org(db_session: Session, org_id: int) -> Organization:
     return org
 
 
-def _get_owner_org(db_session: Session) -> Organization:
-    org = db_session.exec(
-        select(Organization).order_by(Organization.id).limit(1)
-    ).first()
-    if not org:
-        raise HTTPException(status_code=404, detail="Owner organization not found")
-    return org
-
-
 def _get_org_config(db_session: Session, org_id: int) -> OrganizationConfig | None:
     return db_session.exec(
         select(OrganizationConfig).where(OrganizationConfig.org_id == org_id)

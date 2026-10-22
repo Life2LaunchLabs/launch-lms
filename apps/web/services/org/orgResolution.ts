@@ -1,5 +1,5 @@
 import { headers } from 'next/headers'
-import { getOrganizationContextInfoWithoutCredentials, getOrganizationContextInfoWithUUID } from '@services/organizations/orgs'
+import { getOrganizationContextInfoWithUUID } from '@services/organizations/orgs'
 import { getConfig, getServerAPIUrl } from '@services/config/config'
 import { resolveOrgHostContext, type OrgHostContext } from '@services/routing/context'
 
@@ -66,32 +66,13 @@ export interface OrgResolutionResult {
   error?: string
 }
 
-export async function resolveOrg(searchParams?: { token?: string }): Promise<OrgResolutionResult> {
-  const hostOrgSlug = await getHostOrgSlug()
-  if (hostOrgSlug) {
-    const org = await fetchOrgBySlug(hostOrgSlug)
-    if (org) {
-      return { org, source: 'host' }
-    }
-  }
-
-  if (searchParams?.token) {
-    const tokenOrg = await resolveFromToken(searchParams.token)
-    if (tokenOrg) {
-      return { org: tokenOrg, source: 'token' }
-    }
-  }
-
-  return { org: null, source: 'none' }
-}
-
 export async function getHostOrgSlug(): Promise<string | null> {
   const context = await readServerOrgHostContext()
   if (!context) return null
   return context.resolvedOrgSlug || null
 }
 
-export async function getTokenOrgSlug(token?: string | null): Promise<string | null> {
+async function getTokenOrgSlug(token?: string | null): Promise<string | null> {
   if (!token) return null
 
   const payload = decodeTokenPayload(token)
@@ -107,12 +88,6 @@ export async function getAuthBrandingOrgSlug(token?: string | null): Promise<str
   return getHostOrgSlug()
 }
 
-async function resolveFromToken(token: string): Promise<ResolvedOrg | null> {
-  const orgSlug = await getTokenOrgSlug(token)
-  if (!orgSlug) return null
-  return fetchOrgBySlug(orgSlug)
-}
-
 function decodeTokenPayload(token: string): { org_uuid?: string; email?: string; action?: string } | null {
   try {
     const parts = token.split('.')
@@ -124,24 +99,6 @@ function decodeTokenPayload(token: string): { org_uuid?: string; email?: string;
     const decoded = Buffer.from(payload, 'base64').toString('utf-8')
     return JSON.parse(decoded)
   } catch {
-    return null
-  }
-}
-
-async function fetchOrgBySlug(orgslug: string): Promise<ResolvedOrg | null> {
-  try {
-    const org = await getOrganizationContextInfoWithoutCredentials(orgslug, {
-      revalidate: 60,
-      tags: ['organizations'],
-    })
-
-    if (!org || org.error) {
-      return null
-    }
-
-    return org as ResolvedOrg
-  } catch (error) {
-    console.error('Error fetching org by slug:', error)
     return null
   }
 }

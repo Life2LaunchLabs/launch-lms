@@ -18,7 +18,7 @@ export function dayOf(date: Date) {
 const DONE = new Set(['completed', 'excused'])
 
 /** One step across the cohort, in the counts the plan's rows show. Anything handed in waits on staff to grade it. */
-export function stepAggregate(column: MatrixColumn): StepAggregate {
+function stepAggregate(column: MatrixColumn): StepAggregate {
   const counts = column.aggregate
   const waiting = (counts.handed_in_count || 0) + (counts.to_grade_count || 0)
   return { total: counts.learner_count, done: counts.done_count || 0, handed_in: waiting, to_grade: waiting, not_handed_in: counts.not_handed_in_count || 0, to_settle: counts.needs_settle_count || 0 }

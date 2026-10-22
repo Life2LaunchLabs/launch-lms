@@ -19,10 +19,9 @@ from fastapi import HTTPException
 from sqlmodel import Session, col, func, select
 
 from src.db.conversations import Conversation, ConversationMember, ConversationMessage, ConversationMessageRef
-from src.db.goal_comments import GoalComment
 from src.db.goals import DONE_STEP_STATUSES, Goal, GoalOwnership, GoalSource, GoalStage, GoalStatus, GoalStep, StepProgress, StepStatus
 from src.db.organizations import Organization
-from src.db.planning import PlanCollaborator, PlanCollaboratorRequestCreate, PlanInvitationCreate, PlanRole
+from src.db.goal_sharing import PlanCollaborator, PlanCollaboratorRequestCreate, PlanInvitationCreate, PlanRole
 from src.db.users import PublicUser, User
 from src.services.connect import chats, cohort, people
 from src.services.goals import access
@@ -143,8 +142,6 @@ def chat_for_goal(db: Session, goal: Goal, create: bool = True, viewer_id: int |
         conversation = school_chats.school_chat(db, int(goal.org_id), int(goal.subject_user_id)) if create else school_chats.find(db, int(goal.org_id), int(goal.subject_user_id))  # type: ignore[arg-type]
     else:
         conversation = _goal_chat(db, goal, create)
-    if conversation:
-        _adopt_comments(db, goal, conversation)
     return conversation
 
 
@@ -448,36 +445,3 @@ def _tell_org(db: Session, current_user: PublicUser, conversation: Conversation,
     ).all()) if item)
     card = {"type": ORG_MENTION, "from_chat": where, "excerpt": plain(db, message.body, message.refs)[:280]}
     chats.post(db, target, current_user.id, f"Tagged {org.name} in a chat with {where}" if where else f"Tagged {org.name}", kind="card", card=card)  # type: ignore[union-attr]
-
-
-# Older goal comments
-
-
-def _adopt_comments(db: Session, goal: Goal, conversation: Conversation) -> None:
-    """Move a plan's comments from before plans talked in chats into its chat, tagged with their step."""
-    rows = list(db.exec(select(GoalComment).where(GoalComment.goal_id == goal.id).order_by(col(GoalComment.id))).all())
-    if not rows:
-        return
-    steps = {step.step_uuid for step in db.exec(select(GoalStep).where(GoalStep.goal_id == goal.id)).all()}
-    newest = conversation.last_message_at or ""
-    threads = {int(row.id): row.step_uuid for row in rows}  # type: ignore[arg-type]
-    for row in rows:
-        # A reply is on its thread's step.
-        step_uuid = threads.get(int(row.parent_id)) if row.parent_id else row.step_uuid
-        on_step = step_uuid if step_uuid in steps else None
-        token = f"<step:{goal.goal_uuid}/{on_step}>" if on_step else f"<plan:{goal.goal_uuid}>"
-        ref = {"kind": "step", "goal_uuid": goal.goal_uuid, "step_uuid": on_step} if on_step else {"kind": "plan", "goal_uuid": goal.goal_uuid}
-        message = ConversationMessage(
-            message_uuid=f"chat_message_{uuid4()}", conversation_id=int(conversation.id), sender_user_id=row.author_user_id,  # type: ignore[arg-type]
-            kind="text", body=f"{token} {row.body}", refs=[ref], creation_date=row.creation_date, update_date=row.update_date or row.creation_date,
-        )
-        db.add(message)
-        db.flush()
-        attach(db, message, [(int(goal.id), on_step)])  # type: ignore[arg-type]
-        newest = max(newest, message.update_date)
-    # Replies first: they point at the comment they answer.
-    for row in reversed(rows):
-        db.delete(row)
-    conversation.last_message_at = newest
-    db.add(conversation)
-    db.flush()

@@ -12,7 +12,7 @@ from sqlmodel import Session, col, select
 
 from src.db.conversations import Conversation, ConversationMember
 from src.db.goals import Goal, GoalOwnership
-from src.db.planning import PlanCollaborator
+from src.db.goal_sharing import PlanCollaborator
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
 from src.db.usergroup_user import UserGroupUser

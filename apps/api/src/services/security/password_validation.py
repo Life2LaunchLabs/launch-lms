@@ -85,19 +85,3 @@ def validate_password_complexity(password: str) -> PasswordValidationResult:
         errors=errors,
         requirements=requirements
     )
-
-
-def get_password_requirements() -> list[dict]:
-    """
-    Get list of password requirements for display purposes.
-
-    Returns:
-        List of requirement descriptions
-    """
-    return [
-        {"id": "min_length", "description": "At least 8 characters"},
-        {"id": "has_uppercase", "description": "At least one uppercase letter (A-Z)"},
-        {"id": "has_lowercase", "description": "At least one lowercase letter (a-z)"},
-        {"id": "has_number", "description": "At least one number (0-9)"},
-        {"id": "has_special", "description": "At least one special character (!@#$%^&*...)"},
-    ]

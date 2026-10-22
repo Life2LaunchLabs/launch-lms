@@ -8,11 +8,8 @@ from sqlalchemy import inspect
 from sqlmodel import Session, select
 
 from src.db.goals import StepProgress
-from src.db.planning import Plan, PlanObjective, PlanObjectiveProgress, PlanObjectiveStatus
 from src.db.organizations import Organization
-from src.db.programs import Objective, ObjectiveProgress, ObjectiveProgressStatus, ProgramObjective
 from src.db.requirements import (
-    ProgramObjectiveRequirement,
     RequirementAssignmentBatch,
     RequirementAssignmentCreate,
     RequirementAttainmentSource,
@@ -460,24 +457,18 @@ def _recompute_enrollment(db: Session, enrollment: RequirementEnrollment) -> Non
 
 
 def _upsert_source(
-    db: Session, enrollment: RequirementEnrollment, node_uuid: str, *,
-    plan_progress: PlanObjectiveProgress | None = None, legacy_progress: ObjectiveProgress | None = None, step_progress: StepProgress | None = None,
+    db: Session, enrollment: RequirementEnrollment, node_uuid: str, *, step_progress: StepProgress,
     title: str, evidence: dict, verified_by: int | None, verified_at: datetime | None, active: bool,
 ) -> None:
-    same_progress = (RequirementAttainmentSource.step_progress_id == step_progress.id if step_progress
-                     else RequirementAttainmentSource.plan_objective_progress_id == plan_progress.id if plan_progress
-                     else RequirementAttainmentSource.objective_progress_id == legacy_progress.id)
     source = db.exec(select(RequirementAttainmentSource).where(
-        RequirementAttainmentSource.enrollment_id == enrollment.id, RequirementAttainmentSource.node_uuid == node_uuid, same_progress,
+        RequirementAttainmentSource.enrollment_id == enrollment.id, RequirementAttainmentSource.node_uuid == node_uuid,
+        RequirementAttainmentSource.step_progress_id == step_progress.id,
     )).first()
     now = _now()
     if not source:
         source = RequirementAttainmentSource(
             source_uuid=f"requirement_source_{uuid4()}", enrollment_id=int(enrollment.id),
-            node_uuid=node_uuid,
-            plan_objective_progress_id=int(plan_progress.id) if plan_progress else None,
-            objective_progress_id=int(legacy_progress.id) if legacy_progress else None,
-            step_progress_id=int(step_progress.id) if step_progress else None,
+            node_uuid=node_uuid, step_progress_id=int(step_progress.id),  # type: ignore[arg-type]
             creation_date=now.isoformat(), update_date=now.isoformat(),
         )
     source.objective_title = title
@@ -489,73 +480,7 @@ def _upsert_source(
     db.add(source)
 
 
-def sync_live_progress(db: Session, progress: PlanObjectiveProgress, plan_objective: PlanObjective, plan: Plan) -> None:
-    if not _available(db):
-        return
-    if not progress.id:
-        db.flush()
-    mappings = plan_objective.requirement_mappings or []
-    if not mappings:
-        return
-    active = progress.status == PlanObjectiveStatus.COMPLETED
-    for mapping in mappings:
-        enrollments = db.exec(select(RequirementEnrollment).where(
-            RequirementEnrollment.org_id == plan.source_org_id,
-            RequirementEnrollment.user_id == plan.subject_user_id,
-            RequirementEnrollment.framework_id == mapping.get("framework_id"),
-        )).all()
-        for enrollment in enrollments:
-            if mapping.get("node_uuid") not in set((enrollment.framework_snapshot or {}).get("leaf_node_uuids") or []):
-                continue
-            _upsert_source(db, enrollment, mapping["node_uuid"], plan_progress=progress,
-                title=plan_objective.title, evidence={"field_values": progress.field_values or {}, "learner_note": progress.subject_note},
-                verified_by=progress.updated_by_user_id, verified_at=progress.completed_at, active=active)
-            _recompute_enrollment(db, enrollment)
-
-
-def sync_legacy_progress(db: Session, progress: ObjectiveProgress, objective: Objective) -> None:
-    if not _available(db):
-        return
-    if not progress.id:
-        db.flush()
-    mappings = db.exec(select(ProgramObjectiveRequirement).join(
-        ProgramObjective, ProgramObjective.id == ProgramObjectiveRequirement.program_objective_id,
-    ).where(ProgramObjective.objective_id == objective.id)).all()
-    active = progress.status == ObjectiveProgressStatus.COMPLETED
-    for mapping in mappings:
-        enrollments = db.exec(select(RequirementEnrollment).where(
-            RequirementEnrollment.org_id == progress.org_id,
-            RequirementEnrollment.user_id == progress.user_id,
-            RequirementEnrollment.framework_id == mapping.framework_id,
-        )).all()
-        for enrollment in enrollments:
-            if mapping.node_uuid not in set((enrollment.framework_snapshot or {}).get("leaf_node_uuids") or []):
-                continue
-            _upsert_source(db, enrollment, mapping.node_uuid, legacy_progress=progress,
-                title=objective.title, evidence={"evidence": progress.evidence or [], "learner_note": progress.learner_note},
-                verified_by=progress.completed_by_user_id, verified_at=progress.completed_at, active=active)
-            _recompute_enrollment(db, enrollment)
-
-
 def _backfill(db: Session, enrollment: RequirementEnrollment) -> None:
-    for plan in db.exec(select(Plan).where(Plan.source_org_id == enrollment.org_id, Plan.subject_user_id == enrollment.user_id)).all():
-        objectives = db.exec(select(PlanObjective).where(PlanObjective.plan_id == plan.id)).all()
-        for objective in objectives:
-            progress = db.exec(select(PlanObjectiveProgress).where(
-                PlanObjectiveProgress.plan_objective_id == objective.id,
-                PlanObjectiveProgress.status == PlanObjectiveStatus.COMPLETED,
-            )).first()
-            if progress:
-                sync_live_progress(db, progress, objective, plan)
-    legacy = db.exec(select(ObjectiveProgress, Objective).join(
-        Objective, Objective.id == ObjectiveProgress.objective_id,
-    ).where(
-        ObjectiveProgress.org_id == enrollment.org_id,
-        ObjectiveProgress.user_id == enrollment.user_id,
-        ObjectiveProgress.status == ObjectiveProgressStatus.COMPLETED,
-    )).all()
-    for progress, objective in legacy:
-        sync_legacy_progress(db, progress, objective)
     from src.services.goals.credit import backfill_steps
     backfill_steps(db, enrollment)
 
@@ -674,44 +599,6 @@ def mappable_nodes(db: Session, org_id: int) -> dict[str, RequirementFramework]:
 def parent_node_uuids(db: Session, org_id: int) -> set[str]:
     """Nodes that have children (and so never earn credit themselves)."""
     return {node.parent_node_uuid for _, node in _org_nodes(db, org_id) if node.parent_node_uuid}
-
-
-def update_mappings(db: Session, current_user: PublicUser, org_id: int, relation: ProgramObjective, node_uuids: list[str]) -> list[dict]:
-    require_org_admin(current_user.id, org_id, db, "build_plans")
-    valid = mappable_nodes(db, org_id)
-    requested = list(dict.fromkeys(node_uuids))
-    if set(requested) - set(valid):
-        raise HTTPException(status_code=422, detail="One or more requirement nodes are unavailable")
-    for mapping in db.exec(select(ProgramObjectiveRequirement).where(ProgramObjectiveRequirement.program_objective_id == relation.id)).all():
-        db.delete(mapping)
-    now = _now_string()
-    for node_uuid in requested:
-        db.add(ProgramObjectiveRequirement(
-            mapping_uuid=f"requirement_mapping_{uuid4()}", program_objective_id=int(relation.id),
-            framework_id=int(valid[node_uuid].id), node_uuid=node_uuid, creation_date=now,
-        ))
-    db.flush()
-    return mappings_for_relation(db, relation)
-
-
-def mappings_for_relation(db: Session, relation: ProgramObjective) -> list[dict]:
-    if not _available(db):
-        return []
-    rows = db.exec(select(ProgramObjectiveRequirement, RequirementFramework).join(
-        RequirementFramework, RequirementFramework.id == ProgramObjectiveRequirement.framework_id,
-    ).where(ProgramObjectiveRequirement.program_objective_id == relation.id)).all()
-    result = []
-    for mapping, framework in rows:
-        version = _version(db, framework)
-        node = db.exec(select(RequirementNode).where(
-            RequirementNode.version_id == version.id, RequirementNode.node_uuid == mapping.node_uuid,
-        )).first()
-        result.append({
-            "framework_id": framework.id, "framework_uuid": framework.framework_uuid,
-            "framework_name": framework.name, "node_uuid": mapping.node_uuid,
-            "node_code": node.code if node else "", "node_title": node.title if node else "Retired requirement",
-        })
-    return result
 
 
 def report(db: Session, current_user: PublicUser, org_id: int, framework_uuid: str | None = None, version_number: int | None = None, usergroup_id: int | None = None, node_uuid: str | None = None, status: str | None = None) -> dict:

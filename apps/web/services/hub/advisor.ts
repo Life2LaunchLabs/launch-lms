@@ -4,7 +4,6 @@ import type { StepConfigs, StepTypeKey } from '@services/goals/types'
 import { RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/requests'
 import type { HubQuestion } from './questions'
 
-
 export type HubSurfaceHint = {
   surface: 'goal' | 'goals' | 'group_goal' | 'unsupported'
   entity_id?: string
@@ -303,11 +302,6 @@ export function updateHubEditRunGoal(orgId: number, runUuid: string, goal: strin
   return hubRequest<HubEditRun>(`edit-runs/${encodeURIComponent(runUuid)}/goal?org_id=${encodeURIComponent(orgId)}`, 'PATCH', accessToken, { goal })
 }
 
-/** Points a new-goal run at the personal goal the learner just saved, so Coach can keep building it. */
-export function bindHubEditRunGoal(orgId: number, runUuid: string, goalUuid: string, accessToken: string) {
-  return hubRequest<HubEditRun>(`edit-runs/${encodeURIComponent(runUuid)}/goal-target?org_id=${encodeURIComponent(orgId)}`, 'POST', accessToken, { goal_uuid: goalUuid })
-}
-
 /** The learner asks Coach to plan their goal with them; an active session on the goal is returned as it is. */
 export function startGoalCoachSession(orgId: number, goalUuid: string, accessToken: string, conversationUuid?: string | null) {
   return hubRequest<HubEditRun>(`goals/${encodeURIComponent(goalUuid)}/coach/session?org_id=${encodeURIComponent(orgId)}`, 'POST', accessToken, { conversation_uuid: conversationUuid || null })
@@ -390,10 +384,6 @@ export function renameHubConversation(orgId: number, conversationUuid: string, t
 
 export function archiveHubConversation(orgId: number, conversationUuid: string, accessToken: string) {
   return hubRequest<{ conversation_uuid: string; archived: boolean }>(`conversations/${encodeURIComponent(conversationUuid)}?org_id=${encodeURIComponent(orgId)}`, 'PATCH', accessToken, { archived: true })
-}
-
-export function deleteHubConversation(orgId: number, conversationUuid: string, accessToken: string) {
-  return hubRequest<void>(`conversations/${encodeURIComponent(conversationUuid)}?org_id=${encodeURIComponent(orgId)}`, 'DELETE', accessToken)
 }
 
 export function saveHubConversationState(orgId: number, conversationUuid: string, accessToken: string, state: {

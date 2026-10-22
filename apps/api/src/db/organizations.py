@@ -35,11 +35,6 @@ class Organization(OrganizationBase, table=True):
     creation_date: str = ""
     update_date: str = ""
 
-class OrganizationWithConfig(BaseModel):
-    org: Organization
-    config: OrganizationConfig
-
-
 class OrganizationUpdate(SQLModel):
     name: str | None = None
     description: str | None = None

@@ -1018,20 +1018,6 @@ async def get_org_join_mechanism(
 
     return _extract_signup_mode_from_config(org_config)
 
-async def upload_org_preview_service(
-    preview_file: UploadFile,
-    org_uuid: str,
-) -> dict:
-    # No need for request or current_user since we're not doing RBAC checks for previews
-    
-    # Upload preview
-    name_in_disk = await upload_org_preview(preview_file, org_uuid)
-
-    return {
-        "detail": "Preview uploaded successfully",
-        "filename": name_in_disk
-    }
-
 async def update_org_landing(
     request: Request,
     landing_object: dict,

@@ -154,7 +154,7 @@ def _complete(document: dict, pages: list[LearningPage], state: dict, page_uuid:
     required = [page.page_uuid for page in pages if page.required and page.page_uuid in reachable]
     if terminal and required and all(uuid in state["completed"] for uuid in required):
         meta = document["activity"]
-        activity = LearningActivity(title=meta["title"], objective_id=0, org_id=0, settings=meta.get("settings") or {})
+        activity = LearningActivity(title=meta["title"], org_id=0, settings=meta.get("settings") or {})
         state["result"] = _score(pages, state, activity)
         state["status"] = "completed" if state["result"]["passed"] else "in_progress"
     return state

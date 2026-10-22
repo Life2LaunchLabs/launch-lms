@@ -100,7 +100,7 @@ def summarize(world: dict) -> dict:
                     for row in rows.get("projectitem", [])
                     if portfolios.get(row["portfolio_id"]) == user_id
                 ),
-                "plans": count("plan", "subject_user_id", user_id),
+                "plans": count("goal", "subject_user_id", user_id),
                 "conversations": count("hubconversation", "user_id", user_id),
             }
         )

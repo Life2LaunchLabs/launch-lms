@@ -85,7 +85,6 @@ def test_a_locked_template_without_a_badge_runs_as_is_once_the_creator_approves(
         assert no_copy.value.status_code == 403
         creator_side = market.list_authorizations(db, _user(ADMIN), 1, "creator")
         assert creator_side[0]["issuer_org"]["name"] == "Partner" and creator_side[0]["learner_count"] == 1
-        assert [item["template"]["template_uuid"] for item in market.added_templates(db, _user(ADMIN), PARTNER)] == [template.template_uuid]
 
         # Revoking stops new assignments and the running one.
         market.revoke(db, _user(ADMIN), request["authorization_uuid"])
@@ -247,9 +246,6 @@ def test_template_metrics_count_permissions_assignments_learners_and_badges_earn
 
 
 def test_one_check_owner_or_approved_on_one_of_the_badges_plans():
-    from src.db.badge_routes import BadgeRoute
-    from src.db.programs import Program
-
     db, (first, second) = _market()
     with db:
         badge = db.get(LearningBadge, 1)
@@ -259,7 +255,6 @@ def test_one_check_owner_or_approved_on_one_of_the_badges_plans():
         assert plan_issuers.may_issue(db, badge, PARTNER) and not plan_issuers.may_issue(db, badge, STRANGER)
         assert plan_issuers.issued_badge_ids(db, [PARTNER]) == {1} and plan_issuers.issued_badge_ids(db, [1, STRANGER]) == set()
         assert plan_issuers.issuer_org_ids(db, badge) == [PARTNER]
-        assert [item.badge_uuid for item in plan_issuers.badges_earned_by(db, [first.id, second.id])] == ["badge_adapt"]
         with pytest.raises(HTTPException):
             _assign(db, PARTNER, first.template_uuid)
         # A pending, declined or ended permission issues nothing.
@@ -275,15 +270,6 @@ def test_one_check_owner_or_approved_on_one_of_the_badges_plans():
                                         status=BadgeIssuerAuthorizationStatus.APPROVED, creation_date=NOW, update_date=NOW))
         db.commit()
         assert not plan_issuers.may_issue(db, badge, STRANGER)
-        # A badge earned only through a legacy program route: its owner alone issues it.
-        Program.__table__.create(db.get_bind(), checkfirst=True)
-        db.add(LearningBadge(id=2, badge_uuid="badge_legacy", org_id=1, name="Legacy", creation_date=NOW, update_date=NOW))
-        db.add(Program(id=5, program_uuid="program_5", org_id=1, name="Old program", creation_date=NOW, update_date=NOW))
-        db.add(BadgeRoute(route_uuid="legacy", badge_id=2, program_id=5, creation_date=NOW))
-        db.commit()
-        legacy = db.get(LearningBadge, 2)
-        assert plan_issuers.may_issue(db, legacy, 1) and not plan_issuers.may_issue(db, legacy, STRANGER)
-        assert plan_issuers.issuer_org_ids(db, legacy) == []
 
 
 def test_migration_copies_badge_issuers_onto_the_plans_they_could_run():

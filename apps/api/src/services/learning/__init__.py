@@ -6,7 +6,7 @@ re-exports the names other modules use as `learning.X`.
 """
 
 from src.services.learning.access_rules import (  # noqa: F401
-    _now, _clean_uuid, _get_org, _get_owner_org, _get_org_config, _require_user, _require_org_admin, _require_org_staff,
+    _now, _clean_uuid, _get_org, _get_org_config, _require_user, _require_org_admin, _require_org_staff,
 )
 from src.services.learning.lookups import (  # noqa: F401
     VERSIONED_BADGE_FIELDS, _badge_definition, _get_badge, _get_badge_version, _version_summary,

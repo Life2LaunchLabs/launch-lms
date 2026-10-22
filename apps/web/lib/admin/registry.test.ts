@@ -49,11 +49,10 @@ test('a teacher (staff without admin rights) gets Home, Plans (all five tabs) an
   assert.deepEqual(ids(ADMIN_HOME_WIDGETS.filter((widget) => adminVisibility(widget.requires, access({ rights: [STAFF] })).state !== 'hidden')), ['waiting', 'today', 'messages', 'attention'])
 })
 
-test('an admin gets every tab in job order; legacy content is hidden and gated pages show what to request', () => {
+test('an admin gets every tab in job order and gated pages show what to request', () => {
   const tabs = visibleAdminTabs(access({ rights: ADMIN_RIGHTS, features: FULL_FEATURES }))
   assert.deepEqual(ids(tabs), ['home', 'plans', 'people', 'insights', 'content', 'organization'])
   const content = tabs.find((tab) => tab.id === 'content')!
-  // Podcasts and playgrounds are legacy: nothing to request, so they are hidden.
   assert.deepEqual(ids(content.children!), ['resources'])
   assert.deepEqual(content.visibility, { state: 'locked', request: { type: 'partner_application', value: 'resource_partner' } })
   const organization = tabs.find((tab) => tab.id === 'organization')!
@@ -77,7 +76,7 @@ test('labels translate through their existing keys and fall back to English', ()
 
 test('an enabled feature opens, and one nobody can turn on is hidden rather than requested', () => {
   assert.deepEqual(adminVisibility({ feature: 'groups' }, access({ features: FULL_FEATURES })), { state: 'open' })
-  assert.deepEqual(adminVisibility({ feature: 'communities' }, access({ features: FULL_FEATURES })), { state: 'hidden' })
+  assert.deepEqual(adminVisibility({ feature: 'not_a_feature' }, access({ features: FULL_FEATURES })), { state: 'hidden' })
   assert.equal(featureUnlock(on), null)
 })
 

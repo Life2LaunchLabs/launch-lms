@@ -64,9 +64,9 @@ def sync_launch_template(db: Session) -> GoalTemplate:
     """Create or update the launch template and its activity from launch_activity.json."""
     from src.services.goals.document import DOCUMENT_FORMAT, DOCUMENT_FORMAT_VERSION, default_roles
     from src.services.goals.starter import _sync_activity
-    from src.services.learning.access_rules import _get_owner_org
+    from src.services.orgs.owner import require_owner_org
 
-    org = _get_owner_org(db)
+    org = require_owner_org(db)
     data = launch_data()
     now = _now()
     template = db.exec(select(GoalTemplate).where(GoalTemplate.system_type == LAUNCH)).first()

@@ -152,19 +152,11 @@ export const routePaths = {
     organization: (orgSlug: string) => `/organization/${orgSlug}`,
     search: (query?: string) => withQuery('/discover', { q: query }),
     discover: (params?: { q?: string; type?: string; resource_types?: string; saved?: string }) => withQuery('/discover', params),
-    boards: () => '/boards',
-    communities: () => '/communities',
     resources: () => '/resources',
-    podcasts: () => '/podcasts',
     plans: () => '/plans',
     plan: (planSlug: string) => `/plans/${encodeURIComponent(planSlug)}`,
     badgeDetail: (badgeUuid: string) => `/badges/${badgeUuid}`,
     resource: (resourceUuid: string) => `/discover/resources/${encodeURIComponent(resourceUuid.replace(/^resource_/, ''))}`,
-    podcast: (podcastUuid: string) => `/podcast/${podcastUuid}`,
-    playground: (playgroundUuid: string) => `/playground/${playgroundUuid}`,
-    community: (communityUuid: string) => `/community/${communityUuid}`,
-    communityDiscussion: (communityUuid: string, discussionUuid: string) =>
-      `/community/${communityUuid}/discussion/${discussionUuid}`,
     user: (username: string) => `/user/${username}`,
     userProjects: (username: string) => `/user/${username}/projects`,
     userProjectDetail: (username: string, slug: string) => `/user/${username}/projects/${encodeURIComponent(slug)}`,
@@ -238,9 +230,6 @@ export const routePaths = {
         resources: () => '/admin/resources',
         resourceTags: () => '/admin/resources/tags',
         resourceChannel: (channelUuid: string, subpage: string) => `/admin/resources/${channelUuid}/${subpage}`,
-        podcasts: () => '/admin/podcasts',
-        podcast: (podcastUuid: string, subpage: string) => `/admin/podcasts/podcast/${podcastUuid}/${subpage}`,
-        playgrounds: () => '/admin/playgrounds',
       },
       organization: {
         general: () => '/admin/org/settings/general',
@@ -256,10 +245,5 @@ export const routePaths = {
         configuration: () => '/admin/payments/configuration',
       },
     },
-  },
-  editor: {
-    board: (boardUuid: string) => `/board/${boardUuid}`,
-    playgroundEdit: (playgroundUuid: string) =>
-      `/editor/playground/${playgroundUuid}/edit`,
   },
 } as const

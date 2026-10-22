@@ -22,7 +22,7 @@ from datetime import date, datetime, timedelta
 from sqlmodel import Session, select
 
 from src.db.goals import DONE_STEP_STATUSES, Goal, GoalStage, GoalStatus, GoalStep, StepEntry, StepProgress, StepStatus
-from src.db.planning import PlanWeeklyFocus
+from src.db.weekly_focus import PlanWeeklyFocus
 from src.services.goals.availability import availability, ordered_steps
 from src.services.goals.schedule import stage_ends
 

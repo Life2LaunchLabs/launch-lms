@@ -1,7 +1,7 @@
 """Live plans as goals.
 
 Plan becomes goal, PlanPhase goal_stage, each PlanObjective one or more typed
-goal_steps (the rules in ``goals.legacy``), and PlanObjectiveProgress a
+goal_steps (the rules in ``migration.objectives``), and PlanObjectiveProgress a
 step_progress per step, with field values as step entries or a typed
 submission. Uuids carry over (an objective's first step keeps its uuid), so
 This week's focus lists, links and activity logs keep pointing at the same
@@ -32,23 +32,20 @@ from src.db.goals import (
     StepProgress,
     StepStatus,
 )
-from src.db.learning import LearningBadge, LearningRun
+from src.db.learning import LearningBadge
 from src.db.media import MediaAsset
-from src.db.planning import (
+from src.services.goals.migration.legacy_tables import (
+    LEARNING_RUN,
+    REKEYED,
+    REQUIREMENT_SOURCE,
+    Objective,
     Plan,
-    PlanActivity,
-    PlanAttachment,
-    PlanCollaborator,
-    PlanCollaboratorRequest,
-    PlanInvitation,
     PlanObjective,
     PlanObjectiveProgress,
     PlanPhase,
-    PlanRole,
+    Program,
 )
-from src.db.programs import Objective, Program
-from src.db.requirements import RequirementAttainmentSource
-from src.services.goals.legacy import STATUS_MAP, StepSpec, convert_objective, objective_from_plan
+from src.services.goals.migration.objectives import STATUS_MAP, StepSpec, convert_objective, objective_from_plan
 from src.services.goals.migration.documents import badge_exists, step_key
 from src.services.goals.migration.templates import TemplateMaps
 from src.services.goals.types import step_type
@@ -56,7 +53,8 @@ from src.services.goals.types import step_type
 PLAN_STATUS = {"pending": GoalStatus.PENDING, "active": GoalStatus.ACTIVE, "completed": GoalStatus.FINISHED, "archived": GoalStatus.ARCHIVED}
 # Statuses that belonged to the whole objective, so every step it split into takes them.
 WHOLE_OBJECTIVE = {"completed", "excused", "submitted", "changes_requested"}
-REKEYED = (PlanRole, PlanCollaborator, PlanInvitation, PlanCollaboratorRequest, PlanAttachment, PlanActivity)
+# Where the plan code kept which plans had already greeted their learner.
+CELEBRATED_PLANS_KEY = "celebrated_plans"
 
 
 @dataclass
@@ -77,7 +75,6 @@ def _value(item) -> str:
 def _celebrated_at(db: Session, plan: Plan):
     """Finished plans that already greeted their learner stay greeted."""
     from src.db.users import User
-    from src.services.plan_celebration import CELEBRATED_PLANS_KEY
 
     user = db.get(User, plan.subject_user_id) if plan.subject_user_id else None
     seen = ((user.details or {}).get(CELEBRATED_PLANS_KEY) or []) if user else []
@@ -277,16 +274,15 @@ def migrate_plan(db: Session, plan: Plan, maps: TemplateMaps, template_keys: dic
         if legacy:
             progress = _progress(db, goal, steps, legacy, counts)
             counts.requirement_sources += db.execute(
-                update(RequirementAttainmentSource).where(RequirementAttainmentSource.plan_objective_progress_id == legacy.id)  # type: ignore[arg-type]
-                .values(step_progress_id=progress[-1].id)
+                update(REQUIREMENT_SOURCE).where(REQUIREMENT_SOURCE.c.plan_objective_progress_id == legacy.id).values(step_progress_id=progress[-1].id)
             ).rowcount or 0
         activity_step = next((step for step, _ in steps if step.type == "activity"), None)
         if activity_step:
             counts.runs += db.execute(
-                update(LearningRun).where(LearningRun.plan_objective_id == objective.id).values(goal_id=goal.id, goal_step_id=activity_step.id)  # type: ignore[arg-type]
+                update(LEARNING_RUN).where(LEARNING_RUN.c.plan_objective_id == objective.id).values(goal_id=goal.id, goal_step_id=activity_step.id)
             ).rowcount or 0
-    for model in REKEYED:
-        db.execute(update(model).where(model.plan_id == plan.id).values(goal_id=goal.id))  # type: ignore[attr-defined]
+    for table in REKEYED:
+        db.execute(update(table).where(table.c.plan_id == plan.id).values(goal_id=goal.id))
     db.flush()
     counts.goals += 1
     return goal

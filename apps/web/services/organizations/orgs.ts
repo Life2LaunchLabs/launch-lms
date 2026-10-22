@@ -1,6 +1,5 @@
 import { getAPIUrl } from '@services/config/config'
 import {
-  RequestBodyFormWithAuthHeader,
   RequestBodyWithAuthHeader,
   errorHandling,
   getResponseMetadata,
@@ -15,18 +14,6 @@ export async function createNewOrganization(body: any, access_token: string) {
   const result = await fetch(
     `${getAPIUrl()}orgs/`,
     RequestBodyWithAuthHeader('POST', body, null, access_token)
-  )
-  const res = await errorHandling(result)
-  return res
-}
-
-export async function deleteOrganizationFromBackend(
-  org_id: any,
-  access_token: string
-) {
-  const result = await fetch(
-    `${getAPIUrl()}orgs/${org_id}`,
-    RequestBodyWithAuthHeader('DELETE', null, null, access_token)
   )
   const res = await errorHandling(result)
   return res
@@ -76,18 +63,6 @@ export async function getOrganizationContextInfoWithoutCredentials(
   return res
 }
 
-export function getOrganizationContextInfoNoAsync(
-  org_slug: any,
-  next: any,
-  access_token: string
-) {
-  const result = fetch(
-    `${getAPIUrl()}orgs/slug/${org_slug}`,
-    RequestBodyWithAuthHeader('GET', null, next, access_token)
-  )
-  return result
-}
-
 export async function updateUserRole(
   org_id: any,
   user_id: any,
@@ -97,35 +72,6 @@ export async function updateUserRole(
   const result = await fetch(
     `${getAPIUrl()}orgs/${org_id}/users/${user_id}/role/${role_uuid}`,
     RequestBodyWithAuthHeader('PUT', null, null, access_token)
-  )
-  const res = await getResponseMetadata(result)
-  return res
-}
-
-export async function updateOrgLanding(
-  org_id: any,
-  landing_object: any,
-  access_token: string
-) {
-  const result = await fetch(
-    `${getAPIUrl()}orgs/${org_id}/landing`,
-    RequestBodyWithAuthHeader('PUT', landing_object, null, access_token)
-  )
-  const res = await getResponseMetadata(result)
-  return res
-}
-
-export async function uploadLandingContent(
-  org_uuid: any,
-  content_file: File,
-  access_token: string
-) {
-  const formData = new FormData()
-  formData.append('content_file', content_file)
-  
-  const result = await fetch(
-    `${getAPIUrl()}orgs/${org_uuid}/landing/content`,
-    RequestBodyFormWithAuthHeader('POST', formData, null, access_token)
   )
   const res = await getResponseMetadata(result)
   return res

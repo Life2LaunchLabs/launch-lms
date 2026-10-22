@@ -1,8 +1,7 @@
 """Sharing a goal: invitations, collaborator requests and members.
 
-Ported from ``services/planning.py`` and ``services/plan_sharing.py``, keyed by
-``goal_id`` on the shared plan collaboration tables. People and roles live in
-``sharing_roles``.
+Keyed by ``goal_id`` on the shared collaboration tables (``db/goal_sharing``).
+People and roles live in ``sharing_roles``.
 """
 
 from __future__ import annotations
@@ -16,7 +15,7 @@ from sqlmodel import Session, col, select
 from src.db.goals import Goal, GoalStatus
 from src.db.messages import InboxMessage
 from src.db.organizations import Organization
-from src.db.planning import (
+from src.db.goal_sharing import (
     PlanCollaborator,
     PlanCollaboratorRequest,
     PlanCollaboratorRequestCreate,
