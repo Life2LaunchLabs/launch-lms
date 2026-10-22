@@ -16,7 +16,7 @@ from fastapi import HTTPException
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlmodel import Session
 
-from src.db.planning import ALL_CAPABILITIES, DEFAULT_ROLE_DEFINITIONS
+from src.db.goal_sharing import ALL_CAPABILITIES, DEFAULT_ROLE_DEFINITIONS
 from src.services.goals.types import step_type
 from src.services.goals.types.routine import upgrade_config as upgrade_routine
 

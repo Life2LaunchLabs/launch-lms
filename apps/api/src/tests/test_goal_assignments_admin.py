@@ -20,7 +20,7 @@ from src.db.goal_templates import (
 )
 from src.db.goals import Goal, GoalAssignment, GoalStage, GoalStep, StepEntry, StepProgress, StepStatus, StepSubmission
 from src.db.learning import LearningPage, LearningPageType, LearningResponseAttempt, LearningRun
-from src.db.planning import PlanCollaborator
+from src.db.goal_sharing import PlanCollaborator
 from src.db.user_organizations import UserOrganization
 from src.db.usergroup_user import UserGroupUser
 from src.db.users import User

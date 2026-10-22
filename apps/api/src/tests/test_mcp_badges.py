@@ -148,7 +148,7 @@ def test_save_activity_refuses_to_delete_pages_learners_answered(mcp):  # noqa: 
             if block.get("type") == "button":
                 block["content"].pop("revisit_page_uuid", None)
     page = session.exec(select(LearningPage).where(LearningPage.page_uuid == removed["page_uuid"])).one()
-    run = LearningRun(run_uuid="run_1", activity_id=50, org_id=1, plan_id=1, plan_objective_id=1, user_id=alice.id)
+    run = LearningRun(run_uuid="run_1", activity_id=50, org_id=1, user_id=alice.id)
     for model in (LearningRun, LearningPageProgress):
         model.__table__.create(session.get_bind(), checkfirst=True)
     session.add(run)

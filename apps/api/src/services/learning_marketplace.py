@@ -21,7 +21,7 @@ from src.db.learning import (
     LearningBadgeStatus,
 )
 from src.db.organizations import Organization
-from src.db.programs import Objective, Program, ProgramAssignment, ProgramObjective
+from src.db.goals import GoalAssignment, GoalTemplate
 from src.db.user_organizations import UserOrganization
 from src.db.users import AnonymousUser, PublicUser, User
 from src.security.access.access import ensure_feature
@@ -155,7 +155,7 @@ async def list_eligible_issuers(
     """Issuers the current user can see for this badge, the creator first when it issues."""
     badge = _get_badge(db_session, badge_uuid)
     user_id = current_user.id if isinstance(current_user, PublicUser) else None
-    options = issuers.issuer_options(db_session, badge, user_id, set())["issuers"]
+    options = issuers.issuer_options(db_session, badge, user_id)["issuers"]
     return [{**option, "via_link": option["request_status"] == BadgeIssuerLearnerLinkStatus.ACCEPTED} for option in options]
 
 
@@ -243,7 +243,7 @@ async def request_learner_support(
     issuing = dict(issuers.active_issuers(db_session, badge))
     access = issuing.get(data.issuer_org_id)
     if access == "open":
-        link = issuers.validate_issuer_start(db_session, badge, data.issuer_org_id, learner.id, set())
+        link = issuers.validate_issuer_start(db_session, badge, data.issuer_org_id, learner.id)
         return _serialize_learner_link(db_session, link) if link else {"status": BadgeIssuerLearnerLinkStatus.ACCEPTED, "active": True}
     # Requests go to an issuer running one of the badge's plans by request.
     if access != "request":
@@ -464,7 +464,7 @@ async def issuer_badge_metrics(
     current_user: PublicUser | AnonymousUser,
     db_session: Session,
 ) -> dict:
-    """Issuance and program usage for one authorized issuer and badge."""
+    """Issuance and goal template usage for one authorized issuer and badge."""
     from src.db.learning import LearningBadgeAward
     _require_org_staff(db_session, current_user, org_id)  # a read: staff see it on the badge page too
     badge = _get_badge(db_session, badge_uuid)
@@ -477,33 +477,32 @@ async def issuer_badge_metrics(
             LearningBadgeAward.issuing_org_id == org_id,
         )
     ).all()
-    programs = db_session.exec(
-        select(Program)
-        .join(ProgramObjective, ProgramObjective.program_id == Program.id)
-        .join(Objective, Objective.id == ProgramObjective.objective_id)
-        .where(Program.org_id == org_id, Objective.badge_id == badge.id)
-        .distinct()
-        .order_by(Program.name)
-    ).all()
-    program_ids = [program.id or 0 for program in programs]
-    assignment_counts = {program_id: 0 for program_id in program_ids}
-    if program_ids:
-        for assignment in db_session.exec(
-            select(ProgramAssignment).where(ProgramAssignment.program_id.in_(program_ids))  # type: ignore
+    from src.services.goals.document import iter_steps
+
+    templates = [
+        template for template in db_session.exec(
+            select(GoalTemplate).where(GoalTemplate.org_id == org_id).order_by(GoalTemplate.title)  # type: ignore[arg-type]
+        ).all()
+        if any(step.get("type") == "badge" and (step.get("config") or {}).get("badge_uuid") == badge.badge_uuid for _, step in iter_steps(template.document or {}))
+    ]
+    assignment_counts: dict[int, int] = {}
+    if templates:
+        for template_id in db_session.exec(
+            select(GoalAssignment.template_id).where(GoalAssignment.template_id.in_([template.id for template in templates]))  # type: ignore[union-attr]
         ).all():
-            assignment_counts[assignment.program_id] = assignment_counts.get(assignment.program_id, 0) + 1
+            assignment_counts[template_id] = assignment_counts.get(template_id, 0) + 1
 
     return {
         "learner_access": issuers.issuer_access(db_session, badge, org_id),
         "plans": plan_access.badge_plans(db_session, badge, org_id),
         "issued_count": len(awards),
-        "programs": [
+        "templates": [
             {
-                "program_uuid": program.program_uuid,
-                "name": program.name,
-                "status": program.status,
-                "assignment_count": assignment_counts.get(program.id or 0, 0),
+                "template_uuid": template.template_uuid,
+                "title": template.title,
+                "status": template.status,
+                "assignment_count": assignment_counts.get(template.id or 0, 0),
             }
-            for program in programs
+            for template in templates
         ],
     }

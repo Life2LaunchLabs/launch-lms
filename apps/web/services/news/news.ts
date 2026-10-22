@@ -36,22 +36,6 @@ export type NewsArticleInput = {
 
 export type NewsArticleUpdate = Partial<NewsArticleInput>
 
-export async function getPublishedNewsArticles(orgId: number) {
-  const result: any = await fetch(
-    `${getAPIUrl()}news/org/${orgId}`,
-    RequestBodyWithAuthHeader('GET', null, null, undefined)
-  )
-  return errorHandling(result) as Promise<NewsArticle[]>
-}
-
-export async function getPublishedNewsArticle(orgId: number, slug: string) {
-  const result: any = await fetch(
-    `${getAPIUrl()}news/org/${orgId}/${encodeURIComponent(slug)}`,
-    RequestBodyWithAuthHeader('GET', null, null, undefined)
-  )
-  return errorHandling(result) as Promise<NewsArticle>
-}
-
 export async function getAdminNewsArticles(orgId: number, accessToken?: string, query?: string) {
   const search = query ? `?query=${encodeURIComponent(query)}` : ''
   const result: any = await fetch(

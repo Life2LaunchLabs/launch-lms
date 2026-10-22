@@ -64,7 +64,7 @@ export type LandingQuickstartFeature =
   | 'resources';
 
 export interface LandingQuickstartItem {
-  type: 'feature' | 'collection' | 'community' | 'resource-channel';
+  type: 'feature' | 'collection' | 'resource-channel';
   feature?: LandingQuickstartFeature;
   target_uuid?: string;
 }

@@ -11,7 +11,7 @@ export interface RequirementNode { node_uuid: string; parent_node_uuid?: string 
 export interface RequirementFramework { framework_uuid: string; name: string; nodes?: RequirementNode[] }
 
 // Requirement frameworks keep their own endpoint; the same key as the Requirements tab, so the cache is shared.
-export const requirementFrameworksKey = (orgId: number) => `${getAPIUrl()}planning/requirements?org_id=${orgId}`
+export const requirementFrameworksKey = (orgId: number) => `${getAPIUrl()}requirement-frameworks?org_id=${orgId}`
 
 export function useRequirementFrameworks(orgId: number, token?: string) {
   const { data } = useSWR<RequirementFramework[]>(orgId && token ? requirementFrameworksKey(orgId) : null, (url: string) => swrFetcher(url, token), { revalidateOnFocus: false })

@@ -1,6 +1,6 @@
 """Coach's page context for goals: bounded, read-only facts about what the learner is looking at.
 
-Goal-model replacement for ``services/hub_context``. Browser hints say where the
+Browser hints say where the
 learner's attention is, never what they may see: every goal is checked against
 the goal's own permissions. Coach reads step answers and results (so it starts
 from what the learner found) but never reviewer or staff notes, entry files,

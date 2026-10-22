@@ -201,18 +201,6 @@ export async function updatePlatformOrgAccess(
   return getResponseMetadata(result)
 }
 
-export async function updatePlatformOrgConfig(
-  org_id: number,
-  config: Record<string, any>,
-  access_token: string
-) {
-  const result = await fetch(
-    `${getAPIUrl()}superadmin/organizations/${org_id}/config`,
-    RequestBodyWithAuthHeader('PUT', { config }, null, access_token)
-  )
-  return getResponseMetadata(result)
-}
-
 // ============================================================================
 // Plan requests
 // ============================================================================

@@ -12,7 +12,7 @@ from sqlmodel import Session, col, or_, select
 
 from src.db.conversations import Conversation, ConversationMember
 from src.db.goals import Goal
-from src.db.planning import PlanCollaboratorRequestCreate
+from src.db.goal_sharing import PlanCollaboratorRequestCreate
 from src.db.users import PublicUser, User
 from src.services.connect import people, workspace
 from src.services.goals import access

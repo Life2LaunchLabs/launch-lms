@@ -60,7 +60,7 @@ def _route_and_issuer(db: Session, badge: LearningBadge, user_id: int, candidate
         return candidates[0][0], candidates[0][1], int(issuer_org_id)
     fallback = None
     for route, template in candidates:
-        options = issuer_options(db, badge, user_id, set(), route)
+        options = issuer_options(db, badge, user_id, route)
         startable = [option["org"]["id"] for option in options["issuers"] if option["can_start"]]
         if issuer_org_id and int(issuer_org_id) in startable:
             return route, template, int(issuer_org_id)
@@ -95,7 +95,7 @@ def start_badge_goal(db: Session, user: PublicUser, badge: LearningBadge, templa
     if not badge_authority.may_run(db, badge, issuer, route):
         raise HTTPException(status_code=403, detail="This organization doesn't offer that way of earning the badge")
     version = templates.issuable_version(db, template)
-    link = validate_issuer_start(db, badge, issuer, user_id, set(), route)
+    link = validate_issuer_start(db, badge, issuer, user_id, route=route)
     goal = issue_goal(
         db, template, version, subject_user_id=user_id, owner_user_id=user_id, org_id=issuer, source=GoalSource.BADGE,
         badge_id=badge.id, title=badge.name, staff_user_ids=[int(item) for item in (link.staff_user_ids if link else [])], actor_user_id=user_id,

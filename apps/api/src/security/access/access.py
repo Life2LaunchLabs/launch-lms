@@ -2,9 +2,8 @@
 Org access: one answer to "may this organization use X, and how much?".
 
 Order: tier (or a running trial's tier, if higher), then partner program,
-then a superadmin grant. Legacy features are off whatever the config says.
-The owner organization (the install's first org) has every tier feature,
-partner program and request feature.
+then a superadmin grant. The owner organization (the install's first org)
+has every tier feature, partner program and request feature.
 """
 
 from dataclasses import dataclass, field
@@ -68,7 +67,7 @@ class OrgAccess:
         """The org had this feature on a trial that has ended: what it made stays readable, but it can't add or change."""
         spec = FEATURES.get(feature)
         trial_tier = (self.trial or {}).get("tier")
-        if spec is None or spec.off or not spec.tier or trial_tier not in TIERS or self.trial_running() or self.has(feature):
+        if spec is None or not spec.tier or trial_tier not in TIERS or self.trial_running() or self.has(feature):
             return False
         return tier_index(trial_tier) >= tier_index(spec.tier)
 
@@ -77,7 +76,7 @@ class OrgAccess:
 
     def has(self, feature: str) -> bool:
         spec = FEATURES.get(feature)
-        if spec is None or spec.off:
+        if spec is None:
             return False
         if self.owner:
             return True
@@ -99,7 +98,7 @@ class OrgAccess:
     def unlock(self, feature: str) -> dict | None:
         """What the org could request to turn a feature on, or None when nothing can."""
         spec = FEATURES.get(feature)
-        if spec is None or spec.off or self.has(feature):
+        if spec is None or self.has(feature):
             return None
         if spec.tier:
             return {"type": "tier_upgrade", "value": spec.tier}
@@ -124,8 +123,7 @@ class OrgAccess:
             "partners": sorted(self.partners),
             "features": {
                 key: {"enabled": self.has(key), "read_only": self.lapsed(key), "unlock": self.unlock(key)}
-                for key, spec in FEATURES.items()
-                if not spec.off
+                for key in FEATURES
             },
             "limits": {name: self.limit(name) for name in LIMITS},
             "trial": self.trial_dict(),
@@ -166,8 +164,6 @@ def orgs_with_feature(org_ids: set[int], feature: str, db_session: Session) -> s
 
 def unavailable(feature: str, access: OrgAccess | None = None) -> HTTPException:
     spec = FEATURES[feature]
-    if spec.off:
-        return HTTPException(status_code=403, detail=f"{spec.label} isn't available")
     unlock = access.unlock(feature) if access else None
     if access and access.lapsed(feature):
         detail = f"{spec.label} are read-only since your organization's Full trial ended. Request Full to keep using them"
@@ -296,15 +292,13 @@ READS = frozenset({"GET", "HEAD", "OPTIONS"})
 
 
 def require_feature(feature: str, read_when_lapsed: bool = False):
-    """Route dependency: 403 unless the request's org has the feature. Legacy features are refused outright.
+    """Route dependency: 403 unless the request's org has the feature.
 
     With `read_when_lapsed`, an org whose trial gave it the feature can still read (GET) after the trial ends.
     """
-    spec = FEATURES[feature]
+    FEATURES[feature]  # an unknown key fails at import, not per request
 
     async def dependency(request: Request, db_session: Session = Depends(get_db_session)) -> None:
-        if spec.off:
-            raise unavailable(feature)
         org_id = org_id_from_request(request, db_session)
         if org_id is None:
             raise HTTPException(status_code=400, detail="Organization ID is required")

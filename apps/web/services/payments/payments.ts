@@ -44,15 +44,6 @@ export async function getOrgCustomers(orgId: number, access_token: string) {
   return res;
 }
 
-export async function getUserEnrollments(orgId: number, access_token: string) {
-  const result = await secureFetch(
-    `${getAPIUrl()}payments/${encodeURIComponent(String(orgId))}/enrollments/mine`,
-    RequestBodyWithAuthHeader('GET', null, null, access_token)
-  );
-  const res = await errorHandling(result);
-  return res;
-}
-
 export async function getStripeOverview(orgId: number, access_token: string) {
   const result = await secureFetch(
     `${getAPIUrl()}payments/${encodeURIComponent(String(orgId))}/stripe/overview`,

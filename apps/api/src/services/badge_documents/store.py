@@ -31,7 +31,6 @@ from src.db.learning import (
     LearningBadgeVersionPublish,
     LearningBadgeVersionState,
 )
-from src.db.programs import Program
 from src.db.users import PublicUser
 from src.security.org_auth import require_org_admin
 from src.services.badge_documents.models import (
@@ -476,7 +475,3 @@ def set_badge_routes(db: Session, current_user: PublicUser, org_id: int, badge_u
     goal_badge_routes.set_routes(db, current_user, badge.badge_uuid, payload)
     return envelope(db, badge)
 
-
-def badge_routes_for_template(db: Session, program: Program) -> list[dict]:
-    rows = db.exec(select(BadgeRoute, LearningBadge).join(LearningBadge, LearningBadge.id == BadgeRoute.badge_id).where(BadgeRoute.program_id == program.id, LearningBadge.deleted_at.is_(None))).all()  # type: ignore[union-attr]
-    return [{"badge_uuid": badge.badge_uuid, "name": badge.name, "recommended": route.recommended} for route, badge in rows]

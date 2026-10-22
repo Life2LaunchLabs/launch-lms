@@ -5,11 +5,10 @@ from fastapi import HTTPException
 from sqlmodel import select
 
 from src.db.conversations import ConversationMember, DirectChatOpen
-from src.db.goal_comments import GoalComment
 from src.db.goals import Goal, GoalStatus, GoalStep, StepStatus, StepStatusChange
 from src.db.organizations import Organization
-from src.db.planning import PlanInvitation
-from src.services.connect import chats, workspace
+from src.db.goal_sharing import PlanInvitation
+from src.services.connect import chats, legacy_comments, workspace
 from src.services.goals import goals, sharing
 from src.services.messages import create_inbox_message
 from src.services.school import chats as school_chats, views
@@ -132,19 +131,21 @@ def test_tagging_someone_who_cant_see_the_plan_invites_them_as_a_commenter():
         assert chats.send(db, _user(OTHER), chat, "Looks good!")["sender"]["username"] == "sam"
 
 
-def test_older_comments_move_into_the_plans_chat_on_their_step():
+def test_the_migration_moves_older_comments_into_the_plans_chat_on_their_step():
     with _session() as db:
         goal = _plan(db)
         steps = _steps(db, goal)
-        first = GoalComment(comment_uuid="goal_comment_1", goal_id=goal.id, step_uuid=steps["Visit a campus"], author_user_id=ADMIN, body="Try the open day", creation_date=NOW, update_date=NOW)
-        db.add(first)
-        db.flush()
-        db.add(GoalComment(comment_uuid="goal_comment_2", goal_id=goal.id, parent_id=first.id, author_user_id=LEARNER, body="Will do", creation_date=NOW, update_date=NOW))
+        legacy_comments.GOALCOMMENT.create(db.connection())
+        insert = legacy_comments.GOALCOMMENT.insert()
+        db.connection().execute(insert, [
+            {"id": 1, "goal_id": goal.id, "step_uuid": steps["Visit a campus"], "parent_id": None, "author_user_id": ADMIN, "body": "Try the open day", "creation_date": NOW, "update_date": NOW},
+            {"id": 2, "goal_id": goal.id, "step_uuid": None, "parent_id": 1, "author_user_id": LEARNER, "body": "Will do", "creation_date": NOW, "update_date": NOW},
+        ])
+        assert legacy_comments.move_all(db) == 2
         db.commit()
         uuid = workspace.goal_chat(db, _user(LEARNER), goal.goal_uuid)["conversation_uuid"]
         on_step = chats.get_chat(db, _user(LEARNER), uuid, goal_uuid=goal.goal_uuid, step_uuid=steps["Visit a campus"])["messages"]
         assert [(item["sender"]["username"], item["preview"]) for item in on_step] == [("teacher", "Visit a campus Try the open day"), ("lee", "Visit a campus Will do")]
-        assert db.exec(select(GoalComment)).all() == []
 
 
 def test_a_learner_tagging_their_organization_elsewhere_shares_it_there():

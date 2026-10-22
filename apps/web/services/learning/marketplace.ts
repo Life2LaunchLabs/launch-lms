@@ -24,14 +24,6 @@ export async function browseMarketplaceBadges(
   return getResponseMetadata(result)
 }
 
-export async function getEligibleIssuers(badgeUuid: string, accessToken?: string, next?: any) {
-  const result = await fetch(
-    `${getAPIUrl()}badge-marketplace/badges/${badgeUuid}/eligible-issuers`,
-    RequestBodyWithAuthHeader('GET', null, next, accessToken)
-  )
-  return getResponseMetadata(result)
-}
-
 // open: learners start immediately · request: learners ask and the issuer accepts · invite: issuer adds learners
 export type LearnerAccess = 'open' | 'request' | 'invite'
 

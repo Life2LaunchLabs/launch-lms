@@ -9,6 +9,7 @@ from src.db.organizations import Organization
 from src.db.user_organizations import UserOrganization
 from src.db.users import User
 from src.services.demo.guide import try_titles, user_pages
+from src.services.orgs.owner import owner_org
 
 HANDLE = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$")
 # Top-level paths on the demo host that a handle must never shadow.
@@ -27,7 +28,7 @@ def members(db: Session) -> list[DemoMember]:
 
 def default_org(db: Session) -> Organization:
     """The main portal org; matches the instance router's default org."""
-    org = db.exec(select(Organization).order_by(Organization.id).limit(1)).first()
+    org = owner_org(db)
     if not org:
         raise HTTPException(503, "No organization exists yet.")
     return org

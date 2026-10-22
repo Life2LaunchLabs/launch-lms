@@ -23,7 +23,7 @@ function relativeLuminance(r: number, g: number, b: number): number {
 }
 
 /** Returns true when the background is light enough to need dark text */
-export function isLightColor(hex: string): boolean {
+function isLightColor(hex: string): boolean {
   const rgb = hexToRgb(hex)
   if (!rgb) return false
   return relativeLuminance(rgb.r, rgb.g, rgb.b) > 0.4

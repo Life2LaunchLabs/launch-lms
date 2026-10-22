@@ -5,9 +5,6 @@ import { OrgMenu } from '@components/Objects/Menus/OrgMenu'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { OrgJoinBanner, OrgJoinBannerProvider } from '@components/Objects/Banners/OrgJoinBanner'
-import { PodcastPlayerProvider } from '@components/Contexts/PodcastPlayerContext'
-import dynamic from 'next/dynamic'
-const PodcastPlayer = dynamic(() => import('@components/Objects/Podcasts/PodcastPlayer'), { ssr: false })
 import { PageViewTracker } from '@components/Analytics/PageViewTracker'
 import { usePathname } from 'next/navigation'
 import { GuestHeader } from '@components/Objects/Menus/GuestHeader'
@@ -116,13 +113,10 @@ export default function RootLayout(
   return (
     <>
       <OrgJoinBannerProvider>
-        <PodcastPlayerProvider>
-          {!focused ? <><OperationsSurface /><CandidateExperience /></> : null}
-          {session?.status === 'authenticated' ? <HubShell key={`${org?.id}:${session?.data?.user?.id}`} orgslug={params?.orgslug} orgId={org?.id} focused={focused}>
+        {!focused ? <><OperationsSurface /><CandidateExperience /></> : null}
+        {session?.status === 'authenticated' ? <HubShell key={`${org?.id}:${session?.data?.user?.id}`} orgslug={params?.orgslug} orgId={org?.id} focused={focused}>
             <LayoutContent orgslug={params?.orgslug}>{children}</LayoutContent>
           </HubShell> : <LayoutContent orgslug={params?.orgslug}>{children}</LayoutContent>}
-          {!focused ? <PodcastPlayer /> : null}
-        </PodcastPlayerProvider>
       </OrgJoinBannerProvider>
     </>
   )

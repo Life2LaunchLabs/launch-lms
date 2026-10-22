@@ -121,13 +121,3 @@ class RoleRead(RoleBase):
     creation_date: str
     update_date: str
 
-
-class RoleCreate(RoleBase):
-    org_id: int | None = Field(default=None, foreign_key="organization.id")
-
-
-class RoleUpdate(SQLModel):
-    role_id: int = Field(default=None, foreign_key="role.id")
-    name: str | None = None
-    description: str | None = None
-    rights: Rights | dict | None = Field(default_factory=dict, sa_column=Column(JSON))

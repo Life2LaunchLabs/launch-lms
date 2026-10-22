@@ -8,7 +8,7 @@ from sqlmodel import Session, select
 from src.db.organizations import Organization
 from src.db.usergroup_resources import UserGroupResource
 from src.db.learning import LearningBadge, LearningBadgeStatus
-from src.db.programs import ProgramAssignment
+from src.db.goals import GoalAssignment
 from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup, UserGroupCreate, UserGroupRead, UserGroupUpdate
 from src.db.users import (
@@ -62,21 +62,9 @@ async def _validate_resource_exists_and_belongs_to_org(
         from src.db.learning import LearningBadge
         statement = select(LearningBadge).where(LearningBadge.badge_uuid == resource_uuid)
         resource = db_session.exec(statement).first()
-    elif config.resource_type == "podcasts":
-        from src.db.podcasts.podcasts import Podcast
-        statement = select(Podcast).where(Podcast.podcast_uuid == resource_uuid)
-        resource = db_session.exec(statement).first()
-    elif config.resource_type == "communities":
-        from src.db.communities.communities import Community
-        statement = select(Community).where(Community.community_uuid == resource_uuid)
-        resource = db_session.exec(statement).first()
     elif config.resource_type == "badge_collections":
         from src.db.learning import BadgeCollection
         statement = select(BadgeCollection).where(BadgeCollection.collection_uuid == resource_uuid)
-        resource = db_session.exec(statement).first()
-    elif config.resource_type == "boards":
-        from src.db.boards import Board
-        statement = select(Board).where(Board.board_uuid == resource_uuid)
         resource = db_session.exec(statement).first()
     elif config.resource_type == "resources":
         from src.db.resources import Resource
@@ -272,10 +260,10 @@ async def read_usergroup_overview(
     for membership in memberships:
         member_counts[membership.usergroup_id] = member_counts.get(membership.usergroup_id, 0) + 1
 
-    assignments = db_session.exec(select(ProgramAssignment).where(
-        ProgramAssignment.org_id == org_id,
-        ProgramAssignment.usergroup_id.in_(group_ids),  # type: ignore[union-attr]
-        ProgramAssignment.active == True,  # noqa: E712
+    assignments = db_session.exec(select(GoalAssignment).where(
+        GoalAssignment.org_id == org_id,
+        GoalAssignment.usergroup_id.in_(group_ids),  # type: ignore[union-attr]
+        GoalAssignment.active == True,  # noqa: E712
     )).all()
     active_group_ids = {assignment.usergroup_id for assignment in assignments}
     assigned_group_ids = {

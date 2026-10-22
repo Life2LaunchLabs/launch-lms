@@ -13,13 +13,8 @@ interface AuthenticatedClientElementProps {
   | 'learning_activities'
   | 'users'
   | 'organizations'
-  | 'communities'
   | 'resources'
   | 'resource_channels'
-  | 'discussions'
-  | 'podcasts'
-  | 'boards'
-  | 'playgrounds'
   action?: 'create' | 'update' | 'delete' | 'read'
 }
 

@@ -120,6 +120,17 @@ def _launch_ready_state(user_id: int, db_session: Session) -> dict:
     return starter_checklist(db_session, ensure_starter_goal(db_session, user_id))
 
 
+def _save(portfolio: Portfolio, db_session: Session, now: str | None = None) -> None:
+    """Bump the portfolio's revision and commit; portfolio steps the change now satisfies finish."""
+    from src.services.goals.completion import on_portfolio_changed
+
+    portfolio.revision += 1
+    portfolio.update_date = now or _now()
+    db_session.add(portfolio)
+    db_session.commit()
+    on_portfolio_changed(db_session, int(portfolio.user_id))
+
+
 def get_or_create_portfolio(current_user: PublicUser, db_session: Session) -> Portfolio:
     if isinstance(current_user, AnonymousUser):
         raise HTTPException(status_code=401, detail="Authentication required")
@@ -611,10 +622,7 @@ def update_featured_badges(
         **(portfolio.theme_settings or {}),
         "featured_badge_uuids": requested,
     }
-    portfolio.revision += 1
-    portfolio.update_date = _now()
-    db_session.add(portfolio)
-    db_session.commit()
+    _save(portfolio, db_session)
     db_session.refresh(portfolio)
     return portfolio_shell(portfolio, db_session)
 
@@ -647,10 +655,7 @@ def update_featured_projects(
             db_session.add(item)
             changed = True
     if changed:
-        portfolio.revision += 1
-        portfolio.update_date = now
-        db_session.add(portfolio)
-        db_session.commit()
+        _save(portfolio, db_session, now)
         db_session.refresh(portfolio)
     return portfolio_shell(portfolio, db_session)
 
@@ -672,10 +677,7 @@ def update_featured_timeline(
         **(portfolio.theme_settings or {}),
         "featured_timeline_uuids": requested,
     }
-    portfolio.revision += 1
-    portfolio.update_date = _now()
-    db_session.add(portfolio)
-    db_session.commit()
+    _save(portfolio, db_session)
     db_session.refresh(portfolio)
     return portfolio_shell(portfolio, db_session)
 
@@ -706,10 +708,7 @@ def update_badge_visibility(
         **(portfolio.theme_settings or {}),
         "hidden_badge_uuids": hidden,
     }
-    portfolio.revision += 1
-    portfolio.update_date = _now()
-    db_session.add(portfolio)
-    db_session.commit()
+    _save(portfolio, db_session)
     db_session.refresh(portfolio)
     return portfolio_shell(portfolio, db_session)
 
@@ -740,10 +739,7 @@ def update_sections(
         section.enabled = requested_item.enabled
         section.update_date = now
         db_session.add(section)
-    portfolio.revision += 1
-    portfolio.update_date = now
-    db_session.add(portfolio)
-    db_session.commit()
+    _save(portfolio, db_session, now)
     db_session.refresh(portfolio)
     return portfolio_shell(portfolio, db_session)
 
@@ -781,10 +777,7 @@ def update_traits(
                 update_date=now,
             )
         )
-    portfolio.revision += 1
-    portfolio.update_date = now
-    db_session.add(portfolio)
-    db_session.commit()
+    _save(portfolio, db_session, now)
     db_session.refresh(portfolio)
     return portfolio_shell(portfolio, db_session)
 
@@ -814,10 +807,7 @@ def update_portfolio(
         setattr(portfolio, field, value)
     if payload.socials is not None:
         _replace_socials(portfolio, payload.socials, db_session)
-    portfolio.revision += 1
-    portfolio.update_date = _now()
-    db_session.add(portfolio)
-    db_session.commit()
+    _save(portfolio, db_session)
     db_session.refresh(portfolio)
     return portfolio_shell(portfolio, db_session)
 
@@ -988,10 +978,7 @@ def create_project(
     db_session.add(project)
     db_session.flush()
     _replace_blocks(project, payload.blocks, db_session)
-    portfolio.revision += 1
-    portfolio.update_date = now
-    db_session.add(portfolio)
-    db_session.commit()
+    _save(portfolio, db_session, now)
     db_session.refresh(project)
     return _project_dto(project, db_session)
 
@@ -1232,10 +1219,7 @@ def create_timeline(
     db_session.flush()
     _replace_timeline_blocks(entry, payload.blocks, db_session)
     _replace_timeline_project_links(entry, payload.project_links, portfolio, db_session)
-    portfolio.revision += 1
-    portfolio.update_date = now
-    db_session.add(portfolio)
-    db_session.commit()
+    _save(portfolio, db_session, now)
     db_session.refresh(entry)
     return _timeline_dto(entry, db_session)
 
@@ -1340,10 +1324,7 @@ def publish_portfolio(
     portfolio.published_at = now
     portfolio.first_published_at = portfolio.first_published_at or now
     portfolio.visibility = PortfolioVisibility.PUBLIC
-    portfolio.revision += 1
-    portfolio.update_date = now
-    db_session.add(portfolio)
-    db_session.commit()
+    _save(portfolio, db_session, now)
     db_session.refresh(portfolio)
     return portfolio_shell(portfolio, db_session)
 
@@ -1355,10 +1336,7 @@ def unpublish_portfolio(
     _check_revision(portfolio.revision, revision)
     portfolio.published_at = None
     portfolio.visibility = PortfolioVisibility.PRIVATE
-    portfolio.revision += 1
-    portfolio.update_date = _now()
-    db_session.add(portfolio)
-    db_session.commit()
+    _save(portfolio, db_session)
     db_session.refresh(portfolio)
     return portfolio_shell(portfolio, db_session)
 
@@ -1546,8 +1524,5 @@ def dismiss_legacy_import(current_user: PublicUser, db_session: Session) -> dict
         **(portfolio.theme_settings or {}),
         "legacy_import_dismissed": True,
     }
-    portfolio.revision += 1
-    portfolio.update_date = _now()
-    db_session.add(portfolio)
-    db_session.commit()
+    _save(portfolio, db_session)
     return get_owner_shell(current_user, db_session)

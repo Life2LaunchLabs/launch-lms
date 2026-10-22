@@ -95,12 +95,6 @@ def update_memory_settings(
     }
 
 
-def set_memory_enabled(db_session: Session, org_id: int, user_id: int, enabled: bool) -> dict:
-    return update_memory_settings(
-        db_session, org_id, user_id, enabled=enabled,
-    )
-
-
 def list_memories(db_session: Session, org_id: int, user_id: int) -> list[dict]:
     require_org_membership(user_id, org_id, db_session)
     rows = db_session.exec(select(HubMemory).where(

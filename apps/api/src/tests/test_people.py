@@ -7,7 +7,7 @@ from sqlmodel import select
 from src.db.conversations import ConversationMember, DirectChatOpen
 from src.db.goals import GoalAssignmentCreate, StepStatus
 from src.db.organization_config import MessagingPolicy, OrganizationConfig
-from src.db.planning import PlanCollaborator, PlanCollaboratorRequestCreate, PlanInvitation, PlanInvitationCreate, PlanRole
+from src.db.goal_sharing import PlanCollaborator, PlanCollaboratorRequestCreate, PlanInvitation, PlanInvitationCreate, PlanRole
 from src.db.roles import Role
 from src.db.school import GroupStaffSet, UserGroupStaff
 from src.db.user_organizations import UserOrganization

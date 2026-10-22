@@ -82,8 +82,6 @@ class Feature:
     partner: str | None = None
     # Granted only on request, by a superadmin.
     on_request: bool = False
-    # Switched off for everyone and awaiting removal.
-    off: bool = False
 
 
 FEATURES: dict[str, Feature] = {
@@ -99,15 +97,6 @@ FEATURES: dict[str, Feature] = {
         Feature("badge_publishing", "Badge publishing", partner="badge_publisher"),
         Feature("plan_publishing", "Plan publishing", partner="plan_publisher"),
         Feature("resource_publishing", "Resource publishing", partner="resource_partner"),
-        # Legacy: off for everyone, removed on the pruning branch.
-        Feature("ai", "AI features", off=True),
-        Feature("boards", "Boards", off=True),
-        Feature("playgrounds", "Playgrounds", off=True),
-        Feature("podcasts", "Podcasts", off=True),
-        Feature("communities", "Communities", off=True),
-        Feature("scorm", "SCORM", off=True),
-        Feature("custom_domains", "Custom domains", off=True),
-        Feature("custom_roles", "Custom roles", off=True),
     )
 }
 

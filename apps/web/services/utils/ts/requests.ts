@@ -62,20 +62,6 @@ export const RequestBodyWithAuthHeader = (
   return options
 }
 
-export const RequestBodyForm = (method: string, data: any, next: any) => {
-  let HeadersConfig = new Headers({})
-  let options: any = {
-    method: method,
-    headers: HeadersConfig,
-    redirect: 'follow',
-    credentials: 'include',
-    body: (method === 'POST' || method === 'PUT') ? JSON.stringify(data) : null,
-    // Next.js
-    next: next,
-  }
-  return options
-}
-
 export const RequestBodyFormWithAuthHeader = (
   method: string,
   data: any,

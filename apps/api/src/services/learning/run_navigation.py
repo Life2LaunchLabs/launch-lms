@@ -12,7 +12,7 @@ from src.db.learning import (
     LearningRun,
     LearningRunRead,
 )
-from src.db.planning import Plan
+from src.db.goals import Goal
 from src.db.portfolio import Portfolio, TimelineEntry
 from src.db.users import User
 from src.services.learning_flow import (
@@ -254,7 +254,7 @@ def _serialize_run(db_session: Session, run: LearningRun) -> LearningRunRead:
             # timeline_options, so standard question blocks can consume new domain
             # lists without adding one-off response shapes.
             started_badge_ids = set(db_session.exec(
-                select(Plan.source_badge_id).where(Plan.subject_user_id == user.id, Plan.source_badge_id.is_not(None))  # type: ignore[union-attr]
+                select(Goal.badge_id).where(Goal.subject_user_id == user.id, Goal.badge_id.is_not(None))  # type: ignore[union-attr]
             ).all())
             earned_badge_ids = {
                 item.badge_id
@@ -286,7 +286,6 @@ def _serialize_run(db_session: Session, run: LearningRun) -> LearningRunRead:
             ][:6]
     if run.goal_id:
         # Activities run inside a goal can show it: its title, why and numbers so far.
-        from src.db.goals import Goal
         from src.services.goals.story import goal_variables
 
         goal = db_session.get(Goal, run.goal_id)
@@ -298,8 +297,6 @@ def _serialize_run(db_session: Session, run: LearningRun) -> LearningRunRead:
         activity_id=run.activity_id,
         org_id=run.org_id,
         issuing_org_id=run.issuing_org_id,
-        plan_id=run.plan_id,
-        plan_objective_id=run.plan_objective_id,
         goal_id=run.goal_id,
         goal_step_id=run.goal_step_id,
         user_id=run.user_id,

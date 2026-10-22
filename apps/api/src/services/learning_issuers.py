@@ -68,12 +68,12 @@ def _org_summary(org: Organization) -> dict:
     return {"id": org.id, "org_uuid": org.org_uuid, "slug": org.slug, "name": org.name, "logo_image": org.logo_image}
 
 
-def issuer_options(db_session: Session, badge: LearningBadge, user_id: int | None, program_org_ids: set[int], route: BadgeRoute | None = None) -> dict:
+def issuer_options(db_session: Session, badge: LearningBadge, user_id: int | None, route: BadgeRoute | None = None) -> dict:
     """The issuers this learner can see, which one is preselected, and which can start now (on ``route``'s plan, when given)."""
     options = []
     for org_id, access in active_issuers(db_session, badge, route):
         link = find_link(db_session, int(badge.id), org_id, user_id)  # type: ignore[arg-type]
-        accepted = org_id in program_org_ids or bool(link and link.status == BadgeIssuerLearnerLinkStatus.ACCEPTED)
+        accepted = bool(link and link.status == BadgeIssuerLearnerLinkStatus.ACCEPTED)
         if access == "invite" and not accepted and not link:
             continue
         org = db_session.get(Organization, org_id)
@@ -108,15 +108,12 @@ def validate_issuer_start(
     badge: LearningBadge,
     issuing_org_id: int,
     user_id: int | None,
-    program_org_ids: set[int],
     route: BadgeRoute | None = None,
 ) -> BadgeIssuerLearnerLink | None:
     """Allow starting under an issuer the learner may use (on ``route``'s plan, when given), joining an open issuer on the way."""
     access = next((value for org_id, value in active_issuers(db_session, badge, route) if org_id == issuing_org_id), None)
     if access is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This organization is not issuing this badge")
-    if issuing_org_id in program_org_ids:
-        return None
     if user_id is None:
         if access == "open" and issuing_org_id == badge.org_id:
             return None

@@ -34,19 +34,12 @@ from src.routers import (
     orgs,
     operations_surface,
     plans,
-    plan_activities,
-    plan_admin,
-    plan_home,
-    plan_sharing,
-    planning,
-    template_versions,
     portfolio,
     portfolio_people,
     school,
-    programs,
+    requirement_frameworks,
     roles,
     search,
-    stream,
     usergroups,
     users,
 )
@@ -62,19 +55,8 @@ from src.routers import resources as resources_router_module
 from src.routers import sso as sso_router_module
 from src.routers import trending as trending_router_module
 from src.routers.audit_logs import router as audit_logs_router
-from src.routers.boards import boards as boards_router_module
-from src.routers.boards import boards_playground
-from src.routers.communities import communities as communities_router_module
-from src.routers.communities import discussions as discussions_router_module
-from src.routers.orgs import custom_domains
 from src.routers.orgs import branding as org_branding
 from src.routers.plan_requests import router as plan_requests_router
-from src.routers.playgrounds import playgrounds as playgrounds_router_module
-from src.routers.playgrounds import (
-    playgrounds_generator as playgrounds_generator_router,
-)
-from src.routers.podcasts import episodes as episodes_router_module
-from src.routers.podcasts import podcasts as podcasts_router_module
 from src.routers.superadmin import router as superadmin_router
 from src.routers.coach_admin import router as coach_admin_router
 from src.routers.coach_reports import router as coach_reports_router
@@ -124,45 +106,9 @@ v1_router.include_router(
     dependencies=[Depends(get_non_api_token_user)],
 )
 v1_router.include_router(
-    programs.router,
-    prefix="/programs",
-    tags=["programs"],
-    dependencies=[Depends(get_non_api_token_user)],
-)
-v1_router.include_router(
-    planning.router,
-    prefix="/planning",
-    tags=["planning"],
-    dependencies=[Depends(get_non_api_token_user)],
-)
-v1_router.include_router(
-    template_versions.router,
-    prefix="/planning",
-    tags=["planning"],
-    dependencies=[Depends(get_non_api_token_user)],
-)
-v1_router.include_router(
-    plan_admin.router,
-    prefix="/planning",
-    tags=["planning"],
-    dependencies=[Depends(get_non_api_token_user)],
-)
-v1_router.include_router(
-    plan_activities.router,
-    prefix="/planning",
-    tags=["planning"],
-    dependencies=[Depends(get_non_api_token_user)],
-)
-v1_router.include_router(
-    plan_home.router,
-    prefix="/planning",
-    tags=["planning"],
-    dependencies=[Depends(get_non_api_token_user)],
-)
-v1_router.include_router(
-    plan_sharing.router,
-    prefix="/planning",
-    tags=["planning"],
+    requirement_frameworks.router,
+    prefix="/requirement-frameworks",
+    tags=["requirements"],
     dependencies=[Depends(get_non_api_token_user)],
 )
 v1_router.include_router(auth.router, prefix="/auth", tags=["auth"])
@@ -239,24 +185,6 @@ v1_router.include_router(
     tags=["api-tokens"],
     dependencies=[Depends(get_non_api_token_user), Depends(require_feature("api_tokens"))]
 )
-v1_router.include_router(
-    custom_domains.router,
-    prefix="/orgs",
-    tags=["custom-domains"],
-    dependencies=[Depends(get_non_api_token_user), Depends(require_feature("custom_domains"))]
-)
-# Public domain resolution endpoint (no auth required)
-v1_router.include_router(
-    custom_domains.public_router,
-    prefix="/orgs",
-    tags=["custom-domains"],
-)
-# Internal domain listing endpoint (protected by internal key)
-v1_router.include_router(
-    custom_domains.internal_router,
-    prefix="/internal",
-    tags=["custom-domains-internal"],
-)
 v1_router.include_router(search.router, prefix="/search", tags=["search"])
 v1_router.include_router(badge_discover_router_module.router, prefix="/badges", tags=["learning-badges"])
 v1_router.include_router(badge_routes_router_module.router, prefix="/badges", tags=["learning-badges"])
@@ -275,12 +203,6 @@ v1_router.include_router(learning_documents_router_module.content_router, prefix
 v1_router.include_router(oauth_router_module.router, prefix="/oauth", tags=["oauth"])
 v1_router.include_router(mcp_router_module.router, prefix="/mcp", tags=["mcp"])
 v1_router.include_router(marketplace_router_module.router, prefix="/badge-marketplace", tags=["learning-badge-marketplace"])
-v1_router.include_router(
-    communities_router_module.router,
-    prefix="/communities",
-    tags=["communities"],
-    dependencies=[Depends(require_feature("communities"))]
-)
 v1_router.include_router(
     resources_router_module.router,
     prefix="/resources",
@@ -332,53 +254,6 @@ v1_router.include_router(
     prefix="/news",
     tags=["news"]
 )
-v1_router.include_router(
-    discussions_router_module.router,
-    tags=["discussions"],
-    dependencies=[Depends(require_feature("communities"))]
-)
-v1_router.include_router(
-    podcasts_router_module.router,
-    prefix="/podcasts",
-    tags=["podcasts"],
-    dependencies=[Depends(require_feature("podcasts"))],
-)
-v1_router.include_router(
-    episodes_router_module.router,
-    prefix="/podcasts",
-    tags=["podcasts", "episodes"],
-    dependencies=[Depends(require_feature("podcasts"))],
-)
-v1_router.include_router(
-    boards_router_module.router,
-    prefix="/boards",
-    tags=["boards"],
-    dependencies=[Depends(get_non_api_token_user), Depends(require_feature("boards"))]
-)
-v1_router.include_router(
-    boards_router_module.internal_router,
-    prefix="/boards",
-    tags=["boards-internal"],
-)
-v1_router.include_router(
-    boards_playground.router,
-    prefix="/boards",
-    tags=["boards", "boards-playground"],
-    dependencies=[Depends(get_non_api_token_user), Depends(require_feature("boards"))]
-)
-v1_router.include_router(
-    playgrounds_router_module.router,
-    prefix="/playgrounds",
-    tags=["playgrounds"],
-    dependencies=[Depends(get_non_api_token_user), Depends(require_feature("playgrounds"))]
-)
-v1_router.include_router(
-    playgrounds_generator_router.router,
-    prefix="/playgrounds",
-    tags=["playgrounds", "playgrounds-generator"],
-    dependencies=[Depends(get_non_api_token_user), Depends(require_feature("playgrounds"))]
-)
-
 v1_router.include_router(
     analytics_router_module.router,
     prefix="/analytics",
@@ -451,13 +326,6 @@ v1_router.include_router(
     dependencies=[Depends(get_non_api_token_user)]
 )
 
-# Video Streaming Routes
-v1_router.include_router(
-    stream.router,
-    prefix="/stream",
-    tags=["stream"],
-    dependencies=[Depends(get_non_api_token_user)]
-)
 
 v1_router.include_router(
     payments_router_module.router,

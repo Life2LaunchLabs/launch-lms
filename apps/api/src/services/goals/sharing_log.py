@@ -1,4 +1,4 @@
-"""A goal's activity log and attachments (ported from ``services/planning.py``). Comments are chat messages (services/connect/workspace.py)."""
+"""A goal's activity log and attachments. Comments are chat messages (services/connect/workspace.py)."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from sqlmodel import Session, select
 
 from src.db.goals import Goal, GoalOwnership
 from src.db.media import MediaAsset, MediaOwnerType
-from src.db.planning import PlanActivity, PlanAttachment, PlanAttachmentCreate
+from src.db.goal_sharing import PlanActivity, PlanAttachment, PlanAttachmentCreate
 from src.db.users import PublicUser
 from src.services.goals import access
 from src.services.goals.sharing_roles import _stamp, _value, user_summary

@@ -3,11 +3,11 @@ Local Content Files Router
 
 Serves static content files from the local filesystem with access control.
 Replaces the unauthenticated StaticFiles mount to enforce authorization
-on private podcast content while allowing generic content through.
+on content that needs it while allowing generic content through.
 
 SECURITY:
 - Org-level content (logos, branding) is always public
-- Podcast episode content for non-public podcasts requires auth
+- Media left from retired podcasts is never served
 """
 
 import os
@@ -16,10 +16,8 @@ from urllib.parse import unquote
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse
-from sqlmodel import Session, select
+from sqlmodel import Session
 from src.core.events.database import get_db_session
-from src.db.podcasts.podcasts import Podcast
-from src.db.user_organizations import UserOrganization
 from src.db.users import AnonymousUser, APITokenUser, PublicUser
 from src.security.auth import get_current_user
 
@@ -62,7 +60,7 @@ async def _check_content_access(
     Check if the user has access to the requested content.
 
     Path patterns:
-    - orgs/{uuid}/podcasts/{uuid}/episodes/{uuid}/...  → check podcast access
+    - orgs/{uuid}/podcasts/...                         → retired, never served
     - orgs/{uuid}/...                                  → org-level (public)
     """
     if db_session is None:
@@ -76,38 +74,9 @@ async def _check_content_access(
 
     parts = file_path.split('/')
 
-    # Podcast episode content: requires podcast to be public or user to be org member
-    if (
-        len(parts) >= 6
-        and parts[0] == 'orgs'
-        and parts[2] == 'podcasts'
-        and parts[4] == 'episodes'
-    ):
-        podcast_uuid = parts[3]
-        podcast = db_session.exec(
-            select(Podcast).where(Podcast.podcast_uuid == podcast_uuid)
-        ).first()
-        if not podcast:
-            raise HTTPException(status_code=403, detail="Access denied")
-        if podcast.public:
-            return  # Public podcast — allow anonymous
-        if isinstance(current_user, AnonymousUser):
-            raise HTTPException(status_code=401, detail="Authentication required")
-        # Verify API token is scoped to the correct org
-        if isinstance(current_user, APITokenUser):
-            if current_user.org_id != podcast.org_id:
-                raise HTTPException(status_code=403, detail="Access denied")
-            return
-        # Verify user belongs to the org that owns this podcast
-        membership = db_session.exec(
-            select(UserOrganization).where(
-                UserOrganization.user_id == current_user.id,
-                UserOrganization.org_id == podcast.org_id,
-            )
-        ).first()
-        if not membership:
-            raise HTTPException(status_code=403, detail="Access denied")
-        return
+    # Podcasts are retired: their leftover media is never served.
+    if len(parts) >= 3 and parts[0] == 'orgs' and parts[2] == 'podcasts':
+        raise HTTPException(status_code=404, detail="Not found")
 
     # Generic organization content is public.
     if len(parts) >= 2 and parts[0] == 'orgs':
@@ -158,7 +127,6 @@ async def serve_local_content(
     Serve content files from local filesystem with access control.
 
     SECURITY: Validates user access based on resource ownership.
-    Public podcasts are accessible to anonymous users.
     Private content requires authentication.
     """
     resolved = _validate_content_path(file_path)

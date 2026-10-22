@@ -154,21 +154,6 @@ def update_login_info(user: User, ip_address: str, db_session: Session) -> None:
     db_session.commit()
 
 
-def get_remaining_attempts(user: User) -> int:
-    """
-    Get the number of remaining login attempts before lockout.
-
-    Args:
-        user: User to check
-
-    Returns:
-        Number of remaining attempts
-    """
-    current_attempts = user.failed_login_attempts or 0
-    remaining = MAX_FAILED_ATTEMPTS - current_attempts
-    return max(0, remaining)
-
-
 def format_lockout_message(remaining_seconds: int) -> str:
     """
     Format a human-readable lockout message.

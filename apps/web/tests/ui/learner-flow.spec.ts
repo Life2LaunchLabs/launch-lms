@@ -15,22 +15,22 @@ async function capture(page: Page, info: TestInfo, name: string) {
 }
 
 async function freshFramework(page: Page, levels: any[] = []) {
-  const loaded = page.waitForResponse((response) => response.url().includes(`/planning/requirements/${fixture.framework_uuid}?`) && response.request().method() === 'GET')
+  const loaded = page.waitForResponse((response) => response.url().includes(`/requirement-frameworks/${fixture.framework_uuid}?`) && response.request().method() === 'GET')
   await page.goto(frameworkPath(fixture.framework_uuid, 'spec'))
   await assertActualApp(page)
   const response = await loaded
   const authorization = (await response.request().allHeaders()).authorization
-  const api = response.url().split(`/requirements/${fixture.framework_uuid}`)[0]
+  const api = response.url().split(`/requirement-frameworks/${fixture.framework_uuid}`)[0]
   const root = `root-${randomUUID()}`, domain = `domain-${randomUUID()}`, leaf = `leaf-${randomUUID()}`
   const nodes = [
     { node_uuid: root, code: 'HS.HECPS', title: 'Career Path Skills', metadata: { source: 'page 1' } },
     { node_uuid: domain, parent_node_uuid: root, code: 'HS.HECPS.D', title: 'Workforce Readiness' },
     { node_uuid: leaf, parent_node_uuid: domain, code: 'HS.HECPS.D.2', title: 'Resume and portfolio', metadata: { source: 'page 4' } },
   ]
-  const created = await page.request.post(`${api}/requirements`, { headers: { authorization }, data: { org_id: fixture.org_id, name: 'Imported framework browser test', source_metadata: { source_url: 'https://example.org/standards', requirement_levels: levels }, nodes } })
+  const created = await page.request.post(`${api}/requirement-frameworks`, { headers: { authorization }, data: { org_id: fixture.org_id, name: 'Imported framework browser test', source_metadata: { source_url: 'https://example.org/standards', requirement_levels: levels }, nodes } })
   expect(created.ok()).toBe(true)
   const framework = await created.json()
-  return { framework, nodes, authorization, url: `${api}/requirements/${framework.framework_uuid}?org_id=${fixture.org_id}` }
+  return { framework, nodes, authorization, url: `${api}/requirement-frameworks/${framework.framework_uuid}?org_id=${fixture.org_id}` }
 }
 
 test('framework.manual: existing hierarchy is editable and publish preserves supplied codes', async ({ page }, info) => {
@@ -83,7 +83,7 @@ test('framework.generated: deliberate level conversion can be canceled and gener
 
 test('framework.list: Requirements lists frameworks with coverage and opens coverage by plan', async ({ page }, info) => {
   test.setTimeout(60_000)
-  const listed = page.waitForResponse((response) => response.url().includes('/planning/requirements?') && response.url().includes('with_coverage=true') && response.request().method() === 'GET')
+  const listed = page.waitForResponse((response) => response.url().includes('/requirement-frameworks?') && response.url().includes('with_coverage=true') && response.request().method() === 'GET')
   await page.goto(`${orgPath}/admin/plans/requirements`)
   await assertActualApp(page)
   expect((await listed).ok()).toBe(true)

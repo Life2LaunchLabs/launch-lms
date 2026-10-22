@@ -2,14 +2,8 @@
 
 import type { ComponentType } from 'react'
 import Link from 'next/link'
-import {
-  Community,
-} from '@services/communities/communities'
 import { getUriWithOrg } from '@services/config/config'
-import {
-  getCommunityThumbnailMediaDirectory,
-  getResourceChannelThumbnailMediaDirectory,
-} from '@services/media/media'
+import { getResourceChannelThumbnailMediaDirectory } from '@services/media/media'
 import { ResourceChannel } from '@services/resources/resources'
 import {
   LandingQuickstartItem,
@@ -22,7 +16,6 @@ interface QuickstartSectionProps {
   items: LandingQuickstartItem[]
   orgslug: string
   orgUUID?: string
-  communities: Community[]
   resourceChannels: ResourceChannel[]
 }
 
@@ -46,7 +39,6 @@ function resolveQuickstartCard(
   item: LandingQuickstartItem,
   orgslug: string,
   orgUUID: string | undefined,
-  communities: Community[],
   resourceChannels: ResourceChannel[]
 ): ResolvedQuickstartCard | null {
   if (item.type === 'feature' && item.feature) {
@@ -58,30 +50,6 @@ function resolveQuickstartCard(
       title: feature.label,
       href: getUriWithOrg(orgslug, feature.href),
       Icon: feature.icon,
-    }
-  }
-
-  if (item.type === 'community' && item.target_uuid) {
-    const community = communities.find(
-      (entry) => entry.community_uuid === item.target_uuid
-    )
-    if (!community) return null
-
-    return {
-      key: community.community_uuid,
-      title: community.name,
-      href: getUriWithOrg(
-        orgslug,
-        `/community/${community.community_uuid.replace('community_', '')}`
-      ),
-      imageUrl:
-        community.thumbnail_image && (community.owner_org_uuid || orgUUID)
-          ? getCommunityThumbnailMediaDirectory(
-              community.owner_org_uuid || orgUUID || '',
-              community.community_uuid,
-              community.thumbnail_image
-            )
-          : null,
     }
   }
 
@@ -115,7 +83,6 @@ export default function QuickstartSection({
   items,
   orgslug,
   orgUUID,
-  communities,
   resourceChannels,
 }: QuickstartSectionProps) {
   const cards = items
@@ -124,7 +91,6 @@ export default function QuickstartSection({
         item,
         orgslug,
         orgUUID,
-        communities,
         resourceChannels
       )
     )

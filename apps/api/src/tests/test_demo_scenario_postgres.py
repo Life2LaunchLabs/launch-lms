@@ -18,22 +18,21 @@ def test_full_cohort_capture_preserves_stages_and_drops_real_attribution():
     url = os.environ["DEMO_TEST_DATABASE_URL"]
     assert "test" in url.rsplit("/", 1)[-1]
     from src.core.events.database import import_all_models
-    from src.db.programs import (
-        Program,
-        Objective,
-        ProgramObjective,
-        ProgramAssignment,
-        ProgramParticipant,
-        ObjectiveProgress,
+    from src.db.goals import (
+        Goal,
+        GoalAssignment,
+        GoalStep,
+        GoalTemplate,
+        GoalTemplateVersion,
+        StepProgress,
     )
     from src.services.demo.checkpoints import capture
     from src.services.demo.namespaces import materialize, remap, drop_namespace
-    from src.db.planning import Plan, PlanObjective, PlanRole, PlanInvitation
+    from src.db.goal_sharing import PlanInvitation, PlanRole
     from src.db.resources import Resource
     from src.db.usergroups import UserGroup
     from src.db.usergroup_resources import UserGroupResource
     from src.db.resource_authors import ResourceAuthor
-    from src.db.goals import GoalTemplate
     from src.db.template_marketplace import GoalTemplateAuthorization
     from src.db.learning import (
         LearningRun,
@@ -69,24 +68,23 @@ def test_full_cohort_capture_preserves_stages_and_drops_real_attribution():
                 )
             db.flush()
             db.add(
-                Plan(
+                Goal(
                     id=90002,
-                    plan_uuid="plan_cohort_test",
-                    slug="cohort-test",
-                    name="Prepared plan",
+                    goal_uuid="goal_cohort_test",
+                    title="Prepared goal",
                     subject_user_id=90201,
                     owner_user_id=90200,
-                    source_org_id=org_id,
+                    org_id=org_id,
                 )
             )
             db.flush()
             db.add(
-                PlanObjective(
+                GoalStep(
                     id=90002,
-                    objective_uuid="plan_objective_cohort_test",
-                    plan_id=90002,
+                    step_uuid="goal_step_cohort_test",
+                    goal_id=90002,
                     title="Prepared activity",
-                    kind="activity",
+                    type="activity",
                     activity_id=1,
                 )
             )
@@ -98,8 +96,8 @@ def test_full_cohort_capture_preserves_stages_and_drops_real_attribution():
                     activity_id=1,
                     org_id=1,
                     issuing_org_id=org_id,
-                    plan_id=90002,
-                    plan_objective_id=90002,
+                    goal_id=90002,
+                    goal_step_id=90002,
                     user_id=90201,
                     data={"prepared": True},
                 )
@@ -141,7 +139,7 @@ def test_full_cohort_capture_preserves_stages_and_drops_real_attribution():
                 PlanRole(
                     id=90002,
                     role_uuid="role_cohort_test",
-                    plan_id=90002,
+                    goal_id=90002,
                     key="subject",
                     name="Learner",
                     capabilities=["view_plan"],
@@ -184,7 +182,7 @@ def test_full_cohort_capture_preserves_stages_and_drops_real_attribution():
                     PlanInvitation(
                         id=identifier,
                         invitation_uuid=f"invitation_cohort_test_{identifier}",
-                        plan_id=90002,
+                        goal_id=90002,
                         kind="subject",
                         email=email,
                         email_normalized=email.lower(),
@@ -203,34 +201,33 @@ def test_full_cohort_capture_preserves_stages_and_drops_real_attribution():
                     )
                 )
             db.add(
-                Program(
+                GoalTemplate(
                     id=90002,
-                    program_uuid="program_cohort_test",
-                    slug="cohort-test",
+                    template_uuid="goal_template_cohort_test",
                     org_id=org_id,
-                    name="Prepared program",
+                    title="Prepared template",
                     created_by_user_id=90200,
                 )
             )
+            db.flush()
             db.add(
-                Objective(
+                GoalTemplateVersion(
                     id=90002,
-                    objective_uuid="objective_cohort_test",
+                    version_uuid="goal_template_version_cohort_test",
+                    template_id=90002,
                     org_id=org_id,
-                    title="Prepared objective",
-                    badge_id=1,
-                    created_by_user_id=1,
+                    published_by_user_id=1,
                 )
             )
             db.flush()
-            db.add(ProgramObjective(id=90002, program_id=90002, objective_id=90002))
             for identifier in identifiers - {90200}:
                 db.add(
-                    ProgramAssignment(
+                    GoalAssignment(
                         id=identifier,
                         assignment_uuid=f"assignment_cohort_test_{identifier}",
                         org_id=org_id,
-                        program_id=90002,
+                        template_id=90002,
+                        version_id=90002,
                         user_id=identifier,
                         subject_email=f"fake{identifier}@example.com",
                         owner_user_id=90200,
@@ -241,20 +238,34 @@ def test_full_cohort_capture_preserves_stages_and_drops_real_attribution():
             db.flush()
             for identifier in identifiers - {90200}:
                 db.add(
-                    ProgramParticipant(
-                        participant_uuid=f"participant_cohort_test_{identifier}",
-                        assignment_id=identifier,
+                    Goal(
+                        id=identifier,
+                        goal_uuid=f"goal_cohort_test_{identifier}",
+                        title="Prepared template",
                         org_id=org_id,
-                        user_id=identifier,
-                        status="accepted",
+                        owner_user_id=90200,
+                        subject_user_id=identifier,
+                        template_id=90002,
+                        version_id=90002,
+                        assignment_id=identifier,
                     )
                 )
+                db.flush()
                 db.add(
-                    ObjectiveProgress(
+                    GoalStep(
+                        id=identifier,
+                        step_uuid=f"goal_step_cohort_test_{identifier}",
+                        goal_id=identifier,
+                        title="Earn the badge",
+                        type="badge",
+                        badge_id=1,
+                    )
+                )
+                db.flush()
+                db.add(
+                    StepProgress(
                         progress_uuid=f"progress_cohort_test_{identifier}",
-                        org_id=org_id,
-                        objective_id=90002,
-                        user_id=identifier,
+                        step_id=identifier,
                         status=["not_started", "in_progress", "completed"][
                             identifier % 3
                         ],
@@ -269,22 +280,22 @@ def test_full_cohort_capture_preserves_stages_and_drops_real_attribution():
             )
             assert len(snapshot["userorganization"]) == 20
             assert (
-                len(snapshot["programparticipant"])
-                == len(snapshot["objectiveprogress"])
+                len(snapshot["goal_assignment"])
+                == len(snapshot["step_progress"])
                 == 19
             )
-            assert {row["status"] for row in snapshot["objectiveprogress"]} == {
+            assert {row["status"] for row in snapshot["step_progress"]} == {
                 "not_started",
                 "in_progress",
                 "completed",
             }
             assert all(
                 row["completed_by_user_id"] is None
-                for row in snapshot["objectiveprogress"]
+                for row in snapshot["step_progress"]
             )
             assert all(
                 row["staff_user_ids"] == [90200]
-                for row in snapshot["programassignment"]
+                for row in snapshot["goal_assignment"]
             )
             assert any(row["id"] == 1 for row in snapshot["learningbadge"])
             for name in (
@@ -329,8 +340,8 @@ def test_full_cohort_capture_preserves_stages_and_drops_real_attribution():
                 and resource["created_by_user_id"] is None
             )
             assert (
-                next(row for row in snapshot["objective"] if row["id"] == 90002)[
-                    "created_by_user_id"
+                next(row for row in snapshot["goal_template_version"] if row["id"] == 90002)[
+                    "published_by_user_id"
                 ]
                 is None
             )
