@@ -48,10 +48,18 @@ def _collection_or_404(db: Session, org_id: int, collection_uuid: str) -> PlanCo
 
 
 def _templates(db: Session, org_id: int, template_uuids: list[str]) -> list[GoalTemplate]:
-    rows = list(db.exec(select(GoalTemplate).where(col(GoalTemplate.template_uuid).in_(template_uuids), GoalTemplate.org_id == org_id)).all())
+    """The organization's own plans, and other organizations' plans it added (or asked for) from Discover."""
+    rows = list(db.exec(select(GoalTemplate).where(col(GoalTemplate.template_uuid).in_(template_uuids))).all())
+    foreign = [row for row in rows if row.org_id != org_id]
+    if foreign:
+        from src.services.goals.discover import added_template_ids
+
+        allowed = added_template_ids(db, org_id)
+        rows = [row for row in rows if row.org_id == org_id or int(row.id or 0) in allowed]
     if len(rows) != len(set(template_uuids)):
         raise HTTPException(status_code=404, detail="Plan not found")
-    return rows
+    order = {uuid: index for index, uuid in enumerate(template_uuids)}
+    return sorted(rows, key=lambda row: order[row.template_uuid])
 
 
 def _items(db: Session, collection_ids: list[int]) -> dict[int, list[GoalTemplate]]:
@@ -84,7 +92,7 @@ def _dict(row: PlanCollection, plans: list[GoalTemplate], listed: set[int]) -> d
         "plan_count": len(plans), "template_uuids": [plan.template_uuid for plan in plans],
         "thumbs": [{"template_uuid": plan.template_uuid, "title": plan.title, "thumbnail_image": plan.thumbnail_image} for plan in plans[:THUMBS]],
         "published_count": sum(int(plan.id or 0) in listed for plan in plans),
-        "last_opened_at": row.last_opened_at, "update_date": row.update_date,
+        "last_opened_at": row.last_opened_at, "update_date": row.update_date, "source_collection_uuid": row.source_collection_uuid,
     }
 
 

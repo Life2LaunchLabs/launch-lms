@@ -66,7 +66,7 @@ def api_template(template_uuid: str, org_id: int, db: Session = Depends(get_db_s
         return {**view, "owner_org": template_marketplace.owner_org(db, template_uuid)}
     result = templates.get_template(db, user, org_id, template_uuid)
     template = templates.template_or_404(db, org_id, template_uuid)
-    return {**result, **library.library_status(template), "outdated_badge_steps": badge_versions.outdated_badge_steps(db, template),
+    return {**result, **library.library_status(db, template), "outdated_badge_steps": badge_versions.outdated_badge_steps(db, template),
             "based_on": template_marketplace.provenance(db, template)}
 
 

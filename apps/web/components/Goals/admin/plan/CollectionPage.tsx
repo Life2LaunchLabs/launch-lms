@@ -16,6 +16,7 @@ import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { collectionKeys, collectionsApi, isCollectionsKey } from '@services/goals/collections'
+import { addedAsListItems, discoverApi, discoverKeys } from '@services/goals/discover'
 import { isTemplatesKey, templateKeys, templatesApi } from '@services/goals/templates'
 import { cn } from '@/lib/utils'
 import { PlanCard, PlanThumb } from './PlanCards'
@@ -34,7 +35,9 @@ export default function CollectionPage({ orgslug, collectionUuid }: { orgslug: s
   const ready = Boolean(orgId && token)
   const { data: collection, error } = useSWR(ready ? collectionKeys.one(orgId, collectionUuid) : null, () => collectionsApi.get(orgId, collectionUuid, token))
   const { data: list } = useSWR(ready ? collectionKeys.list(orgId) : null, () => collectionsApi.list(orgId, token))
-  const { data: plans } = useSWR(ready ? templateKeys.list(orgId) : null, () => templatesApi.list(orgId, token))
+  const { data: ownPlans } = useSWR(ready ? templateKeys.list(orgId) : null, () => templatesApi.list(orgId, token))
+  const { data: added } = useSWR(ready ? discoverKeys.added(orgId) : null, () => discoverApi.added(orgId, token).catch(() => []))
+  const plans = React.useMemo(() => ownPlans && [...ownPlans, ...addedAsListItems(added || [])], [ownPlans, added])
   const [addOpen, setAddOpen] = React.useState(false)
   // Opening a collection moves it to the front of the Plans carousel.
   React.useEffect(() => { if (ready) void collectionsApi.opened(orgId, collectionUuid, token).then(() => mutate(collectionKeys.list(orgId))).catch(() => undefined) }, [ready, orgId, collectionUuid, token])

@@ -4,7 +4,7 @@ import React from 'react'
 import Link from 'next/link'
 import { mutate } from 'swr'
 import toast from 'react-hot-toast'
-import { Award, Check, Folder, FolderPlus, Layers3, Loader2, MoreVertical, Plus } from 'lucide-react'
+import { Award, Check, Clock, Folder, FolderPlus, Layers3, Loader2, MoreVertical, Plus } from 'lucide-react'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import { SafeImage } from '@components/Objects/SafeImage'
 import { Button } from '@components/ui/button'
@@ -36,14 +36,17 @@ export function PlanThumb({ title, image, className }: { title: string; image?: 
 export function PlanCard({ orgslug, plan, collections, canEdit, orgId, token }: {
   orgslug: string; plan: TemplateListItem; collections: PlanCollection[]; canEdit: boolean; orgId: number; token?: string
 }) {
-  const live = !!plan.live_version || !!plan.published_version
+  const live = !plan.requested && (!!plan.live_version || !!plan.published_version)
+  // A plan asked for from Discover opens there until its creator approves.
+  const href = plan.requested ? getUriWithOrg(orgslug, routePaths.org.admin.discoverPlan(plan.template_uuid)) : planHref(orgslug, plan.template_uuid)
   const tag = plan.collections?.[0]?.name
   const badge = plan.badges?.[0]
   return <div className="group relative">
-    <Link href={planHref(orgslug, plan.template_uuid)} className="block rounded-2xl border border-border bg-card p-2 transition hover:shadow-md" data-testid="plan-card">
+    <Link href={href} className="block rounded-2xl border border-border bg-card p-2 transition hover:shadow-md" data-testid="plan-card">
       <span className="relative block">
         <PlanThumb title={plan.title} image={plan.thumbnail_image} className="aspect-square w-full rounded-xl" />
         {live ? <span title="Live" className="absolute left-2 top-2 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white" /> : null}
+        {plan.requested ? <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-0.5 text-[11px] font-bold text-amber-700"><Clock size={11} aria-hidden="true" />Requested</span> : null}
       </span>
       <span className="mt-2 block truncate px-1 text-sm font-black">{plan.title}</span>
       <span className="flex items-center gap-1.5 px-1 pb-1 text-xs text-muted-foreground">

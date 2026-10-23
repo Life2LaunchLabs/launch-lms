@@ -383,7 +383,7 @@ def test_publishing_is_refused_with_a_reason_when_the_org_is_not_a_plan_publishe
         assert "plan publish" in refused.json()["detail"].lower()
 
 
-def test_the_global_library_follows_a_listing_anyone_may_copy():
+def test_the_library_is_the_listings_anyone_may_copy():
     from src.services.goals import library
 
     db, _ = _market()
@@ -395,20 +395,23 @@ def test_the_global_library_follows_a_listing_anyone_may_copy():
 
         _list(db, template, "locked", "request")
         assert in_library() == []
-        # Open to copy without asking: the published version is what the library (and MCP search_library) offers.
+        # Open to copy without asking: that listing is the library (and MCP search_library).
         _list(db, template, "open", "open")
         assert in_library() == [template.template_uuid]
-        assert db.get(GoalTemplate, template.id).library_document == templates.published_version(db, template).document
-        # A new published version follows it there; a draft edit alone doesn't.
+        assert library.library_status(db, template)["published_to_library"] is True
+        # Copying takes the live version, not the draft.
         document = deepcopy(templates.template_or_404(db, 1, template.template_uuid).document)
-        document["stages"][0]["steps"][0]["title"] = "Notice change, v2"
+        document["stages"][0]["steps"][0]["title"] = "Notice change, draft"
         templates.save_template(db, _user(ADMIN), 1, template.template_uuid, document)
-        assert db.get(GoalTemplate, template.id).library_document["stages"][0]["steps"][0]["title"] == "Notice change"
-        templates.publish(db, _user(ADMIN), 1, template.template_uuid, "Second")
-        assert db.get(GoalTemplate, template.id).library_document["stages"][0]["steps"][0]["title"] == "Notice change, v2"
+        copied = library.copy_from_library(db, _user(ADMIN), PARTNER, template.template_uuid)
+        assert copied["based_on"]["template_uuid"] == template.template_uuid
+        assert templates.template_or_404(db, PARTNER, copied["template_uuid"]).document["stages"][0]["steps"][0]["title"] == "Notice change"
         # Asking first, locking it, or taking it out of the marketplace takes it out of the library too.
         _list(db, template, "open", "request")
         assert in_library() == []
+        with pytest.raises(HTTPException) as gone:
+            library.copy_from_library(db, _user(ADMIN), PARTNER, template.template_uuid)
+        assert gone.value.status_code == 404
         _list(db, template, "open", "open")
         market.set_listing(db, _user(ADMIN), 1, template.template_uuid, TemplateListingUpdate(listed=False, mode="open", access="open"))
         assert in_library() == []

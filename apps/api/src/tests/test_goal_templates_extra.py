@@ -38,10 +38,19 @@ def _two_stages() -> dict:
     }
 
 
+def _marketplace_tables(db) -> None:
+    from src.db.badge_routes import BadgeRoute
+    from src.db.template_marketplace import GoalTemplateAuthorization, GoalTemplateListing
+
+    for model in (BadgeRoute, GoalTemplateListing, GoalTemplateAuthorization):
+        model.__table__.create(db.get_bind(), checkfirst=True)
+
+
 # The library -------------------------------------------------------------------------------
 
 def test_owner_publishes_to_the_library_and_other_orgs_get_independent_copies_with_their_own_activities():
     with _session() as db:
+        _marketplace_tables(db)
         source = templates.create_template(db, _user(ADMIN), 1, _document({"type": "task", "title": "Build a portfolio"}, {"type": "activity", "title": "Quiz"}))
         source["document"]["template"]["description"] = "A shared starting point"
         templates.save_template(db, _user(ADMIN), 1, source["template_uuid"], source["document"])
@@ -67,7 +76,7 @@ def test_owner_publishes_to_the_library_and_other_orgs_get_independent_copies_wi
         copied["document"]["stages"][0]["steps"][0]["title"] = "Partner portfolio"
         templates.save_template(db, _user(ADMIN), 2, copied["template_uuid"], copied["document"])
         assert templates.get_template(db, _user(ADMIN), 1, source["template_uuid"])["document"]["stages"][0]["steps"][0]["title"] == "Build a portfolio"
-        # Republishing replaces the library copy.
+        # Sharing again keeps it listed.
         assert library.publish_to_library(db, _user(ADMIN), 1, source["template_uuid"])["published_to_library"]
 
 

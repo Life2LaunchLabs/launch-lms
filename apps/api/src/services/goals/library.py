@@ -1,8 +1,10 @@
-"""The global template library: plan publishers (and the platform owner) share templates every organization can copy.
+"""The library is the marketplace: templates listed open to copy (open mode, open access).
 
-Publishing to the library stores a frozen copy of the draft document on the
-template. Copying makes an ordinary draft template in the copying organization
-with its own copy of every activity, so the two never share content.
+There is one place plans are shared. Sharing "to the library" lists the template in
+the marketplace so any organization can copy it without asking; the library list,
+search and copy below read those listings. Copying makes an ordinary draft template
+in the copying organization with its own copy of every activity, so the two never
+share content.
 """
 
 from __future__ import annotations
@@ -16,103 +18,75 @@ from sqlmodel import Session, select
 
 from src.db.goals import GoalTemplate, TemplateStatus
 from src.db.learning import LearningActivity, LearningPage
-from src.db.organizations import Organization
 from src.db.users import PublicUser
-from src.security.access.access import ensure_feature, orgs_with_feature
+from src.security.access.access import ensure_feature
 from src.security.org_auth import require_org_admin
 from src.services.goals import templates
 from src.services.goals.document import iter_steps
 from src.services.learning.activity_copy import copy_activity
 
 
-def _publisher_orgs(db: Session, org_ids: set[int]) -> dict[int, Organization]:
-    """The organizations among `org_ids` that may list templates in the library."""
-    allowed = orgs_with_feature(org_ids, "plan_publishing", db)
-    if not allowed:
-        return {}
-    return {org.id: org for org in db.exec(select(Organization).where(Organization.id.in_(allowed))).all()}  # type: ignore[union-attr,misc]
+def _open_listing(listing) -> bool:
+    return listing is not None and listing.listed and listing.mode == "open" and listing.access == "open"
 
 
-def _published():
-    return select(GoalTemplate).where(GoalTemplate.library_published_at.is_not(None))  # type: ignore[union-attr]
+def library_status(db: Session, template: GoalTemplate) -> dict:
+    from src.services.goals.template_marketplace import listing_of
 
-
-def _library_dict(template: GoalTemplate, owner: Organization) -> dict:
-    document = template.library_document or {}
-    stages = document.get("stages") or []
-    meta = document.get("template") or {}
+    listing = listing_of(db, template)
+    shared = _open_listing(listing)
     return {
-        "template_uuid": template.template_uuid, "title": meta.get("title") or template.title,
-        "description": meta.get("description") or template.description, "thumbnail_image": template.thumbnail_image,
-        "stage_count": len(stages), "step_count": sum(1 for _ in iter_steps(document)),
-        "published_at": template.library_published_at, "owner_org_name": owner.name,
-    }
-
-
-def library_status(template: GoalTemplate) -> dict:
-    return {
-        "published_to_library": template.library_published_at is not None, "library_published_at": template.library_published_at,
+        "published_to_library": shared, "library_published_at": listing.listed_at if shared else None,  # type: ignore[union-attr]
         "source_template_uuid": template.source_template_uuid, "source_version": template.source_version,
     }
 
 
 def publish_to_library(db: Session, current_user: PublicUser, org_id: int, template_uuid: str) -> dict:
-    """Share the template's current draft in the library (plan publishers only); publishing again replaces it."""
+    """List the template in the marketplace open to copy without asking (plan publishers only)."""
+    from src.db.template_marketplace import TemplateListingUpdate
+    from src.services.goals import template_marketplace
+
     require_org_admin(current_user.id, org_id, db, "build_plans")
     ensure_feature(org_id, "plan_publishing", db)
     template = templates.template_or_404(db, org_id, template_uuid)
     if template.system_type:
         raise HTTPException(status_code=409, detail="System templates can't be shared in the library")
-    template.library_document = templates.frozen_document(db, template, template.document)
-    template.library_published_at = datetime.utcnow()
-    template.update_date = datetime.now().isoformat()
-    db.add(template)
-    db.commit()
+    if templates.published_version(db, template) is None:
+        # The connector shares what it built: its draft becomes the first live version.
+        templates.publish(db, current_user, org_id, template_uuid, "Shared in the library")
+    template_marketplace.set_listing(db, current_user, org_id, template_uuid, TemplateListingUpdate(listed=True, mode="open", access="open"))
     db.refresh(template)
-    return {**templates.template_dict(db, template), **library_status(template)}
-
-
-def follow_listing(db: Session, template: GoalTemplate, listing) -> None:
-    """Keep the library in step with the marketplace listing (flushed, not committed).
-
-    A listing anyone may copy without asking (listed, open mode, open access) is what the library
-    offers, so its published version is shared there too (MCP ``search_library`` and
-    ``copy_from_library`` find it); any other listing takes the template out of the library, since
-    copying from there would skip the creator's choice.
-    """
-    live = templates.published_version(db, template)
-    if listing is not None and listing.listed and listing.mode == "open" and listing.access == "open" and live is not None:
-        template.library_document = deepcopy(live.document)
-        template.library_published_at = datetime.utcnow()
-    elif template.library_published_at is not None:
-        template.library_published_at = None
-    else:
-        return
-    db.add(template)
+    return {**templates.template_dict(db, template), **library_status(db, template)}
 
 
 def list_library(db: Session, current_user: PublicUser, org_id: int, query: str = "") -> list[dict]:
-    from src.services.goals.template_marketplace import require_reader
+    """Marketplace templates any organization may copy without asking, in the library's shape."""
+    from src.services.goals import template_marketplace
 
-    require_reader(db, current_user, org_id)  # staff browse the marketplace too; copying stays admin only
-    rows = db.exec(_published().order_by(GoalTemplate.title)).all()
-    publishers = _publisher_orgs(db, {row.org_id for row in rows})
-    needle = query.strip().lower()
-    items = [_library_dict(row, publishers[row.org_id]) for row in rows if row.library_document and row.org_id in publishers]
-    return [item for item in items if not needle or needle in f"{item['title']} {item['description']}".lower()]
+    cards = template_marketplace.browse(db, current_user, org_id, query)
+    return [{
+        "template_uuid": card["template_uuid"], "title": card["title"], "description": card["description"],
+        "thumbnail_image": card["thumbnail_image"], "stage_count": card["stage_count"], "step_count": card["step_count"],
+        "published_at": card["listed_at"], "owner_org_name": (card["creator_org"] or {}).get("name", ""),
+    } for card in cards if card["mode"] == "open" and card["access"] == "open"]
 
 
 def copy_from_library(db: Session, current_user: PublicUser, org_id: int, template_uuid: str) -> dict:
-    """A draft template of the organization's own from a library template, with copies of its activities."""
+    """A draft template of the organization's own from a template open to copy, with copies of its activities."""
+    from src.services.goals import template_marketplace
+
     require_org_admin(current_user.id, org_id, db, "build_plans")
-    source = db.exec(_published().where(GoalTemplate.template_uuid == template_uuid)).first()
-    if not source or not source.library_document or not _publisher_orgs(db, {source.org_id}):
+    source = db.exec(select(GoalTemplate).where(GoalTemplate.template_uuid == template_uuid)).first()
+    if source is None or source.published_version_id is None or not _open_listing(template_marketplace.listing_of(db, source)):
         raise HTTPException(status_code=404, detail="Library template not found")
-    copied = copy_into(db, current_user, org_id, source, source.library_document,
-                       templates.published_version(db, source).number if source.published_version_id else None)  # type: ignore[union-attr]
+    if source.org_id != org_id:
+        return template_marketplace.copy_template(db, current_user, org_id, template_uuid)
+    # The owner copying its own shared template gets a fresh draft of the live version.
+    live = templates.published_version(db, source)
+    copied = copy_into(db, current_user, org_id, source, live.document, live.number)  # type: ignore[union-attr]
     db.commit()
     db.refresh(copied)
-    return {**templates.template_dict(db, copied), **library_status(copied)}
+    return {**templates.template_dict(db, copied), **library_status(db, copied)}
 
 
 def copy_into(db: Session, current_user: PublicUser, org_id: int, source: GoalTemplate, source_document: dict, source_version: int | None) -> GoalTemplate:

@@ -14,6 +14,7 @@ import { useCanEditPlans } from '@components/Admin/Plans/useCanEditPlans'
 import { Segmented } from '@components/Goals/admin/live/ui'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { collectionKeys, collectionsApi } from '@services/goals/collections'
+import { addedAsListItems, discoverApi, discoverKeys } from '@services/goals/discover'
 import { isTemplatesKey, templateKeys, templatesApi, type TemplateListItem } from '@services/goals/templates'
 import { CollectionCard, NewCollectionModal, PlanCard, planHref } from './PlanCards'
 
@@ -21,8 +22,8 @@ type Filter = 'all' | 'live' | 'draft' | 'badge'
 const FILTERS: { value: Filter; label: string }[] = [{ value: 'all', label: 'All' }, { value: 'live', label: 'Live' }, { value: 'draft', label: 'Not live' }, { value: 'badge', label: 'Earns a badge' }]
 
 const matches = (plan: TemplateListItem, filter: Filter) => filter === 'all' ? true
-  : filter === 'live' ? !!plan.published_version
-    : filter === 'draft' ? !plan.published_version
+  : filter === 'live' ? !!plan.published_version && !plan.requested
+    : filter === 'draft' ? !plan.published_version || !!plan.requested
       : !!plan.badges?.length
 
 /**
@@ -36,6 +37,8 @@ export default function PlanLibrary({ orgslug, orgId, token }: { orgslug: string
   const { data: collectionList } = useSWR(ready ? collectionKeys.list(orgId) : null, () => collectionsApi.list(orgId, token))
   // Other organizations' badge plans this one runs show beside its own.
   const { data: routes } = useSWR(ready ? templateKeys.badgeRoutes(orgId) : null, () => templatesApi.badgeRoutes(orgId, token))
+  // And other organizations' plans added from Discover: run as-is, or requested.
+  const { data: added } = useSWR(ready ? discoverKeys.added(orgId) : null, () => discoverApi.added(orgId, token).catch(() => []))
   const [query, setQuery] = React.useState('')
   const [filter, setFilter] = React.useState<Filter>('all')
   const [newCollection, setNewCollection] = React.useState(false)
@@ -44,7 +47,8 @@ export default function PlanLibrary({ orgslug, orgId, token }: { orgslug: string
   const runs: TemplateListItem[] = (routes || []).filter((route, index, all) => all.findIndex((other) => other.template.template_uuid === route.template.template_uuid) === index)
     .map((route) => ({ ...route.template, thumbnail_image: route.template.thumbnail_image || '', org_id: route.badge.owner_org?.id ?? 0, status: 'active', system_type: null, etag: '',
       has_unpublished_changes: false, update_date: '', read_only: true, badges: [route.badge] } as TemplateListItem))
-  const own = [...plans.filter((plan) => !plan.system_type), ...runs]
+  const fromOthers = addedAsListItems(added || []).filter((plan) => !runs.some((run) => run.template_uuid === plan.template_uuid))
+  const own = [...plans.filter((plan) => !plan.system_type), ...runs, ...fromOthers]
   if (!own.length && !collections.length) return <Welcome orgslug={orgslug} orgId={orgId} token={token} canEdit={canEdit} />
   const needle = query.trim().toLowerCase()
   const shown = own.filter((plan) => matches(plan, filter) && (!needle || `${plan.title} ${plan.description}`.toLowerCase().includes(needle)))
@@ -70,7 +74,7 @@ export default function PlanLibrary({ orgslug, orgId, token }: { orgslug: string
         {canEdit ? <NewPlanModal orgslug={orgslug} orgId={orgId} token={token} /> : null}
       </div>
       {shown.length ? <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {shown.map((plan) => <li key={plan.template_uuid}><PlanCard orgslug={orgslug} plan={plan} collections={collections} canEdit={canEdit && !plan.read_only} orgId={orgId} token={token} /></li>)}
+        {shown.map((plan) => <li key={plan.template_uuid}><PlanCard orgslug={orgslug} plan={plan} collections={collections} canEdit={canEdit && (!plan.read_only || plan.requested !== undefined)} orgId={orgId} token={token} /></li>)}
       </ul> : <p className="rounded-2xl border border-dashed border-border px-5 py-10 text-center text-sm text-muted-foreground">No plans match.</p>}
     </section>
     <NewCollectionModal open={newCollection} setOpen={setNewCollection} orgId={orgId} token={token} />

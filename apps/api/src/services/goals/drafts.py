@@ -226,7 +226,6 @@ def set_live(db: Session, current_user: PublicUser, org_id: int, template_uuid: 
             templates._store(db, template, templates.working_copy(db, template, version.document))
     template.update_date = datetime.now().isoformat()
     db.add(template)
-    templates._follow_in_library(db, template)
     db.commit()
     db.refresh(template)
     return {**templates.template_dict(db, template), "moved": moved}

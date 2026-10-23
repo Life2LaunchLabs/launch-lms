@@ -68,17 +68,8 @@ export interface TemplateListItem extends GoalTemplate {
   frameworks?: Array<{ framework_uuid: string; name: string; node_count: number }>
   /** The organization's collections it's in. */
   collections?: Array<{ collection_uuid: string; name: string }>
-}
-
-export interface LibraryTemplate {
-  template_uuid: string
-  title: string
-  description: string
-  thumbnail_image: string
-  stage_count: number
-  step_count: number
-  published_at: string | null
-  owner_org_name: string
+  /** Another organization's plan asked for from Discover, waiting on its creator. */
+  requested?: boolean
 }
 
 export interface AssignmentPerson { id: number; user_uuid?: string; username?: string; first_name?: string; last_name?: string; avatar_image?: string | null }
@@ -177,8 +168,6 @@ export const templatesApi = {
   updateBadgeVersions: (orgId: number, templateUuid: string, acceptPrevious: boolean, token?: string) => request<TemplateDetail>(withOrg(templateUrl(templateUuid, '/update-badge-versions'), orgId, `&accept_previous_major_versions=${acceptPrevious}`), token, 'POST'),
   activity: (orgId: number, templateUuid: string, activityUuid: string, token?: string) => request<{ template: { template_uuid: string; title: string; org_id: number }; activity: any }>(withOrg(templateUrl(templateUuid, `/activities/${q(activityUuid)}`), orgId), token),
 
-  library: (orgId: number, query: string, token?: string) => request<LibraryTemplate[]>(withOrg(templatesUrl('/library'), orgId, `&q=${q(query)}`), token),
-  copyFromLibrary: (orgId: number, templateUuid: string, token?: string) => request<TemplateDetail>(withOrg(templatesUrl(`/library/${q(templateUuid)}/copy`), orgId), token, 'POST'),
   publishToLibrary: (orgId: number, templateUuid: string, token?: string) => request<TemplateDetail>(withOrg(templateUrl(templateUuid, '/publish-to-library'), orgId), token, 'POST'),
 
   assignments: (orgId: number, templateUuid: string, token?: string) => request<GoalAssignmentSummary[]>(templateKeys.assignments(orgId, templateUuid), token),

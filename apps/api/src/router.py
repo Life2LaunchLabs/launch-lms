@@ -9,6 +9,7 @@ from src.routers import (
     code_execution,
     connect,
     dev,
+    discover,
     demo,
     goal_admin,
     goal_helper_requests,
@@ -31,6 +32,7 @@ from src.routers import (
     media,
     messages,
     news,
+    onboarding,
     orgs,
     operations_surface,
     plan_collections,
@@ -109,6 +111,13 @@ v1_router.include_router(
 v1_router.include_router(
     plan_collections.router,
     prefix="/plan-collections",
+    tags=["goals"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
+v1_router.include_router(onboarding.router, prefix="/onboarding", tags=["onboarding"])
+v1_router.include_router(
+    discover.router,
+    prefix="/discover",
     tags=["goals"],
     dependencies=[Depends(get_non_api_token_user)],
 )

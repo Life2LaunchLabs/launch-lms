@@ -21,6 +21,8 @@ class PlanCollection(SQLModel, table=True):
     # The Plans carousel shows the most recently opened first.
     last_opened_at: datetime | None = Field(default=None, sa_column=Column(DateTime, nullable=True))
     created_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
+    # Added from Discover: the other organization's collection this one mirrors.
+    source_collection_uuid: str | None = Field(default=None, index=True)
     creation_date: str = ""
     update_date: str = ""
 
