@@ -4,19 +4,21 @@ import React from 'react'
 import { useRouter } from 'next/navigation'
 import useSWR, { mutate } from 'swr'
 import toast from 'react-hot-toast'
-import { Award, ListChecks, Loader2, Search, Star } from 'lucide-react'
-import { Input } from '@components/ui/input'
-import { Button } from '@components/ui/button'
+import { ListChecks, Loader2, Medal, Search, Star } from 'lucide-react'
 import { BadgeMarketplaceActions } from '@components/Plans/requests/BadgeIssuing'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { discoverApi, discoverKeys, type DiscoverPlan } from '@services/goals/discover'
 import { requirementsApi } from '@services/goals/requirements'
 import { browseMarketplaceBadges, isMarketplaceKey, MARKETPLACE_KEY } from '@services/learning/marketplace'
-import { PlanCover } from '@components/Plans/shared/PlanCover'
+import { CoverGrid } from '@components/Plans/shared/PlanCover'
+import { primaryActionClass, smallActionClass } from '@components/Plans/shared/actions'
+import { SectionHeader, planGridClass } from '@components/Plans/library/PlanCards'
+import { cn } from '@/lib/utils'
 import { plural } from '@components/Plans/plan/planVersions'
 import { CollectionAction, DiscoverCollectionCard, DiscoverPlanCard, Row, discoverCollectionHref, useDiscoverContext } from './parts'
 
 const OTHER = 'More plans'
+const FRAMEWORK_TINTS = ['#2F66D6', '#6B3FE0', '#C9501E', '#0B8077']
 
 /**
  * Discover: the one marketplace. A partner collection up top, shared collections (the main way in),
@@ -29,11 +31,11 @@ export default function DiscoverHome({ orgslug }: { orgslug: string }) {
   React.useEffect(() => { const timer = window.setTimeout(() => setDebounced(query.trim()), 250); return () => window.clearTimeout(timer) }, [query])
   const { data: page } = useSWR(ready ? discoverKeys.page(orgId, debounced) : null, () => discoverApi.page(orgId, debounced, token), { keepPreviousData: true })
 
-  return <div className="space-y-10 pb-10">
-    <label className="relative block">
-      <span className="sr-only">Search Discover</span>
-      <Search size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-      <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search plans, collections and partners" className="h-12 rounded-full pl-11 text-base" />
+  return <div className="pb-10">
+    <label className="flex h-[52px] items-center gap-2.5 rounded-full border border-border bg-card px-5 text-muted-foreground shadow-[0_1px_2px_hsl(200_30%_10%/.06),0_8px_28px_hsl(200_30%_10%/.08)] focus-within:border-foreground/30">
+      <Search size={20} aria-hidden="true" />
+      <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search plans, collections and partners" aria-label="Search Discover" autoComplete="off"
+        className="min-w-0 flex-1 border-0 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground" />
     </label>
     {!page ? <div className="flex min-h-[240px] items-center justify-center"><Loader2 className="animate-spin text-muted-foreground" /></div>
       : debounced ? <Results orgslug={orgslug} plans={page.plans} collections={page.collections} query={debounced} />
@@ -43,7 +45,7 @@ export default function DiscoverHome({ orgslug }: { orgslug: string }) {
 
 function Section({ title, children, count }: { title: string; children: React.ReactNode; count?: number }) {
   return <section aria-label={title}>
-    <h2 className="mb-3 text-xl font-black">{title}{count != null ? <span className="ml-2 text-sm font-bold text-muted-foreground">{count}</span> : null}</h2>
+    <SectionHeader title={title} count={count} />
     {children}
   </section>
 }
@@ -53,13 +55,13 @@ function Results({ orgslug, plans, collections, query }: { orgslug: string; plan
     {collections.length ? <Section title="Collections" count={collections.length}><Row>{collections.map((item) => <DiscoverCollectionCard key={item.collection_uuid} orgslug={orgslug} collection={item} />)}</Row></Section> : null}
     <Section title="Plans" count={plans.length}>
       {plans.length ? <PlanGrid orgslug={orgslug} plans={plans} />
-        : <p className="rounded-2xl border border-dashed border-border px-5 py-10 text-center text-sm text-muted-foreground">Nothing matches “{query}”.</p>}
+        : <p className="rounded-[20px] border-[1.5px] border-dashed border-border px-5 py-10 text-center text-sm text-muted-foreground">Nothing matches “{query}”.</p>}
     </Section>
   </>
 }
 
 function PlanGrid({ orgslug, plans }: { orgslug: string; plans: DiscoverPlan[] }) {
-  return <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">{plans.map((plan) => <li key={plan.template_uuid}><DiscoverPlanCard orgslug={orgslug} plan={plan} /></li>)}</ul>
+  return <ul className={planGridClass}>{plans.map((plan) => <li key={plan.template_uuid} className="min-w-0"><DiscoverPlanCard orgslug={orgslug} plan={plan} /></li>)}</ul>
 }
 
 function Browse({ orgslug, page }: { orgslug: string; page: Awaited<ReturnType<typeof discoverApi.page>> }) {
@@ -69,14 +71,19 @@ function Browse({ orgslug, page }: { orgslug: string; page: Awaited<ReturnType<t
   })).filter((group) => group.plans.length)
   const collections = page.collections.filter((item) => item.collection_uuid !== page.featured?.collection_uuid)
   const empty = !page.featured && !page.collections.length && !page.plans.length
+  // A plan's tag is the shared collection it's in, preferring one that puts it in this row's category.
+  const tag = (uuid: string, category: string) => {
+    const inside = page.collections.filter((item) => item.template_uuids.includes(uuid))
+    return (inside.find((item) => item.categories.includes(category)) || inside[0])?.name
+  }
   return <>
     {page.featured ? <Featured orgslug={orgslug} collection={page.featured} /> : null}
     {collections.length ? <Section title="Featured collections"><Row>{collections.map((item) => <DiscoverCollectionCard key={item.collection_uuid} orgslug={orgslug} collection={item} />)}</Row></Section> : null}
     <Frameworks orgslug={orgslug} />
     {groups.map((group) => <Section key={group.category} title={group.category}>
-      <Row>{group.plans.map((plan) => <DiscoverPlanCard key={plan.template_uuid} orgslug={orgslug} plan={plan} className="w-44 shrink-0 snap-start sm:w-52" />)}</Row>
+      <Row>{group.plans.map((plan) => <DiscoverPlanCard key={plan.template_uuid} orgslug={orgslug} plan={plan} tag={tag(plan.template_uuid, group.category)} className="w-[150px] shrink-0 snap-start sm:w-[188px]" />)}</Row>
     </Section>)}
-    {empty ? <div className="rounded-2xl border border-dashed border-border px-5 py-12 text-center">
+    {empty ? <div className="mt-6 rounded-[20px] border-[1.5px] border-dashed border-border px-5 py-12 text-center">
       <p className="font-bold">Nothing shared yet</p>
       <p className="mt-1 text-sm text-muted-foreground">When organizations share plans and collections, they show up here.</p>
     </div> : null}
@@ -84,24 +91,21 @@ function Browse({ orgslug, page }: { orgslug: string; page: Awaited<ReturnType<t
   </>
 }
 
-/** The partner banner: one collection, its plans' images, and add or request. */
+/** The partner banner: one collection, its plans' covers tilted on the right, and add or request. */
 function Featured({ orgslug, collection }: { orgslug: string; collection: NonNullable<Awaited<ReturnType<typeof discoverApi.page>>['featured']> }) {
   const router = useRouter()
-  const cells = [0, 1, 2, 3].map((index) => collection.thumbs[index])
-  return <section aria-label="Partner collection" className="grid gap-6 overflow-hidden rounded-3xl bg-gradient-to-br from-violet-700 to-indigo-600 p-6 text-white sm:grid-cols-[1fr_16rem] sm:p-8">
+  return <section aria-label="Partner collection" className="mt-5 grid items-center gap-7 overflow-hidden rounded-3xl p-6 text-white sm:grid-cols-[minmax(0,1fr)_210px] sm:px-8 sm:py-[30px]"
+    style={{ background: 'radial-gradient(circle at 85% 30%, hsl(30 90% 55% / .55), transparent 55%), linear-gradient(120deg, hsl(14 72% 36%), hsl(338 55% 30%))' }}>
     <div className="min-w-0">
-      <p className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.14em] text-white/80"><Star size={13} aria-hidden="true" />Partner collection · {collection.creator_org?.name}</p>
-      <h2 className="mt-2 text-3xl font-black tracking-tight">{collection.name}</h2>
-      {collection.description ? <p className="mt-2 max-w-xl text-base text-white/85">{collection.description}</p> : null}
-      <p className="mt-2 text-sm text-white/75">{plural(collection.plan_count, 'plan')}{collection.badge_count ? ` · ${plural(collection.badge_count, 'badge')}` : ''}</p>
+      <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-white/85"><Star size={15} aria-hidden="true" />Partner collection</p>
+      <h2 className="mt-2.5 text-[30px] font-extrabold leading-tight tracking-tight">{collection.name}</h2>
+      <p className="mt-2 max-w-[500px] leading-normal opacity-90">{collection.description || `${plural(collection.plan_count, 'plan')} from ${collection.creator_org?.name || 'a partner'}${collection.badge_count ? `, ${plural(collection.badge_count, 'badge')} to earn` : ''}.`}</p>
       <div className="mt-5 flex flex-wrap items-center gap-2">
-        <Button variant="outline" className="rounded-full border-white bg-white text-violet-800 hover:bg-white/90" onClick={() => router.push(discoverCollectionHref(orgslug, collection.collection_uuid))}>View the collection</Button>
-        <div className="[&_button]:border-white/40 [&_button]:bg-white/15 [&_button]:text-white [&_button:hover]:bg-white/25"><CollectionAction orgslug={orgslug} collection={collection} /></div>
+        <button type="button" className={cn(primaryActionClass, 'bg-white text-[hsl(14_72%_30%)] hover:bg-white/90')} onClick={() => router.push(discoverCollectionHref(orgslug, collection.collection_uuid))}>View the collection</button>
+        <div className="[&_button]:bg-white/15 [&_button]:text-white [&_button:hover]:bg-white/25 [&_span]:bg-white/15 [&_span]:text-white"><CollectionAction orgslug={orgslug} collection={collection} /></div>
       </div>
     </div>
-    <div className="grid aspect-square grid-cols-2 gap-1.5 rounded-2xl bg-white/15 p-1.5">
-      {cells.map((thumb, index) => thumb ? <PlanCover key={thumb.template_uuid} plan={thumb} className="rounded-xl" /> : <span key={index} className="rounded-xl bg-white/10" />)}
-    </div>
+    <CoverGrid plans={collection.thumbs} className="hidden rotate-[4deg] sm:grid" cellClassName="rounded-[11px] shadow-[0_10px_22px_hsl(0_0%_0%/.3)]" />
   </section>
 }
 
@@ -118,16 +122,16 @@ function Frameworks({ orgslug }: { orgslug: string }) {
     setBusy(uuid)
     try {
       const created: any = await requirementsApi.copyFromLibrary(orgId, uuid, token)
-      toast.success('Framework added to your requirements.')
+      toast.success('Tracking it. It’s in your requirements now.')
       if (created?.framework_uuid) router.push(getUriWithOrg(orgslug, routePaths.org.admin.requirementFrameworkPlans(created.framework_uuid, 'details')))
     } catch (error: any) { toast.error(error?.message || 'Could not add the framework.') } finally { setBusy(null) }
   }
   return <Section title="Requirement frameworks">
-    <Row>{frameworks.map((framework: any) => <div key={framework.framework_uuid} className="flex w-72 shrink-0 snap-start items-center gap-3 rounded-2xl border border-border bg-card p-3">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-700"><ListChecks size={18} aria-hidden="true" /></span>
-      <span className="min-w-0 flex-1"><b className="block truncate text-sm">{framework.name}</b><span className="block truncate text-xs text-muted-foreground">{framework.owner_org_name || 'Life2Launch'} · {plural(framework.node_count || 0, 'requirement')}</span></span>
-      {canAdd ? <Button size="sm" variant="outline" className="rounded-full" disabled={busy === framework.framework_uuid} onClick={() => void copy(framework.framework_uuid)}>Add</Button> : null}
-    </div>)}</Row>
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(270px,1fr))] gap-3">{frameworks.map((framework: any, index: number) => <div key={framework.framework_uuid} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3.5">
+      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-white" style={{ background: FRAMEWORK_TINTS[index % FRAMEWORK_TINTS.length] }}><ListChecks size={22} aria-hidden="true" /></span>
+      <span className="min-w-0 flex-1"><b className="block text-[14.5px] leading-snug">{framework.name}</b><span className="block text-[12.5px] text-muted-foreground">{framework.owner_org_name || 'Life2Launch'} · {plural(framework.node_count || 0, 'requirement')}</span></span>
+      {canAdd ? <button type="button" className={smallActionClass} disabled={busy === framework.framework_uuid} onClick={() => void copy(framework.framework_uuid)}>Track</button> : null}
+    </div>)}</div>
   </Section>
 }
 
@@ -142,7 +146,7 @@ function Badges() {
   if (!badges.length) return null
   return <Section title="Badges">
     <Row>{badges.map((item: any) => <div key={item.badge.badge_uuid} className="flex w-72 shrink-0 snap-start flex-col gap-2 rounded-2xl border border-border bg-card p-4">
-      <span className="flex items-center gap-2"><Award size={18} className="shrink-0 text-amber-600" aria-hidden="true" /><b className="truncate text-sm">{item.badge.name}</b></span>
+      <span className="flex items-center gap-2"><Medal size={18} className="shrink-0 text-[hsl(38_85%_42%)]" aria-hidden="true" /><b className="truncate text-sm">{item.badge.name}</b></span>
       <span className="truncate text-xs text-muted-foreground">{item.creator_org?.name}</span>
       <div className="mt-auto pt-1"><BadgeMarketplaceActions item={item} orgId={orgId} admin={canAdd} onChange={() => void mutate(isMarketplaceKey)} /></div>
     </div>)}</Row>
