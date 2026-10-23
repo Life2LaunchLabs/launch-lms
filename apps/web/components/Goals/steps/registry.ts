@@ -52,6 +52,8 @@ export interface StepDefinition<T extends StepTypeKey = StepTypeKey> {
   label: string
   /** One line on what the type is for, shown in the type picker. */
   hint: string
+  /** A step of this type, for the picker ("e.g. …") and the title's placeholder. */
+  example: string
   icon: React.ElementType
   /** The type's color: the icon tile in pickers, starters and the plan editor. */
   color: string

@@ -17,6 +17,14 @@
   animation: fadeIn 0.3s ease-out;
 }
 
+/* Plan page: the publish celebration's check and rows appearing. */
+@keyframes plan-pop {
+  from { transform: scale(.3); opacity: 0; }
+}
+@keyframes plan-rise {
+  from { opacity: 0; transform: translateY(6px) scale(.985); }
+}
+
 /* Board load animations */
 @keyframes board-fade-in {
   from { opacity: 0; }

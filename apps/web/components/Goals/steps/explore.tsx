@@ -89,7 +89,8 @@ export const explore: StepDefinition<'explore'> = {
   type: 'explore',
   label: 'Explore',
   color: '#0B8077',
-  hint: 'A board of links, files and notes, ending in what you made of it',
+  hint: 'Research on a board of links, files and notes, ending in what they found.',
+  example: 'Research three jobs in health care',
   icon: Compass,
   statusLine: (step) => {
     const count = evidenceOf(step).length

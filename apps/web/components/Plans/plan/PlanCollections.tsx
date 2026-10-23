@@ -10,7 +10,7 @@ import { collectionKeys, collectionsApi, isCollectionsKey } from '@services/goal
 import { isTemplatesKey, type TemplateDetail } from '@services/goals/templates'
 import { NewCollectionModal, collectionHref } from '@components/Plans/library/PlanCards'
 
-/** The plan's collections on their own line under the header, with + to add it to one (or a new one). */
+/** The plan's collections as chips under the header, with + to add it to one (or a new one). */
 export default function PlanCollections({ orgslug, orgId, token, template, canEdit }: { orgslug: string; orgId: number; token?: string; template: TemplateDetail; canEdit: boolean }) {
   const { data: list } = useSWR(canEdit && orgId && token ? collectionKeys.list(orgId) : null, () => collectionsApi.list(orgId, token))
   const [newOpen, setNewOpen] = React.useState(false)
@@ -26,11 +26,11 @@ export default function PlanCollections({ orgslug, orgId, token, template, canEd
     } catch (error: any) { toast.error(error?.message || 'Could not change the collection.') }
   }
   return <>
-    {current.map((item) => <Link key={item.collection_uuid} href={collectionHref(orgslug, item.collection_uuid)} className="inline-flex h-8 items-center gap-1.5 rounded-full border border-border bg-card px-3 text-sm font-semibold hover:bg-muted">
-      <Folder size={14} aria-hidden="true" />{item.name}
+    {current.map((item) => <Link key={item.collection_uuid} href={collectionHref(orgslug, item.collection_uuid)} className="inline-flex h-[30px] items-center gap-1.5 rounded-full border border-border bg-card px-[11px] text-[12.5px] font-semibold hover:border-foreground/25">
+      <Folder size={14} className="text-muted-foreground" aria-hidden="true" />{item.name}
     </Link>)}
     {canEdit ? <DropdownMenu>
-      <DropdownMenuTrigger asChild><button type="button" aria-label="Add to a collection" className="flex h-8 w-8 items-center justify-center rounded-full border border-dashed border-border text-muted-foreground hover:bg-card"><Plus size={14} /></button></DropdownMenuTrigger>
+      <DropdownMenuTrigger asChild><button type="button" aria-label="Add to a collection" className="inline-flex h-[30px] items-center gap-1.5 rounded-full border border-dashed border-border px-[9px] text-[12.5px] font-semibold text-muted-foreground hover:border-foreground/25 hover:bg-card"><Plus size={14} />{current.length ? null : 'Add to a collection'}</button></DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="max-h-72 overflow-y-auto">
         {(list?.collections || []).map((collection) => <DropdownMenuItem key={collection.collection_uuid} onSelect={(event) => { event.preventDefault(); void toggle(collection.collection_uuid, collection.name) }}>
           <span className="flex w-4 justify-center">{inside.has(collection.collection_uuid) ? <Check size={14} /> : null}</span>{collection.name}

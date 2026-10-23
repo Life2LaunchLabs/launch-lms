@@ -58,7 +58,8 @@ export const task: StepDefinition<'task'> = {
   type: 'task',
   label: 'Task',
   color: '#2F66D6',
-  hint: 'Something to do, marked done when it is',
+  hint: 'Something to do and tick off. Add a checklist if it has parts.',
+  example: 'Open a savings account',
   icon: SquareCheck,
   statusLine: (step) => {
     const target = listOf(step)?.target
