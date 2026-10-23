@@ -63,7 +63,7 @@ function codeSegment(value: number, style: RequirementCodeStyle) {
 }
 
 /**
- * Create a blank framework. Copies of published frameworks come from Plans › Marketplace instead.
+ * Create a blank framework. Copies of published frameworks come from Plans › Discover instead.
  * `trigger` replaces the default button.
  */
 export function CreateFramework({ orgId, token, refresh, onCreated, trigger }: any) {

@@ -26,7 +26,7 @@ export default function RequirementsExplorer({ orgslug, orgId, token }: { orgslu
   const refresh = () => listKey ? mutate(listKey) : Promise.resolve()
   const openFramework = (uuid: string) => router.push(getUriWithOrg(orgslug, routePaths.org.admin.requirementFrameworkPlans(uuid, 'spec')))
   const create = <CreateFramework orgId={orgId} token={token} refresh={refresh} onCreated={openFramework} />
-  if (!frameworks?.length) return <div className="px-10 pb-10 pt-6"><EmptyState icon={<ClipboardCheck size={36} />} title="No requirement frameworks yet" detail="Add a published framework from Plans › Marketplace (like your state’s graduation requirements) or write your own." /><div className="mt-4 flex justify-center">{create}</div></div>
+  if (!frameworks?.length) return <div className="px-10 pb-10 pt-6"><EmptyState icon={<ClipboardCheck size={36} />} title="No requirement frameworks yet" detail="Add a published framework from Plans › Discover (like your state’s graduation requirements) or write your own." /><div className="mt-4 flex justify-center">{create}</div></div>
   const framework = frameworks.find((item: any) => item.framework_uuid === selectedUuid) || frameworks[0]
 
   return <div>

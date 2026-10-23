@@ -5,13 +5,13 @@ import { assertActualApp } from './auth'
 // The signed-in test account administers the seeded org (apps/api/scripts/seed_learner_flow.py).
 const fixture = JSON.parse(readFileSync('.playwright/learner-flow.json', 'utf8'))
 const orgPath = `/orgs/${fixture.org_slug}`
-const TABS = ['Assignments', 'Templates', 'Badges', 'Requirements', 'Marketplace']
+const TABS = ['Assignments', 'Plans', 'Badges', 'Requirements', 'Discover']
 
 const plansTabs = (page: Page) => page.getByRole('navigation', { name: 'Plans pages' }).getByRole('link')
 
 async function tabOrder(page: Page): Promise<string[]> {
   await expect(plansTabs(page)).toHaveCount(5)
-  // A tab's first line is its name; a count (Marketplace requests waiting) follows it.
+  // A tab's first line is its name; a count (Discover requests waiting) follows it.
   return (await plansTabs(page).allInnerTexts()).map((text) => text.trim().split('\n')[0].trim())
 }
 
@@ -58,30 +58,27 @@ test('plans.tabs: Plans holds five tabs, and the order a member sets is kept aft
   await expect.poll(() => tabOrder(page)).toEqual(start)
 })
 
-test('plans.templates-badges: each list has search, Create and Add from marketplace, and a template opens under Plans', async ({ page }) => {
+test('plans.library-badges: Plans has search and New plan, a plan opens on its own page, and Badges adds from Discover', async ({ page }) => {
   await page.goto(`${orgPath}/admin/plans/templates`)
   await assertActualApp(page)
-  await expect(page.getByRole('searchbox', { name: 'Search templates' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Create template' })).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Add from marketplace' })).toHaveAttribute('href', /\/admin\/plans\/marketplace\?type=templates$/)
-  // Create is blank only: library copies come from the marketplace.
-  await page.getByRole('button', { name: 'Create template' }).click()
-  await expect(page.getByRole('textbox', { name: 'Template name' })).toBeVisible()
-  await expect(page.getByText('Start from the global library')).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'All plans' })).toBeVisible()
+  await expect(page.getByRole('textbox', { name: 'Search plans' })).toBeVisible()
+  // New plan is blank only: shared plans come from Discover.
+  await page.getByRole('button', { name: 'New plan' }).first().click()
+  await expect(page.getByRole('textbox', { name: 'Plan name' })).toBeVisible()
   await page.keyboard.press('Escape')
 
-  const first = page.getByRole('list', { name: 'Templates' }).getByRole('link').first()
+  const first = page.getByTestId('plan-card').first()
   if (await first.count()) {
     await first.click()
-    await expect(page).toHaveURL(/\/admin\/plans\/[^/]+\/overview$/)
-    // Breadcrumbs: Plans › Templates › the template.
-    await expect(page.locator('a[href$="/admin/plans/templates"]', { hasText: 'Templates' }).filter({ visible: true }).first()).toBeVisible()
+    await expect(page).toHaveURL(/\/admin\/plans\/[^/]+$/)
+    await expect(page.getByTestId('live-version-chip').or(page.getByTestId('plan-draft-bar')).first()).toBeVisible()
   }
 
   await page.goto(`${orgPath}/admin/badges`)
   await expect(page.getByRole('searchbox', { name: 'Search badges' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Create badge' })).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Add from marketplace' })).toHaveAttribute('href', /\/admin\/plans\/marketplace\?type=badges$/)
+  await expect(page.getByRole('link', { name: 'Add from Discover' })).toHaveAttribute('href', /\/admin\/plans\/marketplace\?type=badges$/)
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true)
 })
 
@@ -89,7 +86,7 @@ test('plans.redirects: the old badge marketplace and framework URLs land in Plan
   await page.goto(`${orgPath}/admin/badges?tab=marketplace`)
   await assertActualApp(page)
   await expect(page).toHaveURL(/\/admin\/plans\/marketplace\?type=badges$/)
-  await expect(plansTabs(page).filter({ hasText: 'Marketplace' })).toHaveAttribute('aria-current', 'page')
+  await expect(plansTabs(page).filter({ hasText: 'Discover' })).toHaveAttribute('aria-current', 'page')
 
   await page.goto(`${orgPath}/admin/insights/frameworks/${fixture.framework_uuid}/levels`)
   await expect(page).toHaveURL(new RegExp(`/admin/plans/requirements/${fixture.framework_uuid}/levels$`))
