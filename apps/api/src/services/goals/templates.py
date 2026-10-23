@@ -124,6 +124,8 @@ def template_dict(db: Session, template: GoalTemplate, *, with_document: bool = 
     result["draft"] = drafts.draft_meta(db, template, unpublished=result["has_unpublished_changes"])
     if with_document:
         result["document"] = template.document
+        # The plan page shows the live version while a draft is open (activity steps play frozen copies).
+        result["live_document"] = live.document if live else None
         result["versions"] = [_version_dict(version, template.published_version_id) for version in _versions(db, template)]
     return result
 
@@ -183,12 +185,16 @@ def list_templates(db: Session, current_user: PublicUser, org_id: int, include_a
         statement = statement.where(GoalTemplate.status != TemplateStatus.ARCHIVED)
     rows = db.exec(statement.order_by(GoalTemplate.title)).all()
     read_only = not can_edit(db, current_user, org_id)
+    from src.services.goals.collections import collections_by_template
+
     badges = _badges_by_template(db, [int(row.id) for row in rows if row.id])
+    in_collections = collections_by_template(db, org_id, [int(row.id) for row in rows if row.id])
     nodes = mappable_nodes(db, org_id)
     return [{
         **template_dict(db, row, with_document=False), "read_only": read_only,
         "stage_count": len((row.document or {}).get("stages") or []), "step_count": sum(1 for _ in iter_steps(row.document or {})),
         "badges": badges.get(int(row.id or 0), []), "frameworks": _frameworks_of(row.document, nodes),
+        "collections": in_collections.get(int(row.id or 0), []),
     } for row in rows]
 
 
@@ -221,8 +227,11 @@ def get_template(db: Session, current_user: PublicUser, org_id: int, template_uu
     """One of the organization's templates with its draft; ``read_only`` for staff, who see it but can't change it."""
     require_reader(db, current_user, org_id)
     template = template_or_404(db, org_id, template_uuid)
+    from src.services.goals.collections import collections_by_template
+
     return {**template_dict(db, template), "read_only": not can_edit(db, current_user, org_id),
-            "badges": _badges_by_template(db, [int(template.id or 0)]).get(int(template.id or 0), [])}
+            "badges": _badges_by_template(db, [int(template.id or 0)]).get(int(template.id or 0), []),
+            "collections": collections_by_template(db, org_id, [int(template.id or 0)]).get(int(template.id or 0), [])}
 
 
 def save_template(db: Session, current_user: PublicUser, org_id: int, template_uuid: str, document: dict, expected_etag: str | None = None) -> dict:

@@ -33,6 +33,7 @@ from src.routers import (
     news,
     orgs,
     operations_surface,
+    plan_collections,
     plans,
     portfolio,
     portfolio_people,
@@ -102,6 +103,12 @@ v1_router.include_router(
 v1_router.include_router(
     goal_templates.router,
     prefix="/goal-templates",
+    tags=["goals"],
+    dependencies=[Depends(get_non_api_token_user)],
+)
+v1_router.include_router(
+    plan_collections.router,
+    prefix="/plan-collections",
     tags=["goals"],
     dependencies=[Depends(get_non_api_token_user)],
 )

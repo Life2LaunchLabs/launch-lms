@@ -5,7 +5,7 @@ import React from 'react'
 import AdminTabPage from '@components/Admin/AdminTabPage'
 import PlansShell from '@components/Admin/Plans/PlansShell'
 import { OrgAssignments } from '@components/Goals/admin/assignments/AssignmentsList'
-import TemplateList from '@components/Goals/admin/templates/TemplateList'
+import PlanLibrary from '@components/Goals/admin/plan/PlanLibrary'
 import { RequirementFrameworkDetail } from '@components/Goals/admin/insights/RequirementFrameworkEditor'
 import FrameworkList from '@components/Goals/admin/requirements/FrameworkList'
 import AdminBadgesHome from '@components/Learning/AdminBadgesHome'
@@ -29,7 +29,7 @@ export function AssignmentsPage({ orgslug }: { orgslug: string }) {
 
 export function TemplatesPage({ orgslug }: { orgslug: string }) {
   const { orgId, token } = useOrgAndToken()
-  return <PlansShell active="templates"><TemplateList orgslug={orgslug} orgId={orgId} token={token} /></PlansShell>
+  return <PlansShell active="templates"><PlanLibrary orgslug={orgslug} orgId={orgId} token={token} /></PlansShell>
 }
 
 /** Badges: the org's badge collections, with the Discover carousel settings beside them. */

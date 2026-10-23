@@ -200,6 +200,8 @@ export const routePaths = {
       templates: () => PLANS_TAB_PATHS.templates,
       // Template uuids kept their old program uuids.
       template: (templateUuid: string) => `/admin/plans/${encodeURIComponent(templateUuid)}`,
+      /** A plan collection under Plans. */
+      planCollection: (collectionUuid: string) => `/admin/plans/collections/${encodeURIComponent(collectionUuid)}`,
       templatePage: (templateUuid: string, subpage: string) => `/admin/plans/${encodeURIComponent(templateUuid)}/${encodeURIComponent(subpage)}`,
       badges: () => PLANS_TAB_PATHS.badges,
       /** Old name: the marketplace browsing badges. */

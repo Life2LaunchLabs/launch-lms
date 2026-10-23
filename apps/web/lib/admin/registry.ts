@@ -54,10 +54,10 @@ export const ADMIN_TABS: AdminTab[] = [
       // Every org, free included, can assign its templates (a solo coach assigning to a client).
       { id: 'assignments', label: 'Assignments', labelKey: 'common.assignments', href: admin.plans('assignments'), match: [admin.plans('assignments'), '/admin/plans/assignments', '/admin/plans/review', '/admin/plans/live'], requires: {} },
       // Every other /admin/plans/<uuid> page is a template.
-      { id: 'templates', label: 'Templates', href: admin.plans('templates'), match: [admin.plans('templates'), '/admin/plans/'], requires: {} },
+      { id: 'templates', label: 'Plans', href: admin.plans('templates'), match: [admin.plans('templates'), '/admin/plans/'], requires: {} },
       { id: 'badges', label: 'Badges', href: admin.plans('badges'), match: [admin.plans('badges')], requires: {} },
       { id: 'requirements', label: 'Requirements', href: admin.plans('requirements'), match: [admin.plans('requirements')], requires: {} },
-      { id: 'marketplace', label: 'Marketplace', href: admin.plans('marketplace'), match: [admin.plans('marketplace')], requires: {} },
+      { id: 'marketplace', label: 'Discover', href: admin.plans('marketplace'), match: [admin.plans('marketplace')], requires: {} },
     ],
   },
   { id: 'people', label: 'People', href: admin.people.root(), match: [admin.people.root()], requires: { right: STAFF } },

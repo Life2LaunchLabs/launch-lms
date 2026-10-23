@@ -47,6 +47,7 @@ export interface TemplateDetail extends GoalTemplate {
   badges?: TemplateBadgeRef[]
   /** Who made it, on another organization's template. */
   owner_org?: { id: number; name: string; slug: string } | null
+  collections?: Array<{ collection_uuid: string; name: string }>
 }
 
 /** A badge a template earns, as template lists and pages show it. */
@@ -65,6 +66,8 @@ export interface TemplateListItem extends GoalTemplate {
   step_count?: number
   badges?: TemplateBadgeRef[]
   frameworks?: Array<{ framework_uuid: string; name: string; node_count: number }>
+  /** The organization's collections it's in. */
+  collections?: Array<{ collection_uuid: string; name: string }>
 }
 
 export interface LibraryTemplate {
@@ -135,6 +138,16 @@ export interface IssuerBadgeRoute {
   assignments: GoalAssignmentSummary[]
 }
 
+/** What a draft changes against the version it started from (apps/api/src/services/goals/drafts.py). */
+export interface DraftChanges {
+  base: { version_uuid: string; semver: string | null } | null
+  stages: Array<{ stage_key: string; title: string; change: 'added' | 'removed' | 'changed' | 'same'; fields: string[]; steps: Array<{ step_key: string; title: string; type: string; change: 'added' | 'removed' | 'changed' | 'moved' }> }>
+  summary: { added: number; changed: number; removed: number; stages_changed: number }
+}
+
+/** How many active assignments and open plans moved when the live version changed. */
+export interface MovedAssignments { assignments: number; plans: number; rewritten: number; added: number; removed: number; kept_started: number }
+
 /** A 409 from saving: someone saved since the editor read the draft. */
 export const isStaleTemplateError = (error: any) => error?.status === 409 && typeof error?.detail === 'object' && !!error?.detail?.etag
 
@@ -151,7 +164,13 @@ export const templatesApi = {
   get: (orgId: number, templateUuid: string, token?: string) => request<TemplateDetail>(templateKeys.one(orgId, templateUuid), token),
   create: (orgId: number, data: { title?: string; document?: TemplateDocument }, token?: string) => request<TemplateDetail>(withOrg(templatesUrl(), orgId), token, 'POST', data),
   save: (orgId: number, templateUuid: string, document: TemplateDocument, etag: string | null, token?: string) => request<TemplateDetail>(templateKeys.one(orgId, templateUuid), token, 'PUT', { document, etag }),
-  publish: (orgId: number, templateUuid: string, note: string, token?: string) => request<TemplateDetail>(withOrg(templateUrl(templateUuid, '/publish'), orgId), token, 'POST', { note }),
+  publish: (orgId: number, templateUuid: string, data: { note?: string; semver?: string; make_live?: boolean }, token?: string) => request<TemplateDetail & { moved: MovedAssignments | null }>(withOrg(templateUrl(templateUuid, '/publish'), orgId), token, 'POST', data),
+  startDraft: (orgId: number, templateUuid: string, data: { semver: string; note?: string }, token?: string) => request<TemplateDetail>(withOrg(templateUrl(templateUuid, '/draft'), orgId), token, 'POST', data),
+  updateDraft: (orgId: number, templateUuid: string, data: { semver?: string; note?: string }, token?: string) => request<TemplateDetail>(withOrg(templateUrl(templateUuid, '/draft'), orgId), token, 'PATCH', data),
+  discardDraft: (orgId: number, templateUuid: string, token?: string) => request<TemplateDetail>(withOrg(templateUrl(templateUuid, '/draft'), orgId), token, 'DELETE'),
+  draftChanges: (orgId: number, templateUuid: string, token?: string) => request<DraftChanges>(withOrg(templateUrl(templateUuid, '/draft/changes'), orgId), token),
+  livePreview: (orgId: number, templateUuid: string, token?: string) => request<{ assignments: number; open_plans: number }>(withOrg(templateUrl(templateUuid, '/live'), orgId), token),
+  setLive: (orgId: number, templateUuid: string, versionUuid: string | null, token?: string) => request<TemplateDetail & { moved: MovedAssignments | null }>(withOrg(templateUrl(templateUuid, '/live'), orgId), token, 'PUT', { version_uuid: versionUuid }),
   restore: (orgId: number, templateUuid: string, number: number, token?: string) => request<TemplateDetail>(withOrg(templateUrl(templateUuid, `/versions/${number}/restore`), orgId), token, 'POST'),
   archive: (orgId: number, templateUuid: string, token?: string) => request<GoalTemplate>(withOrg(templateUrl(templateUuid, '/archive'), orgId), token, 'POST'),
   unarchive: (orgId: number, templateUuid: string, token?: string) => request<GoalTemplate>(withOrg(templateUrl(templateUuid, '/unarchive'), orgId), token, 'POST'),
