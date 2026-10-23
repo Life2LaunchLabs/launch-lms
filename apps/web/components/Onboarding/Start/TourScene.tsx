@@ -34,13 +34,19 @@ const pop = { initial: { opacity: 0, y: 10 }, animate: { opacity: 1, y: 0 }, exi
 export default function TourScene({ scene }: { scene: number }) {
   const beat = useBeat(scene)
   const celebrating = scene === 3
-  return <div aria-hidden="true" className="relative h-full w-full overflow-hidden rounded-[28px] bg-[#2a6fb8]">
+  const box = React.useRef<HTMLDivElement>(null)
+  const fit = useFit(box)
+  return <div ref={box} aria-hidden="true" className="relative h-full w-full overflow-hidden rounded-[28px] bg-[#2a6fb8]">
     <motion.div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: 'url(/images/start/sky.webp)' }}
       animate={{ scale: celebrating ? 1.08 : 1, filter: scene === 1 || scene === 2 ? 'saturate(0.6) brightness(0.9)' : 'none' }} transition={{ duration: 1 }} />
+    {/* The phone keeps its size and scales down to fit the box, so a short box never crops it. */}
     <motion.div className="absolute left-1/2 top-1/2 overflow-hidden bg-white shadow-2xl"
       initial={false}
-      animate={celebrating ? { width: '100%', height: '100%', borderRadius: 28, x: '-50%', y: '-50%', opacity: 0 } : { width: 280, height: 540, borderRadius: 36, x: '-50%', y: '-50%', opacity: 1 }}
+      animate={celebrating ? { width: '100%', height: '100%', borderRadius: 28, borderWidth: 0, x: '-50%', y: '-50%', scale: 1, opacity: 0 }
+        : { width: PHONE.width, height: PHONE.height, borderRadius: 44, borderWidth: 9, x: '-50%', y: '-50%', scale: fit, opacity: 1 }}
+      style={{ borderColor: '#14202a', borderStyle: 'solid' }}
       transition={{ duration: 0.8, ease: [0.65, 0, 0.35, 1] }}>
+      <span className="absolute left-1/2 top-2 z-10 h-[22px] w-[76px] -translate-x-1/2 rounded-full bg-[#14202a]" />
       <AnimatePresence mode="wait">
         {scene === 0 ? <motion.div key="profile" {...pop} className="h-full"><Profile beat={beat} /></motion.div>
           : scene === 1 ? <motion.div key="plan" {...pop} className="h-full"><Plan beat={beat} /></motion.div>
@@ -57,6 +63,23 @@ export default function TourScene({ scene }: { scene: number }) {
     </div>
     <AnimatePresence>{celebrating ? <Celebration key="cel" beat={beat} /> : null}</AnimatePresence>
   </div>
+}
+
+const PHONE = { width: 290, height: 560 }
+
+/** How much the phone shrinks to sit inside the box with a margin (never grows past its own size). */
+function useFit(box: React.RefObject<HTMLDivElement | null>) {
+  const [fit, setFit] = React.useState(1)
+  React.useEffect(() => {
+    const node = box.current
+    if (!node) return
+    const measure = () => setFit(Math.min(1, (node.clientHeight - 32) / PHONE.height, (node.clientWidth - 32) / PHONE.width))
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [box])
+  return fit
 }
 
 function Note({ color, icon, title, detail }: { color: string; icon: React.ReactNode; title: string; detail: string }) {
