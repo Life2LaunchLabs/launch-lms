@@ -17,7 +17,8 @@ from fastapi import HTTPException
 from sqlalchemy import inspect
 from sqlmodel import Session, col, func, select
 
-from src.db.goals import PLAN_COLORS, GoalTemplate, GoalTemplateVersion, TemplateCover, TemplateStatus
+from src.db.goal_templates import TemplateCover
+from src.db.goals import PLAN_COLORS, GoalTemplate, GoalTemplateVersion, TemplateStatus
 from src.db.learning import LearningActivity
 from src.db.users import PublicUser
 from src.security.org_auth import is_org_admin, require_org_admin

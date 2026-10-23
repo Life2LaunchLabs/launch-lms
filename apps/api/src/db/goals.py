@@ -489,12 +489,6 @@ class TemplateCreate(SQLModel):
     color: Literal[PLAN_COLORS] | None = None  # type: ignore[valid-type]
 
 
-class TemplateCover(SQLModel):
-    """A plan's cover when it has no image."""
-    icon: Literal[GOAL_ICONS] | None = None  # type: ignore[valid-type]
-    color: Literal[PLAN_COLORS] | None = None  # type: ignore[valid-type]
-
-
 class TemplatePublish(SQLModel):
     note: str = Field(default="", max_length=1000)
     # Defaults to the draft's version; a template with no draft gets the next minor version.

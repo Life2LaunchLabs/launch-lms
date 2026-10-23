@@ -3,7 +3,7 @@
 import pytest
 from fastapi import HTTPException
 
-from src.db.goals import TemplateCover
+from src.db.goal_templates import TemplateCover
 from src.db.plan_collections import PlanCollectionCreate, PlanCollectionUpdate
 from src.services.goals import collections, starters, templates
 from src.tests.test_discover import _world

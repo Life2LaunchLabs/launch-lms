@@ -4,9 +4,9 @@ from fastapi import APIRouter, Depends
 from sqlmodel import Session
 
 from src.core.events.database import get_db_session
-from src.db.goal_templates import GoalAssignmentRequest
+from src.db.goal_templates import GoalAssignmentRequest, TemplateCover
 from src.db.goal_drafts import TemplateDraftStart, TemplateDraftUpdate, TemplateLiveUpdate
-from src.db.goals import TemplateCover, TemplateCreate, TemplatePublish, TemplateSave, TemplateStatus
+from src.db.goals import TemplateCreate, TemplatePublish, TemplateSave, TemplateStatus
 from src.db.template_marketplace import TemplateLearnerAccessUpdate
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
