@@ -17,7 +17,8 @@ from fastapi import HTTPException
 from sqlalchemy import inspect
 from sqlmodel import Session, col, func, select
 
-from src.db.goals import GoalTemplate, GoalTemplateVersion, TemplateStatus
+from src.db.goal_templates import TemplateCover
+from src.db.goals import PLAN_COLORS, GoalTemplate, GoalTemplateVersion, TemplateStatus
 from src.db.learning import LearningActivity
 from src.db.users import PublicUser
 from src.security.org_auth import is_org_admin, require_org_admin
@@ -108,11 +109,16 @@ def _version_dict(version: GoalTemplateVersion, live_id: int | None) -> dict:
     }
 
 
+def cover(template: GoalTemplate) -> dict:
+    """What a plan card shows: the image, else the icon on the color (the web picks for a plan without them)."""
+    return {"thumbnail_image": template.thumbnail_image or "", "icon": template.icon, "color": template.color}
+
+
 def template_dict(db: Session, template: GoalTemplate, *, with_document: bool = True) -> dict:
     live = published_version(db, template)
     result = {
         "template_uuid": template.template_uuid, "org_id": template.org_id, "title": template.title,
-        "description": template.description, "thumbnail_image": template.thumbnail_image,
+        "description": template.description, **cover(template),
         "status": getattr(template.status, "value", template.status), "system_type": template.system_type,
         "etag": etag(template), "published_version": live.number if live else None,
         "live_version": _version_dict(live, live.id) if live else None,
@@ -128,6 +134,21 @@ def template_dict(db: Session, template: GoalTemplate, *, with_document: bool = 
         result["live_document"] = live.document if live else None
         result["versions"] = [_version_dict(version, template.published_version_id) for version in _versions(db, template)]
     return result
+
+
+def set_cover(db: Session, current_user: PublicUser, org_id: int, template_uuid: str, payload: TemplateCover) -> dict:
+    """Change the plan's icon or color. Covers aren't versioned: every version shows the current one."""
+    require_org_admin(current_user.id, org_id, db, "build_plans")
+    template = template_or_404(db, org_id, template_uuid)
+    if template.system_type:
+        raise HTTPException(status_code=409, detail="System templates keep their cover")
+    for field in payload.model_fields_set:
+        setattr(template, field, getattr(payload, field))
+    template.update_date = _now()
+    db.add(template)
+    db.commit()
+    db.refresh(template)
+    return cover(template)
 
 
 def can_edit(db: Session, current_user: PublicUser, org_id: int) -> bool:
@@ -185,25 +206,33 @@ def list_templates(db: Session, current_user: PublicUser, org_id: int, include_a
         statement = statement.where(GoalTemplate.status != TemplateStatus.ARCHIVED)
     rows = db.exec(statement.order_by(GoalTemplate.title)).all()
     read_only = not can_edit(db, current_user, org_id)
-    from src.services.goals.collections import collections_by_template
+    from src.services.goals.collections import _listed_ids, collections_by_template
 
     badges = _badges_by_template(db, [int(row.id) for row in rows if row.id])
+    listed = _listed_ids(db, [int(row.id) for row in rows if row.id])
     in_collections = collections_by_template(db, org_id, [int(row.id) for row in rows if row.id])
     nodes = mappable_nodes(db, org_id)
     return [{
         **template_dict(db, row, with_document=False), "read_only": read_only,
         "stage_count": len((row.document or {}).get("stages") or []), "step_count": sum(1 for _ in iter_steps(row.document or {})),
         "badges": badges.get(int(row.id or 0), []), "frameworks": _frameworks_of(row.document, nodes),
-        "collections": in_collections.get(int(row.id or 0), []),
+        "collections": in_collections.get(int(row.id or 0), []), "listed": int(row.id or 0) in listed,
     } for row in rows]
 
 
-def create_template(db: Session, current_user: PublicUser, org_id: int, document: dict | None = None, title: str = "") -> dict:
+def _next_color(db: Session, org_id: int) -> str:
+    """New plans take the plan colors in turn, so a library reads as a mix."""
+    count = db.exec(select(func.count()).select_from(GoalTemplate).where(GoalTemplate.org_id == org_id)).one()
+    return PLAN_COLORS[int(count or 0) % len(PLAN_COLORS)]
+
+
+def create_template(db: Session, current_user: PublicUser, org_id: int, document: dict | None = None, title: str = "",
+                    icon: str | None = None, color: str | None = None) -> dict:
     require_org_admin(current_user.id, org_id, db, "build_plans")
     raw = document or empty_document(title.strip() or "Untitled template")
     now = _now()
     template = GoalTemplate(
-        template_uuid=f"goal_template_{uuid4()}", org_id=org_id, title="", document={},
+        template_uuid=f"goal_template_{uuid4()}", org_id=org_id, title="", document={}, icon=icon or "target", color=color or _next_color(db, org_id),
         draft={"semver": "1.0.0", "note": "", "base_version_uuid": None, "started_at": now, "started_by_user_id": current_user.id},
         created_by_user_id=current_user.id, creation_date=now, update_date=now,
     )

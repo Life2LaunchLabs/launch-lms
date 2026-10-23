@@ -57,6 +57,7 @@ function TaskCard({ step, actions, canWork, staff }: StepCardProps<'task'>) {
 export const task: StepDefinition<'task'> = {
   type: 'task',
   label: 'Task',
+  color: '#2F66D6',
   hint: 'Something to do, marked done when it is',
   icon: SquareCheck,
   statusLine: (step) => {

@@ -191,7 +191,7 @@ def _card(db: Session, template: GoalTemplate, listing: GoalTemplateListing, org
     authorization = authorization_of(db, template, org_id) if org_id else None
     return {
         "template_uuid": template.template_uuid, "title": template.title, "description": template.description or "",
-        "thumbnail_image": template.thumbnail_image, "published_version": live.number if live else None,
+        **templates.cover(template), "published_version": live.number if live else None,
         "stage_count": len(document.get("stages") or []), "step_count": len(steps),
         "creator_org": _org(db.get(Organization, template.org_id)), "is_own": org_id is not None and template.org_id == org_id,
         **listing_dict(listing), "badges": _badges(db, template), "frameworks": _frameworks(db, nodes), "requirement_count": len(nodes),

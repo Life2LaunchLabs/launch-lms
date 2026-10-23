@@ -103,6 +103,7 @@ const cleanOptions = (config: DecisionConfig): DecisionConfig => ({ ...config, o
 export const decision: StepDefinition<'decision'> = {
   type: 'decision',
   label: 'Decision',
+  color: '#C77A0E',
   hint: 'Choose between options',
   icon: Signpost,
   RowResult: DecisionRow,

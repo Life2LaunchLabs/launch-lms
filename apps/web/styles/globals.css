@@ -133,6 +133,11 @@
   --color-primary: hsl(var(--primary));
   --color-primary-foreground: hsl(var(--primary-foreground));
 
+  /* The selection blue: what's picked or active (a chosen category, a checked box), not actions. */
+  --color-brand: hsl(var(--brand));
+  --color-brand-soft: hsl(var(--brand-soft));
+  --color-brand-ink: hsl(var(--brand-ink));
+
   --color-secondary: hsl(var(--secondary));
   --color-secondary-foreground: hsl(var(--secondary-foreground));
 
@@ -378,6 +383,9 @@
     --border: 200 18% 86%;
     --input: 200 18% 82%;
     --ring: 216 90% 52%;
+    --brand: 222 82% 52%;
+    --brand-soft: 222 90% 95%;
+    --brand-ink: 222 70% 38%;
     --shell: 200 20% 89%;
     --raised: 200 22% 93%;
     --edge: 200 16% 78%;
@@ -434,6 +442,9 @@
     --border: 201 24% 24%;
     --input: 201 24% 26%;
     --ring: 214 100% 65%;
+    --brand: 218 95% 64%;
+    --brand-soft: 222 50% 20%;
+    --brand-ink: 218 100% 80%;
     --shell: 196 36% 6%;
     --raised: 199 26% 18%;
     --edge: 201 24% 22%;

@@ -96,7 +96,7 @@ def copy_into(db: Session, current_user: PublicUser, org_id: int, source: GoalTe
     document = deepcopy(source_document)
     now = datetime.now().isoformat()
     copied = GoalTemplate(
-        template_uuid=f"goal_template_{uuid4()}", org_id=org_id, title="", document={}, thumbnail_image=source.thumbnail_image,
+        template_uuid=f"goal_template_{uuid4()}", org_id=org_id, title="", document={}, thumbnail_image=source.thumbnail_image, icon=source.icon, color=source.color,
         status=TemplateStatus.ACTIVE, source_template_uuid=source.template_uuid, source_version=source_version,
         created_by_user_id=current_user.id, creation_date=now, update_date=now,
     )

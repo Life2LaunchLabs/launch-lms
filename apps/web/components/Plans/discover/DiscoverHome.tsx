@@ -12,7 +12,7 @@ import { getUriWithOrg, routePaths } from '@services/config/config'
 import { discoverApi, discoverKeys, type DiscoverPlan } from '@services/goals/discover'
 import { requirementsApi } from '@services/goals/requirements'
 import { browseMarketplaceBadges, isMarketplaceKey, MARKETPLACE_KEY } from '@services/learning/marketplace'
-import { PlanThumb } from '@components/Plans/library/PlanCards'
+import { PlanCover } from '@components/Plans/shared/PlanCover'
 import { plural } from '@components/Plans/plan/planVersions'
 import { CollectionAction, DiscoverCollectionCard, DiscoverPlanCard, Row, discoverCollectionHref, useDiscoverContext } from './parts'
 
@@ -100,7 +100,7 @@ function Featured({ orgslug, collection }: { orgslug: string; collection: NonNul
       </div>
     </div>
     <div className="grid aspect-square grid-cols-2 gap-1.5 rounded-2xl bg-white/15 p-1.5">
-      {cells.map((thumb, index) => thumb ? <PlanThumb key={thumb.template_uuid} title={thumb.title} image={thumb.thumbnail_image} className="rounded-xl" /> : <span key={index} className="rounded-xl bg-white/10" />)}
+      {cells.map((thumb, index) => thumb ? <PlanCover key={thumb.template_uuid} plan={thumb} className="rounded-xl" /> : <span key={index} className="rounded-xl bg-white/10" />)}
     </div>
   </section>
 }

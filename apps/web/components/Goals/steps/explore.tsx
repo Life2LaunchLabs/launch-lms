@@ -88,6 +88,7 @@ function ExploreSettings({ config, onChange }: ConfigPanelProps<'explore'>) {
 export const explore: StepDefinition<'explore'> = {
   type: 'explore',
   label: 'Explore',
+  color: '#0B8077',
   hint: 'A board of links, files and notes, ending in what you made of it',
   icon: Compass,
   statusLine: (step) => {

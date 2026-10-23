@@ -4,13 +4,13 @@ from fastapi import APIRouter, Depends
 from sqlmodel import Session
 
 from src.core.events.database import get_db_session
-from src.db.goal_templates import GoalAssignmentRequest
+from src.db.goal_templates import GoalAssignmentRequest, TemplateCover
 from src.db.goal_drafts import TemplateDraftStart, TemplateDraftUpdate, TemplateLiveUpdate
 from src.db.goals import TemplateCreate, TemplatePublish, TemplateSave, TemplateStatus
 from src.db.template_marketplace import TemplateLearnerAccessUpdate
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
-from src.services.goals import assignments, badge_templates, badge_versions, drafts, library, template_learners, template_marketplace, templates
+from src.services.goals import assignments, badge_templates, badge_versions, drafts, library, starters, template_learners, template_marketplace, templates
 from src.services.goals.document import json_schema
 
 router = APIRouter()
@@ -28,7 +28,7 @@ def api_templates(org_id: int, include_archived: bool = False, db: Session = Dep
 
 @router.post("")
 def api_create_template(org_id: int, payload: TemplateCreate, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
-    return templates.create_template(db, user, org_id, payload.document, payload.title)
+    return templates.create_template(db, user, org_id, payload.document, payload.title, payload.icon, payload.color)
 
 
 # Fixed paths before /{template_uuid} ------------------------------------------------
@@ -57,6 +57,18 @@ def api_issuer_badge_routes(org_id: int, db: Session = Depends(get_db_session), 
     return badge_templates.issuer_routes(db, user, org_id)
 
 
+@router.get("/starters")
+def api_starters(org_id: int, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    """The New plan picker's starter plans, by category."""
+    return starters.list_starters(db, user, org_id)
+
+
+@router.post("/starters/{template_uuid}/use")
+def api_use_starter(template_uuid: str, org_id: int, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    """A new draft plan from a starter."""
+    return starters.use_starter(db, user, org_id, template_uuid)
+
+
 # One template -------------------------------------------------------------------------
 
 @router.get("/{template_uuid}")
@@ -74,6 +86,11 @@ def api_template(template_uuid: str, org_id: int, db: Session = Depends(get_db_s
 @router.put("/{template_uuid}")
 def api_save_template(template_uuid: str, org_id: int, payload: TemplateSave, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
     return templates.save_template(db, user, org_id, template_uuid, payload.document, payload.etag)
+
+
+@router.put("/{template_uuid}/cover")
+def api_template_cover(template_uuid: str, org_id: int, payload: TemplateCover, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    return templates.set_cover(db, user, org_id, template_uuid, payload)
 
 
 @router.post("/{template_uuid}/publish")

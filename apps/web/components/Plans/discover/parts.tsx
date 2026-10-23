@@ -15,7 +15,8 @@ import { isCollectionsKey } from '@services/goals/collections'
 import { discoverApi, isDiscoverKey, type DiscoverCollection, type DiscoverPlan } from '@services/goals/discover'
 import { isTemplatesKey } from '@services/goals/templates'
 import { cn } from '@/lib/utils'
-import { PlanThumb, collectionHref, planHref } from '@components/Plans/library/PlanCards'
+import { collectionHref, planHref } from '@components/Plans/library/PlanCards'
+import { PlanCover } from '@components/Plans/shared/PlanCover'
 import { plural } from '@components/Plans/plan/planVersions'
 
 export const discoverPlanHref = (orgslug: string, uuid: string) => getUriWithOrg(orgslug, routePaths.org.admin.discoverPlan(uuid))
@@ -45,7 +46,7 @@ export function ByLine({ org, partner }: { org: DiscoverPlan['creator_org']; par
 export function DiscoverPlanCard({ orgslug, plan, className }: { orgslug: string; plan: DiscoverPlan; className?: string }) {
   return <Link href={discoverPlanHref(orgslug, plan.template_uuid)} className={cn('block rounded-2xl border border-border bg-card p-2 transition hover:shadow-md', className)} data-testid="discover-plan-card">
     <span className="relative block">
-      <PlanThumb title={plan.title} image={plan.thumbnail_image} className="aspect-square w-full rounded-xl" />
+      <PlanCover plan={plan} className="aspect-square w-full rounded-xl" />
       {plan.status === 'added' || plan.status === 'own' ? <span className="absolute left-2 top-2 rounded-full bg-white/95 px-2 py-0.5 text-[11px] font-bold text-emerald-700">{plan.status === 'own' ? 'Yours' : 'Added'}</span>
         : plan.status === 'requested' ? <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-0.5 text-[11px] font-bold text-amber-700"><Clock size={11} />Requested</span> : null}
     </span>
@@ -66,7 +67,7 @@ export function DiscoverCollectionCard({ orgslug, collection }: { orgslug: strin
   const cells = [0, 1, 2, 3].map((index) => collection.thumbs[index])
   return <Link href={discoverCollectionHref(orgslug, collection.collection_uuid)} className="block w-52 shrink-0 snap-start rounded-2xl border border-border bg-card p-2 transition hover:shadow-md sm:w-60" data-testid="discover-collection-card">
     <span className="grid aspect-square grid-cols-2 gap-1 overflow-hidden rounded-xl bg-muted/50 p-1">
-      {cells.map((thumb, index) => thumb ? <PlanThumb key={thumb.template_uuid} title={thumb.title} image={thumb.thumbnail_image} className="rounded-lg" />
+      {cells.map((thumb, index) => thumb ? <PlanCover key={thumb.template_uuid} plan={thumb} className="rounded-lg" />
         : <span key={index} className="rounded-lg bg-muted/60" />)}
     </span>
     <span className="mt-2 flex items-center gap-1 px-1 text-xs text-muted-foreground">

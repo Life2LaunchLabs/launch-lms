@@ -91,6 +91,9 @@ class GoalTemplate(SQLModel, table=True):
     title: str
     description: str = ""
     thumbnail_image: str = ""
+    # The plan's cover when it has no image: one of GOAL_ICONS on one of the plan colors (web planColors).
+    icon: str | None = Field(default=None, sa_column=Column(String, nullable=True))
+    color: str | None = Field(default=None, sa_column=Column(String, nullable=True))
     status: TemplateStatus = Field(default=TemplateStatus.ACTIVE, sa_column=Column(String, nullable=False, index=True))
     # "starter" for the system starter template, loaded from data with each release.
     system_type: str | None = Field(default=None, sa_column=Column(String, nullable=True, index=True))
@@ -358,7 +361,10 @@ class GoalCreate(SQLModel):
 
 
 # The marks a learner can give their own goal; the web draws each one.
-GOAL_ICONS = ("target", "book", "briefcase", "graduation", "heart", "dumbbell", "palette", "music", "code", "leaf", "home", "rocket")
+GOAL_ICONS = ("target", "book", "briefcase", "graduation", "heart", "dumbbell", "palette", "music", "code", "leaf", "home", "rocket",
+              "wallet", "compass", "calendar", "star", "flag", "chat")
+# The colors a plan's cover can take (the web's planColors palette keys).
+PLAN_COLORS = ("violet", "teal", "amber", "blue", "pink", "lime", "orange", "sky")
 
 
 class GoalFinish(SQLModel):
@@ -479,6 +485,8 @@ class TemplateSave(SQLModel):
 class TemplateCreate(SQLModel):
     title: str = ""
     document: dict | None = None
+    icon: Literal[GOAL_ICONS] | None = None  # type: ignore[valid-type]
+    color: Literal[PLAN_COLORS] | None = None  # type: ignore[valid-type]
 
 
 class TemplatePublish(SQLModel):

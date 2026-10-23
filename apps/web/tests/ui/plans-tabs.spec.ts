@@ -31,18 +31,25 @@ test('plans.tabs: Plans opens on the org’s plans, with Plans and Discover firs
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true)
 })
 
-test('plans.library: Plans has search and New plan, and a plan opens on its own page', async ({ page }) => {
+test('plans.library: Plans has collections, search, a filter and New plan, and a plan opens on its own page', async ({ page }) => {
   await page.goto(`${orgPath}/admin/plans`)
   await assertActualApp(page)
+  await expect(page.getByRole('heading', { name: 'Collections' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'All plans' })).toBeVisible()
   await expect(page.getByRole('textbox', { name: 'Search plans' })).toBeVisible()
+  await page.getByRole('button', { name: 'Filter plans' }).click()
+  await page.getByRole('menuitem', { name: 'Drafts' }).click()
+  await expect(page.getByText('Showing: Drafts')).toBeVisible()
+  await page.getByRole('button', { name: 'Clear' }).click()
+
   await page.getByRole('button', { name: 'New plan' }).first().click()
-  await expect(page.getByRole('textbox', { name: 'Plan name' })).toBeVisible()
+  const picker = page.getByRole('dialog', { name: 'New plan' })
+  await expect(picker.getByRole('button', { name: /Start from scratch/ })).toBeVisible()
   await page.keyboard.press('Escape')
 
   const first = page.getByTestId('plan-card').first()
   if (await first.count()) {
-    await first.click()
+    await first.getByRole('link').click()
     await expect(page).toHaveURL(/\/admin\/plans\/[^/]+$/)
     await expect(page.getByTestId('live-version-chip').or(page.getByTestId('plan-draft-bar')).first()).toBeVisible()
   }

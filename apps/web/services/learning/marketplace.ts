@@ -1,4 +1,5 @@
 import { getAPIUrl } from '@services/config/config'
+import type { GoalIcon } from '@services/goals/types'
 import {
   RequestBodyWithAuthHeader,
   errorHandling,
@@ -188,6 +189,8 @@ export interface MarketplaceTemplate extends TemplateListing {
   title: string
   description: string
   thumbnail_image: string | null
+  icon?: GoalIcon | null
+  color?: string | null
   published_version: number | null
   stage_count: number
   step_count: number

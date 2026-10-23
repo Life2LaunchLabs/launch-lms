@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import Literal
 
 from sqlmodel import Field, SQLModel
 
-from src.db.goals import GoalAssignmentCreate
+from src.db.goals import GOAL_ICONS, PLAN_COLORS, GoalAssignmentCreate
 
 
 class AssignmentCollaborator(SQLModel):
@@ -79,3 +80,9 @@ class StepSettle(SQLModel):
 
     except_user_uuids: list[str] = Field(default_factory=list, max_length=1000)
     message: str = Field(default="", max_length=10000)
+
+
+class TemplateCover(SQLModel):
+    """A plan's cover when it has no image."""
+    icon: Literal[GOAL_ICONS] | None = None  # type: ignore[valid-type]
+    color: Literal[PLAN_COLORS] | None = None  # type: ignore[valid-type]

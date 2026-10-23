@@ -9,7 +9,7 @@ import { EmptyState } from '@components/Goals/admin/live/ui'
 import { stepDefinition } from '@components/Goals/steps'
 import { discoverApi, discoverKeys, type DiscoverPlanDetail } from '@services/goals/discover'
 import type { TemplateStep } from '@services/goals/types'
-import { PlanThumb } from '@components/Plans/library/PlanCards'
+import { PlanCover } from '@components/Plans/shared/PlanCover'
 import { plural } from '@components/Plans/plan/planVersions'
 import { ByLine, PlanAction, discoverCollectionHref, discoverHref, useDiscoverContext } from './parts'
 
@@ -33,7 +33,7 @@ export default function DiscoverPlanPage({ orgslug, templateUuid }: { orgslug: s
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_21rem] lg:items-start">
       <main className="min-w-0 space-y-6">
         <header className="flex items-start gap-4">
-          <PlanThumb title={plan.title} image={plan.thumbnail_image} className="h-20 w-20 shrink-0 rounded-2xl" />
+          <PlanCover plan={plan} className="h-20 w-20 shrink-0 rounded-2xl" />
           <div className="min-w-0 flex-1">
             <h1 className="text-3xl font-black tracking-tight sm:text-4xl">{plan.title}</h1>
             {plan.description ? <p className="mt-1 text-base text-muted-foreground">{plan.description}</p> : null}

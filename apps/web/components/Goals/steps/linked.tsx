@@ -37,6 +37,7 @@ function ActivityConfigPanel({ config }: ConfigPanelProps<'activity'>) {
 export const activity: StepDefinition<'activity'> = {
   type: 'activity',
   label: 'Activity',
+  color: '#C9501E',
   hint: 'An interactive activity played in the app',
   icon: Play,
   statusLine: (step) => step.status === 'in_progress' ? `${Math.round(step.fraction * 100)}% through` : null,
@@ -87,6 +88,7 @@ function BadgeConfigPanel({ config, onChange, orgId, token }: ConfigPanelProps<'
 export const badge: StepDefinition<'badge'> = {
   type: 'badge',
   label: 'Badge',
+  color: '#A47100',
   hint: 'Earn a badge; done when it is awarded',
   icon: Award,
   CardBody: BadgeCard,
@@ -126,6 +128,7 @@ function PortfolioConfigPanel({ config, onChange }: ConfigPanelProps<'portfolio'
 export const portfolio: StepDefinition<'portfolio'> = {
   type: 'portfolio',
   label: 'Portfolio',
+  color: '#46566B',
   hint: 'Something added to the learner’s portfolio',
   icon: BriefcaseBusiness,
   statusLine: (step: Step<'portfolio'>) => PORTFOLIO_CHECKS[step.config.check] || null,
