@@ -128,11 +128,14 @@ jobs:
       - name: Install pinned browsers
         timeout-minutes: 15
         run: |
-          if ! timeout 300 bunx playwright install --with-deps chromium webkit; then
+          if ! timeout 180 bunx playwright install --with-deps chromium webkit; then
             echo "::warning::Ubuntu mirror was slow; retrying from archive.ubuntu.com"
             sudo pkill -x apt-get || true
             sleep 2
             sudo dpkg --configure -a
+            # The runner's sources read their mirror from apt-mirrors.txt
+            # (mirror+file:), so that file is what names the Azure mirror.
+            echo "http://archive.ubuntu.com/ubuntu/" | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
             sudo sed -i 's#azure\.archive\.ubuntu\.com#archive.ubuntu.com#g' /etc/apt/sources.list.d/*.sources /etc/apt/sources.list 2>/dev/null || true
             bunx playwright install --with-deps chromium webkit
           fi
