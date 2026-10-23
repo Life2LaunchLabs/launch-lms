@@ -84,7 +84,7 @@ export const routePaths = {
       withQuery('/login', params),
     signup: (params?: { next?: string; inviteCode?: string; invitation?: string; mode?: string }) =>
       withQuery('/signup', params),
-    orgSignup: () => '/signup/org',
+    orgSignup: () => '/start',
     forgot: () => '/forgot',
     reset: () => '/reset',
     verifyEmail: () => '/verify-email',

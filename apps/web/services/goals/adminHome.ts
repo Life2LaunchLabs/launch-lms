@@ -56,11 +56,14 @@ export interface AdminHome {
   getting_started?: GettingStarted | null
 }
 
-export type GettingStartedStepKey = 'plan' | 'organization' | 'learners' | 'staff' | 'assign'
+export type GettingStartedStepKey = 'plan' | 'organization' | 'staff' | 'groups' | 'requirements' | 'learners' | 'assign'
 export interface GettingStarted {
-  steps: { key: GettingStartedStepKey; done: boolean; optional: boolean }[]
+  /** `note` says what a done step has: "3 plans". */
+  steps: { key: GettingStartedStepKey; done: boolean; optional: boolean; note?: string | null }[]
   done: number
   total: number
+  /** The org was set up at /start, so some steps came done. */
+  from_setup?: boolean
 }
 
 /** The Plans area's tabs (Assignments, Templates, Badges, Requirements, Marketplace). */

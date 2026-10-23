@@ -9,6 +9,9 @@ from sqlmodel import SQLModel, select
 from src.db.goal_admin import AdminHomeLayout, PlansTabsOrder
 from src.db.goals import StepStatus, StepSubmission
 from src.db.organization_config import OrganizationConfig
+from src.db.organization_invitations import OrganizationInvitation
+from src.db.requirements import RequirementFramework
+from src.db.usergroups import UserGroup
 from src.db.roles import Role
 from src.db.user_organizations import UserOrganization
 from src.db.organizations import Organization
@@ -25,7 +28,7 @@ TODAY = date.today()
 def _session():
     """NEWCOMER teaches: a role that runs assignments but doesn't administer the org."""
     db = _base_session()
-    SQLModel.metadata.create_all(db.get_bind(), tables=[OrganizationConfig.__table__])  # type: ignore[attr-defined]
+    SQLModel.metadata.create_all(db.get_bind(), tables=[OrganizationConfig.__table__, OrganizationInvitation.__table__, UserGroup.__table__, RequirementFramework.__table__])  # type: ignore[attr-defined]
     db.add(Role(id=5, role_uuid="role_teacher", name="Teacher", rights={"dashboard": {"action_access": True}, "learning_activities": {"action_update": True}}))
     db.exec(select(UserOrganization).where(UserOrganization.user_id == NEWCOMER)).one().role_id = 5
     db.commit()
@@ -154,9 +157,9 @@ def test_getting_started_ticks_off_from_the_orgs_own_data_for_admins_only():
     with _session() as db:
         start = admin_home.home(db, _user(ADMIN), 1)["getting_started"]
         done = {step["key"]: step["done"] for step in start["steps"]}
-        assert list(done) == ["plan", "organization", "learners", "staff", "assign"]
+        assert list(done) == ["plan", "organization", "staff", "groups", "requirements", "learners", "assign"]
         assert done["plan"] is False and done["assign"] is False and done["learners"] is True
-        assert [step["key"] for step in start["steps"] if step["optional"]] == ["staff"]
+        assert [step["key"] for step in start["steps"] if step["optional"]] == ["staff", "requirements"]
         # Staff and learners never see it.
         assert admin_home.home(db, _user(NEWCOMER), 1)["getting_started"] is None
         assert admin_home.home(db, _user(LEARNER), 1)["getting_started"] is None
@@ -182,3 +185,25 @@ def test_getting_started_can_be_dismissed_by_an_admin():
         with pytest.raises(HTTPException) as staff:
             admin_home_start.dismiss(db, _user(NEWCOMER), 1)
         assert staff.value.status_code == 403
+
+
+def test_getting_started_picks_up_what_setup_already_did():
+    from datetime import datetime, timedelta as delta
+
+    with _session() as db:
+        row = db.exec(select(OrganizationConfig).where(OrganizationConfig.org_id == 1)).first()
+        if row is None:
+            row = OrganizationConfig(org_id=1, config={})
+        row.config = {**(row.config or {}), "setup": {"role": "teacher", "created_by_user_id": ADMIN}}
+        db.add(row)
+        db.add(OrganizationInvitation(invitation_uuid="inv_1", org_id=1, email="new@example.org", email_normalized="new@example.org", role_id=2, expires_at=datetime.utcnow() + delta(days=7)))
+        db.add(UserGroup(org_id=1, name="Class of 2027", description="", usergroup_uuid="ug_1"))
+        db.commit()
+        start = admin_home.home(db, _user(ADMIN), 1)["getting_started"]
+        steps = {step["key"]: step for step in start["steps"]}
+        assert start["from_setup"] is True
+        # Named and colored at /start, so the details page is optional.
+        assert steps["organization"]["optional"] is True
+        # An invitation counts: the staff step is done as soon as someone's invited.
+        assert steps["staff"]["done"] and "staff member" in steps["staff"]["note"]
+        assert steps["groups"]["done"] and steps["groups"]["note"] == f"{len(db.exec(select(UserGroup.id).where(UserGroup.org_id == 1)).all())} groups"
