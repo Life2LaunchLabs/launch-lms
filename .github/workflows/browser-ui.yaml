@@ -102,9 +102,44 @@ jobs:
         run: bun install --frozen-lockfile
         working-directory: apps/web
 
+      # The browsers and the system packages they need are cached: a slow Ubuntu
+      # mirror once held this step until the job timed out.
+      - name: Keep apt downloads for the cache
+        run: |
+          mkdir -p "$HOME/apt-archives/partial"
+          sudo tee /etc/apt/apt.conf.d/99ci-cache >/dev/null <<EOF
+          Dir::Cache::Archives "$HOME/apt-archives";
+          APT::Keep-Downloaded-Packages "true";
+          Binary::apt::APT::Keep-Downloaded-Packages "true";
+          Acquire::Retries "3";
+          Acquire::http::Timeout "30";
+          EOF
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/ms-playwright
+            ~/apt-archives
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('apps/web/bun.lock') }}
+          restore-keys: playwright-${{ runner.os }}-${{ runner.arch }}-
+
+      # Without a cache hit the packages come from the runner's Azure mirror. When
+      # that stalls, stop apt and fetch from Canonical's archive instead.
       - name: Install pinned browsers
-        run: bunx playwright install --with-deps chromium webkit
+        timeout-minutes: 15
+        run: |
+          if ! timeout 300 bunx playwright install --with-deps chromium webkit; then
+            echo "::warning::Ubuntu mirror was slow; retrying from archive.ubuntu.com"
+            sudo pkill -x apt-get || true
+            sleep 2
+            sudo dpkg --configure -a
+            sudo sed -i 's#azure\.archive\.ubuntu\.com#archive.ubuntu.com#g' /etc/apt/sources.list.d/*.sources /etc/apt/sources.list 2>/dev/null || true
+            bunx playwright install --with-deps chromium webkit
+          fi
         working-directory: apps/web
+
+      - name: Let the cache read apt downloads
+        run: sudo chown -R "$USER" "$HOME/apt-archives"
 
       - name: Migrate and seed isolated fixtures
         working-directory: apps/api
