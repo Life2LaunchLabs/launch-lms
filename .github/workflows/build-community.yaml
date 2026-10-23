@@ -83,10 +83,16 @@ jobs:
             LAUNCHLMS_SOURCE_BRANCH=${{ github.head_ref || github.ref_name }}
           cache-from: type=gha,scope=${{ matrix.arch }}
           cache-to: type=gha,mode=max,scope=${{ matrix.arch }}
+      - uses: actions/cache@v4
+        with:
+          path: ~/ollama-models
+          key: ollama-all-minilm-33m-${{ matrix.arch }}
       - name: Test the built image
         env:
           IMAGE: ${{ env.REPOSITORY }}:build-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.arch }}
-        run: bash scripts/ci/smoke-image.sh
+        run: OLLAMA_MODELS_DIR="$HOME/ollama-models" bash scripts/ci/smoke-image.sh
+      - name: Let the cache read the embedding model
+        run: sudo chown -R "$USER" "$HOME/ollama-models"
       - uses: docker/login-action@v4
         if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main')
         with:

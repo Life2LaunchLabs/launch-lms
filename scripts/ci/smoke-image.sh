@@ -48,10 +48,18 @@ exit 1
 
 # Start local embedding service
 (
+# OLLAMA_MODELS_DIR (optional) keeps pulled models on the host so CI can cache
+# them and skip the registry, which has failed this step with a 503.
+models_mount=()
+if [ -n "${OLLAMA_MODELS_DIR:-}" ]; then
+  mkdir -p "$OLLAMA_MODELS_DIR"
+  models_mount=(-v "$OLLAMA_MODELS_DIR:/root/.ollama/models")
+fi
 docker run -d \
   --name launch-lms-ci-embeddings \
   --network launch-lms-ci \
   -p 127.0.0.1::11434 \
+  ${models_mount[@]+"${models_mount[@]}"} \
   ollama/ollama:0.33.3
 embedding_port=$(docker port launch-lms-ci-embeddings 11434/tcp | sed 's/.*://')
 for _attempt in $(seq 1 60); do
@@ -60,7 +68,15 @@ for _attempt in $(seq 1 60); do
   fi
   sleep 1
 done
-docker exec launch-lms-ci-embeddings ollama pull all-minilm:33m
+if ! docker exec launch-lms-ci-embeddings ollama show all-minilm:33m >/dev/null 2>&1; then
+  for attempt in 1 2 3; do
+    docker exec launch-lms-ci-embeddings ollama pull all-minilm:33m && break
+    if [ "$attempt" = 3 ]; then
+      exit 1
+    fi
+    sleep $((attempt * 10))
+  done
+fi
 dimensions=$(curl -fsS "http://127.0.0.1:${embedding_port}/api/embed" \
   -H 'Content-Type: application/json' \
   -d '{"model":"all-minilm:33m","input":"personality assessment"}' \
