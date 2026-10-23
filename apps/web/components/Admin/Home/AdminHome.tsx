@@ -75,6 +75,9 @@ export default function AdminHome({ orgslug }: { orgslug: string }) {
   }
 
   const firstName = user?.first_name || user?.username || ''
+  const start = data?.getting_started
+  // Once a plan is out, Home leads with how it's going and the checklist moves to the side.
+  const beside = !!start?.steps.find((step) => step.key === 'assign')?.done
   const today = new Date().toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })
 
   return (
@@ -94,11 +97,12 @@ export default function AdminHome({ orgslug }: { orgslug: string }) {
         {customizing ? <Customizer arranged={arranged} onChange={save} /> : null}
 
         <TrialBanner className="mb-4" />
-        {data?.getting_started ? <GettingStarted data={data.getting_started} orgslug={orgslug} onDismiss={dismissGettingStarted} /> : null}
+        {start && !beside ? <GettingStarted data={start} orgslug={orgslug} onDismiss={dismissGettingStarted} /> : null}
 
         {error ? <p className="rounded-xl bg-white px-5 py-6 text-center text-sm text-gray-500 nice-shadow">Home couldn’t load. {error.message}</p>
           : !data ? <HomeSkeleton />
-          : <div className="grid grid-cols-1 gap-5 xl:grid-flow-row-dense xl:grid-cols-2">
+          : <div className={cn(beside && 'grid grid-cols-1 items-start gap-5 xl:grid-cols-[minmax(0,1fr)_340px]')}>
+          <div className="grid grid-cols-1 gap-5 xl:grid-flow-row-dense xl:grid-cols-2">
             {arranged.filter((item) => !item.hidden).map(({ id }) => {
               const widget = ADMIN_HOME_WIDGETS.find((item) => item.id === id)!
               const visibility = visibilityOf(widget)
@@ -107,6 +111,8 @@ export default function AdminHome({ orgslug }: { orgslug: string }) {
               const content = renderWidget(id, data, orgslug, widget.label)
               return content ? <div key={id} className={cn('min-w-0', wide)}>{content}</div> : null
             })}
+          </div>
+          {start && beside ? <GettingStarted side data={start} orgslug={orgslug} onDismiss={dismissGettingStarted} /> : null}
           </div>}
       </div>
     </div>

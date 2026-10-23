@@ -11,7 +11,6 @@ import { joinOrg } from '@services/organizations/orgs'
 import { getUriWithOrg } from '@services/config/config'
 import { useTranslation } from 'react-i18next'
 import AuthLayout from '@components/Auth/AuthLayout'
-import CreateOrgWizard from './CreateOrgWizard'
 
 interface SignUpClientProps {
   org: any
@@ -23,7 +22,6 @@ function SignUpClient(props: SignUpClientProps) {
   const searchParams = useSearchParams()
   const inviteCodeParam = searchParams.get('inviteCode')
   const invitationParam = searchParams.get('invitation')
-  const createOrgMode = searchParams.get('mode') === 'create-org'
   const config = props.org?.config?.config
   const joinMethod = config?.signup_mode || 'open'
   const inviteCode = inviteCodeParam || ''
@@ -31,18 +29,7 @@ function SignUpClient(props: SignUpClientProps) {
 
   return (
     <AuthLayout org={props.org} welcomeText={t('auth.invited_to_join')}>
-      {createOrgMode ? (
-        session.status === 'authenticated' ? (
-          <div className="flex-1 flex flex-row">
-            <CreateOrgWizard ownerOrg={props.org} />
-          </div>
-        ) : (
-          <div className="flex-1 flex flex-row">
-            <OpenSignUpComponent createOrgMode />
-          </div>
-        )
-      ) : (
-        <>
+      <>
           {joinMethod == 'open' &&
             (session.status == 'authenticated' ? (
               <LoggedInJoinScreen inviteCode={inviteCode} invitationToken={invitationToken} org={props.org} />
@@ -63,8 +50,7 @@ function SignUpClient(props: SignUpClientProps) {
             ) : (
               <NoTokenScreen org={props.org} />
             ))}
-        </>
-      )}
+      </>
     </AuthLayout>
   )
 }
