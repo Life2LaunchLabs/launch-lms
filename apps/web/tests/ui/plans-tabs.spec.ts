@@ -48,18 +48,10 @@ test('plans.library: Plans has search and New plan, and a plan opens on its own 
   }
 })
 
-test('plans.redirects: old Templates, Marketplace, Badges and framework URLs land in Plans', async ({ page }) => {
-  await page.goto(`${orgPath}/admin/badges`)
-  await assertActualApp(page)
-  await expect(page).toHaveURL(/\/admin\/plans$/)
-
-  await page.goto(`${orgPath}/admin/plans/templates`)
-  await expect(page).toHaveURL(/\/admin\/plans$/)
-
-  await page.goto(`${orgPath}/admin/plans/marketplace`)
-  await expect(page).toHaveURL(/\/admin\/plans\/discover$/)
-  await expect(plansTabs(page).filter({ hasText: 'Discover' })).toHaveAttribute('aria-current', 'page')
-
+// Old Templates, Marketplace and Badges URLs redirect in the proxy, on public paths (routing.test.ts covers them);
+// /orgs/<slug> paths skip the proxy, so only the framework page, which redirects itself, is checked here.
+test('plans.redirects: old framework URLs land in Plans › Requirements', async ({ page }) => {
   await page.goto(`${orgPath}/admin/insights/frameworks/${fixture.framework_uuid}/levels`)
+  await assertActualApp(page)
   await expect(page).toHaveURL(new RegExp(`/admin/plans/requirements/${fixture.framework_uuid}/levels$`))
 })

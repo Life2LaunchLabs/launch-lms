@@ -3,7 +3,6 @@ import assert from 'node:assert/strict'
 import { discoverFromLegacy, coachFromLegacy, routePaths, withQuery } from '../paths.ts'
 import { resolveRequestRouting, type RequestInstanceInfo } from '../requestPolicy.ts'
 import { classifyRoute } from '../routeAccess.ts'
-import { legacyRedirectPath } from '../legacyRedirects.ts'
 import { buildPublicRequestUrl, getCanonicalOrgHostname } from '../context.ts'
 import { hubTimestampDate } from '../../hub/timestamp.ts'
 import { isManagedHost, legacyParentCookieDomain, safeHandoffPath } from '../handoff.ts'
@@ -395,12 +394,6 @@ test('old admin and dashboard URLs redirect once, in one place, keeping their qu
     assert.equal(decision.action, 'redirect', pathname)
     assert.equal(decision.destination, `https://acme.launchlms.test${expected}`, pathname)
   }
-})
-
-test('legacy admin URLs addressed by org keep their /orgs/<slug> prefix', () => {
-  assert.equal(legacyRedirectPath('/orgs/acme/admin/badges'), '/orgs/acme/admin/plans')
-  assert.equal(legacyRedirectPath('/orgs/acme/admin/plans/marketplace/plan/goal_template_1'), '/orgs/acme/admin/plans/discover/plan/goal_template_1')
-  assert.equal(legacyRedirectPath('/orgs/acme/admin/plans/goal_template_1'), null)
 })
 
 test('live admin pages are not caught by the legacy redirects', () => {

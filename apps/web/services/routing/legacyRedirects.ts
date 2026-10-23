@@ -91,11 +91,6 @@ function legacyAdminPath(parts: string[]): string | null {
  */
 export function legacyRedirectPath(pathname: string): string | null {
   const parts = pathname.split('/').filter(Boolean)
-  // The same pages addressed by org (/orgs/<slug>/admin/...), as local and path-based hosts serve them.
-  if (parts[0] === 'orgs' && parts[1] && parts[2] === 'admin') {
-    const target = legacyAdminPath(parts.slice(3))
-    return target && `/orgs/${parts[1]}${target}`
-  }
   if (parts[0] === 'dash') {
     const rest = parts.slice(1)
     return legacyAdminPath(rest) ?? `/admin${rest.length ? `/${rest.join('/')}` : ''}`

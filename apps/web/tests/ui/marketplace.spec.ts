@@ -21,13 +21,11 @@ async function openMarketplace(page: Page, query = '') {
   return { api: response.url().split('badge-marketplace/')[0], authorization: (await response.request().allHeaders()).authorization }
 }
 
-test('marketplace.discover: Discover is one page with search, and old marketplace links land on it', async ({ page }) => {
+test('marketplace.discover: Discover is one page with search', async ({ page }) => {
   await openMarketplace(page)
   await expect(discoverTab(page)).toHaveAttribute('aria-current', 'page')
   await expect(page.getByRole('textbox', { name: 'Search Discover' })).toBeVisible()
   await expect(page.getByRole('navigation', { name: 'Marketplace view' })).toHaveCount(0)
-  await page.goto(`${orgPath}/admin/plans/marketplace?type=templates`)
-  await expect(page).toHaveURL(/\/admin\/plans\/discover\?type=templates$/)
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true)
 })
 
