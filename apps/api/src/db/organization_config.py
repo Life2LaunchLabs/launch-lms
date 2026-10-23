@@ -115,6 +115,8 @@ class OrganizationConfigDocument(BaseModel):
     grants: dict = Field(default_factory=dict)
     # The one Full trial, once started: {"tier": "full", "started_at": iso, "ends_at": iso}. See services/orgs/trial.py.
     trial: dict | None = None
+    # Set by /start: {"role", "solo", "created_by_user_id", "completed_at"}. See services/orgs/onboarding.py.
+    setup: dict | None = None
     signup_mode: Literal["open", "inviteOnly"] = "open"
     customization: CustomizationConfig = CustomizationConfig()
     messaging: MessagingPolicy = MessagingPolicy()

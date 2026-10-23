@@ -19,7 +19,7 @@ from sqlmodel import Session, func, select
 from src.db.goals import GoalAssignment, GoalTemplate, GoalTemplateVersion
 from src.db.learning import LearningActivity, LearningPage
 from src.security.org_auth import require_org_admin
-from src.services.goals import templates
+from src.services.goals import library, templates
 from src.services.goals.badge_versions import outdated_badge_steps
 from src.services.goals.document import iter_steps, json_schema
 from src.services.goals.mcp_template_checks import check_document, reject
@@ -75,7 +75,7 @@ def _version_summary(version: GoalTemplateVersion, template: GoalTemplate) -> di
     return {
         "version_uuid": version.version_uuid, "number": version.number, "note": version.note,
         "published_at": version.published_at.isoformat() if version.published_at else None,
-        "restored_from_number": version.restored_from_number, "is_published": version.id == template.published_version_id,
+        "semver": version.semver, "restored_from_number": version.restored_from_number, "is_published": version.id == template.published_version_id,
         "step_count": len(steps), "activity_count": sum(1 for step in steps if step.get("type") == "activity"),
     }
 
@@ -103,7 +103,7 @@ def envelope(db: Session, template: GoalTemplate) -> dict:
         "context": {
             "template_uuid": template.template_uuid, "title": template.title,
             "status": getattr(template.status, "value", template.status), "system_type": template.system_type,
-            "assignment_count": assignment_count, "published_to_library": template.library_published_at is not None,
+            "assignment_count": assignment_count, "published_to_library": library.library_status(db, template)["published_to_library"],
             "earns_badges": earns_badges(db, template), "versioning": version_status(db, template),
             "outdated_badge_steps": outdated_badge_steps(db, template),
         },

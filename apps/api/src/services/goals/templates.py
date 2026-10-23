@@ -4,6 +4,7 @@ A template's ``document`` is its working draft. Publishing freezes it into an
 immutable ``GoalTemplateVersion`` with every activity replaced by a frozen copy,
 and new goals are issued from the published version. Goals already issued keep
 the version they got. Restoring publishes an earlier version's document again.
+Drafts, semvers and switching the live version are in ``drafts``.
 """
 
 from __future__ import annotations
@@ -101,7 +102,7 @@ def _versions(db: Session, template: GoalTemplate) -> list[GoalTemplateVersion]:
 
 def _version_dict(version: GoalTemplateVersion, live_id: int | None) -> dict:
     return {
-        "version_uuid": version.version_uuid, "number": version.number, "note": version.note,
+        "version_uuid": version.version_uuid, "number": version.number, "semver": version.semver, "note": version.note,
         "restored_from_number": version.restored_from_number, "published_at": version.published_at,
         "published_by_user_id": version.published_by_user_id, "live": version.id == live_id,
     }
@@ -114,11 +115,17 @@ def template_dict(db: Session, template: GoalTemplate, *, with_document: bool = 
         "description": template.description, "thumbnail_image": template.thumbnail_image,
         "status": getattr(template.status, "value", template.status), "system_type": template.system_type,
         "etag": etag(template), "published_version": live.number if live else None,
+        "live_version": _version_dict(live, live.id) if live else None,
         "has_unpublished_changes": (live is None) or live.content_hash != fingerprint(db, template),
         "update_date": template.update_date,
     }
+    from src.services.goals import drafts
+
+    result["draft"] = drafts.draft_meta(db, template, unpublished=result["has_unpublished_changes"])
     if with_document:
         result["document"] = template.document
+        # The plan page shows the live version while a draft is open (activity steps play frozen copies).
+        result["live_document"] = live.document if live else None
         result["versions"] = [_version_dict(version, template.published_version_id) for version in _versions(db, template)]
     return result
 
@@ -178,12 +185,16 @@ def list_templates(db: Session, current_user: PublicUser, org_id: int, include_a
         statement = statement.where(GoalTemplate.status != TemplateStatus.ARCHIVED)
     rows = db.exec(statement.order_by(GoalTemplate.title)).all()
     read_only = not can_edit(db, current_user, org_id)
+    from src.services.goals.collections import collections_by_template
+
     badges = _badges_by_template(db, [int(row.id) for row in rows if row.id])
+    in_collections = collections_by_template(db, org_id, [int(row.id) for row in rows if row.id])
     nodes = mappable_nodes(db, org_id)
     return [{
         **template_dict(db, row, with_document=False), "read_only": read_only,
         "stage_count": len((row.document or {}).get("stages") or []), "step_count": sum(1 for _ in iter_steps(row.document or {})),
         "badges": badges.get(int(row.id or 0), []), "frameworks": _frameworks_of(row.document, nodes),
+        "collections": in_collections.get(int(row.id or 0), []),
     } for row in rows]
 
 
@@ -193,6 +204,7 @@ def create_template(db: Session, current_user: PublicUser, org_id: int, document
     now = _now()
     template = GoalTemplate(
         template_uuid=f"goal_template_{uuid4()}", org_id=org_id, title="", document={},
+        draft={"semver": "1.0.0", "note": "", "base_version_uuid": None, "started_at": now, "started_by_user_id": current_user.id},
         created_by_user_id=current_user.id, creation_date=now, update_date=now,
     )
     db.add(template)
@@ -215,8 +227,11 @@ def get_template(db: Session, current_user: PublicUser, org_id: int, template_uu
     """One of the organization's templates with its draft; ``read_only`` for staff, who see it but can't change it."""
     require_reader(db, current_user, org_id)
     template = template_or_404(db, org_id, template_uuid)
+    from src.services.goals.collections import collections_by_template
+
     return {**template_dict(db, template), "read_only": not can_edit(db, current_user, org_id),
-            "badges": _badges_by_template(db, [int(template.id or 0)]).get(int(template.id or 0), [])}
+            "badges": _badges_by_template(db, [int(template.id or 0)]).get(int(template.id or 0), []),
+            "collections": collections_by_template(db, org_id, [int(template.id or 0)]).get(int(template.id or 0), [])}
 
 
 def save_template(db: Session, current_user: PublicUser, org_id: int, template_uuid: str, document: dict, expected_etag: str | None = None) -> dict:
@@ -227,6 +242,10 @@ def save_template(db: Session, current_user: PublicUser, org_id: int, template_u
         raise HTTPException(status_code=409, detail="System templates are updated with each release")
     if expected_etag and expected_etag != etag(template):
         raise HTTPException(status_code=409, detail={"message": "The template changed since you read it", "document": template.document, "etag": etag(template)})
+    from src.services.goals import drafts
+
+    # Saving edits the draft; callers that never started one (the connector) get the next minor version.
+    drafts.ensure_draft(db, template, current_user.id)
     _store(db, template, _validated(db, template, document))
     db.commit()
     db.refresh(template)
@@ -264,55 +283,65 @@ def frozen_document(db: Session, template: GoalTemplate, document: dict) -> dict
 
 
 def new_version(db: Session, template: GoalTemplate, document: dict, user_id: int | None, note: str = "", *,
-                restored_from: int | None = None, private: bool = False, content_fingerprint: str = "") -> GoalTemplateVersion:
-    """Store a version (flushed, not committed). Public versions become the one new goals are issued from."""
+                restored_from: int | None = None, private: bool = False, content_fingerprint: str = "",
+                semver: str | None = None, make_live: bool = True) -> GoalTemplateVersion:
+    """Store a version (flushed, not committed). Public versions get a semver (default: the next minor)
+    and, with ``make_live``, become the one new goals are issued from."""
+    from src.services.goals import drafts
+
     number = (db.exec(select(func.max(GoalTemplateVersion.number)).where(GoalTemplateVersion.template_id == template.id)).one() or 0) + 1
     version = GoalTemplateVersion(
         version_uuid=f"goal_template_version_{uuid4()}", template_id=int(template.id), org_id=template.org_id,  # type: ignore[arg-type]
-        number=number, document=document, content_hash=content_fingerprint, note=note.strip(), restored_from_number=restored_from,
+        number=number, semver=None if private else (semver or drafts.suggest(db, template)), document=document, content_hash=content_fingerprint, note=note.strip(), restored_from_number=restored_from,
         private=private, published_by_user_id=user_id, published_at=datetime.utcnow(), creation_date=_now(),
     )
     db.add(version)
     db.flush()
-    if not private:
+    if not private and make_live:
         template.published_version_id = version.id
         db.add(template)
-        _follow_in_library(db, template)
         db.flush()
     return version
 
 
-def _follow_in_library(db: Session, template: GoalTemplate) -> None:
-    """A template anyone may copy from the marketplace shares each newly published version in the library too."""
-    if template.library_published_at is None:
-        return
-    from src.services.goals import library
-    from src.services.goals.template_marketplace import listing_of
+def publish_draft(db: Session, template: GoalTemplate, user_id: int | None, note: str = "", *,
+                  semver: str | None = None, make_live: bool = True) -> GoalTemplateVersion:
+    """Freeze the draft into a locked version and close the draft (flushed, not committed)."""
+    from src.services.goals import drafts
 
-    listing = listing_of(db, template)
-    if listing is not None:
-        library.follow_listing(db, template, listing)
-
-
-def publish_draft(db: Session, template: GoalTemplate, user_id: int | None, note: str = "") -> GoalTemplateVersion:
     if not (template.document or {}).get("stages"):
         raise HTTPException(status_code=422, detail="Add a stage before publishing")
-    return new_version(db, template, frozen_document(db, template, template.document), user_id, note, content_fingerprint=fingerprint(db, template))
+    meta = template.draft or {}
+    chosen = drafts.checked(db, template, semver or meta.get("semver") or drafts.suggest(db, template))
+    version = new_version(db, template, frozen_document(db, template, template.document), user_id, note or meta.get("note") or "",
+                          content_fingerprint=fingerprint(db, template), semver=chosen, make_live=make_live)
+    template.draft = None
+    db.add(template)
+    db.flush()
+    return version
 
 
-def publish(db: Session, current_user: PublicUser, org_id: int, template_uuid: str, note: str = "") -> dict:
+def publish(db: Session, current_user: PublicUser, org_id: int, template_uuid: str, note: str = "", *,
+            semver: str | None = None, make_live: bool = True) -> dict:
+    """Publish the draft as a locked version; by default it goes live and active assignments move to it."""
+    from src.services.goals import drafts
+
     require_org_admin(current_user.id, org_id, db, "build_plans")
     template = template_or_404(db, org_id, template_uuid)
     if template.system_type:
         raise HTTPException(status_code=409, detail="System templates are published with each release")
-    publish_draft(db, template, current_user.id, note)
+    version = publish_draft(db, template, current_user.id, note, semver=semver, make_live=make_live)
+    moved = drafts.move_assignments(db, template, version, current_user.id) if make_live else None
     db.commit()
     db.refresh(template)
-    return template_dict(db, template)
+    return {**template_dict(db, template), "moved": moved}
 
 
 def restore(db: Session, current_user: PublicUser, org_id: int, template_uuid: str, number: int, note: str = "") -> dict:
-    """Publish an earlier version again, and make it the draft too."""
+    """Publish an earlier version again, make it the draft too, and move active assignments to it.
+    (The connector's rollback; the plan page switches the live version directly, see ``drafts.set_live``.)"""
+    from src.services.goals import drafts
+
     require_org_admin(current_user.id, org_id, db, "build_plans")
     template = template_or_404(db, org_id, template_uuid)
     earlier = db.exec(select(GoalTemplateVersion).where(
@@ -320,20 +349,27 @@ def restore(db: Session, current_user: PublicUser, org_id: int, template_uuid: s
     )).first()
     if not earlier:
         raise HTTPException(status_code=404, detail="Version not found")
-    draft = deepcopy(earlier.document)
-    # The draft edits working activities, so point activity steps back at copies of the frozen ones.
+    _store(db, template, working_copy(db, template, earlier.document))
+    template.draft = None
+    db.flush()
+    version = new_version(db, template, deepcopy(earlier.document), current_user.id, note or f"Restored version {number}",
+                          restored_from=number, content_fingerprint=fingerprint(db, template))
+    drafts.move_assignments(db, template, version, current_user.id)
+    db.commit()
+    db.refresh(template)
+    return template_dict(db, template)
+
+
+def working_copy(db: Session, template: GoalTemplate, version_document: dict) -> dict:
+    """A version's document as a draft: drafts edit working activities, so activity steps point at
+    fresh working copies of the frozen ones."""
+    draft = deepcopy(version_document)
     for _, step in iter_steps(draft):
         if step.get("type") == "activity":
             frozen = db.exec(select(LearningActivity).where(LearningActivity.activity_uuid == step["config"]["activity_uuid"])).first()
             if frozen:
                 step["config"]["activity_uuid"] = copy_activity(db, frozen, goal_template_id=template.id, frozen_from_id=None, frozen_hash=None).activity_uuid
-    _store(db, template, draft)
-    db.flush()
-    new_version(db, template, deepcopy(earlier.document), current_user.id, note or f"Restored version {number}",
-                restored_from=number, content_fingerprint=fingerprint(db, template))
-    db.commit()
-    db.refresh(template)
-    return template_dict(db, template)
+    return draft
 
 
 def issuable_version(db: Session, template: GoalTemplate) -> GoalTemplateVersion:
@@ -341,7 +377,8 @@ def issuable_version(db: Session, template: GoalTemplate) -> GoalTemplateVersion
         raise HTTPException(status_code=409, detail="This template is archived")
     version = published_version(db, template)
     if not version:
-        raise HTTPException(status_code=409, detail="Publish the template before handing it out")
+        detail = "This plan has no live version" if _versions(db, template) else "Publish the template before assigning it"
+        raise HTTPException(status_code=409, detail=detail)
     return version
 
 

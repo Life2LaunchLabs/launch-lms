@@ -37,7 +37,7 @@ from src.db.template_marketplace import (
 )
 from src.db.users import PublicUser
 from src.security.org_auth import require_org_admin
-from src.services.goals import library, templates
+from src.services.goals import templates
 from src.services.goals.document import iter_steps
 
 APPROVED = TemplateAuthorizationStatus.APPROVED.value
@@ -137,7 +137,6 @@ def set_listing(db: Session, current_user: PublicUser, org_id: int, template_uui
         listing.listed_at = datetime.utcnow()
     listing.listed, listing.mode, listing.access, listing.update_date = payload.listed, payload.mode, payload.access, now
     db.add(listing)
-    library.follow_listing(db, template, listing)
     db.commit()
     return get_listing(db, current_user, org_id, template_uuid)
 
@@ -284,6 +283,13 @@ def decide(db: Session, current_user: PublicUser, authorization_uuid: str, appro
         raise HTTPException(status_code=422, detail=f"This request isn't pending (status: {authorization.status})")
     _decide(authorization, APPROVED if approve else TemplateAuthorizationStatus.REJECTED.value, current_user.id)
     db.add(authorization)
+    template = db.get(GoalTemplate, authorization.template_id)
+    listing = listing_of(db, template) if template else None
+    if approve and template is not None and listing is not None and listing.mode == TemplateListingMode.OPEN.value and not authorization.copied_template_id:
+        # An editable plan is added as the asker's own copy as soon as it's approved.
+        from src.services.goals.discover import copy_for
+
+        copy_for(db, authorization.requested_by_user_id, authorization.issuer_org_id, template, authorization)
     db.commit()
     return authorization_dict(db, authorization)
 
@@ -371,7 +377,7 @@ def copy_template(db: Session, current_user: PublicUser, org_id: int, template_u
     db.add(authorization)
     db.commit()
     db.refresh(copied)
-    return {**templates.template_dict(db, copied), **library_status(copied), "based_on": provenance(db, copied)}
+    return {**templates.template_dict(db, copied), **library_status(db, copied), "based_on": provenance(db, copied)}
 
 
 def provenance(db: Session, template: GoalTemplate) -> dict | None:

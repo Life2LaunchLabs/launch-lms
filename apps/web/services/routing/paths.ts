@@ -200,6 +200,11 @@ export const routePaths = {
       templates: () => PLANS_TAB_PATHS.templates,
       // Template uuids kept their old program uuids.
       template: (templateUuid: string) => `/admin/plans/${encodeURIComponent(templateUuid)}`,
+      /** A plan collection under Plans. */
+      planCollection: (collectionUuid: string) => `/admin/plans/collections/${encodeURIComponent(collectionUuid)}`,
+      /** A plan or collection another organization shares, as Discover shows it. */
+      discoverPlan: (templateUuid: string) => `/admin/plans/marketplace/plan/${encodeURIComponent(templateUuid)}`,
+      discoverCollection: (collectionUuid: string) => `/admin/plans/marketplace/collection/${encodeURIComponent(collectionUuid)}`,
       templatePage: (templateUuid: string, subpage: string) => `/admin/plans/${encodeURIComponent(templateUuid)}/${encodeURIComponent(subpage)}`,
       badges: () => PLANS_TAB_PATHS.badges,
       /** Old name: the marketplace browsing badges. */

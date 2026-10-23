@@ -100,7 +100,7 @@ export default function TemplateMarketplaceListing({ orgId, token, template }: {
     {!published ? <p className="mt-4 text-sm text-amber-700">Release a version of the template before listing it.</p> : null}
     {listing?.listed ? <p className="mt-4 text-sm text-muted-foreground" data-testid="template-marketplace-listed">
       Other organizations see it in{' '}
-      <Link className="font-semibold text-foreground underline" href={getUriWithOrg(org?.slug || '', routePaths.org.admin.marketplace())}>Plans › Marketplace</Link>
+      <Link className="font-semibold text-foreground underline" href={getUriWithOrg(org?.slug || '', routePaths.org.admin.marketplace())}>Plans › Discover</Link>
       {listing.mode === 'open' && listing.access === 'open' ? ', and in the global template library, which copies your published version' : ''}.
     </p> : null}
     {failure ? <div role="alert" className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800" data-testid="template-marketplace-error">

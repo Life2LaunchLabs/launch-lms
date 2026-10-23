@@ -9,10 +9,10 @@ import { usePlansTabCounts } from '@components/Admin/Plans/usePlansTabCounts'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import type { MarketplaceType } from '@services/routing/paths'
 import { cn } from '@/lib/utils'
-import MarketplaceBrowse from './MarketplaceBrowse'
+import DiscoverHome from '@components/Goals/admin/discover/DiscoverHome'
 import MarketplaceRequests from './MarketplaceRequests'
 
-/** Plans › Marketplace: Browse what other orgs share, or the Requests view (`?view=requests`). */
+/** Plans › Discover: what organizations share (plans, collections, frameworks, badges), or the Requests view (`?view=requests`). */
 export default function Marketplace() {
   const params = useSearchParams()
   const org = useOrg() as { slug?: string } | null
@@ -24,7 +24,7 @@ export default function Marketplace() {
     { id: 'browse' as const, label: 'Browse', icon: Storefront, href: routePaths.org.admin.marketplace({ type }) },
     { id: 'requests' as const, label: 'Requests', icon: PaperPlaneTilt, href: routePaths.org.admin.marketplace({ view: 'requests' }) },
   ]
-  return <div className="px-4 pb-10 pt-6 sm:px-10"><div className="mx-auto max-w-5xl space-y-5">
+  return <div className="px-4 pb-10 pt-6 sm:px-10"><div className="mx-auto max-w-6xl space-y-5">
     <nav aria-label="Marketplace view" className="inline-flex rounded-full bg-gray-100 p-1">
       {views.map(({ id, label, icon: Icon, href }) => <Link key={id} href={getUriWithOrg(orgslug, href)} aria-current={view === id ? 'page' : undefined}
         className={cn('inline-flex h-9 items-center gap-1.5 rounded-full px-4 text-sm font-semibold', view === id ? 'bg-black text-white' : 'text-gray-700 hover:text-black')}>
@@ -32,6 +32,6 @@ export default function Marketplace() {
         {id === 'requests' && waiting ? <span className="ml-0.5 inline-grid h-5 min-w-5 place-items-center rounded-full bg-red-600 px-1 text-[11px] font-bold text-white" aria-label={`${waiting} waiting`}>{waiting}</span> : null}
       </Link>)}
     </nav>
-    {view === 'requests' ? <MarketplaceRequests /> : <MarketplaceBrowse />}
+    {view === 'requests' ? <MarketplaceRequests /> : <DiscoverHome orgslug={orgslug} />}
   </div></div>
 }

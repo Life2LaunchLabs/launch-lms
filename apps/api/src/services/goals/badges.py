@@ -88,7 +88,8 @@ def start_badge_goal(db: Session, user: PublicUser, badge: LearningBadge, templa
         if not candidates:
             raise HTTPException(status_code=404, detail="This goal template is not a way to earn this badge")
     else:
-        candidates = sorted(routes, key=lambda pair: not pair[0].recommended)
+        # Inactive plans (no live version) can't be started; prefer the routes that can.
+        candidates = sorted(routes, key=lambda pair: (pair[1].published_version_id is None, not pair[0].recommended))
     route, template, issuer = _route_and_issuer(db, badge, user_id, candidates, issuer_org_id)
     if not badge_authority.authorized(db, badge, issuer):
         raise HTTPException(status_code=403, detail="This organization is not issuing this badge")

@@ -96,7 +96,11 @@ class GoalTemplate(SQLModel, table=True):
     system_type: str | None = Field(default=None, sa_column=Column(String, nullable=True, index=True))
     # The working draft, as a goal template document (see services/goals/document.py).
     document: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    # The live version: what new assignments, badge starts and self-starts get. None = inactive.
     published_version_id: int | None = Field(default=None, sa_column=Column(Integer, nullable=True))
+    # The open draft, {semver, note, base_version_uuid, started_at, started_by_user_id}; None when
+    # ``document`` is just the live version (see services/goals/drafts.py).
+    draft: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
     # Library copies remember where they came from.
     source_template_uuid: str | None = Field(default=None, sa_column=Column(String, nullable=True, index=True))
     source_version: int | None = None
@@ -118,6 +122,8 @@ class GoalTemplateVersion(SQLModel, table=True):
     template_id: int = Field(sa_column=Column(Integer, ForeignKey("goal_template.id", ondelete="CASCADE"), index=True))
     org_id: int = Field(sa_column=Column(Integer, ForeignKey("organization.id", ondelete="CASCADE"), index=True))
     number: int = 1
+    # "2.1.0": strictly increasing per template, chosen when a draft starts. None on private versions.
+    semver: str | None = Field(default=None, sa_column=Column(String, nullable=True))
     document: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
     content_hash: str = ""
     note: str = ""
@@ -477,3 +483,7 @@ class TemplateCreate(SQLModel):
 
 class TemplatePublish(SQLModel):
     note: str = Field(default="", max_length=1000)
+    # Defaults to the draft's version; a template with no draft gets the next minor version.
+    semver: str | None = None
+    make_live: bool = True
+

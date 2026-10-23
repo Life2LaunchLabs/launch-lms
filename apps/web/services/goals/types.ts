@@ -251,6 +251,8 @@ export interface TemplateDocument {
 export interface TemplateVersion {
   version_uuid: string
   number: number
+  /** "2.1.0": strictly increasing per template; null only on very old private versions. */
+  semver: string | null
   note: string
   restored_from_number: number | null
   published_at: string | null
@@ -268,9 +270,24 @@ export interface GoalTemplate {
   system_type: string | null
   etag: string
   published_version: number | null
+  /** The version new assignments and starts get; null when the plan is inactive (or never published). */
+  live_version?: TemplateVersion | null
+  /** The open draft, if any; ``implicit`` for edits made before drafts were explicit. */
+  draft?: TemplateDraft | null
   has_unpublished_changes: boolean
   update_date: string
   document?: TemplateDocument
+  /** The live version's document, for showing the live plan while a draft is open. */
+  live_document?: TemplateDocument | null
   versions?: TemplateVersion[]
   [key: string]: unknown
+}
+
+export interface TemplateDraft {
+  semver: string
+  note: string
+  base_version_uuid: string | null
+  started_at: string | null
+  started_by_user_id: number | null
+  implicit: boolean
 }

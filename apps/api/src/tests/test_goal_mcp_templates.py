@@ -200,7 +200,10 @@ def test_set_objective_requirements_sets_a_steps_links_by_key_or_objective_uuid(
 
 
 def test_library_publish_search_and_copy_make_independent_templates():
+    from src.tests.test_goal_templates_extra import _marketplace_tables
+
     with _session() as db:
+        _marketplace_tables(db)
         uuid = _career(db)
         template = templates.template_or_404(db, 1, uuid)
         document = deepcopy(template.document)

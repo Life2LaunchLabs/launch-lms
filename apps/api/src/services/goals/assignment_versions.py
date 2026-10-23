@@ -1,9 +1,9 @@
 """An assignment's template version: what a newer one changes, and applying it.
 
-Publishing a template never touches assignments. An admin of the assignment's
-organization (the template's owner, or an organization running another's badge
-template) reviews what a version changes and decides per assignment whether to
-apply it. Applying rewrites only the steps nobody has started in each
+When the owner changes a template's live version, the owner's own active
+assignments move to it (``drafts.move_assignments``). Organizations running
+another's badge template review what a version changes and decide per
+assignment whether to apply it. Applying rewrites only the steps nobody has started in each
 learner's plan (see ``versions``) and records the version on the assignment;
 learners' answers and started steps stay as they are.
 """
@@ -88,8 +88,6 @@ def version_changes(db: Session, current_user: PublicUser, org_id: int, assignme
 
 def apply_version(db: Session, current_user: PublicUser, org_id: int, assignment_uuid: str, version_uuid: str) -> dict:
     """Move an assignment, and its learners' open plans, to a published version of its template."""
-    from src.services.goals.assignments import _planned
-
     assignment = _managed(db, current_user, org_id, assignment_uuid)
     if getattr(assignment.status, "value", assignment.status) == AssignmentStatus.ENDED.value:
         raise HTTPException(status_code=409, detail="An ended assignment can't change version")
@@ -97,14 +95,25 @@ def apply_version(db: Session, current_user: PublicUser, org_id: int, assignment
     target = _target(db, assignment, version_uuid)
     if current and target.id == current.id:
         raise HTTPException(status_code=409, detail="The assignment is already on this version")
+    totals = move(db, assignment, target, current_user.id)
+    db.commit()
+    return {**assignment_dict(db, assignment), "applied": totals}
+
+
+def move(db: Session, assignment: GoalAssignment, target: GoalTemplateVersion, user_id: int | None) -> dict:
+    """Move an assignment and its open plans to ``target`` (flushed, not committed): finished plans keep
+    their version, open ones get the target's unstarted steps."""
+    from src.services.goals.assignments import _planned
+
+    current = db.get(GoalTemplateVersion, assignment.version_id)
     planned = _planned(assignment, target.document or {})
     totals = {"plans": 0, "rewritten": 0, "added": 0, "removed": 0, "kept_started": 0}
     for goal in _open_goals(db, assignment):
-        counts = versions.apply_to_goal(db, goal, current, target, planned, current_user.id)
+        counts = versions.apply_to_goal(db, goal, current, target, planned, user_id)
         totals["plans"] += 1
         for key, value in counts.items():
             totals[key] += value
     assignment.version_id, assignment.update_date = int(target.id), datetime.now().isoformat()  # type: ignore[arg-type]
     db.add(assignment)
-    db.commit()
-    return {**assignment_dict(db, assignment), "applied": totals}
+    db.flush()
+    return totals

@@ -22,7 +22,7 @@ const ORDER: Record<string, number> = { requested: 0, approved: 1, rejected: 2, 
  * Template › Publish: who else may run this plan, and so issue the badges it earns. The marketplace
  * listing, the stack of authorized organizations (requests on top), and quick usage across them.
  */
-export default function TemplatePublish({ orgId, token, template }: { orgId: number; token?: string; template: TemplateDetail }) {
+export default function TemplatePublish({ orgId, token, template, bare = false }: { orgId: number; token?: string; template: TemplateDetail; /** No page padding, inside the plan's visibility dialog. */ bare?: boolean }) {
   const { mutate } = useSWRConfig()
   const ready = Boolean(orgId && token)
   const authorizationsKey = ready ? [MARKETPLACE_KEY, 'template-authorizations', orgId, template.template_uuid, token] : null
@@ -53,7 +53,7 @@ export default function TemplatePublish({ orgId, token, template }: { orgId: num
   }
   const rows = [...(authorizations || [])].sort((a, b) => (ORDER[a.status] ?? 9) - (ORDER[b.status] ?? 9))
 
-  return <div className="px-4 pb-10 pt-6 sm:px-6 lg:px-10"><div className="mx-auto max-w-5xl space-y-6">
+  return <div className={bare ? '' : 'px-4 pb-10 pt-6 sm:px-6 lg:px-10'}><div className={bare ? 'space-y-6' : 'mx-auto max-w-5xl space-y-6'}>
     <UsageMetrics metrics={metrics} />
     <TemplateMarketplaceListing orgId={orgId} token={token} template={template} />
     <section aria-labelledby="template-authorized-title" className="rounded-xl border border-border bg-card p-6 shadow-xs" data-testid="template-authorized-orgs">

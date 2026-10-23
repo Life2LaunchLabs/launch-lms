@@ -1,11 +1,11 @@
 import { notFound } from 'next/navigation'
-import TemplateDetail, { type TemplateSubpage } from '@components/Goals/admin/templates/TemplateDetail'
+import PlanDetail, { type PlanPanel } from '@components/Goals/admin/plan/PlanDetail'
 
-// Kept here: a value exported from a client module reaches a server component only as a reference.
-const TEMPLATE_SUBPAGES: TemplateSubpage[] = ['overview', 'objectives', 'assignments', 'publish', 'settings']
+// The plan used to have tabs; their links now open the one plan page, with settings or publishing open.
+const PANELS: Record<string, PlanPanel> = { overview: null, objectives: null, assignments: null, settings: 'settings', publish: 'visibility', versions: 'versions' }
 
 export default async function GoalTemplateSubpage({ params }: { params: Promise<{ orgslug: string; templateuuid: string; subpage: string }> }) {
   const { orgslug, templateuuid, subpage } = await params
-  if (!TEMPLATE_SUBPAGES.includes(subpage as TemplateSubpage)) notFound()
-  return <TemplateDetail orgslug={orgslug} templateUuid={decodeURIComponent(templateuuid)} subpage={subpage as TemplateSubpage} />
+  if (!(subpage in PANELS)) notFound()
+  return <PlanDetail orgslug={orgslug} templateUuid={decodeURIComponent(templateuuid)} panel={PANELS[subpage]} />
 }

@@ -7,9 +7,9 @@ const fixture = JSON.parse(readFileSync('.playwright/learner-flow.json', 'utf8')
 const orgPath = `/orgs/${fixture.org_slug}`
 const PARTNER_SLUG = 'marketplace-partner-ui'
 
-const marketplaceTab = (page: Page) => page.getByRole('navigation', { name: 'Plans pages' }).getByRole('link').filter({ hasText: 'Marketplace' })
+const marketplaceTab = (page: Page) => page.getByRole('navigation', { name: 'Plans pages' }).getByRole('link').filter({ hasText: 'Discover' })
 
-/** Opens the marketplace and returns the API base and the bearer header the page uses. */
+/** Opens Discover (Plans › Discover, the one marketplace) and returns the API base and the bearer header the page uses. */
 async function openMarketplace(page: Page, query = '') {
   const summary = page.waitForResponse((res) => res.url().includes('/badge-marketplace/requests/summary') && res.request().method() === 'GET')
   await page.goto(`${orgPath}/admin/plans/marketplace${query}`)
@@ -19,17 +19,12 @@ async function openMarketplace(page: Page, query = '') {
   return { api: response.url().split('badge-marketplace/')[0], authorization: (await response.request().allHeaders()).authorization }
 }
 
-test('marketplace.prefilter: Add from marketplace lands on one kind, with its filter chip', async ({ page }) => {
+test('marketplace.discover: older links with ?type= land on Discover, with search and the Requests view', async ({ page }) => {
   await openMarketplace(page, '?type=templates')
   await expect(marketplaceTab(page)).toHaveAttribute('aria-current', 'page')
-  await expect(page.getByRole('region', { name: 'Templates' })).toBeVisible()
-  await expect(page.getByRole('region', { name: 'Badges' })).toHaveCount(0)
-  await expect(page.getByRole('region', { name: 'Requirement frameworks' })).toHaveCount(0)
-  await expect(page.getByText('Type: Templates')).toBeVisible()
-
-  await page.goto(`${orgPath}/admin/plans/marketplace?type=badges`)
-  await expect(page.getByRole('region', { name: 'Badges' })).toBeVisible()
-  await expect(page.getByRole('region', { name: 'Templates' })).toHaveCount(0)
+  await expect(page.getByRole('textbox', { name: 'Search Discover' })).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Marketplace view' }).getByRole('link', { name: /Browse/ })).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByRole('navigation', { name: 'Marketplace view' }).getByRole('link', { name: /Requests/ })).toBeVisible()
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true)
 })
 
@@ -74,7 +69,7 @@ test('marketplace.requests: a request to use a listed template shows on the tab 
   await page.request.put(`${api}badge-marketplace/templates/${template.template_uuid}/listing?org_id=${fixture.org_id}`, { headers, data: { listed: false, mode: 'locked', access: 'request' } })
 })
 
-test('marketplace.publish: Publish to marketplace in Template › Publish lists it, and your marketplace shows it as yours', async ({ page }) => {
+test('marketplace.publish: Publish to marketplace in the plan\'s visibility lists it, and Discover shows it as yours', async ({ page }) => {
   const { api, authorization } = await openMarketplace(page)
   const headers = { authorization }
   const templates = await (await page.request.get(`${api}goal-templates?org_id=${fixture.org_id}`, { headers })).json()
@@ -85,7 +80,7 @@ test('marketplace.publish: Publish to marketplace in Template › Publish lists 
 
   await page.goto(`${orgPath}/admin/plans/${template.template_uuid}/publish`)
   await assertActualApp(page)
-  // Publish holds the listing, who else may run the plan, and its usage; Settings no longer has the listing.
+  // The plan's visibility holds the listing, who else may run the plan, and its usage.
   await expect(page.getByTestId('template-authorized-orgs')).toBeVisible()
   await expect(page.getByTestId('template-usage-metrics')).toBeVisible()
   const card = page.getByTestId('template-marketplace-listing')
@@ -97,9 +92,11 @@ test('marketplace.publish: Publish to marketplace in Template › Publish lists 
   expect((await saved).ok()).toBe(true)
   await expect(card.getByText('In the marketplace')).toBeVisible()
 
-  await card.getByTestId('template-marketplace-listed').getByRole('link', { name: 'Plans › Marketplace' }).click()
-  const ownCard = page.getByRole('region', { name: 'Templates' }).getByTestId('marketplace-card').filter({ hasText: template.title })
-  await expect(ownCard.getByText('Yours · listed')).toBeVisible()
+  await card.getByTestId('template-marketplace-listed').getByRole('link', { name: 'Plans › Discover' }).click()
+  // Your own plans aren't in Discover's rows; searching finds them, marked as yours.
+  await page.getByRole('textbox', { name: 'Search Discover' }).fill(template.title)
+  const ownCard = page.getByRole('region', { name: 'Plans' }).getByTestId('discover-plan-card').filter({ hasText: template.title })
+  await expect(ownCard.getByText('Yours')).toBeVisible()
 
   await page.request.put(listingUrl, { headers, data: { listed: false, mode: 'locked', access: 'request' } })
 })
