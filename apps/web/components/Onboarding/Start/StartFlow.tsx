@@ -165,17 +165,23 @@ export default function StartFlow() {
     </div></div>
   })()
 
+  const tour = state.step.startsWith('t') && state.step.length === 2
+  // Phones show the tour and the closing character in line; every other visual would push the
+  // step below the fold, so the site preview opens from a pill instead and the rest stay hidden.
+  const inline = tour || state.step === 'done'
+  const preview = state.step in previewPage
+
   if (!restored) return null
   return <div className="flex min-h-screen flex-col bg-[#fbfaf7] text-[#14202a]">
     <header className="flex min-h-[68px] items-center gap-4 px-6 py-3.5">
-      <span className="flex items-center gap-2.5 text-[17px] font-extrabold"><img src="/logo-icon.svg" alt="" className="h-[30px] w-[30px] rounded-lg" />Life2Launch</span>
+      <span className="flex items-center gap-2.5 text-[17px] font-extrabold"><img src="/images/start/l2l.webp" alt="" className="h-[30px] w-[30px] rounded-lg" />Life2Launch</span>
       <span className="ml-auto text-[13px] text-muted-foreground">
         {state.step.startsWith('t') && state.step.length === 2 ? <button type="button" className="font-bold text-foreground underline underline-offset-4" onClick={() => go('role')}>Skip intro</button>
           : signedIn ? null : <>Already have a space? <Link className="font-bold text-foreground underline underline-offset-4" href={routePaths.auth.login()}>Sign in</Link></>}
       </span>
     </header>
-    <main className="mx-auto grid w-full max-w-[1340px] flex-1 grid-cols-1 gap-4 px-6 pb-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:gap-10">
-      <section className="order-2 flex w-full min-w-0 max-w-[460px] flex-col justify-center justify-self-center py-2 lg:order-1 lg:py-5">
+    <main className="mx-auto grid w-full max-w-[1340px] flex-1 grid-cols-1 content-start gap-6 px-5 pb-24 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:content-center lg:gap-10 lg:pb-6">
+      <section className="order-2 flex w-full min-w-0 max-w-[460px] flex-col justify-self-center py-2 lg:order-1 lg:justify-center lg:py-5">
         <Dots steps={steps} current={state.step} />
         <AnimatePresence mode="wait">
           <motion.div key={state.step} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -16 }} transition={{ duration: 0.25 }}>
@@ -184,8 +190,9 @@ export default function StartFlow() {
           </motion.div>
         </AnimatePresence>
       </section>
-      <section className={cn('order-1 min-w-0 lg:order-2 lg:h-[calc(100vh-110px)] lg:max-h-[760px] lg:self-center', state.step === 'tier' ? 'hidden lg:block' : 'h-[300px] sm:h-[380px]')}>{visual}</section>
+      <section className={cn('order-1 min-w-0 lg:order-2 lg:block lg:h-[calc(100vh-110px)] lg:max-h-[760px] lg:self-center', inline ? 'h-[340px] sm:h-[420px]' : 'hidden')}>{visual}</section>
     </main>
+    {preview ? <PreviewSheet>{visual}</PreviewSheet> : null}
   </div>
 
   function renderLeft(): React.ReactNode {
@@ -410,4 +417,22 @@ function AccountForm({ org, busy, setBusy, setError, signIn, back, onGoogle }: {
       <p className="text-center text-[13px] text-muted-foreground">{existing ? 'New here?' : 'Already have an account?'} <button type="button" className="font-bold text-foreground underline underline-offset-4" onClick={() => { setExisting(!existing); setError('') }}>{existing ? 'Create one instead' : 'Sign in instead'}</button></p>
     </form>
     <Nav back={back} /></>
+}
+
+/** Phones: the site preview behind a "See your space" pill, opened as a sheet over the step. */
+function PreviewSheet({ children }: { children: React.ReactNode }) {
+  const [open, setOpen] = React.useState(false)
+  return <div className="lg:hidden">
+    <button type="button" onClick={() => setOpen(true)} className="fixed bottom-5 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full bg-white py-2 pl-2 pr-4 text-[14px] font-bold shadow-[0_10px_30px_rgba(15,23,42,0.18)] ring-1 ring-black/5">
+      <span className="h-6 w-6 rounded-full bg-[#2F66D6]" />See your space
+    </button>
+    <AnimatePresence>
+      {open ? <motion.div key="sheet" role="dialog" aria-modal="true" aria-label="Your space" className="fixed inset-0 z-40 flex flex-col bg-[#fbfaf7]/95 p-4 backdrop-blur"
+        initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 24 }} transition={{ duration: 0.25 }}>
+        <div className="mb-3 flex items-center justify-between"><b className="text-[15px]">Your space so far</b>
+          <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="flex h-9 w-9 items-center justify-center rounded-full bg-white shadow ring-1 ring-black/5"><X size={16} /></button></div>
+        <div className="min-h-0 flex-1">{children}</div>
+      </motion.div> : null}
+    </AnimatePresence>
+  </div>
 }
