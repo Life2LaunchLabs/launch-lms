@@ -37,7 +37,6 @@
     "apps/web/components/Dashboard/Pages/Org/OrgEditBranding/OrgEditBranding.tsx": 1299,
     "apps/web/components/Dashboard/Pages/Payments/PaymentsCustomersPage.tsx": 530,
     "apps/web/components/Dashboard/Pages/Users/OrgUsers/OrgUsers.tsx": 587,
-    "apps/web/components/Learning/AdminBadgeCollection.tsx": 708,
     "apps/web/components/Learning/AdminBadgeShell.tsx": 944,
     "apps/web/components/Learning/BadgeCertificatePreview.tsx": 634,
     "apps/web/components/Learning/LearningBadgeViews.tsx": 917,

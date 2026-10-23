@@ -15,7 +15,6 @@ import { adminLabel, adminTabForPath, type VisibleNavItem } from '@/lib/admin/re
 import { useTranslation } from 'react-i18next'
 import RequestAccessButton from '@components/Admin/RequestAccessButton'
 import { ADMIN_NAV_ICONS, PLATFORM_NAV_ICONS } from '@components/Admin/adminNavIcons'
-import { usePlansNavTabs } from '@components/Admin/Plans/usePlansNavTabs'
 import NavPill from './NavPill'
 import ExperienceSwitcher from '@components/Objects/Menus/ExperienceSwitcher'
 
@@ -36,7 +35,7 @@ function DashMobileMenu() {
   }, [isOpen])
 
   const closeMenu = () => setIsOpen(false)
-  const tabs = usePlansNavTabs(features.adminTabs())
+  const tabs = features.adminTabs()
   const active = adminTabForPath(pathname)
   const showPlatform = org?.slug === getDefaultOrg() && features.isSuperadmin
   const logo = org?.logo_image

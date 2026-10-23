@@ -133,7 +133,7 @@ describe('the plan card stack', () => {
     const html = render(<PlanCard {...card} orgslug="school" orgId={1} token="token" admin={false} needs={{ 'a-group': { grade: 3, settle: 4 } }} onChanged={() => undefined} onShowEnded={() => undefined} />)
     expect(html).toContain('3 stages · 9 steps · From Life2Launch · you run it with their permission')
     expect(html).toContain('Earns Career Ready')
-    expect(html).toContain('/admin/badges/badge/cr/definition')
+    expect(html).toContain('/admin/plans/badge/cr/definition')
     expect(html).toContain('State CCR Standards · 8')
     expect(html).toContain('/admin/plans/requirements/fw_ccr')
     expect(html).toContain('Open plan')

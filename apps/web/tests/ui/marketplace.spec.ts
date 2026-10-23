@@ -7,28 +7,29 @@ const fixture = JSON.parse(readFileSync('.playwright/learner-flow.json', 'utf8')
 const orgPath = `/orgs/${fixture.org_slug}`
 const PARTNER_SLUG = 'marketplace-partner-ui'
 
-const marketplaceTab = (page: Page) => page.getByRole('navigation', { name: 'Plans pages' }).getByRole('link').filter({ hasText: 'Discover' })
+const discoverTab = (page: Page) => page.getByRole('navigation', { name: 'Plans pages' }).getByRole('link').filter({ hasText: 'Discover' })
+// Requests from other organizations wait behind a button in the Plans header.
+const requestsButton = (page: Page) => page.getByRole('button', { name: /^\d+ requests? waiting$/ })
 
-/** Opens Discover (Plans › Discover, the one marketplace) and returns the API base and the bearer header the page uses. */
+/** Opens Plans › Discover and returns the API base and the bearer header the page uses. */
 async function openMarketplace(page: Page, query = '') {
   const summary = page.waitForResponse((res) => res.url().includes('/badge-marketplace/requests/summary') && res.request().method() === 'GET')
-  await page.goto(`${orgPath}/admin/plans/marketplace${query}`)
+  await page.goto(`${orgPath}/admin/plans/discover${query}`)
   await assertActualApp(page)
   const response = await summary
   expect(response.ok()).toBe(true)
   return { api: response.url().split('badge-marketplace/')[0], authorization: (await response.request().allHeaders()).authorization }
 }
 
-test('marketplace.discover: older links with ?type= land on Discover, with search and the Requests view', async ({ page }) => {
-  await openMarketplace(page, '?type=templates')
-  await expect(marketplaceTab(page)).toHaveAttribute('aria-current', 'page')
+test('marketplace.discover: Discover is one page with search', async ({ page }) => {
+  await openMarketplace(page)
+  await expect(discoverTab(page)).toHaveAttribute('aria-current', 'page')
   await expect(page.getByRole('textbox', { name: 'Search Discover' })).toBeVisible()
-  await expect(page.getByRole('navigation', { name: 'Marketplace view' }).getByRole('link', { name: /Browse/ })).toHaveAttribute('aria-current', 'page')
-  await expect(page.getByRole('navigation', { name: 'Marketplace view' }).getByRole('link', { name: /Requests/ })).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Marketplace view' })).toHaveCount(0)
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true)
 })
 
-test('marketplace.requests: a request to use a listed template shows on the tab and can be declined', async ({ page }) => {
+test('marketplace.requests: a request to use a listed template shows in the Plans header and can be declined', async ({ page }) => {
   const { api, authorization } = await openMarketplace(page)
   const headers = { authorization }
 
@@ -52,17 +53,17 @@ test('marketplace.requests: a request to use a listed template shows on the tab 
   const before = await waiting()
   expect(before).toBeGreaterThan(0)
   await page.reload()
-  await expect(marketplaceTab(page)).toContainText(`${before} request${before === 1 ? '' : 's'} waiting`)
-  await page.getByRole('navigation', { name: 'Marketplace view' }).getByRole('link', { name: /Requests/ }).click()
-  await expect(page).toHaveURL(/view=requests/)
+  await expect(requestsButton(page)).toHaveAccessibleName(`${before} request${before === 1 ? '' : 's'} waiting`)
+  await requestsButton(page).click()
   const incoming = page.getByTestId('marketplace-incoming')
   const row = incoming.getByTestId('marketplace-request-row').filter({ hasText: 'Marketplace Partner' }).filter({ hasText: template.title })
   await expect(row).toHaveCount(1)
   await row.getByRole('button', { name: 'Decline' }).click()
   await expect(row).toHaveCount(0)
-  // The tab's count follows: one fewer waiting (none shows no count at all).
-  if (before === 1) await expect(marketplaceTab(page)).not.toContainText('waiting')
-  else await expect(marketplaceTab(page)).toContainText(`${before - 1} request${before - 1 === 1 ? '' : 's'} waiting`)
+  // The header's count follows: one fewer waiting (none hides the button).
+  await page.keyboard.press('Escape')
+  if (before === 1) await expect(requestsButton(page)).toHaveCount(0)
+  else await expect(requestsButton(page)).toHaveAccessibleName(`${before - 1} request${before - 1 === 1 ? '' : 's'} waiting`)
   expect(await waiting()).toBe(before - 1)
 
   // Leave the template unlisted for the other scenarios.
@@ -78,8 +79,9 @@ test('marketplace.publish: Publish to marketplace in the plan\'s visibility list
   const listingUrl = `${api}badge-marketplace/templates/${template.template_uuid}/listing?org_id=${fixture.org_id}`
   await page.request.put(listingUrl, { headers, data: { listed: false, mode: 'locked', access: 'request' } })
 
-  await page.goto(`${orgPath}/admin/plans/${template.template_uuid}/publish`)
+  await page.goto(`${orgPath}/admin/plans/${template.template_uuid}`)
   await assertActualApp(page)
+  await page.getByTestId('visibility-chip').click()
   // The plan's visibility holds the listing, who else may run the plan, and its usage.
   await expect(page.getByTestId('template-authorized-orgs')).toBeVisible()
   await expect(page.getByTestId('template-usage-metrics')).toBeVisible()

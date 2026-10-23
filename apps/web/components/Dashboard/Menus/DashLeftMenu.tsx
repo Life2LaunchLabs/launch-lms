@@ -52,7 +52,6 @@ import { ADMIN_NAV_ICONS, PLATFORM_NAV_ICONS } from '@components/Admin/adminNavI
 import RequestAccessButton, { accessRequestLabel } from '@components/Admin/RequestAccessButton'
 import { AVAILABLE_LANGUAGES } from '@/lib/languages'
 import { adminLabel, adminTabForPath, type VisibleNavItem } from '@/lib/admin/registry'
-import { usePlansNavTabs } from '@components/Admin/Plans/usePlansNavTabs'
 import { OrgLogo } from '@components/Objects/OrgLogo'
 import { cn } from '@/lib/utils'
 import { useFeatures } from '@components/Hooks/useFeatures'
@@ -82,7 +81,7 @@ function DashLeftMenu() {
     await signOut({ redirect: true, callbackUrl: getUriWithOrg(org.slug, '/login') })
   }
 
-  const tabs = usePlansNavTabs(features.adminTabs())
+  const tabs = features.adminTabs()
 
   if (!org || !session) return null
 

@@ -21,7 +21,7 @@ import ImageMediaPicker from '@components/Objects/Media/ImageMediaPicker'
 import Modal from '@components/Objects/StyledElements/Modal/Modal'
 import BadgeVersionToolbar from '@components/Learning/BadgeVersionToolbar'; import BadgeRoutesPanel from '@components/Learning/BadgeRoutesPanel'
 import EditableHeaderField from '@components/Learning/BadgeHeaderField'
-import OwnershipChip from '@components/Admin/Plans/OwnershipChip'
+import OwnershipChip from '@components/Plans/shared/OwnershipChip'
 import { BadgeReadOnlyNote, useBadgeOwnership } from '@components/Learning/BadgeOwnership'
 
 const tabs = [
@@ -111,7 +111,6 @@ export default function AdminBadgeShell({
         <div className="pb-4 pt-6">
           <Breadcrumbs items={[
             { label: 'Plans', href: getUriWithOrg(orgslug, routePaths.org.admin.plans()) },
-            { label: 'Badges', href: getUriWithOrg(orgslug, routePaths.org.admin.plans('badges')) },
             { label: badge.name },
           ]} />
         </div>
@@ -176,7 +175,7 @@ export default function AdminBadgeShell({
             const Icon = tab.icon
             const isActive = normalizedSubpage === tab.key
             return (
-              <Link key={tab.key} href={`${getUriWithOrg(orgslug, `/admin/badges/badge/${cleanBadgeId(badge.badge_uuid)}/${tab.key}`)}?version=${badge.selected_version?.version_uuid || ''}`} replace className="shrink-0 whitespace-nowrap">
+              <Link key={tab.key} href={`${getUriWithOrg(orgslug, routePaths.org.admin.badge(badge.badge_uuid, tab.key))}?version=${badge.selected_version?.version_uuid || ''}`} replace className="shrink-0 whitespace-nowrap">
                 <div className={`flex w-fit cursor-pointer space-x-4 border-black py-2 text-center transition-all ease-linear ${isActive ? 'border-b-4' : 'opacity-50 hover:opacity-75'}`}>
                   <div className="mx-2 flex items-center space-x-2.5">
                     <Icon size={16} />
@@ -499,7 +498,7 @@ function BadgeSettingsPanel({ orgslug, badge, onPatch, isDraft }: { orgslug: str
     try {
       await deleteLearningBadge(badge.badge_uuid, accessToken)
       toast.success('Badge deleted')
-      router.push(getUriWithOrg(orgslug, '/admin/badges'))
+      router.push(getUriWithOrg(orgslug, routePaths.org.admin.plans()))
       router.refresh()
     } catch (error: any) {
       toast.error(error?.message || 'Failed to delete badge.')
@@ -558,7 +557,7 @@ function IssuerBadgeSettingsPanel({ orgslug, badge, issuerOrgId }: { orgslug: st
     <div className="px-4 pb-10 pt-6 sm:px-10">
       <section className="max-w-4xl rounded-xl bg-card p-6 shadow-xs">
         <h2 className="text-lg font-bold text-foreground">Issuer settings</h2>
-        <p className="mt-1 text-sm text-muted-foreground">You issue this badge through the plans its creator approved you on. To stop, leave the plan in <Link className="font-semibold underline" href={getUriWithOrg(orgslug, routePaths.org.admin.marketplace())}>Marketplace</Link> › Requests; credentials already issued stay valid.</p>
+        <p className="mt-1 text-sm text-muted-foreground">You issue this badge through the plans its creator approved you on. To stop, leave the plan from <Link className="font-semibold underline" href={getUriWithOrg(orgslug, routePaths.org.admin.plans())}>Plans</Link> › Requests; credentials already issued stay valid.</p>
         {plans === null ? (
           <div className="flex items-center justify-center py-14 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /></div>
         ) : (

@@ -66,25 +66,15 @@ export interface GettingStarted {
   from_setup?: boolean
 }
 
-/** The Plans area's tabs (Assignments, Templates, Badges, Requirements, Marketplace). */
-export type PlansTabId = 'assignments' | 'templates' | 'badges' | 'requirements' | 'marketplace'
-
-/** A member's own order for the Plans tabs, and the org's default (Badges first for a badge-making org that runs nothing itself). */
-export interface PlansTabsPreference {
-  order: PlansTabId[]
-  default: PlansTabId[]
-  /** Whether the member saved their own order; Reset is offered when they did. */
-  saved: boolean
-}
+/** What the Plans tabs show: the org's plans and active assignments, and its requirement frameworks. */
+export interface PlansSummary { plans: number; assignments: number; frameworks: number }
 
 export const adminHomeKey = (orgId: number) => goalAdminUrl('/home', orgId)
-export const plansTabsKey = (orgId: number) => goalAdminUrl('/preferences/plans-tabs', orgId)
+export const plansSummaryKey = (orgId: number) => goalAdminUrl('/plans-summary', orgId)
 
 export const adminHomeApi = {
   get: (orgId: number, token?: string) => request<AdminHome>(adminHomeKey(orgId), token),
   saveLayout: (orgId: number, layout: HomeLayout, token?: string) => request<HomeLayout>(goalAdminUrl('/home/layout', orgId), token, 'PUT', layout),
   dismissGettingStarted: (orgId: number, token?: string) => request<{ dismissed: boolean }>(goalAdminUrl('/home/getting-started/dismiss', orgId), token, 'POST'),
-  plansTabs: (orgId: number, token?: string) => request<PlansTabsPreference>(plansTabsKey(orgId), token),
-  /** Saves the member's tab order; an empty order goes back to the default. */
-  savePlansTabs: (orgId: number, order: PlansTabId[], token?: string) => request<PlansTabsPreference>(plansTabsKey(orgId), token, 'PUT', { order }),
+  plansSummary: (orgId: number, token?: string) => request<PlansSummary>(plansSummaryKey(orgId), token),
 }

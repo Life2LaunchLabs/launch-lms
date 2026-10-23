@@ -11,6 +11,9 @@ const decode = (segment: string) => {
 
 // /admin/users/<segment> used to hold settings tabs and bare usernames. These were tabs, not people.
 const OLD_PEOPLE_TABS = new Set(['new', 'groups', 'grading', 'roles', 'signups', 'audit-logs', 'user', 'settings', 'cohorts', 'chat'])
+// A plan's old tabs, and the Plans sections whose second segment is not a plan.
+const OLD_PLAN_TABS = new Set(['overview', 'objectives', 'assignments', 'settings', 'publish', 'versions'])
+const PLANS_SECTIONS = new Set(['assignments', 'requirements', 'live', 'review', 'collections', 'discover', 'badge', 'marketplace', 'templates'])
 // A group's requirement report (once "reports") moved to Insights.
 const GROUP_EVIDENCE_TABS = new Set(['requirements', 'reports'])
 
@@ -28,17 +31,25 @@ function legacyAdminPath(parts: string[]): string | null {
     return routePaths.owner.platform.organization(a)
   }
   if (area === 'programs') {
-    if (!a) return admin.templates()
-    return admin.templatePage(decode(a), b && b !== 'assignments' ? decode(b) : 'overview')
+    if (!a) return admin.plans()
+    return admin.template(decode(a))
   }
 
   if (area === 'plans') {
     if (a === 'reporting' && n === 2) return admin.insights()
-    // The old assignments list is the Assignments tab; one assignment keeps its own page.
-    if (a === 'assignments' && n === 2) return admin.assignments()
     // Requirements live under Plans again: a framework opens on its details.
     if (a === 'requirements' && n === 3) return admin.requirementFrameworkPlans(decode(b), 'details')
-    if (b === 'assignments' && c === 'new' && n === 4) return admin.templatePage(decode(a), 'overview')
+    if (b === 'assignments' && c === 'new' && n === 4) return admin.template(decode(a))
+    // Plans was Templates; Discover was the Marketplace.
+    if (a === 'templates' && n === 2) return admin.plans()
+    if (a === 'marketplace') {
+      if (n === 2) return admin.discover()
+      if (b === 'plan' && n === 4) return admin.discoverPlan(decode(c))
+      if (b === 'collection' && n === 4) return admin.discoverCollection(decode(c))
+      return admin.discover()
+    }
+    // A plan's old tabs are one page now.
+    if (n === 3 && OLD_PLAN_TABS.has(b) && !PLANS_SECTIONS.has(a)) return admin.template(decode(a))
     return null
   }
 
@@ -64,10 +75,10 @@ function legacyAdminPath(parts: string[]): string | null {
   }
 
   if (area === 'badges') {
-    if (a === 'marketplace' && n === 2) return admin.badgeMarketplace()
-    if (a === 'badge' && n === 3) return admin.badge(decode(b), 'analytics')
-    if (a === 'collection' && n === 3) return admin.badgeCollection(decode(b), 'badges')
-    return null
+    // Badges are part of the plans that earn them; there is no Badges tab.
+    if (a === 'marketplace') return admin.discover()
+    if (a === 'badge' && b) return admin.badge(decode(b), c ? decode(c) : null)
+    return admin.plans()
   }
 
   if (area === 'resources' && n === 2 && a !== 'tags') return admin.content.resourceChannel(a, 'general')

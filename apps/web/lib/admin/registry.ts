@@ -46,18 +46,17 @@ export const ADMIN_TABS: AdminTab[] = [
     label: 'Plans',
     href: admin.plans(),
     pill: 'New',
-    // The five pages are tabs inside Plans (in each viewer's own order), not sidebar entries.
+    // Plans, Discover, Assignments and Requirements are tabs inside Plans, not sidebar entries.
     inPageTabs: true,
     match: [],
     requires: { right: STAFF },
     children: [
-      // Every org, free included, can assign its templates (a solo coach assigning to a client).
-      { id: 'assignments', label: 'Assignments', labelKey: 'common.assignments', href: admin.plans('assignments'), match: [admin.plans('assignments'), '/admin/plans/assignments', '/admin/plans/review', '/admin/plans/live'], requires: {} },
-      // Every other /admin/plans/<uuid> page is a template.
-      { id: 'templates', label: 'Plans', href: admin.plans('templates'), match: [admin.plans('templates'), '/admin/plans/'], requires: {} },
-      { id: 'badges', label: 'Badges', href: admin.plans('badges'), match: [admin.plans('badges')], requires: {} },
+      // Every other /admin/plans/<uuid> page is a plan (or its badge).
+      { id: 'plans', label: 'Plans', href: admin.plans('plans'), match: [admin.plans('plans'), '/admin/plans/'], requires: {} },
+      { id: 'discover', label: 'Discover', href: admin.plans('discover'), match: [admin.plans('discover')], requires: {} },
+      // Every org, free included, can assign its plans (a solo coach assigning to a client).
+      { id: 'assignments', label: 'Assignments', labelKey: 'common.assignments', href: admin.plans('assignments'), match: [admin.plans('assignments'), '/admin/plans/review', '/admin/plans/live'], requires: {} },
       { id: 'requirements', label: 'Requirements', href: admin.plans('requirements'), match: [admin.plans('requirements')], requires: {} },
-      { id: 'marketplace', label: 'Discover', href: admin.plans('marketplace'), match: [admin.plans('marketplace')], requires: {} },
     ],
   },
   { id: 'people', label: 'People', href: admin.people.root(), match: [admin.people.root()], requires: { right: STAFF } },
@@ -88,6 +87,7 @@ export const ADMIN_TABS: AdminTab[] = [
     children: [
       { id: 'general', label: 'General', labelKey: 'dashboard.organization.settings.tabs.general', href: admin.organization.general(), match: [admin.organization.general()], requires: {} },
       { id: 'branding', label: 'Branding', labelKey: 'dashboard.organization.settings.tabs.branding', href: admin.organization.branding(), match: [admin.organization.branding()], requires: {} },
+      { id: 'discover', label: 'Learner Discover', href: admin.organization.discover(), match: [admin.organization.discover()], requires: {} },
       { id: 'messaging', label: 'Messaging', href: admin.organization.messaging(), match: [admin.organization.messaging()], requires: {} },
       { id: 'sso', label: 'Single Sign-On', labelKey: 'dashboard.organization.settings.tabs.sso', href: admin.organization.sso(), match: [admin.organization.sso()], requires: { feature: 'sso' } },
       { id: 'plan', label: 'Plan & access', href: admin.organization.plan(), match: [admin.organization.plan()], requires: {} },
