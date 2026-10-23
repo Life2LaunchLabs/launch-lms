@@ -66,7 +66,7 @@ export default function FrameworkList({ orgslug, orgId, token }: { orgslug: stri
       : error ? <EmptyState icon={<ListBullets size={36} />} title="Requirement frameworks unavailable" detail={error?.message || 'Try again in a moment.'} />
       : !frameworks.length ? <PageWelcome icon={<ListBullets size={28} />} title="Requirements: what your plans count toward"
         body="A framework is a list of requirements, like your state’s graduation requirements or your own competencies. Map steps in your templates to it, and you can see what each plan covers and where every learner stands."
-        how="Use Add from marketplace above for a published framework, or write your own." />
+        how="Use Add from Discover above for a published framework, or write your own." />
       : !shown.length ? <p className="rounded-xl border border-gray-100 bg-white p-6 text-center text-sm text-gray-500 nice-shadow">No frameworks match. <button type="button" onClick={filters.clearAll} className="font-semibold text-violet-700 underline underline-offset-2">Clear filters</button></p>
       : <ul className="divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-100 bg-white nice-shadow" aria-label="Requirement frameworks">
         {shown.map((item) => <li key={item.framework_uuid}><FrameworkRow item={item} href={getUriWithOrg(orgslug, routePaths.org.admin.requirementFrameworkPlans(item.framework_uuid, 'plans'))} /></li>)}

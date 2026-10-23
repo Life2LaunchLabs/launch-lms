@@ -87,7 +87,7 @@ test('framework.list: Requirements lists frameworks with coverage and opens cove
   await page.goto(`${orgPath}/admin/plans/requirements`)
   await assertActualApp(page)
   expect((await listed).ok()).toBe(true)
-  await expect(page.getByRole('link', { name: 'Add from marketplace' })).toHaveAttribute('href', /\/admin\/plans\/marketplace\?type=frameworks$/)
+  await expect(page.getByRole('link', { name: 'Add from Discover' })).toHaveAttribute('href', /\/admin\/plans\/discover$/)
   await expect(page.getByRole('button', { name: 'Create framework' })).toBeVisible()
   const row = page.getByRole('list', { name: 'Requirement frameworks' }).getByRole('link').filter({ hasText: 'Manual code editor test' }).first()
   await expect(row).toContainText(/\d+ of \d+ covered by \d+ templates?/)
