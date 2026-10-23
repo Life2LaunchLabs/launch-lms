@@ -1,39 +1,27 @@
 'use client'
 
 import React from 'react'
-import { useRouter } from 'next/navigation'
-import { mutate } from 'swr'
-import toast from 'react-hot-toast'
+import dynamic from 'next/dynamic'
 import { Loader2, Plus } from 'lucide-react'
-import Modal from '@components/Objects/StyledElements/Modal/Modal'
-import { Button } from '@components/ui/button'
-import { Input } from '@components/ui/input'
-import { useStaff } from '@components/Goals/admin/assignments/shared'
+import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from '@components/ui/dialog'
 import { primaryActionClass } from '@components/Plans/shared/actions'
-import { getUriWithOrg, routePaths } from '@services/config/config'
-import { plansSummaryKey } from '@services/goals/adminHome'
-import { isTemplatesKey, templatesApi } from '@services/goals/templates'
 
-/** New plan: name it, and it opens ready to edit as draft v1.0.0. */
+// The picker brings in every step type's look, so it loads when the modal first opens.
+const NewPlanPicker = dynamic(() => import('./NewPlanPicker'), {
+  ssr: false, loading: () => <div className="flex flex-1 items-center justify-center"><Loader2 className="animate-spin text-muted-foreground" /></div>,
+})
+
+/** New plan: start from scratch or copy a starter plan; either opens ready to edit as draft v1.0.0. */
 export default function NewPlanModal({ orgslug, trigger }: { orgslug: string; trigger?: React.ReactNode }) {
-  const router = useRouter()
-  const { orgId, token } = useStaff()
   const [open, setOpen] = React.useState(false)
-  const [title, setTitle] = React.useState('')
-  const [busy, setBusy] = React.useState(false)
-  const create = async () => {
-    setBusy(true)
-    try {
-      const plan = await templatesApi.create(orgId, { title: title.trim() }, token)
-      await Promise.all([mutate(isTemplatesKey), mutate(plansSummaryKey(orgId))])
-      setOpen(false)
-      router.push(getUriWithOrg(orgslug, routePaths.org.admin.template(plan.template_uuid)))
-    } catch (error: any) { toast.error(error?.message || 'Could not create the plan.') } finally { setBusy(false) }
-  }
-  return <Modal isDialogOpen={open} onOpenChange={setOpen} minHeight="no-min" minWidth="sm" dialogTitle="New plan" dialogDescription="Give it a name. You’ll add steps next."
-    dialogTrigger={trigger || <button type="button" className={primaryActionClass}><Plus size={16} aria-hidden="true" />New plan</button>}
-    dialogContent={<form className="space-y-3" onSubmit={(event) => { event.preventDefault(); if (title.trim() && !busy) void create() }}>
-      <Input autoFocus value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Launch Ready" aria-label="Plan name" maxLength={200} />
-      <Button type="submit" disabled={busy || !title.trim()} className="ml-auto flex">{busy ? <Loader2 className="animate-spin" /> : null}Create plan</Button>
-    </form>} />
+  return <Dialog open={open} onOpenChange={setOpen}>
+    <DialogTrigger asChild>{trigger || <button type="button" className={primaryActionClass}><Plus size={16} aria-hidden="true" />New plan</button>}</DialogTrigger>
+    <DialogContent className="flex h-[calc(100dvh-32px)] w-[calc(100vw-32px)] max-w-[1080px] flex-col overflow-hidden rounded-[22px] p-0 sm:h-[min(720px,calc(100dvh-32px))] sm:rounded-[22px]">
+      <div className="flex items-center gap-3 border-b border-border px-[22px] py-[18px] pr-16">
+        <DialogTitle className="flex-1 text-[19px] font-bold tracking-tight">New plan</DialogTitle>
+        <DialogDescription className="sr-only">Start from scratch or from a starter plan. Everything is editable.</DialogDescription>
+      </div>
+      {open ? <NewPlanPicker orgslug={orgslug} onDone={() => setOpen(false)} /> : null}
+    </DialogContent>
+  </Dialog>
 }

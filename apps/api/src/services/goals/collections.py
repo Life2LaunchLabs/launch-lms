@@ -17,6 +17,7 @@ from sqlmodel import Session, col, func, select
 from src.db.goals import GoalTemplate, TemplateStatus
 from src.db.plan_collections import PlanCollection, PlanCollectionCreate, PlanCollectionItem, PlanCollectionUpdate
 from src.db.users import PublicUser
+from src.security.access.access import owner_org_id
 from src.security.org_auth import require_org_admin
 from src.services.goals import templates
 
@@ -90,9 +91,10 @@ def _dict(row: PlanCollection, plans: list[GoalTemplate], listed: set[int]) -> d
     return {
         "collection_uuid": row.collection_uuid, "name": row.name, "description": row.description, "categories": row.categories or [],
         "plan_count": len(plans), "template_uuids": [plan.template_uuid for plan in plans],
-        "thumbs": [{"template_uuid": plan.template_uuid, "title": plan.title, "thumbnail_image": plan.thumbnail_image} for plan in plans[:THUMBS]],
+        "thumbs": [{"template_uuid": plan.template_uuid, "title": plan.title, **templates.cover(plan)} for plan in plans[:THUMBS]],
         "published_count": sum(int(plan.id or 0) in listed for plan in plans),
         "last_opened_at": row.last_opened_at, "update_date": row.update_date, "source_collection_uuid": row.source_collection_uuid,
+        "starter": row.starter,
     }
 
 
@@ -150,6 +152,10 @@ def update_collection(db: Session, current_user: PublicUser, org_id: int, collec
         row.description = payload.description.strip()
     if payload.categories is not None:
         row.categories = _categories(payload.categories)
+    if payload.starter is not None:
+        if org_id != owner_org_id(db):
+            raise HTTPException(status_code=403, detail="Only the platform's collections can be starters")
+        row.starter = payload.starter
     row.update_date = _now()
     db.add(row)
     db.commit()

@@ -118,7 +118,7 @@ def _catalog(db: Session, org_id: int) -> dict:
             "collection_uuid": row.collection_uuid, "name": row.name, "description": row.description, "categories": row.categories or [],
             "creator_org": market._org(orgs.get(row.org_id)), "partner": row.org_id in partners, "plan_count": len(items),
             "template_uuids": [item["template_uuid"] for item in items],
-            "thumbs": [{"template_uuid": item["template_uuid"], "title": item["title"], "thumbnail_image": item["thumbnail_image"]} for item in items[:4]],
+            "thumbs": [{key: item[key] for key in ("template_uuid", "title", "thumbnail_image", "icon", "color")} for item in items[:4]],
             "badge_count": sum(1 for item in items if item["badges"]), "locked": all(item["mode"] == "locked" for item in items),
             "access": "open" if all(item["access"] == "open" for item in items) else "request",
             "status": status, "local_collection_uuid": added.get(row.collection_uuid),
@@ -288,7 +288,7 @@ def added_plans(db: Session, current_user: PublicUser, org_id: int) -> list[dict
         authorization = authorizations[int(template.id or 0)]
         result.append({
             "template_uuid": template.template_uuid, "title": template.title, "description": template.description or "",
-            "thumbnail_image": template.thumbnail_image or "", "org_id": template.org_id, "owner_org": market.owner_org(db, template.template_uuid),
+            **templates.cover(template), "org_id": template.org_id, "owner_org": market.owner_org(db, template.template_uuid),
             "step_count": sum(len(stage.get("steps") or []) for stage in document.get("stages") or []), "badges": market._badges(db, template),
             "live_version": {"semver": live.semver, "number": live.number} if live else None, "published_version": live.number if live else None,
             "requested": authorization.status == REQUESTED, "read_only": True, "collections": in_collections.get(int(template.id or 0), []),

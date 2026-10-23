@@ -3,7 +3,7 @@ collection never touches its plans (see services/goals/collections.py)."""
 
 from datetime import datetime
 
-from sqlalchemy import JSON, Column, DateTime, ForeignKey, Integer, UniqueConstraint
+from sqlalchemy import JSON, Boolean, Column, DateTime, ForeignKey, Integer, UniqueConstraint, false
 from sqlmodel import Field, SQLModel
 
 
@@ -23,6 +23,8 @@ class PlanCollection(SQLModel, table=True):
     created_by_user_id: int | None = Field(default=None, sa_column=Column(Integer, ForeignKey("user.id", ondelete="SET NULL"), nullable=True))
     # Added from Discover: the other organization's collection this one mirrors.
     source_collection_uuid: str | None = Field(default=None, index=True)
+    # The platform's own collections can be starter categories: their plans show in every organization's New plan.
+    starter: bool = Field(default=False, sa_column=Column(Boolean, nullable=False, server_default=false()))
     creation_date: str = ""
     update_date: str = ""
 
@@ -49,6 +51,7 @@ class PlanCollectionUpdate(SQLModel):
     name: str | None = Field(default=None, min_length=1, max_length=120)
     description: str | None = Field(default=None, max_length=1000)
     categories: list[str] | None = None
+    starter: bool | None = None
 
 
 class PlanCollectionPlans(SQLModel):

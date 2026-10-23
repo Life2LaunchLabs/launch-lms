@@ -96,6 +96,7 @@ function EventSettings({ config, onChange }: ConfigPanelProps<'event'>) {
 export const event: StepDefinition<'event'> = {
   type: 'event',
   label: 'Event',
+  color: '#C8327D',
   hint: 'Something to go to, added to your calendar',
   icon: CalendarDays,
   statusLine: (step: Step<'event'>) => {

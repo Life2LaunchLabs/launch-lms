@@ -1,6 +1,6 @@
 import { getAPIUrl } from '@services/config/config'
 import { RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/requests'
-import type { GoalTemplate, TemplateDocument } from './types'
+import type { GoalIcon, GoalTemplate, PlanCover, StepTypeKey, TemplateDocument } from './types'
 import type { AssignmentBadge, AssignmentVersionStatus, EligibilityRule } from './versions'
 
 const q = encodeURIComponent
@@ -70,7 +70,25 @@ export interface TemplateListItem extends GoalTemplate {
   collections?: Array<{ collection_uuid: string; name: string }>
   /** Another organization's plan asked for from Discover, waiting on its creator. */
   requested?: boolean
+  /** Shared in Discover (listed, with a live version). */
+  listed?: boolean
 }
+
+/** A starter plan in the New plan picker: the platform's, copied into the organization when picked. */
+export interface PlanStarter extends PlanCover {
+  template_uuid: string
+  title: string
+  description: string
+  stage_count: number
+  step_count: number
+  types: StepTypeKey[]
+  preview: Array<{ type: StepTypeKey; title: string }>
+  earns_badge: boolean
+  /** The starter categories (collection uuids) it's in. */
+  categories: string[]
+}
+
+export interface PlanStarters { categories: Array<{ collection_uuid: string; name: string; count: number }>; starters: PlanStarter[] }
 
 export interface AssignmentPerson { id: number; user_uuid?: string; username?: string; first_name?: string; last_name?: string; avatar_image?: string | null }
 
@@ -148,12 +166,13 @@ export const templateKeys = {
   assignments: (orgId: number, templateUuid: string) => withOrg(templateUrl(templateUuid, '/assignments'), orgId),
   orgAssignments: (orgId: number) => withOrg(templatesUrl('/assignments'), orgId),
   badgeRoutes: (orgId: number) => withOrg(templatesUrl('/badge-routes'), orgId),
+  starters: (orgId: number) => withOrg(templatesUrl('/starters'), orgId),
 }
 
 export const templatesApi = {
   list: (orgId: number, token?: string, includeArchived = false) => request<TemplateListItem[]>(templateKeys.list(orgId, includeArchived), token),
   get: (orgId: number, templateUuid: string, token?: string) => request<TemplateDetail>(templateKeys.one(orgId, templateUuid), token),
-  create: (orgId: number, data: { title?: string; document?: TemplateDocument }, token?: string) => request<TemplateDetail>(withOrg(templatesUrl(), orgId), token, 'POST', data),
+  create: (orgId: number, data: { title?: string; document?: TemplateDocument; icon?: GoalIcon; color?: string }, token?: string) => request<TemplateDetail>(withOrg(templatesUrl(), orgId), token, 'POST', data),
   save: (orgId: number, templateUuid: string, document: TemplateDocument, etag: string | null, token?: string) => request<TemplateDetail>(templateKeys.one(orgId, templateUuid), token, 'PUT', { document, etag }),
   publish: (orgId: number, templateUuid: string, data: { note?: string; semver?: string; make_live?: boolean }, token?: string) => request<TemplateDetail & { moved: MovedAssignments | null }>(withOrg(templateUrl(templateUuid, '/publish'), orgId), token, 'POST', data),
   startDraft: (orgId: number, templateUuid: string, data: { semver: string; note?: string }, token?: string) => request<TemplateDetail>(withOrg(templateUrl(templateUuid, '/draft'), orgId), token, 'POST', data),
@@ -167,6 +186,10 @@ export const templatesApi = {
   unarchive: (orgId: number, templateUuid: string, token?: string) => request<GoalTemplate>(withOrg(templateUrl(templateUuid, '/unarchive'), orgId), token, 'POST'),
   updateBadgeVersions: (orgId: number, templateUuid: string, acceptPrevious: boolean, token?: string) => request<TemplateDetail>(withOrg(templateUrl(templateUuid, '/update-badge-versions'), orgId, `&accept_previous_major_versions=${acceptPrevious}`), token, 'POST'),
   activity: (orgId: number, templateUuid: string, activityUuid: string, token?: string) => request<{ template: { template_uuid: string; title: string; org_id: number }; activity: any }>(withOrg(templateUrl(templateUuid, `/activities/${q(activityUuid)}`), orgId), token),
+
+  setCover: (orgId: number, templateUuid: string, data: { icon?: GoalIcon | null; color?: string | null }, token?: string) => request<PlanCover>(withOrg(templateUrl(templateUuid, '/cover'), orgId), token, 'PUT', data),
+  starters: (orgId: number, token?: string) => request<PlanStarters>(templateKeys.starters(orgId), token),
+  useStarter: (orgId: number, templateUuid: string, token?: string) => request<TemplateDetail>(withOrg(templatesUrl(`/starters/${q(templateUuid)}/use`), orgId), token, 'POST'),
 
   publishToLibrary: (orgId: number, templateUuid: string, token?: string) => request<TemplateDetail>(withOrg(templateUrl(templateUuid, '/publish-to-library'), orgId), token, 'POST'),
 

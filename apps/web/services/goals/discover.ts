@@ -2,7 +2,7 @@ import { getAPIUrl } from '@services/config/config'
 import { RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/requests'
 import type { MarketplaceTemplate } from '@services/learning/marketplace'
 import type { TemplateListItem } from './templates'
-import type { TemplateDocument } from './types'
+import type { GoalIcon, PlanCover, TemplateDocument } from './types'
 
 const q = encodeURIComponent
 const discoverUrl = (path = '') => `${getAPIUrl()}discover${path}`
@@ -33,7 +33,7 @@ export interface DiscoverCollection {
   partner: boolean
   plan_count: number
   template_uuids: string[]
-  thumbs: Array<{ template_uuid: string; title: string; thumbnail_image: string | null }>
+  thumbs: Array<{ template_uuid: string; title: string; thumbnail_image: string | null; icon?: GoalIcon | null; color?: string | null }>
   badge_count: number
   locked: boolean
   access: 'open' | 'request'
@@ -46,11 +46,10 @@ export interface DiscoverPlanDetail extends DiscoverPlan { document: TemplateDoc
 export interface DiscoverCollectionDetail extends DiscoverCollection { plans: DiscoverPlan[] }
 
 /** Another organization's plan shown in Plans: run as-is, or asked for and waiting. */
-export interface AddedPlan {
+export interface AddedPlan extends PlanCover {
   template_uuid: string
   title: string
   description: string
-  thumbnail_image: string
   org_id: number
   owner_org: MarketplaceTemplate['creator_org']
   step_count: number
@@ -65,7 +64,7 @@ export interface AddedPlan {
 /** Added plans in the shape of the Plans list (read-only; requested ones flagged). */
 export function addedAsListItems(added: AddedPlan[]): TemplateListItem[] {
   return added.map((plan) => ({
-    template_uuid: plan.template_uuid, title: plan.title, description: plan.description, thumbnail_image: plan.thumbnail_image, org_id: plan.org_id,
+    template_uuid: plan.template_uuid, title: plan.title, description: plan.description, thumbnail_image: plan.thumbnail_image, icon: plan.icon, color: plan.color, org_id: plan.org_id,
     status: 'active', system_type: null, etag: '', has_unpublished_changes: false, update_date: '', read_only: true, requested: plan.requested,
     step_count: plan.step_count, badges: plan.badges as any, collections: plan.collections, published_version: plan.published_version,
     live_version: plan.live_version as any,

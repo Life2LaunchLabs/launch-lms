@@ -7,7 +7,7 @@ import { Award, Loader2 } from 'lucide-react'
 import { CaretRight } from '@phosphor-icons/react'
 import { EmptyState } from '@components/Goals/admin/live/ui'
 import { discoverApi, discoverKeys } from '@services/goals/discover'
-import { PlanThumb } from '@components/Plans/library/PlanCards'
+import { PlanCover } from '@components/Plans/shared/PlanCover'
 import { plural } from '@components/Plans/plan/planVersions'
 import { ByLine, CollectionAction, DiscoverPlanCard, discoverHref, useDiscoverContext } from './parts'
 
@@ -28,7 +28,7 @@ export default function DiscoverCollectionPage({ orgslug, collectionUuid }: { or
     </nav>
     <header className="flex flex-col gap-5 sm:flex-row sm:items-start">
       <span className="grid h-36 w-36 shrink-0 grid-cols-2 gap-1 rounded-2xl bg-muted/50 p-1">
-        {cells.map((thumb, index) => thumb ? <PlanThumb key={thumb.template_uuid} title={thumb.title} image={thumb.thumbnail_image} className="rounded-xl" /> : <span key={index} className="rounded-xl bg-muted/60" />)}
+        {cells.map((thumb, index) => thumb ? <PlanCover key={thumb.template_uuid} plan={thumb} className="rounded-xl" /> : <span key={index} className="rounded-xl bg-muted/60" />)}
       </span>
       <div className="min-w-0 flex-1">
         <h1 className="text-3xl font-black tracking-tight sm:text-4xl">{collection.name}</h1>

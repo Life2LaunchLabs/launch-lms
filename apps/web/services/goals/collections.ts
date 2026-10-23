@@ -1,5 +1,6 @@
 import { getAPIUrl } from '@services/config/config'
 import { RequestBodyWithAuthHeader, errorHandling } from '@services/utils/ts/requests'
+import type { PlanCover } from './types'
 
 const q = encodeURIComponent
 const collectionsUrl = (path = '') => `${getAPIUrl()}plan-collections${path}`
@@ -18,11 +19,13 @@ export interface PlanCollection {
   categories: string[]
   plan_count: number
   template_uuids: string[]
-  thumbs: Array<{ template_uuid: string; title: string; thumbnail_image: string }>
+  thumbs: Array<PlanCover & { template_uuid: string; title: string }>
   /** Plans in it shared with other organizations (listed, with a live version). */
   published_count: number
   last_opened_at: string | null
   update_date: string
+  /** The platform's own collection used as a starter category in New plan. */
+  starter?: boolean
 }
 
 export interface PlanCollectionList { collections: PlanCollection[]; categories: string[] }
@@ -39,7 +42,7 @@ export const collectionsApi = {
   list: (orgId: number, token?: string) => request<PlanCollectionList>(collectionKeys.list(orgId), token),
   get: (orgId: number, uuid: string, token?: string) => request<PlanCollection>(collectionKeys.one(orgId, uuid), token),
   create: (orgId: number, data: { name: string; description?: string; categories?: string[]; template_uuids?: string[] }, token?: string) => request<PlanCollection>(collectionKeys.list(orgId), token, 'POST', data),
-  update: (orgId: number, uuid: string, data: { name?: string; description?: string; categories?: string[] }, token?: string) => request<PlanCollection>(collectionKeys.one(orgId, uuid), token, 'PATCH', data),
+  update: (orgId: number, uuid: string, data: { name?: string; description?: string; categories?: string[]; starter?: boolean }, token?: string) => request<PlanCollection>(collectionKeys.one(orgId, uuid), token, 'PATCH', data),
   remove: (orgId: number, uuid: string, token?: string) => request(collectionKeys.one(orgId, uuid), token, 'DELETE'),
   addPlans: (orgId: number, uuid: string, templateUuids: string[], token?: string) => request<PlanCollection>(withOrg(collectionsUrl(`/${q(uuid)}/plans`), orgId), token, 'POST', { template_uuids: templateUuids }),
   removePlan: (orgId: number, uuid: string, templateUuid: string, token?: string) => request<PlanCollection>(withOrg(collectionsUrl(`/${q(uuid)}/plans/${q(templateUuid)}`), orgId), token, 'DELETE'),

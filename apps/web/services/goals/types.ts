@@ -141,6 +141,10 @@ export interface Stage {
 
 /** The marks a learner can give their own goal (the API's GOAL_ICONS). */
 export type GoalIcon = 'target' | 'book' | 'briefcase' | 'graduation' | 'heart' | 'dumbbell' | 'palette' | 'music' | 'code' | 'leaf' | 'home' | 'rocket'
+  | 'wallet' | 'compass' | 'calendar' | 'star' | 'flag' | 'chat'
+
+/** A plan's cover: its image, else its icon on its color (a planColors key); the web picks for plans without them. */
+export interface PlanCover { thumbnail_image: string; icon?: GoalIcon | null; color?: string | null }
 
 /** A date or ordering in a plan that can't all come true; the API's schedule.conflicts. */
 export interface ScheduleWarning {
@@ -260,12 +264,11 @@ export interface TemplateVersion {
   live: boolean
 }
 
-export interface GoalTemplate {
+export interface GoalTemplate extends PlanCover {
   template_uuid: string
   org_id: number
   title: string
   description: string
-  thumbnail_image: string
   status: 'draft' | 'active' | 'archived'
   system_type: string | null
   etag: string

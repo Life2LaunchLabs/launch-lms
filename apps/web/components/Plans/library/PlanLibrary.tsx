@@ -2,23 +2,17 @@
 
 import React from 'react'
 import useSWR from 'swr'
-import { FolderPlus, Loader2, Search } from 'lucide-react'
-import { Input } from '@components/ui/input'
+import Link from 'next/link'
+import { Check, Compass, ListFilter, Loader2, Search } from 'lucide-react'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@components/ui/dropdown-menu'
 import { secondaryActionClass } from '@components/Plans/shared/actions'
 import { useCanEditPlans } from '@components/Plans/shared/useCanEditPlans'
-import { Segmented } from '@components/Goals/admin/live/ui'
+import NewPlanModal from '@components/Plans/create/NewPlanModal'
+import { getUriWithOrg, routePaths } from '@services/config/config'
 import { collectionKeys, collectionsApi, type PlanCollection } from '@services/goals/collections'
 import { addedAsListItems, discoverApi, discoverKeys } from '@services/goals/discover'
 import { templateKeys, templatesApi, type TemplateListItem } from '@services/goals/templates'
-import { CollectionCard, NewCollectionModal, PlanCard } from './PlanCards'
-
-type Filter = 'all' | 'live' | 'draft' | 'badge'
-const FILTERS: { value: Filter; label: string }[] = [{ value: 'all', label: 'All' }, { value: 'live', label: 'Live' }, { value: 'draft', label: 'Not live' }, { value: 'badge', label: 'Earns a badge' }]
-
-const matches = (plan: TemplateListItem, filter: Filter) => filter === 'all' ? true
-  : filter === 'live' ? !!plan.published_version && !plan.requested
-    : filter === 'draft' ? !plan.published_version || !!plan.requested
-      : !!plan.badges?.length
+import { CollectionCard, NewCollectionCard, NewCollectionModal, PlanCard, SectionHeader, planGridClass } from './PlanCards'
 
 export type PlanLibraryData = { plans: TemplateListItem[]; collections: PlanCollection[] }
 
@@ -44,39 +38,83 @@ export function LibraryLoading() {
   return <div className="flex min-h-[320px] items-center justify-center"><Loader2 className="animate-spin text-muted-foreground" /></div>
 }
 
-/** The Plans tab: collections (most recently opened first) as a carousel, then every plan with search and a filter. */
+type Filter = 'all' | 'badge' | 'published' | 'others' | 'requested' | 'draft'
+const FILTERS: Array<[Filter, string]> = [['all', 'All plans'], ['badge', 'Earns a badge'], ['published', 'Published'], ['others', 'From other organizations'], ['requested', 'Requested'], ['draft', 'Drafts']]
+
+const matches = (plan: TemplateListItem, filter: Filter, orgId: number) => {
+  const live = !!plan.live_version || !!plan.published_version
+  return filter === 'all' ? true
+    : filter === 'badge' ? !!plan.badges?.length
+      : filter === 'published' ? !!plan.listed
+        : filter === 'others' ? Number(plan.org_id) !== orgId
+          : filter === 'requested' ? !!plan.requested
+            : !plan.requested && (!live || !!plan.draft)
+}
+
+/** The Plans tab: collections (most recently opened first) in a row, then every plan with search and a filter. */
 export default function PlanLibrary({ orgslug, orgId, token, library }: { orgslug: string; orgId: number; token?: string; library: PlanLibraryData }) {
   const canEdit = useCanEditPlans() === true
   const [query, setQuery] = React.useState('')
   const [filter, setFilter] = React.useState<Filter>('all')
   const [newCollection, setNewCollection] = React.useState(false)
-  const { plans: own, collections } = library
+  const { plans, collections } = library
+  const showCollections = !!collections.length || canEdit
   const needle = query.trim().toLowerCase()
-  const shown = own.filter((plan) => matches(plan, filter) && (!needle || `${plan.title} ${plan.description}`.toLowerCase().includes(needle)))
+  const shown = plans.filter((plan) => matches(plan, filter, orgId) && (!needle || `${plan.title} ${plan.description}`.toLowerCase().includes(needle)))
 
-  return <div className="space-y-10">
-    <section aria-labelledby="collections-title">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 id="collections-title" className="text-xl font-black">Collections</h2>
-        {canEdit ? <button type="button" onClick={() => setNewCollection(true)} className={secondaryActionClass}><FolderPlus size={16} />New collection</button> : null}
-      </div>
-      {collections.length ? <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:thin] sm:mx-0 sm:px-0">
+  return <div>
+    {showCollections ? <section aria-labelledby="collections-title">
+      <SectionHeader id="collections-title" title="Collections" count={collections.length} className="mt-0" />
+      <div className="-mx-1 flex snap-x snap-proximity gap-3.5 overflow-x-auto px-1 pb-3 pt-1 [scrollbar-width:thin]" data-testid="collections-row">
         {collections.map((collection) => <CollectionCard key={collection.collection_uuid} orgslug={orgslug} collection={collection} />)}
-      </div> : <p className="rounded-2xl border border-dashed border-border px-5 py-6 text-sm text-muted-foreground">Group plans into collections: a term, a program, a pathway. A plan can be in as many as you like.</p>}
-    </section>
-    <section aria-labelledby="all-plans-title">
-      <div className="mb-3 flex flex-wrap items-center gap-3">
-        <h2 id="all-plans-title" className="mr-auto text-xl font-black">All plans</h2>
-        <label className="relative"><span className="sr-only">Search plans</span>
-          <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-          <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search plans" className="h-10 w-48 rounded-full pl-9 sm:w-60" />
-        </label>
-        <Segmented label="Filter plans" value={filter} options={FILTERS} onChange={setFilter} />
+        {canEdit ? <NewCollectionCard onClick={() => setNewCollection(true)} /> : null}
       </div>
-      {shown.length ? <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-        {shown.map((plan) => <li key={plan.template_uuid}><PlanCard orgslug={orgslug} plan={plan} collections={collections} canEdit={canEdit && (!plan.read_only || plan.requested !== undefined)} orgId={orgId} token={token} /></li>)}
-      </ul> : <p className="rounded-2xl border border-dashed border-border px-5 py-10 text-center text-sm text-muted-foreground">No plans match.</p>}
+    </section> : null}
+    <section aria-labelledby="all-plans-title">
+      {plans.length ? <>
+        <SectionHeader id="all-plans-title" title="All plans" count={plans.length} className={showCollections ? undefined : 'mt-0'}>
+          <label className="flex h-9 w-[150px] items-center gap-1.5 rounded-full border border-border bg-card px-3 text-muted-foreground sm:w-[210px]">
+            <Search size={16} aria-hidden="true" />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search plans" aria-label="Search plans" autoComplete="off"
+              className="min-w-0 flex-1 border-0 bg-transparent text-[13.5px] text-foreground outline-none placeholder:text-muted-foreground" />
+          </label>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button type="button" aria-label="Filter plans" className="relative grid h-9 w-9 place-items-center rounded-full border border-border bg-card hover:bg-muted">
+                <ListFilter size={17} aria-hidden="true" />
+                {filter !== 'all' ? <span className="absolute right-1 top-1 h-2 w-2 rounded-full border-2 border-card bg-brand box-content" /> : null}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-[232px] rounded-[14px] p-1.5">
+              <DropdownMenuLabel className="px-2.5 pb-1 pt-2 text-[11px] font-bold uppercase tracking-[.06em] text-muted-foreground">Show</DropdownMenuLabel>
+              {FILTERS.map(([value, label]) => <DropdownMenuItem key={value} onSelect={() => setFilter(value)} className="font-semibold">
+                <span className="flex-1">{label}</span>{filter === value ? <Check size={15} className="text-brand" aria-label="Selected" /> : null}
+              </DropdownMenuItem>)}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </SectionHeader>
+        {filter !== 'all' ? <p className="-mt-1.5 mb-3.5 flex items-center gap-2 text-[13px] text-muted-foreground">
+          Showing: {FILTERS.find(([value]) => value === filter)?.[1]}
+          <button type="button" onClick={() => setFilter('all')} className="font-bold text-foreground underline-offset-2 hover:underline">Clear</button>
+        </p> : null}
+        {shown.length ? <ul className={planGridClass}>
+          {shown.map((plan) => <li key={plan.template_uuid} className="min-w-0"><PlanCard orgslug={orgslug} plan={plan} collections={collections} canEdit={canEdit && (!plan.read_only || plan.requested !== undefined)} orgId={orgId} token={token} /></li>)}
+        </ul> : <p className="rounded-[22px] border-[1.5px] border-dashed border-border px-5 py-8 text-center text-muted-foreground">No plans match{needle ? ` “${query.trim()}”` : ''}.</p>}
+      </> : <NoPlans orgslug={orgslug} canEdit={canEdit} />}
     </section>
     <NewCollectionModal open={newCollection} setOpen={setNewCollection} orgId={orgId} token={token} />
+  </div>
+}
+
+/** No plans yet (the org has collections, or the welcome would show instead). */
+function NoPlans({ orgslug, canEdit }: { orgslug: string; canEdit: boolean }) {
+  return <div className="mt-[30px] flex flex-col items-center gap-2.5 rounded-[22px] border-[1.5px] border-dashed border-border px-6 py-14 text-center">
+    <img src="/images/plans/nextstep.webp" alt="" className="w-[170px]" />
+    <h2 className="text-[22px] font-bold tracking-tight">No plans yet</h2>
+    <p className="max-w-[380px] leading-normal text-muted-foreground">Start one from a blank page or a starter, or add a ready-made plan from Discover.</p>
+    <div className="mt-2 flex flex-wrap justify-center gap-2">
+      {canEdit ? <NewPlanModal orgslug={orgslug} /> : null}
+      <Link href={getUriWithOrg(orgslug, routePaths.org.admin.discover())} className={secondaryActionClass}><Compass size={16} aria-hidden="true" />Browse Discover</Link>
+    </div>
   </div>
 }

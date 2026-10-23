@@ -48,6 +48,7 @@ function WriteSettings({ config, onChange }: ConfigPanelProps<'write'>) {
 export const write: StepDefinition<'write'> = {
   type: 'write',
   label: 'Write',
+  color: '#6B3FE0',
   hint: 'A written answer or reflection',
   icon: PenLine,
   RowResult: WriteRow,
