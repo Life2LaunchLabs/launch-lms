@@ -5,11 +5,11 @@ from sqlmodel import Session
 
 from src.core.events.database import get_db_session
 from src.db.goal_templates import GoalAssignmentRequest
-from src.db.goals import TemplateCreate, TemplatePublish, TemplateSave, TemplateStatus
+from src.db.goals import TemplateCreate, TemplateDraftStart, TemplateDraftUpdate, TemplateLiveUpdate, TemplatePublish, TemplateSave, TemplateStatus
 from src.db.template_marketplace import TemplateLearnerAccessUpdate
 from src.db.users import PublicUser
 from src.security.auth import get_current_user
-from src.services.goals import assignments, badge_templates, badge_versions, library, template_learners, template_marketplace, templates
+from src.services.goals import assignments, badge_templates, badge_versions, drafts, library, template_learners, template_marketplace, templates
 from src.services.goals.document import json_schema
 
 router = APIRouter()
@@ -77,7 +77,42 @@ def api_save_template(template_uuid: str, org_id: int, payload: TemplateSave, db
 
 @router.post("/{template_uuid}/publish")
 def api_publish_template(template_uuid: str, org_id: int, payload: TemplatePublish, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
-    return templates.publish(db, user, org_id, template_uuid, payload.note)
+    """Freeze the draft into a locked version; with ``make_live`` (the default) it goes live and active assignments move to it."""
+    return templates.publish(db, user, org_id, template_uuid, payload.note, semver=payload.semver, make_live=payload.make_live)
+
+
+@router.post("/{template_uuid}/draft")
+def api_start_draft(template_uuid: str, org_id: int, payload: TemplateDraftStart, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    """Start editing under a new version number, higher than every version so far."""
+    return drafts.start_draft(db, user, org_id, template_uuid, payload.semver, payload.note)
+
+
+@router.patch("/{template_uuid}/draft")
+def api_update_draft(template_uuid: str, org_id: int, payload: TemplateDraftUpdate, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    return drafts.update_draft(db, user, org_id, template_uuid, payload.semver, payload.note)
+
+
+@router.delete("/{template_uuid}/draft")
+def api_discard_draft(template_uuid: str, org_id: int, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    """Throw the draft away; the plan goes back to its live version."""
+    return drafts.discard_draft(db, user, org_id, template_uuid)
+
+
+@router.get("/{template_uuid}/draft/changes")
+def api_draft_changes(template_uuid: str, org_id: int, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    return drafts.draft_changes(db, user, org_id, template_uuid)
+
+
+@router.get("/{template_uuid}/live")
+def api_live_preview(template_uuid: str, org_id: int, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    """How many active assignments and open plans switching the live version would move."""
+    return drafts.live_preview(db, user, org_id, template_uuid)
+
+
+@router.put("/{template_uuid}/live")
+def api_set_live(template_uuid: str, org_id: int, payload: TemplateLiveUpdate, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    """Switch the live version (active assignments move to it), or make the plan inactive with no version."""
+    return drafts.set_live(db, user, org_id, template_uuid, payload.version_uuid)
 
 
 @router.post("/{template_uuid}/publish-to-library")

@@ -1,4 +1,5 @@
-"""A new template version reaches an assignment only when an admin applies it, and then only steps nobody started change."""
+"""Moving an assignment to another template version changes only steps nobody started. A version published
+without going live reaches an assignment only when an admin applies it; going live moves active assignments."""
 
 from copy import deepcopy
 
@@ -59,7 +60,7 @@ def _view_step(db, goal: Goal, key: str) -> dict:
     return {"step_uuid": step.step_uuid}
 
 
-def test_publishing_changes_nothing_until_an_admin_reviews_and_applies_the_new_version():
+def test_a_version_that_isnt_live_changes_nothing_until_an_admin_reviews_and_applies_it():
     with _session() as db:
         uuid, assignment_uuid, plans = _world(db)
         draft_uuid = _view_step(db, plans[LEARNER], "draft")
@@ -67,12 +68,11 @@ def test_publishing_changes_nothing_until_an_admin_reviews_and_applies_the_new_v
         _status(db, LEARNER, plans[LEARNER], _view_step(db, plans[LEARNER], "old"), StepStatus.COMPLETED)
 
         templates.save_template(db, _user(ADMIN), 1, uuid, _v2())
-        templates.publish(db, _user(ADMIN), 1, uuid, "Second")
+        published = templates.publish(db, _user(ADMIN), 1, uuid, "Second", make_live=False)
+        assert published["moved"] is None and published["live_version"]["number"] == 1
         assert _steps(db, plans[OTHER])["draft"] == ("Draft", "prep") and "new" not in _steps(db, plans[OTHER])
-        summary = assignments.list_assignments(db, _user(ADMIN), 1, uuid)[0]
-        assert (summary["version"], summary["latest_version"], summary["update_available"]) == (1, 2, True)
 
-        review = assignment_versions.version_changes(db, _user(ADMIN), 1, assignment_uuid)
+        review = assignment_versions.version_changes(db, _user(ADMIN), 1, assignment_uuid, published["versions"][0]["version_uuid"])
         assert (review["current"]["number"], review["target"]["number"], review["open_plans"], review["has_changes"]) == (1, 2, 2, True)
         stages = {stage["stage_key"]: stage for stage in review["stages"]}
         assert stages["do"]["change"] == "same" and stages["wrap"]["change"] == "added"
@@ -110,9 +110,11 @@ def test_publishing_changes_nothing_until_an_admin_reviews_and_applies_the_new_v
 def test_ended_assignments_keep_their_version():
     with _session() as db:
         uuid, assignment_uuid, _ = _world(db)
-        templates.save_template(db, _user(ADMIN), 1, uuid, _v2())
-        templates.publish(db, _user(ADMIN), 1, uuid, "Second")
         assignments.end(db, _user(ADMIN), 1, assignment_uuid)
+        templates.save_template(db, _user(ADMIN), 1, uuid, _v2())
+        published = templates.publish(db, _user(ADMIN), 1, uuid, "Second")
+        assert published["moved"]["assignments"] == 0
+        assert assignments.list_assignments(db, _user(ADMIN), 1, uuid)[0]["version"] == 1
         with pytest.raises(HTTPException) as ended:
             assignment_versions.apply_version(db, _user(ADMIN), 1, assignment_uuid, assignment_versions.version_changes(db, _user(ADMIN), 1, assignment_uuid)["target"]["version_uuid"])
         assert ended.value.status_code == 409

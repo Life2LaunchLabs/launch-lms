@@ -123,6 +123,7 @@ def badge_plans(db: Session, badge: LearningBadge, org_id: int) -> list[dict]:
     permissions = _permissions(db, [int(template.id) for _, template in rows if template], org_id)  # type: ignore[arg-type]
     return [{"route_uuid": route.route_uuid, "template_uuid": template.template_uuid, "title": template.title,
              "access": found.get((int(template.id), int(org_id)), DEFAULT),  # type: ignore[arg-type]
+             "live": template.published_version_id is not None,
              # The issuer's permission on the plan (none for the owner): leaving the plan stops issuing through it.
              "authorization_uuid": permissions.get(int(template.id))}  # type: ignore[arg-type]
             for route, template in rows if template]

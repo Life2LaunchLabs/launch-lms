@@ -75,7 +75,7 @@ def _version_summary(version: GoalTemplateVersion, template: GoalTemplate) -> di
     return {
         "version_uuid": version.version_uuid, "number": version.number, "note": version.note,
         "published_at": version.published_at.isoformat() if version.published_at else None,
-        "restored_from_number": version.restored_from_number, "is_published": version.id == template.published_version_id,
+        "semver": version.semver, "restored_from_number": version.restored_from_number, "is_published": version.id == template.published_version_id,
         "step_count": len(steps), "activity_count": sum(1 for step in steps if step.get("type") == "activity"),
     }
 
