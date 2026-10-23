@@ -45,7 +45,7 @@ export type TemplateEditing = ReturnType<typeof useTemplate>
 /** Shown when a save was refused because the draft changed since it was loaded. */
 export function StaleTemplateBanner({ editing }: { editing: TemplateEditing }) {
   if (!editing.stale) return null
-  return <div role="alert" className="mx-10 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+  return <div role="alert" className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-amber-200 bg-amber-50 px-4 py-3">
     <div><p className="text-sm font-black text-amber-950">Someone else saved this template</p><p className="text-xs text-amber-800">Your last change wasn&apos;t saved. Reload to get their version, then make it again.</p></div>
     <Button size="sm" variant="outline" onClick={() => void editing.reload()}><RefreshCw />Reload</Button>
   </div>

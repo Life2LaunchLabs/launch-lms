@@ -17,6 +17,40 @@
   animation: fadeIn 0.3s ease-out;
 }
 
+/* A dark part of a light page (the plan editor's learner preview, with class "dark theme-island"): the theme
+   colors resolve against the .dark values set on it rather than the page's. */
+.theme-island {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-shell: hsl(var(--shell));
+  --color-raised: hsl(var(--raised));
+  --color-edge: hsl(var(--edge));
+}
+
+/* Plan page: the publish celebration's check and rows appearing. */
+@keyframes plan-pop {
+  from { transform: scale(.3); opacity: 0; }
+}
+@keyframes plan-rise {
+  from { opacity: 0; transform: translateY(6px) scale(.985); }
+}
+
 /* Board load animations */
 @keyframes board-fade-in {
   from { opacity: 0; }

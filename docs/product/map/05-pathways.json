@@ -3394,9 +3394,9 @@
               "references": [
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Plans/editor/TemplateSteps.tsx",
-                  "symbol": "TemplateSteps, StageHeader",
-                  "responsibility": "Expands the shared objective editor directly within a template phase for inline save and cancel."
+                  "path": "apps/web/components/Plans/plan/StepModal.tsx",
+                  "symbol": "StepModal",
+                  "responsibility": "Opens the shared step editor in a dialog, with a type picker for new steps and a live learner preview, saving to the draft."
                 }
               ]
             },
@@ -3590,9 +3590,9 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Plans/editor/TemplateSteps.tsx",
-              "symbol": "TemplateSteps",
-              "responsibility": "Creates template objectives inline with the shared card and edits compact template role summaries."
+              "path": "apps/web/components/Plans/plan/PlanSteps.tsx",
+              "symbol": "PlanSteps, StageHeading",
+              "responsibility": "Lists the plan's steps (stage headings from two stages on), adds and reorders them, and opens each in the step editor."
             },
             {
               "kind": "code",
@@ -5122,8 +5122,8 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Plans/editor/TemplateStepRow.tsx",
-              "symbol": "RequirementMappings",
+              "path": "apps/web/components/Plans/editor/StepRequirementLinks.tsx",
+              "symbol": "StepRequirementLinks",
               "responsibility": "Lets administrators select requirement mappings for a template objective."
             },
             {
