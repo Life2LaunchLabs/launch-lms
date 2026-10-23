@@ -3394,7 +3394,7 @@
               "references": [
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Goals/admin/templates/TemplateSteps.tsx",
+                  "path": "apps/web/components/Plans/editor/TemplateSteps.tsx",
                   "symbol": "TemplateSteps, StageHeader",
                   "responsibility": "Expands the shared objective editor directly within a template phase for inline save and cancel."
                 }
@@ -3473,7 +3473,7 @@
                 },
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Goals/admin/templates/GoalAssignmentModal.tsx",
+                  "path": "apps/web/components/Plans/editor/GoalAssignmentModal.tsx",
                   "symbol": "ScheduleStep,ProgramAssignmentModal",
                   "responsibility": "The template's Assign dialog: sets phase dates and per-objective due rules for the group or learners it is handed to."
                 }
@@ -3532,7 +3532,7 @@
               "references": [
                 {
                   "kind": "code",
-                  "path": "apps/web/components/Goals/admin/plan/PlanLibrary.tsx",
+                  "path": "apps/web/components/Plans/library/PlanLibrary.tsx",
                   "symbol": "NewPlanModal",
                   "responsibility": "Offers searchable library and blank paths from the new-template action."
                 }
@@ -3590,7 +3590,7 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Goals/admin/templates/TemplateSteps.tsx",
+              "path": "apps/web/components/Plans/editor/TemplateSteps.tsx",
               "symbol": "TemplateSteps",
               "responsibility": "Creates template objectives inline with the shared card and edits compact template role summaries."
             },
@@ -3949,7 +3949,7 @@
           "references": [
             {
               "kind": "code",
-              "path": "apps/web/components/Goals/admin/plan/PlanSidebar.tsx",
+              "path": "apps/web/components/Plans/plan/PlanSidebar.tsx",
               "symbol": "AssignmentsCard",
               "responsibility": "Explains the managed-plan hierarchy and routes batch and individual assignments to the correct workspace."
             }
@@ -5122,13 +5122,13 @@
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Goals/admin/templates/TemplateStepRow.tsx",
+              "path": "apps/web/components/Plans/editor/TemplateStepRow.tsx",
               "symbol": "RequirementMappings",
               "responsibility": "Lets administrators select requirement mappings for a template objective."
             },
             {
               "kind": "code",
-              "path": "apps/web/components/Goals/admin/plan/PlanSidebar.tsx",
+              "path": "apps/web/components/Plans/plan/PlanSidebar.tsx",
               "symbol": "RequirementsCard",
               "responsibility": "Summarizes mapped requirement coverage for a plan template."
             },
@@ -6001,7 +6001,7 @@
           "references": [
             {
               "kind": "code",
-              "path": "apps/web/components/Goals/admin/plan/PlanSidebar.tsx",
+              "path": "apps/web/components/Plans/plan/PlanSidebar.tsx",
               "symbol": "RequirementsCard",
               "responsibility": "Shows mapped versus uncovered requirement leaves on a plan template."
             }
