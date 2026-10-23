@@ -13,7 +13,7 @@ export function OrgMark({ org, className }: { org: OrgMarkSource; className?: st
   const [failed, setFailed] = React.useState(false)
   const name = org.name || '?'
   if (org.logo_image && org.org_uuid && !failed) {
-    return <span className={cn('grid shrink-0 place-items-center overflow-hidden rounded-md border border-border bg-white', className)}>
+    return <span className={cn('grid shrink-0 place-items-center overflow-hidden rounded-md border border-border bg-muted', className)}>
       <img src={getOrgLogoMediaDirectory(org.org_uuid, org.logo_image)} alt="" onError={() => setFailed(true)} className="h-full w-full object-contain p-0.5" />
     </span>
   }

@@ -39,7 +39,7 @@ export default function StepPreview({ draft, plan, orgId, orgslug, token }: { dr
   const CardBody = definition.CardBody as React.ComponentType<StepCardProps>
   const step = previewStep(draft)
   const goal = previewGoal(plan, orgId, step)
-  return <div className="dark w-full max-w-[360px]" data-plan="" style={planVars(coverPalette(plan).key)}>
+  return <div className="dark theme-island w-full max-w-[360px]" data-plan="" style={planVars(coverPalette(plan).key)}>
     <div className="rounded-[30px] border-[6px] border-[hsl(200_20%_18%)] bg-background p-3.5 text-foreground shadow-[0_30px_60px_hsl(200_40%_5%/.3)]">
       <div className="flex items-center gap-2 px-1 pb-3 pt-1 text-xs font-semibold text-muted-foreground">
         <PlanCover plan={plan} iconSize={12} className="h-[22px] w-[22px] rounded-[7px]" /><span className="truncate">{plan.title || 'Your plan'}</span>

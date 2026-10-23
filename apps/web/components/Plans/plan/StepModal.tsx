@@ -111,7 +111,7 @@ export default function StepModal({ target, setTarget, orgslug, orgId, token, ed
     if (await editing.save((current) => removeStep(current, existing.key as string), 'Step removed.')) close()
   }
 
-  const typePill = <span className="inline-flex items-center gap-2 rounded-full bg-muted py-1.5 pl-1.5 pr-2.5 text-[13px] font-bold">
+  const typePill = <span className="inline-flex items-center gap-2 self-start rounded-full bg-muted py-1.5 pl-1.5 pr-2.5 text-[13px] font-bold">
     <i className="grid h-6 w-6 place-items-center rounded-[7px] text-white" style={{ background: definition.color }}><Icon size={13} aria-hidden="true" /></i>
     {definition.label}{existing ? null : <span className="ml-1 font-semibold text-muted-foreground">Change</span>}
   </span>
