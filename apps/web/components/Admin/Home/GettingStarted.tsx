@@ -10,13 +10,13 @@ const admin = routePaths.org.admin
 
 /** What each step says and where it sends the admin. The API decides which are done. */
 const STEPS: Record<GettingStartedStepKey, { title: string; detail: string; action: string; href: () => string }> = {
-  plan: { title: 'Add plans to your library', detail: 'Start from Discover or build your own.', action: 'Browse', href: () => admin.marketplace() },
+  plan: { title: 'Add plans to your library', detail: 'Start from Discover or build your own.', action: 'Browse', href: () => admin.discover() },
   organization: { title: 'Add your logo and details', detail: 'So people know who invited them.', action: 'Add', href: () => admin.organization.branding() },
   staff: { title: 'Add your staff', detail: 'Give each person the permissions they need.', action: 'Add staff', href: () => admin.people.root({ invite: 'staff' }) },
   groups: { title: 'Set up groups', detail: 'Cohorts, classes or teams.', action: 'Add groups', href: () => admin.people.root() },
   requirements: { title: 'Add requirements', detail: 'Link steps to what you report on.', action: 'Add', href: () => admin.requirements() },
   learners: { title: 'Bring in learners', detail: 'Send an email invite or share a join link.', action: 'Invite', href: () => admin.people.root({ invite: 'learner' }) },
-  assign: { title: 'Hand out your first plan', detail: 'They get their own copy and start on step one.', action: 'Hand out', href: () => admin.templates() },
+  assign: { title: 'Hand out your first plan', detail: 'They get their own copy and start on step one.', action: 'Assign', href: () => admin.plans() },
 }
 
 /**

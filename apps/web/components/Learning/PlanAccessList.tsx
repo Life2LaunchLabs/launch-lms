@@ -23,7 +23,7 @@ export default function PlanAccessList({ plans, orgslug, emptyText = 'Your organ
     <p className="mt-0.5 text-xs text-muted-foreground">Set on each plan that earns this badge. Learners find the badge on Discover only while one of its plans is open or by request.</p>
     {plans.length ? <ul className="mt-3 divide-y divide-border rounded-lg border border-border bg-card">
       {plans.map((plan) => <li key={plan.route_uuid || plan.template_uuid}>
-        <Link href={getUriWithOrg(orgslug, routePaths.org.admin.templatePage(plan.template_uuid, 'settings'))} className="flex items-center gap-3 px-3 py-2.5 text-sm hover:bg-muted/60">
+        <Link href={getUriWithOrg(orgslug, routePaths.org.admin.template(plan.template_uuid))} className="flex items-center gap-3 px-3 py-2.5 text-sm hover:bg-muted/60">
           <span className="min-w-0 flex-1 truncate font-semibold">{plan.title}</span>
           <AccessChip access={plan.access} />
           <ChevronRight size={14} className="shrink-0 text-muted-foreground" aria-hidden="true" />

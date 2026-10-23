@@ -89,7 +89,7 @@ export function reviewHref(params: { assignment: string | null; stepKey?: string
   if (params.activity) query.set('activity', params.activity)
   if (params.focus) query.set('focus', params.focus)
   if (params.from) query.set('from', params.from)
-  return `${routePaths.org.admin.assignments()}/review?${query}`
+  return `${routePaths.org.admin.plans()}/review?${query}`
 }
 
 /** The manual scores still needed for an activity review, blank. */

@@ -1,4 +1,4 @@
-import CollectionPage from '@components/Goals/admin/plan/CollectionPage'
+import CollectionPage from '@components/Plans/collections/CollectionPage'
 
 export default async function PlanCollectionPage({ params }: { params: Promise<{ orgslug: string; collectionuuid: string }> }) {
   const { orgslug, collectionuuid } = await params

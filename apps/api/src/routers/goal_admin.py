@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
 from src.core.events.database import get_db_session
-from src.db.goal_admin import AdminHomeLayout, PlansTabsOrder,StaffNote, StepConfirmMany, StepDecision, StepProgressBulk
+from src.db.goal_admin import AdminHomeLayout, StaffNote, StepConfirmMany, StepDecision, StepProgressBulk
 from src.db.goal_templates import ApplyVersion, GoalAssignmentUpdate, StepDue, StepRemind, StepSettle
 from src.db.goals import GoalAssignment
 from src.db.users import PublicUser
@@ -49,16 +49,11 @@ def api_dismiss_getting_started(org_id: int, db: Session = Depends(get_db_sessio
     return admin_home_start.dismiss(db, user, org_id)
 
 
-# Member preferences ---------------------------------------------------------------------
+# Plans tabs -----------------------------------------------------------------------------
 
-@router.get("/preferences/plans-tabs")
-def api_plans_tabs(org_id: int, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
-    return admin_home.get_plans_tabs(db, user, org_id)
-
-
-@router.put("/preferences/plans-tabs")
-def api_save_plans_tabs(org_id: int, payload: PlansTabsOrder, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
-    return admin_home.save_plans_tabs(db, user, org_id, payload)
+@router.get("/plans-summary")
+def api_plans_summary(org_id: int, db: Session = Depends(get_db_session), user: PublicUser = Depends(get_current_user)):
+    return admin_home.plans_summary(db, user, org_id)
 
 
 # Review inbox ---------------------------------------------------------------------------

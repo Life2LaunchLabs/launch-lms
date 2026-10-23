@@ -1,7 +1,7 @@
 import React from 'react'
 import { useOrg } from '@components/Contexts/OrgContext'
-import { ReadOnlyNote } from '@components/Admin/Plans/OwnershipChip'
-import { useCanEditPlans } from '@components/Admin/Plans/useCanEditPlans'
+import { ReadOnlyNote } from '@components/Plans/shared/OwnershipChip'
+import { useCanEditPlans } from '@components/Plans/shared/useCanEditPlans'
 
 const READ_ONLY_TABS = ['analytics', 'routes', 'definition', 'marketing']
 

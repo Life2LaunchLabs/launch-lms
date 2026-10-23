@@ -136,7 +136,7 @@ export function CoverageExplorer({ coverage, orgslug, className }: { coverage: C
       </div>
       {allPlans && totals.none ? <div className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] text-amber-900">
         <span className="min-w-0 flex-1"><b>{totals.none} requirement{totals.none === 1 ? ' has' : 's have'} no template behind {totals.none === 1 ? 'it' : 'them'}.</b> Map steps in your templates to {totals.none === 1 ? 'it' : 'them'}, or find templates that already do.</span>
-        <Link href={getUriWithOrg(orgslug, routePaths.org.admin.marketplace({ type: 'templates' }))} className="inline-flex h-8 items-center gap-1.5 rounded-full border border-amber-300 bg-white px-3 text-[13px] font-semibold text-amber-900 hover:bg-amber-100"><Store size={14} />Find templates</Link>
+        <Link href={getUriWithOrg(orgslug, routePaths.org.admin.discover())} className="inline-flex h-8 items-center gap-1.5 rounded-full border border-amber-300 bg-white px-3 text-[13px] font-semibold text-amber-900 hover:bg-amber-100"><Store size={14} />Find templates</Link>
       </div> : null}
     </section>
     <aside aria-label="Requirement detail" className="border-t border-gray-100 bg-white p-6 xl:min-h-[calc(100vh-140px)] xl:w-[360px] xl:border-l xl:border-t-0">

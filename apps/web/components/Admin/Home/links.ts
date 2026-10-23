@@ -21,6 +21,6 @@ export const homeLinks = {
   chat: (conversationUuid: string) => routePaths.org.chat(conversationUuid),
   messages: () => routePaths.org.connect(),
   edit: (item: HomeCreator['recent_edits'][number]) => (item.kind === 'template' ? admin.template(item.uuid) : admin.badge(item.uuid, 'analytics')),
-  templates: () => admin.templates(),
-  badges: () => admin.badges(),
+  templates: () => admin.plans(),
+  badges: () => admin.plans(),
 }

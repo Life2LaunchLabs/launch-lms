@@ -1,16 +1,13 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import Link from 'next/link'
 import { ArrowDown, ArrowUp, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import AdminFeatureHeader from '@components/Admin/AdminFeatureHeader'
 import { useLHSession } from '@components/Contexts/LHSessionContext'
 import { Button } from '@components/ui/button'
 import { Input } from '@components/ui/input'
 import { Textarea } from '@components/ui/textarea'
 import { Switch } from '@components/ui/switch'
-import { getUriWithOrg } from '@services/config/config'
 import { badgeDiscoverApi, type DiscoverSettings, type DiscoverSettingsResponse, type DiscoverSlideConfig, type DiscoverSlideKind } from '@services/learning/badgeDiscover'
 
 const kinds: { value: DiscoverSlideKind; label: string }[] = [
@@ -21,7 +18,8 @@ const kinds: { value: DiscoverSlideKind; label: string }[] = [
 const blank = (): DiscoverSlideConfig => ({ kind: 'challenges', target: 'challenges', title: '', description: '', eyebrow: '', action_label: '', image_url: '/jungle_landscape.jpg', thumbnail_url: '', theme: 'dark' })
 const selectClass = 'h-10 w-full rounded-md border border-input bg-background px-3 text-sm'
 
-export default function DiscoverSettingsPanel({ orgId, orgslug }: { orgId: number; orgslug: string }) {
+/** Organization › Learner Discover: the carousel at the top of learners' Discover page. */
+export default function DiscoverSettingsPanel({ orgId }: { orgId: number }) {
   const session = useLHSession() as any
   const token = session.data?.tokens?.access_token
   const [data, setData] = useState<DiscoverSettingsResponse | null>(null)
@@ -53,7 +51,6 @@ export default function DiscoverSettingsPanel({ orgId, orgslug }: { orgId: numbe
     finally { setSaving(false) }
   }
   return <div className="min-h-full bg-background text-foreground">
-    <AdminFeatureHeader feature="Discover" tabs={[]} activeTab="discover" actions={<Button asChild size="sm" variant="outline"><Link href={getUriWithOrg(orgslug, '/admin/badges')}>Back to badges</Link></Button>} />
     <div className="mx-auto max-w-4xl space-y-6 p-6">
       <div><h1 className="text-2xl font-semibold">Discover carousel</h1><p className="mt-2 text-sm text-muted-foreground">Feature badges, series, and announcements at the top of Discover.</p></div>
       {error ? <div role="alert" className="rounded-lg border border-destructive p-4 text-sm">{error}{!draft ? <Button onClick={() => void load(true)} variant="ghost">Retry</Button> : null}</div> : null}

@@ -22,8 +22,9 @@ from fastapi import HTTPException
 from sqlmodel import Session, col, select
 
 from src.db.conversations import Conversation, ConversationMember
-from src.db.goal_admin import ADMIN_HOME_WIDGETS, PLANS_TABS, PLANS_TABS_CREATOR, AdminHomeLayout, PlansTabsOrder
-from src.db.goals import DONE_STEP_STATUSES, AssignmentStatus, GoalAssignment
+from src.db.goal_admin import ADMIN_HOME_WIDGETS, AdminHomeLayout
+from src.db.goals import DONE_STEP_STATUSES, AssignmentStatus, GoalAssignment, GoalTemplate, TemplateStatus
+from src.db.requirements import RequirementFramework
 from src.db.users import PublicUser
 from src.security.org_auth import get_user_org, is_org_admin, require_org_membership
 from src.services.goals import admin_home_creator, admin_home_start, review, staff_views
@@ -32,7 +33,6 @@ from src.services.goals import admin_home_creator, admin_home_start, review, sta
 UPCOMING_DAYS = 7
 LIMIT = 8
 PREFERENCES_KEY = "admin_home"
-PLANS_TABS_KEY = "plans_tabs"
 
 
 def _value(item) -> str:
@@ -72,54 +72,24 @@ def save_layout(db: Session, current_user: PublicUser, org_id: int, payload: Adm
     return layout
 
 
-# Plans tab order -------------------------------------------------------------------------
+# Plans tabs ------------------------------------------------------------------------------
 
-def default_plans_tabs(db: Session, org_id: int) -> list[str]:
-    """Badges and Templates first for an org that makes them and runs no assignment itself; Assignments first otherwise."""
-    if admin_home_creator.creates(db, org_id):
-        running = db.exec(select(GoalAssignment.id).where(GoalAssignment.org_id == org_id, GoalAssignment.status == AssignmentStatus.ACTIVE.value).limit(1)).first()
-        if not running:
-            return list(PLANS_TABS_CREATOR)
-    return list(PLANS_TABS)
+def plans_summary(db: Session, current_user: PublicUser, org_id: int) -> dict:
+    """What the Plans tabs show: how many plans and active assignments the org has, and its frameworks.
 
-
-def _tab_order(saved: list | None, default: list[str]) -> list[str]:
-    """The saved order cleaned of unknown or repeated ids, with tabs it never placed appended in default order."""
-    order = [item for item in dict.fromkeys(saved or []) if item in PLANS_TABS]
-    return order + [item for item in default if item not in order]
-
-
-def _plans_tabs(db: Session, org_id: int, saved: list | None) -> dict:
-    default = default_plans_tabs(db, org_id)
-    return {"order": _tab_order(saved, default), "default": default, "saved": bool(saved)}
-
-
-def get_plans_tabs(db: Session, current_user: PublicUser, org_id: int) -> dict:
-    """This member's Plans tab order, the org's default (for Reset), and whether they saved their own."""
+    Plans opens on a welcome when there are no plans; Assignments and Requirements appear once there
+    is something in them.
+    """
     require_org_membership(current_user.id, org_id, db)
-    membership = get_user_org(current_user.id, org_id, db)
-    return _plans_tabs(db, org_id, ((membership.preferences or {}) if membership else {}).get(PLANS_TABS_KEY))
 
+    def count(statement) -> int:
+        return len(db.exec(statement).all())
 
-def save_plans_tabs(db: Session, current_user: PublicUser, org_id: int, payload: PlansTabsOrder) -> dict:
-    """Keep this member's Plans tab order for this org; an empty order goes back to the default."""
-    require_org_membership(current_user.id, org_id, db)
-    unknown = sorted(set(payload.order) - set(PLANS_TABS))
-    if unknown:
-        raise HTTPException(status_code=422, detail=f"Unknown tabs: {', '.join(unknown)}")
-    membership = get_user_org(current_user.id, org_id, db)
-    if not membership:
-        raise HTTPException(status_code=409, detail="Only members of this organization can save a tab order")
-    # A new dict, so the JSON column sees the change.
-    preferences = {**(membership.preferences or {})}
-    if payload.order:
-        preferences[PLANS_TABS_KEY] = list(dict.fromkeys(payload.order))
-    else:
-        preferences.pop(PLANS_TABS_KEY, None)
-    membership.preferences = preferences
-    db.add(membership)
-    db.commit()
-    return _plans_tabs(db, org_id, preferences.get(PLANS_TABS_KEY))
+    return {
+        "plans": count(select(GoalTemplate.id).where(GoalTemplate.org_id == org_id, GoalTemplate.status != TemplateStatus.ARCHIVED.value, col(GoalTemplate.system_type).is_(None))),
+        "assignments": count(select(GoalAssignment.id).where(GoalAssignment.org_id == org_id, GoalAssignment.status == AssignmentStatus.ACTIVE.value)),
+        "frameworks": count(select(RequirementFramework.id).where(RequirementFramework.org_id == org_id)),
+    }
 
 
 # Staff work ------------------------------------------------------------------------------

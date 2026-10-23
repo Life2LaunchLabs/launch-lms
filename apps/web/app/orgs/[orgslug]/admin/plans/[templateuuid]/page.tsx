@@ -1,4 +1,4 @@
-import PlanDetail from '@components/Goals/admin/plan/PlanDetail'
+import PlanDetail from '@components/Plans/plan/PlanDetail'
 
 // `templateuuid` carries a goal template uuid.
 export default async function GoalTemplatePage({ params }: { params: Promise<{ orgslug: string; templateuuid: string }> }) {

@@ -1,6 +1,6 @@
-import { AssignmentsPage } from '@components/Goals/admin/GoalsAdminPages'
+import { PlansHome } from '@components/Plans/shell/PlansTabs'
 
-export default async function GoalAssignmentsPage({ params }: { params: Promise<{ orgslug: string }> }) {
+export default async function PlansRoute({ params }: { params: Promise<{ orgslug: string }> }) {
   const { orgslug } = await params
-  return <AssignmentsPage orgslug={orgslug} />
+  return <PlansHome orgslug={orgslug} />
 }

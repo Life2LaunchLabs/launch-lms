@@ -1,24 +1,16 @@
 /** What a group in People shows beside the list besides its chat. */
 export type GroupView = 'plans' | 'requirements'
 
-/** The Plans area's tabs, each its own page. */
-export type PlansTabId = 'assignments' | 'templates' | 'badges' | 'requirements' | 'marketplace'
+/** The Plans area's tabs, each its own page, always in this order. */
+export type PlansTabId = 'plans' | 'discover' | 'assignments' | 'requirements'
 /** A requirement framework's pages under Plans › Requirements. */
 export type FrameworkSubpage = 'details' | 'levels' | 'spec' | 'plans'
-/** What the marketplace browses: everything, or one kind ("Add from marketplace" on a tab pre-filters to its kind). */
-export type MarketplaceType = 'templates' | 'badges' | 'frameworks'
-export type MarketplaceParams = { type?: MarketplaceType | null; creator?: string | number | null; view?: 'browse' | 'requests' | null; q?: string | null }
 
 const PLANS_TAB_PATHS: Record<PlansTabId, string> = {
-  assignments: '/admin/plans',
-  templates: '/admin/plans/templates',
-  badges: '/admin/badges',
+  plans: '/admin/plans',
+  discover: '/admin/plans/discover',
+  assignments: '/admin/plans/assignments',
   requirements: '/admin/plans/requirements',
-  marketplace: '/admin/plans/marketplace',
-}
-
-function adminMarketplace(params?: MarketplaceParams): string {
-  return withQuery(PLANS_TAB_PATHS.marketplace, { type: params?.type, creator: params?.creator, view: params?.view === 'browse' ? null : params?.view, q: params?.q })
 }
 
 function frameworkPage(frameworkUuid: string, subpage: FrameworkSubpage = 'details'): string {
@@ -173,11 +165,11 @@ export const routePaths = {
       root: () => '/account',
       page: (subpage: string) => `/account/${subpage}`,
     },
-    /** The org admin side, by tab: Home, Plans (Assignments, Templates, Badges, Requirements, Marketplace), People, Insights, Content, Organization. */
+    /** The org admin side, by tab: Home, Plans (Plans, Discover, Assignments, Requirements), People, Insights, Content, Organization. */
     admin: {
       root: () => '/admin',
-      /** One Plans tab's page; with no tab, Assignments. The sidebar opens the viewer's own first tab instead. */
-      plans: (tab: PlansTabId = 'assignments') => PLANS_TAB_PATHS[tab],
+      /** One Plans tab's page; with no tab, the org's plans. */
+      plans: (tab: PlansTabId = 'plans') => PLANS_TAB_PATHS[tab],
       assignments: () => PLANS_TAB_PATHS.assignments,
       // The grading stack; from 'assignment' goes back to the assignment rather than the list.
       planReview: (params: { assignment: string; objective?: string | null; planObjective?: string | null; activity?: string | null; focus?: string | null; from?: 'assignment' | null }) =>
@@ -197,26 +189,21 @@ export const routePaths = {
         group: (groupId: string | number, view?: GroupView, assignment?: string | null) =>
           withQuery(`/admin/users/groups/${encodeURIComponent(String(groupId))}`, { view, assignment: view === 'plans' ? assignment : null }),
       },
-      templates: () => PLANS_TAB_PATHS.templates,
       // Template uuids kept their old program uuids.
       template: (templateUuid: string) => `/admin/plans/${encodeURIComponent(templateUuid)}`,
       /** A plan collection under Plans. */
       planCollection: (collectionUuid: string) => `/admin/plans/collections/${encodeURIComponent(collectionUuid)}`,
+      /** Plans › Discover: what other organizations share, optionally searched. */
+      discover: (q?: string | null) => withQuery(PLANS_TAB_PATHS.discover, { q }),
       /** A plan or collection another organization shares, as Discover shows it. */
-      discoverPlan: (templateUuid: string) => `/admin/plans/marketplace/plan/${encodeURIComponent(templateUuid)}`,
-      discoverCollection: (collectionUuid: string) => `/admin/plans/marketplace/collection/${encodeURIComponent(collectionUuid)}`,
-      templatePage: (templateUuid: string, subpage: string) => `/admin/plans/${encodeURIComponent(templateUuid)}/${encodeURIComponent(subpage)}`,
-      badges: () => PLANS_TAB_PATHS.badges,
-      /** Old name: the marketplace browsing badges. */
-      badgeMarketplace: () => adminMarketplace({ type: 'badges' }),
-      /** Plans › Marketplace: browse (optionally one kind or one creator) or the requests view. */
-      marketplace: adminMarketplace,
+      discoverPlan: (templateUuid: string) => `/admin/plans/discover/plan/${encodeURIComponent(templateUuid)}`,
+      discoverCollection: (collectionUuid: string) => `/admin/plans/discover/collection/${encodeURIComponent(collectionUuid)}`,
       /** Plans › Requirements: the org's requirement frameworks. */
       requirements: () => PLANS_TAB_PATHS.requirements,
       /** One framework under Plans › Requirements: details, levels, spec, or coverage by plan. */
       requirementFrameworkPlans: frameworkPage,
-      badgeCollection: (collectionUuid: string, subpage: string) => `/admin/badges/collection/${encodeURIComponent(collectionUuid)}/${encodeURIComponent(subpage)}`,
-      badge: (badgeUuid: string, subpage: string) => `/admin/badges/badge/${encodeURIComponent(badgeUuid.replace(/^badge_/, ''))}/${encodeURIComponent(subpage)}`,
+      /** The badge a plan earns: its credential, reached from the plan's Badge card. */
+      badge: (badgeUuid: string, subpage?: string | null) => `/admin/plans/badge/${encodeURIComponent(badgeUuid.replace(/^badge_/, ''))}${subpage ? `/${encodeURIComponent(subpage)}` : ''}`,
       // Insights: reports by group (optionally against requirement frameworks), and learners' evidence by group.
       insights: () => '/admin/insights',
       /** A group's report; `frameworks` adds requirement sections ('all', or framework uuids). */
@@ -241,6 +228,8 @@ export const routePaths = {
         branding: () => '/admin/org/settings/branding',
         sso: () => '/admin/org/settings/sso',
         messaging: () => '/admin/org/settings/messaging',
+        /** The carousel learners see on Discover. */
+        discover: () => '/admin/org/settings/discover',
         plan: () => '/admin/org/settings/plan',
       },
       payments: {

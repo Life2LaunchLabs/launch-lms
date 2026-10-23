@@ -38,11 +38,11 @@ const FULL_FEATURES: Record<string, FeatureAccess> = {
 }
 const ids = (items: { id: string }[]) => items.map((item) => item.id)
 
-test('a teacher (staff without admin rights) gets Home, Plans (all five tabs) and People only', () => {
+test('a teacher (staff without admin rights) gets Home, Plans (with its four tabs) and People only', () => {
   const tabs = visibleAdminTabs(access({ rights: [STAFF], features: FULL_FEATURES }))
   assert.deepEqual(ids(tabs), ['home', 'plans', 'people'])
   const plans = tabs.find((tab) => tab.id === 'plans')!
-  assert.deepEqual(ids(plans.children!), ['assignments', 'templates', 'badges', 'requirements', 'marketplace'])
+  assert.deepEqual(ids(plans.children!), ['plans', 'discover', 'assignments', 'requirements'])
   assert.equal(plans.href, '/admin/plans')
   assert.equal(plans.inPageTabs, true)
   assert.equal(plans.pill, 'New')
@@ -56,7 +56,7 @@ test('an admin gets every tab in job order and gated pages show what to request'
   assert.deepEqual(ids(content.children!), ['resources'])
   assert.deepEqual(content.visibility, { state: 'locked', request: { type: 'partner_application', value: 'resource_partner' } })
   const organization = tabs.find((tab) => tab.id === 'organization')!
-  assert.deepEqual(ids(organization.children!), ['general', 'branding', 'messaging', 'sso', 'plan', 'payments'])
+  assert.deepEqual(ids(organization.children!), ['general', 'branding', 'discover', 'messaging', 'sso', 'plan', 'payments'])
   assert.deepEqual(organization.children!.find((child) => child.id === 'sso')!.visibility, { state: 'locked', request: { type: 'tier_upgrade', value: 'enterprise' } })
   assert.deepEqual(organization.children!.find((child) => child.id === 'payments')!.visibility, { state: 'locked', request: { type: 'feature_request', value: 'payments' } })
 })
@@ -71,7 +71,7 @@ test('a free org gets every job tab open', () => {
 test('labels translate through their existing keys and fall back to English', () => {
   const t = (key: string, { defaultValue }: { defaultValue: string }) => (key === 'dashboard.organization.settings.tabs.general' ? 'Allgemein' : defaultValue)
   const organization = visibleAdminTabs(access({ rights: ADMIN_RIGHTS, features: { ...FULL_FEATURES, payments: on } })).find((tab) => tab.id === 'organization')!
-  assert.deepEqual(organization.children!.map((child) => adminLabel(t, child)), ['Allgemein', 'Branding', 'Messaging', 'Single Sign-On', 'Plan & access', 'Payments'])
+  assert.deepEqual(organization.children!.map((child) => adminLabel(t, child)), ['Allgemein', 'Branding', 'Learner Discover', 'Messaging', 'Single Sign-On', 'Plan & access', 'Payments'])
 })
 
 test('an enabled feature opens, and one nobody can turn on is hidden rather than requested', () => {
@@ -93,17 +93,19 @@ test('paths resolve to the tab that owns them, by longest match', () => {
   }
   assert.equal(owner('/admin'), 'home')
   assert.equal(owner('/orgs/acme/admin/'), 'home')
-  assert.equal(owner('/admin/plans'), 'plans/assignments')
+  assert.equal(owner('/admin/plans'), 'plans/plans')
+  assert.equal(owner('/admin/plans/template_1/activity/a1'), 'plans/plans')
+  assert.equal(owner('/admin/plans/badge/b1/routes'), 'plans/plans')
+  assert.equal(owner('/admin/plans/collections/c1'), 'plans/plans')
+  assert.equal(owner('/admin/plans/assignments'), 'plans/assignments')
   assert.equal(owner('/admin/plans/assignments/a1/learners'), 'plans/assignments')
   assert.equal(owner('/admin/plans/live/goal_1/reviews'), 'plans/assignments')
   assert.equal(owner('/admin/plans/review'), 'plans/assignments')
-  assert.equal(owner('/admin/plans/templates'), 'plans/templates')
-  assert.equal(owner('/admin/plans/template_1/activity/a1'), 'plans/templates')
-  assert.equal(owner('/admin/badges'), 'plans/badges')
-  assert.equal(owner('/admin/badges/collection/c1/badges'), 'plans/badges')
   assert.equal(owner('/admin/plans/requirements'), 'plans/requirements')
   assert.equal(owner('/admin/plans/requirements/fw_1/spec'), 'plans/requirements')
-  assert.equal(owner('/admin/plans/marketplace'), 'plans/marketplace')
+  assert.equal(owner('/admin/plans/discover'), 'plans/discover')
+  assert.equal(owner('/admin/plans/discover/plan/goal_template_1'), 'plans/discover')
+  assert.equal(owner('/admin/org/settings/discover'), 'organization/discover')
   assert.equal(owner('/admin/insights/evidence'), 'insights')
   assert.equal(owner('/admin/users/groups/2/members'), 'people')
   assert.equal(owner('/admin/resources/tags'), 'content/resources')

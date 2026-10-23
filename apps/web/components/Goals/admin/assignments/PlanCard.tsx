@@ -3,7 +3,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { Buildings, CaretRight, Info, ListBullets, Medal, StackSimple } from '@phosphor-icons/react'
-import GoalAssignmentModal from '@components/Goals/admin/templates/GoalAssignmentModal'
+import GoalAssignmentModal from '@components/Plans/editor/GoalAssignmentModal'
 import AssignmentVersionBanner from '@components/Goals/admin/versions/AssignmentVersionBanner'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { cn } from '@/lib/utils'

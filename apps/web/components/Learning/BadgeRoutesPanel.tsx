@@ -58,7 +58,7 @@ export default function BadgeRoutesPanel({ badge, orgslug, readOnly = false }: {
             : <button type="button" disabled={saving} onClick={() => save(current.map((item, i) => ({ ...item, recommended: i === index })))} aria-pressed={route.recommended} title="Recommended"
               className={route.recommended ? 'rounded-full bg-amber-100 p-2 text-amber-700' : 'rounded-full p-2 text-muted-foreground hover:bg-muted'}><Star size={15} fill={route.recommended ? 'currentColor' : 'none'} /></button>}
           <div className="min-w-0 flex-1">
-            <Link href={getUriWithOrg(orgslug, routePaths.org.admin.templatePage(route.template_uuid, 'overview'))} className="text-sm font-black hover:underline">{route.name}</Link>
+            <Link href={getUriWithOrg(orgslug, routePaths.org.admin.template(route.template_uuid))} className="text-sm font-black hover:underline">{route.name}</Link>
             <p className="text-xs text-muted-foreground">{route.step_count} step{route.step_count === 1 ? '' : 's'}{route.activity_count ? ` · ${route.activity_count} activit${route.activity_count === 1 ? 'y' : 'ies'}` : ''}{route.recommended ? ' · Recommended' : ''}</p>
             {/* Who lets learners start this plan is set on each organization's plan Settings. */}
             <OfferedBy offers={route.issuers || []} className="mt-1" />
@@ -105,7 +105,7 @@ function RouteIssuers({ route, orgslug, orgId }: { route: { template_uuid: strin
       {manageable && issuers.requested ? <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 font-bold text-amber-900">{issuers.requested} request{issuers.requested === 1 ? '' : 's'} waiting</span> : null}
       {!manageable && owner ? <span className="block">Plan owned by <span className="font-semibold text-foreground">{owner.name}</span>, who manages who may issue through it.</span> : null}
     </span>
-    {linked ? <Link href={getUriWithOrg(orgslug, routePaths.org.admin.templatePage(route.template_uuid, 'publish'))} aria-label={`Authorized issuers for ${route.name}`}
+    {linked ? <Link href={getUriWithOrg(orgslug, routePaths.org.admin.template(route.template_uuid))} aria-label={`Authorized issuers for ${route.name}`}
       className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg border border-border bg-card px-3 font-bold hover:bg-muted">Authorized issuers<ChevronRight size={13} aria-hidden="true" /></Link> : null}
   </div>
 }
