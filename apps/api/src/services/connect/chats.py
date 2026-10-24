@@ -17,7 +17,7 @@ from src.db.conversations import (
     UserBlock,
 )
 from src.db.users import PublicUser, User
-from src.services.connect import people
+from src.services.connect import people, visibility
 from src.services.goals.sharing_roles import _stamp, org_summary
 
 PAGE = 60
@@ -98,13 +98,16 @@ def ensure_direct(db: Session, a: int, b: int) -> Conversation | None:
 
 
 def post(db: Session, conversation: Conversation, sender_id: int | None, body: str, kind: str = "text", card: dict | None = None, refs: list[dict] | None = None,
-         message_uuid: str | None = None) -> ConversationMessage:
+         message_uuid: str | None = None, staff_only: bool = False) -> ConversationMessage:
     now = _stamp()
     message = ConversationMessage(
         message_uuid=message_uuid or f"chat_message_{uuid4()}", conversation_id=int(conversation.id), sender_user_id=sender_id,  # type: ignore[arg-type]
-        kind=kind, body=body, card=card, refs=refs or None, creation_date=now, update_date=now,
+        kind=kind, body=body, card=card, refs=refs or None, visibility=visibility.STAFF if staff_only else visibility.ALL, creation_date=now, update_date=now,
     )
-    conversation.last_message_at, conversation.update_date = now, now
+    # A staff-only message doesn't move the chat up learners' lists.
+    if not staff_only:
+        conversation.last_message_at = now
+    conversation.update_date = now
     db.add(message)
     db.add(conversation)
     if sender_id:
@@ -125,11 +128,13 @@ def _unread(db: Session, conversation: Conversation, member: ConversationMember)
     )
     if member.last_read_at:
         query = query.where(ConversationMessage.update_date > member.last_read_at)
-    return int(db.exec(query).one())
+    return int(db.exec(visibility.for_viewer(query, db, conversation, member.user_id)).one())
 
 
-def _last(db: Session, conversation: Conversation) -> ConversationMessage | None:
-    return db.exec(select(ConversationMessage).where(ConversationMessage.conversation_id == conversation.id).order_by(
+def _last(db: Session, conversation: Conversation, viewer_id: int | None = None) -> ConversationMessage | None:
+    """The newest message the viewer may read (without a viewer: the newest any learner may read)."""
+    query = select(ConversationMessage).where(ConversationMessage.conversation_id == conversation.id)
+    return db.exec(visibility.for_viewer(query, db, conversation, viewer_id).order_by(
         col(ConversationMessage.update_date).desc(), col(ConversationMessage.id).desc(),
     )).first()
 
@@ -142,7 +147,7 @@ def _message_dict(db: Session, message: ConversationMessage, viewer_id: int, cac
         "message_uuid": message.message_uuid, "kind": message.kind, "body": message.body, "card": inbox.live(db, message.card, viewer_id), "refs": refs,
         "preview": workspace.plain(db, message.body, message.refs, viewer_id) if message.refs else message.body,
         "sender": people.person(db, message.sender_user_id), "mine": message.sender_user_id == viewer_id,
-        "creation_date": message.creation_date, "update_date": message.update_date,
+        "staff_only": message.visibility == visibility.STAFF, "creation_date": message.creation_date, "update_date": message.update_date,
     }
 
 
@@ -152,7 +157,7 @@ def _chat_dict(db: Session, conversation: Conversation, member: ConversationMemb
     # Someone who declined a request still looks like they haven't answered yet.
     waiting = conversation.kind == "direct" and any(item.status in ("request", "declined") for item in others)
     unavailable = conversation.kind == "direct" and (member.status == "blocked" or any(people.blocked(db, member.user_id, item.user_id) for item in others))
-    last = _last(db, conversation)
+    last = _last(db, conversation, member.user_id)
     title = conversation.title or (other_people[0]["name"] if other_people else "Chat")
     return {
         "conversation_uuid": conversation.conversation_uuid, "kind": conversation.kind, "title": title,
@@ -190,11 +195,12 @@ def counts(db: Session, current_user: PublicUser) -> dict:
     return {"unread": listed["unread"], "requests": listed["requests"]}
 
 
-def messages_of(db: Session, conversation: Conversation, viewer_id: int, before: str | None = None, goal_uuid: str | None = None, step_uuid: str | None = None) -> dict:
-    """A page of a chat's messages, newest last, narrowed to one plan or step when asked."""
+def messages_of(db: Session, conversation: Conversation, viewer_id: int, before: str | None = None, goal_uuid: str | None = None, step_uuid: str | None = None,
+                audience: str | None = None) -> dict:
+    """A page of a chat's messages, newest last, narrowed to one plan or step, or to who reads them (all, learner, staff), when asked."""
     from src.services.connect import workspace
 
-    query = select(ConversationMessage).where(ConversationMessage.conversation_id == conversation.id)
+    query = visibility.for_audience(visibility.for_viewer(select(ConversationMessage).where(ConversationMessage.conversation_id == conversation.id), db, conversation, viewer_id), audience)
     if goal_uuid:
         query = workspace.filtered(query, db, conversation, goal_uuid, step_uuid)
     if before:
@@ -204,7 +210,9 @@ def messages_of(db: Session, conversation: Conversation, viewer_id: int, before:
     return {
         "messages": [_message_dict(db, message, viewer_id, cache) for message in messages], "has_more": len(messages) == PAGE,
         # A shared workspace: the plans it's about, to filter by and to tag.
-        "topics": workspace.topics(db, conversation) if conversation.kind in workspace.TOPIC_KINDS else [],
+        "topics": workspace.topics(db, conversation, viewer_id) if conversation.kind in workspace.TOPIC_KINDS else [],
+        # Staff can mark what they write staff only here.
+        "can_post_staff_only": visibility.sees_staff(db, conversation, viewer_id),
     }
 
 
@@ -220,7 +228,8 @@ def policy_block(db: Session, conversation: Conversation, user_id: int) -> str |
     return messaging.feed_block_message(db, conversation) if messaging.feed_block(db, conversation) else None
 
 
-def get_chat(db: Session, current_user: PublicUser, conversation_uuid: str, before: str | None = None, goal_uuid: str | None = None, step_uuid: str | None = None) -> dict:
+def get_chat(db: Session, current_user: PublicUser, conversation_uuid: str, before: str | None = None, goal_uuid: str | None = None, step_uuid: str | None = None,
+             audience: str | None = None) -> dict:
     from src.services.connect import workspace
 
     conversation, member = _membership(db, conversation_uuid, current_user.id)
@@ -228,7 +237,7 @@ def get_chat(db: Session, current_user: PublicUser, conversation_uuid: str, befo
     return {
         **_chat_dict(db, conversation, member), "can_post": workspace.can_post(db, conversation, current_user.id) and not blocked_by,
         "policy_block": blocked_by,
-        **messages_of(db, conversation, current_user.id, before, goal_uuid, step_uuid),
+        **messages_of(db, conversation, current_user.id, before, goal_uuid, step_uuid, audience),
     }
 
 
@@ -267,11 +276,17 @@ def open_direct(db: Session, current_user: PublicUser, payload: DirectChatOpen) 
     return get_chat(db, current_user, conversation.conversation_uuid)
 
 
-def send(db: Session, current_user: PublicUser, conversation_uuid: str, body: str, scope: dict | None = None, share: dict[str, list[str]] | None = None) -> dict:
-    """Send a message. Tagging your plan from elsewhere asks first whether to share it with the people here who can't see it."""
+def send(db: Session, current_user: PublicUser, conversation_uuid: str, body: str, scope: dict | None = None, share: dict[str, list[str]] | None = None,
+         staff_only: bool = False) -> dict:
+    """Send a message. Tagging your plan from elsewhere asks first whether to share it with the people here who can't see it.
+
+    Staff can send it staff only, in a learner's chat with the organization or an assignment's group chat.
+    """
     from src.services.connect import linking, workspace
 
     conversation, member = _membership(db, conversation_uuid, current_user.id)
+    if staff_only and not visibility.sees_staff(db, conversation, current_user.id):
+        raise HTTPException(status_code=403, detail="Only staff can send staff-only messages, in a learner's or a group's messages")
     text, refs, rows = workspace.prepare(db, conversation, body or "", current_user.id, scope)
     if not text:
         raise HTTPException(status_code=422, detail="Write a message first")
@@ -293,12 +308,12 @@ def send(db: Session, current_user: PublicUser, conversation_uuid: str, body: st
         )).first():
             raise HTTPException(status_code=409, detail="You can send more once they accept your request")
     # A cohort chat never offers to share a learner's plan with the group: it stays private to whoever can't see it.
-    blind = [] if conversation.kind == workspace.cohort.COHORT else linking.missing(db, conversation, refs, current_user.id)
+    blind = [] if conversation.kind == workspace.cohort.COHORT or staff_only else linking.missing(db, conversation, refs, current_user.id)
     if blind and share is None:
         raise HTTPException(status_code=409, detail={"code": "needs_access", "plans": blind})
     shared = {item["goal_uuid"]: linking.share(db, current_user, conversation, item["goal_uuid"], (share or {}).get(item["goal_uuid"]) or [])
               for item in blind if (share or {}).get(item["goal_uuid"])}
-    message = post(db, conversation, current_user.id, text, refs=refs)
+    message = post(db, conversation, current_user.id, text, refs=refs, staff_only=staff_only)
     workspace.attach(db, message, rows)
     outcomes = workspace.after_send(db, current_user, conversation, message)
     db.commit()
@@ -307,7 +322,7 @@ def send(db: Session, current_user: PublicUser, conversation_uuid: str, body: st
 
 def mark_read(db: Session, current_user: PublicUser, conversation_uuid: str) -> dict:
     conversation, member = _membership(db, conversation_uuid, current_user.id)
-    last = _last(db, conversation)
+    last = _last(db, conversation, current_user.id)
     member.last_read_at = max(filter(None, [last.update_date if last else None, _stamp()]))
     db.add(member)
     db.commit()

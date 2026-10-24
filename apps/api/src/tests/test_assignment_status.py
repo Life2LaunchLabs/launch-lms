@@ -112,3 +112,54 @@ def test_staff_see_only_assignments_they_are_on():
         with pytest.raises(HTTPException) as hidden:
             assignment_views.assignment_detail(db, _user(COACH), 1, uuid)
         assert hidden.value.status_code == 404
+
+
+def test_group_thread_on_a_step_lists_learners_questions_from_their_own_chats():
+    from src.services.goals import assignment_messages
+
+    with _session() as db:
+        uuid = _assign(db, ESSAY)["assignment_uuid"]
+        mine = _goal(db, LEARNER, uuid)
+        feed = school_chats.school_chat(db, 1, LEARNER)
+        db.commit()
+        chats.send(db, _user(LEARNER), feed.conversation_uuid, "How long should it be?",
+                   scope={"goal_uuid": mine.goal_uuid, "step_uuid": _goal_step(db, mine, "essay").step_uuid})
+        thread = assignment_messages.assignment_thread(db, _user(ADMIN), 1, uuid, "essay")
+        assert [item["body"] for item in thread["questions"]] == ["How long should it be?"]
+        assert thread["questions"][0]["person"]["id"] == LEARNER and thread["can_post_staff_only"] is True
+        assert assignment_messages.assignment_thread(db, _user(ADMIN), 1, uuid, "essay", "staff")["questions"] == []
+
+
+def test_learner_thread_is_their_chat_on_this_plan_with_past_due_lines():
+    from src.db.goal_templates import AssignmentSchedule, GoalAssignmentRequest
+    from src.services.goals import assignment_messages
+
+    with _session() as db:
+        uuid = assignments.assign(db, _user(ADMIN), 1, _two_stages(db), GoalAssignmentRequest(
+            usergroup_id=1, due_date=TODAY + timedelta(days=60),
+            schedule=AssignmentSchedule(steps=[StepSchedule(step_key="visit", due_date=TODAY - timedelta(days=1))]),
+        ))["assignment_uuid"]
+        mine = _goal(db, LEARNER, uuid)
+        goals.respond(db, _user(LEARNER), mine.goal_uuid, True)
+        feed = school_chats.school_chat(db, 1, LEARNER)
+        db.commit()
+        chats.send(db, _user(LEARNER), feed.conversation_uuid, "About my essay", scope={"goal_uuid": mine.goal_uuid})
+        chats.send(db, _user(LEARNER), feed.conversation_uuid, "Unrelated hello")
+        thread = assignment_messages.learner_thread(db, _user(ADMIN), 1, uuid, f"user_{LEARNER}")
+        assert [m["body"] for m in thread["messages"] if m["kind"] == "text"] == ["About my essay"]
+        assert [(line["step_key"], line["due_date"]) for line in thread["past_due"]] == [("visit", TODAY - timedelta(days=1))]
+        assert assignment_messages.learner_thread(db, _user(ADMIN), 1, uuid, f"user_{LEARNER}", "essay")["past_due"] == []
+        with pytest.raises(HTTPException):
+            assignment_messages.learner_thread(db, _user(ADMIN), 1, uuid, "user_404")
+
+
+def test_person_assignments_have_no_group_thread():
+    from src.services.goals import assignment_messages
+
+    with _session() as db:
+        from src.db.goal_templates import GoalAssignmentRequest
+
+        uuid = assignments.assign(db, _user(ADMIN), 1, _two_stages(db), GoalAssignmentRequest(user_id=LEARNER))["assignment_uuid"]
+        with pytest.raises(HTTPException) as missing:
+            assignment_messages.assignment_thread(db, _user(ADMIN), 1, uuid)
+        assert missing.value.status_code == 404

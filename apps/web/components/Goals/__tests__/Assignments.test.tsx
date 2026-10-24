@@ -6,8 +6,6 @@ import { AppRouterContext } from 'next/dist/shared/lib/app-router-context.shared
 import AssignmentPlan from '@components/Goals/admin/assignments/AssignmentPlan'
 import AssignmentLearners from '@components/Goals/admin/assignments/AssignmentLearners'
 import { needsOf } from '@components/Goals/admin/assignments/AssignmentsList'
-import { feedEntries } from '@components/Connect/workspace/staffNotes'
-import type { ChatMessage } from '@services/connect/connect'
 import PlanCard from '@components/Goals/admin/assignments/PlanCard'
 import { planFilterSpecs, shownPlans, stackSummary } from '@components/Goals/admin/assignments/planStack'
 import { readFilters } from '@/lib/admin/filters'
@@ -157,14 +155,5 @@ describe('the plan card stack', () => {
     expect(html).toContain('Run by authorized orgs · 1')
     expect(html).toContain('Authorized · 112 learners')
     expect(html).toContain('Not assigned yet.')
-  })
-})
-
-describe('a learner’s feed for staff', () => {
-  test('staff notes sit between messages in the order they were written', () => {
-    const message = (uuid: string, at: string) => ({ message_uuid: uuid, creation_date: at }) as ChatMessage
-    const note = { note_uuid: 'n1', body: 'Talked with mom', author: null, creation_date: '2026-10-18T10:00:00', can_delete: true }
-    const entries = feedEntries([message('m1', '2026-10-18T09:00:00Z'), message('m2', '2026-10-18T11:00:00Z')], [note])
-    expect(entries.map((entry) => entry.kind === 'note' ? entry.note.note_uuid : entry.message.message_uuid)).toEqual(['m1', 'n1', 'm2'])
   })
 })

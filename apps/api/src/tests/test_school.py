@@ -108,22 +108,22 @@ def test_staff_and_students_talk_in_the_school_chat_and_mentions_wait_on_staff()
         assert everyone.value.status_code == 403
 
 
-def test_a_students_page_shows_their_team_chat_and_staff_only_notes():
+def test_a_students_page_shows_their_team_and_chat_with_staff_only_messages():
     with _session() as db:
         _assign(db)
         _staff(db, role_key="commenter")
-        notes = views.add_note(db, _user(TEACHER), 1, LEARNER, "Talked about nursing programs")
-        assert [note["body"] for note in notes] == ["Talked about nursing programs"]
         seen = views.student(db, _user(ADMIN), 1, LEARNER)
         assert [(item["user"]["username"], item["groups"][0]["role"]) for item in seen["team"]] == [("teach", "Commenter")]
-        assert seen["notes"][0]["can_delete"]
         # Admins with a role on the student's plans are in their chat; other admins only read it.
         assert views.student_chat(db, _user(ADMIN), 1, LEARNER)["can_post"] is True
-        assert views.student_chat(db, _user(TEACHER), 1, LEARNER)["can_post"] is True
+        chat = views.student_chat(db, _user(TEACHER), 1, LEARNER)
+        assert chat["can_post"] is True and chat["can_post_staff_only"] is True
+        chats.send(db, _user(TEACHER), chat["conversation_uuid"], "Talked about nursing programs", staff_only=True)
+        assert [m["body"] for m in views.student_chat(db, _user(ADMIN), 1, LEARNER, audience="staff")["messages"]] == ["Talked about nursing programs"]
+        assert chats.get_chat(db, _user(LEARNER), chat["conversation_uuid"])["messages"] == []
         with pytest.raises(HTTPException) as classmate:
             views.student(db, _user(OTHER), 1, LEARNER)
         assert classmate.value.status_code == 404
-        assert views.delete_note(db, _user(ADMIN), 1, LEARNER, notes[0]["note_uuid"]) == []
 
 
 def test_what_waits_on_staff_is_the_top_of_their_people_feed(monkeypatch):

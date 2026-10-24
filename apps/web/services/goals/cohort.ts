@@ -197,5 +197,5 @@ export function helpersOf(learner: MatrixLearner, staffIds: number[]) {
  * group to talk with: its learner talks with staff in their own chat with the organization.
  */
 export function cohortAudiences(assignment: Pick<AssignmentSummary, 'assignment_type'>): ChatAudience[] {
-  return assignment.assignment_type === 'group' ? ['staff', 'group'] : ['staff']
+  return assignment.assignment_type === 'group' ? ['group'] : []
 }

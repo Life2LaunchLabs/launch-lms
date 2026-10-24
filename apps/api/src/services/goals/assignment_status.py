@@ -68,6 +68,9 @@ class Learner:
     goal: Goal
     cells: dict[str, str] = field(default_factory=dict)
     questions: dict[str | None, int] = field(default_factory=dict)
+    # Each template step's own step on the learner's goal, and when it closes for them.
+    steps: dict[str, GoalStep] = field(default_factory=dict)
+    closes: dict[str, date | None] = field(default_factory=dict)
 
     @property
     def counts(self) -> dict[str, int]:
@@ -212,6 +215,7 @@ def board(db: Session, assignment: GoalAssignment, viewer_id: int, today: date |
         for step in goal_steps:
             if step.template_key in template_keys and step.template_key not in learner.cells:
                 closes = step.due_date or (ends.get(int(step.stage_id)) if step.stage_id else goal.target_date)
+                learner.steps[step.template_key], learner.closes[step.template_key] = step, closes  # type: ignore[index]
                 learner.cells[step.template_key] = cell(step, statuses[int(step.id)], locks[int(step.id)], closes,  # type: ignore[index, arg-type]
                                                         step.step_uuid in grading, ended, today)
         learners.append(learner)

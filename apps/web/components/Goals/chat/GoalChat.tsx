@@ -45,7 +45,6 @@ type ScopeChat = {
   steps?: ChatTopic
   elsewhere: { href: string; label: string } | null
   /** Staff reading a learner's plan feed also keep notes about the learner there. */
-  staffNotes?: { orgId: number; userId: number }
 }
 
 type OpenPlan = (goalUuid: string, stepUuid?: string) => void // eslint-disable-line no-unused-vars
@@ -69,7 +68,6 @@ export const useGoalChat = () => React.useContext(GoalChatContext)
  * A step's comments are that chat filtered to the step, so they read the same everywhere.
  * Staff who aren't in the learner's chat with the organization read along (staffOrgId). An
  * assignment's plan talks in a chat of its own, with its staff alone or the whole group.
- * Staff (staffOrgId) write staff notes about the learner from the feed's composer too.
  */
 export function GoalChatProvider({ scope, token, orgslug, staffOrgId, audiences, onOpenPlan, onClose, children }: {
   scope: GoalChatScope
@@ -126,8 +124,7 @@ function useGoalScopeChat(goal: Goal | null, token: string | undefined, orgslug:
     if (!source) return null
     const elsewhere = 'chatUuid' in source ? { href: getUriWithOrg(orgslug, routePaths.org.chat(source.chatUuid)), label: 'Open in Connect' }
       : subject?.username ? { href: getUriWithOrg(orgslug, routePaths.org.admin.people.user(subject.username)), label: `See ${subject.name} in People` } : null
-    const staffNotes = staffOrgId && subject?.id && goal.ownership === 'external' ? { orgId: staffOrgId, userId: subject.id } : undefined
-    return { key: goal.goal_uuid, chat: data, source, about: goal.title, topicUuid: goal.goal_uuid, elsewhere, staffNotes }
+    return { key: goal.goal_uuid, chat: data, source, about: goal.title, topicUuid: goal.goal_uuid, elsewhere }
   }, [goal, data, staffOrgId, orgslug])
   return { ready, refresh: mutate }
 }
@@ -175,7 +172,7 @@ function GoalChatPanel({ chat, stepUuid, token, orgslug, onOpenPlan, audiences, 
   if (!home) return null
   return createPortal(<aside aria-label={`${chat.chat.title || 'Chat'} about ${chat.about}`} className="side-chat-panel">
     <ChatWorkspace key={`${chat.key}:${stepUuid || ''}`} source={chat.source} orgslug={orgslug} token={token} initialFilter={{ goal_uuid: chat.topicUuid, step_uuid: stepUuid || undefined }}
-      steps={chat.steps} onOpenPlan={onOpenPlan} staffNotes={chat.staffNotes}
+      steps={chat.steps} onOpenPlan={onOpenPlan}
       header={(loaded) => <><header className="flex h-14 shrink-0 items-center gap-0.5 px-3 sm:px-4" aria-label="Chat navigation">
         <Button type="button" size="icon" variant="ghost" className="h-9 w-9 shrink-0" onClick={onClose} aria-label="Show the page"><ChevronRight className="h-4 w-4" /></Button>
         <span className="flex min-w-0 items-center gap-1.5 px-1.5 text-sm font-medium" title={loaded?.people.map((person) => person.name).join(', ')}>
