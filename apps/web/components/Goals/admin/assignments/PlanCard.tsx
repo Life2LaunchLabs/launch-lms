@@ -3,7 +3,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { Buildings, CaretRight, Info, ListBullets, Medal, StackSimple } from '@phosphor-icons/react'
-import GoalAssignmentModal from '@components/Plans/editor/GoalAssignmentModal'
+import AssignFlow from '@components/Assignments/assign/AssignFlow'
 import AssignmentVersionBanner from '@components/Goals/admin/versions/AssignmentVersionBanner'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { cn } from '@/lib/utils'
@@ -50,7 +50,7 @@ function monthYear(value?: string | null) {
 export default function PlanCard({ plan, rows, partners, endedHidden, total, onlyPartners, orgslug, orgId, token, admin, needs, onChanged, onShowEnded }: Props) {
   const { template } = plan
   const templateHref = getUriWithOrg(orgslug, routePaths.org.admin.template(template.template_uuid))
-  const assign = (label: string, primary = false) => admin && template.version ? <GoalAssignmentModal initialTemplateUuid={template.template_uuid} onAssigned={async () => { await onChanged() }}
+  const assign = (label: string, primary = false) => admin && template.version ? <AssignFlow initialTemplateUuid={template.template_uuid} onAssigned={async () => { await onChanged() }}
     trigger={<button type="button" className={primary ? 'inline-flex h-9 items-center rounded-full bg-black px-3.5 text-sm font-medium text-white hover:bg-black/85' : button}>{label}</button>} /> : null
   return <article className="overflow-hidden rounded-2xl border border-border bg-card shadow-xs" aria-label={template.title}>
     <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-start sm:p-5">
