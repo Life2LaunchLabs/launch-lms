@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Eye, Medal, Pencil, Plus, Upload, X } from 'lucide-react'
 import { useOrg } from '@components/Contexts/OrgContext'
 import { BadgeMedal, medalColor } from '@components/Badges/BadgeMedal'
+import { AwardBadgeButton } from '@components/Badges/award/AwardFlow'
 import Certificate from '@components/Badges/Certificate'
 import MediaPickerDialog from '@components/Objects/Media/MediaPickerDialog'
 import { useTemplateLearners } from '@components/Plans/editor/TemplateLearnersCard'
@@ -67,6 +68,7 @@ export default function PlanBadgeCard({ orgslug, orgId, token, editing, document
     <div className="mt-3 flex flex-wrap gap-2">
       <button type="button" className={smallActionClass} onClick={() => setOpen('view')}><Eye />View</button>
       {canEdit ? <button type="button" className={smallActionClass} onClick={() => setOpen('edit')}><Pencil />Edit</button> : null}
+      {template.live_document?.badge ? <AwardBadgeButton templateUuid={template.template_uuid} className={smallActionClass}><Medal />Award directly</AwardBadgeButton> : null}
     </div>
     <BadgeDialog open={open} setOpen={setOpen} orgslug={orgslug} orgId={orgId} token={token} editing={editing} canEdit={canEdit} />
   </AsideCard>

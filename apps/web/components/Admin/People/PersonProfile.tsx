@@ -9,6 +9,7 @@ import ChatPane from '@components/Connect/ChatPane'
 import EditSheet from '@components/Goals/edit/EditSheet'
 import { PersonAvatar } from '@components/Goals/share/PersonAvatar'
 import { LearnerRequirementTree } from '@components/Goals/admin/live/LearnerRequirements'
+import LearnerBadges from '@components/Badges/award/LearnerBadges'
 import { getUriWithOrg, routePaths } from '@services/config/config'
 import { connectApi } from '@services/connect/connect'
 import { goalSharingApi } from '@services/goals/sharing'
@@ -79,6 +80,7 @@ export default function PersonProfile({ orgslug, username, tab = 'message' }: { 
     </header>
     {tab === 'plans' ? <div className="min-h-0 flex-1 space-y-5 overflow-y-auto bg-[#f8f8f8] p-4 dark:bg-background md:p-6">
       {profile.role === 'helper' ? <HelpingOn orgslug={orgslug} profile={profile} /> : <Plans orgslug={orgslug} plans={profile.plans} staff={!learner} />}
+      {learner ? <LearnerBadges orgslug={orgslug} orgId={orgId} token={token} person={{ id: user.id, name: user.name, username: user.username, avatar_image: user.avatar_image, user_uuid: user.user_uuid }} /> : null}
       {learner ? <section aria-label="Requirements" className="space-y-2"><h2 className="px-1 text-sm font-bold text-gray-900">Requirements</h2><LearnerRequirementTree orgId={orgId} userId={user.id} token={token} /></section> : null}
     </div> : <PersonMessage key={user.username} orgslug={orgslug} profile={profile} />}
     <EditSheet open={details} onOpenChange={setDetails} color="#7cc4ff" title={user.name} description={canManage ? 'Their details, and what you can change about them here.' : 'Their details, school team and staff notes.'}>

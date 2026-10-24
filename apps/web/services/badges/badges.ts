@@ -83,14 +83,45 @@ export interface BadgeAward {
   issuing_org: BadgeOrg | null
 }
 
-async function request(path: string, token?: string, next?: any) {
-  const response = await fetch(`${getAPIUrl()}badge-awards/${path}`, RequestBodyWithAuthHeader('GET', null, next ?? null, token))
+async function request(path: string, token?: string, next?: any, method = 'GET', body: any = null) {
+  const response = await fetch(`${getAPIUrl()}badge-awards/${path}`, RequestBodyWithAuthHeader(method, body, next ?? null, token))
   return errorHandling(response)
 }
 
-/** Badge awards: the learner's own, one award as its public page shows it, and its Open Badges JSON. */
+/** A plan whose badge an organization may award directly: its own, or one it is approved to run. */
+export interface AwardablePlan extends BadgeSummary { style: CertificateStyle; description: string; title: string; thumbnail_image: string; steps: number; owned: boolean; owner: { name: string; slug: string } | null }
+
+/** Someone a direct award reaches, or skips because they hold the badge already. */
+export interface AwardPerson { user_id: number; name: string; username: string; avatar_image?: string | null; user_uuid?: string; reason?: 'already_has_badge' }
+
+export interface DirectAwardRequest {
+  template_uuid: string
+  user_ids: number[]
+  group_ids: number[]
+  statement: string
+  evidence_url: string
+  earned_on: string | null
+  /** A line for one learner, after the statement on their badge only. */
+  notes: Record<number, string>
+  confirmed: boolean
+}
+
+const orgQuery = (orgId: number, extra = '') => `?org_id=${orgId}${extra}`
+
+export const badgeAwardKeys = {
+  awardable: (orgId: number) => `${getAPIUrl()}badge-awards/awardable${orgQuery(orgId)}`,
+  holders: (orgId: number, templateUuid: string) => `${getAPIUrl()}badge-awards/holders${orgQuery(orgId, `&template_uuid=${encodeURIComponent(templateUuid)}`)}`,
+  learner: (orgId: number, userId: number) => `${getAPIUrl()}badge-awards/learner/${userId}${orgQuery(orgId)}`,
+}
+
+/** Badge awards: the learner's own, one award as its public page shows it, its Open Badges JSON, and awarding directly. */
 export const badgeAwardsApi = {
   mine: (token: string): Promise<BadgeAward[]> => request('', token),
   award: (awardUuid: string, token?: string, next?: any): Promise<BadgeAward> => request(encodeURIComponent(awardUuid), token, next),
   credentialUrl: (awardUuid: string) => `${getAPIUrl()}badge-awards/${encodeURIComponent(awardUuid)}/credential`,
+  awardable: (orgId: number, token?: string): Promise<AwardablePlan[]> => request(`awardable${orgQuery(orgId)}`, token),
+  holders: (orgId: number, templateUuid: string, token?: string): Promise<number[]> => request(`holders${orgQuery(orgId, `&template_uuid=${encodeURIComponent(templateUuid)}`)}`, token),
+  learner: (orgId: number, userId: number, token?: string): Promise<{ awards: BadgeAward[]; can_award: boolean }> => request(`learner/${userId}${orgQuery(orgId)}`, token),
+  preview: (orgId: number, body: DirectAwardRequest, token?: string): Promise<{ learners: AwardPerson[]; skipped: AwardPerson[] }> => request(`direct/preview${orgQuery(orgId)}`, token, undefined, 'POST', body),
+  awardDirectly: (orgId: number, body: DirectAwardRequest, token?: string): Promise<{ awarded: BadgeAward[]; skipped: AwardPerson[] }> => request(`direct${orgQuery(orgId)}`, token, undefined, 'POST', body),
 }

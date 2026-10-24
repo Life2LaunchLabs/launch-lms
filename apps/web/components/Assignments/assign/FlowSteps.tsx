@@ -33,38 +33,42 @@ export function RecipientTokens({ picks }: { picks: Recipient[] }) {
   </span>)}</div>
 }
 
-/** Who it's for: groups, the organization's learners, an email to invite, or a new group. */
-export function WhoStep({ picks, setPicks, query, setQuery, groups, people, canGroups, taken }: {
+/**
+ * Who it's for: groups, the organization's learners, an email to invite, or a new group. Awarding a
+ * badge (``award``) takes only learners and groups already here, and marks those who hold it.
+ */
+export function WhoStep({ picks, setPicks, query, setQuery, groups, people, canGroups, taken, award = false }: {
   picks: Recipient[]; setPicks: (picks: Recipient[]) => void; query: string; setQuery: (query: string) => void // eslint-disable-line no-unused-vars
-  groups: GroupOption[]; people: DirectoryPerson[]; canGroups: boolean; taken: { groups: Set<number>; people: Set<number> }
+  groups: GroupOption[]; people: DirectoryPerson[]; canGroups: boolean; taken: { groups: Set<number>; people: Set<number> }; award?: boolean
 }) {
+  const takenLabel = award ? 'Already has this badge' : 'Already has this plan'
   const q = query.trim().toLowerCase()
   const on = new Set(picks.map(recipientKey))
   const add = (pick: Recipient) => setPicks([...picks, pick])
   const options: PickerGroup[] = []
   if (canGroups) options.push({ heading: 'Groups', items: groups.filter((group) => (!q || group.name.toLowerCase().includes(q)) && !on.has(`group:${group.id}`) && (q || !taken.groups.has(group.id))).map((group) => ({
     key: `group:${group.id}`, tile: <RecipientTile pick={{ kind: 'group', id: group.id, name: group.name, count: group.member_count }} size="md" />, title: group.name,
-    sub: taken.groups.has(group.id) ? 'Already has this plan' : plural(group.member_count, 'learner'), disabled: taken.groups.has(group.id),
+    sub: taken.groups.has(group.id) ? takenLabel : plural(group.member_count, 'learner'), disabled: taken.groups.has(group.id),
     onPick: () => add({ kind: 'group', id: group.id, name: group.name, count: group.member_count }),
   })) })
   options.push({ heading: q ? 'People' : 'People in your organization', items: people.filter((item) => !on.has(`member:${item.user.id}`) && (q || !taken.people.has(item.user.id))).slice(0, q ? 8 : 4).map((item) => {
     const pick: Recipient = { kind: 'member', id: item.user.id, name: item.user.name, username: item.user.username, avatar_image: item.user.avatar_image, user_uuid: item.user.user_uuid }
-    return { key: recipientKey(pick), tile: <RecipientTile pick={pick} size="md" />, title: item.user.name, sub: taken.people.has(item.user.id) ? 'Already has this plan' : item.groups.map((group) => group.name).join(', ') || `@${item.user.username}`,
+    return { key: recipientKey(pick), tile: <RecipientTile pick={pick} size="md" />, title: item.user.name, sub: taken.people.has(item.user.id) ? takenLabel : item.groups.map((group) => group.name).join(', ') || `@${item.user.username}`,
       disabled: taken.people.has(item.user.id), onPick: () => add(pick) }
   }) })
   const actions = []
-  if (q && isEmail(q) && !on.has(`email:${q}`)) actions.push({ key: `email:${q}`, action: true, tile: <RecipientTile pick={{ kind: 'email', email: q }} size="md" />, title: `Invite ${q}`,
+  if (!award && q && isEmail(q) && !on.has(`email:${q}`)) actions.push({ key: `email:${q}`, action: true, tile: <RecipientTile pick={{ kind: 'email', email: q }} size="md" />, title: `Invite ${q}`,
     sub: 'They get an email to sign up. Their assignment waits for them.', onPick: () => add({ kind: 'email', email: q }) })
-  if (q && !isEmail(q) && canGroups && !groups.some((group) => group.name.toLowerCase() === q) && !on.has(`newgroup:${q}`)) actions.push({ key: `newgroup:${q}`, action: true,
+  if (!award && q && !isEmail(q) && canGroups && !groups.some((group) => group.name.toLowerCase() === q) && !on.has(`newgroup:${q}`)) actions.push({ key: `newgroup:${q}`, action: true,
     tile: <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand-soft text-brand-ink"><Plus size={16} aria-hidden="true" /></span>, title: `Create group “${query.trim()}”`,
     sub: 'Empty for now. Add people to it any time.', onPick: () => add({ kind: 'newgroup', name: query.trim() }) })
   if (actions.length) options.push({ items: actions })
   return <div className="mt-[22px] flex flex-col gap-3">
     <PickerField picks={picks} tokenKey={recipientKey} tokenTile={(pick) => <RecipientTile pick={pick} />} tokenLabel={recipientName} tokenExtra={tokenExtra}
       onRemove={(pick) => setPicks(picks.filter((item) => recipientKey(item) !== recipientKey(pick)))} query={query} onQuery={setQuery} groups={options}
-      placeholder={picks.length ? 'Add more' : canGroups ? 'Name, email or group' : 'Name or email'} label={canGroups ? 'Add people or groups' : 'Add people'}
-      empty={q ? 'No one by that name. Type their email to invite them.' : null} />
-    {picks.length > 1 ? <p className="flex items-start gap-2 text-[13px] leading-[1.45] text-muted-foreground"><Layers size={16} className="mt-px shrink-0" aria-hidden="true" />
+      placeholder={picks.length ? 'Add more' : award ? canGroups ? 'Name or group' : 'Name' : canGroups ? 'Name, email or group' : 'Name or email'} label={canGroups ? 'Add people or groups' : 'Add people'}
+      empty={q ? award ? 'No learner by that name here.' : 'No one by that name. Type their email to invite them.' : null} />
+    {picks.length > 1 && !award ? <p className="flex items-start gap-2 text-[13px] leading-[1.45] text-muted-foreground"><Layers size={16} className="mt-px shrink-0" aria-hidden="true" />
       <span>{picks.length} assignments, one for each. They share the plan but get their own dates, staff and messages.</span></p> : null}
   </div>
 }
@@ -126,7 +130,7 @@ export function MessageStep({ welcome, setWelcome, picks, orgName }: { welcome: 
   </div>
 }
 
-function ReviewSection({ title, onEdit, children }: { title: string; onEdit: () => void; children: React.ReactNode }) {
+export function ReviewSection({ title, onEdit, children }: { title: string; onEdit: () => void; children: React.ReactNode }) {
   return <section className="border-t border-border px-0.5 py-3.5">
     <div className="mb-2 flex items-center justify-between"><h3 className="text-[13px] font-semibold uppercase tracking-[.06em] text-muted-foreground">{title}</h3>
       <button type="button" onClick={onEdit} className="text-[13px] font-bold text-brand-ink">Edit</button></div>
