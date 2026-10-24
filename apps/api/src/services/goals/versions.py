@@ -97,13 +97,19 @@ def _delete_step(db: Session, step: GoalStep) -> None:
     db.delete(step)
 
 
+def _plan_dates(step: GoalStep, dates: dict) -> None:
+    """A step's start date and switches from its assignment's plan (services/goals/assignments._planned)."""
+    if dates:
+        step.start_date, step.open_early, step.allow_late = dates["start_date"], dates["open_early"], dates["allow_late"]
+
+
 def apply_to_goal(db: Session, goal: Goal, old: GoalTemplateVersion | None, new: GoalTemplateVersion, planned: dict, actor_user_id: int | None) -> dict:
     """Move one goal to ``new`` (flushed, not committed).
 
     Returns counts: steps rewritten, added and removed, and ``kept_started``, the
     started steps the new version changed or removed (left as they are).
 
-    ``planned`` holds the assignment's dates for the new version ({"stages": {key: start}, "steps": {key: due}}).
+    ``planned`` holds the assignment's dates for the new version ({"stages": {key: start}, "steps": {key: {start_date, due_date, open_early, allow_late}}}).
     """
     old_doc, new_doc = upgrade_document((old.document if old else None) or {}), upgrade_document(new.document or {})
     old_specs = _steps_by_key(old_doc)
@@ -134,9 +140,11 @@ def apply_to_goal(db: Session, goal: Goal, old: GoalTemplateVersion | None, new:
         db.flush()
         for position, spec in enumerate(stage_spec.get("steps") or []):
             step = by_key.get(spec["key"])
-            due = planned["steps"].get(spec["key"])
+            dates = planned["steps"].get(spec["key"]) or {}
+            due = dates.get("due_date")
             if step is None:
                 step = build_step(db, goal, stage, spec, position, due_date=due)
+                _plan_dates(step, dates)
                 counts["added"] += 1
                 touched.append((step, spec))
             elif step.id in started:
@@ -150,6 +158,7 @@ def apply_to_goal(db: Session, goal: Goal, old: GoalTemplateVersion | None, new:
                     for field, value in step_fields(db, goal, spec).items():
                         setattr(step, field, value)
                     step.stage_id, step.due_date, step.update_date = stage.id, due, now
+                    _plan_dates(step, dates)
                     counts["rewritten"] += 1
                     touched.append((step, spec))
                 step.position = position

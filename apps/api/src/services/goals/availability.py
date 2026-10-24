@@ -1,9 +1,10 @@
 """When each step of a goal can be started, and the state its node shows.
 
-Locked is never stored: it follows from the stage the goal is on, a step's open date, the
+Locked is never stored: it follows from the stage the goal is on, a step's open and close dates, the
 steps it waits on and holds (see schedule.py for how stages run). A step waiting on review
 counts as finished for unlocking what follows, so a slow review never stalls the learner,
-and work already under way is never taken away.
+and work already under way is never taken away, except that a step taking no late work closes
+at its due date to anyone who hasn't handed it in.
 """
 
 from __future__ import annotations
@@ -15,6 +16,8 @@ from src.services.goals import schedule
 
 UNLOCKING = DONE_STEP_STATUSES | {StepStatus.SUBMITTED.value}
 UNDER_WAY = {StepStatus.IN_PROGRESS.value, StepStatus.SUBMITTED.value, StepStatus.CHANGES_REQUESTED.value}
+# A step that takes no late work closes on these at its due date; work handed in stays with staff.
+CLOSABLE = {StepStatus.NOT_STARTED.value, StepStatus.IN_PROGRESS.value}
 
 
 def ordered_steps(stages: list[GoalStage], steps: list[GoalStep]) -> list[GoalStep]:
@@ -24,7 +27,11 @@ def ordered_steps(stages: list[GoalStage], steps: list[GoalStep]) -> list[GoalSt
 
 
 def availability(goal: Goal, stages: list[GoalStage], steps: list[GoalStep], statuses: dict[int, str], today: date | None = None) -> dict[int, dict]:
-    """``{step_id: {"locked": bool, "reason": ...}}``. Reasons: held, stage (not started), opens (a date), after (a step)."""
+    """``{step_id: {"locked": bool, "reason": ...}}``.
+
+    Reasons: held, stage (not started), opens (a date, unless it may open early), after (a step), and
+    closed (its due date passed and it takes no late work).
+    """
     today = today or date.today()
     order = schedule.ordered(stages)
     rank = {stage.id: index for index, stage in enumerate(order)}
@@ -36,6 +43,9 @@ def availability(goal: Goal, stages: list[GoalStage], steps: list[GoalStep], sta
 
     result: dict[int, dict] = {}
     for item in ordered_steps(stages, steps):
+        if not item.allow_late and item.due_date and item.due_date < today and status(item) in CLOSABLE:
+            result[int(item.id)] = {"locked": True, "reason": {"kind": "closed", "date": item.due_date.isoformat()}}  # type: ignore[arg-type]
+            continue
         if status(item) in DONE_STEP_STATUSES or status(item) in UNDER_WAY:
             result[int(item.id)] = {"locked": False, "reason": None}  # type: ignore[arg-type]
             continue
@@ -44,7 +54,7 @@ def availability(goal: Goal, stages: list[GoalStage], steps: list[GoalStep], sta
         if not reason and stage_rank is not None and current is not None and stage_rank > current:
             stage = order[stage_rank]
             reason = {"kind": "stage", "title": stage.title, "date": stage.start_date.isoformat() if stage.start_date else None}
-        if not reason and item.start_date and item.start_date > today:
+        if not reason and item.start_date and item.start_date > today and not item.open_early:
             reason = {"kind": "opens", "date": item.start_date.isoformat()}
         if not reason:
             for uuid in item.after_step_uuids or []:

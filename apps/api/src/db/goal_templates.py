@@ -22,8 +22,15 @@ class StageSchedule(SQLModel):
 
 
 class StepSchedule(SQLModel):
+    """One step's own dates on an assignment; without them it follows its stage (or the template's due week)."""
+
     step_key: str
+    start_date: date | None = None
     due_date: date | None = None
+    # With a start date: learners may still start it once its stage opens. Off locks it until the start date.
+    open_early: bool = True
+    # Off closes the step at its due date: learners who haven't handed it in can't any more.
+    allow_late: bool = True
 
 
 class AssignmentSchedule(SQLModel):
@@ -60,6 +67,19 @@ class GoalAssignmentUpdate(SQLModel):
     schedule: AssignmentSchedule | None = None
     # Replaces the staff: each person with a role of the template.
     collaborators: list[AssignmentCollaborator] | None = None
+
+
+class AssignmentScheduleSave(SQLModel):
+    """An assignment's whole schedule at once (services/goals/assignments.save_schedule).
+
+    Self-paced: no stage or step dates, and the end date is optional. On a schedule (any stage or step
+    date set) the end date is required.
+    """
+
+    start_date: date | None = None
+    due_date: date | None = None
+    stages: list[StageSchedule] = Field(default_factory=list)
+    steps: list[StepSchedule] = Field(default_factory=list)
 
 
 class StepDue(SQLModel):

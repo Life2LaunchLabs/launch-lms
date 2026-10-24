@@ -321,7 +321,8 @@ def _require_open(db: Session, goal: Goal, step: GoalStep) -> None:
     stages, steps, progress, _ = _structure(db, goal)
     lock = availability(goal, stages, steps, {key: _value(row.status) for key, row in progress.items()})[int(step.id)]  # type: ignore[arg-type]
     if lock["locked"]:
-        raise HTTPException(status_code=409, detail={"message": "This step isn't open yet", "reason": lock["reason"]})
+        closed = (lock["reason"] or {}).get("kind") == "closed"
+        raise HTTPException(status_code=409, detail={"message": "This step has closed" if closed else "This step isn't open yet", "reason": lock["reason"]})
 
 
 def _mark_started(db: Session, goal: Goal, step: GoalStep, user_id: int) -> None:
