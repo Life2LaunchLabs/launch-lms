@@ -101,6 +101,9 @@ def test_staff_and_students_talk_in_the_school_chat_and_mentions_wait_on_staff()
         chats.send(db, _user(LEARNER), opened["conversation_uuid"], "Hello?")
         everyone_rows = views.waiting(db, _user(ADMIN), 1, mine=False)["students"]
         assert [(row["student"]["username"], row["unread"]) for row in everyone_rows] == [("lee", 2)]
+        # A staff-only note about Lee doesn't answer Lee.
+        chats.send(db, _user(TEACHER), opened["conversation_uuid"], "Following up tomorrow", staff_only=True)
+        assert [row["unread"] for row in views.waiting(db, _user(ADMIN), 1, mine=False)["students"]] == [2]
         chats.send(db, _user(TEACHER), opened["conversation_uuid"], "Hi Lee")
         assert views.waiting(db, _user(ADMIN), 1, mine=False)["students"] == []
         with pytest.raises(HTTPException) as everyone:

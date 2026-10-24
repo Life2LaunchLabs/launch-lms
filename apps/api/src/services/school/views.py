@@ -14,7 +14,7 @@ from src.db.usergroup_user import UserGroupUser
 from src.db.usergroups import UserGroup
 from src.db.users import PublicUser, User
 from src.security.org_auth import is_org_admin
-from src.services.connect import chats, people
+from src.services.connect import chats, people, visibility
 from src.services.goals.sharing_roles import org_summary
 from src.services.school import chats as school_chats
 
@@ -76,8 +76,9 @@ def _reviews(db: Session, org_id: int, student_id: int, staff_id: int | None) ->
 
 
 def _unanswered(db: Session, conversation, student_id: int) -> int:
-    """For admins looking across staff: the student's messages since staff last wrote."""
-    recent = db.exec(select(ConversationMessage.sender_user_id).where(ConversationMessage.conversation_id == conversation.id, ConversationMessage.kind == "text")
+    """For admins looking across staff: the student's messages since staff last wrote to them (staff-only notes don't answer)."""
+    recent = db.exec(select(ConversationMessage.sender_user_id).where(ConversationMessage.conversation_id == conversation.id, ConversationMessage.kind == "text",
+                                                                      ConversationMessage.visibility == visibility.ALL)
                      .order_by(col(ConversationMessage.creation_date).desc(), col(ConversationMessage.id).desc()).limit(chats.PAGE)).all()
     count = 0
     for sender in recent:
